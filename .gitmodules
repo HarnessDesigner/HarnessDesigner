@@ -1,0 +1,15 @@
+[submodule "harness_designer/part_scrapers"]
+	path = harness_designer/part_scrapers
+	url = https://github.com/HarnessDesigner/part_scrapers
+[submodule "harness_designer/editor_2d"]
+	path = harness_designer/editor_2d
+	url = https://github.com/HarnessDesigner/editor_2d
+[submodule "harness_designer/editor_3d"]
+	path = harness_designer/editor_3d
+	url = https://github.com/HarnessDesigner/editor_3d
+[submodule "harness_designer/cavity_map_editor"]
+	path = harness_designer/cavity_map_editor
+	url = https://github.com/HarnessDesigner/cavity_map_editor
+[submodule "harness_designer/database"]
+	path = harness_designer/database
+	url = https://github.com/HarnessDesigner/database
