@@ -1,0 +1,46 @@
+from . import Signal
+
+
+class SIGNAL_TRANSITION_SELECTED(Signal):
+
+    def __init__(self, *, db_obj):
+        super().__init__(db_obj=db_obj)
+
+
+class SIGNAL_TRANSITION_MOVED(Signal):
+
+    def __init__(self, *, id: int, x: float | int, y: float | int,
+                 z: float | int | None):
+        super().__init__(id=id, x=x, y=y, z=z)
+
+
+class SIGNAL_TRANSITION_ANGLE_CHANGED(Signal):
+
+    def __init__(self, *, id: int, x_angle: float, y_angle: float,
+                 z_angle: float | None):
+        super().__init__(id=id, x_angle=x_angle, y_angle=y_angle, z_angle=z_angle)
+
+
+class SIGNAL_TRANSITION_NEW(Signal):
+
+    def __init__(self, *, id: int, x: float | int, y: float | int, z: float | int | None):
+        super().__init__(id=id, x=x, y=y, z=z)
+
+
+class SIGNAL_TRANSITION_ADDED(Signal):
+
+    def __init__(self, *, id: int, transition_id: int):
+        super().__init__(id=id, transition_id=transition_id)
+
+
+class SIGNAL_TRANSITION_LOADED(Signal):
+
+    def __init__(self, *, db_obj):
+        super().__init__(db_obj=db_obj)
+
+
+class SIGNAL_TRANSITION_REMOVED(Signal):
+
+    def __init__(self, *, id: int):
+        super().__init__(id=id)
+
