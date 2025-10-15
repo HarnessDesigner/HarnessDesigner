@@ -1,5 +1,5 @@
 import wx
-from wx.lib.agw import aui
+from wx import aui
 from . import editor as _editor
 
 
@@ -16,39 +16,33 @@ class Frame(wx.Frame):
         aui.AUI_MGR_LIVE_RESIZE
 
         self.manager = aui.AuiManager()
+        self.manager.SetManagedWindow(self)
 
-        self.manager.AddPane
-        self.manager.LoadPaneInfo
-        self.manager.LoadPerspective
-
-        self.manager.SavePaneInfo
-        self.manager.SavePerspective
-
-        self.manager.Update
+        # self.manager.AddPane
+        # self.manager.LoadPaneInfo
+        # self.manager.LoadPerspective
+        #
+        # self.manager.SavePaneInfo
+        # self.manager.SavePerspective
+        #
+        # self.manager.Update
 
         self.editor_notebook = aui.AuiNotebook(self, wx.ID_ANY,
-                                        agwStyle=aui.AUI_NB_TOP |
-                                                 aui.AUI_NB_TAB_MOVE |
-                                                 aui.AUI_NB_TAB_EXTERNAL_MOVE |
-                                                 aui.AUI_NB_DRAW_DND_TAB |
-                                                 aui.AUI_NB_TAB_FLOAT)
+                                               style=aui.AUI_NB_TAB_MOVE | aui.AUI_NB_TOP)
 
-        self.editor = _editor.Editor(self.editor_notebook)
+        from .. import editor_3d
+        from .. import editor_2d
 
-        self.editor_notebook.AddPage(self.editor, '3D View')
+        self.editor3d = editor_3d.Editor3D(self.editor_notebook)
 
-        self.schematic = _schematic.Schemaitc(self.editor_notebook)
-        self.editor_notebook.AddPage(self.schematic, 'Schematic View')
+        self.editor_notebook.AddPage(self.editor3d, '3D View')
+
+        self.editor2d = editor_2d.Editor2D(self.editor_notebook)
+        self.editor_notebook.AddPage(self.editor2d, 'Schematic View')
 
 
-        self.attributes_notebook = aui.AuiNotebook(self, wx.ID_ANY,
-                                        agwStyle=aui.AUI_NB_BOTTOM |
-                                                 aui.AUI_NB_TAB_MOVE |
-                                                 aui.AUI_NB_TAB_EXTERNAL_MOVE |
-                                                 aui.AUI_NB_DRAW_DND_TAB |
-                                                 aui.AUI_NB_TAB_FLOAT)
-
-        self.manager.SetManagedWindow(self)
+        self.attribute_notebook = aui.AuiNotebook(self, wx.ID_ANY,
+                                                   style=aui.AUI_NB_TAB_MOVE | aui.AUI_NB_BOTTOM)
 
         self.editor_pane = (
             aui.AuiPaneInfo()
@@ -69,83 +63,93 @@ class Frame(wx.Frame):
             .Show()
         )
 
-    WireAttrPanel
-    TransAttrPanel
-    TerminalAttrPanel
-    SpliceAttrPanel
-    HousingAttrPanel
-    ConnectorAttrPanel
-    BundleAttrPanel
-    CavityAttrPanel
-    MfgAttrPanel
-    BootAttrPanel
-    CoverAttrPanel
-    CPALockAttrPanel
-    TPALockAttrPanel
-    SealAttrPanel
+        self.manager.AddPane(self.editor_notebook, self.editor_pane)
+        self.attribute_pane = (
+            aui.AuiPaneInfo()
+            .Bottom()
+            .Floatable(True)
+            .Center()
+            .Gripper(True)
+            .Resizable(True)
+            .Movable(True)
+            .Name('attributes')
+            .CaptionVisible(True)
+            .PaneBorder(True)
+            .CloseButton(False)
+            .MaximizeButton(False)
+            .MinimizeButton(False)
+            .PinButton(False)
+            .DestroyOnClose(False)
+            .Caption('Part Attributes')
+            .Show()
+        )
 
+        self.manager.AddPane(self.attribute_notebook, self.attribute_pane)
 
-    CavityViewPanel
-    SchematicViewPanel
-    HTMLViewPanel
-    PythonViewPanel
+        self.editor2d_toolbar = aui.AuiToolBar(self)
 
+        self.editor2d_toolbar_pane = (
+            aui.AuiPaneInfo()
+            .Bottom()
+            .Floatable(True)
+            .Center()
+            .Gripper(True)
+            .Resizable(True)
+            .Movable(True)
+            .Name('editor2d_toolbar')
+            .CaptionVisible(False)
+            .PaneBorder(True)
+            .CloseButton(False)
+            .MaximizeButton(False)
+            .MinimizeButton(False)
+            .PinButton(False)
+            .DestroyOnClose(False)
+            .Show()
+            .ToolbarPane()
+        )
 
+        self.editor3d_toolbar = aui.AuiToolBar(self)
 
-    def AddTransAttrPage(self):
-        RemovePage
+        self.editor3d_toolbar_pane = (
+            aui.AuiPaneInfo()
+            .Bottom()
+            .Floatable(True)
+            .Top()
+            .Gripper(True)
+            .Resizable(True)
+            .Movable(True)
+            .Name('editor3d_toolbar')
+            .CaptionVisible(False)
+            .PaneBorder(True)
+            .CloseButton(False)
+            .MaximizeButton(False)
+            .MinimizeButton(False)
+            .PinButton(False)
+            .DestroyOnClose(False)
+            .Show()
+            .ToolbarPane()
+        )
 
-
-
-
-
-        .Caption()
-
-        AuiPaneInfo
-        Bottom()
-
-        Left()
-        Right()
-        Top()
-
-        CenterPane()
-        ToolbarPane()
-
-        Dockable()
-        Floatable()
-        Resizable()
-
-
-
-
-        Hide()
-        Show()
-        IsShown()
-
-
-
-        CloseButton()
-        MaximizeButton()
-        MinimizeButton()
-        PinButton()
-
-
-
-
-
-        aui.
-
-
-AuiNotebook
-
-
-
-
-
-
-AuiToolBar
-AuiToolBarItem
-
+    # WireAttrPanel
+    # TransAttrPanel
+    # TerminalAttrPanel
+    # SpliceAttrPanel
+    # HousingAttrPanel
+    # ConnectorAttrPanel
+    # BundleAttrPanel
+    # CavityAttrPanel
+    # MfgAttrPanel
+    # BootAttrPanel
+    # CoverAttrPanel
+    # CPALockAttrPanel
+    # TPALockAttrPanel
+    # SealAttrPanel
+    #
+    #
+    # CavityViewPanel
+    # SchematicViewPanel
+    # HTMLViewPanel
+    # PythonViewPanel
 
 
 class App(wx.App):

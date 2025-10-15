@@ -122,6 +122,24 @@ class Point(bases.SetAngleBase):
 
         return Point(x, y, z)
 
+    def __itruediv__(self, other: decimal) -> Self:
+        self._x /= other
+        self._y /= other
+        self._z /= other
+
+        self.__do_callbacks()
+
+        return self
+
+    def __truediv__(self, other: decimal) -> "Point":
+        x1, y1, z1 = tuple(self)
+
+        x = x1 / other
+        y = y1 / other
+        z = z1 / other
+
+        return Point(x, y, z)
+
     def set_x_angle(self, angle: decimal, origin: "Point") -> None:
         self._y, self.z = self._rotate_point((self._y, self._z), angle, (origin.y, origin.z))
 
