@@ -130,20 +130,7 @@ class Frame(wx.Frame):
             .ToolbarPane()
         )
 
-    # WireAttrPanel
-    # TransAttrPanel
-    # TerminalAttrPanel
-    # SpliceAttrPanel
-    # HousingAttrPanel
-    # ConnectorAttrPanel
-    # BundleAttrPanel
-    # CavityAttrPanel
-    # MfgAttrPanel
-    # BootAttrPanel
-    # CoverAttrPanel
-    # CPALockAttrPanel
-    # TPALockAttrPanel
-    # SealAttrPanel
+
     #
     #
     # CavityViewPanel
