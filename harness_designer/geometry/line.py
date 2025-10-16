@@ -3,18 +3,18 @@ import numpy as np
 import math
 
 from .. import bases
-from .point import Point
-from ..wrappers.decimal import Decimal as decimal
+from . import point as _point
+from ..wrappers.decimal import Decimal as _decimal
 
 
 class Line(bases.SetAngleBase, bases.GetAngleBase):
 
-    def __init__(self, p1: Point,
-                 p2: Point | None = None,
-                 length: decimal | None = None,
-                 x_angle: decimal | None = None,
-                 y_angle: decimal | None = None,
-                 z_angle: decimal | None = None):
+    def __init__(self, p1: _point.Point,
+                 p2: _point.Point | None = None,
+                 length: _decimal | None = None,
+                 x_angle: _decimal | None = None,
+                 y_angle: _decimal | None = None,
+                 z_angle: _decimal | None = None):
 
         self._p1 = p1
 
@@ -44,7 +44,7 @@ class Line(bases.SetAngleBase, bases.GetAngleBase):
 
             xyz = R @ v + np.array((float(p1.x), float(p1.y), float(p1.z)))
 
-            p2 = Point(decimal(xyz[0]), decimal(xyz[1]), decimal(xyz[2]))
+            p2 = _point.Point(_decimal(xyz[0]), _decimal(xyz[1]), _decimal(xyz[2]))
 
         self._p2 = p2
 
@@ -54,36 +54,36 @@ class Line(bases.SetAngleBase, bases.GetAngleBase):
         return Line(p1, p2)
 
     @property
-    def p1(self) -> Point:
+    def p1(self) -> _point.Point:
         return self._p1
 
     @property
-    def p2(self) -> Point:
+    def p2(self) -> _point.Point:
         return self.p2
 
     def __len__(self) -> int:
-        res = math.sqrt((self._p2.x - self._p1.x) ** decimal('2') +
-                        (self._p2.y - self._p1.y) ** decimal('2') +
-                        (self._p2.z - self._p1.z) ** decimal('2'))
+        res = math.sqrt((self._p2.x - self._p1.x) ** _decimal('2') +
+                        (self._p2.y - self._p1.y) ** _decimal('2') +
+                        (self._p2.z - self._p1.z) ** _decimal('2'))
 
         return int(round(res))
 
-    def length(self) -> decimal:
-        return math.sqrt((self._p2.x - self._p1.x) ** decimal(2) +
-                         (self._p2.y - self._p1.y) ** decimal(2) +
-                         (self._p2.z - self._p1.z) ** decimal(2))
+    def length(self) -> _decimal:
+        return math.sqrt((self._p2.x - self._p1.x) ** _decimal(2) +
+                         (self._p2.y - self._p1.y) ** _decimal(2) +
+                         (self._p2.z - self._p1.z) ** _decimal(2))
 
-    def get_x_angle(self) -> decimal:
+    def get_x_angle(self) -> _decimal:
         return self._get_angle((self._p1.z, self._p1.y), (self._p2.z, self._p2.y))
 
-    def get_y_angle(self) -> decimal:
+    def get_y_angle(self) -> _decimal:
         return self._get_angle((self._p1.x, self._p1.z), (self._p2.x, self._p2.z))
 
-    def get_z_angle(self) -> decimal:
+    def get_z_angle(self) -> _decimal:
         return self._get_angle((self._p1.x, self._p1.y), (self._p2.x, self._p2.y))
 
-    def set_angles(self, x_angle: decimal, y_angle: decimal, z_angle: decimal,
-                   origin: Point | None = None) -> None:
+    def set_angles(self, x_angle: _decimal, y_angle: _decimal, z_angle: _decimal,
+                   origin: _point.Point | None = None) -> None:
 
         if origin is None:
             origin = self.center
@@ -93,7 +93,7 @@ class Line(bases.SetAngleBase, bases.GetAngleBase):
             self.set_y_angle(y_angle, origin)
             self.set_z_angle(z_angle, origin)
 
-    def set_x_angle(self, angle: decimal, origin: Point | None = None) -> None:
+    def set_x_angle(self, angle: _decimal, origin: _point.Point | None = None) -> None:
         if origin is None:
             origin = self.center
 
@@ -105,7 +105,7 @@ class Line(bases.SetAngleBase, bases.GetAngleBase):
             self._p2.z, self._p2.y = self._rotate_point((self._p2.z, self._p2.y), angle, (origin.z, origin.y))
             self._p1.z, self._p1.y = self._rotate_point((self._p1.z, self._p1.y), angle, (origin.z, origin.y))
 
-    def set_y_angle(self, angle: decimal, origin: Point | None = None) -> None:
+    def set_y_angle(self, angle: _decimal, origin: _point.Point | None = None) -> None:
         if origin is None:
             origin = self.center
 
@@ -117,7 +117,7 @@ class Line(bases.SetAngleBase, bases.GetAngleBase):
             self._p2.x, self._p2.z = self._rotate_point((self._p2.x, self._p2.z), angle, (origin.x, origin.z))
             self._p1.x, self._p1.z = self._rotate_point((self._p1.x, self._p1.z), angle, (origin.x, origin.z))
 
-    def set_z_angle(self, angle: decimal, origin: Point | None = None) -> None:
+    def set_z_angle(self, angle: _decimal, origin: _point.Point | None = None) -> None:
         if origin is None:
             origin = self.center
 
@@ -130,13 +130,13 @@ class Line(bases.SetAngleBase, bases.GetAngleBase):
             self._p1.x, self._p1.y = self._rotate_point((self._p1.x, self._p1.y), angle, (origin.x, origin.y))
 
     @property
-    def center(self) -> Point:
-        return Point(
+    def center(self) -> _point.Point:
+        return _point.Point(
             self._p1.x + (self._p1.x - self._p2.x),
             self._p1.y + (self._p1.y - self._p2.y),
             self._p1.z + (self._p1.z - self._p2.z)
         )
 
-    def __iter__(self) -> _Iterable[Point]:
+    def __iter__(self) -> _Iterable[_point.Point]:
         yield self._p1
         yield self._p2

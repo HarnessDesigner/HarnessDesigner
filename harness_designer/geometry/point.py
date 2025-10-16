@@ -2,13 +2,62 @@ from typing import Self, Callable, Union
 import weakref
 
 from .. import bases
-from ..wrappers.decimal import Decimal as decimal
+from ..wrappers.decimal import Decimal as _decimal
 
 
 class Point(bases.SetAngleBase):
+    _instances = {}
 
-    def __init__(self, x: decimal, y: decimal, z: decimal,
+    def __new__(cls, x: _decimal, y: _decimal, z: _decimal,
+                project_id: int | None = None, point_id: int | None = None):
+
+        if project_id is not None and point_id is not None:
+            if (project_id, point_id) in cls._instances:
+                ref = cls._instances[(project_id, point_id)]
+                instance = ref()
+                if instance is not None:
+                    return instance
+
+                del cls._instances[(project_id, point_id)]
+
+        instance = super().__new__(cls, x, y, z, project_id, point_id)
+        if project_id is not None and point_id is not None:
+            cls._instances[(project_id, point_id)] = weakref.ref(instance, cls._remove_instance)
+
+        return instance
+
+    @property
+    def project_id(self):
+        return self._project_id
+
+    @property
+    def point_id(self):
+        return self._point_id
+
+    def add_to_db(self, project_id, point_id):
+        assert (project_id, point_id) not in self._instances, 'Sanity Check'
+
+        self._instances[(project_id, point_id)] = weakref.ref(self, self._remove_instance)
+
+    @classmethod
+    def _remove_instance(cls, ref):
+        for key, value in cls._instances.items():
+            if ref == value:
+                break
+        else:
+            return
+
+        del cls._instances[key]
+
+    def __init__(self, x: _decimal, y: _decimal, z: _decimal | None = None,
                  project_id: int | None = None, point_id: int | None = None):
+
+        self._project_id = project_id
+        self._point_id = point_id
+
+        if z is None:
+            z = _decimal(0.0)
+
         self._x = x
         self._y = y
         self._z = z
@@ -25,29 +74,29 @@ class Point(bases.SetAngleBase):
         self.__do_callbacks()
 
     @property
-    def x(self) -> decimal:
+    def x(self) -> _decimal:
         return self._x
 
     @x.setter
-    def x(self, value: decimal):
+    def x(self, value: _decimal):
         self._x = value
         self.__do_callbacks()
 
     @property
-    def y(self) -> decimal:
+    def y(self) -> _decimal:
         return self._y
 
     @y.setter
-    def y(self, value: decimal):
+    def y(self, value: _decimal):
         self._y = value
         self.__do_callbacks()
 
     @property
-    def z(self) -> decimal:
+    def z(self) -> _decimal:
         return self._z
 
     @z.setter
-    def z(self, value: decimal):
+    def z(self, value: _decimal):
         self._z = value
         self.__do_callbacks()
 
@@ -63,7 +112,7 @@ class Point(bases.SetAngleBase):
             if func is None:
                 self._callbacks.remove(ref)
             else:
-                func()
+                func(self)
 
     def __remove_cb(self, ref):
         try:
@@ -71,11 +120,18 @@ class Point(bases.SetAngleBase):
         except ValueError:
             pass
 
-    def Bind(self, cb: Callable[[None], None]) -> None:
-        ref = weakref.WeakMethod(cb, self.__remove_cb)
-        self._callbacks.append(ref)
+    def Bind(self, cb: Callable[["Point"], None]) -> None:
+        for ref in self._callbacks[:]:
+            func = ref()
+            if func is None:
+                self._callbacks.remove(ref)
+            elif func == cb:
+                break
+        else:
+            ref = weakref.WeakMethod(cb, self.__remove_cb)
+            self._callbacks.append(ref)
 
-    def Unbind(self, cb: Callable[[None], None]) -> None:
+    def Unbind(self, cb: Callable[["Point"], None]) -> None:
         for ref in self._callbacks[:]:
             func = ref()
             if func is None:
@@ -122,7 +178,7 @@ class Point(bases.SetAngleBase):
 
         return Point(x, y, z)
 
-    def __itruediv__(self, other: decimal) -> Self:
+    def __itruediv__(self, other: _decimal) -> Self:
         self._x /= other
         self._y /= other
         self._z /= other
@@ -131,7 +187,7 @@ class Point(bases.SetAngleBase):
 
         return self
 
-    def __truediv__(self, other: decimal) -> "Point":
+    def __truediv__(self, other: _decimal) -> "Point":
         x1, y1, z1 = tuple(self)
 
         x = x1 / other
@@ -140,16 +196,16 @@ class Point(bases.SetAngleBase):
 
         return Point(x, y, z)
 
-    def set_x_angle(self, angle: decimal, origin: "Point") -> None:
+    def set_x_angle(self, angle: _decimal, origin: "Point") -> None:
         self._y, self.z = self._rotate_point((self._y, self._z), angle, (origin.y, origin.z))
 
-    def set_y_angle(self, angle: decimal, origin: "Point") -> None:
+    def set_y_angle(self, angle: _decimal, origin: "Point") -> None:
         self._z, self.x = self._rotate_point((self._z, self._x), angle, (origin.z, origin.x))
 
-    def set_z_angle(self, angle: decimal, origin: "Point") -> None:
+    def set_z_angle(self, angle: _decimal, origin: "Point") -> None:
         self._x, self.y = self._rotate_point((self._x, self._y), angle, (origin.x, origin.y))
 
-    def set_angles(self, x_angle: decimal, y_angle: decimal, z_angle: decimal, origin: "Point") -> None:
+    def set_angles(self, x_angle: _decimal, y_angle: _decimal, z_angle: _decimal, origin: "Point") -> None:
         self._y, self._z = self._rotate_point((self._y, self._z), x_angle, (origin.y, origin.z))
         self._z, self._x = self._rotate_point((self._z, self._x), y_angle, (origin.z, origin.x))
         self._x, self._y = self._rotate_point((self._x, self._y), z_angle, (origin.x, origin.y))
