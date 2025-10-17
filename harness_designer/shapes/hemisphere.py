@@ -11,6 +11,23 @@ from ..wrappers import color as _color
 from .. import bases as _bases
 
 
+# How this works is the hemisphere is created at point 0, 0, 0 and when applying
+# rotation it needs to be done 2 times. The first time is to adjust a transition angle
+# as a whole This simply sets the center point location the origin for this rotation
+# is going to be the center point of the transition. The second time the rotation
+# gets fed in is what sets the hemisphere rotation relative to it's senter point.
+# this one the center point of the hemisphere is what gets passed in for the origin
+# setting the angle of the hemisphere like this allows for positioning of the hemisphere
+# to meet with the body cylinder and the branch cylinders proeprly.
+# I still have to monkey around with doing angle calculations for branges that are
+# not 90° to the transition center point. It should be as simple as angle + 90 for the
+# calculation because we are always building the transition at 0, 0, 0 and then setting
+# any transition rotation and then moving the transition into place. This all occurs in
+# numpy arrays and it's not rendered for each step. The reason why it is important to
+# utilize these hemispheres is because it reduces the poly count that matplotlib needs
+# to render this allows me to bump up the number of polygons on other objects to give
+# a smoother appearance.  
+
 class Hemisphere(_bases.GetAngleBase, _bases.SetAngleBase):
 
     def __init__(self, point: _point.Point, diameter: _decimal, color: _color.Color, hole_diameter: _decimal | None):
