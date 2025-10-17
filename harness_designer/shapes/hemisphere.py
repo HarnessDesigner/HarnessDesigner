@@ -26,7 +26,7 @@ from .. import bases as _bases
 # numpy arrays and it's not rendered for each step. The reason why it is important to
 # utilize these hemispheres is because it reduces the poly count that matplotlib needs
 # to render this allows me to bump up the number of polygons on other objects to give
-# a smoother appearance.  
+# a smoother appearance.
 
 class Hemisphere(_bases.GetAngleBase, _bases.SetAngleBase):
 

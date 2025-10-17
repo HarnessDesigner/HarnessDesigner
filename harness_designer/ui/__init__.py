@@ -1,19 +1,34 @@
+from typing import TYPE_CHECKING
+
 import wx
 from wx import aui
 from . import editor as _editor
 
+if TYPE_CHECKING:
 
-class Frame(wx.Frame):
+    from ..database.db_connectors import SQLConnector as _SQLConnector
+    from ..database import global_db as _global_db
+    from ..database import project_db as _project_db
+
+
+class MainFrame(wx.Frame):
+    db_connector: "_SQLConnector" = None
+
+    global_db: "_global_db.GlobalDB" = None
+    project: "_project_db.Project" = None
 
     def __init__(self):
         wx.Frame.__init__(self, wx.ID_ANY, title='Harness Designer')
+        self.db_connector = None
+        self.global_db = None
+        self.project = None
 
-        aui.AUI_MGR_ALLOW_FLOATING
-        aui.AUI_MGR_ALLOW_ACTIVE_PANE
-        aui.AUI_MGR_TRANSPARENT_DRAG
-        aui.AUI_MGR_TRANSPARENT_HINT
-        aui.AUI_MGR_HINT_FADE
-        aui.AUI_MGR_LIVE_RESIZE
+        # aui.AUI_MGR_ALLOW_FLOATING
+        # aui.AUI_MGR_ALLOW_ACTIVE_PANE
+        # aui.AUI_MGR_TRANSPARENT_DRAG
+        # aui.AUI_MGR_TRANSPARENT_HINT
+        # aui.AUI_MGR_HINT_FADE
+        # aui.AUI_MGR_LIVE_RESIZE
 
         self.manager = aui.AuiManager()
         self.manager.SetManagedWindow(self)
@@ -40,9 +55,8 @@ class Frame(wx.Frame):
         self.editor2d = editor_2d.Editor2D(self.editor_notebook)
         self.editor_notebook.AddPage(self.editor2d, 'Schematic View')
 
-
         self.attribute_notebook = aui.AuiNotebook(self, wx.ID_ANY,
-                                                   style=aui.AUI_NB_TAB_MOVE | aui.AUI_NB_BOTTOM)
+                                                  style=aui.AUI_NB_TAB_MOVE | aui.AUI_NB_BOTTOM)
 
         self.editor_pane = (
             aui.AuiPaneInfo()
@@ -130,6 +144,22 @@ class Frame(wx.Frame):
             .ToolbarPane()
         )
 
+    def Show(self, flag=True):
+        wx.Frame.Show(flag)
+
+        def _do():
+            from ..database.db_connectors import SQLConnector
+            self.db_connector = SQLConnector(self)
+
+            from ..database import global_db
+            from ..database import project_db
+
+            self.global_db = global_db.GlobalDB(self)
+            self.project = project_db.Project(self)
+
+            self.project.select_project()
+
+        wx.CallAfter(_do())
 
     #
     #
