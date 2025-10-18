@@ -2,10 +2,9 @@ from typing import TYPE_CHECKING
 
 import wx
 from wx import aui
-from . import editor as _editor
+
 
 if TYPE_CHECKING:
-
     from ..database.db_connectors import SQLConnector as _SQLConnector
     from ..database import global_db as _global_db
     from ..database import project_db as _project_db
@@ -18,7 +17,7 @@ class MainFrame(wx.Frame):
     project: "_project_db.Project" = None
 
     def __init__(self):
-        wx.Frame.__init__(self, wx.ID_ANY, title='Harness Designer')
+        wx.Frame.__init__(self, None, wx.ID_ANY, title='Harness Designer')
         self.db_connector = None
         self.global_db = None
         self.project = None
@@ -145,7 +144,7 @@ class MainFrame(wx.Frame):
         )
 
     def Show(self, flag=True):
-        wx.Frame.Show(flag)
+        wx.Frame.Show(self, flag)
 
         def _do():
             from ..database.db_connectors import SQLConnector
@@ -167,15 +166,3 @@ class MainFrame(wx.Frame):
     # SchematicViewPanel
     # HTMLViewPanel
     # PythonViewPanel
-
-
-class App(wx.App):
-    def OnInit(self):
-        frame = Frame()
-        frame.Show()
-        return True
-
-
-if __name__ == "__main__":
-    app = App()
-    app.MainLoop()
