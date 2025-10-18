@@ -1,6 +1,6 @@
 import wx
 
-from ....gui_controls import auto_complete
+from ..widgets import auto_complete
 
 
 class OpenProjectDialog(wx.Dialog):
