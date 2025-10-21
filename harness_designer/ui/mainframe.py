@@ -1,12 +1,13 @@
 from typing import TYPE_CHECKING
 
 import wx
-from wx import aui
+from wx.lib.agw import aui
+from ..widgets import aui_toolbar
 
 from .. import config as _config
 
 
-class Config(_config.Config):
+class Config(metaclass=_config.Config):
     position = (0, 0)
     size = (1024, 768)
 
@@ -29,19 +30,18 @@ class MainFrame(wx.Frame):
 
         self.Bind(wx.EVT_MOVE, self.on_move)
         self.Bind(wx.EVT_SIZE, self.on_size)
+        self.Bind(wx.EVT_CLOSE, self.on_close)
 
         self.db_connector = None
         self.global_db = None
         self.project = None
 
-        # aui.AUI_MGR_ALLOW_FLOATING
-        # aui.AUI_MGR_ALLOW_ACTIVE_PANE
-        # aui.AUI_MGR_TRANSPARENT_DRAG
-        # aui.AUI_MGR_TRANSPARENT_HINT
-        # aui.AUI_MGR_HINT_FADE
-        # aui.AUI_MGR_LIVE_RESIZE
-
-        self.manager = aui.AuiManager()
+        self.manager = aui.AuiManager(agwFlags=aui.AUI_MGR_ALLOW_FLOATING |
+                                      aui.AUI_MGR_ALLOW_ACTIVE_PANE |
+                                      aui.AUI_MGR_TRANSPARENT_DRAG |
+                                      aui.AUI_MGR_TRANSPARENT_HINT |
+                                      aui.AUI_MGR_HINT_FADE |
+                                      aui.AUI_MGR_LIVE_RESIZE)
         self.manager.SetManagedWindow(self)
 
         # self.manager.AddPane
@@ -73,7 +73,6 @@ class MainFrame(wx.Frame):
             aui.AuiPaneInfo()
             .CenterPane()
             .Floatable(False)
-            .Center()
             .Gripper(True)
             .Resizable(True)
             .Movable(True)
@@ -91,9 +90,8 @@ class MainFrame(wx.Frame):
         self.manager.AddPane(self.editor_notebook, self.editor_pane)
         self.attribute_pane = (
             aui.AuiPaneInfo()
-            .Bottom()
             .Floatable(True)
-            .Center()
+            .Bottom()
             .Gripper(True)
             .Resizable(True)
             .Movable(True)
@@ -111,13 +109,14 @@ class MainFrame(wx.Frame):
 
         self.manager.AddPane(self.attribute_notebook, self.attribute_pane)
 
-        self.editor2d_toolbar = aui.AuiToolBar(self)
+        from .. import image as _image
 
+        self.editor2d_toolbar = aui_toolbar.AuiToolBar(self, style=aui.AUI_TB_GRIPPER | aui.AUI_TB_TEXT)
+        self.editor2d_toolbar.Realize()
         self.editor2d_toolbar_pane = (
             aui.AuiPaneInfo()
             .Bottom()
             .Floatable(True)
-            .Center()
             .Gripper(True)
             .Resizable(True)
             .Movable(True)
@@ -132,28 +131,26 @@ class MainFrame(wx.Frame):
             .Show()
             .ToolbarPane()
         )
+        self.manager.AddPane(self.editor2d_toolbar, self.editor2d_toolbar_pane)
 
-        self.editor3d_toolbar = aui.AuiToolBar(self)
 
-        self.editor3d_toolbar_pane = (
-            aui.AuiPaneInfo()
-            .Bottom()
-            .Floatable(True)
-            .Top()
-            .Gripper(True)
-            .Resizable(True)
-            .Movable(True)
-            .Name('editor3d_toolbar')
-            .CaptionVisible(False)
-            .PaneBorder(True)
-            .CloseButton(False)
-            .MaximizeButton(False)
-            .MinimizeButton(False)
-            .PinButton(False)
-            .DestroyOnClose(False)
-            .Show()
-            .ToolbarPane()
-        )
+
+        self.manager.Update()
+
+    def on_3d_editor_button(self, evt):
+        id = evt.GetId()
+
+        for button in self.buttons:
+            if button.GetId() != id:
+                button.SetValue(False)
+
+        evt.Skip()
+
+    def on_close(self, _):
+        self.manager.UnInit()
+        self.editor3d.Destroy()
+        self.editor2d.Destroy()
+        self.Destroy()
 
     def on_size(self, evt: wx.SizeEvent):
         w, h = evt.GetSize()
@@ -164,8 +161,6 @@ class MainFrame(wx.Frame):
         x, y = evt.GetPosition()
         Config.position = (x, y)
         evt.Skip()
-
-
 
     def Show(self, flag=True):
         wx.Frame.Show(self, flag)

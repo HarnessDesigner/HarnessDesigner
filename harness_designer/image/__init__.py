@@ -18,7 +18,7 @@ class Image:
 
     @property
     def png_data(self):
-        if self.png_data is not None:
+        if self._png_data is not None:
             return self._png_data
 
         with open(self._path, 'rb') as f:
@@ -26,7 +26,13 @@ class Image:
 
     @property
     def bitmap(self) -> wx.Bitmap:
-        return
+        return wx.Bitmap.FromPNGData(self.png_data)
+
+    @property
+    def disabled_bitmap(self) -> wx.Bitmap:
+        bmp = wx.Bitmap.FromPNGData(self.png_data)
+        bmp.ConvertToDisabled()
+        return bmp
 
     @property
     def image(self) -> wx.Image:
@@ -98,22 +104,23 @@ class Image:
 class ImageLoader:
 
     def __init__(self, path):
-        if path == BASE_PATH:
-            mod = sys.modules[__name__]
+        mod = sys.modules[__name__]
 
-            self.__name__ = __name__
-            self.__file__ = mod.__file__
-            self.__package__ = mod.__package__
-            self.__doc__ = mod.__doc__
-            self.__loader__ = mod.__loader__
-            self.__spec__ = mod.__spec__
-            self.__path__ = mod.__path__
-            self.___cached__ = mod.__cached__
-            self.__original_module__ = mod
+        if path == BASE_PATH:
+            self.__dict__['__name__'] = __name__
+            self.__dict__['__file__'] = mod.__file__
+            self.__dict__['__package__'] = mod.__package__
+            self.__dict__['__doc__'] = mod.__doc__
+            self.__dict__['__loader__'] = mod.__loader__
+            self.__dict__['__spec__'] = mod.__spec__
+            self.__dict__['__path__'] = mod.__path__
+            self.__dict__['___cached__'] = mod.__cached__
 
             sys.modules[__name__] = self
         else:
             self.__name__ = os.path.split(path)[-1]
+
+        self.__dict__['__original_module__'] = mod
 
         self.__base_path__ = path
 
@@ -166,3 +173,12 @@ if TYPE_CHECKING:
         pencil: Image = ...
         settings: Image = ...
         square: Image = ...
+        bundle_cover: Image = ...
+        connector: Image = ...
+        cpa_lock: Image = ...
+        seal: Image = ...
+        splice: Image = ...
+        terminal: Image = ...
+        tpa_lock: Image = ...
+        transition: Image = ...
+        wire: Image = ...

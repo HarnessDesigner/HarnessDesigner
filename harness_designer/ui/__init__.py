@@ -1,3 +1,3 @@
 from . import mainframe as _mainframe
 
-Mainframe = _mainframe.MainFrame
+MainFrame = _mainframe.MainFrame

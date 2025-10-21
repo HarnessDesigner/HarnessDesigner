@@ -45,15 +45,18 @@ def pil_image_2_wx_image(img: Image.Image) -> wx.Image:
 
 def wx_image_2_pil_image(wx_img: wx.Image) -> Image.Image:
     rgb_data = bytes(wx_img.GetDataBuffer())
-    alpha_data = bytes(wx_img.GetAlphaBuffer())
-    alpha_img = Image.new('L', (wx_img.GetWidth(), wx_img.GetHeight()))
-    alpha_img.frombytes(alpha_data)
+    alpha_data = wx_img.GetAlphaBuffer()
+    if alpha_data is not None:
+        alpha_img = Image.new('L', (wx_img.GetWidth(), wx_img.GetHeight()))
+        alpha_img.frombytes(bytes(alpha_data))
 
     img = Image.new('RGB', (wx_img.GetWidth(), wx_img.GetHeight()))
     img.frombytes(rgb_data)
     img = img.convert('RGBA')
-    img.putalpha(alpha_img)
-    alpha_img.close()
+    if alpha_data is not None:
+        img.putalpha(alpha_img)
+        alpha_img.close()
+
     return img
 
 

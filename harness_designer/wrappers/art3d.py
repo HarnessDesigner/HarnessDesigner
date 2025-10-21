@@ -1,3 +1,5 @@
+from typing import TYPE_CHECKING
+
 from mpl_toolkits.mplot3d import art3d
 
 
@@ -59,3 +61,8 @@ class Poly3DCollection(art3d.Poly3DCollection):
 
 
 setattr(art3d, 'Poly3DCollection', Poly3DCollection)
+
+if TYPE_CHECKING:
+    art3d.Line3D = Line3D
+    art3d.Path3DCollection = Path3DCollection
+    art3d.Poly3DCollection = Poly3DCollection
