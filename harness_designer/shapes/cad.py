@@ -156,9 +156,13 @@ class CAD(bases.SetAngleBase, bases.GetAngleBase, bases.ContextBase):
         self.artist = art3d.Poly3DCollection(self._vect, facecolors=self._color.matplotlib,
                                              shade=self._shade, linewidth=0.001,
                                              antialiaseds=False)
-        self.artist.set_py_data(self)
-
         axes.add_collection3d(self.artist)
+
+    def set_py_data(self, py_data):
+        if not self.is_added:
+            raise ValueError('sanity check')
+
+        self.artist.set_py_data(py_data)
 
     @property
     def is_added(self) -> bool:

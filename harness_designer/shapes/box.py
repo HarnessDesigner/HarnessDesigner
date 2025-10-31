@@ -71,7 +71,7 @@ class Box(bases.SetAngleBase, bases.GetAngleBase, bases.ContextBase):
 
     @center.setter
     def center(self, value: _point.Point):
-        self._center.UnBind(self._update_artist)
+        self._center.Unbind(self._update_artist)
 
         for corner in (
             self._corner1, self._corner2, self._corner3, self._corner4,

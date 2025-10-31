@@ -2,7 +2,6 @@
 from typing import TYPE_CHECKING, Iterator as _Iterator
 import wx
 
-from ..database import project_db
 from ..config import Config as _Config
 
 if TYPE_CHECKING:
@@ -25,12 +24,15 @@ class Config(metaclass=_Config):
 
 class Project:
 
-    def __init__(self, mainframe: "_ui.MainFrame" ):
+    def __init__(self, mainframe: "_ui.MainFrame"):
         self.mainframe = mainframe
         self.gtables = mainframe.global_db
         self.connector = mainframe.db_connector
         self.project_id = None
         self.project_name = ''
+
+        from ..database import project_db
+
         self.ptables = project_db.PJTTables(self.mainframe)
 
     def select_project(self):
@@ -63,6 +65,7 @@ class Project:
             self.connector.commit()
             self.project_id = self.connector.lastrowid
 
+        self.mainframe.obj_count = self.ptables.projects_table.get_object_count(self.project_id)
         self.ptables.load(self.project_id)
 
         return True

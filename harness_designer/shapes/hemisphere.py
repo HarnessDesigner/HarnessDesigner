@@ -102,8 +102,12 @@ class Hemisphere(_bases.GetAngleBase, _bases.SetAngleBase):
         self._center += point
 
     def set_angles(self, x_angle: _decimal, y_angle: _decimal, z_angle: _decimal, origin: _point.Point):
+        x_diff = x_angle - self._x_angle
+        y_diff = y_angle - self._y_angle
+        z_diff = z_angle - self._z_angle
+
         if origin != self.center:
-            self._center.set_angles(x_angle, y_angle, z_angle, origin)
+            self._center.set_angles(x_diff, y_diff, z_diff, origin)
             return
 
         self._x_angle = x_angle
@@ -225,3 +229,10 @@ class Hemisphere(_bases.GetAngleBase, _bases.SetAngleBase):
 
         x, y, z = self._get_verts()
         self.artist = axes.plot_surface(x, y, z, color=self._color.matplotlib)
+
+    def set_py_data(self, py_data):
+        if not self.is_added:
+            raise ValueError('sanity check')
+
+        self.artist.set_py_data(py_data)
+

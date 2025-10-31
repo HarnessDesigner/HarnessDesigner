@@ -38,7 +38,7 @@ class Cylinder(bases.GetAngleBase, bases.SetAngleBase):
 
     @p1.setter
     def p1(self, value: _point.Point):
-        self._p1.UnBind(self._update_artist)
+        self._p1.Unbind(self._update_artist)
         self._p1 = value
         value.Bind(self._update_artist)
         self._update_artist()
@@ -49,7 +49,7 @@ class Cylinder(bases.GetAngleBase, bases.SetAngleBase):
 
     @p2.setter
     def p2(self, value: _point.Point):
-        self._p2.UnBind(self._update_artist)
+        self._p2.Unbind(self._update_artist)
         self._p2 = value
         value.Bind(self._update_artist)
         self._update_artist()
@@ -240,7 +240,6 @@ class Cylinder(bases.GetAngleBase, bases.SetAngleBase):
 
         self.artist = art3d.Poly3DCollection(verts, facecolor=colors, shade=False, antialiased=False, lw=0.1, alpha=1.0)
         axes.add_collection3d(self.artist)
-        self.artist.set_py_data(self)
 
     def _get_angles(self, point1: _point.Point, point2: _point.Point) -> tuple[_decimal, _decimal, _decimal]:
         z_angle = self._get_angle((point1.x, point1.y), (point2.x, point2.y))
@@ -248,3 +247,9 @@ class Cylinder(bases.GetAngleBase, bases.SetAngleBase):
         x_angle = self._get_angle((point1.z, point1.y), (point2.z, point2.y))
 
         return x_angle, y_angle, z_angle
+
+    def set_py_data(self, py_data):
+        if not self.is_added:
+            raise ValueError('sanity check')
+
+        self.artist.set_py_data(py_data)

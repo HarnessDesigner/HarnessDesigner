@@ -11,7 +11,8 @@ from ..wrappers import color as _color
 
 class Sphere:
 
-    def __init__(self, point: _point.Point, diameter: decimal, color: _color.Color):
+    def __init__(self, parent, point: _point.Point, diameter: decimal, color: _color.Color):
+        self.parent = parent
         self._center = point
         self._diameter = diameter
         self._color = color
@@ -37,7 +38,7 @@ class Sphere:
 
     @center.setter
     def center(self, value: _point.Point):
-        self._center.UnBind(self._update_artist)
+        self._center.Unbind(self._update_artist)
         self._center = value
         value.Bind(self._update_artist)
         self._update_artist()
@@ -56,26 +57,26 @@ class Sphere:
         return self.artist is not None
 
     def move(self, point: _point.Point) -> None:
-        self._point += point
+        self._center += point
 
     def rotate(self, x_angle: decimal, y_angle: decimal, z_angle: decimal, origin: _point.Point):
-        self._point.rotate(x_angle, y_angle, z_angle, origin)
+        self._center.set_angles(x_angle, y_angle, z_angle, origin)
 
     def rotate_x(self, angle: decimal, origin: _point.Point) -> None:
-        self._point.rotate_x(angle, origin)
+        self._center.set_x_angle(angle, origin)
 
     def rotate_y(self, angle: decimal, origin: _point.Point) -> None:
-        self._point.rotate_y(angle, origin)
+        self._center.set_y_angle(angle, origin)
 
     def rotate_z(self, angle: decimal, origin: _point.Point) -> None:
-        self._point.rotate_z(angle, origin)
+        self._center.set_z_angle(angle, origin)
 
     def _update_artist(self) -> None:
         if not self.is_added:
             return
 
         diameter = float(self._diameter)
-        px, py, pz = self._point.as_float
+        px, py, pz = self._center.as_float()
 
         u = np.linspace(0, 2 * np.pi, 16)
         v = np.linspace(0, np.pi, 16)
@@ -135,7 +136,7 @@ class Sphere:
             return
 
         diameter = float(self._diameter)
-        px, py, pz = self._point.as_float
+        px, py, pz = self._center.as_float()
 
         u = np.linspace(0, 2 * np.pi, 16)
         v = np.linspace(0, np.pi, 16)
@@ -144,6 +145,12 @@ class Sphere:
         z = (diameter * np.outer(np.ones(np.size(u)), np.cos(v))) + pz
 
         self.artist = axes.plot_surface(x, y, z, color=self._color.matplotlib)
+
+    def set_py_data(self, py_data):
+        if not self.is_added:
+            raise ValueError('sanity check')
+
+        self.artist.set_py_data(py_data)
 
 
 import matplotlib
@@ -313,3 +320,9 @@ class Sphere(_bases.SetAngleBase):
 
         x, y, z = self._get_verts()
         self.artist = axes.plot_surface(x, y, z, color=self._color.matplotlib)
+
+    def set_py_data(self, py_data):
+        if not self.is_added:
+            raise ValueError('sanity check')
+
+        self.artist.set_py_data(py_data)

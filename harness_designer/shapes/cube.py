@@ -60,7 +60,7 @@ class Cube(bases.SetAngleBase, bases.GetAngleBase, bases.ContextBase):
 
     @center.setter
     def center(self, value: _point.Point):
-        self._center.UnBind(self._update_artist)
+        self._center.Unbind(self._update_artist)
 
         diff = value - self._center
 
@@ -114,9 +114,13 @@ class Cube(bases.SetAngleBase, bases.GetAngleBase, bases.ContextBase):
         verts = [[tuple(v) for v in vert] for vert in self.verts]
         self.artist = art3d.Poly3DCollection(verts, facecolors=self._color.matplotlib,
                                              edgecolor=self._edge_color.matplotlib, linewidths=1)
-
-        self.artist.set_py_data(self)
         axes.add_collection3d(self.artist)
+
+    def set_py_data(self, py_data):
+        if not self.is_added:
+            raise ValueError('sanity check')
+
+        self.artist.set_py_data(py_data)
 
     @property
     def is_added(self) -> bool:
