@@ -1,5 +1,5 @@
 import wx
-from .wxreal_point import RealPoint
+from ..geometry import point as _point
 
 
 class KeyEvent(wx.KeyEvent):
@@ -9,28 +9,34 @@ class KeyEvent(wx.KeyEvent):
         self._pos3d = None
         self._pos2d = None
         self._artist = None
+        self._unicode_key = None
+        self._m_event = None
+
+    def SetMatplotlibEvent(self, event):
+        self._m_event = event
+
+    def GetMatplotlibEvent(self):
+        return self._m_event
+
+    def GetUnicodeKey(self):
+        return self._unicode_key
+
+    def SetUnicodeKey(self, char):
+        self._unicode_key = char
 
     def SetPosition(self, pt: tuple[int, int] | wx.Point):
         if isinstance(pt, tuple):
-            try:
-                pt = wx.Point(*[int(item) for item in pt])
-            except TypeError:
-                print(pt)
-                raise
+            pt = wx.Point(*[int(item) for item in pt])
 
         self._pos2d = pt
 
     def GetPosition(self) -> wx.Point:
         return self._pos2d
 
-    def GetPosition3D(self) -> RealPoint:
+    def GetPosition3D(self) -> _point.Point:
         return self._pos3d
 
-    def SetPosition3D(self, pt: RealPoint | tuple | list):
-        if isinstance(pt, (tuple, list)):
-            x, y, z = pt
-            pt = RealPoint(x, y, z=z)
-
+    def SetPosition3D(self, pt: _point.Point):
         self._pos3d = pt
 
     def SetArtist(self, artist):

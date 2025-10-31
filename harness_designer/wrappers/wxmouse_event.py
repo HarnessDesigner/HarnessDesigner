@@ -1,5 +1,5 @@
 import wx
-from .wxreal_point import RealPoint
+from ..geometry import point as _point
 
 
 class MouseEvent(wx.MouseEvent):
@@ -13,39 +13,42 @@ class MouseEvent(wx.MouseEvent):
         self._raw_key_flags = None
         self._pos3d = None
         self._artist = None
+        self._m_event = None
 
-    def SetUnicodeKey(self, key: None | bytes):
+    def SetMatplotlibEvent(self, event):
+        self._m_event = event
+
+    def GetMatplotlibEvent(self):
+        return self._m_event
+
+    def SetUnicodeKey(self, key):
         self._u_key = key
 
-    def GetUnicodeKey(self) -> None | bytes:
+    def GetUnicodeKey(self):
         return self._u_key
 
-    def SetKeyCode(self, key_code: None | int):
+    def SetKeyCode(self, key_code):
         self._key_code = key_code
 
-    def GetKeyCode(self) -> None | int:
+    def GetKeyCode(self):
         return self._key_code
 
-    def SetRawKeyCode(self, key_code: None | int):
+    def SetRawKeyCode(self, key_code):
         self._raw_key_code = key_code
 
-    def GetRawKeyCode(self) -> None | int:
+    def GetRawKeyCode(self):
         return self._raw_key_code
 
-    def SetRawKeyFlags(self, flags: None | int):
+    def SetRawKeyFlags(self, flags):
         self._raw_key_flags = flags
 
-    def GetRawKeyFlags(self) -> None | int:
+    def GetRawKeyFlags(self):
         return self._raw_key_flags
 
-    def GetPosition3D(self) -> RealPoint:
+    def GetPosition3D(self) -> _point.Point:
         return self._pos3d
 
-    def SetPosition3D(self, pt: RealPoint | tuple | list):
-        if isinstance(pt, (tuple, list)):
-            x, y, z = pt
-            pt = RealPoint(x, y, z=z)
-
+    def SetPosition3D(self, pt: _point.Point):
         self._pos3d = pt
 
     def SetArtist(self, artist):
@@ -65,7 +68,7 @@ class MouseEvent(wx.MouseEvent):
             f'left_down={self.LeftDown()}',
             f'left_dclick={self.LeftDClick()}',
             f'left_is_down={self.LeftIsDown()}',
-            f'roght_down={self.RightDown()}',
+            f'right_down={self.RightDown()}',
             f'right_dclick={self.RightDClick()}',
             f'right_is_down={self.RightIsDown()}',
             f'alt_down={self.AltDown()}',
