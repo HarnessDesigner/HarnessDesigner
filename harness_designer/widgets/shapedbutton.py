@@ -6,7 +6,7 @@ import os
 folder = os.path.split(__file__)[0]
 
 # Import Some Stuff For The Annoying Ellipsis... ;-)
-from math import sin, cos, pi
+from math import sin, cos, pi  # NOQA
 
 
 def opj(path):
@@ -126,7 +126,7 @@ class SButton(wx.Window):
         width = 12 + w
 
         if usemin and width < defsize.width:
-           width = defsize.width
+            width = defsize.width
 
         height = 11 + h
 
@@ -166,7 +166,7 @@ class SButton(wx.Window):
             self._focusindpen = wx.Pen(textclr, 1)
         else:
             self._focusindpen = wx.Pen(textclr, 1, wx.USER_DASH)
-            self._focusindpen.SetDashes([1,1])
+            self._focusindpen.SetDashes([1, 1])
             self._focusindpen.SetCap(wx.CAP_BUTT)
 
     def SetDefault(self):
@@ -281,8 +281,8 @@ class SButton(wx.Window):
         else:
             xc, yc = (width//2, height//2)
 
-            xp = xc - (tw//2)* cos(angle) - (th//2)*sin(angle)
-            yp = yc + (tw//2)*sin(angle) - (th//2)*cos(angle)
+            xp = xc - (tw//2) * cos(angle) - (th//2) * sin(angle)
+            yp = yc + (tw//2) * sin(angle) - (th//2) * cos(angle)
 
             dc.DrawRotatedText(label, int(xp + dw), int(yp + dh), angle*180/pi)
 
@@ -361,7 +361,7 @@ class SButton(wx.Window):
 
         x, y = (event.GetX(), event.GetY())
 
-        if self.IsOutside(x,y):
+        if self.IsOutside(x, y):
             return
 
         self._isup = False
@@ -400,7 +400,7 @@ class SButton(wx.Window):
                 self.Refresh()
                 return
 
-            if not self._isup and self.IsOutside(x,y):
+            if not self._isup and self.IsOutside(x, y):
                 self._isup = True
                 self.Refresh()
                 return
@@ -443,11 +443,11 @@ class SButton(wx.Window):
         event.Skip()
 
     def MakePalette(self, tr, tg, tb):
-        l = []
+        p = []
         for i in range(255):
-            l.extend([tr*i // 255, tg*i // 255, tb*i // 255])
+            p.extend([tr*i // 255, tg*i // 255, tb*i // 255])
 
-        return l
+        return p
 
     def ConvertWXToPIL(self, bmp):
         width = bmp.GetWidth()
@@ -628,7 +628,7 @@ class SBitmapTextButton(SBitmapButton):
 
         if bmp is not None:
             if rotangle < 1.0/180.0:
-                dc.DrawBitmap(bmp, pos_x, (height - bh)//2 + dh, hasMask) # draw bitmap if available
+                dc.DrawBitmap(bmp, pos_x, (height - bh)//2 + dh, hasMask)  # draw bitmap if available
                 pos_x = pos_x + 4   # extra spacing from bitmap
             else:
                 pass
@@ -637,9 +637,9 @@ class SBitmapTextButton(SBitmapButton):
             dc.DrawText(label, pos_x + dw + bw, (height-th)//2+dh)      # draw the text
         else:
             xc, yc = (width//2, height//2)
-            xp = xc - (tw//2)* cos(rotangle) - (th//2)*sin(rotangle)
-            yp = yc + (tw//2)*sin(rotangle) - (th//2)*cos(rotangle)
-            dc.DrawRotatedText(label, xp, yp , rotangle*180.0/pi)
+            xp = xc - (tw//2) * cos(rotangle) - (th//2) * sin(rotangle)
+            yp = yc + (tw//2) * sin(rotangle) - (th//2) * cos(rotangle)
+            dc.DrawRotatedText(label, xp, yp, rotangle*180.0/pi)
 
 
 class __SToggleMixin(object):
@@ -660,7 +660,7 @@ class __SToggleMixin(object):
 
         x, y = (event.GetX(), event.GetY())
 
-        if self.IsOutside(x,y):
+        if self.IsOutside(x, y):
             return
 
         self._saveup = self._isup
@@ -700,7 +700,7 @@ class __SToggleMixin(object):
                 self.Refresh()
                 return
 
-            if self.IsOutside(x,y):
+            if self.IsOutside(x, y):
                 self._isup = self._saveup
                 self.Refresh()
                 return

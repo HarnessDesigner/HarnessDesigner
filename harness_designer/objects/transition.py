@@ -18,7 +18,6 @@ if TYPE_CHECKING:
     from ..database.global_db import transition_branch as _transition_branch
 
 
-
 class Branch:
 
     def __init__(self, transition: "Transition", origin: _point.Point, branch: "_transition_branch.TransitionBranch"):
@@ -59,9 +58,9 @@ class Branch:
     def name(self):
         return self._branch.name
 
-
     def remove(self):
         pass
+
     def on_move(self, point):
         pass
 
@@ -79,8 +78,6 @@ class Branch:
         return self._schematic_pos
 
     def SetEditorPosition(self, pos):
-
-
         self._bundle.SetEditorPosition()
 
         x, y, z = pos
@@ -121,7 +118,6 @@ class Transition:
 
         transition.point
 
-
         transition.name
 
         part = transition.part
@@ -148,17 +144,15 @@ class Transition:
             transition.branch6_point
             branch = branches[5]
 
-        for branch in part.branches:
-
-
-
-        self.editor_3d.
-
-        self._schematic_pos = schematic_pos
-        self._editor_pos = editor_pos
-        self._plot_obj = None
-
-        self._branches = branches
+        # for branch in part.branches:
+        #
+        # self.editor_3d.
+        #
+        # self._schematic_pos = schematic_pos
+        # self._editor_pos = editor_pos
+        # self._plot_obj = None
+        #
+        # self._branches = branches
 
     def SetPlotObject(self, obj):
         self._plot_obj = obj

@@ -582,7 +582,7 @@ class FoldPanelBar(wx.Panel):
 
         try:
             item = self._panels.index(panel)
-        except:
+        except:  # NOQA
             raise Exception("ERROR: Invalid Panel Passed To AddFoldPanelSeparator: " + repr(panel))
 
         panel.AddSeparator(colour, spacing, leftSpacing, rightSpacing)
@@ -617,7 +617,7 @@ class FoldPanelBar(wx.Panel):
     def RefreshPanelsFrom(self, item):
         try:
             i = self._panels.index(item)
-        except:
+        except:  # NOQA
             raise Exception("ERROR: Invalid Panel Passed To RefreshPanelsFrom: " + repr(item))
 
         self.Freeze()
@@ -645,17 +645,14 @@ class FoldPanelBar(wx.Panel):
             panels.Refresh()
 
     def RepositionCollapsedToBottom(self):
-        value = wx.Rect(0,0,0,0)
+        value = wx.Rect(0, 0, 0, 0)
         vertical = self.IsVertical()
 
         expanded = 0
         collapsed = 0
         collapsed, expanded, values = self.GetPanelsLength(collapsed, expanded)
 
-        if (vertical and
-            [self.GetSize().GetHeight()] or
-            [self.GetSize().GetWidth()])[0] - expanded - collapsed < 0:
-
+        if (vertical and [self.GetSize().GetHeight()] or [self.GetSize().GetWidth()])[0] - expanded - collapsed < 0:
             offset = expanded
         else:
             value.SetHeight(self.GetSize().GetHeight())
@@ -692,7 +689,7 @@ class FoldPanelBar(wx.Panel):
     def Collapse(self, foldpanel):
         try:
             item = self._panels.index(foldpanel)
-        except:
+        except:  # NOQA
             raise Exception("ERROR: Invalid Panel Passed To Collapse: " + repr(foldpanel))
 
         foldpanel.Collapse()
@@ -732,7 +729,7 @@ class FoldPanelBar(wx.Panel):
         try:
             ind = self._panels[item]
             return self._panels[item]
-        except:
+        except:  # NOQA
             raise Exception(f"ERROR: List Index Orepr(0)ut Of Range Or Bad Item "
                             f"Passed: {repr(item)}. Item Should Be An Integer "
                             f"Between {repr(0)} And {repr(0)}")
@@ -740,7 +737,7 @@ class FoldPanelBar(wx.Panel):
     def GetCount(self):
         try:
             return len(self._panels)
-        except:
+        except:  # NOQA
             raise Exception("ERROR: No Panels Have Been Added To FoldPanelBar")
 
 
@@ -769,7 +766,7 @@ class FoldPanelItem(wx.Panel):
         if cbstyle is None:
             cbstyle = EmptyCaptionBarStyle
 
-        self._captionBar = CaptionBar(self, wx.ID_ANY, wx.Point(0,0),
+        self._captionBar = CaptionBar(self, wx.ID_ANY, wx.Point(0, 0),
                                       size=wx.DefaultSize, caption=caption,
                                       foldIcons=foldIcons, cbstyle=cbstyle)
 
@@ -822,8 +819,7 @@ class FoldPanelItem(wx.Panel):
                             rightSpacing=rightSpacing)
 
         self._items.append(wi)
-        self._LastInsertPos = self._LastInsertPos + \
-                              wi.GetWindowLength(self.IsVertical())
+        self._LastInsertPos = self._LastInsertPos + wi.GetWindowLength(self.IsVertical())
 
         self.ResizePanel()
 
@@ -1035,8 +1031,7 @@ class FoldWindowItem(object):
         value = 0
         if self._type == "WINDOW":
             size = self._wnd.GetSize()
-            value = (vertical and [size.GetHeight()] or [size.GetWidth()])[0] + \
-                    self._spacing
+            value = (vertical and [size.GetHeight()] or [size.GetWidth()])[0] + self._spacing
 
         elif self._type == "SEPARATOR":
             value = 1 + self._spacing

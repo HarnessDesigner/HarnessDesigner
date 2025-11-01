@@ -113,11 +113,11 @@ def get_angles(p1: "_point.Point", p2: "_point.Point") -> tuple[_decimal, _decim
     up_temp /= np.linalg.norm(up_temp)
 
     # Right vector (perpendicular to forward and up_temp)
-    right = np.cross(up_temp, forward)
+    right = np.cross(up_temp, forward)  # NOQA
     right /= np.linalg.norm(right)
 
     # True up vector (recomputed to ensure orthogonality)
-    up = np.cross(forward, right)
+    up = np.cross(forward, right)  # NOQA
 
     # Build rotation matrix
     matrix = np.array([right, up, forward]).T  # 3x3 rotation matrix

@@ -71,7 +71,7 @@ class Signal(metaclass=SignalMeta):
         pass
 
 
-from .bundle import (
+from .bundle import (  # NOQA
     SIGNAL_BUNDLE_SELECTED,
     SIGNAL_BUNDLE_P1_MOVED,
     SIGNAL_BUNDLE_P2_MOVED,
@@ -85,7 +85,7 @@ from .bundle import (
     SIGNAL_BUNDLE_LAYOUT_SELECTED
 )
 
-from .connector import (
+from .connector import (  # NOQA
     SIGNAL_CONNECTOR_SELECTED,
     SIGNAL_CONNECTOR_MOVED,
     SIGNAL_CONNECTOR_ANGLE_CHANGED,
@@ -94,14 +94,14 @@ from .connector import (
     SIGNAL_CONNECTOR_LOADED
 )
 
-from .project import (
+from .project import (  # NOQA
     SIGNAL_PROJECT_LOAD,
     SIGNAL_PROJECT_SAVE,
     SIGNAL_PROJECT_CLOSE,
     SIGNAL_PROJECT_LOADED
 )
 
-from .transition import (
+from .transition import (  # NOQA
     SIGNAL_TRANSITION_SELECTED,
     SIGNAL_TRANSITION_MOVED,
     SIGNAL_TRANSITION_ANGLE_CHANGED,
@@ -111,7 +111,7 @@ from .transition import (
     SIGNAL_TRANSITION_REMOVED
 )
 
-from .wire import (
+from .wire import (  # NOQA
     SIGNAL_WIRE_SELECTED,
     SIGNAL_WIRE_P1_MOVED,
     SIGNAL_WIRE_P2_MOVED,

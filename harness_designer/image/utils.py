@@ -49,11 +49,13 @@ def wx_image_2_pil_image(wx_img: wx.Image) -> Image.Image:
     if alpha_data is not None:
         alpha_img = Image.new('L', (wx_img.GetWidth(), wx_img.GetHeight()))
         alpha_img.frombytes(bytes(alpha_data))
+    else:
+        alpha_img = None
 
     img = Image.new('RGB', (wx_img.GetWidth(), wx_img.GetHeight()))
     img.frombytes(rgb_data)
     img = img.convert('RGBA')
-    if alpha_data is not None:
+    if alpha_img is not None:
         img.putalpha(alpha_img)
         alpha_img.close()
 
@@ -85,7 +87,7 @@ def rotate_wx_image(wx_img: wx.Image, angle: float) -> wx.Image:
 
 
 def wx_image_2_wx_cursor(wx_img: wx.Image, hotspot_x: int | None = None,
-                          hotspot_y: int | None = None) -> wx.Cursor:
+                         hotspot_y: int | None = None) -> wx.Cursor:
 
     if hotspot_x is None:
         hotspot_x = int(wx_img.GetWidth() / 2)

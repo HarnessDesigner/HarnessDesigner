@@ -103,11 +103,11 @@ class Rect:
                         up_v = np.array([0, 1, 0])
 
                     # normal is perpendicular to diagonal and the chosen 'up' vector:
-                    n = np.cross(d, up_v)
+                    n = np.cross(d, up_v)  # NOQA
                     if np.linalg.norm(n) < 1e-8:
                         # fallback in the rare degenerate case
                         up_v = np.array([0, 1, 0])
-                        n = np.cross(d, up_v)
+                        n = np.cross(d, up_v)  # NOQA
                     n = _unit(n)
 
                 # Build an orthonormal basis for the plane that contains the diagonal:
@@ -118,12 +118,12 @@ class Rect:
                 if abs(np.dot(ref, n)) > 0.9:
                     ref = np.array([0.0, 1.0, 0.0])
 
-                e1 = np.cross(n, ref)
+                e1 = np.cross(n, ref)  # NOQA
                 e1 = _unit(e1)
 
                 # ensure e1 is in the same plane as diagonal (it is because n is plane normal)
                 # e2 is also in-plane, orthonormal pair (e1,e2)
-                e2 = np.cross(n, e1)
+                e2 = np.cross(n, e1)  # NOQA
                 e2 = _unit(e2)
 
                 # Now express diagonal d in this in-plane basis: d = a*e1 + b*e2
@@ -175,7 +175,7 @@ class Rect:
                     proj = world_x - np.dot(world_x, n) * n
                     if np.linalg.norm(proj) > 1e-8:
                         alt_e1 = _unit(proj)
-                        alt_e2 = _unit(np.cross(n, alt_e1))
+                        alt_e2 = _unit(np.cross(n, alt_e1))  # NOQA
                         a_alt = np.dot(d, alt_e1)
                         b_alt = np.dot(d, alt_e2)
                         w_alt = a_alt
@@ -245,7 +245,7 @@ class Rect:
                         else:
                             tmp = np.array([0., 1., 0.])
 
-                        down_dir = np.cross(top_dir, tmp)
+                        down_dir = np.cross(top_dir, tmp)  # NOQA
 
                     down_dir = _unit(down_dir)
                     h = np.linalg.norm(v13 - np.dot(v13, top_dir) * top_dir)
@@ -256,7 +256,7 @@ class Rect:
                     else:
                         tmp = np.array([0., 1., 0.])
 
-                    down_dir = _unit(np.cross(top_dir, tmp))
+                    down_dir = _unit(np.cross(top_dir, tmp))  # NOQA
 
                     if height is not None:
                         h = height

@@ -1,5 +1,5 @@
 
-
+from wx.lib.embeddedimage import PyEmbeddedImage
 from wx.lib.agw.aui.aui_utilities import BitmapFromBits, StepColour, GetLabelSize
 from wx.lib.agw.aui.aui_utilities import GetBaseColour, MakeDisabledBitmap
 from wx.lib.agw.aui.aui_constants import *
@@ -2519,10 +2519,6 @@ class AuiToolBar(wx.Control):
         manager.StopPreviewTimer()
 
 
-
-
-from wx.lib.embeddedimage import PyEmbeddedImage
-
 UpButton = PyEmbeddedImage(
     b'iVBORw0KGgoAAAANSUhEUgAAAMgAAADICAYAAAHaX54IAAAAAXNSR0IArs4c6QAAAARnQU1BAA'
     b'Cxjwv8YQUAAAAJcEhZcwAADsIAAA7CARUoSoAAAEdSSURBVHhe7Z3ZsqZleffbTAY1SWPMtIEB'
@@ -2856,7 +2852,7 @@ UpButton = PyEmbeddedImage(
     b'gT5zZdw67/ay3l0egr7RFp1e/TvpO5HiAnwIULF+7+8Y9/fL4F0e+2Ip/8I2drIMkp3Tm44nMH'
     b'QP7f+9///gt33nnn2/41wnWuc53rXOc6VyNnzvx/mypu52oakVMAAAAASUVORK5CYII=')
 
-#----------------------------------------------------------------------
+
 DownButton = PyEmbeddedImage(
     b'iVBORw0KGgoAAAANSUhEUgAAAMgAAADICAYAAAHaX54IAAAAAXNSR0IArs4c6QAAAARnQU1BAA'
     b'Cxjwv8YQUAAAAJcEhZcwAADsIAAA7CARUoSoAAAEYjSURBVHhe7Z3bsm5Vde+X5iiauCAhVBmT'

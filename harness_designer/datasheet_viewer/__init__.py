@@ -159,7 +159,7 @@ class PDFViewer(wx.Panel):
         self.buttonpanel = pdfButtonPanel(self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, 0)
         vsizer.Add(self.buttonpanel, 0, wx.GROW | wx.LEFT | wx.RIGHT | wx.TOP, 5)
 
-        self.viewer = pdfViewer(self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.HSCROLL|wx.VSCROLL|wx.SUNKEN_BORDER)
+        self.viewer = pdfViewer(self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.HSCROLL | wx.VSCROLL | wx.SUNKEN_BORDER)
         vsizer.Add(self.viewer, 1, wx.GROW | wx.LEFT | wx.RIGHT | wx.BOTTOM, 5)
         self.SetSizer(vsizer)
 

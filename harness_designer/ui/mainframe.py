@@ -218,26 +218,24 @@ class MainFrame(wx.Frame):
         pass
 
     def load(self):
-
-        for wire in self.project.wires:
-
-        for transition in self.project.transitions:
-            transition
-
-        for bundle in self.project.bundles
-
-        for housing in self.project.housings
-
-        for splice in self.project.splices
-
-        for layout in self.project.bundle_layouts
-
-        for layout in self.project.wire_3d_layouts
-
-        for layout in self.project.wire_2d_layouts
-
-
-
+        #
+        # for wire in self.project.wires:
+        #
+        # for transition in self.project.transitions:
+        #
+        #
+        # for bundle in self.project.bundles
+        #
+        # for housing in self.project.housings
+        #
+        # for splice in self.project.splices
+        #
+        # for layout in self.project.bundle_layouts
+        #
+        # for layout in self.project.wire_3d_layouts
+        #
+        # for layout in self.project.wire_2d_layouts
+        pass
 
     def Show(self, flag=True):
         wx.Frame.Show(self, flag)
