@@ -52,6 +52,22 @@ class Point:
 
         self.__callbacks = []
         self.__cb_disabled = False
+        self.__objects = []
+
+    def add_object(self, obj):
+        if obj not in self.__objects:
+            self.__objects.append(obj)
+
+    def remove_object(self, obj):
+        try:
+            self.__objects.remove(obj)
+        except ValueError:
+            pass
+
+    @property
+    def objects(self):
+        for obj in self.__objects:
+            yield obj
 
     def __enter__(self):
         self.__cb_disabled = True

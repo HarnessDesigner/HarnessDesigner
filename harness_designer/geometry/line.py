@@ -92,6 +92,10 @@ class Line:
     def set_z_angle(self, angle: _decimal, origin: _point.Point | None = None) -> None:
         self.set_angles(_decimal(0.0), _decimal(0.0), angle, origin)
 
+    def point_from_start(self, distance: _decimal) -> _point.Point:
+        line = Line(self.p1.copy(), None, distance, *self.get_angles())
+        return line.p2
+
     @property
     def center(self) -> _point.Point:
         x = (self._p1.x + self._p2.x) * ZERO_5
