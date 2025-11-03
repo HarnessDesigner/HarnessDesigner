@@ -53,24 +53,17 @@ class MainFrame(wx.Frame):
         # self.manager.SavePerspective
         #
         # self.manager.Update
-        print('creating statusbar')
         self.status_bar = status_bar = self.CreateStatusBar(6, id=wx.ID_ANY)
-        print('setting status bar text')
         status_bar.SetStatusText('X: 0.0000', 0)
         status_bar.SetStatusText('Y: 0.0000', 1)
         status_bar.SetStatusText('Z: 0.0000', 2)
         status_bar.SetStatusText('Loading....', 4)
 
-        print('text extent')
         w, h = self.GetTextExtent(status_bar.GetStatusText(0))
-        print('status bar set widths')
         status_bar.SetStatusWidths([w + 4, w + 4, w + 4, -1, -2, -3])
-        print('set status bar height')
         status_bar.SetMinHeight(h)
-        print('getting status bar field')
         # status_bar_pane = status_bar.GetField(6)
 
-        print('progress control')
         self.progress_ctrl = wx.Gauge(self.status_bar, wx.ID_ANY, range=100, size=(-1, h), style=wx.GA_HORIZONTAL | wx.GA_SMOOTH)
         self.progress_ctrl.Show(False)
 
@@ -161,6 +154,15 @@ class MainFrame(wx.Frame):
 
         self._object_count = 0
 
+        self._wires = []
+        self._bundles = []
+        self._bundle_layouts = []
+        self._housings = []
+        self._splices = []
+        self._transitions = []
+        self._wire_2d_layouts = []
+        self._wire_3d_layouts = []
+
     @property
     def object_count(self):
         return self._object_count
@@ -217,25 +219,32 @@ class MainFrame(wx.Frame):
     def unload(self):
         pass
 
+    def add_bundle(self, bundle):
+        self._bundles.append(bundle)
+
+    def add_bundle_layout(self, bundle_layout):
+        self._bundle_layouts.append(bundle_layout)
+
     def load(self):
-        #
-        # for wire in self.project.wires:
-        #
-        # for transition in self.project.transitions:
-        #
-        #
-        # for bundle in self.project.bundles
-        #
-        # for housing in self.project.housings
-        #
-        # for splice in self.project.splices
-        #
-        # for layout in self.project.bundle_layouts
-        #
-        # for layout in self.project.wire_3d_layouts
-        #
-        # for layout in self.project.wire_2d_layouts
-        pass
+        from ..objects import (
+            bundle,
+            bundle_layout,
+            housing,
+            splice,
+            transition,
+            wire_2d_layout,
+            wire_3d_layout,
+            wire
+        )
+
+        self._wires = [wire.Wire(db, self.editor3d, self.editor2d) for db in self.project.wires]
+        self._bundles = [bundle.Bundle(db, self.editor3d, self.editor2d) for db in self.project.bundles]
+        self._bundle_layouts = [bundle_layout.BundleLayout(db, self.editor3d, self.editor2d) for db in self.project.bundle_layouts]
+        self._housings = [housing.Housing(db, self.editor3d, self.editor2d) for db in self.project.housings]
+        self._splices = [splice.Splice(db, self.editor3d, self.editor2d) for db in self.project.splices]
+        self._transitions = [transition.Transition(db, self.editor3d, self.editor2d) for db in self.project.transitions]
+        self._wire_2d_layouts = [wire_2d_layout.Wire2DLayout(db, self.editor3d, self.editor2d) for db in self.project.wire_2d_layouts]
+        self._wire_3d_layouts = [wire_3d_layout.Wire3DLayout(db, self.editor3d, self.editor2d) for db in self.project.wire_3d_layouts]
 
     def Show(self, flag=True):
         wx.Frame.Show(self, flag)

@@ -22,6 +22,7 @@ class ObjectBase:
         self._part = db_obj.part
         self._selected = False
         self._objs = []
+        self._menu_coords = []
 
     @property
     def part(self):

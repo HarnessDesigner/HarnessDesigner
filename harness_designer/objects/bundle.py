@@ -3,13 +3,13 @@ from typing import TYPE_CHECKING
 import wx
 import math
 
-from ..shapes import cylinder as _cylinder
+from ..editor_3d.shapes import cylinder as _cylinder
 from ..geometry import line as _line
 from ..wrappers import wxartist_event as _wxartist_event
 from . import wire as _wire
 from . import base as _base
 from ..wrappers.decimal import Decimal as _decimal
-
+from . import bundle_layout as _bundle_layout
 
 if TYPE_CHECKING:
     from ..database.project_db import pjt_bundle as _pjt_bundle
@@ -19,6 +19,8 @@ if TYPE_CHECKING:
 
 
 class Bundle(_base.ObjectBase):
+    _db_obj: "_pjt_bundle.PJTBundle" = None
+    _editor3d: "_editor_3d.Editor3D" = None
 
     def delete(self):
         pass
@@ -55,17 +57,51 @@ class Bundle(_base.ObjectBase):
         self._objs.append(cyl)
         cyl.p1.add_object(self)
         cyl.p2.add_object(self)
+        cyl.set_py_data(self)
 
     def _on_properties(self, evt):
         evt.Skip()
 
-    def _on_add_layout(self, evt):
+    def _on_add_layout(self, evt: wx.MenuEvent):
+        cyl1 = self._objs[0]
+        dia = cyl1.diameter
+
+        p1 = cyl1.p1
+        p2 = self._menu_coords[1]
+        p3 = cyl1.p2
+
+        p3.remove_object(self)
+
+        line = _line.Line(p1, p2)
+        line_len = line.length()
+
+        line = _line.Line(p1, p3)
+        p2 = line.point_from_start(line_len)
+
+        p2_db_id = p2.add_to_db(self._editor3d.mainframe.project.ptables.pjt_coordinates_3d_table)
+        cyl1.p2 = p2
+
+        p2.add_object(self)
+
+        self._db_obj.stop_coord_id = p2_db_id
+
+        p3_db_id = p2.point_id
+
+        new_bundle_db = self._editor3d.mainframe.project.ptables.pjt_bundles_table.insert(self.part.part_id, p2_db_id, p3_db_id)
+        new_layout_db = self._editor3d.mainframe.project.ptables.pjt_bundle_layouts_table.insert(p2_db_id, dia)
+
+        new_bundle = Bundle(new_bundle_db, self._editor3d, None)
+        new_layout = _bundle_layout.BundleLayout(new_layout_db, self._editor3d, None)
+
+        self._editor3d.mainframe.project.add_bundle(new_bundle)
+        self._editor3d.mainframe.project.add_bundle_layout(new_bundle)
+
         evt.Skip()
 
     def _on_delete(self, evt):
         evt.Skip()
 
-    def menu3d(self, x, y):
+    def menu3d(self, p2d, p3d):
         menu = wx.Menu()
 
         menu_item = menu.Append(wx.ID_ANY, 'Add Layout')
@@ -76,5 +112,5 @@ class Bundle(_base.ObjectBase):
         menu.AppendSeparator()
         menu_item = menu.Append(wx.ID_ANY, 'Properties')
         self._editor3d.Bind(wx.EVT_MENU, self._on_properties, id=menu_item.GetId())
-
-        self._editor3d.PopupMenu(menu, (x, y))
+        self._menu_coords = [p2d, p3d]
+        self._editor3d.PopupMenu(menu, p2d)

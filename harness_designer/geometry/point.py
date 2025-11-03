@@ -11,24 +11,11 @@ def _floor(val: _decimal) -> _decimal:
     return _decimal(int(val * TEN_0)) / TEN_0
 
 
-class Point:
+class PointMeta(type):
     _instances = {}
 
-    @property
-    def project_id(self) -> int | None:
-        return self._project_id
-
-    @property
-    def point_id(self) -> int | None:
-        return self._point_id
-
-    def add_to_db(self, project_id: int, point_id: int):
-        assert (project_id, point_id) not in self._instances, 'Sanity Check'
-
-        self._instances[(project_id, point_id)] = weakref.ref(self, self.__remove_instance)
-
     @classmethod
-    def __remove_instance(cls, ref):
+    def _remove_instance(cls, ref):
         for key, value in cls._instances.items():
             if ref == value:
                 break
@@ -37,11 +24,44 @@ class Point:
 
         del cls._instances[key]
 
-    def __init__(self, x: _decimal, y: _decimal, z: _decimal | None = None,
-                 project_id: int | None = None, point_id: int | None = None):
+    def __call__(cls, x: _decimal, y: _decimal, z: _decimal | None = None, db_obj=None):
+        if db_obj is not None:
+            if db_obj.db_id in cls._instances:
+                instance = cls._instances[db_obj.db_id]
+            else:
+                instance = super().__call__(x, y, z, db_obj)
+                cls._instances[db_obj.db_id] = weakref.ref(instance, cls._remove_instance)
+        else:
+            instance = super().__call__(x, y, z, db_obj)
 
-        self._project_id = project_id
-        self._point_id = point_id
+        return instance
+
+
+class Point(metaclass=PointMeta):
+    _instances = {}
+
+    @property
+    def project_id(self) -> int | None:
+        if self._db_obj is None:
+            return None
+
+        return self._db_obj.project_id
+
+    @property
+    def point_id(self) -> int | None:
+        if self._db_obj is None:
+            return None
+
+        return self._db_obj.db_id
+
+    def add_to_db(self, table) -> int:
+        self._db_obj = table.insert(self.x, self.y, self.z)
+        self._instances[self._db_obj.db_id] = weakref.ref(self, PointMeta._remove_instance)  # NOQA
+        self.Bind(self._db_obj)
+        return self._db_obj.db_id
+
+    def __init__(self, x: _decimal, y: _decimal, z: _decimal | None = None, db_obj=None):
+        self._db_obj = db_obj
 
         if z is None:
             z = _decimal(0.0)
