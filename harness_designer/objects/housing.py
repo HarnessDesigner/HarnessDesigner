@@ -1,43 +1,38 @@
+from typing import TYPE_CHECKING
+
+from . import base as _base
+
+if TYPE_CHECKING:
+    from ..database.global_db import housing as _housing
+    from ..database.project_db import pjt_housing as _pjt_housing
+    from .. import editor_3d as _editor_3d
+    from .. import editor_2d as _editor_2d
 
 
-class Housing:
+class Housing(_base.ObjectBase):
+    _part: "_housing.Housing" = None
+    _db_obj: "_pjt_housing.PJTHousing" = None
 
-    def __init__(self, schematic, editor, schematic_pos, editor_pos):
-        self._schematic = schematic
-        self._editor = editor
-        self._schematic_pos = schematic_pos
-        self._editor_pos = editor_pos
-        self._terminals = []
-        self._bundle = None
-        schematic.AddHousing(self)
-        self._scatter = editor.AddHousing(self)
-        self._obj = None
+    def __init__(self, db_obj: "_pjt_housing.PJTHousing", editor3d: "_editor_3d.Editor3D", editor2d: "_editor_2d.Editor2D"):
+        _base.ObjectBase.__init__(self, db_obj, editor3d, editor2d)
 
-    def SetPlotObject(self, obj):
-        self._obj = obj
+        part = db_obj.part
 
-    def SetSchematicPosition(self, pos):
-        self._schematic_pos = pos
-        for terminal in self._terminals:
-            terminal.SetSchematicPosition(pos)
+        center = db_obj.point3d.point
 
-    def GetSchematicPosition(self):
-        return self._schematic_pos
+        model3d = part.model3d
+        if model3d is None:
+            from ..editor_3d.shapes import box as _box
+            model3d = _box.Box(center, part.length, part.width, part.height, part.color, part.color)
+        else:
+            from ..editor_3d.shapes import model3d as _model3d
 
-    def SetEditorPosition(self, pos):
-        for terminal in self._terminals:
-            terminal.SetEditorPosition(pos)
+            model3d = _model3d.Model3D(center, model3d, part.model3d_type, part.color)
 
-        self._editor_pos = pos
+        model3d.set_angles(db_obj.x_angle_3d, db_obj.y_angle_3d, db_obj.z_angle_3d, center)
+        model3d.add_to_plot(editor3d.axes)
+        self._objs.append(model3d)
+        model3d.center.add_object(self)
+        model3d.set_py_data(self)
 
-        x, y, z = pos
-        self._obj._offsets3d[0][0] = x  # NOQA
-        self._obj._offsets3d[1][0] = y  # NOQA
-        self._obj._offsets3d[2][0] = z  # NOQA
-
-    def GetEditorPosition(self):
-        return self._editor_pos
-
-    def SetBundle(self, bundle):
-        self._bundle = bundle
-        bundle.SetEndpoint(self)
+        editor2d.add_connector(db_obj)

@@ -12,6 +12,7 @@ from ..wrappers.decimal import Decimal as _decimal
 from . import bundle_layout as _bundle_layout
 
 if TYPE_CHECKING:
+    from ..database.global_db import bundle_cover as _bundle_cover
     from ..database.project_db import pjt_bundle as _pjt_bundle
     from .. import editor_3d as _editor_3d
     from ..wrappers import wxkey_event as _wxkey_event
@@ -19,6 +20,7 @@ if TYPE_CHECKING:
 
 
 class Bundle(_base.ObjectBase):
+    _part: "_bundle_cover.BundleCover" = None
     _db_obj: "_pjt_bundle.PJTBundle" = None
     _editor3d: "_editor_3d.Editor3D" = None
 
@@ -94,7 +96,7 @@ class Bundle(_base.ObjectBase):
         new_layout = _bundle_layout.BundleLayout(new_layout_db, self._editor3d, None)
 
         self._editor3d.mainframe.project.add_bundle(new_bundle)
-        self._editor3d.mainframe.project.add_bundle_layout(new_bundle)
+        self._editor3d.mainframe.project.add_bundle_layout(new_layout)
 
         evt.Skip()
 
