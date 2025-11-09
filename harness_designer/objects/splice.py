@@ -15,7 +15,6 @@ class Housing(_base.ObjectBase):
     _part: "_splice.Splice" = None
     _db_obj: "_pjt_splice.PJTSplice" = None
 
-
     def __init__(self, db_obj: "_pjt_splice.PJTSplice", editor3d: "_editor_3d.Editor3D", editor2d: "_editor_2d.Editor2D"):
         _base.ObjectBase.__init__(self, db_obj, editor3d, editor2d)
 

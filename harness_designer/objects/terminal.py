@@ -1,43 +1,29 @@
+from typing import TYPE_CHECKING
+
+from . import base as _base
+
+if TYPE_CHECKING:
+    from ..database.project_db import pjt_terminal as _pjt_terminal
+    from ..database.global_db import terminal as _terminal
+    from .. import editor_3d as _editor_3d
+    from .. import editor_2d as _editor_2d
 
 
-class Terminal:
+class Housing(_base.ObjectBase):
+    _part: "_terminal.Terminal" = None
+    _db_obj: "_pjt_terminal.PJTTerminal" = None
 
-    def __init__(self, index, offset_x, offset_y, schematic_position, _=None):
-        self.index = index
-        self._offset_x = offset_x
-        self._offset_y = offset_y
-        self._housing = None
-        self._schematic_pos = (0, 0)
-        self._schematic_position = schematic_position
-        self._wires = []
+    def __init__(self, db_obj: "_pjt_terminal.PJTTerminal", editor3d: "_editor_3d.Editor3D", editor2d: "_editor_2d.Editor2D"):
+        _base.ObjectBase.__init__(self, db_obj, editor3d, editor2d)
 
-    def SetPlotObject(self, _):
-        pass
+        part = db_obj.part
+        center = db_obj.point3d.point
 
-    def SetHousing(self, housing):
-        self._housing = housing
+        sphere = _sphere.Sphere(center, db_obj.diameter, part.color)
 
-    def GetHousing(self):
-        return self._housing
+        sphere.add_to_plot(editor3d.axes)
+        self._objs.append(sphere)
+        sphere.center.add_object(self)
+        sphere.set_py_data(self)
 
-    def SetSchematicPosition(self, pos):
-        x, y = pos
-        x += self._offset_x
-        y += self._offset_y
-        self._schematic_pos = (x, y)
-
-    def GetSchematicPosition(self):
-        return self._schematic_pos
-
-    def SetEditorPosition(self, pos):
-        for wire in self._wires:
-            wire.SetEditorPosition(pos)
-
-    def GetEditorPosition(self):
-        return self._housing.GetEditorPosition()
-
-    def AddWire(self, wire):
-        wire.AddEndpoint(self)
-
-    def RemoveWire(self, wire):
-        wire.RemoveEndpoint(self)
+        editor2d.add_splice(db_obj)

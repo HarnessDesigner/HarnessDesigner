@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Union
 import wx
 
 from ..wrappers import wxartist_event as _wxartist_event
+from ..geometry import point as _point
 
 
 if TYPE_CHECKING:
@@ -28,10 +29,10 @@ class ObjectBase:
     def part(self):
         raise NotImplementedError
 
-    def menu3d(self, x, y):
+    def menu3d(self, p2d: _point.Point, p3d: _point.Point):
         pass
 
-    def menu2d(self, x, y):
+    def menu2d(self, p2d: _point.Point):
         pass
 
     def tools3d(self):

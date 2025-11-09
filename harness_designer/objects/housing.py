@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING
+import wx
 
 from . import base as _base
 
@@ -7,6 +8,59 @@ if TYPE_CHECKING:
     from ..database.project_db import pjt_housing as _pjt_housing
     from .. import editor_3d as _editor_3d
     from .. import editor_2d as _editor_2d
+
+
+ADD_TERMINAL_2D_ID = wx.NewIdRef()
+DELETE_TERMINAL_2D_ID = wx.NewIdRef()
+
+ADD_TERMINAL_3D_ID = wx.NewIdRef()
+DELETE_TERMINAL_3D_ID = wx.NewIdRef()
+
+HOUSING_DELETE_ID = wx.NewIdRef()
+HOUSING_PROPERTIES_ID = wx.NewIdRef()
+
+HOUSING_ROTATE_2D_ID = wx.NewIdRef()
+HOUSING_ROTATE_3D_ID = wx.NewIdRef()
+
+
+class HSizer(wx.BoxSizer):
+
+    def __init__(self, parent, text, ctrl):
+        wx.BoxSizer.__init__(self, wx.HORIZONTAL)
+
+        if text is not None:
+            st = wx.StaticText(parent, wx.ID_ANY, label=text)
+            self.Add(st, 0, wx.ALL, 5)
+
+        self.Add(ctrl, 0, wx.ALL, 5)
+
+
+class Rotate3DCtrl(wx.PopupTransientWindow):
+
+    def __init__(self, parent, obj):
+        wx.PopupTransientWindow.__init__(self, parent)
+
+        x_angle, y_angle, z_angle = obj.get_angles()
+
+        self.x_ctrl = wx.Slider(self, wx.ID_ANY, value=x_angle, minValue=0, maxValue=359)
+        self.y_ctrl = wx.Slider(self, wx.ID_ANY, value=y_angle, minValue=0, maxValue=359)
+        self.z_ctrl = wx.Slider(self, wx.ID_ANY, value=z_angle, minValue=0, maxValue=359)
+
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer.Add(HSizer(self, 'X:', self.x_ctrl), 0)
+        sizer.Add(HSizer(self, 'Y:', self.y_ctrl), 0)
+        sizer.Add(HSizer(self, 'Z:', self.z_ctrl), 0)
+
+        self.SetSizer(sizer)
+
+    def on_x(self, evt):
+        evt.Skip()
+
+    def on_y(self, evt):
+        evt.Skip()
+
+    def on_z(self, evt):
+        evt.Skip()
 
 
 class Housing(_base.ObjectBase):
@@ -36,3 +90,31 @@ class Housing(_base.ObjectBase):
         model3d.set_py_data(self)
 
         editor2d.add_connector(db_obj)
+
+    def menu2d(self, p2d):
+        menu = wx.Menu()
+
+        menu_item = menu.Append(wx.ID_ANY, 'Add Terminal')
+        self._editor2d.Bind(wx.EVT_MENU, self._on_add_terminal_2d, id=menu_item.GetId())
+        menu.AppendSeparator()
+        menu_item = menu.Append(wx.ID_ANY, 'Delete')
+        self._editor2d.Bind(wx.EVT_MENU, self._on_delete, id=menu_item.GetId())
+        menu.AppendSeparator()
+        menu_item = menu.Append(wx.ID_ANY, 'Properties')
+        self._editor2d.Bind(wx.EVT_MENU, self._on_properties, id=menu_item.GetId())
+        self._menu_coords = [p2d]
+        self._editor2d.PopupMenu(menu, p2d)
+
+    def menu3d(self, p2d, p3d):
+        menu = wx.Menu()
+
+        menu_item = menu.Append(wx.ID_ANY, 'Add Layout')
+        self._editor3d.Bind(wx.EVT_MENU, self._on_add_terminal_3d, id=menu_item.GetId())
+        menu.AppendSeparator()
+        menu_item = menu.Append(wx.ID_ANY, 'Delete')
+        self._editor3d.Bind(wx.EVT_MENU, self._on_delete, id=menu_item.GetId())
+        menu.AppendSeparator()
+        menu_item = menu.Append(wx.ID_ANY, 'Properties')
+        self._editor3d.Bind(wx.EVT_MENU, self._on_properties, id=menu_item.GetId())
+        self._menu_coords = [p2d, p3d]
+        self._editor3d.PopupMenu(menu, p2d)
