@@ -18,24 +18,26 @@ class Color(wx.Colour):
         self._callbacks = []
 
     @property
-    def matplotlib(self) -> tuple[float, float, float, float]:
-        r, g, b, a = [item / 255.0 for item in self.GetRGBA()]
+    def rgb_scalar(self) -> tuple[float, float, float, float]:
+        r, g, b = [item / 255.0 for item in (self.GetRed(), self.GetGreen(), self.GetBlue())]
 
-        return r, g, b, a
+        return r, g, b
 
     @property
     def numpy(self) -> tuple[float, float, float, float]:
-        return self.matplotlib
+        return self.rgb_scalar + (1.0,)
 
     @property
     def rgba(self) -> tuple[int, int, int, int]:
-        r, g, b, a = self.GetRGBA()
+        r, g, b, a = self.GetRed(), self.GetGreen(), self.GetBlue(), self.GetAlpha()
         return r, g, b, a
 
     @rgba.setter
     def rgba(self, value: tuple[int, int, int, int]):
         r, g, b, a = value
-        self.SetRGBA((r, g, b, a))
+        rgba = (r << 24) | (g << 16) | (b << 8) | a
+
+        self.SetRGBA(rgba)
 
         for ref in self._callbacks[:]:
             func = ref()
@@ -46,21 +48,15 @@ class Color(wx.Colour):
 
     @property
     def rgb(self) -> tuple[int, int, int]:
-        r, g, b = self.GetRGB()
+        r, g, b = self.GetRed(), self.GetGreen(), self.GetBlue()
         return r, g, b
 
     @rgb.setter
     def rgb(self, value: tuple[int, int, int]):
-        a = self.GetRGBA()[-1]
+        a = self.GetAlpha()
         r, g, b = value
-        self.SetRGBA((r, g, b, a))
 
-        for ref in self._callbacks[:]:
-            func = ref()
-            if func is None:
-                self._callbacks.remove(ref)
-            else:
-                func()
+        self.rgba = (r, g, b, a)
 
     def __remove_cb(self, ref):
         try:
@@ -72,7 +68,7 @@ class Color(wx.Colour):
         ref = weakref.WeakMethod(cb, self.__remove_cb)
         self._callbacks.append(ref)
 
-    def UnBind(self, cb: Callable[[None], None]) -> None:
+    def Unbind(self, cb: Callable[[None], None]) -> None:
         for ref in self._callbacks[:]:
             func = ref()
             if func is None:
@@ -82,8 +78,7 @@ class Color(wx.Colour):
                 break
 
     def __int__(self):
-        r, g, b, a = self.GetRGBA()
-        return r << 24 | g << 16 | b << 8 | a
+        return self.GetRGBA()
 
     @staticmethod
     def from_int(rgba: int) -> "Color":
@@ -95,21 +90,21 @@ class Color(wx.Colour):
         return Color(r, g, b, a)
 
     def GetLighterColor(self, percentage=25):
-        a = self.GetRGBA()[-1]
-        h, s, v = colorsys.rgb_to_hsv(*self.matplotlib[:-1])
+        a = self.GetAlpha()
+        h, s, v = colorsys.rgb_to_hsv(*self.rgb_scalar)
 
         percentage /= 100.0
         v += v * percentage
         r, g, b = colorsys.hsv_to_rgb(h, s, v)
 
-        return Color(r, g, b, a)
+        return Color(int(round(r * 255)), int(round(g * 255)), int(round(b * 255)), a)
 
     def GetDarkerColor(self, percentage=25):
-        a = self.GetRGBA()[-1]
-        h, s, v = colorsys.rgb_to_hsv(*self.matplotlib[:-1])
+        a = self.GetAlpha()
+        h, s, v = colorsys.rgb_to_hsv(*self.rgb_scalar)
 
         percentage /= 100.0
         v -= v * percentage
         r, g, b = colorsys.hsv_to_rgb(h, s, v)
 
-        return Color(r, g, b, a)
+        return Color(int(round(r * 255)), int(round(g * 255)), int(round(b * 255)), a)

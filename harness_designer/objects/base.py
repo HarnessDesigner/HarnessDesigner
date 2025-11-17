@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, Union
 
 import wx
 
+
 from ..wrappers import wxartist_event as _wxartist_event
 from ..geometry import point as _point
 
@@ -13,6 +14,8 @@ if TYPE_CHECKING:
     from ..wrappers import wxmouse_event as _wxmouse_event
 
 
+
+
 class ObjectBase:
     def __init__(self, db_obj, editor3d: Union["_editor_3d.Editor3D", None], editor2d: Union["_editor_2d.Editor2D", None]):
         self._wxid = wx.NewIdRef()
@@ -22,8 +25,8 @@ class ObjectBase:
         self._editor2d = editor2d
         self._part = db_obj.part
         self._selected = False
-        self._objs = []
         self._menu_coords = []
+        self._object = None
 
     @property
     def part(self):
@@ -41,11 +44,6 @@ class ObjectBase:
     def tools2d(self):
         pass
 
-    def init(self):
-        for obj in self._objs:
-            obj.set_py_data(self)
-            obj.set_selected_color(False)
-
     @property
     def id(self) -> int:
         return self._db_obj.db_id
@@ -54,15 +52,17 @@ class ObjectBase:
     def wxid(self) -> int:
         return self._wxid
 
+    def set_selected_color(self, flag:bool) -> None:
+        pass
+
     def IsSelected(self, flag: bool | None = None) -> bool | None:
         if flag is None:
             return self._selected
         else:
             self._selected = flag
-            for obj in self._objs:
-                obj.set_selected_color(flag)
+            self.set_selected_color(flag)
 
-            self._editor3d.canvas.draw_idle()
+            self._editor3d.canvas.Refresh(False)
 
             if flag:
                 self._editor3d.Unbind(_wxartist_event.EVT_ARTIST_SET_SELECTED,
@@ -79,8 +79,6 @@ class ObjectBase:
                                       handler=self._on_artist_unset, id=self._wxid)
 
                 self._editor3d.Unbind(wx.EVT_KEY_UP, handler=self._on_key_up)
-
-
 
     def _on_artist_set(self, evt: "_wxartist_event.ArtistEvent"):
         self._editor3d.SetSelected(self, True)
@@ -100,7 +98,5 @@ class ObjectBase:
             self._db_obj.delete()
 
         evt.Skip()
-
-
 
 

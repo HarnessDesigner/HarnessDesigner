@@ -16,7 +16,8 @@ class Rotation:
         self._y_angle = y_angle
         self._z_angle = z_angle
 
-        self._R = _Rotation.from_euler('xyz', [x_angle, y_angle, z_angle], degrees=True)
+        self._R = _Rotation.from_euler(
+            'xyz', [x_angle, y_angle, z_angle], degrees=True)
 
     @property
     def x_angle(self) -> _decimal:
@@ -25,6 +26,8 @@ class Rotation:
     @x_angle.setter
     def x_angle(self, angle: _decimal):
         self._x_angle = angle
+        self._R = _Rotation.from_euler(
+            'xyz', [self._x_angle, self._y_angle, self._z_angle], degrees=True)
 
     @property
     def y_angle(self) -> _decimal:
@@ -33,6 +36,8 @@ class Rotation:
     @y_angle.setter
     def y_angle(self, angle: _decimal):
         self._y_angle = angle
+        self._R = _Rotation.from_euler(
+            'xyz', [self._x_angle, self._y_angle, self._z_angle], degrees=True)
 
     @property
     def z_angle(self) -> _decimal:
@@ -41,6 +46,8 @@ class Rotation:
     @z_angle.setter
     def z_angle(self, angle: _decimal):
         self._z_angle = angle
+        self._R = _Rotation.from_euler(
+            'xyz', [self._x_angle, self._y_angle, self._z_angle], degrees=True)
 
     def set_angles(self, x_angle: _decimal | None = None,
                    y_angle: _decimal | None = None,
@@ -58,35 +65,19 @@ class Rotation:
         self._R = _Rotation.from_euler(
             'xyz', [self._x_angle, self._y_angle, self._z_angle], degrees=True)
 
-    def __call__(
-        self, origin: "_point.Point", x: np.array, y: np.ndarray | None = None, z: np.ndarray | None = None
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray] | np.ndarray:
-
-        if y is not None and z is None:
-            raise RuntimeError('sanity check')
-
-        if y is None and z is None:
-            origin = origin.as_numpy
-            x -= origin
-            x_ = self._R.apply(x.T).T
-            x_ += origin
-            return x_
-        else:
-            origin = origin.as_float
-
-            local_points = np.vstack((x.flatten(), y.flatten(), z.flatten()))
-            local_points = self._R.apply(local_points.T).T
-
-            X = local_points[0].reshape(x.shape) + origin[0]
-            Y = local_points[1].reshape(y.shape) + origin[1]
-            Z = local_points[2].reshape(z.shape) + origin[2]
-            return X, Y, Z
+    def __call__(self, origin: "_point.Point", data: np.array) -> np.ndarray:
+        origin = origin.as_numpy
+        data -= origin
+        x_ = self._R.apply(data.T).T
+        x_ += origin
+        return x_
 
     def __rmatmul__(self, other: np.ndarray) -> np.ndarray:
         return self._R.apply(other.T).T
 
 
-def get_angles(p1: "_point.Point", p2: "_point.Point") -> tuple[_decimal, _decimal, _decimal]:
+def get_angles(p1: "_point.Point",
+               p2: "_point.Point") -> tuple[_decimal, _decimal, _decimal]:
 
     # to get the "roll" we need to have a directional vew we are looking from.
     # We always want that to be from a point looking down on the model along

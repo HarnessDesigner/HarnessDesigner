@@ -1,14 +1,14 @@
-from typing import Self, Callable, Iterable
+from typing import Self, Callable, Iterable, Union
 import weakref
 import numpy as np
 
 from ..wrappers.decimal import Decimal as _decimal
 from . import rotation as _rotation
-from .constants import TEN_0
+from .constants import TEN_0, ZERO_1
 
 
-def _floor(val: _decimal) -> _decimal:
-    return _decimal(int(val * TEN_0)) / TEN_0
+def _round_down(val: _decimal) -> _decimal:
+    return _decimal(int(val * TEN_0)) * ZERO_1
 
 
 class PointMeta(type):
@@ -66,12 +66,12 @@ class Point(metaclass=PointMeta):
         if z is None:
             z = _decimal(0.0)
 
-        self._x = _floor(x)
-        self._y = _floor(y)
-        self._z = _floor(z)
+        self._x = _round_down(x)
+        self._y = _round_down(y)
+        self._z = _round_down(z)
 
         self.__callbacks = []
-        self.__cb_disabled = False
+        self.__cb_disabled_count = 0
         self.__objects = []
 
     def add_object(self, obj):
@@ -90,11 +90,11 @@ class Point(metaclass=PointMeta):
             yield obj
 
     def __enter__(self):
-        self.__cb_disabled = True
+        self.__cb_disabled_count += 1
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.__cb_disabled = False
+        self.__cb_disabled_count -= 1
         self.__do_callbacks()
 
     def Bind(self, cb: Callable[["Point"], None]) -> bool:
@@ -126,7 +126,7 @@ class Point(metaclass=PointMeta):
 
     @x.setter
     def x(self, value: _decimal):
-        self._x = _floor(value)
+        self._x = _round_down(value)
         self.__do_callbacks()
 
     @property
@@ -135,7 +135,7 @@ class Point(metaclass=PointMeta):
 
     @y.setter
     def y(self, value: _decimal):
-        self._y = _floor(value)
+        self._y = _round_down(value)
         self.__do_callbacks()
 
     @property
@@ -144,14 +144,14 @@ class Point(metaclass=PointMeta):
 
     @z.setter
     def z(self, value: _decimal):
-        self._z = _floor(value)
+        self._z = _round_down(value)
         self.__do_callbacks()
 
     def copy(self) -> "Point":
         return Point(_decimal(self._x), _decimal(self._y), _decimal(self._z))
 
     def __do_callbacks(self):
-        if self.__cb_disabled:
+        if self.__cb_disabled_count != 0:
             return
 
         for ref in self.__callbacks[:]:
@@ -161,8 +161,11 @@ class Point(metaclass=PointMeta):
             else:
                 func(self)
 
-    def __iadd__(self, other: "Point") -> Self:
-        x, y, z = other
+    def __iadd__(self, other: Union["Point", np.ndarray]) -> Self:
+        if isinstance(other, Point):
+            x, y, z = other
+        else:
+            x, y, z = (_decimal(float(item)) for item in other)
         with self:
             self.x += x
             self.y += y
@@ -172,9 +175,12 @@ class Point(metaclass=PointMeta):
 
         return self
 
-    def __add__(self, other: "Point") -> "Point":
+    def __add__(self, other: Union["Point", np.ndarray]) -> "Point":
         x1, y1, z1 = self
-        x2, y2, z2 = other
+        if isinstance(other, Point):
+            x2, y2, z2 = other
+        else:
+            x2, y2, z2 = (_decimal(float(item)) for item in other)
 
         x = x1 + x2
         y = y1 + y2
@@ -182,8 +188,12 @@ class Point(metaclass=PointMeta):
 
         return Point(x, y, z)
 
-    def __isub__(self, other: "Point") -> Self:
-        x, y, z = other
+    def __isub__(self, other: Union["Point", np.ndarray]) -> Self:
+        if isinstance(other, Point):
+            x, y, z = other
+        else:
+            x, y, z = (_decimal(float(item)) for item in other)
+
         with self:
             self.x -= x
             self.y -= y
@@ -193,9 +203,12 @@ class Point(metaclass=PointMeta):
 
         return self
 
-    def __sub__(self, other: "Point") -> "Point":
+    def __sub__(self, other: Union["Point", np.ndarray]) -> "Point":
         x1, y1, z1 = self
-        x2, y2, z2 = other
+        if isinstance(other, Point):
+            x2, y2, z2 = other
+        else:
+            x2, y2, z2 = (_decimal(float(item)) for item in other)
 
         x = x1 - x2
         y = y1 - y2
@@ -226,43 +239,7 @@ class Point(metaclass=PointMeta):
     def set_z_angle(self, angle: _decimal, origin: "Point") -> None:
         self.set_angles(_decimal(0.0), _decimal(0.0), angle, origin)
 
-    def __matmul__(
-        self, other: tuple[np.ndarray, np.ndarray, np.ndarray, "Point"]
-    ) -> "Point":
-        x_angle, y_angle, z_angle, origin = other
-
-        R = _rotation.Rotation(x_angle, y_angle, z_angle)
-        p1 = self.as_numpy
-        origin = origin.as_numpy
-
-        p1 -= origin
-        p1 @= R
-        p1 += origin
-
-        x, y, z = [_decimal(float(item)) for item in p1]
-        return Point(x, y, z)
-
-    def __imatmul__(
-        self, other: tuple[np.ndarray, np.ndarray, np.ndarray, "Point"]
-    ) -> Self:
-        x_angle, y_angle, z_angle, origin = other
-
-        R = _rotation.Rotation(x_angle, y_angle, z_angle)
-        p1 = self.as_numpy
-        origin = origin.as_numpy
-
-        p1 -= origin
-        p1 @= R
-        p1 += origin
-
-        with self:
-            self.x, self.y, self.z = [_decimal(float(item)) for item in p1]
-
-        self.__do_callbacks()
-        return self
-
     def set_angles(self, x_angle: _decimal, y_angle: _decimal, z_angle: _decimal, origin: "Point") -> None:
-
         R = _rotation.Rotation(x_angle, y_angle, z_angle)
 
         p1 = self.as_numpy
@@ -275,6 +252,9 @@ class Point(metaclass=PointMeta):
             self.x, self.y, self.z = [_decimal(float(item)) for item in p1]
 
         self.__do_callbacks()
+
+    def __bool__(self):
+        return self.as_float == (0, 0, 0)
 
     def __eq__(self, other: "Point") -> bool:
         x1, y1, z1 = self
@@ -295,13 +275,23 @@ class Point(metaclass=PointMeta):
 
     @property
     def as_numpy(self) -> np.ndarray:
-        return np.array(self.as_float, dtype=float)
+        return np.array(self.as_float, dtype=np.dtypes.Float64DType)
 
     def __iter__(self) -> Iterable[_decimal]:
         return iter([self._x, self._y, self._z])
 
     def __str__(self) -> str:
         return f'X: {self.x}, Y: {self.y}, Z: {self.z}'
+
+    def __le__(self, other: "Point") -> bool:
+        x1, y1, z1 = self
+        x2, y2, z2 = other
+        return x1 <= x2 and y1 <= x2 and z1 <= z2
+
+    def __ge__(self, other: "Point") -> bool:
+        x1, y1, z1 = self
+        x2, y2, z2 = other
+        return x1 >= x2 and y1 >= y2 and z1 >= z2
 
 
 ZERO_POINT = Point(_decimal(0.0), _decimal(0.0), _decimal(0.0))

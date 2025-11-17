@@ -1,5 +1,5 @@
 
-# mouse wheel zoons in and out and left click with drag rotates the model
+# mouse wheel zooms in and out and left click with drag rotates the model
 
 import math
 try:
@@ -30,12 +30,13 @@ from OCP.BRep import BRep_Tool
 from OCP.BRepMesh import BRepMesh_IncrementalMesh
 from OCP.TopLoc import TopLoc_Location
 from wx import glcanvas
+import json
 
 
 import threading
 
 
-# Set the line below to export the model as an stl.
+# Set the line below to export the model as a stl.
 EXPORT_MODEL = False
 
 
@@ -85,6 +86,7 @@ TRANSITION2 = [
         "max": 30.5,
         "length": 47.5,
         "bulb_length": 23.8,
+        "bulb_offset": "[1.0, 0.0]",
         "angle": -180.0
     },
     {
@@ -110,7 +112,7 @@ TRANSITION3 = [
         "max": 26.0,
         "length": 34.0,
         "bulb_length": 32.5,
-        "bulb_offset": "[22.0, 0.0]",
+        "bulb_offset": "[26.0, 0.0]",
         "angle": -180.0,
         "flange_height": 5.5,
         "flange_width": 5.0
@@ -119,55 +121,97 @@ TRANSITION3 = [
         "min": 5.5,
         "max": 16.0,
         "length": 56.0,
-        "bulb_length": 45.0,
+        "bulb_length": 38.0,
         "angle": 0.0
     },
     {
         "min": 5.5,
         "max": 16.0,
         "length": 56.0,
-        "bulb_length": 45.0,
+        "bulb_length": 38.0,
         "angle": 30.0
     }
 ]
 
 
-def rotation_matrix_xyz(rx, ry, rz):
-    """Return rotation matrix from X, Y, Z Euler angles (radians)."""
-    
-    rx = math.radians(rx)
-    ry = math.radians(ry)
-    rz = math.radians(rz)
-    
-    Rx = np.array([
-        [1, 0, 0],
-        [0, np.cos(rx), -np.sin(rx)],
-        [0, np.sin(rx), np.cos(rx)]
-    ])
-    Ry = np.array([
-        [np.cos(ry), 0, np.sin(ry)],
-        [0, 1, 0],
-        [-np.sin(ry), 0, np.cos(ry)]
-    ])
-    Rz = np.array([
-        [np.cos(rz), -np.sin(rz), 0],
-        [np.sin(rz), np.cos(rz), 0],
-        [0, 0, 1]
-    ])
-    return Rz @ Ry @ Rx
+import json
+
+used_series = []
+
+allowed_parts = [
+    # '322A012-25-0',
+    # '322A112-25-0',
+    # '322A315-25-0',
+    # '322A412-25/225-0',
+    # '322A514-25-0',
+    # '341A015-25-0',
+    # '342A012-25-G05/225-0',
+    # '462A011-25-G05/225-0',
+    # '342A112-25-0',
+    # '342A215-25-0',
+    # '362A014-25/225-0',
+    # '382A012-25-0',
+    '382W042-25/225-0',
+    '462A011-25-0',
+    '462A214-25/225-0',
+    '462W013-25/225-0',
+    '562A011-25-0'
+]
+
+with open(r'C:\Users\drsch\PycharmProjects\harness_designer\harness_designer\database\setup_db\data\transitions.json', 'r') as f:
+    transition_data = f.read()
+
+transition_data = json.loads(transition_data)
 
 
-def build_model(b_data):
+transitions = []
+
+for transition in transition_data:
+    if transition['series'] in used_series:
+        continue
+
+    if transition['part_number'] not in allowed_parts:
+        continue
+
+    used_series.append(transition['series'])
+
+    for branch in transition['branches']:
+        if 'length' not in branch:
+            print(transition['part_number'])
+            break
+        if 'flange_height' in branch:
+            print(transition['part_number'])
+            break
+    else:
+        transitions.append(transition)
+
+print()
+print()
+
+
+from decimal import Decimal as _Decimal
+
+
+class Decimal(_Decimal):
+
+    def __new__(cls, value, *args, **kwargs):
+        value = str(float(value))
+
+        return super().__new__(cls, value, *args, **kwargs)
+
+
+def build_model(b_data, pos):
     model = None
-    z_pos = 0
 
-    for branch in b_data:
+    print(b_data['part_number'])
+
+    for branch in b_data['branches']:
+        print('  ', branch)
         min_dia = branch['min']
         max_dia = branch['max']
         length = branch['length']
         bulb_len = branch['bulb_length']
         angle = branch['angle']
-        z_pos = max(max_dia, z_pos)
 
         plane = build123d.Plane(origin=(0, 0, 0), z_dir=(1, 0, 0))
 
@@ -176,7 +220,11 @@ def build_model(b_data):
                 bulb_offset = eval(branch['bulb_offset'])
                 pl = build123d.Plane(origin=(bulb_offset[0], 0, 0), z_dir=(1, 0, 0)).rotated((0, 0, angle))
             else:
-                pl = plane.rotated((0, 0, angle))
+                if 'offset' in branch:
+                    offset = eval(branch['offset'])[0]
+                    pl = build123d.Plane(origin=(offset, 0, 0), z_dir=(1, 0, 0)).rotated((0, 0, angle))
+                else:
+                    pl = plane.rotated((0, 0, angle))
 
             if model is None:
                 model = pl * build123d.extrude(build123d.Circle(max_dia / 2), bulb_len)
@@ -194,20 +242,177 @@ def build_model(b_data):
                 x_pos = bulb_len * math.cos(r)
                 y_pos = bulb_len * math.sin(r)
 
+                if 'offset' in branch:
+                    x_pos += eval(branch['offset'])[0]
+
                 pl = build123d.Plane(origin=(x_pos, y_pos, 0), z_dir=(1, 0, 0))
                 model += pl * build123d.Sphere(max_dia / 2).rotate(build123d.Axis(origin=(0, 0, 0), direction=(1, 0, 0)), angle)
 
-        if 'flange_width' in branch:
-            fw = branch['flange_width']
-            fh = branch['flange_height']
+        # if 'flange_width' in branch:
+        #     fw = branch['flange_width']
+        #     fh = branch['flange_height']
+        #
+        #     pl = plane.rotated((0, 0, angle)).move(build123d.Location(position=(-length + 11, 0, 0)))
+        #     model += (pl * build123d.extrude(build123d.Circle(min_dia / 2 + 15), fw))# .rotate(build123d.Axis(origin=(0, 0, 0), direction=(0, 1, 0)), angle)
+        if 'offset' in branch:
+            offset = eval(branch['offset'])[0]
+            pl = build123d.Plane(origin=(offset, 0, 0), z_dir=(1, 0, 0)).rotated((0, 0, angle))
+        else:
+            pl = plane.rotated((0, 0, angle))
+        if model is None:
+            model = pl * build123d.extrude(build123d.Circle(min_dia / 2), length)
+        else:
+            model += pl * build123d.extrude(build123d.Circle(min_dia / 2), length)
 
-            pl = build123d.Plane(origin=(-(length - fw), 0), z_dir=(1, 0, 0)).rotated((0, 0, angle))
-            model += pl * build123d.extrude(build123d.Circle(min_dia / 2 + fh), fw)
+        if angle in (-180, 0):
+            length += branch['length']
 
-        pl = plane.rotated((0, 0, angle))
-        model += pl * build123d.extrude(build123d.Circle((max_dia + min_dia) / 2 / 2), length)
+    model.move(build123d.Location(pos))
 
     return model
+
+
+import python_utils
+
+
+def get_angles(p1: list[Decimal, Decimal, Decimal],
+               p2: list[Decimal, Decimal, Decimal]) -> tuple[Decimal, Decimal, Decimal]:
+
+    # Convert to numpy arrays
+    p1 = np.array(p1, dtype=np.dtypes.Float64DType)
+    p2 = np.array(p2, dtype=np.dtypes.Float64DType)
+
+    # create direction vector with y+ axis being "up"
+    dir_vector = np.array([0.0, 1.0, 0.0], dtype=np.dtypes.Float64DType)
+
+    # Direction vector (main axis)
+    forward = p2 - p1
+    forward /= np.linalg.norm(forward)
+
+    # Temporary "up" vector
+    up_temp = dir_vector - p1
+
+    up_temp /= np.linalg.norm(up_temp)
+
+    # Right vector (perpendicular to forward and up_temp)
+    right = np.cross(up_temp, forward)  # NOQA
+
+    right /= np.linalg.norm(right)
+
+    # True up vector (recomputed to ensure orthogonality)
+    up = np.cross(forward, right)  # NOQA
+
+    # Build rotation matrix
+    matrix = np.array([right, up, forward]).T  # 3x3 rotation matrix
+
+    # Extract Euler angles (XYZ order)
+    pitch = np.arctan2(-matrix[2, 1], matrix[2, 2])
+    roll = np.arctan2(matrix[2, 0], np.sqrt(matrix[2, 1] ** 2 + matrix[2, 2] ** 2))
+    yaw = np.arctan2(matrix[1, 0], matrix[0, 0])
+
+    # convert radiant to degrees
+    pitch, roll, yaw = np.degrees([pitch, roll, yaw])
+
+    print(pitch, roll, yaw)
+    return Decimal(pitch), Decimal(roll), Decimal(yaw)
+
+
+def create_wire(wires: list["Wire"]):
+
+    # wires are constructed along the positive Z axis
+    #             y+
+    #             |  Z+
+    #             | /
+    # x+ ------ center ------ x-
+    #           / |
+    #         Z1- |
+    #             Y-
+
+    model = None
+    stripes = None
+
+    for i, wire in enumerate(wires):
+        if i > 0:
+            sphere = build123d.Sphere(float(wire.diameter / Decimal(2)))
+            sphere.move(build123d.Location([float(item) for item in wire.p1]))
+            model += sphere
+
+        length = wire.length
+        p1 = wire.p1
+        p2 = wire.p2
+
+        angles = get_angles(p1, p2)
+        wire_r = wire.diameter / Decimal(2)
+
+        # Create the wire
+        cyl = build123d.Cylinder(float(wire_r), float(length), align=build123d.Align.NONE)
+
+        # Extract the axis of rotation from the wire to create the stripe
+        wire_axis = cyl.faces().filter_by(build123d.GeomType.CYLINDER)[0].axis_of_rotation
+
+        # Take 1mm of the circular arc as the stripe and make it 2D
+        # we need to set the thickness of the strip because on smaller diameter wire
+        # the stripe visibly sticks up when the stripe is thick enough on larger diameter
+        # to not get any belld through from the cylinder below it. and if I make the stripe
+        # thin then I end up with bleed through on the large diameter cylinder.
+        stripe_thickness = python_utils.remap(wire.diameter, old_min=0.5, old_max=5.0, new_min=0.005, new_max=0.015)
+
+        stripe_arc = build123d.Face(
+            (
+                cyl.edges()
+                .filter_by(build123d.GeomType.CIRCLE)
+                .sort_by(lambda e: e.distance_to(wire_axis.position))[0]
+            )
+            .trim_to_length(0, float(wire.diameter / Decimal(3) * Decimal(build123d.MM)))
+            .offset_2d(float(stripe_thickness * Decimal(build123d.MM)), side=build123d.Side.RIGHT)
+        )
+
+        # Define the twist path to follow the wire
+        twist = build123d.Helix(
+            pitch=float(length / Decimal(2)),
+            height=float(length),
+            radius=float(wire_r),
+            center=wire_axis.position,
+            direction=wire_axis.direction,
+        )
+
+        # Sweep the arc to create the stripe
+        stripe = build123d.sweep(
+            stripe_arc, build123d.Line(wire_axis.position, float(length) * wire_axis.direction), binormal=twist
+        )
+
+        # # stripe.move(build123d.Location(wire.p1))
+        # q =
+        #
+        # transformation = gp_Trsf()
+        # transformation.SetRotation(q)
+        #
+        # cyl = cyl._apply_transform(transformation)
+
+        cyl2 = cyl.rotate(build123d.Axis(origin=[0.0, 0.0, 0.0], direction=(1, 0, 0)), float(angles[0]))
+
+        print(cyl2 == cyl)
+        import sys
+
+        sys.stdout.flush()
+        cyl = cyl2.rotate(build123d.Axis(origin=[0.0, 0.0, 0.0], direction=(0, 1, 0)), float(angles[1]))
+        cyl = cyl.rotate(build123d.Axis(origin=[0.0, 0.0, 0.0], direction=(0, 0, 1)), float(angles[2]))
+
+        stripe = stripe.rotate(build123d.Axis(origin=[0.0, 0.0, 0.0], direction=(1, 0, 0)), float(angles[0]))
+        stripe = stripe.rotate(build123d.Axis(origin=[0.0, 0.0, 0.0], direction=(0, 1, 0)), float(angles[1]))
+        stripe = stripe.rotate(build123d.Axis(origin=[0.0, 0.0, 0.0], direction=(0, 0, 1)), float(angles[2]))
+
+        cyl.move(build123d.Location([float(item) for item in wire.p1]))
+        stripe.move(build123d.Location([float(item) for item in wire.p1]))
+
+        if model is None:
+            model = cyl
+            stripes = stripe
+        else:
+            model += cyl
+            stripes += stripe
+
+    return model, stripes
 
 
 def get_triangles(ocp_mesh):
@@ -261,11 +466,29 @@ def get_triangles(ocp_mesh):
             for _ in range(3):
                 normals.extend([aVNorm.X(), aVNorm.Y(), aVNorm.Z()])
 
-            triangle_count += 1
+            triangle_count += 3
 
     return (np.array(normals, dtype=np.dtypes.Float64DType),
             np.array(triangles, dtype=np.dtypes.Float64DType),
             triangle_count)
+
+
+class Wire:
+
+    def __init__(self, p1, p2, diameter, color, stripe_color):
+        self.p1 = p1
+        self.p2 = p2
+        self.diameter = diameter
+        self.color = color
+        self.stripe_color = stripe_color
+
+    @property
+    def length(self):
+        x = self.p2[0] - self.p1[0]
+        y = self.p2[1] - self.p1[1]
+        z = self.p2[2] - self.p1[2]
+
+        return Decimal(math.sqrt(x * x + y * y + z * z))
 
 
 class Canvas(glcanvas.GLCanvas):
@@ -274,57 +497,169 @@ class Canvas(glcanvas.GLCanvas):
         self.init = False
         self.context = glcanvas.GLContext(self)
 
-        self.lastx = self.x = 0
-        self.lasty = self.y = 0
+        self.last_left_x = 0
+        self.last_left_y = 0
+        self.last_right_x = 0
+        self.last_right_y = 0
+
+        self.right_mouse_pos = None
+        self.left_mouse_pos = None
+        self.up_down_angle = 0.0
+        self.right_left_angle = 0.0
+        self.viewMatrix = None
+        self.zoom = 0.2
+
         self.size = None
         self.Bind(wx.EVT_ERASE_BACKGROUND, self.OnEraseBackground)
         self.Bind(wx.EVT_SIZE, self.OnSize)
         self.Bind(wx.EVT_PAINT, self.OnPaint)
         self.Bind(wx.EVT_LEFT_DOWN, self.OnMouseDown)
+        self.Bind(wx.EVT_RIGHT_DOWN, self.OnMouseDown)
         self.Bind(wx.EVT_LEFT_UP, self.OnMouseUp)
+        self.Bind(wx.EVT_RIGHT_UP, self.OnMouseUp)
         self.Bind(wx.EVT_MOTION, self.OnMouseMotion)
         self.Bind(wx.EVT_MOUSEWHEEL, self.OnMouseWheel)
-        self.model1 = None
-        self.model2 = None
-        self.model3 = None
-        self.normals = None
-        self.triangles = None
-        self.triangle_count = None
-        self.scale = 0.2
+        self.models = []
+        self.normals = []
+        self.triangles = []
+        self.triangle_count = []
+        self.colors = []
 
-        self.rotations = [0.0, 0.0, 0.0]
-        self.last_rotations = [0.0, 0.0, 0.0]
+        t = threading.Thread(target=self.run)
+        t.daemon = True
+        t.start()
+
+    def run(self):
+        count = 0
+
+        print('loading models')
+        self.make_wires()
+        return
+
+        sphere = build123d.Sphere(0.5)
+        normals, triangles, triangle_count = get_triangles(sphere)
+        self.triangles.append((normals, triangles, triangle_count))
+        self.colors.append((1.0, 0.0, 0.0))
+
+
+        for transition in transitions:
+            model = build_model(transition, (125 * count + 125, 0.0, 0.0))
+
+            if isinstance(model, build123d.topology.three_d.Solid):
+                models = [model]
+            else:
+                models = [item for item in model if isinstance(item, build123d.topology.three_d.Solid)]
+
+            for model in models:
+                normals, triangles, triangle_count = get_triangles(model)
+                self.triangles.append((normals, triangles, triangle_count))
+                self.colors.append((0.2, 0.2, 0.2))
+                count += 1
+                wx.CallAfter(self.Refresh, False)
+
+
+        print('finished loading models')
+
+    # y axis rotation is counter clockwise
+
+    def make_wires(self):
+        wires = [
+            [
+                Wire((Decimal(0.0), Decimal(0.0), Decimal(0.0)),
+                     (Decimal(20.0), Decimal(20.0), Decimal(0.0)),
+                     Decimal(5.0), (0.55, 0.0, 0.55), (1.0, 0.65, 0.0)),
+                Wire((Decimal(20.0), Decimal(20.0), Decimal(0.0)),
+                     (Decimal(60.0), Decimal(20.0), Decimal(0.0)),
+                     Decimal(5.0), (0.55, 0.0, 0.55), (1.0, 0.65, 0.0)),
+                Wire((Decimal(60.0), Decimal(20.0), Decimal(0.0)),
+                     (Decimal(10.0), Decimal(40.0), Decimal(0.0)),
+                     Decimal(5.0), (0.55, 0.0, 0.55), (1.0, 0.65, 0.0))
+            ],
+            [Wire((Decimal(-100.0), Decimal(0.0), Decimal(-100.0)),
+                  (Decimal(-100.0), Decimal(50.0), Decimal(-100)),
+                  Decimal(1.0), (0.1, 0.1, 0.1), (1.0, 0.0, 0.0))]
+        ]
+        triangles = []
+        colors = []
+        models = []
+
+        for items in wires:
+            model, stripes = create_wire(items)
+            models.append(model)
+            models.append(stripes)
+
+            if isinstance(model, build123d.ShapeList):
+                normals = None
+                tris = None
+                tris_count = 0
+
+                for item in model:
+                    if not isinstance(item, build123d.Shape):
+                        continue
+
+                    n, t, tc = get_triangles(item)
+
+                    if normals is None:
+                        normals = n
+                        tris = t
+                    else:
+                        normals = np.concatenate((normals, n))
+                        tris = np.concatenate((tris, t))
+
+                    tris_count += tc
+            else:
+                normals, tris, tris_count = get_triangles(model)
+
+            triangles.append((normals, tris, tris_count))
+
+            if isinstance(stripes, build123d.ShapeList):
+                normals = None
+                tris = None
+                tris_count = 0
+
+                for item in stripes:
+                    if not isinstance(item, build123d.Shape):
+                        continue
+
+                    n, t, tc = get_triangles(item)
+
+                    if normals is None:
+                        normals = n
+                        tris = t
+                    else:
+                        normals = np.concatenate((normals, n))
+                        tris = np.concatenate((tris, t))
+
+                    tris_count += tc
+            else:
+                normals, tris, tris_count = get_triangles(stripes)
+
+            triangles.append((normals, tris, tris_count))
+
+            colors.extend((items[0].color, items[0].stripe_color))
+
+        self.triangles.extend(triangles)
+        self.colors.extend(colors)
+        self.models.extend(models)
+
+        wx.CallAfter(self.Refresh, False)
+
+    def get_world_coords(self, mx, my):
+        modelview = glGetDoublev(GL_MODELVIEW_MATRIX)
+        projection = glGetDoublev(GL_PROJECTION_MATRIX)
+        viewport = glGetIntegerv(GL_VIEWPORT)
+
+        depth = glReadPixels(mx, my, 1.0, 1.0, GL_DEPTH_COMPONENT, GL_FLOAT, None)
+        return gluUnProject(mx, my, depth, modelview, projection, viewport)
 
     def build_model(self):
-        self.model1 = build_model(TRANSITION1)
-        normals, triangles, triangle_count = get_triangles(self.model1)
-
-        self.normals = normals
-        self.triangles = triangles
-        self.triangle_count = triangle_count
-
-        self.model2 = build_model(TRANSITION2)
-        normals, triangles, triangle_count = get_triangles(self.model2)
-
-        pos = np.array([50.0, 0.0, 0.0], dtype=np.dtypes.Float64DType)
-        triangles += pos
-
-        self.triangles = np.concatenate((self.triangles, triangles))
-        self.normals = np.concatenate((self.normals, normals))
-        self.triangle_count += triangle_count
-
-        self.model3 = build_model(TRANSITION3)
-        normals, triangles, triangle_count = get_triangles(self.model3)
-
-        pos = np.array([-50.0, 0.0, 0.0], dtype=np.dtypes.Float64DType)
-        triangles += pos
-
-        self.triangles = np.concatenate((self.triangles, triangles))
-        self.normals = np.concatenate((self.normals, normals))
-        self.triangle_count += triangle_count
-
-        if EXPORT_MODEL:
-            build123d.export_stl(self.model, "test.stl")
+        if self.models is None:
+            self.models = [
+                build_model(TRANSITION1),
+                build_model(TRANSITION2),
+                build_model(TRANSITION3)
+            ]
+            self.triangles = [get_triangles(model) for model in self.models]
 
     def OnEraseBackground(self, event):
         pass  # Do nothing, to avoid flashing on MSW.
@@ -334,10 +669,10 @@ class Canvas(glcanvas.GLCanvas):
         event.Skip()
 
     def OnMouseWheel(self, evt: wx.MouseEvent):
-        self.scale += evt.GetWheelRotation() / 10000
-
-        if self.scale < 0.001:
-            self.scale = 0.001
+        if evt.GetWheelRotation() > 0:
+            self.zoom += self.zoom * 0.10
+        else:
+            self.zoom -= self.zoom * 0.10
 
         self.Refresh(False)
         evt.Skip()
@@ -355,112 +690,185 @@ class Canvas(glcanvas.GLCanvas):
             self.init = True
         self.OnDraw()
 
-    def OnMouseDown(self, event):
+    def OnMouseDown(self, event: wx.MouseEvent):
         if self.HasCapture():
             self.ReleaseMouse()
         self.CaptureMouse()
-        self.x, self.y = self.lastx, self.lasty = event.GetPosition()
+
+        if event.LeftIsDown():
+            self.left_mouse_pos = [0, 0]
+            self.last_left_x, self.last_left_y = event.GetPosition()
+        elif event.RightIsDown():
+            self.right_mouse_pos = [0, 0]
+            self.last_right_x, self.last_right_y = event.GetPosition()
 
     def OnMouseUp(self, _):
         if self.HasCapture():
             self.ReleaseMouse()
 
+        self.right_mouse_pos = None
+        self.left_mouse_pos = None
+
     def OnMouseMotion(self, event):
-        if event.Dragging() and event.LeftIsDown():
-            self.lastx, self.lasty = self.x, self.y
-            self.x, self.y = event.GetPosition()
-            self.Refresh(False)
+        if event.Dragging():
+            x, y = event.GetPosition()
+
+            if event.LeftIsDown():
+                new_x = self.last_left_x - x
+                new_y = self.last_left_y - y
+
+                self.left_mouse_pos = [new_x, new_y]
+                self.last_left_x, self.last_left_y = x, y
+                self.Refresh(False)
+
+            elif event.RightIsDown():
+                factor = self.zoom
+
+                if factor > 0.20:
+                    factor = 0.20
+
+                new_x = (self.last_right_x - x) - (factor * 4.9 * (self.last_right_x - x))
+                new_y = (self.last_right_y - y) - (factor * 4.9 * (self.last_right_y - y))
+
+                self.right_mouse_pos = [new_x, new_y]
+                self.last_right_x, self.last_right_y = x, y
+
+                self.Refresh(False)
 
     def InitGL(self):
         w, h = self.GetSize()
-        glClearColor(0.95, 0.95, 0.95, 0.0)
+        glClearColor(0.80, 0.80, 0.80, 0.0)
         glViewport(0, 0, w, h)
-        glMatrixMode(GL_PROJECTION)
-        # glFrustum(-0.5, 0.5, -0.5, 0.5, 1.0, 3.0)
-
-        glLoadIdentity()
-        gluPerspective(45, w / float(h), 0.1, 1000.0)
-        glMatrixMode(GL_MODELVIEW)
-
-        gluLookAt(0.0, 2.0, -16.0, 0.0, 0.5, 0.0, 0.0, 1.0, 0.0)
 
         glEnable(GL_DEPTH_TEST)
         glEnable(GL_LIGHTING)
-        glEnable(GL_LIGHT0)
+        glShadeModel(GL_SMOOTH)
+        glColorMaterial(GL_FRONT, GL_AMBIENT_AND_DIFFUSE)
         glEnable(GL_COLOR_MATERIAL)
-        glLightfv(GL_LIGHT0, GL_AMBIENT, [0.05, 0.05, 0.05, 1.0])
-        glLightfv(GL_LIGHT0, GL_DIFFUSE, [0.05, 0.05, 0.05, 1.0])
-        glLightfv(GL_LIGHT0, GL_SPECULAR, [0.1, 0.1, 0.1, 1.0])
+        glEnable(GL_NORMALIZE)
+        # glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE)
+
+        glLightfv(GL_LIGHT0, GL_AMBIENT, [0.5, 0.5, 0.5, 1.0])
+        glLightfv(GL_LIGHT0, GL_DIFFUSE, [0.3, 0.3, 0.3, 1.0])
+        glLightfv(GL_LIGHT0, GL_SPECULAR, [0.5, 0.5, 0.5, 1.0])
+
+        glMaterialfv(GL_FRONT, GL_AMBIENT, [0.1, 0.1, 0.1, 1.00])
+        glMaterialfv(GL_FRONT, GL_DIFFUSE, [0.01, 0.01, 0.01, 1.00])
+        glMaterialfv(GL_FRONT, GL_SPECULAR, [0.80, 0.80, 0.80, 1.00])
+        glMaterialf(GL_FRONT, GL_SHININESS, 10.0)
+
+        # glLightfv(GL_LIGHT0, GL_QUADRATIC_ATTENUATION, 100.0)
+        glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, GL_FALSE)
+        # GL_CONSTANT_ATTENUATION, GL_LINEAR_ATTENUATION, and GL_QUADRATIC_ATTENUATION
+        glEnable(GL_LIGHT0)
+
+        glMatrixMode(GL_PROJECTION)
+        gluPerspective(45, w / float(h), 0.1, 1000.0)
+
+        glMatrixMode(GL_MODELVIEW)
+        gluLookAt(0.0, 2.0, -16.0, 0.0, 0.5, 0.0, 0.0, 1.0, 0.0)
+        self.viewMatrix = glGetFloatv(GL_MODELVIEW_MATRIX)
 
     def OnDraw(self):
+
+        glLoadIdentity()
+
+        if self.left_mouse_pos is not None:
+            self.right_left_angle += self.left_mouse_pos[0] * 0.1
+            self.up_down_angle += self.left_mouse_pos[1] * 0.1
+
+        glRotatef(self.up_down_angle, 1.0, 0.0, 0.0)
+        glRotatef(self.right_left_angle, 0.0, 1.0, 0.0)
+
+        glPushMatrix()
+        glLoadIdentity()
+
+        # if self.zoom is not None:
+        #     glTranslatef(0, 0, self.zoom / 10.0)
+        #     self.zoom = None
+
+        if self.right_mouse_pos is not None:
+            print(-self.right_mouse_pos[0] * 0.1, self.right_mouse_pos[1] * 0.1)
+            glTranslatef(-self.right_mouse_pos[0] * 0.1, 0, 0)
+            glTranslatef(0, self.right_mouse_pos[1] * 0.1, 0)
+
+        glMultMatrixf(self.viewMatrix)
+        self.viewMatrix = glGetFloatv(GL_MODELVIEW_MATRIX)
+        #
+        glPopMatrix()
+        glMultMatrixf(self.viewMatrix)
+
+        glScalef(self.zoom, self.zoom, self.zoom)
+
         # Clear color and depth buffers.
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
-        if self.triangles is not None:
-            glPushMatrix()
-            # set the scale, "zooming"
-            glScalef(self.scale, self.scale, self.scale)
-            glEnableClientState(GL_VERTEX_ARRAY)
-            glEnableClientState(GL_NORMAL_ARRAY)
+        glPushMatrix()
+        # set the scale, "zooming"
+        glEnableClientState(GL_VERTEX_ARRAY)
+        glEnableClientState(GL_NORMAL_ARRAY)
 
-            glColor3f(0.3, 0.3, 0.3)
-            glVertexPointer(3, GL_DOUBLE, 0, self.triangles)
-            glNormalPointer(GL_DOUBLE, 0, self.normals)
-            glDrawArrays(GL_TRIANGLES, 0, self.triangle_count * 3)
+        for i, (normals, triangles, triangle_count) in enumerate(self.triangles):
+            glColor3f(*self.colors[i])
 
-            glDisableClientState(GL_VERTEX_ARRAY)
-            glDisableClientState(GL_NORMAL_ARRAY)
-            glPopMatrix()
+            glVertexPointer(3, GL_DOUBLE, 0, triangles)
+            glNormalPointer(GL_DOUBLE, 0, normals)
+            glDrawArrays(GL_TRIANGLES, 0, triangle_count * 3)
 
-            if self.size is None:
-                self.size = self.GetClientSize()
+        glDisableClientState(GL_VERTEX_ARRAY)
+        glDisableClientState(GL_NORMAL_ARRAY)
+        glPopMatrix()
 
-            w, h = self.size
-            w = max(w, 1.0)
-            h = max(h, 1.0)
-            xScale = 180.0 / w
-            yScale = 180.0 / h
+        if self.size is None:
+            self.size = self.GetClientSize()
 
-            x_angle = 0.0
-            y_angle = -(self.y - self.lasty) * yScale
-            z_angle = (self.x - self.lastx) * xScale
+            # w, h = self.size
+            # w = max(w, 1.0)
+            # h = max(h, 1.0)
+            # xScale = 180.0 / w
+            # yScale = 180.0 / h
+            #
+            # x_angle = 0.0
+            # y_angle = -(self.y - self.lasty) * yScale
+            # z_angle = (self.x - self.lastx) * xScale
+            #
+            # x_rot, y_rot, z_rot = self.last_rotations
+            #
+            # y_rot += y_angle
+            # z_rot += z_angle
+            #
+            # if y_rot < 0:
+            #     y_rot += 360.0
+            #
+            # elif y_rot > 360:
+            #     y_rot -= 360.0
+            #
+            # if z_rot < 0:
+            #     z_rot += 360.0
+            #
+            # elif z_rot > 360:
+            #     z_rot -= 360.0
+            #
+            # if 90.0 >= z_rot or z_rot >= 270.0:
+            #     x_angle, y_angle, z_angle = y_angle, z_angle, x_angle
+            #
+            # glRotatef(x_angle, 1.0, 0.0, 0.0)
+            # glRotatef(y_angle, 0.0, 1.0, 0.0)
+            # glRotatef(z_angle, 0.0, 0.0, 1.0)
+            #
+            # # glRotatef((self.x / self.y) * xScale * yScale, 1.0, 0.0, 0.0)
+            #
+            # self.last_rotations[0] += x_angle
+            # self.last_rotations[1] += y_angle
+            # self.last_rotations[2] += z_angle
+            #
+            # for i, item in enumerate(self.last_rotations):
+            #     if item < 0:
+            #         self.last_rotations[i] += 360.0
+            #     elif item > 360:
+            #         self.last_rotations[i] -= 360.0
 
-            x_rot, y_rot, z_rot = self.last_rotations
-
-            y_rot += y_angle
-            z_rot += z_angle
-
-            if y_rot < 0:
-                y_rot += 360.0
-
-            elif y_rot > 360:
-                y_rot -= 360.0
-
-            if z_rot < 0:
-                z_rot += 360.0
-
-            elif z_rot > 360:
-                z_rot -= 360.0
-
-            if 90.0 >= z_rot or z_rot >= 270.0:
-                x_angle, y_angle, z_angle = y_angle, z_angle, x_angle
-
-            glRotatef(x_angle, 1.0, 0.0, 0.0)
-            glRotatef(y_angle, 0.0, 1.0, 0.0)
-            glRotatef(z_angle, 0.0, 0.0, 1.0)
-            # glRotatef((self.x / self.y) * xScale * yScale, 1.0, 0.0, 0.0)
-
-            self.last_rotations[0] += x_angle
-            self.last_rotations[1] += y_angle
-            self.last_rotations[2] += z_angle
-
-            for i, item in enumerate(self.last_rotations):
-                if item < 0:
-                    self.last_rotations[i] += 360.0
-                elif item > 360:
-                    self.last_rotations[i] -= 360.0
-
-            print([round(item, 2) for item in self.last_rotations])
+            # print([round(item, 2) for item in self.last_rotations])
         self.SwapBuffers()
 
 
@@ -484,344 +892,154 @@ if __name__ == '__main__':
     app = App()
     app.MainLoop()
 
-
 '''
+int BRASS         =  0;
+int BRONZE        =  1;
+int CHROME        =  2;
+int COPPER        =  3;
+int GOLD          =  4;
+int PEWTER        =  5;
+int SILVER        =  6;
+int JADE          =  7;
+int OBSIDIAN      =  8;
+int PEARL         =  9;
+int RUBY          = 10;
+int TURQUOISE     = 11;
+int BLACK_PLASTIC = 12;
+int BLACK_RUBBER  = 13;
 
-
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
-#include <stb_image.h>
-
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-
-#include <learnopengl/shader_m.h>
-#include <learnopengl/camera.h>
-
-#include <iostream>
-
-void framebuffer_size_callback(GLFWwindow* window, int width, int height);
-void mouse_callback(GLFWwindow* window, double xpos, double ypos);
-void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
-void processInput(GLFWwindow *window);
-
-// settings
-const unsigned int SCR_WIDTH = 800;
-const unsigned int SCR_HEIGHT = 600;
-
-// camera
-Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
-float lastX = SCR_WIDTH / 2.0f;
-float lastY = SCR_HEIGHT / 2.0f;
-bool firstMouse = true;
-
-// timing
-float deltaTime = 0.0f;	// time between current frame and last frame
-float lastFrame = 0.0f;
-
-int main()
+float SPECULAR_EXPONENTS[] = 
 {
-    // glfw: initialize and configure
-    // ------------------------------
-    glfwInit();
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+   27.897400, // BRASS
+   25.600000, // BRONZE
+   76.800003, // CHROME
+   12.800000, // COPPER
+   51.200001, // GOLD
+   09.846150, // PEWTER
+   51.200001, // SILVER
+   76.800003, // EMERALD
+   12.800000, // JADE
+   38.400002, // OBSIDIAN
+   11.264000, // PEARL
+   76.800003, // RUBY
+   12.800000, // TURQUOISE
+   32.000000, // BLACK_PLASTIC
+   10.000000  // BLACK_RUBBER
+};
 
-#ifdef __APPLE__
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-#endif
-
-    // glfw window creation
-    // --------------------
-    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", NULL, NULL);
-    if (window == NULL)
-    {
-        std::cout << "Failed to create GLFW window" << std::endl;
-        glfwTerminate();
-        return -1;
-    }
-    glfwMakeContextCurrent(window);
-    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-    glfwSetCursorPosCallback(window, mouse_callback);
-    glfwSetScrollCallback(window, scroll_callback);
-
-    // tell GLFW to capture our mouse
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-
-    // glad: load all OpenGL function pointers
-    // ---------------------------------------
-    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
-    {
-        std::cout << "Failed to initialize GLAD" << std::endl;
-        return -1;
-    }
-
-    // configure global opengl state
-    // -----------------------------
-    glEnable(GL_DEPTH_TEST);
-
-    // build and compile our shader zprogram
-    // ------------------------------------
-    Shader ourShader("7.4.camera.vs", "7.4.camera.fs");
-
-    // set up vertex data (and buffer(s)) and configure vertex attributes
-    // ------------------------------------------------------------------
-    float vertices[] = {
-        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-         0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
-         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-         0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-
-        -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-
-         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-         0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
-         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-
-        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
-    };
-    // world space positions of our cubes
-    glm::vec3 cubePositions[] = {
-        glm::vec3( 0.0f,  0.0f,  0.0f),
-        glm::vec3( 2.0f,  5.0f, -15.0f),
-        glm::vec3(-1.5f, -2.2f, -2.5f),
-        glm::vec3(-3.8f, -2.0f, -12.3f),
-        glm::vec3( 2.4f, -0.4f, -3.5f),
-        glm::vec3(-1.7f,  3.0f, -7.5f),
-        glm::vec3( 1.3f, -2.0f, -2.5f),
-        glm::vec3( 1.5f,  2.0f, -2.5f),
-        glm::vec3( 1.5f,  0.2f, -1.5f),
-        glm::vec3(-1.3f,  1.0f, -1.5f)
-    };
-    unsigned int VBO, VAO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-
-    glBindVertexArray(VAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    // position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    // texture coord attribute
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-
-
-    // load and create a texture 
-    // -------------------------
-    unsigned int texture1, texture2;
-    // texture 1
-    // ---------
-    glGenTextures(1, &texture1);
-    glBindTexture(GL_TEXTURE_2D, texture1);
-    // set the texture wrapping parameters
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    // set texture filtering parameters
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    // load image, create texture and generate mipmaps
-    int width, height, nrChannels;
-    stbi_set_flip_vertically_on_load(true); // tell stb_image.h to flip loaded texture's on the y-axis.
-    unsigned char *data = stbi_load(FileSystem::getPath("resources/textures/container.jpg").c_str(), &width, &height, &nrChannels, 0);
-    if (data)
-    {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-        glGenerateMipmap(GL_TEXTURE_2D);
-    }
-    else
-    {
-        std::cout << "Failed to load texture" << std::endl;
-    }
-    stbi_image_free(data);
-    // texture 2
-    // ---------
-    glGenTextures(1, &texture2);
-    glBindTexture(GL_TEXTURE_2D, texture2);
-    // set the texture wrapping parameters
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    // set texture filtering parameters
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    // load image, create texture and generate mipmaps
-    data = stbi_load(FileSystem::getPath("resources/textures/awesomeface.png").c_str(), &width, &height, &nrChannels, 0);
-    if (data)
-    {
-        // note that the awesomeface.png has transparency and thus an alpha channel, so make sure to tell OpenGL the data type is of GL_RGBA
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-        glGenerateMipmap(GL_TEXTURE_2D);
-    }
-    else
-    {
-        std::cout << "Failed to load texture" << std::endl;
-    }
-    stbi_image_free(data);
-
-    // tell opengl for each sampler to which texture unit it belongs to (only has to be done once)
-    // -------------------------------------------------------------------------------------------
-    ourShader.use();
-    ourShader.setInt("texture1", 0);
-    ourShader.setInt("texture2", 1);
-
-
-    // render loop
-    // -----------
-    while (!glfwWindowShouldClose(window))
-    {
-        // per-frame time logic
-        // --------------------
-        float currentFrame = static_cast<float>(glfwGetTime());
-        deltaTime = currentFrame - lastFrame;
-        lastFrame = currentFrame;
-
-        // input
-        // -----
-        processInput(window);
-
-        // render
-        // ------
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
-
-        // bind textures on corresponding texture units
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, texture1);
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, texture2);
-
-        // activate shader
-        ourShader.use();
-
-        // pass projection matrix to shader (note that in this case it could change every frame)
-        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-        ourShader.setMat4("projection", projection);
-
-        // camera/view transformation
-        glm::mat4 view = camera.GetViewMatrix();
-        ourShader.setMat4("view", view);
-
-        // render boxes
-        glBindVertexArray(VAO);
-        for (unsigned int i = 0; i < 10; i++)
-        {
-            // calculate the model matrix for each object and pass it to shader before drawing
-            glm::mat4 model = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
-            model = glm::translate(model, cubePositions[i]);
-            float angle = 20.0f * i;
-            model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
-            ourShader.setMat4("model", model);
-
-            glDrawArrays(GL_TRIANGLES, 0, 36);
-        }
-
-        // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
-        // -------------------------------------------------------------------------------
-        glfwSwapBuffers(window);
-        glfwPollEvents();
-    }
-
-    // optional: de-allocate all resources once they've outlived their purpose:
-    // ------------------------------------------------------------------------
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteBuffers(1, &VBO);
-
-    // glfw: terminate, clearing all previously allocated GLFW resources.
-    // ------------------------------------------------------------------
-    glfwTerminate();
-    return 0;
-}
-
-// process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
-// ---------------------------------------------------------------------------------------------------------
-void processInput(GLFWwindow *window)
+float MATERIAL_COLORS[][3][4] = 
 {
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, true);
+   // BRASS
+   {
+      {0.329412, 0.223529, 0.027451, 1.000000}, // Ambient RGBA
+      {0.780392, 0.568627, 0.113725, 1.000000}, // Diffuse RGBA
+      {0.992157, 0.941176, 0.807843, 1.000000}  // Specular RGBA
+   },
 
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        camera.ProcessKeyboard(FORWARD, deltaTime);
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        camera.ProcessKeyboard(BACKWARD, deltaTime);
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        camera.ProcessKeyboard(LEFT, deltaTime);
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        camera.ProcessKeyboard(RIGHT, deltaTime);
-}
+   // BRONZE
+   {
+      {0.212500, 0.127500, 0.054000, 1.000000},
+      {0.714000, 0.428400, 0.181440, 1.000000},
+      {0.393548, 0.271906, 0.166721, 1.000000}
+   },
+   
+   // CHROME
+   {
+      {0.250000, 0.250000, 0.250000, 1.000000},
+      {0.400000, 0.400000, 0.400000, 1.000000},
+      {0.774597, 0.774597, 0.774597, 1.000000}
+   },
+   
+   // COPPER
+   {
+      {0.191250, 0.073500, 0.022500, 1.000000},
+      {0.703800, 0.270480, 0.082800, 1.000000},
+      {0.256777, 0.137622, 0.086014, 1.000000}
+   },
 
-// glfw: whenever the window size changed (by OS or user resize) this callback function executes
-// ---------------------------------------------------------------------------------------------
-void framebuffer_size_callback(GLFWwindow* window, int width, int height)
-{
-    // make sure the viewport matches the new window dimensions; note that width and 
-    // height will be significantly larger than specified on retina displays.
-    glViewport(0, 0, width, height);
-}
+   // GOLD
+   {
+      {0.247250, 0.199500, 0.074500, 1.000000},
+      {0.751640, 0.606480, 0.226480, 1.000000},
+      {0.628281, 0.555802, 0.366065, 1.000000}
+   },
+
+   // PEWTER
+   {
+      {0.105882, 0.058824, 0.113725, 1.000000},
+      {0.427451, 0.470588, 0.541176, 1.000000},
+      {0.333333, 0.333333, 0.521569, 1.000000}
+   },
+
+   // SILVER
+   {
+      {0.192250, 0.192250, 0.192250, 1.000000},
+      {0.507540, 0.507540, 0.507540, 1.000000},
+      {0.508273, 0.508273, 0.508273, 1.000000}
+   },
+
+   // EMERALD
+   {
+      {0.021500, 0.174500, 0.021500, 0.550000},
+      {0.075680, 0.614240, 0.075680, 0.550000},
+      {0.633000, 0.727811, 0.633000, 0.550000}
+   },
+
+   // JADE
+   {
+      {0.135000, 0.222500, 0.157500, 0.950000},
+      {0.540000, 0.890000, 0.630000, 0.950000},
+      {0.316228, 0.316228, 0.316228, 0.950000}
+   },
+
+   // OBSIDIAN
+   {
+      {0.053750, 0.050000, 0.066250, 0.820000},
+      {0.182750, 0.170000, 0.225250, 0.820000},
+      {0.332741, 0.328634, 0.346435, 0.820000}
+   },
+
+   // PEARL
+   {
+      {0.250000, 0.207250, 0.207250, 0.922000},
+      {1.000000, 0.829000, 0.829000, 0.922000},
+      {0.296648, 0.296648, 0.296648, 0.922000}
+   },
+
+   // RUBY
+   {
+      {0.174500, 0.011750, 0.011750, 0.550000},
+      {0.614240, 0.041360, 0.041360, 0.550000},
+      {0.727811, 0.626959, 0.626959, 0.550000}
+   },
+
+   // TURQUOISE
+   {
+      {0.100000, 0.187250, 0.174500, 0.800000},
+      {0.396000, 0.741510, 0.691020, 0.800000},
+      {0.297254, 0.308290, 0.306678, 0.800000}
+   },
+
+   // BLACK_PLASTIC
+   {
+      {0.000000, 0.000000, 0.000000, 1.000000},
+      {0.010000, 0.010000, 0.010000, 1.000000},
+      {0.500000, 0.500000, 0.500000, 1.000000}
+   },
+
+   // BLACK_RUBBER
+   {
+      {0.020000, 0.020000, 0.020000, 1.000000},
+      {0.010000, 0.010000, 0.010000, 1.000000},
+      {0.400000, 0.400000, 0.400000, 1.000000}
+   }
 
 
-// glfw: whenever the mouse moves, this callback is called
-// -------------------------------------------------------
-void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
-{
-    float xpos = static_cast<float>(xposIn);
-    float ypos = static_cast<float>(yposIn);
-
-    if (firstMouse)
-    {
-        lastX = xpos;
-        lastY = ypos;
-        firstMouse = false;
-    }
-
-    float xoffset = xpos - lastX;
-    float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
-
-    lastX = xpos;
-    lastY = ypos;
-
-    camera.ProcessMouseMovement(xoffset, yoffset);
-}
-
-// glfw: whenever the mouse scroll wheel scrolls, this callback is called
-// ----------------------------------------------------------------------
-void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
-{
-    camera.ProcessMouseScroll(static_cast<float>(yoffset));
-}
-
-
+glMaterialfv(GL_FRONT, GL_AMBIENT, [0.02, 0.02, 0.02, 1.00]);
+glMaterialfv(GL_FRONT, GL_DIFFUSE, [0.01, 0.01, 0.01, 1.00]);
+glMaterialfv(GL_FRONT, GL_SPECULAR, [0.40, 0.40, 0.40, 1.00]);
+glMaterialf(GL_FRONT, GL_SHININESS, 10.000000);
+      
+      
+      
 '''

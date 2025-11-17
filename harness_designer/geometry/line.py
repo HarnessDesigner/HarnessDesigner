@@ -1,10 +1,12 @@
 from typing import Iterable as _Iterable
 import math
 
+import numpy as np
+
 from . import point as _point
 from ..wrappers.decimal import Decimal as _decimal
 from .constants import ZERO_5
-from . import rotation as _rotation
+from . import angle as _angle
 
 
 class Line:
@@ -12,21 +14,18 @@ class Line:
     def __init__(self, p1: _point.Point,
                  p2: _point.Point | None = None,
                  length: _decimal | None = None,
-                 x_angle: _decimal | None = None,
-                 y_angle: _decimal | None = None,
-                 z_angle: _decimal | None = None):
+                 angle: _angle.Angle | None = None):
 
         self._p1 = p1
 
         if p2 is None:
-            if None in (length, x_angle, y_angle, z_angle):
+            if None in (length, angle):
                 raise ValueError('If an end point is not supplied then the "length", '
                                  '"x_angle", "y_angle" and "z_angle" parameters need to be supplied')
 
             p2 = _point.Point(length, _decimal(0.0), _decimal(0.0))
+            p2 @= angle
             p2 += p1
-
-            p2.set_angles(x_angle, y_angle, z_angle, p1)
 
         self._p2 = p2
 
@@ -57,43 +56,60 @@ class Line:
 
         return _decimal(math.sqrt(x * x + y * y + z * z))
 
-    def get_x_angle(self) -> _decimal:
-        return _rotation.get_angles(self._p1, self._p2)[0]
+    def get_angle(self, origin: _point.Point) -> _angle.Angle:
+        temp_p1 = self._p1.copy()
+        temp_p2 = self._p2.copy()
 
-    def get_y_angle(self) -> _decimal:
-        return _rotation.get_angles(self._p1, self._p2)[1]
+        if origin == self._p1:
+            temp_p2 -= temp_p1
+            temp_p1 = _point.ZERO_POINT
+        elif origin == self._p2:
+            temp_p1 -= temp_p2
+            temp_p2 = _point.ZERO_POINT
 
-    def get_z_angle(self) -> _decimal:
-        return _rotation.get_angles(self._p1, self._p2)[2]
-
-    def get_angles(self):
-        return _rotation.get_angles(self._p1, self._p2)
-
-    def set_angles(self, x_angle: _decimal, y_angle: _decimal, z_angle: _decimal,
-                   origin: _point.Point | None = None) -> None:
-
-        if origin is None:
-            origin = self.center
-
-        if origin != self.p1 and origin != self.p2:
-            self.p1.set_angles(x_angle, y_angle, z_angle, origin)
-            self.p2.set_angles(x_angle, y_angle, z_angle, origin)
-        elif origin != self.p1:
-            self.p1.set_angles(x_angle, y_angle, z_angle, origin)
         else:
-            self.p2.set_angles(x_angle, y_angle, z_angle, origin)
+            temp_p1 -= origin
+            temp_p2 -= origin
 
-    def set_x_angle(self, angle: _decimal, origin: _point.Point | None = None) -> None:
-        self.set_angles(angle, _decimal(0.0), _decimal(0.0), origin)
+        return _angle.Angle.from_points(temp_p1, temp_p2)
 
-    def set_y_angle(self, angle: _decimal, origin: _point.Point | None = None) -> None:
-        self.set_angles(_decimal(0.0), angle, _decimal(0.0), origin)
+    def set_angle(self, angle: _angle.Angle, origin: _point.Point) -> None:
+        if origin == self._p1:
+            temp_p2 = self._p2.copy()
+            temp_p2 -= origin
+            temp_p2 @= angle
+            temp_p2 += origin
+            diff = temp_p2 - self._p2
+            self._p2 += diff
 
-    def set_z_angle(self, angle: _decimal, origin: _point.Point | None = None) -> None:
-        self.set_angles(_decimal(0.0), _decimal(0.0), angle, origin)
+        elif origin == self._p2:
+            temp_p1 = self._p1.copy()
+            temp_p1 -= origin
+            temp_p1 @= angle
+            temp_p1 += origin
+            diff = temp_p1 - self._p1
+            self._p1 += diff
+        else:
+            temp_p1 = self._p1.copy()
+            temp_p2 = self._p2.copy()
+
+            temp_p1 -= origin
+            temp_p2 -= origin
+
+            temp_p1 @= angle
+            temp_p2 @= angle
+
+            temp_p1 += origin
+            temp_p2 += origin
+
+            diff_p1 = temp_p1 - self._p1
+            diff_p2 = temp_p2 - self._p2
+
+            self._p1 += diff_p1
+            self._p2 += diff_p2
 
     def point_from_start(self, distance: _decimal) -> _point.Point:
-        line = Line(self.p1.copy(), None, distance, *self.get_angles())
+        line = Line(self._p1.copy(), None, distance, self.get_angle(self._p1))
         return line.p2
 
     @property
