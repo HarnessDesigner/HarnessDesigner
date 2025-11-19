@@ -23,18 +23,6 @@ HOUSING_ROTATE_2D_ID = wx.NewIdRef()
 HOUSING_ROTATE_3D_ID = wx.NewIdRef()
 
 
-class HSizer(wx.BoxSizer):
-
-    def __init__(self, parent, text, ctrl):
-        wx.BoxSizer.__init__(self, wx.HORIZONTAL)
-
-        if text is not None:
-            st = wx.StaticText(parent, wx.ID_ANY, label=text)
-            self.Add(st, 0, wx.ALL, 5)
-
-        self.Add(ctrl, 0, wx.ALL, 5)
-
-
 class Rotate3DCtrl(wx.PopupTransientWindow):
 
     def __init__(self, parent, obj):

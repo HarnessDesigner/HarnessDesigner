@@ -1,5 +1,6 @@
 import os
 import sys
+import wx
 
 
 def get_appdata():
@@ -23,3 +24,14 @@ def remap(value, old_min, old_max, new_min, new_max):
     new_value = (((value - old_min) * new_range) / old_range) + new_min
     return new_value
 
+
+class HSizer(wx.BoxSizer):
+
+    def __init__(self, parent, text, ctrl):
+        wx.BoxSizer.__init__(self, wx.HORIZONTAL)
+
+        if text is not None:
+            st = wx.StaticText(parent, wx.ID_ANY, label=text)
+            self.Add(st, 0, wx.ALL, 5)
+
+        self.Add(ctrl, 0, wx.ALL, 5)
