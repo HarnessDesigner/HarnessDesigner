@@ -18,10 +18,17 @@ class Color(wx.Colour):
         self._callbacks = []
 
     @property
-    def rgb_scalar(self) -> tuple[float, float, float, float]:
+    def rgb_scalar(self) -> tuple[float, float, float]:
         r, g, b = [item / 255.0 for item in (self.GetRed(), self.GetGreen(), self.GetBlue())]
 
         return r, g, b
+
+    @property
+    def rgba_scalar(self) -> tuple[float, float, float, float]:
+        r, g, b, a = [item / 255.0 for item in
+                   (self.GetRed(), self.GetGreen(), self.GetBlue(), self.GetAlpha())]
+
+        return r, g, b, a
 
     @property
     def numpy(self) -> tuple[float, float, float, float]:
