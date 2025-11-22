@@ -1,0 +1,1 @@
+# TODO: Manufacturer attributes panel

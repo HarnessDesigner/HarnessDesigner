@@ -1,0 +1,1 @@
+# TODO: Temperature attributes panel

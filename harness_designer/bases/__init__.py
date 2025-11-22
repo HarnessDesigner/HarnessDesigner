@@ -1,3 +1,6 @@
+# TODO: I do not believe I am going to be uses these base classes anymore.
+#       So they are only here as a just in case scenario
+
 
 from .get_angle import GetAngleBase as _GetAngleBase
 from .set_angle import SetAngleBase as _SetAngleBase

@@ -27,11 +27,14 @@ def remap(value, old_min, old_max, new_min, new_max):
 
 class HSizer(wx.BoxSizer):
 
-    def __init__(self, parent, text, ctrl):
+    def __init__(self, parent, *args):
         wx.BoxSizer.__init__(self, wx.HORIZONTAL)
 
-        if text is not None:
-            st = wx.StaticText(parent, wx.ID_ANY, label=text)
-            self.Add(st, 0, wx.ALL, 5)
-
-        self.Add(ctrl, 0, wx.ALL, 5)
+        for arg in args:
+            if isinstance(arg, str):
+                st = wx.StaticText(parent, wx.ID_ANY, label=arg)
+                self.Add(st, 0, wx.ALL, 5)
+            elif arg is None:
+                self.AddSpacer(1)
+            else:
+                self.Add(arg, 0, wx.ALL, 5)

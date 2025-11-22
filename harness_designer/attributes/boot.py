@@ -1,0 +1,1 @@
+# TODO: Boot attributes panel

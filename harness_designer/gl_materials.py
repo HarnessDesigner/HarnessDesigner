@@ -10,9 +10,17 @@ class GLMaterial:
 
     def __init__(self, color):
         self._color = color
+        self._x_ray = False
+
+    def x_ray(self, flag):
+        self._x_ray = flag
 
     def set(self):
-        a = self._color[-1:]
+        if self._x_ray:
+            a = (0.2,)
+        else:
+            a = self._color[-1:]
+
         glMaterialfv(GL_FRONT, GL_AMBIENT, self._ambient + a)
         glMaterialfv(GL_FRONT, GL_DIFFUSE, self._diffuse + a)
         glMaterialfv(GL_FRONT, GL_SPECULAR, self._specular + a)

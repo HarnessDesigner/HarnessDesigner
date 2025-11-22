@@ -1,0 +1,1 @@
+# TODO: Terminal attributes panel
