@@ -1,1 +1,0 @@
-# TODO: Size attributes panel
