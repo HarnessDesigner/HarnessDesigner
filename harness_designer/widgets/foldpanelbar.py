@@ -562,6 +562,20 @@ class FoldPanelBar(wx.Panel):
 
         return item
 
+    def DeleteFoldPanel(self, panel):
+        index = self._panels.index(panel)
+        self._panels.remove(panel)
+
+        pos = 0
+        for i in range(index, len(self._panels)):
+            if i == index and i != 0:
+                pos = self._panels[i - 1].GetItemPos() + self._panels[i - 1].GetPanelLength()
+
+            pos += self._panels[i].GetItemPos() + self._panels[i].GetPanelLength()
+            self._panels[i].Reposition(pos)
+
+        panel.Destroy()
+
     def AddFoldPanelWindow(self, panel, window, flags=FPB_ALIGN_WIDTH,
                            spacing=FPB_DEFAULT_SPACING,
                            leftSpacing=FPB_DEFAULT_LEFTLINESPACING,
@@ -727,7 +741,6 @@ class FoldPanelBar(wx.Panel):
 
     def GetFoldPanel(self, item):
         try:
-            ind = self._panels[item]
             return self._panels[item]
         except:  # NOQA
             raise Exception(f"ERROR: List Index Orepr(0)ut Of Range Or Bad Item "
@@ -738,7 +751,7 @@ class FoldPanelBar(wx.Panel):
         try:
             return len(self._panels)
         except:  # NOQA
-            raise Exception("ERROR: No Panels Have Been Added To FoldPanelBar")
+            return 0
 
 
 class FoldPanelItem(wx.Panel):
@@ -922,8 +935,6 @@ class FoldPanelItem(wx.Panel):
         self.ResizePanel()
 
     def GetPanelLength(self):
-        """ Returns size of panel. """
-
         if self._captionBar.IsCollapsed():
             return self.GetCaptionLength()
         elif self._userSized:

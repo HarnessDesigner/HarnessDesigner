@@ -1,4 +1,0 @@
-'''
-name str
-description str
-'''
