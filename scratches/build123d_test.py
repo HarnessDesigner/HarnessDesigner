@@ -317,102 +317,78 @@ def get_angles(p1: list[Decimal, Decimal, Decimal],
     return Decimal(pitch), Decimal(roll), Decimal(yaw)
 
 
+
+
+# wires are constructed along the positive Z axis
+#             y+
+#             |  Z+
+#             | /
+# x+ ------ center ------ x-
+#           / |
+#         Z-  |
+#             Y-
+
+
 def create_wire(wires: list["Wire"]):
-
-    # wires are constructed along the positive Z axis
-    #             y+
-    #             |  Z+
-    #             | /
-    # x+ ------ center ------ x-
-    #           / |
-    #         Z1- |
-    #             Y-
-
-    model = None
-    stripes = None
+    models = []
+    stripes = []
 
     for i, wire in enumerate(wires):
         if i > 0:
+            # if there are more than 2 sections of wire we create a sphere the same diameter as the wire
+            # to create a seamless connection between sections. we add the sphere to the previous wire section
             sphere = build123d.Sphere(float(wire.diameter / Decimal(2)))
             sphere.move(build123d.Location([float(item) for item in wire.p1]))
-            model += sphere
+            models[-1] += sphere
 
         length = wire.length
-        p1 = wire.p1
-        p2 = wire.p2
-
-        angles = get_angles(p1, p2)
         wire_r = wire.diameter / Decimal(2)
 
         # Create the wire
         cyl = build123d.Cylinder(float(wire_r), float(length), align=build123d.Align.NONE)
 
-        # Extract the axis of rotation from the wire to create the stripe
-        wire_axis = cyl.faces().filter_by(build123d.GeomType.CYLINDER)[0].axis_of_rotation
-
-        # Take 1mm of the circular arc as the stripe and make it 2D
-        # we need to set the thickness of the strip because on smaller diameter wire
-        # the stripe visibly sticks up when the stripe is thick enough on larger diameter
-        # to not get any belld through from the cylinder below it. and if I make the stripe
-        # thin then I end up with bleed through on the large diameter cylinder.
-        stripe_thickness = python_utils.remap(wire.diameter, old_min=0.5, old_max=5.0, new_min=0.005, new_max=0.015)
-
-        stripe_arc = build123d.Face(
-            (
-                cyl.edges()
-                .filter_by(build123d.GeomType.CIRCLE)
-                .sort_by(lambda e: e.distance_to(wire_axis.position))[0]
-            )
-            .trim_to_length(0, float(wire.diameter / Decimal(3) * Decimal(build123d.MM)))
-            .offset_2d(float(stripe_thickness * Decimal(build123d.MM)), side=build123d.Side.RIGHT)
-        )
-
-        # Define the twist path to follow the wire
-        twist = build123d.Helix(
-            pitch=float(length / Decimal(2)),
-            height=float(length),
-            radius=float(wire_r),
-            center=wire_axis.position,
-            direction=wire_axis.direction,
-        )
-
-        # Sweep the arc to create the stripe
-        stripe = build123d.sweep(
-            stripe_arc, build123d.Line(wire_axis.position, float(length) * wire_axis.direction), binormal=twist
-        )
-
-        # # stripe.move(build123d.Location(wire.p1))
-        # q =
-        #
-        # transformation = gp_Trsf()
-        # transformation.SetRotation(q)
-        #
-        # cyl = cyl._apply_transform(transformation)
-
-        cyl2 = cyl.rotate(build123d.Axis(origin=[0.0, 0.0, 0.0], direction=(1, 0, 0)), float(angles[0]))
-
-        print(cyl2 == cyl)
-        import sys
-
-        sys.stdout.flush()
-        cyl = cyl2.rotate(build123d.Axis(origin=[0.0, 0.0, 0.0], direction=(0, 1, 0)), float(angles[1]))
-        cyl = cyl.rotate(build123d.Axis(origin=[0.0, 0.0, 0.0], direction=(0, 0, 1)), float(angles[2]))
-
-        stripe = stripe.rotate(build123d.Axis(origin=[0.0, 0.0, 0.0], direction=(1, 0, 0)), float(angles[0]))
-        stripe = stripe.rotate(build123d.Axis(origin=[0.0, 0.0, 0.0], direction=(0, 1, 0)), float(angles[1]))
-        stripe = stripe.rotate(build123d.Axis(origin=[0.0, 0.0, 0.0], direction=(0, 0, 1)), float(angles[2]))
-
-        cyl.move(build123d.Location([float(item) for item in wire.p1]))
-        stripe.move(build123d.Location([float(item) for item in wire.p1]))
-
-        if model is None:
-            model = cyl
-            stripes = stripe
+        if wire.stripe_color is None:
+            stripes.append(None)
         else:
-            model += cyl
-            stripes += stripe
+            # Extract the axis of rotation from the wire to create the stripe
+            wire_axis = cyl.faces().filter_by(build123d.GeomType.CYLINDER)[0].axis_of_rotation
 
-    return model, stripes
+            # the stripe is actually a separate 3D object and it carries with it a thickness. The the stripe is not thick enough
+            # the wire color will show through it. We don't want to use a hard coded thickness because the threshold
+            # for for this happpening causes the stripe thickness to increaseto keep the "bleed through" from happening.
+            # so a remap of the diameter to a thickness range is done to get a thickness where the bleed through will not occur
+            # while keeping the stripe from looking like it is not apart of the wire.
+            stripe_thickness = python_utils.remap(wire.diameter, old_min=0.5, old_max=5.0, new_min=0.005, new_max=0.015)
+
+            stripe_arc = build123d.Face(
+                (
+                    cyl.edges()
+                    .filter_by(build123d.GeomType.CIRCLE)
+                    .sort_by(lambda e: e.distance_to(wire_axis.position))[0]
+                )
+                .trim_to_length(0, float(wire.diameter / Decimal(3) * Decimal(build123d.MM)))
+                .offset_2d(float(stripe_thickness * Decimal(build123d.MM)), side=build123d.Side.RIGHT)
+            )
+
+            # Define the twist path to follow the wire
+            twist = build123d.Helix(
+                pitch=float(length / Decimal(2)),
+                height=float(length),
+                radius=float(wire_r),
+                center=wire_axis.position,
+                direction=wire_axis.direction,
+            )
+
+            # Sweep the arc to create the stripe
+            stripe = build123d.sweep(
+                stripe_arc, build123d.Line(wire_axis.position, float(length) * wire_axis.direction), binormal=twist
+            )
+
+            stripes.append(stripe)
+
+        models.append(cyl)
+
+    return models, stripes
 
 
 def get_triangles(ocp_mesh):

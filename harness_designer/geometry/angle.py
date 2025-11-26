@@ -1,18 +1,14 @@
 
-from typing import Self, Callable, Iterable, Union
+from typing import Self, Callable, Iterable, Union, TYPE_CHECKING
 import weakref
+import math
 import numpy as np
 from scipy.spatial.transform import Rotation as _Rotation
 
-
 from ..wrappers.decimal import Decimal as _decimal
-from . import rotation as _rotation
-from .constants import TEN_0, ZERO_1
-from . import point as _point
 
-
-def _round_down(val: _decimal) -> _decimal:
-    return _decimal(int(val * TEN_0)) * ZERO_1
+if TYPE_CHECKING:
+    from . import point as _point
 
 
 class Angle:
@@ -37,27 +33,34 @@ class Angle:
         self.Bind(self._db_obj)
         return self._db_obj.db_id
 
-    def __init__(self, x: _decimal | np.ndarray, y: _decimal | None = None, z: _decimal | None = None, db_obj=None):
+    def __init__(self, p1: Union["_point.Point", None] = None, p2: Union["_point.Point", None] = None, q: np.ndarray | None = None, db_obj=None):
         self._db_obj = db_obj
+        from . import point
 
-        if isinstance(x, np.ndarray):
-            self._q = x
-            self._x = None
-            self._y = None
-            self._z = None
-
+        if q is None:
+            self._R = self.__from_points(p1, p2)
         else:
-            self._q = None
+            self._R = _Rotation.from_quat(q)  # NOQA
 
-            if z is None:
-                z = _decimal(0.0)
+        if p1 is None:
+            p1 = point.Point(_decimal(0.0), _decimal(0.0), _decimal(0.0))
 
-            self._x = _round_down(x)
-            self._y = _round_down(y)
-            self._z = _round_down(z)
+        if p2 is None:
+            p2 = point.Point(_decimal(0.0), _decimal(0.0), _decimal(10.0))
+            p2 @= self._R.as_matrix().T  # NOQA
+            p2 += p1
+
+        p1.Bind(self._update_q)
+        p2.Bind(self._update_q)
+
+        self._p1 = p1
+        self._p2 = p2
 
         self.__callbacks = []
         self.__cb_disabled_count = 0
+
+    def _update_q(self, _):
+        self._R = self.__from_points(self._p1, self._p2)
 
     def __enter__(self):
         self.__cb_disabled_count += 1
@@ -90,65 +93,58 @@ class Angle:
         if ref in self.__callbacks:
             self.__callbacks.remove(ref)
 
+    @staticmethod
+    def __rotate_euler(c1: _decimal, c2: _decimal, c3: _decimal, c4: _decimal, angle: _decimal) -> tuple[_decimal, _decimal]:
+        angle = _decimal(math.radians(angle))
+
+        qx = c1 + _decimal(math.cos(angle)) * (c3 - c1) - _decimal(math.sin(angle)) * (c4 - c2)
+        qy = c2 + _decimal(math.sin(angle)) * (c3 - c1) + _decimal(math.cos(angle)) * (c4 - c2)
+        return qx, qy
+
+    @staticmethod
+    def __get_euler(c1: _decimal, c2: _decimal, c3: _decimal, c4: _decimal) -> _decimal:
+        theta1 = _decimal(math.atan2(c2, c1))
+        theta2 = _decimal(math.atan2(c4, c3))
+        return _decimal(math.degrees((theta2 - theta1) % _decimal(2) * _decimal(math.pi)))
+
     @property
     def x(self) -> _decimal:
-        if self._x is None:
-            R = _Rotation.from_quat(self._q)
-            xyz = R.as_euler('xyz', True)
-            return _decimal(float(xyz[0]))
-
-        return self._x
+        return self.__get_euler(self._p1.z, self._p1.y, self._p2.z, self._p2.x)
 
     @x.setter
     def x(self, value: _decimal):
-        if self._x is None:
-            R = _Rotation.from_euler('xyz', [_round_down(value), self._y, self._z], degrees=True)
-            self._q = R.as_quat()
-        else:
-            self._x = _round_down(value)
+        with self._p2:
+            self._p2.z, self._p2.y = self.__rotate_euler(self._p1.z, self._p1.y, self._p2.z, self._p2.x, value)
 
+        self._update_q(self._p2)
         self.__do_callbacks()
 
     @property
     def y(self) -> _decimal:
-        if self._y is None:
-            R = _Rotation.from_quat(self._q)
-            xyz = R.as_euler('xyz', True)
-            return _decimal(float(xyz[1]))
-
-        return self._y
+        return self.__get_euler(self._p1.x, self._p1.z, self._p2.x, self._p2.z)
 
     @y.setter
     def y(self, value: _decimal):
-        if self._y is None:
-            R = _Rotation.from_euler('xyz', [self._z, _round_down(value), self._z], degrees=True)
-            self._q = R.as_quat()
-        else:
-            self._y = _round_down(value)
+        with self._p2:
+            self._p2.x, self._p2.z = self.__rotate_euler(self._p1.x, self._p1.z, self._p2.x, self._p2.z, value)
 
+        self._update_q(self._p2)
         self.__do_callbacks()
 
     @property
     def z(self) -> _decimal:
-        if self._z is None:
-            R = _Rotation.from_quat(self._q)
-            xyz = R.as_euler('xyz', True)
-            return _decimal(float(xyz[2]))
-
-        return self._z
+        return self.__get_euler(self._p1.x, self._p1.y, self._p2.x, self._p2.y)
 
     @z.setter
     def z(self, value: _decimal):
-        if self._z is None:
-            R = _Rotation.from_euler('xyz', [self._z, self._y, _round_down(value)], degrees=True)
-            self._q = R.as_quat()
-        else:
-            self._z = _round_down(value)
+        with self._p2:
+            self._p2.x, self._p2.y = self.__rotate_euler(self._p1.x, self._p1.y, self._p2.x, self._p2.y, value)
 
+        self._update_q(self._p2)
         self.__do_callbacks()
 
     def copy(self) -> "Angle":
-        return Angle(_decimal(self._x), _decimal(self._y), _decimal(self._z))
+        return Angle(p1=self._p1.copy(), p2=self._p2.copy(), q=self._R.as_quat())
 
     def __do_callbacks(self):
         if self.__cb_disabled_count != 0:
@@ -176,17 +172,17 @@ class Angle:
         return self
 
     def __add__(self, other: Union["Angle", np.ndarray]) -> "Angle":
-        x1, y1, z1 = self
         if isinstance(other, Angle):
-            x2, y2, z2 = other
+            x, y, z = other
         else:
-            x2, y2, z2 = (_decimal(float(item)) for item in other)
+            x, y, z = (_decimal(float(item)) for item in other)
 
-        x = x1 + x2
-        y = y1 + y2
-        z = z1 + z2
+        angle = self.copy()
+        angle.x += x
+        angle.y += y
+        angle.z += z
 
-        return Angle(x, y, z)
+        return angle
 
     def __isub__(self, other: Union["Angle", np.ndarray]) -> Self:
         if isinstance(other, Angle):
@@ -204,46 +200,37 @@ class Angle:
         return self
 
     def __sub__(self, other: Union["Angle", np.ndarray]) -> "Angle":
-        x1, y1, z1 = self
         if isinstance(other, Angle):
-            x2, y2, z2 = other
+            x, y, z = other
         else:
-            x2, y2, z2 = (_decimal(float(item)) for item in other)
+            x, y, z = (_decimal(float(item)) for item in other)
 
-        x = x1 - x2
-        y = y1 - y2
-        z = z1 - z2
+        angle = self.copy()
+        angle.x += x
+        angle.y += y
+        angle.z += z
 
-        return Angle(x, y, z)
+        return angle
 
     def __rmatmul__(self, other: np.ndarray | _point.Point) -> np.ndarray:
-        if self._x is None:
-            R = _Rotation.from_quat(self._q)
-        else:
-            R = _Rotation.from_euler('xyz', self.as_float, True)
-
         if isinstance(other, np.ndarray):
-            other @= R.as_matrix()
+            other @= self._R.as_matrix().T
         elif isinstance(other, _point.Point):
-            values = other.as_numpy @ R.as_matrix()
+            values = other.as_numpy @ self._R.as_matrix().T
             with other:
                 other.x = _decimal(float(values[0]))
                 other.y = _decimal(float(values[1]))
 
             other.z = _decimal(float(values[2]))
+
         return other
 
     def __matmul__(self, other: np.ndarray | _point.Point) -> np.ndarray:
-        if self._x is None:
-            R = _Rotation.from_quat(self._q)
-        else:
-            R = _Rotation.from_euler('xyz', self.as_float, True)
-
         if isinstance(other, np.ndarray):
-            other = other @ R.as_matrix()
+            other = other @ self._R.as_matrix().T
         elif isinstance(other, _point.Point):
             other = other.copy()
-            values = other.as_numpy @ R.as_matrix()
+            values = other.as_numpy @ self._R.as_matrix().T
             with other:
                 other.x = _decimal(float(values[0]))
                 other.y = _decimal(float(values[1]))
@@ -265,85 +252,67 @@ class Angle:
         return not self.__eq__(other)
 
     @property
-    def as_float(self) -> tuple[float, float, float] | tuple[float, float, float, float]:
-        return float(self._x), float(self._y), float(self._z)
+    def as_float(self) -> tuple[float, float, float]:
+        return float(self.x), float(self.y), float(self.z)
 
     @property
     def as_int(self) -> tuple[int, int, int]:
-        return int(self._x), int(self._y), int(self._z)
+        return int(self.x), int(self.y), int(self.z)
 
     @property
     def as_numpy(self) -> np.ndarray:
-        if self._q is None:
-            return np.array(self.as_float, dtype=np.dtypes.Float64DType)
-
-        return self._q
+        return self._R.as_matrix().T
 
     def __iter__(self) -> Iterable[_decimal]:
-        if self._q is None:
-            return iter([self._x, self._y, self._z])
-
-        return iter([_decimal(float(item)) for item in self._q])
+        return iter([self.x, self.y, self.z])
 
     def __str__(self) -> str:
         return f'X: {self.x}, Y: {self.y}, Z: {self.z}'
 
     @property
     def quat(self) -> list[float]:
-        if self._q is None:
-            R = _Rotation.from_euler('xyz', self.as_float, True)
-            quat = R.as_quat()
-        else:
-            quat = self._q
+        return self._R.as_quat().tolist()
 
-        return [float(item) for item in quat]
+    @staticmethod
+    def __from_points(p1: "_point.Point", p2: "_point.Point") -> _Rotation:
+        # the sign for all of the verticies in the array needs to be flipped in
+        # order to handle the -Z axis being near
+        p1 = -p1.as_numpy
+        p2 = -p2.as_numpy
 
-    @classmethod
-    def from_quat(cls, q: list[float] | np.ndarray) -> "Angle":
-        if not isinstance(q, np.ndarray):
-            q = np.array(q, dtype=np.dtypes.Float64DType)
+        f = p2 - p1
+        fn = np.linalg.norm(f)
 
-        return Angle(q)
+        if fn == 0:
+            raise ValueError("p1 and p2 must be different points")
 
-    @classmethod
-    def from_points(cls, p1: _point.Point, p2: _point.Point) -> "Angle":
-        a = p1.as_numpy
-        b = p2.as_numpy
+        f = f / fn  # world-space direction of the line
 
-        na = np.linalg.norm(a)
-        nb = np.linalg.norm(b)
+        local_forward = np.array([0.0, 0.0, -1.0], dtype=np.dtypes.Float64DType)
+        nz = np.nonzero(local_forward)[0][0]
+        sign = np.sign(local_forward[nz])
+        forward_world = f * sign
 
-        EPS = 1e-12
+        up = np.asarray((0.0, 1.0, 0.0), dtype=np.dtypes.Float64DType)
 
-        if na < EPS or nb < EPS:
-            raise ValueError("Zero-length vector")
+        if np.allclose(np.abs(np.dot(forward_world, up)), 1.0, atol=1e-8):
+            up = np.array([0.0, 0.0, 1.0], dtype=np.dtypes.Float64DType)
 
-        a = a / na
-        b = b / nb
+            if np.allclose(np.abs(np.dot(forward_world, up)), 1.0, atol=1e-8):
+                up = np.array([1.0, 0.0, 0.0], dtype=np.dtypes.Float64DType)
 
-        dot = np.dot(a, b)
-        if dot > 1.0 - EPS:
-            return np.array([1.0, 0.0, 0.0, 0.0], dtype=np.dtypes.Float64DType)
+        right = np.cross(up, forward_world)  # NOQA
+        rn = np.linalg.norm(right)
 
-        if dot < -1.0 + EPS:
-            abs_a = np.abs(a)
-            if abs_a[0] < abs_a[1] and abs_a[0] < abs_a[2]:
-                orth = np.array([1.0, 0.0, 0.0], dtype=np.dtypes.Float64DType)
-            elif abs_a[1] < abs_a[2]:
-                orth = np.array([0.0, 1.0, 0.0], dtype=np.dtypes.Float64DType)
-            else:
-                orth = np.array([0.0, 0.0, 1.0], dtype=np.dtypes.Float64DType)
+        if rn < 1e-8:
+            raise RuntimeError("degenerate right vector")
 
-            axis = np.cross(a, orth)  # NOQA
-            axis = axis / np.linalg.norm(axis)
+        right = right / rn
 
-            return np.array([0.0, axis[0], axis[1], axis[2]], dtype=np.dtypes.Float64DType)
+        true_up = np.cross(forward_world, right)  # NOQA
 
-        axis = np.cross(a, b)  # NOQA
-        s = math.sqrt((1.0 + dot) * 2.0)
-        invs = 1.0 / s
-        q = np.array([0.5 * s, axis[0] * invs, axis[1] * invs, axis[2] * invs], dtype=np.dtypes.Float64DType)
-        q = q / np.linalg.norm(q)
-
-        # w, x, y, z = q
-        return cls(q)
+        rot = np.column_stack((right, true_up, forward_world))
+        R = _Rotation.from_matrix(rot)  # NOQA
+        # q = rot.as_quat()
+        # return q.tolist(), R.T
+        return R
