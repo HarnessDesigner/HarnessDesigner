@@ -8,8 +8,8 @@ if TYPE_CHECKING:
     from .. import ui as _ui
     from ..database.project_db import pjt_wire as _pjt_wire
     from ..database.project_db import pjt_bundle as _pjt_bundle
-    from ..database.project_db import pjt_coordinate_2d as _pjt_coordinate_2d
-    from ..database.project_db import pjt_coordinate_3d as _pjt_coordinate_3d
+    from ..database.project_db import pjt_point_2d as _pjt_point_2d
+    from ..database.project_db import pjt_point_3d as _pjt_point_3d
     from ..database.project_db import pjt_transition as _pjt_transition
     from ..database.project_db import pjt_bundle_layout as _pjt_bundle_layout
     from ..database.project_db import pjt_housing as _pjt_housing
@@ -111,13 +111,13 @@ class Project:
             yield layout
 
     @property
-    def points2d(self) -> _Iterator["_pjt_coordinate_2d.PJTCoordinate2D"]:
-        for point in self.ptables.pjt_coordinates_2d_table:
+    def points2d(self) -> _Iterator["_pjt_point_2d.PJTPoint2D"]:
+        for point in self.ptables.pjt_points_2d_table:
             yield point
 
     @property
-    def points3d(self) -> _Iterator["_pjt_coordinate_3d.PJTCoordinate3D"]:
-        for point in self.ptables.pjt_coordinates_3d_table:
+    def points3d(self) -> _Iterator["_pjt_point_3d.PJTPoint3D"]:
+        for point in self.ptables.pjt_points_3d_table:
             yield point
 
     @property

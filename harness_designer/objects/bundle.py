@@ -80,7 +80,7 @@ class Bundle(_base.ObjectBase):
         line = _line.Line(p1, p3)
         p2 = line.point_from_start(line_len)
 
-        p2_db_id = p2.add_to_db(self._editor3d.mainframe.project.ptables.pjt_coordinates_3d_table)
+        p2_db_id = p2.add_to_db(self._editor3d.mainframe.project.ptables.pjt_points_3d_table)
         cyl1.p2 = p2
 
         p2.add_object(self)
