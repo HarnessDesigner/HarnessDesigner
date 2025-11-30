@@ -26,7 +26,7 @@ class MainFrame(wx.Frame):
 
     def __init__(self):
         wx.Frame.__init__(self, None, wx.ID_ANY, title='Harness Designer',
-                          size=Config.size, pos=Config.position, style=wx.CLIP_CHILDREN)
+                          size=Config.size, pos=Config.position, style=wx.CLIP_CHILDREN | wx.CAPTION | wx.MINIMIZE_BOX | wx.MAXIMIZE_BOX | wx.CLOSE_BOX | wx.SYSTEM_MENU | wx.RESIZE_BORDER)
 
         self.Bind(wx.EVT_MOVE, self.on_move)
         self.Bind(wx.EVT_SIZE, self.on_size)

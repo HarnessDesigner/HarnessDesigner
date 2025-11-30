@@ -212,23 +212,29 @@ class Angle:
 
         return angle
 
-    def __rmatmul__(self, other: np.ndarray | _point.Point) -> np.ndarray:
+    def __rmatmul__(self, other: Union[np.ndarray, "_point.Point"]) -> np.ndarray:
+        from . import point
+
         if isinstance(other, np.ndarray):
             other @= self._R.as_matrix().T
-        elif isinstance(other, _point.Point):
+        elif isinstance(other, point.Point):
             values = other.as_numpy @ self._R.as_matrix().T
             with other:
                 other.x = _decimal(float(values[0]))
                 other.y = _decimal(float(values[1]))
 
             other.z = _decimal(float(values[2]))
+        else:
+            raise RuntimeError('sanity check')
 
         return other
 
-    def __matmul__(self, other: np.ndarray | _point.Point) -> np.ndarray:
+    def __matmul__(self, other: Union[np.ndarray, "_point.Point"]) -> np.ndarray:
+        from . import point
+
         if isinstance(other, np.ndarray):
             other = other @ self._R.as_matrix().T
-        elif isinstance(other, _point.Point):
+        elif isinstance(other, point.Point):
             other = other.copy()
             values = other.as_numpy @ self._R.as_matrix().T
             with other:
@@ -236,6 +242,8 @@ class Angle:
                 other.y = _decimal(float(values[1]))
 
             other.z = _decimal(float(values[2]))
+        else:
+            raise RuntimeError('sanity check')
 
         return other
 

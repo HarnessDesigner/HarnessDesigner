@@ -534,11 +534,31 @@ class Point:
         self.y *= other
         return self
 
+    def __rmul__(self, other):
+        x = self.x * decimal(other)
+        y = self.y * decimal(other)
+        return Point(x, y)
+
+    def __mul__(self, other):
+        x = self.x * decimal(other)
+        y = self.y * decimal(other)
+        return Point(x, y)
+
     def __itruediv__(self, other: decimal):
         self.x /= other
         self.y /= other
 
         return self
+
+    def __rtruediv__(self, other: decimal):
+        x = self.x / decimal(other)
+        y = self.y / decimal(other)
+        return Point(x, y)
+
+    def __truediv__(self, other: decimal):
+        x = self.x / decimal(other)
+        y = self.y / decimal(other)
+        return Point(x, y)
 
     def __enter__(self):
         self._block_cb += 1
@@ -1334,13 +1354,16 @@ class WireInfoPanel(wx.Panel):
         self.SetSizer(sizer)
 
 
-class Frame(wx.Frame):
+class EditorWindow(wx.Panel):
 
-    def __init__(self):
-        wx.Frame.__init__(self, None, wx.ID_ANY, size=(1920, 1080))
+    def __init__(self, parent):
 
-        buf = bytearray([0] * (2000 * 2000 * 4))
-        self.bmp = wx.Bitmap.FromBufferRGBA(2000, 2000, buf)
+        self.wire_info_ctrl = parent.wire_info_ctrl
+
+        wx.Panel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_NONE)
+
+        buf = bytearray([0] * (3000 * 2000 * 4))
+        self.bmp = wx.Bitmap.FromBufferRGBA(3000, 2000, buf)
 
         self.scale = 1.0
         self.last_scale = 1.0
@@ -1353,36 +1376,31 @@ class Frame(wx.Frame):
         self._o_grab_point = None
         self._continue_wire = False
 
-        panel = self.panel = wx.Panel(self, wx.ID_ANY, style=wx.BORDER_NONE)
-
-        panel.Bind(wx.EVT_MOUSEWHEEL, self.on_mousewheel)
-        panel.Bind(wx.EVT_LEFT_DOWN, self.on_left_down)
-        panel.Bind(wx.EVT_LEFT_UP, self.on_left_up)
-        panel.Bind(wx.EVT_RIGHT_DOWN, self.on_right_down)
-        panel.Bind(wx.EVT_RIGHT_UP, self.on_right_up)
-        panel.Bind(wx.EVT_MOTION, self.on_motion)
-        panel.Bind(wx.EVT_PAINT, self.on_paint)
-        panel.Bind(wx.EVT_ERASE_BACKGROUND, self.on_erase_background)
-
-        self.wire_info_ctrl = WireInfoPanel(self)
-
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        hsizer.Add(panel, 10, wx.EXPAND)
-        hsizer.Add(self.wire_info_ctrl, 2, wx.EXPAND)
-        sizer.Add(hsizer, 1, wx.EXPAND)
+        self.Bind(wx.EVT_MOUSEWHEEL, self.on_mousewheel)
+        self.Bind(wx.EVT_LEFT_DOWN, self.on_left_down)
+        self.Bind(wx.EVT_LEFT_UP, self.on_left_up)
+        self.Bind(wx.EVT_RIGHT_DOWN, self.on_right_down)
+        self.Bind(wx.EVT_RIGHT_UP, self.on_right_up)
+        self.Bind(wx.EVT_MOTION, self.on_motion)
+        self.Bind(wx.EVT_PAINT, self.on_paint)
+        self.Bind(wx.EVT_ERASE_BACKGROUND, self.on_erase_background)
 
         self.points = []
         self.point_list = []
-        for x in range(0, 2020, 20):
-            for y in range(0, 2020, 20):
+
+        for x in range(0, self.bmp.GetWidth() + 20, 20):
+            for y in range(0, self.bmp.GetHeight() + 20, 20):
                 self.points.append(Point(x, y))
                 self.point_list.append([x, y])
 
-        self.SetSizer(sizer)
+        cursor = wx.StockCursor(wx.CURSOR_BLANK)
+        self.SetCursor(cursor)
+        self.mouse_pos = None
+
         self.update_bitmap()
 
     def update(self):
+
         def _do():
             self.Update()
             self.Refresh()
@@ -1390,7 +1408,7 @@ class Frame(wx.Frame):
         wx.CallAfter(_do)
 
     def on_mousewheel(self, evt: wx.MouseEvent):
-        rotation = evt.GetWheelRotation() / 2000
+        rotation = evt.GetWheelRotation() / 3000
 
         self.scale += rotation
 
@@ -1422,16 +1440,17 @@ class Frame(wx.Frame):
         evt.Skip()
 
     def update_bitmap(self):
+        w, h = self.bmp.GetSize()
         mask_dc = wx.MemoryDC()
-        buf = bytearray([0] * (2000 * 2000 * 4))
-        mask_bmp = wx.Bitmap.FromBufferRGBA(2000, 2000, buf)
+        buf = bytearray([0] * (w * h * 4))
+        mask_bmp = wx.Bitmap.FromBufferRGBA(w, h, buf)
         mask_dc.SelectObject(mask_bmp)
         mask_gc = wx.GraphicsContext.Create(mask_dc)
         mask_gc.SetBrush(wx.Brush(wx.BLACK))
 
         dc = wx.MemoryDC()
-        buf = bytearray([0] * (2000 * 2000 * 4))
-        bmp = wx.Bitmap.FromBufferRGBA(2000, 2000, buf)
+        buf = bytearray([0] * (w * h * 4))
+        bmp = wx.Bitmap.FromBufferRGBA(w, h, buf)
         dc.SelectObject(bmp)
         gc = wx.GraphicsContext.Create(dc)
 
@@ -1444,8 +1463,8 @@ class Frame(wx.Frame):
         dc.SelectObject(wx.NullBitmap)
         bmp.SetMask(mask)
 
-        buf = bytearray([0] * (2000 * 2000 * 4))
-        new_bmp = wx.Bitmap.FromBufferRGBA(2000, 2000, buf)
+        buf = bytearray([0] * (w * h * 4))
+        new_bmp = wx.Bitmap.FromBufferRGBA(w, h, buf)
         dc.SelectObject(new_bmp)
         gcdc = wx.GCDC(dc)
         gcdc.SetBrush(wx.TRANSPARENT_BRUSH)
@@ -1462,7 +1481,7 @@ class Frame(wx.Frame):
         self.bmp = new_bmp
 
     def on_paint(self, evt):
-        pdc = wx.BufferedPaintDC(self.panel)
+        pdc = wx.BufferedPaintDC(self)
         gcdc = wx.GCDC(pdc)
         gcdc.Clear()
         gcdc.SetUserScale(self.scale, self.scale)
@@ -1474,6 +1493,21 @@ class Frame(wx.Frame):
 
             gc = gcdc.GetGraphicsContext()
             self._selected.parent.draw_selected(gc, self._selected)
+
+        gcdc.SetUserScale(1.0, 1.0)
+
+        if self.mouse_pos is not None:
+            x, y = self.mouse_pos
+            w, h = self.GetSize()
+
+            gcdc.SetPen(wx.Pen(wx.Colour(0, 0, 0, 40), 1))
+            gcdc.SetBrush(wx.TRANSPARENT_BRUSH)
+            gcdc.DrawLine(0, y, w, y)
+            gcdc.DrawLine(x, 0, x, h)
+
+            gcdc.SetPen(wx.Pen(wx.Colour(0, 0, 0, 255), 1))
+            gcdc.DrawLine(x - 10, y, x + 10, y)
+            gcdc.DrawLine(x, y - 10, x, y + 10)
 
         gcdc.Destroy()
         del gcdc
@@ -1497,6 +1531,7 @@ class Frame(wx.Frame):
             self.last_pos = p
             self.update_bitmap()
             self.update()
+
         elif self._selected is None:
             for wire in self.wires:
                 section = wire.get_section(p)
@@ -1577,16 +1612,18 @@ class Frame(wx.Frame):
 
     def on_motion(self, evt: wx.MouseEvent):
         x, y = evt.GetPosition()
+        self.mouse_pos = (x, y)
+
         p = Point(decimal(x) * decimal(self.scale) + self._offset.x, decimal(y) * decimal(self.scale) + self._offset.y)
         if evt.RightIsDown():
-            diff = p - self.last_pos
+            diff = (p - self.last_pos) / self.scale
             self._offset += diff
             if self._offset.x > 0:
                 self._offset.x = decimal(0)
             if self._offset.y > 0:
                 self._offset.y = decimal(0)
 
-            cw, ch = self.panel.GetSize()
+            cw, ch = self.GetSize()
             bw, bh = self.bmp.GetSize()
             w = cw - bw
             h = ch - bh
@@ -1619,7 +1656,30 @@ class Frame(wx.Frame):
 
             wx.CallAfter(_do)
 
+        else:
+            self.update()
+
         evt.Skip()
+
+
+class Frame(wx.Frame):
+
+    def __init__(self):
+        wx.Frame.__init__(self, None, wx.ID_ANY, size=(1920, 1080))
+
+        self.wire_info_ctrl = WireInfoPanel(self)
+        self.editor = EditorWindow(self)
+
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        hsizer = wx.BoxSizer(wx.HORIZONTAL)
+        hsizer.Add(self.editor, 10, wx.EXPAND)
+        hsizer.Add(self.wire_info_ctrl, 2, wx.EXPAND)
+        sizer.Add(hsizer, 1, wx.EXPAND)
+
+        self.SetSizer(sizer)
+
+
+
 
 
 app = wx.App()
