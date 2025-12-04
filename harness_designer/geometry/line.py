@@ -66,12 +66,11 @@ class Line:
         elif origin == self._p2:
             temp_p1 -= temp_p2
             temp_p2 = _point.ZERO_POINT
-
         else:
             temp_p1 -= origin
             temp_p2 -= origin
 
-        return _angle.Angle.from_points(temp_p1, temp_p2)
+        return _angle.Angle(temp_p1, temp_p2)
 
     def set_angle(self, angle: _angle.Angle, origin: _point.Point) -> None:
         if origin == self._p1:
