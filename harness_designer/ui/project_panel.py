@@ -1,6 +1,7 @@
 
 import wx
 
+
 class ProjectPanel(wx.Panel):
 
     def __init__(self, parent):
@@ -17,7 +18,6 @@ class ProjectPanel(wx.Panel):
         'Terminals'
         'Bundles'
         'Splices'
-
 
 
 AppendItem

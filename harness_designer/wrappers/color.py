@@ -26,7 +26,7 @@ class Color(wx.Colour):
     @property
     def rgba_scalar(self) -> tuple[float, float, float, float]:
         r, g, b, a = [item / 255.0 for item in
-                   (self.GetRed(), self.GetGreen(), self.GetBlue(), self.GetAlpha())]
+                      (self.GetRed(), self.GetGreen(), self.GetBlue(), self.GetAlpha())]
 
         return r, g, b, a
 

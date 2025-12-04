@@ -14,8 +14,6 @@ if TYPE_CHECKING:
     from ..wrappers import wxmouse_event as _wxmouse_event
 
 
-
-
 class ObjectBase:
     def __init__(self, db_obj, editor3d: Union["_editor_3d.Editor3D", None], editor2d: Union["_editor_2d.Editor2D", None]):
         self._wxid = wx.NewIdRef()
@@ -52,7 +50,7 @@ class ObjectBase:
     def wxid(self) -> int:
         return self._wxid
 
-    def set_selected_color(self, flag:bool) -> None:
+    def set_selected_color(self, flag: bool) -> None:
         pass
 
     def IsSelected(self, flag: bool | None = None) -> bool | None:

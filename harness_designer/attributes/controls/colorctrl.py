@@ -21,7 +21,7 @@ class ColorCtrl(wx.Panel):
 
         self.choice_ctrl.Bind(wx.EVT_COMBOBOX, self.on_choice)
 
-        self.color_ctrl = wx.ColourPickerCtrl(self, wx.ID_ANY, colour= global_db.colors_table['Black'].ui, size=(30, -1))
+        self.color_ctrl = wx.ColourPickerCtrl(self, wx.ID_ANY, colour=global_db.colors_table['Black'].ui, size=(30, -1))
         self.color_ctrl.Bind(wx.EVT_COLOURPICKER_CHANGED, self.on_colour)
 
         sizer = utils.HSizer(self, label, self.choice_ctrl, None, self.color_ctrl)
