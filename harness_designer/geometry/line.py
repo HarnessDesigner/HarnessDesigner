@@ -120,3 +120,56 @@ class Line:
 
     def __iter__(self) -> _Iterable[_point.Point]:
         return iter([self._p1, self._p2])
+
+    def get_rotated_line(self, angle: _decimal, pivot: _point.Point) -> "Line":
+        """
+        This is a 2d function and it only deals with the x and y axis.
+        """
+
+        if pivot is None:
+            pivot = self.point_from_start(self.length() / _decimal(2.0))
+
+        angle = _decimal(math.radians(angle))
+
+        p1 = self._rotate_point(pivot, self._p1, angle)
+        p2 = self._rotate_point(pivot, self._p2, angle)
+
+        return Line(p1, p2)
+
+    def get_parallel_line(self, offset: _decimal) -> "Line":
+        """
+        This is a 2d function and it only deals with the x and y axis.
+        """
+
+        offset /= _decimal(2.0)
+
+        r = _decimal(math.radians(self.get_angle(self._p1).z + _decimal(90)))
+        center = self.center
+        x, y = center.x, center.y
+
+        x += offset * _decimal(math.cos(r))
+        y += offset * _decimal(math.sin(r))
+
+        line = self.get_rotated_line(_decimal(180), _point.Point(x, y, _decimal(0.0)))
+        line._p1, line._p2 = line._p2, line._p1
+
+        return line
+
+    @staticmethod
+    def _rotate_point(origin: _point.Point, point: _point.Point, angle: _decimal) -> _point.Point:
+        """
+        This is a 2d function and it only deals with the x and y axis.
+        """
+        ox, oy = origin.x, origin.y
+        px, py = point.x, point.y
+
+        cos = _decimal(math.cos(angle))
+        sin = _decimal(math.sin(angle))
+
+        x = px - ox
+        y = py - oy
+
+        qx = ox + (cos * x) - (sin * y)
+        qy = oy + (sin * x) + (cos * y)
+        return _point.Point(qx, qy)
+
