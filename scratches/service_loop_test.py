@@ -83,19 +83,51 @@ def create_wire(wire: "Wire"):
     # add the loop to the cylinder to make the part
     cyl += swept_cylinder
 
-    cyl2 = build123d.Cylinder(float(wire_r), float(length) / 2, align=build123d.Align.NONE)
+    cyl2 = build123d.Cylinder(float(wire_r), float(length) / 3, align=build123d.Align.NONE)
+
+    wire_axis = cyl2.faces().filter_by(build123d.GeomType.CYLINDER)[0].axis_of_rotation
+
+    edges = cyl2.edges().filter_by(build123d.GeomType.CIRCLE)
+    edges = edges.sort_by(lambda e: e.distance_to(wire_axis.position))[0]
+    edges = edges.trim_to_length(0, float(wire.diameter / Decimal(3) * Decimal(build123d.MM)))
+
+    stripe_thickness = python_utils.remap(wire.diameter, old_min=1.25, old_max=5.0, new_min=0.005, new_max=0.015)
+
+    stripe_arc = build123d.Face(edges.offset_2d(float(stripe_thickness * Decimal(build123d.MM)), side=build123d.Side.RIGHT))
+
+    twist = build123d.Helix(
+        pitch=float(length / Decimal(2) / 3),
+        height=float(length) / 3,
+        radius=float(wire_r),
+        center=wire_axis.position,
+        direction=wire_axis.direction,
+    )
+
+    stripe2 = build123d.sweep(
+        stripe_arc,
+        build123d.Line(wire_axis.position, float(length) / 3 * wire_axis.direction),
+        binormal=twist
+    )
+
     cyl2 = cyl2.rotate(build123d.Axis((0.0, 0.0, 0.0), (0, 1, 0)), 179.0)
+    stripe2 = stripe2.rotate(build123d.Axis((0.0, 0.0, 0.0), (0, 1, 0)), 179.0)
+
     cyl2 = cyl2.rotate(build123d.Axis((0.0, 0.0, 0.0), (1, 0, 0)), -11)
+    stripe2 = stripe2.rotate(build123d.Axis((0.0, 0.0, 0.0), (1, 0, 0)), -11)
 
     cyl2 = cyl2.move(build123d.Location((float(wire.diameter) + (float(wire.diameter) * 0.113), 0.0, 0.0), (1, 0, 0)))
+    stripe2 = stripe2.move(build123d.Location((float(wire.diameter) + (float(wire.diameter) * 0.113), 0.0, 0.0), (1, 0, 0)))
+
     cyl2 = cyl2.move(build123d.Location((0.0, float(wire.diameter) * 0.025, 0.0), (0, 1, 0)))
+    stripe2 = stripe2.move(build123d.Location((0.0, float(wire.diameter) * 0.025, 0.0), (0, 1, 0)))
+
     cyl2 = cyl2.move(build123d.Location((0.0, 0.0, float(wire.diameter) * 0.035), (0, 0, 1)))
+    stripe2 = stripe2.move(build123d.Location((0.0, 0.0, float(wire.diameter) * 0.035), (0, 0, 1)))
 
     cyl += cyl2
 
     wire_axis = cyl.faces().filter_by(build123d.GeomType.CYLINDER)[0].axis_of_rotation
 
-    stripe_thickness = python_utils.remap(wire.diameter, old_min=1.25, old_max=5.0, new_min=0.005, new_max=0.015)
     edges = cyl.edges().filter_by(build123d.GeomType.CIRCLE)
     edges = edges.sort_by(lambda e: e.distance_to(wire_axis.position))[0]
     edges = edges.trim_to_length(0, float(wire.diameter / Decimal(3) * Decimal(build123d.MM)))
@@ -110,13 +142,13 @@ def create_wire(wire: "Wire"):
         direction=wire_axis.direction,
     )
 
-    stripe = build123d.sweep(
+    stripe1 = build123d.sweep(
         stripe_arc,
         build123d.Line(wire_axis.position, float(length) * wire_axis.direction),
         binormal=twist
     )
 
-    return cyl, stripe
+    return cyl, [stripe1, stripe2]
 
 
 def get_triangles(ocp_mesh):
@@ -201,15 +233,6 @@ class Canvas(glcanvas.GLCanvas):
         self.init = False
         self.context = glcanvas.GLContext(self)
 
-        self.last_left_x = 0
-        self.last_left_y = 0
-        self.last_right_x = 0
-        self.last_right_y = 0
-
-        self.right_mouse_pos = None
-        self.left_mouse_pos = None
-        self.up_down_angle = 0.0
-        self.right_left_angle = 0.0
         self.viewMatrix = None
         self.zoom = 0.2
 
@@ -223,14 +246,24 @@ class Canvas(glcanvas.GLCanvas):
         self.Bind(wx.EVT_RIGHT_UP, self.OnMouseUp)
         self.Bind(wx.EVT_MOTION, self.OnMouseMotion)
         self.Bind(wx.EVT_MOUSEWHEEL, self.OnMouseWheel)
+
         self.models = []
         self.normals = []
         self.triangles = []
         self.triangle_count = []
         self.colors = []
         self.loaded = False
-        self.lastx = self.x = 30
-        self.lasty = self.y = 30
+
+        self.mouse_pos = None
+
+        self.rotate_angle = None
+        self.rotate_x = 0.0
+        self.rotate_y = 0.0
+        self.rotate_z = 0.0
+
+        self.pan_x = 0.0
+        self.pan_y = 0.0
+        self.pan_z = 0.0
 
         t = threading.Thread(target=self.run)
         t.daemon = True
@@ -250,16 +283,16 @@ class Canvas(glcanvas.GLCanvas):
                   (Decimal(-20.0), Decimal(50.0), Decimal(20.0)),
                   Decimal(1.0), (0.1, 0.1, 0.1), (1.0, 0.0, 0.0))
         
-        model, stripe = create_wire(wire)
+        model, stripes = create_wire(wire)
 
         normals, tris, tris_count = get_triangles(model)
         self.triangles.append((normals, tris, tris_count))
-        
-        normals, tris, tris_count = get_triangles(stripe)
-        self.triangles.append((normals, tris, tris_count))
-
         self.colors.append(wire.color)
-        self.colors.append(wire.stripe_color)
+
+        for stripe in stripes:
+            normals, tris, tris_count = get_triangles(stripe)
+            self.triangles.append((normals, tris, tris_count))
+            self.colors.append(wire.stripe_color)
 
         self.loaded = True
         wx.CallAfter(self.Refresh, False)
@@ -281,9 +314,9 @@ class Canvas(glcanvas.GLCanvas):
 
     def OnMouseWheel(self, evt: wx.MouseEvent):
         if evt.GetWheelRotation() > 0:
-            self.zoom += self.zoom * 0.10
+            self.zoom += self.zoom * 0.20
         else:
-            self.zoom -= self.zoom * 0.10
+            self.zoom -= self.zoom * 0.20
 
         self.Refresh(False)
         evt.Skip()
@@ -307,38 +340,33 @@ class Canvas(glcanvas.GLCanvas):
         self.CaptureMouse()
 
         if event.LeftIsDown():
-            self.left_mouse_pos = [0, 0]
-            self.last_left_x, self.last_left_y = event.GetPosition()
-        elif event.RightIsDown():
-            self.right_mouse_pos = [0, 0]
-            self.last_right_x, self.last_right_y = event.GetPosition()
+            x, y = event.GetPosition()
+            self.mouse_pos = [x, y]
 
-    def OnMouseUp(self, _):
+        elif event.RightIsDown():
+            x, y = event.GetPosition()
+            self.mouse_pos = [x, y]
+
+    def OnMouseUp(self, event):
         if self.HasCapture():
             self.ReleaseMouse()
 
-        self.right_mouse_pos = None
-        self.left_mouse_pos = None
+        if not event.LeftIsDown() and not event.RightIsDown():
+            self.mouse_pos = None
 
     def OnMouseMotion(self, event):
-        if event.Dragging():
+        if self.mouse_pos is not None:
             x, y = event.GetPosition()
+            last_x, last_y = self.mouse_pos
+            dx = x - last_x
+            dy = y - last_y
+
+            self.mouse_pos = [x, y]
 
             if event.LeftIsDown():
-                new_x = x - self.last_left_x
-                new_y = y - self.last_left_y
-
-                self.left_mouse_pos = [new_x, new_y]
-                self.last_left_x, self.last_left_y = x, y
-                self.Refresh(False)
-
-            elif event.RightIsDown():
-                new_x = x - self.last_right_x
-                new_y = y - self.last_right_y
-
-                self.right_mouse_pos = [new_x, new_y]
-                self.last_right_x, self.last_right_y = x, y
-                self.Refresh(False)
+                self.rotate(dx, dy)
+            if event.RightIsDown():
+                self.pan(dx, dy)
 
     def InitGL(self):
         w, h = self.GetSize()
@@ -371,6 +399,79 @@ class Canvas(glcanvas.GLCanvas):
         gluLookAt(0.0, 2.0, -16.0, 0.0, 0.5, 0.0, 0.0, 1.0, 0.0)
         self.viewMatrix = glGetFloatv(GL_MODELVIEW_MATRIX)
 
+    def rotate(self, mouse_dx, mouse_dy):
+        # set the GL context
+        self.SetCurrent(self.context)
+
+        # collect the model view
+        modelView = (GLfloat * 16)()
+        mv = glGetFloatv(GL_MODELVIEW_MATRIX, modelView)
+
+        # create a rotation vert
+        temp = (GLfloat * 3)()
+
+        # set the x and y deltas to the vert using the exicting rotation matrix
+        # as the starting point
+        temp[0] = mv[0] * mouse_dy + mv[1] * mouse_dx
+        temp[1] = mv[4] * mouse_dy + mv[5] * mouse_dx
+        temp[2] = mv[8] * mouse_dy + mv[9] * mouse_dx
+
+        # normalize the rotation vert
+        norm_xy = math.sqrt((temp[0] ** 2) + (temp[1] ** 2) + (temp[2] ** 2))
+
+
+        try:
+            x = temp[0] / norm_xy
+            y = temp[1] / norm_xy
+            z = temp[2] / norm_xy
+        except ZeroDivisionError:
+            return
+
+        self.rotate_angle = math.sqrt((mouse_dx ** 2) + (mouse_dy ** 2))
+        self.rotate_x = x
+        self.rotate_y = y
+        self.rotate_z = z
+        self.Refresh(False)
+
+    def pan(self, mouse_dx, mouse_dy):
+        width, height = self.size
+
+        # variable amount to pan. This is set using the zoom so the more zoom
+        # there is the smaller the pan amount that ios used. Right now it is set
+        # so an object will move at the same speed as the mouse
+        pan_amount = 16.0 / self.zoom
+
+        # set the GL context
+        self.SetCurrent(self.context)
+
+        # collect the model view from GL
+        modelview = (GLfloat * 16)()
+        mv = glGetFloatv(GL_MODELVIEW_MATRIX, modelview)
+
+        # create rotation matrix from the model view
+        rot = np.array([[mv[0], mv[1], mv[2]],
+                        [mv[4], mv[5], mv[6]],
+                        [mv[8], mv[9], mv[10]]])
+
+        # normalize the x and y mouse deltas to the width and height
+        # and set the variable amount to pan
+        norm_dx = mouse_dx / float(width) * pan_amount
+        norm_dy = -mouse_dy / float(height) * pan_amount
+
+        # create a vert for the pan amount
+        pan_vec_screen = np.array([norm_dx, norm_dy, 0])
+
+        # apply the rotation matrix to the pan amounts
+        pan_vec_world = rot @ pan_vec_screen
+
+        # add the pan x, y and z to the currently stored values
+        # the panning actually gets set in the OnDraw method
+        self.pan_x += pan_vec_world[0]
+        self.pan_y += pan_vec_world[1]
+        self.pan_z += pan_vec_world[2]
+
+        self.Refresh(False)
+
     def OnDraw(self):
         glLoadIdentity()
         glMultMatrixf(self.viewMatrix)
@@ -378,26 +479,17 @@ class Canvas(glcanvas.GLCanvas):
         if self.size is None:
             self.size = self.GetClientSize()
 
-        if self.left_mouse_pos is not None:
-            dx, dy = self.left_mouse_pos
-            modelView = (GLfloat * 16)()
-            mvm = glGetFloatv(GL_MODELVIEW_MATRIX, modelView)
-
-            temp = (GLfloat * 3)()
-            temp[0] = mvm[0] * dy + mvm[1] * dx
-            temp[1] = mvm[4] * dy + mvm[5] * dx
-            temp[2] = mvm[8] * dy + mvm[9] * dx
-            norm_xy = math.sqrt(temp[0] * temp[0] + temp[1] * temp[1] + temp[2] * temp[2])
-
-            glRotatef(
-                math.sqrt(dx * dx + dy * dy),
-                temp[0] / norm_xy,
-                temp[1] / norm_xy,
-                temp[2] / norm_xy
-            )
-
+        if self.rotate_angle is not None:
+            # apply the rotation
+            glRotatef(self.rotate_angle, self.rotate_x, self.rotate_y, self.rotate_z)
             self.viewMatrix = glGetFloatv(GL_MODELVIEW_MATRIX)
 
+            self.rotate_angle = None
+
+        # set the pan amount
+        glTranslatef(self.pan_x, self.pan_y, self.pan_z)
+
+        # set the zoom
         glScalef(self.zoom, self.zoom, self.zoom)
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
