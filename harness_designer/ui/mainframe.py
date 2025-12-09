@@ -231,6 +231,8 @@ class MainFrame(wx.Frame):
             bundle_layout,
             housing,
             splice,
+            terminal,
+            seal,
             transition,
             wire_2d_layout,
             wire_3d_layout,
