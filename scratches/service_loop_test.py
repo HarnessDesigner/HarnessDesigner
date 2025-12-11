@@ -66,6 +66,57 @@ def _round_down(val: _decimal) -> _decimal:
 
 class Point:
 
+    def __array_ufunc__(self, func, method, inputs, instance, **kwargs):
+        if func == np.matmul:
+            if isinstance(instance, np.ndarray):
+                arr = self.as_numpy
+                arr @= instance
+                x, y, z = arr
+
+                self._x = _decimal(x)
+                self._y = _decimal(y)
+                self._z = _decimal(z)
+                return self
+            else:
+                return inputs @ self.as_numpy
+
+        if func == np.add:
+            if isinstance(instance, np.ndarray):
+                arr = self.as_numpy
+                arr += instance
+                x, y, z = arr
+                self._x = _decimal(x)
+                self._y = _decimal(y)
+                self._z = _decimal(z)
+                return self
+            else:
+                return inputs + self.as_numpy
+
+        if func == np.subtract:
+            if isinstance(instance, np.ndarray):
+                arr = self.as_numpy
+                arr -= instance
+                x, y, z = arr
+                self._x = _decimal(x)
+                self._y = _decimal(y)
+                self._z = _decimal(z)
+                return self
+            else:
+                return inputs + self.as_numpy
+
+        print('func:', func)
+        print()
+        print('method:', method)
+        print()
+        print('inputs:', inputs)
+        print()
+        print('instance:', instance)
+        print()
+        print('kwargs:', kwargs)
+        print()
+
+        raise RuntimeError
+
     def __init__(self, x: _decimal, y: _decimal, z: _decimal | None = None):
 
         if z is None:
@@ -195,13 +246,16 @@ class Point:
         angle.y = y_angle
         angle.z = z_angle
 
-        p1 = self.as_numpy
-        p2 = origin.as_numpy
-        p1 -= p2
-        p1 @= angle.as_matrix
-        p1 += p2
+        p1 = self
+        p2 = origin
+        p3 = p1 - p2
+        p3 @= angle
+        p3 += p2
 
-        self.x, self.y, self.z = [_decimal(float(item)) for item in p1]
+        self.x, self.y, self.z = [_decimal(float(item)) for item in p3]
+
+    def get_angle(self, origin: "Point") -> "Angle":
+        return Angle.from_points(origin, self)
 
     def __bool__(self):
         return self.as_float == (0, 0, 0)
@@ -249,18 +303,63 @@ ZERO_POINT = Point(_decimal(0.0), _decimal(0.0), _decimal(0.0))
 
 class Angle:
 
+    def __array_ufunc__(self, func, method, inputs, instance, **kwargs):
+        if func == np.matmul:
+            if isinstance(instance, np.ndarray):
+                arr = self.as_numpy
+                arr @= instance
+                x, y, z = arr
+
+                self._x = _decimal(x)
+                self._y = _decimal(y)
+                self._z = _decimal(z)
+                return self
+            else:
+                return inputs @ self._R.as_matrix().T
+
+        if func == np.add:
+            if isinstance(instance, np.ndarray):
+                arr = self.as_numpy
+                arr += instance
+                x, y, z = arr
+                self._x = _decimal(x)
+                self._y = _decimal(y)
+                self._z = _decimal(z)
+                return self
+            else:
+                return inputs + self.as_numpy
+
+        if func == np.subtract:
+            if isinstance(instance, np.ndarray):
+                arr = self.as_numpy
+                arr -= instance
+                x, y, z = arr
+                self._x = _decimal(x)
+                self._y = _decimal(y)
+                self._z = _decimal(z)
+                return self
+            else:
+                return inputs + self.as_numpy
+
+        print('func:', func)
+        print()
+        print('method:', method)
+        print()
+        print('inputs:', inputs)
+        print()
+        print('instance:', instance)
+        print()
+        print('kwargs:', kwargs)
+        print()
+
+        raise RuntimeError
+
     def __init__(self, R):
         self._R = R
 
         p1 = Point(_decimal(0.0), _decimal(0.0), _decimal(0.0))
         p2 = Point(_decimal(0.0), _decimal(0.0), _decimal(10.0))
-        arr = p2.as_numpy
-        arr @= self._R.as_matrix().T  # NOQA
-
-        x, y, z = arr.tolist()
-        p2.x = _decimal(x)
-        p2.y = _decimal(y)
-        p2.z = _decimal(z)
+        p2 @= self._R.as_matrix().T  # NOQA
 
         self._p1 = p1
         self._p2 = p2
@@ -500,11 +599,76 @@ class Angle:
         return cls(R)
 
 
-
 ZERO_5 = _decimal(0.5)
 
 
 class Line:
+
+    def __array_ufunc__(self, func, method, inputs, instance, **kwargs):
+        if func == np.matmul:
+            if isinstance(instance, np.ndarray):
+                arr = self.as_numpy
+                arr @= instance
+                p1, p2 = arr.tolist()
+
+                self._p1.x = _decimal(p1[0])
+                self._p1.y = _decimal(p1[1])
+                self._p1.z = _decimal(p1[1])
+
+                self._p2.x = _decimal(p2[0])
+                self._p2.y = _decimal(p2[1])
+                self._p2.z = _decimal(p2[1])
+
+                return self
+            else:
+                return inputs @ self.as_numpy
+
+        if func == np.add:
+            if isinstance(instance, np.ndarray):
+                arr = self.as_numpy
+                arr += instance
+                p1, p2 = arr.tolist()
+
+                self._p1.x = _decimal(p1[0])
+                self._p1.y = _decimal(p1[1])
+                self._p1.z = _decimal(p1[1])
+
+                self._p2.x = _decimal(p2[0])
+                self._p2.y = _decimal(p2[1])
+                self._p2.z = _decimal(p2[1])
+                return self
+            else:
+                return inputs + self.as_numpy
+
+        if func == np.subtract:
+            if isinstance(instance, np.ndarray):
+                arr = self.as_numpy
+                arr -= instance
+                p1, p2 = arr.tolist()
+
+                self._p1.x = _decimal(p1[0])
+                self._p1.y = _decimal(p1[1])
+                self._p1.z = _decimal(p1[1])
+
+                self._p2.x = _decimal(p2[0])
+                self._p2.y = _decimal(p2[1])
+                self._p2.z = _decimal(p2[1])
+                return self
+            else:
+                return inputs + self.as_numpy
+
+        print('func:', func)
+        print()
+        print('method:', method)
+        print()
+        print('inputs:', inputs)
+        print()
+        print('instance:', instance)
+        print()
+        print('kwargs:', kwargs)
+        print()
+
+        raise RuntimeError
 
     def __init__(self, p1: Point,
                  p2: Point | None = None,
@@ -519,10 +683,24 @@ class Line:
                                  '"x_angle", "y_angle" and "z_angle" parameters need to be supplied')
 
             p2 = Point(length, _decimal(0.0), _decimal(0.0))
-            p2 @= angle.as_matrix
+            p2 @= angle
             p2 += p1
 
         self._p2 = p2
+
+    @property
+    def as_numpy(self) -> np.ndarray:
+        p1 = self._p1.as_float
+        p2 = self._p2.as_float
+
+        return np.array([p1, p2], dtype=np.dtypes.Float64DType)
+
+    @property
+    def as_float(self) -> tuple[list[float, float, float], list[float, float, float]]:
+        p1 = self._p1.as_float
+        p2 = self._p2.as_float
+
+        return p1, p2
 
     def copy(self) -> "Line":
         p1 = self._p1.copy()
@@ -571,7 +749,7 @@ class Line:
         if origin == self._p1:
             temp_p2 = self._p2.copy()
             temp_p2 -= origin
-            temp_p2 @= angle.as_matrix
+            temp_p2 @= angle
             temp_p2 += origin
             diff = temp_p2 - self._p2
             self._p2 += diff
@@ -579,7 +757,7 @@ class Line:
         elif origin == self._p2:
             temp_p1 = self._p1.copy()
             temp_p1 -= origin
-            temp_p1 @= angle.as_matrix
+            temp_p1 @= angle
             temp_p1 += origin
             diff = temp_p1 - self._p1
             self._p1 += diff
@@ -590,8 +768,8 @@ class Line:
             temp_p1 -= origin
             temp_p2 -= origin
 
-            temp_p1 @= angle.as_matrix
-            temp_p2 @= angle.as_matrix
+            temp_p1 @= angle
+            temp_p2 @= angle
 
             temp_p1 += origin
             temp_p2 += origin
@@ -685,7 +863,6 @@ def create_wire(wire: "Wire"):
 
     sphere1 = build123d.Sphere(wire_r)
     sphere1 = sphere1.move(build123d.Location((0.0, 0.0, float(wire.diameter)), (0, 0, 1)))
-
 
     # Create helix path (centered at origin, offsets along Z)
     loop_helix = build123d.Helix(
@@ -892,9 +1069,9 @@ class Wire:
         def do(m):
             try:
                 normals, tris, tris_count = get_triangles(m)
-
-                tris @= self.angle.as_matrix
-                tris += p1.as_numpy
+                tris -= start_point
+                tris @= self.angle
+                tris += p1
 
                 self.colors.append(self.color)
                 self.triangles.append((normals, tris, tris_count))
@@ -904,23 +1081,17 @@ class Wire:
                     if isinstance(item, build123d.Shape):
                         do(item)
         do(model)
-
+        bbox[0] -= start_point
         bbox[0] += p1
-
-        bb2 = bbox[1]
-        arr = bb2.as_numpy
-        arr @= self.angle.as_matrix
-        arr += p1.as_numpy
-
-        x, y, z = arr.tolist()
-        bb2.x = _decimal(x)
-        bb2.y = _decimal(y)
-        bb2.z = _decimal(z)
+        bbox[1] -= start_point
+        bbox[1] @= self.angle
+        bbox[1] += p1
 
         for stripe in stripes:
             normals, tris, tris_count = get_triangles(stripe)
-            tris @= self.angle.as_matrix
-            tris += p1.as_numpy
+            tris -= start_point
+            tris @= self.angle
+            tris += p1
 
             self.triangles.append((normals, tris, tris_count))
             self.colors.append(self.stripe_color)
@@ -955,25 +1126,17 @@ class Wire:
         angle_diff = angle - self.angle
 
         for (normals, tris, tris_count) in self.triangles:
-            tris -= self.p1.as_numpy
-            tris @= angle_diff.as_matrix
-            tris += self.p1.as_numpy
-            tris += point_diff.as_numpy
+            tris -= self.p1
+            tris @= angle_diff
+            tris += self.p1
+            tris += point_diff
 
         self.bbox[0] += point_diff
-
         bb2 = self.bbox[1]
         bb2 -= self.p1
-
-        arr = bb2.as_numpy
-        arr @= self.angle.as_matrix
-        x, y, z = arr.tolist()
-        bb2.x = _decimal(x)
-        bb2.y = _decimal(y)
-        bb2.z = _decimal(z)
-
-        self.bbox[1] += point_diff
-        self.bbox[1] += self.p1
+        bb2 @= self.angle
+        bb2 += point_diff
+        bb2 += self.p1
 
         self.angle += angle_diff
         self.p1 += point_diff
@@ -1041,6 +1204,190 @@ class PopupWindow(wx.Panel):
         return Angle.from_euler(self.angle_x.GetValue(), self.angle_y.GetValue(), self.angle_z.GetValue())
 
 
+MOUSE_NONE = 0x00000000
+MOUSE_LEFT = 0x00000001
+MOUSE_MIDDLE = 0x00000002
+MOUSE_RIGHT = 0x00000004
+MOUSE_AUX1 = 0x00000008
+MOUSE_AUX2 = 0x00000010
+MOUSE_WHEEL = 0x00000020
+MOUSE_X_AXIS_POS = 0x00000040
+MOUSE_X_AXIS_NEG = 0x00000080
+MOUSE_Y_AXIS_POS = 0x00000100
+MOUSE_Y_AXIS_NEG = 0x00000200
+MOUSE_Z_AXIS_POS = 0x00000400
+MOUSE_Z_AXIS_NEG = 0x00000800
+MOUSE_WHEEL_DELTA_POS =0x00001000
+MOUSE_WHEEL_DELTA_NEG =0x00002000
+
+# max 80000000
+
+
+
+KEY_MULTIPLES = {
+    wx.WXK_UP: [wx.WXK_UP, wx.WXK_NUMPAD_UP],
+    wx.WXK_NUMPAD_UP: [wx.WXK_UP, wx.WXK_NUMPAD_UP],
+
+    wx.WXK_DOWN: [wx.WXK_DOWN, wx.WXK_NUMPAD_DOWN],
+    wx.WXK_NUMPAD_DOWN: [wx.WXK_DOWN, wx.WXK_NUMPAD_DOWN],
+
+    wx.WXK_LEFT: [wx.WXK_LEFT, wx.WXK_NUMPAD_LEFT],
+    wx.WXK_NUMPAD_LEFT: [wx.WXK_LEFT, wx.WXK_NUMPAD_LEFT],
+
+    wx.WXK_RIGHT: [wx.WXK_RIGHT, wx.WXK_NUMPAD_RIGHT],
+    wx.WXK_NUMPAD_RIGHT: [wx.WXK_RIGHT, wx.WXK_NUMPAD_RIGHT],
+
+    ord('-'): [ord('-'), wx.WXK_SUBTRACT, wx.WXK_NUMPAD_SUBTRACT],
+    wx.WXK_SUBTRACT: [ord('-'), wx.WXK_SUBTRACT, wx.WXK_NUMPAD_SUBTRACT],
+    wx.WXK_NUMPAD_SUBTRACT: [ord('-'), wx.WXK_SUBTRACT, wx.WXK_NUMPAD_SUBTRACT],
+
+    ord('+'): [ord('+'), wx.WXK_ADD, wx.WXK_NUMPAD_ADD],
+    wx.WXK_ADD: [ord('+'), wx.WXK_ADD, wx.WXK_NUMPAD_ADD],
+    wx.WXK_NUMPAD_ADD: [ord('+'), wx.WXK_ADD, wx.WXK_NUMPAD_ADD],
+
+    ord('/'): [ord('/'), wx.WXK_DIVIDE, wx.WXK_NUMPAD_DIVIDE],
+    wx.WXK_DIVIDE: [ord('/'), wx.WXK_DIVIDE, wx.WXK_NUMPAD_DIVIDE],
+    wx.WXK_NUMPAD_DIVIDE: [ord('/'), wx.WXK_DIVIDE, wx.WXK_NUMPAD_DIVIDE],
+
+    ord('*'): [ord('*'), wx.WXK_MULTIPLY, wx.WXK_NUMPAD_MULTIPLY],
+    wx.WXK_MULTIPLY: [ord('*'), wx.WXK_MULTIPLY, wx.WXK_NUMPAD_MULTIPLY],
+    wx.WXK_NUMPAD_MULTIPLY: [ord('*'), wx.WXK_MULTIPLY, wx.WXK_NUMPAD_MULTIPLY],
+
+    ord('.'): [ord('.'), wx.WXK_DECIMAL, wx.WXK_NUMPAD_DECIMAL],
+    wx.WXK_DECIMAL: [ord('.'), wx.WXK_DECIMAL, wx.WXK_NUMPAD_DECIMAL],
+    wx.WXK_NUMPAD_DECIMAL: [ord('.'), wx.WXK_DECIMAL, wx.WXK_NUMPAD_DECIMAL],
+
+    ord('|'): [ord('|'), wx.WXK_SEPARATOR, wx.WXK_NUMPAD_SEPARATOR],
+    wx.WXK_SEPARATOR: [ord('|'), wx.WXK_SEPARATOR, wx.WXK_NUMPAD_SEPARATOR],
+    wx.WXK_NUMPAD_SEPARATOR: [ord('|'), wx.WXK_SEPARATOR, wx.WXK_NUMPAD_SEPARATOR],
+
+    ord(' '): [ord(' '), wx.WXK_SPACE, wx.WXK_NUMPAD_SPACE],
+    wx.WXK_SPACE: [ord(' '), wx.WXK_SPACE, wx.WXK_NUMPAD_SPACE],
+    wx.WXK_NUMPAD_SPACE: [ord(' '), wx.WXK_SPACE, wx.WXK_NUMPAD_SPACE],
+
+    ord('='): [ord('='), wx.WXK_NUMPAD_EQUAL],
+    wx.WXK_NUMPAD_EQUAL: [ord('='), wx.WXK_NUMPAD_EQUAL],
+
+    wx.WXK_HOME: [wx.WXK_HOME, wx.WXK_NUMPAD_HOME],
+    wx.WXK_NUMPAD_HOME: [wx.WXK_HOME, wx.WXK_NUMPAD_HOME],
+
+    wx.WXK_END: [wx.WXK_END, wx.WXK_NUMPAD_END],
+    wx.WXK_NUMPAD_END: [wx.WXK_END, wx.WXK_NUMPAD_END],
+
+    wx.WXK_PAGEUP: [wx.WXK_PAGEUP, wx.WXK_NUMPAD_PAGEUP],
+    wx.WXK_NUMPAD_PAGEUP: [wx.WXK_PAGEUP, wx.WXK_NUMPAD_PAGEUP],
+
+    wx.WXK_PAGEDOWN: [wx.WXK_PAGEDOWN, wx.WXK_NUMPAD_PAGEDOWN],
+    wx.WXK_NUMPAD_PAGEDOWN: [wx.WXK_PAGEDOWN, wx.WXK_NUMPAD_PAGEDOWN],
+
+    wx.WXK_RETURN: [wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER],
+    wx.WXK_NUMPAD_ENTER: [wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER],
+
+    wx.WXK_INSERT: [wx.WXK_INSERT, wx.WXK_NUMPAD_INSERT],
+    wx.WXK_NUMPAD_INSERT: [wx.WXK_INSERT, wx.WXK_NUMPAD_INSERT],
+
+    wx.WXK_TAB: [wx.WXK_TAB, wx.WXK_NUMPAD_TAB],
+    wx.WXK_NUMPAD_TAB: [wx.WXK_TAB, wx.WXK_NUMPAD_TAB],
+
+    wx.WXK_DELETE: [wx.WXK_DELETE, wx.WXK_NUMPAD_DELETE],
+    wx.WXK_NUMPAD_DELETE: [wx.WXK_DELETE, wx.WXK_NUMPAD_DELETE],
+
+    ord('0'): [ord('0'), wx.WXK_NUMPAD0],
+    wx.WXK_NUMPAD0: [ord('0'), wx.WXK_NUMPAD0],
+
+    ord('1'): [ord('1'), wx.WXK_NUMPAD1],
+    wx.WXK_NUMPAD1: [ord('1'), wx.WXK_NUMPAD1],
+
+    ord('2'): [ord('2'), wx.WXK_NUMPAD2],
+    wx.WXK_NUMPAD2: [ord('2'), wx.WXK_NUMPAD2],
+
+    ord('3'): [ord('3'), wx.WXK_NUMPAD3],
+    wx.WXK_NUMPAD3: [ord('3'), wx.WXK_NUMPAD3],
+
+    ord('4'): [ord('4'), wx.WXK_NUMPAD4],
+    wx.WXK_NUMPAD4: [ord('4'), wx.WXK_NUMPAD4],
+
+    ord('5'): [ord('5'), wx.WXK_NUMPAD5],
+    wx.WXK_NUMPAD5: [ord('5'), wx.WXK_NUMPAD5],
+
+    ord('6'): [ord('6'), wx.WXK_NUMPAD6],
+    wx.WXK_NUMPAD6: [ord('6'), wx.WXK_NUMPAD6],
+
+    ord('7'): [ord('7'), wx.WXK_NUMPAD7],
+    wx.WXK_NUMPAD7: [ord('7'), wx.WXK_NUMPAD7],
+
+    ord('8'): [ord('8'), wx.WXK_NUMPAD8],
+    wx.WXK_NUMPAD8: [ord('8'), wx.WXK_NUMPAD8],
+
+    ord('9'): [ord('9'), wx.WXK_NUMPAD9],
+    wx.WXK_NUMPAD9: [ord('9'), wx.WXK_NUMPAD9],
+}
+
+class Config:
+    class settings:
+        ground_height = 0.0
+        allow_roll = False
+        eye_height = 10.0
+        update_speed = 10  # per second
+
+    class rotate:
+        mouse = MOUSE_LEFT
+        up_key = ord('w')
+        down_key = ord('s')
+        left_key = ord('a')
+        right_key = ord('d')
+        sensitivity = 1.0
+
+    class look:
+        mouse = MOUSE_MIDDLE
+        up_key = ord('o')
+        down_key = ord('l')
+        left_key = ord('k')
+        right_key = ord(';')
+        sensitivity = 1.0
+
+    class pan:
+        mouse = MOUSE_RIGHT
+        up_key = None
+        down_key = None
+        left_key = None
+        right_key = None
+        sensitivity = 1.0
+
+    class walk:
+        mouse = MOUSE_NONE
+        forward_key = wx.WXK_UP
+        backward_key = wx.WXK_DOWN
+        left_key = wx.WXK_LEFT
+        right_key = wx.WXK_RIGHT
+        sensitivity = 1.0
+        speed = 1.0
+
+    class zoom:
+        mouse = MOUSE_WHEEL
+        in_key = wx.WXK_ADD
+        out_key = wx.WXK_SUBTRACT
+        sensitivity = 1.0
+
+    class reset:
+        key = wx.WXK_HOME
+        mouse = MOUSE_NONE
+
+
+def _process_key_event(keycode: int, *keys):
+
+    for expected_keycode in keys:
+        expected_keycodes = KEY_MULTIPLES.get(
+            expected_keycode,
+            [expected_keycode, ord(chr(expected_keycode).upper())]
+            if 32 <= expected_keycode <= 126 else
+            [expected_keycode]
+        )
+
+        if keycode in expected_keycodes:
+            return expected_keycode
+
+
 class Canvas(glcanvas.GLCanvas):
     def __init__(self, parent):
         glcanvas.GLCanvas.__init__(self, parent, -1)
@@ -1048,146 +1395,205 @@ class Canvas(glcanvas.GLCanvas):
         self.context = glcanvas.GLContext(self)
 
         self.viewMatrix = None
-        self.zoom = 0.2
-
         self.size = None
-        self.Bind(wx.EVT_ERASE_BACKGROUND, self.OnEraseBackground)
-        self.Bind(wx.EVT_SIZE, self.OnSize)
-        self.Bind(wx.EVT_PAINT, self.OnPaint)
-        self.Bind(wx.EVT_LEFT_DOWN, self.OnMouseDown)
-        self.Bind(wx.EVT_RIGHT_DOWN, self.OnMouseDown)
+
         self.Bind(wx.EVT_LEFT_UP, self.on_left_up)
+        self.Bind(wx.EVT_LEFT_DOWN, self.on_left_down)
+        self.Bind(wx.EVT_LEFT_DCLICK, self.on_left_dclick)
+
+        self.Bind(wx.EVT_MIDDLE_UP, self.on_middle_up)
+        self.Bind(wx.EVT_MIDDLE_DOWN, self.on_middle_down)
+        self.Bind(wx.EVT_MIDDLE_DCLICK, self.on_middle_dclick)
+
         self.Bind(wx.EVT_RIGHT_UP, self.on_right_up)
-        self.Bind(wx.EVT_MOTION, self.OnMouseMotion)
-        self.Bind(wx.EVT_MOUSEWHEEL, self.OnMouseWheel)
-        self.Bind(wx.EVT_KEY_DOWN, self.on_key)
+        self.Bind(wx.EVT_RIGHT_DOWN, self.on_right_down)
+        self.Bind(wx.EVT_RIGHT_DCLICK, self.on_right_dclick)
+
+        self.Bind(wx.EVT_MOUSE_AUX1_UP, self.on_aux1_up)
+        self.Bind(wx.EVT_MOUSE_AUX1_DOWN, self.on_aux1_down)
+        self.Bind(wx.EVT_MOUSE_AUX1_DCLICK, self.on_aux1_dclick)
+
+        self.Bind(wx.EVT_MOUSE_AUX2_UP, self.on_aux2_up)
+        self.Bind(wx.EVT_MOUSE_AUX2_DOWN, self.on_aux2_down)
+        self.Bind(wx.EVT_MOUSE_AUX2_DCLICK, self.on_aux2_dclick)
+
+        self.Bind(wx.EVT_KEY_UP, self.on_key_up)
+        self.Bind(wx.EVT_MOTION, self.on_mouse_motion)
+        self.Bind(wx.EVT_MOUSEWHEEL, self.on_mouse_wheel)
+
+        self.Bind(wx.EVT_SIZE, self.on_size)
+        self.Bind(wx.EVT_PAINT, self.on_paint)
+        self.Bind(wx.EVT_ERASE_BACKGROUND, self.on_erase_background)
+
+        # camera positioning
+
+        #             y+ (up)
+        #             |  Z- (forward)
+        #             | /
+        # x- ------ center ------ x+ (right)
+        #           / |
+        #         Z+  |
+        #             Y-
+
+        # f = np.linalg.norm(camera_pos - camera_eye);
+        # temp_up = np.array([0.0, 1.0, 0.0], dtypes=np.dtypes.Float64DType)
+        # r = np.linalg.norm(np.cross(temp_up, f))
+        # u = np.linalg.norm(np.cross(f, r))
+        # t_x = np.dot(positionOfCamera, r)
+        # t_y = np.dot(positionOfCamera, u)
+        # t_z = np.dot(positionOfCamera, f)
+
+        # lookat_matrix = np.array([[r[0], r[1], r[2], t_x],
+        #                           [u[0], u[1], u[2], t_y],
+        #                           [f[0], f[1], f[2], t_z],
+        #                           [0.0,   0.0,  0.0, 1.0]],
+        #                          dtype=np.dtypes.Float64DType)
+
+        # view_matrix = np.array([[r[0], u[0], f[0], 0.0],
+        #                         [r[1], u[1], f[1], 0.0],
+        #                         [r[2], u[2], f[2], 0.0],
+        #                         [-t_x, -t_y, -t_z, 1.0]],
+        #                        dtype=np.dtypes.Float64DType)
+
+        self.camera_pos = Point(_decimal(0.0), _decimal(Config.settings.eye_height), _decimal(0.0))
+        self.camera_eye = Point(_decimal(0.0), _decimal(Config.settings.eye_height + 0.5), _decimal(75.0))
+        self.camera_angle = Angle.from_points(self.camera_pos, self.camera_eye)
+        self.camera_position_angle = Angle.from_points(Point(_decimal(0.0), _decimal(0.0), _decimal(0.0)), self.camera_pos)
 
         self.selected = None
         self.wires = []
 
         self._grid = None
         self.is_motion = False
-
         self.mouse_pos = None
 
-        self.rotate_angle = None
-        self.rotate_x = 0.0
-        self.rotate_y = 0.0
-        self.rotate_z = 0.0
-
-        self.pan_x = 0.0
-        self.pan_y = 0.0
-        self.pan_z = 0.0
-
-        self.camera_pos = np.array([0.0, 0.0, 3.0], dtype=np.dtypes.Float64DType)
-        self.camera_front = np.array([0.0, 0.0, -1.0], dtype=np.dtypes.Float64DType)
-        self.camera_up = np.array([0.0, 1.0, 0.0], dtype=np.dtypes.Float64DType)
-        self.camera_change = True
-
-        t = threading.Thread(target=self.run)
+        t = threading.Thread(target=self.make_wires)
         t.daemon = True
         t.start()
 
-        self.stored_pos = [0.0, 0.0, 0.0]
-        self.stored_angle = [0.0, 0.0, 0.0]
-
-    def run(self):
-        self.make_wires()
-
-    def make_wires(self):
-        self.wires.append(Wire(self, Point(Decimal(0.0), Decimal(20.0), Decimal(0.0)),
-                  Point(Decimal(0.0), Decimal(20.0), Decimal(20.0)),
-                  Decimal(0.61), (0.5, 0.0, 0.8, 1.0), (1.0, 0.4, 0.0, 1.0)))
-
-        self.wires.append(
-            Wire(
-                self, Point(Decimal(20.0), Decimal(20.0), Decimal(0.0)),
-                Point(Decimal(20.0), Decimal(20.0), Decimal(20.0)),
-                Decimal(2.29), (0.2, 0.2, 0.2, 1.0), (0.0, 0.0, 1.0, 1.0)
-                )
-            )
-
-        self.wires.append(
-            Wire(
-                self, Point(Decimal(40.0), Decimal(20.0), Decimal(0.0)),
-                Point(Decimal(40.0), Decimal(20.0), Decimal(20.0)),
-                Decimal(3.81), (0.2, 0.2, 0.2, 1.0), (0.0, 1.0, 0.0, 1.0)
-                )
-            )
-
-        self.wires.append(
-            Wire(
-                self, Point(Decimal(60.0), Decimal(20.0), Decimal(0.0)),
-                Point(Decimal(60.0), Decimal(20.0), Decimal(20.0)),
-                Decimal(6.48), (0.2, 0.2, 0.2, 1.0), (1.0, 0.0, 0.0, 1.0)
-                )
-            )
-
-        wx.CallAfter(self.Refresh, False)
-
-    def get_world_coords(self, mx, my) -> Point:
-        modelview = glGetDoublev(GL_MODELVIEW_MATRIX)
-        projection = glGetDoublev(GL_PROJECTION_MATRIX)
-        viewport = glGetIntegerv(GL_VIEWPORT)
-
-        depth = glReadPixels(mx, my, 1.0, 1.0, GL_DEPTH_COMPONENT, GL_FLOAT, None)
-        x, y, z = gluUnProject(mx, my, depth, modelview, projection, viewport)
-        return Point(_decimal(x), _decimal(y), _decimal(z))
-
-    def OnEraseBackground(self, event):
-        pass  # Do nothing, to avoid flashing on MSW.
-
-    def OnSize(self, event):
-        if self.selected is not None:
-            w, h = event.GetSize()
-            w_h = self.selected.popup.GetBestHeight(w)
-            y = h - w_h
-            self.selected.popup.SetPosition((0, y))
-
-        wx.CallAfter(self.DoSetViewport)
-        event.Skip()
-
-    def OnMouseWheel(self, evt: wx.MouseEvent):
-        if evt.GetWheelRotation() > 0:
-            self.zoom += self.zoom * 0.20
-        else:
-            self.zoom -= self.zoom * 0.20
-
-        self.Refresh(False)
+    def on_key_down(self, evt: wx.KeyEvent):
+        keycode = evt.GetKeyCode()
         evt.Skip()
 
-    def DoSetViewport(self):
-        size = self.size = self.GetClientSize() * self.GetContentScaleFactor()
-        self.SetCurrent(self.context)
-        glViewport(0, 0, size.width, size.height)
+        rot = Config.rotate
 
-    def OnPaint(self, _):
-        _ = wx.PaintDC(self)
-        self.SetCurrent(self.context)
-        if not self.init:
-            self.InitGL()
-            self.init = True
-        self.OnDraw()
+        config = _process_key_event(keycode, rot.up_key, rot.down_key, rot.left_key, rot.right_key)
+        if config is not None:
+            self._process_rotate_key(config)
+            return
 
-    def OnMouseDown(self, event: wx.MouseEvent):
-        self.is_motion = False
+        look = Config.look
+        config = _process_key_event(keycode, look.up_key, look.down_key, look.left_key, look.right_key)
+        if config is not None:
+            self._process_look_key(config)
+            return
 
-        if self.HasCapture():
-            self.ReleaseMouse()
-        self.CaptureMouse()
+        pan = Config.pan
+        key = _process_key_event(keycode, pan.up_key, pan.down_key, pan.left_key, pan.right_key)
+        if key is not None:
+            self._process_pan_key(key)
+            return
 
-        if event.LeftIsDown():
-            x, y = event.GetPosition()
-            self.mouse_pos = [x, y]
+        walk = Config.walk
+        key = _process_key_event(keycode, walk.forward_key, walk.backward_key, walk.left_key, walk.right_key)
+        if key is not None:
+            self._process_walk_key(key)
+            return
 
-        elif event.RightIsDown():
-            x, y = event.GetPosition()
-            self.mouse_pos = [x, y]
+        zoom = Config.zoom
+        key = _process_key_event(keycode, zoom.in_key, zoom.out_key)
+        if key is not None:
+            self._process_zoom_key(key)
+            return
+
+        key = _process_key_event(keycode, Config.reset.key)
+        if key is not None:
+            self._process_reset_key()
+            return
+
+    def _process_rotate_key(self, key):
+        if key == Config.rotate.up_key:
+            self.rotate(_decimal(0.0), _decimal(1.0))
+        elif key == Config.rotate.down_key:
+            self.rotate(_decimal(0.0), -_decimal(1.0))
+        elif key == Config.rotate.left_key:
+            self.rotate(-_decimal(1.0), _decimal(0.0))
+        elif key == Config.rotate.right_key:
+            self.rotate(_decimal(1.0), _decimal(0.0))
+
+    def _process_look_key(self, key):
+        if key == Config.look.up_key:
+            self.look(_decimal(0.0), _decimal(1.0))
+        elif key == Config.look.down_key:
+            self.look(_decimal(0.0), -_decimal(1.0))
+        elif key == Config.look.left_key:
+            self.look(-_decimal(1.0), _decimal(0.0))
+        elif key == Config.look.right_key:
+            self.look(_decimal(1.0), _decimal(0.0))
+
+    def _process_pan_key(self, key):
+        if key == Config.pan.up_key:
+            self.pan(_decimal(0.0), _decimal(1.0))
+        elif key == Config.pan.down_key:
+            self.pan(_decimal(0.0), -_decimal(1.0))
+        elif key == Config.pan.left_key:
+            self.pan(-_decimal(1.0), _decimal(0.0))
+        elif key == Config.pan.right_key:
+            self.pan(_decimal(1.0), _decimal(0.0))
+
+    def _process_walk_key(self, key):
+        if key == Config.walk.forward_key:
+            self.walk(_decimal(0.0), _decimal(1.0))
+        elif key == Config.walk.backward_key:
+            self.walk(_decimal(0.0), -_decimal(1.0))
+        elif key == Config.walk.left_key:
+            self.walk(-_decimal(1.0), _decimal(0.0))
+        elif key == Config.walk.right_key:
+            self.walk(_decimal(1.0), _decimal(0.0))
+
+    def _process_zoom_key(self, key):
+        if key == Config.zoom.in_key:
+            self.zoom(_decimal(1.0))
+        elif key == Config.zoom.out_key:
+            self.zoom(-_decimal(1.0))
+
+    def _process_reset_key(self, *_):
+        self.reset()
+
+    def reset(self, *_):
+        self.camera_pos = Point(_decimal(0.0), _decimal(Config.settings.eye_height), _decimal(0.0))
+        self.camera_eye = Point(_decimal(0.0), _decimal(Config.settings.eye_height + 0.5), _decimal(75.0))
+        self.camera_angle = Angle.from_points(self.camera_pos, self.camera_eye)
+        self.camera_position_angle = Angle.from_points(Point(_decimal(0.0), _decimal(0.0), _decimal(0.0)), self.camera_pos)
+
+        self.Refresh(False)
+
+    def _process_mouse(self, code):
+        for config, func in (
+            (Config.walk, self.walk),
+            (Config.pan, self.pan),
+            (Config.reset, self.reset),
+            (Config.rotate, self.rotate),
+            (Config.look, self.look),
+            (Config.zoom, self.zoom)
+        ):
+            if config.mouse is None:
+                continue
+
+            if config.mouse == code:
+                return func
+
+        def _do_nothing_func(_, __):
+            pass
+
+        return _do_nothing_func
 
     def on_left_up(self, evt: wx.MouseEvent):
+        self._process_mouse_release(evt)
+
         if not self.is_motion:
             x, y = evt.GetPosition()
-            p = self.world_coords(x, y)
+            p = self.get_world_coords(x, y)
 
             for wire in self.wires:
                 if wire.hit_test(p):
@@ -1221,29 +1627,276 @@ class Canvas(glcanvas.GLCanvas):
 
         evt.Skip()
 
-    def on_right_up(self, event):
-        if not event.LeftIsDown():
-            if self.HasCapture():
-                self.ReleaseMouse()
-            self.mouse_pos = None
-
+    def on_left_down(self, evt: wx.MouseEvent):
         self.is_motion = False
 
-    def OnMouseMotion(self, event):
-        if self.mouse_pos is not None:
-            x, y = event.GetPosition()
-            last_x, last_y = self.mouse_pos
-            dx = x - last_x
-            dy = y - last_y
+        if not self.HasCapture():
+            self.CaptureMouse()
 
+        x, y = evt.GetPosition()
+        self.mouse_pos = [x, y]
+
+        evt.Skip()
+
+    def on_left_dclick(self, evt: wx.MouseEvent):
+        self._process_mouse_release(evt)
+        evt.Skip()
+
+    def on_middle_up(self, evt: wx.MouseEvent):
+        self._process_mouse_release(evt)
+
+        evt.Skip()
+
+    def on_middle_down(self, evt: wx.MouseEvent):
+        self.is_motion = False
+
+        if not self.HasCapture():
+            self.CaptureMouse()
+
+        x, y = evt.GetPosition()
+        self.mouse_pos = [x, y]
+
+        evt.Skip()
+
+    def on_middle_dclick(self, evt: wx.MouseEvent):
+        self._process_mouse_release(evt)
+        evt.Skip()
+
+    def on_right_up(self, evt: wx.MouseEvent):
+        self._process_mouse_release(evt)
+        evt.Skip()
+
+    def on_right_down(self, evt: wx.MouseEvent):
+        self.is_motion = False
+
+        if not self.HasCapture():
+            self.CaptureMouse()
+
+        x, y = evt.GetPosition()
+        self.mouse_pos = [x, y]
+
+        evt.Skip()
+
+    def on_right_dclick(self, evt: wx.MouseEvent):
+        self._process_mouse_release(evt)
+        evt.Skip()
+
+    def on_key_up(self, evt: wx.MouseEvent):
+        evt.Skip()
+
+    def on_mouse_wheel(self, evt: wx.MouseEvent):
+        if evt.GetWheelRotation() > 0:
+            self.zoom(_decimal(1.0))
+        else:
+            self.zoom(-_decimal(1.0))
+
+        self.Refresh(False)
+        evt.Skip()
+
+    def on_mouse_motion(self, evt: wx.MouseEvent):
+        if self.HasCapture():
+            x, y = evt.GetPosition()
+            last_x, last_y = self.mouse_pos
+            dx = _decimal(x - last_x)
+            dy = _decimal(y - last_y)
             self.mouse_pos = [x, y]
 
-            if event.LeftIsDown():
+            self._process_mouse(MOUSE_MIDDLE)
+            self._process_mouse(MOUSE_AUX1)
+            self._process_mouse(MOUSE_AUX2)
+            self._process_mouse(MOUSE_WHEEL)
+
+            if evt.LeftIsDown():
                 self.is_motion = True
-                self.rotate(dx, dy)
-            if event.RightIsDown():
+                self._process_mouse(MOUSE_LEFT)(dx, dy)
+            if evt.MiddleIsDown():
                 self.is_motion = True
-                self.pan(dx, dy)
+                self._process_mouse(MOUSE_MIDDLE)(dx, dy)
+            if evt.RightIsDown():
+                self.is_motion = True
+                self._process_mouse(MOUSE_RIGHT)(dx, dy)
+            if evt.Aux1IsDown():
+                self.is_motion = True
+                self._process_mouse(MOUSE_AUX1)(dx, dy)
+            if evt.Aux2IsDown():
+                self.is_motion = True
+                self._process_mouse(MOUSE_AUX2)(dx, dy)
+
+        evt.Skip()
+
+    def _process_mouse_release(self, evt: wx.MouseEvent):
+        if True not in (
+            evt.LeftIsDown(),
+            evt.MiddleIsDown(),
+            evt.RightIsDown(),
+            evt.Aux1IsDown(),
+            evt.Aux2IsDown()
+        ):
+            if self.HasCapture():
+                self.ReleaseMouse()
+
+    def on_aux1_up(self, evt: wx.MouseEvent):
+        self._process_mouse_release(evt)
+        evt.Skip()
+
+    def on_aux1_down(self, evt: wx.MouseEvent):
+        self.is_motion = False
+
+        if not self.HasCapture():
+            self.CaptureMouse()
+
+        x, y = evt.GetPosition()
+        self.mouse_pos = [x, y]
+
+        evt.Skip()
+
+    def on_aux1_dclick(self, evt: wx.MouseEvent):
+        self._process_mouse_release(evt)
+        evt.Skip()
+
+    def on_aux2_up(self, evt: wx.MouseEvent):
+        self._process_mouse_release(evt)
+        evt.Skip()
+
+    def on_aux2_down(self, evt: wx.MouseEvent):
+        self.is_motion = False
+
+        if not self.HasCapture():
+            self.CaptureMouse()
+
+        x, y = evt.GetPosition()
+        self.mouse_pos = [x, y]
+
+        evt.Skip()
+
+    def on_aux2_dclick(self, evt: wx.MouseEvent):
+        self._process_mouse_release(evt)
+        evt.Skip()
+
+    def make_wires(self):
+        self.wires.append(Wire(self, Point(Decimal(0.0), Decimal(20.0), Decimal(0.0)),
+                  Point(Decimal(0.0), Decimal(20.0), Decimal(20.0)),
+                  Decimal(0.61), (0.5, 0.0, 0.8, 1.0), (1.0, 0.4, 0.0, 1.0)))
+
+        self.wires.append(
+            Wire(
+                self, Point(Decimal(20.0), Decimal(20.0), Decimal(0.0)),
+                Point(Decimal(20.0), Decimal(20.0), Decimal(20.0)),
+                Decimal(2.29), (0.2, 0.2, 0.2, 1.0), (0.0, 0.0, 1.0, 1.0)
+                )
+            )
+
+        self.wires.append(
+            Wire(
+                self, Point(Decimal(40.0), Decimal(20.0), Decimal(0.0)),
+                Point(Decimal(40.0), Decimal(20.0), Decimal(20.0)),
+                Decimal(3.81), (0.2, 0.2, 0.2, 1.0), (0.0, 1.0, 0.0, 1.0)
+                )
+            )
+
+        self.wires.append(
+            Wire(
+                self, Point(Decimal(60.0), Decimal(20.0), Decimal(0.0)),
+                Point(Decimal(60.0), Decimal(20.0), Decimal(20.0)),
+                Decimal(6.48), (0.2, 0.2, 0.2, 1.0), (1.0, 0.0, 0.0, 1.0)
+                )
+            )
+
+        wx.CallAfter(self.Refresh, False)
+
+    def get_world_coords(self, mx, my) -> Point:
+        self.SetCurrent(self.context)
+
+        modelview = glGetDoublev(GL_MODELVIEW_MATRIX)
+        projection = glGetDoublev(GL_PROJECTION_MATRIX)
+        viewport = glGetIntegerv(GL_VIEWPORT)
+
+        depth = glReadPixels(float(mx), float(my), 1.0, 1.0, GL_DEPTH_COMPONENT, GL_FLOAT, None)
+        x, y, z = gluUnProject(float(mx), float(my), depth, modelview, projection, viewport)
+        return Point(_decimal(x), _decimal(y), _decimal(z))
+
+    def on_erase_background(self, _):
+        pass
+
+    def on_size(self, event):
+        if self.selected is not None:
+            w, h = event.GetSize()
+            w_h = self.selected.popup.GetBestHeight(w)
+            y = h - w_h
+            self.selected.popup.SetPosition((0, y))
+
+        wx.CallAfter(self.DoSetViewport)
+        event.Skip()
+
+    def DoSetViewport(self):
+        size = self.size = self.GetClientSize() * self.GetContentScaleFactor()
+        self.SetCurrent(self.context)
+        glViewport(0, 0, size.width, size.height)
+
+    def on_paint(self, _):
+        _ = wx.PaintDC(self)
+        self.SetCurrent(self.context)
+
+        if not self.init:
+            self.InitGL()
+            self.init = True
+
+        self.OnDraw()
+
+    def walk(self, dx, dy):
+        saved_dx = dx
+
+        dx *= _decimal(Config.walk.sensitivity)
+        dy *= _decimal(Config.walk.sensitivity)
+
+        yaw = math.atan2(self.camera_eye.x - self.camera_pos.x, self.camera_eye.y - self.camera_pos.z)
+
+        forward = np.array([math.cos(yaw), math.sin(yaw), 0.0], dtype=float)
+        right = np.array([-forward[2], forward[0], 0.0], dtype=float)  # rotate 90 deg
+
+        move_dir = np.array([0.0, 0.0, 0.0], dtype=float)
+
+        dx *= _decimal(Config.walk.speed)
+        dy *= _decimal(Config.walk.speed)
+
+        speed = math.sqrt((dx * dx) + (dy * dy))
+
+        if dy > 0:
+            move_dir += forward
+        else:
+            move_dir -= forward
+
+        if dx > 0:
+            move_dir += right
+        else:
+            move_dir -= right
+
+        # Normalize horizontal movement to avoid faster diagonal movement
+        horiz = np.linalg.norm(move_dir[:2])
+        if horiz > 1e-6:
+            move_dir = move_dir / horiz
+
+        move_dir *= speed
+
+        move_dir = Point(_decimal(move_dir[0]), _decimal(move_dir[2]), _decimal(move_dir[1]))
+        self.camera_pos += move_dir
+        self.camera_eye += move_dir
+
+        self.look(saved_dx, 0.0)
+
+        self.Refresh(False)
+
+    def look(self, dx, dy):
+        dx *= _decimal(Config.look.sensitivity)
+        dy *= _decimal(Config.look.sensitivity)
+
+        # Update yaw/pitch (degrees)
+        self.camera_angle.y += dx
+        self.camera_angle.x += dy
+
+        self.camera_eye @= self.camera_angle
+
+        self.Refresh(False)
 
     def InitGL(self):
         w, h = self.GetSize()
@@ -1287,80 +1940,71 @@ class Canvas(glcanvas.GLCanvas):
         gluLookAt(0.0, 2.0, -16.0, 0.0, 0.5, 0.0, 0.0, 1.0, 0.0)
         self.viewMatrix = glGetFloatv(GL_MODELVIEW_MATRIX)
 
-    def on_key(self, evt: wx.KeyEvent):
-        keycode = evt.GetKeyCode()
-
-        if keycode in ('+', wx.WXK_ADD, wx.WXK_NUMPAD_ADD):
-            # forward
-            self.camera_pos -= 2.5 * self.camera_front
-            self.camera_change = True
-            self.Refresh(False)
-        elif keycode in ('-', wx.WXK_SUBTRACT, wx.WXK_NUMPAD_SUBTRACT):
-            # backward
-            self.camera_pos += 2.5 * self.camera_front
-            self.camera_change = True
-            self.Refresh(False)
-        elif keycode == wx.WXK_UP:
-            self.camera_pos[1] -= 2.5
-            self.camera_change = True
-            self.Refresh(False)
-        elif keycode == wx.WXK_DOWN:
-            self.camera_pos[1] += 2.5
-            self.camera_change = True
-            self.Refresh(False)
-        elif keycode == wx.WXK_LEFT:
-            # left
-            self.camera_front[0] -= 2.5
-            self.camera_pos -= glm.normalize(glm.cross(self.camera_front, self.camera_up)) * 2.5
-            self.camera_change = True
-            self.Refresh(False)
-        elif keycode == wx.WXK_RIGHT:
-            # right
-            self.camera_front[0] += 2.5
-            self.camera_pos += glm.normalize(glm.cross(self.camera_front, self.camera_up)) * 2.5
-            self.camera_change = True
-            self.Refresh(False)
-
-    def rotate(self, mouse_dx, mouse_dy):
-        # set the GL context
+    def rotate(self, dx, dy):
         self.SetCurrent(self.context)
+
+        dx *= _decimal(Config.rotate.sensitivity)
+        dy *= _decimal(Config.rotate.sensitivity)
 
         # collect the model view
         modelView = (GLfloat * 16)()
         mv = glGetFloatv(GL_MODELVIEW_MATRIX, modelView)
 
-        # create a rotation vert
-        temp = (GLfloat * 3)()
-
-        # set the x and y deltas to the vert using the exicting rotation matrix
-        # as the starting point
-        temp[0] = mv[0] * mouse_dy + mv[1] * mouse_dx
-        temp[1] = mv[4] * mouse_dy + mv[5] * mouse_dx
-        temp[2] = mv[8] * mouse_dy + mv[9] * mouse_dx
+        x = _decimal(mv[0]) * _decimal(dy) + _decimal(mv[1]) * _decimal(dx)
+        y = _decimal(mv[4]) * _decimal(dy) + _decimal(mv[5]) * _decimal(dx)
+        z = _decimal(mv[8]) * _decimal(dy) + _decimal(mv[9]) * _decimal(dx)
 
         # normalize the rotation vert
-        norm_xy = math.sqrt((temp[0] ** 2) + (temp[1] ** 2) + (temp[2] ** 2))
+        norm_xy = _decimal(math.sqrt((x * x) + (y * y) + (z * z)))
 
         try:
-            x = temp[0] / norm_xy
-            y = temp[1] / norm_xy
-            z = temp[2] / norm_xy
+            x /= norm_xy
+            y /= norm_xy
+            z /= norm_xy
         except ZeroDivisionError:
             return
 
-        self.rotate_angle = math.sqrt((mouse_dx ** 2) + (mouse_dy ** 2))
-        self.rotate_x = x
-        self.rotate_y = y
-        self.rotate_z = z
+        angle = math.sqrt((dx * dx) + (dy * dy))
+
+        c = _decimal(math.cos(angle))
+        s = _decimal(math.sin(angle))
+
+        xp = Point(((x * x) * _decimal(1)) - c + c, (x * y * _decimal(1)) - c - (z * s), (x * z * _decimal(1)) - c + (y * s))
+        yp = Point((y * x * _decimal(1)) - (c + z * s), ((y * y) * _decimal(1)) - c + c, (y * z * _decimal(1)) - c - (x * s))
+        zp = Point((x * z * _decimal(1)) - c - (y * s), (y * z * _decimal(1)) - c + (x * s),  ((z * z) * _decimal(1)) - c + c)
+
+        R = np.array([xp.as_float, yp.as_float, zp.as_float], dtype=np.dtypes.Float64DType)
+
+        self.camera_pos @= R
         self.Refresh(False)
 
-    def pan(self, mouse_dx, mouse_dy):
+    def zoom(self, delta, *_):
+        line = Line(self.camera_pos, self.camera_eye)
+
+        if delta > 0:
+            length = line.length() + _decimal(1.0)
+        else:
+            length = line.length() - _decimal(1.0)
+
+        if length < 0:
+            return
+
+        self.camera_eye = line.point_from_start(length)
+
+        self.Refresh(False)
+
+    def pan(self, dx, dy):
+        dx *= _decimal(Config.pan.sensitivity)
+        dy *= _decimal(Config.pan.sensitivity)
+
         width, height = self.size
 
         # variable amount to pan. This is set using the zoom so the more zoom
         # there is the smaller the pan amount that ios used. Right now it is set
         # so an object will move at the same speed as the mouse
-        pan_amount = 16.0 / self.zoom
+        line = Line(self.camera_pos, self.camera_eye)
+
+        pan_amount = line.length() / _decimal(25.0)
 
         # set the GL context
         self.SetCurrent(self.context)
@@ -1376,44 +2020,23 @@ class Canvas(glcanvas.GLCanvas):
 
         # normalize the x and y mouse deltas to the width and height
         # and set the variable amount to pan
-        norm_dx = mouse_dx / float(width) * pan_amount
-        norm_dy = -mouse_dy / float(height) * pan_amount
+        norm_dx = dx / _decimal(width) * pan_amount
+        norm_dy = -dy / _decimal(height) * pan_amount
 
         # create a vert for the pan amount
-        pan_vec_screen = np.array([norm_dx, norm_dy, 0])
+        pan_vec_screen = np.array([float(norm_dx), float(norm_dy), 0.0])
 
         # apply the rotation matrix to the pan amounts
         pan_vec_world = rot @ pan_vec_screen
 
-        # add the pan x, y and z to the currently stored values
-        # the panning actually gets set in the OnDraw method
-        self.pan_x += pan_vec_world[0]
-        self.pan_y += pan_vec_world[1]
-        self.pan_z += pan_vec_world[2]
+        self.camera_pos += pan_vec_world
+        self.camera_eye += pan_vec_world
 
         self.Refresh(False)
 
-    def world_coords(self, x: int, y: int) -> tuple[float, float, float]:
-        self.SetCurrent(self.context)
-
-        modelview = glGetDoublev(GL_MODELVIEW_MATRIX)
-        projection = glGetDoublev(GL_PROJECTION_MATRIX)
-        viewport = glGetIntegerv(GL_VIEWPORT)
-
-        depth = glReadPixels(float(x), float(y), 1.0, 1.0, GL_DEPTH_COMPONENT, GL_FLOAT, None)
-        x, y, z = gluUnProject(float(x), float(y), depth, modelview, projection, viewport)
-        return x, y, z
-
     def draw_grid(self):
-        GRID_SIZE = int(round(1000 * (1.0 - self.zoom)))
-        GRID_STEP = int(round(100 * (1.0 - self.zoom - 0.4)))
-
-        if GRID_SIZE < 100 or GRID_STEP < 5:
-            GRID_SIZE = 100
-            GRID_STEP = 5
-
-        GRID_STEP -= GRID_STEP % 2
-        GRID_SIZE -= GRID_SIZE % GRID_STEP
+        GRID_SIZE = 1000
+        GRID_STEP = 50
 
         # --- Tiles ---
         TILE_SIZE = GRID_STEP
@@ -1445,49 +2068,63 @@ class Canvas(glcanvas.GLCanvas):
         # glEnd()
 
     def OnDraw(self):
-        glLoadIdentity()
-        glMultMatrixf(self.viewMatrix)
-
-        if self.camera_change:
-            eye = self.camera_pos
-            center = eye + self.camera_front
-            up = self.camera_up
-
-            modelview = (GLfloat * 16)()
-            mv = glGetFloatv(GL_MODELVIEW_MATRIX, modelview)
-
-            # create rotation matrix from the model view
-            rot = np.array([[mv[0], mv[1], mv[2]],
-                            [mv[4], mv[5], mv[6]],
-                            [mv[8], mv[9], mv[10]]])
-
-            eye = rot @ eye
-            center = rot @ center
-
-            gluLookAt(eye[0], eye[1], eye[2],
-                      center[0], center[1], center[2],
-                      up[0], up[1], up[2])
-
-            self.camera_change = False
-
-        if self.size is None:
-            self.size = self.GetClientSize()
-
-        if self.rotate_angle is not None:
-            # apply the rotation
-            glRotatef(self.rotate_angle, self.rotate_x, self.rotate_y, self.rotate_z)
-
-            self.rotate_angle = None
-
-        self.viewMatrix = glGetFloatv(GL_MODELVIEW_MATRIX)
-
-        # set the pan amount
-        glTranslatef(self.pan_x, self.pan_y, self.pan_z)
-
-        # set the zoom
-        glScalef(self.zoom, self.zoom, self.zoom)
+        # glLoadIdentity()
+        # glMultMatrixf(self.viewMatrix)
+        #
+        # if self.camera_change:
+        #     eye = self.camera_pos
+        #     center = eye + self.camera_front
+        #     up = self.camera_up
+        #
+        #     modelview = (GLfloat * 16)()
+        #     mv = glGetFloatv(GL_MODELVIEW_MATRIX, modelview)
+        #
+        #     # create rotation matrix from the model view
+        #     rot = np.array([[mv[0], mv[1], mv[2]],
+        #                     [mv[4], mv[5], mv[6]],
+        #                     [mv[8], mv[9], mv[10]]])
+        #
+        #     eye = rot @ eye
+        #     center = rot @ center
+        #
+        #     gluLookAt(eye[0], eye[1], eye[2],
+        #               center[0], center[1], center[2],
+        #               up[0], up[1], up[2])
+        #
+        #     self.camera_change = False
+        #
+        # if self.size is None:
+        #     self.size = self.GetClientSize()
+        #
+        # if self.rotate_angle is not None:
+        #     # apply the rotation
+        #     glRotatef(self.rotate_angle, self.rotate_x, self.rotate_y, self.rotate_z)
+        #
+        #     self.rotate_angle = None
+        #
+        # self.viewMatrix = glGetFloatv(GL_MODELVIEW_MATRIX)
+        #
+        # # set the pan amount
+        # glTranslatef(self.pan_x, self.pan_y, self.pan_z)
+        #
+        # # set the zoom
+        # glScalef(self.zoom, self.zoom, self.zoom)
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        glMatrixMode(GL_MODELVIEW)
+        glLoadIdentity()
+
+        forward = (self.camera_pos - self.camera_eye).as_numpy
+        forward /= np.linalg.norm(forward)
+        temp_up = np.array([0.0, 1.0, 0.0], dtype=np.dtypes.Float64DType)
+        right = np.cross(temp_up, forward)  # NOQA
+        right /= np.linalg.norm(right)
+        up = np.cross(forward, right)  # NOQA
+        up /= np.linalg.norm(up)
+
+        gluLookAt(self.camera_eye.x, self.camera_eye.y, self.camera_eye.z,
+                  self.camera_pos.x, self.camera_pos.y, self.camera_pos.z,
+                  up[0], up[1], up[2])
 
         glPushMatrix()
 
