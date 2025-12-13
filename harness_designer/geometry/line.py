@@ -10,6 +10,71 @@ from . import angle as _angle
 
 
 class Line:
+    def __array_ufunc__(self, func, method, inputs, instance, **kwargs):
+        if func == np.matmul:
+            if isinstance(instance, np.ndarray):
+                arr = self.as_numpy
+                arr @= instance
+                p1, p2 = arr.tolist()
+
+                self._p1.x = _decimal(p1[0])
+                self._p1.y = _decimal(p1[1])
+                self._p1.z = _decimal(p1[1])
+
+                self._p2.x = _decimal(p2[0])
+                self._p2.y = _decimal(p2[1])
+                self._p2.z = _decimal(p2[1])
+
+                return self
+            else:
+                return inputs @ self.as_numpy
+
+        if func == np.add:
+            if isinstance(instance, np.ndarray):
+                arr = self.as_numpy
+                arr += instance
+                p1, p2 = arr.tolist()
+
+                self._p1.x = _decimal(p1[0])
+                self._p1.y = _decimal(p1[1])
+                self._p1.z = _decimal(p1[1])
+
+                self._p2.x = _decimal(p2[0])
+                self._p2.y = _decimal(p2[1])
+                self._p2.z = _decimal(p2[1])
+                return self
+            else:
+                return inputs + self.as_numpy
+
+        if func == np.subtract:
+            if isinstance(instance, np.ndarray):
+                arr = self.as_numpy
+                arr -= instance
+                p1, p2 = arr.tolist()
+
+                self._p1.x = _decimal(p1[0])
+                self._p1.y = _decimal(p1[1])
+                self._p1.z = _decimal(p1[1])
+
+                self._p2.x = _decimal(p2[0])
+                self._p2.y = _decimal(p2[1])
+                self._p2.z = _decimal(p2[1])
+                return self
+            else:
+                return inputs + self.as_numpy
+
+        print('func:', func)
+        print()
+        print('method:', method)
+        print()
+        print('inputs:', inputs)
+        print()
+        print('instance:', instance)
+        print()
+        print('kwargs:', kwargs)
+        print()
+
+        raise RuntimeError
 
     def __init__(self, p1: _point.Point,
                  p2: _point.Point | None = None,
@@ -28,6 +93,20 @@ class Line:
             p2 += p1
 
         self._p2 = p2
+
+    @property
+    def as_numpy(self) -> np.ndarray:
+        p1 = self._p1.as_float
+        p2 = self._p2.as_float
+
+        return np.array([p1, p2], dtype=np.dtypes.Float64DType)
+
+    @property
+    def as_float(self) -> tuple[list[float, float, float], list[float, float, float]]:
+        p1 = self._p1.as_float
+        p2 = self._p2.as_float
+
+        return p1, p2
 
     def copy(self) -> "Line":
         p1 = self._p1.copy()

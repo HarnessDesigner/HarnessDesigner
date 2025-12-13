@@ -2,10 +2,10 @@ from typing import TYPE_CHECKING
 
 import python_utils
 import build123d
-from OCP.gp import gp_Trsf, gp_Quaternion
 
 from ...geometry import point as _point
 from ...geometry import line as _line
+from ...geometry import angle as _angle
 from ...wrappers.decimal import Decimal as _decimal
 from . import Base3D as _Base3D
 
@@ -22,12 +22,6 @@ def build_model(p1: _point.Point, p2: _point.Point, diameter: _decimal, has_stri
 
     # Create the wire
     model = build123d.Cylinder(float(wire_radius), float(wire_length), align=build123d.Align.NONE)
-
-    angle = line.get_angle(p1)
-
-    transformation = gp_Trsf()
-    quaternion = gp_Quaternion(*angle.quat)
-    transformation.SetRotation(quaternion)
 
     if has_stripe:
         # Extract the axis of rotation from the wire to create the stripe
@@ -64,13 +58,9 @@ def build_model(p1: _point.Point, p2: _point.Point, diameter: _decimal, has_stri
             build123d.Line(wire_axis.position, float(wire_length * _decimal(wire_axis.direction))),
             binormal=twist
         )
-        stripe = stripe._apply_transform(transformation)  # NOQA
-        stripe.move(build123d.Location(p1.as_float))
     else:
         stripe = None
 
-    model = model._apply_transform(transformation)  # NOQA
-    model.move(build123d.Location(p1.as_float))
     bb = model.bounding_box()
 
     corner1 = _point.Point(*[_decimal(item) for item in bb.min])
@@ -89,35 +79,15 @@ class Wire(_Base3D):
         self._p1 = wire_db.start_point3d.point
         self._p2 = wire_db.stop_point3d.point
         self._is_visible = self._db_obj.is_visible
-        self._primary_color = self._part.color
-        self._ui_primary_color = self._primary_color.ui
-
-        # TODO: Add stripe_color to global database
-        self._stripe_color = self._part.stripe_color
-        if self._stripe_color is None:
-            self._ui_stripe_color = None
-        else:
-            self._ui_stripe_color = self._stripe_color.ui
 
         self._dia = self._part.od_mm
 
-        if self._is_visible:
-            self._model, self._stripe, self._hit_test_rect = build_model(self._p1, self._p2, self._dia, self._stripe_color is not None)
+        self._model = None
+        self._stripe = None
+        self._hit_test_rect = None
 
-            p1, p2 = self._hit_test_rect
-            p1 += self._p1
-            p2 += self._p1
-        else:
-            self._model = None
-            self._stripe = None
-            self._hit_test_rect = None
-
-        self._triangles = None
-        self._stripe_triangles = None
-        self._normals = None
-        self._stripe_normals = None
-        self._triangle_count = 0
-        self._stripe_triangle_count = 0
+        self._triangles = []
+        self._stripe_triangles = []
 
         self._p1.Bind(self.recalculate)
         self._p2.Bind(self.recalculate)
@@ -143,16 +113,28 @@ class Wire(_Base3D):
             self._stripe_triangle_count = 0
 
     def recalculate(self, *_):
-        if not self._is_visible:
-            return
+        if self._is_visible:
+            (
+                self._model,
+                self._stripe,
+                self._hit_test_rect
+            ) = build_model(self._p1, self._p2, self._part.od_mm,
+                            self._part.stripe_color is not None)
 
-        self._model, self._stripe, self._hit_test_rect = build_model(self._p1, self._p2, self._dia, self._stripe_color is not None)
+            angle = _angle.Angle(self._p1, self._p2)
+            p1, p2 = self._hit_test_rect
+            p2 @= angle
 
-        p1, p2 = self._hit_test_rect
-        p1 += self._p1
-        p2 += self._p1
+            p1 += self._p1
+            p2 += self._p1
 
-        self._triangles = None
+            self._triangles = [self.editor3d.renderer.build_mesh(self._model)]
+            if self._stripe is not None:
+                self._stripe_triangles = [self.editor3d.renderer.build_mesh(self._stripe)]
+        else:
+            self._model = None
+            self._stripe = None
+            self._hit_test_rect = None
 
     def hit_test(self, point: _point.Point) -> bool:
         if self._hit_test_rect is None:
@@ -166,12 +148,7 @@ class Wire(_Base3D):
             return
 
         if self._is_visible and self._model is None:
-            self._model, self._stripe, self._hit_test_rect = build_model(self._p1, self._p2, self._dia, self._stripe_color is not None)
-            p1, p2 = self._hit_test_rect
-            p1 += self._p1
-            p2 += self._p1
-
-            self._triangles = None
+            self.recalculate()
 
         if self._triangles is None:
             self._normals, self._triangles, self._triangle_count = self._get_triangles(self._model)

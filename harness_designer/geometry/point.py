@@ -40,6 +40,57 @@ class PointMeta(type):
 class Point(metaclass=PointMeta):
     _instances = {}
 
+    def __array_ufunc__(self, func, method, inputs, instance, **kwargs):
+        if func == np.matmul:
+            if isinstance(instance, np.ndarray):
+                arr = self.as_numpy
+                arr @= instance
+                x, y, z = arr
+
+                self._x = _decimal(x)
+                self._y = _decimal(y)
+                self._z = _decimal(z)
+                return self
+            else:
+                return inputs @ self.as_numpy
+
+        if func == np.add:
+            if isinstance(instance, np.ndarray):
+                arr = self.as_numpy
+                arr += instance
+                x, y, z = arr
+                self._x = _decimal(x)
+                self._y = _decimal(y)
+                self._z = _decimal(z)
+                return self
+            else:
+                return inputs + self.as_numpy
+
+        if func == np.subtract:
+            if isinstance(instance, np.ndarray):
+                arr = self.as_numpy
+                arr -= instance
+                x, y, z = arr
+                self._x = _decimal(x)
+                self._y = _decimal(y)
+                self._z = _decimal(z)
+                return self
+            else:
+                return inputs + self.as_numpy
+
+        print('func:', func)
+        print()
+        print('method:', method)
+        print()
+        print('inputs:', inputs)
+        print()
+        print('instance:', instance)
+        print()
+        print('kwargs:', kwargs)
+        print()
+
+        raise RuntimeError
+
     @property
     def project_id(self) -> int | None:
         if self._db_obj is None:
@@ -230,28 +281,24 @@ class Point(metaclass=PointMeta):
         x, y, z = self
         return Point(x / other, y / other, z / other)
 
-    def set_x_angle(self, angle: _decimal, origin: "Point") -> None:
-        self.set_angles(angle, _decimal(0.0), _decimal(0.0), origin)
+    def set_angle(self, angle: "_angle.Angle", origin: "Point"):
+        self.x -= origin.x
+        self.y -= origin.y
+        self.z -= origin.z
+        arr = self.as_numpy
 
-    def set_y_angle(self, angle: _decimal, origin: "Point") -> None:
-        self.set_angles(_decimal(0.0), angle, _decimal(0.0), origin)
+        arr @= angle.as_matrix
 
-    def set_z_angle(self, angle: _decimal, origin: "Point") -> None:
-        self.set_angles(_decimal(0.0), _decimal(0.0), angle, origin)
+        self.x = _decimal(arr[0])
+        self.y = _decimal(arr[1])
+        self.z = _decimal(arr[2])
 
-    def set_angles(self, x_angle: _decimal, y_angle: _decimal, z_angle: _decimal, origin: "Point") -> None:
-        R = _rotation.Rotation(x_angle, y_angle, z_angle)
+        self.x += origin.x
+        self.y += origin.y
+        self.z += origin.z
 
-        p1 = self.as_numpy
-        p2 = origin.as_numpy
-        p1 -= p2
-        p1 @= R
-        p1 += p2
-
-        with self:
-            self.x, self.y, self.z = [_decimal(float(item)) for item in p1]
-
-        self.__do_callbacks()
+    def get_angle(self, origin: "Point") -> "Angle":
+        return _angle.Angle.from_points(origin, self)
 
     def __bool__(self):
         return self.as_float == (0, 0, 0)
@@ -295,3 +342,5 @@ class Point(metaclass=PointMeta):
 
 
 ZERO_POINT = Point(_decimal(0.0), _decimal(0.0), _decimal(0.0))
+
+from . import angle as _angle  # NOQA
