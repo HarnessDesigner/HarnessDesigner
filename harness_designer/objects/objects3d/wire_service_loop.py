@@ -5,7 +5,6 @@ import build123d
 import python_utils
 
 from ...geometry import point as _point
-from ...geometry import line as _line
 from ...wrappers.decimal import Decimal as _decimal
 from . import Base3D as _Base3D
 
@@ -15,7 +14,7 @@ if TYPE_CHECKING:
     from ...database.project_db import pjt_wire_service_loop as _pjt_wire_service_loop
 
 
-def build_model(diameter: _decimal, has_stripe: bool):
+def _build_model(diameter: _decimal, has_stripe: bool):
     wire_r = diameter / _decimal(2.0)
 
     # Create the wire
@@ -215,7 +214,7 @@ class WireServiceLoop(_Base3D):
             self._hit_test_rect,
             start_point,
             stop_point
-        ) = build_model(part.od_mm, part.stripe_color is not None)
+        ) = _build_model(part.od_mm, part.stripe_color is not None)
 
         stop_point -= start_point
 
@@ -275,8 +274,8 @@ class WireServiceLoop(_Base3D):
             return
 
         renderer.model(self._normals, self._triangles, self._triangle_count,
-                       self._part.color.ui.rgba_scalar, self.is_selected)
+                       self._part.color.ui.rgba_scalar, None, self.is_selected)
 
         for stripe_normals, stripe_triangles, stripe_triangle_count in self._stripes:
             renderer.model(stripe_normals, stripe_triangles, stripe_triangle_count,
-                           self._part.stripe_color.ui.rgba_scalar, self.is_selected)
+                           self._part.stripe_color.ui.rgba_scalar, None, self.is_selected)

@@ -6,18 +6,16 @@ import math
 
 from ...geometry import point as _point
 from ...wrappers.decimal import Decimal as _decimal
-from ...wrappers import color as _color
-from ...geometry import angle as _angle
 from ... import gl_materials as _gl_materials
 from . import Base3D as _Base3D
 
 if TYPE_CHECKING:
-    from .. import Editor3D as _Editor3D
+    from ... import editor_3d as _editor_3d
     from ...database.global_db import transition as _transition
     from ...database.project_db import pjt_transition as _pjt_transition
 
 
-def build_model(center: _point.Point, b_data: "_transition.Transition", points: list[_point.Point], sizes: list[_decimal]):
+def _build_model(center: _point.Point, b_data: "_transition.Transition", points: list[_point.Point], sizes: list[_decimal]):
     model = None
 
     hit_test_rects = []
@@ -114,55 +112,55 @@ class Transition(_Base3D):
 
     _db_obj: "_pjt_transition.PJTTransition" = None
 
-    def __init__(self, editor3d: "_Editor3D", transition_db: "_pjt_transition.PJTTransition"):
+    def __init__(self, editor3d: "_editor_3d.Editor3D", db_obj: "_pjt_transition.PJTTransition"):
         super().__init__(editor3d)
-
-        self.__update_disabled_count = 0
-        self._part = transition_db.part
-
-        self._color = self._part.color
-        self._center = transition_db.center.point
-        self._center.add_object(self)
-
-        self._angle = transition_db.angle
-        self._name = transition_db.name
-        self._db_obj = transition_db
+        self._part = db_obj.part
+        self._center = db_obj.center.point
+        self._db_obj = db_obj
 
         branch_count = self._part.branch_count
 
         branch_points = []
         branch_diams = []
         if branch_count >= 1:
-            branch_points.append(transition_db.branch1.point)
-            branch_diams.append(transition_db.branch1dia)
+            branch_points.append(db_obj.branch1.point)
+            branch_diams.append(db_obj.branch1dia)
         if branch_count >= 2:
-            branch_points.append(transition_db.branch2.point)
-            branch_diams.append(transition_db.branch2dia)
+            branch_points.append(db_obj.branch2.point)
+            branch_diams.append(db_obj.branch2dia)
         if branch_count >= 3:
-            branch_points.append(transition_db.branch3.point)
-            branch_diams.append(transition_db.branch3dia)
+            branch_points.append(db_obj.branch3.point)
+            branch_diams.append(db_obj.branch3dia)
         if branch_count >= 4:
-            branch_points.append(transition_db.branch4.point)
-            branch_diams.append(transition_db.branch4dia)
+            branch_points.append(db_obj.branch4.point)
+            branch_diams.append(db_obj.branch4dia)
         if branch_count >= 5:
-            branch_points.append(transition_db.branch5.point)
-            branch_diams.append(transition_db.branch5dia)
+            branch_points.append(db_obj.branch5.point)
+            branch_diams.append(db_obj.branch5dia)
         if branch_count >= 6:
-            branch_points.append(transition_db.branch6.point)
-            branch_diams.append(transition_db.branch6dia)
+            branch_points.append(db_obj.branch6.point)
+            branch_diams.append(db_obj.branch6dia)
 
         for bp in branch_points:
             bp.add_object(self)
 
-        self._model, self._hit_test_points = build_model(self._center, self._part, branch_points, branch_diams)
+        self._center.add_object(self)
         self._branch_points = branch_points
         self._branch_diams = branch_diams
-        self._ui_color = self._color.ui
-        self._ui_color.Bind(self._update)
-        self._material = _gl_materials.Rubber(self._ui_color.rgba_scalar)
-        self._triangles = None
-        self._normals = None
-        self._triangle_count = 0
+
+        self._model = None
+        self._hit_test_points = None
+        self._material = None
+        self._center.Bind(self.recalculate)
+        self._triangles = []
+
+    def recalculate(self, *_):
+        (
+            self._model,
+            self._hit_test_points
+        ) = _build_model(self._center, self._part, self._branch_points, self._branch_diams)
+
+        self._material = _gl_materials.Rubber(self._part.color.ui.rgba_scalar)
 
     def hit_test(self, point: _point.Point) -> bool:
         for p1, p2 in self._hit_test_points:
@@ -172,13 +170,16 @@ class Transition(_Base3D):
         return False
 
     def draw(self, renderer):
-        if self._triangles is None:
-            self._normals, self._triangles, self._triangle_count = self._get_triangles(self._model)
+        if not self._triangles:
+            angle = self._db_obj.angle
+            normals, verts, count = renderer.build_mesh(self._model)
+            verts @= angle
+            verts += self._center
 
-            self._triangles @= self._angle
-            self._triangles += self._center.as_numpy
+            self._triangles = [[normals, verts, count]]
 
-        renderer.draw_triangles(self._normals, self._triangles, self._triangle_count, self._ui_color.rgb_scalar)
+        for normals, verts, count in self._triangles:
+            renderer.model(normals, verts, count, self._material, self._part.color.ui.rgba_scalar, self.is_selected)
 
     def get_branch_index(self, point: _point.Point) -> int:
         for i, (p1, p2) in self._hit_test_points[:-1]:
@@ -190,92 +191,3 @@ class Transition(_Base3D):
     def get_branch_min_max_dia(self, index: int) -> tuple[_decimal, _decimal]:
         branch = self._part.branches[index]
         return branch.min_dia, branch.max_dia
-
-    def set_branch_dia(self, index: int, dia: _decimal):
-        self._branch_diams[index] = dia
-        setattr(self._db_obj, f'branch{index + 1}dia', dia)
-
-        model, hit_test_points = build_model(self._center, self._part, self._branch_points, self._branch_diams)
-        self._hit_test_points = hit_test_points
-        self._model = model
-        self._triangles = None
-
-    def _update_color(self, *_):
-        self._material = _gl_materials.Rubber(self._ui_color.rgba_scalar)
-        self.editor3d.canvas.Refresh(False)
-
-    @property
-    def color(self) -> _color.Color:
-        return self._ui_color
-
-    @color.setter
-    def color(self, value: _color.Color):
-        self._ui_color.Unbind(self._update)
-        self._ui_color = value
-        self._ui_color.Bind(self._update)
-        # TODO: Finish
-        # self._db_obj.table
-
-    @property
-    def angle(self) -> _angle.Angle:
-        return self._angle
-
-    @angle.setter
-    def angle(self, value: _angle.Angle):
-        angle_diff = value - self._angle
-
-        self._angle += angle_diff
-
-        for p1, p2 in self._hit_test_points:
-            p1 -= self._center
-            p1 @= angle_diff
-            p1 += self._center
-
-            p2 -= self._center
-            p2 @= angle_diff
-            p2 += self._center
-
-        if self._triangles is None:
-            self._normals, self._triangles, self._triangle_count = self._get_triangles(self._model)
-            self._triangles @= self._angle
-            self._triangles += self._center.as_numpy
-        else:
-            self._triangles -= self._center.as_numpy
-            self._triangles @= angle_diff
-            self._triangles += self._center.as_numpy
-
-        with self:
-            for p in self._branch_points:
-                with p:
-                    p -= self._center
-                    p @= angle_diff
-                    p += self._center
-
-                for obj in p.objects:
-                    obj.recalculate()
-
-    def __enter__(self):
-        self.__update_disabled_count += 1
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.__update_disabled_count -= 1
-
-    def _update(self, *_):
-        if self.__update_disabled_count:
-            return
-
-        self.editor3d.Refresh(False)
-
-    def move(self, point: _point.Point) -> None:
-        with self:
-            for p1, p2 in self._hit_test_points:
-                p1 += point
-                p2 += point
-
-            for bp in self._branch_points:
-                bp += point
-
-            self._center += point
-
-        self._update()

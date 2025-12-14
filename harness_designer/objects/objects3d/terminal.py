@@ -10,7 +10,7 @@ from ...geometry import angle as _angle
 from . import Base3D as _Base3D
 
 if TYPE_CHECKING:
-    from .. import Editor3D as _Editor3D
+    from ... import editor_3d as _editor_3d
     from ...database.project_db import pjt_terminal as _pjt_terminal
     from ...wrappers import color as _color
 
@@ -44,40 +44,22 @@ def _build_model(length: _decimal, width: _decimal, height: _decimal, blade_size
 
 class Terminal(_Base3D):
 
-    def __init__(self, editor3d: "_Editor3D",
-                 terminal_db: "_pjt_terminal.PJTTerminal"):
+    def __init__(self, editor3d: "_editor_3d.Editor3D",
+                 db_obj: "_pjt_terminal.PJTTerminal"):
 
         super().__init__(editor3d)
+        self._db_obj = db_obj
+        self._part = part = db_obj.part
+        self._p1 = db_obj.point3d
 
-        self._db_obj = terminal_db
-        self._part = part = terminal_db.part
-
-        model3d = part.model3d
-
-        if model3d is not None:
-            model, hit_test_rect = model3d.model
-
-            if model is None:
-                is_model3d = False
-                model, hit_test_rect = _build_model(part.length, part.width,
-                                                    part.height, part.blade_size,
-                                                    part.gender)
-            else:
-                is_model3d = True
+        if part.model3d is not None:
+            self._is_model3d = True
         else:
-            model, hit_test_rect = _build_model(part.length, part.width,
-                                                part.height, part.blade_size,
-                                                part.gender)
-            is_model3d = False
+            self._is_model3d = False
 
-        self._is_model3d = is_model3d
-        self._model = model
-        self._hit_test_rect = hit_test_rect
-        self._o_hit_test_rect = hit_test_rect
-
-        self._triangles = None
-        self._normals = None
-        self._triangle_count = 0
+        self._model = None
+        self._hit_test_rect = None
+        self._triangles = []
 
         symbol = part.plating.symbol
 
@@ -100,73 +82,61 @@ class Terminal(_Base3D):
         else:
             color = 'Tin'
 
-        color = self._part._table.db.colors_table[color]
-        self._ui_color = color.ui
+        color = self._db_obj.table.db.global_db.colors_table[color]
+        self._color = color.ui
         self._material = _gl_materials.Polished(color.ui.rgba_scalar)
 
     def recalculate(self, *_):
-        self._triangles = None
+        model3d = self._part.model3d
+
+        if self._is_model3d:
+            self._model, self._hit_test_rect = model3d.model
+
+            if self._model is None:
+                self._is_model3d = False
+                self._model, self._hit_test_rect = _build_model(self._part.length, self._part.width,
+                                                                self._part.height, self._part.blade_size,
+                                                                self._part.gender.name)
+        else:
+            self._model, self._hit_test_rect = _build_model(self._part.length, self._part.width,
+                                                            self._part.height, self._part.blade_size,
+                                                            self._part.gender.name)
+
+        self._triangles = []
 
     def hit_test(self, point: _point.Point) -> bool:
         p1, p2 = self._hit_test_rect
         return p1 <= point <= p2
 
     def draw(self, renderer):
-        if self._triangles is None:
-            self._hit_test_rect = [item.copy() for item in self._o_hit_test_rect]
-            (
-                self._normals,
-                self._triangles,
-                self._triangle_count
-            ) = self._get_triangles(self._model)
+        if not self._triangles:
+            normals, verts, count = renderer.build_mesh(self._model)
 
             if self._is_model3d:
                 model3d = self._part.model3d
-
                 offset = model3d.offset
                 angle = model3d.angle
 
-                self._triangles @= angle
-                self._triangles += offset
+                verts @= angle
+                verts += offset
 
-                for p in self._hit_test_rect:
-                    p @= angle
-                    p += offset.as_numpy
+                p1, p2 = self._hit_test_rect
+                p1 += offset
 
-            angle = self._db_obj.angle
-            point = self._db_obj.point3d.point
+                p2 @= angle
+                p2 += offset
 
-            for p in self._hit_test_rect:
-                p @= angle
-                p += point
+            p1, p2 = self._hit_test_rect
+            angle = self._db_obj.angle3d
+            p2 @= angle
 
-            self._triangles @= angle
-            self._triangles += point.as_numpy
+            p1 += self._p1
+            p2 += self._p1
 
-        renderer.draw_triangles(self._normals, self._triangles, self._triangle_count,
-                                self._ui_color.rgba_scalar, self._material)
+            verts @= angle
+            verts += self._p1
 
-    @property
-    def color(self) -> "_color.Color":
-        return self._ui_color
+            self._triangles = [[normals, verts, count]]
 
-    @property
-    def angle(self) -> _angle.Angle:
-        return self._db_obj.angle
-
-    @angle.setter
-    def angle(self, value: _angle.Angle):
-        angle = self._db_obj.angle
-
-        angle_diff = value - angle
-
-        self._db_obj.angle += angle_diff
-        self.recalculate(None)
-
-    def move(self, point: _point.Point) -> None:
-        p = self._db_obj.point3d.point
-        p += point
-        self.recalculate(None)
-
-
-
+        for normals, verts, count in self._triangles:
+            renderer.model(normals, verts, count, self._material, self._color.rgba_scalar, self.is_selected)

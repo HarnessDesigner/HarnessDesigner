@@ -329,6 +329,10 @@ class Angle(metaclass=AngleMeta):
         return self._R.as_matrix().T
 
     @property
+    def as_quat(self) -> np.ndarray:
+        return self._R.as_quat()
+
+    @property
     def as_matrix(self) -> np.ndarray:
         return self._R.as_matrix().T
 

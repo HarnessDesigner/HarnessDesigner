@@ -11,11 +11,11 @@ from . import Base3D as _Base3D
 
 
 if TYPE_CHECKING:
-    from .. import Editor3D as _Editor3D
+    from ... import editor_3d as _editor_3d
     from ...database.project_db import pjt_wire as _pjt_wire
     
     
-def build_model(p1: _point.Point, p2: _point.Point, diameter: _decimal, has_stripe: bool):
+def _build_model(p1: _point.Point, p2: _point.Point, diameter: _decimal, has_stripe: bool):
     line = _line.Line(p1, p2)
     wire_length = line.length()
     wire_radius = diameter / _decimal(2.0)
@@ -71,13 +71,13 @@ def build_model(p1: _point.Point, p2: _point.Point, diameter: _decimal, has_stri
 
 class Wire(_Base3D):
 
-    def __init__(self, editor3d: "_Editor3D", wire_db: "_pjt_wire.PJTWire"):
+    def __init__(self, editor3d: "_editor_3d.Editor3D", db_obj: "_pjt_wire.PJTWire"):
         super().__init__(editor3d)
-        self._db_obj = wire_db
-        self._part = wire_db.part
+        self._db_obj = db_obj
+        self._part = db_obj.part
 
-        self._p1 = wire_db.start_point3d.point
-        self._p2 = wire_db.stop_point3d.point
+        self._p1 = db_obj.start_point3d.point
+        self._p2 = db_obj.stop_point3d.point
         self._is_visible = self._db_obj.is_visible
 
         self._dia = self._part.od_mm
@@ -102,23 +102,16 @@ class Wire(_Base3D):
         self._db_obj.is_visible = value
 
         if not value:
-            self._model = None
-            self._stripe = None
-            self._hit_test_rect = None
-            self._triangles = None
-            self._stripe_triangles = None
-            self._normals = None
-            self._stripe_normals = None
-            self._triangle_count = 0
-            self._stripe_triangle_count = 0
+            self._triangles = []
+            self._stripe_triangles = []
 
     def recalculate(self, *_):
-        if self._is_visible:
+        if self.is_visible:
             (
                 self._model,
                 self._stripe,
                 self._hit_test_rect
-            ) = build_model(self._p1, self._p2, self._part.od_mm,
+            ) = _build_model(self._p1, self._p2, self._part.od_mm,
                             self._part.stripe_color is not None)
 
             angle = _angle.Angle(self._p1, self._p2)
@@ -128,9 +121,6 @@ class Wire(_Base3D):
             p1 += self._p1
             p2 += self._p1
 
-            self._triangles = [self.editor3d.renderer.build_mesh(self._model)]
-            if self._stripe is not None:
-                self._stripe_triangles = [self.editor3d.renderer.build_mesh(self._stripe)]
         else:
             self._model = None
             self._stripe = None
@@ -147,16 +137,25 @@ class Wire(_Base3D):
         if not self._is_visible:
             return
 
-        if self._is_visible and self._model is None:
-            self.recalculate()
+        if not self._triangles:
+            angle = _angle.Angle(self._p1, self._p2)
+            normals, verts, count = renderer.build_mesh(self._model)
 
-        if self._triangles is None:
-            self._normals, self._triangles, self._triangle_count = self._get_triangles(self._model)
+            verts @= angle
+            verts += self._p1
+
+            self._triangles = [[normals, verts, count]]
 
             if self._stripe is not None:
-                self._stripe_normals, self._stripe_triangles, self._stripe_triangle_count = self._get_triangles(self._stripe)
+                normals, verts, count = renderer.build_mesh(self._stripe)
 
-        renderer.draw_triangles(self._normals, self._triangles, self._triangle_count, self._ui_primary_color.rgb_scalar)
+                verts @= angle
+                verts += self._p1
 
-        if self._stripe is not None:
-            renderer.draw_triangles(self._stripe_normals, self._stripe_triangles, self._stripe_triangle_count, self._ui_stripe_color.rgb_scalar)
+                self._stripe_triangles = [[normals, verts, count]]
+
+        for normals, verts, count in self._triangles:
+            renderer.model(normals, verts, count, None, self._part.color.ui.rgb_scalar, self.is_selected)
+
+        for normals, verts, count in self._stripe_triangles:
+            renderer.model(normals, verts, count, None, self._part.stripe_color.ui.rgb_scalar, self.is_selected)

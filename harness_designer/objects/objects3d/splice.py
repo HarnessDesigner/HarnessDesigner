@@ -6,6 +6,7 @@ from OCP.gp import gp_Trsf, gp_Quaternion
 
 from ...geometry import point as _point
 from ...geometry import line as _line
+from ...geometry import angle as _angle
 from ...wrappers.decimal import Decimal as _decimal
 from . import Base3D as _Base3D
 
@@ -18,20 +19,10 @@ if TYPE_CHECKING:
 def _build_model(p1: _point.Point, p2: _point.Point, diameter: _decimal):
     line = _line.Line(p1, p2)
     wire_length = line.length()
-    wire_radius = diameter / _decimal(2.0)
+    wire_radius = diameter / _decimal(2.0) + _decimal(0.1)
 
     # Create the wire
     model = build123d.Cylinder(float(wire_radius), float(wire_length), align=build123d.Align.NONE)
-
-    angle = line.get_angle(p1)
-
-    transformation = gp_Trsf()
-    quaternion = gp_Quaternion(*angle.quat)
-    transformation.SetRotation(quaternion)
-
-    model = model._apply_transform(transformation)  # NOQA
-
-    model.move(build123d.Location(p1.as_float))
 
     bb = model.bounding_box()
 
@@ -48,83 +39,90 @@ class Splice(_Base3D):
         self._db_obj = db_obj
         self._part = part = db_obj.part
 
+        self._p1 = db_obj.point1_3d.point
+        self._p2 = db_obj.point2_3d.point
+        self._p3 = db_obj.point3_3d.point
+
+        self._o_p1 = self._p1.copy()
+        self._o_p3 = self._p3.copy()
+
+        self._model = None
+        self._hit_test_rect = None
+
+        self._triangles = []
+
         model3d = part.model3d
 
-        if model3d is not None:
-            model, hit_test_rect = model3d.model
-
-            if model is None:
-                is_model3d = False
-                model, hit_test_rect = _build_model(part.length, part.width, part.height, part.blade_size, part.gender)
-            else:
-                is_model3d = True
+        if model3d is None:
+            self._is_model3d = False
         else:
-            model, hit_test_rect = _build_model(part.length, part.width, part.height, part.blade_size, part.gender)
-            is_model3d = False
-
-        self._is_model3d = is_model3d
-        self._model = model
-        self._hit_test_rect = hit_test_rect
-        self._o_hit_test_rect = hit_test_rect
-
-        self._triangles = None
-        self._normals = None
-        self._triangle_count = 0
-
-
-
-        self._p1 = db_obj.start_point.point
-        self._p2 = db_obj.stop_point.point
-        self._color = self._part.color
-        self._ui_color = self._color.ui
-
-        # TODO: Add diameter to the bundle table
-        self._dia = bundle_db.diameter
-
-        self._model, self._hit_test_rect = _build_model(self._p1, self._p2, self._dia)
-
-        self._triangles = None
-        self._normals = None
-        self._triangle_count = 0
-
-        p1, p2 = self._hit_test_rect
-        p1 += self._p1
-        p2 += self._p1
+            self._is_model3d = True
 
         self._p1.Bind(self.recalculate)
         self._p2.Bind(self.recalculate)
 
-    @property
-    def diameter(self) -> _decimal:
-        return self._dia
-
-    @diameter.setter
-    def diameter(self, value: _decimal):
-        self._dia = value
-        self._db_obj.diameter = value
-        self.recalculate()
-
     def recalculate(self, *_):
-        self._model, self._hit_test_rect = _build_model(self._p1, self._p2, self._dia)
+        if self._is_model3d and self._model is None:
+            self._model, self._hit_test_rect = self._part.model3d.model
 
-        p1, p2 = self._hit_test_rect
-        p1 += self._p1
-        p2 += self._p1
+            if self._model is None:
+                self._is_model3d = False
+                self._model, self._hit_test_rect = _build_model(self._p1, self._p3, self._db_obj.wire.part.od_mm)
+            else:
+                p1, p2 = self._hit_test_rect
 
-        self._triangles = None
+                angle = _angle.Angle.from_points(self._p1, self._p3)
+                p2 @= angle
+
+                p1 += self._p1
+                p2 += self._p1
+
+        elif not self._is_model3d and self._model is None:
+            self._model, self._hit_test_rect = _build_model(self._p1, self._p3, self._db_obj.wire.part.od_mm)
+
+            p1, p2 = self._hit_test_rect
+            angle = _angle.Angle.from_points(self._p1, self._p3)
+            p2 @= angle
+
+            p1 += self._p1
+            p2 += self._p1
+
+        else:
+            p1, p2 = self._hit_test_rect
+
+            p1 -= self._o_p1
+            p2 -= self._o_p1
+
+            angle1 = _angle.Angle.from_points(self._p1, self._p3)
+            angle2 = _angle.Angle.from_points(self._o_p1, self._o_p3)
+
+            angle = angle2 - angle1
+            p2 @= angle
+            p1 += self._p1
+            p2 += self._p1
+
+            verts = self._triangles[0][1]
+
+            verts -= self._o_p1
+            verts @= angle
+            verts += self._p1
+
+            self._o_p1 = self._p1.copy()
+            self._o_p3 = self._p3.copy()
 
     def hit_test(self, point: _point.Point) -> bool:
         p1, p2 = self._hit_test_rect
         return p1 <= point <= p2
 
     def draw(self, renderer):
-        if self._triangles is None:
-            self._normals, self._triangles, self._triangle_count = self._get_triangles(self._model)
+        if not self._triangles:
+            normals, verts, count = renderer.build_mesh(self._model)
+            angle = _angle.Angle(self._p1, self._p3)
 
-        renderer.draw_triangles(self._normals, self._triangles, self._triangle_count, self._ui_color.rgb_scalar)
+            verts @= angle
+            verts += self._p1
 
-    @classmethod
-    def new(cls, mouse_point: _point.Point, world_point: _point.Point):
+            self._triangles = [[normals, verts, count]]
 
-
-
+        for normals, verts, count in self._triangles:
+            renderer.model(normals, verts, count, None, self._part.color.ui.rgb_scalar, self.is_selected)

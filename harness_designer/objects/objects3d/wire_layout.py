@@ -1,5 +1,4 @@
-
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 
 import build123d
@@ -10,7 +9,7 @@ from . import Base3D as _Base3D
 
 if TYPE_CHECKING:
     from ... import editor_3d as _editor_3d
-    from ...database.project_db import pjt_bundle_layout as _pjt_bundle_layout
+    from ...database.project_db import pjt_wire3d_layout as _pjt_wire3d_layout
 
 
 def _build_model(diameter: _decimal):
@@ -23,10 +22,10 @@ def _build_model(diameter: _decimal):
     return model, [corner1, corner2]
 
 
-class BundleLayout(_Base3D):
+class WireLayout(_Base3D):
 
     def __init__(self, editor3d: "_editor_3d.Editor3D",
-                 db_obj: "_pjt_bundle_layout.PJTBundleLayout"):
+                 db_obj: "_pjt_wire3d_layout.PJTWire3DLayout"):
 
         super().__init__(editor3d)
         self._db_obj = db_obj
