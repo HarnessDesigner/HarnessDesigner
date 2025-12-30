@@ -58,6 +58,9 @@ class WireMarker(_Base3D):
         self.wire_p2.Bind(self.recalculate)
 
     def recalculate(self, *_):
+        if self._is_deleted:
+            return
+
         angle = _angle.Angle.from_points(self.wire_p1, self.wire_p2)
         line = _line.Line(self._p1, None, self._part.length, angle)
 
@@ -74,6 +77,9 @@ class WireMarker(_Base3D):
         p2 += self._p1
 
     def hit_test(self, point: _point.Point) -> bool:
+        if self._is_deleted:
+            return False
+
         if self._hit_test_rect is None:
             return False
 
@@ -81,6 +87,8 @@ class WireMarker(_Base3D):
         return p1 <= point <= p2
 
     def draw(self, renderer):
+        if self._is_deleted:
+            return
 
         if not self._triangles:
             angle = _angle.Angle.from_points(self.wire_p1, self.wire_p2)

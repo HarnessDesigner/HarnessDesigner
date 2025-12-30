@@ -62,6 +62,9 @@ class Splice(_Base3D):
         self._p2.Bind(self.recalculate)
 
     def recalculate(self, *_):
+        if self._is_deleted:
+            return
+
         if self._is_model3d and self._model is None:
             self._model, self._hit_test_rect = self._part.model3d.model
 
@@ -111,10 +114,16 @@ class Splice(_Base3D):
             self._o_p3 = self._p3.copy()
 
     def hit_test(self, point: _point.Point) -> bool:
+        if self._is_deleted:
+            return False
+
         p1, p2 = self._hit_test_rect
         return p1 <= point <= p2
 
     def draw(self, renderer):
+        if self._is_deleted:
+            return
+
         if not self._triangles:
             normals, verts, count = renderer.build_mesh(self._model)
             angle = _angle.Angle(self._p1, self._p3)

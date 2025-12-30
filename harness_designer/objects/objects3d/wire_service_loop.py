@@ -263,6 +263,9 @@ class WireServiceLoop(_Base3D):
         self._db_obj.is_visible = value
 
     def hit_test(self, point: _point.Point) -> bool:
+        if self._is_deleted:
+            return False
+
         if not self._is_visible:
             return False
 
@@ -270,6 +273,9 @@ class WireServiceLoop(_Base3D):
         return p1 <= point <= p2
 
     def draw(self, renderer):
+        if self._is_deleted:
+            return
+
         if not self._is_visible:
             return
 

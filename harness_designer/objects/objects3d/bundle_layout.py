@@ -40,6 +40,9 @@ class BundleLayout(_Base3D):
         self._center.Bind(self._update_center)
 
     def _update_center(self, *_):
+        if self._is_deleted:
+            return
+
         if self._triangles:
             verts = self._triangles[0][1]
             center_diff = self._center - self._o_center
@@ -55,6 +58,9 @@ class BundleLayout(_Base3D):
         self._o_center = self._center.copy()
 
     def recalculate(self, *_):
+        if self._is_deleted:
+            return
+
         if self._model is None:
             self._model, self._hit_test_rect = _build_model(self._db_obj.diameter)
 
@@ -65,10 +71,16 @@ class BundleLayout(_Base3D):
         self._triangles = []
 
     def hit_test(self, point: _point.Point) -> bool:
+        if self._is_deleted:
+            return False
+
         p1, p2 = self._hit_test_rect
         return p1 <= point <= p2
 
     def draw(self, renderer):
+        if self._is_deleted:
+            return
+
         if not self._triangles:
             normals, verts, count = renderer.build_mesh(self._model)
             verts += self._center

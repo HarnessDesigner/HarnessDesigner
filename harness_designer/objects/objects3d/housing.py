@@ -96,6 +96,9 @@ class Housing(_Base3D):
         self._triangles = []
 
     def recalculate(self, *_):
+        if self._is_deleted:
+            return
+
         if self._model is None:
             if self._is_model3d:
                 self._model, self._hit_test_rect = self._part.model3d.model
@@ -112,10 +115,16 @@ class Housing(_Base3D):
         self._triangles = []
 
     def hit_test(self, point: _point.Point) -> bool:
+        if self._is_deleted:
+            return False
+
         p1, p2 = self._hit_test_rect
         return p1 <= point <= p2
 
     def draw(self, renderer):
+        if self._is_deleted:
+            return
+
         if not self._triangles:
 
             normals, verts, count = renderer.build_mesh(self._model)

@@ -49,6 +49,9 @@ class Wire(_Base3D):
         self._p2.Bind(self.recalculate)
 
     def recalculate(self, *_):
+        if self._is_deleted:
+            return
+
         (
             self._model,
             self._hit_test_rect
@@ -62,6 +65,9 @@ class Wire(_Base3D):
         p2 += self._p1
 
     def hit_test(self, point: _point.Point) -> bool:
+        if self._is_deleted:
+            return False
+
         if self._hit_test_rect is None:
             return False
 
@@ -69,6 +75,8 @@ class Wire(_Base3D):
         return p1 <= point <= p2
 
     def draw(self, renderer):
+        if self._is_deleted:
+            return
 
         if not self._triangles:
             angle = _angle.Angle(self._p1, self._p2)

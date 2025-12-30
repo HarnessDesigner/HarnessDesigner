@@ -78,7 +78,7 @@ class MainFrame(wx.Frame):
         self.global_db = None
         self.project = None
 
-        splash.SetText('starting manager...')
+        splash.SetText('Starting UI manager...')
         self.manager = aui.AuiManager(agwFlags=aui.AUI_MGR_ALLOW_FLOATING |
                                       aui.AUI_MGR_ALLOW_ACTIVE_PANE |
                                       aui.AUI_MGR_TRANSPARENT_DRAG |
@@ -108,13 +108,13 @@ class MainFrame(wx.Frame):
         status_bar.SetMinHeight(h)
         # status_bar_pane = status_bar.GetField(6)
 
-        self.progress_ctrl = wx.Gauge(self.status_bar, wx.ID_ANY, range=100, size=(-1, h), style=wx.GA_HORIZONTAL | wx.GA_SMOOTH)
+        self.progress_ctrl = wx.Gauge(self.status_bar, wx.ID_ANY, range=100, size=(100, h), pos=((w + 4) * 3 + 150, 0), style=wx.GA_HORIZONTAL | wx.GA_SMOOTH)
         self.progress_ctrl.Show(False)
 
         self.progress_ctrl.SetRange(100)
         self.progress_ctrl.SetValue(0)
 
-        splash.SetText('Creating editors...')
+        splash.SetText('Creating editor notebook...')
         self.editor_notebook = aui.AuiNotebook(self, wx.ID_ANY, style=aui.AUI_NB_TAB_MOVE | aui.AUI_NB_TOP)
 
         from .. import editor_3d
@@ -122,7 +122,10 @@ class MainFrame(wx.Frame):
         from . import object_panel
         from ..database import editor as db_editor
 
+        splash.SetText('Creating 3D editor...')
         self.editor3d = editor_3d.Editor3D(self.editor_notebook)
+
+        splash.SetText('Creating 2D editor...')
         self.editor2d = editor_2d.Editor2D(self.editor_notebook)
 
         splash.SetText('Creating database editor...')
@@ -131,13 +134,13 @@ class MainFrame(wx.Frame):
         splash.SetText('Creating attribute editor...')
         self.obj_selected = object_panel.ObjectSelectedPanel(self)
 
-        splash.SetText('Creating toolbar...')
+        splash.SetText('Creating toolbars...')
         self.toolbar = aui_toolbar.AuiToolBar(self, style=aui.AUI_TB_GRIPPER | aui.AUI_TB_TEXT)
 
         self.editor_notebook.AddPage(self.editor3d, '3D View')
         self.editor_notebook.AddPage(self.editor2d, 'Schematic View')
 
-        splash.SetText('Creating view panes...')
+        splash.SetText('Creating editor panes...')
         self.editor_pane = (
             aui.AuiPaneInfo()
             .CenterPane()
@@ -156,6 +159,7 @@ class MainFrame(wx.Frame):
             .Show()
         )
 
+        splash.SetText('Creating database editor pane...')
         self.db_editor_pane = (
             aui.AuiPaneInfo()
             .Floatable(True)
@@ -175,6 +179,7 @@ class MainFrame(wx.Frame):
             .Show()
         )
 
+        splash.SetText('Creating attributes editor pane...')
         self.obj_selected_pane = (
             aui.AuiPaneInfo()
             .Floatable(True)
@@ -195,7 +200,7 @@ class MainFrame(wx.Frame):
         )
 
         from .. import image as _image
-
+        splash.SetText('Creating toolbar panes...')
         self.toolbar_pane = (
             aui.AuiPaneInfo()
             .Bottom()
@@ -222,27 +227,7 @@ class MainFrame(wx.Frame):
         self.manager.AddPane(self.obj_selected, self.obj_selected_pane)
         self.manager.AddPane(self.toolbar, self.toolbar_pane)
 
-        self._object_count = 0
-
-        self._boots = []
-        self._bundles = []
-        self._bundle_layouts = []
-        self._covers = []
-        self._cpa_locks = []
-        self._housings = []
-        self._notes = []
-        self._seals = []
-        self._splices = []
-        self._terminals = []
-        self._tpa_locks = []
-        self._transitions = []
-        self._wires = []
-        self._wire_markers = []
-        self._wire_service_locps = []
-        self._wire_2d_layouts = []
-        self._wire_3d_layouts = []
-
-        splash.SetText('Updating UI manager...')
+        splash.SetText('Loading UI perspective...')
 
         if Config.ui_perspective:
             print(repr(Config.ui_perspective))
@@ -260,26 +245,23 @@ class MainFrame(wx.Frame):
 
         self.manager.Update()
 
-    @property
-    def object_count(self):
-        return self._object_count
-
-    @object_count.setter
-    def object_count(self, value: int):
-        self._object_count = value
-        self.progress_ctrl.Show(True)
-        self.progress_ctrl.SetRange(value)
+    def ShowProgress(self, obj_count):
+        self.progress_ctrl.SetRange(obj_count)
         self.progress_ctrl.SetValue(0)
-        self.status_bar.SetStatusText(f'0 of {value}', 4)
+        x = self.GetTextExtent(f'{obj_count} of {obj_count}')[0]
+        self.status_bar.Move((x, 0))
+        self.progress_ctrl.Show(True)
+        self.status_bar.SetStatusText(f'0 of {obj_count}', 4)
 
-    def SetProgress(self, value):
-        if value > self._object_count:
+    def IncrementProgress(self):
+        value = self.progress_ctrl.GetValue() + 1
+
+        if value > self.progress_ctrl.GetRange():
             self.progress_ctrl.Show(False)
             self.status_bar.SetStatusText(f'Ready', 4)
-
         else:
             self.progress_ctrl.SetValue(value)
-            self.status_bar.SetStatusText(f'{value} of {self._object_count}', 4)
+            self.status_bar.SetStatusText(f'{value} of {self.progress_ctrl.GetRange()}', 4)
 
     def SetStatusText(self, text, _=None):
         self.status_bar.PushStatusText(text, 4)
@@ -288,14 +270,14 @@ class MainFrame(wx.Frame):
         self.status_bar.PopStatusText(4)
 
     def Set2DCoordinates(self, x, y):
-        self.status_bar.SetStatusText(f'X: {round(float(x), 4)}')
-        self.status_bar.SetStatusText(f'Y: {round(float(y), 4)}')
-        self.status_bar.SetStatusText(f'')
+        self.status_bar.SetStatusText(f'X: {round(float(x), 4)}', 0)
+        self.status_bar.SetStatusText(f'Y: {round(float(y), 4)}', 1)
+        self.status_bar.SetStatusText(f'', 2)
 
     def Set3DCoordinates(self, x, y, z):
-        self.status_bar.SetStatusText(f'X: {round(float(x), 4)}')
-        self.status_bar.SetStatusText(f'Y: {round(float(y), 4)}')
-        self.status_bar.SetStatusText(f'Z: {round(float(z), 4)}')
+        self.status_bar.SetStatusText(f'X: {round(float(x), 4)}', 0)
+        self.status_bar.SetStatusText(f'Y: {round(float(y), 4)}', 1)
+        self.status_bar.SetStatusText(f'Z: {round(float(z), 4)}', 2)
 
     def on_close(self, _):
         Config.ui_perspective = self.manager.SavePerspective()
@@ -326,28 +308,7 @@ class MainFrame(wx.Frame):
         self._bundle_layouts.append(bundle_layout)
 
     def load(self):
-        return
 
-        from ..objects import (
-            boot as _boot,
-            bundle as _bundle,
-            bundle_layout as _bundle_layout,
-            circuit as _circuit,
-            cover as _cover,
-            cpa_lock as _cpa_lock,
-            housing as _housing,
-            note as _note,
-            seal as _seal,
-            splice as _splice,
-            terminal as _terminal,
-            tpa_lock as _tpa_lock,
-            transition as _transition,
-            wire as _wire,
-            wire_marker as _wire_marker,
-            wire_service_loop as _wire_service_loop,
-            wire_2d_layout as _wire_2d_layout,
-            wire_3d_layout as _wire_3d_layout
-        )
 
         for boot in self._boots:
             boot.close()
@@ -394,14 +355,14 @@ class MainFrame(wx.Frame):
         for wire_service_loop in self._wire_service_locps:
             wire_service_loop.close()
 
-        for wire_2d_layout in self._wire_2d_layouts:
-            wire_2d_layout.close()
+        for wire2d_layout in self._wire2d_layouts:
+            wire2d_layout.close()
 
-        for wire_3d_layout in self._wire_3d_layouts:
-            wire_3d_layout.close()
+        for wire3d_layout in self._wire3d_layouts:
+            wire3d_layout.close()
 
-        self._wire_2d_layouts = [_wire_2d_layout.Wire2DLayout(self, db) for db in self.project.wire_2d_layouts]
-        self._wire_3d_layouts = [_wire_3d_layout.Wire3DLayout(self, db) for db in self.project.wire_3d_layouts]
+        self._wire2d_layouts = [_wire2d_layout.Wire2DLayout(self, db) for db in self.project.wire2d_layouts]
+        self._wire3d_layouts = [_wire3d_layout.Wire3DLayout(self, db) for db in self.project.wire3d_layouts]
         self._splices = [_splice.Splice(self, db) for db in self.project.splices]
         self._wires = [_wire.Wire(self, db) for db in self.project.wire_markers]
         self._wire_service_locps = [_wire_service_loop.WireServiceLoop(self, db) for db in self.project.wire_service_loops]

@@ -155,6 +155,9 @@ class Transition(_Base3D):
         self._triangles = []
 
     def recalculate(self, *_):
+        if self._is_deleted:
+            return
+
         (
             self._model,
             self._hit_test_points
@@ -163,6 +166,9 @@ class Transition(_Base3D):
         self._material = _gl_materials.Rubber(self._part.color.ui.rgba_scalar)
 
     def hit_test(self, point: _point.Point) -> bool:
+        if self._is_deleted:
+            return False
+
         for p1, p2 in self._hit_test_points:
             if p1 <= point <= p2:
                 return True
@@ -170,6 +176,9 @@ class Transition(_Base3D):
         return False
 
     def draw(self, renderer):
+        if self._is_deleted:
+            return
+
         if not self._triangles:
             angle = self._db_obj.angle
             normals, verts, count = renderer.build_mesh(self._model)

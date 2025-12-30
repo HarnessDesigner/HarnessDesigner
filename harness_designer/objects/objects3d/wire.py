@@ -106,6 +106,9 @@ class Wire(_Base3D):
             self._stripe_triangles = []
 
     def recalculate(self, *_):
+        if self._is_deleted:
+            return
+
         if self.is_visible:
             (
                 self._model,
@@ -127,6 +130,9 @@ class Wire(_Base3D):
             self._hit_test_rect = None
 
     def hit_test(self, point: _point.Point) -> bool:
+        if self._is_deleted:
+            return False
+
         if self._hit_test_rect is None:
             return False
 
@@ -134,6 +140,9 @@ class Wire(_Base3D):
         return p1 <= point <= p2
 
     def draw(self, renderer):
+        if self._is_deleted:
+            return
+
         if not self._is_visible:
             return
 
