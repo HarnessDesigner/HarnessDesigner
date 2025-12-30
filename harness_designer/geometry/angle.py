@@ -271,7 +271,7 @@ class Angle(metaclass=AngleMeta):
 
         return angle
 
-    def __rmatmul__(self, other: Union[np.ndarray, _point.Point]) -> np.ndarray:
+    def __rmatmul__(self, other: Union[np.ndarray, "_point.Point"]) -> np.ndarray:
         if isinstance(other, np.ndarray):
             other @= self._R.as_matrix().T
         elif isinstance(other, _point.Point):
@@ -362,7 +362,7 @@ class Angle(metaclass=AngleMeta):
         return cls(R, db_obj)
 
     @classmethod
-    def from_points(cls, p1: _point.Point, p2: _point.Point,
+    def from_points(cls, p1: "_point.Point", p2: "_point.Point",
                     db_obj=None) -> "Angle":  # NOQA
 
         # the sign for all of the verticies in the array needs to be flipped in

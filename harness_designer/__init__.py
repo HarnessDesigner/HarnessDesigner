@@ -1,14 +1,19 @@
 import wx
 
-from . import ui
+from .ui import splash as _splash
+
+
+splash: _splash.Splash = None
 
 
 class App(wx.App):
     def OnInit(self):
-        print('starting mainframe')
-        frame = ui.MainFrame()
-        print('showing main frame')
-        frame.Show()
+        global splash
+
+        print('starting splash')
+        splash = _splash.Splash(None)
+        splash.Show()
+        print('splash shown')
         return True
 
     def OnExit(self):
@@ -19,8 +24,10 @@ class App(wx.App):
         return wx.App.OnExit(self)
 
 
-print('starting app')
-app = App()
+_app = None
 
-print('running main loop')
-app.MainLoop()
+
+def __main__():
+    global _app
+    _app = App()
+    _app.MainLoop()

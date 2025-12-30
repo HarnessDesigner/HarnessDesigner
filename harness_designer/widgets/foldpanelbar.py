@@ -152,12 +152,12 @@ class CaptionBarEvent(wx.CommandEvent):
 
 
 class CaptionBar(wx.Window):
-    def __init__(self, parent, id, pos, size, caption="",
+    def __init__(self, parent, id=wx.ID_ANY, pos=wx.DefaultPosition, size=wx.DefaultSize, caption="",
                  foldIcons=None, cbstyle=None,
                  rightIndent=FPB_BMP_RIGHTSPACE,
                  iconWidth=16, iconHeight=16, collapsed=False):
 
-        wx.Window.__init__(self, parent, wx.ID_ANY, pos=pos,
+        wx.Window.__init__(self, parent, id, pos=pos,
                            size=(20, 20), style=wx.NO_BORDER)
 
         self._controlCreated = False
@@ -274,9 +274,9 @@ class CaptionBar(wx.Window):
         dc.SetTextForeground(self._style.GetCaptionColour())
 
         if vertical:
-            dc.DrawText(self._caption, 4, FPB_EXTRA_Y//2)
+            dc.DrawText(self._caption, 4, FPB_EXTRA_Y // 2)
         else:
-            dc.DrawRotatedText(self._caption, FPB_EXTRA_Y//2,
+            dc.DrawRotatedText(self._caption, FPB_EXTRA_Y // 2,
                                wndRect.GetBottom() - 4, 90)
 
         if self._foldIcons:
@@ -286,11 +286,11 @@ class CaptionBar(wx.Window):
             if vertical:
                 drw = wndRect.GetRight() - self._iconWidth - self._rightIndent
                 self._foldIcons.Draw(index, dc, drw,
-                                     (wndRect.GetHeight() - self._iconHeight)//2,
+                                     (wndRect.GetHeight() - self._iconHeight) // 2,
                                      wx.IMAGELIST_DRAW_TRANSPARENT)
             else:
                 self._foldIcons.Draw(index, dc,
-                                     (wndRect.GetWidth() - self._iconWidth)//2,
+                                     (wndRect.GetWidth() - self._iconWidth) // 2,
                                      self._rightIndent, wx.IMAGELIST_DRAW_TRANSPARENT)
 
     def FillCaptionBackground(self, dc):
@@ -325,8 +325,12 @@ class CaptionBar(wx.Window):
             rect = self.GetRect()
 
             drw = (rect.GetWidth() - self._iconWidth - self._rightIndent)
-            if vertical and pt.x > drw or not vertical and \
-               pt.y < (self._iconHeight + self._rightIndent):
+            if (
+                vertical and
+                pt.x > drw or
+                not vertical and
+                pt.y < (self._iconHeight + self._rightIndent)
+            ):
                 send_event = True
 
         elif event.LeftDClick():
@@ -338,8 +342,12 @@ class CaptionBar(wx.Window):
             rect = self.GetRect()
 
             drw = (rect.GetWidth() - self._iconWidth - self._rightIndent)
-            if vertical and pt.x > drw or not vertical and \
-               pt.y < (self._iconHeight + self._rightIndent):
+            if (
+                vertical and
+                pt.x > drw or
+                not vertical and
+                pt.y < (self._iconHeight + self._rightIndent)
+            ):
                 self.SetCursor(wx.Cursor(wx.CURSOR_HAND))
             else:
                 self.SetCursor(wx.Cursor(wx.CURSOR_ARROW))
@@ -352,8 +360,12 @@ class CaptionBar(wx.Window):
             rect = self.GetRect()
 
             drw = (rect.GetWidth() - self._iconWidth - self._rightIndent)
-            if vertical and pt.x > drw or not vertical and \
-               pt.y < (self._iconHeight + self._rightIndent):
+            if (
+                vertical and
+                pt.x > drw or
+                not vertical and
+                pt.y < (self._iconHeight + self._rightIndent)
+            ):
                 self.SetCursor(wx.Cursor(wx.CURSOR_HAND))
             else:
                 self.SetCursor(wx.Cursor(wx.CURSOR_ARROW))
