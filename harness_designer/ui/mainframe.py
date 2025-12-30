@@ -16,8 +16,22 @@ if TYPE_CHECKING:
 
 
 class Config(metaclass=_config.Config):
-    position = (0, 0)
-    size = (1280, 1024)
+    position = ()
+    size = ()
+
+    ui_perspective = (
+        'layout2|'
+        'name=editor3d_toolbar;caption=;minimode=1;state=67382012;dir=1;layer=10;row=0;pos=0;prop=100000;bestw=568;besth=58;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=-1;floaty=-1;floatw=-1;floath=-1;notebookid=-1;transparent=255|'
+        'name=editors;caption=;minimode=1;state=2944;dir=5;layer=0;row=0;pos=0;prop=100000;bestw=200;besth=200;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=-1;floaty=-1;floatw=-1;floath=-1;notebookid=-1;transparent=255|'
+        'name=db_editor;caption=DB Editor;minimode=1;state=402919420;dir=3;layer=0;row=0;pos=0;prop=100000;bestw=0;besth=0;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=-1;floaty=-1;floatw=-1;floath=-1;notebookid=-1;transparent=255|'
+        'name=obj_selected;caption=Selected Object;minimode=1;state=402919420;dir=2;layer=0;row=0;pos=0;prop=100000;bestw=20;besth=20;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=-1;floaty=-1;floatw=-1;floath=-1;notebookid=-1;transparent=255|'
+        'name=editor2d_toolbar;caption=;minimode=1;state=67382012;dir=3;layer=10;row=0;pos=0;prop=100000;bestw=568;besth=58;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=-1;floaty=-1;floatw=-1;floath=-1;notebookid=-1;transparent=255|'
+        'dock_size(1,10,0)=60|'
+        'dock_size(5,0,0)=202|'
+        'dock_size(3,0,0)=265|'
+        'dock_size(2,0,0)=251|'
+        'dock_size(3,10,0)=10|'
+    )
 
 
 _mainframe: "MainFrame" = None
@@ -27,11 +41,34 @@ class MainFrame(wx.Frame):
     db_connector: "_SQLConnector" = None
 
     global_db: "_global_db.GLBTables" = None
+    project_db: "_project_db.PJTTables" = None
     project: _project.Project = None
 
     def __init__(self, splash):
+
+        if not Config.size:
+            w, h = wx.GetDisplaySize()
+
+            w //= 3
+            w *= 2
+
+            h //= 3
+            h *= 2
+
+            Config.size = (w, h)
+
+        if not Config.position:
+            w, h = wx.GetDisplaySize()
+            w -= Config.size[0]
+            h -= Config.size[1]
+
+            x = w // 2
+            y = h // 2
+            Config.position = (x, y)
+
         wx.Frame.__init__(self, None, wx.ID_ANY, title='Harness Designer',
-                          size=Config.size, pos=Config.position, style=wx.CLIP_CHILDREN | wx.CAPTION | wx.MINIMIZE_BOX | wx.MAXIMIZE_BOX | wx.CLOSE_BOX | wx.SYSTEM_MENU | wx.RESIZE_BORDER)
+                          size=Config.size, pos=Config.position,
+                          style=wx.CLIP_CHILDREN | wx.CAPTION | wx.MINIMIZE_BOX | wx.MAXIMIZE_BOX | wx.CLOSE_BOX | wx.SYSTEM_MENU | wx.RESIZE_BORDER)
 
         self.Bind(wx.EVT_MOVE, self.on_move)
         self.Bind(wx.EVT_SIZE, self.on_size)
@@ -207,6 +244,20 @@ class MainFrame(wx.Frame):
 
         splash.SetText('Updating UI manager...')
 
+        if Config.ui_perspective:
+            print(repr(Config.ui_perspective))
+            self.manager.LoadPerspective(Config.ui_perspective)
+
+        if Config.position:
+
+            def _do():
+                self.Move(Config.position)
+
+            wx.CallAfter(_do)
+
+        else:
+            self.CenterOnScreen()
+
         self.manager.Update()
 
     @property
@@ -247,9 +298,12 @@ class MainFrame(wx.Frame):
         self.status_bar.SetStatusText(f'Z: {round(float(z), 4)}')
 
     def on_close(self, _):
+        Config.ui_perspective = self.manager.SavePerspective()
+
         self.manager.UnInit()
         self.editor3d.Destroy()
         self.editor2d.Destroy()
+
         self.Destroy()
 
     def on_size(self, evt: wx.SizeEvent):
@@ -364,20 +418,23 @@ class MainFrame(wx.Frame):
         self._boots = [_boot.Boot(self, db) for db in self.project.boots]
         self._notes = [_note.Note(self, db) for db in self.project.notes]
 
+    def open_database(self, splash):
+        from ..database.db_connectors import SQLConnector
+
+        self.db_connector = SQLConnector(self)
+        self.db_connector.connect()
+
+        from ..database import global_db
+        from ..database import project_db
+
+        self.global_db = global_db.GLBTables(splash, self)
+        self.project_db = project_db.PJTTables(splash, self)
+
     def Show(self, flag=True):
         wx.Frame.Show(self, flag)
 
         def _do():
-            from ..database.db_connectors import SQLConnector
-            self.db_connector = SQLConnector(self)
-            self.db_connector.connect()
-
-            from ..database import global_db
-
-            self.global_db = global_db.GLBTables(self)
-
             self.db_editor.load_db(self.global_db)
-
             self.project = _project.Project(self)
             self.project.select_project()
 

@@ -41,6 +41,9 @@ class Splash(wx.Frame):
         self.text = 'Loading....'
         self.init = True
 
+        self.main_thread = threading.current_thread()
+        self.text_lock = threading.Lock()
+
         t = threading.Thread(target=self.run_thread)
         t.daemon = True
         t.start()
@@ -52,18 +55,25 @@ class Splash(wx.Frame):
         while self.init:
             time.sleep(0.1)
 
-        def _do():
-            from . import mainframe as _mainframe
+        event = threading.Event()
+        from . import mainframe as _mainframe
 
+        def _do():
             time.sleep(0.5)
             self.SetText('starting mainframe')
-
             _mainframe._mainframe = _mainframe.MainFrame(self)
-            _mainframe._mainframe.Show()  # NOQA
+            event.set()
+        wx.CallAfter(_do)
 
-            self.SetText('DONE!')
-            time.sleep(0.5)
+        event.wait()
+
+        _mainframe._mainframe.open_database(self)
+        self.SetText('DONE!')
+        time.sleep(1.0)
+
+        def _do():
             self.Show(False)
+            _mainframe._mainframe.Show()  # NOQA
             self.Destroy()
 
         wx.CallAfter(_do)
@@ -83,10 +93,18 @@ class Splash(wx.Frame):
         self.SetShape(reg)
 
     def SetText(self, text: str) -> None:
-        self.text = text
+        if self.main_thread != threading.current_thread():
+            def _do(t):
+                self.text = t
 
-        self.draw()
-        time.sleep(0.2)
+                self.draw()
+
+            wx.CallAfter(_do, text)
+            time.sleep(0.05)
+        else:
+            self.text = text
+            self.draw()
+            time.sleep(0.2)
 
     def draw(self, dc=None):
         if dc is None:

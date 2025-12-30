@@ -10,10 +10,8 @@ class App(wx.App):
     def OnInit(self):
         global splash
 
-        print('starting splash')
         splash = _splash.Splash(None)
         splash.Show()
-        print('splash shown')
         return True
 
     def OnExit(self):

@@ -29,10 +29,7 @@ class Project:
         self.connector = mainframe.db_connector
         self.project_id = None
         self.project_name = ''
-
-        from ..database import project_db
-
-        self.ptables = project_db.PJTTables(self.mainframe)
+        self.ptables = mainframe.project_db
 
     def select_project(self):
         from ..dialogs.project_dialog import OpenProjectDialog
