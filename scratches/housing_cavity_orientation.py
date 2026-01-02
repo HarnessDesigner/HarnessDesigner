@@ -302,7 +302,6 @@ class Housing(GLObject):
         # with smoothing
         # 13008 13008
 
-
         normals @= self.angle
         triangles @= self.angle
 
@@ -311,6 +310,9 @@ class Housing(GLObject):
         self.model = model
 
         parent.canvas.add_object(self)
+
+    def get_triangles(self):
+        return self.triangles[3][1]
 
     @property
     def colors(self):
@@ -437,6 +439,9 @@ class Cavity(GLObject):
 
         self.build_model()
         parent.canvas.add_object(self)
+
+    def get_triangles(self):
+        return self.triangles[0][1]
 
     def set_housing_angle(self, angle: _angle.Angle, inverse: _angle.Angle):
 
@@ -603,10 +608,14 @@ class Frame(wx.Frame):
         self.canvas = Canvas(self, size=(w * 5, h))
         self.cp = ControlPanel(self, size=(w, h))
 
-        sizer = wx.BoxSizer(wx.HORIZONTAL)
+        hsizer = wx.BoxSizer(wx.HORIZONTAL)
 
-        sizer.Add(self.canvas, 6)
-        sizer.Add(self.cp, 1)
+        hsizer.Add(self.canvas, 6, wx.EXPAND)
+        hsizer.Add(self.cp, 1, wx.EXPAND)
+
+        sizer = wx.BoxSizer(wx.VERTICAL)
+
+        sizer.Add(hsizer, 1, wx.EXPAND)
 
         self.SetSizer(sizer)
         self.housing = None

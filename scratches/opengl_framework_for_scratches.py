@@ -1,41 +1,3 @@
-"""
-Left mouse click and drag to "look" around.
-this is like standing still and moving your head around to "look" around.
-
-Middle click and drag is to rotate about a point.  ** not working currently
-This is like tracking a target where the target is always in the center of view.
-How far away the targe is, is controlled by the mouse wheel. The target is not
-an actual object but a fixed point in 3d space.
-
-Right click and drag is to pan, up down left and right.
-This is like side stepping or climbing up and down a ladder.
-
-Mouse wheel is for "zooming".
-This is not really zooming as what is being seen is not being scaled.
-Because this is a 3d world as we get closer to something it gets larger.
-The zooming only increases or decreases the distance from your position to
-where your focus is. The focus is a virtual point in the moddle of your
-field of view.
-
-Up, down, left and right arrow keys on the keyboard are to walk.
-Think of walking, that's what it is like. the up arrow is forward,
-down is backward. Left and right are a combination movement. It is a mix of a
-look and a pan. After all we do "look" where we are going when we "walk" right?
-This does the  same thing. You can press and hold the keys and it can be done
-in any combination. They can be pressed in any order and also released in
-any order.
-
-Keyboard presses have a ramping feature to it. The default is an increment
-of 0.1 every 50 milliseconds. The keystrokes get repeated every 50 milliseconds
-which is why the increment takes place at that time. The default is a maximum
-of 10.0 for the ramp.. It will not go any higher than the set maximum.
-
-There is a class named "Config" that is just below the imports. This is where
-you can change the keys that are used, mouse buttons that are used, input sensitivity
-for each of the motion types and the ramping speeds and values as well.
-Some of the config settings are not in use yet.
-"""
-
 
 from typing import Self, Iterable, Union
 
@@ -65,11 +27,10 @@ except ImportError:
                       '`pip install numpy`')
 
 try:
-    import python_utils
+    from scipy.spatial.transform import Rotation as _Rotation
 except ImportError:
-    raise ImportError('the python-utils library is needed to run this code. '
-                      '`pip install python-utils`')
-
+    raise ImportError('the scipy library is needed to run this code. '
+                      '`pip install scipy`')
 
 from OpenGL import GLU
 from OCP.gp import gp_Vec, gp
@@ -80,9 +41,11 @@ from OCP.TopLoc import TopLoc_Location
 from wx import glcanvas
 import threading
 from decimal import Decimal as _Decimal
-from scipy.spatial.transform import Rotation as _Rotation
 import numpy as np
 import math
+
+
+import pick_full_pipeline
 
 
 MOUSE_NONE = 0x00000000
@@ -96,6 +59,7 @@ MOUSE_WHEEL = 0x00000020
 MOUSE_REVERSE_X_AXIS = 0x80000000
 MOUSE_REVERSE_Y_AXIS = 0x40000000
 MOUSE_REVERSE_WHEEL_AXIS = 0x20000000
+
 
 # ********************* CONFIG SETTINGS *********************
 
@@ -169,7 +133,6 @@ class Config:
         mouse = MOUSE_NONE
 
 
-
 # ***********************************************************
 
 
@@ -189,10 +152,6 @@ _decimal = Decimal
 
 TEN_0 = _decimal(10.0)
 ZERO_1 = _decimal(0.1)
-
-
-def _round_down(val: _decimal) -> _decimal:
-    return _decimal(int(val * TEN_0)) * ZERO_1
 
 
 class Point:
@@ -352,7 +311,7 @@ class Point:
         x, y, z = self
         return Point(x / other, y / other, z / other)
 
-    def set_angle(self, angle: "Angle", origin: "Point"):
+    def set_angle(self, angle: "_angle.Angle", origin: "Point"):
         self.x -= origin.x
         self.y -= origin.y
         self.z -= origin.z
@@ -380,7 +339,7 @@ class Point:
     def set_angles(self, x_angle: _decimal, y_angle: _decimal,
                    z_angle: _decimal, origin: "Point") -> None:
 
-        angle = Angle.from_points(origin, self)
+        angle = _angle.Angle.from_points(origin, self)
         angle.x = x_angle
         angle.y = y_angle
         angle.z = z_angle
@@ -393,8 +352,8 @@ class Point:
 
         self.x, self.y, self.z = [_decimal(float(item)) for item in p3]
 
-    def get_angle(self, origin: "Point") -> "Angle":
-        return Angle.from_points(origin, self)
+    def get_angle(self, origin: "Point") -> "_angle.Angle":
+        return _angle.Angle.from_points(origin, self)
 
     def __bool__(self):
         return self.as_float == (0, 0, 0)
@@ -435,6 +394,11 @@ class Point:
         x1, y1, z1 = self
         x2, y2, z2 = other
         return x1 >= x2 and y1 >= y2 and z1 >= z2
+
+
+class _point:
+
+    Point = Point
 
 
 ZERO_POINT = Point(_decimal(0.0), _decimal(0.0), _decimal(0.0))
@@ -619,10 +583,10 @@ class Angle:
 
         return angle
 
-    def __imatmul__(self, other: Union[np.ndarray, Point]) -> np.ndarray:
+    def __imatmul__(self, other: Union[np.ndarray, "_point.Point"]) -> np.ndarray:
         if isinstance(other, np.ndarray):
             other @= self._R.as_matrix().T
-        elif isinstance(other, Point):
+        elif isinstance(other, _point.Point):
             values = other.as_numpy @ self._R.as_matrix().T
             other.x = _decimal(float(values[0]))
             other.y = _decimal(float(values[1]))
@@ -633,10 +597,10 @@ class Angle:
 
         return other
 
-    def __rmatmul__(self, other: Union[np.ndarray, Point]) -> np.ndarray:
+    def __rmatmul__(self, other: Union[np.ndarray, "_point.Point"]) -> np.ndarray:
         if isinstance(other, np.ndarray):
             other @= self._R.as_matrix().T
-        elif isinstance(other, Point):
+        elif isinstance(other, _point.Point):
             values = other.as_numpy @ self._R.as_matrix().T
             other.x = _decimal(float(values[0]))
             other.y = _decimal(float(values[1]))
@@ -646,10 +610,10 @@ class Angle:
 
         return other
 
-    def __matmul__(self, other: Union[np.ndarray, Point]) -> np.ndarray:
+    def __matmul__(self, other: Union[np.ndarray, "_point.Point"]) -> np.ndarray:
         if isinstance(other, np.ndarray):
             other = other @ self._R.as_matrix().T
-        elif isinstance(other, Point):
+        elif isinstance(other, _point.Point):
             other = other.copy()
             values = other.as_numpy @ self._R.as_matrix().T
             other.x = _decimal(float(values[0]))
@@ -718,7 +682,7 @@ class Angle:
         return cls(R)
 
     @classmethod
-    def from_points(cls, p1: Point, p2: Point) -> "Angle":
+    def from_points(cls, p1: "_point.Point", p2: "_point.Point") -> "Angle":
         # the sign for all of the verticies in the array needs to be flipped in
         # order to handle the -Z axis being near
         p1 = -p1.as_numpy
@@ -729,7 +693,6 @@ class Angle:
         fn = np.linalg.norm(f)
         if fn < 1e-6:
             return cls.from_euler(0.0, 0.0, 0.0)
-            # raise ValueError("p1 and p2 must be different points")
 
         f = f / fn  # world-space direction of the line
 
@@ -762,9 +725,12 @@ class Angle:
 
         rot = np.column_stack((right, true_up, forward_world))
         R = _Rotation.from_matrix(rot)  # NOQA
-        # q = rot.as_quat()
-        # return q.tolist(), R.T
         return cls(R)
+
+
+class _angle:
+
+    Angle = Angle
 
 
 ZERO_5 = _decimal(0.5)
@@ -838,10 +804,10 @@ class Line:
 
         raise RuntimeError
 
-    def __init__(self, p1: Point,
-                 p2: Point | None = None,
+    def __init__(self, p1: _point.Point,
+                 p2: _point.Point | None = None,
                  length: _decimal | None = None,
-                 angle: Angle | None = None):
+                 angle: _angle.Angle | None = None):
 
         self._p1 = p1
 
@@ -851,7 +817,7 @@ class Line:
                                  'then the "length", "x_angle", "y_angle" and '
                                  '"z_angle" parameters need to be supplied')
 
-            p2 = Point(length, _decimal(0.0), _decimal(0.0))
+            p2 = _point.Point(length, _decimal(0.0), _decimal(0.0))
             p2 @= angle
             p2 += p1
 
@@ -878,11 +844,11 @@ class Line:
         return Line(p1, p2)
 
     @property
-    def p1(self) -> Point:
+    def p1(self) -> _point.Point:
         return self._p1
 
     @property
-    def p2(self) -> Point:
+    def p2(self) -> _point.Point:
         return self._p2
 
     def __len__(self) -> int:
@@ -899,7 +865,7 @@ class Line:
 
         return _decimal(math.sqrt(x * x + y * y + z * z))
 
-    def get_angle(self, origin: Point) -> Angle:
+    def get_angle(self, origin: _point.Point) -> _angle.Angle:
         temp_p1 = self._p1.copy()
         temp_p2 = self._p2.copy()
 
@@ -915,7 +881,7 @@ class Line:
 
         return Angle.from_points(temp_p1, temp_p2)
 
-    def set_angle(self, angle: Angle, origin: Point) -> None:
+    def set_angle(self, angle: _angle.Angle, origin: _point.Point) -> None:
         if origin == self._p1:
             temp_p2 = self._p2.copy()
             temp_p2 -= origin
@@ -950,23 +916,23 @@ class Line:
             self._p1 += diff_p1
             self._p2 += diff_p2
 
-    def point_from_start(self, distance: _decimal) -> Point:
+    def point_from_start(self, distance: _decimal) -> _point.Point:
         line = Line(self._p1.copy(), None,
                     distance, self.get_angle(self._p1))
 
         return line.p2
 
     @property
-    def center(self) -> Point:
+    def center(self) -> _point.Point:
         x = (self._p1.x + self._p2.x) * ZERO_5
         y = (self._p1.y + self._p2.y) * ZERO_5
         z = (self._p1.z + self._p2.z) * ZERO_5
-        return Point(x, y, z)
+        return _point.Point(x, y, z)
 
-    def __iter__(self) -> Iterable[Point]:
+    def __iter__(self) -> Iterable[_point.Point]:
         return iter([self._p1, self._p2])
 
-    def get_rotated_line(self, angle: _decimal, pivot: Point) -> "Line":
+    def get_rotated_line(self, angle: _decimal, pivot: _point.Point) -> "Line":
         """
         This is a 2d function and it only deals with the x and y axis.
         """
@@ -995,13 +961,13 @@ class Line:
         x += offset * _decimal(math.cos(r))
         y += offset * _decimal(math.sin(r))
 
-        line = self.get_rotated_line(_decimal(180), Point(x, y, _decimal(0.0)))
+        line = self.get_rotated_line(_decimal(180), _point.Point(x, y, _decimal(0.0)))
         line._p1, line._p2 = line._p2, line._p1
 
         return line
 
     @staticmethod
-    def _rotate_point(origin: Point, point: Point, angle: _decimal) -> Point:
+    def _rotate_point(origin: _point.Point, point: _point.Point, angle: _decimal) -> _point.Point:
         """
         This is a 2d function and it only deals with the x and y axis.
         """
@@ -1016,7 +982,12 @@ class Line:
 
         qx = ox + (cos * x) - (sin * y)
         qy = oy + (sin * x) + (cos * y)
-        return Point(qx, qy)
+        return _point.Point(qx, qy)
+
+
+class _line:
+
+    Line = Line
 
 
 # wires are constructed along the positive Z axis
@@ -1029,14 +1000,9 @@ class Line:
 #             Y-
 
 def get_triangles(ocp_mesh):
-    loc = TopLoc_Location()  # Face locations
-    mesh = BRepMesh_IncrementalMesh(
-        theShape=ocp_mesh.wrapped,
-        theLinDeflection=0.001,
-        isRelative=True,
-        theAngDeflection=0.1,
-        isInParallel=True,
-    )
+    loc = TopLoc_Location()
+    mesh = BRepMesh_IncrementalMesh(theShape=ocp_mesh.wrapped, theLinDeflection=0.001,
+                                    isRelative=True, theAngDeflection=0.1, isInParallel=True)
 
     mesh.Perform()
 
@@ -1091,14 +1057,9 @@ def get_triangles(ocp_mesh):
 
 
 def get_smooth_triangles(ocp_mesh):
-    loc = TopLoc_Location()  # Face locations
-    BRepMesh_IncrementalMesh(
-        theShape=ocp_mesh.wrapped,
-        theLinDeflection=0.001,
-        isRelative=True,
-        theAngDeflection=0.1,
-        isInParallel=True,
-    )
+    loc = TopLoc_Location()
+    BRepMesh_IncrementalMesh(theShape=ocp_mesh.wrapped, theLinDeflection=0.001,
+                             isRelative=True, theAngDeflection=0.1, isInParallel=True)
 
     ocp_mesh_vertices = []
     triangles = []
@@ -1107,21 +1068,18 @@ def get_smooth_triangles(ocp_mesh):
         if not facet:
             continue
 
-        # Triangulate the face
         poly_triangulation = BRep_Tool.Triangulation_s(facet.wrapped, loc)  # NOQA
 
         if not poly_triangulation:
             continue
 
         trsf = loc.Transformation()
-        # Store the vertices in the triangulated face
+
         node_count = poly_triangulation.NbNodes()
         for i in range(1, node_count + 1):
             gp_pnt = poly_triangulation.Node(i).Transformed(trsf)
             pnt = (gp_pnt.X(), gp_pnt.Y(), gp_pnt.Z())
             ocp_mesh_vertices.append(pnt)
-
-        # Store the triangles from the triangulated faces
 
         facet_reversed = facet.wrapped.Orientation() == TopAbs_REVERSED
 
@@ -1141,25 +1099,18 @@ def get_smooth_triangles(ocp_mesh):
 
 
 def _safe_normalize(v, eps=1e-12):
-    """Normalize rows of v (shape (...,3)). Avoid divide-by-zero."""
     norms = np.linalg.norm(v, axis=-1, keepdims=True)
     norms = np.where(norms <= eps, 1.0, norms)
     return v / norms
 
 
 def compute_face_normals(v0, v1, v2):
-    """Un-normalized face normals (cross product e1 x e2)."""
     return np.cross(v1 - v0, v2 - v0)
 
 
-def compute_vertex_normals(vertices: np.ndarray, faces: np.ndarray, method: str = "angle") -> np.ndarray:
-    """
-    Compute per-vertex smooth normals.
+def compute_vertex_normals(vertices: np.ndarray, faces: np.ndarray,
+                           method: str = "angle") -> np.ndarray:
 
-    method: "angle" (angle-weighted), "area" (area-weighted), "uniform" (unweighted).
-    Returns (N,3) array of normalized vertex normals.
-    """
-    # Gather triangle corners
     v0 = vertices[faces[:, 0]]
     v1 = vertices[faces[:, 1]]
     v2 = vertices[faces[:, 2]]
@@ -1170,7 +1121,8 @@ def compute_vertex_normals(vertices: np.ndarray, faces: np.ndarray, method: str 
     accum = np.zeros((N, 3), dtype=np.dtypes.Float64DType)
 
     if method == "area":
-        # area-weighted accumulation (face_normals magnitude ~ 2*area*unit_normal)
+        # area-weighted accumulation
+        # (face_normals magnitude ~ 2 * area * unit_normal)
         np.add.at(accum, faces[:, 0], face_normals)
         np.add.at(accum, faces[:, 1], face_normals)
         np.add.at(accum, faces[:, 2], face_normals)
@@ -1178,12 +1130,11 @@ def compute_vertex_normals(vertices: np.ndarray, faces: np.ndarray, method: str 
     elif method == "angle":
         # angle-weighted accumulation
         # edges for corner angles
-        e0 = v1 - v0  # edge v0->v1
-        e1 = v2 - v1  # edge v1->v2
-        e2 = v0 - v2  # edge v2->v0
+        e0 = v1 - v0
+        e1 = v2 - v1
+        e2 = v0 - v2
 
         def corner_angle(a, b):
-            # angle between vectors a and b, per-face (F,)
             na = np.linalg.norm(a, axis=1)
             nb = np.linalg.norm(b, axis=1)
             denom = na * nb
@@ -1192,9 +1143,9 @@ def compute_vertex_normals(vertices: np.ndarray, faces: np.ndarray, method: str 
             cosang = np.clip(cosang, -1.0, 1.0)
             return np.arccos(cosang)
 
-        ang0 = corner_angle(-e2, e0)  # angle at v0
-        ang1 = corner_angle(-e0, e1)  # angle at v1
-        ang2 = corner_angle(-e1, e2)  # angle at v2
+        ang0 = corner_angle(-e2, e0)
+        ang1 = corner_angle(-e0, e1)
+        ang2 = corner_angle(-e1, e2)
 
         np.add.at(accum, faces[:, 0], face_normals * ang0[:, None])
         np.add.at(accum, faces[:, 1], face_normals * ang1[:, None])
@@ -1221,24 +1172,11 @@ def compute_vertex_normals(vertices: np.ndarray, faces: np.ndarray, method: str 
 
 
 def make_per_corner_arrays(vertices: np.ndarray, faces: np.ndarray, method: str = "area"):
-    """
-    Given:
-      vertices: (N,3) float
-      faces: (F,3) int
-    Returns:
-      positions_flat: (F*3, 3) float32
-      normals_flat:   (F*3, 3) float32
-    Suitable for glVertexPointer(3, GL_FLOAT, 0, positions_flat) and
-    glNormalPointer(GL_FLOAT, 0, normals_flat).
-    """
-    # compute smooth per-vertex normals
     v_normals = compute_vertex_normals(vertices, faces, method=method)  # (N,3)
 
-    # expand to per-corner arrays (flatten triangles in order)
     positions_flat = vertices[faces].reshape(-1, 3)
     normals_flat = v_normals[faces].reshape(-1, 3)
 
-    # Ensure float32 contiguous arrays for OpenGL
     return (np.ascontiguousarray(normals_flat, dtype=np.dtypes.Float64DType),
             np.ascontiguousarray(positions_flat, dtype=np.dtypes.Float64DType))
 
@@ -1469,7 +1407,7 @@ class GLObject:
         else:
             return get_triangles(model)
 
-    def hit_test(self, point: Point) -> bool:
+    def hit_test(self, point: _point.Point) -> bool:
         p1, p2 = self.hit_test_rect
 
         return p1 <= point <= p2
@@ -1660,6 +1598,10 @@ class Canvas(glcanvas.GLCanvas):
         self.viewMatrix = None
         self.size = None
 
+        self.WIDTH = size[0]
+        self.HEIGHT = size[1]
+        self.ASPECT = float(self.WIDTH) / self.HEIGHT  # desired aspect ratio
+
         self.Bind(wx.EVT_LEFT_UP, self.on_left_up)
         self.Bind(wx.EVT_LEFT_DOWN, self.on_left_down)
         self.Bind(wx.EVT_LEFT_DCLICK, self.on_left_dclick)
@@ -1727,18 +1669,18 @@ class Canvas(glcanvas.GLCanvas):
         #                         [-t_x, -t_y, -t_z, 1.0]],
         #                        dtype=np.dtypes.Float64DType)
 
-        self.camera_pos = Point(_decimal(0.0),
-                                _decimal(Config.settings.eye_height),
-                                _decimal(0.0))
+        self.camera_pos = _point.Point(_decimal(0.0),
+                                       _decimal(Config.settings.eye_height),
+                                       _decimal(0.0))
 
-        self.camera_eye = Point(_decimal(0.0),
-                                _decimal(Config.settings.eye_height + 0.5),
-                                _decimal(75.0))
+        self.camera_eye = _point.Point(_decimal(0.0),
+                                       _decimal(Config.settings.eye_height + 0.5),
+                                       _decimal(75.0))
 
-        self.camera_angle = Angle.from_points(self.camera_pos, self.camera_eye)
+        self.camera_angle = _angle.Angle.from_points(self.camera_pos, self.camera_eye)
 
-        self.camera_position_angle = Angle.from_points(
-            Point(_decimal(0.0), _decimal(0.0), _decimal(0.0)), self.camera_pos)
+        self.camera_position_angle = _angle.Angle.from_points(
+            _point.Point(_decimal(0.0), _decimal(0.0), _decimal(0.0)), self.camera_pos)
 
         self._grid = None
         self.is_motion = False
@@ -1951,18 +1893,18 @@ class Canvas(glcanvas.GLCanvas):
         self.reset()
 
     def reset(self, *_):
-        self.camera_pos = Point(_decimal(0.0),
-                                _decimal(Config.settings.eye_height),
-                                _decimal(0.0))
+        self.camera_pos = _point.Point(_decimal(0.0),
+                                       _decimal(Config.settings.eye_height),
+                                       _decimal(0.0))
 
-        self.camera_eye = Point(_decimal(0.0),
-                                _decimal(Config.settings.eye_height + 0.5),
-                                _decimal(75.0))
+        self.camera_eye = _point.Point(_decimal(0.0),
+                                       _decimal(Config.settings.eye_height + 0.5),
+                                       _decimal(75.0))
 
-        self.camera_angle = Angle.from_points(self.camera_pos, self.camera_eye)
+        self.camera_angle = _angle.Angle.from_points(self.camera_pos, self.camera_eye)
 
-        self.camera_position_angle = Angle.from_points(
-            Point(_decimal(0.0), _decimal(0.0), _decimal(0.0)), self.camera_pos)
+        self.camera_position_angle = _angle.Angle.from_points(
+            _point.Point(_decimal(0.0), _decimal(0.0), _decimal(0.0)), self.camera_pos)
 
         self.Refresh(False)
 
@@ -1991,22 +1933,37 @@ class Canvas(glcanvas.GLCanvas):
 
         if not self.is_motion:
             x, y = evt.GetPosition()
-            p = self.get_world_coords(x, y)
 
-            for obj in self.objects:
-                if obj.hit_test(p):
-                    if self.selected is not None and obj != self.selected:
-                        self.selected.is_selected = False
-
-                    self.selected = obj
-                    obj.is_selected = True
-                    self.Refresh(False)
-                    break
-            else:
-                if self.selected is not None:
+            selected = pick_full_pipeline.handle_click_cycle(x, y, self.objects)
+            if selected is not None:
+                if self.selected is not None and selected != self.selected:
                     self.selected.is_selected = False
-                    self.selected = None
-                    self.Refresh(False)
+
+                self.selected = selected
+                selected.is_selected = True
+                self.Refresh(False)
+
+            elif self.selected is not None:
+                self.selected.is_selected = False
+                self.selected = None
+                self.Refresh(False)
+
+            # p = self.get_world_coords(x, y)
+            #
+            # for obj in self.objects:
+            #     if obj.hit_test(p):
+            #         if self.selected is not None and obj != self.selected:
+            #             self.selected.is_selected = False
+            #
+            #         self.selected = obj
+            #         obj.is_selected = True
+            #         self.Refresh(False)
+            #         break
+            # else:
+            #     if self.selected is not None:
+            #         self.selected.is_selected = False
+            #         self.selected = None
+            #         self.Refresh(False)
 
         if not evt.RightIsDown():
             if self.HasCapture():
@@ -2155,7 +2112,7 @@ class Canvas(glcanvas.GLCanvas):
         self._process_mouse_release(evt)
         evt.Skip()
 
-    def get_world_coords(self, mx, my) -> Point:
+    def get_world_coords(self, mx, my) -> _point.Point:
         self.SetCurrent(self.context)
 
         modelview = GL.glGetDoublev(GL.GL_MODELVIEW_MATRIX)
@@ -2168,19 +2125,33 @@ class Canvas(glcanvas.GLCanvas):
         x, y, z = GLU.gluUnProject(float(mx), float(my), depth,
                                    modelview, projection, viewport)
 
-        return Point(_decimal(x), _decimal(y), _decimal(z))
+        return _point.Point(_decimal(x), _decimal(y), _decimal(z))
 
     def on_erase_background(self, _):
         pass
 
     def on_size(self, event):
-        wx.CallAfter(self.DoSetViewport)
+        wx.CallAfter(self.DoSetViewport, event.GetSize())
         event.Skip()
 
-    def DoSetViewport(self):
-        size = self.size = self.GetClientSize() * self.GetContentScaleFactor()
+    def DoSetViewport(self, size):
         self.SetCurrent(self.context)
-        GL.glViewport(0, 0, size.width, size.height)
+
+        width, height = self.size = size * self.GetContentScaleFactor()
+
+        w = height * self.ASPECT  # w is width adjusted for aspect ratio
+        left = (width - w) / 2.0
+        print(left, w, height)
+
+
+
+        GL.glViewport(0, 0, int(w), height)  #  fix up the viewport to maintain aspect ratio
+        GL.glMatrixMode(GL.GL_PROJECTION)
+        # GL.glLoadIdentity()
+        GL.glOrtho(0, self.WIDTH, self.HEIGHT, 0, -1.0, 1.0)  # only the window is changing, not the camera
+        GL.glMatrixMode(GL.GL_MODELVIEW)
+
+        # self.Refresh(False)
 
     def on_paint(self, _):
         _ = wx.PaintDC(self)
@@ -2255,7 +2226,8 @@ class Canvas(glcanvas.GLCanvas):
 
         self.Refresh(False)
 
-    def _rotate_about(self, dx, dy, p1, p2):
+    @staticmethod
+    def _rotate_about(dx, dy, p1, p2):
         """
         Moves the camera position keeping the focused point locked.
         """
@@ -2316,9 +2288,10 @@ class Canvas(glcanvas.GLCanvas):
                     # explicitly restore original distance to avoid shrink/grow
                     final_offset = rotated * (dist / rnorm)
 
-        new_eye = p2 + final_offset
+        new_point = p2 + final_offset
 
-        return Point(_decimal(new_eye[0]), _decimal(new_eye[1]), _decimal(new_eye[2]))
+        return _point.Point(_decimal(
+            new_point[0]), _decimal(new_point[1]), _decimal(new_point[2]))
 
     def pan_tilt(self, dx, dy):
         """
@@ -2482,9 +2455,9 @@ class Canvas(glcanvas.GLCanvas):
         dx *= sens
         dy *= sens
 
-        move = Point(dx, dy, _decimal(0.0))
+        move = _point.Point(dx, dy, _decimal(0.0))
 
-        angle = Angle.from_points(self.camera_pos, self.camera_eye)
+        angle = _angle.Angle.from_points(self.camera_pos, self.camera_eye)
 
         move @= angle
 
