@@ -100,6 +100,7 @@ class IDPickerFBO:
         glReadPixels(int(x), int(y), 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, buf)
         return (buf[0], buf[1], buf[2], buf[3])
 
+
 # High-level picker
 class IDPicker:
     def __init__(self, width, height, render_scene_callback):

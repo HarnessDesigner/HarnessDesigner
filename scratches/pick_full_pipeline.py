@@ -304,7 +304,7 @@ def _aabb_screen_bbox_and_depth(aabb_min, aabb_max, mv, pj,
 
     if depth_metric == inf:
         # fallback: distance to center
-        center = 0.5 * (np.array(aabb_min) + np.array(aabb_max))
+        center = 0.5 * (aabb_min.as_numpy + aabb_max.as_numpy)
         v = np.array([center[0], center[1], center[2], 1.0], dtype=np.float64)
         eye_center = mv.dot(v)
 
@@ -425,11 +425,11 @@ def handle_click_cycle(mx, my, scene_objects):
             else:
                 # AABB reported hit but triangle test failed (rare if
                 # coarse AABB is large). Accept AABB hit if you prefer.
-                selected = None
+                selected = obj
         else:
             # ray misses AABB: treat as not hit. Could skip
             # object or accept it for forgiving pick.
-            selected = None
+            selected = obj
 
     # advance index for next click
     last_pick_state['index'] = (last_pick_state['index'] + 1) % len(cands)

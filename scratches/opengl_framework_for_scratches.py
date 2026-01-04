@@ -69,7 +69,7 @@ class Config:
         smooth_housings = False
         smooth_bundles = True
         smooth_transitions = True
-        smooth_terminals = False
+        smooth_terminals = True
         smooth_cpa_locks = False
         smooth_tpa_locks = False
         smooth_boots = True
@@ -193,17 +193,6 @@ class Point:
                 return self
             else:
                 return inputs + self.as_numpy
-
-        print('func:', func)
-        print()
-        print('method:', method)
-        print()
-        print('inputs:', inputs)
-        print()
-        print('instance:', instance)
-        print()
-        print('kwargs:', kwargs)
-        print()
 
         raise RuntimeError
 
@@ -443,17 +432,6 @@ class Angle:
                 return self
             else:
                 return inputs + self.as_numpy
-
-        print('func:', func)
-        print()
-        print('method:', method)
-        print()
-        print('inputs:', inputs)
-        print()
-        print('instance:', instance)
-        print()
-        print('kwargs:', kwargs)
-        print()
 
         raise RuntimeError
 
@@ -791,17 +769,6 @@ class Line:
             else:
                 return inputs + self.as_numpy
 
-        print('func:', func)
-        print()
-        print('method:', method)
-        print()
-        print('inputs:', inputs)
-        print()
-        print('instance:', instance)
-        print()
-        print('kwargs:', kwargs)
-        print()
-
         raise RuntimeError
 
     def __init__(self, p1: _point.Point,
@@ -1095,7 +1062,9 @@ def get_smooth_triangles(ocp_mesh):
     normals, triangles = (
         make_per_corner_arrays(ocp_mesh_vertices, triangles, Config.modeling.smooth_weight))
 
-    return normals, triangles, len(triangles)
+    triangles = triangles.reshape(-1, 3, 3)
+
+    return normals, triangles, len(triangles) * 3
 
 
 def _safe_normalize(v, eps=1e-12):
@@ -1312,16 +1281,24 @@ class GLObject:
         # (normals, triangles, triangle_count)
         self.triangles = []
 
-        self.is_selected = False
+        self._is_selected = False
 
         # a color for each item in the trinagles array
         try:
-            _ = self.colors
+            _ = self.colors  # NOQA
         except AttributeError:
             self.colors = []
 
         # This should be populated with 2 Point instances
         self.hit_test_rect = []
+
+    @property
+    def is_selected(self) -> bool:
+        return self._is_selected
+
+    @is_selected.setter
+    def is_selected(self, value: bool):
+        self._is_selected = value
 
     @staticmethod
     def get_housing_triangles(model):
@@ -2141,15 +2118,12 @@ class Canvas(glcanvas.GLCanvas):
 
         w = height * self.ASPECT  # w is width adjusted for aspect ratio
         left = (width - w) / 2.0
-        print(left, w, height)
-
-
 
         GL.glViewport(0, 0, int(w), height)  #  fix up the viewport to maintain aspect ratio
-        GL.glMatrixMode(GL.GL_PROJECTION)
-        # GL.glLoadIdentity()
-        GL.glOrtho(0, self.WIDTH, self.HEIGHT, 0, -1.0, 1.0)  # only the window is changing, not the camera
-        GL.glMatrixMode(GL.GL_MODELVIEW)
+        # GL.glMatrixMode(GL.GL_PROJECTION)
+        # # GL.glLoadIdentity()
+        # GL.glOrtho(0, self.WIDTH, self.HEIGHT, 0, -1.0, 1.0)  # only the window is changing, not the camera
+        # GL.glMatrixMode(GL.GL_MODELVIEW)
 
         # self.Refresh(False)
 
@@ -2535,22 +2509,30 @@ class Canvas(glcanvas.GLCanvas):
         GL.glEnableClientState(GL.GL_NORMAL_ARRAY)
 
         for obj in self.objects:
-            if obj.is_selected:
-                GL.glLightfv(
-                    GL.GL_LIGHT0, GL.GL_AMBIENT, [1.0, 1.0, 1.0, 1.0])
-
-                GL.glLightfv(
-                    GL.GL_LIGHT0, GL.GL_DIFFUSE, [1.0, 1.0, 1.0, 1.0])
-
-                GL.glMaterialfv(
-                    GL.GL_FRONT, GL.GL_AMBIENT, [0.8, 0.8, 0.8, 1.0])
-
-                GL.glMaterialfv(
-                    GL.GL_FRONT, GL.GL_SPECULAR, [1.0, 1.0, 1.0, 1.0])
-
-                GL.glMaterialf(GL.GL_FRONT, GL.GL_SHININESS, 100.0)
 
             for i, (normals, triangles, triangle_count) in enumerate(obj.triangles):
+                if obj.is_selected:
+                    GL.glLightfv(
+                        GL.GL_LIGHT0, GL.GL_AMBIENT, obj.colors[i][:-1] + [1.0]
+                    )
+
+                    GL.glLightfv(
+                        GL.GL_LIGHT0, GL.GL_DIFFUSE, obj.colors[i][:-1] + [1.0])
+
+                    GL.glLightfv(
+                        GL.GL_LIGHT0, GL.GL_SPECULAR, obj.colors[i][:-1] + [1.0])
+
+                    GL.glMaterialfv(
+                        GL.GL_FRONT, GL.GL_AMBIENT, obj.colors[i][:-1] + [1.0])
+
+                    GL.glMaterialfv(
+                        GL.GL_FRONT, GL.GL_DIFFUSE, obj.colors[i][:-1] + [1.0])
+
+                    GL.glMaterialfv(
+                        GL.GL_FRONT, GL.GL_SPECULAR, obj.colors[i][:-1] + [1.0])
+
+                    GL.glMaterialf(GL.GL_FRONT, GL.GL_SHININESS, 100.0)
+
                 GL.glColor4f(*obj.colors[i])
 
                 GL.glVertexPointer(3, GL.GL_DOUBLE, 0, triangles)
@@ -2578,7 +2560,7 @@ class Canvas(glcanvas.GLCanvas):
                     GL.GL_FRONT, GL.GL_SPECULAR, [0.8, 0.8, 0.8, 1.0])
 
                 GL.glMaterialf(
-                    GL.GL_FRONT, GL.GL_SHININESS, 80.0)
+                    GL.GL_FRONT, GL.GL_SHININESS, 20.0)
 
         GL.glDisableClientState(GL.GL_VERTEX_ARRAY)
         GL.glDisableClientState(GL.GL_NORMAL_ARRAY)

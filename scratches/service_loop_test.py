@@ -117,14 +117,21 @@ class Point:
 
         raise RuntimeError
 
-    def __init__(self, x: _decimal, y: _decimal, z: _decimal | None = None):
+    def __init__(self, x: _decimal, y: _decimal, z: _decimal | None = None, rnd=True):
 
         if z is None:
             z = _decimal(0.0)
 
-        self._x = _round_down(x)
-        self._y = _round_down(y)
-        self._z = _round_down(z)
+        if rnd:
+            self._x = _round_down(x)
+            self._y = _round_down(y)
+            self._z = _round_down(z)
+        else:
+            self._x = x
+            self._y = y
+            self._z = z
+
+        self._rnd = rnd
 
     @property
     def x(self) -> _decimal:
@@ -132,7 +139,10 @@ class Point:
 
     @x.setter
     def x(self, value: _decimal):
-        self._x = _round_down(value)
+        if self._rnd:
+            self._x = _round_down(value)
+        else:
+            self._x = value
 
     @property
     def y(self) -> _decimal:
@@ -140,7 +150,10 @@ class Point:
 
     @y.setter
     def y(self, value: _decimal):
-        self._y = _round_down(value)
+        if self._rnd:
+            self._y = _round_down(value)
+        else:
+            self._y = value
 
     @property
     def z(self) -> _decimal:
@@ -148,7 +161,10 @@ class Point:
 
     @z.setter
     def z(self, value: _decimal):
-        self._z = _round_down(value)
+        if self._rnd:
+            self._z = _round_down(value)
+        else:
+            self._z = value
 
     def copy(self) -> "Point":
         return Point(_decimal(self._x), _decimal(self._y), _decimal(self._z))
@@ -678,9 +694,9 @@ class Line:
         self._p1 = p1
 
         if p2 is None:
-            if None in (length, angle):
-                raise ValueError('If an end point is not supplied then the "length", '
-                                 '"x_angle", "y_angle" and "z_angle" parameters need to be supplied')
+            # if None in (length, angle):
+            #     raise ValueError('If an end point is not supplied then the "length", '
+            #                      '"x_angle", "y_angle" and "z_angle" parameters need to be supplied')
 
             p2 = Point(length, _decimal(0.0), _decimal(0.0))
             p2 @= angle
@@ -955,6 +971,18 @@ def create_wire(wire: "Wire"):
         binormal=twist
     )
 
+    cyl = cyl.move(build123d.Location((0.0, 0.0, -float(wire.diameter)), (0, 0, 1)))
+    # cyl = cyl.rotate(build123d.Axis((0.0, 0.0, 0.0), (0, 1, 0)), 180.0)
+    sphere1 = sphere1.move(build123d.Location((0.0, 0.0, -float(wire.diameter)), (0, 0, 1)))
+    sphere2 = sphere2.move(build123d.Location((0.0, 0.0, -float(wire.diameter)), (0, 0, 1)))
+    # sphere2 = sphere2.rotate(build123d.Axis((0.0, 0.0, 0.0), (0, 1, 0)), 180.0)
+
+    stripe1 = stripe1.move(build123d.Location((0.0, 0.0, -float(wire.diameter)), (0, 0, 1)))
+    stripe2 = stripe2.move(build123d.Location((0.0, 0.0, -float(wire.diameter)), (0, 0, 1)))
+
+    # stripe1 = stripe1.rotate(build123d.Axis((0.0, 0.0, 0.0), (0, 1, 0)), 180.0)
+    # stripe2 = stripe2.rotate(build123d.Axis((0.0, 0.0, 0.0), (0, 1, 0)), 180.0)
+
     try:
         bbox = cyl.bounding_box()
         corner1 = Point(*[_decimal(float(item)) for item in bbox.min])
@@ -976,6 +1004,19 @@ def create_wire(wire: "Wire"):
 
     cn1 = sphere1.center()
     cn2 = sphere2.center()
+
+    '''
+    1.1147696922933, 0.0368797737993, -2.169468990003
+    '''
+    print(cn1, cn2)
+
+    tp = Point(_decimal(0.0), _decimal(0.0), -wire.diameter, rnd=False)
+    tp += Point(wire.diameter + wire.diameter * _decimal(0.133), _decimal(0.0), _decimal(0.0), rnd=False)
+    tp += Point(_decimal(0.0), -(wire.diameter * _decimal(0.0195)), _decimal(0.0), rnd=False)
+    tp += Point(_decimal(0.0), _decimal(0.0), -(wire.diameter * _decimal(0.15)), rnd=False)
+    tp += Point(_decimal(0.0), _decimal(0.0), -wire.diameter, rnd=False)
+
+    print((tp.x, tp.y, tp.z))
 
     cn1 = Point(_decimal(cn1.X), _decimal(cn1.Y), _decimal(cn1.Z))
     cn2 = Point(_decimal(cn2.X), _decimal(cn2.Y), _decimal(cn2.Z))
@@ -1057,6 +1098,11 @@ class Wire:
         self.popup = None
 
         model, stripes, bbox, start_point, stop_point = create_wire(self)
+
+        sphere = build123d.Sphere(0.75)
+        sphere = sphere.move(build123d.Location((0.0, 0.0, 5.0), (0, 0, 1)))
+
+        self.snormals, self.stris, self.stris_count = get_triangles(sphere)
 
         self.triangles = []
         self.normals = []
@@ -1774,31 +1820,31 @@ class Canvas(glcanvas.GLCanvas):
         evt.Skip()
 
     def make_wires(self):
-        self.wires.append(Wire(self, Point(Decimal(0.0), Decimal(20.0), Decimal(0.0)),
-                  Point(Decimal(0.0), Decimal(20.0), Decimal(20.0)),
-                  Decimal(0.61), (0.5, 0.0, 0.8, 1.0), (1.0, 0.4, 0.0, 1.0)))
+        # self.wires.append(Wire(self, Point(Decimal(0.0), Decimal(20.0), Decimal(0.0)),
+        #           Point(Decimal(0.0), Decimal(20.0), Decimal(20.0)),
+        #           Decimal(0.61), (0.5, 0.0, 0.8, 1.0), (1.0, 0.4, 0.0, 1.0)))
+        #
+        # self.wires.append(
+        #     Wire(
+        #         self, Point(Decimal(20.0), Decimal(20.0), Decimal(0.0)),
+        #         Point(Decimal(20.0), Decimal(20.0), Decimal(20.0)),
+        #         Decimal(2.29), (0.2, 0.2, 0.2, 1.0), (0.0, 0.0, 1.0, 1.0)
+        #         )
+        #     )
+        #
+        # self.wires.append(
+        #     Wire(
+        #         self, Point(Decimal(40.0), Decimal(20.0), Decimal(0.0)),
+        #         Point(Decimal(40.0), Decimal(20.0), Decimal(20.0)),
+        #         Decimal(3.81), (0.2, 0.2, 0.2, 1.0), (0.0, 1.0, 0.0, 1.0)
+        #         )
+        #     )
 
         self.wires.append(
             Wire(
-                self, Point(Decimal(20.0), Decimal(20.0), Decimal(0.0)),
-                Point(Decimal(20.0), Decimal(20.0), Decimal(20.0)),
-                Decimal(2.29), (0.2, 0.2, 0.2, 1.0), (0.0, 0.0, 1.0, 1.0)
-                )
-            )
-
-        self.wires.append(
-            Wire(
-                self, Point(Decimal(40.0), Decimal(20.0), Decimal(0.0)),
-                Point(Decimal(40.0), Decimal(20.0), Decimal(20.0)),
-                Decimal(3.81), (0.2, 0.2, 0.2, 1.0), (0.0, 1.0, 0.0, 1.0)
-                )
-            )
-
-        self.wires.append(
-            Wire(
-                self, Point(Decimal(60.0), Decimal(20.0), Decimal(0.0)),
-                Point(Decimal(60.0), Decimal(20.0), Decimal(20.0)),
-                Decimal(6.48), (0.2, 0.2, 0.2, 1.0), (1.0, 0.0, 0.0, 1.0)
+                self, Point(Decimal(0.0), Decimal(0.0), Decimal(0.0)),
+                Point(Decimal(0.0), Decimal(0.0), Decimal(1.0)),
+                Decimal(1.0), (0.2, 0.2, 0.2, 1.0), (1.0, 0.0, 0.0, 1.0)
                 )
             )
 
@@ -2132,6 +2178,12 @@ class Canvas(glcanvas.GLCanvas):
         glEnableClientState(GL_NORMAL_ARRAY)
 
         for wire in self.wires:
+            glColor4f(1.0, 0.0, 0.0, 1.0)
+
+            glVertexPointer(3, GL_DOUBLE, 0, wire.stris)
+            glNormalPointer(GL_DOUBLE, 0, wire.snormals)
+            glDrawArrays(GL_TRIANGLES, 0, wire.stris_count)
+
             if wire.is_selected:
                 glLightfv(GL_LIGHT0, GL_AMBIENT, [1.0, 1.0, 1.0, 1.0])
                 glLightfv(GL_LIGHT0, GL_DIFFUSE, [1.0, 1.0, 1.0, 1.0])
