@@ -71,7 +71,7 @@ class ControlPanel(wx.Panel):
         self.pos_x = wx.SpinCtrlDouble(self, wx.ID_ANY, size=(100, -1), value="0.0", initial=0.0, min=-999.0, max=999.0, inc=0.1)
         self.pos_y = wx.SpinCtrlDouble(self, wx.ID_ANY, size=(100, -1), value="0.0", initial=0.0, min=-999.0, max=999.0, inc=0.1)
         self.pos_z = wx.SpinCtrlDouble(self, wx.ID_ANY, size=(100, -1), value="0.0", initial=0.0, min=-999.0, max=999.0, inc=0.1)
-        
+
         self.rel_pos_x = wx.SpinCtrlDouble(self, wx.ID_ANY, size=(100, -1), value="0.0", initial=0.0, min=-999.0, max=999.0, inc=0.1)
         self.rel_pos_y = wx.SpinCtrlDouble(self, wx.ID_ANY, size=(100, -1), value="0.0", initial=0.0, min=-999.0, max=999.0, inc=0.1)
         self.rel_pos_z = wx.SpinCtrlDouble(self, wx.ID_ANY, size=(100, -1), value="0.0", initial=0.0, min=-999.0, max=999.0, inc=0.1)
@@ -86,14 +86,14 @@ class ControlPanel(wx.Panel):
         _add('X Position (abs):', self.pos_x)
         _add('Y Position (abs):', self.pos_y)
         _add('Z Position (abs):', self.pos_z)
-        
+
         _add('X Angle (rel):', self.rel_angle_x)
         _add('Y Angle (rel):', self.rel_angle_y)
         _add('Z Angle (rel):', self.rel_angle_z)
         _add('X Position (rel):', self.rel_pos_x)
         _add('Y Position (rel):', self.rel_pos_y)
         _add('Z Position (rel):', self.rel_pos_z)
-        
+
         _add('Cavity Length:', self.length)
         _add('Terminal (blade) Size:', self.terminal_size)
         _add('Cylinder Cavity:', self.use_cylinder)
@@ -117,11 +117,11 @@ class ControlPanel(wx.Panel):
         self.pos_x.Enable(False)
         self.pos_y.Enable(False)
         self.pos_z.Enable(False)
-        
+
         self.rel_pos_x.Enable(False)
         self.rel_pos_y.Enable(False)
         self.rel_pos_z.Enable(False)
-        
+
         self.length.Enable(False)
         self.terminal_size.Enable(False)
         self.use_cylinder.Enable(False)
@@ -129,11 +129,11 @@ class ControlPanel(wx.Panel):
         self.angle_x.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_angle_x)
         self.angle_y.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_angle_y)
         self.angle_z.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_angle_z)
-        
+
         self.rel_angle_x.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_rel_angle_x)
         self.rel_angle_y.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_rel_angle_y)
         self.rel_angle_z.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_rel_angle_z)
-        
+
         self.pos_x.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_pos_x)
         self.pos_y.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_pos_y)
         self.pos_z.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_pos_z)
@@ -216,11 +216,11 @@ class ControlPanel(wx.Panel):
     def on_pos_x(self, evt):
         position = self.selected.position
         delta = _decimal(self.pos_x.GetValue()) - position.x
-        
+
         position.unbind(self.on_obj_position)
         position.x += delta
         position.bind(self.on_obj_position)
-        
+
         evt.Skip()
         self.GetParent().Refresh(False)
 
@@ -1058,7 +1058,7 @@ class Housing(GLObject, MoveMixin, AngleMixin):
         color = self._colors[int(self._is_selected)]
         tris, norms, count = self._triangles[0]
 
-        triangles = [[tris, norms, color, count, color[0] == 1.0]]
+        triangles = [[tris, norms, color, count, color[0][-1] == 1.0]]
         return triangles
 
     def get_canvas(self):
@@ -1098,13 +1098,13 @@ class Housing(GLObject, MoveMixin, AngleMixin):
 
         # self.triangles[3][0] += self._point
         self.triangles[0][0] += self._point
-        
+
         for p in self.hit_test_rect[0]:
             p -= self._point
             p @= inverse
             p @= angle
             p += self._point
-        
+
         self._o_angle = angle.copy()
 
         self.adjust_hit_points()
@@ -1145,7 +1145,7 @@ class Housing(GLObject, MoveMixin, AngleMixin):
 
 
 class Cavity(GLObject, MoveMixin, AngleMixin):
-    
+
     def __init__(self, parent: Housing, index: int, name: str, angle: _angle.Angle,
                  point: _point.Point, length: _decimal, terminal_size: _decimal):
         super().__init__()
@@ -1186,9 +1186,9 @@ class Cavity(GLObject, MoveMixin, AngleMixin):
         self._use_cylinder = False
 
         point = parent.position
-        self._h_point = point.copy() 
+        self._h_point = point.copy()
         point.bind(self._update_h_position)
-        
+
         angle = parent.angle
         self._h_angle = angle.copy()
         angle.bind(self._update_h_angle)
@@ -1211,7 +1211,7 @@ class Cavity(GLObject, MoveMixin, AngleMixin):
     @property
     def rel_angle(self) -> _angle.Angle:
         return self._rel_angle
-    
+
     def _update_rel_angle(self, angle: _angle.Angle):
         inverse = self._o_rel_angle.inverse
 
@@ -1335,7 +1335,7 @@ class Cavity(GLObject, MoveMixin, AngleMixin):
 
         self.triangles[0][0] += delta
         # self.triangles[0][0] += delta
-        
+
         for p in self.hit_test_rect[0]:
             p += delta
 

@@ -61,6 +61,7 @@ from decimal import Decimal as _Decimal
 import numpy as np
 import math
 import weakref
+import ctypes
 
 import pick_full_pipeline
 
@@ -229,50 +230,50 @@ class Point:
         self._x = x
         self._y = y
         self._z = z
-        
+
         self._callbacks = []
         self._ref_count = 0
-        
+
     def __remove_callback(self, ref):
         try:
             self._callbacks.remove(ref)
         except:  # NOQA
             pass
-                
+
     def bind(self, callback):
         ref = weakref.WeakMethod(callback, self.__remove_callback)
-        
+
         self._callbacks.append(ref)
-        
+
     def unbind(self, callback):
         for ref in self._callbacks:
             cb = ref()
             if cb is None:
                 self._callbacks.remove(ref)
-                
+
             if cb == callback:
                 self._callbacks.remove(ref)
                 return
-    
+
     def __enter__(self):
         self._ref_count += 1
         return self
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._ref_count -= 1
-    
+
     def _process_update(self):
         if self._ref_count:
             return
-        
+
         for ref in self._callbacks:
             cb = ref()
             if cb is None:
                 self._callbacks.remove(ref)
-                
+
             else:
                 cb(self)
-    
+
     @property
     def x(self) -> _decimal:
         return self._x
@@ -315,7 +316,7 @@ class Point:
             self.z += z
 
         self._process_update()
-        
+
         return self
 
     def __add__(self, other: Union["Point", np.ndarray]) -> "Point":
@@ -372,7 +373,7 @@ class Point:
         return Point(x, y, z)
 
     def __itruediv__(self, other: _decimal) -> Self:
-        
+
         with self:
             self.x /= other
             self.y /= other
@@ -402,7 +403,7 @@ class Point:
             self.x += origin.x
             self.y += origin.y
             self.z += origin.z
-            
+
         self._process_update()
 
     def set_x_angle(self, angle: _decimal, origin: "Point") -> None:
@@ -442,7 +443,7 @@ class Point:
     def __eq__(self, other: "Point") -> bool:
         if not isinstance(other, Point):
             return False
-        
+
         x1, y1, z1 = self
         x2, y2, z2 = other
 
@@ -472,7 +473,7 @@ class Point:
     def __le__(self, other: "Point") -> bool:
         if not isinstance(other, Point):
             raise TypeError(f'{type(other)} is not a "Point"')
-        
+
         x1, y1, z1 = self
         x2, y2, z2 = other
         return x1 <= x2 and y1 <= y2 and z1 <= z2
@@ -480,7 +481,7 @@ class Point:
     def __ge__(self, other: "Point") -> bool:
         if not isinstance(other, Point):
             raise TypeError(f'{type(other)} is not a "Point"')
-        
+
         x1, y1, z1 = self
         x2, y2, z2 = other
         return x1 >= x2 and y1 >= y2 and z1 >= z2
@@ -628,7 +629,7 @@ class Angle:
     def x(self, value: _decimal):
         angles = self._R.as_euler('xyz', degrees=True).tolist()
         angles[0] = float(value)
-        
+
         self._R = _Rotation.from_euler('xyz', angles, degrees=True)  # NOQA
         self._process_update()
 
@@ -641,7 +642,7 @@ class Angle:
     def y(self, value: _decimal):
         angles = self._R.as_euler('xyz', degrees=True).tolist()
         angles[1] = float(value)
-        
+
         self._R = _Rotation.from_euler('xyz', angles, degrees=True)  # NOQA
         self._process_update()
 
@@ -654,7 +655,7 @@ class Angle:
     def z(self, value: _decimal):
         angles = self._R.as_euler('xyz', degrees=True).tolist()
         angles[2] = float(value)
-        
+
         self._R = _Rotation.from_euler('xyz', angles, degrees=True)  # NOQA
         self._process_update()
 
@@ -671,7 +672,7 @@ class Angle:
             self.x += x
             self.y += y
             self.z += z
-            
+
         self._process_update()
         return self
 
@@ -698,7 +699,7 @@ class Angle:
             self.x -= x
             self.y -= y
             self.z -= z
-            
+
         self._process_update()
         return self
 
@@ -741,12 +742,12 @@ class Angle:
             other @= self._R.as_matrix().T
         elif isinstance(other, _point.Point):
             values = other.as_numpy @ self._R.as_matrix().T
-            
-            with other:            
+
+            with other:
                 other.x = _decimal(float(values[0]))
                 other.y = _decimal(float(values[1]))
                 other.z = _decimal(float(values[2]))
-                
+
             other._process_update()  # NOQA
         elif isinstance(other, Angle):
             matrix = other._R.as_matrix() @ self._R.as_matrix()  # NOQA
@@ -783,7 +784,7 @@ class Angle:
     def __eq__(self, other: "Angle") -> bool:
         if not isinstance(other, Angle):
             return False
-        
+
         x1, y1, z1 = self
         x2, y2, z2 = other
 
@@ -1871,7 +1872,7 @@ class CullThread:
         self._thread = threading.Thread(target=self._loop)
         self._thread.daemon = True
         self._exit_event = threading.Event()
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self._wait_event = threading.Event()
         self._running_event = threading.Event()
         self.refresh = False
@@ -1895,10 +1896,17 @@ class CullThread:
             self._thread.join(3.0)
 
     def _loop(self):
+        count = 0
         while not self._exit_event.is_set():
             self._running_event.set()
+            # if count == 0:
+            #     print('Culling triangles')
+
             with self:
                 projection = self.canvas.projection
+                # if count == 0:
+                #     print('got projection')
+
                 opaque_colors = []
                 opaque_triangles = []
                 opaque_normals = []
@@ -1908,9 +1916,15 @@ class CullThread:
                 transparent_triangles = []
                 transparent_normals = []
                 transparent_count = 0
-                if self.aabb_intersects_frustum(obj.hit_test_rect, projection):
 
-                    for obj in self.canvas.objects:
+                for obj in self.canvas.objects:
+                    # if count == 0:
+                    #     print('checking hit')
+
+                    if self.aabb_intersects_frustum(obj.hit_test_rect, projection):
+                        # if count == 0:
+                        #     print('got hit')
+
                         for triangles, normals, colors, count, is_opaque in obj.triangles:
                             if is_opaque:
                                 opaque_triangles.append(triangles)
@@ -1925,33 +1939,28 @@ class CullThread:
 
                 triangles = []
                 if opaque_count:
-                    triangles.append([
-                        np.array(opaque_triangles,
-                                 dtype=np.dtypes.Float32DType).reshape(-1, 3, 3),
-                        np.array(opaque_normals,
-                                 dtype=np.dtypes.Float32DType).reshape(-1, 3),
-                        np.array(opaque_colors,
-                                 dtype=np.dtypes.Float32DType).reshape(-1, 4),
-                        opaque_count
-                    ])
+                    triangles.append([opaque_triangles, opaque_normals,
+                                      opaque_colors, opaque_count])
 
                 if transparent_count:
-                    triangles.append([
-                        np.array(transparent_triangles,
-                                 dtype=np.dtypes.Float32DType).reshape(-1, 3, 3),
-                        np.array(transparent_normals,
-                                 dtype=np.dtypes.Float32DType).reshape(-1, 3),
-                        np.array(transparent_colors,
-                                 dtype=np.dtypes.Float32DType).reshape(-1, 4),
-                        transparent_count
-                    ])
+                    triangles.append([transparent_triangles, transparent_normals,
+                                      transparent_colors, transparent_count])
 
                 self.canvas.triangles = triangles
+
+            # if count == 0:
+            #     print('culling done')
 
             self._running_event.clear()
 
             if self.refresh:
+                self.refresh = False
                 wx.CallAfter(self.canvas.Refresh, False)
+
+            count += 1
+
+            if count == 50:
+                count = 0
 
             self._wait_event.clear()
             self._wait_event.wait(0.1)
@@ -2239,60 +2248,60 @@ class Canvas(glcanvas.GLCanvas):
     GL Engine
 
     This handles putting all of the pieces together and passes them
-    to opengl to be rendered. It also is responsible for interperting mouse 
+    to opengl to be rendered. It also is responsible for interperting mouse
     input as well as the view.
 
     The controls to move about are much like what you would have in a first
-    person shooter game. If you don't knopw what that is (lord i hope this 
-    isn't the case) think if it as you navigating the world around you. The 
-    movements are very similiar in most cases. There is one movement that while 
-    it is able to be done in the "real" world by a person it's not normally 
-    done. a person that sprays paint might be the only person to use the 
-    movement in a regular basis. The easiest way to describe it is if you hang 
-    an object to be painted at about chest height and you move your position 
+    person shooter game. If you don't knopw what that is (lord i hope this
+    isn't the case) think if it as you navigating the world around you. The
+    movements are very similiar in most cases. There is one movement that while
+    it is able to be done in the "real" world by a person it's not normally
+    done. a person that sprays paint might be the only person to use the
+    movement in a regular basis. The easiest way to describe it is if you hang
+    an object to be painted at about chest height and you move your position
     around the object but keeping your eyes fixed on the object at all times.
-    
+
     How the rendering is done.
-    
-    The objects that are placed into the 3D world hold the coordinates of where 
-    they are located. This is paramount to how the system works because those 
-    coordinates are also used or determining part sizes like a wire length. 
+
+    The objects that are placed into the 3D world hold the coordinates of where
+    they are located. This is paramount to how the system works because those
+    coordinates are also used or determining part sizes like a wire length.
     There is a 1 to 1 ratop that maps to mm's from the 3D world location.
-    
-    OpenGL provides many ways to handle how to see the 3D world and how to move 
-    about it. I am using 1 way and only 1 way which is using the camera position 
-    and the camera focal point. Object positions are always static. I do not 
-    transform the view when placing objects so the coordinates where an onject 
-    is located is always going to be the same as where the object is located in 
-    that 3D world. moving the camera to change what is being seen is the most 
-    locical thing to do for a CAD type interface. The downside is when 
-    performing updates is that all of the objects get passed to opengl to be 
-    rendered even ones that are not ble to be seen. This could cause performance 
+
+    OpenGL provides many ways to handle how to see the 3D world and how to move
+    about it. I am using 1 way and only 1 way which is using the camera position
+    and the camera focal point. Object positions are always static. I do not
+    transform the view when placing objects so the coordinates where an onject
+    is located is always going to be the same as where the object is located in
+    that 3D world. moving the camera to change what is being seen is the most
+    locical thing to do for a CAD type interface. The downside is when
+    performing updates is that all of the objects get passed to opengl to be
+    rendered even ones that are not ble to be seen. This could cause performance
     issues if there are a lot of objects being passed to OpenGL. Once I get the
-    program mostly up and operational I will perform tests t see what the 
-    performance degridation actually is and if there would be any benifit to 
-    clipping objects not in view so they don't get passed to OpenGL. 
-    Which brings me to my next bit...      
-    
-    I have created a class that holds x, y and z coordinates. This class is 
-    very important and it is the heart of the system. built into that class is 
-    the ability to attach callbacks that will get called should the x, y or z 
-    values change. These changes can occur anywhere in the program so no 
-    specific need to couple pieces together in a direct manner in order to get 
+    program mostly up and operational I will perform tests t see what the
+    performance degridation actually is and if there would be any benifit to
+    clipping objects not in view so they don't get passed to OpenGL.
+    Which brings me to my next bit...
+
+    I have created a class that holds x, y and z coordinates. This class is
+    very important and it is the heart of the system. built into that class is
+    the ability to attach callbacks that will get called should the x, y or z
+    values change. These changes can occur anywhere in the program so no
+    specific need to couple pieces together in a direct manner in order to get
     changes to populate properly. This class is what is used to store the camera
-    position and the camera focal point. Any changes to either of those will 
+    position and the camera focal point. Any changes to either of those will
     trigger an update of what is being seen. This mechanism is what will be used
-    in the future so objects are able to know when they need to check if they 
-    are clipped or not. I will more than likely have 2 ranges of items. ones 
-    that are in view and ones that would be considered as standby or are on the 
-    edge of the viewable area. When the position of the camera or camera focal 
-    point changes the objects that are on standby would beprocessed immediatly 
-    to see if they are in view or not and the ones that are in view would be 
-    processed to see if they get moved to the standby. objects that gets placed 
-    into and remove from standby from areas outside of it will be done in a 
-    separate process. It will be done this way because of the sheer number of 
+    in the future so objects are able to know when they need to check if they
+    are clipped or not. I will more than likely have 2 ranges of items. ones
+    that are in view and ones that would be considered as standby or are on the
+    edge of the viewable area. When the position of the camera or camera focal
+    point changes the objects that are on standby would beprocessed immediatly
+    to see if they are in view or not and the ones that are in view would be
+    processed to see if they get moved to the standby. objects that gets placed
+    into and remove from standby from areas outside of it will be done in a
+    separate process. It will be done this way because of the sheer number of
     possible objects that might exist which would impact the program performance
-    if it is done on the same core that the UI is running on.       
+    if it is done on the same core that the UI is running on.
     """
     def __init__(self, parent, size=(-1, -1)):
         attribs = [glcanvas.WX_GL_RGBA,
@@ -2303,7 +2312,7 @@ class Canvas(glcanvas.GLCanvas):
                    glcanvas.WX_GL_MAJOR_VERSION, 4,
                    glcanvas.WX_GL_MINOR_VERSION, 3,
                    0]
-        
+
         glcanvas.GLCanvas.__init__(self, parent, -1, size=size, attribList=attribs)
 
         self.init = False
@@ -2336,10 +2345,18 @@ class Canvas(glcanvas.GLCanvas):
         self.triangles = []
         self._projection = None
         self.view = None
+        self.tri_ssbo = None
+        self.tri_normals_ssbo = None
+        self.tri_colors_ssbo = None
+        self.idx_ssbo = None
+        self.depth_ssbo = None
+        self.out_vbo = None
+        self.out_nbo = None
+        self.out_cbo = None
 
         # pipeline / data parameters
         self.local_size = 256
-        
+
         self._drag_obj: DragObject = None
 
         self.WIDTH = size[0]
@@ -2453,20 +2470,20 @@ class Canvas(glcanvas.GLCanvas):
             return
 
         self.Refresh(False)
-        
+
     def __enter__(self) -> Self:
         self._ref_count += 1
         return self
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._ref_count -= 1
 
     def Refresh(self, *args, **kwargs):
         if self._ref_count:
             return
-        
+
         glcanvas.GLCanvas.Refresh(self, *args, **kwargs)
-    
+
     def project_point(self, point: _point.Point) -> _point.Point:
         """
         Project a world-space _point.Point to window coordinates (top-left origin).
@@ -2854,7 +2871,7 @@ class Canvas(glcanvas.GLCanvas):
         if not evt.RightIsDown():
             if self.HasCapture():
                 self.ReleaseMouse()
-                
+
             self.mouse_pos = None
 
         self.is_motion = False
@@ -3046,7 +3063,7 @@ class Canvas(glcanvas.GLCanvas):
             self.init = True
 
         self.OnDraw()
-        
+
     def _get_view(self) -> np.ndarray:
         forward = (self.camera_pos - self.camera_eye).as_numpy
 
@@ -3113,9 +3130,9 @@ class Canvas(glcanvas.GLCanvas):
         return self._projection
 
     def InitGL(self):
-        w, h = self.GetSize()
-        GL.glClearColor(0.20, 0.20, 0.20, 0.0)
-        GL.glViewport(0, 0, w, h)
+        # w, h = self.GetSize()
+        # GL.glClearColor(0.20, 0.20, 0.20, 0.0)
+        # GL.glViewport(0, 0, w, h)
 
         # GL.glEnable(GL.GL_DEPTH_TEST)
         # GL.glEnable(GL.GL_LIGHTING)
@@ -3154,45 +3171,43 @@ class Canvas(glcanvas.GLCanvas):
         # GLU.gluLookAt(0.0, 2.0, -16.0, 0.0, 0.5, 0.0, 0.0, 1.0, 0.0)
         # # self.viewMatrix = GL.glGetFloatv(GL.GL_MODELVIEW_MATRIX)
 
+         # atomic counter (binding point 0)
+        # self.counter_buf = GL.glGenBuffers(1)
+        # GL.glBindBuffer(GL.GL_ATOMIC_COUNTER_BUFFER, self.counter_buf)
+        # zero = np.array([0], dtype=np.uint32)
+        # # GL.glNamedBufferData(self.counter_buf, zero.nbytes, zero, GL.GL_DYNAMIC_DRAW)
+        # GL.glBindBufferBase(GL.GL_ATOMIC_COUNTER_BUFFER, 0, self.counter_buf)
+
+        # VAO
+        # self.vao = GL.glGenVertexArrays(1)
+        # GL.glBindVertexArray(self.vao)
+
         # compile/link shaders
         self.cull_prog = create_compute_program(CULL_COMPUTE)
         self.bitonic_prog = create_compute_program(BITONIC_COMPUTE)
         self.reorder_prog = create_compute_program(REORDER_COMPUTE)
         self.render_prog = create_program(VS_SRC, FS_SRC)
 
-        # atomic counter (binding point 0)
-        self.counter_buf = GL.glGenBuffers(1)
-        GL.glBindBuffer(GL.GL_ATOMIC_COUNTER_BUFFER, self.counter_buf)
-        zero = np.array([0], dtype=np.uint32)
-        GL.glBufferData(GL.GL_ATOMIC_COUNTER_BUFFER, zero.nbytes, zero, GL.GL_DYNAMIC_COPY)
-        GL.glBindBufferBase(GL.GL_ATOMIC_COUNTER_BUFFER, 0, self.counter_buf)
+        # # Uniform locations
+        # GL.glUseProgram(self.cull_prog)
+        # self.loc_view = GL.glGetUniformLocation(self.cull_prog, "viewMatrix")
+        # self.loc_near = GL.glGetUniformLocation(self.cull_prog, "nearCull")
+        # self.loc_far = GL.glGetUniformLocation(self.cull_prog, "farCull")
+        # self.loc_triCount = GL.glGetUniformLocation(self.cull_prog, "triCount")
+        #
+        # GL.glUseProgram(self.bitonic_prog)
+        # self.loc_k = GL.glGetUniformLocation(self.bitonic_prog, "k")
+        # self.loc_j = GL.glGetUniformLocation(self.bitonic_prog, "j")
+        # self.loc_sortSize = GL.glGetUniformLocation(self.bitonic_prog, "sortSize")
+        #
+        # GL.glUseProgram(self.reorder_prog)
+        # self.loc_outCount = GL.glGetUniformLocation(self.reorder_prog, "outCount")
+        #
+        # GL.glUseProgram(self.render_prog)
+        # self.loc_vp = GL.glGetUniformLocation(self.render_prog, "vp")
+        # self.loc_view_render = GL.glGetUniformLocation(self.render_prog, "viewMatrix")
 
-        # VAO
-        self.vao = GL.glGenVertexArrays(1)
-        GL.glBindVertexArray(self.vao)
-
-        # Uniform locations
-        GL.glUseProgram(self.cull_prog)
-        self.loc_view = GL.glGetUniformLocation(self.cull_prog, "viewMatrix")
-        self.loc_near = GL.glGetUniformLocation(self.cull_prog, "nearCull")
-        self.loc_far = GL.glGetUniformLocation(self.cull_prog, "farCull")
-        self.loc_triCount = GL.glGetUniformLocation(self.cull_prog, "triCount")
-
-        GL.glUseProgram(self.bitonic_prog)
-        self.loc_k = GL.glGetUniformLocation(self.bitonic_prog, "k")
-        self.loc_j = GL.glGetUniformLocation(self.bitonic_prog, "j")
-        self.loc_sortSize = GL.glGetUniformLocation(self.bitonic_prog, "sortSize")
-
-        GL.glUseProgram(self.reorder_prog)
-        self.loc_outCount = GL.glGetUniformLocation(self.reorder_prog, "outCount")
-
-        GL.glUseProgram(self.render_prog)
-        self.loc_vp = GL.glGetUniformLocation(self.render_prog, "vp")
-        self.loc_view_render = GL.glGetUniformLocation(self.render_prog, "viewMatrix")
-
-        self._cull.start()      
-        
-
+        self._cull.start()
 
     def rotate(self, dx, dy):
         """
@@ -3473,10 +3488,15 @@ class Canvas(glcanvas.GLCanvas):
 
     def OnDraw(self):
 
-        GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
+        if self._cull.is_running():
+            print('returning')
+            self._cull.refresh = True
+            return
+
+        # GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
         # GL.glMatrixMode(GL.GL_MODELVIEW)
         # GL.glLoadIdentity()
-        
+
         with self._cull:
             forward = (self.camera_pos - self.camera_eye).as_numpy
 
@@ -3486,252 +3506,239 @@ class Canvas(glcanvas.GLCanvas):
                                    dtype=np.dtypes.Float64DType)
             else:
                 forward = forward / fn
-    
+
             temp_up = np.array([0.0, 1.0, 0.0],
                                dtype=np.dtypes.Float64DType)
-    
+
             right = np.cross(temp_up, forward)  # NOQA
-    
+
             rn = np.linalg.norm(right)
             if rn < 1e-6:
                 right = np.array([1.0, 0.0, 0.0],
                                  dtype=np.dtypes.Float64DType)
             else:
                 right = right / rn
-    
+
             up = np.cross(forward, right)  # NOQA
-    
+
             un = np.linalg.norm(up)
             if un < 1e-6:
                 up = np.array([0.0, 1.0, 0.0],
                               dtype=np.dtypes.Float64DType)
             else:
                 up = up / un
+
+            if not self.triangles:
+                self.SwapBuffers()
+                return
+
+            for tris, normals, colors, count in self.triangles:
+                print(count)
+
+                # Concatenate all triangle data
+                triangles_vec3 = np.concatenate(tris).astype(np.float32).reshape(-1, 3)
+                tri_normals_vec3 = np.concatenate(normals).astype(np.float32).reshape(-1, 3)
+                tri_colors = np.concatenate(colors).astype(np.float32)
+
+                # Pad to vec4 format for shader compatibility
+                ones = np.ones((triangles_vec3.shape[0], 1), dtype=np.float32)
+                zeros = np.ones((triangles_vec3.shape[0], 1), dtype=np.float32)
+
+                triangles = np.hstack([triangles_vec3, ones]).reshape(-1, 4)
+                tri_normals = np.hstack([tri_normals_vec3, zeros]).reshape(-1, 4)
         
-            GLU.gluLookAt(self.camera_eye.x, self.camera_eye.y, self.camera_eye.z,
-                          self.camera_pos.x, self.camera_pos.y, self.camera_pos.z,
-                          up[0], up[1], up[2])
-    
-            # GL.glPushMatrix()
-            #
-            # GL.glLightfv(
-            #     GL.GL_LIGHT0, GL.GL_AMBIENT, [0.5, 0.5, 0.5, 1.0])
-            #
-            # GL.glLightfv(
-            #     GL.GL_LIGHT0, GL.GL_DIFFUSE, [0.3, 0.3, 0.3, 1.0])
-            #
-            # GL.glLightfv(
-            #     GL.GL_LIGHT0, GL.GL_SPECULAR, [0.5, 0.5, 0.5, 1.0])
-            #
-            # GL.glMaterialfv(
-            #     GL.GL_FRONT, GL.GL_AMBIENT, [0.3, 0.3, 0.3, 1.0])
-            #
-            # GL.glMaterialfv(
-            #     GL.GL_FRONT, GL.GL_DIFFUSE, [0.5, 0.5, 0.5, 1.0])
-            #
-            # GL.glMaterialfv(
-            #     GL.GL_FRONT, GL.GL_SPECULAR, [0.8, 0.8, 0.8, 1.0])
-            #
-            # GL.glMaterialf(
-            #     GL.GL_FRONT, GL.GL_SHININESS, 20.0)
+                # Triangles SSBO (binding = 0)
+                tri_ssbo = GL.glGenBuffers(1)
+                GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, tri_ssbo)
+                GL.glBufferData(GL.GL_SHADER_STORAGE_BUFFER, triangles.nbytes, triangles, GL.GL_STATIC_DRAW)
+                GL.glBindBufferBase(GL.GL_SHADER_STORAGE_BUFFER, 0, tri_ssbo)
+        
+                # TriNormals SSBO (binding = 5)
+                tri_normals_ssbo = GL.glGenBuffers(1)
+                GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, tri_normals_ssbo)
+                GL.glBufferData(GL.GL_SHADER_STORAGE_BUFFER, tri_normals.nbytes, tri_normals, GL.GL_STATIC_DRAW)
+                GL.glBindBufferBase(GL.GL_SHADER_STORAGE_BUFFER, 5, tri_normals_ssbo)
+        
+                # TriColors SSBO (binding = 6)
+                tri_colors_ssbo = GL.glGenBuffers(1)
+                GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, tri_colors_ssbo)
+                GL.glBufferData(GL.GL_SHADER_STORAGE_BUFFER, tri_colors.nbytes, tri_colors, GL.GL_STATIC_DRAW)
+                GL.glBindBufferBase(GL.GL_SHADER_STORAGE_BUFFER, 6, tri_colors_ssbo)
+        
+                # visible arrays (indices and depths)
+                max_slots = next_power_of_two(count)
+                visible_indices = np.zeros((max_slots,), dtype=np.uint32)
+                visible_depths = np.full((max_slots,), -1e30, dtype=np.float32)
+        
+                idx_ssbo = GL.glGenBuffers(1)
+                GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, idx_ssbo)
+                GL.glBufferData(GL.GL_SHADER_STORAGE_BUFFER, visible_indices.nbytes, visible_indices, GL.GL_DYNAMIC_COPY)
+                GL.glBindBufferBase(GL.GL_SHADER_STORAGE_BUFFER, 1, idx_ssbo)
+        
+                depth_ssbo = GL.glGenBuffers(1)
+                GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, depth_ssbo)
+                GL.glBufferData(GL.GL_SHADER_STORAGE_BUFFER, visible_depths.nbytes, visible_depths, GL.GL_DYNAMIC_COPY)
+                GL.glBindBufferBase(GL.GL_SHADER_STORAGE_BUFFER, 2, depth_ssbo)
+        
+                # atomic counter (binding point 0)
+                counter_buf = GL.glGenBuffers(1)
+                GL.glBindBuffer(GL.GL_ATOMIC_COUNTER_BUFFER, counter_buf)
+                zero = np.array([0], dtype=np.uint32)
+                GL.glBufferData(GL.GL_ATOMIC_COUNTER_BUFFER, zero.nbytes, zero, GL.GL_DYNAMIC_COPY)
+                GL.glBindBufferBase(GL.GL_ATOMIC_COUNTER_BUFFER, 0, counter_buf)
+        
+                # output VBOs
+                out_vertex_count = max_slots * 3
+                # positions
+                out_vbo = GL.glGenBuffers(1)
+                GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, out_vbo)
+                GL.glBufferData(GL.GL_SHADER_STORAGE_BUFFER, out_vertex_count * 16, None, GL.GL_DYNAMIC_COPY)
+                GL.glBindBufferBase(GL.GL_SHADER_STORAGE_BUFFER, 3, out_vbo)
+                # normals
+                out_nbo = GL.glGenBuffers(1)
+                GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, out_nbo)
+                GL.glBufferData(GL.GL_SHADER_STORAGE_BUFFER, out_vertex_count * 16, None, GL.GL_DYNAMIC_COPY)
+                GL.glBindBufferBase(GL.GL_SHADER_STORAGE_BUFFER, 4, out_nbo)
+                # colors
+                out_cbo = GL.glGenBuffers(1)
+                GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, out_cbo)
+                GL.glBufferData(GL.GL_SHADER_STORAGE_BUFFER, out_vertex_count * 16, None, GL.GL_DYNAMIC_COPY)
+                GL.glBindBufferBase(GL.GL_SHADER_STORAGE_BUFFER, 7, out_cbo)
+        
+                # VAO
+                vao = GL.glGenVertexArrays(1)
+                GL.glBindVertexArray(vao)
+                # position attr
+                GL.glBindBuffer(GL.GL_ARRAY_BUFFER, out_vbo)
+                GL.glEnableVertexAttribArray(0)
+                GL.glVertexAttribPointer(0, 4, GL.GL_FLOAT, GL.GL_FALSE, 16, ctypes.c_void_p(0))
+                # normal attr
+                GL.glBindBuffer(GL.GL_ARRAY_BUFFER, out_nbo)
+                GL.glEnableVertexAttribArray(1)
+                GL.glVertexAttribPointer(1, 4, GL.GL_FLOAT, GL.GL_FALSE, 16, ctypes.c_void_p(0))
+                # color attr
+                GL.glBindBuffer(GL.GL_ARRAY_BUFFER, out_cbo)
+                GL.glEnableVertexAttribArray(2)
+                GL.glVertexAttribPointer(2, 4, GL.GL_FLOAT, GL.GL_FALSE, 16, ctypes.c_void_p(0))
+                GL.glBindVertexArray(0)
+        
+                # Uniform locations
+                GL.glUseProgram(self.cull_prog)
+                loc_view = GL.glGetUniformLocation(self.cull_prog, "viewMatrix")
+                loc_near = GL.glGetUniformLocation(self.cull_prog, "nearCull")
+                loc_far = GL.glGetUniformLocation(self.cull_prog, "farCull")
+                loc_triCount = GL.glGetUniformLocation(self.cull_prog, "triCount")
+        
+                GL.glUseProgram(self.bitonic_prog)
+                loc_k = GL.glGetUniformLocation(self.bitonic_prog, "k")
+                loc_j = GL.glGetUniformLocation(self.bitonic_prog, "j")
+                loc_sortSize = GL.glGetUniformLocation(self.bitonic_prog, "sortSize")
+        
+                GL.glUseProgram(self.reorder_prog)
+                loc_outCount = GL.glGetUniformLocation(self.reorder_prog, "outCount")
+        
+                GL.glUseProgram(self.render_prog)
+                loc_vp = GL.glGetUniformLocation(self.render_prog, "vp")
+                loc_view_render = GL.glGetUniformLocation(self.render_prog, "viewMatrix")
 
-            # Build triangle data from objects for GPU processing
-            all_triangles = []
-            all_normals = []
-            all_colors = []
-            total_count = 0
-            
-            for obj in self.objects:
-                if not hasattr(obj, 'triangles'):
-                    continue
-                    
-                for tri_data in obj.triangles:
-                    if len(tri_data) == 5:
-                        triangles, tri_normals, tri_colors, count, is_opaque = tri_data
-                    elif len(tri_data) == 3:
-                        # Handle old format (normals, triangles, count)
-                        tri_normals, triangles, count = tri_data
-                        # Default color: white opaque
-                        tri_colors = np.full((count, 4), [1.0, 1.0, 1.0, 1.0], dtype=np.float32)
-                        is_opaque = True
-                    else:
-                        continue
-                    
-                    # Flatten triangles if needed
-                    if triangles.ndim == 3:
-                        triangles = triangles.reshape(-1, 3)
-                    
-                    all_triangles.append(triangles)
-                    all_normals.append(tri_normals)
-                    all_colors.append(tri_colors)
-                    total_count += count
-            
-            if total_count == 0:
-                self.draw_grid()
-                self.SwapBuffers()
-                return
-                
-            # Concatenate all triangle data
-            triangles_vec3 = np.vstack(all_triangles).astype(np.float32)
-            tri_normals_vec3 = np.vstack(all_normals).astype(np.float32)
-            tri_colors = np.vstack(all_colors).astype(np.float32)
-            count = total_count
-            
-            # Pad to vec4 format for shader compatibility
-            ones = np.ones((triangles_vec3.shape[0], 1), dtype=np.float32)
-            triangles = np.hstack([triangles_vec3, ones])
-            tri_normals = np.hstack([tri_normals_vec3, ones])
-            
-            # Triangles SSBO (binding = 0)
-            tri_ssbo = GL.glGenBuffers(1)
-            GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, tri_ssbo)
-            GL.glBufferData(GL.GL_SHADER_STORAGE_BUFFER, triangles.nbytes, triangles, GL.GL_STATIC_DRAW)
-            GL.glBindBufferBase(GL.GL_SHADER_STORAGE_BUFFER, 0, tri_ssbo)
+                zero = np.array([0], dtype=np.uint32)
+                GL.glBindBuffer(GL.GL_ATOMIC_COUNTER_BUFFER, counter_buf)
+                GL.glBufferSubData(GL.GL_ATOMIC_COUNTER_BUFFER, 0, zero.nbytes, zero)
+        
+                neg_inf = np.full((max_slots,), -1e30, dtype=np.float32)
+                GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, depth_ssbo)
+                GL.glBufferSubData(GL.GL_SHADER_STORAGE_BUFFER, 0, neg_inf.nbytes, neg_inf)
+        
+                # Dispatch cull compute
+                GL.glUseProgram(self.cull_prog)
+                GL.glUniformMatrix4fv(loc_view, 1, GL.GL_FALSE, self.view.T)
+                GL.glUniform1f(loc_near, 0.1)
+                GL.glUniform1f(loc_far, 200.0)
+                GL.glUniform1ui(loc_triCount, count)
+        
+                groups = (count + self.local_size - 1) // self.local_size
+                GL.glDispatchCompute(groups, 1, 1)
+                GL.glMemoryBarrier(GL.GL_SHADER_STORAGE_BARRIER_BIT | GL.GL_ATOMIC_COUNTER_BARRIER_BIT)
+        
+                # read back visible count
+                GL.glBindBuffer(GL.GL_ATOMIC_COUNTER_BUFFER, counter_buf)
+                counter_data = (ctypes.c_uint * 1)()
+                GL.glGetBufferSubData(GL.GL_ATOMIC_COUNTER_BUFFER, 0, ctypes.sizeof(counter_data), counter_data)
+                visible_count = int(counter_data[0])
 
-            # TriNormals SSBO (binding = 5)
-            tri_normals_ssbo = GL.glGenBuffers(1)
-            GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, tri_normals_ssbo)
-            GL.glBufferData(GL.GL_SHADER_STORAGE_BUFFER, tri_normals.nbytes, tri_normals, GL.GL_STATIC_DRAW)
-            GL.glBindBufferBase(GL.GL_SHADER_STORAGE_BUFFER, 5, tri_normals_ssbo)
+                print("Visible triangles after cull:", visible_count)
+                if visible_count == 0:
+                    # Cleanup temporary buffers
+                    GL.glDeleteBuffers(1, [tri_ssbo])
+                    GL.glDeleteBuffers(1, [tri_normals_ssbo])
+                    GL.glDeleteBuffers(1, [tri_colors_ssbo])
+                    GL.glDeleteBuffers(1, [idx_ssbo])
+                    GL.glDeleteBuffers(1, [depth_ssbo])
+                    GL.glDeleteBuffers(1, [out_vbo])
+                    GL.glDeleteBuffers(1, [out_nbo])
+                    GL.glDeleteBuffers(1, [out_cbo])
+                    GL.glDeleteBuffers(1, [counter_buf])
+                    return
+        
+                # bitonic sort
+                sort_size = next_power_of_two(visible_count)
+                GL.glUseProgram(self.bitonic_prog)
+                GL.glUniform1ui(loc_sortSize, sort_size)
+                k = 2
+                while k <= sort_size:
+                    j = k // 2
+                    while j >= 1:
+                        GL.glUniform1ui(loc_k, k)
+                        GL.glUniform1ui(loc_j, j)
+                        groups = (sort_size + self.local_size - 1) // self.local_size
+                        GL.glDispatchCompute(groups, 1, 1)
+                        GL.glMemoryBarrier(GL.GL_SHADER_STORAGE_BARRIER_BIT)
+                        j //= 2
+                    k *= 2
+        
+                # reorder into output VBOs
+                GL.glUseProgram(self.reorder_prog)
+                GL.glUniform1ui(loc_outCount, visible_count)
+                groups = (visible_count + self.local_size - 1) // self.local_size
+                GL.glDispatchCompute(groups, 1, 1)
+                GL.glMemoryBarrier(GL.GL_SHADER_STORAGE_BARRIER_BIT | GL.GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT)
 
-            # TriColors SSBO (binding = 6)
-            tri_colors_ssbo = GL.glGenBuffers(1)
-            GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, tri_colors_ssbo)
-            GL.glBufferData(GL.GL_SHADER_STORAGE_BUFFER, tri_colors.nbytes, tri_colors, GL.GL_STATIC_DRAW)
-            GL.glBindBufferBase(GL.GL_SHADER_STORAGE_BUFFER, 6, tri_colors_ssbo)
+                w, h = self.GetClientSize()
+                GL.glViewport(0, 0, w, h)
+                GL.glClearColor(0.2, 0.2, 0.2, 1.0)
+                GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
+                GL.glEnable(GL.GL_DEPTH_TEST)
+                GL.glEnable(GL.GL_BLEND)
+                GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
 
-            zero = np.array([0], dtype=np.uint32)
-            GL.glBindBuffer(GL.GL_ATOMIC_COUNTER_BUFFER, self.counter_buf)
-            GL.glBufferSubData(GL.GL_ATOMIC_COUNTER_BUFFER, 0, zero.nbytes, zero)
+                # render program
+                GL.glUseProgram(self.render_prog)
+                # upload vp and view (they were stored)
+                GL.glUniformMatrix4fv(loc_vp, 1, GL.GL_FALSE, self._projection.T)
+                GL.glUniformMatrix4fv(loc_view_render, 1, GL.GL_FALSE, self.view.T)
 
-            tri_count = count // 3  # Convert vertex count to triangle count
-            max_slots = next_power_of_two(tri_count)
+                # draw back-to-front with depth writes off (for transparency)
+                GL.glDepthMask(GL.GL_FALSE)
+                GL.glBindVertexArray(vao)
+                GL.glDrawArrays(GL.GL_TRIANGLES, 0, visible_count * 3)
+                GL.glDepthMask(GL.GL_TRUE)
 
-            # visible arrays (indices and depths)
-            visible_indices = np.zeros((max_slots,), dtype=np.uint32)
-            visible_depths = np.full((max_slots,), -1e30, dtype=np.float32)
+                # Cleanup temporary buffers
+                GL.glDeleteBuffers(1, [tri_ssbo])
+                GL.glDeleteBuffers(1, [tri_normals_ssbo])
+                GL.glDeleteBuffers(1, [tri_colors_ssbo])
+                GL.glDeleteBuffers(1, [idx_ssbo])
+                GL.glDeleteBuffers(1, [depth_ssbo])
+                GL.glDeleteBuffers(1, [out_vbo])
+                GL.glDeleteBuffers(1, [out_nbo])
+                GL.glDeleteBuffers(1, [out_cbo])
+                GL.glDeleteBuffers(1, [counter_buf])
 
-            idx_ssbo = GL.glGenBuffers(1)
-            GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, idx_ssbo)
-            GL.glBufferData(GL.GL_SHADER_STORAGE_BUFFER, visible_indices.nbytes, visible_indices, GL.GL_DYNAMIC_COPY)
-            GL.glBindBufferBase(GL.GL_SHADER_STORAGE_BUFFER, 1, idx_ssbo)
-
-            depth_ssbo = GL.glGenBuffers(1)
-            GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, depth_ssbo)
-            GL.glBufferData(GL.GL_SHADER_STORAGE_BUFFER, visible_depths.nbytes, visible_depths, GL.GL_DYNAMIC_COPY)
-            GL.glBindBufferBase(GL.GL_SHADER_STORAGE_BUFFER, 2, depth_ssbo)
-
-            # output VBOs
-            out_vertex_count = max_slots * 3
-            # positions
-            out_vbo = GL.glGenBuffers(1)
-            GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, out_vbo)
-            GL.glBufferData(GL.GL_SHADER_STORAGE_BUFFER, out_vertex_count * 16, None, GL.GL_DYNAMIC_COPY)
-            GL.glBindBufferBase(GL.GL_SHADER_STORAGE_BUFFER, 3, out_vbo)
-            # normals
-            out_nbo = GL.glGenBuffers(1)
-            GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, out_nbo)
-            GL.glBufferData(GL.GL_SHADER_STORAGE_BUFFER, out_vertex_count * 16, None, GL.GL_DYNAMIC_COPY)
-            GL.glBindBufferBase(GL.GL_SHADER_STORAGE_BUFFER, 4, out_nbo)
-            # colors
-            out_cbo = GL.glGenBuffers(1)
-            GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, out_cbo)
-            GL.glBufferData(GL.GL_SHADER_STORAGE_BUFFER, out_vertex_count * 16, None, GL.GL_DYNAMIC_COPY)
-            GL.glBindBufferBase(GL.GL_SHADER_STORAGE_BUFFER, 7, out_cbo)
-
-            # Dispatch cull compute
-            GL.glUseProgram(self.cull_prog)
-            GL.glUniformMatrix4fv(self.loc_view, 1, GL_FALSE, self.view.T)
-            GL.glUniform1f(self.loc_near, 0.1)
-            GL.glUniform1f(self.loc_far, 1000.0)
-            GL.glUniform1ui(self.loc_triCount, tri_count)
-
-            groups = (tri_count + self.local_size - 1) // self.local_size
-            GL.glDispatchCompute(groups, 1, 1)
-            GL.glMemoryBarrier(GL.GL_SHADER_STORAGE_BARRIER_BIT | GL.GL_ATOMIC_COUNTER_BARRIER_BIT)
-
-            # read back visible count
-            GL.glBindBuffer(GL.GL_ATOMIC_COUNTER_BUFFER, self.counter_buf)
-            counter_data = np.zeros(1, dtype=np.uint32)
-            GL.glGetBufferSubData(GL.GL_ATOMIC_COUNTER_BUFFER, 0, 4, counter_data)
-            visible_count = int(counter_data[0])
-            
-            if visible_count == 0:
-                self.draw_grid()
-                self.SwapBuffers()
-                return
-
-            # bitonic sort
-            sort_size = next_power_of_two(visible_count)
-            GL.glUseProgram(self.bitonic_prog)
-            GL.glUniform1ui(self.loc_sortSize, sort_size)
-            
-            k = 2
-            while k <= sort_size:
-                j = k // 2
-                while j >= 1:
-                    GL.glUniform1ui(self.loc_k, k)
-                    GL.glUniform1ui(self.loc_j, j)
-                    groups = (sort_size + self.local_size - 1) // self.local_size
-                    GL.glDispatchCompute(groups, 1, 1)
-                    GL.glMemoryBarrier(GL.GL_SHADER_STORAGE_BARRIER_BIT)
-                    j //= 2
-                k *= 2
-
-            # reorder into output VBOs
-            GL.glUseProgram(self.reorder_prog)
-            GL.glUniform1ui(self.loc_outCount, visible_count)
-            groups = (visible_count + self.local_size - 1) // self.local_size
-            GL.glDispatchCompute(groups, 1, 1)
-            GL.glMemoryBarrier(GL.GL_SHADER_STORAGE_BARRIER_BIT | GL.GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT)
-
-            # render
-            w, h = self.GetClientSize()
-            GL.glViewport(0, 0, w, h)
-            GL.glEnable(GL.GL_DEPTH_TEST)
-            GL.glEnable(GL.GL_BLEND)
-            GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
-
-            # render program
-            GL.glUseProgram(self.render_prog)
-            # upload vp and view
-            perspective = self._get_perspective()
-            view = self._get_view()
-            GL.glUniformMatrix4fv(self.loc_vp, 1, GL.GL_FALSE, perspective.T)
-            GL.glUniformMatrix4fv(self.loc_view_render, 1, GL.GL_FALSE, view.T)
-
-            # Setup vertex attributes from SSBOs
-            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, out_vbo)
-            GL.glEnableVertexAttribArray(0)
-            GL.glVertexAttribPointer(0, 4, GL.GL_FLOAT, GL.GL_FALSE, 0, None)
-            
-            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, out_nbo)
-            GL.glEnableVertexAttribArray(1)
-            GL.glVertexAttribPointer(1, 4, GL.GL_FLOAT, GL.GL_FALSE, 0, None)
-            
-            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, out_cbo)
-            GL.glEnableVertexAttribArray(2)
-            GL.glVertexAttribPointer(2, 4, GL.GL_FLOAT, GL.GL_FALSE, 0, None)
-
-            # draw back-to-front with depth writes off (for transparency)
-            GL.glDepthMask(GL.GL_FALSE)
-            GL.glBindVertexArray(self.vao)
-            GL.glDrawArrays(GL.GL_TRIANGLES, 0, visible_count * 3)
-            GL.glDepthMask(GL.GL_TRUE)
-            
-            # Cleanup temporary buffers
-            GL.glDeleteBuffers(1, [tri_ssbo])
-            GL.glDeleteBuffers(1, [tri_normals_ssbo])
-            GL.glDeleteBuffers(1, [tri_colors_ssbo])
-            GL.glDeleteBuffers(1, [idx_ssbo])
-            GL.glDeleteBuffers(1, [depth_ssbo])
-            GL.glDeleteBuffers(1, [out_vbo])
-            GL.glDeleteBuffers(1, [out_nbo])
-            GL.glDeleteBuffers(1, [out_cbo])
-
-            self.draw_grid()
-            # GL.glPopMatrix()
-
+        # self.draw_grid()
+        # GL.glPopMatrix()
+        # GLU.gluLookAt(self.camera_eye.x, self.camera_eye.y, self.camera_eye.z,
+        #               self.camera_pos.x, self.camera_pos.y, self.camera_pos.z,
+        #               up[0], up[1], up[2])
         self.SwapBuffers()
 
 
