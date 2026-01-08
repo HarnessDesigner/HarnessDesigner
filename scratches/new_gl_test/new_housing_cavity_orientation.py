@@ -625,7 +625,7 @@ class ArrowMove(GLObject):
         triangles = []
         for tris, norms, count in self._triangles:
             color = self._color_arr[int(self._is_selected)]
-            triangles.append([tris, norms, color, count, color[0][-1] < 1.0])
+            triangles.append([tris, norms, color, count, color[0][-1] >= 1.0])
 
         return triangles
 
@@ -907,10 +907,10 @@ class ArrowRing(GLObject):
         triangles = []
         for tris, norms, count in self._triangles[:-1]:
             color = self._color_arr[0][int(self._is_selected)]
-            triangles.append([tris, norms, color, count, color[0][-1] < 1.0])
+            triangles.append([tris, norms, color, count, color[0][-1] >= 1.0])
 
         tris, norms, count = self._triangles[-1]
-        triangles.append([tris, norms, self._color_arr[1], count, self._color_arr[1][-1] < 1.0])
+        triangles.append([tris, norms, self._color_arr[1], count, self._color_arr[1][0][-1] >= 1.0])
         return triangles
 
     @property
