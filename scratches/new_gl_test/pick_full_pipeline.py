@@ -342,7 +342,8 @@ def _pick_candidates_at_mouse(mx, my, scene_objects, mv=None, pj=None, viewport=
 
     candidates = []
     for obj in scene_objects:
-        res = _aabb_screen_bbox_and_depth(obj.hit_test_rect[0], obj.hit_test_rect[1],
+        p1, p2 = obj.hit_test_rect[0]
+        res = _aabb_screen_bbox_and_depth(p1, p2,
                                           mv, pj, viewport, flip_y_for_ui=True)
 
         if res is None:
@@ -405,8 +406,9 @@ def handle_click_cycle(mouse_pos, scene_objects):
     if o is None:
         selected = obj
     else:
+        p1, p2 = obj.hit_test_rect[0]
         hit, t = _ray_intersect_aabb(
-            o, d, obj.hit_test_rect[0].as_float, obj.hit_test_rect[1].as_float)
+            o, d, p1.as_float, p2.as_float)
 
         if hit:
             # optionally do triangle-level test for higher accuracy:

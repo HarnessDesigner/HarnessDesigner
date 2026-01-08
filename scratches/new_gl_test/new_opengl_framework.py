@@ -32,6 +32,7 @@ except ImportError:
 
 try:
     from OpenGL import GL
+    from OpenGL.GL import GL_FALSE
 except ImportError:
     raise ImportError('the PyOpenGL library is needed to run this code.  '
                       '`pip install PyOpenGL`')
@@ -2334,6 +2335,7 @@ class Canvas(glcanvas.GLCanvas):
         self.counter_buf = None
         self.triangles = []
         self._projection = None
+        self.view = None
 
         # pipeline / data parameters
         self.local_size = 256
@@ -2492,7 +2494,7 @@ class Canvas(glcanvas.GLCanvas):
         viewport = GL.glGetIntegerv(GL.GL_VIEWPORT)
 
         # convert top-left y back to OpenGL bottom-left y
-        winy = _decimal(viewport[3]) - point.x  # winx_top
+        winy = _decimal(viewport[3]) - point.y
 
         x, y, z = GLU.gluUnProject(float(point.x), float(winy), float(point.z),
                                    modelview, projection, viewport)
@@ -3070,9 +3072,9 @@ class Canvas(glcanvas.GLCanvas):
         up = np.cross(right, forward)  # NOQA
 
         M = np.identity(4, dtype=np.float32)
-        M[0, :3] = s
-        M[1, :3] = u
-        M[2, :3] = -f
+        M[0, :3] = right
+        M[1, :3] = up
+        M[2, :3] = -forward
         T = np.identity(4, dtype=np.float32)
         T[:3, 3] = -self.camera_eye.as_numpy
         return M @ T
@@ -3533,131 +3535,199 @@ class Canvas(glcanvas.GLCanvas):
             # GL.glMaterialf(
             #     GL.GL_FRONT, GL.GL_SHININESS, 20.0)
 
-            for triangles, tri_normals, tri_colors, count in self.triangles:
-                # Triangles SSBO (binding = 0)
-                tri_ssbo = GL.glGenBuffers(1)
-                GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, tri_ssbo)
-                GL.glBufferData(GL.GL_SHADER_STORAGE_BUFFER, triangles.nbytes, triangles, GL.GL_STATIC_DRAW)
-                GL.glBindBufferBase(GL.GL_SHADER_STORAGE_BUFFER, 0, tri_ssbo)
-
-                # TriNormals SSBO (binding = 5)
-                tri_normals_ssbo = GL.glGenBuffers(1)
-                GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, self.tri_normals_ssbo)
-                GL.glBufferData(GL.GL_SHADER_STORAGE_BUFFER, tri_normals.nbytes, tri_normals, GL.GL_STATIC_DRAW)
-                GL.glBindBufferBase(GL.GL_SHADER_STORAGE_BUFFER, 5, tri_normals_ssbo)
-
-                # TriColors SSBO (binding = 6)
-                tri_colors_ssbo = glGenBuffers(1)
-                GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, self.tri_colors_ssbo)
-                GL.glBufferData(GL.GL_SHADER_STORAGE_BUFFER, tri_colors.nbytes, tri_colors, GL.GL_STATIC_DRAW)
-                GL.glBindBufferBase(GL.GL_SHADER_STORAGE_BUFFER, 6, tri_colors_ssbo)
-
-                zero = np.array([0], dtype=np.uint32)
-                GL.glBindBuffer(GL.GL_ATOMIC_COUNTER_BUFFER, self.counter_buf)
-                GL.glBufferSubData(GL.GL_ATOMIC_COUNTER_BUFFER, 0, zero.nbytes, zero)
-
-                max_slots = next_power_of_two(count)
-
-                neg_inf = np.full((max_slots,), -1e30, dtype=np.float32)
-                GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, self.depth_ssbo)
-                GL.glBufferSubData(GL.GL_SHADER_STORAGE_BUFFER, 0, neg_inf.nbytes, neg_inf)
-
-                # visible arrays (indices and depths)
-                visible_indices = np.zeros((max_slots,), dtype=np.uint32)
-                visible_depths = np.full((max_slots,), -1e30, dtype=np.float32)
-
-                idx_ssbo = glGenBuffers(1)
-                GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, idx_ssbo)
-                GL.glBufferData(GL.GL_SHADER_STORAGE_BUFFER, visible_indices.nbytes, visible_indices, GL.GL_DYNAMIC_COPY)
-                GL.glBindBufferBase(GL.GL_SHADER_STORAGE_BUFFER, 1, idx_ssbo)
-
-                depth_ssbo = GL.glGenBuffers(1)
-                GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, depth_ssbo)
-                GL.glBufferData(GL.GL_SHADER_STORAGE_BUFFER, visible_depths.nbytes, visible_depths, GL.GL_DYNAMIC_COPY)
-                GL.glBindBufferBase(GL.GL_SHADER_STORAGE_BUFFER, 2, depth_ssbo)
-
-                # output VBOs
-                out_vertex_count = max_slots * 3
-                # positions
-                out_vbo = GL.glGenBuffers(1)
-                GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, out_vbo)
-                GL.glBufferData(GL.GL_SHADER_STORAGE_BUFFER, out_vertex_count * 16, None, GL.GL_DYNAMIC_COPY)
-                GL.glBindBufferBase(GL.GL_SHADER_STORAGE_BUFFER, 3, out_vbo)
-                # normals
-                out_nbo = GL.glGenBuffers(1)
-                GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, out_nbo)
-                GL.glBufferData(GL.GL_SHADER_STORAGE_BUFFER, out_vertex_count * 16, None, GL.GL_DYNAMIC_COPY)
-                GL.glBindBufferBase(GL.GL_SHADER_STORAGE_BUFFER, 4, out_nbo)
-                # colors
-                out_cbo = GL.glGenBuffers(1)
-                GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, out_cbo)
-                GL.glBufferData(GL.GL_SHADER_STORAGE_BUFFER, out_vertex_count * 16, None, GL.GL_DYNAMIC_COPY)
-                GL.glBindBufferBase(GL.GL_SHADER_STORAGE_BUFFER, 7, out_cbo)
-
-                # Dispatch cull compute
-                GL.glUseProgram(self.cull_prog)
-                GL.glUniformMatrix4fv(self.loc_view, 1, GL_FALSE, self.view.T)
-                GL.glUniform1f(self.loc_near, 0.1)
-                GL.glUniform1f(self.loc_far, 1000.0)
-                GL.glUniform1ui(self.loc_triCount, count)
-
-                groups = (count + self.local_size - 1) // self.local_size
-                GL.glDispatchCompute(groups, 1, 1)
-                GL.glMemoryBarrier(GL.GL_SHADER_STORAGE_BARRIER_BIT | GL.GL_ATOMIC_COUNTER_BARRIER_BIT)
-
-                # read back visible count
-                GL.glBindBuffer(GL.GL_ATOMIC_COUNTER_BUFFER, self.counter_buf)
-                counter_data = (ctypes.c_uint * 1)()
-                GL.glGetBufferSubData(GL.GL_ATOMIC_COUNTER_BUFFER, 0, ctypes.sizeof(counter_data), counter_data)
-                visible_count = int(counter_data[0])
-                print("Visible triangles after cull:", visible_count)
-                if visible_count == 0:
-                    return
-
-                # bitonic sort
-                sort_size = next_power_of_two(visible_count)
-                GL.glUseProgram(self.bitonic_prog)
-                GL.glUniform1ui(self.loc_sortSize, sort_size)
+            # Build triangle data from objects for GPU processing
+            all_triangles = []
+            all_normals = []
+            all_colors = []
+            total_count = 0
+            
+            for obj in self.objects:
+                if not hasattr(obj, 'triangles'):
+                    continue
+                    
+                for tri_data in obj.triangles:
+                    if len(tri_data) == 5:
+                        triangles, tri_normals, tri_colors, count, is_opaque = tri_data
+                    elif len(tri_data) == 3:
+                        # Handle old format (normals, triangles, count)
+                        tri_normals, triangles, count = tri_data
+                        # Default color: white opaque
+                        tri_colors = np.full((count, 4), [1.0, 1.0, 1.0, 1.0], dtype=np.float32)
+                        is_opaque = True
+                    else:
+                        continue
+                    
+                    # Flatten triangles if needed
+                    if triangles.ndim == 3:
+                        triangles = triangles.reshape(-1, 3)
+                    
+                    all_triangles.append(triangles)
+                    all_normals.append(tri_normals)
+                    all_colors.append(tri_colors)
+                    total_count += count
+            
+            if total_count == 0:
+                self.draw_grid()
+                self.SwapBuffers()
+                return
                 
-                k = 2
-                while k <= sort_size:
-                    j = k // 2
-                    while j >= 1:
-                        GL.glUniform1ui(self.loc_k, k)
-                        GL.glUniform1ui(self.loc_j, j)
-                        groups = (sort_size + self.local_size - 1) // self.local_size
-                        GL.glDispatchCompute(groups, 1, 1)
-                        GL.glMemoryBarrier(GL.GL_SHADER_STORAGE_BARRIER_BIT)
-                        j //= 2
-                    k *= 2
+            # Concatenate all triangle data
+            triangles_vec3 = np.vstack(all_triangles).astype(np.float32)
+            tri_normals_vec3 = np.vstack(all_normals).astype(np.float32)
+            tri_colors = np.vstack(all_colors).astype(np.float32)
+            count = total_count
+            
+            # Pad to vec4 format for shader compatibility
+            ones = np.ones((triangles_vec3.shape[0], 1), dtype=np.float32)
+            triangles = np.hstack([triangles_vec3, ones])
+            tri_normals = np.hstack([tri_normals_vec3, ones])
+            
+            # Triangles SSBO (binding = 0)
+            tri_ssbo = GL.glGenBuffers(1)
+            GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, tri_ssbo)
+            GL.glBufferData(GL.GL_SHADER_STORAGE_BUFFER, triangles.nbytes, triangles, GL.GL_STATIC_DRAW)
+            GL.glBindBufferBase(GL.GL_SHADER_STORAGE_BUFFER, 0, tri_ssbo)
 
-                # reorder into output VBOs
-                GL.glUseProgram(self.reorder_prog)
-                GL.glUniform1ui(self.loc_outCount, visible_count)
-                groups = (visible_count + self.local_size - 1) // self.local_size
-                GL.glDispatchCompute(groups, 1, 1)
-                GL.glMemoryBarrier(GL.GL_SHADER_STORAGE_BARRIER_BIT | GL.GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT)
+            # TriNormals SSBO (binding = 5)
+            tri_normals_ssbo = GL.glGenBuffers(1)
+            GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, tri_normals_ssbo)
+            GL.glBufferData(GL.GL_SHADER_STORAGE_BUFFER, tri_normals.nbytes, tri_normals, GL.GL_STATIC_DRAW)
+            GL.glBindBufferBase(GL.GL_SHADER_STORAGE_BUFFER, 5, tri_normals_ssbo)
 
-                # render
-                w, h = self.GetClientSize()
-                GL.glViewport(0, 0, w, h)
-                GL.glClearColor(0.2, 0.2, 0.2, 1.0)
-                GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
-                GL.glEnable(GL.GL_DEPTH_TEST)
-                GL.glEnable(GL.GL_BLEND)
-                GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
+            # TriColors SSBO (binding = 6)
+            tri_colors_ssbo = GL.glGenBuffers(1)
+            GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, tri_colors_ssbo)
+            GL.glBufferData(GL.GL_SHADER_STORAGE_BUFFER, tri_colors.nbytes, tri_colors, GL.GL_STATIC_DRAW)
+            GL.glBindBufferBase(GL.GL_SHADER_STORAGE_BUFFER, 6, tri_colors_ssbo)
 
-                # render program
-                GL.glUseProgram(self.render_prog)
-                # upload vp and view (they were stored)
-                GL.glUniformMatrix4fv(self.loc_vp, 1, GL.GL_FALSE, self.perspective.T)
-                GL.glUniformMatrix4fv(self.loc_view_render, 1, GL.GL_FALSE, self.view.T)
+            zero = np.array([0], dtype=np.uint32)
+            GL.glBindBuffer(GL.GL_ATOMIC_COUNTER_BUFFER, self.counter_buf)
+            GL.glBufferSubData(GL.GL_ATOMIC_COUNTER_BUFFER, 0, zero.nbytes, zero)
 
-                # draw back-to-front with depth writes off (for transparency)
-                GL.glDepthMask(GL.GL_FALSE)
-                GL.glBindVertexArray(self.vao)
-                GL.glDrawArrays(GL.GL_TRIANGLES, 0, visible_count * 3)
-                GL.glDepthMask(GL.GL_TRUE)
+            tri_count = count // 3  # Convert vertex count to triangle count
+            max_slots = next_power_of_two(tri_count)
+
+            # visible arrays (indices and depths)
+            visible_indices = np.zeros((max_slots,), dtype=np.uint32)
+            visible_depths = np.full((max_slots,), -1e30, dtype=np.float32)
+
+            idx_ssbo = GL.glGenBuffers(1)
+            GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, idx_ssbo)
+            GL.glBufferData(GL.GL_SHADER_STORAGE_BUFFER, visible_indices.nbytes, visible_indices, GL.GL_DYNAMIC_COPY)
+            GL.glBindBufferBase(GL.GL_SHADER_STORAGE_BUFFER, 1, idx_ssbo)
+
+            depth_ssbo = GL.glGenBuffers(1)
+            GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, depth_ssbo)
+            GL.glBufferData(GL.GL_SHADER_STORAGE_BUFFER, visible_depths.nbytes, visible_depths, GL.GL_DYNAMIC_COPY)
+            GL.glBindBufferBase(GL.GL_SHADER_STORAGE_BUFFER, 2, depth_ssbo)
+
+            # output VBOs
+            out_vertex_count = max_slots * 3
+            # positions
+            out_vbo = GL.glGenBuffers(1)
+            GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, out_vbo)
+            GL.glBufferData(GL.GL_SHADER_STORAGE_BUFFER, out_vertex_count * 16, None, GL.GL_DYNAMIC_COPY)
+            GL.glBindBufferBase(GL.GL_SHADER_STORAGE_BUFFER, 3, out_vbo)
+            # normals
+            out_nbo = GL.glGenBuffers(1)
+            GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, out_nbo)
+            GL.glBufferData(GL.GL_SHADER_STORAGE_BUFFER, out_vertex_count * 16, None, GL.GL_DYNAMIC_COPY)
+            GL.glBindBufferBase(GL.GL_SHADER_STORAGE_BUFFER, 4, out_nbo)
+            # colors
+            out_cbo = GL.glGenBuffers(1)
+            GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, out_cbo)
+            GL.glBufferData(GL.GL_SHADER_STORAGE_BUFFER, out_vertex_count * 16, None, GL.GL_DYNAMIC_COPY)
+            GL.glBindBufferBase(GL.GL_SHADER_STORAGE_BUFFER, 7, out_cbo)
+
+            # Dispatch cull compute
+            GL.glUseProgram(self.cull_prog)
+            GL.glUniformMatrix4fv(self.loc_view, 1, GL_FALSE, self.view.T)
+            GL.glUniform1f(self.loc_near, 0.1)
+            GL.glUniform1f(self.loc_far, 1000.0)
+            GL.glUniform1ui(self.loc_triCount, tri_count)
+
+            groups = (tri_count + self.local_size - 1) // self.local_size
+            GL.glDispatchCompute(groups, 1, 1)
+            GL.glMemoryBarrier(GL.GL_SHADER_STORAGE_BARRIER_BIT | GL.GL_ATOMIC_COUNTER_BARRIER_BIT)
+
+            # read back visible count
+            GL.glBindBuffer(GL.GL_ATOMIC_COUNTER_BUFFER, self.counter_buf)
+            counter_data = np.zeros(1, dtype=np.uint32)
+            GL.glGetBufferSubData(GL.GL_ATOMIC_COUNTER_BUFFER, 0, 4, counter_data)
+            visible_count = int(counter_data[0])
+            
+            if visible_count == 0:
+                self.draw_grid()
+                self.SwapBuffers()
+                return
+
+            # bitonic sort
+            sort_size = next_power_of_two(visible_count)
+            GL.glUseProgram(self.bitonic_prog)
+            GL.glUniform1ui(self.loc_sortSize, sort_size)
+            
+            k = 2
+            while k <= sort_size:
+                j = k // 2
+                while j >= 1:
+                    GL.glUniform1ui(self.loc_k, k)
+                    GL.glUniform1ui(self.loc_j, j)
+                    groups = (sort_size + self.local_size - 1) // self.local_size
+                    GL.glDispatchCompute(groups, 1, 1)
+                    GL.glMemoryBarrier(GL.GL_SHADER_STORAGE_BARRIER_BIT)
+                    j //= 2
+                k *= 2
+
+            # reorder into output VBOs
+            GL.glUseProgram(self.reorder_prog)
+            GL.glUniform1ui(self.loc_outCount, visible_count)
+            groups = (visible_count + self.local_size - 1) // self.local_size
+            GL.glDispatchCompute(groups, 1, 1)
+            GL.glMemoryBarrier(GL.GL_SHADER_STORAGE_BARRIER_BIT | GL.GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT)
+
+            # render
+            w, h = self.GetClientSize()
+            GL.glViewport(0, 0, w, h)
+            GL.glEnable(GL.GL_DEPTH_TEST)
+            GL.glEnable(GL.GL_BLEND)
+            GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
+
+            # render program
+            GL.glUseProgram(self.render_prog)
+            # upload vp and view
+            perspective = self._get_perspective()
+            view = self._get_view()
+            GL.glUniformMatrix4fv(self.loc_vp, 1, GL.GL_FALSE, perspective.T)
+            GL.glUniformMatrix4fv(self.loc_view_render, 1, GL.GL_FALSE, view.T)
+
+            # Setup vertex attributes from SSBOs
+            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, out_vbo)
+            GL.glEnableVertexAttribArray(0)
+            GL.glVertexAttribPointer(0, 4, GL.GL_FLOAT, GL.GL_FALSE, 0, None)
+            
+            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, out_nbo)
+            GL.glEnableVertexAttribArray(1)
+            GL.glVertexAttribPointer(1, 4, GL.GL_FLOAT, GL.GL_FALSE, 0, None)
+            
+            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, out_cbo)
+            GL.glEnableVertexAttribArray(2)
+            GL.glVertexAttribPointer(2, 4, GL.GL_FLOAT, GL.GL_FALSE, 0, None)
+
+            # draw back-to-front with depth writes off (for transparency)
+            GL.glDepthMask(GL.GL_FALSE)
+            GL.glBindVertexArray(self.vao)
+            GL.glDrawArrays(GL.GL_TRIANGLES, 0, visible_count * 3)
+            GL.glDepthMask(GL.GL_TRUE)
+            
+            # Cleanup temporary buffers
+            GL.glDeleteBuffers(1, [tri_ssbo])
+            GL.glDeleteBuffers(1, [tri_normals_ssbo])
+            GL.glDeleteBuffers(1, [tri_colors_ssbo])
+            GL.glDeleteBuffers(1, [idx_ssbo])
+            GL.glDeleteBuffers(1, [depth_ssbo])
+            GL.glDeleteBuffers(1, [out_vbo])
+            GL.glDeleteBuffers(1, [out_nbo])
+            GL.glDeleteBuffers(1, [out_cbo])
 
             self.draw_grid()
             # GL.glPopMatrix()
