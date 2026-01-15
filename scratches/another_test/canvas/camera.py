@@ -323,7 +323,7 @@ class Camera:
                 ], dtype=dtype
             )  # (8,4)
 
-            clip = corners @ view_proj.T  # (8,4)  (row-vector convention)
+            clip = (view_proj @ corners.T).T  # (8,4)  (row-vector convention)
 
             # clip coords: [x, y, z, w]
             x = clip[:, 0]
@@ -354,10 +354,9 @@ class Camera:
 
     def set(self):
         self._calculate_camera()
-        self._update_views()
         camera = self.eye.as_float + self.position.as_float + tuple(self.up.tolist())
-
         GLU.gluLookAt(*camera)
+        self._update_views()
 
     def _calculate_camera(self):
         eye = self.eye.as_numpy
@@ -420,9 +419,9 @@ class Camera:
         self._calculate_camera()
         with self.context:
             self._is_dirty = False
-            self.projection = np.array(GL.glGetDoublev(GL.GL_PROJECTION_MATRIX)).reshape((4, 4))
-            self.modelview = np.array(GL.glGetDoublev(GL.GL_MODELVIEW_MATRIX)).reshape((4, 4))
             self.viewport = GL.glGetIntegerv(GL.GL_VIEWPORT)
+            self.projection = np.array(GL.glGetDoublev(GL.GL_PROJECTION_MATRIX)).reshape((4, 4), order="F")
+            self.modelview = np.array(GL.glGetDoublev(GL.GL_MODELVIEW_MATRIX)).reshape((4, 4), order="F")
             self.clip = (self.projection @ self.modelview).astype(np.float32)
 
     def rotate(self, dx, dy):

@@ -449,61 +449,147 @@ class Canvas(glcanvas.GLCanvas):
 
         for obj in self.objects:
             if obj.is_selected:
-                GL.glColor4f(1.0, 0.6, 0.6, 0.7)
+                GL.glColor4f(0.5, 1.0, 0.5, 0.3)
             else:
-                GL.glColor4f(1.0, 0.4, 0.4, 0.3)
+                GL.glColor4f(1.0, 0.5, 0.5, 0.3)
 
             for p1, p2 in obj.hit_test_rect:
 
                 x1, y1, z1 = p1.as_float
-                x2, y2, z2 = p1.as_float
+                x2, y2, z2 = p2.as_float
 
+                # back
                 GL.glBegin(GL.GL_QUADS)
                 GL.glVertex3f(x1, y1, z1)
                 GL.glVertex3f(x2, y1, z1)
                 GL.glVertex3f(x2, y2, z1)
                 GL.glVertex3f(x1, y2, z1)
                 GL.glEnd()
+
+                # front
                 GL.glBegin(GL.GL_QUADS)
                 GL.glVertex3f(x1, y1, z2)
                 GL.glVertex3f(x2, y1, z2)
                 GL.glVertex3f(x2, y2, z2)
                 GL.glVertex3f(x1, y2, z2)
                 GL.glEnd()
+
+                # left
                 GL.glBegin(GL.GL_QUADS)
+                GL.glVertex3f(x1, y1, z1)
+                GL.glVertex3f(x1, y2, z1)
+                GL.glVertex3f(x1, y2, z2)
                 GL.glVertex3f(x1, y1, z2)
-                GL.glVertex3f(x2, y1, z1)
-                GL.glVertex3f(x1, y2, z1)
-                GL.glVertex3f(x1, y2, z2)
                 GL.glEnd()
+
+                # right
                 GL.glBegin(GL.GL_QUADS)
-                GL.glVertex3f(x1, y2, z1)
-                GL.glVertex3f(x1, y2, z2)
+                GL.glVertex3f(x2, y1, z1)
+                GL.glVertex3f(x2, y1, z2)
                 GL.glVertex3f(x2, y2, z2)
                 GL.glVertex3f(x2, y2, z1)
                 GL.glEnd()
+
+                # top
                 GL.glBegin(GL.GL_QUADS)
-                GL.glVertex3f(x1, y1, z2)
-                GL.glVertex3f(x2, y1, z2)
+                GL.glVertex3f(x1, y2, z1)
+                GL.glVertex3f(x2, y2, z1)
+                GL.glVertex3f(x2, y2, z2)
+                GL.glVertex3f(x1, y2, z2)
+                GL.glEnd()
+
+                # bottom
+                GL.glBegin(GL.GL_QUADS)
+                GL.glVertex3f(x1, y1, z1)
                 GL.glVertex3f(x2, y1, z1)
+                GL.glVertex3f(x2, y1, z2)
+                GL.glVertex3f(x1, y1, z2)
+                GL.glEnd()
+
+                GL.glColor4f(0.2, 0.2, 0.2, 1.0)
+                # top
+                GL.glLineWidth(1.0)
+                GL.glBegin(GL.GL_LINES)
+                GL.glVertex3f(x1, y2, z1)
+                GL.glVertex3f(x2, y2, z1)
+                GL.glEnd()
+
+                GL.glBegin(GL.GL_LINES)
+                GL.glVertex3f(x2, y2, z1)
+                GL.glVertex3f(x2, y2, z2)
+                GL.glEnd()
+
+                GL.glBegin(GL.GL_LINES)
+                GL.glVertex3f(x2, y2, z2)
+                GL.glVertex3f(x1, y2, z2)
+                GL.glEnd()
+
+                GL.glBegin(GL.GL_LINES)
+                GL.glVertex3f(x1, y2, z2)
+                GL.glVertex3f(x1, y2, z1)
+                GL.glEnd()
+
+
+                # bottom
+                GL.glBegin(GL.GL_LINES)
+                GL.glVertex3f(x1, y1, z1)
+                GL.glVertex3f(x2, y1, z1)
+                GL.glEnd()
+
+                GL.glBegin(GL.GL_LINES)
+                GL.glVertex3f(x2, y1, z1)
+                GL.glVertex3f(x2, y1, z2)
+                GL.glEnd()
+
+                GL.glBegin(GL.GL_LINES)
+                GL.glVertex3f(x2, y1, z2)
+                GL.glVertex3f(x1, y1, z2)
+                GL.glEnd()
+
+                GL.glBegin(GL.GL_LINES)
+                GL.glVertex3f(x1, y1, z2)
                 GL.glVertex3f(x1, y1, z1)
                 GL.glEnd()
-                GL.glBegin(GL.GL_QUADS)
-                GL.glVertex3f(x2, y1, z2)
+
+                # left
+                GL.glBegin(GL.GL_LINES)
+                GL.glVertex3f(x1, y1, z1)
+                GL.glVertex3f(x1, y2, z1)
+                GL.glEnd()
+
+                GL.glBegin(GL.GL_LINES)
+                GL.glVertex3f(x1, y1, z2)
+                GL.glVertex3f(x1, y2, z2)
+                GL.glEnd()
+
+                # right
+                GL.glBegin(GL.GL_LINES)
                 GL.glVertex3f(x2, y1, z1)
                 GL.glVertex3f(x2, y2, z1)
+                GL.glEnd()
+
+                GL.glBegin(GL.GL_LINES)
+                GL.glVertex3f(x2, y1, z2)
                 GL.glVertex3f(x2, y2, z2)
                 GL.glEnd()
+
+
 
     @_debug.timeit
     def OnDraw(self):
         # self.axis_indicator.set_angle((self.camera.eye - self.camera.position).inverse)
         # self.SetCurrent(self.context)
 
+        w, h = self.GetSize()
+        aspect = w / float(h)
+
         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
+        GL.glMatrixMode(GL.GL_PROJECTION)
+        GL.glLoadIdentity()
+        GLU.gluPerspective(65, aspect, 0.1, 1000.0)
+
         GL.glMatrixMode(GL.GL_MODELVIEW)
         GL.glLoadIdentity()
-
         self.camera.set()
 
         GL.glPushMatrix()
@@ -542,6 +628,7 @@ class Canvas(glcanvas.GLCanvas):
         GL.glDisableClientState(GL.GL_NORMAL_ARRAY)
         # self._render_bounding_boxes()
         self.draw_grid()
+        self._render_bounding_boxes()
         GL.glPopMatrix()
 
         self.SwapBuffers()
