@@ -299,7 +299,6 @@ def _aabb_screen_bbox_and_depth(aabb_min, aabb_max, mv, pj,
     ys = [p[1] for p in screen_pts]
 
     bbox2d = (min(xs), min(ys), max(xs), max(ys))
-
     depth_metric = float(min([d for d in depths if d != inf])
                          if any_in_front else min(depths))
 
@@ -342,8 +341,7 @@ def _pick_candidates_at_mouse(mx, my, scene_objects, mv=None, pj=None, viewport=
 
     candidates = []
     for obj in scene_objects:
-        p1, p2 = obj.hit_test_rect[0]
-        res = _aabb_screen_bbox_and_depth(p1, p2,
+        res = _aabb_screen_bbox_and_depth(obj.hit_test_rect[0][0], obj.hit_test_rect[0][1],
                                           mv, pj, viewport, flip_y_for_ui=True)
 
         if res is None:
@@ -363,14 +361,13 @@ def _pick_candidates_at_mouse(mx, my, scene_objects, mv=None, pj=None, viewport=
     return candidates[:max_candidates]
 
 
-def handle_click_cycle(mouse_pos, scene_objects):
+def find_object(mouse_pos, scene_objects):
     """
     On click: select next candidate under pixel.
               Recomputes candidate list if mouse moved > threshold.
 
     Returns selected object or None.
     """
-
     mx, my = mouse_pos.as_float[:-1]
 
     mv, pj, vp = _gl_get_matrices()
@@ -406,9 +403,8 @@ def handle_click_cycle(mouse_pos, scene_objects):
     if o is None:
         selected = obj
     else:
-        p1, p2 = obj.hit_test_rect[0]
         hit, t = _ray_intersect_aabb(
-            o, d, p1.as_float, p2.as_float)
+            o, d, obj.hit_test_rect[0][0].as_float, obj.hit_test_rect[0][1].as_float)
 
         if hit:
             # optionally do triangle-level test for higher accuracy:
@@ -418,7 +414,7 @@ def handle_click_cycle(mouse_pos, scene_objects):
             nearest_t = inf
             nearest_hit = False
             for tri in obj.triangles:
-                tri = tri[1]
+                tri = tri[0]
                 v0, v1, v2 = np.array(tri[0][0]), np.array(tri[0][1]), np.array(tri[0][2])
 
                 h, tt = _ray_triangle_intersect(o, d, v0, v1, v2)
