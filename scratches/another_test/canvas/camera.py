@@ -291,8 +291,7 @@ class Camera:
         # that was used for saorting
         return [res[i][1] for i in range(len(res) - 1, -1, -1)]
 
-    @staticmethod
-    def aabb_intersects_frustum(ht_rects: list, view_proj: np.ndarray) -> bool:
+    def aabb_intersects_frustum(self, ht_rects: list, view_proj: np.ndarray) -> bool:
         """
         Return True if ANY AABB in ht_rects intersects the view frustum defined
         by view_proj (projection @ view).
@@ -305,6 +304,12 @@ class Camera:
         # ensure matrix dtype for corners creation
         dtype = view_proj.dtype
 
+        print("GL proj:\n", np.array(GL.glGetDoublev(GL.GL_PROJECTION_MATRIX)).reshape((4,4), order="F"))
+        print("cam proj:\n", self.projection)
+        print("GL mv:\n", np.array(GL.glGetDoublev(GL.GL_MODELVIEW_MATRIX)).reshape((4,4), order="F"))
+        print("cam mv:\n", self.modelview)
+        print("cam clip:\n", self.clip)
+
         for ht_rect in ht_rects:
             # unpack min/max points
             mn = ht_rect[0]
@@ -312,38 +317,39 @@ class Camera:
 
             corners = np.array(
                 [
-                    [mn.x, mn.y, mn.z, 1.0],
-                    [mn.x, mn.y, mx.z, 1.0],
-                    [mn.x, mx.y, mn.z, 1.0],
-                    [mn.x, mx.y, mx.z, 1.0],
-                    [mx.x, mn.y, mn.z, 1.0],
-                    [mx.x, mn.y, mx.z, 1.0],
-                    [mx.x, mx.y, mn.z, 1.0],
-                    [mx.x, mx.y, mx.z, 1.0],
+                    [float(mn.x), float(mn.y), float(mn.z), 1.0],
+                    [float(mn.x), float(mn.y), float(mx.z), 1.0],
+                    [float(mn.x), float(mx.y), float(mn.z), 1.0],
+                    [float(mn.x), float(mx.y), float(mx.z), 1.0],
+                    [float(mx.x), float(mn.y), float(mn.z), 1.0],
+                    [float(mx.x), float(mn.y), float(mx.z), 1.0],
+                    [float(mx.x), float(mx.y), float(mn.z), 1.0],
+                    [float(mx.x), float(mx.y), float(mx.z), 1.0],
                 ], dtype=dtype
             )  # (8,4)
 
-            clip = (view_proj @ corners.T).T  # (8,4)  (row-vector convention)
+            clip = (view_proj @ corners.T).T
 
-            # clip coords: [x, y, z, w]
-            x = clip[:, 0]
-            y = clip[:, 1]
-            z = clip[:, 2]
             w = clip[:, 3]
 
-            # outside tests: if all corners are outside any of the six clip planes, the box is outside
-            # left:   x < -w  for all corners  -> outside
-            # right:  x >  w  for all corners  -> outside
-            # bottom: y < -w
-            # top:    y >  w
-            # near:   z < -w
-            # far:    z >  w
+            eps = 1e-8
+            front = w > eps
+
+            if not np.any(front):
+                continue  # whole box behind camera
+
+            ndc = clip[front, :3] / w[front, None]
+
+            x = ndc[:, 0]
+            y = ndc[:, 1]
+            z = ndc[:, 2]
+
             if (
-                np.all(x < -w) or np.all(x > w) or
-                np.all(y < -w) or np.all(y > w) or
-                np.all(z < -w) or np.all(z > w)
+                np.all(x < -1.0) or np.all(x > 1.0) or
+                np.all(y < -1.0) or np.all(y > 1.0) or
+                np.all(z < -1.0) or np.all(z > 1.0)
             ):
-                # this AABB is completely outside; check next AABB
+                print('continue')
                 continue
 
             # if we get here, this AABB is at least partially inside -> we can return True
@@ -420,8 +426,8 @@ class Camera:
         with self.context:
             self._is_dirty = False
             self.viewport = GL.glGetIntegerv(GL.GL_VIEWPORT)
-            self.projection = np.array(GL.glGetDoublev(GL.GL_PROJECTION_MATRIX)).reshape((4, 4), order="F")
-            self.modelview = np.array(GL.glGetDoublev(GL.GL_MODELVIEW_MATRIX)).reshape((4, 4), order="F")
+            self.projection = np.array(GL.glGetDoublev(GL.GL_PROJECTION_MATRIX)).reshape((4, 4), order="F").T
+            self.modelview = np.array(GL.glGetDoublev(GL.GL_MODELVIEW_MATRIX)).reshape((4, 4), order="F").T
             self.clip = (self.projection @ self.modelview).astype(np.float32)
 
     def rotate(self, dx, dy):
