@@ -1,160 +1,177 @@
-from typing import TYPE_CHECKING
-
 
 import build123d
+import numpy as np
 
+from .mixins import angle as _arrow_angle
+from .mixins import move as _arrow_move
+from . import cavity as _cavity
+
+from ...editor_3d import gl_object as _gl_object
 from ...geometry import point as _point
+from ...geometry import angle as _angle
 from ...wrappers.decimal import Decimal as _decimal
-from . import Base3D as _Base3D
+from ...editor_3d import debug as _debug
+from ...editor_3d.model_loaders import stl as _stl_loader
+from ...editor_3d.model_loaders import obj as _obj_loader
+from ...editor_3d.model_loaders import stp as _stp_loader
 
 
-if TYPE_CHECKING:
-    from ... import editor3d as editor3d
-    from ...database.global_db import housing as _housing
-    from ...database.project_db import pjt_housing as _pjt_housing
+class Housing(_gl_object.GLObject, _arrow_move.MoveMixin, _arrow_angle.AngleMixin):
 
+    def __init__(self, parent, file, position: _point.Point, num_pins=6, num_rows=1, blade_size=1.5):
+        super().__init__()
+        self.parent = parent
+        self._detent_update_counter: int = 0
 
-def _build_model(h_data: "_housing.Housing"):
-    length = h_data.length
-    width = h_data.width
-    height = h_data.height
-    centerline = h_data.centerline
-    num_pins = h_data.num_pins
-    num_rows = h_data.rows
-    gender = h_data.gender
-    terminal_sizes = h_data.terminal_sizes
+        self.cavities = []
 
-    if not length:
-        if num_pins:
-            if not centerline and terminal_sizes:
-                centerline = terminal_sizes[0] * _decimal(1.20)
+        self.num_pins = num_pins
+        self.num_rows = num_rows
+        self.blade_size = blade_size
 
-            if centerline and num_rows:
-                pin_count = num_pins / num_rows
-                length = pin_count * centerline + centerline
-            elif centerline:
-                length = num_pins * centerline + centerline
+        self._verts, self._faces = self._read_mesh(file)
 
-    if not width:
-        if num_rows:
-            width = _decimal(8) * num_rows
+        tris, normals, count = self.get_mesh_triangles(self._verts, self._faces)
+
+        verts = self._verts.reshape(-1, 3)
+
+        col_min = verts.min(axis=0)  # shape (3,) -> array([-0.7,  0.3, -1. ])
+        col_max = verts.max(axis=0)  # shape (3,) -> array([1.2, 3.1, 4. ])
+
+        p1 = _point.Point(*[_decimal(item) for item in col_min])
+        p2 = _point.Point(*[_decimal(item) for item in col_max])
+
+        self.hit_test_rect = [[p1, p2]]
+        self.adjust_hit_points()
+
+        p1, p2 = self.hit_test_rect[0]
+
+        center = ((p2 - p1) / _decimal(2.0)) + p1
+        c_offset = _point.Point(-center.x, -center.y, -center.z)
+        tris += c_offset
+
+        p1 += c_offset
+        p2 += c_offset
+
+        self._point = position
+        self._o_point = self._point.copy()
+        self._point.bind(self._update_point)
+
+        self._angle = _angle.Angle()
+
+        self._o_angle = self._angle.copy()
+        self._angle.bind(self._update_angle)
+
+        self._colors = [
+            np.full((count, 4), [0.4, 0.4, 0.4, 1.0], dtype=np.float32),
+            np.full((count, 4), [0.5, 0.5, 1.0, 0.40], dtype=np.float32),
+            np.full((count, 4), [0.5, 1.0, 0.5, 0.40], dtype=np.float32)
+        ]
+
+        normals @= self.angle
+        tris @= self.angle
+        tris += position
+
+        p1 @= self.angle
+        p2 @= self.angle
+
+        p1 += position
+        p2 += position
+
+        self.adjust_hit_points()
+        self._triangles = [[tris, normals, count]]
+
+        parent.canvas.add_object(self)
+
+    def release_mouse(self):
+        self._detent_update_counter = 0
+
+    def get_first_points(self):
+        tris = self._triangles[0][0]
+        p = _point.Point(_decimal(tris[0][0][0]), _decimal(tris[0][0][1]), _decimal(tris[0][0][2]))
+        return [p]
+
+    @property
+    def triangles(self):
+        tris, norms, count = self._triangles[0]
+        if self._is_selected and self._detent_update_counter:
+            color = self._colors[2]
         else:
-            width = _decimal(8)
+            color = self._colors[int(self._is_selected)]
 
-    if not length:
-        length = width * _decimal(2.0)
+        triangles = [[tris, norms, color, count, color[0][-1] == 1.0]]
+        return triangles
 
-    if not height:
-        height = width / length * width
+    def get_canvas(self):
+        return self.parent.canvas
 
-    model = build123d.Box(float(length), float(width), float(height))
-    box = build123d.Box(float(length), float(width * _decimal(0.90)), float(height * _decimal(0.90)))
-    # z_axis = height
-    # y_axis = width
-    # x_axis = length
-    box.move(build123d.Location((float(length / _decimal(3) / _decimal(2)), 0.0, 0.0)))
-    model -= box
+    @property
+    def position(self) -> _point.Point:
+        return self._point
 
-    if gender == 'Female':
-        box = build123d.Box(float(length * _decimal(0.90)), float(width * _decimal(0.75)), float(height * _decimal(0.75)))
-        box.move(build123d.Location((float((length - (length * _decimal(0.90))) / _decimal(2)), 0.0, 0.0)))
-        model += box
+    @property
+    def angle(self) -> _angle.Angle:
+        return self._angle
 
-    bb = model.bounding_box()
-    corner1 = _point.Point(*[_decimal(float(item)) for item in bb.min])
-    corner2 = _point.Point(*[_decimal(float(item)) for item in bb.max])
+    @_debug.timeit
+    def _update_point(self, point: _point.Point):
+        delta = point - self._o_point
+        self._o_point = point.copy()
 
-    return model, (corner1, corner2)
+        self._triangles[0][0] += delta
 
+        for p in self.hit_test_rect[0]:
+            p += delta
 
-class Housing(_Base3D):
+        self.adjust_hit_points()
 
-    _db_obj: "_pjt_housing.PJTHousing" = None
+    @_debug.timeit
+    def _update_angle(self, angle: _angle.Angle):
+        delta = angle - self._o_angle
+        self._o_angle = angle.copy()
 
-    def __init__(self, editor3d: "editor3d.Editor3D", db_obj: "_pjt_housing.PJTHousing"):
-        super().__init__(editor3d)
+        self._triangles[0][0] -= self._point
 
-        self._part = part = db_obj.part
+        self._triangles[0][0] @= delta
+        self._triangles[0][1] @= delta
 
-        self._center = db_obj.point3d.point
-        self._center.Bind(self.recalculate)
-        self._center.add_object(self)
+        # self.triangles[3][0] += self._point
+        self._triangles[0][0] += self._point
 
-        self._o_center = None
-        self._o_angle = None
+        for p in self.hit_test_rect[0]:
+            p -= self._point
+            p @= delta
+            p += self._point
 
-        self._db_obj = db_obj
+        self.adjust_hit_points()
 
-        if part.model3d is not None:
-            self._is_model3d = True
+    def add_cavity(self):
+        if len(self.cavities) < 6:
+            index = len(self.cavities)
+            name = 'ABCDEF'[index]
+
+            pos = _point.Point(_decimal(0.0), _decimal(0.0), _decimal(0.0))
+            angle = _angle.Angle.from_quat(np.array([0.0, 0.0, 0.0, 1.0], dtype=np.float64))
+            length = _decimal(40.0)
+
+            self.cavities.append(_cavity.Cavity(self, index, name, angle=angle, point=pos,
+                                                length=length, terminal_size=_decimal(1.5)))
+
+    @staticmethod
+    def _read_mesh(file: str):
+        if file.endswith('.stl'):
+            verts, faces = _stl_loader.load_from_stl(file)
+
+        elif file.endswith('obj'):
+            verts, faces = _obj_loader.load_from_obj(file)
+
+        elif file.endswith('3mf'):
+            raise NotImplementedError
+
+        elif file.endswith('step') or file.endswith('stp'):
+            verts, faces = _stp_loader.load_from_stp(file)
+
         else:
-            self._is_model3d = False
+            raise NotImplementedError
 
-        self._model = None
-        self._hit_test_rect = None
-
-        self._triangles = []
-
-    def recalculate(self, *_):
-        if self._is_deleted:
-            return
-
-        if self._model is None:
-            if self._is_model3d:
-                self._model, self._hit_test_rect = self._part.model3d.model
-
-                if self._model is None:
-                    self._is_model3d = False
-                    self._model, self._hit_test_rect = _build_model(self._part)
-            else:
-                self._model, self._hit_test_rect = _build_model(self._part)
-
-            self._o_center = self._center.copy()
-            self._o_angle = self._db_obj.angle3d.copy()
-
-        self._triangles = []
-
-    def hit_test(self, point: _point.Point) -> bool:
-        if self._is_deleted:
-            return False
-
-        p1, p2 = self._hit_test_rect
-        return p1 <= point <= p2
-
-    def draw(self, renderer):
-        if self._is_deleted:
-            return
-
-        if not self._triangles:
-
-            normals, verts, count = renderer.build_mesh(self._model)
-
-            if self._is_model3d:
-                model3d = self._part.model3d
-
-                offset = model3d.offset
-                angle = model3d.angle
-
-                verts @= angle
-                verts += offset
-
-                p1, p2 = self._hit_test_rect
-
-                p1 += offset
-                p2 @= angle
-                p2 += offset
-
-            p1, p2 = self._hit_test_rect
-            angle = self._db_obj.angle3d
-
-            p2 @= angle
-            p1 += self._center
-            p2 += self._center
-
-            verts @= angle
-            verts += self._center
-            self._triangles = [[normals, verts, count]]
-
-        for normals, verts, count in self._triangles:
-
-            renderer.model(normals, verts, count, None, self._part.color.ui.rgba_scalar, self.is_selected)
+        return verts, faces

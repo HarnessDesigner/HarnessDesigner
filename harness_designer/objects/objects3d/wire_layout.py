@@ -35,6 +35,9 @@ class WireLayout(_Base3D):
         self._model = None
         self._hit_test_rect = None
         self._triangles = []
+        
+        # Track bundle layout point we're synced to (by db_id, not strong reference)
+        self._bundle_layout_point_id = None
 
         self._center.Bind(self._update_center)
 
@@ -55,6 +58,62 @@ class WireLayout(_Base3D):
             p2 += center_diff
 
         self._o_center = self._center.copy()
+    
+    def _sync_from_bundle_layout_point(self, bundle_point: _point.Point):
+        """Callback to sync wire layout point position from bundle layout point.
+        
+        This is called when the bundle layout point moves. Wire layout points
+        share coordinates with bundle layout points but do NOT share the same
+        Point instances.
+        """
+        if self._is_deleted:
+            return
+        
+        # Update our center to match the bundle layout point
+        with self._center:
+            self._center.x = bundle_point.x
+            self._center.y = bundle_point.y
+            self._center.z = bundle_point.z
+    
+    def bind_to_bundle_layout_point(self, bundle_layout_point: _point.Point):
+        """Register callback to bundle layout point for synchronization.
+        
+        When a wire is bundled, wire layouts register callbacks to the relevant
+        bundle layout Points so wires follow bundle movement.
+        """
+        if self._bundle_layout_point_id is not None:
+            # Already bound, unbind first
+            self.unbind_from_bundle_layout_point()
+        
+        # Store the db_id for tracking (not a strong reference)
+        self._bundle_layout_point_id = bundle_layout_point.db_id
+        
+        # Bind our sync callback to the bundle layout point
+        bundle_layout_point.bind(self._sync_from_bundle_layout_point)
+        
+        # Initial sync
+        self._sync_from_bundle_layout_point(bundle_layout_point)
+    
+    def unbind_from_bundle_layout_point(self):
+        """Unbind from bundle layout point.
+        
+        When a wire is unbundled, wire layouts unbind themselves from the
+        bundle layout Points.
+        """
+        if self._bundle_layout_point_id is None:
+            return
+        
+        # Use db_id-based lookup to get the point without holding strong reference
+        # The PointMeta cache will return the same instance if it still exists
+        try:
+            bundle_layout_point = _point.Point._instances.get(self._bundle_layout_point_id)
+            if bundle_layout_point is not None:
+                bundle_layout_point.unbind(self._sync_from_bundle_layout_point)
+        except:  # NOQA
+            # Point may have been garbage collected
+            pass
+        
+        self._bundle_layout_point_id = None
 
     def recalculate(self, *_):
         if self._is_deleted:
@@ -93,3 +152,8 @@ class WireLayout(_Base3D):
                 break
 
             renderer.model(normals, verts, count, None, color, self.is_selected)
+    
+    def delete(self):
+        """Override delete to clean up bundle bindings."""
+        self.unbind_from_bundle_layout_point()
+        super().delete()
