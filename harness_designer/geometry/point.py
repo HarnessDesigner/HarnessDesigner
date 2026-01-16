@@ -12,27 +12,30 @@ def _round_down(val: _decimal) -> _decimal:
 
 
 class PointMeta(type):
-    _instances = {}
+    _instances = weakref.WeakValueDictionary()
 
-    @classmethod
-    def _remove_instance(cls, ref):
-        for key, value in cls._instances.items():
-            if ref == value:
-                break
-        else:
-            return
-
-        del cls._instances[key]
-
-    def __call__(cls, x: _decimal, y: _decimal, z: _decimal | None = None, db_obj=None):
+    def __call__(cls, x: _decimal, y: _decimal, z: _decimal | None = None, 
+                 db_obj=None, db_id: int | None = None):
+        # Support both db_obj (legacy) and db_id (new) parameters
         if db_obj is not None:
-            if db_obj.db_id in cls._instances:
-                instance = cls._instances[db_obj.db_id]
-            else:
-                instance = super().__call__(x, y, z, db_obj)
-                cls._instances[db_obj.db_id] = weakref.ref(instance, cls._remove_instance)
+            db_id = db_obj.db_id
+        
+        if db_id is not None:
+            if db_id not in cls._instances:
+                cls._instances[db_id] = super().__call__(x, y, z, db_obj, db_id)
+            elif cls._instances[db_id] is None:
+                # Handle edge case where a reference has been removed
+                # but the reference object has not yet been removed from
+                # the dict. We have to make sure that we delete the key
+                # before adding the object again because of the internal
+                # mechanics in weakref and not wanting it to remove
+                # the newly added reference
+                del cls._instances[db_id]
+                cls._instances[db_id] = super().__call__(x, y, z, db_obj, db_id)
+            
+            instance = cls._instances[db_id]
         else:
-            instance = super().__call__(x, y, z, db_obj)
+            instance = super().__call__(x, y, z, db_obj, db_id)
 
         return instance
 
@@ -104,15 +107,22 @@ class Point(metaclass=PointMeta):
             return None
 
         return self._db_obj.db_id
+    
+    @property
+    def db_id(self) -> int | None:
+        """Return the database ID for this point."""
+        return self._db_id
 
     def add_to_db(self, table) -> int:
         self._db_obj = table.insert(self.x, self.y, self.z)
-        self._instances[self._db_obj.db_id] = weakref.ref(self, PointMeta._remove_instance)  # NOQA
+        self._db_id = self._db_obj.db_id
         self.Bind(self._db_obj)
         return self._db_obj.db_id
 
-    def __init__(self, x: _decimal, y: _decimal, z: _decimal | None = None, db_obj=None):
+    def __init__(self, x: _decimal, y: _decimal, z: _decimal | None = None, 
+                 db_obj=None, db_id: int | None = None):
         self._db_obj = db_obj
+        self._db_id = db_id if db_id is not None else (db_obj.db_id if db_obj is not None else None)
 
         if z is None:
             self.is2d = True
@@ -125,7 +135,7 @@ class Point(metaclass=PointMeta):
         self._z = _round_down(z)
 
         self.__callbacks = []
-        self.__cb_disabled_count = 0
+        self._ref_count = 0
         self.__objects = []
 
     def add_object(self, obj):
@@ -144,35 +154,48 @@ class Point(metaclass=PointMeta):
             yield obj
 
     def __enter__(self):
-        self.__cb_disabled_count += 1
+        self._ref_count += 1
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.__cb_disabled_count -= 1
+        self._ref_count -= 1
         self.__do_callbacks()
+    
+    def __remove_callback(self, ref):
+        try:
+            self.__callbacks.remove(ref)
+        except:  # NOQA
+            pass
 
     def Bind(self, cb: Callable[["Point"], None]) -> bool:
-        for ref in self.__callbacks[:]:
-            if ref() is None:
-                self.__callbacks.remove(ref)
-            elif ref() == cb:
-                return False
-        else:
-            self.__callbacks.append(weakref.WeakMethod(cb, self.__remove_ref))
-
+        # We don't explicitly check to see if a callback is already registered.
+        # What we care about is if a callback is called only one time and that
+        # check is done when the callbacks are being executed. If there happens
+        # to be a duplicate, the duplicate is then removed at that point in time.
+        ref = weakref.WeakMethod(cb, self.__remove_callback)
+        self.__callbacks.append(ref)
         return True
+    
+    def bind(self, callback):
+        """Alias for Bind to support newer code style."""
+        return self.Bind(callback)
 
     def Unbind(self, cb: Callable[["Point"], None]) -> None:
         for ref in self.__callbacks[:]:
-            if ref() is None:
+            callback = ref()
+            if callback is None:
                 self.__callbacks.remove(ref)
-            elif ref() == cb:
+            elif callback == cb:
+                # We don't return after locating a matching callback in the
+                # event a callback was registered more than one time. Duplicates
+                # are also removed at the time callbacks get called but if an update
+                # to a point never occurs we want to make sure that we explicitly
+                # unbind all callbacks including duplicates.
                 self.__callbacks.remove(ref)
-                break
-
-    def __remove_ref(self, ref):
-        if ref in self.__callbacks:
-            self.__callbacks.remove(ref)
+    
+    def unbind(self, callback):
+        """Alias for Unbind to support newer code style."""
+        return self.Unbind(callback)
 
     @property
     def x(self) -> _decimal:
@@ -205,15 +228,21 @@ class Point(metaclass=PointMeta):
         return Point(_decimal(self._x), _decimal(self._y), _decimal(self._z))
 
     def __do_callbacks(self):
-        if self.__cb_disabled_count != 0:
+        if self._ref_count != 0:
             return
 
+        used_callbacks = []
         for ref in self.__callbacks[:]:
-            func = ref()
-            if func is None:
+            cb = ref()
+            if cb is None:
                 self.__callbacks.remove(ref)
+            elif cb not in used_callbacks:
+                cb(self)
+                used_callbacks.append(cb)
             else:
-                func(self)
+                # Remove duplicate callbacks since we are
+                # iterating over the callbacks
+                self.__callbacks.remove(ref)
 
     def __iadd__(self, other: Union["Point", np.ndarray]) -> Self:
         if isinstance(other, Point):
