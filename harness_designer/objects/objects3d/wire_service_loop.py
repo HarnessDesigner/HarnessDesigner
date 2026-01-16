@@ -10,7 +10,7 @@ from . import Base3D as _Base3D
 
 
 if TYPE_CHECKING:
-    from ... import editor_3d as _editor_3d
+    from ... import editor3d as _editor3d
     from ...database.project_db import pjt_wire_service_loop as _pjt_wire_service_loop
 
 
@@ -72,7 +72,7 @@ def _build_model(diameter: _decimal, has_stripe: bool):
         stripe_thickness = python_utils.remap(
             diameter, old_min=1.25, old_max=5.0, new_min=0.010, new_max=0.025)
 
-        stripe_arc = build123d.Face(edges.offset_2d(
+        stripe_arc = build123d.Face(edges.offset2d(
             float(stripe_thickness * _decimal(build123d.MM)),
             side=build123d.Side.RIGHT))
 
@@ -101,6 +101,9 @@ def _build_model(diameter: _decimal, has_stripe: bool):
 
         stripe2 = stripe2.move(build123d.Location(
             (0.0, 0.0, -float(diameter * _decimal(0.15))), (0, 0, 1)))
+
+        stripe2 = stripe2.move(build123d.Location(
+            (0.0, 0.0, -float(diameter)), (0, 0, 1)))
 
         stripes = [None, stripe2]
 
@@ -144,7 +147,7 @@ def _build_model(diameter: _decimal, has_stripe: bool):
 
         stripe_thickness = python_utils.remap(
             diameter, old_min=1.25, old_max=5.0, new_min=0.010, new_max=0.025)
-        stripe_arc = build123d.Face(edges.offset_2d(
+        stripe_arc = build123d.Face(edges.offset2d(
             float(stripe_thickness * _decimal(build123d.MM)), side=build123d.Side.RIGHT))
 
         twist = build123d.Helix(
@@ -160,7 +163,20 @@ def _build_model(diameter: _decimal, has_stripe: bool):
             build123d.Line(wire_axis.position, float(diameter) * wire_axis.direction),
             binormal=twist
         )
+
+        stripe1 = stripe1.move(build123d.Location(
+            (0.0, 0.0, -float(diameter)), (0, 0, 1)))
+
         stripes[0] = stripe1
+
+    cyl = cyl.move(build123d.Location(
+        (0.0, 0.0, -float(diameter)), (0, 0, 1)))
+
+    sphere1 = sphere1.move(build123d.Location(
+        (0.0, 0.0, -float(diameter)), (0, 0, 1)))
+
+    sphere2 = sphere2.move(build123d.Location(
+        (0.0, 0.0, -float(diameter)), (0, 0, 1)))
 
     try:
         bbox = cyl.bounding_box()
@@ -192,7 +208,7 @@ def _build_model(diameter: _decimal, has_stripe: bool):
 
 class WireServiceLoop(_Base3D):
 
-    def __init__(self, editor3d: "_editor_3d.Editor3D",
+    def __init__(self, editor3d: "_editor3d.Editor3D",
                  db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop"):
 
         super().__init__(editor3d)
@@ -216,11 +232,7 @@ class WireServiceLoop(_Base3D):
             stop_point
         ) = _build_model(part.od_mm, part.stripe_color is not None)
 
-        stop_point -= start_point
-
         hp1, hp2 = self._hit_test_rect
-        hp1 -= start_point
-        hp2 -= start_point
 
         hp2 @= angle
 
@@ -241,13 +253,11 @@ class WireServiceLoop(_Base3D):
 
         self._normals, self._triangles, self._triangle_count = self.editor3d.renderer.build_mesh(self._model)
 
-        self._triangles -= start_point
         self._triangles @= angle
         self._triangles += self._p1
 
         for stripe in self._stripe_models:
             stripe_normals, stripe_triangles, stripe_triangle_count = self.editor3d.renderer.build_mesh(stripe)
-            stripe_triangles -= start_point
             stripe_triangles @= angle
             stripe_triangles += self._p1
 

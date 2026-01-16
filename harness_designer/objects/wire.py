@@ -18,5 +18,5 @@ class Wire(_ObjectBase):
         super().__init__(mainframe)
 
         self.db_obj = db_obj
-        self.obj_2d = _wire2d.Wire(mainframe.editor2d, db_obj)
-        self.obj_3d = _wire3d.Wire(mainframe.editor3d, db_obj)
+        self.obj2d = _wire2d.Wire(mainframe.editor2d, db_obj)
+        self.obj3d = _wire3d.Wire(mainframe.editor3d, db_obj)

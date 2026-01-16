@@ -243,6 +243,7 @@ def _ray_triangle_intersect(orig, dir, v0, v1, v2, eps=1e-9):  # NOQA
 
     h = np.cross(dir, edge2)  # NOQA
     a = np.dot(edge1, h)
+
     if -eps < a < eps:
         return False, None  # parallel
 
@@ -349,6 +350,9 @@ def _pick_candidates_at_mouse(mx, my, scene_objects, mv=None, pj=None, viewport=
 
         (minx, miny, maxx, maxy), depth = res
 
+        print((minx, miny, maxx, maxy))
+        print(mx_screen, my_screen)
+
         if (
             minx - tol_pixels <= mx_screen <= maxx + tol_pixels and
             miny - tol_pixels <= my_screen <= maxy + tol_pixels
@@ -361,13 +365,15 @@ def _pick_candidates_at_mouse(mx, my, scene_objects, mv=None, pj=None, viewport=
     return candidates[:max_candidates]
 
 
-def handle_click_cycle(mx, my, scene_objects):
+def handle_click_cycle(mouse_pos, scene_objects):
     """
     On click: select next candidate under pixel.
               Recomputes candidate list if mouse moved > threshold.
 
     Returns selected object or None.
     """
+
+    mx, my = mouse_pos.as_float[:-1]
 
     mv, pj, vp = _gl_get_matrices()
     move_thresh = 4.0
@@ -412,8 +418,9 @@ def handle_click_cycle(mx, my, scene_objects):
 
             nearest_t = inf
             nearest_hit = False
-            for tri in obj.get_triangles():
-                v0, v1, v2 = np.array(tri[0]), np.array(tri[1]), np.array(tri[2])
+            for tri in obj.triangles:
+                tri = tri[1]
+                v0, v1, v2 = np.array(tri[0][0]), np.array(tri[0][1]), np.array(tri[0][2])
 
                 h, tt = _ray_triangle_intersect(o, d, v0, v1, v2)
                 if h and tt < nearest_t:

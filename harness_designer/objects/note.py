@@ -11,8 +11,8 @@ if TYPE_CHECKING:
 
 
 class Note(_ObjectBase):
-    obj_2d: _note2d.Note = None
-    obj_3d: _note3d.Note = None
+    obj2d: _note2d.Note = None
+    obj3d: _note3d.Note = None
 
     def __init__(
         self, mainframe: "_ui.MainFrame",
@@ -22,5 +22,5 @@ class Note(_ObjectBase):
 
         self.db_obj = db_obj
 
-        self.obj_2d = _note2d.Note(mainframe.editor2d, db_obj)
-        self.obj_3d = _note3d.Note(mainframe.editor3d, db_obj)
+        self.obj2d = _note2d.Note(mainframe.editor2d, db_obj)
+        self.obj3d = _note3d.Note(mainframe.editor3d, db_obj)

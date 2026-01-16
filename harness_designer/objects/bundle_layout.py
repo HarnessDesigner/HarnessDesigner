@@ -10,11 +10,11 @@ if TYPE_CHECKING:
 
 
 class BundleLayout(_ObjectBase):
-    obj_3d: _bundle_layout.BundleLayout = None
+    obj3d: _bundle_layout.BundleLayout = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_bundle_layout.PJTBundleLayout"):
         super().__init__(mainframe)
 
         self.db_obj = db_obj
-        self.obj_3d = _bundle_layout.BundleLayout(mainframe.editor3d, db_obj)
+        self.obj3d = _bundle_layout.BundleLayout(mainframe.editor3d, db_obj)

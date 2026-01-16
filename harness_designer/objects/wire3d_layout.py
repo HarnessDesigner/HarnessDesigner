@@ -17,4 +17,4 @@ class Wire3DLayout(_ObjectBase):
         super().__init__(mainframe)
 
         self.db_obj = db_obj
-        self.obj_3d = _wire3d_layout.Wire3DLayout(mainframe.editor3d, db_obj)
+        self.obj3d = _wire3d_layout.Wire3DLayout(mainframe.editor3d, db_obj)

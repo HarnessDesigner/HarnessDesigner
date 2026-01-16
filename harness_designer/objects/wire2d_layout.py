@@ -17,4 +17,4 @@ class Wire2DLayout(_ObjectBase):
         super().__init__(mainframe)
 
         self.db_obj = db_obj
-        self.obj_2d = _wire2d_layout.Wire2DLayout(mainframe.editor3d, db_obj)
+        self.obj2d = _wire2d_layout.Wire2DLayout(mainframe.editor3d, db_obj)

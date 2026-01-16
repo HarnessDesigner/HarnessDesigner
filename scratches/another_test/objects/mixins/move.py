@@ -269,6 +269,7 @@ class MoveMixin:
     _x_arrow: "ArrowMove" = None
     _y_arrow: "ArrowMove" = None
     _z_arrow: "ArrowMove" = None
+    _bbox: list[np.ndarray] = None
 
     def get_parent_object(self) -> _gl_object.GLObject:
         return self
@@ -345,6 +346,22 @@ class MoveMixin:
         position += delta
 
         return new_pos
+
+    @property
+    def bbox(self):
+        return self._bbox
+
+    def build_bbox(self, p1, p2):
+        x1, y1, z1 = p1.as_float
+        x2, y2, z2 = p2.as_float
+
+        if self._bbox is None:
+            self._bbox = []
+
+        self._bbox.append(np.array([[x1, y1, z1], [x1, y1, z2],
+                                   [x1, y2, z1], [x1, y2, z2],
+                                   [x2, y1, z1], [x2, y1, z2],
+                                   [x2, y2, z1], [x2, y2, z2]], dtype=np.float64))
 
     @property
     def position(self) -> _point.Point:

@@ -22,7 +22,7 @@ class ArtistEvent(wx.PyCommandEvent):
         self.rect = wx.Rect(-1, -1, 0, 0)
         self.tool_id = -1
         self._artist = None
-        self._pos_3d = None
+        self._pos3d = None
         self._pos = None
         self._m_event = None
 
@@ -39,10 +39,10 @@ class ArtistEvent(wx.PyCommandEvent):
         return self._pos
 
     def GetPosition3D(self) -> "Point":
-        return self._pos_3d
+        return self._pos3d
 
-    def SetPosition3D(self, pos_3d: "Point"):
-        self._pos_3d = pos_3d
+    def SetPosition3D(self, pos3d: "Point"):
+        self._pos3d = pos3d
 
     def SetArtist(self, artist: Union["Transition"]):
         self._artist = artist

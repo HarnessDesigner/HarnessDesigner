@@ -10,7 +10,7 @@ from ... import gl_materials as _gl_materials
 from . import Base3D as _Base3D
 
 if TYPE_CHECKING:
-    from ... import editor_3d as _editor_3d
+    from ... import editor3d as _editor3d
     from ...database.global_db import transition as _transition
     from ...database.project_db import pjt_transition as _pjt_transition
 
@@ -112,7 +112,7 @@ class Transition(_Base3D):
 
     _db_obj: "_pjt_transition.PJTTransition" = None
 
-    def __init__(self, editor3d: "_editor_3d.Editor3D", db_obj: "_pjt_transition.PJTTransition"):
+    def __init__(self, editor3d: "_editor3d.Editor3D", db_obj: "_pjt_transition.PJTTransition"):
         super().__init__(editor3d)
         self._part = db_obj.part
         self._center = db_obj.center.point

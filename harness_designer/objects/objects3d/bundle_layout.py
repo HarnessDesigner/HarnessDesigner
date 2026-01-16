@@ -9,7 +9,7 @@ from ...wrappers.decimal import Decimal as _decimal
 from . import Base3D as _Base3D
 
 if TYPE_CHECKING:
-    from ... import editor_3d as _editor_3d
+    from ... import editor3d as _editor3d
     from ...database.project_db import pjt_bundle_layout as _pjt_bundle_layout
 
 
@@ -25,7 +25,7 @@ def _build_model(diameter: _decimal):
 
 class BundleLayout(_Base3D):
 
-    def __init__(self, editor3d: "_editor_3d.Editor3D",
+    def __init__(self, editor3d: "_editor3d.Editor3D",
                  db_obj: "_pjt_bundle_layout.PJTBundleLayout"):
 
         super().__init__(editor3d)

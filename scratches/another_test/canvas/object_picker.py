@@ -268,8 +268,28 @@ def _ray_triangle_intersect(orig, dir, v0, v1, v2, eps=1e-9):  # NOQA
 
 def _aabb_screen_bbox_and_depth(aabb_min, aabb_max, mv, pj,
                                 viewport, flip_y_for_ui=True):
+    """
+    Build a 2D screen bbox from projecting ALL 8 AABB corners.
+    This is necessary for stability across camera yaw/pitch.
+    """
 
-    corners = [aabb_min.as_float, aabb_max.as_float]
+    mn = np.array(aabb_min.as_float, dtype=np.float64)
+    mx = np.array(aabb_max.as_float, dtype=np.float64)
+
+    corners = np.array(
+        [
+            [mn[0], mn[1], mn[2]],
+            [mn[0], mn[1], mx[2]],
+            [mn[0], mx[1], mn[2]],
+            [mn[0], mx[1], mx[2]],
+            [mx[0], mn[1], mn[2]],
+            [mx[0], mn[1], mx[2]],
+            [mx[0], mx[1], mn[2]],
+            [mx[0], mx[1], mx[2]],
+        ],
+        dtype=np.float64
+    )
+
     screen_pts = []
     depths = []
     any_in_front = False
@@ -299,21 +319,70 @@ def _aabb_screen_bbox_and_depth(aabb_min, aabb_max, mv, pj,
     ys = [p[1] for p in screen_pts]
 
     bbox2d = (min(xs), min(ys), max(xs), max(ys))
-    depth_metric = float(min([d for d in depths if d != inf])
-                         if any_in_front else min(depths))
 
-    if depth_metric == inf:
-        # fallback: distance to center
-        center = 0.5 * (aabb_min.as_numpy + aabb_max.as_numpy)
-        v = np.array([center[0], center[1], center[2], 1.0], dtype=np.float64)
-        eye_center = mv.dot(v)
-
-        if eye_center[2] < 0:
-            depth_metric = float(-eye_center[2])
-        else:
-            depth_metric = float(np.linalg.norm(center))
+    # depth metric: closest in-front corner if possible
+    if any_in_front:
+        depth_metric = float(min(d for d in depths if d != inf))
+    else:
+        depth_metric = float(min(depths))
 
     return bbox2d, depth_metric
+
+
+def _get_obj_rotation_matrix_3x3(obj) -> np.ndarray | None:
+    """
+    Try to obtain a stable 3x3 rotation matrix for the object.
+
+    Expected possibilities (adjust to your real object API):
+    - obj.angle.as_matrix (your Angle class property)
+    - obj.rotation_matrix
+    - obj.rotation (already a 3x3)
+    """
+    return obj.angle.as_matrix
+
+
+def _get_obj_translation_3(obj) -> np.ndarray | None:
+    """
+    Try to obtain object translation as a 3-vector.
+    Likely candidates: obj.position (Point), obj.center, obj.pos
+    """
+
+    return obj.position.as_float
+
+
+def _ray_to_local_space(orig_world, dir_world, R_obj, t_obj):
+    """
+    Transform a world-space ray into object-local space.
+
+    We must match your convention.
+    If your object points are transformed as row-vectors: p_world = p_local @ R + t,
+    then inverse is: p_local = (p_world - t) @ R.T   (since pure rotation)
+
+    We'll assume pure rotation (orthonormal R). If you add scale/shear later,
+    you need a full inverse matrix.
+    """
+    R = np.asarray(R_obj, dtype=np.float64)
+    t = np.asarray(t_obj, dtype=np.float64)
+
+    # row-vector inverse: multiply by R.T on the right
+    o_local = (orig_world - t) @ R.T
+    d_local = dir_world @ R.T
+
+    dn = np.linalg.norm(d_local)
+    if dn > 1e-12:
+        d_local = d_local / dn
+
+    return o_local, d_local
+
+
+def _ray_intersect_obb_via_local_aabb(orig_world, dir_world, local_min,
+                                      local_max, R_obj, t_obj):
+    """
+    Ray vs OBB: transform ray into local space, then slab test vs local AABB.
+    """
+
+    o_local, d_local = _ray_to_local_space(orig_world, dir_world, R_obj, t_obj)
+    return _ray_intersect_aabb(o_local, d_local, local_min, local_max)
 
 
 # Candidate picking + cycling
@@ -362,77 +431,45 @@ def _pick_candidates_at_mouse(mx, my, scene_objects, mv=None, pj=None, viewport=
 
 
 def find_object(mouse_pos, scene_objects):
-    """
-    On click: select next candidate under pixel.
-              Recomputes candidate list if mouse moved > threshold.
-
-    Returns selected object or None.
-    """
     mx, my = mouse_pos.as_float[:-1]
 
     mv, pj, vp = _gl_get_matrices()
     move_thresh = 4.0
 
+    # refresh candidate list if mouse moved significantly
     if last_pick_state['mouse_pos'] is None:
-        last_pick_state['candidates'] = _pick_candidates_at_mouse(
-            mx, my, scene_objects, mv, pj, vp)
-
-        last_pick_state['index'] = 0
-        last_pick_state['mouse_pos'] = (mx, my)
+        moved = True
     else:
-        move = np.hypot(mx - last_pick_state['mouse_pos'][0],  # NOQA
-                        my - last_pick_state['mouse_pos'][1])  # NOQA
+        moved = np.hypot(mx - last_pick_state['mouse_pos'][0],
+                         my - last_pick_state['mouse_pos'][1]) > move_thresh
 
-        if move > move_thresh:
-            last_pick_state['candidates'] = _pick_candidates_at_mouse(
-                mx, my, scene_objects, mv, pj, vp)
-
-            last_pick_state['index'] = 0
-            last_pick_state['mouse_pos'] = (mx, my)
+    if moved:
+        last_pick_state['candidates'] = _pick_candidates_at_mouse(mx, my, scene_objects, mv, pj, vp)
+        last_pick_state['mouse_pos'] = (mx, my)
+        last_pick_state['index'] = 0
 
     cands = last_pick_state['candidates']
     if not cands:
         return None
 
-    # choose candidate at current index, optionally refine
-    # with ray-AABB (fast) and ray-triangle (expensive)
-    depth, obj = cands[last_pick_state['index']]
-
-    # refine with ray-AABB
+    # Build ray once
     o, d = _mouse_ray_from_screen(mx, my, mv, pj, vp)
     if o is None:
-        selected = obj
-    else:
-        hit, t = _ray_intersect_aabb(
-            o, d, obj.hit_test_rect[0][0].as_float, obj.hit_test_rect[0][1].as_float)
+        # fallback: just pick first candidate
+        return cands[0][1]
 
-        if hit:
-            # optionally do triangle-level test for higher accuracy:
-            # if obj has .mesh_triangles (Nx3x3 numpy array or iterable
-            # of triangle vertices)
+    # Evaluate ray hit for ALL candidates; pick closest t
+    best_obj = None
+    best_t = inf
 
-            nearest_t = inf
-            nearest_hit = False
-            for tri in obj.triangles:
-                tri = tri[0]
-                v0, v1, v2 = np.array(tri[0][0]), np.array(tri[0][1]), np.array(tri[0][2])
+    for _, obj in cands:
+        # world AABB
+        wmin = obj.hit_test_rect[0][0].as_float
+        wmax = obj.hit_test_rect[0][1].as_float
 
-                h, tt = _ray_triangle_intersect(o, d, v0, v1, v2)
-                if h and tt < nearest_t:
-                    nearest_t = tt
-                    nearest_hit = True
+        hit, t_hit = _ray_intersect_aabb(o, d, wmin, wmax)
+        if hit and t_hit < best_t:
+            best_t = t_hit
+            best_obj = obj
 
-            if nearest_hit:
-                selected = obj
-            else:
-                # AABB reported hit but triangle test failed (rare if
-                # coarse AABB is large). Accept AABB hit if you prefer.
-                selected = obj
-        else:
-            # ray misses AABB: treat as not hit. Could skip
-            # object or accept it for forgiving pick.
-            selected = obj
-
-    # advance index for next click
-    last_pick_state['index'] = (last_pick_state['index'] + 1) % len(cands)
-    return selected
+    return best_obj

@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 
 class Transition(_ObjectBase):
-    obj_3d: _transition.Transition = None
+    obj3d: _transition.Transition = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_transition.PJTTransition"):
@@ -18,4 +18,4 @@ class Transition(_ObjectBase):
         super().__init__(mainframe)
 
         self.db_obj = db_obj
-        self.obj_3d = _transition.Transition(mainframe.editor3d, db_obj)
+        self.obj3d = _transition.Transition(mainframe.editor3d, db_obj)

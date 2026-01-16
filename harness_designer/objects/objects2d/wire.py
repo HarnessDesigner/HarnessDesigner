@@ -8,12 +8,12 @@ from ...geometry import point as _point
 from ...geometry import line as _line
 from ...geometry import angle as _angle
 from ...wrappers.decimal import Decimal as _decimal
-from ...editor_2d import Config
+from ...editor2d import Config
 
 
 if TYPE_CHECKING:
     from .. import wire_info as _wire_info
-    from ... import editor_2d as _editor_2d
+    from ... import editor2d as _editor2d
     from ...database.project_db import pjt_wire as _pjt_wire
 
 FIVE_0 = _decimal(5.0)
@@ -24,7 +24,7 @@ SIX_0 = _decimal(6.0)
 
 class Wire:
 
-    def __init__(self, editor2d: "_editor_2d.Editor2D", db_obj: "_pjt_wire.PJTWire", wire_info: "_wire_info.WireInfo"):
+    def __init__(self, editor2d: "_editor2d.Editor2D", db_obj: "_pjt_wire.PJTWire", wire_info: "_wire_info.WireInfo"):
         self.editor2d = editor2d
         self._db_obj = db_obj
         self._wire_info = wire_info

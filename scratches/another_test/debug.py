@@ -3,7 +3,7 @@ import functools
 
 
 class Config:
-    function_time = False
+    function_time = True
 
 
 # decorator function to tine how long functions take to run.

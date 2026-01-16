@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 
 class Boot(_ObjectBase):
-    obj_3d: _boot.Boot = None
+    obj3d: _boot.Boot = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_boot.PJTBoot"):
@@ -18,5 +18,5 @@ class Boot(_ObjectBase):
         super().__init__(mainframe)
 
         self.db_obj = db_obj
-        self.obj_3d = _boot.Boot(mainframe.editor3d, db_obj)
+        self.obj3d = _boot.Boot(mainframe.editor3d, db_obj)
 

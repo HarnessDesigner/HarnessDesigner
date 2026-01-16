@@ -12,7 +12,34 @@ if TYPE_CHECKING:
     from ..geometry import angle as _angle
 
 
-class Point:
+class PointMeta(type):
+    _instances = weakref.WeakValueDictionary()
+
+    def __call__(cls, x: _decimal, y: _decimal, z: _decimal | None = None,
+                 db_id: int | None = None):
+
+        if db_id is not None:
+            if db_id not in cls._instances:
+                cls._instances[db_id] = super().__call__(x, y, z, db_id)
+
+            elif cls._instances[db_id] is None:
+                # handle edge case where a reference has been removed
+                # but it the reference object has not yet been removed from
+                # the dict. we have to make sure that we delete the key
+                # before adding the obejct again because of the internal
+                # mechanics in weakref and not wanting it to remove
+                # the newly added reference
+                del cls._instances[db_id]
+                cls._instances[db_id] = super().__call__(x, y, z, db_id)
+
+            instance = cls._instances[db_id]
+        else:
+            instance = super().__call__(x, y, z, db_id)
+
+        return instance
+
+
+class Point(metaclass=PointMeta):
 
     def __array_ufunc__(self, func, _, inputs, instance, **__):
         if func == np.matmul:
@@ -54,7 +81,10 @@ class Point:
 
         raise RuntimeError
 
-    def __init__(self, x: _decimal, y: _decimal, z: _decimal | None = None):
+    def __init__(self, x: _decimal, y: _decimal, z: _decimal | None = None,
+                 db_id: int | None = None):
+
+        self.db_id = db_id
 
         if z is None:
             z = _decimal(0.0)
@@ -66,27 +96,6 @@ class Point:
         self._callbacks = []
         self._ref_count = 0
 
-    def __remove_callback(self, ref):
-        try:
-            self._callbacks.remove(ref)
-        except:  # NOQA
-            pass
-
-    def bind(self, callback):
-        ref = weakref.WeakMethod(callback, self.__remove_callback)
-
-        self._callbacks.append(ref)
-
-    def unbind(self, callback):
-        for ref in self._callbacks:
-            cb = ref()
-            if cb is None:
-                self._callbacks.remove(ref)
-
-            if cb == callback:
-                self._callbacks.remove(ref)
-                return
-
     def __enter__(self):
         self._ref_count += 1
         return self
@@ -94,17 +103,50 @@ class Point:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._ref_count -= 1
 
+    def __remove_callback(self, ref):
+        try:
+            self._callbacks.remove(ref)
+        except:  # NOQA
+            pass
+
+    def bind(self, callback):
+        # we don't explicitly check to see if a callback is already registered
+        # what we care about is if a callback is called only one time and that
+        # check is done when the callbacks are being done and if there happend
+        # to be a duplicate the duplicate is then removed at that point in time.
+        ref = weakref.WeakMethod(callback, self.__remove_callback)
+
+        self._callbacks.append(ref)
+
+    def unbind(self, callback):
+        for ref in self._callbacks[:]:
+            cb = ref()
+            if cb is None:
+                self._callbacks.remove(ref)
+            elif cb == callback:
+                # we don't return after licating a matching callback in the
+                # event a callback was registered more than one time. duplicates
+                # are also removed aty the time callbacks get called but if an update
+                # to a point never occurs we want to make sure that we explicitly
+                # unbind all callbacks including duplicates.
+                self._callbacks.remove(ref)
+
     def _process_update(self):
         if self._ref_count:
             return
 
-        for ref in self._callbacks:
+        used_callbacks = []
+        for ref in self._callbacks[:]:
             cb = ref()
             if cb is None:
                 self._callbacks.remove(ref)
-
-            else:
+            elif cb not in used_callbacks:
                 cb(self)
+                used_callbacks.append(cb)
+            else:
+                # remove duplicate callbacks since we are
+                # iterating over the callbacks
+                self._callbacks.remove(ref)
 
     @property
     def x(self) -> _decimal:

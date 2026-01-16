@@ -15,9 +15,9 @@ from ... import gl_materials
 from ...database.global_db import model3d as _model3d
 from ...wrappers import color as _color
 from ... import utils
-from ...editor_3d.objects import transition as _t_builder
-from ...editor_3d.objects import get_triangles as _get_triangles
-from ...editor_3d.objects import wire as _w_builder
+from ...editor3d.objects import transition as _t_builder
+from ...editor3d.objects import get_triangles as _get_triangles
+from ...editor3d.objects import wire as _w_builder
 from ...database.global_db import transition as _transition
 from ...database.global_db import wire as _wire
 

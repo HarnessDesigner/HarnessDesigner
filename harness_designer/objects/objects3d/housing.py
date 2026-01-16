@@ -9,7 +9,7 @@ from . import Base3D as _Base3D
 
 
 if TYPE_CHECKING:
-    from ... import editor_3d as editor_3d
+    from ... import editor3d as editor3d
     from ...database.global_db import housing as _housing
     from ...database.project_db import pjt_housing as _pjt_housing
 
@@ -71,7 +71,7 @@ class Housing(_Base3D):
 
     _db_obj: "_pjt_housing.PJTHousing" = None
 
-    def __init__(self, editor3d: "editor_3d.Editor3D", db_obj: "_pjt_housing.PJTHousing"):
+    def __init__(self, editor3d: "editor3d.Editor3D", db_obj: "_pjt_housing.PJTHousing"):
         super().__init__(editor3d)
 
         self._part = part = db_obj.part
@@ -110,7 +110,7 @@ class Housing(_Base3D):
                 self._model, self._hit_test_rect = _build_model(self._part)
 
             self._o_center = self._center.copy()
-            self._o_angle = self._db_obj.angle_3d.copy()
+            self._o_angle = self._db_obj.angle3d.copy()
 
         self._triangles = []
 
@@ -145,7 +145,7 @@ class Housing(_Base3D):
                 p2 += offset
 
             p1, p2 = self._hit_test_rect
-            angle = self._db_obj.angle_3d
+            angle = self._db_obj.angle3d
 
             p2 @= angle
             p1 += self._center

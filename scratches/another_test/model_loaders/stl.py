@@ -15,8 +15,14 @@ except ImportError:
     import debug as _debug  # NOQA
 
 
+from . import MODEL_CACHE
+
+
 @_debug.timeit
 def load_from_stl(file):
+    if file in MODEL_CACHE:
+        return MODEL_CACHE[file]
+
     shape = build123d.import_stl(file)
 
     loc = TopLoc_Location()
@@ -56,5 +62,7 @@ def load_from_stl(file):
 
     if len(faces) * 3 > 50000:
         vertices, faces = quadratic_mesh_reduction.reduce(vertices, faces, len(faces) * 3 // 30)
+
+    MODEL_CACHE[file] = (vertices, faces)
 
     return vertices, faces

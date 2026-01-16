@@ -156,7 +156,7 @@ ZERO_1 = _decimal(0.1)
 
 class Point:
 
-    def __array_ufunc__(self, func, method, inputs, instance, **kwargs):
+    def __array_ufunc__(self, func, _, inputs, instance, **__):
         if func == np.matmul:
             if isinstance(instance, np.ndarray):
                 arr = self.as_numpy
@@ -395,7 +395,7 @@ ZERO_POINT = Point(_decimal(0.0), _decimal(0.0), _decimal(0.0))
 
 class Angle:
 
-    def __array_ufunc__(self, func, method, inputs, instance, **kwargs):
+    def __array_ufunc__(self, func, _, inputs, instance, **__):
         if func == np.matmul:
             if isinstance(instance, np.ndarray):
                 arr = self.as_numpy
@@ -716,7 +716,7 @@ ZERO_5 = _decimal(0.5)
 
 class Line:
 
-    def __array_ufunc__(self, func, method, inputs, instance, **kwargs):
+    def __array_ufunc__(self, func, _, inputs, instance, **__):
         if func == np.matmul:
             if isinstance(instance, np.ndarray):
                 arr = self.as_numpy
@@ -1565,6 +1565,37 @@ Common camera movement terms
 '''
 
 
+def aabb_intersects_frustum(ht_rect: list, view_proj: np.ndarray) -> bool:
+    minx = ht_rect[0].x
+    maxx = ht_rect[1].x
+    miny = ht_rect[0].y
+    maxy = ht_rect[1].y
+    minz = ht_rect[0].z
+    maxz = ht_rect[1].z
+    corners = [
+        np.array([minx, miny, minz, 1.0], dtype=view_proj.dtype),
+        np.array([minx, miny, maxz, 1.0], dtype=view_proj.dtype),
+        np.array([minx, maxy, minz, 1.0], dtype=view_proj.dtype),
+        np.array([minx, maxy, maxz, 1.0], dtype=view_proj.dtype),
+        np.array([maxx, miny, minz, 1.0], dtype=view_proj.dtype),
+        np.array([maxx, miny, maxz, 1.0], dtype=view_proj.dtype),
+        np.array([maxx, maxy, minz, 1.0], dtype=view_proj.dtype),
+        np.array([maxx, maxy, maxz, 1.0], dtype=view_proj.dtype)
+    ]
+    corners = np.stack(corners, axis=0)  # (8,4)
+    clip = corners @ view_proj.T  # (8,4)
+
+    # convert to NDC: x/w, y/w, z/w; for each corner test whether inside [-1,1] cube
+    w = clip[:, 3:4]
+    ndc = clip[:, :3] / w
+
+    # If all corners are outside on the same side of an axis, box is outside
+    return not (
+        np.all(ndc[:, 0] < -1) or np.all(ndc[:, 2] < -1) or np.all(ndc[:, 1] < -1) or
+        np.all(ndc[:, 0] > 1) or np.all(ndc[:, 1] > 1) or np.all(ndc[:, 2] > 1)
+    )
+
+
 class Canvas(glcanvas.GLCanvas):
     def __init__(self, parent, size=(-1, -1)):
         glcanvas.GLCanvas.__init__(self, parent, -1, size=size)
@@ -1910,8 +1941,9 @@ class Canvas(glcanvas.GLCanvas):
 
         if not self.is_motion:
             x, y = evt.GetPosition()
+            mouse_pos = _point.Point(x, y)
 
-            selected = pick_full_pipeline.handle_click_cycle(x, y, self.objects)
+            selected = pick_full_pipeline.handle_click_cycle(mouse_pos, self.objects)
             if selected is not None:
                 if self.selected is not None and selected != self.selected:
                     self.selected.is_selected = False
@@ -2116,10 +2148,8 @@ class Canvas(glcanvas.GLCanvas):
 
         width, height = self.size = size * self.GetContentScaleFactor()
 
-        w = height * self.ASPECT  # w is width adjusted for aspect ratio
-        left = (width - w) / 2.0
-
-        GL.glViewport(0, 0, int(w), height)  #  fix up the viewport to maintain aspect ratio
+        #  fix up the viewport to maintain aspect ratio
+        GL.glViewport(0, 0, int(width), height)
         # GL.glMatrixMode(GL.GL_PROJECTION)
         # # GL.glLoadIdentity()
         # GL.glOrtho(0, self.WIDTH, self.HEIGHT, 0, -1.0, 1.0)  # only the window is changing, not the camera
@@ -2464,7 +2494,67 @@ class Canvas(glcanvas.GLCanvas):
                 GL.glVertex3f(x + TILE_SIZE, 0, y)
                 GL.glEnd()
 
+    def _get_view(self) -> np.ndarray:
+        forward = (self.camera_pos - self.camera_eye).as_numpy
+
+        fn = np.linalg.norm(forward)
+        if fn < 1e-6:
+            forward = np.array([0.0, 0.0, -1.0],
+                               dtype=np.dtypes.Float64DType)
+        else:
+            forward = forward / fn
+
+        temp_up = np.array([0.0, 1.0, 0.0],
+                           dtype=np.dtypes.Float64DType)
+
+        right = np.cross(forward, temp_up)  # NOQA
+
+        rn = np.linalg.norm(right)
+        if rn < 1e-6:
+            right = np.array([1.0, 0.0, 0.0],
+                             dtype=np.dtypes.Float64DType)
+        else:
+            right = right / rn
+
+        up = np.cross(right, forward)  # NOQA
+
+        M = np.identity(4, dtype=np.float32)
+        M[0, :3] = right
+        M[1, :3] = up
+        M[2, :3] = -forward
+        T = np.identity(4, dtype=np.float32)
+        T[:3, 3] = -self.camera_eye.as_numpy
+        return M @ T
+
+    def _get_perspective(self) -> np.ndarray:
+        zn = 0.1
+        zf = 1000.0
+        w, h = self.GetClientSize()
+
+        if h == 0:
+            h = 1
+
+        fovy = math.radians(45.0)
+        aspect = float(w)/float(h)
+
+        f = 1.0 / math.tan(fovy / 2.0)
+        M = np.zeros((4, 4), dtype=np.float32)
+        M[0, 0] = f / aspect
+        M[1, 1] = f
+        M[2, 2] = (zf + zn) / (zn - zf)
+        M[2, 3] = (2 * zf * zn) / (zn - zf)
+        M[3, 2] = -1.0
+        return M
+
+    def _update_camera(self):
+        self.view = self._get_view()
+        perspective = self._get_perspective()
+        self.projection = perspective @ self.view
+
     def OnDraw(self):
+        self._update_camera()
+        projection = self.projection
+
         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
         GL.glMatrixMode(GL.GL_MODELVIEW)
         GL.glLoadIdentity()
@@ -2509,6 +2599,8 @@ class Canvas(glcanvas.GLCanvas):
         GL.glEnableClientState(GL.GL_NORMAL_ARRAY)
 
         for obj in self.objects:
+            if not aabb_intersects_frustum(obj.hit_test_rect, projection):
+                continue
 
             for i, (normals, triangles, triangle_count) in enumerate(obj.triangles):
                 if obj.is_selected:

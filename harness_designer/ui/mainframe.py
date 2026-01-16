@@ -117,16 +117,16 @@ class MainFrame(wx.Frame):
         splash.SetText('Creating editor notebook...')
         self.editor_notebook = aui.AuiNotebook(self, wx.ID_ANY, style=aui.AUI_NB_TAB_MOVE | aui.AUI_NB_TOP)
 
-        from .. import editor_3d
-        from .. import editor_2d
+        from .. import editor3d
+        from .. import editor2d
         from . import object_panel
         from ..database import editor as db_editor
 
         splash.SetText('Creating 3D editor...')
-        self.editor3d = editor_3d.Editor3D(self.editor_notebook)
+        self.editor3d = editor3d.Editor3D(self.editor_notebook)
 
         splash.SetText('Creating 2D editor...')
-        self.editor2d = editor_2d.Editor2D(self.editor_notebook)
+        self.editor2d = editor2d.Editor2D(self.editor_notebook)
 
         splash.SetText('Creating database editor...')
         self.db_editor = db_editor.DBEditorPanel(self)

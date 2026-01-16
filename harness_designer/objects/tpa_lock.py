@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 
 class TPALock(_ObjectBase):
-    obj_3d: _tpa_lock.TPALock = None
+    obj3d: _tpa_lock.TPALock = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_tpa_lock.PJTTPALock"):
@@ -18,4 +18,4 @@ class TPALock(_ObjectBase):
         super().__init__(mainframe)
 
         self.db_obj = db_obj
-        self.obj_3d = _tpa_lock.TPALock(mainframe.editor3d, db_obj)
+        self.obj3d = _tpa_lock.TPALock(mainframe.editor3d, db_obj)

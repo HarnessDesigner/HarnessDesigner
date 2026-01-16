@@ -7,20 +7,20 @@ from ...geometry import angle as _angle
 from ...wrappers.decimal import Decimal as _decimal
 
 if TYPE_CHECKING:
-    from ... import editor_2d as _editor_2d
+    from ... import editor2d as _editor2d
     from ...database.project_db import pjt_wire_marker as _pjt_wire_marker
 
 
 class WireMarker:
 
-    def __init__(self, editor_2d: "_editor_2d.Editor2D",
+    def __init__(self, editor2d: "_editor2d.Editor2D",
                  db_obj: "_pjt_wire_marker.PJTWireMarker"):
 
-        self.editor_2d = editor_2d
+        self.editor2d = editor2d
         self._db_obj = db_obj
         self._part = db_obj.part
         self._wire = self._db_obj.wire
-        self._p1 = db_obj.point_2d.point
+        self._p1 = db_obj.point2d.point
 
         self._wire_p1 = self._wire.start_point2d.point
         self._wire_p2 = self._wire.stop_point2d.point
@@ -118,12 +118,12 @@ class WireMarker:
         offset += _decimal(wire_dia) - _decimal(height)
 
         angle = _angle.Angle.from_points(self._wire_p1, self._wire_p2)
-        angle_2d = angle.z
+        angle2d = angle.z
 
         p1 = _point.Point(_decimal(0.0), offset)
         p1 += self._p1
 
         gc.PushState()
-        gc.Rotate(float(angle_2d))
+        gc.Rotate(float(angle2d))
         gc.DrawBitmap(self._bitmap, float(p1.x), float(p1.y), float(width), float(height))
         gc.PopState()

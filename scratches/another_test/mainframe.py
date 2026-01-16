@@ -191,18 +191,18 @@ class MainFrame(wx.Frame):
         evt.Skip()
 
     def Show(self, flag=True):
-        p = _point.Point(_decimal(0.0), _decimal(0.0), _decimal(0.0))
+        p = _point.Point(_decimal(0.0), _decimal(15.0), _decimal(0.0))
         self.housing = _housing.Housing(self, stl_path, p.copy())
 
-        # for _ in range(9):
-        #     p.x += _decimal(60)
-        #
-        #     if p.x >= 400:
-        #         p.x = _decimal(-400.0)
-        #         p.z += _decimal(60.0)
-        #
-        #     housing = Housing(self, p.copy())
-        #     self.housings.append(housing)
+        for _ in range(30):
+            p.x += _decimal(60)
+
+            if p.x >= 400:
+                p.x = _decimal(-400.0)
+                p.z += _decimal(60.0)
+
+            housing = _housing.Housing(self, stl_path, p.copy())
+            self.housings.append(housing)
 
         wx.Frame.Show(self, flag)
 

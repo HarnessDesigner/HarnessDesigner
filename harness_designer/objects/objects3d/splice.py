@@ -12,7 +12,7 @@ from . import Base3D as _Base3D
 
 
 if TYPE_CHECKING:
-    from ... import editor_3d as _editor_3d
+    from ... import editor3d as _editor3d
     from ...database.project_db import pjt_splice as _pjt_splice
 
 
@@ -34,14 +34,14 @@ def _build_model(p1: _point.Point, p2: _point.Point, diameter: _decimal):
 
 class Splice(_Base3D):
 
-    def __init__(self, editor3d: "_editor_3d.Editor3D", db_obj: "_pjt_splice.PJTSplice"):
+    def __init__(self, editor3d: "_editor3d.Editor3D", db_obj: "_pjt_splice.PJTSplice"):
         super().__init__(editor3d)
         self._db_obj = db_obj
         self._part = part = db_obj.part
 
-        self._p1 = db_obj.point1_3d.point
-        self._p2 = db_obj.point2_3d.point
-        self._p3 = db_obj.point3_3d.point
+        self._p1 = db_obj.point13d.point
+        self._p2 = db_obj.point23d.point
+        self._p3 = db_obj.point33d.point
 
         self._o_p1 = self._p1.copy()
         self._o_p3 = self._p3.copy()

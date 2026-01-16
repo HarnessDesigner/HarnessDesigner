@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 
 class Cover(_ObjectBase):
-    obj_3d: _cover.Cover = None
+    obj3d: _cover.Cover = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_cover.PJTCover"):
@@ -18,4 +18,4 @@ class Cover(_ObjectBase):
         super().__init__(mainframe)
 
         self.db_obj = db_obj
-        self.obj_3d = _cover.Cover(mainframe.editor3d, db_obj)
+        self.obj3d = _cover.Cover(mainframe.editor3d, db_obj)

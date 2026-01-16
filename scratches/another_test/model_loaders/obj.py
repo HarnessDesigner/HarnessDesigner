@@ -6,9 +6,13 @@ try:
 except ImportError:
     import debug as _debug  # NOQA
 
+from . import MODEL_CACHE
+
 
 @_debug.timeit
 def load_from_obj(file):
+    if file in MODEL_CACHE:
+        return MODEL_CACHE[file]
 
     vertices = []
     faces = []
@@ -23,6 +27,8 @@ def load_from_obj(file):
 
     if len(faces) > 10000:
         vertices, faces = quadratic_mesh_reduction.reduce(vertices, faces, faces // 10)
+
+    MODEL_CACHE[file] = (vertices, faces)
 
     return vertices, faces
 

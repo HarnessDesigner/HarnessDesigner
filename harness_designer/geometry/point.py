@@ -115,7 +115,10 @@ class Point(metaclass=PointMeta):
         self._db_obj = db_obj
 
         if z is None:
+            self.is2d = True
             z = _decimal(0.0)
+        else:
+            self.is2d = False
 
         self._x = _round_down(x)
         self._y = _round_down(y)

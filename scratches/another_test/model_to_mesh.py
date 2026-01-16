@@ -64,27 +64,3 @@ def get_smooth_triangles(ocp_mesh):
     triangles, normals = _compute_normals.compute_smoothed_vertex_normals(vertices, faces)
 
     return normals, triangles, len(triangles) * 3
-
-
-'''
-<bound method Camera._update_camera of <canvas.camera.Camera object at 0x000002C1034D5650>>
-<bound method Camera._update_camera of <canvas.camera.Camera object at 0x000002C1034D5650>>
-compute_smoothed_vertex_normals: 0.0ms
-get_smooth_triangles: 20.0ms
-compute_smoothed_vertex_normals: 1.0ms
-get_smooth_triangles: 18.0ms
-compute_smoothed_vertex_normals: 0.0ms
-get_smooth_triangles: 18.0ms
-compute_smoothed_vertex_normals: 4.0ms
-get_smooth_triangles: 130.03ms
-load_from_stl: 445.06ms
-compute_vertex_normals: 1.0ms
-<bound method timeit.<locals>._wrapper of <objects.housing.Housing object at 0x000002C1049AD090>>
-compute_smoothed_vertex_normals: 1.0ms
-get_smooth_triangles: 18.0ms
-compute_smoothed_vertex_normals: 1.0ms
-get_smooth_triangles: 16.95ms
-compute_smoothed_vertex_normals: 0.0ms
-get_smooth_triangles: 16.52ms
-
-'''

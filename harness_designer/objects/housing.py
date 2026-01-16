@@ -11,8 +11,8 @@ if TYPE_CHECKING:
 
 
 class Housing(_ObjectBase):
-    obj_2d: _housing2d.Housing = None
-    obj_3d: _housing3d.Housing = None
+    obj2d: _housing2d.Housing = None
+    obj3d: _housing3d.Housing = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_housing.PJTHousing"):
@@ -20,5 +20,5 @@ class Housing(_ObjectBase):
         super().__init__(mainframe)
 
         self.db_obj = db_obj
-        self.obj_2d = _housing2d.Housing(mainframe.editor2d, db_obj)
-        self.obj_3d = _housing3d.Housing(mainframe.editor3d, db_obj)
+        self.obj2d = _housing2d.Housing(mainframe.editor2d, db_obj)
+        self.obj3d = _housing3d.Housing(mainframe.editor3d, db_obj)

@@ -11,8 +11,8 @@ if TYPE_CHECKING:
 
 
 class Terminal(_ObjectBase):
-    obj_2d: _terminal2d.Terminal = None
-    obj_3d: _terminal3d.Terminal = None
+    obj2d: _terminal2d.Terminal = None
+    obj3d: _terminal3d.Terminal = None
 
     def __init__(
         self, mainframe: "_ui.MainFrame",
@@ -22,5 +22,5 @@ class Terminal(_ObjectBase):
 
         self.db_obj = db_obj
 
-        self.obj_2d = _terminal2d.Terminal(mainframe.editor2d, db_obj)
-        self.obj_3d = _terminal3d.Terminal(mainframe.editor3d, db_obj)
+        self.obj2d = _terminal2d.Terminal(mainframe.editor2d, db_obj)
+        self.obj3d = _terminal3d.Terminal(mainframe.editor3d, db_obj)

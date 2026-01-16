@@ -12,7 +12,6 @@ from OCP.TopLoc import TopLoc_Location
 from OCP.TopExp import TopExp_Explorer
 from OCP.TopAbs import TopAbs_FACE
 from OCP.TopoDS import TopoDS
-from OCP.Poly import Poly_Triangulation
 
 
 from . import quadratic_mesh_reduction
@@ -22,9 +21,14 @@ try:
 except ImportError:
     import debug as _debug  # NOQA
 
+from . import MODEL_CACHE
+
 
 @_debug.timeit
 def load_from_stp(file):
+    if file in MODEL_CACHE:
+        return MODEL_CACHE[file]
+
     step_reader = STEPControl_Reader()
     step_reader.ReadFile(file)
     step_reader.TransferRoots()
@@ -73,6 +77,8 @@ def load_from_stp(file):
 
     if len(faces) * 3 > 50000:
         vertices, faces = quadratic_mesh_reduction.reduce(vertices, faces, len(faces) * 3 // 30)
+
+    MODEL_CACHE[file] = (vertices, faces)
 
     return vertices, faces
 

@@ -11,7 +11,7 @@ from . import Base3D as _Base3D
 
 
 if TYPE_CHECKING:
-    from ... import editor_3d as _editor_3d
+    from ... import editor3d as _editor3d
     from ...database.project_db import pjt_wire as _pjt_wire
     
     
@@ -41,7 +41,7 @@ def _build_model(p1: _point.Point, p2: _point.Point, diameter: _decimal, has_str
         edges = edges.sort_by(lambda e: e.distance_to(wire_axis.position))[0]
         edges = edges.trim_to_length(0, float(diameter / _decimal(3.0) * _decimal(build123d.MM)))
 
-        stripe_arc = build123d.Face(edges.offset_2d(float(stripe_thickness * _decimal(build123d.MM)), side=build123d.Side.RIGHT))
+        stripe_arc = build123d.Face(edges.offset2d(float(stripe_thickness * _decimal(build123d.MM)), side=build123d.Side.RIGHT))
 
         # Define the twist path to follow the wire
         twist = build123d.Helix(
@@ -71,14 +71,14 @@ def _build_model(p1: _point.Point, p2: _point.Point, diameter: _decimal, has_str
 
 class Wire(_Base3D):
 
-    def __init__(self, editor3d: "_editor_3d.Editor3D", db_obj: "_pjt_wire.PJTWire"):
+    def __init__(self, editor3d: "_editor3d.Editor3D", db_obj: "_pjt_wire.PJTWire"):
         super().__init__(editor3d)
-        self._db_obj = db_obj
+        self.db_obj = db_obj
         self._part = db_obj.part
 
         self._p1 = db_obj.start_point3d.point
         self._p2 = db_obj.stop_point3d.point
-        self._is_visible = self._db_obj.is_visible
+        self._is_visible = self.db_obj.is_visible
 
         self._dia = self._part.od_mm
 
@@ -99,7 +99,7 @@ class Wire(_Base3D):
     @is_visible.setter
     def is_visible(self, value: bool) -> None:
         self._is_visible = value
-        self._db_obj.is_visible = value
+        self.db_obj.is_visible = value
 
         if not value:
             self._triangles = []
@@ -115,7 +115,7 @@ class Wire(_Base3D):
                 self._stripe,
                 self._hit_test_rect
             ) = _build_model(self._p1, self._p2, self._part.od_mm,
-                            self._part.stripe_color is not None)
+                             self._part.stripe_color is not None)
 
             angle = _angle.Angle(self._p1, self._p2)
             p1, p2 = self._hit_test_rect

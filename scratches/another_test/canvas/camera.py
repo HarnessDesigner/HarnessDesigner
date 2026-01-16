@@ -224,6 +224,7 @@ class Camera:
         self.up_norm = None
         self.right_norm = None
         self.forward_norm = None
+        self._frustum_planes = None
 
         self.position = _point.Point(_decimal(0.0),
                                      _decimal(Config.settings.eye_height),
@@ -272,27 +273,92 @@ class Camera:
         if self._is_dirty:
             self._update_views()
 
-        obj_len = len(objs)
+        print('projection:', self.projection)
+        print()
+        print('model view:', self.modelview)
+        print()
+        print('clip:', self.clip)
+        print()
+        print('viewport', self.viewport)
+        print()
+        print('camera center:', self.position)
+        print('camera eye:', self.eye)
 
-        clip = self.clip
-        eye = self.eye
-        aabb_intersects_frustum = self.aabb_intersects_frustum
-
-        res = [[_line.Line(eye, obj.position).length(), obj]
-               for obj in objs
-               if aabb_intersects_frustum(obj.hit_test_rect, clip)]
+        planes = self._frustum_planes
+        aabb_in_frustum_planes = self.aabb_in_frustum_planes
+        res = [
+            [_line.Line(self.eye, obj.position).length(), obj] for obj in objs
+            if any(aabb_in_frustum_planes(mn.as_float, mx.as_float, planes)
+                   for mn, mx in obj.hit_test_rect)]
 
         # sort the objects by distance from the camera
         res = sorted(res, key=lambda o: o[0])
-
-        print('num objects culled:', obj_len - len(res))
 
         # we need to have the order as far -> near, we also trim off the distance
         # that was used for saorting
         return [res[i][1] for i in range(len(res) - 1, -1, -1)]
 
-    def aabb_intersects_frustum(self, ht_rects: list, view_proj: np.ndarray) -> bool:
+    @staticmethod
+    def aabb_in_frustum_planes(mn_xyz, mx_xyz, planes: np.ndarray) -> bool:
         """
+        mn_xyz, mx_xyz: array-like shape (3,)
+        planes: (6,4) from extract_frustum_planes
+
+        Returns True if intersects / inside, False if fully outside.
+        """
+        mn = np.asarray(mn_xyz, dtype=np.float64)
+        mx = np.asarray(mx_xyz, dtype=np.float64)
+
+        c = (mn + mx) * 0.5
+        e = (mx - mn) * 0.5
+
+        # normals and ds
+        n = planes[:, 0:3]  # (6,3)
+        d = planes[:, 3]  # (6,)
+
+        # signed distance from center to each plane
+        s = (n @ c) + d  # (6,)
+
+        # projected radius of extents onto plane normal
+        r = (np.abs(n) @ e)  # (6,)
+
+        # if outside any plane -> reject
+        return np.all((s + r) >= 0.0)
+
+    @staticmethod
+    def extract_frustum_planes(view_proj: np.ndarray) -> np.ndarray:
+        """
+        Returns planes as an array shape (6,4): [A,B,C,D] per plane.
+        Planes are normalized (A,B,C length = 1).
+
+        Order: left, right, bottom, top, near, far
+        """
+        m = np.asarray(view_proj, dtype=np.float64)
+
+        # rows
+        r0 = m[0, :]
+        r1 = m[1, :]
+        r2 = m[2, :]
+        r3 = m[3, :]
+
+        planes = np.stack([(r3 + r0),  # left
+                                 (r3 - r0),  # right
+                                 (r3 + r1),  # bottom
+                                 (r3 - r1),  # top
+                                 (r3 + r2),  # near  (OpenGL style)
+                                 (r3 - r2),  # far
+                           ], axis=0)
+
+        # normalize planes
+        n = np.linalg.norm(planes[:, 0:3], axis=1)
+        planes = planes / n[:, None]
+
+        return planes
+
+    @staticmethod
+    def aabb_intersects_frustum(ht_rects: list, view_proj: np.ndarray) -> bool:
+        """
+        NO LONGER USED, KEEPING FOR LATER POSSIBLE USE
         Return True if ANY AABB in ht_rects intersects the view frustum defined
         by view_proj (projection @ view).
 
@@ -303,12 +369,6 @@ class Camera:
         """
         # ensure matrix dtype for corners creation
         dtype = view_proj.dtype
-
-        print("GL proj:\n", np.array(GL.glGetDoublev(GL.GL_PROJECTION_MATRIX)).reshape((4,4), order="F"))
-        print("cam proj:\n", self.projection)
-        print("GL mv:\n", np.array(GL.glGetDoublev(GL.GL_MODELVIEW_MATRIX)).reshape((4,4), order="F"))
-        print("cam mv:\n", self.modelview)
-        print("cam clip:\n", self.clip)
 
         for ht_rect in ht_rects:
             # unpack min/max points
@@ -349,7 +409,6 @@ class Camera:
                 np.all(y < -1.0) or np.all(y > 1.0) or
                 np.all(z < -1.0) or np.all(z > 1.0)
             ):
-                print('continue')
                 continue
 
             # if we get here, this AABB is at least partially inside -> we can return True
@@ -429,6 +488,7 @@ class Camera:
             self.projection = np.array(GL.glGetDoublev(GL.GL_PROJECTION_MATRIX)).reshape((4, 4), order="F").T
             self.modelview = np.array(GL.glGetDoublev(GL.GL_MODELVIEW_MATRIX)).reshape((4, 4), order="F").T
             self.clip = (self.projection @ self.modelview).astype(np.float32)
+            self._frustum_planes = self.extract_frustum_planes(self.clip)
 
     def rotate(self, dx, dy):
         """

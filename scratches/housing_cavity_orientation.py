@@ -68,8 +68,6 @@ class Canvas(opengl_framework_for_scratches.Canvas):
 
     def on_mouse_motion(self, evt: wx.MouseEvent):
         if evt.LeftIsDown():
-            print('on_mouse_motion self.selected_arrow_obj:', self.selected_arrow_obj)
-
             if self.selected_arrow_obj is not None:
                 new_x, new_y = evt.GetPosition()
                 old_x, old_y = self.last_mouse_move
@@ -92,9 +90,9 @@ class Canvas(opengl_framework_for_scratches.Canvas):
 
         x, y = evt.GetPosition()
 
-        selected = pick_full_pipeline.handle_click_cycle(x, y, self.objects)
-        print('on_left_down selected:', selected)
-        print('on_left_down self.selected_arrow_obj:', self.selected_arrow_obj)
+        mouse_pos = _point.Point(x, y)
+
+        selected = pick_full_pipeline.handle_click_cycle(mouse_pos, self.objects)
         if selected is not None:
             if self.selected_arrow_obj is not None and selected != self.selected_arrow_obj:
                 self.selected_arrow_obj.is_selected = False
@@ -439,7 +437,6 @@ class MoveObject:
         self.z_arrow.remove()
 
     def on_x(self, obj, value, p=None):
-        print('on_x', obj, p)
         if p is not None:
             self.move(p)
             return
@@ -447,7 +444,6 @@ class MoveObject:
         self.x_selected = value
 
     def on_y(self, obj, value, p=None):
-        print('on_y', obj, p)
 
         if p is not None:
             self.move(p)
@@ -456,7 +452,6 @@ class MoveObject:
         self.y_selected = value
 
     def on_z(self, obj, value, p=None):
-        print('on_z', obj, p)
 
         if p is not None:
             self.move(p)
@@ -504,7 +499,6 @@ class ArrowMove(GLObject):
         parent.canvas.add_object(self)
 
     def move(self, delta: _point.Point):
-        print('ArrowMove.move:', delta)
         self.handler(self, None, delta)
 
     def _move(self, delta):
@@ -523,7 +517,6 @@ class ArrowMove(GLObject):
     def is_selected(self, value: bool):
         self._is_selected = value
 
-        print('ArrowMove.is_selected:', value)
         self.handler(self, value)
 
     @property

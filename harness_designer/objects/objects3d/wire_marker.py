@@ -10,7 +10,7 @@ from . import Base3D as _Base3D
 
 
 if TYPE_CHECKING:
-    from ... import editor_3d as _editor_3d
+    from ... import editor3d as _editor3d
     from ...database.project_db import pjt_wire_marker as _pjt_wire_marker
 
 
@@ -37,11 +37,11 @@ def _build_model(p1: _point.Point, p2: _point.Point, diameter: _decimal, label):
 
 class WireMarker(_Base3D):
 
-    def __init__(self, editor3d: "_editor_3d.Editor3D", db_obj: "_pjt_wire_marker.PJTWireMarker"):
+    def __init__(self, editor3d: "_editor3d.Editor3D", db_obj: "_pjt_wire_marker.PJTWireMarker"):
         super().__init__(editor3d)
         self._db_obj = db_obj
         self._part = db_obj.part
-        self._p1 = db_obj.point_3d.point
+        self._p1 = db_obj.point3d.point
         self.wire = db_obj.wire
         self.wire_p1 = self.wire.start_point3d.point
         self.wire_p2 = self.wire.stop_point3d.point

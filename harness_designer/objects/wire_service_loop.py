@@ -16,7 +16,7 @@ class WireServiceLoop(_ObjectBase):
         super().__init__(mainframe)
 
         self.db_obj = db_obj
-        self.obj_3d = _wire_service_loop.WireServiceLoop(mainframe.editor3d, db_obj)
+        self.obj3d = _wire_service_loop.WireServiceLoop(mainframe.editor3d, db_obj)
 
 
 
