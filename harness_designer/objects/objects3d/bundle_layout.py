@@ -56,6 +56,14 @@ class BundleLayout(_Base3D):
             p2 += center_diff
 
         self._o_center = self._center.copy()
+    
+    @property
+    def point(self) -> _point.Point:
+        """Return the center point of this bundle layout.
+        
+        This point can be used by wire layouts to bind callbacks for synchronization.
+        """
+        return self._center
 
     def recalculate(self, *_):
         if self._is_deleted:
@@ -94,3 +102,4 @@ class BundleLayout(_Base3D):
                 break
 
             renderer.model(normals, verts, count, None, color, self.is_selected)
+
