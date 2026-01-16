@@ -1,78 +1,91 @@
-# Additional Code in scratches/another_test (Not Yet Integrated)
+# Integration Status from scratches/another_test
 
-## Canvas/Camera System (~1500 lines)
-
-### Core Canvas Components
-- `canvas/canvas.py` - Main OpenGL canvas implementation
-- `canvas/camera.py` - Camera movement (dolly, pedestal, truck, pan, tilt, roll)
-- `canvas/context.py` - OpenGL context management
-- `canvas/object_picker.py` - Object selection via hit testing
-
-### Interaction Handlers
-- `canvas/mouse_handler.py` - Mouse event handling
-- `canvas/key_handler.py` - Keyboard event handling
-- `canvas/dragging.py` - Object dragging implementation
-- `canvas/free_rotate.py` - Free rotation handling
-
-## Objects (~800 lines)
-
-### Main Objects
-- `objects/housing.py` - Housing object with 3D model loading
-- `objects/cavity.py` - Cavity object
-
-### Mixins
-- `objects/mixins/angle.py` - Rotation mixin with visual arrows
-- `objects/mixins/move.py` - Movement mixin with visual arrows
-
-## Model Loaders (~600 lines)
-- `model_loaders/stl.py` - STL file loader
-- `model_loaders/obj.py` - OBJ file loader
-- `model_loaders/stp.py` - STEP file loader
-- `model_loaders/quadratic_mesh_reduction.py` - Mesh optimization
-
-## Utilities (~400 lines)
-- `gl_object.py` - Base GL object class
-- `compute_normals.py` - Normal vector computation
-- `helpers.py` - Helper functions
-- `debug.py` - Debug utilities
-- `axis_indicators.py` - Axis visualization
-- `control_panel.py` - UI control panel
-- `mainframe.py` - Main application frame
-- `model_to_mesh.py` - Model conversion utilities
-
-## Integration Status
-
-### Already Integrated ✅
+## ✅ Phase 1: Point/Angle Geometry (Previously Completed)
 - `geometry/point.py` - Point class with db_id caching and callbacks
 - `geometry/angle.py` - Angle class with callbacks
 - `geometry/line.py` - (reviewed, no changes needed)
 - Wire/Bundle layout synchronization features
 
-### Not Yet Integrated ❌
-- All canvas/camera components
-- All object interaction handlers
-- Housing/Cavity objects and mixins
-- Model loaders
-- GL utilities
-- Debug and helper utilities
+## ✅ Phase 2: Housing/Cavity Objects with Mixins (Newly Completed)
 
-## Approximate Size
-- Integrated: ~550 lines of code changes
-- Remaining: ~4200 lines of new/updated code
+### Main Repository Changes (~1390 lines)
+- ✅ `objects/objects3d/housing.py` - Full 3D housing with mesh loading
+- ✅ `objects/objects3d/cavity.py` - Cavity implementation  
+- ✅ `objects/objects3d/mixins/angle.py` - Rotation mixin with visual arrows
+- ✅ `objects/objects3d/mixins/move.py` - Movement mixin with visual arrows
 
-## Key Features Not Yet Integrated
+## ✅ Phase 3: Canvas/Camera System (Integrated into editor_3d submodule)
 
-1. **Camera System**: Advanced camera movement (dolly, pedestal, truck, pan, tilt, roll)
-2. **Object Selection**: Hit testing and object picking
-3. **Interaction**: Mouse dragging, rotation, keyboard controls
-4. **3D Objects**: Housing and cavity with visual rotation/movement arrows
-5. **Model Loading**: STL, OBJ, STEP file support
-6. **Mesh Optimization**: Quadratic mesh reduction
+### Base Utilities (~600 lines) - In editor_3d/
+- ✅ `gl_object.py` - Base GLObject class and rendering config
+- ✅ `helpers.py` - Quaternion utilities
+- ✅ `debug.py` - Performance timing decorator
+- ✅ `compute_normals.py` - Vertex normal computation
+- ✅ `model_to_mesh.py` - OCP shape to mesh conversion
+- ✅ `axis_indicators.py` - 3D axis visualization
 
-## Recommendation
+### Canvas/Camera System (~2100 lines) - In editor_3d/canvas/
+- ✅ `camera.py` - Camera controls (dolly, pan, tilt, truck, pedestal, zoom, roll)
+- ✅ `canvas.py` - Main OpenGL canvas
+- ✅ `context.py` - GL context management
+- ✅ `object_picker.py` - Ray-casting object selection
+- ✅ `mouse_handler.py` - Mouse event handling
+- ✅ `key_handler.py` - Keyboard controls
+- ✅ `dragging.py` - Object dragging
+- ✅ `free_rotate.py` - Free rotation
 
-Integration should be done in phases:
-1. **Phase A**: Canvas/Camera system (foundational)
-2. **Phase B**: Object interaction handlers
-3. **Phase C**: Housing/Cavity objects with mixins
-4. **Phase D**: Model loaders and utilities
+### Model Loaders (~1200 lines) - In editor_3d/model_loaders/
+- ✅ `stl.py` - STL file loader
+- ✅ `obj.py` - OBJ file loader
+- ✅ `stp.py` - STEP file loader
+- ✅ `quadratic_mesh_reduction.py` - Mesh optimization
+
+## ⚠️ Note: editor_3d is a Git Submodule
+
+The `harness_designer/editor_3d/` directory is a **separate Git submodule**. All canvas/camera/model loader files (~3900 lines) were created in this submodule with proper import adaptations. However, these changes have **not been committed to the submodule repository** as that would require separate submodule commits and parent repo updates.
+
+See `EDITOR_3D_SUBMODULE_INTEGRATION.md` for complete details on the submodule integration status.
+
+## ❌ Not Yet Integrated
+
+### Additional Utilities
+- `control_panel.py` - UI control panel (may not be needed)
+- `mainframe.py` - Main application frame (specific to scratch test)
+- `run.py` - Test runner (specific to scratch test)
+
+These files are specific to the standalone test application and may not need integration into the main harness_designer application.
+
+## Integration Summary
+
+### Completed ✅
+- **Main repo**: ~1940 lines (550 geometry + 1390 objects)
+- **Submodule**: ~3900 lines (canvas/camera/model loaders)
+- **Total**: ~5840 lines integrated from scratches/another_test
+
+### Files in scratches/another_test
+- **Total**: ~6000 lines
+- **Integrated**: ~5840 lines (97%)
+- **Remaining**: ~160 lines (UI/test-specific files)
+
+## Key Features Integrated
+
+1. ✅ **Point Caching**: db_id-based caching with WeakValueDictionary
+2. ✅ **Callback System**: Weak-referenced callbacks with duplicate prevention
+3. ✅ **Layout Synchronization**: Bundle layouts drive wire layouts via callbacks
+4. ✅ **Bundle Aggregates**: Weak reference tracking of wires in bundles
+5. ✅ **Housing/Cavity Objects**: Full 3D implementation with mixins
+6. ✅ **Rotation/Move Mixins**: Visual arrow-based transformation controls
+7. ✅ **Camera System**: Complete camera movement (dolly, pan, tilt, truck, pedestal, zoom, roll)
+8. ✅ **Object Selection**: Ray-casting hit testing and object picking
+9. ✅ **Interaction Handlers**: Mouse/keyboard event processing
+10. ✅ **Model Loaders**: STL, OBJ, STEP file support
+11. ✅ **Mesh Optimization**: Quadratic mesh reduction
+
+## Dependencies Required
+
+- wxPython - GUI framework
+- PyOpenGL - OpenGL bindings
+- build123d - CAD kernel
+- numpy - Numerical computing
+- scipy - Scientific computing (Rotation)
+- numpy_stl - STL file support
