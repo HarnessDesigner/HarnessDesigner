@@ -122,38 +122,51 @@ class Angle(metaclass=AngleMeta):
         self._p2 = p2
 
         self.__callbacks = []
-        self.__cb_disabled_count = 0
+        self._ref_count = 0
 
     def __enter__(self):
-        self.__cb_disabled_count += 1
+        self._ref_count += 1
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.__cb_disabled_count -= 1
+        self._ref_count -= 1
         self.__do_callbacks()
+    
+    def __remove_callback(self, ref):
+        try:
+            self.__callbacks.remove(ref)
+        except:  # NOQA
+            pass
 
     def Bind(self, cb: Callable[["Angle"], None]) -> bool:
-        for ref in self.__callbacks[:]:
-            if ref() is None:
-                self.__callbacks.remove(ref)
-            elif ref() == cb:
-                return False
-        else:
-            self.__callbacks.append(weakref.WeakMethod(cb, self.__remove_ref))
-
+        # We don't explicitly check to see if a callback is already registered.
+        # What we care about is if a callback is called only one time and that
+        # check is done when the callbacks are being executed. If there happens
+        # to be a duplicate, the duplicate is then removed at that point in time.
+        ref = weakref.WeakMethod(cb, self.__remove_callback)
+        self.__callbacks.append(ref)
         return True
+    
+    def bind(self, callback):
+        """Alias for Bind to support newer code style."""
+        return self.Bind(callback)
 
     def Unbind(self, cb: Callable[["Angle"], None]) -> None:
         for ref in self.__callbacks[:]:
-            if ref() is None:
+            callback = ref()
+            if callback is None:
                 self.__callbacks.remove(ref)
-            elif ref() == cb:
+            elif callback == cb:
+                # We don't return after locating a matching callback in the
+                # event a callback was registered more than one time. Duplicates
+                # are also removed at the time callbacks get called but if an update
+                # to an angle never occurs we want to make sure that we explicitly
+                # unbind all callbacks including duplicates.
                 self.__callbacks.remove(ref)
-                break
-
-    def __remove_ref(self, ref):
-        if ref in self.__callbacks:
-            self.__callbacks.remove(ref)
+    
+    def unbind(self, callback):
+        """Alias for Unbind to support newer code style."""
+        return self.Unbind(callback)
 
     @staticmethod
     def __rotate_euler(c1: _decimal, c2: _decimal, c3: _decimal, c4: _decimal, angle: _decimal) -> tuple[_decimal, _decimal]:
@@ -206,15 +219,21 @@ class Angle(metaclass=AngleMeta):
         return Angle.from_quat(self._R.as_quat())
 
     def __do_callbacks(self):
-        if self.__cb_disabled_count != 0:
+        if self._ref_count != 0:
             return
 
+        used_callbacks = []
         for ref in self.__callbacks[:]:
-            func = ref()
-            if func is None:
+            cb = ref()
+            if cb is None:
                 self.__callbacks.remove(ref)
+            elif cb not in used_callbacks:
+                cb(self)
+                used_callbacks.append(cb)
             else:
-                func(self)
+                # Remove duplicate callbacks since we are
+                # iterating over the callbacks
+                self.__callbacks.remove(ref)
 
     def __iadd__(self, other: Union["Angle", np.ndarray]) -> Self:
         if isinstance(other, Angle):
