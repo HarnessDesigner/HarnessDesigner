@@ -88,9 +88,25 @@ class Wire(_Base3D):
 
         self._triangles = []
         self._stripe_triangles = []
+        
+        # Wires hold strong references to bundles as a sanity check
+        self._bundle = None
 
         self._p1.Bind(self.recalculate)
         self._p2.Bind(self.recalculate)
+    
+    @property
+    def bundle(self):
+        """Return the bundle this wire belongs to, if any."""
+        return self._bundle
+    
+    @bundle.setter
+    def bundle(self, value):
+        """Set the bundle this wire belongs to.
+        
+        Wires hold strong references to bundles as a sanity check.
+        """
+        self._bundle = value
 
     @property
     def is_visible(self) -> bool:
