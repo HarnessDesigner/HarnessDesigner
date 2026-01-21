@@ -61,6 +61,13 @@ class Splice(_Base3D):
         self._p1.Bind(self.recalculate)
         self._p2.Bind(self.recalculate)
 
+    @staticmethod
+    def get_splice_triangles(model):
+        if Config.modeling.smooth_splices:
+            return model_to_mesh.get_smooth_triangles(model)
+        else:
+            return model_to_mesh.get_triangles(model)
+
     def recalculate(self, *_):
         if self._is_deleted:
             return

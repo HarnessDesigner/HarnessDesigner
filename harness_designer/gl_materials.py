@@ -1,4 +1,4 @@
-from python_utils import remap
+from .utils import remap
 from OpenGL.GL import *
 
 
@@ -10,21 +10,28 @@ class GLMaterial:
 
     def __init__(self, color):
         self._color = color
-        self._x_ray = False
-
-    def x_ray(self, flag):
-        self._x_ray = flag
+        self._saved_ambient = []
+        self._saved_diffuse = []
+        self._saved_specular = []
+        self._saved_shine = []
 
     def set(self):
-        if self._x_ray:
-            a = (0.2,)
-        else:
-            a = self._color[-1:]
+        self._saved_ambient = glGetMaterialfv(GL_FRONT, GL_AMBIENT)
+        self._saved_diffuse = glGetMaterialfv(GL_FRONT, GL_DIFFUSE)
+        self._saved_specular = glGetMaterialfv(GL_FRONT, GL_SPECULAR)
+        self._saved_shine = glGetMaterialfv(GL_FRONT, GL_SHININESS)
 
+        a = tuple(self._color[:-1])
         glMaterialfv(GL_FRONT, GL_AMBIENT, self._ambient + a)
         glMaterialfv(GL_FRONT, GL_DIFFUSE, self._diffuse + a)
         glMaterialfv(GL_FRONT, GL_SPECULAR, self._specular + a)
         glMaterialf(GL_FRONT, GL_SHININESS, self._shine)
+
+    def unset(self):
+        glMaterialfv(GL_FRONT, GL_AMBIENT, self._saved_ambient)
+        glMaterialfv(GL_FRONT, GL_DIFFUSE, self._saved_diffuse)
+        glMaterialfv(GL_FRONT, GL_SPECULAR, self._saved_specular)
+        glMaterialf(GL_FRONT, GL_SHININESS, self._saved_shine)
 
 
 class BlackPlastic(GLMaterial):

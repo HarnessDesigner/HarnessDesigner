@@ -14,9 +14,6 @@ compute_smoothed_vertex_normals: 9.0ms
 # impact would be seen when loading a project that has many objects defined
 # in it.
 
-# TODO: Locate a normal calculation that produces a nice smooth representation
-#       of a part like a housing without distorting it. Some of this is also
-#       going to be controlled by using any reduction in the number of triangles.
 
 @_debug.timeit
 def compute_smoothed_vertex_normals(vertices, faces):

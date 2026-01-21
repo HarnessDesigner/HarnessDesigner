@@ -12,7 +12,14 @@ class ObjectBase:
         self.obj2d = None
         self.obj3d = None
 
+        self._deleted = False
+        self._is_selected = False
+
     def delete(self):
+        if self._deleted:
+            return
+
+        self._deleted = True
         if self.obj2d is not None:
             self.obj2d.delete()
 
@@ -21,3 +28,17 @@ class ObjectBase:
 
     def close(self):
         raise NotImplementedError
+
+    @property
+    def is_selected(self) -> bool:
+        return self._is_selected
+
+    @is_selected.setter
+    def is_selected(self, value: bool):
+        self._is_selected = value
+
+        if self.obj2d is not None and self.obj2d.is_selected != value:
+            self.obj2d.is_selected = value
+
+        if self.obj3d is not None and self.obj3d.is_selected != value:
+            self.obj3d.is_selected = value

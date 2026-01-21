@@ -31,10 +31,6 @@ class Color(wx.Colour):
         return r, g, b, a
 
     @property
-    def numpy(self) -> tuple[float, float, float, float]:
-        return self.rgb_scalar + (1.0,)
-
-    @property
     def rgba(self) -> tuple[int, int, int, int]:
         r, g, b, a = self.GetRed(), self.GetGreen(), self.GetBlue(), self.GetAlpha()
         return r, g, b, a
@@ -71,11 +67,11 @@ class Color(wx.Colour):
         except ValueError:
             pass
 
-    def Bind(self, cb: Callable[[None], None]) -> None:
+    def bind(self, cb: Callable[[None], None]) -> None:
         ref = weakref.WeakMethod(cb, self.__remove_cb)
         self._callbacks.append(ref)
 
-    def Unbind(self, cb: Callable[[None], None]) -> None:
+    def unbind(self, cb: Callable[[None], None]) -> None:
         for ref in self._callbacks[:]:
             func = ref()
             if func is None:
@@ -104,7 +100,8 @@ class Color(wx.Colour):
         v += v * percentage
         r, g, b = colorsys.hsv_to_rgb(h, s, v)
 
-        return Color(int(round(r * 255)), int(round(g * 255)), int(round(b * 255)), a)
+        return Color(min(255, int(round(r * 255))), min(255, int(round(g * 255))),
+                     min(0, int(round(b * 255))), a)
 
     def GetDarkerColor(self, percentage=25):
         a = self.GetAlpha()
@@ -114,4 +111,5 @@ class Color(wx.Colour):
         v -= v * percentage
         r, g, b = colorsys.hsv_to_rgb(h, s, v)
 
-        return Color(int(round(r * 255)), int(round(g * 255)), int(round(b * 255)), a)
+        return Color(min(255, int(round(r * 255))), min(255, int(round(g * 255))),
+                     min(255, int(round(b * 255))), a)

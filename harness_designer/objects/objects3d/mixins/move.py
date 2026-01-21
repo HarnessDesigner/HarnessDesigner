@@ -3,25 +3,21 @@ from typing import TYPE_CHECKING
 import build123d
 import numpy as np
 
-from ...geometry import point as _point
-from ...geometry import angle as _angle
+from ....geometry import point as _point
+from ....geometry import angle as _angle
 
-from ...editor_3d import gl_object as _gl_object
-from ...editor_3d import debug as _debug
-from ...wrappers.decimal import Decimal as _decimal
+from .. import base3d as _base3d
+from .... import debug as _debug
+from ....wrappers.decimal import Decimal as _decimal
 
 if TYPE_CHECKING:
-    from ...editor_3d import mainframe as _mainframe
+    from ....ui import mainframe as _mainframe
 
 
 class StraightArrow:
-    _arrow: tuple[np.ndarray, np.ndarray, int] = None
-    _model = None
-    _boundingbox: list[_point.Point, _point.Point] = None
 
     @_debug.timeit
-    def __init__(self, parent: "ArrowMove",
-                 center: _point.Point, angle: _angle.Angle, scale):
+    def __init__(self, parent: "ArrowMove", scale):
 
         self.parent = parent
         edge = build123d.Edge.extrude(
@@ -57,102 +53,15 @@ class StraightArrow:
         arrow += polygon
 
         arrow = build123d.extrude(arrow, 0.25, (0, 0, 1))
-
-        arrow = arrow.rotate(
-            build123d.Axis((0.0, 0.0, 0.0), (1, 0, 0)), float(angle.x))
-
-        arrow = arrow.rotate(
-            build123d.Axis((0.0, 0.0, 0.0), (0, 1, 0)), float(angle.y))
-
-        arrow = arrow.rotate(
-            build123d.Axis((0.0, 0.0, 0.0), (0, 0, 1)), float(angle.z))
-
         arrow = arrow.scale(float(scale))
         arrow = arrow.scale(1.20)
 
-        arrow = arrow.move(build123d.Location(
-            (float(center.x), float(center.y), float(center.z))))
-
-        # calculate the bounding box for the arrow
-        bb = arrow.bounding_box()
-        # build the triangles for the arrow
-        # we set the built arrow into a class variable so it only needs to
-        # get built a single time. The same calculated trinagles gets used
-        # for each instance of this class that gets made. The normals and
-        # triangles get copied with each nw instance of this class. the normals
-        # and triangles are then scaled to size for use with whatever the
-        # object is.
-        normals, triangles, count = parent.get_housing_triangles(arrow)
-
         # collect and copy the model, triangles and
         # normals from the class variables
-        self.models = [arrow]
-
-        self.triangles = [[triangles, normals, count]]
-
-        # copy the bounding box for the arrow
-
-        p1 = _point.Point(_decimal(bb.min.X),
-                          _decimal(bb.min.Y), _decimal(bb.min.Z))
-
-        p2 = _point.Point(_decimal(bb.max.X),
-                          _decimal(bb.max.Y), _decimal(bb.max.Z))
-
-        # set the bounding box as the clickable rectangle
-        self.hit_test_rect = [[p1, p2]]
-        self.adjust_hit_points()
-
-        obj_center = self.parent.get_parent_object().position
-        obj_center.bind(self.on_obj_move)
-        self._obj_center = obj_center.copy()
-
-    @_debug.timeit
-    def on_obj_move(self, center):
-        delta = center - self._obj_center
-        # self.triangles[0][0] += delta
-        self.triangles[0][0] += delta
-        self._obj_center = center.copy()
-
-    @_debug.timeit
-    def adjust_angle(self, delta: _angle.Angle):
-        triangles, normals = self.triangles[0][:-1]
-
-        # normals -= self._obj_center
-        triangles -= self._obj_center
-
-        normals @= delta
-        triangles @= delta
-
-        # normals += self._obj_center
-        triangles += self._obj_center
-
-        self.triangles[0][0] = triangles
-        self.triangles[0][1] = normals
-
-        for p in self.hit_test_rect[0]:
-            p -= self._obj_center
-            p @= delta
-            p += self._obj_center
-
-        self.adjust_hit_points()
-
-    def adjust_hit_points(self):
-        for i, (p1, p2) in enumerate(self.hit_test_rect):
-
-            xmin = min(p1.x, p2.x)
-            ymin = min(p1.y, p2.y)
-            zmin = min(p1.z, p2.z)
-            xmax = max(p1.x, p2.x)
-            ymax = max(p1.y, p2.y)
-            zmax = max(p1.z, p2.z)
-
-            p1 = _point.Point(xmin, ymin, zmin)
-            p2 = _point.Point(xmax, ymax, zmax)
-
-            self.hit_test_rect[i] = [p1, p2]
+        self.model = arrow
 
 
-class ArrowMove(_gl_object.GLObject):
+class ArrowMove(_base3d.Base3D):
 
     @_debug.timeit
     def __init__(self, parent: "MoveMixin", center: _point.Point,
@@ -160,11 +69,7 @@ class ArrowMove(_gl_object.GLObject):
                  color: list[float, float, float, float],
                  press_color: list[float, float, float, float]):
 
-        self.parent = parent
-        self._color = color
-        self._press_color = press_color
-
-        super().__init__()
+        super().__init__(parent)
 
         opposite_angle = angle.copy()
 
@@ -175,66 +80,89 @@ class ArrowMove(_gl_object.GLObject):
         else:
             opposite_angle.y = _decimal(180.0)
 
-        self._arrow_1 = StraightArrow(self, center, angle, scale)
-        self._arrow_2 = StraightArrow(self, center, opposite_angle, scale)
+        self._arrow_1 = StraightArrow(self, scale)
+        self._arrow_2 = StraightArrow(self, scale)
 
-        self.__angle = angle
-        self._center = center
-        self._build_globject()
-        self.parent.get_canvas().add_object(self)
+        a1 = self._arrow_1.model
+        a2 = self._arrow_2.model
+
+        a1_verts, a1_faces = self._convert_model_to_mesh(a1)
+        a2_verts, a2_faces = self._convert_model_to_mesh(a2)
+
+        a1_tris, a1_nrmls, a1_count = self._compute_vertex_normals(a1_verts, a1_faces)
+        a2_tris, a2_nrmls, a2_count = self._compute_vertex_normals(a2_verts, a2_faces)
+        a1_tris @= angle
+        a1_nrmls @= angle
+
+        a2_tris @= opposite_angle
+        a2_nrmls @= opposite_angle
+
+        tris = np.array([a1_tris, a2_tris], dtype=np.float64).reshape(-1, 3, 3)
+        nrmls = np.array([a1_nrmls, a2_nrmls], dtype=np.float64).reshape(-1, 3)
+        count = a1_count + a2_count
+
+        tris += center
+
+        p1, p2 = self._compute_rect(tris)
+        bb = self._compute_bb(p1, p2)
+
+        self._rect.append([p1, p2])
+        self._bb.append(bb)
+
+        self._position = center
+        self._parent_pos = parent.position
+        self._o_parent_pos = self._parent_pos.copy()
+
+        self._parent_pos.bind(self._update_position)
+
+        self._triangles = [[tris, nrmls, count, None, color, color[-1] == 1.0]]
+
+        self._color = color
+        self._press_color = press_color
+
+        self._parent.get_canvas().add_object(self)
+
+    @property
+    def is_selected(self) -> bool:
+        return self._is_selected
+
+    @is_selected.setter
+    def is_selected(self, value: bool):
+        if value:
+            color = self._press_color
+        else:
+            color = self._color
+
+        self._triangles[0][4] = color
+        self._triangles[0][5] = color[-1] == 1.0
+
+        self._is_selected = value
+
+    def _update_position(self, point: _point.Point):
+        delta = point - self._o_parent_pos
+        self._o_parent_pos = point.copy()
+
+        for i, item in enumerate(self._triangles):
+            item[0] += delta
+            try:
+                p1, p2 = self._rect[i]
+                p1 += delta
+                p2 += delta
+
+                self._bb[i] = self._compute_bb(p1, p2)
+            except IndexError:
+                pass
 
     @property
     def position(self) -> _point.Point:
-        return self._center
+        return self._position
 
     def delete(self):
-        self.parent.get_canvas().remove_object(self)
-
-    @_debug.timeit
-    def _build_globject(self):
-
-        if self.__angle.y:
-            self.hit_test_rect = [
-                [self._arrow_1.hit_test_rect[0][0],
-                 self._arrow_2.hit_test_rect[0][1]]
-            ]
-        else:
-            self.hit_test_rect = [
-                [self._arrow_1.hit_test_rect[0][1],
-                 self._arrow_2.hit_test_rect[0][0]]
-            ]
-
-        self.adjust_hit_points()
-
-        self._color_arr = [
-            np.full((self._arrow_1.triangles[0][-1], 4),
-                    self._color, dtype=np.float32),
-
-            np.full((self._arrow_1.triangles[0][-1], 4),
-                    self._press_color, dtype=np.float32)
-        ]
-
-        self._triangles = [self._arrow_1.triangles[0],
-                           self._arrow_2.triangles[0]]
-
-    def get_first_points(self):
-        points = []
-        for i in range(2):
-            tris = self._triangles[i][0]
-            p = _point.Point(_decimal(tris[0][0]), _decimal(tris[0][1]),
-                             _decimal(tris[0][2]))
-            points.append(p)
-
-        return points
+        self._parent.get_canvas().remove_object(self)
 
     @property
     def triangles(self):
-        triangles = []
-        for tris, norms, count in self._triangles:
-            color = self._color_arr[int(self._is_selected)]
-            triangles.append([tris, norms, color, count, color[0][-1] >= 1.0])
-
-        return triangles
+        return self._triangles
 
     def start_angle(self, flag=True):
         if flag:
@@ -246,20 +174,43 @@ class ArrowMove(_gl_object.GLObject):
                 pass
 
     def get_parent_object(self) -> "MoveMixin":
-        return self.parent
+        return self._parent
 
     def move(self, candidate, start_obj_pos, last_pos):
-        return self.parent.move(candidate, start_obj_pos, last_pos)
+        return self._parent.move(candidate, start_obj_pos, last_pos)
 
 
 class MoveMixin:
     parent: "_mainframe.MainFrame" = None
-    hit_test_rect: list[list[_point.Point, _point.Point]] = []
+    _rect: list[list[_point.Point, _point.Point]] = []
 
     _x_arrow: "ArrowMove" = None
     _y_arrow: "ArrowMove" = None
     _z_arrow: "ArrowMove" = None
-    _bbox: list[np.ndarray] = None
+
+    _o_position: _point.Point = None
+    _position: _point.Point = None
+    _triangles: list = []
+    _bb: list = []
+
+    @staticmethod
+    def _compute_bb(p1, p2):
+        raise RuntimeError
+
+    def _update_position(self, point: _point.Point):
+        delta = point - self._o_position
+        self._o_position = point.copy()
+
+        for i, item in enumerate(self._triangles):
+            item[0] += delta
+
+            try:
+                p1, p2 = self._rect[i]
+                p1 += delta
+                p2 += delta
+                self._bb[i] = self._compute_bb(p1, p2)
+            except IndexError:
+                pass
 
     def get_parent_object(self) -> _gl_object.GLObject:
         return self
@@ -269,7 +220,7 @@ class MoveMixin:
 
     @_debug.timeit
     def start_move(self):
-        p1, p2 = self.hit_test_rect[0]
+        p1, p2 = self._rect[0]
         offset = p2 - p1
 
         scale = max(offset.x, offset.y, offset.z) / _decimal(20.0)
@@ -338,21 +289,9 @@ class MoveMixin:
         return new_pos
 
     @property
-    def bbox(self):
-        return self._bbox
-
-    def build_bbox(self, p1, p2):
-        x1, y1, z1 = p1.as_float
-        x2, y2, z2 = p2.as_float
-
-        if self._bbox is None:
-            self._bbox = []
-
-        self._bbox.append(np.array([[x1, y1, z1], [x1, y1, z2],
-                                   [x1, y2, z1], [x1, y2, z2],
-                                   [x2, y1, z1], [x2, y1, z2],
-                                   [x2, y2, z1], [x2, y2, z2]], dtype=np.float64))
+    def bb(self):
+        return self._bb
 
     @property
     def position(self) -> _point.Point:
-        raise NotImplementedError
+        return self._position

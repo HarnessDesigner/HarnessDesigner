@@ -154,6 +154,13 @@ class Transition(_Base3D):
         self._center.Bind(self.recalculate)
         self._triangles = []
 
+    @staticmethod
+    def get_transition_triangles(model):
+        if Config.modeling.smooth_transitions:
+            return model_to_mesh.get_smooth_triangles(model)
+        else:
+            return model_to_mesh.get_triangles(model)
+
     def recalculate(self, *_):
         if self._is_deleted:
             return

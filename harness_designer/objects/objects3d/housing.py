@@ -11,25 +11,18 @@ from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ...wrappers.decimal import Decimal as _decimal
 from ...editor_3d import debug as _debug
-from ...editor_3d.model_loaders import stl as _stl_loader
-from ...editor_3d.model_loaders import obj as _obj_loader
-from ...editor_3d.model_loaders import stp as _stp_loader
 
 
 class Housing(_gl_object.GLObject, _arrow_move.MoveMixin, _arrow_angle.AngleMixin):
 
-    def __init__(self, parent, file, position: _point.Point, num_pins=6, num_rows=1, blade_size=1.5):
+    def __init__(self, parent, file, position: _point.Point):
         super().__init__()
         self.parent = parent
         self._detent_update_counter: int = 0
 
         self.cavities = []
 
-        self.num_pins = num_pins
-        self.num_rows = num_rows
-        self.blade_size = blade_size
-
-        self._verts, self._faces = self._read_mesh(file)
+        self._model = self._read_mesh(file)
 
         tris, normals, count = self.get_mesh_triangles(self._verts, self._faces)
 
@@ -82,6 +75,13 @@ class Housing(_gl_object.GLObject, _arrow_move.MoveMixin, _arrow_angle.AngleMixi
         self._triangles = [[tris, normals, count]]
 
         parent.canvas.add_object(self)
+
+    @staticmethod
+    def get_housing_triangles(model):
+        if Config.modeling.smooth_housings:
+            return model_to_mesh.get_smooth_triangles(model)
+        else:
+            return model_to_mesh.get_triangles(model)
 
     def release_mouse(self):
         self._detent_update_counter = 0
@@ -157,21 +157,3 @@ class Housing(_gl_object.GLObject, _arrow_move.MoveMixin, _arrow_angle.AngleMixi
             self.cavities.append(_cavity.Cavity(self, index, name, angle=angle, point=pos,
                                                 length=length, terminal_size=_decimal(1.5)))
 
-    @staticmethod
-    def _read_mesh(file: str):
-        if file.endswith('.stl'):
-            verts, faces = _stl_loader.load_from_stl(file)
-
-        elif file.endswith('obj'):
-            verts, faces = _obj_loader.load_from_obj(file)
-
-        elif file.endswith('3mf'):
-            raise NotImplementedError
-
-        elif file.endswith('step') or file.endswith('stp'):
-            verts, faces = _stp_loader.load_from_stp(file)
-
-        else:
-            raise NotImplementedError
-
-        return verts, faces

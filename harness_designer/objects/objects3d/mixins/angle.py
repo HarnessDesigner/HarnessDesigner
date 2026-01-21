@@ -2,29 +2,23 @@ from typing import TYPE_CHECKING
 
 import build123d
 import numpy as np
+import math
 
-from ...geometry import point as _point
-from ...geometry import angle as _angle
+from .. import base3d as _base3d
 
-from ...editor_3d import gl_object as _gl_object
-from ...editor_3d import debug as _debug
-from ...editor_3d import helpers
-from ...wrappers.decimal import Decimal as _decimal
+from ....geometry import point as _point
+from ....geometry import angle as _angle
 
-if TYPE_CHECKING:
-    from ...editor_3d import mainframe as _mainframe
+
+from ....import debug as _debug
+from ....wrappers.decimal import Decimal as _decimal
 
 
 class CurvedArrow:
-    _arrow: tuple[np.ndarray, np.ndarray, int] = None
-    _model = None
-    _boundingbox: list[_point.Point, _point.Point] = None
 
     @_debug.timeit
-    def __init__(self, parent: "ArrowRing", center: _point.Point, radius: float,
-                 start_angle: float, stop_angle: float, angle: _angle.Angle, scale: _decimal):
-
-        self.parent = parent
+    def __init__(self, radius: float, start_angle: float,
+                 stop_angle: float, scale: _decimal):
 
         arc_len = start_angle - stop_angle
         arc = build123d.CenterArc((0.0, 0.0, 0.0),
@@ -51,50 +45,17 @@ class CurvedArrow:
         arrow = build123d.extrude(arrow, 0.25, (0, 0, 1))
         arrow = arrow.move(build123d.Location((0, 0, -0.125)))
 
-        arrow = arrow.rotate(
-            build123d.Axis((0.0, 0.0, 0.0), (1, 0, 0)), float(angle.x))
-
-        arrow = arrow.rotate(
-            build123d.Axis((0.0, 0.0, 0.0), (0, 1, 0)), float(angle.y))
-
-        arrow = arrow.rotate(
-            build123d.Axis((0.0, 0.0, 0.0), (0, 0, 1)), float(angle.z))
-
-        # c = arrow.center()
-
-        # arrow = arrow.move(build123d.Location((-c.X, -c.Y, -c.Z)))
-        # arrow = arrow.scale(float(scale))
-        #
-        # arrow = arrow.move(build123d.Location(c))
-
-        arrow = arrow.move(build123d.Location(
-                (float(center.x), float(center.y), float(center.z))))
-
-        normals, triangles, count = parent.get_housing_triangles(arrow)
-        self.models = [arrow]
-
-        self.triangles = [[triangles, normals, count]]
-
-        bb = arrow.bounding_box()
-
-        p1 = _point.Point(
-            _decimal(bb.min.X), _decimal(bb.min.Y), _decimal(bb.min.Z))
-
-        p2 = _point.Point(
-            _decimal(bb.max.X), _decimal(bb.max.Y), _decimal(bb.max.Z))
-
-        self.hit_test_rect = [[p1, p2]]
+        self.model = arrow
 
 
-class ArrowRing(_gl_object.GLObject):
+class ArrowRing(_base3d.Base3D):
 
     @_debug.timeit
     def __init__(self, parent, center: _point.Point, radius: _decimal,
                  angle: _angle.Angle, scale: _decimal, color: list[float, float, float, float],
                  press_color: list[float, float, float, float]):
 
-        super().__init__()
-        self.parent = parent
+        super().__init__(parent)
 
         opposite_angle = angle.copy()
         if angle.y:
@@ -107,13 +68,11 @@ class ArrowRing(_gl_object.GLObject):
             opposite_angle.y = _decimal(180.0)
             start_angle = 0.0
 
-        top_arrow_1 = CurvedArrow(
-            parent, center, float(radius) - 0.075, start_angle,
-            start_angle + float(radius) / 2.0, angle, scale)
+        arrow1 = CurvedArrow(float(radius) - 0.075, start_angle,
+                             start_angle + float(radius) / 2.0, scale)
 
-        top_arrow_2 = CurvedArrow(
-            parent, center, float(radius) - 0.075, start_angle,
-            start_angle - float(radius) / 2.0, angle, scale)
+        arrow2 = CurvedArrow(float(radius) - 0.075, start_angle,
+                             start_angle - float(radius) / 2.0, scale)
 
         ring = build123d.Circle(float(radius))
         hole = build123d.Circle(float(radius) - 0.1)
@@ -122,167 +81,100 @@ class ArrowRing(_gl_object.GLObject):
         ring = build123d.extrude(ring, 0.1, (0, 0, 1))
         ring = ring.move(build123d.Location((0.0, 0.0, -0.05), (0.0, 0.0, 1)))
 
-        (
-            ring_normals,
-            ring_triangles,
-            ring_count
-        ) = self.get_housing_triangles(ring)
+        ring_verts, ring_faces = self._convert_model_to_mesh(ring)
+        arrow1_verts, arrow1_faces = self._convert_model_to_mesh(arrow1.model)
+        arrow2_verts, arrow2_faces = self._convert_model_to_mesh(arrow2.model)
 
-        ring_normals @= angle
-        ring_triangles @= angle
-        ring_triangles += center
+        arrow1_tris, arrow1_nrmls, arrow1_count = self._compute_smoothed_vertex_normals(arrow1_verts, arrow1_faces)
+        arrow2_tris, arrow2_nrmls, arrow2_count = self._compute_smoothed_vertex_normals(arrow2_verts, arrow2_faces)
 
-        angle.bind(self.on_angle)
+        arrow_tris = np.array([arrow1_tris, arrow2_tris], dtype=np.float64).reshape(-1, 3, 3)
+        arrow_nrmls = np.array([arrow1_nrmls, arrow2_nrmls], dtype=np.float64).reshape(-1, 3)
+        arrow_count = arrow1_count + arrow2_count
+        ring_tris, ring_nrmls, ring_count = self._compute_smoothed_vertex_normals(ring_verts, ring_faces)
+
+        ring_nrmls @= angle
+        ring_tris @= angle
+        ring_tris += center
+
+        arrow_nrmls @= angle
+        arrow_tris @= angle
+        arrow_tris += center
+
+        p1, p2 = self._compute_rect(arrow_tris)
+        bb = self._compute_bb(p1, p2)
+
+        self._rect.append([p1, p2])
+        self._bb.append(bb)
+
+        angle.bind(self._update_angle)
+
         self._angle = angle
         self._o_angle = angle.copy()
 
-        self.hit_test_rect = [
-            [top_arrow_1.hit_test_rect[0][0], top_arrow_2.hit_test_rect[0][1]]
-        ]
-
-        self.__arrows = [top_arrow_1, top_arrow_2]
-
-        self.adjust_hit_points()
-        self._triangles = [top_arrow_1.triangles[0],
-                           top_arrow_2.triangles[0],
-                           [ring_triangles, ring_normals, ring_count]]
-
-        self.models = [ring]  # , plane]
-        self._color = color
-        self._press_color = press_color
-        self.center = center
-
-        self.parent.get_canvas().add_object(self)
-
-        self._color_arr = [
-            [
-                np.full((top_arrow_1.triangles[0][-1], 4),
-                        color, dtype=np.float32),
-
-                np.full((top_arrow_1.triangles[0][-1], 4),
-                        press_color, dtype=np.float32)
-            ],
-            np.full((ring_count, 4), color[:-1] + [1.0], dtype=np.float32),
-        ]
-
-    @_debug.timeit
-    def update_angle(self, angle: _angle.Angle):
-        self._angle.unbind(self.on_angle)
-        inverse = self._angle.inverse
-        self._angle += angle
-        self._o_angle = self._angle.copy()
-        self._angle.bind(self.on_angle)
-
-        ta1_tris, ta1_nrmls, ta1_count = self._triangles[0]
-        ta2_tris, ta2_nrmls, ta2_count = self._triangles[1]
-        r_tris, r_nrmls, r_count = self._triangles[2]
-
-        ta1_tris -= self.center
-        ta2_tris -= self.center
-        r_tris -= self.center
-
-        ta1_tris @= inverse
-        ta2_tris @= inverse
-        r_tris @= inverse
-
-        ta1_nrmls @= inverse
-        ta2_nrmls @= inverse
-        r_nrmls @= inverse
-
-        ta1_tris @= self._angle
-        ta2_tris @= self._angle
-        r_tris @= self._angle
-
-        ta1_nrmls @= self._angle
-        ta2_nrmls @= self._angle
-        r_nrmls @= self._angle
-
-        ta1_tris += self.center
-        ta2_tris += self.center
-        r_tris += self.center
+        self._position = center
 
         self._triangles = [
-            [ta1_tris, ta1_nrmls, ta1_count],
-            [ta2_tris, ta2_nrmls, ta2_count],
+            [arrow_tris, arrow_nrmls, arrow_count, None, color, color[-1] == 1.0],
+            [ring_tris, ring_nrmls, ring_count, None, color, color[-1] == 1.0]]
+
+        self._color = color
+        self._press_color = press_color
+
+        parent.get_canvas().add_object(self)
+
+    @_debug.timeit
+    def _update_angle(self, angle: _angle.Angle):
+        delta = angle - self._o_angle
+        self._o_angle = angle.copy()
+
+        a_tris, a_nrmls, a_count = self._triangles[0]
+        r_tris, r_nrmls, r_count = self._triangles[1]
+
+        a_tris -= self._position
+        r_tris -= self._position
+
+        a_tris @= delta
+        r_tris @= delta
+
+        a_nrmls @= delta
+        r_nrmls @= delta
+
+        a_tris += self._position
+        r_tris += self._position
+
+        self._triangles = [
+            [a_tris, a_nrmls, a_count],
             [r_tris, r_nrmls, r_count]
         ]
 
-        for p in self.hit_test_rect[0]:
-            p -= self.center
-            p @= inverse
-            p @= self._angle
-            p += self.center
+        p1, p2 = self._rect[0]
 
-        self.adjust_hit_points()
+        p1 -= self._position
+        p2 -= self._position
 
-    @_debug.timeit
-    def on_angle(self, angle: _angle.Angle):
-        inverse = self._o_angle.inverse
-        self._o_angle = angle.copy()
+        p1 @= delta
+        p2 @= delta
 
-        for i, (tris, normls, count) in enumerate(self._triangles):
-            tris -= self.center
+        p1 += self._position
+        p2 += self._position
 
-            tris @= inverse
-            normls @= inverse
-
-            tris @= angle
-            normls @= angle
-
-            tris += self.center
-            self._triangles[i] = [tris, normls, count]
-
-        for p in self.hit_test_rect[0]:
-            p -= self.center
-            p @= inverse
-            p @= angle
-            p += self.center
-
-        self.adjust_hit_points()
-
-    def get_first_points(self):
-        points = []
-        for i in range(1):
-            tris = self._triangles[i][0]
-            p = _point.Point(_decimal(tris[0][0]), _decimal(tris[0][1]),
-                             _decimal(tris[0][2]))
-            points.append(p)
-
-        return points
-
-    @property
-    def triangles(self):
-        triangles = []
-        for tris, norms, count in self._triangles[:-1]:
-            color = self._color_arr[0][int(self._is_selected)]
-            triangles.append([tris, norms, color, count, color[0][-1] >= 1.0])
-
-        tris, norms, count = self._triangles[-1]
-        triangles.append([tris, norms, self._color_arr[1], count,
-                          self._color_arr[1][0][-1] >= 1.0])
-
-        return triangles
+        self._bb[0] = self._compute_bb(p1, p2)
 
     @property
     def position(self) -> _point.Point:
-        return self.parent.position
+        return self._position
 
     def delete(self):
-        self.parent.get_canvas().remove_object(self)
-
-    def hit_test(self, point: _point.Point) -> bool:
-        (p1, p2), (p3, p4) = self.hit_test_rect
-
-        return p1 <= point <= p2 or p3 <= point <= p4
+        self._parent.get_canvas().remove_object(self)
 
     def get_parent_object(self) -> "AngleMixin":
-        return self.parent
+        return self._parent
 
 
 class AngleMixin:
     parent: "_mainframe.MainFrame" = None
-
-    hit_test_rect: list[list[_point.Point, _point.Point]] = []
+    _rect = []
 
     _x_angle: "ArrowRing" = None
     _y_angle: "ArrowRing" = None
@@ -299,6 +191,15 @@ class AngleMixin:
     _last_detent_counts: list = None
     _detent_update_counter: int = 0
 
+    _o_angle: _angle.Angle = None
+    _position: _point.Point = None
+    _triangles: list = []
+    _bb: list = []
+
+    @staticmethod
+    def _compute_bb(p1, p2):
+        raise RuntimeError
+
     @_debug.timeit
     def rotate(self, quat: np.ndarray):
         if self._detent_update_counter:
@@ -311,16 +212,18 @@ class AngleMixin:
         x1, y1, z1, w1 = quat
         x2, y2, z2, w2 = angle.as_quat
 
-        q = np.array(
-            [
-                w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
-                w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
-                w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
-                w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2
-            ], dtype=np.float64
-        )
+        q = np.array([w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
+                     w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
+                     w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
+                     w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2], dtype=np.float64)
 
-        quat = helpers.quat_normalize(q)
+        n = math.sqrt((q * q).sum())
+
+        if n == 0.0:
+            quat = np.array([0.0, 0.0, 0.0, 1.0], dtype=np.float64)
+        else:
+            quat = (q / n).astype(np.float64)
+
         new_angle = _angle.Angle.from_quat(quat)
         delta = new_angle - angle
 
@@ -360,6 +263,48 @@ class AngleMixin:
 
         angle += delta
 
+        # x axis rotation moves x, y
+        # y axis rotation moves y
+        # z axis rotation moves x, y, z
+
+        if None not in (self._x_plane_angle, self._y_plane_angle, self._z_plane_angle):
+            if delta.x or delta.y:
+                x_plane_delta = _angle.Angle(delta.x, delta.y, _decimal(0.0))
+                self._x_plane_angle += x_plane_delta
+
+            if delta.x or delta.y or delta.z:
+                self._z_plane_angle += delta
+
+            if delta.y:
+                self._y_plane_angle.y += delta.y
+
+    def _update_angle(self, angle: _angle.Angle):
+        delta = angle - self._o_angle
+        self._o_angle = angle.copy()
+
+        point = self._position
+
+        for i, item in enumerate(self._triangles):
+            item[0] -= point
+            item[0] @= delta
+            item[0] += point
+
+            item[1] @= delta
+            try:
+                p1, p2 = self._rect[i]
+                p1 -= point
+                p2 -= point
+
+                p1 @= delta
+                p2 @= delta
+
+                p1 += point
+                p2 += point
+
+                self._bb[i] = self._compute_bb(p1, p2)
+            except IndexError:
+                pass
+
     @property
     def is_angle_shown(self) -> bool:
         return self._x_angle is not None
@@ -385,47 +330,8 @@ class AngleMixin:
         raise NotImplementedError
 
     @_debug.timeit
-    def on_x_plane(self, angle):
-        delta = angle - self._o_x_plane_angle
-        self._o_x_plane_angle = angle.copy()
-
-        self._z_plane_angle.unbind(self.on_z_plane)
-        self._z_plane_angle @= delta
-        self._o_z_plane_angle = self._z_plane_angle.copy()
-        self._z_plane_angle.bind(self.on_z_plane)
-
-        obj_angle = self.angle
-        obj_angle @= delta
-
-    @_debug.timeit
-    def on_y_plane(self, angle):
-        delta = angle - self._o_y_plane_angle
-        self._o_y_plane_angle = angle.copy()
-
-        self._x_plane_angle.unbind(self.on_x_plane)
-        self._x_plane_angle @= delta
-        self._o_x_plane_angle = self._x_plane_angle.copy()
-        self._x_plane_angle.bind(self.on_x_plane)
-
-        self._z_plane_angle.unbind(self.on_z_plane)
-        self._z_plane_angle @= delta
-        self._o_z_plane_angle = self._z_plane_angle.copy()
-        self._z_plane_angle.bind(self.on_z_plane)
-
-        obj_angle = self.angle
-        obj_angle @= delta
-
-    @_debug.timeit
-    def on_z_plane(self, angle):
-        delta = angle - self._o_z_plane_angle
-        self._o_z_plane_angle = angle.copy()
-
-        obj_angle = self.angle
-        obj_angle @= delta
-
-    @_debug.timeit
     def start_angle(self):
-        p1, p2 = self.hit_test_rect[0]
+        p1, p2 = self._rect[0]
         offset = p2 - p1
 
         diameter = max(offset.x, offset.y, offset.z)
@@ -436,26 +342,13 @@ class AngleMixin:
 
         angle = self.angle
 
-        if self._x_plane_angle is None:
-            self._x_plane_angle = _angle.Angle.from_euler(0.0, 90.0, 0.0, 'YXZ')
-            self._o_x_plane_angle = self._x_plane_angle.copy()
-            self._x_plane_angle.bind(self.on_x_plane)
-            new_xplane = True
+        if None in (self._x_plane_angle, self._y_plane_angle, self._z_plane_angle):
+            self._x_plane_angle = _angle.Angle.from_euler(0.0, 90.0, 0.0)
+            self._y_plane_angle = _angle.Angle.from_euler(90.0, 0.0, 0.0)
+            self._z_plane_angle = _angle.Angle.from_euler(0.0, 0.0, 0.0)
+            new_angles = True
         else:
-            new_xplane = False
-
-        if self._y_plane_angle is None:
-            self._y_plane_angle = _angle.Angle.from_euler(90.0, 0.0, 0.0, 'YXZ')
-            self._o_y_plane_angle = self._y_plane_angle.copy()
-            self._y_plane_angle.bind(self.on_y_plane)
-
-        if self._z_plane_angle is None:
-            self._z_plane_angle = _angle.Angle.from_euler(0.0, 0.0, 0.0, 'YXZ')
-            self._o_z_plane_angle = self._z_plane_angle.copy()
-            self._z_plane_angle.bind(self.on_z_plane)
-            new_zplane = True
-        else:
-            new_zplane = False
+            new_angles = False
 
         with self.get_canvas():
             self._x_angle = ArrowRing(self, center, radius, self._x_plane_angle, scale,
@@ -470,8 +363,16 @@ class AngleMixin:
                                       [0.1, 0.1, 1.0, 0.9],
                                       [1.0, 0.6, 0.6, 1.0])
 
-            if new_xplane:
-                self._x_angle.update_angle(angle)
+            if new_angles:
+                plane_angle = self._x_plane_angle + self._y_plane_angle + self._z_plane_angle
+                delta = angle - plane_angle
 
-            if new_zplane:
-                self._z_angle.update_angle(angle)
+                if delta.x or delta.y:
+                    x_plane_delta = _angle.Angle(delta.x, delta.y, _decimal(0.0))
+                    self._x_plane_angle += x_plane_delta
+
+                if delta.x or delta.y or delta.z:
+                    self._z_plane_angle += delta
+
+                if delta.y:
+                    self._y_plane_angle.y += delta.y

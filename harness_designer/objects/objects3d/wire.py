@@ -41,7 +41,7 @@ def _build_model(p1: _point.Point, p2: _point.Point, diameter: _decimal, has_str
         edges = edges.sort_by(lambda e: e.distance_to(wire_axis.position))[0]
         edges = edges.trim_to_length(0, float(diameter / _decimal(3.0) * _decimal(build123d.MM)))
 
-        stripe_arc = build123d.Face(edges.offset2d(float(stripe_thickness * _decimal(build123d.MM)), side=build123d.Side.RIGHT))
+        stripe_arc = build123d.Face(edges.offset_2d(float(stripe_thickness * _decimal(build123d.MM)), side=build123d.Side.RIGHT))
 
         # Define the twist path to follow the wire
         twist = build123d.Helix(
@@ -55,7 +55,7 @@ def _build_model(p1: _point.Point, p2: _point.Point, diameter: _decimal, has_str
         # Sweep the arc to create the stripe
         stripe = build123d.sweep(
             stripe_arc,
-            build123d.Line(wire_axis.position, float(wire_length * _decimal(wire_axis.direction))),
+            build123d.Line(wire_axis.position, float(wire_length) * wire_axis.direction),
             binormal=twist
         )
     else:

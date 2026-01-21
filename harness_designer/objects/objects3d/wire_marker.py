@@ -57,6 +57,13 @@ class WireMarker(_Base3D):
         self.wire_p1.Bind(self.recalculate)
         self.wire_p2.Bind(self.recalculate)
 
+    @staticmethod
+    def get_wire_marker_triangles(model):
+        if Config.modeling.smooth_markers:
+            return model_to_mesh.get_smooth_triangles(model)
+        else:
+            return model_to_mesh.get_triangles(model)
+
     def recalculate(self, *_):
         if self._is_deleted:
             return

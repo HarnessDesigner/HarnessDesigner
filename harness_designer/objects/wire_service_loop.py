@@ -19,6 +19,52 @@ class WireServiceLoop(_ObjectBase):
         self.obj3d = _wire_service_loop.WireServiceLoop(mainframe.editor3d, db_obj)
 
 
+class WireServiceLoopMenu(wx.Menu):
+
+    def __init__(self, canvas, selected):
+        wx.Menu.__init__(self)
+        self.canvas = canvas
+        self.selected = selected
+
+        item = self.Append(wx.ID_ANY, 'Add Wire')
+        canvas.Bind(wx.EVT_MENU, self.on_add_wire, id=item.GetId())
+
+        self.AppendSeparator()
+        item = self.Append(wx.ID_ANY, 'Trace Circuit')
+        canvas.Bind(wx.EVT_MENU, self.on_trace_circuit, id=item.GetId())
+
+        item = self.Append(wx.ID_ANY, 'Select')
+        canvas.Bind(wx.EVT_MENU, self.on_select, id=item.GetId())
+
+        item = self.Append(wx.ID_ANY, 'Clone')
+        canvas.Bind(wx.EVT_MENU, self.on_clone, id=item.GetId())
+
+        self.AppendSeparator()
+        item = self.Append(wx.ID_ANY, 'Delete')
+        canvas.Bind(wx.EVT_MENU, self.on_delete, id=item.GetId())
+
+        self.AppendSeparator()
+        item = self.Append(wx.ID_ANY, 'Properties')
+        canvas.Bind(wx.EVT_MENU, self.on_properties, id=item.GetId())
+
+    def on_add_wire(self, evt: wx.MenuEvent):
+        evt.Skip()
+
+    def on_trace_circuit(self, evt: wx.MenuEvent):
+        evt.Skip()
+
+    def on_select(self, evt: wx.MenuEvent):
+        evt.Skip()
+
+    def on_clone(self, evt: wx.MenuEvent):
+        evt.Skip()
+
+    def on_delete(self, evt: wx.MenuEvent):
+        evt.Skip()
+
+    def on_properties(self, evt: wx.MenuEvent):
+        evt.Skip()
+
 
 
 

@@ -86,6 +86,13 @@ class Terminal(_Base3D):
         self._color = color.ui
         self._material = _gl_materials.Polished(color.ui.rgba_scalar)
 
+    @staticmethod
+    def get_terminal_triangles(model):
+        if Config.modeling.smooth_terminals:
+            return model_to_mesh.get_smooth_triangles(model)
+        else:
+            return model_to_mesh.get_triangles(model)
+
     def recalculate(self, *_):
         if self._is_deleted:
             return
