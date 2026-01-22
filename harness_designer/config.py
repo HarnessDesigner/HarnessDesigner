@@ -24,7 +24,10 @@ class Config(type):
     @property
     def __table_name__(cls):
         name = f'{cls.__module__.split(".", 1)[-1]}_{cls.__qualname__}'
-        return name.replace(".", "_")
+        name = name.replace(".", "_")
+        name = name.replace('harness_designer_Config_', '')
+        name = name.replace('_Config', '')
+        return name
 
     @property
     def __table__(cls):

@@ -1,40 +1,22 @@
 from typing import TYPE_CHECKING
 
 import wx
-import time
 
 from wx import aui
 from ..widgets import aui_toolbar
 
-from .. import config as _config
-from ..objects import project as _project
+from .. import Config
 
 if TYPE_CHECKING:
     from ..database.db_connectors import SQLConnector as _SQLConnector
     from ..database import global_db as _global_db
     from ..database import project_db as _project_db
-
-
-class Config(metaclass=_config.Config):
-    position = ()
-    size = ()
-
-    ui_perspective = (
-        'layout2|'
-        'name=editor3d_toolbar;caption=;minimode=1;state=67382012;dir=1;layer=10;row=0;pos=0;prop=100000;bestw=568;besth=58;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=-1;floaty=-1;floatw=-1;floath=-1;notebookid=-1;transparent=255|'
-        'name=editors;caption=;minimode=1;state=2944;dir=5;layer=0;row=0;pos=0;prop=100000;bestw=200;besth=200;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=-1;floaty=-1;floatw=-1;floath=-1;notebookid=-1;transparent=255|'
-        'name=db_editor;caption=DB Editor;minimode=1;state=402919420;dir=3;layer=0;row=0;pos=0;prop=100000;bestw=0;besth=0;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=-1;floaty=-1;floatw=-1;floath=-1;notebookid=-1;transparent=255|'
-        'name=obj_selected;caption=Selected Object;minimode=1;state=402919420;dir=2;layer=0;row=0;pos=0;prop=100000;bestw=20;besth=20;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=-1;floaty=-1;floatw=-1;floath=-1;notebookid=-1;transparent=255|'
-        'name=editor2d_toolbar;caption=;minimode=1;state=67382012;dir=3;layer=10;row=0;pos=0;prop=100000;bestw=568;besth=58;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=-1;floaty=-1;floatw=-1;floath=-1;notebookid=-1;transparent=255|'
-        'dock_size(1,10,0)=60|'
-        'dock_size(5,0,0)=202|'
-        'dock_size(3,0,0)=265|'
-        'dock_size(2,0,0)=251|'
-        'dock_size(3,10,0)=10|'
-    )
+    from ..objects import project as _project
 
 
 _mainframe: "MainFrame" = None
+
+Config = Config.mainframe
 
 
 class MainFrame(wx.Frame):
@@ -42,7 +24,7 @@ class MainFrame(wx.Frame):
 
     global_db: "_global_db.GLBTables" = None
     project_db: "_project_db.PJTTables" = None
-    project: _project.Project = None
+    project: "_project.Project" = None
 
     def __init__(self, splash):
 
@@ -199,7 +181,6 @@ class MainFrame(wx.Frame):
             .Show()
         )
 
-        from .. import image as _image
         splash.SetText('Creating toolbar panes...')
         self.toolbar_pane = (
             aui.AuiPaneInfo()
@@ -226,12 +207,13 @@ class MainFrame(wx.Frame):
         self.manager.AddPane(self.db_editor, self.db_editor_pane)
         self.manager.AddPane(self.obj_selected, self.obj_selected_pane)
         self.manager.AddPane(self.toolbar, self.toolbar_pane)
+        self.manager.Update()
 
         splash.SetText('Loading UI perspective...')
-        #
-        # if Config.ui_perspective:
-        #     print(repr(Config.ui_perspective))
-        #     self.manager.LoadPerspective(Config.ui_perspective)
+
+        if Config.ui_perspective:
+            print(repr(Config.ui_perspective))
+            self.manager.LoadPerspective(Config.ui_perspective)
 
         if Config.position:
 
@@ -281,10 +263,13 @@ class MainFrame(wx.Frame):
 
     def on_close(self, _):
         Config.ui_perspective = self.manager.SavePerspective()
+        print(Config.ui_perspective)
+        print(self.manager.SavePerspective())
 
-        self.manager.UnInit()
         self.editor3d.Destroy()
         self.editor2d.Destroy()
+
+        self.manager.UnInit()
 
         self.Destroy()
 
@@ -300,84 +285,6 @@ class MainFrame(wx.Frame):
 
     def unload(self):
         pass
-
-    def add_bundle(self, bundle):
-        self._bundles.append(bundle)
-
-    def add_bundle_layout(self, bundle_layout):
-        self._bundle_layouts.append(bundle_layout)
-
-    def load(self):
-
-
-        for boot in self._boots:
-            boot.close()
-
-        for bundle in self._bundles:
-            bundle.close()
-
-        for bundle_layout in self._bundle_layouts:
-            bundle_layout.close()
-
-        for cover in self._covers:
-            cover.close()
-
-        for cpa_lock in self._cpa_locks:
-            cpa_lock.close()
-
-        for housing in self._housings:
-            housing.close()
-
-        for note in self._notes:
-            note.close()
-
-        for seal in self._seals:
-            seal.close()
-
-        for splice in self._splices:
-            splice.close()
-
-        for terminal in self._terminals:
-            terminal.close()
-
-        for tpa_lock in self._tpa_locks:
-            tpa_lock.close()
-
-        for transition in self._transitions:
-            transition.close()
-
-        for wire in self._wires:
-            wire.close()
-
-        for wire_marker in self._wire_markers:
-            wire_marker.close()
-
-        for wire_service_loop in self._wire_service_locps:
-            wire_service_loop.close()
-
-        for wire2d_layout in self._wire2d_layouts:
-            wire2d_layout.close()
-
-        for wire3d_layout in self._wire3d_layouts:
-            wire3d_layout.close()
-
-        self._wire2d_layouts = [_wire2d_layout.Wire2DLayout(self, db) for db in self.project.wire2d_layouts]
-        self._wire3d_layouts = [_wire3d_layout.Wire3DLayout(self, db) for db in self.project.wire3d_layouts]
-        self._splices = [_splice.Splice(self, db) for db in self.project.splices]
-        self._wires = [_wire.Wire(self, db) for db in self.project.wire_markers]
-        self._wire_service_locps = [_wire_service_loop.WireServiceLoop(self, db) for db in self.project.wire_service_loops]
-        self._wire_markers = [_wire_marker.WireMarker(self, db) for db in self.project.wires]
-        self._bundle_layouts = [_bundle_layout.BundleLayout(self, db) for db in self.project.bundle_layouts]
-        self._bundles = [_bundle.Bundle(self, db) for db in self.project.bundles]
-        self._transitions = [_transition.Transition(self, db) for db in self.project.transitions]
-        self._seals = [_seal.Seal(self, db) for db in self.project.seals]
-        self._cpa_locks = [_cpa_lock.CPALock(self, db) for db in self.project.cpa_locks]
-        self._tpa_locks = [_tpa_lock.TPALock(self, db) for db in self.project.tpa_locks]
-        self._covers = [_cover.Covers(self, db) for db in self.project.covers]
-        self._terminals = [_terminal.Terminal(self, db) for db in self.project.terminals]
-        self._housings = [_housing.Housing(self, db) for db in self.project.housings]
-        self._boots = [_boot.Boot(self, db) for db in self.project.boots]
-        self._notes = [_note.Note(self, db) for db in self.project.notes]
 
     def open_database(self, splash):
         from ..database.db_connectors import SQLConnector
@@ -395,8 +302,9 @@ class MainFrame(wx.Frame):
         wx.Frame.Show(self, flag)
 
         def _do():
+            from ..objects import project as _proj
+
             self.db_editor.load_db(self.global_db)
-            self.project = _project.Project(self)
-            self.project.select_project()
+            self.project = _proj.Project.select_project(self)
 
         wx.CallAfter(_do)

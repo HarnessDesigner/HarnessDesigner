@@ -148,6 +148,27 @@ class Config(metaclass=_config.Config):
                 size = (950, 950)
                 pos = (0, 0)
 
+    class mainframe(metaclass=_config.Config):
+        position = ()
+        size = ()
+
+        ui_perspective = (
+            'layout2|'
+            'name=editor_toolbar;caption=;state=2108156;dir=1;layer=10;row=0;pos=0;prop=100000;bestw=408;besth=42;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=-1;floaty=-1;floatw=-1;floath=-1|'
+            'name=editors;caption=;state=2944;dir=5;layer=0;row=0;pos=0;prop=100000;bestw=20;besth=20;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=-1;floaty=-1;floatw=-1;floath=-1|'
+            'name=db_editor;caption=DB Editor;state=12603388;dir=3;layer=0;row=0;pos=0;prop=100000;bestw=20;besth=20;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=-1;floaty=-1;floatw=-1;floath=-1|'
+            'name=obj_selected;caption=Selected Object;state=12587004;dir=2;layer=0;row=0;pos=0;prop=100000;bestw=20;besth=20;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=-1;floaty=-1;floatw=-1;floath=-1|'
+            'name=editor2d_toolbar;caption=;state=2108156;dir=3;layer=10;row=0;pos=0;prop=100000;bestw=10;besth=5;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=-1;floaty=-1;floatw=-1;floath=-1|'
+            'dock_size(1,10,0)=44|'
+            'dock_size(5,0,0)=22|'
+            'dock_size(3,0,0)=171|'
+            'dock_size(2,0,0)=254|'
+            'dock_size(3,10,0)=10|'
+        )
+
+    class project(metaclass=_config.Config):
+        recent_projects = []
+
 
 class App(wx.App):
     def OnInit(self):

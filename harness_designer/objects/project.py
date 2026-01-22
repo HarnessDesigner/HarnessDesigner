@@ -25,6 +25,7 @@ from . import wire3d_layout as _wire3d_layout
 from ..geometry import point as _point
 from ..geometry import angle as _angle
 from ..geometry import line as _line
+from .. import Config
 
 from ..wrappers.decimal import Decimal as _decimal
 
@@ -44,8 +45,7 @@ if TYPE_CHECKING:
     from ..database.global_db import terminal as _terminal_part
 
 
-class Config(metaclass=_Config):
-    recent_projects = []
+Config = Config.project
 
 
 class Project:
@@ -457,7 +457,6 @@ class Project:
 
     def add_transition(self, point: _point.Point, housing: _housing.Housing, 
                        part: "_transition_part.Transition") -> _transition.Transition:
-
 
         '''
         part_id: int, center_id: int, angle: _angle.Angle, name: str,

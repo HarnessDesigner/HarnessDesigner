@@ -7,9 +7,9 @@ def get_appdata():
     user_profile = os.path.expanduser('~')
 
     if sys.platform.startswith('win'):
-        app_data = os.path.join('appdata', 'roaming', 'HarnessMaker')
+        app_data = os.path.join('appdata', 'roaming', 'HarnessDesigner')
     else:
-        app_data = '.HarnessMaker'
+        app_data = '.HarnessDesigner'
 
     app_data = os.path.join(user_profile, app_data)
     if not os.path.exists(app_data):
