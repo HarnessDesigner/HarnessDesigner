@@ -108,7 +108,7 @@ class Point(metaclass=PointMeta):
     def __init__(self, x: _decimal, y: _decimal, z: _decimal | None = None, 
                  db_id: int | None = None):
 
-        self._db_id = db_id
+        self.db_id = db_id
 
         if z is None:
             self.is2d = True

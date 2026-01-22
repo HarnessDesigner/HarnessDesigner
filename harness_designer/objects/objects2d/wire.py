@@ -8,7 +8,6 @@ from ...geometry import point as _point
 from ...geometry import line as _line
 from ...geometry import angle as _angle
 from ...wrappers.decimal import Decimal as _decimal
-from ...editor2d import Config
 
 
 if TYPE_CHECKING:

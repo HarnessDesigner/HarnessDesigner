@@ -5,6 +5,7 @@ import math
 import numpy as np
 from scipy.spatial.transform import Rotation as _Rotation
 
+from .. import debug as _debug
 from ..wrappers.decimal import Decimal as _decimal
 
 if TYPE_CHECKING:

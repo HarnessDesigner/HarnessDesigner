@@ -5,13 +5,20 @@ import build123d
 import python_utils
 
 from ...geometry import point as _point
+from ...geometry import angle as _angle
 from ...wrappers.decimal import Decimal as _decimal
-from . import Base3D as _Base3D
-
+from . import base3d as _base3d
+from .mixins import angle as _angle_mixin
+from .mixins import move as _move_mixin
+from ... import gl_materials as _gl_materials
+from ... import Config
 
 if TYPE_CHECKING:
-    from ... import editor3d as _editor3d
     from ...database.project_db import pjt_wire_service_loop as _pjt_wire_service_loop
+    from .. import wire_service_loop as _wire_service_loop
+
+
+Config = Config.editor3d
 
 
 def _build_model(diameter: _decimal, has_stripe: bool):
@@ -21,9 +28,9 @@ def _build_model(diameter: _decimal, has_stripe: bool):
     cyl = build123d.Cylinder(
         float(wire_r), float(diameter), align=build123d.Align.NONE)
 
-    sphere1 = build123d.Sphere(wire_r)
-    sphere1 = sphere1.move(
-        build123d.Location((0.0, 0.0, float(diameter)), (0, 0, 1)))
+    # sphere1 = build123d.Sphere(wire_r)
+    # sphere1 = sphere1.move(
+    #     build123d.Location((0.0, 0.0, float(diameter)), (0, 0, 1)))
 
     # Create helix path (centered at origin, offsets along Z)
     loop_helix = build123d.Helix(
@@ -51,11 +58,13 @@ def _build_model(diameter: _decimal, has_stripe: bool):
 
     # add the loop to the cylinder to make the part
     cyl += swept_cylinder
-    cyl += sphere1
+    # cyl += sphere1
 
     cyl2 = build123d.Cylinder(
         float(wire_r), float(diameter), align=build123d.Align.NONE)
 
+    # this sphere is not used in the rendering, it is only used to track where
+    # the second connection point should be, the first point being at 0, 0, 0
     sphere2 = build123d.Sphere(wire_r)
     sphere2 = sphere2.move(
         build123d.Location((0.0, 0.0, float(diameter)), (0, 0, 1)))
@@ -134,7 +143,7 @@ def _build_model(diameter: _decimal, has_stripe: bool):
         (0.0, 0.0, -float(diameter * _decimal(0.15))), (0, 0, 1)))
 
     cyl += cyl2
-    cyl += sphere2
+    # cyl += sphere2
 
     if has_stripe:
         wire_axis = cyl.faces().filter_by(
@@ -172,96 +181,92 @@ def _build_model(diameter: _decimal, has_stripe: bool):
     cyl = cyl.move(build123d.Location(
         (0.0, 0.0, -float(diameter)), (0, 0, 1)))
 
-    sphere1 = sphere1.move(build123d.Location(
-        (0.0, 0.0, -float(diameter)), (0, 0, 1)))
+    # sphere1 = sphere1.move(build123d.Location(
+    #     (0.0, 0.0, -float(diameter)), (0, 0, 1)))
 
     sphere2 = sphere2.move(build123d.Location(
         (0.0, 0.0, -float(diameter)), (0, 0, 1)))
 
-    try:
-        bbox = cyl.bounding_box()
-        corner1 = _point.Point(*[_decimal(float(item)) for item in bbox.min])
-        corner2 = _point.Point(*[_decimal(float(item)) for item in bbox.max])
-    except AttributeError:
-        bbmin = None
-        bbmax = None
-        for item in cyl:
-            if isinstance(item, build123d.Shape):
-                bbox = item.bounding_box()
-                corner1 = _point.Point(*[_decimal(float(item)) for item in bbox.min])
-                corner2 = _point.Point(*[_decimal(float(item)) for item in bbox.max])
-                if bbmin is None or bbmin >= corner1:
-                    bbmin = corner1
-                if bbmax is None or bbmax <= corner2:
-                    bbmax = corner2
-        corner1 = bbmin
-        corner2 = bbmax
+    cn = sphere2.center()
 
-    cn1 = sphere1.center()
-    cn2 = sphere2.center()
+    cn = _point.Point(_decimal(cn.X), _decimal(cn.Y), _decimal(cn.Z))
 
-    cn1 = _point.Point(_decimal(cn1.X), _decimal(cn1.Y), _decimal(cn1.Z))
-    cn2 = _point.Point(_decimal(cn2.X), _decimal(cn2.Y), _decimal(cn2.Z))
-
-    return cyl, stripes, [corner1, corner2], cn1, cn2
+    return cyl, stripes, cn
 
 
-class WireServiceLoop(_Base3D):
+class WireServiceLoop(_base3d.Base3D, _angle_mixin.AngleMixin, _move_mixin.MoveMixin):
 
-    def __init__(self, editor3d: "_editor3d.Editor3D",
+    def __init__(self, parent: "_wire_service_loop.WireServiceLoop",
                  db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop"):
 
-        super().__init__(editor3d)
+        _angle_mixin.AngleMixin.__init__(self)
+        _move_mixin.MoveMixin.__init__(self)
+        _base3d.Base3D.__init__(self, parent)
+
         self._db_obj = db_obj
         self._part = part = db_obj.part
+        self._color = self._part.color.ui
+        self._stripe_color = self._part.stripe_color
+        self._material = _gl_materials.Plastic(self._color.rgba_scalar)
 
-        angle = db_obj.angle
+        if self._stripe_color is None:
+            self._stripe_material = None
+        else:
+            self._stripe_material = _gl_materials.Plastic(self._stripe_color.ui.rgba_scalar)
 
-        self._p1 = db_obj.start_point3d.point
-        self._p1_backup = self._p1.copy()
+        self._position = db_obj.start_point3d.point
+        self._o_position = self._position.copy()
 
-        self._p2 = db_obj.stop_point3d.point
-
+        self._position2 = db_obj.stop_point3d.point
         self._is_visible = db_obj.is_visible
 
-        (
-            self._model,
-            self._stripe_models,
-            self._hit_test_rect,
-            start_point,
-            stop_point
-        ) = _build_model(part.od_mm, part.stripe_color is not None)
+        self._angle = _angle.Angle.from_points(self._position, self._position2)
+        self._o_angle = self._angle.copy()
 
-        hp1, hp2 = self._hit_test_rect
+        model, stripe_models, stop_point = _build_model(part.od_mm, self._stripe_color is not None)
 
-        hp2 @= angle
+        vertices, faces = self._convert_model_to_mesh(model)
+        tris, nrmls, count = self._get_triangles(vertices, faces)
 
-        hp1 += self._p1
-        hp2 += self._p1
+        tris @= self._angle
+        tris += self._position
 
-        stop_point @= angle
-        stop_point += self._p1
+        nrmls @= self._angle
 
-        if self._p2 != stop_point:
-            diff = stop_point - self._p2
-            self._p2 += diff
+        stop_point @= self._angle
+        stop_point += self._position
 
-        self._stripes = []
-        self._stripe_normals = []
-        self._triangle_count = 0
-        self._stripe_triangle_count = 0
+        if self._position2 != stop_point:
+            diff = stop_point - self._position2
+            self._position2 += diff
 
-        self._normals, self._triangles, self._triangle_count = self.editor3d.renderer.build_mesh(self._model)
+        p1, p2 = self._compute_rect(tris)
+        bb = self._compute_bb(p1, p2)
 
-        self._triangles @= angle
-        self._triangles += self._p1
+        self._rect.append([p1, p2])
+        self._bb.append(bb)
 
-        for stripe in self._stripe_models:
-            stripe_normals, stripe_triangles, stripe_triangle_count = self.editor3d.renderer.build_mesh(stripe)
-            stripe_triangles @= angle
-            stripe_triangles += self._p1
+        self._triangles = [_base3d.TriangleRenderer([[tris, nrmls, count]], self._material)]
 
-            self._stripes.append((stripe_normals, stripe_triangles, stripe_triangle_count))
+        for i, stripe in enumerate(stripe_models):
+            vertices, faces = self._convert_model_to_mesh(model)
+            tris, nrmls, count = self._get_triangles(vertices, faces)
+
+            tris @= self._angle
+            tris += self._position
+
+            nrmls @= self._angle
+
+            stripe_models[i] = [tris, nrmls, count]
+
+        if stripe_models:
+            self._triangles.append(_base3d.TriangleRenderer(stripe_models, self._stripe_material))
+
+    def _get_triangles(self, vertices, faces):
+        if Config.modeling.smooth_wires:
+            return self._compute_smoothed_vertex_normals(vertices, faces)
+        else:
+            return self._compute_vertex_normals(vertices, faces)
 
     @property
     def is_visible(self) -> bool:
@@ -271,27 +276,3 @@ class WireServiceLoop(_Base3D):
     def is_visible(self, value: bool) -> None:
         self._is_visible = value
         self._db_obj.is_visible = value
-
-    def hit_test(self, point: _point.Point) -> bool:
-        if self._is_deleted:
-            return False
-
-        if not self._is_visible:
-            return False
-
-        p1, p2 = self._hit_test_rect
-        return p1 <= point <= p2
-
-    def draw(self, renderer):
-        if self._is_deleted:
-            return
-
-        if not self._is_visible:
-            return
-
-        renderer.model(self._normals, self._triangles, self._triangle_count,
-                       self._part.color.ui.rgba_scalar, None, self.is_selected)
-
-        for stripe_normals, stripe_triangles, stripe_triangle_count in self._stripes:
-            renderer.model(stripe_normals, stripe_triangles, stripe_triangle_count,
-                           self._part.stripe_color.ui.rgba_scalar, None, self.is_selected)

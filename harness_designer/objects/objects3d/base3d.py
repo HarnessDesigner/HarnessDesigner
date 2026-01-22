@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 import numpy as np
 from OpenGL import GL
@@ -38,6 +38,7 @@ class Base3D:
         self._material: _gl_materials.GLMaterial | None = None
         self._color: _color.Color = None
         self._is_selected = False
+        self._position: _point.Point = None
 
         # stores the verticies and faces so normals or smooth normals
         # can be calculated if the user changes the setting for it.
@@ -58,13 +59,14 @@ class Base3D:
         self._models = []
 
         # [triangles, normals, triangle_count, material, color, is_opaque]
-        self._triangles: list[list[np.ndarray, np.ndarray, int,
-                                   _gl_materials.GLMaterial | None,
-                                   list[float, float, float, float],
-                                   bool]] = []
+        self._triangles: list[Union["TriangleRenderer", "LineRenderer"]] = []
 
         self._rect: list[list[_point.Point, _point.Point]] = []
         self._bb: list[np.ndarray] = []
+
+    @property
+    def position(self) -> _point.Point:
+        return self._position
 
     @staticmethod
     def _adjust_hit_points(p1: _point.Point, p2: _point.Point):
@@ -89,15 +91,10 @@ class Base3D:
     def is_selected(self, value: bool):
         if value:
             color = Config.selected_color
-            material = None
-
+            self._material.x_ray_color = color
+            self._material.x_ray = True
         else:
-            color = self._color.rgba_scalar
-            material = self._material
-
-        is_opaque = color[-1] == 1.0
-        self._triangles = [item[:-3] + [material, color, is_opaque]
-                           for item in self._triangles]
+            self._material.x_ray = False
 
         self._is_selected = value
         self._parent.is_selected = value
@@ -164,7 +161,7 @@ class Base3D:
         # produce per-triangle per-vertex normals
         normals = vertex_normals[faces].reshape(-1, 3)  # shape (F, 3, 3)
 
-        return triangles, normals
+        return triangles, normals, len(triangles) * 3
 
     @staticmethod
     @_debug.timeit
@@ -190,7 +187,7 @@ class Base3D:
         # (F, 3, 3)ach face normal to the 3 vertices of the triangle
         normals = np.repeat(face_normals[:, np.newaxis, :], 3, axis=1)
 
-        return triangles, normals.reshape(-1, 3)
+        return triangles, normals.reshape(-1, 3), len(triangles) * 3
 
     @staticmethod
     def _compute_bb(p1, p2):
@@ -264,28 +261,42 @@ class Base3D:
 # experiance.
 class TriangleRenderer:
 
-    def __init__(self, data, material, color):
+    def __init__(self, data, material):
         self._data = data
         self._material = material
-        self._color = color
-        self.is_opaque = color[-1] == 1.0
+
+    @property
+    def is_opaque(self):
+        return self._material.is_opaque
+
+    @property
+    def data(self):
+        return self._data
+
+    @data.setter
+    def data(self, value):
+        self._data = value
+
+    @property
+    def material(self):
+        return self._material
+
+    @material.setter
+    def material(self, value):
+        self._material = value
 
     def __call__(self):
         GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
         GL.glEnableClientState(GL.GL_NORMAL_ARRAY)
 
-        if self._material is not None:
-            self._material.set()
-
-        GL.glColor4f(*self._color)
+        self._material.set()
 
         for tris, nrmls, count in self._data:
             GL.glVertexPointer(3, GL.GL_DOUBLE, 0, tris)
             GL.glNormalPointer(GL.GL_DOUBLE, 0, nrmls)
             GL.glDrawArrays(GL.GL_TRIANGLES, 0, count)
 
-        if self._material is not None:
-            self._material.unset()
+        self._material.unset()
 
         GL.glDisableClientState(GL.GL_VERTEX_ARRAY)
         GL.glDisableClientState(GL.GL_NORMAL_ARRAY)
@@ -293,22 +304,22 @@ class TriangleRenderer:
 
 class LineRenderer:
 
-    def __init__(self, p1, p2, width, color):
+    def __init__(self, p1, p2, width, material):
         self._p1 = p1
         self._p2 = p2
-        self._color = color
+        self._material = material
         self._width = width
-        self.is_opaque = color[-1] == 1.0
+
+    @property
+    def is_opaque(self):
+        return self._material.is_opaque
 
     def __call__(self):
-        GL.glColor4f(*self._color)
+        self._material.set()
         # top
         GL.glLineWidth(float(self._width))
         GL.glBegin(GL.GL_LINES)
         GL.glVertex3f(*self._p1.as_float)
         GL.glVertex3f(*self._p2.as_float)
         GL.glEnd()
-
-
-
-
+        self._material.unset()

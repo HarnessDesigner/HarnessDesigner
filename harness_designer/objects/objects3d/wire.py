@@ -7,14 +7,19 @@ from ...geometry import point as _point
 from ...geometry import line as _line
 from ...geometry import angle as _angle
 from ...wrappers.decimal import Decimal as _decimal
-from . import Base3D as _Base3D
+from . import base3d as _base3d
+from ... import gl_materials as _gl_materials
+
+from ... import Config
 
 
 if TYPE_CHECKING:
-    from ... import editor3d as _editor3d
     from ...database.project_db import pjt_wire as _pjt_wire
     
-    
+
+Config = Config.editor3d
+
+
 def _build_model(p1: _point.Point, p2: _point.Point, diameter: _decimal, has_stripe: bool):
     line = _line.Line(p1, p2)
     wire_length = line.length()
@@ -61,40 +66,122 @@ def _build_model(p1: _point.Point, p2: _point.Point, diameter: _decimal, has_str
     else:
         stripe = None
 
-    bb = model.bounding_box()
-
-    corner1 = _point.Point(*[_decimal(item) for item in bb.min])
-    corner2 = _point.Point(*[_decimal(item) for item in bb.max])
-
-    return model, stripe, (corner1, corner2)
+    return model, stripe
 
 
-class Wire(_Base3D):
+class Wire(_base3d.Base3D):
 
-    def __init__(self, editor3d: "_editor3d.Editor3D", db_obj: "_pjt_wire.PJTWire"):
-        super().__init__(editor3d)
-        self.db_obj = db_obj
+    def __init__(self, parent, db_obj: "_pjt_wire.PJTWire"):
+        super().__init__(parent)
+        self._db_obj = db_obj
         self._part = db_obj.part
 
-        self._p1 = db_obj.start_point3d.point
-        self._p2 = db_obj.stop_point3d.point
-        self._is_visible = self.db_obj.is_visible
+        self._color = self._part.color.ui
+        self._stripe_color = self._part.stripe_color
+        self._diameter: _decimal = None
+        self._is_dragging = False
+        self._is_visible = db_obj.is_visible
 
-        self._dia = self._part.od_mm
-
-        self._model = None
-        self._stripe = None
-        self._hit_test_rect = None
-
-        self._triangles = []
-        self._stripe_triangles = []
-        
         # Wires hold strong references to bundles as a sanity check
         self._bundle = None
 
-        self._p1.Bind(self.recalculate)
-        self._p2.Bind(self.recalculate)
-    
+        self._diameter = self._part.od_mm
+
+        self._model = None
+        self._stripe = None
+
+        if self._stripe_color is None:
+            self._stripe_material = None
+        else:
+            self._stripe_material = _gl_materials.Plastic(self._stripe_color.ui.rgba_scalar)
+
+        self._material = _gl_materials.Plastic(self._color.rgba_scalar)
+
+        start_layout = db_obj.start_layout
+        stop_layout = db_obj.stop_layout
+
+        self._is_start_clickable = start_layout is None
+        self._is_stop_clickable = stop_layout is None
+
+        self._p1 = db_obj.start_point3d.point
+        self._p2 = db_obj.stop_point3d.point
+
+        # Track wires in this bundle using weak references
+        # Wires hold strong references to bundles; bundles use weak refs to wires
+        self._wires = []  # List of weak references to Wire objects
+
+        self._p1.bind(self._build)
+        self._p2.bind(self._build)
+
+        self._build()
+
+    @property
+    def is_dragging(self) -> bool:
+        return self._is_dragging
+
+    @is_dragging.setter
+    def is_dragging(self, value: bool):
+        if value != self._is_dragging:
+            self._is_dragging = value
+
+            if value:
+                # this is the agnostic for a bundle. Instead of rendering the bundle
+                # over and over again which can get a bit expensive the larger the diameter
+                # of the bundle instead we swap out the rendering of the cylinder
+                # for rendering a line that is the same color.
+                # it's not going to look as pretty but it will be a lot faster to render.
+
+                # TODO: set dragging mode for wires if the end of the bundle is being dragged.
+
+                self._triangles = _base3d.LineRenderer(
+                    self._p1, self._p2, self._diameter,
+                    self._color.rgba_scalar
+                    )
+            else:
+                self._build()
+        else:
+            self._is_dragging = value
+
+    def _build(self, _=None):
+        if self._is_dragging:
+            return
+
+        wire_model, stripe_model = _build_model(self._p1, self._p2, self._diameter, self._stripe_color is not None)
+
+        vertices, faces = self._convert_model_to_mesh(wire_model)
+
+        tris, nrmls, count = self._get_triangles(vertices, faces)
+        angle = _angle.Angle.from_points(self._p1, self._p2)
+
+        tris @= angle
+        nrmls @= angle
+        tris += self._p1
+
+        p1, p2 = self._compute_rect(tris)
+
+        self._position = ((p2 - p1) / _decimal(2.0)) + p1
+
+        self._bb = [self._compute_bb(p1, p2)]
+        self._rect = [[p1, p2]]
+
+        self._triangles = [_base3d.TriangleRenderer([[tris, nrmls, count]], self._material)]
+
+        if stripe_model is not None:
+            vertices, faces = self._convert_model_to_mesh(wire_model)
+
+            tris, nrmls, count = self._get_triangles(vertices, faces)
+
+            self._triangles.append(_base3d.TriangleRenderer([[tris, nrmls, count]], self._stripe_material))
+
+        for item in self._triangles:
+            item.is_visible = self.is_visible
+
+    def _get_triangles(self, vertices, faces):
+        if Config.modeling.smooth_wires:
+            return self._compute_smoothed_vertex_normals(vertices, faces)
+        else:
+            return self._compute_vertex_normals(vertices, faces)
+
     @property
     def bundle(self):
         """Return the bundle this wire belongs to, if any."""
@@ -115,72 +202,7 @@ class Wire(_Base3D):
     @is_visible.setter
     def is_visible(self, value: bool) -> None:
         self._is_visible = value
-        self.db_obj.is_visible = value
+        self._db_obj.is_visible = value
 
-        if not value:
-            self._triangles = []
-            self._stripe_triangles = []
-
-    def recalculate(self, *_):
-        if self._is_deleted:
-            return
-
-        if self.is_visible:
-            (
-                self._model,
-                self._stripe,
-                self._hit_test_rect
-            ) = _build_model(self._p1, self._p2, self._part.od_mm,
-                             self._part.stripe_color is not None)
-
-            angle = _angle.Angle(self._p1, self._p2)
-            p1, p2 = self._hit_test_rect
-            p2 @= angle
-
-            p1 += self._p1
-            p2 += self._p1
-
-        else:
-            self._model = None
-            self._stripe = None
-            self._hit_test_rect = None
-
-    def hit_test(self, point: _point.Point) -> bool:
-        if self._is_deleted:
-            return False
-
-        if self._hit_test_rect is None:
-            return False
-
-        p1, p2 = self._hit_test_rect
-        return p1 <= point <= p2
-
-    def draw(self, renderer):
-        if self._is_deleted:
-            return
-
-        if not self._is_visible:
-            return
-
-        if not self._triangles:
-            angle = _angle.Angle(self._p1, self._p2)
-            normals, verts, count = renderer.build_mesh(self._model)
-
-            verts @= angle
-            verts += self._p1
-
-            self._triangles = [[normals, verts, count]]
-
-            if self._stripe is not None:
-                normals, verts, count = renderer.build_mesh(self._stripe)
-
-                verts @= angle
-                verts += self._p1
-
-                self._stripe_triangles = [[normals, verts, count]]
-
-        for normals, verts, count in self._triangles:
-            renderer.model(normals, verts, count, None, self._part.color.ui.rgb_scalar, self.is_selected)
-
-        for normals, verts, count in self._stripe_triangles:
-            renderer.model(normals, verts, count, None, self._part.stripe_color.ui.rgb_scalar, self.is_selected)
+        for item in self._triangles:
+            item.is_visible = value

@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING
 import wx
 
 from . import ObjectBase as _ObjectBase
-from .objects2d import terminal as _terminal2d
 from .objects3d import terminal as _terminal3d
 from ..widgets.context_menus import RotateMenu, MirrorMenu
 
@@ -12,9 +11,11 @@ if TYPE_CHECKING:
     from .. import ui as _ui
     from ..database.project_db import pjt_terminal as _pjt_terminal
 
+    from .objects2d import terminal as _terminal2d
+
 
 class Terminal(_ObjectBase):
-    obj2d: _terminal2d.Terminal = None
+    obj2d: "_terminal2d.Terminal" = None
     obj3d: _terminal3d.Terminal = None
 
     def __init__(

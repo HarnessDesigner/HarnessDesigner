@@ -39,13 +39,11 @@ class Boot(_base3d.Base3D, _angle_mixin.AngleMixin, _move_mixin.MoveMixin):
 
         model = self._part.model3d
 
-        color = self._color.rgba_scalar
-        is_opaque = color[-1] == 1.0
+        self._material = _gl_materials.Rubber(self._color.rgba_scalar)
 
-        self._material = _gl_materials.Rubber(color)
+        triangles = []
 
         if model is None:
-            self._triangles = []
             self._model = None
         else:
             self._model = model.model
@@ -61,8 +59,9 @@ class Boot(_base3d.Base3D, _angle_mixin.AngleMixin, _move_mixin.MoveMixin):
 
                 self._rect.append([p1, p2])
                 self._bb.append(bb)
-                self._triangles.append(
-                    [tris, nrmls, count, self._material, color, is_opaque])
+                triangles.append([tris, nrmls, count])
+
+        self._triangles = [_base3d.TriangleRenderer(triangles, self._material)]
 
     def _get_triangles(self, vertices, faces):
         if Config.modeling.smooth_boots:

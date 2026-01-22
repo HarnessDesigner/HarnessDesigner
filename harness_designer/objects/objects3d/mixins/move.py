@@ -115,7 +115,7 @@ class ArrowMove(_base3d.Base3D):
 
         self._parent_pos.bind(self._update_position)
 
-        self._triangles = [[tris, nrmls, count, None, color, color[-1] == 1.0]]
+        self._triangles = _base3d.TriangleRenderer([[tris, nrmls, count]], None, color)
 
         self._color = color
         self._press_color = press_color
@@ -133,25 +133,23 @@ class ArrowMove(_base3d.Base3D):
         else:
             color = self._color
 
-        self._triangles[0][4] = color
-        self._triangles[0][5] = color[-1] == 1.0
-
+        self._triangles.color = color
         self._is_selected = value
 
     def _update_position(self, point: _point.Point):
         delta = point - self._o_parent_pos
         self._o_parent_pos = point.copy()
 
-        for i, item in enumerate(self._triangles):
-            item[0] += delta
-            try:
-                p1, p2 = self._rect[i]
-                p1 += delta
-                p2 += delta
+        data = self._triangles.data
 
-                self._bb[i] = self._compute_bb(p1, p2)
-            except IndexError:
-                pass
+        tris = data[0][0]
+        tris += delta
+        data[0][0] = tris
+        self._triangles.data = data
+
+        p1, p2 = self._compute_rect(tris)
+        self._rect = [[p1, p2]]
+        self._bb = [self._compute_bb(p1, p2)]
 
     @property
     def position(self) -> _point.Point:
@@ -190,29 +188,44 @@ class MoveMixin:
 
     _o_position: _point.Point = None
     _position: _point.Point = None
-    _triangles: list = []
+    _triangles: list[_base3d.TriangleRenderer | _base3d.LineRenderer] = []
     _bb: list = []
 
     @staticmethod
     def _compute_bb(p1, p2):
         raise RuntimeError
 
+    @staticmethod
+    def _compute_rect(tris):
+        raise RuntimeError
+
     def _update_position(self, point: _point.Point):
         delta = point - self._o_position
         self._o_position = point.copy()
 
-        for i, item in enumerate(self._triangles):
-            item[0] += delta
+        if not isinstance(self._triangles, _base3d.TriangleRenderer):
+            return
+
+        data = self._triangles.data
+
+        for i, (tris, _, __) in enumerate(data):
+            tris += delta
+            data[i][0] = tris
+
+            p1, p2 = self._compute_rect(tris)
+            try:
+                self._rect[i] = [p1, p2]
+            except IndexError:
+                pass
 
             try:
-                p1, p2 = self._rect[i]
-                p1 += delta
-                p2 += delta
                 self._bb[i] = self._compute_bb(p1, p2)
             except IndexError:
                 pass
 
-    def get_parent_object(self) -> _gl_object.GLObject:
+        self._triangles.data = data
+
+    def get_parent_object(self):
         return self
 
     def get_canvas(self):

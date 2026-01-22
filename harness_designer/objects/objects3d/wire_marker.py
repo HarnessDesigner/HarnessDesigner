@@ -5,116 +5,119 @@ import build123d
 from ...geometry import point as _point
 from ...geometry import line as _line
 from ...geometry import angle as _angle
+from ... import gl_materials as _gl_materials
+from ...shapes import cylinder as _cylinder
 from ...wrappers.decimal import Decimal as _decimal
-from . import Base3D as _Base3D
+from . import base3d as _base3d
+from ... import Config
 
 
 if TYPE_CHECKING:
-    from ... import editor3d as _editor3d
     from ...database.project_db import pjt_wire_marker as _pjt_wire_marker
 
 
-def _build_model(p1: _point.Point, p2: _point.Point, diameter: _decimal, label):
-    line = _line.Line(p1, p2)
-    length = line.length()
+Config = Config.editor3d
+
+
+def _build_model(length: _decimal, diameter: _decimal, label):
     radius = diameter / _decimal(2.0)
 
-    # Create the wire
-    model = build123d.Cylinder(float(radius), float(length), align=build123d.Align.NONE)
-
-    if label:
-        text = None
-    else:
-        text = None
-
-    bb = model.bounding_box()
-
-    corner1 = _point.Point(*[_decimal(item) for item in bb.min])
-    corner2 = _point.Point(*[_decimal(item) for item in bb.max])
-
-    return model, text, (corner1, corner2)
+    return _cylinder.create(float(radius), float(length)), None
 
 
-class WireMarker(_Base3D):
+class WireMarker(_base3d.Base3D):
 
-    def __init__(self, editor3d: "_editor3d.Editor3D", db_obj: "_pjt_wire_marker.PJTWireMarker"):
-        super().__init__(editor3d)
+    def __init__(self, parent, db_obj: "_pjt_wire_marker.PJTWireMarker"):
+        super().__init__(parent)
         self._db_obj = db_obj
         self._part = db_obj.part
-        self._p1 = db_obj.point3d.point
-        self.wire = db_obj.wire
-        self.wire_p1 = self.wire.start_point3d.point
-        self.wire_p2 = self.wire.stop_point3d.point
+        self._position = db_obj.point3d.point
+        self._wire = db_obj.wire
+        self._wire_p1 = self._wire.start_point3d.point
+        self._wire_p2 = self._wire.stop_point3d.point
 
-        self._model = None
-        self._label = None
-        self._hit_test_rect = None
+        p1_distance = _line.Line(self._wire_p1, self._position).length()
+        p2_distance = _line.Line(self._wire_p2, self._position).length()
 
-        self._triangles = []
-        self._label_triangles = []
-
-        self._p1.Bind(self.recalculate)
-        self.wire_p1.Bind(self.recalculate)
-        self.wire_p2.Bind(self.recalculate)
-
-    @staticmethod
-    def get_wire_marker_triangles(model):
-        if Config.modeling.smooth_markers:
-            return model_to_mesh.get_smooth_triangles(model)
+        if p1_distance > p2_distance:
+            self._distance = p1_distance
         else:
-            return model_to_mesh.get_triangles(model)
+            self._distance = p2_distance
+            self._wire_p1, self._wire_p2 = self._wire_p2, self._wire_p1
 
-    def recalculate(self, *_):
-        if self._is_deleted:
-            return
+        self._angle = _angle.Angle.from_points(self._wire_p1, self._wire_p2)
 
-        angle = _angle.Angle.from_points(self.wire_p1, self.wire_p2)
-        line = _line.Line(self._p1, None, self._part.length, angle)
+        self._color = db_obj.part.color.ui
+        self._material = _gl_materials.Plastic(self._color.rgba_scalar)
+        self._label_material = _gl_materials.Plastic([0.05, 0.05, 0.05, 1.0])
 
-        (
-            self._model,
-            self._label,
-            self._hit_test_rect
-        ) = _build_model(self._p1, line.p2, self.wire.part.od_mm, self._db_obj.label)
+        self._wire_p1.bind(self._update_position)
+        self._wire_p2.bind(self._update_position)
 
-        p1, p2 = self._hit_test_rect
-        p2 @= angle
+        self._build()
 
-        p1 += self._p1
-        p2 += self._p1
+    def _update_position(self, _):
+        angle = _angle.Angle.from_points(self._wire_p1, self._wire_p2)
+        delta = angle - self._angle
+        self._angle = angle
 
-    def hit_test(self, point: _point.Point) -> bool:
-        if self._is_deleted:
-            return False
+        self._position -= self._wire_p1
+        self._position @= delta
+        self._position += self._wire_p1
 
-        if self._hit_test_rect is None:
-            return False
+        for renderer in self._triangles:
+            data = renderer.data
+            data[0][0] -= self._wire_p1
+            data[0][0] @= delta
+            data[0][0] -= self._wire_p1
+            data[0][1] @= delta
+            renderer.data = data
 
-        p1, p2 = self._hit_test_rect
-        return p1 <= point <= p2
+        tris = self._triangles[0].data[0][0]
 
-    def draw(self, renderer):
-        if self._is_deleted:
-            return
+        p1, p2 = self._compute_rect(tris)
+        bb = self._compute_bb(p1, p2)
+        self._bb[0] = bb
+        self._rect[0] = [p1, p2]
 
-        if not self._triangles:
-            angle = _angle.Angle.from_points(self.wire_p1, self.wire_p2)
+    def _build(self):
+        (vertices, faces), text_model = _build_model(self._part.length,
+                                                     self._wire.part.od_mm + 0.0625,
+                                                     self._db_obj.label)
 
-            normals, verts, count = renderer.build_mesh(self._model)
-            verts @= angle
-            verts += self._p1
+        tris, nrmls, count = self._get_triangles(vertices, faces)
 
-            self._triangles = [[normals, verts, count]]
-            if self._label is not None:
-                normals, verts, count = renderer.build_mesh(self._label)
+        tris += self._position
+        tris -= self._wire_p1
+        tris @= self._angle
+        tris += self._wire_p1
+        nrmls @= self._angle
 
-                verts @= angle
-                verts += self._p1
+        p1, p2 = self._compute_rect(tris)
+        bb = self._compute_bb(p1, p2)
+        self._rect = [[p1, p2]]
+        self._bb = [bb]
+        self._triangles = [
+            _base3d.TriangleRenderer([[tris, nrmls, count]], self._material)]
 
-                self._label_triangles = [[normals, verts, count]]
+        if text_model is not None:
+            vertices, faces = self._convert_model_to_mesh(text_model)
+            tris, nrmls, count = self._compute_vertex_normals(vertices, faces)
 
-        for normals, verts, count in self._triangles:
-            renderer.model(normals, verts, count, None, self._part.color.ui.rgb_scalar, self.is_selected)
+            tris += self._position
+            tris -= self._wire_p1
+            tris @= self._angle
+            tris += self._wire_p1
+            nrmls @= self._angle
 
-        for normals, verts, count in self._label_triangles:
-            renderer.model(normals, verts, count, None, (0.2, 0.2, 0.2, 1.0), self.is_selected)
+            self._triangles.append(
+                _base3d.TriangleRenderer([[tris, nrmls, count]], self._label_material))
+
+    def _get_triangles(self, vertices, faces):
+        if Config.modeling.smooth_markers:
+            return self._compute_smoothed_vertex_normals(vertices, faces)
+        else:
+            return self._compute_vertex_normals(vertices, faces)
+
+
+# raiders grave

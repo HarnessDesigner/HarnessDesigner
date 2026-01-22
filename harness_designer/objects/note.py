@@ -3,18 +3,19 @@ from typing import TYPE_CHECKING
 import wx
 
 from . import ObjectBase as _ObjectBase
-from .objects2d import note as _note2d
-from .objects3d import note as _note3d
 
 
 if TYPE_CHECKING:
     from .. import ui as _ui
     from ..database.project_db import pjt_note as _pjt_note
 
+    from .objects2d import note as _note2d
+    from .objects3d import note as _note3d
+
 
 class Note(_ObjectBase):
-    obj2d: _note2d.Note = None
-    obj3d: _note3d.Note = None
+    obj2d: "_note2d.Note" = None
+    obj3d: "_note3d.Note" = None
 
     def __init__(
         self, mainframe: "_ui.MainFrame",

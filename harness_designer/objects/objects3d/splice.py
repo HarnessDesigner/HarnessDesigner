@@ -8,11 +8,10 @@ from ...geometry import point as _point
 from ...geometry import line as _line
 from ...geometry import angle as _angle
 from ...wrappers.decimal import Decimal as _decimal
-from . import Base3D as _Base3D
+from . import base3d as _base3d
 
 
 if TYPE_CHECKING:
-    from ... import editor3d as _editor3d
     from ...database.project_db import pjt_splice as _pjt_splice
 
 
@@ -32,10 +31,10 @@ def _build_model(p1: _point.Point, p2: _point.Point, diameter: _decimal):
     return model, (corner1, corner2)
 
 
-class Splice(_Base3D):
+class Splice(_base3d.Base3D):
 
-    def __init__(self, editor3d: "_editor3d.Editor3D", db_obj: "_pjt_splice.PJTSplice"):
-        super().__init__(editor3d)
+    def __init__(self, parent, db_obj: "_pjt_splice.PJTSplice"):
+        super().__init__(parent)
         self._db_obj = db_obj
         self._part = part = db_obj.part
 

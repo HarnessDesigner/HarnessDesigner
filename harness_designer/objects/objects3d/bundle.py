@@ -8,9 +8,7 @@ from ...geometry import angle as _angle
 from ...wrappers.decimal import Decimal as _decimal
 from . import base3d as _base3d
 from ... import gl_materials as _gl_materials
-
-from ...shapes import cylinder
-
+from ...shapes import cylinder as _cylinder
 from ... import Config
 
 if TYPE_CHECKING:
@@ -26,7 +24,7 @@ def _build_model(p1: _point.Point, p2: _point.Point, diameter: _decimal):
     wire_length = line.length()
 
     wire_radius = diameter / _decimal(2.0)
-    return cylinder.create(float(wire_radius), float(wire_length))
+    return _cylinder.create(float(wire_radius), float(wire_length))
 
 
 class Bundle(_base3d.Base3D):
@@ -79,8 +77,7 @@ class Bundle(_base3d.Base3D):
                 # for rendering a line that is the same color.
                 # it's not going to look as pretty but it will be a lot faster to render.
 
-                # TODO: add to bundle layout when dragging both attached bundles are
-                #       set to dragging mode
+                # TODO: set dragging mode for wires if the end of the bundle is being dragged.
 
                 self._triangles = _base3d.LineRenderer(self._p1, self._p2, self._diameter,
                                                        self._color.rgba_scalar)
@@ -93,12 +90,13 @@ class Bundle(_base3d.Base3D):
         if self._is_dragging:
             return
 
-        layers = self._db_obj.concentric.layers
+        if self._diameter is None:
+            layers = self._db_obj.concentric.layers
 
-        if layers:
-            self._diameter = layers[-1].diameter
-        else:
-            self._diameter = self._part.min_size
+            if layers:
+                self._diameter = layers[-1].diameter
+            else:
+                self._diameter = self._part.min_size
 
         vertices, faces = _build_model(self._p1, self._p2, self._diameter)
 
@@ -117,19 +115,41 @@ class Bundle(_base3d.Base3D):
         self._rect = [[p1, p2]]
 
         if self._is_selected:
-            color = Config.selected_color
-            material = None
+            self._material.x_ray_color = Config.selected_color
+            self._material.x_ray = True
         else:
-            color = self._color.rgba_scalar
-            material = self._material
+            self._material.x_ray = False
 
-        self._triangles = _base3d.TriangleRenderer([tris, nrmls, count], material, color)
+        self._triangles = [_base3d.TriangleRenderer([[tris, nrmls, count]], self._material)]
 
     def _get_triangles(self, vertices, faces):
         if Config.modeling.smooth_bundles:
             return self._compute_smoothed_vertex_normals(vertices, faces)
         else:
             return self._compute_vertex_normals(vertices, faces)
+
+    def set_diameter(self, parent_layout, value: _decimal):
+        # TODO: set transition branch diameter
+        #       finish code to cascade bundle diameter
+        #       through layouts from one end of the bundle to the other stopping
+        #       at a boot, the end of the bundle or a transition branch
+        self._diameter = value
+        self._build()
+
+        if parent_layout.position.db_id == self._p1.db_id:
+            for layout in self.editor3d.mainframe.project.bundle_layouts:
+                if layout.obj3d.position.db_id == self._p2.db_id:
+                    layout.obj3d.set_diameter(self, value)
+                    break
+            else:
+                for transition in self.editor3d.mainframe.project.transitions:
+                    index = transition.obj3d.get_branch_index(self._p2)
+
+        else:
+            for layout in self.editor3d.mainframe.project.bundle_layouts:
+                if layout.obj3d.position.db_id == self._p1.db_id:
+                    layout.obj3d.set_diameter(self, value)
+                    break
     
     def add_wire(self, wire):
         # Store weak reference to the wire
@@ -184,7 +204,6 @@ class Bundle(_base3d.Base3D):
                 count += 1
 
         return count
-
 
     def delete(self):
         """Override delete to restore wire visibility."""

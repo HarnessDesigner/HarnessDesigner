@@ -100,11 +100,9 @@ class Splash(wx.Frame):
                 self.draw()
 
             wx.CallAfter(_do, text)
-            time.sleep(0.05)
         else:
             self.text = text
             self.draw()
-            time.sleep(0.2)
 
     def draw(self, dc=None):
         if dc is None:

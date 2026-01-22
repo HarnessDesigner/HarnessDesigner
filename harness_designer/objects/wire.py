@@ -1,5 +1,7 @@
 from typing import TYPE_CHECKING
 
+import wx
+
 from . import ObjectBase as _ObjectBase
 from .objects2d import wire as _wire2d
 from .objects3d import wire as _wire3d

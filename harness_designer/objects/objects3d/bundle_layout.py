@@ -6,100 +6,86 @@ import build123d
 
 from ...geometry import point as _point
 from ...wrappers.decimal import Decimal as _decimal
-from . import Base3D as _Base3D
+from . import base3d as _base3d
+from ... import gl_materials as _gl_materials
+from ...shapes import sphere as _sphere
+from ... import Config
+from .mixins import move as _move_mixin
+
 
 if TYPE_CHECKING:
-    from ... import editor3d as _editor3d
+    from ... import editor_3d as _editor_3d
     from ...database.project_db import pjt_bundle_layout as _pjt_bundle_layout
 
 
-def _build_model(diameter: _decimal):
-    model = build123d.Sphere(float(diameter / _decimal(2)))
-
-    bbox = model.bounding_box()
-    corner1 = _point.Point(*(_decimal(float(item)) for item in bbox.min))
-    corner2 = _point.Point(*(_decimal(float(item)) for item in bbox.max))
-
-    return model, [corner1, corner2]
+Config = Config.editor3d
 
 
-class BundleLayout(_Base3D):
+class BundleLayout(_base3d.Base3D, _move_mixin.MoveMixin):
 
-    def __init__(self, editor3d: "_editor3d.Editor3D",
+    def __init__(self, editor3d: "_editor_3d.Editor3D",
                  db_obj: "_pjt_bundle_layout.PJTBundleLayout"):
 
         super().__init__(editor3d)
         self._db_obj = db_obj
 
-        self._center = db_obj.point.point
-        self._o_center = self._center.copy()
-        self._model = None
-        self._hit_test_rect = None
-        self._triangles = []
+        self._position = db_obj.point3d.point
+        self._o_position = self._position.copy()
+        self._is_deleted = False
+        self._is_dragging = False
 
-        self._center.Bind(self._update_center)
+        bundles = db_obj.attached_bundles
 
-    def _update_center(self, *_):
-        if self._is_deleted:
-            return
+        bundle = bundles[-1]
+        layers = bundle.concentric.layers
+        diameter = layers[-1].diameter
 
-        if self._triangles:
-            verts = self._triangles[0][1]
-            center_diff = self._center - self._o_center
-            verts += center_diff
+        self._diameter = diameter
+        self._color = bundle.part.color.ui
+        self._material = _gl_materials.Rubber(self._color.rgba_scalar)
 
-        if self._hit_test_rect is not None:
-            p1, p2 = self._hit_test_rect
+        self._position.bind(self._update_position)
+        self._build()
 
-            center_diff = self._center - self._o_center
-            p1 += center_diff
-            p2 += center_diff
+    def _build(self):
+        vertices, faces = _sphere.create(float(self._diameter) / 2.0)
+        tris, nrmls, count = self._get_triangles(vertices, faces)
 
-        self._o_center = self._center.copy()
-    
-    @property
-    def point(self) -> _point.Point:
-        """Return the center point of this bundle layout.
-        
-        This point can be used by wire layouts to bind callbacks for synchronization.
-        """
-        return self._center
+        tris += self._position
 
-    def recalculate(self, *_):
-        if self._is_deleted:
-            return
+        p1, p2 = self._compute_rect(tris)
+        self._rect = [[p1, p2]]
+        self._bb = [self._compute_bb(p1, p2)]
 
-        if self._model is None:
-            self._model, self._hit_test_rect = _build_model(self._db_obj.diameter)
+        self._triangles = [_base3d.TriangleRenderer([[tris, nrmls, count]], self._material)]
 
-            p1, p2 = self._hit_test_rect
-            p1 += self._center
-            p2 += self._center
+    def _get_triangles(self, vertices, faces):
+        if Config.modeling.smooth_bundles:
+            return self._compute_smoothed_vertex_normals(vertices, faces)
+        else:
+            return self._compute_vertex_normals(vertices, faces)
 
-        self._triangles = []
+    def set_diameter(self, parent_bundle, value: _decimal):
+        self._diameter = value
 
-    def hit_test(self, point: _point.Point) -> bool:
-        if self._is_deleted:
-            return False
+        self._build()
 
-        p1, p2 = self._hit_test_rect
-        return p1 <= point <= p2
-
-    def draw(self, renderer):
-        if self._is_deleted:
-            return
-
-        if not self._triangles:
-            normals, verts, count = renderer.build_mesh(self._model)
-            verts += self._center
-
-            self._triangles = [[normals, verts, count]]
-
-        for normals, verts, count in self._triangles:
-            color = (0.2, 0.2, 0.2, 1.0)
-            for obj in self._db_obj.attached_objects:
-                color = obj.part.color.ui.rgba_scalar
+        for bundle in self.editor3d.mainframe.project.bundles:
+            if (
+                bundle.obj3d.position.db_id == self.position.db_id and
+                parent_bundle != bundle.obj3d
+            ):
+                bundle.obj3d.set_diameter(self, value)
                 break
 
-            renderer.model(normals, verts, count, None, color, self.is_selected)
+    @property
+    def is_dragging(self) -> bool:
+        return self._is_dragging
 
+    @is_dragging.setter
+    def is_dragging(self, value: bool):
+        self._is_dragging = value
+
+        for bundle in self.editor3d.mainframe.project.bundles:
+            if bundle.obj3d.position.db_id == self.position.db_id:
+                bundle.obj3d.is_dragging = value

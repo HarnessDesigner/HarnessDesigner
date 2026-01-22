@@ -1,13 +1,15 @@
+from typing import TYPE_CHECKING
+
 import wx
-
 import os
-
-from .ui import splash as _splash
-from . import config as _config
 from . import utils as _utils
 
+from . import config as _config
 
-splash: _splash.Splash = None
+if TYPE_CHECKING:
+    from .ui import splash as _splash
+
+splash: "_splash.Splash" = None
 
 CONNECTOR_SQLITE = 1
 CONNECTOR_MYSQL = 2
@@ -150,6 +152,8 @@ class Config(metaclass=_config.Config):
 class App(wx.App):
     def OnInit(self):
         global splash
+
+        from .ui import splash as _splash
 
         splash = _splash.Splash(None)
         splash.Show()

@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 import wx
 import time
 
-from wx.lib.agw import aui
+from wx import aui
 from ..widgets import aui_toolbar
 
 from .. import config as _config
@@ -79,7 +79,7 @@ class MainFrame(wx.Frame):
         self.project = None
 
         splash.SetText('Starting UI manager...')
-        self.manager = aui.AuiManager(agwFlags=aui.AUI_MGR_ALLOW_FLOATING |
+        self.manager = aui.AuiManager(flags=aui.AUI_MGR_ALLOW_FLOATING |
                                       aui.AUI_MGR_ALLOW_ACTIVE_PANE |
                                       aui.AUI_MGR_TRANSPARENT_DRAG |
                                       aui.AUI_MGR_TRANSPARENT_HINT |
@@ -123,7 +123,7 @@ class MainFrame(wx.Frame):
         from ..database import editor as db_editor
 
         splash.SetText('Creating 3D editor...')
-        self.editor3d: editor_3d.Editor3D = editor_3d.Editor3D(self.editor_notebook)
+        self.editor3d: editor_3d.Editor3D = editor_3d.Editor3D(self.editor_notebook, self)
 
         splash.SetText('Creating 2D editor...')
         self.editor2d: editor_2d.Editor2D = editor_2d.Editor2D(self.editor_notebook)
@@ -228,10 +228,10 @@ class MainFrame(wx.Frame):
         self.manager.AddPane(self.toolbar, self.toolbar_pane)
 
         splash.SetText('Loading UI perspective...')
-
-        if Config.ui_perspective:
-            print(repr(Config.ui_perspective))
-            self.manager.LoadPerspective(Config.ui_perspective)
+        #
+        # if Config.ui_perspective:
+        #     print(repr(Config.ui_perspective))
+        #     self.manager.LoadPerspective(Config.ui_perspective)
 
         if Config.position:
 

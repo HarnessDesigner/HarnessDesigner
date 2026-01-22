@@ -1,8 +1,9 @@
 from typing import TYPE_CHECKING
 
 from . import ObjectBase as _ObjectBase
-from .objects3d import wire3d_layout as _wire3d_layout
+from .objects3d import wire_layout as _wire3d_layout
 
+import wx
 
 if TYPE_CHECKING:
     from .. import ui as _ui
@@ -17,7 +18,7 @@ class Wire3DLayout(_ObjectBase):
         super().__init__(mainframe)
 
         self.db_obj = db_obj
-        self.obj3d = _wire3d_layout.Wire3DLayout(mainframe.editor3d, db_obj)
+        self.obj3d = _wire3d_layout.WireLayout(mainframe.editor3d, db_obj)
 
 
 class Wire3DLayoutMenu(wx.Menu):

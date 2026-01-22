@@ -3,8 +3,7 @@ from typing import TYPE_CHECKING
 import wx
 
 from . import ObjectBase as _ObjectBase
-from .objects2d import housing as _housing2d
-from .objects3d import housing as _housing3d
+
 from ..widgets.context_menus import RotateMenu, MirrorMenu
 
 
@@ -12,10 +11,13 @@ if TYPE_CHECKING:
     from .. import ui as _ui
     from ..database.project_db import pjt_housing as _pjt_housing
 
+    from .objects2d import housing as _housing2d
+    from .objects3d import housing as _housing3d
+
 
 class Housing(_ObjectBase):
-    obj2d: _housing2d.Housing = None
-    obj3d: _housing3d.Housing = None
+    obj2d: "_housing2d.Housing" = None
+    obj3d: "_housing3d.Housing" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_housing.PJTHousing"):
