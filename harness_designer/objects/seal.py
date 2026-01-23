@@ -23,13 +23,6 @@ class Seal(_ObjectBase):
         self.db_obj = db_obj
         self.obj3d = _seal.Seal(mainframe.editor3d, db_obj)
 
-    @staticmethod
-    def get_seal_triangles(model):
-        if Config.modeling.smooth_seals:
-            return model_to_mesh.get_smooth_triangles(model)
-        else:
-            return model_to_mesh.get_triangles(model)
-
 
 class SealMenu(wx.Menu):
 

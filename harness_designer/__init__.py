@@ -36,6 +36,11 @@ class Config(metaclass=_config.Config):
         selected_color = [0.3, 0.3, 1.0, 0.45]
         angle_lock_color = [0.3, 0.8, 0.3, 0.45]
 
+        class axis_overlay(metaclass=_config.Config):
+            is_visible = True
+            size = (150, 150)
+            position = (830, 245)
+
         class modeling:
             smooth_wires = True
             smooth_housings = False

@@ -204,25 +204,25 @@ class Wire:
 
         gc.SetPen(handle_pen)
         gc.StrokePath(path)
-
-    def hit_test(self, p: _point.Point) -> bool:
-        if self._hit_test_rect is None:
-            return False
-        p1, p2 = self._hit_test_rect
-
-        if not Config.lock_90:
-            p1 = p1.copy()
-            p2 = p2.copy()
-            p = p.copy()
-
-            angle = _angle.Angle.from_points(p1, p2)
-            angle.z = -angle.z
-            p2 -= p1
-            p2 @= angle
-            p -= p1
-            p @= angle
-
-        return p1 <= p <= p2
+    #
+    # def hit_test(self, p: _point.Point) -> bool:
+    #     if self._hit_test_rect is None:
+    #         return False
+    #     p1, p2 = self._hit_test_rect
+    #
+    #     if not Config.lock_90:
+    #         p1 = p1.copy()
+    #         p2 = p2.copy()
+    #         p = p.copy()
+    #
+    #         angle = _angle.Angle.from_points(p1, p2)
+    #         angle.z = -angle.z
+    #         p2 -= p1
+    #         p2 @= angle
+    #         p -= p1
+    #         p @= angle
+    #
+    #     return p1 <= p <= p2
 
 
 

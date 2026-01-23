@@ -43,12 +43,14 @@ class GLMaterial:
         a = tuple(self._color[:-1])
 
         if self.x_ray:
+            glColor4f(*self.x_ray_color)
             glMaterialfv(GL_FRONT, GL_EMISSION, self.x_ray_color)
             glMaterialfv(GL_FRONT, GL_AMBIENT, self.x_ray_color)
             glMaterialfv(GL_FRONT, GL_DIFFUSE, self.x_ray_color)
             glMaterialfv(GL_FRONT, GL_SPECULAR, self.x_ray_color)
             glMaterialf(GL_FRONT, GL_SHININESS, 110.0)
         else:
+            glColor4f(*self._color)
             glMaterialfv(GL_FRONT, GL_AMBIENT, self._ambient + a)
             glMaterialfv(GL_FRONT, GL_DIFFUSE, self._diffuse + a)
             glMaterialfv(GL_FRONT, GL_SPECULAR, self._specular + a)

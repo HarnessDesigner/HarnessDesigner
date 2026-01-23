@@ -84,11 +84,11 @@ class Line:
         self._p1 = p1
 
         if p2 is None:
-            if None in (length, angle):
+            if length is None or angle is None:
                 raise ValueError('If an end point is not supplied then the "length", '
                                  '"x_angle", "y_angle" and "z_angle" parameters need to be supplied')
 
-            p2 = _point.Point(length, _decimal(0.0), _decimal(0.0))
+            p2 = _point.Point(_decimal(0.0), _decimal(0.0), length)
             p2 @= angle
             p2 += p1
 
@@ -187,7 +187,7 @@ class Line:
             self._p2 += diff_p2
 
     def point_from_start(self, distance: _decimal) -> _point.Point:
-        line = Line(self._p1.copy(), None, distance, self.get_angle(self._p1))
+        line = Line(self._p1.copy(), None, distance, _angle.Angle.from_points(self._p1, self._p2))
         return line.p2
 
     @property

@@ -55,6 +55,7 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MOVE, self.on_move)
         self.Bind(wx.EVT_SIZE, self.on_size)
         self.Bind(wx.EVT_CLOSE, self.on_close)
+        self.Bind(wx.EVT_ERASE_BACKGROUND, self.on_erase_background)
 
         self.db_connector = None
         self.global_db = None
@@ -227,6 +228,9 @@ class MainFrame(wx.Frame):
 
         self.manager.Update()
 
+    def on_erase_background(self, _):
+        pass
+
     def ShowProgress(self, obj_count):
         self.progress_ctrl.SetRange(obj_count)
         self.progress_ctrl.SetValue(0)
@@ -263,14 +267,10 @@ class MainFrame(wx.Frame):
 
     def on_close(self, _):
         Config.ui_perspective = self.manager.SavePerspective()
-        print(Config.ui_perspective)
-        print(self.manager.SavePerspective())
-
         self.editor3d.Destroy()
         self.editor2d.Destroy()
 
         self.manager.UnInit()
-
         self.Destroy()
 
     def on_size(self, evt: wx.SizeEvent):

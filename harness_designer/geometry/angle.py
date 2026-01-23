@@ -7,9 +7,7 @@ from scipy.spatial.transform import Rotation as _Rotation
 
 from .. import debug as _debug
 from ..wrappers.decimal import Decimal as _decimal
-
-if TYPE_CHECKING:
-    from . import point as _point
+from . import point as _point
 
 
 class AngleMeta(type):
@@ -394,7 +392,7 @@ class Angle(metaclass=AngleMeta):
         quat = self._euler_to_quat(tx, ty, tz, self.order)
         return self.from_quat(quat, self.order)
 
-    def __rmatmul__(self, other: Union[np.ndarray, "_point.Point"]) -> np.ndarray:
+    def __rmatmul__(self, other: Union[np.ndarray, _point.Point]) -> np.ndarray:
         if isinstance(other, np.ndarray):
             other @= self._R.as_matrix().T
         elif isinstance(other, _point.Point):
@@ -417,7 +415,7 @@ class Angle(metaclass=AngleMeta):
         return other
 
     @_debug.timeit
-    def __imatmul__(self, other: Union[np.ndarray, "_point.Point"]) -> np.ndarray:
+    def __imatmul__(self, other: Union[np.ndarray, _point.Point]) -> np.ndarray:
         if isinstance(other, np.ndarray):
             other @= self._R.as_matrix().T
         elif isinstance(other, _point.Point):
@@ -445,7 +443,7 @@ class Angle(metaclass=AngleMeta):
         return other
 
     @_debug.timeit
-    def __matmul__(self, other: Union[np.ndarray, "_point.Point"]) -> np.ndarray:
+    def __matmul__(self, other: Union[np.ndarray, _point.Point]) -> np.ndarray:
         if isinstance(other, np.ndarray):
             other = other @ self._R.as_matrix().T
         elif isinstance(other, _point.Point):
@@ -533,7 +531,7 @@ class Angle(metaclass=AngleMeta):
         return cls(R, order, db_id)
 
     @classmethod
-    def from_points(cls, p1: "_point.Point", p2: "_point.Point", order: str = 'XYZ') -> "Angle":
+    def from_points(cls, p1: _point.Point, p2: _point.Point, order: str = 'XYZ') -> "Angle":
         # the sign for all of the verticies in the array needs to be flipped in
         # order to handle the -Z axis being near
         p1 = -p1.as_numpy

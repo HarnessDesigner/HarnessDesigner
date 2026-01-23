@@ -23,13 +23,6 @@ class Wire(_ObjectBase):
         self.obj2d = _wire2d.Wire(mainframe.editor2d, db_obj)
         self.obj3d = _wire3d.Wire(mainframe.editor3d, db_obj)
 
-    @staticmethod
-    def get_wire_triangles(model):
-        if Config.modeling.smooth_wires:
-            return model_to_mesh.get_smooth_triangles(model)
-        else:
-            return model_to_mesh.get_triangles(model)
-
 
 class WireMenu(wx.Menu):
 

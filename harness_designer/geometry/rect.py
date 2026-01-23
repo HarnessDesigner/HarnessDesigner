@@ -302,10 +302,10 @@ class Rect:
             calc_w = _line.Line(top_left_corner, top_right_corner).length()
             calc_h = _line.Line(top_left_corner, bottom_left_corner).length()
 
-        top_line = Line(corners[0], corners[1])
-        bottom_line = Line(corners[2], corners[3])
-        left_line = Line(corners[0], corners[2])
-        right_line = Line(corners[1], corners[3])
+        top_line = _line.Line(corners[0], corners[1])
+        bottom_line = _line.Line(corners[2], corners[3])
+        left_line = _line.Line(corners[0], corners[2])
+        right_line = _line.Line(corners[1], corners[3])
 
         if (
             len(top_line) != len(bottom_line) or

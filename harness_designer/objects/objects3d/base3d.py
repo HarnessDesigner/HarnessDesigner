@@ -26,12 +26,15 @@ Config = Config.editor3d
 
 class Base3D:
 
-    def __init__(self, parent: "_ObjectBase"):
+    def __init__(self, parent):
         self._parent = parent
 
-        self.editor3d = parent.mainframe.editor3d
+        try:
+            self.editor3d = parent.mainframe.editor3d
+        except AttributeError:
+            self.editor3d = parent.editor3d
 
-        self.canvas: "_canvas.Canvas" = parent.mainframe.editor3d.canvas
+        self.canvas: "_canvas.Canvas" = self.editor3d.canvas
 
         self._db_obj: _project_db.PJTEntryBase = None
         self._position: _point.Point = None
@@ -63,6 +66,14 @@ class Base3D:
 
         self._rect: list[list[_point.Point, _point.Point]] = []
         self._bb: list[np.ndarray] = []
+
+    @property
+    def rect(self) -> list[list[_point.Point, _point.Point]]:
+        return self._rect
+
+    @property
+    def triangles(self) -> list[Union["TriangleRenderer", "LineRenderer"]]:
+        return self._triangles
 
     @property
     def position(self) -> _point.Point:
@@ -261,28 +272,28 @@ class Base3D:
 # experiance.
 class TriangleRenderer:
 
-    def __init__(self, data, material):
+    def __init__(self, data: list[list[np.ndarray, np.ndarray, int]], material: _gl_materials.GLMaterial):
         self._data = data
         self._material = material
 
     @property
-    def is_opaque(self):
+    def is_opaque(self) -> bool:
         return self._material.is_opaque
 
     @property
-    def data(self):
+    def data(self) -> list[list[np.ndarray, np.ndarray, int]]:
         return self._data
 
     @data.setter
-    def data(self, value):
+    def data(self, value: list[list[np.ndarray, np.ndarray, int]]):
         self._data = value
 
     @property
-    def material(self):
+    def material(self) -> _gl_materials.GLMaterial:
         return self._material
 
     @material.setter
-    def material(self, value):
+    def material(self, value: _gl_materials.GLMaterial):
         self._material = value
 
     def __call__(self):
@@ -311,8 +322,24 @@ class LineRenderer:
         self._width = width
 
     @property
-    def is_opaque(self):
+    def is_opaque(self) -> bool:
         return self._material.is_opaque
+
+    @property
+    def material(self) -> _gl_materials.GLMaterial:
+        return self._material
+
+    @material.setter
+    def material(self, value: _gl_materials.GLMaterial):
+        self._material = value
+
+    @property
+    def data(self) -> list:
+        return []
+
+    @data.setter
+    def data(self, value: list):
+        pass
 
     def __call__(self):
         self._material.set()

@@ -39,6 +39,8 @@ def create(radius=1.0, height=2.0):
 
     # Triangles for cylindrical surface.
 
+    vertices += np.array([0.0, 0.0, height / 2], dtype=np.float64)
+
     faces = []
     for i in range(split):
         base1 = 2 + resolution * i

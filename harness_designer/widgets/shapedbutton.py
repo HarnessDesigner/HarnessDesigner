@@ -1,3 +1,4 @@
+'''
 import wx
 
 import PIL.Image as Image
@@ -757,3 +758,4 @@ if __name__ == '__main__':
     frame.Show()
 
     app.MainLoop()
+'''
