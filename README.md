@@ -5,9 +5,10 @@ Wiring Harness design software (WIP)
 This project is currently being developed. I don't have a time frame as to when 
 it will be completed but I am hoping within the next couple of months maybe sooner.
 
-Currently I am using a library called matplotlib to handle the 3d aspects of this project.
-One of the first things I will be doing as an update is changing that to using OpenGL.
-The reaosn for this change is faster rendering and smoother control.
+Here is a preview of the work in progress. I know it doesn't look like much at the 
+moment but things are going to start to come together pretty quickly from this point.
+
+![img.png](img.png)
 
 <br>
 
