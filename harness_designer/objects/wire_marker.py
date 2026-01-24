@@ -4,8 +4,8 @@ import wx
 
 from . import ObjectBase as _ObjectBase
 
-from .objects3d import wire_marker as _wire_marker3d
-from .objects2d import wire_marker as _wire_marker2d
+from .objects3d import wire_marker as _wire_marker_3d
+from .objects2d import wire_marker as _wire_marker_2d
 
 if TYPE_CHECKING:
     from ..database.project_db import pjt_wire_marker as _wire_marker
@@ -19,8 +19,9 @@ class WireMarker(_ObjectBase):
 
         super().__init__(mainframe)
 
-        self.obj2d = _wire_marker2d.WireMarker(mainframe.editor2d, db_obj)
-        self.obj3d = _wire_marker3d.WireMarker(mainframe.editor3d, db_obj)
+        self.db_obj = db_obj
+        self.obj2d = _wire_marker_2d.WireMarker(self, db_obj)
+        self.obj3d = _wire_marker_3d.WireMarker(self, db_obj)
 
     def select2d(self, evt):
         pass

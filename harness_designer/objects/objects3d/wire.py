@@ -15,6 +15,7 @@ from ... import Config
 
 if TYPE_CHECKING:
     from ...database.project_db import pjt_wire as _pjt_wire
+    from .. import wire as _wire
     
 
 Config = Config.editor3d
@@ -70,10 +71,12 @@ def _build_model(p1: _point.Point, p2: _point.Point, diameter: _decimal, has_str
 
 
 class Wire(_base3d.Base3D):
+    _parent: "_wire.Wire" = None
 
-    def __init__(self, parent, db_obj: "_pjt_wire.PJTWire"):
-        super().__init__(parent)
-        self._db_obj = db_obj
+    def __init__(self, parent: "_wire.Wire", db_obj: "_pjt_wire.PJTWire"):
+        _base3d.Base3D.__init__(self, parent)
+        self._db_obj: "_pjt_wire.PJTWire" = db_obj
+
         self._part = db_obj.part
 
         self._color = self._part.color.ui

@@ -9,15 +9,14 @@ from ...wrappers.decimal import Decimal as _decimal
 from . import base3d as _base3d
 from .mixins import angle as _angle_mixin
 from .mixins import move as _move_mixin
+from ... import Config
+from ... import gl_materials as _gl_materials
 
 
 if TYPE_CHECKING:
-    from ... import editor_3d as _editor_3d
     from ...database.project_db import pjt_terminal as _pjt_terminal
-    from ...wrappers import color as _color
+    from .. import terminal as _terminal
 
-from ... import Config
-from ... import gl_materials as _gl_materials
 
 Config = Config.editor3d
 
@@ -50,11 +49,16 @@ def _build_model(length: _decimal, width: _decimal, height: _decimal, blade_size
 
 
 class Terminal(_base3d.Base3D, _angle_mixin.AngleMixin, _move_mixin.MoveMixin):
+    _parent: "_terminal.Terminal" = None
 
-    def __init__(self, parent, db_obj: "_pjt_terminal.PJTTerminal"):
-        super().__init__(parent)
+    def __init__(self, parent: "_terminal.Terminal",
+                 db_obj: "_pjt_terminal.PJTTerminal"):
 
-        self._db_obj = db_obj
+        _base3d.Base3D.__init__(self, parent)
+        _angle_mixin.AngleMixin.__init__(self)
+        _move_mixin.MoveMixin.__init__(self)
+        self._db_obj: "_pjt_terminal.PJTTerminal" = db_obj
+
         self._part = db_obj.part
 
         self._position = db_obj.point3d.point

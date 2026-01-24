@@ -3,7 +3,8 @@ from typing import TYPE_CHECKING
 import wx
 
 from . import ObjectBase as _ObjectBase
-from .objects3d import tpa_lock as _tpa_lock
+from .objects2d import tpa_lock as _tpa_lock_2d
+from .objects3d import tpa_lock as _tpa_lock_3d
 from ..widgets.context_menus import RotateMenu, MirrorMenu
 
 
@@ -13,7 +14,6 @@ if TYPE_CHECKING:
 
 
 class TPALock(_ObjectBase):
-    obj3d: _tpa_lock.TPALock = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_tpa_lock.PJTTPALock"):
@@ -21,8 +21,8 @@ class TPALock(_ObjectBase):
         super().__init__(mainframe)
 
         self.db_obj = db_obj
-        self.obj3d = _tpa_lock.TPALock(mainframe.editor3d, db_obj)
-
+        self.obj2d = _tpa_lock_2d.TPALock(self, db_obj)
+        self.obj3d = _tpa_lock_3d.TPALock(self, db_obj)
 
 
 class TPALockMenu(wx.Menu):

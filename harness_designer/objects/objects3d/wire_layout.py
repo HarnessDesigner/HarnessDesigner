@@ -11,19 +11,22 @@ from .mixins import move as _move_mixin
 
 
 if TYPE_CHECKING:
-    from ... import editor_3d as _editor_3d
-    from ...database.project_db import pjt_wire3d_layout as _pjt_wire3d_layout
+    from ...database.project_db import pjt_wire_layout as _pjt_wire_layout
+    from .. import wire_layout as _wire_layout
 
 
 Config = Config.editor3d
 
 
 class WireLayout(_base3d.Base3D, _move_mixin.MoveMixin):
+    _parent: "_wire_layout.WireLayout" = None
 
-    def __init__(self, editor3d: "_editor_3d.Editor3D", db_obj: "_pjt_wire3d_layout.PJTWire3DLayout"):
+    def __init__(self, parent: "_wire_layout.WireLayout",
+                 db_obj: "_pjt_wire_layout.PJTWireLayout"):
 
-        super().__init__(editor3d)
-        self._db_obj = db_obj
+        _base3d.Base3D.__init__(self, parent)
+        _move_mixin.MoveMixin.__init__(self)
+        self._db_obj: "_pjt_wire_layout.PJTWireLayout" = db_obj
 
         self._position = db_obj.point3d.point
         self._o_position = self._position.copy()

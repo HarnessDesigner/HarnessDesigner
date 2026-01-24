@@ -1,4 +1,26 @@
-#
+from typing import TYPE_CHECKING
+
+from . import base3d as _base3d
+from .mixins import angle as _angle_mixin
+from .mixins import move as _move_mixin
+
+if TYPE_CHECKING:
+    from ...database.project_db import pjt_housing as _pjt_housing
+    from .. import housing as _housing
+
+
+class Housing(_base3d.Base3D, _angle_mixin.AngleMixin, _move_mixin.MoveMixin):
+    _parent: "_housing.Housing" = None
+
+    def __init__(self, parent: "_housing.Housing",
+                 db_obj: "_pjt_housing.PJTHousing"):
+
+        _base3d.Base3D.__init__(self, parent)
+        _angle_mixin.AngleMixin.__init__(self)
+        _move_mixin.MoveMixin.__init__(self)
+        self._db_obj: "_pjt_housing.PJTHousing" = db_obj
+
+
 # import build123d
 # import numpy as np
 #

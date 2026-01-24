@@ -7,24 +7,27 @@ from ...wrappers.decimal import Decimal as _decimal
 from . import base3d as _base3d
 from .mixins import angle as _angle_mixin
 from .mixins import move as _move_mixin
+from ... import Config
+from ... import gl_materials as _gl_materials
 
 
 if TYPE_CHECKING:
-    from ... import editor_3d as _editor_3d
     from ...database.project_db import pjt_seal as _pjt_seal
+    from .. import seal as _seal
 
-from ... import Config
-from ... import gl_materials as _gl_materials
 
 Config = Config.editor3d
 
 
 class Seal(_base3d.Base3D, _angle_mixin.AngleMixin, _move_mixin.MoveMixin):
+    _parent: "_seal.Seal" = None
 
-    def __init__(self, parent, db_obj: "_pjt_seal.PJTSeal"):
-        super().__init__(parent)
+    def __init__(self, parent: "_seal.Seal", db_obj: "_pjt_seal.PJTSeal"):
+        _base3d.Base3D.__init__(self, parent)
+        _angle_mixin.AngleMixin.__init__(self)
+        _move_mixin.MoveMixin.__init__(self)
+        self._db_obj: "_pjt_seal.PJTSeal" = db_obj
 
-        self._db_obj = db_obj
         self._part = db_obj.part
 
         self._position = db_obj.point3d.point

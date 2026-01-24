@@ -1,1 +1,0 @@
-# TODO: Wire attributes panel

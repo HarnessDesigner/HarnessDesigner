@@ -7,24 +7,28 @@ from ...wrappers.decimal import Decimal as _decimal
 from . import base3d as _base3d
 from .mixins import angle as _angle_mixin
 from .mixins import move as _move_mixin
-
-
-if TYPE_CHECKING:
-    from ... import editor_3d as _editor_3d
-    from ...database.project_db import pjt_tpa_lock as _pjt_tpa_lock
-
 from ... import Config
 from ... import gl_materials as _gl_materials
+
+if TYPE_CHECKING:
+    from ...database.project_db import pjt_tpa_lock as _pjt_tpa_lock
+    from .. import tpa_lock as _tpa_lock
+
 
 Config = Config.editor3d
 
 
 class TPALock(_base3d.Base3D, _angle_mixin.AngleMixin, _move_mixin.MoveMixin):
+    _parent: "_tpa_lock.TPALock" = None
 
-    def __init__(self, parent, db_obj: "_pjt_tpa_lock.PJTTPALock"):
-        super().__init__(parent)
+    def __init__(self, parent: "_tpa_lock.TPALock",
+                 db_obj: "_pjt_tpa_lock.PJTTPALock"):
 
-        self._db_obj = db_obj
+        _base3d.Base3D.__init__(self, parent)
+        _angle_mixin.AngleMixin.__init__(self)
+        _move_mixin.MoveMixin.__init__(self)
+        self._db_obj: "_pjt_tpa_lock.PJTTPALock" = db_obj
+
         self._part = db_obj.part
 
         self._position = db_obj.point3d.point

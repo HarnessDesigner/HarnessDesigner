@@ -14,20 +14,21 @@ from .mixins import move as _move_mixin
 
 
 if TYPE_CHECKING:
-    from ... import editor_3d as _editor_3d
     from ...database.project_db import pjt_bundle_layout as _pjt_bundle_layout
+    from .. import bundle_layout as _bundle_layout
 
 
 Config = Config.editor3d
 
 
 class BundleLayout(_base3d.Base3D, _move_mixin.MoveMixin):
+    _parent: "_bundle_layout.BundleLayout" = None
 
-    def __init__(self, editor3d: "_editor_3d.Editor3D",
+    def __init__(self, parent: "_bundle_layout.BundleLayout",
                  db_obj: "_pjt_bundle_layout.PJTBundleLayout"):
 
-        super().__init__(editor3d)
-        self._db_obj = db_obj
+        _base3d.Base3D.__init__(self, parent)
+        self._db_obj: "_pjt_bundle_layout.PJTBundleLayout" = db_obj
 
         self._position = db_obj.point3d.point
         self._o_position = self._position.copy()

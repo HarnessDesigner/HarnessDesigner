@@ -5,19 +5,22 @@ import wx
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ...wrappers.decimal import Decimal as _decimal
+from . import base2d as _base2d
 
 if TYPE_CHECKING:
-    from ... import editor2d as _editor2d
+    from .. import wire_marker as _wire_marker
     from ...database.project_db import pjt_wire_marker as _pjt_wire_marker
 
 
-class WireMarker:
+class WireMarker(_base2d.Base2D):
+    _parent: "_wire_marker.WireMarker" = None
 
-    def __init__(self, editor2d: "_editor2d.Editor2D",
+    def __init__(self, parent: "_wire_marker.WireMarker",
                  db_obj: "_pjt_wire_marker.PJTWireMarker"):
 
-        self.editor2d = editor2d
-        self._db_obj = db_obj
+        _base2d.Base2D.__init__(self, parent)
+        self._db_obj: "_pjt_wire_marker.PJTWireMarker" = db_obj
+
         self._part = db_obj.part
         self._wire = self._db_obj.wire
         self._p1 = db_obj.point2d.point
@@ -29,9 +32,9 @@ class WireMarker:
         self._dc = wx.MemoryDC()
         self._bitmap = wx.NullBitmap
 
-        self._wire_p1.Bind(self._update_bitmap)
-        self._wire_p2.Bind(self._update_bitmap)
-        self._p1.Bind(self._update_bitmap)
+        self._wire_p1.bind(self._update_bitmap)
+        self._wire_p2.bind(self._update_bitmap)
+        self._p1.bind(self._update_bitmap)
 
     def _update_bitmap(self, *_):
         label = self._db_obj.label

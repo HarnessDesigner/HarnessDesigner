@@ -3,7 +3,8 @@ from typing import TYPE_CHECKING
 import wx
 
 from . import ObjectBase as _ObjectBase
-from .objects3d import bundle_layout as _bundle_layout
+from .objects2d import bundle_layout as _bundle_layout_2d
+from .objects3d import bundle_layout as _bundle_layout_3d
 
 
 if TYPE_CHECKING:
@@ -12,14 +13,14 @@ if TYPE_CHECKING:
 
 
 class BundleLayout(_ObjectBase):
-    obj3d: _bundle_layout.BundleLayout = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_bundle_layout.PJTBundleLayout"):
         super().__init__(mainframe)
 
         self.db_obj = db_obj
-        self.obj3d = _bundle_layout.BundleLayout(mainframe.editor3d, db_obj)
+        self.obj2d = _bundle_layout_2d.BundleLayout(self, db_obj)
+        self.obj3d = _bundle_layout_3d.BundleLayout(self, db_obj)
 
 
 class BundleLayoutMenu(wx.Menu):

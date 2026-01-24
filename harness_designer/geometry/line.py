@@ -187,8 +187,87 @@ class Line:
             self._p2 += diff_p2
 
     def point_from_start(self, distance: _decimal) -> _point.Point:
-        line = Line(self._p1.copy(), None, distance, _angle.Angle.from_points(self._p1, self._p2))
-        return line.p2
+        """
+        Calculate point on the line at a specific distance from the start point.
+
+        :param distance: Distance from start point to the calculated point.
+        :type distance: `decimal.Decimal`
+
+        :returns: The coordinates of the calculated point.
+        :rtype: `_point.Point`
+
+        :raises ValueError: If the specified distance places the point beyond p2.
+        """
+
+        # Convert points to numpy arrays
+        p1 = self._p1.as_numpy
+        p2 = self._p2.as_numpy
+
+        # Compute the vector from p1 to p2
+        vector = p2 - p1
+
+        # Compute the total distance between p1 and p2
+        total_distance = np.linalg.norm(vector)
+
+        # Check if the specified distance is valid
+        if distance > total_distance:
+            raise ValueError("calculated point is not on the line")
+
+        # Normalize the vector to get the unit direction vector
+        unit_vector = vector / total_distance
+
+        # Calculate the third point
+        p3 = p1 + distance * unit_vector
+
+        return _point.Point(_decimal(p3[0]), _decimal(p3[1]), _decimal(p3[2]))
+
+    def __isub__(self, other: _point.Point | np.ndarray) -> "Line":
+        self._p1 -= other
+        self._p2 -= other
+
+        return self
+
+    def __sub__(self, other: _point.Point | np.ndarray) -> "Line":
+        p1 = self._p1 - other
+        p2 = self._p2 - other
+
+        return Line(p1, p2)
+
+    def __iadd__(self, other: _point.Point | np.ndarray) -> "Line":
+        self._p1 += other
+        self._p2 += other
+
+        return self
+
+    def __add__(self, other: _point.Point | np.ndarray) -> "Line":
+        p1 = self._p1 + other
+        p2 = self._p2 + other
+
+        return Line(p1, p2)
+
+    def __imul__(self, other: _point.Point | np.ndarray) -> "Line":
+        self._p1 *= other
+        self._p2 *= other
+
+        return self
+
+    def __mul__(self, other: _point.Point | np.ndarray) -> "Line":
+        p1 = self._p1 * other
+        p2 = self._p2 * other
+
+        return Line(p1, p2)
+
+    def __imatmul__(self, other: _angle.Angle | np.ndarray) -> "Line":
+        self._p1 @= other
+        self._p2 @= other
+
+        return self
+
+    def __matmul__(self, other: _angle.Angle | np.ndarray) -> "Line":
+        p1 = self._p1 @ other
+        p2 = self._p2 @ other
+
+        return Line(p1, p2)
 
     @property
     def center(self) -> _point.Point:
@@ -200,55 +279,90 @@ class Line:
     def __iter__(self) -> _Iterable[_point.Point]:
         return iter([self._p1, self._p2])
 
-    def get_rotated_line(self, angle: _decimal, pivot: _point.Point) -> "Line":
-        """
-        This is a 2d function and it only deals with the x and y axis.
-        """
+    def get_rotated_line(self, angle: _angle.Angle, pivot: _point.Point) -> "Line":
 
         if pivot is None:
-            pivot = self.point_from_start(self.length() / _decimal(2.0))
+            pivot = self.center
 
-        angle = _decimal(math.radians(angle))
+        p1 = self._p1.copy()
+        p2 = self._p2.copy()
 
-        p1 = self._rotate_point(pivot, self._p1, angle)
-        p2 = self._rotate_point(pivot, self._p2, angle)
+        p1 -= pivot
+        p2 -= pivot
+        p1 @= angle
+        p2 @= angle
+        p1 += pivot
+        p2 += pivot
 
         return Line(p1, p2)
 
-    def get_parallel_line(self, offset: _decimal) -> "Line":
+    def get_parallel_line(self, offset: _decimal, offset_dir: _point.Point | None = None,
+                          plane: str = 'x') -> "Line":
         """
-        This is a 2d function and it only deals with the x and y axis.
+        Calculate a parallel line in 3D space by specifying
+        either a direction vector or a plane.
+
+        :param offset: The perpendicular distance between the
+                       original and parallel lines.
+        :type offset: `decimal.Decimal`
+
+        :param offset_dir: A vector indicating the direction of the offset.
+        :type offset_dir: Optional, `_point.Point`, `None`
+
+        :param plane: The plane ('x', 'y', or 'z') for normal
+                      direction of the offset.
+        :type plane: Optional, `str`, `None`
+
+        :returns: Two points defining the parallel line (np.array, np.array).
+        :rtype: `Line`
+
+        :raises ValueError: If neither `offset_dir` nor `plane` is provided,
+                           or if `plane` is invalid.
         """
+        if self._p1.is2d and self._p2.is2d:
+            offset_dir = None
+            plane = 'x'
+        else:
+            if offset_dir is None and plane is None:
+                raise ValueError("offset_dir or plane MUST be supplied")
 
-        offset /= _decimal(2.0)
+        # Convert inputs to NumPy arrays
+        p1 = self._p1.as_numpy
+        p2 = self._p2.as_numpy
 
-        r = _decimal(math.radians(self.get_angle(self._p1).z + _decimal(90)))
-        center = self.center
-        x, y = center.x, center.y
+        # Determine offset direction
+        if offset_dir is not None:
+            offset_dir = offset_dir.as_numpy
 
-        x += offset * _decimal(math.cos(r))
-        y += offset * _decimal(math.sin(r))
+            if np.linalg.norm(offset_dir) == 0:
+                if plane is None:
+                    raise ValueError("Offset direction vector must be non-zero.")
 
-        line = self.get_rotated_line(_decimal(180), _point.Point(x, y, _decimal(0.0)))
-        line._p1, line._p2 = line._p2, line._p1
+                offset_dir = None
+            else:
+                # Normalize the offset direction vector
+                offset_dir = offset_dir / np.linalg.norm(offset_dir)
 
-        return line
+        if offset_dir is None:
+            # Set the offset direction based on the specified plane
+            if plane == 'x':
+                offset_dir = np.array([1, 0, 0], dtype=float)
+            elif plane == 'y':
+                offset_dir = np.array([0, 1, 0], dtype=float)
+            elif plane == 'z':
+                offset_dir = np.array([0, 0, 1], dtype=float)
+            else:
+                raise ValueError(f"Invalid plane specified: {plane}. "
+                                 f"Valid options are 'x', 'y', or 'z'.")
 
-    @staticmethod
-    def _rotate_point(origin: _point.Point, point: _point.Point, angle: _decimal) -> _point.Point:
-        """
-        This is a 2d function and it only deals with the x and y axis.
-        """
-        ox, oy = origin.x, origin.y
-        px, py = point.x, point.y
+        # Scale the offset direction by the given distance
+        offset_vector = offset_dir * float(offset)
 
-        cos = _decimal(math.cos(angle))
-        sin = _decimal(math.sin(angle))
+        # Compute the points on the parallel line
+        p1 = p1 + offset_vector
+        p2 = p2 + offset_vector
 
-        x = px - ox
-        y = py - oy
+        p1 = _point.Point(_decimal(p1[0]), _decimal(p1[1]), _decimal(p1[2]))
+        p2 = _point.Point(_decimal(p2[0]), _decimal(p2[1]), _decimal(p2[2]))
 
-        qx = ox + (cos * x) - (sin * y)
-        qy = oy + (sin * x) + (cos * y)
-        return _point.Point(qx, qy)
-
+        return Line(p1, p2)

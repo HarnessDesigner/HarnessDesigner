@@ -3,7 +3,8 @@ from typing import TYPE_CHECKING
 import wx
 
 from . import ObjectBase as _ObjectBase
-from .objects3d import transition as _transition
+from .objects2d import transition as _transition_2d
+from .objects3d import transition as _transition_3d
 from ..widgets.context_menus import RotateMenu, MirrorMenu
 
 
@@ -14,7 +15,6 @@ if TYPE_CHECKING:
 
 
 class Transition(_ObjectBase):
-    obj3d: _transition.Transition = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_transition.PJTTransition"):
@@ -22,7 +22,8 @@ class Transition(_ObjectBase):
         super().__init__(mainframe)
 
         self.db_obj = db_obj
-        self.obj3d = _transition.Transition(mainframe.editor3d, db_obj)
+        self.obj2d = _transition_2d.Transition(self, db_obj)
+        self.obj3d = _transition_3d.Transition(self, db_obj)
 
 
 class TransitionMenu(wx.Menu):

@@ -18,8 +18,9 @@ from ... import Config
 
 if TYPE_CHECKING:
     from ... import editor_3d as _editor_3d
-    from ...database.global_db import transition as _transition
+    from ...database.global_db import transition as _g_transition
     from ...database.project_db import pjt_transition as _pjt_transition
+    from .. import transition as _transition
     from ...database.project_db import pjt_transition_branch as _pjt_transition_branch
 
 
@@ -38,7 +39,7 @@ Config = Config.editor3d
 #       add agnostic for wires/bundles if transition is being dragged to move it
 
 
-def _build_model(b_data: "_transition.Transition", points: list[_point.Point], sizes: list[_decimal]):
+def _build_model(b_data: "_g_transition.Transition", points: list[_point.Point], sizes: list[_decimal]):
     model = None
     core_model = None
     has_bulb = False
@@ -139,15 +140,19 @@ def _build_model(b_data: "_transition.Transition", points: list[_point.Point], s
 
 
 class Transition(_base3d.Base3D, _angle_mixin.AngleMixin, _move_mixin.MoveMixin):
+    _parent: "_transition.Transition" = None
 
-    _db_obj: "_pjt_transition.PJTTransition" = None
+    def __init__(self, parent: "_transition.Transition",
+                 db_obj: "_pjt_transition.PJTTransition"):
 
-    def __init__(self, editor3d: "_editor_3d.Editor3D", db_obj: "_pjt_transition.PJTTransition"):
-        super().__init__(editor3d)
+        _base3d.Base3D.__init__(self, parent)
+        _angle_mixin.AngleMixin.__init__(self)
+        _move_mixin.MoveMixin.__init__(self)
+        self._db_obj: "_pjt_transition.PJTTransition" = db_obj
+
         self._part = db_obj.part
         self._position = db_obj.point3d.point
         self._angle = db_obj.angle3d
-        self._db_obj = db_obj
         self._color = self._part.color.ui
 
         self._material = _gl_materials.Rubber(self._color.rgba_scalar)

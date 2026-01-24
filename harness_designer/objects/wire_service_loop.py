@@ -3,7 +3,8 @@ from typing import TYPE_CHECKING
 import wx
 
 from . import ObjectBase as _ObjectBase
-from .objects3d import wire_service_loop as _wire_service_loop
+from .objects3d import wire_service_loop as _wire_service_loop_3d
+from .objects2d import wire_service_loop as _wire_service_loop_2d
 
 if TYPE_CHECKING:
     from .. import ui as _ui
@@ -18,7 +19,8 @@ class WireServiceLoop(_ObjectBase):
         super().__init__(mainframe)
 
         self.db_obj = db_obj
-        self.obj3d = _wire_service_loop.WireServiceLoop(mainframe.editor3d, db_obj)
+        self.obj2d = _wire_service_loop_2d.WireServiceLoop(self, db_obj)
+        self.obj3d = _wire_service_loop_3d.WireServiceLoop(self, db_obj)
 
 
 class WireServiceLoopMenu(wx.Menu):

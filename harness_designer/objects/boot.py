@@ -3,7 +3,8 @@ from typing import TYPE_CHECKING
 import wx
 
 from . import ObjectBase as _ObjectBase
-from .objects3d import boot as _boot
+from .objects2d import boot as _boot_2d
+from .objects3d import boot as _boot_3d
 from ..widgets.context_menus import RotateMenu, MirrorMenu
 
 
@@ -13,7 +14,6 @@ if TYPE_CHECKING:
 
 
 class Boot(_ObjectBase):
-    obj3d: _boot.Boot = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_boot.PJTBoot"):
@@ -21,8 +21,9 @@ class Boot(_ObjectBase):
         super().__init__(mainframe)
 
         self.db_obj = db_obj
-        self.obj3d = _boot.Boot(mainframe.editor3d, db_obj)
 
+        self.obj2d = _boot_2d.Boot(self, db_obj)
+        self.obj3d = _boot_3d.Boot(self, db_obj)
 
 
 class BootMenu(wx.Menu):

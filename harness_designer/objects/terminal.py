@@ -3,7 +3,8 @@ from typing import TYPE_CHECKING
 import wx
 
 from . import ObjectBase as _ObjectBase
-from .objects3d import terminal as _terminal3d
+from .objects2d import terminal as _terminal_2d
+from .objects3d import terminal as _terminal_3d
 from ..widgets.context_menus import RotateMenu, MirrorMenu
 
 
@@ -11,23 +12,18 @@ if TYPE_CHECKING:
     from .. import ui as _ui
     from ..database.project_db import pjt_terminal as _pjt_terminal
 
-    from .objects2d import terminal as _terminal2d
-
 
 class Terminal(_ObjectBase):
-    obj2d: "_terminal2d.Terminal" = None
-    obj3d: _terminal3d.Terminal = None
 
-    def __init__(
-        self, mainframe: "_ui.MainFrame",
-        db_obj: "_pjt_terminal.PJTTerminal"
-    ):
+    def __init__(self, mainframe: "_ui.MainFrame",
+                 db_obj: "_pjt_terminal.PJTTerminal"):
+
         super().__init__(mainframe)
 
         self.db_obj = db_obj
 
-        self.obj2d = _terminal2d.Terminal(mainframe.editor2d, db_obj)
-        self.obj3d = _terminal3d.Terminal(mainframe.editor3d, db_obj)
+        self.obj2d = _terminal_2d.Terminal(self, db_obj)
+        self.obj3d = _terminal_3d.Terminal(self, db_obj)
 
 
 class TerminalMenu(wx.Menu):

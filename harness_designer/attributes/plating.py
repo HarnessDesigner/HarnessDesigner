@@ -1,6 +1,0 @@
-'''
-
-symbol str
-description str
-
-'''

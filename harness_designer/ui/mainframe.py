@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from ..database import global_db as _global_db
     from ..database import project_db as _project_db
     from ..objects import project as _project
+    from .. import objects as _objects
 
 
 _mainframe: "MainFrame" = None
@@ -60,6 +61,7 @@ class MainFrame(wx.Frame):
         self.db_connector = None
         self.global_db = None
         self.project = None
+        self._selected_obj: "_objects.ObjectBase" = None
 
         splash.SetText('Starting UI manager...')
         self.manager = aui.AuiManager(flags=aui.AUI_MGR_ALLOW_FLOATING |
@@ -227,6 +229,20 @@ class MainFrame(wx.Frame):
             self.CenterOnScreen()
 
         self.manager.Update()
+
+    def set_selected_object(self, obj: "_objects.ObjectBase"):
+        if self._selected_obj is not None:
+            self._selected_obj.set_selected(False)
+
+        if obj is not None:
+            obj.set_selected(True)
+
+        self._selected_obj = obj
+        self.editor3d.set_selected_object(obj)
+        self.editor2d.set_selected_object(obj)
+
+    def get_selected_object(self) -> "_objects.ObjectBase":
+        return self._selected_obj
 
     def on_erase_background(self, _):
         pass

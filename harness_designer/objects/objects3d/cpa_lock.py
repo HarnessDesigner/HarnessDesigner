@@ -8,24 +8,29 @@ from ...wrappers.decimal import Decimal as _decimal
 from . import base3d as _base3d
 from .mixins import angle as _angle_mixin
 from .mixins import move as _move_mixin
+from ... import Config
+from ... import gl_materials as _gl_materials
 
 
 if TYPE_CHECKING:
-    from ... import editor_3d as _editor_3d
     from ...database.project_db import pjt_cpa_lock as _pjt_cpa_lock
+    from .. import cpa_lock as _cpa_lock
 
-from ... import Config
-from ... import gl_materials as _gl_materials
 
 Config = Config.editor3d
 
 
 class CPALock(_base3d.Base3D, _angle_mixin.AngleMixin, _move_mixin.MoveMixin):
+    _parent: "_cpa_lock.CPALock"
 
-    def __init__(self, parent, db_obj: "_pjt_cpa_lock.PJTCPALock"):
-        super().__init__(parent)
+    def __init__(self, parent: "_cpa_lock.CPALock",
+                 db_obj: "_pjt_cpa_lock.PJTCPALock"):
 
-        self._db_obj = db_obj
+        _base3d.Base3D.__init__(self, parent)
+        _angle_mixin.AngleMixin.__init__(self)
+        _move_mixin.MoveMixin.__init__(self)
+        self._db_obj: "_pjt_cpa_lock.PJTCPALock" = db_obj
+
         self._part = db_obj.part
 
         self._position = db_obj.point3d.point

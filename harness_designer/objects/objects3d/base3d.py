@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from ...editor_3d.canvas import canvas as _canvas
     from ...database import project_db as _project_db
     from .. import ObjectBase as _ObjectBase
+    from ... import ui as _ui
 
 
 Config = Config.editor3d
@@ -26,8 +27,8 @@ Config = Config.editor3d
 
 class Base3D:
 
-    def __init__(self, parent):
-        self._parent = parent
+    def __init__(self, parent: "_ObjectBase"):
+        self._parent: "_ObjectBase" = parent
 
         try:
             self.editor3d = parent.mainframe.editor3d
@@ -35,6 +36,7 @@ class Base3D:
             self.editor3d = parent.editor3d
 
         self.canvas: "_canvas.Canvas" = self.editor3d.canvas
+        self.mainframe: "_ui.MainFrame" = self.canvas.mainframe
 
         self._db_obj: _project_db.PJTEntryBase = None
         self._position: _point.Point = None
@@ -98,17 +100,15 @@ class Base3D:
     def is_selected(self) -> bool:
         return self._is_selected
 
-    @is_selected.setter
-    def is_selected(self, value: bool):
-        if value:
+    def set_selected(self, flag: bool):
+        if flag:
             color = Config.selected_color
             self._material.x_ray_color = color
             self._material.x_ray = True
         else:
             self._material.x_ray = False
 
-        self._is_selected = value
-        self._parent.is_selected = value
+        self._is_selected = flag
 
     def delete(self):
         self._db_obj.delete()

@@ -195,6 +195,7 @@ def _build_model(diameter: _decimal, has_stripe: bool):
 
 
 class WireServiceLoop(_base3d.Base3D, _angle_mixin.AngleMixin, _move_mixin.MoveMixin):
+    _parent: "_wire_service_loop.WireServiceLoop" = None
 
     def __init__(self, parent: "_wire_service_loop.WireServiceLoop",
                  db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop"):
@@ -202,8 +203,8 @@ class WireServiceLoop(_base3d.Base3D, _angle_mixin.AngleMixin, _move_mixin.MoveM
         _angle_mixin.AngleMixin.__init__(self)
         _move_mixin.MoveMixin.__init__(self)
         _base3d.Base3D.__init__(self, parent)
+        self._db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop" = db_obj
 
-        self._db_obj = db_obj
         self._part = part = db_obj.part
         self._color = self._part.color.ui
         self._stripe_color = self._part.stripe_color

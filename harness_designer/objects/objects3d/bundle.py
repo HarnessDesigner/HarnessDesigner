@@ -12,8 +12,8 @@ from ...shapes import cylinder as _cylinder
 from ... import Config
 
 if TYPE_CHECKING:
-    from ... import editor_3d as _editor_3d
     from ...database.project_db import pjt_bundle as _pjt_bundle
+    from .. import bundle as _bundle
 
 
 Config = Config.editor3d
@@ -28,10 +28,14 @@ def _build_model(p1: _point.Point, p2: _point.Point, diameter: _decimal):
 
 
 class Bundle(_base3d.Base3D):
+    _parent: "_bundle.Bundle" = None
 
-    def __init__(self, editor3d: "_editor_3d.Editor3D", db_obj: "_pjt_bundle.PJTBundle"):
-        super().__init__(editor3d)
-        self._db_obj = db_obj
+    def __init__(self, parent: "_bundle.Bundle",
+                 db_obj: "_pjt_bundle.PJTBundle"):
+
+        _base3d.Base3D.__init__(self, parent)
+        self._db_obj: "_pjt_bundle.PJTBundle" = db_obj
+
         self._part = db_obj.part
 
         self._color = self._part.color.ui

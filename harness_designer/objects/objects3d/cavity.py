@@ -1,3 +1,26 @@
+
+from typing import TYPE_CHECKING
+
+from . import base3d as _base3d
+
+if TYPE_CHECKING:
+    from ...database.project_db import pjt_cavity as _pjt_cavity
+    from .. import cavity as _cavity
+
+
+class Cavity(_base3d.Base3D):
+    _parent: "_cavity.Cavity" = None
+
+    def __init__(self, parent: "_cavity.Cavity",
+                 db_obj: "_pjt_cavity.PJTCavity"):
+
+        _base3d.Base3D.__init__(self, parent)
+        self._db_obj: "_pjt_cavity.PJTCavity" = db_obj
+
+
+
+
+
 # from typing import TYPE_CHECKING
 #
 # import build123d

@@ -3,7 +3,9 @@ from typing import TYPE_CHECKING
 import wx
 
 from . import ObjectBase as _ObjectBase
-from .objects3d import seal as _seal
+from .objects2d import seal as _seal_2d
+from .objects3d import seal as _seal_3d
+
 from ..widgets.context_menus import RotateMenu, MirrorMenu
 
 
@@ -13,7 +15,6 @@ if TYPE_CHECKING:
 
 
 class Seal(_ObjectBase):
-    obj3d: _seal.Seal = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_seal.PJTSeal"):
@@ -21,7 +22,8 @@ class Seal(_ObjectBase):
         super().__init__(mainframe)
 
         self.db_obj = db_obj
-        self.obj3d = _seal.Seal(mainframe.editor3d, db_obj)
+        self.obj2d = _seal_2d.Seal(self, db_obj)
+        self.obj3d = _seal_3d.Seal(self, db_obj)
 
 
 class SealMenu(wx.Menu):

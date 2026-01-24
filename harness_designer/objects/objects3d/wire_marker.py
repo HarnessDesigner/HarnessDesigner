@@ -13,6 +13,7 @@ from ... import Config
 
 
 if TYPE_CHECKING:
+    from .. import wire_marker as _wire_marker
     from ...database.project_db import pjt_wire_marker as _pjt_wire_marker
 
 
@@ -26,10 +27,14 @@ def _build_model(length: _decimal, diameter: _decimal, label):
 
 
 class WireMarker(_base3d.Base3D):
+    _parent: "_wire_marker.WireMarker" = None
 
-    def __init__(self, parent, db_obj: "_pjt_wire_marker.PJTWireMarker"):
-        super().__init__(parent)
-        self._db_obj = db_obj
+    def __init__(self, parent: "_wire_marker.WireMarker",
+                 db_obj: "_pjt_wire_marker.PJTWireMarker"):
+
+        _base3d.Base3D.__init__(self, parent)
+        self._db_obj: "_pjt_wire_marker.PJTWireMarker" = db_obj
+
         self._part = db_obj.part
         self._position = db_obj.point3d.point
         self._wire = db_obj.wire
