@@ -582,3 +582,5 @@ class Angle(metaclass=AngleMeta):
         R = _Rotation.from_matrix(rot)  # NOQA
         return cls(R, order)
 
+
+

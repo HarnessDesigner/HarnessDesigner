@@ -1,6 +1,9 @@
 from typing import TYPE_CHECKING
 import weakref
 
+import wx
+
+from ...widgets.context_menus import RotateMenu, MirrorMenu
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ...wrappers.decimal import Decimal as _decimal
@@ -41,9 +44,10 @@ class Boot(_base3d.Base3D, _angle_mixin.AngleMixin, _move_mixin.MoveMixin):
         self._position.bind(self._update_position)
         self._angle.bind(self._update_angle)
 
-        model = self._part.model3d
-
         self._material = _gl_materials.Rubber(self._color.rgba_scalar)
+
+    def _build(self):
+        model = self._part.model3d
 
         triangles = []
 
@@ -72,3 +76,45 @@ class Boot(_base3d.Base3D, _angle_mixin.AngleMixin, _move_mixin.MoveMixin):
             return self._compute_smoothed_vertex_normals(vertices, faces)
         else:
             return self._compute_vertex_normals(vertices, faces)
+
+
+class BootMenu(wx.Menu):
+
+    def __init__(self, canvas, selected):
+        wx.Menu.__init__(self)
+        self.canvas = canvas
+        self.selected = selected
+
+        rotate_menu = RotateMenu(canvas, selected)
+
+        self.AppendSubMenu(rotate_menu, 'Rotate')
+
+        mirror_menu = MirrorMenu(canvas, selected)
+        self.AppendSubMenu(mirror_menu, 'Mirror')
+
+        self.AppendSeparator()
+        item = self.Append(wx.ID_ANY, 'Select')
+        canvas.Bind(wx.EVT_MENU, self.on_select, id=item.GetId())
+
+        item = self.Append(wx.ID_ANY, 'Clone')
+        canvas.Bind(wx.EVT_MENU, self.on_clone, id=item.GetId())
+
+        self.AppendSeparator()
+        item = self.Append(wx.ID_ANY, 'Delete')
+        canvas.Bind(wx.EVT_MENU, self.on_delete, id=item.GetId())
+
+        self.AppendSeparator()
+        item = self.Append(wx.ID_ANY, 'Properties')
+        canvas.Bind(wx.EVT_MENU, self.on_properties, id=item.GetId())
+
+    def on_select(self, evt: wx.MenuEvent):
+        evt.Skip()
+
+    def on_clone(self, evt: wx.MenuEvent):
+        evt.Skip()
+
+    def on_delete(self, evt: wx.MenuEvent):
+        evt.Skip()
+
+    def on_properties(self, evt: wx.MenuEvent):
+        evt.Skip()

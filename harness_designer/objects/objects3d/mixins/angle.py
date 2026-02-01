@@ -8,10 +8,14 @@ from .. import base3d as _base3d
 
 from ....geometry import point as _point
 from ....geometry import angle as _angle
-
+from .... import gl_materials as _gl_materials
 
 from ....import debug as _debug
 from ....wrappers.decimal import Decimal as _decimal
+
+if TYPE_CHECKING:
+    from .... import ui as _ui
+    from ... import ObjectBase as _ObjectBase
 
 
 class CurvedArrow:
@@ -51,11 +55,12 @@ class CurvedArrow:
 class ArrowRing(_base3d.Base3D):
 
     @_debug.timeit
-    def __init__(self, parent, center: _point.Point, radius: _decimal,
+    def __init__(self, parent: "AngleMixin", center: _point.Point, radius: _decimal,
                  angle: _angle.Angle, scale: _decimal, color: list[float, float, float, float],
                  press_color: list[float, float, float, float]):
 
-        super().__init__(parent)
+        super().__init__(parent.mainframe)
+        self._real_parent = parent
 
         opposite_angle = angle.copy()
         if angle.y:
@@ -114,66 +119,56 @@ class ArrowRing(_base3d.Base3D):
 
         self._position = center
 
+        self._material = _gl_materials.Metallic(color)
+        self._press_material = _gl_materials.Metallic(press_color)
+
         self._triangles = [
-            [arrow_tris, arrow_nrmls, arrow_count, None, color, color[-1] == 1.0],
-            [ring_tris, ring_nrmls, ring_count, None, color, color[-1] == 1.0]]
+            _base3d.TriangleRenderer([[arrow_tris, arrow_nrmls, arrow_count]], self._material),
+            _base3d.TriangleRenderer([[ring_tris, ring_nrmls, ring_count]], self._material)]
 
         self._color = color
         self._press_color = press_color
 
-        parent.get_canvas().add_object(self)
+        self.canvas.add_object(self)
 
     @_debug.timeit
     def _update_angle(self, angle: _angle.Angle):
         delta = angle - self._o_angle
         self._o_angle = angle.copy()
 
-        a_tris, a_nrmls, a_count = self._triangles[0]
-        r_tris, r_nrmls, r_count = self._triangles[1]
+        for renderer in self._triangles:
+            tris, nrmls, count = renderer.data
+            tris -= self._position
+            tris @= delta
+            nrmls @= delta
+            tris += self._position
+            renderer.data = [tris, nrmls, count]
 
-        a_tris -= self._position
-        r_tris -= self._position
+        self._bb = []
 
-        a_tris @= delta
-        r_tris @= delta
+        for p1, p2 in self._rect:
+            p1 -= self._position
+            p2 -= self._position
 
-        a_nrmls @= delta
-        r_nrmls @= delta
+            p1 @= delta
+            p2 @= delta
 
-        a_tris += self._position
-        r_tris += self._position
+            p1 += self._position
+            p2 += self._position
 
-        self._triangles = [
-            [a_tris, a_nrmls, a_count],
-            [r_tris, r_nrmls, r_count]
-        ]
+            self._bb.append(self._compute_bb(p1, p2))
 
-        p1, p2 = self._rect[0]
-
-        p1 -= self._position
-        p2 -= self._position
-
-        p1 @= delta
-        p2 @= delta
-
-        p1 += self._position
-        p2 += self._position
-
-        self._bb[0] = self._compute_bb(p1, p2)
-
-    @property
-    def position(self) -> _point.Point:
-        return self._position
+    def rotate(self, quat: np.ndarray):
+        self._real_parent.rotate(quat)
 
     def delete(self):
-        self._parent.get_canvas().remove_object(self)
-
-    def get_parent_object(self) -> "AngleMixin":
-        return self._parent
+        self.canvas.remove_object(self)
 
 
 class AngleMixin:
-    parent: "_mainframe.MainFrame" = None
+    mainframe: _ui.MainFrame = None
+
+    parent: "_ObjectBase" = None
     _rect = []
 
     _x_angle: "ArrowRing" = None
@@ -227,7 +222,7 @@ class AngleMixin:
         new_angle = _angle.Angle.from_quat(quat)
         delta = new_angle - angle
 
-        detent_setting = _decimal(self.parent.cp.detent)
+        detent_setting = _decimal(self.mainframe.editor3d.cp.detent)
 
         if detent_setting == 0:
             self._last_detent_counts = None
@@ -243,8 +238,6 @@ class AngleMixin:
             new_cx = _decimal(int(new_angle.x / detent_setting))
             new_cy = _decimal(int(new_angle.y / detent_setting))
             new_cz = _decimal(int(new_angle.z / detent_setting))
-
-            print(self._last_detent_counts, (new_cx, new_cy, new_cz))
 
             if new_cx != cx:
                 new_angle.x = new_cx * detent_setting
@@ -263,10 +256,6 @@ class AngleMixin:
 
         angle += delta
 
-        # x axis rotation moves x, y
-        # y axis rotation moves y
-        # z axis rotation moves x, y, z
-
         if None not in (self._x_plane_angle, self._y_plane_angle, self._z_plane_angle):
             if delta.x or delta.y:
                 x_plane_delta = _angle.Angle(delta.x, delta.y, _decimal(0.0))
@@ -282,28 +271,28 @@ class AngleMixin:
         delta = angle - self._o_angle
         self._o_angle = angle.copy()
 
-        point = self._position
+        for i, renderer in enumerate(self._triangles):
 
-        for i, item in enumerate(self._triangles):
-            item[0] -= point
-            item[0] @= delta
-            item[0] += point
+            tris, nrmls, count = renderer.data
 
-            item[1] @= delta
-            try:
-                p1, p2 = self._rect[i]
-                p1 -= point
-                p2 -= point
+            tris -= self._position
+            tris @= delta
+            tris += self._position
 
-                p1 @= delta
-                p2 @= delta
+            nrmls @= delta
 
-                p1 += point
-                p2 += point
+        self._bb = []
 
-                self._bb[i] = self._compute_bb(p1, p2)
-            except IndexError:
-                pass
+        for p1, p2 in self._rect:
+            p1 -= self._position
+            p2 -= self._position
+
+            p1 @= delta
+            p2 @= delta
+            p1 += self._position
+            p2 += self._position
+
+            self._bb.append(self._compute_bb(p1, p2))
 
     @property
     def is_angle_shown(self) -> bool:

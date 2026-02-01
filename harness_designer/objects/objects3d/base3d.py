@@ -27,8 +27,8 @@ Config = Config.editor3d
 
 class Base3D:
 
-    def __init__(self, parent: "_ObjectBase"):
-        self._parent: "_ObjectBase" = parent
+    def __init__(self, parent: Union["_ObjectBase", "_ui.MainFrame"]):
+        self._parent: Union["_ObjectBase", "_ui.MainFrame"] = parent
 
         try:
             self.editor3d = parent.mainframe.editor3d

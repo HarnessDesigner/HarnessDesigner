@@ -1,12 +1,12 @@
 import weakref
 from typing import TYPE_CHECKING
 
-
+import wx
 import build123d
 import math
 from copy import deepcopy
 
-
+from ...widgets.context_menus import RotateMenu, MirrorMenu
 from ...geometry import point as _point
 from ...wrappers.decimal import Decimal as _decimal
 from ... import gl_materials as _gl_materials
@@ -338,3 +338,46 @@ class Branch:
     def color(self, value):
         self._color = value
         self._material = _gl_materials.Rubber(value)
+
+
+
+class TransitionMenu(wx.Menu):
+
+    def __init__(self, canvas, selected):
+        wx.Menu.__init__(self)
+        self.canvas = canvas
+        self.selected = selected
+
+        rotate_menu = RotateMenu(canvas, selected)
+
+        self.AppendSubMenu(rotate_menu, 'Rotate')
+
+        mirror_menu = MirrorMenu(canvas, selected)
+        self.AppendSubMenu(mirror_menu, 'Mirror')
+
+        self.AppendSeparator()
+        item = self.Append(wx.ID_ANY, 'Select')
+        canvas.Bind(wx.EVT_MENU, self.on_select, id=item.GetId())
+
+        item = self.Append(wx.ID_ANY, 'Clone')
+        canvas.Bind(wx.EVT_MENU, self.on_clone, id=item.GetId())
+
+        self.AppendSeparator()
+        item = self.Append(wx.ID_ANY, 'Delete')
+        canvas.Bind(wx.EVT_MENU, self.on_delete, id=item.GetId())
+
+        self.AppendSeparator()
+        item = self.Append(wx.ID_ANY, 'Properties')
+        canvas.Bind(wx.EVT_MENU, self.on_properties, id=item.GetId())
+
+    def on_select(self, evt: wx.MenuEvent):
+        evt.Skip()
+
+    def on_clone(self, evt: wx.MenuEvent):
+        evt.Skip()
+
+    def on_delete(self, evt: wx.MenuEvent):
+        evt.Skip()
+
+    def on_properties(self, evt: wx.MenuEvent):
+        evt.Skip()

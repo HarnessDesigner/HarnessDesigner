@@ -1,10 +1,13 @@
 from typing import TYPE_CHECKING
 import weakref
+
+import wx
 import build123d
 
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ...wrappers.decimal import Decimal as _decimal
+from ...widgets.context_menus import RotateMenu, MirrorMenu
 from . import base3d as _base3d
 from .mixins import angle as _angle_mixin
 from .mixins import move as _move_mixin
@@ -83,3 +86,40 @@ class Note(_base3d.Base3D, _angle_mixin.AngleMixin, _move_mixin.MoveMixin):
 
     def _get_triangles(self, vertices, faces):
         return self._compute_vertex_normals(vertices, faces)
+
+
+
+class NoteMenu(wx.Menu):
+
+    def __init__(self, canvas, selected):
+        wx.Menu.__init__(self)
+        self.canvas = canvas
+        self.selected = selected
+
+        item = self.Append(wx.ID_ANY, 'Set Text')
+        canvas.Bind(wx.EVT_MENU, self.on_set_text, id=item.GetId())
+
+        self.AppendSeparator()
+
+        item = self.Append(wx.ID_ANY, 'Clone')
+        canvas.Bind(wx.EVT_MENU, self.on_clone, id=item.GetId())
+
+        self.AppendSeparator()
+        item = self.Append(wx.ID_ANY, 'Delete')
+        canvas.Bind(wx.EVT_MENU, self.on_delete, id=item.GetId())
+
+        self.AppendSeparator()
+        item = self.Append(wx.ID_ANY, 'Properties')
+        canvas.Bind(wx.EVT_MENU, self.on_properties, id=item.GetId())
+
+    def on_set_text(self, evt: wx.MenuEvent):
+        evt.Skip()
+
+    def on_clone(self, evt: wx.MenuEvent):
+        evt.Skip()
+
+    def on_delete(self, evt: wx.MenuEvent):
+        evt.Skip()
+
+    def on_properties(self, evt: wx.MenuEvent):
+        evt.Skip()

@@ -1,6 +1,7 @@
 
 from typing import TYPE_CHECKING
 
+import wx
 
 import build123d
 
@@ -90,3 +91,24 @@ class BundleLayout(_base3d.Base3D, _move_mixin.MoveMixin):
         for bundle in self.editor3d.mainframe.project.bundles:
             if bundle.obj3d.position.db_id == self.position.db_id:
                 bundle.obj3d.is_dragging = value
+
+
+class BundleLayoutMenu(wx.Menu):
+
+    def __init__(self, canvas, selected):
+        wx.Menu.__init__(self)
+        self.canvas = canvas
+        self.selected = selected
+
+        item = self.Append(wx.ID_ANY, 'Add Transition')
+        canvas.Bind(wx.EVT_MENU, self.on_add_transition, id=item.GetId())
+
+        self.AppendSeparator()
+        item = self.Append(wx.ID_ANY, 'Delete')
+        canvas.Bind(wx.EVT_MENU, self.on_delete, id=item.GetId())
+
+    def on_add_transition(self, evt: wx.MenuEvent):
+        evt.Skip()
+
+    def on_delete(self, evt: wx.MenuEvent):
+        evt.Skip()

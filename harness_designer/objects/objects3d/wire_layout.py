@@ -1,6 +1,8 @@
 
 from typing import TYPE_CHECKING
 
+import wx
+
 from ...geometry import point as _point
 from ...wrappers.decimal import Decimal as _decimal
 from . import base3d as _base3d
@@ -156,3 +158,39 @@ class WireLayout(_base3d.Base3D, _move_mixin.MoveMixin):
         """Override delete to clean up bundle bindings."""
         self.unbind_from_bundle_layout_point()
         super().delete()
+
+
+
+class WireLayoutMenu(wx.Menu):
+
+    def __init__(self, canvas, selected):
+        wx.Menu.__init__(self)
+        self.canvas = canvas
+        self.selected = selected
+
+        item = self.Append(wx.ID_ANY, 'Add Splice')
+        canvas.Bind(wx.EVT_MENU, self.on_add_splice, id=item.GetId())
+
+        self.AppendSeparator()
+        item = self.Append(wx.ID_ANY, 'Trace Circuit')
+        canvas.Bind(wx.EVT_MENU, self.on_trace_circuit, id=item.GetId())
+
+        item = self.Append(wx.ID_ANY, 'Select')
+        canvas.Bind(wx.EVT_MENU, self.on_select, id=item.GetId())
+
+        self.AppendSeparator()
+        item = self.Append(wx.ID_ANY, 'Delete')
+        canvas.Bind(wx.EVT_MENU, self.on_delete, id=item.GetId())
+
+    def on_add_splice(self, evt: wx.MenuEvent):
+        evt.Skip()
+
+    def on_trace_circuit(self, evt: wx.MenuEvent):
+        evt.Skip()
+
+    def on_select(self, evt: wx.MenuEvent):
+        evt.Skip()
+
+    def on_delete(self, evt: wx.MenuEvent):
+        evt.Skip()
+

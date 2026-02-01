@@ -6,18 +6,30 @@ class Config:
     function_time = True
 
 
-# decorator function to tine how long functions take to run.
-def timeit(func):
+def logger(func):
 
-    if not Config.function_time:
+    if not Config.debug.log_args and not Config.debug.call_duration:
         return func
 
     @functools.wraps(func)
     def _wrapper(*args, **kwargs):
-        start_time = time.time()
-        res = func(*args, **kwargs)
-        end_time = time.time()
-        print(f'{func.__qualname__}: {round((end_time - start_time) * 1000, 2)}ms')
-        return res
+        if Config.debug.log_args:
+            args_ = ', '.join(repr(arg) for arg in args)
+            kwargs_ = ', '.join(f'{key}={repr(value)}' for key, value in kwargs.items())
+
+        if Config.debug.call_duration:
+            start = time.perf_counter_ns()
+            ret = func(*args, **kwargs)
+            stop = time.perf_counter_ns()
+        else:
+            ret = func(*args, **kwargs)
+
+        if Config.debug.log_args:
+            if Config.debug.call_duration:
+                print(f'({(stop - start) / 1000000, 2}ms){func.__qualname__}({", ".join(item for item in [args_, kwargs_] if item)}) --> {repr(ret)}')
+            else:
+                print(f'{func.__qualname__}({", ".join(item for item in [args_, kwargs_] if item)}) --> {repr(ret)}')
+
+        return ret
 
     return _wrapper

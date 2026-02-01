@@ -5,13 +5,16 @@ import numpy as np
 
 from ....geometry import point as _point
 from ....geometry import angle as _angle
+from .... import gl_materials as _gl_materials
 
 from .. import base3d as _base3d
 from .... import debug as _debug
 from ....wrappers.decimal import Decimal as _decimal
 
 if TYPE_CHECKING:
-    from ....ui import mainframe as _mainframe
+    from ... import ObjectBase as _ObjectBase
+    from .... import ui as _ui
+    from ....editor_3d.canvas import canvas as _canvas
 
 
 class StraightArrow:
@@ -69,7 +72,8 @@ class ArrowMove(_base3d.Base3D):
                  color: list[float, float, float, float],
                  press_color: list[float, float, float, float]):
 
-        super().__init__(parent)
+        super().__init__(parent.mainframe)
+        self._real_parent = parent
 
         opposite_angle = angle.copy()
 
@@ -115,37 +119,37 @@ class ArrowMove(_base3d.Base3D):
 
         self._parent_pos.bind(self._update_position)
 
-        self._triangles = _base3d.TriangleRenderer([[tris, nrmls, count]], None, color)
+        self._material = _gl_materials.Metallic(color)
+        self._press_material = _gl_materials.Metallic(press_color)
+
+        self._triangles = [_base3d.TriangleRenderer([[tris, nrmls, count]], self._material)]
 
         self._color = color
         self._press_color = press_color
 
-        self._parent.get_canvas().add_object(self)
+        self.canvas.add_object(self)
+
+    def set_selected(self, flag: bool):
+        self._is_selected = flag
+        if flag:
+            self._triangles[0].material = self._press_material
+        else:
+            self._triangles[0].material = self._material
 
     @property
     def is_selected(self) -> bool:
         return self._is_selected
 
-    @is_selected.setter
-    def is_selected(self, value: bool):
-        if value:
-            color = self._press_color
-        else:
-            color = self._color
-
-        self._triangles.color = color
-        self._is_selected = value
-
     def _update_position(self, point: _point.Point):
         delta = point - self._o_parent_pos
         self._o_parent_pos = point.copy()
 
-        data = self._triangles.data
+        data = self._triangles[0].data
 
         tris = data[0][0]
         tris += delta
         data[0][0] = tris
-        self._triangles.data = data
+        self._triangles[0].data = data
 
         p1, p2 = self._compute_rect(tris)
         self._rect = [[p1, p2]]
@@ -156,7 +160,7 @@ class ArrowMove(_base3d.Base3D):
         return self._position
 
     def delete(self):
-        self._parent.get_canvas().remove_object(self)
+        self.canvas.remove_object(self)
 
     @property
     def triangles(self):
@@ -164,22 +168,22 @@ class ArrowMove(_base3d.Base3D):
 
     def start_angle(self, flag=True):
         if flag:
-            self.get_parent_object().parent.canvas.add_object(self)
+            self.canvas.add_object(self)
         else:
             try:
-                self.get_parent_object().parent.canvas.objects.remove(self)
+                self.canvas.remove_object(self)
             except:  # NOQA
                 pass
 
-    def get_parent_object(self) -> "MoveMixin":
-        return self._parent
-
     def move(self, candidate, start_obj_pos, last_pos):
-        return self._parent.move(candidate, start_obj_pos, last_pos)
+        return self._real_parent.move(candidate, start_obj_pos, last_pos)
 
 
 class MoveMixin:
-    parent: "_mainframe.MainFrame" = None
+    mainframe: "_ui.MainFrame" = None
+    parent: "_ObjectBase" = None
+    canvas: "_canvas.Canvas" = None
+
     _rect: list[list[_point.Point, _point.Point]] = []
 
     _x_arrow: "ArrowMove" = None
@@ -203,32 +207,28 @@ class MoveMixin:
         delta = point - self._o_position
         self._o_position = point.copy()
 
-        if not isinstance(self._triangles, _base3d.TriangleRenderer):
-            return
+        for i, renderer in enumerate(self._triangles):
+            data = renderer.data
 
-        data = self._triangles.data
+            for j, (tris, _, __) in enumerate(data):
+                tris += delta
+                data[i][0] = tris
 
-        for i, (tris, _, __) in enumerate(data):
-            tris += delta
-            data[i][0] = tris
+                p1, p2 = self._compute_rect(tris)
 
-            p1, p2 = self._compute_rect(tris)
-            try:
-                self._rect[i] = [p1, p2]
-            except IndexError:
-                pass
+                try:
+                    self._rect[i] = [p1, p2]
+                except IndexError:
+                    pass
 
-            try:
-                self._bb[i] = self._compute_bb(p1, p2)
-            except IndexError:
-                pass
+                try:
+                    self._bb[i] = self._compute_bb(p1, p2)
+                except IndexError:
+                    pass
 
-        self._triangles.data = data
+            renderer.data = data
 
-    def get_parent_object(self):
-        return self
-
-    def get_canvas(self):
+    def move(self, candidate, start_obj_pos, last_pos):
         raise NotImplementedError
 
     @_debug.timeit
@@ -251,7 +251,7 @@ class MoveMixin:
         z_center = center.copy()
         z_center.x = p1.x - offset.x / _decimal(4.0)
 
-        with self.get_canvas():
+        with self.canvas:
 
             self._x_arrow = ArrowMove(self, x_center, x_angle, scale,
                                       [0.8, 0.2, 0.2, 0.45],
@@ -265,7 +265,7 @@ class MoveMixin:
                                       [0.2, 0.2, 0.8, 0.45],
                                       [0.3, 0.3, 1.0, 1.0])
 
-        self.get_canvas().Refresh(False)
+        self.canvas.Refresh(False)
 
     def stop_move(self):
         self._x_arrow.delete()
@@ -296,7 +296,7 @@ class MoveMixin:
             # compute incremental delta to move things (arrows and object)
         delta = new_pos - last_pos
 
-        position = self.position
+        position = self._position
         position += delta
 
         return new_pos
