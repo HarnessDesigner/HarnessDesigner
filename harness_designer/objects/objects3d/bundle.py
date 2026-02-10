@@ -2,31 +2,24 @@ from typing import TYPE_CHECKING
 import weakref
 
 import wx
-
+import math
+import numpy as np
 
 from ...geometry import point as _point
 from ...geometry import line as _line
 from ...geometry import angle as _angle
 from ...wrappers.decimal import Decimal as _decimal
 from . import base3d as _base3d
-from ... import gl_materials as _gl_materials
 from ...shapes import cylinder as _cylinder
-from ... import Config
+from ... import config as _config
+from ...wrappers import materials as _materials
 
 if TYPE_CHECKING:
     from ...database.project_db import pjt_bundle as _pjt_bundle
     from .. import bundle as _bundle
 
 
-Config = Config.editor3d
-
-
-def _build_model(p1: _point.Point, p2: _point.Point, diameter: _decimal):
-    line = _line.Line(p1, p2)
-    wire_length = line.length()
-
-    wire_radius = diameter / _decimal(2.0)
-    return _cylinder.create(float(wire_radius), float(wire_length))
+Config = _config.Config.editor3d
 
 
 class Bundle(_base3d.Base3D):
@@ -41,10 +34,14 @@ class Bundle(_base3d.Base3D):
         self._part = db_obj.part
 
         self._color = self._part.color.ui
-        self._diameter: _decimal = None
-        self._is_dragging = False
+        layers = self._db_obj.concentric.layers
+        if layers:
+            self._diameter: _decimal = layers[-1].diameter
+        else:
+            self._diameter: _decimal = self._part.min_size
 
-        self._material = _gl_materials.Rubber(self._color.rgba_scalar)
+        self._material = _materials.RubberMaterial(self._color.rgba_scalar)
+        self._selected_material = _materials.RubberMaterial(Config.selected_color)
 
         start_layout = db_obj.start_layout
         stop_layout = db_obj.stop_layout
@@ -55,84 +52,70 @@ class Bundle(_base3d.Base3D):
         self._p1 = db_obj.start_point3d.point
         self._p2 = db_obj.stop_point3d.point
 
-        self._model = None
-        self._hit_test_rect = None
+        self._position = self._p1
+        self._angle = _angle.Angle()
+        self._scale = _point.Point(self._diameter, self._diameter, 0.0)
+
+        self._vbo = _cylinder.create_vbo()
 
         # Track wires in this bundle using weak references
         # Wires hold strong references to bundles; bundles use weak refs to wires
         self._wires = []  # List of weak references to Wire objects
 
-        self._p1.bind(self._build)
-        self._p2.bind(self._build)
+        self._triangles.append([_base3d.TriangleRenderer(
+            self._position, self._angle, self._scale, self._material, vbo=self._vbo)])
 
-        self._build()
+        self._p1.bind(self._update_position)
+        self._p2.bind(self._update_position)
+        self._update_position(None)
 
-    @property
-    def is_dragging(self) -> bool:
-        return self._is_dragging
+    def _update_position(self, _: _point.Point):
+        """Calculate position, rotation, and scale from endpoints"""
 
-    @is_dragging.setter
-    def is_dragging(self, value: bool):
-        if value != self._is_dragging:
-            self._is_dragging = value
+        # Calculate wire vector
+        wire_vector = (self._p1 - self._p2).as_numpy
+        length = np.linalg.norm(wire_vector)
 
-            if value:
-                # this is the agnostic for a bundle. Instead of rendering the bundle
-                # over and over again which can get a bit expensive the larger the diameter
-                # of the bundle instead we swap out the rendering of the cylinder
-                # for rendering a line that is the same color.
-                # it's not going to look as pretty but it will be a lot faster to render.
+        if length < 0.001:
+            length = 0.001  # Prevent zero length
 
-                # TODO: set dragging mode for wires if the end of the bundle is being dragged.
+        self._scale.z = length
 
-                self._triangles = _base3d.LineRenderer(self._p1, self._p2, self._diameter,
-                                                       self._color.rgba_scalar)
-            else:
-                self._build()
-        else:
-            self._is_dragging = value
+        direction = wire_vector / length
 
-    def _build(self, _=None):
-        if self._is_dragging:
-            return
+        # Rotation: align +Z axis with wire direction
+        new_angle = self._rotation_from_direction(direction)
+        self._angle._q = new_angle._q  # NOQA
 
-        if self._diameter is None:
-            layers = self._db_obj.concentric.layers
+        local_aabb = self._vbo.local_aabb * self._scale
+        local_obb = self._vbo.local_obb * self._scale
 
-            if layers:
-                self._diameter = layers[-1].diameter
-            else:
-                self._diameter = self._part.min_size
+        local_aabb @= self._angle
+        local_obb @= self._angle
 
-        vertices, faces = _build_model(self._p1, self._p2, self._diameter)
+        self._aabb = local_aabb + self._p1
+        self._obb = local_obb + self._p1
 
-        tris, nrmls, count = self._get_triangles(vertices, faces)
-        angle = _angle.Angle.from_points(self._p1, self._p2)
+    def _rotation_from_direction(self, direction):
+        """Create quaternion to rotate +Z axis to align with direction"""
+        # Unit cylinder points along +Z, rotate it to point along 'direction'
+        z_axis = np.array([0.0, 0.0, 1.0], dtype=np.float32)
 
-        tris @= angle
-        nrmls @= angle
-        tris += self._p1
+        # Handle special case: direction already aligned with Z
+        dot = np.dot(z_axis, direction)
+        if abs(dot - 1.0) < 0.0001:
+            return _angle.Angle.from_quat([1.0, 0.0, 0.0, 0.0])  # Identity
+        if abs(dot + 1.0) < 0.0001:
+            # 180 degree rotation around X axis
+            return _angle.Angle.from_quat([0.0, 1.0, 0.0, 0.0])
 
-        p1, p2 = self._compute_rect(tris)
+        # Calculate rotation axis and angle
+        axis = np.cross(z_axis, direction)  # NOQA
+        axis = axis / np.linalg.norm(axis)
 
-        self._position = ((p2 - p1) / _decimal(2.0)) + p1
+        angle = math.acos(np.clip(dot, -1.0, 1.0))
 
-        self._bb = [self._compute_bb(p1, p2)]
-        self._rect = [[p1, p2]]
-
-        if self._is_selected:
-            self._material.x_ray_color = Config.selected_color
-            self._material.x_ray = True
-        else:
-            self._material.x_ray = False
-
-        self._triangles = [_base3d.TriangleRenderer([[tris, nrmls, count]], self._material)]
-
-    def _get_triangles(self, vertices, faces):
-        if Config.modeling.smooth_bundles:
-            return self._compute_smoothed_vertex_normals(vertices, faces)
-        else:
-            return self._compute_vertex_normals(vertices, faces)
+        return _angle.Angle.from_axis_angle(axis, angle)
 
     def set_diameter(self, parent_layout, value: _decimal):
         # TODO: set transition branch diameter
@@ -140,7 +123,8 @@ class Bundle(_base3d.Base3D):
         #       through layouts from one end of the bundle to the other stopping
         #       at a boot, the end of the bundle or a transition branch
         self._diameter = value
-        self._build()
+        self._scale.x = value
+        self._scale.y = value
 
         if parent_layout.position.db_id == self._p1.db_id:
             for layout in self.editor3d.mainframe.project.bundle_layouts:

@@ -3,26 +3,22 @@ from typing import TYPE_CHECKING, Union
 import numpy as np
 from OpenGL import GL
 
-from OCP.TopAbs import TopAbs_REVERSED
-from OCP.BRep import BRep_Tool
-from OCP.BRepMesh import BRepMesh_IncrementalMesh
-from OCP.TopLoc import TopLoc_Location
-
 from ... import debug as _debug
 from ...geometry import point as _point
-from ...wrappers.decimal import Decimal as _decimal
-from ... import Config
-from ... import gl_materials as _gl_materials
+from ...geometry import angle as _angle
+from ... import config as _config
 from ...wrappers import color as _color
+from ...wrappers import materials as _materials
+from ... import utils as _utils
+from ...ui.editor_3d import vbo_handler as _vbo_handler
 
 if TYPE_CHECKING:
-    from ...editor_3d.canvas import canvas as _canvas
     from ...database import project_db as _project_db
     from .. import ObjectBase as _ObjectBase
     from ... import ui as _ui
 
 
-Config = Config.editor3d
+Config = _config.Config.editor3d
 
 
 class Base3D:
@@ -35,66 +31,220 @@ class Base3D:
         except AttributeError:
             self.editor3d = parent.editor3d
 
-        self.canvas: "_canvas.Canvas" = self.editor3d.canvas
-        self.mainframe: "_ui.MainFrame" = self.canvas.mainframe
+        self.mainframe: "_ui.MainFrame" = self.editor3d.mainframe
 
         self._db_obj: _project_db.PJTEntryBase = None
         self._position: _point.Point = None
-        self._material: _gl_materials.GLMaterial | None = None
+        self._material: _materials.GLMaterial = None
+        self._selected_material: _materials.GLMaterial | None = None
         self._color: _color.Color = None
+        self._selected_color: _color.Color | None = None
         self._is_selected = False
-        self._position: _point.Point = None
+        self._position: _point.Point = _point.Point(0.0, 0.0, 0.0)
+        self._angle: _angle.Angle = _angle.Angle()
+        self._angle_inverse: _angle.Angle = -self._angle
+        self._scale = _point.Point = _point.Point(0.0, 0.0, 0.0)
+        self._vbo: _vbo_handler = None
+
+        self._aabb: np.ndarray = None
+        self._obb: np.ndarray = None
 
         # stores the verticies and faces so normals or smooth normals
         # can be calculated if the user changes the setting for it.
         self._mesh: list[list[np.ndarray, np.ndarray]] = []
 
-        # stores the build123d.Shape instances if any.
-        # I am still hammering this one out specifically for the wires and
-        # bundles because of the length of the wire/bundle needing to change
-        # I am more than likely going to use some kind of an agnostic to
-        # represent the wire/bundle as one of the ends are being dragged.
-        # this is because it is far too expensive to build the shape using
-        # build123d unless I can figure out the equations needed to build
-        # the cylinder with optional stripe.
+        self._triangles: list["TriangleRenderer"] = []
 
-        # TODO: look into code for creating a cylinder and a helical spiral
-        #       using numpy.
+    def ray_intersects_aabb(self, ray_origin, ray_direction):
+        """
+        Stage 1: Test against cached AABB
 
-        self._models = []
+        Super fast - just uses pre-calculated bbox_min/max
+        """
+        inv_dir = 1.0 / (ray_direction + 1e-8)
+        t = (self._aabb - ray_origin) * inv_dir
+        tmin = np.minimum(t)
+        tmax = np.maximum(t)
 
-        # [triangles, normals, triangle_count, material, color, is_opaque]
-        self._triangles: list[Union["TriangleRenderer", "LineRenderer"]] = []
+        return np.min(tmax) >= max(0, np.max(tmin))
 
-        self._rect: list[list[_point.Point, _point.Point]] = []
-        self._bb: list[np.ndarray] = []
+    def ray_intersects_obb(self, ray_origin, ray_direction):
+        """
+        Stage 2: Test against cached OBB
+
+        Fast - uses pre-calculated rotation_inverse
+        """
+        local_origin = (ray_origin - self.position) @ self._angle_inverse
+        local_direction = ray_direction @ self._angle_inverse
+
+        inv_dir = 1.0 / (local_direction + 1e-8)
+        t = (self._vbo.local_aabb - local_origin) * inv_dir
+
+        tmin = np.minimum(t)
+        tmax = np.maximum(t)
+
+        return np.min(tmax) >= max(0, np.max(tmin))
+
+    def ray_intersects_mesh(self, ray_origin, ray_direction):
+        """
+        Stage 3: Vectorized ray-mesh intersection
+
+        Uses NumPy broadcasting to test ray against ALL triangles at once
+        Much faster than looping through triangles one by one
+        """
+        # Transform ray to object space (subtract position, no rotation yet)
+        ray_origin_shifted = ray_origin - self._position
+
+        # Get all triangles from VBO data
+        for vertices, _, faces, __ in self._vbo.data:
+            # Scale vertices to match object instance
+            verts = vertices * self._scale  # (N, 3) * (3,) = (N, 3)
+
+            # Apply rotation to all vertices at once
+            verts @= self._angle
+
+            # Now vertices_transformed are in world
+            # space set to position 0, 0, 0
+
+            # create "triangle soup", complete array of all vertices including
+            # duplicated used for more than one face
+            verts = verts[faces]  # (num_triangles, 3, 3)
+
+            # Vectorized ray-triangle intersection
+            hit_mask, distances = self._ray_triangles_intersect_vectorized(
+                ray_origin_shifted,
+                ray_direction,
+                verts
+            )
+
+            # Find closest hit
+            if np.any(hit_mask):
+                valid_distances = distances[hit_mask]
+                closest_idx = np.argmin(valid_distances)
+                closest_distance = valid_distances[closest_idx]
+
+                # Calculate hit point
+                hit_point = ray_origin + closest_distance * ray_direction
+
+                return True, closest_distance, hit_point
+
+        return False, float('inf'), None
+
+    def _update_bounding_boxes(self):
+        local_aabb = self._vbo.local_aabb * self._scale
+        local_obb = self._vbo.local_obb * self._scale
+
+        local_aabb @= self._angle
+        local_obb @= self._angle
+
+        self._aabb = local_aabb + self._position
+        self._obb = local_obb + self._position
+
+    @staticmethod
+    def _ray_triangles_intersect_vectorized(
+        ray_origin, ray_direction, triangles):  # NOQA
+
+        """
+        Vectorized Möller-Trumbore ray-triangle intersection
+
+        Tests ray against MANY triangles at once using NumPy broadcasting
+
+        Args:
+            ray_origin: (3,) array
+            ray_direction: (3,) array
+            triangles: (N, 3, 3) array - N triangles, each with 3 vertices of 3 coords
+
+        Returns:
+            hit_mask: (N,) boolean array - True where ray hits triangle
+            distances: (N,) float array - distance to intersection (inf if no hit)
+        """
+        num_triangles = triangles.shape[0]  # NOQA
+
+        # Extract vertices
+        v0 = triangles[:, 0, :]  # (N, 3)
+        v1 = triangles[:, 1, :]  # (N, 3)
+        v2 = triangles[:, 2, :]  # (N, 3)
+
+        # Edge vectors
+        edge1 = v1 - v0  # (N, 3)  # NOQA
+        edge2 = v2 - v0  # (N, 3)
+
+        # Begin calculating determinant
+        h = np.cross(ray_direction, edge2)  # (N, 3)  # NOQA
+        det = np.sum(edge1 * h, axis=1)     # (N,) - dot product
+
+        # Initialize output arrays
+        hit_mask = np.zeros(num_triangles, dtype=bool)
+        distances = np.full(num_triangles, np.inf, dtype=np.float32)
+
+        # Check determinant (ray parallel to triangle)
+        valid_det = np.abs(det) > 1e-6  # (N,)
+
+        if not np.any(valid_det):
+            return hit_mask, distances
+
+        inv_det = np.zeros_like(det)
+        inv_det[valid_det] = 1.0 / det[valid_det]
+
+        # Calculate distance from v0 to ray origin
+        s = ray_origin - v0  # (N, 3)
+
+        # Calculate u parameter
+        u = inv_det * np.sum(s * h, axis=1)  # (N,)
+
+        # Test u bounds
+        valid_u = valid_det & (u >= 0.0) & (u <= 1.0)
+
+        if not np.any(valid_u):
+            return hit_mask, distances
+
+        # Calculate v parameter
+        q = np.cross(s, edge1)  # (N, 3)  # NOQA
+        v = inv_det * np.sum(ray_direction * q, axis=1)  # (N,)
+
+        # Test v bounds
+        valid_v = valid_u & (v >= 0.0) & (u + v <= 1.0)
+
+        if not np.any(valid_v):
+            return hit_mask, distances
+
+        # Calculate t (distance along ray)
+        t = inv_det * np.sum(edge2 * q, axis=1)  # (N,)
+
+        # Final validation: t > epsilon (ray, not line)
+        hit_mask = valid_v & (t > 1e-6)
+
+        # Store distances for hits
+        distances[hit_mask] = t[hit_mask]
+
+        return hit_mask, distances
+
+    def _update_position(self, position: _point.Point):
+        local_aabb = self._vbo.local_aabb * self._scale
+        local_obb = self._vbo.local_obb * self._scale
+
+        local_aabb @= self._angle
+        local_obb @= self._angle
+
+        self._aabb = local_aabb + position
+        self._obb = local_obb + position
 
     @property
-    def rect(self) -> list[list[_point.Point, _point.Point]]:
-        return self._rect
+    def obb(self) -> np.ndarray:
+        return self._obb
 
     @property
-    def triangles(self) -> list[Union["TriangleRenderer", "LineRenderer"]]:
+    def aabb(self) -> list[_point.Point, _point.Point]:
+        p1, p2 = [_point.Point(*item.tolist()) for item in self._aabb]
+        return [p1, p2]
+
+    @property
+    def triangles(self) -> list["TriangleRenderer"]:
         return self._triangles
 
     @property
     def position(self) -> _point.Point:
         return self._position
-
-    @staticmethod
-    def _adjust_hit_points(p1: _point.Point, p2: _point.Point):
-        xmin = min(p1.x, p2.x)
-        ymin = min(p1.y, p2.y)
-        zmin = min(p1.z, p2.z)
-        xmax = max(p1.x, p2.x)
-        ymax = max(p1.y, p2.y)
-        zmax = max(p1.z, p2.z)
-
-        delta = _point.Point(xmin, ymin, zmin) - p1
-        p1 += delta
-
-        delta = _point.Point(xmax, ymax, zmax) - p2
-        p2 += delta
 
     @property
     def is_selected(self) -> bool:
@@ -113,154 +263,22 @@ class Base3D:
     def delete(self):
         self._db_obj.delete()
 
-    # Performance between calculating smoothed normals and face normals can be
-    # significant with smooth normals taking ~2x mopr time to calculate.
-    # this only gets done when an item is added and the normals are cached. The only
-    # impact would be seen when loading a project that has many objects defined
-    # in it.
-
-    # 26,060 triangles
-    # compute_vertex_normals: 4.0ms
-    # compute_smoothed_vertex_normals: 9.0ms
     @staticmethod
-    @_debug.timeit
-    def _compute_smoothed_vertex_normals(vertices, faces):
-        # triangle coordinates (F, 3, 3)
-        triangles = vertices[faces]
-
-        # compute two edges per triangle
-        v0 = triangles[:, 0, :]
-        v1 = triangles[:, 1, :]
-        v2 = triangles[:, 2, :]
-
-        e1 = v1 - v0
-        e2 = v2 - v0
-
-        # raw face normal (not normalized): proportional to area * 2
-        face_normals_raw = np.cross(e1, e2)  # shape (F, 3)  # NOQA
-
-        # normalize face normals to unit vectors, but keep zeros for degenerate faces
-        norm = np.linalg.norm(face_normals_raw, axis=1, keepdims=True)
-        # avoid dividing by zero
-        safe_norm = np.maximum(norm, 1e-6)
-        face_normals = face_normals_raw / safe_norm
-        # optionally set truly tiny normals to zero to avoid adding noise
-        tiny = (norm.squeeze() < 1e-6)
-
-        if np.any(tiny):
-            face_normals[tiny] = 0.0
-
-        # accumulate face normals into per-vertex sum
-        V = len(vertices)
-        vertex_normal_sum = np.zeros((V, 3), dtype=float)
-
-        # Add each face's normal to its three vertices (np.add.at handles repeated indices)
-        # Repeat face normals 3 times so they match faces.ravel()
-        repeated_face_normals = np.repeat(face_normals, 3, axis=0)  # shape (F*3, 3)
-        vertex_indices = faces.ravel()  # shape (F*3,)
-        np.add.at(vertex_normal_sum, vertex_indices, repeated_face_normals)
-
-        # normalize per-vertex summed normals
-        vn_norm = np.linalg.norm(vertex_normal_sum, axis=1, keepdims=True)
-        safe_vn_norm = np.maximum(vn_norm, 1e-6)
-        vertex_normals = vertex_normal_sum / safe_vn_norm
-        # set zero normals where there was no contribution (degenerate isolated vertices)
-        isolated = (vn_norm.squeeze() < 1e-6)
-        if np.any(isolated):
-            vertex_normals[isolated] = 0.0
-
-        # produce per-triangle per-vertex normals
-        normals = vertex_normals[faces].reshape(-1, 3)  # shape (F, 3, 3)
-
-        return triangles, normals, len(triangles) * 3
+    def _compute_vertex_normals(vertices, faces) -> tuple[np.ndarray, np.ndarray, int]:
+        return _utils.compute_vertex_normals(vertices, faces)
 
     @staticmethod
-    @_debug.timeit
-    def _compute_vertex_normals(vertices, faces):
-        triangles = vertices[faces]  # (F, 3, 3)
-        v0 = triangles[:, 0, :]
-        v1 = triangles[:, 1, :]
-        v2 = triangles[:, 2, :]
-
-        e1 = v1 - v0
-        e2 = v2 - v0
-        face_normals_raw = np.cross(e1, e2)  # (F, 3)  # NOQA
-
-        norms = np.linalg.norm(face_normals_raw, axis=1, keepdims=True)
-        safe = np.maximum(norms, 1e-6)
-        face_normals = face_normals_raw / safe
-
-        # set exact-degenerate faces to zero if extremely small
-        degenerate = (norms.squeeze() < 1e-6)
-        if np.any(degenerate):
-            face_normals[degenerate] = 0.0
-
-        # (F, 3, 3)ach face normal to the 3 vertices of the triangle
-        normals = np.repeat(face_normals[:, np.newaxis, :], 3, axis=1)
-
-        return triangles, normals.reshape(-1, 3), len(triangles) * 3
+    def _compute_smoothed_vertex_normals(vertices, faces) -> tuple[
+        np.ndarray, np.ndarray, int]:
+        return _utils.compute_smoothed_vertex_normals(vertices, faces)
 
     @staticmethod
-    def _compute_bb(p1, p2):
-        x1, y1, z1 = p1.as_float
-        x2, y2, z2 = p2.as_float
-
-        corners = np.array([[x1, y1, z1], [x1, y1, z2], [x1, y2, z1], [x1, y2, z2],
-                           [x2, y1, z1], [x2, y1, z2], [x2, y2, z1], [x2, y2, z2]],
-                           dtype=np.float64)
-
-        return corners
+    def _compute_aabb(triangles) -> tuple[_point.Point, _point.Point]:
+        return _utils.compute_aabb(triangles)
 
     @staticmethod
-    def _compute_rect(tris):
-        verts = tris.reshape(-1, 3)
-
-        col_min = verts.min(axis=0)  # shape (3,) -> array([-0.7,  0.3, -1. ])
-        col_max = verts.max(axis=0)  # shape (3,) -> array([1.2, 3.1, 4. ])
-
-        p1 = _point.Point(*[_decimal(item) for item in col_min])
-        p2 = _point.Point(*[_decimal(item) for item in col_max])
-
-        return p1, p2
-
-    @staticmethod
-    def _convert_model_to_mesh(model):
-        loc = TopLoc_Location()
-        BRepMesh_IncrementalMesh(theShape=model.wrapped, theLinDeflection=0.001,
-                                 isRelative=True, theAngDeflection=0.1, isInParallel=True)
-
-        vertices = []
-        faces = []
-        offset = 0
-        for facet in model.faces():
-            if not facet:
-                continue
-
-            poly_triangulation = BRep_Tool.Triangulation_s(facet.wrapped, loc)  # NOQA
-
-            if not poly_triangulation:
-                continue
-
-            trsf = loc.Transformation()
-
-            node_count = poly_triangulation.NbNodes()
-            for i in range(1, node_count + 1):
-                gp_pnt = poly_triangulation.Node(i).Transformed(trsf)
-                pnt = (gp_pnt.X(), gp_pnt.Y(), gp_pnt.Z())
-                vertices.append(pnt)
-
-            facet_reversed = facet.wrapped.Orientation() == TopAbs_REVERSED
-
-            order = [1, 3, 2] if facet_reversed else [1, 2, 3]
-            for tri in poly_triangulation.Triangles():
-                faces.append([tri.Value(i) + offset - 1 for i in order])
-
-            offset += node_count
-
-        vertices = np.array(vertices, dtype=np.dtypes.Float64DType)
-        faces = np.array(faces, dtype=np.dtypes.Int32DType)
-
-        return vertices, faces
+    def _compute_obb(p1: _point.Point, p2: _point.Point) -> np.ndarray:
+        return _utils.compute_obb(p1, p2)
 
 
 # I moved some of the rendering code to the 2 below classes.
@@ -272,7 +290,15 @@ class Base3D:
 # experiance.
 class TriangleRenderer:
 
-    def __init__(self, data: list[list[np.ndarray, np.ndarray, int]], material: _gl_materials.GLMaterial):
+    def __init__(self, position: _point.Point, angle: _angle.Angle,
+                 scale: _point.Point, material: _materials.GLMaterial,
+                 vbo: _vbo_handler.VBOHandler | None = None,
+                 data: list[list[np.ndarray, np.ndarray, int]] | None = None):
+
+        self.vbo = vbo
+        self.position = position
+        self.angle = angle
+        self.scale = scale
         self._data = data
         self._material = material
 
@@ -289,64 +315,59 @@ class TriangleRenderer:
         self._data = value
 
     @property
-    def material(self) -> _gl_materials.GLMaterial:
+    def material(self) -> _materials.GLMaterial:
         return self._material
 
     @material.setter
-    def material(self, value: _gl_materials.GLMaterial):
+    def material(self, value: _materials.GLMaterial):
         self._material = value
 
-    def __call__(self):
-        GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
-        GL.glEnableClientState(GL.GL_NORMAL_ARRAY)
+    @_debug.logfunc
+    def __call__(self, shader_program):
+        # There are some objects that are going to have a known existance
+        # of only 1 and using the GPU to store these objects would not be a
+        # good use if available resources. Some of the objects are also very
+        # dynamic in nature and are handled by the CPU. Obejcts like Transitions,
+        # Wires and Bundles are some examples.
+        # Wire layouts and Bundle layouts will reside on the GPU due to their
+        # simple nature and being used multiple times. These will not use
+        # a GUID as identifiction. They will have an ID of "LAYOUT-{diameter}"
+        # where diameter is the diameter of the layout. Another object type is
+        # wire service loops. These will also reside on the GPU and their id
+        # will be "WIRE_SERVICE_LOOP-{size}" where size will be the cross
+        # section in mm's.
 
-        self._material.set()
+        # TODO: Work out the handling for specifying multiple materials for
+        #       objects that have multiple sets of triangles being rendered
 
-        for tris, nrmls, count in self._data:
-            GL.glVertexPointer(3, GL.GL_DOUBLE, 0, tris)
-            GL.glNormalPointer(GL.GL_DOUBLE, 0, nrmls)
-            GL.glDrawArrays(GL.GL_TRIANGLES, 0, count)
+        self.material.set(shader_program)
 
-        self._material.unset()
+        pos_loc = GL.glGetUniformLocation(shader_program, "objectPosition")
+        rot_loc = GL.glGetUniformLocation(shader_program, "objectRotation")
+        scale_loc = GL.glGetUniformLocation(shader_program, "objectScale")
+        if self.vbo is None:
+            # we set these to values that will not cause anything to move
+            # This is done because the processing is being done CPU side and
+            # not GPU side. This is due to there not being enough memory
+            # available on the GPU to preload the vertex arrays
+            GL.glUniform3f(pos_loc, 0.0, 0.0, 0.0)
+            GL.glUniform4f(rot_loc, 1.0, 0.0, 0.0, 0.0)
+            GL.glUniform3f(scale_loc, 1.0, 1.0, 1.0)
 
-        GL.glDisableClientState(GL.GL_VERTEX_ARRAY)
-        GL.glDisableClientState(GL.GL_NORMAL_ARRAY)
+            # Enable client state and render
+            GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
+            GL.glEnableClientState(GL.GL_NORMAL_ARRAY)
 
+            for verts, nrmls, count in self._data:
+                GL.glVertexPointer(3, GL.GL_FLOAT, 0, verts)
+                GL.glNormalPointer(GL.GL_FLOAT, 0, nrmls)
+                GL.glDrawArrays(GL.GL_TRIANGLES, 0, count)
 
-class LineRenderer:
+            GL.glDisableClientState(GL.GL_VERTEX_ARRAY)
+            GL.glDisableClientState(GL.GL_NORMAL_ARRAY)
+        else:
+            GL.glUniform3f(pos_loc, *self.position.as_float)
+            GL.glUniform4f(rot_loc, *self.angle.as_quat.tolist())
+            GL.glUniform3fv(scale_loc, *self.scale.as_float)
 
-    def __init__(self, p1, p2, width, material):
-        self._p1 = p1
-        self._p2 = p2
-        self._material = material
-        self._width = width
-
-    @property
-    def is_opaque(self) -> bool:
-        return self._material.is_opaque
-
-    @property
-    def material(self) -> _gl_materials.GLMaterial:
-        return self._material
-
-    @material.setter
-    def material(self, value: _gl_materials.GLMaterial):
-        self._material = value
-
-    @property
-    def data(self) -> list:
-        return []
-
-    @data.setter
-    def data(self, value: list):
-        pass
-
-    def __call__(self):
-        self._material.set()
-        # top
-        GL.glLineWidth(float(self._width))
-        GL.glBegin(GL.GL_LINES)
-        GL.glVertex3f(*self._p1.as_float)
-        GL.glVertex3f(*self._p2.as_float)
-        GL.glEnd()
-        self._material.unset()
+            self.vbo.render()

@@ -611,13 +611,13 @@ class Canvas(glcanvas.GLCanvas):
                     triangles.append([tris, nrmls, colors[0], count, obj.is_selected])
 
         for triangles, normals, color, triangle_count, is_selected in triangles:
-            GL.glLightfv(GL.GL_LIGHT0, GL.GL_AMBIENT, color)
-            GL.glLightfv(GL.GL_LIGHT0, GL.GL_DIFFUSE, color)
-            GL.glLightfv(GL.GL_LIGHT0, GL.GL_SPECULAR, color)
+            # GL.glLightfv(GL.GL_LIGHT0, GL.GL_AMBIENT, color)
+            # GL.glLightfv(GL.GL_LIGHT0, GL.GL_DIFFUSE, color)
+            # GL.glLightfv(GL.GL_LIGHT0, GL.GL_SPECULAR, color)
             GL.glMaterialfv(GL.GL_FRONT, GL.GL_AMBIENT, color)
             GL.glMaterialfv(GL.GL_FRONT, GL.GL_DIFFUSE, color)
             GL.glMaterialfv(GL.GL_FRONT, GL.GL_SPECULAR, color)
-            GL.glMaterialf(GL.GL_FRONT, GL.GL_SHININESS, 60.0)
+            GL.glMaterialf(GL.GL_FRONT, GL.GL_SHININESS, 20.0)
 
             GL.glColor4f(*color)
             GL.glVertexPointer(3, GL.GL_DOUBLE, 0, triangles)
@@ -628,7 +628,7 @@ class Canvas(glcanvas.GLCanvas):
         GL.glDisableClientState(GL.GL_NORMAL_ARRAY)
         # self._render_bounding_boxes()
         self.draw_grid()
-        self._render_bounding_boxes()
+        # self._render_bounding_boxes()
         GL.glPopMatrix()
 
         self.SwapBuffers()

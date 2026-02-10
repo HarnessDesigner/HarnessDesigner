@@ -79,6 +79,18 @@ class Point(metaclass=PointMeta):
             else:
                 return inputs + self.as_numpy
 
+        if func == np.multiply:
+            if isinstance(instance, np.ndarray):
+                arr = self.as_numpy
+                arr *= instance
+                x, y, z = arr
+                self._x = _decimal(x)
+                self._y = _decimal(y)
+                self._z = _decimal(z)
+                return self
+            else:
+                return inputs * self.as_numpy
+
         raise RuntimeError
 
     def __init__(self, x: _decimal, y: _decimal, z: _decimal | None = None,

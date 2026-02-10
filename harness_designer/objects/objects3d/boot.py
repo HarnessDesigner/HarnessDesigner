@@ -1,5 +1,4 @@
 from typing import TYPE_CHECKING
-import weakref
 
 import wx
 
@@ -10,16 +9,19 @@ from ...wrappers.decimal import Decimal as _decimal
 from . import base3d as _base3d
 from .mixins import angle as _angle_mixin
 from .mixins import move as _move_mixin
+from ...shapes import sphere as _sphere
+from ...ui.editor_3d import vbo_handler as _vbo_handler
+from ...wrappers import materials as _materials
+from ... import config as _config
+from ... import utils as _utils
 
 
 if TYPE_CHECKING:
     from ...database.project_db import pjt_boot as _pjt_boot
     from .. import boot as _boot
 
-from ... import Config
-from ... import gl_materials as _gl_materials
 
-Config = Config.editor3d
+Config = _config.Config.editor3d
 
 
 class Boot(_base3d.Base3D, _angle_mixin.AngleMixin, _move_mixin.MoveMixin):
@@ -34,48 +36,66 @@ class Boot(_base3d.Base3D, _angle_mixin.AngleMixin, _move_mixin.MoveMixin):
 
         self._part = db_obj.part
 
-        self._position = db_obj.point3d.point
-        self._o_position = self._position.copy()
-        self._angle = db_obj.angle3d
-        self._o_angle = self._angle.copy()
+        position = db_obj.point3d.point
 
         self._color = self._part.color.ui
 
-        self._position.bind(self._update_position)
-        self._angle.bind(self._update_angle)
+        self._material = _materials.RubberMaterial(self._color.rgba_scalar)
+        self._selected_material = _materials.RubberMaterial(Config.selected_color)
 
-        self._material = _gl_materials.Rubber(self._color.rgba_scalar)
-
-    def _build(self):
         model = self._part.model3d
+        if model is not None:
+            uuid = model.uuid
 
-        triangles = []
+            if uuid in _vbo_handler.VBOHandler:
+                self._vbo = _vbo_handler.VBOHandler(uuid, [])
+            else:
+                data = model.load()
 
-        if model is None:
-            self._model = None
+                triangles = []
+
+                for vertices, faces in data:
+                    if Config.renderer.smooth_boots:
+                        verts, nrmls, faces, count = _utils.compute_unique_smoothed_vertex_normals(vertices, faces)
+                    else:
+                        verts, nrmls, faces, count = _utils.compute_unique_vertex_normals(vertices, faces)
+
+                    triangles.append([verts, nrmls, faces, count])
+
+                self._vbo = _vbo_handler.VBOHandler(uuid, triangles)
+
+            self._position = position
+            self._o_position = self._position.copy()
+
+            self._angle = db_obj.angle3d
+            self._o_angle = self._angle.copy()
+
+            self._position.bind(self._update_position)
+            self._angle.bind(self._update_angle)
+
+            rect = []
+            bb = []
+
+            for renderer in self._triangles:
+                data = renderer.data
+
+                for i, (tris, nrmls, count) in enumerate(data):
+                    tris @= self._angle
+                    nrmls @= self._angle
+
+                    tris += self._position
+
+                    p1, p2 = self._compute_rect(tris)
+                    bb.append(self._compute_bb(p1, p2))
+                    rect.append([p1, p2])
+
+            self._rect = rect
+            self._bb = bb
+
         else:
-            self._model = model.model
-            for verts, faces in self._model:
-                tris, nrmls, count = self._get_triangles(verts, faces)
-                tris @= self._angle
-                nrmls @= self._angle
-                tris += self._position
+            vertices, faces = _sphere.create(3.0)
+            material = _materials.MetallicMaterial([0.6, 0.2, 0.2, 1.0])
 
-                p1, p2 = self._compute_rect(tris)
-                # self._adjust_hit_points(p1, p2)
-                bb = self._compute_bb(p1, p2)
-
-                self._rect.append([p1, p2])
-                self._bb.append(bb)
-                triangles.append([tris, nrmls, count])
-
-        self._triangles = [_base3d.TriangleRenderer(triangles, self._material)]
-
-    def _get_triangles(self, vertices, faces):
-        if Config.modeling.smooth_boots:
-            return self._compute_smoothed_vertex_normals(vertices, faces)
-        else:
-            return self._compute_vertex_normals(vertices, faces)
 
 
 class BootMenu(wx.Menu):

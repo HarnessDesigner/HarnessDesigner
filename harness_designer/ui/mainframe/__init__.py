@@ -3,21 +3,21 @@ from typing import TYPE_CHECKING
 import wx
 
 from wx import aui
-from ..widgets import aui_toolbar
+from ...widgets import aui_toolbar
 
-from .. import Config
+from ... import config as _config
 
 if TYPE_CHECKING:
-    from ..database.db_connectors import SQLConnector as _SQLConnector
-    from ..database import global_db as _global_db
-    from ..database import project_db as _project_db
-    from ..objects import project as _project
-    from .. import objects as _objects
+    from ...database.db_connectors import SQLConnector as _SQLConnector
+    from ...database import global_db as _global_db
+    from ...database import project_db as _project_db
+    from ...objects import project as _project
+    from ... import objects as _objects
 
 
 _mainframe: "MainFrame" = None
 
-Config = Config.mainframe
+Config = _config.Config.mainframe
 
 
 class MainFrame(wx.Frame):
@@ -82,30 +82,23 @@ class MainFrame(wx.Frame):
         # self.manager.Update
 
         splash.SetText('Creating statusbar...')
-        self.status_bar = status_bar = self.CreateStatusBar(6, id=wx.ID_ANY)
-        status_bar.SetStatusText('X: 0.0000', 0)
-        status_bar.SetStatusText('Y: 0.0000', 1)
-        status_bar.SetStatusText('Z: 0.0000', 2)
-        status_bar.SetStatusText('Loading....', 4)
+        self.status_bar = status_bar = self.CreateStatusBar(3, id=wx.ID_ANY)
+        status_bar.SetStatusText('X: 0.000000', 0)
+        status_bar.SetStatusText('Y: 0.000000', 1)
+        status_bar.SetStatusText('Z: 0.000000', 2)
 
         w, h = self.GetTextExtent(status_bar.GetStatusText(0))
-        status_bar.SetStatusWidths([w + 4, w + 4, w + 4, -1, -2, -3])
+        status_bar.SetStatusWidths([w + 4, w + 4, w + 4])
         status_bar.SetMinHeight(h)
         # status_bar_pane = status_bar.GetField(6)
-
-        self.progress_ctrl = wx.Gauge(self.status_bar, wx.ID_ANY, range=100, size=(100, h), pos=((w + 4) * 3 + 150, 0), style=wx.GA_HORIZONTAL | wx.GA_SMOOTH)
-        self.progress_ctrl.Show(False)
-
-        self.progress_ctrl.SetRange(100)
-        self.progress_ctrl.SetValue(0)
 
         splash.SetText('Creating editor notebook...')
         self.editor_notebook = aui.AuiNotebook(self, wx.ID_ANY, style=aui.AUI_NB_TAB_MOVE | aui.AUI_NB_TOP)
 
         from .. import editor_3d
         from .. import editor_2d
-        from . import object_panel
-        from ..database import editor as db_editor
+        from .. import editor_db
+        from .. import editor_obj
 
         splash.SetText('Creating 3D editor...')
         self.editor3d: editor_3d.Editor3D = editor_3d.Editor3D(self.editor_notebook, self)
@@ -114,10 +107,10 @@ class MainFrame(wx.Frame):
         self.editor2d: editor_2d.Editor2D = editor_2d.Editor2D(self.editor_notebook)
 
         splash.SetText('Creating database editor...')
-        self.db_editor = db_editor.DBEditorPanel(self)
+        self.db_editor = editor_db.DBEditorPanel(self)
 
         splash.SetText('Creating attribute editor...')
-        self.obj_selected = object_panel.ObjectSelectedPanel(self)
+        self.obj_selected = editor_obj.ObjectSelectedPanel(self)
 
         splash.SetText('Creating toolbars...')
         self.toolbar = aui_toolbar.AuiToolBar(self, style=aui.AUI_TB_GRIPPER | aui.AUI_TB_TEXT)
@@ -229,6 +222,12 @@ class MainFrame(wx.Frame):
             self.CenterOnScreen()
 
         self.manager.Update()
+
+        from ..menus import menubar as _menubar
+
+        self.menubar = _menubar.Menubar
+
+        self.SetMenuBar(self.menubar)
 
     def set_selected_object(self, obj: "_objects.ObjectBase"):
         if self._selected_obj is not None:

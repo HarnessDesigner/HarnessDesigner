@@ -4,12 +4,13 @@ import math
 import numpy as np
 
 from . import point as _point
-from ..wrappers.decimal import Decimal as _decimal
-from .constants import ZERO_5
 from . import angle as _angle
+
+ZERO_5 = 0.5
 
 
 class Line:
+
     def __array_ufunc__(self, func, method, inputs, instance, **kwargs):
         if func == np.matmul:
             if isinstance(instance, np.ndarray):
@@ -17,13 +18,13 @@ class Line:
                 arr @= instance
                 p1, p2 = arr.tolist()
 
-                self._p1.x = _decimal(p1[0])
-                self._p1.y = _decimal(p1[1])
-                self._p1.z = _decimal(p1[1])
+                self._p1.x = p1[0]
+                self._p1.y = p1[1]
+                self._p1.z = p1[1]
 
-                self._p2.x = _decimal(p2[0])
-                self._p2.y = _decimal(p2[1])
-                self._p2.z = _decimal(p2[1])
+                self._p2.x = p2[0]
+                self._p2.y = p2[1]
+                self._p2.z = p2[1]
 
                 return self
             else:
@@ -35,13 +36,13 @@ class Line:
                 arr += instance
                 p1, p2 = arr.tolist()
 
-                self._p1.x = _decimal(p1[0])
-                self._p1.y = _decimal(p1[1])
-                self._p1.z = _decimal(p1[1])
+                self._p1.x = p1[0]
+                self._p1.y = p1[1]
+                self._p1.z = p1[1]
 
-                self._p2.x = _decimal(p2[0])
-                self._p2.y = _decimal(p2[1])
-                self._p2.z = _decimal(p2[1])
+                self._p2.x = p2[0]
+                self._p2.y = p2[1]
+                self._p2.z = p2[1]
                 return self
             else:
                 return inputs + self.as_numpy
@@ -52,33 +53,22 @@ class Line:
                 arr -= instance
                 p1, p2 = arr.tolist()
 
-                self._p1.x = _decimal(p1[0])
-                self._p1.y = _decimal(p1[1])
-                self._p1.z = _decimal(p1[1])
+                self._p1.x = p1[0]
+                self._p1.y = p1[1]
+                self._p1.z = p1[1]
 
-                self._p2.x = _decimal(p2[0])
-                self._p2.y = _decimal(p2[1])
-                self._p2.z = _decimal(p2[1])
+                self._p2.x = p2[0]
+                self._p2.y = p2[1]
+                self._p2.z = p2[1]
                 return self
             else:
                 return inputs + self.as_numpy
-
-        print('func:', func)
-        print()
-        print('method:', method)
-        print()
-        print('inputs:', inputs)
-        print()
-        print('instance:', instance)
-        print()
-        print('kwargs:', kwargs)
-        print()
 
         raise RuntimeError
 
     def __init__(self, p1: _point.Point,
                  p2: _point.Point | None = None,
-                 length: _decimal | None = None,
+                 length: float | None = None,
                  angle: _angle.Angle | None = None):
 
         self._p1 = p1
@@ -88,7 +78,7 @@ class Line:
                 raise ValueError('If an end point is not supplied then the "length", '
                                  '"x_angle", "y_angle" and "z_angle" parameters need to be supplied')
 
-            p2 = _point.Point(_decimal(0.0), _decimal(0.0), length)
+            p2 = _point.Point(0.0, 0.0, length)
             p2 @= angle
             p2 += p1
 
@@ -128,12 +118,12 @@ class Line:
         res = math.sqrt(x * x + y * y + z * z)
         return int(round(res))
 
-    def length(self) -> _decimal:
+    def length(self) -> float:
         x = self._p2.x - self._p1.x
         y = self._p2.y - self._p1.y
         z = self._p2.z - self._p1.z
 
-        return _decimal(math.sqrt(x * x + y * y + z * z))
+        return math.sqrt(x * x + y * y + z * z)
 
     def get_angle(self, origin: _point.Point) -> _angle.Angle:
         temp_p1 = self._p1.copy()
@@ -149,7 +139,7 @@ class Line:
             temp_p1 -= origin
             temp_p2 -= origin
 
-        return _angle.Angle(temp_p1, temp_p2)
+        return _angle.Angle.from_points(temp_p1, temp_p2)
 
     def set_angle(self, angle: _angle.Angle, origin: _point.Point) -> None:
         if origin == self._p1:
@@ -186,7 +176,7 @@ class Line:
             self._p1 += diff_p1
             self._p2 += diff_p2
 
-    def point_from_start(self, distance: _decimal) -> _point.Point:
+    def point_from_start(self, distance: float) -> _point.Point:
         """
         Calculate point on the line at a specific distance from the start point.
 
@@ -219,7 +209,7 @@ class Line:
         # Calculate the third point
         p3 = p1 + distance * unit_vector
 
-        return _point.Point(_decimal(p3[0]), _decimal(p3[1]), _decimal(p3[2]))
+        return _point.Point(p3[0], p3[1], p3[2])
 
     def __isub__(self, other: _point.Point | np.ndarray) -> "Line":
         self._p1 -= other
@@ -296,7 +286,7 @@ class Line:
 
         return Line(p1, p2)
 
-    def get_parallel_line(self, offset: _decimal, offset_dir: _point.Point | None = None,
+    def get_parallel_line(self, offset: float, offset_dir: _point.Point | None = None,
                           plane: str = 'x') -> "Line":
         """
         Calculate a parallel line in 3D space by specifying
@@ -362,7 +352,7 @@ class Line:
         p1 = p1 + offset_vector
         p2 = p2 + offset_vector
 
-        p1 = _point.Point(_decimal(p1[0]), _decimal(p1[1]), _decimal(p1[2]))
-        p2 = _point.Point(_decimal(p2[0]), _decimal(p2[1]), _decimal(p2[2]))
+        p1 = _point.Point(p1[0], p1[1], p1[2])
+        p2 = _point.Point(p2[0], p2[1], p2[2])
 
         return Line(p1, p2)

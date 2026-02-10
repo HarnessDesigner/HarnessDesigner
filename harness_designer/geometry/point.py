@@ -1,4 +1,4 @@
-from typing import Self, Callable, Iterable, Union
+from typing import Self, Iterable, Union
 import weakref
 import numpy as np
 
@@ -18,8 +18,8 @@ class PointMeta(type):
 
         del cls._instances[key]
 
-    def __call__(cls, x: _decimal, y: _decimal, z: _decimal | None = None,
-                 db_id: int | None = None):
+    def __call__(cls, x: _decimal | float, y: _decimal | float,
+                 z: _decimal | float | None = None, db_id: int | None = None) -> "Point":
 
         if db_id is not None:
             if db_id not in cls._instances:
@@ -53,9 +53,9 @@ class Point(metaclass=PointMeta):
                 arr @= instance
                 x, y, z = arr
 
-                self._x = _decimal(x)
-                self._y = _decimal(y)
-                self._z = _decimal(z)
+                self._x = x
+                self._y = y
+                self._z = z
 
                 self._process_update()
                 return self
@@ -68,9 +68,9 @@ class Point(metaclass=PointMeta):
             if isinstance(instance, np.ndarray):
                 arr += instance
                 x, y, z = arr
-                self._x = _decimal(x)
-                self._y = _decimal(y)
-                self._z = _decimal(z)
+                self._x = x
+                self._y = y
+                self._z = z
 
                 self._process_update()
                 return self
@@ -83,42 +83,43 @@ class Point(metaclass=PointMeta):
             if isinstance(instance, np.ndarray):
                 arr -= instance
                 x, y, z = arr
-                self._x = _decimal(x)
-                self._y = _decimal(y)
-                self._z = _decimal(z)
+                self._x = x
+                self._y = y
+                self._z = z
 
                 self._process_update()
                 return self
             else:
                 return inputs + arr
 
-        print('func:', func)
-        print()
-        print('method:', method)
-        print()
-        print('inputs:', inputs)
-        print()
-        print('instance:', instance)
-        print()
-        print('kwargs:', kwargs)
-        print()
+        if func == np.multiply:
+            if isinstance(instance, np.ndarray):
+                arr = self.as_numpy
+                arr *= instance
+                x, y, z = arr
+                self._x = _decimal(x)
+                self._y = _decimal(y)
+                self._z = _decimal(z)
+                return self
+            else:
+                return inputs * self.as_numpy
 
         raise RuntimeError
 
-    def __init__(self, x: _decimal, y: _decimal, z: _decimal | None = None, 
-                 db_id: int | None = None):
+    def __init__(self, x: float | _decimal, y: float | _decimal,
+                 z: float | _decimal | None = None, db_id: int | None = None):
 
         self.db_id = db_id
 
         if z is None:
             self.is2d = True
-            z = _decimal(0.0)
+            z = 0.0
         else:
             self.is2d = False
 
-        self._x = x
-        self._y = y
-        self._z = z
+        self._x = _decimal(x)
+        self._y = _decimal(y)
+        self._z = _decimal(z)
 
         self._callbacks = []
         self._ref_count = 0
@@ -176,136 +177,179 @@ class Point(metaclass=PointMeta):
                 self._callbacks.remove(ref)
 
     @property
-    def x(self) -> _decimal:
-        return self._x
+    def x(self) -> float:
+        return float(self._x)
 
     @x.setter
-    def x(self, value: _decimal):
-        self._x = value
+    def x(self, value: float | _decimal):
+        self._x = _decimal(value)
         self._process_update()
 
     @property
-    def y(self) -> _decimal:
-        return self._y
+    def y(self) -> float:
+        return float(self._y)
 
     @y.setter
-    def y(self, value: _decimal):
-        self._y = value
+    def y(self, value: float | _decimal):
+        self._y = _decimal(value)
         self._process_update()
 
     @property
-    def z(self) -> _decimal:
-        return self._z
+    def z(self) -> float:
+        return float(self._z)
 
     @z.setter
-    def z(self, value: _decimal):
-        self._z = value
+    def z(self, value: float | _decimal):
+        self._z = _decimal(value)
         self._process_update()
 
     def copy(self) -> "Point":
-        return Point(_decimal(self._x), _decimal(self._y), _decimal(self._z))
+        return Point(self.x, self.y, self.z)
 
     def __iadd__(self, other: Union["Point", np.ndarray]) -> Self:
         if isinstance(other, Point):
-            x, y, z = other
+            x, y, z = other.as_decimal
         else:
             x, y, z = (_decimal(float(item)) for item in other)
 
-        with self:
-            self.x += x
-            self.y += y
-            self.z += z
+        self._x += x
+        self._y += y
+        self._z += z
 
         self._process_update()
 
         return self
 
     def __add__(self, other: Union["Point", np.ndarray]) -> "Point":
-        x1, y1, z1 = self
+        x1, y1, z1 = self.as_decimal
         if isinstance(other, Point):
-            x2, y2, z2 = other
+            x2, y2, z2 = other.as_decimal
         else:
             x2, y2, z2 = (_decimal(float(item)) for item in other)
 
-        x = x1 + x2
-        y = y1 + y2
-        z = z1 + z2
+        x = float(x1 + x2)
+        y = float(y1 + y2)
+        z = float(z1 + z2)
 
         return Point(x, y, z)
 
     def __isub__(self, other: Union["Point", np.ndarray]) -> Self:
         if isinstance(other, Point):
-            x, y, z = other
+            x, y, z = other.as_decimal
         else:
-            x, y, z = (_decimal(float(item)) for item in other)
+            x, y, z = (_decimal(float(item) for item in other))
 
-        with self:
-            self.x -= x
-            self.y -= y
-            self.z -= z
+        self._x -= x
+        self._y -= y
+        self._z -= z
 
         self._process_update()
 
         return self
 
     def __sub__(self, other: Union["Point", np.ndarray]) -> "Point":
-        x1, y1, z1 = self
+        x1, y1, z1 = self.as_decimal
         if isinstance(other, Point):
-            x2, y2, z2 = other
+            x2, y2, z2 = other.as_decimal
         else:
             x2, y2, z2 = (_decimal(float(item)) for item in other)
 
-        x = x1 - x2
-        y = y1 - y2
-        z = z1 - z2
+        x = float(x1 - x2)
+        y = float(y1 - y2)
+        z = float(z1 - z2)
 
         return Point(x, y, z)
 
-    def __imul__(self, other: _decimal) -> Self:
-        with self:
-            self.x *= other
-            self.y *= other
-            self.z *= other
+    def __imul__(self, other: Union[float, "Point", np.ndarray]) -> Self:
+        if isinstance(other, float):
+            x = y = z = _decimal(other)
+        elif isinstance(other, Point):
+            x, y, z = other.as_decimal
+        else:
+            x, y, z = (_decimal(float(item)) for item in other)
+
+        self._x *= x
+        self._y *= y
+        self._z *= z
 
         self._process_update()
 
         return self
 
-    def __itruediv__(self, other: _decimal) -> Self:
-        with self:
-            self.x /= other
-            self.y /= other
-            self.z /= other
+    def __mul__(self, other: Union[float, "Point", np.ndarray]) -> "Point":
+        x1, y1, z1 = self.as_decimal
+
+        if isinstance(other, float):
+            x2 = y2 = z2 = _decimal(other)
+        elif isinstance(other, Point):
+            x2, y2, z2 = other.as_decimal
+        else:
+            x2, y2, z2 = (_decimal(float(item)) for item in other)
+
+        x = float(x1 * x2)
+        y = float(y1 * y2)
+        z = float(z1 * z2)
+
+        return Point(x, y, z)
+
+    def __itruediv__(self, other: Union[float, "Point", np.ndarray]) -> Self:
+        if isinstance(other, float):
+            x = y = z = _decimal(other)
+        elif isinstance(other, Point):
+            x, y, z = other.as_decimal
+        else:
+            x, y, z = (_decimal(float(item)) for item in other)
+
+        self._x /= x
+        self._y /= y
+        self._z /= z
 
         self._process_update()
 
         return self
 
-    def __truediv__(self, other: _decimal) -> "Point":
-        x, y, z = self
-        return Point(x / other, y / other, z / other)
+    def __truediv__(self, other: Union[float, "Point", np.ndarray]) -> "Point":
+        x1, y1, z1 = self.as_decimal
+
+        if isinstance(other, float):
+            x2 = y2 = z2 = _decimal(other)
+        elif isinstance(other, Point):
+            x2, y2, z2 = other.as_decimal
+        else:
+            x2, y2, z2 = (_decimal(float(item)) for item in other)
+
+        x = float(x1 / x2)
+        y = float(y1 / y2)
+        z = float(z1 / z2)
+
+        return Point(x, y, z)
 
     def set_angle(self, angle: "_angle.Angle", origin: "Point"):
         arr = self.as_numpy
+        o = origin.as_numpy
 
-        arr -= origin
-        arr @= angle.as_matrix
-        arr += origin
+        arr -= o
+        arr @= angle.as_matrix.T
+        arr += o
 
-        self._x = _decimal(arr[0])
-        self._y = _decimal(arr[1])
-        self._z = _decimal(arr[2])
+        with self:
+            self.x = float(arr[0])
+            self.y = float(arr[1])
+            self.z = float(arr[2])
+
         self._process_update()
 
-    def get_angle(self, origin: "Point") -> "Angle":
+    def get_angle(self, origin: "Point") -> "_angle.Angle":
         return _angle.Angle.from_points(origin, self)
 
     def __bool__(self):
-        return self.as_float == (0, 0, 0)
+        x, y, z = self.as_float
+
+        return x != 0.0 or y != 0.0 or z != 0.0
 
     def __eq__(self, other: "Point") -> bool:
-        x1, y1, z1 = self
-        x2, y2, z2 = other
+        x1, y1, z1 = self.as_float
+        x2, y2, z2 = other.as_float
 
         return x1 == x2 and y1 == y2 and z1 == z2
 
@@ -313,8 +357,12 @@ class Point(metaclass=PointMeta):
         return not self.__eq__(other)
 
     @property
+    def as_decimal(self):
+        return self._x, self._y, self._z
+
+    @property
     def as_float(self) -> tuple[float, float, float]:
-        return float(self._x), float(self._y), float(self._z)
+        return self.x, self.y, self.z
 
     @property
     def as_int(self) -> tuple[int, int, int]:
@@ -322,10 +370,10 @@ class Point(metaclass=PointMeta):
 
     @property
     def as_numpy(self) -> np.ndarray:
-        return np.array(self.as_float, dtype=np.dtypes.Float64DType)
+        return np.array(self.as_float, dtype=np.float64)
 
-    def __iter__(self) -> Iterable[_decimal]:
-        return iter([self._x, self._y, self._z])
+    def __iter__(self) -> Iterable[float]:
+        return iter([self.x, self.y, self.z])
 
     def __str__(self) -> str:
         return f'X: {self.x}, Y: {self.y}, Z: {self.z}'
@@ -340,18 +388,22 @@ class Point(metaclass=PointMeta):
         x2, y2, z2 = other
         return x1 >= x2 and y1 >= y2 and z1 >= z2
 
+    def __neg__(self) -> "Point":
+        x = -self.x
+        y = -self.y
+        z = -self.z
+
+        return Point(x, y, z)
+
     @property
     def inverse(self) -> "Point":
-        point = self.copy()
+        x = -self.x
+        y = -self.y
+        z = -self.z
 
-        with point:
-            point.x = -point.x
-            point.y = -point.y
-            point.z = -point.z
-
-        return point
+        return Point(x, y, z)
 
 
-ZERO_POINT = Point(_decimal(0.0), _decimal(0.0), _decimal(0.0))
+ZERO_POINT = Point(0.0, 0.0, 0.0)
 
 from . import angle as _angle  # NOQA

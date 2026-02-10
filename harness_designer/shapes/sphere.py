@@ -4,13 +4,68 @@ import numpy as np
 
 from .. import utils as _utils
 from ..import debug as _debug
+from ..ui.editor_3d import vbo_handler as _vbo_handler
 
 
-@_debug.timeit
-def create(radius=1.0):
+_vbo: _vbo_handler.VBOHandler = None
+
+def create_vbo(radius=1.0) -> _vbo_handler.VBOHandler:
+    global _vbo
+
+    if _vbo is None:
+        count = 3122
+        vertices = np.full((count, 3), [0.0, 0.0, 0.0], dtype=np.float64)
+
+        vertices[0] = np.array([0.0, 0.0, 0.5], dtype=np.float64)
+        vertices[1] = np.array([0.0, 0.0, -0.5], dtype=np.float64)
+
+        step = math.pi / 40.0
+
+        for i in range(1, 40, 1):
+            alpha = step * i
+            base = int(2 + 80 * (i - 1))
+            for j in range(80):
+                theta = step * j
+
+                alpha_sin = math.sin(alpha)
+                alpha_cos = math.cos(alpha)
+                theta_sin = math.sin(theta)
+                theta_cos = math.cos(theta)
+
+                vertices[base + j] = np.array(
+                    [alpha_sin * theta_cos,
+                     alpha_sin * theta_sin,
+                     alpha_cos], dtype=np.float64) * 0.5
+
+        # Triangles for poles.
+        faces = []
+
+        for j in range(80):
+            j1 = (j + 1) % 80
+            faces.append([0, 2 + j, 2 + j1])
+            faces.append([1, 3042 + j1, 3042 + j])
+
+        # Triangles for non-polar region.
+        for i in range(1, 39, 1):
+            base1 = 2 + 80 * (i - 1)
+            base2 = base1 + 80
+            for j in range(80):
+                j1 = int((j + 1) % 80)
+                faces.append([base2 + j, base1 + j1, base1 + j])
+                faces.append([base2 + j, base2 + j1, base1 + j1])
+
+        faces = np.array(faces, dtype=np.int32)
+
+        verts, nrmls, faces, count = _utils.compute_vbo_smoothed_vertex_normals(vertices, faces)
+
+        _vbo = _vbo_handler.VBOHandler('sphere', [[verts, nrmls, faces, count]])
+
+    return _vbo
+
+
+def create(radius=1.0) -> tuple[np.ndarray, np.ndarray]:
+
     resolution = int(max(20.0, _utils.remap(radius, 0.35, 19.0, 20.0, 30.0)))
-
-    print(resolution)
 
     count = 2 * resolution * (resolution - 1) + 2
     vertices = np.full((count, 3), [0.0, 0.0, 0.0], dtype=np.float64)
