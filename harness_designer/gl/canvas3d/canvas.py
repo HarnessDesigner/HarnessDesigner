@@ -687,7 +687,7 @@ class Canvas(glcanvas.GLCanvas):
         GL.glUniformMatrix4fv(view_loc, 1, GL.GL_FALSE, view_matrix)
         
         # Set scene lighting
-        self._scene_light.set_uniforms(self._shader_program)
+        self._scene_light.set(self._shader_program)
         
         # Set headlight
         self._headlight(self._shader_program)

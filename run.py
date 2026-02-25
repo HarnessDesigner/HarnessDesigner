@@ -3,6 +3,6 @@ import wx
 
 
 print('import harness designer')
-import new_harness_designer
+import harness_designer
 
-new_harness_designer.__main__()
+harness_designer.__main__()

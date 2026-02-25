@@ -333,6 +333,12 @@ class Config(metaclass=ConfigDB):
     class editor3d(metaclass=ConfigDB):
         selected_color = [0.2, 1.0, 0.2, 0.35]
 
+        class lighting(metaclass=ConfigDB):
+            position = [100.0, 100.0, 100.0]
+            ambient = [0.2, 0.2, 0.2, 1.0]
+            diffuse = [0.8, 0.8, 0.8, 1.0]
+            specular = [1.0, 1.0, 1.0, 1.0]
+
         class renderer(metaclass=ConfigDB):
             smooth_covers = True
             smooth_boots = True

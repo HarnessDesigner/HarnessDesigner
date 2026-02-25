@@ -1,20 +1,20 @@
+from typing import TYPE_CHECKING
+
 import math
 import numpy as np
 
 from OpenGL import GL
 
-from ... import config as _config
-
-
-Config = _config.Config.editor3d.headlight
+if TYPE_CHECKING:
+    from . import canvas as _canvas
 
 
 class Headlight:
 
-    def __init__(self, canvas):
+    def __init__(self, canvas: "_canvas.Canvas"):
         self.canvas = canvas
         self.camera = canvas.camera
-        self.config = self.canvas.config
+        self.config = self.canvas.config.headlight
         self.light_direction = [0.0, 0.0, 0.0]
 
         canvas.camera.position.bind(self.__update)
@@ -40,7 +40,7 @@ class Headlight:
         GL.glUniform4fv(headlightDiffuse, 1, np.array(self.config.color, dtype=np.float32))
 
         GL.glUniform1f(headlightDiameter, math.radians(self.config.cutoff))
-        GL.glUniform1i(headlightEnabled, self.config.headlight.enable)
+        GL.glUniform1i(headlightEnabled, self.config.enable)
         #
         # # Set spotlight position and direction
         # GL.glEnable(GL.GL_LIGHTING)
