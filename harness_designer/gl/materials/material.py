@@ -30,9 +30,9 @@ class GLMaterial:
         a = color.rgba_scalar[-1]
         self._is_opaque = a == 1.0
 
-        self.ambient = np.array(self._ambient, dtype=np.float32)
-        self.diffuse = np.array(self._diffuse, dtype=np.float32)
-        self.specular = np.array(self._specular, dtype=np.float32)
+        self.ambient = np.array(self._ambient + (a,), dtype=np.float32)
+        self.diffuse = np.array(self._diffuse + (a,), dtype=np.float32)
+        self.specular = np.array(self._specular + (a,), dtype=np.float32)
         self.shininess = self._shine
 
     @property
@@ -45,9 +45,9 @@ class GLMaterial:
         specular = GL.glGetUniformLocation(shader_program, "materialSpecular")
         shininess = GL.glGetUniformLocation(shader_program, "materialShininess")
 
-        GL.glUniform3fv(ambient, 1, self.ambient)
-        GL.glUniform3fv(diffuse, 1, self.diffuse)
-        GL.glUniform3fv(specular, 1, self.specular)
+        GL.glUniform4fv(ambient, 1, self.ambient)
+        GL.glUniform4fv(diffuse, 1, self.diffuse)
+        GL.glUniform4fv(specular, 1, self.specular)
         GL.glUniform1f(shininess, self.shininess)
 
     def unset(self):
