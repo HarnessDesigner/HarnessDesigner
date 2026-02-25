@@ -340,9 +340,11 @@ class Canvas(glcanvas.GLCanvas):
         GL.glClearColor(0.20, 0.20, 0.20, 1.0)
         self._shader_program = _shaders.create_program()
 
+        # Enable blending for proper alpha channel handling in materials
+        GL.glEnable(GL.GL_BLEND)
+        GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
+
         # GL.glEnable(GL.GL_LIGHTING)
-        # GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
-        # GL.glEnable(GL.GL_BLEND)
         # GL.glEnable(GL.GL_DITHER)
         # GL.glEnable(GL.GL_MULTISAMPLE)
         # GL.glDepthMask(GL.GL_TRUE)
@@ -546,11 +548,9 @@ class Canvas(glcanvas.GLCanvas):
             GL.glDisableClientState(GL.GL_VERTEX_ARRAY)
             GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
 
-        # enable blending and disable the depth mask to remove the moiré that
-        # occurs from the grid lines.
+        # Disable depth mask to remove the moiré that occurs from the grid lines.
         # https://en.wikipedia.org/wiki/Moir%C3%A9_pattern
-        GL.glEnable(GL.GL_BLEND)
-        GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
+        # (Blending is already enabled globally)
         GL.glDepthMask(GL.GL_FALSE)
 
         # draw grid floor
@@ -565,8 +565,8 @@ class Canvas(glcanvas.GLCanvas):
         # draw grid solid lines
         _draw_vbo(self._grid_lines_solid[0], self._grid_lines_solid[1], GL.GL_LINES)
 
+        # Re-enable depth mask for normal rendering
         GL.glDepthMask(GL.GL_TRUE)
-        GL.glDisable(GL.GL_BLEND)
         
     @_debug.logfunc
     def _render_bounding_boxes(self):
