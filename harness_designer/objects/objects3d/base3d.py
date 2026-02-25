@@ -343,17 +343,19 @@ class Base3D:
             GL.glUniform4f(rot_loc, 1.0, 0.0, 0.0, 0.0)
             GL.glUniform3f(scale_loc, 1.0, 1.0, 1.0)
 
-            # Enable client state and render
-            GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
-            GL.glEnableClientState(GL.GL_NORMAL_ARRAY)
-
+            # Use vertex attribute arrays (shader-compatible)
             verts, nrmls, count = self._data
-            GL.glVertexPointer(3, GL.GL_FLOAT, 0, verts)
-            GL.glNormalPointer(GL.GL_FLOAT, 0, nrmls)
+            
+            GL.glEnableVertexAttribArray(0)
+            GL.glEnableVertexAttribArray(1)
+            
+            GL.glVertexAttribPointer(0, 3, GL.GL_FLOAT, GL.GL_FALSE, 0, verts)
+            GL.glVertexAttribPointer(1, 3, GL.GL_FLOAT, GL.GL_FALSE, 0, nrmls)
+            
             GL.glDrawArrays(GL.GL_TRIANGLES, 0, count)
-
-            GL.glDisableClientState(GL.GL_VERTEX_ARRAY)
-            GL.glDisableClientState(GL.GL_NORMAL_ARRAY)
+            
+            GL.glDisableVertexAttribArray(0)
+            GL.glDisableVertexAttribArray(1)
         else:
             GL.glUniform3f(pos_loc, *self._position.as_float)
             GL.glUniform4f(rot_loc, *self._angle.as_quat.tolist())
