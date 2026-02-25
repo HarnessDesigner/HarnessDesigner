@@ -1,3 +1,0 @@
-import wx
-import requests
-

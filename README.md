@@ -1,6 +1,13 @@
 # HarnessDesigner
 Wiring Harness design software (WIP)
 
+**UPDATE**: 02/22/2026
+I wanted to let anyone that has looked at this repo that I am still working on developing it.
+I am actually thinking about putting up a Kickstarter to see if people would be able to help
+financially towards the development. I would love to be able to offload things like the artwork
+to a person that has more skill in that area than I do. My skill is pretty lacking in that 
+department.
+
 
 This project is currently being developed. I don't have a time frame as to when 
 it will be completed but I am hoping within the next couple of months maybe sooner.
