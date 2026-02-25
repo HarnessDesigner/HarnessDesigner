@@ -37,7 +37,7 @@ class Headlight:
 
         GL.glUniform3fv(headlightPosition, 1, self.canvas.camera.position.as_numpy)
         GL.glUniform3fv(headlightDirection, 1, self.light_direction)
-        GL.glUniform3fv(headlightDiffuse, 1, np.array(self.config.color[:-1], dtype=np.float32))
+        GL.glUniform4fv(headlightDiffuse, 1, np.array(self.config.color, dtype=np.float32))
 
         GL.glUniform1f(headlightDiameter, math.radians(self.config.cutoff))
         GL.glUniform1i(headlightEnabled, self.config.headlight.enable)
