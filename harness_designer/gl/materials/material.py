@@ -27,24 +27,13 @@ class GLMaterial:
         # self._saved_specular = []
         # self._saved_shine = []
 
-        r, g, b, a = color.rgba_scalar
+        a = color.rgba_scalar[-1]
         self._is_opaque = a == 1.0
 
-        # Check if material properties are already color-based (set by subclass)
-        # or if they're the default grayscale values that need color modulation
-        if self._ambient == GLMaterial._ambient and self._diffuse == GLMaterial._diffuse:
-            # Base class defaults - apply color modulation
-            self.ambient = np.array((self._ambient[0] * r, 
-                                      self._ambient[1] * g, 
-                                      self._ambient[2] * b, a), dtype=np.float32)
-            self.diffuse = np.array((self._diffuse[0] * r, 
-                                      self._diffuse[1] * g, 
-                                      self._diffuse[2] * b, a), dtype=np.float32)
-        else:
-            # Subclass has set color values - use them directly with alpha
-            self.ambient = np.array(self._ambient + (a,), dtype=np.float32)
-            self.diffuse = np.array(self._diffuse + (a,), dtype=np.float32)
-        
+        # Use the class-level material property values (or subclass-set values) as-is
+        # Subclasses set self._ambient, self._diffuse before calling super().__init__()
+        self.ambient = np.array(self._ambient + (a,), dtype=np.float32)
+        self.diffuse = np.array(self._diffuse + (a,), dtype=np.float32)
         self.specular = np.array(self._specular + (a,), dtype=np.float32)
         self.shininess = self._shine
 
