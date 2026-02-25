@@ -1,16 +1,16 @@
+from typing import TYPE_CHECKING
+
 import numpy as np
 from OpenGL import GL
 
-from ... import config as _config
-
-
-Config = _config.Config.editor3d.lighting
+if TYPE_CHECKING:
+    from . import canvas as _canvas
 
 
 class SceneLight:
     """Manages the main scene lighting uniforms"""
     
-    def __init__(self, canvas):
+    def __init__(self, canvas: "_canvas.Canvas"):
         self.canvas = canvas
         self.config = self.canvas.config.lighting
 
