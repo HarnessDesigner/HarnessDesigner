@@ -327,11 +327,14 @@ class Base3D:
         if not self.is_visible:
             return
 
+        # Set material properties
         self.material.set(shader_program)
 
+        # Set object transformation uniforms
         pos_loc = GL.glGetUniformLocation(shader_program, "objectPosition")
         rot_loc = GL.glGetUniformLocation(shader_program, "objectRotation")
         scale_loc = GL.glGetUniformLocation(shader_program, "objectScale")
+        
         if self._vbo is None:
             # we set these to values that will not cause anything to move
             # This is done because the processing is being done CPU side and

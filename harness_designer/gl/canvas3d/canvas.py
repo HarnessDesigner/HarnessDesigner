@@ -120,10 +120,12 @@ class Canvas(glcanvas.GLCanvas):
 
         from . import key_handler as _key_handler
         from . import mouse_handler as _mouse_handler
+        from . import scene_light as _scene_light
 
         self._key_handler = _key_handler.KeyHandler(self)
         self._mouse_handler = _mouse_handler.MouseHandler(self)
         self._headlight = _headlight.Headlight(self)
+        self._scene_light = _scene_light.SceneLight(self)
         self._focal_target: _focal_target.FocalPoint = None
 
         font = self.GetFont()
@@ -666,8 +668,32 @@ class Canvas(glcanvas.GLCanvas):
 
     @_debug.logfunc
     def _draw_scene(self, objects):
+        # Set global shader uniforms that are the same for all objects
+        GL.glUseProgram(self._shader_program)
+        
+        # Set view position (camera position) for specular lighting
+        viewPosition_loc = GL.glGetUniformLocation(self._shader_program, "viewPosition")
+        GL.glUniform3fv(viewPosition_loc, 1, self.camera.position.as_numpy)
+        
+        # Set projection and view matrices
+        projection_loc = GL.glGetUniformLocation(self._shader_program, "projection")
+        view_loc = GL.glGetUniformLocation(self._shader_program, "view")
+        
+        # Get current projection and view matrices from OpenGL
+        projection_matrix = GL.glGetFloatv(GL.GL_PROJECTION_MATRIX)
+        view_matrix = GL.glGetFloatv(GL.GL_MODELVIEW_MATRIX)
+        
+        GL.glUniformMatrix4fv(projection_loc, 1, GL.GL_FALSE, projection_matrix)
+        GL.glUniformMatrix4fv(view_loc, 1, GL.GL_FALSE, view_matrix)
+        
+        # Set scene lighting
+        self._scene_light.set_uniforms(self._shader_program)
+        
+        # Set headlight
+        self._headlight(self._shader_program)
+        
+        # Render each object
         for obj in objects:
-            # self._headlight(self._shader_program)
             obj.obj3d.render(self._shader_program)
 
             if obj.is_selected:
