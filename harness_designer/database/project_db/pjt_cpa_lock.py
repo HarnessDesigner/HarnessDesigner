@@ -1,0 +1,47 @@
+from typing import TYPE_CHECKING, Iterable as _Iterable
+
+from . import PJTEntryBase, PJTTableBase
+from .mixins import Angle3DMixin, Position3DMixin, PartMixin, HousingMixin, Visible3DMixin
+
+
+if TYPE_CHECKING:
+    from ..global_db import cpa_lock as _cpa_lock
+
+
+class PJTCPALocksTable(PJTTableBase):
+    __table_name__ = 'pjt_cpa_locks'
+
+    def __iter__(self) -> _Iterable["PJTCPALock"]:
+        for db_id in PJTTableBase.__iter__(self):
+            yield PJTCPALock(self, db_id, self.project_id)
+
+    def __getitem__(self, item) -> "PJTCPALock":
+        if isinstance(item, int):
+            if item in self:
+                return PJTCPALock(self, item, self.project_id)
+            raise IndexError(str(item))
+
+        raise KeyError(item)
+
+    def insert(self, part_id: int, housing_id: int | None) -> "PJTCPALock":
+        db_id = PJTTableBase.insert(self, part_id=part_id, housing_id=housing_id)
+
+        return PJTCPALock(self, db_id, self.project_id)
+
+
+class PJTCPALock(PJTEntryBase, Angle3DMixin, Position3DMixin,
+                 PartMixin, HousingMixin, Visible3DMixin):
+
+    _table: PJTCPALocksTable = None
+
+    @property
+    def table(self) -> PJTCPALocksTable:
+        return self._table
+
+    @property
+    def part(self) -> "_cpa_lock.CPALock":
+        part_id = self.part_id
+        if part_id is None:
+            return None
+
+        return self._table.db.global_db.cpa_locks_table[part_id]
