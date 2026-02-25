@@ -1,0 +1,19 @@
+That code does work and for the mst part it works correctly where the mouse momenent translates into correct movement of the obejct. But... One area can be improved upon. This depends on the camera position and whatever axis based on where the camera is that ends up needing to move closer or farther from the camera doesn't move at the speed it should be moving given the mouse position. It moves way to slow and doesn't keep pace with the movement of the mouse.
+
+I did have to make a code change to get it to work. I had to add the "Refresh" in order to have the movement realized onto the screen so it could be seen as the mouse was being moved. The way it was the object would only appear to move once the left mouse button was releaeed.
+
+I am not sure if the speed issue for the axis that is moving closer to or further away from the camera is able to be corrected or not. It is the only axis that has this problem, the others work fine. Once again the axis that is effected by this depends on the camer position.
+
+The rotation of the object doesn't work at all. I know I had not finished the code to even get it close to working. Most things have been added for it but not all. It is almost identical to what the object movement framework is except the arrows being rendered will be curved to indicate it is rotation and there is a circular ring that also gets rendered for each axis with the arrows sitting on the ring on opposite sides of the object. so 4 arrows per ring and there are 3 rings. I would like the rotation to have the same kind of interface for translating the mouse movement into rotation. I would also like to add detents to both the movement that would be user adjustable or can be disabled completely. The detent setting should be located in the Config class. Setting the rotation or angle detent to -1 would disable it and a positive number would be the interval in which the detents occur. A detent is a momentary stopping of the movement or rotation when an object is being moved or rotated. This is not the same as a snap to. This is simply a momentary pause in movement or rotation to provide a feedback to the user that a position has been encountered. an example would be having a movement detent every 50mm. where the detent is calculated from is the origin of the world so 0, 0, 0.  The scale I am using for openGL translates 1.0 (gl) to 1mm so a detent every 50mm would cause a momentarypause in movement every time the object crosses one of the grid lines because the grid is spaced at 50mm intervals in all directions.
+
+rotation detent is calculated from a rotation of 0, 0, 0 (euler degrees)
+
+Snapping is another thing that can be added as a user Config item. snapping should occur while the object is being moved. the lowest value accpeted for a snap should be 0.1mm and the upper boundary should be 50mm. Snapping for rotation can also be added as a separate user configurable setting.
+
+Both detent and snapping need to work together. if a snap will occur in a location that is not a detent position the snap will still occur. If there is a location where the detent occurs that is not a snal the detent should dtill occur.
+
+When snap is active and detent is not the snap should have the same "feel" as a detent but the object should move or rotate nice and smooth. should the user release the mouse button when the object is not snpped into position the object will snap to the closest calculated snap location. the same should also occur if both snap and detent are activated.
+
+The snapping should be written to allow for snapping to other objects. this does not need to done at this point in time but the code needs to be written in order to accept that ability.
+
+
