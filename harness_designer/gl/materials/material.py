@@ -30,6 +30,8 @@ class GLMaterial:
         a = color.rgba_scalar[-1]
         self._is_opaque = a == 1.0
 
+        # Use the class-level material property values (or subclass-set values) as-is
+        # Subclasses set self._ambient, self._diffuse before calling super().__init__()
         self.ambient = np.array(self._ambient + (a,), dtype=np.float32)
         self.diffuse = np.array(self._diffuse + (a,), dtype=np.float32)
         self.specular = np.array(self._specular + (a,), dtype=np.float32)
