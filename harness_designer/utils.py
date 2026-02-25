@@ -112,7 +112,10 @@ def compute_smoothed_vertex_normals(vertices: np.ndarray, faces: np.ndarray) -> 
     # Produce per-face per-vertex normals by indexing smoothed vertex normals
     normals = vertex_normals[faces].reshape(-1, 3)  # shape (F*K, 3)
 
-    return expanded_verts, normals, len(expanded_verts) * verts_per_face
+    # Reshape expanded_verts to match normals shape
+    expanded_verts_reshaped = expanded_verts.reshape(-1, 3)  # shape (F*K, 3)
+
+    return expanded_verts_reshaped, normals, len(expanded_verts) * verts_per_face
 
 
 def compute_vertex_normals(vertices: np.ndarray, faces: np.ndarray) -> tuple[np.ndarray, np.ndarray, int]:
@@ -154,7 +157,10 @@ def compute_vertex_normals(vertices: np.ndarray, faces: np.ndarray) -> tuple[np.
     # Changed from hardcoded 3 to verts_per_face
     normals = np.repeat(face_normals[:, np.newaxis, :], verts_per_face, axis=1)
 
-    return expanded_verts, normals.reshape(-1, 3), len(expanded_verts) * verts_per_face
+    # Reshape expanded_verts to match normals shape
+    expanded_verts_reshaped = expanded_verts.reshape(-1, 3)  # shape (F*K, 3)
+
+    return expanded_verts_reshaped, normals.reshape(-1, 3), len(expanded_verts) * verts_per_face
 
 
 def compute_aabb(triangles):

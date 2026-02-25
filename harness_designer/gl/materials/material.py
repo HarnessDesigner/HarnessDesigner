@@ -27,11 +27,17 @@ class GLMaterial:
         # self._saved_specular = []
         # self._saved_shine = []
 
-        a = color.rgba_scalar[-1]
+        r, g, b, a = color.rgba_scalar
         self._is_opaque = a == 1.0
 
-        self.ambient = np.array(self._ambient + (a,), dtype=np.float32)
-        self.diffuse = np.array(self._diffuse + (a,), dtype=np.float32)
+        # Apply the color to the material properties
+        # Multiply the material base properties by the color
+        self.ambient = np.array((self._ambient[0] * r, 
+                                  self._ambient[1] * g, 
+                                  self._ambient[2] * b, a), dtype=np.float32)
+        self.diffuse = np.array((self._diffuse[0] * r, 
+                                  self._diffuse[1] * g, 
+                                  self._diffuse[2] * b, a), dtype=np.float32)
         self.specular = np.array(self._specular + (a,), dtype=np.float32)
         self.shininess = self._shine
 
