@@ -8,16 +8,16 @@ from ... import color as _color
 class GLMaterial:
     """Base Material properties for Phong shading"""
 
-    _ambient = (0.0, 0.0, 0.0)
+    _ambient = (0.2, 0.2, 0.2)
 
     # color is the "color" we tend to think of, tends to be white for metals
-    _diffuse = (0.0, 0.0, 0.0)
+    _diffuse = (0.8, 0.8, 0.8)
 
     # plastics white, metals darker color
-    _specular = (0.0, 0.0, 0.0)
+    _specular = (0.5, 0.5, 0.5)
 
     # polished metals has the highest shine, rubber type materials will have a rally low shine. plastics are in between
-    _shine = 0.0  # 0.0 to 128.0
+    _shine = 32.0  # 0.0 to 128.0
 
     def __init__(self, color: _color.Color):
         self._color = color

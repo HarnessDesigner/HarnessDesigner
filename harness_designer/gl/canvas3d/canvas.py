@@ -668,6 +668,11 @@ class Canvas(glcanvas.GLCanvas):
 
     @_debug.logfunc
     def _draw_scene(self, objects):
+        # Get current projection and view matrices from OpenGL BEFORE activating shader
+        # (these are set by the fixed-function pipeline in _on_draw)
+        projection_matrix = GL.glGetFloatv(GL.GL_PROJECTION_MATRIX)
+        view_matrix = GL.glGetFloatv(GL.GL_MODELVIEW_MATRIX)
+        
         # Set global shader uniforms that are the same for all objects
         GL.glUseProgram(self._shader_program)
         
@@ -678,10 +683,6 @@ class Canvas(glcanvas.GLCanvas):
         # Set projection and view matrices
         projection_loc = GL.glGetUniformLocation(self._shader_program, "projection")
         view_loc = GL.glGetUniformLocation(self._shader_program, "view")
-        
-        # Get current projection and view matrices from OpenGL
-        projection_matrix = GL.glGetFloatv(GL.GL_PROJECTION_MATRIX)
-        view_matrix = GL.glGetFloatv(GL.GL_MODELVIEW_MATRIX)
         
         GL.glUniformMatrix4fv(projection_loc, 1, GL.GL_FALSE, projection_matrix)
         GL.glUniformMatrix4fv(view_loc, 1, GL.GL_FALSE, view_matrix)
@@ -716,6 +717,9 @@ class Canvas(glcanvas.GLCanvas):
                 GL.glVertex3f(p2.x, y, p1.z)
                 GL.glVertex3f(p1.x, y, p1.z)
                 GL.glEnd()
+        
+        # Disable shader program after rendering objects
+        GL.glUseProgram(0)
 
     def _render_reflection(self):
         GL.glPushMatrix()
@@ -764,7 +768,10 @@ class Canvas(glcanvas.GLCanvas):
                 self._render_bounding_boxes()
 
             if self.config.focal_target.enable:
+                # Re-enable shader for focal target rendering
+                GL.glUseProgram(self._shader_program)
                 self._focal_target.obj3d.render(self._shader_program)
+                GL.glUseProgram(0)
 
             GL.glPopMatrix()
 
