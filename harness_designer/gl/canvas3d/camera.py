@@ -223,6 +223,8 @@ class Camera:
         self._right_norm = None
         self._forward_norm = None
         self._frustum_planes = None
+        self._frustum_normals = None
+        self._frustum_distances = None
 
         self._target = None
 
@@ -293,9 +295,10 @@ class Camera:
         if self._is_dirty:
             self._update_views()
 
-        planes = self._frustum_planes
         aabb_in_frustum_planes = self._aabb_in_frustum_planes
         camera_pos = self._position.as_numpy
+        normals = self._frustum_normals
+        distances = self._frustum_distances
         
         # Separate focal points from regular objects early
         focal_points = []
@@ -309,7 +312,7 @@ class Camera:
         # Filter regular objects using frustum culling
         visible_objs = []
         for obj in regular_objs:
-            if aabb_in_frustum_planes(planes, *obj.obj3d.aabb):
+            if aabb_in_frustum_planes(normals, distances, *obj.obj3d.aabb):
                 # Calculate distance using numpy (avoid Line object creation)
                 obj_pos = obj.obj3d.position.as_numpy
                 diff = camera_pos - obj_pos
@@ -340,10 +343,12 @@ class Camera:
 
     @staticmethod
     @_debug.logfunc
-    def _aabb_in_frustum_planes(planes: np.ndarray, p1: _point.Point, p2: _point.Point) -> bool:
+    def _aabb_in_frustum_planes(normals: np.ndarray, distances: np.ndarray, 
+                                p1: _point.Point, p2: _point.Point) -> bool:
         """
-        mn_xyz, mx_xyz: array-like shape (3,)
-        planes: (6,4) from extract_frustum_planes
+        normals: (6,3) plane normals
+        distances: (6,) plane distances
+        p1, p2: AABB min and max points
 
         Returns True if intersects / inside, False if fully outside.
         """
@@ -353,15 +358,11 @@ class Camera:
         c = (mn + mx) * 0.5
         e = (mx - mn) * 0.5
 
-        # normals and ds
-        n = planes[:, 0:3]  # (6,3)
-        d = planes[:, 3]  # (6,)
-
         # signed distance from center to each plane
-        s = (n @ c) + d  # (6,)
+        s = (normals @ c) + distances  # (6,)
 
         # projected radius of extents onto plane normal
-        r = (np.abs(n) @ e)  # (6,)
+        r = (np.abs(normals) @ e)  # (6,)
 
         # if outside any plane -> reject
         return np.all((s + r) >= 0.0)
@@ -450,7 +451,9 @@ class Camera:
         self._right = right
         self._forward = forward_ground
 
-        self._focal_distance = _line.Line(self._position, self._focal_position).length()
+        # Calculate focal distance directly without creating Line object
+        diff = self._focal_position.as_numpy - self._position.as_numpy
+        self._focal_distance = np.linalg.norm(diff)
 
     @_debug.logfunc
     def _update_views(self):
@@ -470,6 +473,9 @@ class Camera:
 
             self._clip = (self._projection @ self._modelview).astype(np.float32)
             self._frustum_planes = self._extract_frustum_planes(self._clip)
+            # Pre-extract normals and distances for faster AABB checking
+            self._frustum_normals = self._frustum_planes[:, 0:3]
+            self._frustum_distances = self._frustum_planes[:, 3]
 
     @_debug.logfunc
     def Rotate(self, dx, dy):
