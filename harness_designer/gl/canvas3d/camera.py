@@ -296,9 +296,14 @@ class Camera:
             self._update_views()
 
         aabb_in_frustum_planes = self._aabb_in_frustum_planes
-        camera_pos = self._position.as_numpy
+        camera_position = self._position.as_numpy
         normals = self._frustum_normals
         distances = self._frustum_distances
+        
+        # Helper to calculate squared distance from camera to object
+        def calc_dist_squared(obj_position):
+            diff = camera_position - obj_position
+            return np.dot(diff, diff)
         
         # Separate focal points from regular objects early
         focal_points = []
@@ -313,17 +318,12 @@ class Camera:
         visible_objs = []
         for obj in regular_objs:
             if aabb_in_frustum_planes(normals, distances, *obj.obj3d.aabb):
-                # Calculate distance using numpy (avoid Line object creation)
-                obj_pos = obj.obj3d.position.as_numpy
-                diff = camera_pos - obj_pos
-                dist_squared = np.dot(diff, diff)
+                dist_squared = calc_dist_squared(obj.obj3d.position.as_numpy)
                 visible_objs.append((dist_squared, obj))
         
         # Add focal points with their distances
         for obj in focal_points:
-            obj_pos = obj.obj3d.position.as_numpy
-            diff = camera_pos - obj_pos
-            dist_squared = np.dot(diff, diff)
+            dist_squared = calc_dist_squared(obj.obj3d.position.as_numpy)
             visible_objs.append((dist_squared, obj))
         
         # Sort by distance (far to near) - using tuple comparison is faster than lambda
