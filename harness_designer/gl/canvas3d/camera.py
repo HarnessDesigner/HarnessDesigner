@@ -223,8 +223,6 @@ class Camera:
         self._right_norm = None
         self._forward_norm = None
         self._frustum_planes = None
-        self._frustum_normals = None
-        self._frustum_distances = None
 
         self._target = None
 
@@ -295,60 +293,37 @@ class Camera:
         if self._is_dirty:
             self._update_views()
 
+        planes = self._frustum_planes
         aabb_in_frustum_planes = self._aabb_in_frustum_planes
-        camera_position = self._position.as_numpy
-        normals = self._frustum_normals
-        distances = self._frustum_distances
-        
-        # Helper to calculate squared distance from camera to object
-        def calc_dist_squared(obj_position):
-            diff = camera_position - obj_position
-            return np.dot(diff, diff)
-        
-        # Separate focal points from regular objects early
-        focal_points = []
-        regular_objs = []
-        for obj in objs:
-            if isinstance(obj, _focal_target.FocalPoint):
-                focal_points.append(obj)
-            else:
-                regular_objs.append(obj)
-        
-        # Filter regular objects using frustum culling
-        visible_objs = []
-        for obj in regular_objs:
-            if aabb_in_frustum_planes(normals, distances, *obj.obj3d.aabb):
-                dist_squared = calc_dist_squared(obj.obj3d.position.as_numpy)
-                visible_objs.append((dist_squared, obj))
-        
-        # Add focal points with their distances
-        for obj in focal_points:
-            dist_squared = calc_dist_squared(obj.obj3d.position.as_numpy)
-            visible_objs.append((dist_squared, obj))
-        
-        # Sort by distance (far to near) - using tuple comparison is faster than lambda
-        visible_objs.sort(reverse=True)
-        
-        # Separate opaque and transparent objects
-        opaque = []
-        transparent = []
-        for _, obj in visible_objs:
+        res = [
+            [_line.Line(self._position, obj.obj3d.position).length(), obj] for obj in objs
+            if isinstance(obj, _focal_target.FocalPoint) or
+            aabb_in_frustum_planes(planes, *obj.obj3d.aabb)]
+
+        # sort the objects by distance from the camera
+        res = sorted(res, key=lambda o: o[0])
+
+        # we need to have the order as far -> near, we also trim off the distance
+        # that was used for saorting
+        res = [res[i][1] for i in range(len(res) - 1, -1, -1)]
+
+        ret = []
+        offset = 0
+        for obj in res:
             if obj.obj3d.is_opaque:
-                opaque.append(obj)
+                ret.insert(offset, obj)
+                offset += 1
             else:
-                transparent.append(obj)
-        
-        # Return opaque first (far to near), then transparent (far to near)
-        return opaque + transparent
+                ret.append(obj)
+
+        return ret
 
     @staticmethod
     @_debug.logfunc
-    def _aabb_in_frustum_planes(normals: np.ndarray, distances: np.ndarray, 
-                                p1: _point.Point, p2: _point.Point) -> bool:
+    def _aabb_in_frustum_planes(planes: np.ndarray, p1: _point.Point, p2: _point.Point) -> bool:
         """
-        normals: (6,3) plane normals
-        distances: (6,) plane distances
-        p1, p2: AABB min and max points
+        mn_xyz, mx_xyz: array-like shape (3,)
+        planes: (6,4) from extract_frustum_planes
 
         Returns True if intersects / inside, False if fully outside.
         """
@@ -358,11 +333,15 @@ class Camera:
         c = (mn + mx) * 0.5
         e = (mx - mn) * 0.5
 
+        # normals and ds
+        n = planes[:, 0:3]  # (6,3)
+        d = planes[:, 3]  # (6,)
+
         # signed distance from center to each plane
-        s = (normals @ c) + distances  # (6,)
+        s = (n @ c) + d  # (6,)
 
         # projected radius of extents onto plane normal
-        r = (np.abs(normals) @ e)  # (6,)
+        r = (np.abs(n) @ e)  # (6,)
 
         # if outside any plane -> reject
         return np.all((s + r) >= 0.0)
@@ -451,9 +430,7 @@ class Camera:
         self._right = right
         self._forward = forward_ground
 
-        # Calculate focal distance directly without creating Line object
-        diff = self._focal_position.as_numpy - self._position.as_numpy
-        self._focal_distance = np.linalg.norm(diff)
+        self._focal_distance = _line.Line(self._position, self._focal_position).length()
 
     @_debug.logfunc
     def _update_views(self):
@@ -473,9 +450,6 @@ class Camera:
 
             self._clip = (self._projection @ self._modelview).astype(np.float32)
             self._frustum_planes = self._extract_frustum_planes(self._clip)
-            # Pre-extract normals and distances for faster AABB checking
-            self._frustum_normals = self._frustum_planes[:, 0:3]
-            self._frustum_distances = self._frustum_planes[:, 3]
 
     @_debug.logfunc
     def Rotate(self, dx, dy):
