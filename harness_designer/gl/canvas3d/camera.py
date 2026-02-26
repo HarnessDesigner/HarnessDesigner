@@ -295,28 +295,48 @@ class Camera:
 
         planes = self._frustum_planes
         aabb_in_frustum_planes = self._aabb_in_frustum_planes
-        res = [
-            [_line.Line(self._position, obj.obj3d.position).length(), obj] for obj in objs
-            if isinstance(obj, _focal_target.FocalPoint) or
-            aabb_in_frustum_planes(planes, *obj.obj3d.aabb)]
-
-        # sort the objects by distance from the camera
-        res = sorted(res, key=lambda o: o[0])
-
-        # we need to have the order as far -> near, we also trim off the distance
-        # that was used for saorting
-        res = [res[i][1] for i in range(len(res) - 1, -1, -1)]
-
-        ret = []
-        offset = 0
-        for obj in res:
-            if obj.obj3d.is_opaque:
-                ret.insert(offset, obj)
-                offset += 1
+        camera_pos = self._position.as_numpy
+        
+        # Separate focal points from regular objects early
+        focal_points = []
+        regular_objs = []
+        for obj in objs:
+            if isinstance(obj, _focal_target.FocalPoint):
+                focal_points.append(obj)
             else:
-                ret.append(obj)
-
-        return ret
+                regular_objs.append(obj)
+        
+        # Filter regular objects using frustum culling
+        visible_objs = []
+        for obj in regular_objs:
+            if aabb_in_frustum_planes(planes, *obj.obj3d.aabb):
+                # Calculate distance using numpy (avoid Line object creation)
+                obj_pos = obj.obj3d.position.as_numpy
+                diff = camera_pos - obj_pos
+                dist_squared = np.dot(diff, diff)
+                visible_objs.append((dist_squared, obj))
+        
+        # Add focal points with their distances
+        for obj in focal_points:
+            obj_pos = obj.obj3d.position.as_numpy
+            diff = camera_pos - obj_pos
+            dist_squared = np.dot(diff, diff)
+            visible_objs.append((dist_squared, obj))
+        
+        # Sort by distance (far to near) - using tuple comparison is faster than lambda
+        visible_objs.sort(reverse=True)
+        
+        # Separate opaque and transparent objects
+        opaque = []
+        transparent = []
+        for _, obj in visible_objs:
+            if obj.obj3d.is_opaque:
+                opaque.append(obj)
+            else:
+                transparent.append(obj)
+        
+        # Return opaque first (far to near), then transparent (far to near)
+        return opaque + transparent
 
     @staticmethod
     @_debug.logfunc
