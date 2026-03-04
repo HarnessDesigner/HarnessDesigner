@@ -2,7 +2,7 @@ from typing import Iterable as _Iterable
 
 import uuid
 
-from . import PJTEntryBase, PJTTableBase
+from .pjt_bases import PJTEntryBase, PJTTableBase
 
 from ...geometry import point as _point
 

@@ -1,4 +1,4 @@
-# distutils: include_dirs = C:\Python311\Lib\site-packages\numpy\_core\include
+# distutils: include_dirs = c:\python3.11.14\Lib\site-packages\numpy\_core\include
 # culling_nogil.pyx
 # cython: language_level=3
 # cython: boundscheck=False

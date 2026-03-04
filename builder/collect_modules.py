@@ -63,8 +63,7 @@ vtk
 vtkmodules
 cadquery_ocp
 ocpsvg
-build123d
-harness_designer'''
+build123d'''
 
 
 def get_modules():

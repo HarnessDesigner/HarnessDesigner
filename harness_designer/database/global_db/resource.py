@@ -3,7 +3,7 @@ import requests
 import zipfile
 import io
 
-from . import EntryBase, TableBase
+from .bases import EntryBase, TableBase
 
 
 class ResourcesTable(TableBase):

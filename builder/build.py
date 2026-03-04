@@ -46,6 +46,8 @@ def main(args):
 
         compile_harness_designer.run(pyi_rename)
 
+
+def build_installer():
     import collect_stdlib
     import collect_modules
 
@@ -88,10 +90,8 @@ def main(args):
     else:
         pass
 
-    args += ['--windowed', '--noconfirm', script]
-
-    for item in args:
-        print(item)
+    # '--windowed'
+    args += ['--collect-all=harness_designer', '--noconfirm', script]
 
     PyInstaller.__main__.run(args)
 

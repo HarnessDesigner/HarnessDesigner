@@ -3,7 +3,7 @@ from typing import Iterable as _Iterable, TYPE_CHECKING
 
 import numpy as np
 
-from . import EntryBase, TableBase
+from .bases import EntryBase, TableBase
 from .mixins import NameMixin
 
 from ...geometry import point as _point

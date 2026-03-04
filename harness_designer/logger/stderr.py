@@ -41,7 +41,7 @@ class StdErr(io.TextIOWrapper):
     def tell(self) -> int:
         return self.__original_stderr__.tell()
 
-    def truncate(self, __size: int | None = ...) -> int:
+    def truncate(self, __size: int | None = None) -> int:
         return self.__original_stderr__.truncate(__size)
 
     def writable(self) -> bool:
@@ -50,7 +50,7 @@ class StdErr(io.TextIOWrapper):
     def __del__(self) -> None:
         pass
 
-    def _checkClosed(self, msg: str | None = ...) -> None:  # undocumented
+    def _checkClosed(self, msg: str | None = None) -> None:  # undocumented
         pass
 
     def detach(self) -> BinaryIO:

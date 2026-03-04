@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Iterable as _Iterable
 
 import numpy as np
 
-from . import PJTEntryBase, PJTTableBase
+from .pjt_bases import PJTEntryBase, PJTTableBase
 
 from .mixins import (Angle3DMixin, Angle2DMixin, Position3DMixin, Position2DMixin,
                      PartMixin, Visible3DMixin, Visible2DMixin, NameMixin)

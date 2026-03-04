@@ -210,3 +210,7 @@ __marimo__/
 /harness_designer/assimp-vc143-mtd.ilk
 /harness_designer/assimp-vc143-mtd.pdb
 /libs/assimp/build/
+/hd_build/
+/harness_designer/gl/canvas3d/culling.c
+/libs/assimp/port/PyAssimp/pyassimp.egg-info/
+/libs/assimp/port/PyAssimp/build/

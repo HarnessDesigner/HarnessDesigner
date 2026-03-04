@@ -1,0 +1,31 @@
+name: Windows Build
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: lukka/get-cmake@latest  # <--= Just this one-liner suffices.
+      - uses: actions/setup-python@v6.1.0
+        with:
+          python-version: '3.11.14'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install Cython wheel wxPython pyinstaller
+          git submodule update --init
+
+      - name: Install
+        run: |
+          python setup.py install --installer

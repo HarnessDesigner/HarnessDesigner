@@ -2,7 +2,7 @@ from typing import Iterable as _Iterable
 
 import uuid
 
-from . import EntryBase, TableBase
+from .bases import EntryBase, TableBase
 from ...geometry import point as _point
 
 from .mixins import (PartNumberMixin, ManufacturerMixin, DescriptionMixin, SeriesMixin,

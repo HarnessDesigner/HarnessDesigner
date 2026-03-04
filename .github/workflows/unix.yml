@@ -1,0 +1,51 @@
+name: Linux Build
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: lukka/get-cmake@latest  # <--= Just this one-liner suffices.
+      - uses: actions/setup-python@v6.1.0
+        with:
+          python-version: '3.11.14'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          git submodule update --init
+          sudo apt-get update
+          sudo apt-get install -y \
+                  freeglut3-dev \
+                  libcurl4-openssl-dev \
+                  libexpat1-dev \
+                  libgl1-mesa-dev \
+                  libglu1-mesa-dev \
+                  libgtk-3-dev \
+                  libjpeg-dev \
+                  libnotify-dev \
+                  libsdl2-dev \
+                  libsm-dev \
+                  libtiff-dev \
+                  libwebkit2gtk-4.0-dev \
+                  libxtst-dev \
+                  libunwind-dev \
+                  libgstreamer1.0-dev \
+                  libgstreamer-plugins-base1.0-dev
+          
+          pip install Cython wheel wxPython pyinstaller          
+
+
+      - name: Install
+        run: |
+          python setup.py install --installer

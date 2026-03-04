@@ -1,4 +1,4 @@
-from .. import TableBase
+from ..bases import TableBase
 
 
 class BaseMixin:

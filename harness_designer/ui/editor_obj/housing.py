@@ -12,9 +12,6 @@ if TYPE_CHECKING:
     from ...objects import housing as _housing
     from . import EditorObjPanel
 
-class HousingEditor(_foldpanelbar.FoldPanelBar):
-
-    def __init__(self, parent: "EditorObjPanel", obj: "_housing.Housing"):
 
 class HousingEditor:
 
@@ -96,7 +93,3 @@ class HousingEditor:
     def on_position_z(self, evt):
         self.db_obj.point3d.point.z = self.position_z.GetValue()
         evt.Skip()
-
-
-
-'''

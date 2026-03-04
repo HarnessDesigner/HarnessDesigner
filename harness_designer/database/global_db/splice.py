@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
-from .import EntryBase, TableBase
+from .bases import EntryBase, TableBase
 from .mixins import (PartNumberMixin, DescriptionMixin, ManufacturerMixin, FamilyMixin,
                      SeriesMixin, MaterialMixin, ColorMixin, PlatingMixin, ResourceMixin,
                      Model3DMixin, WeightMixin)

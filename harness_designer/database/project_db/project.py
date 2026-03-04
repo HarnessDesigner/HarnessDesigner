@@ -1,7 +1,7 @@
 
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
-from . import PJTEntryBase, PJTTableBase
+from .pjt_bases import PJTEntryBase, PJTTableBase
 
 
 if TYPE_CHECKING:

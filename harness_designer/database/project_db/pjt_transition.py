@@ -1,7 +1,7 @@
 
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
-from . import PJTEntryBase, PJTTableBase
+from .pjt_bases import PJTEntryBase, PJTTableBase
 
 from ...geometry import angle as _angle
 from .mixins import Angle3DMixin, Position3DMixin, PartMixin, NameMixin, Visible3DMixin

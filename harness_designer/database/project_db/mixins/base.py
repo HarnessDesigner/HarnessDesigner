@@ -1,4 +1,4 @@
-from .. import PJTTableBase
+from ..pjt_bases import PJTTableBase
 
 
 class BaseMixin:

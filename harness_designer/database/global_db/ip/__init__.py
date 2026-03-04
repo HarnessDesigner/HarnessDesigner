@@ -1,7 +1,7 @@
 from typing import Iterable as _Iterable
 import wx
 
-from .. import EntryBase, TableBase
+from ..bases import EntryBase, TableBase
 
 from . import solid as _solid
 from . import fluid as _fluid

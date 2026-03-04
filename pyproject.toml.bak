@@ -7,8 +7,9 @@ name = "harness_designer"
 version = "0.0.1"
 description = "Wiring harness design software."
 readme = "README.md"
-requires-python = "==3.11"
-license = { file = "LICENSE" }
+requires-python = "==3.11.14"
+license = {file = "LICENSE"}
+keywords = []
 authors = [{ name = "Kevin G. Schlosser" }]
 maintainers = [{ name = "Kevin G. Schlosser" }]
 dynamic = ["dependencies"]
@@ -17,6 +18,8 @@ dynamic = ["dependencies"]
 "Homepage" = "https://github.com/HarnessDesigner/HarnessDesigner"
 "Bug Reports" = "https://github.com/HarnessDesigner/HarnessDesigner/issues"
 "Source" = "https://github.com/HarnessDesigner/HarnessDesigner"
+
+
 
 # This is configuration specific to the `setuptools` build backend.
 # If you are using a different build backend, you will need to change this.

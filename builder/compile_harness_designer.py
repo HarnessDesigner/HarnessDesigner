@@ -1,8 +1,13 @@
 import os
-import utils
+
+try:
+    from . import utils
+except ImportError:
+    import utils
 
 
-def run(rename_pyi):
+def run(rename_py):
+
     import harness_designer
 
     hd_path = os.path.dirname(harness_designer.__file__)
@@ -11,6 +16,8 @@ def run(rename_pyi):
 
     from Cython.Build import Cythonize
 
-    Cythonize.main(['-3', '--build', f'--parallel={os.cpu_count()}', '--inplace'] + cfiles)
+    Cythonize.main(['-3', '--build', f'--parallel={os.cpu_count()}', '--inplace', '--keep-going'] + cfiles)
 
-    utils.cleanup_after_compile(hd_path, rename_pyi)
+    remove_py = not rename_py
+
+    utils.cleanup_after_compile(hd_path, remove_py, rename_py)

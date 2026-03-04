@@ -1,6 +1,6 @@
 from typing import Iterable as _Iterable, Union as _Union, TYPE_CHECKING
 
-from . import PJTEntryBase, PJTTableBase
+from .pjt_bases import PJTEntryBase, PJTTableBase
 from .mixins import NameMixin
 
 

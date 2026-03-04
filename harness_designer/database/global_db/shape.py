@@ -1,7 +1,7 @@
 
 from typing import Iterable as _Iterable
 
-from .import EntryBase, TableBase
+from .bases import EntryBase, TableBase
 from .mixins import NameMixin
 
 

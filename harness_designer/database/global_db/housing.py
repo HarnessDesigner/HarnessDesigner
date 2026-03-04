@@ -1,7 +1,7 @@
 import uuid
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
-from . import EntryBase, TableBase
+from .bases import EntryBase, TableBase
 from . import terminal as _terminal
 from . import seal as _seal
 from . import cpa_lock as _cpa_lock

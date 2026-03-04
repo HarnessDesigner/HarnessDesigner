@@ -1,7 +1,7 @@
 from typing import Iterable as _Iterable, TYPE_CHECKING
 import math
 
-from . import EntryBase, TableBase
+from .bases import EntryBase, TableBase
 
 from .mixins import (PartNumberMixin, ManufacturerMixin, DescriptionMixin, SeriesMixin,
                      ResourceMixin, ColorMixin, FamilyMixin, MaterialMixin, TemperatureMixin)

@@ -5,7 +5,7 @@ import os
 import uuid
 import wx
 
-from .. import EntryBase, TableBase
+from ..bases import EntryBase, TableBase
 from ....geometry import angle as _angle
 from ....geometry import point as _point
 from . import loader as _loader

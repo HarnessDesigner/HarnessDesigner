@@ -42,7 +42,7 @@ class StdOut(io.TextIOWrapper):
     def tell(self) -> int:
         return self.__original_stdout__.tell()
 
-    def truncate(self, __size: int | None = ...) -> int:
+    def truncate(self, __size: int | None = None) -> int:
         return self.__original_stdout__.truncate(__size)
 
     def writable(self) -> bool:
@@ -51,7 +51,7 @@ class StdOut(io.TextIOWrapper):
     def __del__(self) -> None:
         pass
 
-    def _checkClosed(self, msg: str | None = ...) -> None:  # undocumented
+    def _checkClosed(self, msg: str | None = None) -> None:  # undocumented
         pass
 
     def detach(self) -> BinaryIO:

@@ -1,5 +1,5 @@
 
-from . import TableBase
+from .bases import TableBase
 
 
 class SettingsTable(TableBase):

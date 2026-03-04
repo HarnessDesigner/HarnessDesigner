@@ -1,6 +1,6 @@
-
 from typing import Iterable as _Iterable
-from . import EntryBase, TableBase
+
+from .bases import EntryBase, TableBase
 
 from .mixins import (PartNumberMixin, ManufacturerMixin, DescriptionMixin, FamilyMixin,
                      SeriesMixin, ResourceMixin, TemperatureMixin, WeightMixin,

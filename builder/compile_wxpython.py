@@ -1,5 +1,9 @@
 import os
-import utils
+
+try:
+    from . import utils
+except ImportError:
+    import utils
 
 
 def run():
@@ -11,6 +15,9 @@ def run():
 
     from Cython.Build import Cythonize
 
-    Cythonize.main(['-3', '--build', f'--parallel={os.cpu_count()}', '--inplace', '--keep-going'] + cfiles)
-
-    utils.cleanup_after_compile(wx_path)
+    try:
+        Cythonize.main(['-3', '--build', f'--parallel={os.cpu_count()}', '--inplace', '--keep-going'] + cfiles)
+    except RuntimeError:
+        pass
+    else:
+        utils.cleanup_after_compile(wx_path, False)
