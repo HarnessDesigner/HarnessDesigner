@@ -1,4 +1,4 @@
-from typing import Iterable as _Iterable, Union as _Union
+from typing import Iterable as _Iterable, Union as _Union, TYPE_CHECKING
 
 from . import PJTEntryBase, PJTTableBase
 from .mixins import NameMixin
@@ -11,6 +11,10 @@ from . import pjt_housing as _pjt_housing
 from . import pjt_wire_service_loop as _pjt_wire_service_loop
 
 from ...geometry import point as _point
+
+
+if TYPE_CHECKING:
+    from ...objects import circuit as _circuit_obj
 
 
 class PJTCircuitsTable(PJTTableBase):
@@ -76,6 +80,13 @@ class _Set:
 
 class PJTCircuit(PJTEntryBase, NameMixin):
     _table: PJTCircuitsTable = None
+
+
+    def get_object(self) -> "_circuit_obj.Circuit":
+        return self._obj
+
+    def set_object(self, obj: "_circuit_obj.Circuit"):
+        self._obj = obj
 
     @property
     def start_terminal(self) -> _pjt_terminal.PJTTerminal:

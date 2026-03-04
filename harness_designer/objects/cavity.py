@@ -18,21 +18,14 @@ class Cavity(_ObjectBase):
     obj3d: _cavity_3d.Cavity = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
-                 db_obj: "_pjt_cavity.PJTCavity", housing: "_housing.Housing"):
+                 db_obj: "_pjt_cavity.PJTCavity"):
 
         super().__init__(mainframe)
 
         self.db_obj = db_obj
-        self.housing = housing
+        db_obj.set_object(self)
+
         self.obj2d = _cavity_2d.Cavity(self, db_obj)
         self.obj3d = _cavity_3d.Cavity(self, db_obj)
 
-        self.seal = None
-        self.terminal = None
-
-    def add_terminal(self, terminal: "_terminal.Terminal"):
-        self.terminal = terminal
-
-    def add_seal(self, seal: "_seal.Seal"):
-        self.seal = seal
 

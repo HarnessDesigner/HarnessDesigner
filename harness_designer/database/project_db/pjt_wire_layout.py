@@ -8,6 +8,8 @@ from .mixins import Position3DMixin, Position2DMixin, Visible3DMixin, Visible2DM
 if TYPE_CHECKING:
     from . import pjt_wire as _pjt_wire
 
+    from ...objects import wire_layout as _wire_layout_obj
+
 
 class PJTWireLayoutsTable(PJTTableBase):
     __table_name__ = 'pjt_wire_layouts'
@@ -33,6 +35,12 @@ class PJTWireLayout(PJTEntryBase, Position3DMixin, Position2DMixin,
                     Visible3DMixin, Visible2DMixin):
 
     _table: PJTWireLayoutsTable = None
+
+    def get_object(self) -> "_wire_layout_obj.WireLayout":
+        return self._obj
+
+    def set_object(self, obj: "_wire_layout_obj.WireLayout"):
+        self._obj = obj
 
     @property
     def attached_wires(self) -> list["_pjt_wire.PJTWire"]:

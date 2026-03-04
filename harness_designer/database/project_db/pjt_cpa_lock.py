@@ -1,11 +1,13 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 from . import PJTEntryBase, PJTTableBase
-from .mixins import Angle3DMixin, Position3DMixin, PartMixin, HousingMixin, Visible3DMixin
+from .mixins import Angle3DMixin, Position3DMixin, PartMixin, HousingMixin, Visible3DMixin, NameMixin
 
 
 if TYPE_CHECKING:
     from ..global_db import cpa_lock as _cpa_lock
+
+    from ...objects import cpa_lock as _cpa_lock_obj
 
 
 class PJTCPALocksTable(PJTTableBase):
@@ -30,9 +32,15 @@ class PJTCPALocksTable(PJTTableBase):
 
 
 class PJTCPALock(PJTEntryBase, Angle3DMixin, Position3DMixin,
-                 PartMixin, HousingMixin, Visible3DMixin):
+                 PartMixin, HousingMixin, Visible3DMixin, NameMixin):
 
     _table: PJTCPALocksTable = None
+
+    def get_object(self) -> "_cpa_lock_obj.CPALock":
+        return self._obj
+
+    def set_object(self, obj: "_cpa_lock_obj.CPALock"):
+        self._obj = obj
 
     @property
     def table(self) -> PJTCPALocksTable:

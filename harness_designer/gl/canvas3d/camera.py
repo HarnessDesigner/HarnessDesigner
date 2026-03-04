@@ -193,7 +193,6 @@ import numpy as np
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ...geometry import line as _line
-from . import focal_target as _focal_target
 from ... import debug as _debug
 
 if TYPE_CHECKING:
@@ -209,6 +208,8 @@ class Camera:
     def __init__(self, canvas: "_canvas.Canvas"):
         self.canvas = canvas
         self._context = canvas.context
+        self._camera_moved_since_last_cull = True
+        self._cached_visible = []
 
         self._is_dirty = True
         self._projection = None
@@ -223,6 +224,8 @@ class Camera:
         self._right_norm = None
         self._forward_norm = None
         self._frustum_planes = None
+        self._frustum_normals = None
+        self._frustum_distances = None
 
         self._target = None
 
@@ -258,14 +261,11 @@ class Camera:
         self._update_camera(None)
 
     def _update_camera(self, _=None):
-        if self._position.y < self.canvas.config.floor.ground_height + 0.05:
-            self._position.y = self.canvas.config.floor.ground_height + 0.05
-            return
+        self._camera_moved_since_last_cull = True
 
-        if self.canvas.config.focal_target.enable and self._target is None:
-            self._target = _focal_target.FocalPoint(self.canvas)
-        elif not self.canvas.config.focal_target.enable and self._target is not None:
-            self._target = None
+        if self._position.y < self.canvas.config.floor.ground_height + 0.05:
+            with self._position:
+                self._position.y = self.canvas.config.floor.ground_height + 0.25
 
         if self._context.is_locked:
             self._is_dirty = True
@@ -285,69 +285,13 @@ class Camera:
         u = np.cross(r, f)  # camera up re-orthonormalized  # NOQA
         return f, r, u
 
-    @_debug.logfunc
-    def GetObjectsInView(self, objs: list) -> list:
-        if self._clip is None:
-            self._is_dirty = True
-
-        if self._is_dirty:
-            self._update_views()
-
-        planes = self._frustum_planes
-        aabb_in_frustum_planes = self._aabb_in_frustum_planes
-        res = [
-            [_line.Line(self._position, obj.obj3d.position).length(), obj] for obj in objs
-            if isinstance(obj, _focal_target.FocalPoint) or
-            aabb_in_frustum_planes(planes, *obj.obj3d.aabb)]
-
-        # sort the objects by distance from the camera
-        res = sorted(res, key=lambda o: o[0])
-
-        # we need to have the order as far -> near, we also trim off the distance
-        # that was used for saorting
-        res = [res[i][1] for i in range(len(res) - 1, -1, -1)]
-
-        ret = []
-        offset = 0
-        for obj in res:
-            if obj.obj3d.is_opaque:
-                ret.insert(offset, obj)
-                offset += 1
-            else:
-                ret.append(obj)
-
-        return ret
+    @property
+    def has_camera_moved(self):
+        res = self._camera_moved_since_last_cull
+        self._camera_moved_since_last_cull = False
+        return res
 
     @staticmethod
-    @_debug.logfunc
-    def _aabb_in_frustum_planes(planes: np.ndarray, p1: _point.Point, p2: _point.Point) -> bool:
-        """
-        mn_xyz, mx_xyz: array-like shape (3,)
-        planes: (6,4) from extract_frustum_planes
-
-        Returns True if intersects / inside, False if fully outside.
-        """
-        mn = p1.as_numpy
-        mx = p2.as_numpy
-
-        c = (mn + mx) * 0.5
-        e = (mx - mn) * 0.5
-
-        # normals and ds
-        n = planes[:, 0:3]  # (6,3)
-        d = planes[:, 3]  # (6,)
-
-        # signed distance from center to each plane
-        s = (n @ c) + d  # (6,)
-
-        # projected radius of extents onto plane normal
-        r = (np.abs(n) @ e)  # (6,)
-
-        # if outside any plane -> reject
-        return np.all((s + r) >= 0.0)
-
-    @staticmethod
-    @_debug.logfunc
     def _extract_frustum_planes(view_proj: np.ndarray) -> np.ndarray:
         """
         Returns planes as an array shape (6,4): [A,B,C,D] per plane.
@@ -430,7 +374,21 @@ class Camera:
         self._right = right
         self._forward = forward_ground
 
-        self._focal_distance = _line.Line(self._position, self._focal_position).length()
+        # Calculate focal distance directly without creating Line object
+        diff = self._focal_position.as_numpy - self._position.as_numpy
+        self._focal_distance = np.linalg.norm(diff)
+
+    @property
+    def projection(self) -> np.ndarray:
+        return self._projection
+
+    @property
+    def modelview(self) -> np.ndarray:
+        return self._modelview
+
+    @property
+    def viewport(self) -> np.ndarray:
+        return self._viewport
 
     @_debug.logfunc
     def _update_views(self):
@@ -448,8 +406,20 @@ class Camera:
             self._modelview = np.ascontiguousarray(np.array(
                 GL.glGetDoublev(GL.GL_MODELVIEW_MATRIX)).reshape((4, 4), order="F").T)
 
-            self._clip = (self._projection @ self._modelview).astype(np.float32)
+            self._clip = (self._projection @ self._modelview).astype(np.float64)
             self._frustum_planes = self._extract_frustum_planes(self._clip)
+            # Pre-extract normals and distances for faster AABB checking
+
+            self._frustum_normals = np.ascontiguousarray(self._frustum_planes[:, 0:3])
+            self._frustum_distances = np.ascontiguousarray(self._frustum_planes[:, 3])
+
+    @property
+    def frustum_normals(self) -> np.ndarray:
+        return self._frustum_normals
+
+    @property
+    def frustum_distances(self) -> np.ndarray:
+        return self._frustum_distances
 
     @_debug.logfunc
     def Rotate(self, dx, dy):
@@ -634,11 +604,14 @@ class Camera:
         self._focal_position += move
 
     @_debug.logfunc
-    def ProjectPoint(self, point: _point.Point) -> _point.Point:
+    def ProjectPoint(self, point: _point.Point | np.ndarray) -> _point.Point:
 
         # Step 1: Convert to homogeneous world position (4D vector)
         # Add W=1 for homogeneous coords
-        world_point = np.array([point.x, point.y, point.z, 1.0])
+        if isinstance(point, _point.Point):
+            world_point = np.array([point.x, point.y, point.z, 1.0])
+        else:
+            world_point = np.array([point[0], point[0], point[0], 1.0])
 
         # Step 2: Transform to view space using the modelview matrix
         view_point = np.dot(self._modelview, world_point)  # World space → View space
@@ -648,7 +621,7 @@ class Camera:
 
         # Perspective division: Normalize by the W component
         if clip_point[3] == 0.0:
-            raise ValueError("Perspective division failed (W=0 in clip space).")
+            return None
 
         # Normalize X, Y, Z by W in clip space
         ndc_point = clip_point[:3] / clip_point[3]

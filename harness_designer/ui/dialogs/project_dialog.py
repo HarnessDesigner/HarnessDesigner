@@ -1,12 +1,13 @@
 import wx
 
 from ..widgets import auto_complete
+from . import dialog_base as _dialog_base
 
 
-class OpenProjectDialog(wx.Dialog):
+class OpenProjectDialog(_dialog_base.BaseDialog):
 
     def __init__(self, parent, recent_projects, project_names):
-        wx.Dialog.__init__(self, parent, wx.ID_ANY, title='Open Project', style=wx.CAPTION | wx.STAY_ON_TOP)
+        _dialog_base.BaseDialog.__init__(self, parent, 'Open Project', 'Open Project')
         self.recent_projects = recent_projects
         self.project_names = project_names
 
@@ -15,8 +16,8 @@ class OpenProjectDialog(wx.Dialog):
         else:
             value = wx.EmptyString
 
-        self.project_ctrl = auto_complete.AutoComplete(self, wx.ID_ANY, value=value, autocomplete_choices=project_names, size=(200, -1))
-        project_label = wx.StaticText(self, wx.ID_ANY, label='Project:')
+        self.project_ctrl = auto_complete.AutoComplete(self.panel, wx.ID_ANY, value=value, autocomplete_choices=project_names, size=(200, -1))
+        project_label = wx.StaticText(self.panel, wx.ID_ANY, label='Project:')
 
         h_sizer = wx.BoxSizer(wx.HORIZONTAL)
         h_sizer.Add(project_label, 0, wx.ALIGN_CENTER_VERTICAL | wx.TOP | wx.BOTTOM, 20)
@@ -26,9 +27,7 @@ class OpenProjectDialog(wx.Dialog):
         sizer.Add(h_sizer, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.LEFT | wx.RIGHT | wx.TOP, 40)
         sizer.AddStretchSpacer(1)
 
-        button_sizer = self.CreateSeparatedButtonSizer(wx.OK | wx.CANCEL)
-
-        b_sizer = button_sizer.GetItem(1).GetSizer()
+        b_sizer = self.button_sizer.GetItem(1).GetSizer()
 
         for child in b_sizer.GetChildren():
             child = child.GetWindow()
@@ -36,8 +35,7 @@ class OpenProjectDialog(wx.Dialog):
                 child.SetLabel('Open')
                 break
 
-        sizer.Add(button_sizer, 0, wx.EXPAND | wx.ALL, 10)
-        self.SetSizer(sizer)
+        self.panel.SetSizer(sizer)
         self.CenterOnParent()
 
     def GetValue(self):

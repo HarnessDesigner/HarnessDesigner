@@ -5,7 +5,7 @@ import numpy as np
 from . import PJTEntryBase, PJTTableBase
 
 from .mixins import (Angle3DMixin, Angle2DMixin, Position3DMixin, Position2DMixin,
-                     PartMixin, Visible3DMixin, Visible2DMixin)
+                     PartMixin, Visible3DMixin, Visible2DMixin, NameMixin)
 
 
 if TYPE_CHECKING:
@@ -14,6 +14,8 @@ if TYPE_CHECKING:
     from . import pjt_seal as _pjt_seal
 
     from ..global_db import terminal as _terminal
+
+    from ...objects import terminal as _terminal_obj
 
 
 class PJTTerminalsTable(PJTTableBase):
@@ -47,9 +49,15 @@ class PJTTerminalsTable(PJTTableBase):
 
 
 class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin,
-                  Position2DMixin, PartMixin, Visible3DMixin, Visible2DMixin):
+                  Position2DMixin, PartMixin, Visible3DMixin, Visible2DMixin, NameMixin):
 
     _table: PJTTerminalsTable = None
+
+    def get_object(self) -> "_terminal_obj.Terminal":
+        return self._obj
+
+    def set_object(self, obj: "_terminal_obj.Terminal"):
+        self._obj = obj
 
     @property
     def is_start(self) -> bool:

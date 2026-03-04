@@ -1,7 +1,13 @@
 
-from typing import Iterable as _Iterable
+from typing import Iterable as _Iterable, TYPE_CHECKING
 
 from . import PJTEntryBase, PJTTableBase
+
+
+if TYPE_CHECKING:
+
+    from ...objects import project as _project_obj
+
 
 
 class ProjectsTable(PJTTableBase):
@@ -36,6 +42,12 @@ class ProjectsTable(PJTTableBase):
 class Project(PJTEntryBase):
     _table: ProjectsTable = None
 
+    def get_object(self) -> "_project_obj.Project":
+        return self._obj
+
+    def set_object(self, obj: "_project_obj.Project"):
+        self._obj = obj
+
     @property
     def table(self) -> ProjectsTable:
         return self._table
@@ -63,3 +75,12 @@ class Project(PJTEntryBase):
     @creator.setter
     def creator(self, value: str):
         self._table.update(self._db_id, creator=value)
+
+    @property
+    def user_model(self) -> str:
+        return self._table.select('user_model', id=self._db_id)[0][0]
+
+    @user_model.setter
+    def user_model(self, value: str):
+        self._table.update(self._db_id, user_model=value)
+

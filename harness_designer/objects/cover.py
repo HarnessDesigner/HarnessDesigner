@@ -19,6 +19,8 @@ class Cover(_ObjectBase):
         super().__init__(mainframe)
 
         self.db_obj = db_obj
+        db_obj.set_object(self)
+
         self.obj2d = _cover_2d.Cover(self, db_obj)
         self.obj3d = _cover_3d.Cover(self, db_obj)
 

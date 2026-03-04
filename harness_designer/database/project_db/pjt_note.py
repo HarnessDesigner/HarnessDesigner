@@ -1,10 +1,14 @@
-from typing import Iterable as _Iterable
+from typing import Iterable as _Iterable, TYPE_CHECKING
 
 
 from . import PJTEntryBase, PJTTableBase
 
 from .mixins import (Angle3DMixin, Angle2DMixin, Position3DMixin, Position2DMixin,
                      Visible3DMixin, Visible2DMixin)
+
+
+if TYPE_CHECKING:
+    from ...objects import note as _note_obj
 
 
 class PJTNotesTable(PJTTableBase):
@@ -35,6 +39,12 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin,
               Position3DMixin, Position2DMixin, Visible3DMixin, Visible2DMixin):
 
     _table: PJTNotesTable = None
+
+    def get_object(self) -> "_note_obj.Note":
+        return self._obj
+
+    def set_object(self, obj: "_note_obj.Note"):
+        self._obj = obj
 
     @property
     def table(self) -> PJTNotesTable:

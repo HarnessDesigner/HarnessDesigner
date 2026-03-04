@@ -631,6 +631,8 @@ class Circuit(_ObjectBase):
 
     def __init__(self, mainframe: "_ui.MainFrame", db_obj: "_pjt_circuit.PJTCircuit"):
         super().__init__(mainframe)
-        self._db_obj = db_obj
+        self.db_obj = db_obj
+        db_obj.set_object(self)
+
 
 

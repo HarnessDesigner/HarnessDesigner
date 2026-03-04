@@ -6,6 +6,8 @@ from .mixins import Position3DMixin, Visible3DMixin
 if TYPE_CHECKING:
     from . import pjt_bundle as _pjt_bundle
 
+    from ...objects import bundle_layout as _bundle_layout_obj
+
 
 class PJTBundleLayoutsTable(PJTTableBase):
     __table_name__ = 'pjt_bundle_layouts'
@@ -30,6 +32,12 @@ class PJTBundleLayoutsTable(PJTTableBase):
 
 class PJTBundleLayout(PJTEntryBase, Position3DMixin, Visible3DMixin):
     _table: PJTBundleLayoutsTable = None
+
+    def get_object(self) -> "_bundle_layout_obj.BundleLayout":
+        return self._obj
+
+    def set_object(self, obj: "_bundle_layout_obj.BundleLayout"):
+        self._obj = obj
 
     @property
     def attached_bundles(self) -> list["_pjt_bundle.PJTBundle"]:

@@ -6,7 +6,7 @@ import tempfile
 
 from wx.lib.pdfviewer import pdfViewer, pdfButtonPanel
 
-from .. import image as _image
+from ... import image as _image
 
 
 class ImageViewer(wx.Panel):

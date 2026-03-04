@@ -41,19 +41,3 @@ class Headlight:
 
         GL.glUniform1f(headlightDiameter, math.radians(self.config.cutoff))
         GL.glUniform1i(headlightEnabled, self.config.enable)
-        #
-        # # Set spotlight position and direction
-        # GL.glEnable(GL.GL_LIGHTING)
-        # GL.glEnable(GL.GL_LIGHT1)
-        # GL.glLightfv(GL.GL_LIGHT1, GL.GL_POSITION, list(self.canvas.camera.eye.as_float) + [1.0])  # Positional light (headlight)
-        # GL.glLightfv(GL.GL_LIGHT1, GL.GL_SPOT_DIRECTION, )  # Spotlight direction
-        #
-        # # FLASHLIGHT SETTINGS:
-        # GL.glLightf(GL.GL_LIGHT1, GL.GL_SPOT_CUTOFF, Config.cutoff)  # Narrow beam with a cone angle of 15 degrees
-        # GL.glLightf(GL.GL_LIGHT1, GL.GL_SPOT_EXPONENT, Config.dissipate)  # Sharper falloff near the cutoff
-        #
-        # # Intensity falls off smoothly as the light exits the beam
-        # GL.glLightfv(GL.GL_LIGHT1, GL.GL_DIFFUSE, Config.color)  # Strong white light inside the beam
-        # GL.glLightfv(GL.GL_LIGHT1, GL.GL_SPECULAR, Config.color)  # Specular highlights
-
-

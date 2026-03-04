@@ -206,3 +206,7 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+/harness_designer/assimp-vc143-mtd.dll
+/harness_designer/assimp-vc143-mtd.ilk
+/harness_designer/assimp-vc143-mtd.pdb
+/libs/assimp/build/

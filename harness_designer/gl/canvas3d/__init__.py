@@ -54,6 +54,10 @@ class Canvas3D(wx.Panel):
         self.Bind(wx.EVT_ERASE_BACKGROUND, self._on_erase_background)
         self.Bind(wx.EVT_SIZE, self._on_size)
 
+    @property
+    def camera(self):
+        return self._canvas.camera
+
     def _on_size(self, evt):
         w, h = evt.GetSize()
         self._panel.SetSize((w, h))
@@ -64,8 +68,8 @@ class Canvas3D(wx.Panel):
 
         self._canvas.Move(x, y)
 
-    def set_selected_object(self, obj):
-        self._canvas.set_selected_object(obj)
+    def set_selected(self, obj):
+        self._canvas.set_selected(obj)
 
     def set_mode(self, mode: int) -> None:
         self._canvas.set_mode(mode)

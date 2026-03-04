@@ -16,7 +16,13 @@ class ObjectBase:
 
         self._deleted = False
         self._is_selected = False
-        self.mainframe.add_object(self)
+        self._treeitem = None
+
+    def set_treeitem(self, treeitem):
+        self._treeitem = treeitem
+
+    def get_treeitem(self):
+        return self._treeitem
 
     def delete(self):
         if self._deleted:
@@ -33,12 +39,12 @@ class ObjectBase:
         raise NotImplementedError
 
     def set_selected(self, flag):
+        self._is_selected = flag
+
         if self.obj2d is not None:
             self.obj2d.set_selected(flag)
         if self.obj3d is not None:
             self.obj3d.set_selected(flag)
-
-        self._is_selected = flag
 
     @property
     def is_selected(self) -> bool:

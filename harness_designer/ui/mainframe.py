@@ -6,6 +6,8 @@ from wx import aui
 
 from .. import config as _config
 from . import dialogs as _dialogs
+from ..gl import canvas3d as _canvas3d
+
 
 if TYPE_CHECKING:
     from ..database.db_connectors import SQLConnector as _SQLConnector
@@ -28,6 +30,10 @@ class MainFrame(wx.Frame):
     project: "_project.Project" = None
 
     def __init__(self, splash):
+
+        from .. import logger
+        self.logger = logger.Log()
+
         if not Config.size:
             w, h = wx.GetDisplaySize()
 
@@ -109,6 +115,16 @@ class MainFrame(wx.Frame):
 
         self.editor_assembly = editor_assembly.EditorAssembly(self)
 
+        splash.SetText('Creating object browser...')
+        from . import object_browser
+
+        self.object_browser = object_browser.ObjectBrowser(self)
+
+        splash.SetText('Creating log viewer...')
+        from . import log_viewer
+
+        self.log_viewer = log_viewer.LogViewer(self)
+
         splash.SetText('Creating toolbars...')
         from . import toolbar as _toolbar
 
@@ -132,6 +148,18 @@ class MainFrame(wx.Frame):
             self.CenterOnScreen()
 
         self.manager.Update()
+        #
+        # self.editor3d.Bind(_canvas3d.EVT_GL_LEFT_DOWN, self._on_left_down_3d)
+        # self.editor3d.Bind(_canvas3d.EVT_GL_LEFT_UP, self._on_left_up_3d)
+        #
+        # self.editor3d.Bind(_canvas3d.EVT_GL_OBJECT_SELECTED, self._on_object_selected_3d)
+        # self.editor3d.Bind(_canvas3d.EVT_GL_OBJECT_UNSELECTED, self._on_object_unselected_3d)
+        #
+        # self.editor3d.Bind(_canvas3d.EVT_GL_OBJECT_DRAG, self._on_object_drag_3d)
+        #
+        # self.editor3d.Bind(_canvas3d.EVT_GL_OBJECT_ACTIVATED, self._on_object_activated_3d)
+
+
 
         # from ..menus import menubar as _menubar
         #
@@ -169,22 +197,24 @@ class MainFrame(wx.Frame):
 
         evt.Skip()
 
-    def set_selected_object(self, obj: "_objects.ObjectBase"):
-        if self._selected_obj is not None:
-            self._selected_obj.set_selected(False)
-
-        if obj is not None:
-            obj.set_selected(True)
-
-        self._selected_obj = obj
-        self.editor3d.set_selected_object(obj)
-        self.editor2d.set_selected_object(obj)
-
     def add_object(self, obj):
         self.editor2d.add_object(obj)
         self.editor3d.add_object(obj)
 
-    def get_selected_object(self) -> "_objects.ObjectBase":
+    def remove_object(self, obj):
+        self.editor2d.remove_object(obj)
+        self.editor3d.remove_object(obj)
+
+    def _set_selected(self, obj: "_objects.ObjectBase"):
+        self._selected_obj = obj
+        self.editor3d.set_selected(obj)
+        self.editor2d.set_selected(obj)
+
+    def set_selected(self, obj: "_objects.ObjectBase"):
+        if obj is not None:
+            obj.set_selected(True)
+
+    def get_selected(self) -> "_objects.ObjectBase":
         return self._selected_obj
 
     def on_erase_background(self, _):
@@ -253,3 +283,58 @@ class MainFrame(wx.Frame):
             self.project = _proj.Project.select_project(self)
 
         wx.CallAfter(_do)
+
+    def _on_left_down_3d(self, evt: _canvas3d.GLEvent):
+        mode = self.editor_toolbar.get_mode()
+
+        if self._mode == self.ID_CONNECTOR:
+            evt.StopPropagation()
+            self.add_housing(evt.GetWorldPosition())
+        elif self._mode == self.ID_TERMINAL:
+            evt.StopPropagation()
+            self.mainframe.add_terminal(evt.GetWorldPosition())
+        elif self._mode == self.ID_WIRE:
+            evt.StopPropagation()
+            self.mainframe.add_wire(evt.GetWorldPosition())
+        elif self._mode == self.ID_SPLICE:
+            evt.StopPropagation()
+            self.mainframe.add_splice(evt.GetWorldPosition())
+        elif self._mode == self.ID_NOTE:
+            evt.StopPropagation()
+            self.mainframe.add_note(evt.GetWorldPosition())
+        elif self._mode == self.ID_CIRCLE:
+            evt.StopPropagation()
+            self.mainframe.add_circle(evt.GetWorldPosition())
+        elif self._mode == self.ID_SQUARE:
+            evt.StopPropagation()
+            self.mainframe.add_square(evt.GetWorldPosition())
+        elif self._mode == self.ID_TRANSITION:
+            evt.StopPropagation()
+            self.mainframe.add_transition(evt.GetWorldPosition())
+        elif self._mode == self.ID_SEAL:
+            evt.StopPropagation()
+            self.mainframe.add_seal(evt.GetWorldPosition())
+        elif self._mode == self.ID_BUNDLE_COVER:
+            evt.StopPropagation()
+            self.mainframe.add_bundle(evt.GetWorldPosition())
+        elif self._mode == self.ID_TPA_LOCK:
+            evt.StopPropagation()
+            self.mainframe.add_tpa_lock(evt.GetWorldPosition())
+        elif self._mode == self.ID_CPA_LOCK:
+            evt.StopPropagation()
+            self.mainframe.add_cpa_lock(evt.GetWorldPosition())
+        elif self._mode == self.ID_ZOOM_IN:
+            evt.StopPropagation()
+            self.mainframe.editor3d.Zoom(1.0)
+        elif self._mode == self.ID_ZOOM_OUT:
+            evt.StopPropagation()
+            self.mainframe.editor3d.Zoom(-1.0)
+
+        evt.Skip()
+
+    def _on_left_up_3d(self, evt: _canvas3d.GLEvent):
+        if self._mode in (self.ID_ZOOM_IN, self.ID_ZOOM_OUT):
+            evt.StopPropagation()
+
+        evt.Skip()
+

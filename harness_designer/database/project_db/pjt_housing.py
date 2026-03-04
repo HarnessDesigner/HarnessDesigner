@@ -18,6 +18,8 @@ if TYPE_CHECKING:
 
     from ..global_db import housing as _housing
 
+    from ...objects import housing as _housing_obj
+
 
 class PJTHousingsTable(PJTTableBase):
     __table_name__ = 'pjt_housings'
@@ -45,22 +47,28 @@ class PJTHousing(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin,
 
     _table: PJTHousingsTable = None
 
+    def get_object(self) -> "_housing_obj.Housing":
+        return self._obj
+
+    def set_object(self, obj: "_housing_obj.Housing"):
+        self._obj = obj
+
     @property
     def table(self) -> PJTHousingsTable:
         return self._table
 
     @property
     def cavities(self) -> list["_pjt_cavity.PJTCavity"]:
-        cavities = [None] * self.part.num_pins
+        cavities = []
 
         cavity_ids = self._table.db.pjt_cavities_table.select(
-            'id', cavity_map_id=self._db_id)
+            'id', housing_id=self._db_id)
 
         for cavity_id in cavity_ids:
             cavity = _pjt_cavity.PJTCavity(
                 self._table.db.pjt_cavities_table, cavity_id[0], self.project_id)
 
-            cavities[cavity.part.idx] = cavity
+            cavities.append(cavity)
 
         return cavities
         

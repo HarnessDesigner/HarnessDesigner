@@ -23,12 +23,12 @@ import mysql.connector.constants
 
 from .. import ConnectorBase
 
-from harness_designer import Config
+from .... import config as _config
 
-from ....gui_controls import auto_complete
+from ....ui.widgets import auto_complete
 
 
-Config = Config.database.mysql
+Config = _config.Config.database.mysql
 
 if Config.client_flags is None:
     Config.client_flags = mysql.connector.constants.ClientFlag.get_default()

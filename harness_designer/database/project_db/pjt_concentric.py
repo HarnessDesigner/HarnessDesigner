@@ -9,6 +9,9 @@ if TYPE_CHECKING:
 
     from . import pjt_bundle as _pjt_bundle
 
+    from ...objects import boot as _boot_obj
+
+
 
 class PJTConcentricsTable(PJTTableBase):
     __table_name__ = 'pjt_concentrics'
@@ -34,6 +37,12 @@ class PJTConcentricsTable(PJTTableBase):
 
 class PJTConcentric(PJTEntryBase):
     _table: PJTConcentricsTable = None
+
+    def get_object(self) -> "_boot_obj.Boot":
+        return self._obj
+
+    def set_object(self, obj: "_boot_obj.Boot"):
+        self._obj = obj
 
     @property
     def layers(self) -> list["_pjt_concentric_layer.PJTConcentricLayer"]:

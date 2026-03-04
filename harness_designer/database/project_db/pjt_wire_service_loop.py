@@ -5,13 +5,17 @@ import numpy as np
 
 from . import PJTEntryBase, PJTTableBase
 
-from .mixins import Angle3DMixin, StartStopPosition3DMixin, PartMixin, Visible3DMixin, Visible2DMixin
+from .mixins import Angle3DMixin, StartStopPosition3DMixin, PartMixin, Visible3DMixin, Visible2DMixin, NameMixin
 
 
 if TYPE_CHECKING:
     from . import pjt_circuit as _pjt_circuit
+    from . import pjt_terminal as _pjt_terminal
+    from . import pjt_wire as _pjt_wire
 
     from ..global_db import wire as _wire
+
+    from ...objects import wire_service_loop as _wire_service_loop_obj
 
 
 class PJTWireServiceLoopsTable(PJTTableBase):
@@ -42,9 +46,43 @@ class PJTWireServiceLoopsTable(PJTTableBase):
 
 
 class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
-                         PartMixin, Visible3DMixin, Visible2DMixin):
+                         PartMixin, Visible3DMixin, Visible2DMixin, NameMixin):
 
     _table: PJTWireServiceLoopsTable = None
+
+    def get_object(self) -> "_wire_service_loop_obj.WireServiceLoop":
+        return self._obj
+
+    def set_object(self, obj: "_wire_service_loop_obj.WireServiceLoop"):
+        self._obj = obj
+
+    @property
+    def terminal(self) -> "_pjt_terminal.PJTTerminal":
+        start_position_id = self.start_position3d_id
+        stop_position_id = self.stop_position3d_id
+
+        start_position_ids = self.table.db.pjt_terminals_table.select('id', wire_point3d_id=start_position_id)[0][0]
+        stop_position_ids = self.table.db.pjt_terminals_table.select('id', wire_point3d_id=stop_position_id)[0][0]
+
+        if start_position_ids:
+            return self.table.db.pjt_terminals_table[start_position_ids[0][0]]
+
+        if stop_position_ids:
+            return self.table.db.pjt_terminals_table[stop_position_ids[0][0]]
+
+    @property
+    def wire(self) -> "_pjt_wire.PJTWire":
+        start_position_id = self.start_position3d_id
+        stop_position_id = self.stop_position3d_id
+
+        start_position_ids = self.table.db.pjt_wires_table.select('id', wire_point3d_id=start_position_id)[0][0]
+        stop_position_ids = self.table.db.pjt_wires_table.select('id', wire_point3d_id=stop_position_id)[0][0]
+
+        if start_position_ids:
+            return self.table.db.pjt_wires_table[start_position_ids[0][0]]
+
+        if stop_position_ids:
+            return self.table.db.pjt_wires_table[stop_position_ids[0][0]]
 
     @property
     def length_mm(self) -> float:

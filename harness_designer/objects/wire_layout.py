@@ -19,6 +19,8 @@ class WireLayout(_ObjectBase):
         super().__init__(mainframe)
 
         self.db_obj = db_obj
+        db_obj.set_object(self)
+
         self.obj2d = _wire2d_layout.WireLayout(self, db_obj)
         self.obj3d = _wire3d_layout.WireLayout(self, db_obj)
 

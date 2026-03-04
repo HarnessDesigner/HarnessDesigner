@@ -1,11 +1,12 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 from . import PJTEntryBase, PJTTableBase
-from .mixins import Angle3DMixin, Position3DMixin, PartMixin, HousingMixin, Visible3DMixin
+from .mixins import Angle3DMixin, Position3DMixin, PartMixin, HousingMixin, Visible3DMixin, NameMixin
 
 
 if TYPE_CHECKING:
     from ..global_db import boot as _boot
+    from ...objects import boot as _boot_obj
 
 
 class PJTBootsTable(PJTTableBase):
@@ -30,9 +31,15 @@ class PJTBootsTable(PJTTableBase):
 
 
 class PJTBoot(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin,
-              HousingMixin, Visible3DMixin):
+              HousingMixin, Visible3DMixin, NameMixin):
 
     _table: PJTBootsTable = None
+
+    def get_object(self) -> "_boot_obj.Boot":
+        return self._obj
+
+    def set_object(self, obj: "_boot_obj.Boot"):
+        self._obj = obj
 
     @property
     def table(self) -> PJTBootsTable:

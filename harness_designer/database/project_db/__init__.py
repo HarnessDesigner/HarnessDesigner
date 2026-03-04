@@ -49,6 +49,15 @@ class PJTEntryBase(metaclass=_PJTEntrySingleton):
         self.__callbacks = []
         self.__stop_callbacks = 0
 
+        self._obj = None
+        self._treeitem = None
+
+    def get_object(self):
+        raise NotImplemented
+
+    def set_object(self, obj):
+        raise NotImplemented
+
     def __enter__(self):
         self.__stop_callbacks += 1
         return self

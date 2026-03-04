@@ -20,6 +20,8 @@ class Splice(_ObjectBase):
         super().__init__(mainframe)
 
         self.db_obj = db_obj
+        db_obj.set_object(self)
+
         self.obj2d = _splice_2d.Splice(self, db_obj)
         self.obj3d = _splice_3d.Splice(self, db_obj)
 

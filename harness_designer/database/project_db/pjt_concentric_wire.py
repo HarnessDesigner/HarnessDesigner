@@ -8,6 +8,9 @@ if TYPE_CHECKING:
     from . import pjt_wire as _pjt_wire
     from . import pjt_concentric_layer as _pjt_concentric_layer
 
+    from ...objects import boot as _boot_obj
+
+
 
 class PJTConcentricWiresTable(PJTTableBase):
     __table_name__ = 'pjt_concentric_wires'
@@ -33,6 +36,12 @@ class PJTConcentricWiresTable(PJTTableBase):
 
 class PJTConcentricWire(PJTEntryBase):
     _table: PJTConcentricWiresTable = None
+
+    def get_object(self) -> "_boot_obj.Boot":
+        return self._obj
+
+    def set_object(self, obj: "_boot_obj.Boot"):
+        self._obj = obj
 
     @property
     def table(self) -> PJTConcentricWiresTable:

@@ -7,7 +7,6 @@ from wx import glcanvas
 from wx import aui
 from OpenGL import GL
 from OpenGL import GLU
-import ctypes
 import math
 
 from . import headlight as _headlight
@@ -17,6 +16,8 @@ from ... import debug as _debug
 from ... import config as _config
 from ...image import utils as _image_utils
 from ... import utils as _utils
+from . import floor as _floor
+from . import culling as _culling
 
 
 MOUSE_REVERSE_Y_AXIS = _config.MOUSE_REVERSE_Y_AXIS
@@ -102,6 +103,13 @@ class Canvas(glcanvas.GLCanvas):
         self.camera = _camera.Camera(self)
         self._angle_overlay = None
         self._shader_program = None
+        self.floor: _floor.Floor = None
+        self._view_culling = _culling.CullingThreadPool()
+        self._last_culled = []
+        self._object_refs = []
+        self._objects_in_view = []
+
+        self._object_data = [[], [], [], [], [], [], [], [], [], []]
 
         self.size = None
 
@@ -134,6 +142,10 @@ class Canvas(glcanvas.GLCanvas):
 
     def set_mode(self, mode: int) -> None:
         self._mode = mode
+
+    @property
+    def objects_in_view(self) -> list:
+        return self._objects_in_view
 
     @_debug.logfunc
     def set_angle_overlay(self, x, y, z):
@@ -168,16 +180,56 @@ class Canvas(glcanvas.GLCanvas):
 
         self._angle_overlay_bitmap = bitmap
 
-    def set_selected_object(self, obj):
+    def set_selected(self, obj):
         self._selected = obj
 
-    def get_selected_object(self):
+    def get_selected(self):
         return self._selected
 
     def add_object(self, obj):
+        if isinstance(obj, _focal_target.FocalPoint):
+            return
+
+        found_container = self._object_data[0]
+        container_len = 9999999999
+
+        for container in self._object_data:
+            if len(container) < container_len:
+                found_container = container
+                container_len = len(container)
+
+        import weakref
+
+        aabb_min, aabb_max = obj.obj3d.aabb
+        pos = obj.obj3d.position.as_numpy
+        is_opaque = obj.obj3d.is_opaque
+
+        # because the GIL is not used during the culling process a python object
+        # is not able to pass through it. How this is being handled is by getting
+        # the memory location for the python object (which is an integer) and
+        # passing that through. On the back side we use ctypes to cast the address
+        # back into the python object.
+        #
+        # The reason why we create a weakref of the object and pass the memory
+        # address to that is because of how weakref handles the deletion of an
+        # object. it allows is to remove the object data form the culling lists
+        # during the rendering process so no explicit searching over those lists
+        # needs to be done. The entire process becomes simpler to manage that way
+        # the weakref will get removed from the weakref list as well.
+        obj_ref = weakref.ref(obj)
+        obj_address = id(obj_ref)
+
+        # we need to hold a reference to the weakref so it doesn't get GC'd
+        # which would cause the memory address for the wekref to be invalid
+        self._object_refs.append(obj_ref)
+
+        found_container.append([aabb_min, aabb_max, pos, is_opaque, obj_address])
         self._objects.append(obj)
 
     def remove_object(self, obj):
+
+        # we don't need to do any specific cleanup for the data in self._object_data
+        # that is handled by the weakref and the render process.
         try:
             self._objects.remove(obj)
         except ValueError:
@@ -340,9 +392,11 @@ class Canvas(glcanvas.GLCanvas):
         GL.glClearColor(0.20, 0.20, 0.20, 1.0)
         self._shader_program = _shaders.create_program()
 
+        self.floor = _floor.Floor(self, self._shader_program)
+
         # GL.glEnable(GL.GL_LIGHTING)
-        # GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
-        # GL.glEnable(GL.GL_BLEND)
+        GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
+        GL.glEnable(GL.GL_BLEND)
         # GL.glEnable(GL.GL_DITHER)
         # GL.glEnable(GL.GL_MULTISAMPLE)
         # GL.glDepthMask(GL.GL_TRUE)
@@ -379,104 +433,6 @@ class Canvas(glcanvas.GLCanvas):
 
         wx.CallAfter(_do)
 
-    def _initialize_grid(self):
-        """
-        Compute the "Floor" and store it in the graphics adapter memory.
-
-        This allows for a super fast render of the floor.
-
-        :return:
-        """
-        even_color = self.config.floor.grid.primary_color
-        ground_height = self.config.floor.ground_height
-        size = self.config.floor.distance
-        step = self.config.floor.grid.size
-
-        def _get_vbo(verts, clrs):
-            # Flatten the data
-            verts = np.array(verts, dtype=np.float32).flatten()
-            clrs = np.array(clrs, dtype=np.float32).flatten()
-
-            # Combine vertices and colors into one array to pass to OpenGL
-            v_data = np.concatenate((verts, clrs))
-
-            # Calculate the number of vertices (for rendering)
-            verts_count = len(verts) / 3
-
-            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)  # Unbind the VBO
-
-            vbo = GL.glGenBuffers(1)
-            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, vbo)
-            GL.glBufferData(GL.GL_ARRAY_BUFFER, v_data.nbytes,
-                            v_data, GL.GL_STATIC_DRAW)
-
-            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)  # Unbind the VBO
-
-            return vbo, int(verts_count)
-
-        if self.config.floor.grid.enable:
-            # Grid configuration
-
-            odd_color = self.config.floor.grid.secondary_color
-
-            # Precompute vertices and colors
-            vertices = []
-            colors = []
-
-            for x in range(-size, size, step):
-                for y in range(-size, size, step):
-                    # Alternate coloring for checkerboard effect
-                    is_even = ((x // step) + (y // step)) % 2 == 0
-                    color = even_color if is_even else odd_color
-
-                    # Each quad consists of 4 vertices
-                    vertices.extend([
-                        [x, ground_height, y], [x, ground_height, y + step],
-                        [x + step, ground_height, y + step], [x + step, ground_height, y]])
-
-                    # Each vertex has the same color for the quad
-                    colors.extend([color] * 4)
-        else:
-            vertices = [[size, ground_height, size], [size, ground_height, -size],
-                        [-size, ground_height, -size], [-size, ground_height, size]]
-
-            colors = [even_color] * 4
-
-        grid_vbo, grid_vertex_count = _get_vbo(vertices, colors)
-
-        sstep = step / 5.0
-        y1 = ground_height + 0.1
-        y2 = ground_height + 0.15
-
-        def _frange(start, stop, inc):
-            value = start
-            while value < stop:
-                yield value
-                value += inc
-
-        stipple_lines = []
-        solid_lines = []
-
-        stipple_colors = []
-        solid_colors = []
-
-        for i in _frange(-size, size + 1, sstep):
-            if not i % step:
-                solid_colors.extend([0.65, 0.65, 0.65, 1.0] * 4)
-                solid_lines.extend([[i, y2, size], [i, y2, -size],
-                                    [size, y2, i], [-size, y2, i]])
-            else:
-                stipple_colors.extend([0.35, 0.35, 0.35, 1.0] * 4)
-                stipple_lines.extend([[i, y1, size], [i, y1, -size],
-                                      [size, y1, i], [-size, y1, i]])
-
-        stipple_vbo, stipple_vertex_count = _get_vbo(stipple_lines, stipple_colors)
-        solid_vbo, solid_vertex_count = _get_vbo(solid_lines, solid_colors)
-
-        return ((grid_vbo, grid_vertex_count),
-                (stipple_vbo, stipple_vertex_count),
-                (solid_vbo, solid_vertex_count))
-
     def set_focal_target(self, flag):
         with self.context:
             if flag and self._focal_target is None:
@@ -485,89 +441,8 @@ class Canvas(glcanvas.GLCanvas):
                 self._focal_target = None
 
     def set_draw_grid(self, flag):
-        with self.context:
-            if self._grid_data is not None:
-                try:
-                    GL.glDeleteVertexArrays(1, [self._grid_data[0]])
-                except:  # NOQA
-                    pass
-    
-                try:
-                    GL.glDeleteBuffers(1, [self._grid_lines_stipple[0]])
-                except:  # NOQA
-                    pass
-    
-                try:
-                    GL.glDeleteBuffers(1, [self._grid_lines_solid[0]])
-                except:  # NOQA
-                    pass
-    
-                self._grid_data = None
-                self._grid_lines_stipple = None
-                self._grid_lines_solid = None
-                
-            if flag:
-                (self._grid_data, self._grid_lines_stipple,
-                 self._grid_lines_solid) = self._initialize_grid()
+        self.floor.set(flag)
 
-        self.Refresh(False)
-
-    @_debug.logfunc
-    def _draw_grid(self):
-        """Render the precomputed grid using the VBO."""
-
-        # type_ is either GL.GL_LINES or GL.GL_QUADS
-        def _draw_vbo(vbo, count, type_):
-            # Setup the VBO for rendering
-            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, vbo)
-            # Configure vertex attributes (position and color)
-            # Total size of vertex data (position: x, y, z)
-            vertex_size = count * 3 * 4
-
-            # Colors start immediately after vertices
-            color_offset = vertex_size
-
-            stride = 0  # No stride between consecutive vertex positions
-            GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
-
-            # First 3 floats are position
-            GL.glVertexPointer(3, GL.GL_FLOAT, stride, ctypes.c_void_p(0))
-
-            GL.glEnableClientState(GL.GL_COLOR_ARRAY)
-
-            # Next 3 floats are color
-            GL.glColorPointer(4, GL.GL_FLOAT, stride, ctypes.c_void_p(color_offset))
-
-            # Draw
-            GL.glDrawArrays(type_, 0, count)
-
-            # Cleanup
-            GL.glDisableClientState(GL.GL_COLOR_ARRAY)
-            GL.glDisableClientState(GL.GL_VERTEX_ARRAY)
-            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-
-        # enable blending and disable the depth mask to remove the moiré that
-        # occurs from the grid lines.
-        # https://en.wikipedia.org/wiki/Moir%C3%A9_pattern
-        GL.glEnable(GL.GL_BLEND)
-        GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
-        GL.glDepthMask(GL.GL_FALSE)
-
-        # draw grid floor
-        _draw_vbo(self._grid_data[0], self._grid_data[1], GL.GL_QUADS)
-
-        # draw grid dashed lines
-        GL.glLineStipple(1, 0xFF00)
-        GL.glEnable(GL.GL_LINE_STIPPLE)
-        _draw_vbo(self._grid_lines_stipple[0], self._grid_lines_stipple[1], GL.GL_LINES)
-        GL.glDisable(GL.GL_LINE_STIPPLE)
-
-        # draw grid solid lines
-        _draw_vbo(self._grid_lines_solid[0], self._grid_lines_solid[1], GL.GL_LINES)
-
-        GL.glDepthMask(GL.GL_TRUE)
-        GL.glDisable(GL.GL_BLEND)
-        
     @_debug.logfunc
     def _render_bounding_boxes(self):
         selected = None
@@ -667,7 +542,7 @@ class Canvas(glcanvas.GLCanvas):
             _render_edges(vertices, edges)
 
     @_debug.logfunc
-    def _draw_scene(self, objects):
+    def _draw_scene(self, obj_data):
         # Get current projection and view matrices from OpenGL BEFORE activating shader
         # (these are set by the fixed-function pipeline in _on_draw)
         projection_matrix = GL.glGetFloatv(GL.GL_PROJECTION_MATRIX)
@@ -686,58 +561,80 @@ class Canvas(glcanvas.GLCanvas):
         
         GL.glUniformMatrix4fv(projection_loc, 1, GL.GL_FALSE, projection_matrix)
         GL.glUniformMatrix4fv(view_loc, 1, GL.GL_FALSE, view_matrix)
-        
+
+        floorYLoc = GL.glGetUniformLocation(self._shader_program, "floorY")
+        reflectionAlphaLoc = GL.glGetUniformLocation(self._shader_program, "reflectionAlpha")
+        reflectionTintLoc = GL.glGetUniformLocation(self._shader_program, "reflectionTint")
+
         # Set scene lighting
         self._scene_light.set(self._shader_program)
-        
+
         # Set headlight
         self._headlight(self._shader_program)
+
+        GL.glUniform1f(floorYLoc, self.config.floor.ground_height)  # Floor at Y=0
+        GL.glUniform1f(reflectionAlphaLoc, 0.8)  # 40% opacity
+        GL.glUniform3f(reflectionTintLoc, 0.9, 0.9, 1.0)  # Slight blue tint
+
+        removed_objects = []
+        objects_in_view = []
         
         # Render each object
-        for obj in objects:
+        for row in obj_data:
+            ref_address = row[-1]
+
+            import ctypes
+
+            obj_ref = ctypes.cast(ref_address, ctypes.py_object).value
+            obj = obj_ref()
+
+            if obj is None:
+                removed_objects.append(row)
+                self._object_refs.remove(obj_ref)
+                continue
+
+            objects_in_view.append(obj)
+
             obj.obj3d.render(self._shader_program)
 
             if obj.is_selected:
+                GL.glUseProgram(0)
+
                 GL.glColor4f(1.0, 0.4, 0.4, 1.0)
                 GL.glLineWidth(2.0)
-                p1, p2 = obj.aabb
+                p1, p2 = obj.obj3d.aabb
 
                 y = self.config.floor.ground_height + 0.20
 
                 GL.glBegin(GL.GL_LINES)
-                GL.glVertex3f(p1.x, y, p1.z)
-                GL.glVertex3f(p1.x, y, p2.z)
+                GL.glVertex3f(p1[0], y, p1[2])
+                GL.glVertex3f(p1[0], y, p2[2])
 
-                GL.glVertex3f(p1.x, y, p2.z)
-                GL.glVertex3f(p2.x, y, p2.z)
+                GL.glVertex3f(p1[0], y, p2[2])
+                GL.glVertex3f(p2[0], y, p2[2])
 
-                GL.glVertex3f(p2.x, y, p2.z)
-                GL.glVertex3f(p2.x, y, p1.z)
+                GL.glVertex3f(p2[0], y, p2[2])
+                GL.glVertex3f(p2[0], y, p1[2])
 
-                GL.glVertex3f(p2.x, y, p1.z)
-                GL.glVertex3f(p1.x, y, p1.z)
+                GL.glVertex3f(p2[0], y, p1[2])
+                GL.glVertex3f(p1[0], y, p1[2])
                 GL.glEnd()
-        
+
+                GL.glUseProgram(self._shader_program)
+
         # Disable shader program after rendering objects
         GL.glUseProgram(0)
+        self._objects_in_view = objects_in_view
 
-    def _render_reflection(self):
-        GL.glPushMatrix()
-        # Reflect across the y = 0 plane (flip the Y-axis)
-        GL.glScalef(1.0, -1.0, 1.0)
-
-        # Enable clipping to avoid rendering above the floor
-        GL.glEnable(GL.GL_CLIP_PLANE0)
-        
-        # Clipping plane: y >= 0
-        clipping_plane = [0.0, 1.0, 0.0, 0.0]  
-        GL.glClipPlane(GL.GL_CLIP_PLANE0, clipping_plane)
-        # we have to iterate over the objects specifically for
-        # the reflection because the view is different for the reflection
-        objs = self.camera.GetObjectsInView(self._objects)
-        self._draw_scene(objs)
-        GL.glDisable(GL.GL_CLIP_PLANE0)
-        GL.glPopMatrix()
+        for row in removed_objects:
+            for container in self._object_data:
+                try:
+                    container.remove(row)
+                    break
+                except ValueError:
+                    continue
+            else:
+                raise RuntimeError('This should not occur')
 
     @_debug.logfunc
     def _on_draw(self):
@@ -746,6 +643,10 @@ class Canvas(glcanvas.GLCanvas):
             aspect = w / float(h)
 
             f_size = self.config.floor.grid.size ** 2
+
+            GL.glEnable(GL.GL_DEPTH_TEST)
+            GL.glEnable(GL.GL_BLEND)
+            GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
 
             GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
             GL.glMatrixMode(GL.GL_PROJECTION)
@@ -757,15 +658,16 @@ class Canvas(glcanvas.GLCanvas):
 
             self.camera.Set()
 
-            if self.config.floor.enable and self.config.floor.reflections.enable:
-                self._render_reflection()
+            objs = self._view_culling.cull(
+                self._object_data, self.camera.frustum_normals,
+                self.camera.frustum_distances, self.camera.position.as_numpy)
 
-            GL.glPushMatrix()
-            objs = self.camera.GetObjectsInView(self._objects)
+            # GL.glPushMatrix()
+
             self._draw_scene(objs)
-            
-            if self.config.debug.bounding_boxes:
-                self._render_bounding_boxes()
+
+            # if self.config.debug.bounding_boxes:
+            #     self._render_bounding_boxes()
 
             if self.config.focal_target.enable:
                 # Re-enable shader for focal target rendering
@@ -773,9 +675,8 @@ class Canvas(glcanvas.GLCanvas):
                 self._focal_target.obj3d.render(self._shader_program)
                 GL.glUseProgram(0)
 
-            GL.glPopMatrix()
+            # GL.glPopMatrix()
 
-            if self.config.floor.enable:
-                self._draw_grid()
+            self.floor.render(self._shader_program)
             
             self.SwapBuffers()

@@ -19,6 +19,8 @@ class BundleLayout(_ObjectBase):
         super().__init__(mainframe)
 
         self.db_obj = db_obj
+        db_obj.set_object(self)
+
         self.obj2d = _bundle_layout_2d.BundleLayout(self, db_obj)
         self.obj3d = _bundle_layout_3d.BundleLayout(self, db_obj)
 

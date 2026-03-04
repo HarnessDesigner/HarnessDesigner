@@ -19,7 +19,9 @@ class Boot(_ObjectBase):
         super().__init__(mainframe)
 
         self.db_obj = db_obj
+        db_obj.set_object(self)
 
         self.obj2d = _boot_2d.Boot(self, db_obj)
         self.obj3d = _boot_3d.Boot(self, db_obj)
+
 

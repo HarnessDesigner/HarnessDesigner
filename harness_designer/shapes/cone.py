@@ -4,12 +4,29 @@ import numpy as np
 from .. import utils as _utils
 from ..import debug as _debug
 
+from ..gl import vbo as _vbo_handler
+
+_vbo: _vbo_handler.VBOHandler = None
+
+
+def create_vbo() -> _vbo_handler.VBOHandler:
+    global _vbo
+
+    if _vbo is None:
+        vertices, faces = create(0.5, 1.0, 360, 1)
+        verts, nrmls, faces, count = _utils.compute_vbo_smoothed_vertex_normals(vertices, faces)
+        _vbo = _vbo_handler.VBOHandler('cone', verts, nrmls, faces, count)
+
+    return _vbo
+
 
 @_debug.timeit
-def create(radius=1.0, height=2.0):
+def create(radius=1.0, height=2.0, resolution=None, split=None):
+    if resolution is None:
+        resolution = int(max(20.0, _utils.remap(radius, 0.0, 1.0, 0.0, 20.0)))
 
-    resolution = int(max(20.0, _utils.remap(radius, 0.0, 1.0, 0.0, 20.0)))
-    split = int(max(3.0, _utils.remap(height, 0.0, 2.0, 0.0, 10.0)))
+    if split is None:
+        split = int(max(3.0, _utils.remap(height, 0.0, 2.0, 0.0, 10.0)))
 
     count = resolution * split + 2
     vertices = np.full((count, 3), [0.0, 0.0, 0.0], dtype=np.float64)

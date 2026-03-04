@@ -19,5 +19,7 @@ class Transition(_ObjectBase):
         super().__init__(mainframe)
 
         self.db_obj = db_obj
+        db_obj.set_object(self)
+
         self.obj2d = _transition_2d.Transition(self, db_obj)
         self.obj3d = _transition_3d.Transition(self, db_obj)

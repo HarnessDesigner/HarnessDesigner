@@ -2,15 +2,18 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 from . import PJTEntryBase, PJTTableBase
-from .mixins import StartStopPosition3DMixin, PartMixin, Visible3DMixin, Visible2DMixin
+from .mixins import StartStopPosition3DMixin, PartMixin, Visible3DMixin, Visible2DMixin, NameMixin
 from ...geometry import line as _line
 
 
 if TYPE_CHECKING:
     from . import pjt_point2d as _pjt_point2d
+    from . import pjt_terminal as _pjt_terminal
     from . import pjt_circuit as _pjt_circuit
     from . import pjt_wire_marker as _pjt_wire_marker
     from ..global_db import wire as _wire
+
+    from ...objects import wire as _wire_obj
 
 
 class PJTWiresTable(PJTTableBase):
@@ -42,9 +45,33 @@ class PJTWiresTable(PJTTableBase):
 
 
 class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin,
-              Visible3DMixin, Visible2DMixin):
+              Visible3DMixin, Visible2DMixin, NameMixin):
 
     _table: PJTWiresTable = None
+
+    def get_object(self) -> "_wire_obj.Wire":
+        return self._obj
+
+    def set_object(self, obj: "_wire_obj.Wire"):
+        self._obj = obj
+
+    @property
+    def terminals(self) -> list["_pjt_terminal.PJTTerminal"]:
+        start_position_id = self.start_position3d_id
+        stop_position_id = self.stop_position3d_id
+
+        start_position_ids = self.table.db.pjt_terminals_table.select('id', wire_point3d_id=start_position_id)[0][0]
+        stop_position_ids = self.table.db.pjt_terminals_table.select('id', wire_point3d_id=stop_position_id)[0][0]
+
+        res = []
+
+        if start_position_ids:
+            res.append(self.table.db.pjt_terminals_table[start_position_ids[0][0]])
+
+        if stop_position_ids:
+            res.append(self.table.db.pjt_terminals_table[stop_position_ids[0][0]])
+
+        return res
 
     @property
     def wire_markers(self) -> list["_pjt_wire_marker.PJTWireMarker"]:

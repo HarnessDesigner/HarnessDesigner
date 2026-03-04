@@ -19,6 +19,8 @@ class Wire(_ObjectBase):
         super().__init__(mainframe)
 
         self.db_obj = db_obj
+        db_obj.set_object(self)
+
         self.obj2d = _wire_2d.Wire(self, db_obj)
         self.obj3d = _wire_3d.Wire(self, db_obj)
 

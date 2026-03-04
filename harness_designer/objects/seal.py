@@ -19,6 +19,8 @@ class Seal(_ObjectBase):
         super().__init__(mainframe)
 
         self.db_obj = db_obj
+        db_obj.set_object(self)
+
         self.obj2d = _seal_2d.Seal(self, db_obj)
         self.obj3d = _seal_3d.Seal(self, db_obj)
 

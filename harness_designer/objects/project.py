@@ -17,6 +17,7 @@ from . import terminal as _terminal
 from . import tpa_lock as _tpa_lock
 from . import transition as _transition
 from . import wire as _wire
+from . import wire_layout as _wire_layout
 from . import wire_marker as _wire_marker
 from . import wire_service_loop as _wire_service_loop
 # from . import wire2d_layout as _wire2d_layout
@@ -42,13 +43,18 @@ if TYPE_CHECKING:
     from ..database.global_db import cover as _cover_part
     from ..database.global_db import terminal as _terminal_part
 
+    from ..database.project_db import project as _project
+
 
 Config = _config.Config.project
 
 
 class Project:
 
-    def __init__(self, mainframe: "_ui.MainFrame", project_name: str, project_id: int):
+    def __init__(self, mainframe: "_ui.MainFrame", db_obj: "_project.Project", project_name: str, project_id: int):
+        self.db_obj = db_obj
+        db_obj.set_object(self)
+
         self.mainframe = mainframe
         self.gtables = mainframe.global_db
         self.connector = mainframe.db_connector
@@ -57,6 +63,7 @@ class Project:
         self.ptables = ptables = mainframe.project_db
 
         ptables.load(project_id)
+        mainframe.object_browser.reset()
 
         self._boots = {}
         self._bundles = {}
@@ -80,54 +87,75 @@ class Project:
         self._obj_count = mainframe.project_db.projects_table.get_object_count(project_id)
 
         for wire_service_loop in ptables.pjt_wire_service_loops_table:
-            self._wire_service_loops[wire_service_loop.db_id] = (
-                _wire_service_loop.WireServiceLoop(mainframe, wire_service_loop))
+            obj = _wire_service_loop.WireServiceLoop(mainframe, wire_service_loop)
+            self._wire_service_loops[wire_service_loop.db_id] = obj
+            mainframe.object_browser.add_wire_service_loop(obj)
 
         for wire_marker in ptables.pjt_wire_markers_table:
-            self._wire_markers[wire_marker.db_id] = (
-                _wire_marker.WireMarker(mainframe, wire_marker))
+            obj = _wire_marker.WireMarker(mainframe, wire_marker)
+            self._wire_markers[wire_marker.db_id] = obj
+            mainframe.object_browser.add_wire_marker(obj)
 
         for note in ptables.pjt_notes_table:
-            self._notes[note.db_id] = _note.Note(mainframe, note)
+            obj = _note.Note(mainframe, note)
+            self._notes[note.db_id] = obj
+            mainframe.object_browser.add_note(obj)
 
         for circuit in ptables.pjt_circuits_table:
-            self._circuits[circuit.db_id] = (
-                _circuit.Circuit(mainframe, circuit))
+            obj = _circuit.Circuit(mainframe, circuit)
+            self._circuits[circuit.db_id] = obj
+            mainframe.object_browser.add_circuit(obj)
 
         for boot in ptables.pjt_boots_table:
-            self._boots[boot.db_id] = _boot.Boot(mainframe, boot)
+            obj = _boot.Boot(mainframe, boot)
+            self._boots[boot.db_id] = obj
+            mainframe.object_browser.add_boot(obj)
 
         for cover in ptables.pjt_covers_table:
-            self._covers[cover.db_id] = _cover.Cover(mainframe, cover)
+            obj = _cover.Cover(mainframe, cover)
+            self._covers[cover.db_id] = obj
+            mainframe.object_browser.add_cover(obj)
 
         for cpa_lock in ptables.pjt_cpa_locks_table:
-            self._cpa_locks[cpa_lock.db_id] = (
-                _cpa_lock.CPALock(mainframe, cpa_lock))
+            obj = _cpa_lock.CPALock(mainframe, cpa_lock)
+            self._cpa_locks[cpa_lock.db_id] = obj
+            mainframe.object_browser.add_cpa_lock(obj)
 
         for tpa_lock in ptables.pjt_tpa_locks_table:
-            self._tpa_locks[tpa_lock.db_id] = (
-                _tpa_lock.TPALock(mainframe, tpa_lock))
+            obj = _tpa_lock.TPALock(mainframe, tpa_lock)
+            self._tpa_locks[tpa_lock.db_id] = obj
+            mainframe.object_browser.add_tpa_lock(obj)
 
         for seal in ptables.pjt_seals_table:
-            self._seals[seal.db_id] = _seal.Seal(mainframe, seal)
+            obj = _seal.Seal(mainframe, seal)
+            self._seals[seal.db_id] = obj
+            mainframe.object_browser.add_seal(obj)
 
         for terminal in ptables.pjt_terminals_table:
-            self._terminals[terminal.db_id] = (
-                _terminal.Terminal(mainframe, terminal))
+            obj = _terminal.Terminal(mainframe, terminal)
+            self._terminals[terminal.db_id] = obj
+            mainframe.object_browser.add_terminal(obj)
 
         for transition in ptables.pjt_transitions_table:
-            self._transitions[transition.db_id] = (
-                _transition.Transition(mainframe, transition))
+            obj = _transition.Transition(mainframe, transition)
+            self._transitions[transition.db_id] = obj
+            mainframe.object_browser.add_transition(obj)
 
         for housing in ptables.pjt_housings_table:
-            self._housings[housing.db_id] = (
-                _housing.Housing(mainframe, housing))
+            obj = _housing.Housing(mainframe, housing)
+            self._housings[housing.db_id] = obj
+            mainframe.object_browser.add_housing(obj)
 
         for splice in ptables.pjt_splices_table:
-            self._splices[splice.db_id] = _splice.Splice(mainframe, splice)
+            obj = _splice.Splice(mainframe, splice)
+            self._splices[splice.db_id] = obj
+            mainframe.object_browser.add_splice(obj)
 
         for wire in ptables.pjt_wires_table:
-            self._wires[wire.db_id] = _wire.Wire(mainframe, wire)
+            obj = _wire.Wire(mainframe, wire)
+            self._wires[wire.db_id] = obj
+            mainframe.object_browser.add_wire(obj)
+
         #
         # for layout in ptables.pjt_wire2d_layouts_table:
         #     mainframe.IncrementProgress()
@@ -140,11 +168,13 @@ class Project:
         #         _wire3d_layout.Wire3DLayout(mainframe, layout))
 
         for bundle in ptables.pjt_bundles_table:
-            self._bundles[bundle.db_id] = _bundle.Bundle(mainframe, bundle)
+            obj = _bundle.Bundle(mainframe, bundle)
+            self._bundles[bundle.db_id] = obj
+            mainframe.object_browser.add_bundle(obj)
 
         for layout in ptables.pjt_bundle_layouts_table:
-            self._bundle_layouts[layout.db_id] = (
-                _bundle_layout.BundleLayout(mainframe, layout))
+            obj = _bundle_layout.BundleLayout(mainframe, layout)
+            self._bundle_layouts[layout.db_id] = obj
 
     @property
     def obj_count(self) -> int:
@@ -183,11 +213,23 @@ class Project:
         if res:
             project_id = res[0][0]
         else:
-            connector.execute(f'INSERT INTO projects (name) VALUES (?);', (project_name,))
-            connector.commit()
+
+            from ..ui.dialogs import add_project as _add_project
+
+            dlg = _add_project.AddProjectDialog(mainframe, project_name, mainframe.project_db.projects_table)
+            if dlg.ShowModal() == wx.ID_OK:
+
+                project_name, creator, description, model_path = dlg.GetValue()
+
+                connector.execute(f'INSERT INTO projects (name, creator, description, user_model) VALUES (?, ?, ?, ?);',
+                                  (project_name, creator, description, model_path))
+                connector.commit()
+
             project_id = connector.lastrowid
 
-        return cls(mainframe, project_name, project_id)
+        db_obj = mainframe.project_db.projects_table[project_id]
+
+        return cls(mainframe, db_obj, project_name, project_id)
 
     def delete_note(self, db_id):
         note = self._notes.pop(db_id)
@@ -200,7 +242,7 @@ class Project:
             note_db_obj = self.ptables.pjt_notes_table.insert(p_db_obj.db_id, None, 'NEW NOTE', 1)
 
         else:
-            p_db_obj = self.ptables.pjt_points2d_table.insert(point.x, point.y, point.z)
+            p_db_obj = self.ptables.pjt_points2d_table.insert(point.x, point.y)
             note_db_obj = self.ptables.pjt_notes_table.insert(None, p_db_obj.db_id, 'NEW NOTE', 1)
 
         new_obj = _note.Note(self.mainframe, note_db_obj)

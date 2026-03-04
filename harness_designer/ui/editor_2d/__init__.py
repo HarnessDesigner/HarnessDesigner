@@ -36,8 +36,8 @@ class Editor2D(aui.AuiPaneInfo):
         self.Show()
         self.manager.Update()
 
-    def set_selected_object(self, obj):
-        self.editor.set_selected_object(obj)
+    def set_selected(self, obj):
+        self.editor.set_selected(obj)
 
     def add_object(self, obj):
         self.editor.add_object(obj)
@@ -61,9 +61,7 @@ class Editor2DPanel(wx.Panel):
         self._objects = []
         self._selected = None
 
-    def set_selected_object(self, obj):
-        if self._selected is not None:
-            self._selected.obj2d.set_selected(False)
+    def set_selected(self, obj):
         self._selected = obj
 
     def add_object(self, obj):

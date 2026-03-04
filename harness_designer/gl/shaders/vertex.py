@@ -13,13 +13,12 @@ layout(location = 1) in vec3 in_normal;
 uniform mat4 projection;
 uniform mat4 view;
 uniform vec3 objectPosition;
-uniform vec4 objectRotation;  // quaternion (w, x, y, z)
-uniform vec3 objectScale;      // NEW: x, y, z scaling
+uniform vec4 objectRotation;
+uniform vec3 objectScale;
 
 out vec3 fragPosition;
 out vec3 fragNormal;
 
-// Convert quaternion to rotation matrix
 mat3 quaternionToMatrix(vec4 q) {
     float w = q.x;
     float x = q.y;
@@ -44,23 +43,15 @@ mat3 quaternionToMatrix(vec4 q) {
 }
 
 void main() {
-    // Apply scale first (in local space)
     vec3 scaledPosition = in_position * objectScale;
-
-    // Then apply rotation
     mat3 rotationMatrix = quaternionToMatrix(objectRotation);
     vec3 rotatedPosition = rotationMatrix * scaledPosition;
-
-    // Finally apply translation
     vec3 worldPosition = rotatedPosition + objectPosition;
 
-    // Transform normal (use inverse transpose for non-uniform scaling)
-    // For uniform or axis-aligned scaling, this simplified version works:
-    vec3 scaledNormal = in_normal / objectScale;  // Inverse scale for normals
+    vec3 scaledNormal = in_normal / objectScale;
     vec3 rotatedNormal = rotationMatrix * scaledNormal;
 
     gl_Position = projection * view * vec4(worldPosition, 1.0);
-
     fragPosition = worldPosition;
     fragNormal = normalize(rotatedNormal);
 }

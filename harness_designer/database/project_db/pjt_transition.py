@@ -10,6 +10,8 @@ if TYPE_CHECKING:
     from . import pjt_transition_branch as _pjt_transition_branch
     from ..global_db import transition as _transition
 
+    from ...objects import transition as _transition_obj
+
 
 class PJTTransitionsTable(PJTTableBase):
     __table_name__ = 'pjt_transitions'
@@ -38,6 +40,12 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin,
                     NameMixin, Visible3DMixin):
 
     _table: PJTTransitionsTable = None
+
+    def get_object(self) -> "_transition_obj.Transition":
+        return self._obj
+
+    def set_object(self, obj: "_transition_obj.Transition"):
+        self._obj = obj
 
     @property
     def table(self) -> PJTTransitionsTable:

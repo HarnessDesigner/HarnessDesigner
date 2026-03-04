@@ -1,14 +1,17 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable, Union
 
 from . import PJTEntryBase, PJTTableBase
-from .mixins import PartMixin, StartStopPosition3DMixin, Visible3DMixin
+from .mixins import PartMixin, StartStopPosition3DMixin, Visible3DMixin, NameMixin
 
 
 if TYPE_CHECKING:
     from . import pjt_concentric as _pjt_concentric
     from . import pjt_bundle_layout as _pjt_bundle_layout
+    from . import pjt_wire as _pjt_wire
 
     from ..global_db import bundle_cover as _bundle_cover
+
+    from ...objects import bundle as _bundle_obj
 
 
 class PJTBundlesTable(PJTTableBase):
@@ -32,12 +35,27 @@ class PJTBundlesTable(PJTTableBase):
         return PJTBundle(self, db_id, self.project_id)
 
 
-class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Visible3DMixin):
+class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
+                Visible3DMixin, NameMixin):
     _table: PJTBundlesTable = None
+
+    def get_object(self) -> "_bundle_obj.Bundle":
+        return self._obj
+
+    def set_object(self, obj: "_bundle_obj.Bundle"):
+        self._obj = obj
 
     @property
     def table(self) -> PJTBundlesTable:
         return self._table
+
+    @property
+    def wires(self) -> list["_pjt_wire.PJTWire"]:
+        res = []
+        for layer in self.concentric.layers:
+            res.extend(layer.wires)
+
+        return res
 
     @property
     def concentric(self) -> "_pjt_concentric.PJTConcentric":

@@ -791,16 +791,28 @@ class FoldPanelItem(wx.Panel):
         if cbstyle is None:
             cbstyle = EmptyCaptionBarStyle
 
+        vsizer = wx.BoxSizer(wx.VERTICAL)
+        hsizer = wx.BoxSizer(wx.HORIZONTAL)
+
         self._captionBar = CaptionBar(self, wx.ID_ANY, wx.Point(0, 0),
                                       size=wx.DefaultSize, caption=caption,
                                       foldIcons=foldIcons, cbstyle=cbstyle)
+
+        vsizer.Add(self._captionBar, 0, wx.EXPAND)
+        size = self._captionBar.GetSize()
+
+        self._scrolled_panel = scrolledpanel.ScrolledPanel(self, wx.ID_ANY, pos=(0, size.GetHeight() + 2), style=wx.BORDER_NONE)
+        self._scrolled_panel_sizer = wx.BoxSizer(wx.VERTICAL)
+        self._scrolled_panel.SetSizer(self._scrolled_panel_sizer)
+
+        vsizer.Add(self._scrolled_panel, 1, wx.TOP | wx.EXPAND, 3)
+        hsizer.Add(vsizer, 0, wx.EXPAND)
+        self.SetSizer(vsizer)
 
         if collapsed:
             self._captionBar.Collapse()
 
         self._controlCreated = True
-
-        size = self._captionBar.GetSize()
 
         self._PanelSize = (self.IsVertical() and
                            [size.GetHeight()] or [size.GetWidth()])[0]
@@ -815,38 +827,15 @@ class FoldPanelItem(wx.Panel):
                   leftSpacing=FPB_DEFAULT_LEFTLINESPACING,
                   rightSpacing=FPB_DEFAULT_RIGHTLINESPACING):
 
-        wi = FoldWindowItem(self, window, Type="WINDOW", flags=flags, spacing=spacing,
-                            leftSpacing=leftSpacing, rightSpacing=rightSpacing)
+        window.Reparent(self._scrolled_panel)
+        hsizer = wx.BoxSizer(wx.HORIZONTAL)
+        hsizer.Add(window, 0, wx.EXPAND)
+        self._scrolled_panel_sizer.Add(hsizer)
 
-        self._items.append(wi)
-
-        vertical = self.IsVertical()
-
-        self._spacing = spacing
-        self._leftSpacing = leftSpacing
-        self._rightSpacing = rightSpacing
-
-        xpos = (vertical and [leftSpacing] or [self._LastInsertPos + spacing])[0]
-        ypos = (vertical and [self._LastInsertPos + spacing] or [leftSpacing])[0]
-
-        window.SetSize(xpos, ypos, -1, -1, wx.SIZE_USE_EXISTING)
-
-        self._LastInsertPos = self._LastInsertPos + wi.GetWindowLength(vertical)
-        self.ResizePanel()
-
-    def AddSeparator(self, colour=wx.BLACK, spacing=FPB_DEFAULT_SPACING,
-                     leftSpacing=FPB_DEFAULT_LEFTSPACING,
-                     rightSpacing=FPB_DEFAULT_RIGHTSPACING):
-
-        wi = FoldWindowItem(self, window=None, Type="SEPARATOR",
-                            flags=FPB_ALIGN_WIDTH, y=self._LastInsertPos,
-                            colour=colour, spacing=spacing, leftSpacing=leftSpacing,
-                            rightSpacing=rightSpacing)
-
-        self._items.append(wi)
-        self._LastInsertPos = self._LastInsertPos + wi.GetWindowLength(self.IsVertical())
+        self._items.append(window)
 
         self.ResizePanel()
+        self._scrolled_panel.SetupScrolling()
 
     def Reposition(self, pos):
         self.Freeze()
@@ -874,6 +863,7 @@ class FoldPanelItem(wx.Panel):
         if self._captionBar.IsCollapsed():
             size = self._captionBar.GetSize()
             self._PanelSize = (vertical and [size.GetHeight()] or [size.GetWidth()])[0]
+            self._scrolled_panel.Hide()
         else:
             size = self.GetBestSize()
             self._PanelSize = (vertical and [size.GetHeight()] or [size.GetWidth()])[0]
@@ -898,32 +888,14 @@ class FoldPanelItem(wx.Panel):
 
         self.SetSize(size)
 
-        for items in self._items:
-            items.ResizeItem((vertical and
-                              [size.GetWidth()] or
-                              [size.GetHeight()])[0], vertical)
+        if self._captionBar.IsCollapsed():
+            self._scrolled_panel.Hide()
+        else:
+            self._scrolled_panel.Show()
 
         self.Thaw()
 
     def OnPaint(self, event):
-        dc = wx.PaintDC(self)
-        vertical = self.IsVertical()
-
-        for item in self._items:
-
-            if item.GetType() == "SEPARATOR":
-                pen = wx.Pen(item.GetLineColour(), 1, wx.PENSTYLE_SOLID)
-                dc.SetPen(pen)
-                a = item.GetLeftSpacing()
-                b = item.GetLineY() + item.GetSpacing()
-                c = item.GetLineLength()
-                d = a + c
-
-                if vertical:
-                    dc.DrawLine(a, b, d, b)
-                else:
-                    dc.DrawLine(b, a, b, d)
-
         event.Skip()
 
     def IsVertical(self):
@@ -1093,7 +1065,9 @@ if __name__ == '__main__':
             panel_bar = FoldPanelBar(self, -1, agwStyle=FPB_VERTICAL)
 
             fold_panel = panel_bar.AddFoldPanel("Thing")
-            thing = wx.TextCtrl(fold_panel, -1, size=(400, -1), style=wx.TE_MULTILINE)
+            # thing = scrolledpanel.ScrolledPanel(panel_bar, wx.ID_ANY)
+            thing = wx.TextCtrl(fold_panel, -1, style=wx.TE_MULTILINE)
+            # thing.SetupScrolling()
 
             panel_bar.AddFoldPanelWindow(fold_panel, thing)
 

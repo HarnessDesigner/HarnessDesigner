@@ -1,14 +1,6 @@
 # HarnessDesigner
 Wiring Harness design software (WIP)
 
-**UPDATE**: 02/22/2026
-I wanted to let anyone that has looked at this repo that I am still working on developing it.
-I am actually thinking about putting up a Kickstarter to see if people would be able to help
-financially towards the development. I would love to be able to offload things like the artwork
-to a person that has more skill in that area than I do. My skill is pretty lacking in that 
-department.
-
-
 This project is currently being developed. I don't have a time frame as to when 
 it will be completed but I am hoping within the next couple of months maybe sooner.
 
@@ -16,6 +8,39 @@ Here is a preview of the work in progress. I know it doesn't look like much at t
 moment but things are going to start to come together pretty quickly from this point.
 
 ![img.png](img.png)
+
+<br>
+
+**UPDATE**: 02/22/2026
+I wanted to let anyone that has looked at this repo that I am still working on developing it.
+I am actually thinking about putting up a Kickstarter to see if people would be able to help
+financially towards the development. I would love to be able to offload things like the artwork
+to a person that has more skill in that area than I do. My skill is pretty lacking in that 
+department.
+
+<br>
+
+**UPDATE**: 02/28/2026
+Plugging away...
+
+Stress test rendering the following..
+
+* 10,012,800 triangles
+* 1,600 quads
+* 80 solid lines
+* 400 stipple lines (dashed)
+* 30,044,800 vertices
+
+There is a total of 480 housings added in this image. With the most recent changes
+I have made which were to improve the performance I managed to squeeze out 
+142 frames per second with the 3D editor. That is an amazing number considering
+this is running using Python code. Moving around is nice and responsive and it's 
+smooth as glass with ZERO chattering. I came up with a fantastic system to handle 
+
+
+![img_1.png](img_1.png)
+
+
 
 <br>
 

@@ -7,8 +7,9 @@ from .mixins import Position3DMixin
 
 if TYPE_CHECKING:
     from . import pjt_transition as _pjt_transition
-    from . import pjt_point3d as _pjt_point3d
+    from . import pjt_wire as _pjt_wire
     from . import pjt_concentric as _pjt_concentric
+    from . import pjt_bundle as _pjt_bundle
 
 
 class PJTTransitionBranchesTable(PJTTableBase):
@@ -44,6 +45,27 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin):
     @property
     def table(self) -> PJTTransitionBranchesTable:
         return self._table
+
+    @property
+    def wires(self) -> "_pjt_wire.PJTWire":
+        res = []
+
+        for layer in self.concentric.layers:
+            res.extend(layer.wires)
+
+        return res
+
+    @property
+    def bundle(self) -> "_pjt_bundle.PJTBundle":
+        position_id = self.position3d_id
+        bundle_ids = self.table.db.pjt_bundles_table.select('id', start_point3d_id=position_id)[0][0]
+        if not bundle_ids:
+            bundle_ids = self.table.db.pjt_bundles_table.select('id', stop_point3d_id=position_id)[0][0]
+
+        if not bundle_ids:
+            return None
+
+        return self.table.db.pjt_bundles_table[bundle_ids[0][0]]
 
     @property
     def concentric(self) -> "_pjt_concentric.PJTConcentric":

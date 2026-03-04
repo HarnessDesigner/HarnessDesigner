@@ -26,6 +26,15 @@ def get_appdata():
     return app_data
 
 
+def get_documents():
+    documents = os.path.expanduser('~')
+
+    if sys.platform.startswith('win'):
+        documents = os.path.join(documents, 'documents')
+
+    return documents
+
+
 def HSizer(parent, label, ctrl) -> wx.BoxSizer:
     sizer = wx.BoxSizer(wx.HORIZONTAL)
 
@@ -35,11 +44,21 @@ def HSizer(parent, label, ctrl) -> wx.BoxSizer:
     return sizer
 
 
-def remap(value, old_min, old_max, new_min, new_max):
+from .geometry.decimal import Decimal as _d
+
+
+def remap(value, old_min, old_max, new_min, new_max, type=_d):
+    value = _d(value)
+    old_min = _d(old_min)
+    old_max = _d(old_max)
+    new_min = _d(new_min)
+    new_max = _d(new_max)
+
     old_range = old_max - old_min
     new_range = new_max - new_min
     new_value = (((value - old_min) * new_range) / old_range) + new_min
-    return new_value
+
+    return type(new_value)
 
 
 def compute_smoothed_vertex_normals(vertices: np.ndarray, faces: np.ndarray) -> tuple[np.ndarray, np.ndarray, int]:
@@ -55,7 +74,7 @@ def compute_smoothed_vertex_normals(vertices: np.ndarray, faces: np.ndarray) -> 
         tuple of (expanded_vertices, smoothed_normals, total_vertex_count)
     """
     # Get number of vertices per face (3 for triangles, 4 for quads)
-    verts_per_face = faces.shape[1]
+    verts_per_face = faces.shape[1]  # NOQA
 
     # Expand vertices according to face indices (F, K, 3)
     expanded_verts = vertices[faces]
@@ -112,7 +131,7 @@ def compute_smoothed_vertex_normals(vertices: np.ndarray, faces: np.ndarray) -> 
     # Produce per-face per-vertex normals by indexing smoothed vertex normals
     normals = vertex_normals[faces].reshape(-1, 3)  # shape (F*K, 3)
 
-    return expanded_verts, normals, len(expanded_verts) * verts_per_face
+    return expanded_verts.reshape(-1, 3), normals, len(expanded_verts) * verts_per_face
 
 
 def compute_vertex_normals(vertices: np.ndarray, faces: np.ndarray) -> tuple[np.ndarray, np.ndarray, int]:
@@ -127,7 +146,7 @@ def compute_vertex_normals(vertices: np.ndarray, faces: np.ndarray) -> tuple[np.
         tuple of (expanded_vertices, normals, total_vertex_count)
     """
     # Get number of vertices per face (3 for triangles, 4 for quads)
-    verts_per_face = faces.shape[1]
+    verts_per_face = faces.shape[1]  # NOQA
 
     # Expand vertices according to face indices
     expanded_verts = vertices[faces]  # (F, K, 3)
@@ -154,11 +173,10 @@ def compute_vertex_normals(vertices: np.ndarray, faces: np.ndarray) -> tuple[np.
     # Changed from hardcoded 3 to verts_per_face
     normals = np.repeat(face_normals[:, np.newaxis, :], verts_per_face, axis=1)
 
-    return expanded_verts, normals.reshape(-1, 3), len(expanded_verts) * verts_per_face
+    return expanded_verts.reshape(-1, 3), normals.reshape(-1, 3), len(expanded_verts) * verts_per_face
 
 
-def compute_aabb(triangles):
-    verts = triangles.reshape(-1, 3)
+def compute_aabb(verts):
     p1 = _point.Point(*verts.min(axis=0))
     p2 = _point.Point(*verts.max(axis=0))
     return p1, p2
@@ -173,7 +191,6 @@ def compute_obb(p1, p2):
                        [x2, y1, z1], [x2, y1, z2],
                        [x2, y2, z1], [x2, y2, z2]],
                        dtype=np.float64)
-
     return corners
 
 
@@ -314,6 +331,7 @@ def compute_vbo_vertex_normals(
             - normals_array: flattened array of face normals (F*9,)
             - indices_array: flattened array of sequential indices (F*3,)
     """
+
     triangles = vertices[faces]  # (F, 3, 3)
     v0 = triangles[:, 0, :]
     v1 = triangles[:, 1, :]

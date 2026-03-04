@@ -1,7 +1,23 @@
 import math
 import numpy as np
 
+from .. import utils as _utils
 from ..import debug as _debug
+from ..gl import vbo as _vbo_handler
+
+
+_vbo: _vbo_handler.VBOHandler = None
+
+
+def create_vbo() -> _vbo_handler.VBOHandler:
+    global _vbo
+
+    if _vbo is None:
+        vertices, faces = create(0.5, 0.5, 360, 360)
+        verts, nrmls, faces, count = _utils.compute_vbo_smoothed_vertex_normals(vertices, faces)
+        _vbo = _vbo_handler.VBOHandler('torus', verts, nrmls, faces, count)
+
+    return _vbo
 
 
 @_debug.timeit

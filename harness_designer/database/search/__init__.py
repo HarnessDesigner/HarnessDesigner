@@ -49,7 +49,7 @@ class ItemsPanel(scrolledpanel.ScrolledPanel):
             checkbox = wx.CheckBox(self, wx.ID_ANY)
             v_sizer.Add(_HSizer(choice, checkbox), 0)
 
-        self.SetupScrolling(self, scroll_x=False)
+        self.SetupScrolling(scroll_x=False)
         self.SetSizer(v_sizer)
 
     def Reset(self):
@@ -181,7 +181,7 @@ class SelectPartDialog(wx.Dialog):
 
         bottom_sizer = wx.BoxSizer(wx.HORIZONTAL)
         bottom_sizer.Add(self.result_ctrl, 1, wx.RIGHT, 10)
-        bottom_sizer.Add(self.preview_ctrl, 1)
+        # bottom_sizer.Add(self.preview_ctrl, 1)
         vsizer.Add(bottom_sizer, 1, wx.EXPAND | wx.ALL, 10)
 
     def SetResults(self, results, count):
@@ -259,5 +259,5 @@ class ResultCtrl(wx.ListCtrl):
 
         raise RuntimeError('sanity check')
 
-GetCountPerPage
-GetItemData
+# GetCountPerPage
+# GetItemData

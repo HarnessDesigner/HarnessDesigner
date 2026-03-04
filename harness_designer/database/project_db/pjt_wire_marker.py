@@ -1,12 +1,14 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 from . import PJTEntryBase, PJTTableBase
-from .mixins import Position2DMixin, Position3DMixin, PartMixin, Visible3DMixin, Visible2DMixin
+from .mixins import Position2DMixin, Position3DMixin, PartMixin, Visible3DMixin, Visible2DMixin, NameMixin
 
 
 if TYPE_CHECKING:
     from ..global_db import wire_marker as _wire_marker
     from . import pjt_wire as _pjt_wire
+
+    from ...objects import wire_marker as _wire_marker_obj
 
 
 class PJTWireMarkersTable(PJTTableBase):
@@ -34,8 +36,14 @@ class PJTWireMarkersTable(PJTTableBase):
 
 
 class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PartMixin,
-                    Visible3DMixin, Visible2DMixin):
+                    Visible3DMixin, Visible2DMixin, NameMixin):
     _table: PJTWireMarkersTable = None
+
+    def get_object(self) -> "_wire_marker_obj.WireMarker":
+        return self._obj
+
+    def set_object(self, obj: "_wire_marker_obj.WireMarker"):
+        self._obj = obj
 
     @property
     def table(self) -> PJTWireMarkersTable:

@@ -20,6 +20,7 @@ class Note(_ObjectBase):
         super().__init__(mainframe)
 
         self.db_obj = db_obj
+        db_obj.set_object(self)
 
         self.obj2d = _note_2d.Note(self, db_obj)
         self.obj3d = _note_3d.Note(self, db_obj)

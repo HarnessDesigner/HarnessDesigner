@@ -42,8 +42,12 @@ class Editor3D(aui.AuiPaneInfo):
         self.Show()
         self.manager.Update()
 
-    def set_selected_object(self, obj):
-        self.editor.set_selected_object(obj)
+    @property
+    def camera(self):
+        return self.editor.camera
+
+    def set_selected(self, obj):
+        self.editor.set_selected(obj)
 
     def add_object(self, obj):
         self.editor.add_object(obj)

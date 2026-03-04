@@ -2,7 +2,7 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 from . import PJTEntryBase, PJTTableBase
-from .mixins import PartMixin, StartStopPosition3DMixin, Visible3DMixin, Visible2DMixin
+from .mixins import PartMixin, StartStopPosition3DMixin, Visible3DMixin, Visible2DMixin, NameMixin
 from ...geometry import point as _point
 
 
@@ -13,6 +13,8 @@ if TYPE_CHECKING:
     from . import pjt_wire as _pjt_wire
 
     from ..global_db import splice as _splice
+
+    from ...objects import splice as _splice_obj
 
 
 class PJTSplicesTable(PJTTableBase):
@@ -41,9 +43,15 @@ class PJTSplicesTable(PJTTableBase):
 
 
 class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
-                Visible3DMixin, Visible2DMixin):
+                Visible3DMixin, Visible2DMixin, NameMixin):
 
     _table: PJTSplicesTable = None
+
+    def get_object(self) -> "_splice_obj.Splice":
+        return self._obj
+
+    def set_object(self, obj: "_splice_obj.Splice"):
+        self._obj = obj
 
     @property
     def table(self) -> PJTSplicesTable:

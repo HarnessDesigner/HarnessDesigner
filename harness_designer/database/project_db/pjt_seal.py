@@ -1,12 +1,15 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 from . import PJTEntryBase, PJTTableBase
-from .mixins import Angle3DMixin, Position3DMixin, PartMixin, HousingMixin, Visible3DMixin
+from .mixins import Angle3DMixin, Position3DMixin, PartMixin, HousingMixin, Visible3DMixin, NameMixin
 
 
 if TYPE_CHECKING:
+    from . import pjt_cavity as _pjt_cavity
     from . import pjt_terminal as _pjt_terminal
     from ..global_db import seal as _seal
+
+    from ...objects import seal as _seal_obj
 
 
 class PJTSealsTable(PJTTableBase):
@@ -31,8 +34,14 @@ class PJTSealsTable(PJTTableBase):
 
 
 class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin,
-              PartMixin, HousingMixin, Visible3DMixin):
+              PartMixin, HousingMixin, Visible3DMixin, NameMixin):
     _table: PJTSealsTable = None
+
+    def get_object(self) -> "_seal_obj.Seal":
+        return self._obj
+
+    def set_object(self, obj: "_seal_obj.Seal"):
+        self._obj = obj
 
     @property
     def table(self) -> PJTSealsTable:
@@ -61,4 +70,21 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin,
     @terminal_id.setter
     def terminal_id(self, value: int):
         self._table.update(self._db_id, terminal_id=value)
+        self._process_callbacks()
+
+    @property
+    def cavity(self) -> "_pjt_cavity.PJTCavity":
+        db_id = self.terminal_id
+        if db_id is None:
+            return None
+
+        return self._table.db.pjt_cavities_table[db_id]
+
+    @property
+    def cavity_id(self) -> int:
+        return self._table.select('cavity_id', id=self._db_id)[0][0]
+
+    @cavity_id.setter
+    def cavity_id(self, value: int):
+        self._table.update(self._db_id, cavity_id=value)
         self._process_callbacks()

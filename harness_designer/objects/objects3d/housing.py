@@ -5,6 +5,7 @@ import wx
 # from ...widgets.context_menus import RotateMenu, MirrorMenu
 from ...geometry import point as _point
 from ...geometry import angle as _angle
+from ...geometry.decimal import Decimal as _d
 from . import base3d as _base3d
 from ...shapes import box as _box
 from ...gl import vbo as _vbo
@@ -35,6 +36,7 @@ class Housing(_base3d.Base3D):
         material = _materials.Plastic(color)
 
         model = self._part.model3d
+
         if model is not None:
             uuid = model.uuid
             scale = _point.Point(1.0, 1.0, 1.0)
@@ -55,6 +57,9 @@ class Housing(_base3d.Base3D):
             scale = self._part.scale
 
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, db_obj.position3d, scale, material)
+
+        if self._aabb[0][1] < Config.floor.ground_height:
+            self._position.y += Config.floor.ground_height - self._aabb[0][1]
 
 
 class HousingMenu(wx.Menu):

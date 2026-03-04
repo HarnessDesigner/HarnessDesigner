@@ -2,41 +2,95 @@ from typing import Self
 
 import math
 import numpy as np
+from ..decimal import Decimal as _d
 
 
-ONE = 1.0
-TWO = 2.0
+ONE = _d(1.0)
+TWO = _d(2.0)
 
 
 class Quaternion:
 
     def __normalize(self):
-        q = np.array([self.w, self.x, self.y, self.z], dtype=np.float64)
-        nq = q / np.linalg.norm(q)
-        self.w, self.x, self.y, self.z = [float(item) for item in nq]
+        norm = _d(np.linalg.norm(self._data))
 
-    def __init__(self, w, x, y, z):
-        self.w = w
-        self.x = x
-        self.y = y
-        self.z = z
+        w, x, y, z = self.as_decimal
+
+        w /= norm
+        x /= norm
+        y /= norm
+        z /= norm
+
+        self._data[0] = w
+        self._data[1] = x
+        self._data[2] = y
+        self._data[3] = z
+
+    def __init__(self, w=None, x=None, y=None, z=None, q=None):
+        if q is None:
+            self._data = np.array([w, x, y, z], dtype=np.float64)
+        else:
+            self._data = q
 
         self.__normalize()
 
     @property
+    def w(self) -> float:
+        return float(self._data[0])
+
+    @w.setter
+    def w(self, value: [float, _d]):
+        self._data[0] = value
+
+    @property
+    def x(self) -> float:
+        return float(self._data[1])
+
+    @x.setter
+    def x(self, value: [float, _d]):
+        self._data[1] = value
+
+    @property
+    def y(self) -> float:
+        return float(self._data[2])
+
+    @y.setter
+    def y(self, value: [float, _d]):
+        self._data[2] = value
+
+    @property
+    def z(self) -> float:
+        return float(self._data[3])
+
+    @z.setter
+    def z(self, value: [float, _d]):
+        self._data[3] = value
+
+    @property
     def as_numpy(self):
-        return np.array([self.w, self.x, self.y, self.z], dtype=np.float64)
+        return self._data
 
     @property
     def as_float(self):
-        return [self.w, self.x, self.y, self.z]
+        return self._data.tolist()
+
+    @property
+    def as_decimal(self):
+        w, x, y, z = self.as_float
+        return _d(w), _d(x), _d(y), _d(z)
 
     def __isub__(self, other: "Quaternion") -> Self:
         if not isinstance(other, Quaternion):
             raise TypeError
 
-        self.w, self.x, self.y, self.z = list(self.__sub__(other))
+        new_q = self.__sub__(other).as_numpy
+
+        self._data[0] = new_q[0]
+        self._data[1] = new_q[1]
+        self._data[2] = new_q[2]
+        self._data[3] = new_q[3]
         self.__normalize()
+
         return self
 
     def __sub__(self, other: "Quaternion") -> "Quaternion":
@@ -47,19 +101,26 @@ class Quaternion:
 
     @staticmethod
     def __mul(qa: "Quaternion", qb: "Quaternion") -> "Quaternion":
-        wb, xb, yb, zb = qb.as_float
-        wa, xa, ya, za = qa.as_float
+        wb, xb, yb, zb = qb.as_decimal
+        wa, xa, ya, za = qa.as_decimal
         q = np.array([wb * wa - xb * xa - yb * ya - zb * za,
                       wb * xa + xb * wa + yb * za - zb * ya,
                       wb * ya - xb * za + yb * wa + zb * xa,
                       wb * za + xb * ya - yb * xa + zb * wa], dtype=float)
-        return Quaternion(*[float(item) for item in q])
+
+        return Quaternion(q=q)
 
     def __iadd__(self, other: "Quaternion") -> Self:
         if not isinstance(other, Quaternion):
             raise TypeError
 
-        self.w, self.x, self.y, self.z = self.__add__(other)
+        new_q = self.__add__(other).as_numpy
+
+        self._data[0] = new_q[0]
+        self._data[1] = new_q[1]
+        self._data[2] = new_q[2]
+        self._data[3] = new_q[3]
+
         self.__normalize()
 
         return self
@@ -72,59 +133,76 @@ class Quaternion:
         return self.__mul(diff, self)
 
     def __itruediv__(self, other: "Quaternion") -> Self:
-        if isinstance(other, (float, int)):
-            q = Quaternion(*[float(item) for item in self.as_numpy / other])
-
-            self.w, self.x, self.y, self.z = list(q)
-            self.__normalize()
-            return self
-
-        if not isinstance(other, Quaternion):
+        if isinstance(other, (int, float)):
+            other = np.array([other, other, other, other], dtype=np.float64)
+        elif not isinstance(other, Quaternion):
             raise TypeError
+        else:
+            other = other.as_numpy
 
-        q1 = self.as_numpy
-        q2 = other.as_numpy
+        w1, x1, y1, z1 = self.as_decimal
+        w2, x2, y2, z2 = [_d(item) for item in other.tolist()]
 
-        q = q1 / q2
+        def _div(v1, v2):
+            try:
+                return v1 / v2
+            except ZeroDivisionError:
+                return 0.0
 
-        self.w, self.x, self.y, self.z = [float(item) for item in q]
+        self._data[0] = _div(w1, w2)
+        self._data[1] = _div(x1, x2)
+        self._data[2] = _div(y1, y2)
+        self._data[3] = _div(z1, z2)
+
         self.__normalize()
 
         return self
 
     def __truediv__(self, other: "Quaternion") -> "Quaternion":
-        if isinstance(other, (float, int)):
-            return Quaternion(*[float(item) for item in self.as_numpy / other])
-
-        if not isinstance(other, Quaternion):
+        if isinstance(other, (int, float)):
+            other = np.array([other, other, other, other], dtype=np.float64)
+        elif not isinstance(other, Quaternion):
             raise TypeError
+        else:
+            other = other.as_numpy
 
-        q1 = self.as_numpy
-        q2 = other.as_numpy
+        w1, x1, y1, z1 = self.as_decimal
+        w2, x2, y2, z2 = [_d(item) for item in other.tolist()]
 
-        q = q1 / q2
-        return Quaternion(*[float(item) for item in q])
+        def _div(v1, v2):
+            try:
+                return v1 / v2
+            except ZeroDivisionError:
+                return 0.0
+
+        w = _div(w1, w2)
+        x = _div(x1, x2)
+        y = _div(y1, y2)
+        z = _div(z1, z2)
+
+        return Quaternion(w, x, y, z)
 
     def __iter__(self):
-        return iter([self.w, self.x, self.y, self.z])
+        return iter(self._data.tolist())
 
     def conj(self) -> "Quaternion":
-        w, x, y, z = list(self)
+        w, x, y, z = self._data.tolist()
         return Quaternion(w, -x, -y, -z)
 
     def __neg__(self) -> "Quaternion":
-        q = self.as_numpy
+        q = self._data
+
         return Quaternion(*[float(item) for item in self.conj() / np.dot(q, q)])
 
     @classmethod
     def from_euler(cls, x: float, y: float, z: float) -> "Quaternion":
-        rx, ry, rz = [float(item) for item in np.deg2rad([x, y, z])]
+        rx, ry, rz = [_d(item) for item in np.deg2rad([x, y, z])]
         qx = cls(math.cos(rx / TWO), math.sin(rx / TWO), 0.0, 0.0)
         qy = cls(math.cos(ry / TWO), 0.0, math.sin(ry / TWO), 0.0)
         qz = cls(math.cos(rz / TWO), 0.0, 0.0, math.sin(rz / TWO))
 
         q = cls.__mul(qz, cls.__mul(qx, qy))  # qy ⊗ qx ⊗ qz
-        return cls(*[float(item) for item in q])
+        return cls(*q.as_float)
 
     @property
     def as_euler(self) -> tuple[float, float, float]:
@@ -156,7 +234,7 @@ class Quaternion:
 
     @property
     def as_matrix(self) -> np.ndarray:
-        w, x, y, z = self.as_float
+        w, x, y, z = self.as_decimal
 
         xx, yy, zz = x * x, y * y, z * z
         xy, xz, yz = x * y, x * z, y * z

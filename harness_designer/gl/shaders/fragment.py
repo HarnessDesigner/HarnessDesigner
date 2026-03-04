@@ -7,73 +7,71 @@ from . import compiler as _compiler
 SHADER = """
 #version 330 core
 
-in vec3 fragPosition;
-in vec3 fragNormal;
+in vec3 fragPositionGeom;
+in vec3 fragNormalGeom;
+in float isReflection;
 
 out vec4 FragColor;
 
-// Material properties
 uniform vec4 materialAmbient;
 uniform vec4 materialDiffuse;
 uniform vec4 materialSpecular;
 uniform float materialShininess;
 
-// Light properties
 uniform vec3 lightPosition;
 uniform vec4 lightAmbient;
 uniform vec4 lightDiffuse;
 uniform vec4 lightSpecular;
 
-// Headlight properties
-uniform vec3 headlightPosition;
-uniform vec3 headlightDirection;
-uniform vec4 headlightDiffuse;
-uniform float headlightDiameter;  // cone angle in radians
-uniform bool headlightEnabled;
-
 uniform vec3 viewPosition;
+uniform float floorY;
 
 void main() {
-    vec3 normal = normalize(fragNormal);
-    vec3 viewDir = normalize(viewPosition - fragPosition);
+    vec3 normal = normalize(fragNormalGeom);
+    vec3 viewDir = normalize(viewPosition - fragPositionGeom);
 
-    // Ambient from scene light
+    // Determine which side of floor we're on
+    bool fragAboveFloor = (fragPositionGeom.y > floorY);
+
+    // Ambient
     vec3 ambient = lightAmbient.rgb * materialAmbient.rgb;
 
-    // Diffuse and specular from main light
-    vec3 lightDir = normalize(lightPosition - fragPosition);
-    vec3 reflectDir = reflect(-lightDir, normal);
+    vec3 diffuse = vec3(0.0);
+    vec3 specular = vec3(0.0);
 
-    float diff = max(dot(normal, lightDir), 0.0);
-    vec3 diffuse = lightDiffuse.rgb * (diff * materialDiffuse.rgb);
+    // Mirror light if rendering reflection
+    vec3 effectiveLightPos = lightPosition;
+    if (isReflection > 0.5) {
+        effectiveLightPos.y = 2.0 * floorY - lightPosition.y;
+    }
 
-    float spec = pow(max(dot(viewDir, reflectDir), 0.0), materialShininess);
-    vec3 specular = lightSpecular.rgb * (spec * materialSpecular.rgb);
+    // Only apply light if on same side of floor
+    bool lightAboveFloor = (effectiveLightPos.y > floorY);
+    if (fragAboveFloor == lightAboveFloor) {
+        vec3 lightDir = normalize(effectiveLightPos - fragPositionGeom);
 
-    vec3 result = ambient + diffuse + specular;
+        float diff = max(dot(normal, lightDir), 0.0);
+        diffuse = lightDiffuse.rgb * (diff * materialDiffuse.rgb);
 
-    // Add headlight contribution
-    if (headlightEnabled) {
-        vec3 headlightDir = normalize(headlightPosition - fragPosition);
-        vec3 headlightDirNorm = normalize(headlightDirection);
-
-        // Calculate angle between headlight direction and fragment direction
-        float theta = acos(dot(-headlightDir, headlightDirNorm));
-
-        // Hard cutoff based on diameter (cone angle)
-        if (theta < headlightDiameter / 2.0) {
-            float headlightDiff = max(dot(normal, headlightDir), 0.0);
-            vec3 headlightContrib = headlightDiffuse.rgb * (headlightDiff * materialDiffuse.rgb);
-            result += headlightContrib;
+        if (diff > 0.0) {
+            vec3 reflectDir = reflect(-lightDir, normal);
+            float spec = pow(max(dot(viewDir, reflectDir), 0.0), materialShininess);
+            specular = lightSpecular.rgb * (spec * materialSpecular.rgb);
         }
     }
 
-    // Use alpha from material diffuse (or could use average of all alphas)
+    vec3 result = ambient + diffuse + specular;
+
     float alpha = materialDiffuse.a;
+
+    if (isReflection > 0.5) {
+        // Darken reflections slightly
+        result *= 0.75;
+    }
+
     FragColor = vec4(result, alpha);
 }
 """
-
 
 def compile_shader():
     return _compiler.compile(SHADER, GL.GL_FRAGMENT_SHADER)

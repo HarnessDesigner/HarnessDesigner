@@ -7,6 +7,9 @@ from ... import debug as _debug
 from ... import color as _color
 from ...geometry import point as _point
 from ...geometry import angle as _angle
+from ...geometry import line as _line
+
+from ...geometry.decimal import Decimal as _d
 from ... import config as _config
 from ...gl import materials as _materials
 from ... import utils as _utils
@@ -54,13 +57,17 @@ class Base3D:
         self._vbo = vbo
 
         self._is_selected = False
+        self.numpy_position = self._position.as_numpy
 
         try:
             self._is_visible = db_obj.is_visible3d  # NOQA
         except AttributeError:
             self._is_visible = False
 
-        self._aabb: np.ndarray = None
+        self._is_opaque = np.array([1], dtype=np.uint8)
+        self._aabb: np.ndarray = np.ascontiguousarray(np.array(
+            [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype=np.float64))
+
         self._obb: np.ndarray = None
 
         self._data = data
@@ -75,6 +82,7 @@ class Base3D:
     def _compute_obb(self):
         if self._vbo is None:
             p1, p2 = _utils.compute_aabb(self._data[0])
+
             self._obb = _utils.compute_obb(p1, p2)
         else:
             local_obb = self._vbo.local_obb * self._scale
@@ -84,25 +92,33 @@ class Base3D:
     def _compute_aabb(self):
         if self._vbo is None:
             p1, p2 = _utils.compute_aabb(self._data[0])
-            self._aabb = _utils.adjust_aabb(np.array([p1.as_float, p2.as_float], dtype=np.float64))
+            aabb = _utils.adjust_aabb(np.array([p1.as_float, p2.as_float], dtype=np.float64))
         else:
             local_aabb = self._vbo.local_aabb * self._scale
             local_aabb @= self._angle
-            self._aabb = _utils.adjust_aabb(local_aabb + self._position)
+
+            local_aabb += self._position
+
+            aabb = _utils.adjust_aabb(local_aabb)
+
+        for i in range(2):
+            for j in range(3):
+                self._aabb[i][j] = aabb[i][j]
 
     def _update_position(self, position: _point.Point):
+        self._compute_obb()
+        self._compute_aabb()
+
+        if self._vbo is not None and self._aabb[0][1] < Config.floor.ground_height:
+            self._position.y += Config.floor.ground_height - self._aabb[0][1]
+            return
+
         if self._vbo is None:
             delta = position - self._o_position
             self._data[0] += delta
 
         self._o_position = position.copy()
-
-        self._compute_obb()
-        self._compute_aabb()
-
-        if self._aabb[0][1] < Config.floor.ground_height:
-            self._position.y -= self._aabb[0][1] - Config.floor.ground_height
-            return
+        self.numpy_position = position.as_numpy
 
         self.editor3d.Refresh(False)
 
@@ -125,8 +141,8 @@ class Base3D:
         self._compute_obb()
         self._compute_aabb()
 
-        if self._aabb[0][1] < Config.floor.ground_height:
-            self._position.y -= self._aabb[0][1] - Config.floor.ground_height
+        if self._vbo is not None and self._aabb[0][1] < Config.floor.ground_height:
+            self._position.y += Config.floor.ground_height - self._aabb[0][1]
             return
 
         self.editor3d.Refresh(False)
@@ -137,8 +153,8 @@ class Base3D:
         self._compute_obb()
         self._compute_aabb()
 
-        if self._aabb[0][1] < Config.floor.ground_height:
-            self._position.y -= self._aabb[0][1] - Config.floor.ground_height
+        if self._vbo is not None and self._aabb[0][1] < Config.floor.ground_height:
+            self._position.y += Config.floor.ground_height - self._aabb[0][1]
             return
 
         self.editor3d.Refresh(False)
@@ -295,9 +311,8 @@ class Base3D:
         return self._obb
 
     @property
-    def aabb(self) -> list[_point.Point, _point.Point]:
-        p1, p2 = [_point.Point(*item.tolist()) for item in self._aabb]
-        return [p1, p2]
+    def aabb(self) -> np.ndarray:
+        return self._aabb
 
     @property
     def is_selected(self) -> bool:
@@ -305,13 +320,17 @@ class Base3D:
 
     def set_selected(self, flag: bool):
         if flag:
-            color = Config.selected_color
-            self._material.x_ray_color = color
-            self._material.x_ray = True
+            self._material = self._selected_material
         else:
-            self._material.x_ray = False
+            self._material = self._unselected_material
 
+        self._is_opaque[0] = int(self._material.is_opaque)
         self._is_selected = flag
+
+        if flag:
+            self.mainframe._set_selected(self._parent)  # NOQA
+        else:
+            self.mainframe._set_selected(None)  # NOQA
 
     def delete(self):
         self.db_obj.delete()
@@ -334,7 +353,10 @@ class Base3D:
         pos_loc = GL.glGetUniformLocation(shader_program, "objectPosition")
         rot_loc = GL.glGetUniformLocation(shader_program, "objectRotation")
         scale_loc = GL.glGetUniformLocation(shader_program, "objectScale")
-        
+
+        objectHasReflectionLoc = GL.glGetUniformLocation(shader_program, "objectHasReflection")
+        GL.glUniform1i(objectHasReflectionLoc, 1)
+
         if self._vbo is None:
             # we set these to values that will not cause anything to move
             # This is done because the processing is being done CPU side and
@@ -358,7 +380,7 @@ class Base3D:
             GL.glDisableVertexAttribArray(1)
         else:
             GL.glUniform3f(pos_loc, *self._position.as_float)
-            GL.glUniform4f(rot_loc, *self._angle.as_quat.tolist())
+            GL.glUniform4f(rot_loc, *self._angle.as_quat_numpy.tolist())
             GL.glUniform3f(scale_loc, *self._scale.as_float)
 
             self._vbo.render()
@@ -377,4 +399,4 @@ class Base3D:
 
     @property
     def is_opaque(self):
-        return self.material.is_opaque
+        return self._is_opaque

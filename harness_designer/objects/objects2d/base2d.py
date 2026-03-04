@@ -23,6 +23,11 @@ class Base2D:
     def set_selected(self, flag: bool):
         self._is_selected = flag
 
+        if flag:
+            self.mainframe._set_selected(self._parent)  # NOQA
+        else:
+            self.mainframe._set_selected(None)  # NOQA
+
     @property
     def is_selected(self) -> bool:
         return self._is_selected

@@ -7,8 +7,11 @@ from .mixins import (Angle3DMixin, Angle2DMixin, Position3DMixin, Position2DMixi
 
 
 if TYPE_CHECKING:
+    from . import pjt_seal as _pjt_seal
     from . import pjt_terminal as _pjt_terminal
     from ..global_db import cavity as _cavity
+
+    from ...objects import cavity as _cavity_obj
 
 
 class PJTCavitiesTable(PJTTableBase):
@@ -38,6 +41,12 @@ class PJTCavity(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin,
 
     _table: PJTCavitiesTable = None
 
+    def get_object(self) -> "_cavity_obj.Cavity":
+        return self._obj
+
+    def set_object(self, obj: "_cavity_obj.Cavity"):
+        self._obj = obj
+
     @property
     def table(self) -> PJTCavitiesTable:
         return self._table
@@ -50,6 +59,15 @@ class PJTCavity(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin,
             return None
 
         return self._table.db.pjt_terminals_table[terminal_ids[0][0]]
+
+    @property
+    def seal(self) -> "_pjt_seal.PJTSeal":
+        seal_ids = self._table.db.pjt_seals_table.select('id', cavity_id=self._db_id)
+
+        if not seal_ids:
+            return None
+
+        return self._table.db.pjt_seals_table[seal_ids[0][0]]
 
     @property
     def part(self) -> "_cavity.Cavity":

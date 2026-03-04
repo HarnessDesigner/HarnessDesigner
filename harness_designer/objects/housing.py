@@ -32,6 +32,8 @@ class Housing(_ObjectBase):
         super().__init__(mainframe)
 
         self.db_obj = db_obj
+        db_obj.set_object(self)
+
         self.obj2d = _housing_2d.Housing(self, db_obj)
         self.obj3d = _housing_3d.Housing(self, db_obj)
 
@@ -41,6 +43,7 @@ class Housing(_ObjectBase):
         self.cpa_locks = []
         self.cover = None
         self.boot = None
+        self.mainframe.add_object(self)
 
     def add_cavity(self, cavity: "_pjt_cavity.PJTCavity"):
         pass

@@ -1,11 +1,13 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 from . import PJTEntryBase, PJTTableBase
-from .mixins import Angle3DMixin, Position3DMixin, PartMixin, HousingMixin, Visible3DMixin
+from .mixins import Angle3DMixin, Position3DMixin, PartMixin, HousingMixin, Visible3DMixin, NameMixin
 
 
 if TYPE_CHECKING:
     from ..global_db import cover as _cover
+
+    from ...objects import cover as _cover_obj
 
 
 class PJTCoversTable(PJTTableBase):
@@ -30,9 +32,15 @@ class PJTCoversTable(PJTTableBase):
 
 
 class PJTCover(PJTEntryBase, Angle3DMixin, Position3DMixin,
-               PartMixin, HousingMixin, Visible3DMixin):
+               PartMixin, HousingMixin, Visible3DMixin, NameMixin):
 
     _table: PJTCoversTable = None
+
+    def get_object(self) -> "_cover_obj.Cover":
+        return self._obj
+
+    def set_object(self, obj: "_cover_obj.Cover"):
+        self._obj = obj
 
     @property
     def table(self) -> PJTCoversTable:

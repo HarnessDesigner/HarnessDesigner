@@ -19,6 +19,7 @@ class Terminal(_ObjectBase):
         super().__init__(mainframe)
 
         self.db_obj = db_obj
+        db_obj.set_object(self)
 
         self.obj2d = _terminal_2d.Terminal(self, db_obj)
         self.obj3d = _terminal_3d.Terminal(self, db_obj)

@@ -87,9 +87,11 @@ class VBOHandler(metaclass=VBOSingleton):
             self.__vert_count
         ) = self._create_vbo(vertices, normals, faces, count)
 
-        local_aabb = _utils.compute_aabb(vertices[faces])
+        local_aabb = _utils.compute_aabb(vertices.reshape(-1, 3))
         self.local_obb = _utils.compute_obb(*local_aabb)
-        self.local_aabb = np.array([item.as_numpy for item in local_aabb])
+
+        p1, p2 = local_aabb
+        self.local_aabb = np.array([p1.as_numpy, p2.as_numpy], dtype=np.float64)
 
     @property
     def vertices(self):
