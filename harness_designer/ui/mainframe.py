@@ -31,8 +31,12 @@ class MainFrame(wx.Frame):
 
     def __init__(self, splash):
 
+        splash.SetText('Startup logging ...')
+
         from .. import logger
         self.logger = logger.Log()
+
+        splash.SetLogger(self.logger)
 
         if not Config.size:
             w, h = wx.GetDisplaySize()
@@ -159,8 +163,6 @@ class MainFrame(wx.Frame):
         #
         # self.editor3d.Bind(_canvas3d.EVT_GL_OBJECT_ACTIVATED, self._on_object_activated_3d)
 
-
-
         # from ..menus import menubar as _menubar
         #
         # self.menubar = _menubar.Menubar
@@ -237,15 +239,33 @@ class MainFrame(wx.Frame):
         self.status_bar.SetStatusText(f'Z: {round(float(z), 4)}', 2)
 
     def on_close(self, _):
+        print('Harness Designer shutting down')
+
+        print('Saving UI layout...')
         Config.ui_perspective = self.manager.SavePerspective()
 
+        print('Closing 2D Editor....')
         self.editor2d.Destroy()
+
+        print('Closing 3D Editor....')
         self.editor3d.Destroy()
+
+        print('Closing Database Editor....')
         self.editor_db.Destroy()
+
+        print('Closing Object Editor....')
         self.editor_obj.Destroy()
+
+        print('Closing Assembly Editor....')
         self.editor_assembly.Destroy()
 
+        print('Closing Log Viewer....')
+        self.log_viewer.Destroy()
+
+        print('Uninitizing UI Manager...')
         self.manager.UnInit()
+
+        print('Closing UI')
         self.Destroy()
 
     def on_size(self, evt: wx.SizeEvent):

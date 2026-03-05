@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING
 
 import wx
-import os
 from . import utils as _utils
 
 
@@ -24,7 +23,10 @@ class App(wx.App):
     def OnExit(self):
         from . import config
 
+        print('Saving Config Data...')
         config.Config.close()
+
+        print('Exiting Application...')
 
         return wx.App.OnExit(self)
 

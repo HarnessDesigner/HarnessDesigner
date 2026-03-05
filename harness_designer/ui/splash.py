@@ -1,8 +1,15 @@
+from typing import TYPE_CHECKING
+
 import wx
 import time
 import threading
-
+import traceback
 from PIL import Image
+
+from dialogs import critical_error as _critical_error
+
+if TYPE_CHECKING:
+    from .. import logger as _logger
 
 
 class Splash(wx.Frame):
@@ -10,6 +17,8 @@ class Splash(wx.Frame):
     def __init__(self, parent):
 
         wx.Frame.__init__(self, parent, wx.ID_ANY, style=wx.FRAME_NO_TASKBAR | wx.FRAME_SHAPED | wx.STAY_ON_TOP)
+
+        self.logger: "_logger.Log" = None
         import os
 
         base_path = os.path.dirname(__file__)
@@ -53,40 +62,70 @@ class Splash(wx.Frame):
         if wx.Platform == "__WXMAC__":
             wx.SafeYield(self, True)
 
+    def SetLogger(self, logger: "_logger.Log"):
+        self.logger = logger
+
     def run_thread(self):
         while self.init:
             time.sleep(0.1)
 
+        event = threading.Event()
+
         try:
-            event = threading.Event()
             from . import mainframe as _mainframe
-
         except Exception as err:  # NOQA
-            import traceback
+            traceback.print_exc()
+            dlg = _critical_error.CriticalErrorDialog(self, err)
 
-            traceback.format_exception(err)
+            dlg.ShowModal()
+            dlg.Destroy()
 
+            self.Show(False)
+            self.Destroy()
+
+            app = wx.GetApp()
+            app.ExitMainLoop()
+            return
+
+        has_error = [False]
 
         def _do():
             time.sleep(0.25)
             self.SetText('starting mainframe')
-            _mainframe._mainframe = _mainframe.MainFrame(self)
+            try:
+                _mainframe._mainframe = _mainframe.MainFrame(self)
+            except Exception as err:  # NOQA
+                traceback.print_exc()
+                dlg = _critical_error.CriticalErrorDialog(self, err)
+
+                dlg.ShowModal()
+                dlg.Destroy()
+                has_error[0] = True
+
             event.set()
 
         wx.CallAfter(_do)
 
         event.wait()
 
-        _mainframe._mainframe.open_database(self)
-        self.SetText('DONE!')
-        time.sleep(0.25)
-
-        def _do():
+        if has_error[0]:
             self.Show(False)
-            _mainframe._mainframe.Show()  # NOQA
             self.Destroy()
 
-        wx.CallAfter(_do)
+            app = wx.GetApp()
+            app.ExitMainLoop()
+        else:
+            _mainframe._mainframe.open_database(self)
+
+            self.SetText('DONE!')
+            time.sleep(0.25)
+
+            def _do():
+                self.Show(False)
+                _mainframe._mainframe.Show()  # NOQA
+                self.Destroy()
+
+            wx.CallAfter(_do)
 
     def on_window_create(self, evt):
         if wx.Platform == "__WXGTK__":
@@ -106,6 +145,9 @@ class Splash(wx.Frame):
         if self.main_thread != threading.current_thread():
 
             def _do(t):
+                if self.logger is not None:
+                    self.logger.print_info(t)
+
                 self.text = t
                 self.draw()
                 self.event.set()
@@ -114,6 +156,9 @@ class Splash(wx.Frame):
             self.event.wait(0.2)
             self.event.clear()
         else:
+            if self.logger is not None:
+                self.logger.print_info(text)
+
             self.text = text
             self.draw()
             time.sleep(0.05)
@@ -160,9 +205,3 @@ class Splash(wx.Frame):
 
         self.draw(dc)
         self.init = False
-
-
-if __name__ == '__main__':
-    app = wx.App()
-    frame = Splash(None)
-    app.MainLoop()
