@@ -14,10 +14,11 @@ class Cavity(_base3d.Base3D):
     def __init__(self, parent: "_cavity.Cavity",
                  db_obj: "_pjt_cavity.PJTCavity"):
 
-        _base3d.Base3D.__init__(self, parent)
-        self._db_obj: "_pjt_cavity.PJTCavity" = db_obj
+        # _base3d.Base3D.__init__(self, parent)
+        # self._db_obj: "_pjt_cavity.PJTCavity" = db_obj
 
-        _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
+        # _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
+        pass
 
 
 # from typing import TYPE_CHECKING

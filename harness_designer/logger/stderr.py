@@ -57,8 +57,8 @@ class StdErr(io.TextIOWrapper):
         pass
 
     def write(self, __s: str) -> int:
-        # self.__original_stderr__.write(__s)
-        self.__logger.print_error(__s)
+        self.__original_stderr__.write(__s)
+        self.__logger.print_error(__s.rstrip())
 
     def read(self, __size: int | None = 1) -> str:
         self.__original_stderr__.read(__size)
@@ -106,9 +106,10 @@ class StdErr(io.TextIOWrapper):
         return self.__original_stderr__.__next__()
 
     def writelines(self, __lines: Iterable[str]) -> None:
-        # self.__original_stderr__.writelines(__lines)
-        for line in __lines:
-            self.__logger.print_error(line)
+        self.__original_stderr__.writelines(__lines)
+
+        __lines = '\n'.join(__lines)
+        self.__logger.print_error(__lines.rstrip())
 
     def readline(self, __size: int = -1) -> str:
         return self.__original_stderr__.readline(__size)
@@ -118,7 +119,6 @@ class StdErr(io.TextIOWrapper):
 
     def seek(self, __cookie: int, __whence: int = 0) -> int:
         return self.__original_stderr__.seek(__cookie, __whence)
-
 
 
 if __name__ == '__main__':

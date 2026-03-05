@@ -18,11 +18,11 @@ if TYPE_CHECKING:
 Config = _config.Config.logging
 
 
-
 class LogViewer(aui.AuiPaneInfo):
 
     def __init__(self, mainframe: "_mainframe.MainFrame"):
         self.viewer = LogViewerPanel(mainframe, mainframe.logger)
+        print('viewer created')
         self.mainframe = mainframe
         self.manager = mainframe.manager
 
@@ -65,10 +65,12 @@ class LogData:
 class LogViewerPanel(wx.Panel):
 
     def __init__(self, parent, logger: "_logger.Log"):
+
+        print('binding log handler')
         logger.log_handler.bind(self.new_data)
         self.logger = logger
 
-        wx.Panel.__init__(parent, wx.ID_ANY, style=wx.BORDER_NONE)
+        wx.Panel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_NONE)
 
         self.treectrl = wx.TreeCtrl(self, wx.ID_ANY, style=wx.TR_HAS_BUTTONS | wx.TR_LINES_AT_ROOT | wx.TR_SINGLE)
         self.root = self.treectrl.AddRoot('Logs')

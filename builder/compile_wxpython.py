@@ -1,9 +1,9 @@
 import os
 
 try:
-    from . import utils
+    from . import utils_
 except ImportError:
-    import utils
+    import utils_
 
 
 def run():
@@ -11,7 +11,7 @@ def run():
 
     wx_path = os.path.dirname(wx.__file__)
 
-    cfiles = utils.iter_mod_path(wx_path)
+    cfiles = utils_.iter_mod_path(wx_path)
 
     from Cython.Build import Cythonize
 
@@ -20,4 +20,4 @@ def run():
     except RuntimeError:
         pass
     else:
-        utils.cleanup_after_compile(wx_path, False)
+        utils_.cleanup_after_compile(wx_path, False)

@@ -56,45 +56,45 @@ class Boot(_base3d.Base3D):
             material = _materials.Metallic(_color.Color(0.6, 0.2, 0.2, 1.0))
 
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, db_obj.position3d, scale, material)
-
-
-class BootMenu(wx.Menu):
-
-    def __init__(self, canvas, selected):
-        wx.Menu.__init__(self)
-        self.canvas = canvas
-        self.selected = selected
-
-        rotate_menu = RotateMenu(canvas, selected)
-
-        self.AppendSubMenu(rotate_menu, 'Rotate')
-
-        mirror_menu = MirrorMenu(canvas, selected)
-        self.AppendSubMenu(mirror_menu, 'Mirror')
-
-        self.AppendSeparator()
-        item = self.Append(wx.ID_ANY, 'Select')
-        canvas.Bind(wx.EVT_MENU, self.on_select, id=item.GetId())
-
-        item = self.Append(wx.ID_ANY, 'Clone')
-        canvas.Bind(wx.EVT_MENU, self.on_clone, id=item.GetId())
-
-        self.AppendSeparator()
-        item = self.Append(wx.ID_ANY, 'Delete')
-        canvas.Bind(wx.EVT_MENU, self.on_delete, id=item.GetId())
-
-        self.AppendSeparator()
-        item = self.Append(wx.ID_ANY, 'Properties')
-        canvas.Bind(wx.EVT_MENU, self.on_properties, id=item.GetId())
-
-    def on_select(self, evt: wx.MenuEvent):
-        evt.Skip()
-
-    def on_clone(self, evt: wx.MenuEvent):
-        evt.Skip()
-
-    def on_delete(self, evt: wx.MenuEvent):
-        evt.Skip()
-
-    def on_properties(self, evt: wx.MenuEvent):
-        evt.Skip()
+#
+#
+# class BootMenu(wx.Menu):
+#
+#     def __init__(self, canvas, selected):
+#         wx.Menu.__init__(self)
+#         self.canvas = canvas
+#         self.selected = selected
+#
+#         rotate_menu = RotateMenu(canvas, selected)
+#
+#         self.AppendSubMenu(rotate_menu, 'Rotate')
+#
+#         mirror_menu = MirrorMenu(canvas, selected)
+#         self.AppendSubMenu(mirror_menu, 'Mirror')
+#
+#         self.AppendSeparator()
+#         item = self.Append(wx.ID_ANY, 'Select')
+#         canvas.Bind(wx.EVT_MENU, self.on_select, id=item.GetId())
+#
+#         item = self.Append(wx.ID_ANY, 'Clone')
+#         canvas.Bind(wx.EVT_MENU, self.on_clone, id=item.GetId())
+#
+#         self.AppendSeparator()
+#         item = self.Append(wx.ID_ANY, 'Delete')
+#         canvas.Bind(wx.EVT_MENU, self.on_delete, id=item.GetId())
+#
+#         self.AppendSeparator()
+#         item = self.Append(wx.ID_ANY, 'Properties')
+#         canvas.Bind(wx.EVT_MENU, self.on_properties, id=item.GetId())
+#
+#     def on_select(self, evt: wx.MenuEvent):
+#         evt.Skip()
+#
+#     def on_clone(self, evt: wx.MenuEvent):
+#         evt.Skip()
+#
+#     def on_delete(self, evt: wx.MenuEvent):
+#         evt.Skip()
+#
+#     def on_properties(self, evt: wx.MenuEvent):
+#         evt.Skip()

@@ -1,48 +1,20 @@
-
+from typing import TYPE_CHECKING
 import time
 import functools
 
 from . import config as _config
 
+if TYPE_CHECKING:
+
+    from . import ui as _ui
+
 
 Config = _config.Config
 
 
-class _DebugTimer:
+_stack_count = 0
 
-    def __init__(self):
-        self._timer_running = False
-        self._timer_stack = []
-        self._print_stack = []
-
-    def start_new_timer(self):
-        self._timer_stack.append(time.perf_counter_ns())
-
-    def stop_timer(self):
-        stop = time.perf_counter_ns()
-        start = self._timer_stack.pop(-1)
-        return (stop - start) / 1000000
-
-    def __enter__(self):
-        self._print_stack.append(time.perf_counter_ns())
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        strt = time.perf_counter_ns()
-        stop = strt
-        start = self._print_stack.pop(-1)
-        diff = stop - start
-
-        for i in range(len(self._timer_stack)):
-            self._timer_stack[i] += diff
-
-        stop = time.perf_counter_ns()
-        diff = (stop - strt) * 2
-
-        for i in range(len(self._timer_stack)):
-            self._timer_stack[i] += diff
-
-
-_debug_timer = _DebugTimer()
+_print_func = print
 
 
 def logfunc(func):
@@ -52,27 +24,49 @@ def logfunc(func):
 
     @functools.wraps(func)
     def _wrapper(*args, **kwargs):
+        global _print_func
+        global _stack_count
+
+        if _print_func == print:
+            from .ui import mainframe
+
+            if mainframe._mainframe is not None:  # NOQA
+                _print_func = mainframe._mainframe.logger.print_debug  # NOQA
+
         if Config.debug.log_args:
-            with _debug_timer:
-                args_ = ', '.join(repr(arg) for arg in args)
-                kwargs_ = ', '.join(f'{key}={repr(value)}' for key, value in kwargs.items())
+            args_ = ', '.join(repr(arg) for arg in args)
+            kwargs_ = ', '.join(f'{key}={repr(value)}' for key, value in kwargs.items())
+
+        if _stack_count == 0:
+            _print_func('\n', 'START STACK')
+
+        _stack_count += 1
 
         if Config.debug.call_duration:
-            _debug_timer.start_new_timer()
+            start = time.perf_counter_ns()
             ret = func(*args, **kwargs)
-            duration = _debug_timer.stop_timer()
+            stop = time.perf_counter_ns()
+            duration = (stop - start) / 1000000
+
         else:
             ret = func(*args, **kwargs)
 
+        _stack_count -= 1
+
         if Config.debug.log_args:
             if Config.debug.call_duration:
-                with _debug_timer:
-                    print(f'({duration}ms){func.__qualname__}({", ".join(item for item in [args_, kwargs_] if item)}) --> {repr(ret)}')
+                _print_func(f'({duration}ms){func.__qualname__}({", ".join(item for item in [args_, kwargs_] if item)}) --> {repr(ret)}')
             else:
-                print(f'{func.__qualname__}({", ".join(item for item in [args_, kwargs_] if item)}) --> {repr(ret)}')
+                _print_func(f'{func.__qualname__}({", ".join(item for item in [args_, kwargs_] if item)}) --> {repr(ret)}')
+
+            if _stack_count == 0:
+                _print_func('END STACK', '\n')
+
         elif Config.debug.call_duration:
-            with _debug_timer:
-                print(f'({duration}ms){func.__qualname__}')
+            _print_func(f'({duration}ms){func.__qualname__}')
+
+            if _stack_count == 0:
+                _print_func('END STACK\n\n')
 
         return ret
 

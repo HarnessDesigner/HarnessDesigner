@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING
 
 import wx
 import numpy as np
+import math
 
 from ...geometry import point as _point
 from ...geometry import angle as _angle

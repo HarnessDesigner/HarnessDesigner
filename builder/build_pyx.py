@@ -2,9 +2,9 @@
 import os
 
 try:
-    from . import utils
+    from . import utils_
 except ImportError:
-    import utils
+    import utils_
 
 
 def run(hd_path):
@@ -27,4 +27,4 @@ def run(hd_path):
 
     Cythonize.main(['-3', '--build', f'--parallel={os.cpu_count()}', '--inplace', pyx_path])
 
-    # utils.cleanup_after_compile(hd_path)
+    # utils_.cleanup_after_compile(hd_path)

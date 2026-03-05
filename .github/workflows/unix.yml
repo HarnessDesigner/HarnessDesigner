@@ -18,7 +18,7 @@ jobs:
       - uses: lukka/get-cmake@latest  # <--= Just this one-liner suffices.
       - uses: actions/setup-python@v6.1.0
         with:
-          python-version: '3.11.14'
+          python-version: '3.11'
 
       - name: Install Dependencies
         run: |

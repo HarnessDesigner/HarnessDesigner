@@ -1,17 +1,18 @@
 from typing import TYPE_CHECKING
 
-import wx
-
-import math
-
-from ...geometry import point as _point
-from ...geometry import line as _line
-from ...geometry import angle as _angle
+# import wx
+#
+# import math
+#
+# from ...geometry import point as _point
+# from ...geometry import line as _line
+# from ...geometry import angle as _angle
+# from ...geometry.decimal import Decimal as _d
 from . import base2d as _base2d
 
 
 if TYPE_CHECKING:
-    from .. import wire_info as _wire_info
+    # from .. import wire_info as _wire_info
     from ...database.project_db import pjt_wire as _pjt_wire
     from .. import wire as _wire
 
@@ -27,181 +28,181 @@ class Wire(_base2d.Base2D):
     def __init__(self, parent: "_wire.Wire", db_obj: "_pjt_wire.PJTWire"):
         _base2d.Base2D.__init__(self, parent, db_obj)
 
-        self._wire_info = wire_info
+        # self._wire_info = wire_info
         self._part = db_obj.part
         self._p1 = db_obj.start_point2d.point
         self._p2 = db_obj.stop_point2d.point
+        #
+        # self._p1.bind(self._reset_hit_test)
+        # self._p2.bind(self._reset_hit_test)
+        #
+        # self._hit_test_rect = None
 
-        self._p1.bind(self._reset_hit_test)
-        self._p2.bind(self._reset_hit_test)
-
-        self._hit_test_rect = None
-
-    def _reset_hit_test(self, *_):
-        dia = self._wire_info.pixel_width
-        length = _line.Line(self._p1, self._p2).length()
-        angle = _angle.Angle.from_points(self._p1, self._p2)
-
-        p1 = _point.Point(_decimal(0.0), _decimal(0.0))
-        p2 = _point.Point(_decimal(dia), length)
-
-        p2 @= angle
-
-        p1 += self._p1
-        p2 += self._p2
-
-        self._hit_test_rect = [p1, p2]
-
-    def get_rect(self):
-        if self._hit_test_rect is None:
-            dia = self._wire_info.pixel_width
-            length = _line.Line(self._p1, self._p2).length()
-            angle = _angle.Angle.from_points(self._p1, self._p2)
-
-            p1 = _point.Point(_decimal(0.0), _decimal(0.0))
-            p2 = _point.Point(_decimal(dia), length)
-
-            p2 @= angle
-
-            p1 += self._p1
-            p2 += self._p2
-
-            self._hit_test_rect = [p1, p2]
-        return self._hit_test_rect
-
-    def stripe_lines(self) -> list[list[tuple[float, float], tuple[float, float]]]:
-        line = _line.Line(self._p1, self._p2)
-        line_angle = _angle.Angle.from_points(self._p1, self._p2)
-
-        stripe_angle1 = _angle.Angle.from_points(_point.Point(68, 0), _point.Point(68 - 32, 24))
-        stripe_angle1 += line_angle
-
-        stripe_angle2 = stripe_angle1.copy()
-        stripe_angle2.z += _decimal(180.0)
-
-        line_len = len(line)
-        step = 40
-
-        wire_size = self._wire_info.pixel_width
-
-        curr_dist = 0
-        points = []
-
-        while curr_dist < line_len - step:
-            curr_dist += step
-
-            p = line.point_from_start(curr_dist)
-            s1 = _line.Line(p, None, angle=stripe_angle1, length=max(wire_size, 1))
-            s2 = _line.Line(p, None, angle=stripe_angle2, length=max(wire_size, 1))
-
-            points.append([s1.p2.as_float[:-1], s2.p2.as_float[:-1]])
-
-        return points
-
-    def draw_selected(self, gc, selected):
-        x1 = selected.p1.x
-        y1 = selected.p1.y
-        x2 = selected.p2.x
-        y2 = selected.p2.y
-
-        path = gc.CreatePath()
-        path.MoveToPoint(float(x1), float(y1))
-        path.AddLineToPoint(float(x2), float(y2))
-        path.CloseSubpath()
-        gc.StrokePath(path)
-
-    def draw(self, gc, mask_gc):
-        p1 = self._p1
-        p2 = self._p2
-
-        pixel_width = self._wire_info.pixel_width
-        color = self._part.color.ui
-
-        pen1 = wx.Pen(color, pixel_width)
-        pen1.SetJoin(wx.JOIN_MITER)
-
-        mask_pen = wx.Pen(wx.BLACK, pixel_width)
-        mask_pen.SetJoin(wx.JOIN_MITER)
-
-        stripe_color = self._part.stripe_color
-
-        if stripe_color is not None:
-            stripe_pen = wx.Pen(stripe_color.ui,
-                                max(int(self._wire_info.pixel_width / 3.0), 2))
-        else:
-            stripe_pen = None
-
-        handle_pen = wx.Pen(wx.Colour(0, 0, 0, 255), 3.0)
-
-        path = gc.CreatePath()
-        mask_path = mask_gc.CreatePath()
-
-        is_selected = self.is_selected
-        mask_gc.SetPen(wx.TRANSPARENT_PEN)
-
-        mask_path.MoveToPoint(float(p1.x), float(p1.y))
-        mask_path.AddLineToPoint(float(p2.x), float(p2.y))
-
-        path.MoveToPoint(float(p1.x), float(p1.y))
-        path.AddLineToPoint(float(p2.x), float(p2.y))
-
-        if is_selected:
-            for obj in p1.objects:
-                if obj != self and isinstance(obj, Wire):
-                    mask_path.drawEllipse(float(p1.x - SIX_0),
-                                          float(p1.y - SIX_0),
-                                          12.0, 12.0)
-                    break
-
-            for obj in p2.objects:
-                if obj != self and isinstance(obj, Wire):
-                    mask_path.DrawEllipse(float(p2.x - SIX_0),
-                                          float(p2.y - SIX_0),
-                                          12.0, 12.0)
-                    break
-
-        mask_path.CloseSubpath()
-        mask_gc.SetPen(mask_pen)
-        mask_gc.StrokePath(path)
-
-        gc.SetPen(pen1)
-        path.CloseSubpath()
-        gc.StrokePath(path)
-
-        gc.SetPen(wx.TRANSPARENT_PEN)
-
-        if stripe_color is not None:
-            path = gc.CreatePath()
-            for start, stop in self.stripe_lines():
-                path.MoveToPoint(*start)
-                path.AddLineToPoint(*stop)
-
-            path.CloseSubpath()
-
-            gc.SetPen(stripe_pen)
-            gc.StrokePath(path)
-
-        path = gc.CreatePath()
-
-        if is_selected:
-            for obj in self._p1.objects:
-                if obj != self and isinstance(obj, Wire):
-                    path.DrawEllipse(float(self._p1.x - SIX_0),
-                                     float(self._p1.y - SIX_0),
-                                     12.0, 12.0)
-                    break
-
-            for obj in self._p2.objects:
-                if obj != self and isinstance(obj, Wire):
-                    path.DrawEllipse(float(self._p2.x - SIX_0),
-                                     float(self._p2.y - SIX_0),
-                                     12.0, 12.0)
-                    break
-
-        path.CloseSubpath()
-
-        gc.SetPen(handle_pen)
-        gc.StrokePath(path)
+    # def _reset_hit_test(self, *_):
+    #     dia = self._wire_info.pixel_width
+    #     length = _line.Line(self._p1, self._p2).length()
+    #     angle = _angle.Angle.from_points(self._p1, self._p2)
+    #
+    #     p1 = _point.Point(_d(0.0), _d(0.0))
+    #     p2 = _point.Point(_d(dia), length)
+    #
+    #     p2 @= angle
+    #
+    #     p1 += self._p1
+    #     p2 += self._p2
+    #
+    #     self._hit_test_rect = [p1, p2]
+    #
+    # def get_rect(self):
+    #     if self._hit_test_rect is None:
+    #         dia = self._wire_info.pixel_width
+    #         length = _line.Line(self._p1, self._p2).length()
+    #         angle = _angle.Angle.from_points(self._p1, self._p2)
+    #
+    #         p1 = _point.Point(_d(0.0), _d(0.0))
+    #         p2 = _point.Point(_d(dia), length)
+    #
+    #         p2 @= angle
+    #
+    #         p1 += self._p1
+    #         p2 += self._p2
+    #
+    #         self._hit_test_rect = [p1, p2]
+    #     return self._hit_test_rect
+    #
+    # def stripe_lines(self) -> list[list[tuple[float, float], tuple[float, float]]]:
+    #     line = _line.Line(self._p1, self._p2)
+    #     line_angle = _angle.Angle.from_points(self._p1, self._p2)
+    #
+    #     stripe_angle1 = _angle.Angle.from_points(_point.Point(68, 0), _point.Point(68 - 32, 24))
+    #     stripe_angle1 += line_angle
+    #
+    #     stripe_angle2 = stripe_angle1.copy()
+    #     stripe_angle2.z += _d(180.0)
+    #
+    #     line_len = len(line)
+    #     step = 40
+    #
+    #     wire_size = self._wire_info.pixel_width
+    #
+    #     curr_dist = 0
+    #     points = []
+    #
+    #     while curr_dist < line_len - step:
+    #         curr_dist += step
+    #
+    #         p = line.point_from_start(curr_dist)
+    #         s1 = _line.Line(p, None, angle=stripe_angle1, length=max(wire_size, 1))
+    #         s2 = _line.Line(p, None, angle=stripe_angle2, length=max(wire_size, 1))
+    #
+    #         points.append([s1.p2.as_float[:-1], s2.p2.as_float[:-1]])
+    #
+    #     return points
+    #
+    # def draw_selected(self, gc, selected):
+    #     x1 = selected.p1.x
+    #     y1 = selected.p1.y
+    #     x2 = selected.p2.x
+    #     y2 = selected.p2.y
+    #
+    #     path = gc.CreatePath()
+    #     path.MoveToPoint(float(x1), float(y1))
+    #     path.AddLineToPoint(float(x2), float(y2))
+    #     path.CloseSubpath()
+    #     gc.StrokePath(path)
+    #
+    # def draw(self, gc, mask_gc):
+    #     p1 = self._p1
+    #     p2 = self._p2
+    #
+    #     pixel_width = self._wire_info.pixel_width
+    #     color = self._part.color.ui
+    #
+    #     pen1 = wx.Pen(color, pixel_width)
+    #     pen1.SetJoin(wx.JOIN_MITER)
+    #
+    #     mask_pen = wx.Pen(wx.BLACK, pixel_width)
+    #     mask_pen.SetJoin(wx.JOIN_MITER)
+    #
+    #     stripe_color = self._part.stripe_color
+    #
+    #     if stripe_color is not None:
+    #         stripe_pen = wx.Pen(stripe_color.ui,
+    #                             max(int(self._wire_info.pixel_width / 3.0), 2))
+    #     else:
+    #         stripe_pen = None
+    #
+    #     handle_pen = wx.Pen(wx.Colour(0, 0, 0, 255), 3.0)
+    #
+    #     path = gc.CreatePath()
+    #     mask_path = mask_gc.CreatePath()
+    #
+    #     is_selected = self.is_selected
+    #     mask_gc.SetPen(wx.TRANSPARENT_PEN)
+    #
+    #     mask_path.MoveToPoint(float(p1.x), float(p1.y))
+    #     mask_path.AddLineToPoint(float(p2.x), float(p2.y))
+    #
+    #     path.MoveToPoint(float(p1.x), float(p1.y))
+    #     path.AddLineToPoint(float(p2.x), float(p2.y))
+    #
+    #     if is_selected:
+    #         for obj in p1.objects:
+    #             if obj != self and isinstance(obj, Wire):
+    #                 mask_path.drawEllipse(float(p1.x - SIX_0),
+    #                                       float(p1.y - SIX_0),
+    #                                       12.0, 12.0)
+    #                 break
+    #
+    #         for obj in p2.objects:
+    #             if obj != self and isinstance(obj, Wire):
+    #                 mask_path.DrawEllipse(float(p2.x - SIX_0),
+    #                                       float(p2.y - SIX_0),
+    #                                       12.0, 12.0)
+    #                 break
+    #
+    #     mask_path.CloseSubpath()
+    #     mask_gc.SetPen(mask_pen)
+    #     mask_gc.StrokePath(path)
+    #
+    #     gc.SetPen(pen1)
+    #     path.CloseSubpath()
+    #     gc.StrokePath(path)
+    #
+    #     gc.SetPen(wx.TRANSPARENT_PEN)
+    #
+    #     if stripe_color is not None:
+    #         path = gc.CreatePath()
+    #         for start, stop in self.stripe_lines():
+    #             path.MoveToPoint(*start)
+    #             path.AddLineToPoint(*stop)
+    #
+    #         path.CloseSubpath()
+    #
+    #         gc.SetPen(stripe_pen)
+    #         gc.StrokePath(path)
+    #
+    #     path = gc.CreatePath()
+    #
+    #     if is_selected:
+    #         for obj in self._p1.objects:
+    #             if obj != self and isinstance(obj, Wire):
+    #                 path.DrawEllipse(float(self._p1.x - SIX_0),
+    #                                  float(self._p1.y - SIX_0),
+    #                                  12.0, 12.0)
+    #                 break
+    #
+    #         for obj in self._p2.objects:
+    #             if obj != self and isinstance(obj, Wire):
+    #                 path.DrawEllipse(float(self._p2.x - SIX_0),
+    #                                  float(self._p2.y - SIX_0),
+    #                                  12.0, 12.0)
+    #                 break
+    #
+    #     path.CloseSubpath()
+    #
+    #     gc.SetPen(handle_pen)
+    #     gc.StrokePath(path)
     #
     # def hit_test(self, p: _point.Point) -> bool:
     #     if self._hit_test_rect is None:
@@ -253,7 +254,7 @@ class Wire(_base2d.Base2D):
 #
 #     def __contains__(self, other: _point.Point) -> bool:
 #         line1 = _line.Line(self.p1, self.p2)
-#         half_size = _decimal(self.parent.wire_info.pixel_width) / _decimal(2.0) + _decimal(1)
+#         half_size = _d(self.parent.wire_info.pixel_width) / _d(2.0) + _d(1)
 #
 #         line2 = line1.get_parallel_line(half_size)
 #         line3 = line1.get_parallel_line(-half_size)
@@ -273,7 +274,7 @@ class Wire(_base2d.Base2D):
 #         stripe_angle1 += line_angle
 #
 #         stripe_angle2 = stripe_angle1.copy()
-#         stripe_angle2.z += _decimal(180.0)
+#         stripe_angle2.z += _d(180.0)
 #
 #         line_len = len(line)
 #         step = 40
@@ -294,10 +295,10 @@ class Wire(_base2d.Base2D):
 #
 #         return points
 #
-#     def aslist(self) -> list[_decimal, _decimal, _decimal, _decimal]:
+#     def aslist(self) -> list[_d, _d, _d, _d]:
 #         return list(self.p1) + list(self.p2)
 #
-#     def length(self) -> _decimal:
+#     def length(self) -> _d:
 #         return _line.Line(self.p1, self.p2).length()
 #
 #     def get_angle(self) -> _angle.Angle:
@@ -310,8 +311,8 @@ class Wire(_base2d.Base2D):
 #
 #         z_angle = angle.z
 #
-#         cos = _decimal(math.cos(z_angle))
-#         sin = _decimal(math.sin(z_angle))
+#         cos = _d(math.cos(z_angle))
+#         sin = _d(math.sin(z_angle))
 #
 #         x = px - ox
 #         y = py - oy
@@ -335,7 +336,7 @@ class Wire(_base2d.Base2D):
 #         else:
 #             offset = 0
 #
-#         angle.z = _decimal(offset) - z_angle
+#         angle.z = _d(offset) - z_angle
 #         self.p2 -= p
 #         self.p2 @= angle
 #         self.p2 += p
@@ -375,7 +376,7 @@ class Wire(_base2d.Base2D):
 #             else:
 #                 offset = 0
 #
-#             angle.z = _decimal(offset) - z_angle
+#             angle.z = _d(offset) - z_angle
 #             p1 -= p3
 #             p1 @= angle
 #             p1 += p3
@@ -395,7 +396,7 @@ class Wire(_base2d.Base2D):
 #             else:
 #                 offset = 0
 #
-#             angle.z = _decimal(offset) - z_angle
+#             angle.z = _d(offset) - z_angle
 #             p2 -= p4
 #             p2 @= angle
 #             p2 += p4

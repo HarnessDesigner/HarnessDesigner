@@ -249,7 +249,7 @@ class Base3D:
             hit_mask: (N,) boolean array - True where ray hits triangle
             distances: (N,) float array - distance to intersection (inf if no hit)
         """
-        num_triangles = triangles.shape[0]  # NOQA
+        num_triangles = vertices.shape[0]  # NOQA
 
         # Extract vertices
         v0 = vertices[:, 0, :]  # (N, 3)

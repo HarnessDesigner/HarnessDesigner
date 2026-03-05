@@ -57,14 +57,22 @@ class Splash(wx.Frame):
         while self.init:
             time.sleep(0.1)
 
-        event = threading.Event()
-        from . import mainframe as _mainframe
+        try:
+            event = threading.Event()
+            from . import mainframe as _mainframe
+
+        except Exception as err:  # NOQA
+            import traceback
+
+            traceback.format_exception(err)
+
 
         def _do():
             time.sleep(0.25)
             self.SetText('starting mainframe')
             _mainframe._mainframe = _mainframe.MainFrame(self)
             event.set()
+
         wx.CallAfter(_do)
 
         event.wait()

@@ -26,6 +26,7 @@ from . import wire_service_loop as _wire_service_loop
 from ..geometry import point as _point
 from ..geometry import angle as _angle
 from ..geometry import line as _line
+from ..geometry.decimal import Decimal as _d
 from .. import config as _config
 
 
@@ -295,7 +296,7 @@ class Project:
  
         t_db_obj = self.ptables.pjt_terminals_table.insert(
             part.db_id, cavity.db_id, 0, point3d_id, point2d_id, cavity.angle2d, 
-            cavity.angle3d.as_quat, False, _decimal(0.0), _decimal(0.0), _decimal(0.0))
+            cavity.angle3d.as_quat, False, _d(0.0), _d(0.0), _d(0.0))
         
         new_obj = _terminal.Terminal(self.mainframe, t_db_obj)
         self._terminals[t_db_obj.db_id] = new_obj

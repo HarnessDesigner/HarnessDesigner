@@ -2,8 +2,6 @@ import os
 import sys
 import shutil
 
-'c:\python3.11.14\python.exe setup.py build --installer --no-cython-wx --no-cython'
-
 
 def main():
     from builder import spawn
@@ -11,12 +9,7 @@ def main():
     build_installer = False
     installer_args = []
 
-    no_cython = False
-    is_build = False
-
     for i, arg in enumerate(sys.argv[:]):
-        if arg == 'build':
-            is_build = True
 
         if arg == '--installer':
             sys.argv.remove(arg)
@@ -25,7 +18,6 @@ def main():
         if arg == '--no-cython-wx':
             sys.argv.remove(arg)
             installer_args.append('--no-cython-wx')
-            no_cython = True
 
         if arg == '--no-cython':
             sys.argv.remove(arg)
@@ -163,30 +155,30 @@ def main():
             if file_path == '__pycache__':
                 continue
 
-            src = os.path.join(dpath, file_path)
-            if os.path.isdir(src):
+            src_ = os.path.join(dpath, file_path)
+            if os.path.isdir(src_):
                 if p:
                     iter_harness_designer(os.path.join(p, file_path))
                 else:
                     iter_harness_designer(file_path)
 
             elif (
-                src.endswith('.png') or
-                src.endswith('.pyi') or
-                src.endswith('.pyd') or
-                src.endswith('.so')
+                src_.endswith('.png') or
+                src_.endswith('.pyi') or
+                src_.endswith('.pyd') or
+                src_.endswith('.so')
             ):
                 if p:
-                    dst = os.path.join(hd_path, p)
+                    dst_ = os.path.join(hd_path, p)
                 else:
-                    dst = os.path.join(hd_path)
+                    dst_ = os.path.join(hd_path)
 
-                if not os.path.exists(dst):
-                    os.makedirs(dst)
+                if not os.path.exists(dst_):
+                    os.makedirs(dst_)
 
-                dst = os.path.join(dst, file_path)
+                dst_ = os.path.join(dst_, file_path)
 
-                shutil.copyfile(src, dst)
+                shutil.copyfile(src_, dst_)
 
     iter_harness_designer()
 

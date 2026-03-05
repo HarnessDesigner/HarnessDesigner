@@ -8,44 +8,47 @@ import datetime
 import zipfile
 import os
 
+from OpenGL import GL
+
 
 from .. import __version__
 from . import stdout
 from . import stderr
 
 
+INFO = 0
+NOTICE = 1
+WARNING = 2
+DEBUG = 3
+TRACEBACK = 4
+ERROR = 5
+WX_ERROR = 6
+
+_message_mapping = {
+    INFO: 'INFO:',
+    NOTICE: 'NOTICE:',
+    WARNING: 'WARNING:',
+    DEBUG: 'DEBUG:',
+    TRACEBACK: 'TRACEBACK:',
+    ERROR: 'ERROR:',
+    WX_ERROR: 'WX_ERROR:'
+}
+
+
 def _build_message(msg_type, args):
-    strs = []
+    strs = [str(arg) for arg in args]
 
-    for arg in args:
-        arg = str(arg).strip()
-
-        if msg_type == 'WARNING':
-
-            arg = arg.replace('Traceback', 'Warning')
-
-        strs += [arg]
-
-    msg = ' '.join(strs)
-
-    if msg_type == 'DEBUG':
-        msg = 'DEBUG: ' + msg.replace('\n', '\nDEBUG: ')
-
-    elif msg_type == 'NOTICE':
-        msg = 'NOTICE: ' + msg.replace('\n', '\nNOTICE: ')
-
-    elif msg_type == 'INFO':
-        msg = 'INFO: ' + msg.replace('\n', '\nINFO: ')
-
-    elif msg_type == 'WARNING':
-        msg = 'WARNING: ' + msg.replace('\n', '\nWARNING: ')
+    msg = ' '.join(strs).rstrip()
 
     timestamp = datetime.datetime.now()
     timestamp = timestamp.strftime('(%m.%d.%Y-%H:%M:%S)')
 
-    std_msg = timestamp + msg.replace('\n', '\n' + timestamp) + '\n'
+    msg_type = _message_mapping.get(msg_type, 'UNKNOWN:')
 
-    return std_msg
+    msg_type = f'{timestamp} {msg_type} '
+    msg = msg.replace('\n', f'\n{msg_type}')
+
+    return f'{msg_type}{msg}\n'
 
 
 Config = _config.Config.logging
@@ -58,6 +61,9 @@ class LogHandler:
 
     def __init__(self):
         self._callback = self._fake_callback
+
+        if not os.path.exists(Config.save_path):
+            os.makedirs(Config.save_path)
 
         last_log = None
         index = 0
@@ -79,7 +85,7 @@ class LogHandler:
         with open(last_log, 'r') as f:
             log_data = f.read()
 
-        self._logfile = open(last_log, 'w')
+        self._logfile = open(last_log, 'a')
         self._logfile.seek(len(log_data))
 
         self._index = index
@@ -152,22 +158,52 @@ class Log(object):
         self.__stdout = stdout.StdOut(self)
         self.__stderr = _stderr = stderr.StdErr(self)
 
-        self.print_notice("----------------------------------------")
-        self.print_notice("        Harness Designer started")
-        self.print_notice("----------------------------------------")
-        self.print_notice('Harness Designer', "Version:", __version__.string)
-        self.print_notice("Machine type:", platform.machine())
-        self.print_notice("Processor:", platform.processor())
-        self.print_notice("Architecture:", platform.architecture())
-        self.print_notice(
-            "Python:",
+        from ..gl import info as _gl_info
+
+        self.print_info('----------------------------------------')
+        self.print_info('        Harness Designer started')
+        self.print_info('----------------------------------------')
+        self.print_info('')
+        self.print_info('Harness Designer Version:', __version__.string)
+        self.print_info('\n')
+        self.print_info('--------------    GL     ---------------')
+
+        data = _gl_info.get()
+        for header, items in data.items():
+
+            if isinstance(items, dict):
+                pre_suf_count = int((40 - (len(header) + 4)) / 2)
+
+                pre_suf = '=' * pre_suf_count
+
+                header = f'{pre_suf}  {header}  '
+
+                if pre_suf_count % 2:
+                    pre_suf = f' {pre_suf}'
+
+                self.print_info(header + pre_suf)
+
+                for label, value in items.items():
+                    self.print_info(f'{label}:', value)
+
+                self.print_info('\n')
+            else:
+                self.print_info(f'{header}:', items)
+        self.print_info('\n', '----------------------------------------', '\n')
+
+        self.print_info('--------------  Machine  ---------------', '\n')
+        self.print_info('Machine type:', platform.machine())
+        self.print_info('Processor:', platform.processor())
+        self.print_info('Architecture:', platform.architecture())
+        self.print_info(
+            'Python:',
             platform.python_branch(),
             platform.python_version(),
             platform.python_implementation(),
             platform.python_build(),
-            "[{0}]".format(platform.python_compiler())
+            f'[{platform.python_compiler()}]'
         )
-        self.print_notice("----------------------------------------")
+        self.print_info('\n', '----------------------------------------', '\n')
 
         # redirect all wxPython error messages to our log
         class MyLog(wx.Log):
@@ -177,29 +213,33 @@ class Log(object):
                 if level >= 6:
                     return
 
-                _stderr.write("wxError%d: %s\n" % (level, msg))
+                msg = _build_message(WX_ERROR, f'({level})  {msg}')
+                _stderr.write(msg)
 
         wx.Log.SetActiveTarget(MyLog())
 
-    def print(self, *args, msg_type='INFO'):
+    def print(self, *args, msg_type=INFO):
         msg = _build_message(msg_type, args)
         self.log_handler.write(msg)
 
+    def print_info(self, *args):
+        msg = _build_message(INFO, args)
+        self.log_handler.write(msg)
+
+    def print_debug(self, *args):
+        msg = _build_message(DEBUG, args)
+        self.log_handler.write(msg)
+
     def print_notice(self, *args):
-        msg = _build_message('NOTICE', args)
+        msg = _build_message(NOTICE, args)
         self.log_handler.write(msg)
 
     def print_warning(self, *args):
-        msg = _build_message('WARNING', args)
+        msg = _build_message(WARNING, args)
         self.log_handler.write(msg)
 
     def print_error(self, *args):
-        """
-        Prints an error message to the logger. The message will get a special
-        icon and a red colour, so the user can easily identify it as an error
-        message.
-        """
-        msg = _build_message('ERROR', args)
+        msg = _build_message(ERROR, args)
         self.log_handler.write(msg)
 
     def print_traceback(self, msg=None, skip=0, excInfo=None):
@@ -211,9 +251,7 @@ class Log(object):
 
         tbType, tbValue, tbTraceback = excInfo
 
-        slist = [
-            'Traceback (most recent call last) ({__version__.string}):\n'
-        ]
+        slist = [f'Traceback (most recent call last) ({__version__.string}):\n']
 
         decode = codecs.getdecoder('utf-8')
 
@@ -229,5 +267,5 @@ class Log(object):
         error = "".join(slist)
 
         args = error.rstrip().split('\n')
-        msg = _build_message('ERROR', args)
+        msg = _build_message(TRACEBACK, args)
         self.log_handler.write(msg)

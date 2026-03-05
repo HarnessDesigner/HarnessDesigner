@@ -2,17 +2,22 @@
 requires = ["setuptools==82.0.0", "wheel==0.46.3", "pyMSVC@git+https://github.com/kdschlosser/python_msvc;sys_platform=='win32'", "pyinstaller==6.19.0"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools]
+py-modules=[]
+
+
 [project]
 name = "harness_designer"
 version = "0.0.1"
 description = "Wiring harness design software."
 readme = "README.md"
 requires-python = "==3.11.14"
-license = {file = "LICENSE"}
+license = "GPL-3.0-or-later"
 keywords = []
 authors = [{ name = "Kevin G. Schlosser" }]
 maintainers = [{ name = "Kevin G. Schlosser" }]
 dynamic = ["dependencies"]
+
 
 [project.urls]
 "Homepage" = "https://github.com/HarnessDesigner/HarnessDesigner"

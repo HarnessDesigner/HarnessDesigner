@@ -57,7 +57,6 @@ def cleanup_after_compile(p, remove_py=False, rename_py=False):
                 c = file_path[:-2] + 'c'
 
                 if os.path.exists(c):
-                    print('REMOVE:', c)
                     os.remove(c)
                 else:
                     continue
@@ -70,18 +69,12 @@ def cleanup_after_compile(p, remove_py=False, rename_py=False):
                         ):
                             continue
 
-                        print(compiled_file)
-
                         if not compiled_file.startswith(f[:-2]):
                             continue
 
-                        print(f)
-
                         if remove_py:
-                            print('REMOVE:', file_path)
                             os.remove(file_path)
                         elif rename_py:
-                            print('RENAME:', file_path)
                             os.rename(file_path, file_path + 'i')
 
     return res

@@ -58,8 +58,8 @@ class StdOut(io.TextIOWrapper):
         pass
 
     def write(self, __s: str) -> int:
-        self.__logger.write_info(__s)
-        # self.__original_stdout__.write(__s)
+        self.__original_stdout__.write(__s)
+        self.__logger.print_info(__s.rstrip())
 
     def read(self, __size: int | None = 1) -> str:
         self.__original_stdout__.read(__size)
@@ -107,9 +107,10 @@ class StdOut(io.TextIOWrapper):
         return self.__original_stdout__.__next__()
 
     def writelines(self, __lines: Iterable[str]) -> None:
-        # self.__original_stdout__.writelines(__lines)
-        for line in __lines:
-            self.__logger.write_info(line)
+        self.__original_stdout__.writelines(__lines)
+
+        __lines = '\n'.join(__lines)
+        self.__logger.print_info(__lines.rstrip())
 
     def readline(self, __size: int = -1) -> str:
         return self.__original_stdout__.readline(__size)

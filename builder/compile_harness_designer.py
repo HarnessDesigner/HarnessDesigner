@@ -1,9 +1,9 @@
 import os
 
 try:
-    from . import utils
+    from . import utils_
 except ImportError:
-    import utils
+    import utils_
 
 
 def run(rename_py):
@@ -12,7 +12,7 @@ def run(rename_py):
 
     hd_path = os.path.dirname(harness_designer.__file__)
 
-    cfiles = utils.iter_mod_path(hd_path)
+    cfiles = utils_.iter_mod_path(hd_path)
 
     from Cython.Build import Cythonize
 
@@ -20,4 +20,4 @@ def run(rename_py):
 
     remove_py = not rename_py
 
-    utils.cleanup_after_compile(hd_path, remove_py, rename_py)
+    utils_.cleanup_after_compile(hd_path, remove_py, rename_py)
