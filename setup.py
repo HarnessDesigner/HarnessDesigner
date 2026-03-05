@@ -80,7 +80,7 @@ def main():
         setup_requires=[
             "wheel==0.46.3",
             "wxPython==4.2.5",
-            "pyinstaller==6.19.0"
+            "pyinstaller==6.19.0",
             "pyMSVC@git+https://github.com/kdschlosser/python_msvc; sys_platform=='win32'",
         ],
         install_requires=[
