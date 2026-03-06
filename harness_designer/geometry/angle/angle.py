@@ -26,7 +26,7 @@ class AngleMeta(type):
 
     def __call__(cls, q: _quaternion.Quaternion | None = None,
                  euler_angles: list[float, float, float] | None = None,
-                 db_id: int | None = None):
+                 db_id: int | str | None = None):
 
         if db_id is not None:
             if db_id in cls._instances:
@@ -144,7 +144,7 @@ class Angle(metaclass=AngleMeta):
 
     def __init__(self, q: _quaternion.Quaternion | None = None, 
                  euler_angles: list[float, float, float] | None = None,
-                 db_id: str | None = None):
+                 db_id: int | str | None = None):
 
         self.db_id = db_id
 

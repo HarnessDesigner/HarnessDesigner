@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from ..database import project_db as _project_db
     from ..objects import project as _project
     from .. import objects as _objects
+    from .. import logger as _logger
 
 
 _mainframe: "MainFrame" = None
@@ -29,14 +30,11 @@ class MainFrame(wx.Frame):
     project_db: "_project_db.PJTTables" = None
     project: "_project.Project" = None
 
-    def __init__(self, splash):
+    def __init__(self, splash, logger: "_logger.Log"):
 
         splash.SetText('Startup logging ...')
 
-        from .. import logger
-        self.logger = logger.Log()
-
-        splash.SetLogger(self.logger)
+        self.logger = logger
 
         if not Config.size:
             w, h = wx.GetDisplaySize()

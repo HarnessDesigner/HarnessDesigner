@@ -24,7 +24,7 @@ class _PJTEntrySingleton(type):
 
         del cls._instances[key]
 
-    def __call__(cls, table, db_id: int, project_id: int):
+    def __call__(cls, table, db_id: int, project_id: int | None):
         key = (project_id, db_id)
 
         if key in cls._instances:
@@ -42,7 +42,7 @@ class _PJTEntrySingleton(type):
 
 class PJTEntryBase(metaclass=_PJTEntrySingleton):
 
-    def __init__(self, table: "PJTTableBase", db_id: int, project_id: int):
+    def __init__(self, table: "PJTTableBase", db_id: int, project_id: int | None):
         self._table = table
         self._db_id = db_id
         self.project_id = project_id

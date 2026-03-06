@@ -214,7 +214,6 @@ class Project:
         if res:
             project_id = res[0][0]
         else:
-
             from ..ui.dialogs import add_project as _add_project
 
             dlg = _add_project.AddProjectDialog(mainframe, project_name, mainframe.project_db.projects_table)
@@ -225,8 +224,9 @@ class Project:
                 connector.execute(f'INSERT INTO projects (name, creator, description, user_model) VALUES (?, ?, ?, ?);',
                                   (project_name, creator, description, model_path))
                 connector.commit()
-
-            project_id = connector.lastrowid
+                project_id = connector.lastrowid
+            else:
+                return cls.select_project(mainframe)
 
         db_obj = mainframe.project_db.projects_table[project_id]
 

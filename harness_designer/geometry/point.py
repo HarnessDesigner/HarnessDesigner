@@ -19,7 +19,7 @@ class PointMeta(type):
         del cls._instances[key]
 
     def __call__(cls, x: float | _d, y: float | _d,
-                 z: float | _d | None = None, db_id: str | None = None) -> "Point":
+                 z: float | _d | None = None, db_id: int | str | None = None) -> "Point":
 
         if db_id is not None:
             if db_id not in cls._instances:
@@ -82,7 +82,7 @@ class Point(metaclass=PointMeta):
         raise RuntimeError
 
     def __init__(self, x: float | _d, y: float | _d,
-                 z: float | _d | None = None, db_id: str | None = None):
+                 z: float | _d | None = None, db_id: int | str | None = None):
 
         self.db_id = db_id
 

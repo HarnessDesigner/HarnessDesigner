@@ -6,17 +6,23 @@ from . import utils as _utils
 
 if TYPE_CHECKING:
     from .ui import splash as _splash
+    from . import logger as _logger
 
 splash: "_splash.Splash" = None
 
 
 class App(wx.App):
+    logger: "_logger.Log" = None
+
     def OnInit(self):
         global splash
 
         from .ui import splash as _splsh
+        from . import logger as _lggr
 
-        splash = _splsh.Splash(None)
+        self.logger = _lggr.Log()
+        splash = _splsh.Splash(None, self.logger)
+
         splash.Show()
         return True
 
@@ -28,6 +34,8 @@ class App(wx.App):
 
         print('Exiting Application...')
 
+        self.logger.log_handler.close()
+        self.logger = None
         return wx.App.OnExit(self)
 
 

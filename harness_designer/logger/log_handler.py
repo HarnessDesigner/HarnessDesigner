@@ -1,20 +1,17 @@
-import codecs
-import sys
 import wx
-from traceback import extract_tb, format_exception_only
 import platform
 from .. import config as _config
 import datetime
 import zipfile
 import os
-
-from OpenGL import GL
-
+import traceback
 
 from .. import __version__
 from . import stdout
 from . import stderr
 
+
+Config = _config.Config.logging
 
 INFO = 0
 NOTICE = 1
@@ -49,9 +46,6 @@ def _build_message(msg_type, args):
     msg = msg.replace('\n', f'\n{msg_type}')
 
     return f'{msg_type}{msg}\n'
-
-
-Config = _config.Config.logging
 
 
 class LogHandler:
@@ -149,6 +143,18 @@ class LogHandler:
 
             self._open_next_file()
 
+    def close(self):
+        try:
+            self._logfile.close()
+        except:  # NOQA
+            pass
+
+    def flush(self):
+        try:
+            self._logfile.flush()
+        except:  # NOQA
+            pass
+
 
 class Log(object):
 
@@ -242,30 +248,12 @@ class Log(object):
         msg = _build_message(ERROR, args)
         self.log_handler.write(msg)
 
-    def print_traceback(self, msg=None, skip=0, excInfo=None):
+    def print_traceback(self, exception, msg=None):
         if msg:
             self.print_error(msg)
 
-        if excInfo is None:
-            excInfo = sys.exc_info()
+        err = ''.join(traceback.format_exception(exception))
 
-        tbType, tbValue, tbTraceback = excInfo
-
-        slist = [f'Traceback (most recent call last) ({__version__.string}):\n']
-
-        decode = codecs.getdecoder('utf-8')
-
-        if tbTraceback:
-            for fname, lno, funcName, text in extract_tb(tbTraceback)[skip:]:
-                slist.append(f'  File "{decode(fname)[0]}", line {lno}, in {funcName}\n')
-                if text:
-                    slist.append(f"    {text}\n")
-
-        for line in format_exception_only(tbType, tbValue):
-            slist.append(decode(line)[0])
-
-        error = "".join(slist)
-
-        args = error.rstrip().split('\n')
+        args = err.rstrip().splitlines()
         msg = _build_message(TRACEBACK, args)
         self.log_handler.write(msg)

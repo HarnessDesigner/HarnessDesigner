@@ -1,9 +1,11 @@
-import os
-import sys
-import shutil
-
 
 def main():
+    import sys
+
+    base_import = list(sys.modules.keys())
+
+    import os
+    import shutil
     from builder import spawn
 
     build_installer = False
@@ -138,6 +140,7 @@ def main():
     )
 
     os.chdir(base_path)
+
     while base_path in sys.path:
         sys.path.remove(base_path)
 
@@ -193,7 +196,7 @@ def main():
     if build_installer:
         from builder import build
 
-        build.build_installer()
+        build.build_installer(base_import)
 
         '''
         ubuntu-22.04

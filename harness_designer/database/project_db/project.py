@@ -21,7 +21,7 @@ class ProjectsTable(PJTTableBase):
     def __getitem__(self, item) -> "Project":
         if isinstance(item, int):
             if item in self:
-                return Project(self, item, None)
+                return Project(self, item, item)
             raise IndexError(str(item))
 
         raise KeyError(item)
