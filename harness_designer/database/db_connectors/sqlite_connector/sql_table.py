@@ -15,7 +15,7 @@ class SQLTable:
         self.name = name
         self.fields = fields
 
-    def is_table_in_db(self, db_cursor) -> bool:
+    def is_in_db(self, db_cursor) -> bool:
         db_cursor.execute(f'SELECT name FROM {db_cursor.database_name}.sqlite_master WHERE type="table";')
         rows = db_cursor.fetchall()
 
@@ -34,7 +34,17 @@ class SQLTable:
 
         return True
 
-    def add_table_to_db(self, db_cursor):
+    def update_fields(self, db_cursor):
+
+        db_cursor(f'SELECT "(\'" || group_concat(name, "\', \'") || "\')" from '
+                  f'pragma_table_info("{self.name}");')
+
+        column_names = eval(db_cursor.fetchall()[0][0])
+        for field in self.fields:
+            if field.name not in column_names:
+                field.add_to_table(db_cursor, self.name)
+
+    def add_to_db(self, db_cursor):
         fields = [str(field) for field in self.fields]
 
         fields = ', '.join(fields)

@@ -34,7 +34,7 @@ def get_transition_series_id(con, cur, name):
 
 id_field = _con.PrimaryKeyField('id')
 
-transition_series_table = _con.SQLTable(
+table = _con.SQLTable(
     'transition_series',
     id_field,
     _con.TextField('name', is_unique=True, no_null=True)

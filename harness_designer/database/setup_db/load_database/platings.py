@@ -55,7 +55,7 @@ def get_plating_id(con, cur, symbol):
 
 id_field = _con.PrimaryKeyField('id')
 
-platings_table = _con.SQLTable(
+table = _con.SQLTable(
     'platings',
     id_field,
     _con.TextField('symbol', is_unique=True, no_null=True),

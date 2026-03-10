@@ -149,12 +149,13 @@ def add_model3d(con, cur, path):
 
 id_field = _con.PrimaryKeyField('id')
 
-models3d_table = _con.SQLTable(
+table = _con.SQLTable(
     'models3d',
     id_field,
     _con.TextField('uuid', is_unique=True, no_null=True),
     _con.IntField('file_type_id', no_null=True,
-                  references=_con.SQLFieldReference(_file_types.file_types_table, _file_types.id_field)),
+                  references=_con.SQLFieldReference(_file_types.table,
+                                                    _file_types.id_field)),
     _con.IntField('target_count', default='25000', no_null=True),
     _con.FloatField('aggressiveness', default='"5.0"', no_null=True),
     _con.IntField('update_rate', default='150', no_null=True),

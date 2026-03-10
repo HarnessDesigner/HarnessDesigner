@@ -43,7 +43,7 @@ def get_material_id(con, cur, name):
 
 id_field = _con.PrimaryKeyField('id')
 
-materials_table = _con.SQLTable(
+table = _con.SQLTable(
     'materials',
     id_field,
     _con.TextField('name', is_unique=True, no_null=True),

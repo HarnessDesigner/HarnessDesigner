@@ -39,7 +39,7 @@ def get_splice_type_id(con, cur, name):
 
 id_field = _con.PrimaryKeyField('id')
 
-splice_types_table = _con.SQLTable(
+table = _con.SQLTable(
     'splice_types',
     id_field,
     _con.TextField('name', is_unique=True, no_null=True)

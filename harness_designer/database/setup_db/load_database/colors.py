@@ -34,7 +34,7 @@ def get_color_id(_, cur, name):
 
 id_field = _con.PrimaryKeyField('id')
 
-colors_table = _con.SQLTable(
+table = _con.SQLTable(
     'colors',
     id_field,
     _con.TextField('name', no_null=True),

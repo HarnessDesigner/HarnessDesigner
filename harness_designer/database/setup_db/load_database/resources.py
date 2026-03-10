@@ -223,12 +223,13 @@ def get_resource_id(con, cur, path, type="UNKNOWN"):  # NOQA
 
 id_field = _con.PrimaryKeyField('id')
 
-resources_table = _con.SQLTable(
+table = _con.SQLTable(
     'resources',
     id_field,
     _con.TextField('uuid', is_unique=True, no_null=True),
     _con.IntField('file_type_id', no_null=True,
-                  references=_con.SQLFieldReference(_file_types.file_types_table, _file_types.id_field)),
+                  references=_con.SQLFieldReference(_file_types.table,
+                                                    _file_types.id_field)),
     _con.BlobField('data', default='NULL'),
     _con.TextField('path', no_null=True)
 )

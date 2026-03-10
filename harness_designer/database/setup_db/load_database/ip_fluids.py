@@ -36,7 +36,7 @@ def add_ip_fluids(con, cur, splash):
 
 id_field = _con.PrimaryKeyField('id')
 
-ip_fluids_table = _con.SQLTable(
+table = _con.SQLTable(
     'ip_fluids',
     id_field,
     _con.TextField('name', is_unique=True, no_null=True),

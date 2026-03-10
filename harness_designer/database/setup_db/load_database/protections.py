@@ -37,7 +37,7 @@ def get_protection_id(con, cur, name):
 
 id_field = _con.PrimaryKeyField('id')
 
-protections_table = _con.SQLTable(
+table = _con.SQLTable(
     'protections',
     id_field,
     _con.TextField('name', is_unique=True, no_null=True)

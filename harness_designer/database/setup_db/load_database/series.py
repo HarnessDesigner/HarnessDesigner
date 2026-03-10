@@ -36,13 +36,13 @@ def get_series_id(con, cur, name, mfg_id):
 
 id_field = _con.PrimaryKeyField('id')
 
-series_table = _con.SQLTable(
+table = _con.SQLTable(
     'series',
     id_field,
     _con.TextField('name', no_null=True),
     _con.TextField('description', default='""', no_null=True),
     _con.IntField('mfg_id', default='0', no_null=True,
-                  references=_con.SQLFieldReference(_manufacturers.manufacturers_table,
+                  references=_con.SQLFieldReference(_manufacturers.table,
                                                     _manufacturers.id_field,
                                                     on_update=_con.REFERENCE_CASCADE))
 )

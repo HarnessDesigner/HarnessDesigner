@@ -162,7 +162,7 @@ def get_file_type(con, cur, extension=None, mimetype=None):
 
 id_field = _con.PrimaryKeyField('id')
 
-file_types_table = _con.SQLTable(
+table = _con.SQLTable(
     'file_types',
     id_field,
     _con.TextField('extension', no_null=True),

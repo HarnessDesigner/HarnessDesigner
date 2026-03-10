@@ -49,7 +49,7 @@ def get_cavity_lock_id(con, cur, name):
 
 id_field = _con.PrimaryKeyField('id')
 
-cavity_locks_table = _con.SQLTable(
+table = _con.SQLTable(
     'cavity_locks',
     id_field,
     _con.TextField('name', is_unique=True, no_null=True),

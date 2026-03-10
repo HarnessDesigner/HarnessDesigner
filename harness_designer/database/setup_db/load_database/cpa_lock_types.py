@@ -54,7 +54,7 @@ def get_cpa_lock_type_id(con, cur, name):
 
 id_field = _con.PrimaryKeyField('id')
 
-cpa_lock_types_table = _con.SQLTable(
+table = _con.SQLTable(
     'cpa_lock_types',
     id_field,
     _con.TextField('name', no_null=True)

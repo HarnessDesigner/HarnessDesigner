@@ -48,7 +48,7 @@ def get_adhesive_id(con, cur, code):
 
 id_field = _con.PrimaryKeyField('id')
 
-ashesives_table = _con.SQLTable(
+table = _con.SQLTable(
     'ashesives',
     id_field,
     _con.TextField('code', is_unique=True, no_null=True),
@@ -57,11 +57,11 @@ ashesives_table = _con.SQLTable(
 )
 
 
-def adhesives(con, cur):
-    cur.execute('CREATE TABLE adhesives('
-                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-                'code TEXT DEFAULT "" NOT NULL, '
-                'description TEXT DEFAULT "" NOT NULL, '
-                'accessory_part_nums TEXT DEFAULT "[]" NOT NULL'
-                ');')
-    con.commit()
+# def adhesives(con, cur):
+#     cur.execute('CREATE TABLE adhesives('
+#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+#                 'code TEXT DEFAULT "" NOT NULL, '
+#                 'description TEXT DEFAULT "" NOT NULL, '
+#                 'accessory_part_nums TEXT DEFAULT "[]" NOT NULL'
+#                 ');')
+#     con.commit()

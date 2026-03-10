@@ -38,7 +38,7 @@ def get_direction_id(con, cur, name):
 
 id_field = _con.PrimaryKeyField('id')
 
-directions_table = _con.SQLTable(
+table = _con.SQLTable(
     'directions',
     id_field,
     _con.TextField('name', no_null=True)

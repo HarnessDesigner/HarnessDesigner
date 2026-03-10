@@ -26,12 +26,13 @@ def add_transition_branch(con, cur, idx, transition_id, **kwargs):
 
 id_field = _con.PrimaryKeyField('id')
 
-transition_branches_table = _con.SQLTable(
+table = _con.SQLTable(
     'transition_branches',
     id_field,
-    _con.IntField('transition_id', default='0', no_null=True,
-                  references=_con.SQLFieldReference(_transitions.transitions_table,
+    _con.IntField('transition_id', no_null=True,
+                  references=_con.SQLFieldReference(_transitions.table,
                                                     _transitions.id_field,
+                                                    on_delete=_con.REFERENCE_CASCADE,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('idx', no_null=True),
     _con.TextField('name', default='""', no_null=True),

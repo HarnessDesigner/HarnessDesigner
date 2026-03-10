@@ -53,16 +53,16 @@ def get_ip_rating_id(con, cur, ip_rating):  # NOQA
 
 id_field = _con.PrimaryKeyField('id')
 
-ip_ratings_table = _con.SQLTable(
+table = _con.SQLTable(
     'ip_ratings',
     id_field,
     _con.TextField('name', is_unique=True, no_null=True),
     _con.IntField('solid_id', default='7', no_null=True,
-                  references=_con.SQLFieldReference(_ip_solids.ip_solids_table, _ip_solids.id_field)),
+                  references=_con.SQLFieldReference(_ip_solids.table, _ip_solids.id_field)),
     _con.IntField('fluid_id', default='7', no_null=True,
-                  references=_con.SQLFieldReference(_ip_fluids.ip_fluids_table, _ip_fluids.id_field)),
+                  references=_con.SQLFieldReference(_ip_fluids.table, _ip_fluids.id_field)),
     _con.IntField('solid_id', default='7', no_null=True,
-                  references=_con.SQLFieldReference(_ip_supps.ip_supps_table, _ip_supps.id_field))
+                  references=_con.SQLFieldReference(_ip_supps.table, _ip_supps.id_field))
 )
 
 

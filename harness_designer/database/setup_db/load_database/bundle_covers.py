@@ -86,114 +86,108 @@ def add_bundle_cover(con, cur, part_number, description, mfg, family, series, co
                  min_dia, max_dia, weight))
     con.commit()
 
-'''
-
 
 id_field = _con.PrimaryKeyField('id')
 
-wires_table = _con.SQLTable(
-    'wires',
+table = _con.SQLTable(
+    'bundle_covers',
     id_field,
     _con.TextField('part_number', is_unique=True, no_null=True),
     _con.TextField('description', default='""', no_null=True),
     _con.IntField('mfg_id', default='0', no_null=True,
-                  references=_con.SQLFieldReference(_manufacturers.manufacturers_table,
+                  references=_con.SQLFieldReference(_manufacturers.table,
                                                     _manufacturers.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('family_id', default='0', no_null=True,
-                  references=_con.SQLFieldReference(_families.families_table,
+                  references=_con.SQLFieldReference(_families.table,
                                                     _families.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('series_id', default='0', no_null=True,
-                  references=_con.SQLFieldReference(_series.series_table,
+                  references=_con.SQLFieldReference(_series.table,
                                                     _series.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('color_id', default='0', no_null=True,
-                  references=_con.SQLFieldReference(_colors.colors_table,
+                  references=_con.SQLFieldReference(_colors.table,
                                                     _colors.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('material_id', default='0', no_null=True,
-                  references=_con.SQLFieldReference(_materials.materials_table,
+                  references=_con.SQLFieldReference(_materials.table,
                                                     _materials.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('image_id', default='NULL',
-                  references=_con.SQLFieldReference(_resources.resources_table,
+                  references=_con.SQLFieldReference(_resources.table,
                                                     _resources.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('datacheet_idmfg_id', default='NULL',
-                  references=_con.SQLFieldReference(_resources.resources_table,
+    _con.IntField('datasheet_id', default='NULL',
+                  references=_con.SQLFieldReference(_resources.table,
                                                     _resources.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('cad_id', default='NULL',
-                  references=_con.SQLFieldReference(_resources.resources_table,
+                  references=_con.SQLFieldReference(_resources.table,
                                                     _resources.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('shrink_temp_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_temperatures.table,
+                                                    _temperatures.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+
     _con.IntField('min_temp_id', default='0', no_null=True,
-                  references=_con.SQLFieldReference(_temperatures.temperatures_table,
+                  references=_con.SQLFieldReference(_temperatures.table,
                                                     _temperatures.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('max_temp_id', default='0', no_null=True,
-                  references=_con.SQLFieldReference(_temperatures.temperatures_table,
+                  references=_con.SQLFieldReference(_temperatures.table,
                                                     _temperatures.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('stripe_color_id', default='999999', no_null=True,
-                  references=_con.SQLFieldReference(_colors.colors_table,
-                                                    _colors.id_field,
+    _con.IntField('protection_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_protections.table,
+                                                    _protections.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('num_conductors', default='1', no_null=True),
-    _con.IntField('shielded', default='0', no_null=True),
-    _con.FloatField('tpi', default='"0.0"', no_null=True),
-    _con.FloatField('conductor_dia_mm', default='NULL'),
-    _con.FloatField('size_mm2', default='NULL'),
-    _con.IntField('size_awg', default='NULL'),
-    _con.FloatField('od_mm', no_null=True),
-    _con.FloatField('weight_1km', default='"0.0"', no_null=True),
-    _con.IntField('core_material_id', default='0', no_null=True,
-                  references=_con.SQLFieldReference(_platings.platings_table,
-                                                    _platings.id_field,
-                                                    on_update=_con.REFERENCE_CASCADE)),
-    _con.FloatField('resistance_ikm', default='"0.0"', no_null=True),
-    _con.FloatField('volts', default='"0.0"', no_null=True)
+    _con.IntField('rigidity', default='""', no_null=True),
+    _con.IntField('shrink_ratio', default='""', no_null=True),
+    _con.IntField('wall', default='""', no_null=True),
+    _con.FloatField('min_dia', default='"0.0"', no_null=True),
+    _con.FloatField('max_dia', default='"0.0"', no_null=True),
+    _con.IntField('adhesive_ids', default='"[]"', no_null=True),
+    _con.FloatField('weight', default='"0.0"', no_null=True)
 )
 
 
-'''
-
-def bundle_covers(con, cur):
-    cur.execute('CREATE TABLE bundle_covers('
-                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-                'part_number TEXT UNIQUE NOT NULL, '
-                'description TEXT DEFAULT "" NOT NULL, '
-                'mfg_id INTEGER DEFAULT 0 NOT NULL, '
-                'family_id INTEGER DEFAULT 0 NOT NULL, '
-                'series_id INTEGER DEFAULT 0 NOT NULL, '
-                'color_id INTEGER DEFAULT 0 NOT NULL, '
-                'material_id INTEGER DEFAULT 0 NOT NULL, '
-                'image_id INTEGER DEFAULT NULL, '
-                'datasheet_id INTEGER DEFAULT NULL, '
-                'cad_id INTEGER DEFAULT NULL, '
-                'shrink_temp_id INTEGER DEFAULT 0 NOT NULL, '
-                'min_temp_id INTEGER DEFAULT 0 NOT NULL, '
-                'max_temp_id INTEGER DEFAULT 0 NOT NULL, '
-                'rigidity TEXT DEFAULT "NOT SET" NOT NULL, '
-                'shrink_ratio TEXT DEFAULT "" NOT NULL, '
-                'wall TEXT DEFAULT "Single" NOT NULL, '
-                'min_dia INTEGER DEFAULT 0 NOT NULL, '
-                'max_dia INTEGER DEFAULT 0 NOT NULL, '
-                'protection_id TEXT DEFAULT 0 NOT NULL, '
-                'adhesive_ids TEXT DEFAULT "[]" NOT NULL, '
-                'weight REAL DEFAULT "0.0" NOT NULL, '
-                'FOREIGN KEY (mfg_id) REFERENCES manufacturers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-                'FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-                'FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-                'FOREIGN KEY (image_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-                'FOREIGN KEY (datasheet_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-                'FOREIGN KEY (cad_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-                'FOREIGN KEY (min_temp_id) REFERENCES temperatures(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-                'FOREIGN KEY (max_temp_id) REFERENCES temperatures(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-                'FOREIGN KEY (color_id) REFERENCES colors(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-                'FOREIGN KEY (material_id) REFERENCES materials(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-                'FOREIGN KEY (protection_id) REFERENCES potections(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-                'FOREIGN KEY (shrink_temp_id) REFERENCES temperatures(id) ON DELETE SET DEFAULT ON UPDATE CASCADE'
-                ');')
-    con.commit()
+# def bundle_covers(con, cur):
+#     cur.execute('CREATE TABLE bundle_covers('
+#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+#                 'part_number TEXT UNIQUE NOT NULL, '
+#                 'description TEXT DEFAULT "" NOT NULL, '
+#                 'mfg_id INTEGER DEFAULT 0 NOT NULL, '
+#                 'family_id INTEGER DEFAULT 0 NOT NULL, '
+#                 'series_id INTEGER DEFAULT 0 NOT NULL, '
+#                 'color_id INTEGER DEFAULT 0 NOT NULL, '
+#                 'material_id INTEGER DEFAULT 0 NOT NULL, '
+#                 'image_id INTEGER DEFAULT NULL, '
+#                 'datasheet_id INTEGER DEFAULT NULL, '
+#                 'cad_id INTEGER DEFAULT NULL, '
+#                 'shrink_temp_id INTEGER DEFAULT 0 NOT NULL, '
+#                 'min_temp_id INTEGER DEFAULT 0 NOT NULL, '
+#                 'max_temp_id INTEGER DEFAULT 0 NOT NULL, '
+#                 'rigidity TEXT DEFAULT "NOT SET" NOT NULL, '
+#                 'shrink_ratio TEXT DEFAULT "" NOT NULL, '
+#                 'wall TEXT DEFAULT "Single" NOT NULL, '
+#                 'min_dia INTEGER DEFAULT 0 NOT NULL, '
+#                 'max_dia INTEGER DEFAULT 0 NOT NULL, '
+#                 'protection_id TEXT DEFAULT 0 NOT NULL, '
+#                 'adhesive_ids TEXT DEFAULT "[]" NOT NULL, '
+#                 'weight REAL DEFAULT "0.0" NOT NULL, '
+#                 'FOREIGN KEY (mfg_id) REFERENCES manufacturers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (image_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (datasheet_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (cad_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (min_temp_id) REFERENCES temperatures(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (max_temp_id) REFERENCES temperatures(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (color_id) REFERENCES colors(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (material_id) REFERENCES materials(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (protection_id) REFERENCES potections(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (shrink_temp_id) REFERENCES temperatures(id) ON DELETE SET DEFAULT ON UPDATE CASCADE'
+#                 ');')
+#     con.commit()

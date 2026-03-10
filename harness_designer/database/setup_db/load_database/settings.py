@@ -32,7 +32,7 @@ def add_settings(con, cur, splash, appdata):
 
 id_field = _con.PrimaryKeyField('id')
 
-settings_table = _con.SQLTable(
+table = _con.SQLTable(
     'settings',
     id_field,
     _con.TextField('key', is_unique=True, no_null=True),

@@ -52,7 +52,7 @@ def _build_temps():
 
 id_field = _con.PrimaryKeyField('id')
 
-temperatures_table = _con.SQLTable(
+table = _con.SQLTable(
     'temperatures',
     id_field,
     _con.TextField('name', is_unique=True, no_null=True)

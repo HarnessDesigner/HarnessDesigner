@@ -51,7 +51,7 @@ def get_mfg_id(con, cur, name):
 
 id_field = _con.PrimaryKeyField('id')
 
-manufacturers_table = _con.SQLTable(
+table = _con.SQLTable(
     'manufacturers',
     id_field,
     _con.TextField('name', is_unique=True, no_null=True),

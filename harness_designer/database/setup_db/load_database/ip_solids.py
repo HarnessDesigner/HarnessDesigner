@@ -30,7 +30,7 @@ def _add_ip_solids(con, cur, splash):
 
 id_field = _con.PrimaryKeyField('id')
 
-ip_solids_table = _con.SQLTable(
+table = _con.SQLTable(
     'ip_solids',
     id_field,
     _con.TextField('name', is_unique=True, no_null=True),

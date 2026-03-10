@@ -63,17 +63,17 @@ def wire_markers(con, cur, splash):
 
 id_field = _con.PrimaryKeyField('id')
 
-wire_markers_table = _con.SQLTable(
+table = _con.SQLTable(
     'wire_markers',
     id_field,
     _con.TextField('part_number', is_unique=True, no_null=True),
     _con.TextField('description', default='""', no_null=True),
     _con.IntField('mfg_id', default='0', no_null=True,
-                  references=_con.SQLFieldReference(_manufacturers.manufacturers_table,
+                  references=_con.SQLFieldReference(_manufacturers.table,
                                                     _manufacturers.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('color_id', default='0', no_null=True,
-                  references=_con.SQLFieldReference(_colors.colors_table,
+                  references=_con.SQLFieldReference(_colors.table,
                                                     _colors.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
 
@@ -82,15 +82,15 @@ wire_markers_table = _con.SQLTable(
     _con.IntField('min_awg', default='NULL'),
     _con.IntField('max_awg', default='NULL'),
     _con.IntField('image_id', default='NULL',
-                  references=_con.SQLFieldReference(_resources.resources_table,
+                  references=_con.SQLFieldReference(_resources.table,
                                                     _resources.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('datasheet_id', default='NULL',
-                  references=_con.SQLFieldReference(_resources.resources_table,
+                  references=_con.SQLFieldReference(_resources.table,
                                                     _resources.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('cad_id', default='NULL',
-                  references=_con.SQLFieldReference(_resources.resources_table,
+                  references=_con.SQLFieldReference(_resources.table,
                                                     _resources.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
 

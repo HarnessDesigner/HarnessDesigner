@@ -37,7 +37,7 @@ def get_shape_id(con, cur, name):
 
 id_field = _con.PrimaryKeyField('id')
 
-shapes_table = _con.SQLTable(
+table = _con.SQLTable(
     'shapes',
     id_field,
     _con.TextField('name', is_unique=True, no_null=True)

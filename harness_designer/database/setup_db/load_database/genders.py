@@ -36,7 +36,7 @@ def get_gender_id(con, cur, name):
 
 id_field = _con.PrimaryKeyField('id')
 
-genders_table = _con.SQLTable(
+table = _con.SQLTable(
     'genders',
     id_field,
     _con.TextField('name', no_null=True)
