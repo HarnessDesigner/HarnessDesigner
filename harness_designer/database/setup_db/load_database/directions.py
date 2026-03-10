@@ -45,9 +45,9 @@ directions_table = _con.SQLTable(
 )
 
 
-def directions(con, cur):
-    cur.execute('CREATE TABLE directions('
-                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-                'name TEXT UNIQUE NOT NULL'
-                ');')
-    con.commit()
+# def directions(con, cur):
+#     cur.execute('CREATE TABLE directions('
+#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+#                 'name TEXT UNIQUE NOT NULL'
+#                 ');')
+#     con.commit()

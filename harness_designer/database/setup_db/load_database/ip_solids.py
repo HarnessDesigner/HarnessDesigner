@@ -1,7 +1,11 @@
+import os
+
+from ... import db_connectors as _con
+
+BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
 
-
-def _add_ip_solids(con, cur):
+def _add_ip_solids(con, cur, splash):
     res = cur.execute('SELECT id FROM ip_solids WHERE id=0;')
     if res.fetchall():
         return
@@ -24,13 +28,25 @@ def _add_ip_solids(con, cur):
     con.commit()
 
 
-def ip_solids(con, cur):
-    cur.execute('CREATE TABLE ip_solids('
-                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-                'name TEXT UNIQUE NOT NULL, '
-                'short_desc TEXT NOT NULL, '
-                'description TEXT NOT NULL, '
-                'icon_data BLOB DEFAULT NULL'
-                ');')
-    con.commit()
+id_field = _con.PrimaryKeyField('id')
 
+ip_solids_table = _con.SQLTable(
+    'ip_solids',
+    id_field,
+    _con.TextField('name', is_unique=True, no_null=True),
+    _con.TextField('short_desc', no_null=True),
+    _con.TextField('description', no_null=True),
+    _con.BlobField('icon_data', default='"NULL"'),
+
+)
+
+
+# def ip_solids(con, cur):
+#     cur.execute('CREATE TABLE ip_solids('
+#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+#                 'name TEXT UNIQUE NOT NULL, '
+#                 'short_desc TEXT NOT NULL, '
+#                 'description TEXT NOT NULL, '
+#                 'icon_data BLOB DEFAULT NULL'
+#                 ');')
+#     con.commit()

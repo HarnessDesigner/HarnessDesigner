@@ -1,6 +1,7 @@
+from ... import db_connectors as _con
 
 
-def _add_ip_supps(con, cur):
+def add_ip_supps(con, cur, splash):
     res = cur.execute('SELECT id FROM ip_supps WHERE id=0;')
     if res.fetchall():
         return
@@ -20,11 +21,20 @@ def _add_ip_supps(con, cur):
     con.commit()
 
 
-def ip_supps(con, cur):
-    cur.execute('CREATE TABLE ip_supps('
-                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-                'name TEXT UNIQUE NOT NULL, '
-                'description TEXT NOT NULL'
-                ');')
-    con.commit()
+id_field = _con.PrimaryKeyField('id')
 
+ip_supps_table = _con.SQLTable(
+    'ip_supps',
+    id_field,
+    _con.TextField('name', is_unique=True, no_null=True),
+    _con.TextField('description', no_null=True)
+)
+
+
+# def ip_supps(con, cur):
+#     cur.execute('CREATE TABLE ip_supps('
+#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+#                 'name TEXT UNIQUE NOT NULL, '
+#                 'description TEXT NOT NULL'
+#                 ');')
+#     con.commit()

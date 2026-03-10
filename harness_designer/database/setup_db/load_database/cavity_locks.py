@@ -1,8 +1,7 @@
+from ... import db_connectors as _con
 
 
-
-
-def _add_cavity_locks(con, cur):
+def add_cavity_locks(con, cur, splash):
     res = cur.execute('SELECT id FROM cavity_locks WHERE id=0;')
     if res.fetchall():
         return
@@ -27,8 +26,7 @@ def _add_cavity_locks(con, cur):
     con.commit()
 
 
-
-def _get_cavity_lock_id(con, cur, name):
+def get_cavity_lock_id(con, cur, name):
     if not name:
         return 0
 
@@ -49,11 +47,20 @@ def _get_cavity_lock_id(con, cur, name):
         return res[0][0]
 
 
+id_field = _con.PrimaryKeyField('id')
 
-def cavity_locks(con, cur):
-    cur.execute('CREATE TABLE cavity_locks('
-                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-                'name TEXT UNIQUE NOT NULL, '
-                'description TEXT DEFAULT "" NOT NULL'
-                ');')
-    con.commit()
+cavity_locks_table = _con.SQLTable(
+    'cavity_locks',
+    id_field,
+    _con.TextField('name', is_unique=True, no_null=True),
+    _con.TextField('description', default='""', no_null=True)
+)
+
+
+# def cavity_locks(con, cur):
+#     cur.execute('CREATE TABLE cavity_locks('
+#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+#                 'name TEXT UNIQUE NOT NULL, '
+#                 'description TEXT DEFAULT "" NOT NULL'
+#                 ');')
+#     con.commit()

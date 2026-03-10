@@ -40,10 +40,10 @@ settings_table = _con.SQLTable(
 )
 
 
-def settings(con, cur):
-    cur.execute('CREATE TABLE settings('
-                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-                'name TEXT UNIQUE NOT NULL, '
-                'value BLOB NOT NULL'
-                ');')
-    con.commit()
+# def settings(con, cur):
+#     cur.execute('CREATE TABLE settings('
+#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+#                 'name TEXT UNIQUE NOT NULL, '
+#                 'value BLOB NOT NULL'
+#                 ');')
+#     con.commit()

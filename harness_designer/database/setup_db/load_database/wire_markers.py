@@ -63,8 +63,8 @@ def wire_markers(con, cur, splash):
 
 id_field = _con.PrimaryKeyField('id')
 
-wires_table = _con.SQLTable(
-    'wires',
+wire_markers_table = _con.SQLTable(
+    'wire_markers',
     id_field,
     _con.TextField('part_number', is_unique=True, no_null=True),
     _con.TextField('description', default='""', no_null=True),
@@ -100,30 +100,30 @@ wires_table = _con.SQLTable(
 )
 
 
-def wire_markers(con, cur):
-    cur.execute('CREATE TABLE wire_markers('
-                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-                'part_number TEXT UNIQUE NOT NULL, '
-                'description TEXT DEFAULT "" NOT NULL, '
-                'mfg_id INTEGER DEFAULT 0 NOT NULL, '
-                'color_id INTEGER DEFAULT 0 NOT NULL, '
-                'min_diameter REAL DEFAULT "0.0" NOT NULL, '
-                'max_diameter REAL DEFAULT "0.0" NOT NULL, '
-                'min_awg INTEGER DEFAULT NULL, '
-                'max_awg INTEGER DEFAULT NULL, '
-                'image_id INTEGER DEFAULT NULL, '
-                'datasheet_id INTEGER DEFAULT NULL, '
-                'cad_id INTEGER DEFAULT NULL, '
-                'length REAL DEFAULT "0.0" NOT NULL, '
-                'weight REAL DEFAULT "0.0" NOT NULL, '
-                'has_label INTEGER DEFAULT 0 NOT NULL, '
-                'FOREIGN KEY (mfg_id) REFERENCES manufacturers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-                'FOREIGN KEY (image_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-                'FOREIGN KEY (datasheet_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-                'FOREIGN KEY (cad_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '                
-                'FOREIGN KEY (color_id) REFERENCES colors(id) ON DELETE SET DEFAULT ON UPDATE CASCADE'
-                ');')
-    con.commit()
+# def wire_markers(con, cur):
+#     cur.execute('CREATE TABLE wire_markers('
+#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+#                 'part_number TEXT UNIQUE NOT NULL, '
+#                 'description TEXT DEFAULT "" NOT NULL, '
+#                 'mfg_id INTEGER DEFAULT 0 NOT NULL, '
+#                 'color_id INTEGER DEFAULT 0 NOT NULL, '
+#                 'min_diameter REAL DEFAULT "0.0" NOT NULL, '
+#                 'max_diameter REAL DEFAULT "0.0" NOT NULL, '
+#                 'min_awg INTEGER DEFAULT NULL, '
+#                 'max_awg INTEGER DEFAULT NULL, '
+#                 'image_id INTEGER DEFAULT NULL, '
+#                 'datasheet_id INTEGER DEFAULT NULL, '
+#                 'cad_id INTEGER DEFAULT NULL, '
+#                 'length REAL DEFAULT "0.0" NOT NULL, '
+#                 'weight REAL DEFAULT "0.0" NOT NULL, '
+#                 'has_label INTEGER DEFAULT 0 NOT NULL, '
+#                 'FOREIGN KEY (mfg_id) REFERENCES manufacturers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (image_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (datasheet_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (cad_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (color_id) REFERENCES colors(id) ON DELETE SET DEFAULT ON UPDATE CASCADE'
+#                 ');')
+#     con.commit()
 
 
 def _build_wire_markers(con, cur):

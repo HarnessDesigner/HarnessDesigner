@@ -1,4 +1,17 @@
+import os
+import json
 
+from . import manufacturers as _manufacturers
+from . import series as _series
+from . import families as _families
+from . import colors as _colors
+from . import materials as _materials
+from . import resources as _resources
+from . import adhesives as _adhesives
+from . import protections as _protections
+from . import temperatures as _temperatures
+
+from ... import db_connectors as _con
 
 
 def add_bundle_covers(con, cur, data: tuple[dict] | list[dict]):
@@ -7,20 +20,11 @@ def add_bundle_covers(con, cur, data: tuple[dict] | list[dict]):
         add_bundle_cover(con, cur, **line)
 
 
-def _bundle_covers(con, cur):
+def bundle_covers(con, cur, splash):
     res = cur.execute('SELECT id FROM bundle_covers WHERE id=0;')
 
     if res.fetchall():
         return
-
-    _add_manufacturers(con, cur)
-    _add_file_types(con, cur)
-    _add_families(con, cur)
-    _add_series(con, cur)
-    _add_materials(con, cur)
-    _add_colors(con, cur)
-    _add_temperatures(con, cur)
-    _add_protections(con, cur)
 
     splash.SetText(f'Adding core bundle cover to db [1 | 1]...')
 
@@ -57,19 +61,19 @@ def add_bundle_cover(con, cur, part_number, description, mfg, family, series, co
                      rigidity, shrink_ratio, wall, min_dia, max_dia, protection,
                      adhesive, weight):
 
-    mfg_id = _get_mfg_id(con, cur, mfg)
-    family_id = _get_family_id(con, cur, family, mfg_id)
-    series_id = _get_series_id(con, cur, series, mfg_id)
-    color_id = _get_color_id(con, cur, color)
-    material_id = _get_material_id(con, cur, material)
-    image_id = _add_resource(con, cur, IMAGE_TYPE_IMAGE, image)
-    datasheet_id = _add_resource(con, cur, IMAGE_TYPE_DATASHEET, datasheet)
-    cad_id = _add_resource(con, cur, IMAGE_TYPE_CAD, cad)
-    shrink_temp_id = _get_temperature_id(con, cur, shrink_temp)
-    min_temp_id = _get_temperature_id(con, cur, min_temp)
-    max_temp_id = _get_temperature_id(con, cur, max_temp)
-    adhesive_id = _get_adhesive_id(con, cur, adhesive)
-    protection_id = _get_protection_id(con, cur, protection)
+    mfg_id = _manufacturers.get_mfg_id(con, cur, mfg)
+    family_id = _families.get_family_id(con, cur, family, mfg_id)
+    series_id = _series.get_series_id(con, cur, series, mfg_id)
+    color_id = _colors.get_color_id(con, cur, color)
+    material_id = _materials.get_material_id(con, cur, material)
+    image_id = _resources.add_resource(con, cur, _resources.IMAGE_TYPE_IMAGE, image)
+    datasheet_id = _resources.add_resource(con, cur, _resources.IMAGE_TYPE_DATASHEET, datasheet)
+    cad_id = _resources.add_resource(con, cur, _resources.IMAGE_TYPE_CAD, cad)
+    shrink_temp_id = _temperatures.get_temperature_id(con, cur, shrink_temp)
+    min_temp_id = _temperatures.get_temperature_id(con, cur, min_temp)
+    max_temp_id = _temperatures.get_temperature_id(con, cur, max_temp)
+    adhesive_id = _adhesives.get_adhesive_id(con, cur, adhesive)
+    protection_id = _protections.get_protection_id(con, cur, protection)
 
     cur.execute('INSERT INTO bundle_covers (part_number, mfg_id, description, family_id, '
                 'series_id, color_id, material_id, image_id, datasheet_id, '
@@ -82,8 +86,78 @@ def add_bundle_cover(con, cur, part_number, description, mfg, family, series, co
                  min_dia, max_dia, weight))
     con.commit()
 
+'''
 
 
+id_field = _con.PrimaryKeyField('id')
+
+wires_table = _con.SQLTable(
+    'wires',
+    id_field,
+    _con.TextField('part_number', is_unique=True, no_null=True),
+    _con.TextField('description', default='""', no_null=True),
+    _con.IntField('mfg_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_manufacturers.manufacturers_table,
+                                                    _manufacturers.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('family_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_families.families_table,
+                                                    _families.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('series_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_series.series_table,
+                                                    _series.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('color_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_colors.colors_table,
+                                                    _colors.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('material_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_materials.materials_table,
+                                                    _materials.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('image_id', default='NULL',
+                  references=_con.SQLFieldReference(_resources.resources_table,
+                                                    _resources.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('datacheet_idmfg_id', default='NULL',
+                  references=_con.SQLFieldReference(_resources.resources_table,
+                                                    _resources.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('cad_id', default='NULL',
+                  references=_con.SQLFieldReference(_resources.resources_table,
+                                                    _resources.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('min_temp_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_temperatures.temperatures_table,
+                                                    _temperatures.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('max_temp_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_temperatures.temperatures_table,
+                                                    _temperatures.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('stripe_color_id', default='999999', no_null=True,
+                  references=_con.SQLFieldReference(_colors.colors_table,
+                                                    _colors.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('num_conductors', default='1', no_null=True),
+    _con.IntField('shielded', default='0', no_null=True),
+    _con.FloatField('tpi', default='"0.0"', no_null=True),
+    _con.FloatField('conductor_dia_mm', default='NULL'),
+    _con.FloatField('size_mm2', default='NULL'),
+    _con.IntField('size_awg', default='NULL'),
+    _con.FloatField('od_mm', no_null=True),
+    _con.FloatField('weight_1km', default='"0.0"', no_null=True),
+    _con.IntField('core_material_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_platings.platings_table,
+                                                    _platings.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.FloatField('resistance_ikm', default='"0.0"', no_null=True),
+    _con.FloatField('volts', default='"0.0"', no_null=True)
+)
+
+
+'''
 
 def bundle_covers(con, cur):
     cur.execute('CREATE TABLE bundle_covers('

@@ -1,5 +1,16 @@
+import os
+import json
 
+from . import manufacturers as _manufacturers
+from . import series as _series
+from . import families as _families
+from . import resources as _resources
+from . import genders as _genders
+from . import platings as _platings
+from . import cavity_locks as _cavity_locks
+from . import model3d as _model3d
 
+from ... import db_connectors as _con
 
 
 def add_terminal(con, cur, part_number, description, mfg, series, cavity_lock,
@@ -13,16 +24,16 @@ def add_terminal(con, cur, part_number, description, mfg, series, cavity_lock,
     if res:
         return
 
-    mfg_id = _get_mfg_id(con, cur, mfg)
-    series_id = _get_series_id(con, cur, series, mfg_id)
-    family_id = _get_series_id(con, cur, family, mfg_id)
-    cavity_lock_id = _get_cavity_lock_id(con, cur, cavity_lock)
-    plating_id = _get_plating_id(con, cur, plating)
-    gender_id = _get_gender_id(con, cur, gender)
-    image_id = _add_resource(con, cur, IMAGE_TYPE_IMAGE, image)
-    cad_id = _add_resource(con, cur, IMAGE_TYPE_CAD, cad)
-    datasheet_id = _add_resource(con, cur, IMAGE_TYPE_DATASHEET, datasheet)
-    model3d_id = _add_model3d(con, cur, model3d)
+    mfg_id = _manufacturers.get_mfg_id(con, cur, mfg)
+    series_id = _series.get_series_id(con, cur, series, mfg_id)
+    family_id = _families.get_family_id(con, cur, family, mfg_id)
+    cavity_lock_id = _cavity_locks.get_cavity_lock_id(con, cur, cavity_lock)
+    plating_id = _platings.get_plating_id(con, cur, plating)
+    gender_id = _genders.get_gender_id(con, cur, gender)
+    image_id = _resources.add_resource(con, cur, _resources.IMAGE_TYPE_IMAGE, image)
+    cad_id = _resources.add_resource(con, cur, _resources.IMAGE_TYPE_CAD, cad)
+    datasheet_id = _resources.add_resource(con, cur, _resources.IMAGE_TYPE_DATASHEET, datasheet)
+    model3d_id = _model3d.add_model3d(con, cur, model3d)
 
     if not width and blade_size:
         width = blade_size
@@ -30,7 +41,6 @@ def add_terminal(con, cur, part_number, description, mfg, series, cavity_lock,
     if not height and blade_size:
         height = blade_size
 
-    print(repr(description))
     if not description:
         description = mfg
         if series:
@@ -75,28 +85,17 @@ def add_terminal(con, cur, part_number, description, mfg, series, cavity_lock,
     print()
 
 
-
-
 def add_terminals(con, cur, data: tuple[dict] | list[dict]):
 
     for line in data:
         add_terminal(con, cur, **line)
 
 
-def _terminals(con, cur):
+def _terminals(con, cur, splash):
     res = cur.execute('SELECT id FROM terminals WHERE id=0;')
 
     if res.fetchall():
         return
-
-    _add_manufacturers(con, cur)
-    _add_file_types(con, cur)
-    _add_series(con, cur)
-    _add_families(con, cur)
-    _add_colors(con, cur)
-    _add_platings(con, cur)
-    _add_genders(con, cur)
-    _add_cavity_locks(con, cur)
 
     splash.SetText(f'Adding core terminal to db [1 | 1]...')
 
@@ -129,65 +128,129 @@ def _terminals(con, cur):
             con.commit()
 
 
-def terminals(con, cur):
-    cur.execute('CREATE TABLE terminals('
-                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-                'part_number TEXT UNIQUE NOT NULL, '
-                'description TEXT DEFAULT "" NOT NULL, '
-                'mfg_id INTEGER DEFAULT 0 NOT NULL, '
-                'family_id INTEGER DEFAULT 0 NOT NULL, '
-                'series_id INTEGER DEFAULT 0 NOT NULL, '
-                'plating_id INTEGER DEFAULT 0 NOT NULL, '
-                'image_id INTEGER DEFAULT NULL, '
-                'datasheet_id INTEGER DEFAULT NULL, '
-                'cad_id INTEGER DEFAULT NULL, '
-                'gender_id INTEGER DEFAULT 0 NOT NULL, '
-                'sealing INTEGER DEFAULT 0 NOT NULL, '
-                'cavity_lock_id INTEGER DEFAULT 0 NOT NULL, '                
-                'blade_size REAL DEFAULT "0.0" NOT NULL, '
-                'resistance REAL DEFAULT "0.0" NOT NULL, '
-                'mating_cycles INTEGER DEFAULT 0 NOT NULL, '
-                'max_vibration_g INTEGER DEFAULT 0 NOT NULL, '
-                'max_current_ma INTEGER DEFAULT 0 NOT NULL, '
-                'wire_size_min_awg INTEGER DEFAULT 20 NOT NULL, '
-                'wire_size_max_awg INTEGER DEFAULT 20 NOT NULL, '
-                'wire_dia_min REAL DEFAULT "0.0" NOT NULL, '
-                'wire_dia_max REAL DEFAULT "0.0" NOT NULL, '
-                'min_wire_cross REAL DEFAULT "0.0" NOT NULL, '
-                'max_wire_cross REAL DEFAULT "0.0" NOT NULL, '
-                'length REAL DEFAULT "0.0" NOT NULL, '
-                'width REAL DEFAULT "0.0" NOT NULL, '
-                'height REAL DEFAULT "0.0" NOT NULL, '
-                'weight REAL DEFAULT "0.0" NOT NULL, '
-                'model3d_id INTEGER DEFAULT NULL, '
-                'FOREIGN KEY (mfg_id) REFERENCES manufacturers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-                'FOREIGN KEY (gender_id) REFERENCES genders(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-                'FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-                'FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-                'FOREIGN KEY (cavity_lock_id) REFERENCES cavity_locks(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-                'FOREIGN KEY (image_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-                'FOREIGN KEY (datasheet_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-                'FOREIGN KEY (cad_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '   
-                'FOREIGN KEY (model3d_id) REFERENCES models3d(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '   
-                'FOREIGN KEY (plating_id) REFERENCES platings(id) ON DELETE SET DEFAULT ON UPDATE CASCADE'                               
-                ');')
-    con.commit()
+id_field = _con.PrimaryKeyField('id')
+
+terminals_table = _con.SQLTable(
+    'terminals',
+    id_field,
+    _con.TextField('part_number', is_unique=True, no_null=True),
+    _con.TextField('description', default='""', no_null=True),
+    _con.IntField('mfg_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_manufacturers.manufacturers_table,
+                                                    _manufacturers.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('family_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_families.families_table,
+                                                    _families.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('series_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_series.series_table,
+                                                    _series.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('plating_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_platings.platings_table,
+                                                    _platings.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('image_id', default='NULL',
+                  references=_con.SQLFieldReference(_resources.resources_table,
+                                                    _resources.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('datasheet_id', default='NULL',
+                  references=_con.SQLFieldReference(_resources.resources_table,
+                                                    _resources.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('cad_id', default='NULL',
+                  references=_con.SQLFieldReference(_resources.resources_table,
+                                                    _resources.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('gender_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_genders.genders_table,
+                                                    _genders.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('cavity_lock_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_cavity_locks.cavity_locks_table,
+                                                    _cavity_locks.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('model3d_id', default='NULL',
+                  references=_con.SQLFieldReference(_model3d.models3d_table,
+                                                    _model3d.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('sealing', default='0', no_null=True),
+    _con.FloatField('blade_size', default='"0.0"', no_null=True),
+    _con.FloatField('resistance', default='"0.0"', no_null=True),
+    _con.IntField('mating_cycles', default='0', no_null=True),
+    _con.IntField('max_vibration_g', default='0', no_null=True),
+    _con.IntField('max_current_ma', default='0', no_null=True),
+    _con.IntField('wire_size_min_awg', default='-1', no_null=True),
+    _con.IntField('wire_size_max_awg', default='-1', no_null=True),
+    _con.FloatField('wire_dia_min', default='"0.0"', no_null=True),
+    _con.FloatField('wire_dia_max', default='"0.0"', no_null=True),
+    _con.FloatField('min_wire_cross', default='"0.0"', no_null=True),
+    _con.FloatField('max_wire_cross', default='"0.0"', no_null=True),
+    _con.FloatField('length', default='"0.0"', no_null=True),
+    _con.FloatField('width', default='"0.0"', no_null=True),
+    _con.FloatField('height', default='"0.0"', no_null=True),
+    _con.FloatField('weight', default='"0.0"', no_null=True),
+)
 
 
-
-
-def terminal_crossref(con, cur):
-    cur.execute('CREATE TABLE terminal_crossref('
-                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-                'part_number1 TEXT NOT NULL, '
-                'terminal_id1 INTEGER DEFAULT NULL, '
-                'mfg_id1 INTEGER DEFAULT NULL, '
-                'part_number2 TEXT NOT NULL, '
-                'terminal_id2 INTEGER DEFAULT NULL, '
-                'mfg_id2 INTEGER DEFAULT NULL, '
-                'FOREIGN KEY (terminal_id1) REFERENCES terminals(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-                'FOREIGN KEY (mfg_id1) REFERENCES manufacturers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-                'FOREIGN KEY (terminal_id2) REFERENCES terminals(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-                'FOREIGN KEY (mfg_id2) REFERENCES manufacturers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE'
-                ');')
-    con.commit()
+# def terminals(con, cur):
+#     cur.execute('CREATE TABLE terminals('
+#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+#                 'part_number TEXT UNIQUE NOT NULL, '
+#                 'description TEXT DEFAULT "" NOT NULL, '
+#                 'mfg_id INTEGER DEFAULT 0 NOT NULL, '
+#                 'family_id INTEGER DEFAULT 0 NOT NULL, '
+#                 'series_id INTEGER DEFAULT 0 NOT NULL, '
+#                 'plating_id INTEGER DEFAULT 0 NOT NULL, '
+#                 'image_id INTEGER DEFAULT NULL, '
+#                 'datasheet_id INTEGER DEFAULT NULL, '
+#                 'cad_id INTEGER DEFAULT NULL, '
+#                 'gender_id INTEGER DEFAULT 0 NOT NULL, '
+#                 'sealing INTEGER DEFAULT 0 NOT NULL, '
+#                 'cavity_lock_id INTEGER DEFAULT 0 NOT NULL, '
+#                 'blade_size REAL DEFAULT "0.0" NOT NULL, '
+#                 'resistance REAL DEFAULT "0.0" NOT NULL, '
+#                 'mating_cycles INTEGER DEFAULT 0 NOT NULL, '
+#                 'max_vibration_g INTEGER DEFAULT 0 NOT NULL, '
+#                 'max_current_ma INTEGER DEFAULT 0 NOT NULL, '
+#                 'wire_size_min_awg INTEGER DEFAULT 20 NOT NULL, '
+#                 'wire_size_max_awg INTEGER DEFAULT 20 NOT NULL, '
+#                 'wire_dia_min REAL DEFAULT "0.0" NOT NULL, '
+#                 'wire_dia_max REAL DEFAULT "0.0" NOT NULL, '
+#                 'min_wire_cross REAL DEFAULT "0.0" NOT NULL, '
+#                 'max_wire_cross REAL DEFAULT "0.0" NOT NULL, '
+#                 'length REAL DEFAULT "0.0" NOT NULL, '
+#                 'width REAL DEFAULT "0.0" NOT NULL, '
+#                 'height REAL DEFAULT "0.0" NOT NULL, '
+#                 'weight REAL DEFAULT "0.0" NOT NULL, '
+#                 'model3d_id INTEGER DEFAULT NULL, '
+#                 'FOREIGN KEY (mfg_id) REFERENCES manufacturers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (gender_id) REFERENCES genders(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (cavity_lock_id) REFERENCES cavity_locks(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (image_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (datasheet_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (cad_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (model3d_id) REFERENCES models3d(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (plating_id) REFERENCES platings(id) ON DELETE SET DEFAULT ON UPDATE CASCADE'
+#                 ');')
+#     con.commit()
+#
+#
+# def terminal_crossref(con, cur):
+#     cur.execute('CREATE TABLE terminal_crossref('
+#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+#                 'part_number1 TEXT NOT NULL, '
+#                 'terminal_id1 INTEGER DEFAULT NULL, '
+#                 'mfg_id1 INTEGER DEFAULT NULL, '
+#                 'part_number2 TEXT NOT NULL, '
+#                 'terminal_id2 INTEGER DEFAULT NULL, '
+#                 'mfg_id2 INTEGER DEFAULT NULL, '
+#                 'FOREIGN KEY (terminal_id1) REFERENCES terminals(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (mfg_id1) REFERENCES manufacturers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (terminal_id2) REFERENCES terminals(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (mfg_id2) REFERENCES manufacturers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE'
+#                 ');')
+#     con.commit()

@@ -51,10 +51,10 @@ materials_table = _con.SQLTable(
 )
 
 
-def materials(con, cur):
-    cur.execute('CREATE TABLE materials('
-                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-                'name TEXT UNIQUE NOT NULL, '
-                'description TEXT DEFAULT "" NOT NULL'
-                ');')
-    con.commit()
+# def materials(con, cur):
+#     cur.execute('CREATE TABLE materials('
+#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+#                 'name TEXT UNIQUE NOT NULL, '
+#                 'description TEXT DEFAULT "" NOT NULL'
+#                 ');')
+#     con.commit()

@@ -42,14 +42,13 @@ colors_table = _con.SQLTable(
 )
 
 
-def colors(con, cur):
-    cur.execute('CREATE TABLE colors('
-                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-                'name TEXT UNIQUE NOT NULL, '
-                'rgb INTEGER NOT NULL'
-                ');')
-    con.commit()
-
+# def colors(con, cur):
+#     cur.execute('CREATE TABLE colors('
+#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+#                 'name TEXT UNIQUE NOT NULL, '
+#                 'rgb INTEGER NOT NULL'
+#                 ');')
+#     con.commit()
 
 
 def _build_colors():

@@ -41,9 +41,9 @@ transition_series_table = _con.SQLTable(
 )
 
 
-def transition_series(con, cur):
-    cur.execute('CREATE TABLE transition_series('
-                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-                'name TEXT UNIQUE NOT NULL'
-                ');')
-    con.commit()
+# def transition_series(con, cur):
+#     cur.execute('CREATE TABLE transition_series('
+#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+#                 'name TEXT UNIQUE NOT NULL'
+#                 ');')
+#     con.commit()

@@ -1,13 +1,14 @@
+from ... import db_connectors as _con
+
+from . import ip_supps as _ip_supps
+from . import ip_fluids as _ip_fluids
+from . import ip_solids as _ip_solids
 
 
-def _add_ip_ratings(con, cur):
+def add_ip_ratings(con, cur, splash):
     res = cur.execute('SELECT id FROM ip_ratings WHERE id=0;')
     if res.fetchall():
         return
-
-    _add_ip_supps(con, cur)
-    _add_ip_solids(con, cur)
-    _add_ip_fluids(con, cur)
 
     data = (('IPOO', 0, 0), ('IPXX', 7, 12), ('IP01', 0, 1), ('IP02', 0, 2),
             ('IP03', 0, 3),
@@ -46,20 +47,34 @@ def _add_ip_ratings(con, cur):
     con.commit()
 
 
-def _get_ip_rating_id(con, cur, ip_rating):  # NOQA
+def get_ip_rating_id(con, cur, ip_rating):  # NOQA
     return 0
 
 
-def ip_ratings(con, cur):
-    cur.execute('CREATE TABLE ip_ratings('
-                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-                'name TEXT NOT NULL, '
-                'solid_id INTEGER DEFAULT 7 NOT NULL, '
-                'fluid_id INTEGER DEFAULT 12 NOT NULL, '
-                'supp_id INTEGER DEFAULT NULL, '
-                'FOREIGN KEY (solid_id) REFERENCES ip_solids(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-                'FOREIGN KEY (fluid_id) REFERENCES ip_fluids(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-                'FOREIGN KEY (supp_id) REFERENCES ip_supps(id) ON DELETE SET DEFAULT ON UPDATE CASCADE'
-                ');')
-    con.commit()
+id_field = _con.PrimaryKeyField('id')
 
+ip_ratings_table = _con.SQLTable(
+    'ip_ratings',
+    id_field,
+    _con.TextField('name', is_unique=True, no_null=True),
+    _con.IntField('solid_id', default='7', no_null=True,
+                  references=_con.SQLFieldReference(_ip_solids.ip_solids_table, _ip_solids.id_field)),
+    _con.IntField('fluid_id', default='7', no_null=True,
+                  references=_con.SQLFieldReference(_ip_fluids.ip_fluids_table, _ip_fluids.id_field)),
+    _con.IntField('solid_id', default='7', no_null=True,
+                  references=_con.SQLFieldReference(_ip_supps.ip_supps_table, _ip_supps.id_field))
+)
+
+
+# def ip_ratings(con, cur):
+#     cur.execute('CREATE TABLE ip_ratings('
+#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+#                 'name TEXT NOT NULL, '
+#                 'solid_id INTEGER DEFAULT 7 NOT NULL, '
+#                 'fluid_id INTEGER DEFAULT 12 NOT NULL, '
+#                 'supp_id INTEGER DEFAULT NULL, '
+#                 'FOREIGN KEY (solid_id) REFERENCES ip_solids(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (fluid_id) REFERENCES ip_fluids(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (supp_id) REFERENCES ip_supps(id) ON DELETE SET DEFAULT ON UPDATE CASCADE'
+#                 ');')
+#     con.commit()

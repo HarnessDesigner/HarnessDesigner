@@ -1,41 +1,34 @@
+import os
+import json
+
+from . import manufacturers as _manufacturers
+from . import series as _series
+from . import families as _families
+from . import transition_series as _transition_series
+from . import colors as _colors
+from . import materials as _materials
+from . import shapes as _shapes
+from . import temperatures as _temperatures
+from . import protections as _protections
+from . import resources as _resources
+from . import transition_branches as _transition_branches
+
+from ... import db_connectors as _con
 
 
+def add_transition(con, cur, part_number, description, mfg, series, transition_series,
+                   family, color, material, shape, max_temp, min_temp, resistances,
+                   adhesive, branch_count, branches, cad=None, datasheet=None, image=None):
 
-def _add_transition_branch(con, cur, idx, transition_id, **kwargs):
-    kwargs['min_dia'] = kwargs.pop('min')
-    kwargs['max_dia'] = kwargs.pop('max')
-
-    keys = sorted(list(kwargs.keys()))
-    values = []
-
-    for key in keys:
-        values.append(kwargs[key])
-
-    keys = ', '.join(keys)
-
-    questions = ['?'] * len(values)
-    questions = ', '.join(questions)
-
-    cur.execute(f'INSERT INTO transition_branches (transition_id, idx, {keys}) VALUES (?, ?, {questions});',
-                [transition_id, idx] + values)
-
-    con.commit()
-
-
-def add_transition(con, cur, part_number, description, series, material, shape,
-                   max_temp, min_temp, resistances, adhesive, branch_count,
-                   branches, cad=None, datasheet=None, image=None):
-
-    mfg_id = 1
-
-    series_id = _get_series_id(con, cur, 'DR-25', mfg_id)
-    transition_series_id = _get_transition_series_id(con, cur, series)
-    family_id = _get_family_id(con, cur, 'RayChem', mfg_id)
-    color_id = _get_color_id(con, cur, 'Black')
-    material_id = _get_material_id(con, cur, material)
-    shape_id = _get_shape_id(con, cur, shape)
-    min_temp_id = _get_temperature_id(con, cur, min_temp)
-    max_temp_id = _get_temperature_id(con, cur, max_temp)
+    mfg_id = _manufacturers.get_mfg_id(con, cur, mfg)
+    series_id = _series.get_series_id(con, cur, series, mfg_id)
+    transition_series_id = _transition_series.get_transition_series_id(con, cur, transition_series)
+    family_id = _families.get_family_id(con, cur, family, mfg_id)
+    color_id = _colors.get_color_id(con, cur, color)
+    material_id = _materials.get_material_id(con, cur, material)
+    shape_id = _shapes.get_shape_id(con, cur, shape)
+    min_temp_id = _temperatures.get_temperature_id(con, cur, min_temp)
+    max_temp_id = _temperatures.get_temperature_id(con, cur, max_temp)
 
     if cad is not None:
         cad = cad['path']
@@ -47,10 +40,10 @@ def add_transition(con, cur, part_number, description, series, material, shape,
         image = image['path']
 
     protections = '\n'.join(resistances)
-    protection_id = _get_protection_id(con, cur, protections)
-    image_id = _add_resource(con, cur, IMAGE_TYPE_IMAGE, image)
-    cad_id = _add_resource(con, cur, IMAGE_TYPE_CAD, cad)
-    datasheet_id = _add_resource(con, cur, IMAGE_TYPE_DATASHEET, datasheet)
+    protection_id = _protections.get_protection_id(con, cur, protections)
+    image_id = _resources.add_resource(con, cur, _resources.IMAGE_TYPE_IMAGE, image)
+    cad_id = _resources.add_resource(con, cur, _resources.IMAGE_TYPE_CAD, cad)
+    datasheet_id = _resources.add_resource(con, cur, _resources.IMAGE_TYPE_DATASHEET, datasheet)
 
     adhesive_ids = str(adhesive)
 
@@ -74,11 +67,10 @@ def add_transition(con, cur, part_number, description, series, material, shape,
 
     for i, branch in enumerate(branches):
         try:
-            _add_transition_branch(con, cur, i, transition_id, **branch)
+            _transition_branches.add_transition_branch(con, cur, i, transition_id, **branch)
         except:  # NOQA
             print('BRANCH ERROR:', part_number)
             continue
-
 
 
 def add_transitions(con, cur, data: tuple[dict] | list[dict]):
@@ -87,23 +79,11 @@ def add_transitions(con, cur, data: tuple[dict] | list[dict]):
         add_transition(con, cur, **line)
 
 
-def _transitions(con, cur):
+def transitions(con, cur, splash):
     res = cur.execute('SELECT id FROM transitions WHERE id=0;')
 
     if res.fetchall():
         return
-
-    _add_manufacturers(con, cur)
-    _add_file_types(con, cur)
-    _add_series(con, cur)
-    _add_families(con, cur)
-    _add_colors(con, cur)
-    _add_platings(con, cur)
-    _add_genders(con, cur)
-    _add_cavity_locks(con, cur)
-    _add_materials(con, cur)
-    _add_transition_series(con, cur)
-    _add_shapes(con, cur)
 
     splash.SetText(f'Adding core transition to db [1 | 1]...')
 
@@ -128,39 +108,107 @@ def _transitions(con, cur):
         con.commit()
 
 
-def transitions(con, cur):
-    cur.execute('CREATE TABLE transitions('
-                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-                'part_number TEXT UNIQUE NOT NULL, '
-                'description TEXT DEFAULT "" NOT NULL, '
-                'mfg_id INTEGER DEFAULT 0 NOT NULL, '
-                'family_id INTEGER DEFAULT 0 NOT NULL, '
-                'series_id INTEGER DEFAULT 0 NOT NULL, '
-                'color_id INTEGER DEFAULT 0 NOT NULL, '
-                'material_id INTEGER DEFAULT 0 NOT NULL, '
-                'transition_series_id INTEGER DEFAULT 0 NOT NULL, '
-                'cad_id INTEGER DEFAULT NULL, '
-                'datasheet_id INTEGER DEFAULT NULL, '
-                'image_id INTEGER DEFAULT NULL, '
-                'min_temp_id INTEGER DEFAULT 0 NOT NULL, '
-                'max_temp_id INTEGER DEFAULT 0 NOT NULL, '
-                'branch_count INTEGER DEFAULT 0 NOT NULL, '
-                'shape_id INTEGER DEFAULT 0 NOT NULL, '
-                'protection_id INTEGER DEFAULT 0 NOT NULL, '
-                'adhesive_ids TEXT DEFAULT "[]" NOT NULL, '
-                'weight REAL DEFAULT "0.0" NOT NULL, '
-                'FOREIGN KEY (mfg_id) REFERENCES manufacturers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-                'FOREIGN KEY (transition_series_id) REFERENCES transition_series(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-                'FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-                'FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-                'FOREIGN KEY (color_id) REFERENCES colors(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-                'FOREIGN KEY (material_id) REFERENCES materials(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-                'FOREIGN KEY (min_temp_id) REFERENCES temperatures(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '                
-                'FOREIGN KEY (max_temp_id) REFERENCES temperatures(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, ' 
-                'FOREIGN KEY (shape_id) REFERENCES shapes(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-                'FOREIGN KEY (datasheet_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-                'FOREIGN KEY (cad_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-                'FOREIGN KEY (protection_id) REFERENCES protections(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-                'FOREIGN KEY (image_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE'
-                ');')
-    con.commit()
+id_field = _con.PrimaryKeyField('id')
+
+transitions_table = _con.SQLTable(
+    'transitions',
+    id_field,
+    _con.TextField('part_number', is_unique=True, no_null=True),
+    _con.TextField('description', default='""', no_null=True),
+    _con.IntField('mfg_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_manufacturers.manufacturers_table,
+                                                    _manufacturers.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('family_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_families.families_table,
+                                                    _families.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('series_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_series.series_table,
+                                                    _series.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('color_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_colors.colors_table,
+                                                    _colors.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('material_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_materials.materials_table,
+                                                    _materials.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('transition_series_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_transition_series.transition_series_table,
+                                                    _transition_series.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('image_id', default='NULL',
+                  references=_con.SQLFieldReference(_resources.resources_table,
+                                                    _resources.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('datacheet_idmfg_id', default='NULL',
+                  references=_con.SQLFieldReference(_resources.resources_table,
+                                                    _resources.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('cad_id', default='NULL',
+                  references=_con.SQLFieldReference(_resources.resources_table,
+                                                    _resources.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+
+    _con.IntField('min_temp_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_temperatures.temperatures_table,
+                                                    _temperatures.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('max_temp_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_temperatures.temperatures_table,
+                                                    _temperatures.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+
+    _con.IntField('shape_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_shapes.shapes_table,
+                                                    _shapes.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('protection_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_protections.protections_table,
+                                                    _protections.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('branch_count', default='0', no_null=True),
+    _con.TextField('adhesive_ids', default='"[]"', no_null=True),
+    _con.FloatField('weight', default='"0.0"', no_null=True)
+)
+
+
+# def transitions(con, cur):
+#     cur.execute('CREATE TABLE transitions('
+#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+#                 'part_number TEXT UNIQUE NOT NULL, '
+#                 'description TEXT DEFAULT "" NOT NULL, '
+#                 'mfg_id INTEGER DEFAULT 0 NOT NULL, '
+#                 'family_id INTEGER DEFAULT 0 NOT NULL, '
+#                 'series_id INTEGER DEFAULT 0 NOT NULL, '
+#                 'color_id INTEGER DEFAULT 0 NOT NULL, '
+#                 'material_id INTEGER DEFAULT 0 NOT NULL, '
+#                 'transition_series_id INTEGER DEFAULT 0 NOT NULL, '
+#                 'cad_id INTEGER DEFAULT NULL, '
+#                 'datasheet_id INTEGER DEFAULT NULL, '
+#                 'image_id INTEGER DEFAULT NULL, '
+#                 'min_temp_id INTEGER DEFAULT 0 NOT NULL, '
+#                 'max_temp_id INTEGER DEFAULT 0 NOT NULL, '
+#
+#                 'branch_count INTEGER DEFAULT 0 NOT NULL, '
+#                 'shape_id INTEGER DEFAULT 0 NOT NULL, '
+#                 'protection_id INTEGER DEFAULT 0 NOT NULL, '
+#                 'adhesive_ids TEXT DEFAULT "[]" NOT NULL, '
+#                 'weight REAL DEFAULT "0.0" NOT NULL, '
+#                 'FOREIGN KEY (mfg_id) REFERENCES manufacturers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (transition_series_id) REFERENCES transition_series(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (color_id) REFERENCES colors(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (material_id) REFERENCES materials(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (min_temp_id) REFERENCES temperatures(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (max_temp_id) REFERENCES temperatures(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (shape_id) REFERENCES shapes(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (datasheet_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (cad_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (protection_id) REFERENCES protections(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (image_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE'
+#                 ');')
+#     con.commit()

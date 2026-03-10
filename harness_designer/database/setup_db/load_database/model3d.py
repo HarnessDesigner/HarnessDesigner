@@ -97,7 +97,7 @@ def download_model(con, cur, url):
 model_cache = {}
 
 
-def add_model3d(con, cur, path, splash):
+def add_model3d(con, cur, path):
     if not path:
         return None
 
@@ -139,9 +139,7 @@ def add_model3d(con, cur, path, splash):
     with open(save_path, 'wb') as f:
         f.write(data)
 
-    splash.SetText(f'Adding 3d models to db [0 | 1]...')
     cur.execute('INSERT INTO models3d (uuid, file_type_id, path) VALUES(?, ?, ?);', (uuid_, file_type_id, path))
-    splash.SetText(f'Adding 3d models to db [1 | 1]...')
     con.commit()
     db_id = cur.lastrowid
 
@@ -151,8 +149,8 @@ def add_model3d(con, cur, path, splash):
 
 id_field = _con.PrimaryKeyField('id')
 
-model3ds_table = _con.SQLTable(
-    'model3d',
+models3d_table = _con.SQLTable(
+    'models3d',
     id_field,
     _con.TextField('uuid', is_unique=True, no_null=True),
     _con.IntField('file_type_id', no_null=True,
@@ -170,22 +168,22 @@ model3ds_table = _con.SQLTable(
 )
 
 
-def models3d(con, cur):
-    cur.execute('CREATE TABLE models3d('
-                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-                'uuid TEXT NOT NULL, '
-                'file_type_id INTEGER NOT NULL, '
-                'target_count INTEGER DEFAULT 25000 NOT NULL, '
-                'aggressiveness REAL DEFAULT "5.0" NOT NULL, '
-                'update_rate INTEGER DEFAULT 150 NOT NULL, '
-                'iterations INTEGER DEFAULT 1 NOT NULL, '
-                'quat3d TEXT DEFAULT "[1.0, 0.0, 0.0, 0.0]" NOT NULL, '
-                'angle3d TEXT DEFAULT "[0.0, 0.0, 0.0]" NOT NULL, '
-                'point3d TEXT DEFAULT "[0.0, 0.0, 0.0]" NOT NULL, '
-                'scale TEXT DEFAULT "[1.0, 1.0, 1.0]" NOT NULL, '
-                'simplify INTEGER DEFAULT 0 NOT NULL, '
-                'path TEXT NOT NULL, '
-                'FOREIGN KEY (file_type_id) REFERENCES file_types(id) ON DELETE CASCADE ON UPDATE CASCADE'
-                ');')
-
-    con.commit()
+# def models3d(con, cur):
+#     cur.execute('CREATE TABLE models3d('
+#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+#                 'uuid TEXT NOT NULL, '
+#                 'file_type_id INTEGER NOT NULL, '
+#                 'target_count INTEGER DEFAULT 25000 NOT NULL, '
+#                 'aggressiveness REAL DEFAULT "5.0" NOT NULL, '
+#                 'update_rate INTEGER DEFAULT 150 NOT NULL, '
+#                 'iterations INTEGER DEFAULT 1 NOT NULL, '
+#                 'quat3d TEXT DEFAULT "[1.0, 0.0, 0.0, 0.0]" NOT NULL, '
+#                 'angle3d TEXT DEFAULT "[0.0, 0.0, 0.0]" NOT NULL, '
+#                 'point3d TEXT DEFAULT "[0.0, 0.0, 0.0]" NOT NULL, '
+#                 'scale TEXT DEFAULT "[1.0, 1.0, 1.0]" NOT NULL, '
+#                 'simplify INTEGER DEFAULT 0 NOT NULL, '
+#                 'path TEXT NOT NULL, '
+#                 'FOREIGN KEY (file_type_id) REFERENCES file_types(id) ON DELETE CASCADE ON UPDATE CASCADE'
+#                 ');')
+#
+#     con.commit()

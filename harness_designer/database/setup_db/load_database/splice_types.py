@@ -46,9 +46,9 @@ splice_types_table = _con.SQLTable(
 )
 
 
-def splice_types(con, cur):
-    cur.execute('CREATE TABLE splice_types('
-                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-                'name TEXT UNIQUE NOT NULL'
-                ');')
-    con.commit()
+# def splice_types(con, cur):
+#     cur.execute('CREATE TABLE splice_types('
+#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+#                 'name TEXT UNIQUE NOT NULL'
+#                 ');')
+#     con.commit()

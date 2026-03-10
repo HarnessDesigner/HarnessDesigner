@@ -43,9 +43,9 @@ genders_table = _con.SQLTable(
 )
 
 
-def genders(con, cur):
-    cur.execute('CREATE TABLE genders('
-                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-                'name TEXT UNIQUE NOT NULL'
-                ');')
-    con.commit()
+# def genders(con, cur):
+#     cur.execute('CREATE TABLE genders('
+#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+#                 'name TEXT UNIQUE NOT NULL'
+#                 ');')
+#     con.commit()

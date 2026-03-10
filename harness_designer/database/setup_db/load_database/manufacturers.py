@@ -65,16 +65,16 @@ manufacturers_table = _con.SQLTable(
 )
 
 
-def manufacturers(con, cur):
-    cur.execute('CREATE TABLE manufacturers('
-                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-                'name TEXT UNIQUE NOT NULL, '
-                'description TEXT DEFAULT "" NOT NULL, '
-                'address TEXT DEFAULT "" NOT NULL, '
-                'contact_person TEXT DEFAULT "" NOT NULL, '
-                'phone TEXT DEFAULT "" NOT NULL, '
-                'ext TEXT DEFAULT "" NOT NULL, '
-                'email TEXT DEFAULT "" NOT NULL, '
-                'website TEXT DEFAULT "" NOT NULL'
-                ');')
-    con.commit()
+# def manufacturers(con, cur):
+#     cur.execute('CREATE TABLE manufacturers('
+#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+#                 'name TEXT UNIQUE NOT NULL, '
+#                 'description TEXT DEFAULT "" NOT NULL, '
+#                 'address TEXT DEFAULT "" NOT NULL, '
+#                 'contact_person TEXT DEFAULT "" NOT NULL, '
+#                 'phone TEXT DEFAULT "" NOT NULL, '
+#                 'ext TEXT DEFAULT "" NOT NULL, '
+#                 'email TEXT DEFAULT "" NOT NULL, '
+#                 'website TEXT DEFAULT "" NOT NULL'
+#                 ');')
+#     con.commit()

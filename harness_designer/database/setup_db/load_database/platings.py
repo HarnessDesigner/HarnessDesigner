@@ -63,10 +63,10 @@ platings_table = _con.SQLTable(
 )
 
 
-def platings(con, cur):
-    cur.execute('CREATE TABLE platings('
-                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-                'symbol TEXT UNIQUE NOT NULL, '
-                'description TEXT DEFAULT "" NOT NULL'
-                ');')
-    con.commit()
+# def platings(con, cur):
+#     cur.execute('CREATE TABLE platings('
+#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+#                 'symbol TEXT UNIQUE NOT NULL, '
+#                 'description TEXT DEFAULT "" NOT NULL'
+#                 ');')
+#     con.commit()

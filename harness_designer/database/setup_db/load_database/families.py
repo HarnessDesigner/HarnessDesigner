@@ -50,12 +50,12 @@ families_table = _con.SQLTable(
 )
 
 
-def families(con, cur):
-    cur.execute('CREATE TABLE families('
-                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-                'name TEXT NOT NULL, '
-                'description TEXT DEFAULT "" NOT NULL, '
-                'mfg_id INTEGER DEFAULT 0 NOT NULL, '
-                'FOREIGN KEY (mfg_id) REFERENCES manufacturers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE'
-                ');')
-    con.commit()
+# def families(con, cur):
+#     cur.execute('CREATE TABLE families('
+#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+#                 'name TEXT NOT NULL, '
+#                 'description TEXT DEFAULT "" NOT NULL, '
+#                 'mfg_id INTEGER DEFAULT 0 NOT NULL, '
+#                 'FOREIGN KEY (mfg_id) REFERENCES manufacturers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE'
+#                 ');')
+#     con.commit()

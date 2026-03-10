@@ -47,13 +47,14 @@ series_table = _con.SQLTable(
                                                     on_update=_con.REFERENCE_CASCADE))
 )
 
-def series(con, cur):
-    cur.execute('CREATE TABLE series('
-                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-                'name TEXT NOT NULL, '
-                'mfg_id INTEGER DEFAULT 1 NOT NULL, '
-                'description TEXT DEFAULT "" NOT NULL, '
-                'FOREIGN KEY (mfg_id) REFERENCES manufacturers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE'
-                ');')
-    con.commit()
+
+# def series(con, cur):
+#     cur.execute('CREATE TABLE series('
+#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+#                 'name TEXT NOT NULL, '
+#                 'mfg_id INTEGER DEFAULT 1 NOT NULL, '
+#                 'description TEXT DEFAULT "" NOT NULL, '
+#                 'FOREIGN KEY (mfg_id) REFERENCES manufacturers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE'
+#                 ');')
+#     con.commit()
 

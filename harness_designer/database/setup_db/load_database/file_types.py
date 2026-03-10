@@ -173,12 +173,12 @@ file_types_table = _con.SQLTable(
 )
 
 
-def file_types(con, cur):
-    cur.execute('CREATE TABLE file_types('
-                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-                'extension TEXT, '
-                'name TEXT DEFAULT "" NOT NULL, '
-                'mimetype TEXT DEFAULT "" NOT NULL, '
-                'is_model INTEGER DEFAULT 1 NOT NULL'
-                ');')
-    con.commit()
+# def file_types(con, cur):
+#     cur.execute('CREATE TABLE file_types('
+#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+#                 'extension TEXT, '
+#                 'name TEXT DEFAULT "" NOT NULL, '
+#                 'mimetype TEXT DEFAULT "" NOT NULL, '
+#                 'is_model INTEGER DEFAULT 1 NOT NULL'
+#                 ');')
+#     con.commit()

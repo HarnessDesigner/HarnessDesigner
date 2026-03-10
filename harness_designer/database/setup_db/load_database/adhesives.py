@@ -1,6 +1,7 @@
+from ... import db_connectors as _con
 
 
-def _add_adhesives(con, cur):
+def _add_adhesives(con, cur, splash):
     res = cur.execute('SELECT id FROM adhesives WHERE id=0;')
     if res.fetchall():
         return
@@ -24,9 +25,7 @@ def _add_adhesives(con, cur):
     con.commit()
 
 
-
-
-def _get_adhesive_id(con, cur, code):
+def get_adhesive_id(con, cur, code):
     if not code:
         return 0
 
@@ -46,6 +45,16 @@ def _get_adhesive_id(con, cur, code):
     else:
         return res[0][0]
 
+
+id_field = _con.PrimaryKeyField('id')
+
+ashesives_table = _con.SQLTable(
+    'ashesives',
+    id_field,
+    _con.TextField('code', is_unique=True, no_null=True),
+    _con.TextField('description', default='""', no_null=True),
+    _con.TextField('accessory_part_nums', default='"[]"', no_null=True)
+)
 
 
 def adhesives(con, cur):

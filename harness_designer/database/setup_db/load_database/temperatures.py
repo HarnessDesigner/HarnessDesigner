@@ -59,9 +59,9 @@ temperatures_table = _con.SQLTable(
 )
 
 
-def temperatures(con, cur):
-    cur.execute('CREATE TABLE temperatures('
-                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-                'name TEXT UNIQUE NOT NULL'
-                ');')
-    con.commit()
+# def temperatures(con, cur):
+#     cur.execute('CREATE TABLE temperatures('
+#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+#                 'name TEXT UNIQUE NOT NULL'
+#                 ');')
+#     con.commit()

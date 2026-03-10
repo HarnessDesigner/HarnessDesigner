@@ -234,13 +234,13 @@ resources_table = _con.SQLTable(
 )
 
 
-def resources(con, cur):
-    cur.execute('CREATE TABLE resources('
-                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-                'uuid TEXT NOT NULL, '
-                'file_type_id INTEGER NOT NULL, '
-                'data BLOB DEFAULT NULL, '
-                'path TEXT NOT NULL, '
-                'FOREIGN KEY (file_type_id) REFERENCES file_types(id) ON DELETE CASCADE ON UPDATE CASCADE'
-                ');')
-    con.commit()
+# def resources(con, cur):
+#     cur.execute('CREATE TABLE resources('
+#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+#                 'uuid TEXT NOT NULL, '
+#                 'file_type_id INTEGER NOT NULL, '
+#                 'data BLOB DEFAULT NULL, '
+#                 'path TEXT NOT NULL, '
+#                 'FOREIGN KEY (file_type_id) REFERENCES file_types(id) ON DELETE CASCADE ON UPDATE CASCADE'
+#                 ');')
+#     con.commit()

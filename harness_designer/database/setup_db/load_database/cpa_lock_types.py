@@ -31,6 +31,27 @@ def add_cpa_lock_types(con, cur, splash):
     con.commit()
 
 
+def get_cpa_lock_type_id(con, cur, name):
+    if not name:
+        return 0
+
+    res = cur.execute(f'SELECT id FROM cpa_lock_types WHERE name="{name}";').fetchall()
+
+    if not res:
+        print(f'DATABASE: adding cpa lock type ("{name}")')
+
+        cur.execute('INSERT INTO cpa_lock_types (name) VALUES (?);', (name,))
+
+        con.commit()
+        db_id = cur.lastrowid
+
+        print(f'DATABASE: cpa lock type added "{name}" = {db_id}')
+
+        return db_id
+    else:
+        return res[0][0]
+
+
 id_field = _con.PrimaryKeyField('id')
 
 cpa_lock_types_table = _con.SQLTable(
@@ -40,9 +61,9 @@ cpa_lock_types_table = _con.SQLTable(
 )
 
 
-def cpa_lock_types(con, cur):
-    cur.execute('CREATE TABLE cpa_lock_types('
-                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-                'name TEXT UNIQUE NOT NULL'
-                ');')
-    con.commit()
+# def cpa_lock_types(con, cur):
+#     cur.execute('CREATE TABLE cpa_lock_types('
+#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+#                 'name TEXT UNIQUE NOT NULL'
+#                 ');')
+#     con.commit()

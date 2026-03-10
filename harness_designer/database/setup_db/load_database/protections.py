@@ -44,9 +44,9 @@ protections_table = _con.SQLTable(
 )
 
 
-def protections(con, cur):
-    cur.execute('CREATE TABLE protections('
-                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-                'name TEXT NOT NULL'
-                ');')
-    con.commit()
+# def protections(con, cur):
+#     cur.execute('CREATE TABLE protections('
+#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+#                 'name TEXT NOT NULL'
+#                 ');')
+#     con.commit()
