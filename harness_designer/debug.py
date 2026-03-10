@@ -62,7 +62,7 @@ def logfunc(func):
     # do not have an attribute that functions and methods have and that attribute
     # is "func_name". Since the program is able to be compiled without Cython
     # being used we want to make sure that is still possible which can be seen
-    # with the call to inspect in the exception catching. 
+    # with the call to inspect in the exception catching.
     is_static_method = False
 
     try:

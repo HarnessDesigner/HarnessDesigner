@@ -205,7 +205,6 @@ class ModelDownloadDialog(wx.Dialog):
                 ('application/gltf-buffer', '.gltf'),
                 ('application/iges', '.iges'),
                 ('model/step+zip', '.zip'),
-                ('model/step-xml+zip', '.zip'),
                 ('application/zip', '.zip'),
                 ('application/x-zip-compressed', '.zip')
             )

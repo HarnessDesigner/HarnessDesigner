@@ -1,5 +1,7 @@
 from typing import Iterable as _Iterable
 
+import json
+
 from .bases import EntryBase, TableBase
 from .mixins import PartNumberMixin, DescriptionMixin, ManufacturerMixin, FamilyMixin, SeriesMixin, ColorMixin, MaterialMixin
 

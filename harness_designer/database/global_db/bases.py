@@ -1,6 +1,8 @@
-from typing import Iterable as _Iterable, TYPE_CHECKING
+from typing import Iterable as _Iterable, TYPE_CHECKING, IO
 
 import weakref
+import json
+import collections
 
 if TYPE_CHECKING:
     from ... import ui as _ui
@@ -83,7 +85,7 @@ class TableBase:
 
         return False
 
-    def insert(self, *_, **kwargs) -> int:
+    def insert(self, **kwargs) -> int:
         fields = []
         values = []
         args = []
@@ -98,6 +100,94 @@ class TableBase:
         self._con.execute(f'INSERT INTO {self.__table_name__} ({fields}) VALUES ({values});', args)
         self._con.commit()
         return self._con.lastrowid
+
+    def export_as_json(self, file: str | IO[bytes]) -> int:
+        """
+        This function dumps to a file or a file like object.
+
+        :param file: The data that is exported can be quite large in size which
+                     is why you can optionally provide a file name. If passing
+                     a file object the object MUST be opened using `'wb'` as
+                     the mode. If passing in an `io.BytesIO` object or a file
+                     object the writing occurs at the exact position the object
+                     is at when it is passed to this function.
+
+                     If a file object or a `io.BytesIO` object is passed the
+                     object will remain open after the function is called. It
+                     is the users responsibility to close the object.
+
+        :type file: `str` or `io.BytesIO` or a file object
+
+        :return: number of records written
+        :rtype: int
+        """
+
+        self.execute(f'SELECT "(\'" || group_concat(name, "\', \'") || "\')" from '
+                     f'pragma_table_info("{self.__table_name__}");')
+
+        column_names = eval(self.fetchall()[0][0])
+
+        self.execute(f'SELECT {", ".join(column_names)} FROM {self.__table_name__};')
+
+        if isinstance(file, str):
+            is_file_object = False
+
+            file = open(file, 'wb')
+        else:
+            is_file_object = True
+
+        file.write(b'[')
+        row = self.fetchone()
+        count = 0
+        while row:
+            count += 1
+            entry = dict(tuple(zip(column_names, row)))
+            j_data = json.dumps(entry).strip()
+            file.write(b'  ' + j_data.encode('utf-8') + b',\n')
+
+            row = self.fetchone()
+
+        cur_pos = file.tell()
+        file.seek(cur_pos - 2)
+        file.write(b'\n]')
+
+        if not is_file_object:
+            file.close()
+
+        return count
+
+    def load_from_json(self, data: list[dict[str, float | int | str]] | str) -> int:
+        if isinstance(data, str):
+            data = json.loads(data)
+
+        self.execute(f'SELECT "(\'" || group_concat(name, "\', \'") || "\')" from '
+                     f'pragma_table_info("{self.__table_name__}");')
+
+        column_names = sorted(list(eval(self.fetchall()[0][0])))
+        values = ['?'] * len(column_names)
+        found_column_names = []
+
+        insert_cmd = (f'INSERT INTO {self.__table_name__} ({", ".join(column_names)}) '
+                      f'VALUES ({", ".join(values)});')
+        count = 0
+        for line in data:
+            if not found_column_names:
+                found_column_names = sorted(list(line.keys()))
+
+                if found_column_names != column_names:
+                    raise RuntimeError(
+                        'column names in file do not match database table')
+
+            row_data = []
+            for key in column_names:
+                row_data.append(line[key])
+
+            self._con.execute(insert_cmd, row_data)
+
+            count += 1
+
+        self._con.commit()
+        return count
 
     def select(self, *args, **kwargs):
         args = ', '.join(args)
