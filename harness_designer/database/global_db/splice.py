@@ -13,6 +13,22 @@ if TYPE_CHECKING:
 class SplicesTable(TableBase):
     __table_name__ = 'splices'
 
+    def _table_needs_update(self) -> bool:
+        from ..create_database import splices
+
+        return splices.table.is_ok(self)
+
+    def _add_table_to_db(self, splash):
+        from ..create_database import splices
+
+        splices.table.add_to_db(self)
+        splices.add_records(self._con, splash)
+
+    def _update_table_in_db(self):
+        from ..create_database import splices
+
+        splices.table.update_fields(self)
+
     def __iter__(self) -> _Iterable["Splice"]:
         for db_id in TableBase.__iter__(self):
             yield Splice(self, db_id)

@@ -45,12 +45,20 @@ class SQLConnector(ConnectorBase):
 
         self._connection: sqlite3.Connection = None
         self._cursor: sqlite3.Cursor = None
+        self.database_name = 'harness_designer'
 
     def get_tables(self) -> list[str]:
-        self.execute('SELECT name FROM sqlite_master WHERE type="table";')
-        res = self.fetchall()
+        self.execute(f'SELECT name FROM {self.database_name}.sqlite_master WHERE type="table";')
+        rows = self.fetchall()
 
-        return [item[0] for item in res]
+        return [row[0] for row in rows]
+
+    def get_table_column_names(self, table_name: str) -> list[str]:
+        self.execute(f'SELECT "(\'" || group_concat(name, "\', \'") || "\')" from '
+                     f'pragma_table_info("{table_name}");')
+
+        column_names = eval(self.fetchall()[0][0])
+        return column_names
 
     def connect(self):
         self._connection = sqlite3.connect(self.db_name, check_same_thread=False)

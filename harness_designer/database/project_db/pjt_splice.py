@@ -20,6 +20,21 @@ if TYPE_CHECKING:
 class PJTSplicesTable(PJTTableBase):
     __table_name__ = 'pjt_splices'
 
+    def _table_needs_update(self) -> bool:
+        from ..create_database import splices
+
+        return splices.pjt_table.is_ok(self)
+
+    def _add_table_to_db(self):
+        from ..create_database import splices
+
+        splices.pjt_table.add_to_db(self)
+
+    def _update_table_in_db(self):
+        from ..create_database import splices
+
+        splices.pjt_table.update_fields(self)
+
     def __iter__(self) -> _Iterable["PJTSplice"]:
         for db_id in PJTTableBase.__iter__(self):
             yield PJTSplice(self, db_id, self.project_id)

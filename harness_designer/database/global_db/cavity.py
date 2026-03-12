@@ -17,6 +17,21 @@ if TYPE_CHECKING:
 class CavitiesTable(TableBase):
     __table_name__ = 'cavities'
 
+    def _table_needs_update(self) -> bool:
+        from ..create_database import cavities
+
+        return cavities.table.is_ok(self)
+
+    def _add_table_to_db(self, _):
+        from ..create_database import cavities
+
+        cavities.table.add_to_db(self)
+
+    def _update_table_in_db(self):
+        from ..create_database import cavities
+
+        cavities.table.update_fields(self)
+
     def __iter__(self) -> _Iterable["Cavity"]:
         for db_id in TableBase.__iter__(self):
             yield Cavity(self, db_id)
@@ -100,7 +115,7 @@ class Cavity(EntryBase, NameMixin):
 
     def _update_angle3d(self, angle: _angle.Angle):
         euler = [angle.x, angle.y, angle.z]
-        quat = angle.as_quat.tolist()
+        quat = angle.as_quat_float
         self._table.update(self._db_id, angle3d=str(euler), quat3d=str(quat))
 
     @property
@@ -123,7 +138,7 @@ class Cavity(EntryBase, NameMixin):
 
     def _update_angle2d(self, angle: _angle.Angle):
         euler = [angle.x, angle.y, angle.z]
-        quat = angle.as_quat.tolist()
+        quat = angle.as_quat_float
         self._table.update(self._db_id, angle2d=str(euler), quat2d=str(quat))
 
     @property

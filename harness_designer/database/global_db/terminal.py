@@ -15,6 +15,23 @@ if TYPE_CHECKING:
 class TerminalsTable(TableBase):
     __table_name__: str = 'terminals'
 
+    def _table_needs_update(self) -> bool:
+        from ..create_database import terminals
+
+        return terminals.table.is_ok(self)
+
+    def _add_table_to_db(self, splash):
+        from ..create_database import terminals
+
+        terminals.table.add_to_db(self)
+        terminals.add_records(self._con, splash)
+
+
+    def _update_table_in_db(self):
+        from ..create_database import terminals
+
+        terminals.table.update_fields(self)
+
     def __iter__(self) -> _Iterable["Terminal"]:
         for db_id in TableBase.__iter__(self):
             yield Terminal(self, db_id)

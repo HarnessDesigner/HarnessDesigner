@@ -9,6 +9,23 @@ from .mixins import (PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 class WireMarkersTable(TableBase):
     __table_name__: str = 'wire_markers'
 
+    def _table_needs_update(self) -> bool:
+        from ..create_database import wire_markers
+
+        return wire_markers.table.is_ok(self)
+
+    def _add_table_to_db(self, splash):
+        from ..create_database import wire_markers
+
+        wire_markers.table.add_to_db(self)
+        wire_markers.add_records(self._con, splash)
+
+
+    def _update_table_in_db(self):
+        from ..create_database import wire_markers
+
+        wire_markers.table.update_fields(self)
+
     def __iter__(self) -> _Iterable["WireMarker"]:
 
         for db_id in TableBase.__iter__(self):

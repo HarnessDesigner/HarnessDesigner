@@ -14,6 +14,21 @@ if TYPE_CHECKING:
 class PJTWireLayoutsTable(PJTTableBase):
     __table_name__ = 'pjt_wire_layouts'
 
+    def _table_needs_update(self) -> bool:
+        from ..create_database import wire_layouts
+
+        return wire_layouts.pjt_table.is_ok(self)
+
+    def _add_table_to_db(self):
+        from ..create_database import wire_layouts
+
+        wire_layouts.pjt_table.add_to_db(self)
+
+    def _update_table_in_db(self):
+        from ..create_database import wire_layouts
+
+        wire_layouts.pjt_table.update_fields(self)
+
     def __iter__(self) -> _Iterable["PJTWireLayout"]:
         for db_id in PJTTableBase.__iter__(self):
             yield PJTWireLayout(self, db_id, self.project_id)

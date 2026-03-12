@@ -8,6 +8,22 @@ from .mixins import NameMixin
 class ShapesTable(TableBase):
     __table_name__ = 'shapes'
 
+    def _table_needs_update(self) -> bool:
+        from ..create_database import shapes
+
+        return shapes.table.is_ok(self)
+
+    def _add_table_to_db(self, splash):
+        from ..create_database import shapes
+
+        shapes.table.add_to_db(self)
+        shapes.add_records(self._con, splash)
+
+    def _update_table_in_db(self):
+        from ..create_database import shapes
+
+        shapes.table.update_fields(self)
+
     def __iter__(self) -> _Iterable["Shape"]:
         for db_id in TableBase.__iter__(self):
             yield Shape(self, db_id)

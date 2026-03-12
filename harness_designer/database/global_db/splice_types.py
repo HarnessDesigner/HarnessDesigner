@@ -7,6 +7,23 @@ from .mixins import NameMixin
 class SpliceTypesTable(TableBase):
     __table_name__ = 'splice_types'
 
+    def _table_needs_update(self) -> bool:
+        from ..create_database import splice_types
+
+        return splice_types.table.is_ok(self)
+
+    def _add_table_to_db(self, splash):
+        from ..create_database import splice_types
+
+        splice_types.table.add_to_db(self)
+        splice_types.add_records(self._con, splash)
+
+
+    def _update_table_in_db(self):
+        from ..create_database import splice_types
+
+        splice_types.table.update_fields(self)
+
     def __iter__(self) -> _Iterable["SpliceType"]:
         for db_id in TableBase.__iter__(self):
             yield SpliceType(self, db_id)

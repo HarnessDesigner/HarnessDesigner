@@ -10,6 +10,22 @@ from .mixins import (PartNumberMixin, ManufacturerMixin, DescriptionMixin, Famil
 class CPALocksTable(TableBase):
     __table_name__ = 'cpa_locks'
 
+    def _table_needs_update(self) -> bool:
+        from ..create_database import cpa_locks
+
+        return cpa_locks.table.is_ok(self)
+
+    def _add_table_to_db(self, splash):
+        from ..create_database import cpa_locks
+
+        cpa_locks.table.add_to_db(self)
+        cpa_locks.add_records(self._con, splash)
+
+    def _update_table_in_db(self):
+        from ..create_database import cpa_locks
+
+        cpa_locks.table.update_fields(self)
+
     def __iter__(self) -> _Iterable["CPALock"]:
 
         for db_id in TableBase.__iter__(self):

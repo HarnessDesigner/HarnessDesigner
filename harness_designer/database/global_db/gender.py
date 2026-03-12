@@ -7,6 +7,22 @@ from .mixins import NameMixin
 class GendersTable(TableBase):
     __table_name__ = 'genders'
 
+    def _table_needs_update(self) -> bool:
+        from ..create_database import genders
+
+        return genders.table.is_ok(self)
+
+    def _add_table_to_db(self, splash):
+        from ..create_database import genders
+
+        genders.table.add_to_db(self)
+        genders.add_records(self._con, splash)
+
+    def _update_table_in_db(self):
+        from ..create_database import genders
+
+        genders.table.update_fields(self)
+
     def __iter__(self) -> _Iterable["Gender"]:
         for db_id in TableBase.__iter__(self):
             yield Gender(self, db_id)

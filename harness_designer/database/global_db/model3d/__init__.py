@@ -15,6 +15,21 @@ from . import positioning as _positioning
 class Models3DTable(TableBase):
     __table_name__ = 'models3d'
 
+    def _table_needs_update(self) -> bool:
+        from ...create_database import models3d
+
+        return models3d.table.is_ok(self)
+
+    def _add_table_to_db(self, _):
+        from ...create_database import models3d
+
+        models3d.table.add_to_db(self)
+
+    def _update_table_in_db(self):
+        from ...create_database import models3d
+
+        models3d.table.update_fields(self)
+
     def __iter__(self) -> _Iterable["Model3D"]:
 
         for db_id in TableBase.__iter__(self):

@@ -7,6 +7,7 @@ CONNECTOR_MYSQL = 1
 
 Config = _config.Config
 
+
 class ConnectorBase:
 
     def __init__(self, mainframe, db_name):

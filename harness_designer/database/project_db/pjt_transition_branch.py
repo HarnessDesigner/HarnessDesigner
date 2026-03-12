@@ -15,6 +15,21 @@ if TYPE_CHECKING:
 class PJTTransitionBranchesTable(PJTTableBase):
     __table_name__ = 'pjt_transition_branches'
 
+    def _table_needs_update(self) -> bool:
+        from ..create_database import transition_branches
+
+        return transition_branches.pjt_table.is_ok(self)
+
+    def _add_table_to_db(self):
+        from ..create_database import transition_branches
+
+        transition_branches.pjt_table.add_to_db(self)
+
+    def _update_table_in_db(self):
+        from ..create_database import transition_branches
+
+        transition_branches.pjt_table.update_fields(self)
+
     def __iter__(self) -> _Iterable["PJTTransitionBranch"]:
         for db_id in PJTTableBase.__iter__(self):
             yield PJTTransitionBranch(self, db_id, self.project_id)

@@ -7,6 +7,22 @@ from .mixins import DescriptionMixin
 class AdhesivesTable(TableBase):
     __table_name__ = 'adhesives'
 
+    def _table_needs_update(self) -> bool:
+        from ..create_database import adhesives
+
+        return adhesives.table.is_ok(self)
+
+    def _add_table_to_db(self, splash):
+        from ..create_database import adhesives
+
+        adhesives.table.add_to_db(self)
+        adhesives.add_records(self._con, splash)
+
+    def _update_table_in_db(self):
+        from ..create_database import adhesives
+
+        adhesives.table.update_fields(self)
+
     def __iter__(self) -> _Iterable["Adhesive"]:
         for db_id in TableBase.__iter__(self):
             yield Adhesive(self, db_id)
@@ -41,7 +57,8 @@ class Adhesive(EntryBase, DescriptionMixin):
 
     @property
     def accessories(self) -> list["_accessory.Accessory"]:
-        accessory_nums = eval(self._table.select('accessory_part_nums', id=self._db_id)[0][0])
+        accessory_nums = eval(self._table.select('accessory_part_nums',
+                                                 id=self._db_id)[0][0])
         res = []
         for part_number in accessory_nums:
             try:
@@ -53,7 +70,8 @@ class Adhesive(EntryBase, DescriptionMixin):
 
     @accessories.setter
     def accessories(self, value: list["_accessory.Accessory"] | list[str]):
-        part_numbers = [accessory if isinstance(accessory, str) else accessory.part_number for accessory in value]
+        part_numbers = [accessory if isinstance(accessory, str)
+                        else accessory.part_number for accessory in value]
 
         self._table.update(self._db_id, accessory_part_nums=str(part_numbers))
 

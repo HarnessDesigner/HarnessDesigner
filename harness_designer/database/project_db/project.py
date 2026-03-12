@@ -9,9 +9,23 @@ if TYPE_CHECKING:
     from ...objects import project as _project_obj
 
 
-
 class ProjectsTable(PJTTableBase):
     __table_name__ = 'projects'
+
+    def _table_needs_update(self) -> bool:
+        from ..create_database import projects
+
+        return projects.pjt_table.is_ok(self)
+
+    def _add_table_to_db(self):
+        from ..create_database import projects
+
+        projects.pjt_table.add_to_db(self)
+
+    def _update_table_in_db(self):
+        from ..create_database import projects
+
+        projects.pjt_table.update_fields(self)
 
     def __iter__(self) -> _Iterable["Project"]:
 

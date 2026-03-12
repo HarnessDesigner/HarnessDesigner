@@ -13,6 +13,22 @@ if TYPE_CHECKING:
 class TransitionBranchesTable(TableBase):
     __table_name__ = 'transition_branches'
 
+    def _table_needs_update(self) -> bool:
+        from ..create_database import transition_branches
+
+        return transition_branches.table.is_ok(self)
+
+    def _add_table_to_db(self, _):
+        from ..create_database import transition_branches
+
+        transition_branches.table.add_to_db(self)
+
+
+    def _update_table_in_db(self):
+        from ..create_database import transition_branches
+
+        transition_branches.table.update_fields(self)
+
     def __iter__(self) -> _Iterable["TransitionBranch"]:
         for db_id in TableBase.__iter__(self):
             yield TransitionBranch(self, db_id)

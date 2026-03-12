@@ -2,10 +2,11 @@ from typing import Iterable as _Iterable, TYPE_CHECKING, IO
 
 import weakref
 import json
-import collections
+
 
 if TYPE_CHECKING:
     from ... import ui as _ui
+    from ...ui import splash as _splash
 
 
 class _EntrySingleton(type):
@@ -57,9 +58,28 @@ class EntryBase(metaclass=_EntrySingleton):
 class TableBase:
     __table_name__: str = None
 
-    def __init__(self, db: "GLBTables"):
+    def __init__(self, db: "GLBTables", table_names: list['str'], splash: "_splash.Splash"):
         self.db = db
         self._con = db.connector
+
+        if self.__table_name__ not in table_names:
+            splash.SetText(f'Creating {self.__table_name__.replace("_", " ")} database table...')
+            self._add_table_to_db()
+
+        if self._table_needs_update():
+            splash.SetText(f'Adding {self.__table_name__.replace("_", " ")} table fields...')
+            self._update_table_in_db()
+
+        splash.SetText(f'Loading {self.__table_name__.replace("_", " ")} database table...')
+
+    def _table_needs_update(self) -> bool:
+        raise NotImplementedError
+
+    def _add_table_to_db(self, splash) -> None:
+        raise NotImplementedError
+
+    def _update_table_in_db(self) -> None:
+        raise NotImplementedError
 
     def __getitem__(self, item):
         self._con.execute(f'SELECT * FROM {self.__table_name__} WHERE id = {item};')
@@ -379,7 +399,7 @@ from .terminal import TerminalsTable  # NOQA
 from .series import SeriesTable  # NOQA
 from .housing import HousingsTable  # NOQA
 from .color import ColorsTable  # NOQA
-from .sealing import SealingsTable  # NOQA
+from .seal_type import SealTypesTable  # NOQA
 from .temperature import TemperaturesTable  # NOQA
 from .resource import ResourcesTable  # NOQA
 from .cavity import CavitiesTable  # NOQA
@@ -400,8 +420,6 @@ from .splice import SplicesTable  # NOQA
 from .model3d import Models3DTable  # NOQA
 from .wire_marker import WireMarkersTable  # NOQA
 from .splice_types import SpliceTypesTable  # NOQA
-from .cavity_point2d import CavityPoints2DTable  # NOQA
-from .cavity_point3d import CavityPoints3DTable  # NOQA
 from .setting import SettingsTable # NOQA
 
 
@@ -412,120 +430,46 @@ class GLBTables:
 
         self.connector = mainframe.db_connector
 
-        from ..setup_db import create_tables
-
         tables = self.connector.get_tables()
 
-        for table_name, func in create_tables.global_table_mapping():
-            if table_name not in tables:
-                splash.SetText(f'Creating database table {table_name}...')
-                func(self.connector, self.connector)
+        self._boots_table = BootsTable(self, tables, splash)
+        self._manufacturers_table = ManufacturersTable(self, tables, splash)
+        self._tpa_locks_table = TPALocksTable(self, tables, splash)
+        self._cpa_locks_table = CPALocksTable(self, tables, splash)
+        self._materials_table = MaterialsTable(self, tables, splash)
+        self._platings_table = PlatingsTable(self, tables, splash)
+        self._covers_table = CoversTable(self, tables, splash)
+        self._housings_table = HousingsTable(self, tables, splash)
+        self._seal_types_table = SealTypesTable(self, tables, splash)
+        self._seals_table = SealsTable(self, tables, splash)
+        self._series_table = SeriesTable(self, tables, splash)
+        self._terminals_table = TerminalsTable(self, tables, splash)
+        self._wires_table = WiresTable(self, tables, splash)
+        self._cavity_locks_table = CavityLocksTable(self, tables, splash)
+        self._colors_table = ColorsTable(self, tables, splash)
+        self._directions_table = DirectionsTable(self, tables, splash)
+        self._resources_table = ResourcesTable(self, tables, splash)
+        self._families_table = FamiliesTable(self, tables, splash)
+        self._genders_table = GendersTable(self, tables, splash)
+        self._temperatures_table = TemperaturesTable(self, tables, splash)
+        self._ip_solids_table = IPSolidsTable(self, tables, splash)
+        self._ip_fluids_table = IPFluidsTable(self, tables, splash)
+        self._ip_supps_table = IPSuppsTable(self, tables, splash)
+        self._ip_ratings_table = IPRatingsTable(self, tables, splash)
+        self._cavities_table = CavitiesTable(self, tables, splash)
+        self._protections_table = ProtectionsTable(self, tables, splash)
+        self._bundle_covers_table = BundleCoversTable(self, tables, splash)
+        self._transition_branches_table = TransitionBranchesTable(self, tables, splash)
+        self._adhesives_table = AdhesivesTable(self, tables, splash)
+        self._shapes_table = ShapesTable(self, tables, splash)
+        self._transitions_table = TransitionsTable(self, tables, splash)
+        self._accessories_table = AccessoriesTable(self, tables, splash)
+        self._splices_table = SplicesTable(self, tables, splash)
+        self._models3d_table = Models3DTable(self, tables, splash)
+        self._wire_markers_table = WireMarkersTable(self, tables, splash)
+        self._splice_types_table = SpliceTypesTable(self, tables, splash)
 
-        from ..setup_db import load_database
-
-        load_database.splash = splash
-
-        funcs = [
-            load_database.tpa_locks,
-            load_database.cpa_locks,
-            load_database.boots,
-            load_database.terminals,
-            load_database.covers,
-            load_database.seals,
-            load_database.transitions,
-            load_database.bundle_covers,
-            load_database.housings,
-            load_database.splices,
-            load_database.wire_markers,
-            load_database.wires,
-            load_database.settings
-        ]
-
-        for func in funcs:
-            try:
-                func(self.connector, self.connector)
-            except FileNotFoundError:
-                continue
-            except:
-                print(func)
-                raise
-
-        splash.SetText(f'Loading boots database table...')
-        self._boots_table = BootsTable(self)
-        splash.SetText(f'Loading manufacturers database table...')
-        self._manufacturers_table = ManufacturersTable(self)
-        splash.SetText(f'Loading TPA locks database table...')
-        self._tpa_locks_table = TPALocksTable(self)
-        splash.SetText(f'Loading CPA locks database table...')
-        self._cpa_locks_table = CPALocksTable(self)
-        splash.SetText(f'Loading materials database table...')
-        self._materials_table = MaterialsTable(self)
-        splash.SetText(f'Loading platings database table...')
-        self._platings_table = PlatingsTable(self)
-        splash.SetText(f'Loading covers database table...')
-        self._covers_table = CoversTable(self)
-        splash.SetText(f'Loading housings database table...')
-        self._housings_table = HousingsTable(self)
-        splash.SetText(f'Loading seals database table...')
-        self._seals_table = SealsTable(self)
-        splash.SetText(f'Loading series database table...')
-        self._series_table = SeriesTable(self)
-        splash.SetText(f'Loading terminals database table...')
-        self._terminals_table = TerminalsTable(self)
-        splash.SetText(f'Loading wires database table...')
-        self._wires_table = WiresTable(self)
-        splash.SetText(f'Loading cavity locks database table...')
-        self._cavity_locks_table = CavityLocksTable(self)
-        splash.SetText(f'Loading colors database table...')
-        self._colors_table = ColorsTable(self)
-        splash.SetText(f'Loading directions database table...')
-        self._directions_table = DirectionsTable(self)
-        splash.SetText(f'Loading resources database table...')
-        self._resources_table = ResourcesTable(self)
-        splash.SetText(f'Loading families database table...')
-        self._families_table = FamiliesTable(self)
-        splash.SetText(f'Loading genders database table...')
-        self._genders_table = GendersTable(self)
-        splash.SetText(f'Loading temperatures database table...')
-        self._temperatures_table = TemperaturesTable(self)
-        splash.SetText(f'Loading IP solids database table...')
-        self._ip_solids_table = IPSolidsTable(self)
-        splash.SetText(f'Loading IP fluids database table...')
-        self._ip_fluids_table = IPFluidsTable(self)
-        splash.SetText(f'Loading IP supps database table...')
-        self._ip_supps_table = IPSuppsTable(self)
-        splash.SetText(f'Loading IP ratings database table...')
-        self._ip_ratings_table = IPRatingsTable(self)
-        splash.SetText(f'Loading housing cavities database table...')
-        self._cavities_table = CavitiesTable(self)
-        splash.SetText(f'Loading protections database table...')
-        self._protections_table = ProtectionsTable(self)
-        splash.SetText(f'Loading bundle covers database table...')
-        self._bundle_covers_table = BundleCoversTable(self)
-        splash.SetText(f'Loading transition branches database table...')
-        self._transition_branches_table = TransitionBranchesTable(self)
-        splash.SetText(f'Loading adhesives database table...')
-        self._adhesives_table = AdhesivesTable(self)
-        splash.SetText(f'Loading shapes database table...')
-        self._shapes_table = ShapesTable(self)
-        splash.SetText(f'Loading transitions database table...')
-        self._transitions_table = TransitionsTable(self)
-        splash.SetText(f'Loading accessories database table...')
-        self._accessories_table = AccessoriesTable(self)
-        splash.SetText(f'Loading splices database table...')
-        self._splices_table = SplicesTable(self)
-        splash.SetText(f'Loading 3d models database table...')
-        self._models3d_table = Models3DTable(self)
-        splash.SetText(f'Loading wire markers database table...')
-        self._wire_markers_table = WireMarkersTable(self)
-        splash.SetText(f'Loading splice types database table...')
-        self._splice_types_table = SpliceTypesTable(self)
-        splash.SetText(f'Loading cavity points 2d database table...')
-        self._cavity_points2d_table = CavityPoints2DTable(self)
-        splash.SetText(f'Loading cavity points 3d database table...')
-        self._cavity_points3d_table = CavityPoints3DTable(self)
-
-        self._settings_table = SettingsTable(self)
+        self._settings_table = SettingsTable(self, tables, splash)
 
     @property
     def accessories_table(self) -> AccessoriesTable:
@@ -562,6 +506,10 @@ class GLBTables:
     @property
     def housings_table(self) -> HousingsTable:
         return self._housings_table
+
+    @property
+    def seal_types_table(self) -> SealTypesTable:
+        return self._seal_types_table
 
     @property
     def seals_table(self) -> SealsTable:
@@ -666,14 +614,6 @@ class GLBTables:
     @property
     def splice_types_table(self) -> SpliceTypesTable:
         return self._splice_types_table
-
-    @property
-    def cavity_points2d_table(self) -> CavityPoints2DTable:
-        return self._cavity_points2d_table
-
-    @property
-    def cavity_points3d_table(self) -> CavityPoints3DTable:
-        return self._cavity_points3d_table
 
     @property
     def settings_table(self) -> SettingsTable:

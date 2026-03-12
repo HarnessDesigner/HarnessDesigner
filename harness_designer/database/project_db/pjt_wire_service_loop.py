@@ -21,6 +21,21 @@ if TYPE_CHECKING:
 class PJTWireServiceLoopsTable(PJTTableBase):
     __table_name__ = 'pjt_wire_service_loops'
 
+    def _table_needs_update(self) -> bool:
+        from ..create_database import wire_service_loops
+
+        return wire_service_loops.pjt_table.is_ok(self)
+
+    def _add_table_to_db(self):
+        from ..create_database import wire_service_loops
+
+        wire_service_loops.pjt_table.add_to_db(self)
+
+    def _update_table_in_db(self):
+        from ..create_database import wire_service_loops
+
+        wire_service_loops.pjt_table.update_fields(self)
+
     def __iter__(self) -> _Iterable["PJTWireServiceLoop"]:
         for db_id in PJTTableBase.__iter__(self):
             yield PJTWireServiceLoop(self, db_id, self.project_id)

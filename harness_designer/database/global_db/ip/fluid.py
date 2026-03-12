@@ -7,6 +7,22 @@ from ..mixins import (NameMixin, DescriptionMixin)
 class IPFluidsTable(TableBase):
     __table_name__ = 'ip_fluids'
 
+    def _table_needs_update(self) -> bool:
+        from ...create_database import ip_fluids
+
+        return ip_fluids.table.is_ok(self)
+
+    def _add_table_to_db(self, splash):
+        from ...create_database import ip_fluids
+
+        ip_fluids.table.add_to_db(self)
+        ip_fluids.add_records(self._con, splash)
+
+    def _update_table_in_db(self):
+        from ...create_database import ip_fluids
+
+        ip_fluids.table.update_fields(self)
+
     def __iter__(self) -> _Iterable["IPFluid"]:
         for db_id in TableBase.__iter__(self):
             yield IPFluid(self, db_id)

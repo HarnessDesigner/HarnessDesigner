@@ -9,6 +9,22 @@ from .mixins import PartNumberMixin, DescriptionMixin, ManufacturerMixin, Family
 class AccessoriesTable(TableBase):
     __table_name__ = 'accessories'
 
+    def _table_needs_update(self) -> bool:
+        from ..create_database import accessories
+
+        return accessories.table.is_ok(self)
+
+    def _add_table_to_db(self, splash):
+        from ..create_database import accessories
+
+        accessories.table.add_to_db(self)
+        accessories.add_records(self._con, splash)
+
+    def _update_table_in_db(self):
+        from ..create_database import accessories
+
+        accessories.table.update_fields(self)
+
     def __iter__(self) -> _Iterable["Accessory"]:
         for db_id in TableBase.__iter__(self):
             yield Accessory(self, db_id)
@@ -76,5 +92,7 @@ class AccessoriesTable(TableBase):
         return ret
 
 
-class Accessory(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin, FamilyMixin, SeriesMixin, ColorMixin, MaterialMixin):
+class Accessory(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
+                FamilyMixin, SeriesMixin, ColorMixin, MaterialMixin):
+
     _table: AccessoriesTable = None

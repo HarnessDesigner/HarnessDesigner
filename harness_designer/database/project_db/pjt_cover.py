@@ -13,6 +13,21 @@ if TYPE_CHECKING:
 class PJTCoversTable(PJTTableBase):
     __table_name__ = 'pjt_covers'
 
+    def _table_needs_update(self) -> bool:
+        from ..create_database import covers
+
+        return covers.pjt_table.is_ok(self)
+
+    def _add_table_to_db(self):
+        from ..create_database import covers
+
+        covers.pjt_table.add_to_db(self)
+
+    def _update_table_in_db(self):
+        from ..create_database import covers
+
+        covers.pjt_table.update_fields(self)
+
     def __iter__(self) -> _Iterable["PJTCover"]:
         for db_id in PJTTableBase.__iter__(self):
             yield PJTCover(self, db_id, self.project_id)

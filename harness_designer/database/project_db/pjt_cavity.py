@@ -17,6 +17,21 @@ if TYPE_CHECKING:
 class PJTCavitiesTable(PJTTableBase):
     __table_name__ = 'pjt_cavities'
 
+    def _table_needs_update(self) -> bool:
+        from ..create_database import cavities
+
+        return cavities.pjt_table.is_ok(self)
+
+    def _add_table_to_db(self):
+        from ..create_database import cavities
+
+        cavities.pjt_table.add_to_db(self)
+
+    def _update_table_in_db(self):
+        from ..create_database import cavities
+
+        cavities.pjt_table.update_fields(self)
+
     def __iter__(self) -> _Iterable["PJTCavity"]:
 
         for db_id in PJTTableBase.__iter__(self):

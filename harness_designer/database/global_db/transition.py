@@ -15,6 +15,23 @@ if TYPE_CHECKING:
 class TransitionsTable(TableBase):
     __table_name__ = 'transitions'
 
+    def _table_needs_update(self) -> bool:
+        from ..create_database import transitions
+
+        return transitions.table.is_ok(self)
+
+    def _add_table_to_db(self, splash):
+        from ..create_database import transitions
+
+        transitions.table.add_to_db(self)
+        transitions.add_records(self._con, splash)
+
+
+    def _update_table_in_db(self):
+        from ..create_database import transitions
+
+        transitions.table.update_fields(self)
+
     def __iter__(self) -> _Iterable["Transition"]:
         for db_id in TableBase.__iter__(self):
             yield Transition(self, db_id)

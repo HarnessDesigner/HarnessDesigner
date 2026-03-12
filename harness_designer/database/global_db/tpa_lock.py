@@ -10,6 +10,23 @@ from .mixins import (PartNumberMixin, ManufacturerMixin, DescriptionMixin, Famil
 class TPALocksTable(TableBase):
     __table_name__ = 'tpa_locks'
 
+    def _table_needs_update(self) -> bool:
+        from ..create_database import tpa_locks
+
+        return tpa_locks.table.is_ok(self)
+
+    def _add_table_to_db(self, splash):
+        from ..create_database import tpa_locks
+
+        tpa_locks.table.add_to_db(self)
+        tpa_locks.add_records(self._con, splash)
+
+
+    def _update_table_in_db(self):
+        from ..create_database import tpa_locks
+
+        tpa_locks.table.update_fields(self)
+
     def __iter__(self) -> _Iterable["TPALock"]:
 
         for db_id in TableBase.__iter__(self):

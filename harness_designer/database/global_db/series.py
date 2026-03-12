@@ -7,6 +7,22 @@ from .mixins import NameMixin, DescriptionMixin, ManufacturerMixin
 class SeriesTable(TableBase):
     __table_name__ = 'series'
 
+    def _table_needs_update(self) -> bool:
+        from ..create_database import series
+
+        return series.table.is_ok(self)
+
+    def _add_table_to_db(self, splash):
+        from ..create_database import series
+
+        series.table.add_to_db(self)
+        series.add_records(self._con, splash)
+
+    def _update_table_in_db(self):
+        from ..create_database import series
+
+        series.table.update_fields(self)
+
     def __iter__(self) -> _Iterable["Series"]:
         for db_id in TableBase.__iter__(self):
             yield Series(self, db_id)

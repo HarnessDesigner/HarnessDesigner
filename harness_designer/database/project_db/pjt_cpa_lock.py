@@ -13,6 +13,21 @@ if TYPE_CHECKING:
 class PJTCPALocksTable(PJTTableBase):
     __table_name__ = 'pjt_cpa_locks'
 
+    def _table_needs_update(self) -> bool:
+        from ..create_database import cpa_locks
+
+        return cpa_locks.pjt_table.is_ok(self)
+
+    def _add_table_to_db(self):
+        from ..create_database import cpa_locks
+
+        cpa_locks.pjt_table.add_to_db(self)
+
+    def _update_table_in_db(self):
+        from ..create_database import cpa_locks
+
+        cpa_locks.pjt_table.update_fields(self)
+
     def __iter__(self) -> _Iterable["PJTCPALock"]:
         for db_id in PJTTableBase.__iter__(self):
             yield PJTCPALock(self, db_id, self.project_id)

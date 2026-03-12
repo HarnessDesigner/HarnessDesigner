@@ -19,6 +19,21 @@ if TYPE_CHECKING:
 class PJTWiresTable(PJTTableBase):
     __table_name__ = 'pjt_wires'
 
+    def _table_needs_update(self) -> bool:
+        from ..create_database import wires
+
+        return wires.pjt_table.is_ok(self)
+
+    def _add_table_to_db(self):
+        from ..create_database import wires
+
+        wires.pjt_table.add_to_db(self)
+
+    def _update_table_in_db(self):
+        from ..create_database import wires
+
+        wires.pjt_table.update_fields(self)
+
     def __iter__(self) -> _Iterable["PJTWire"]:
         for db_id in PJTTableBase.__iter__(self):
             yield PJTWire(self, db_id, self.project_id)

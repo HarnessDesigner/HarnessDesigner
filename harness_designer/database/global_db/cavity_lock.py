@@ -8,6 +8,22 @@ from .mixins import NameMixin, DescriptionMixin
 class CavityLocksTable(TableBase):
     __table_name__ = 'cavity_locks'
 
+    def _table_needs_update(self) -> bool:
+        from ..create_database import cavity_locks
+
+        return cavity_locks.table.is_ok(self)
+
+    def _add_table_to_db(self, splash):
+        from ..create_database import cavity_locks
+
+        cavity_locks.table.add_to_db(self)
+        cavity_locks.add_records(self._con, splash)
+
+    def _update_table_in_db(self):
+        from ..create_database import cavity_locks
+
+        cavity_locks.table.update_fields(self)
+
     def __iter__(self) -> _Iterable["CavityLock"]:
         for db_id in TableBase.__iter__(self):
             yield CavityLock(self, db_id)

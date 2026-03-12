@@ -9,6 +9,21 @@ from .bases import EntryBase, TableBase
 class ResourcesTable(TableBase):
     __table_name__ = 'resources'
 
+    def _table_needs_update(self) -> bool:
+        from ..create_database import resources
+
+        return resources.table.is_ok(self)
+
+    def _add_table_to_db(self, _):
+        from ..create_database import resources
+
+        resources.table.add_to_db(self)
+
+    def _update_table_in_db(self):
+        from ..create_database import resources
+
+        resources.table.update_fields(self)
+
     def __iter__(self) -> _Iterable["Resource"]:
         for db_id in TableBase.__iter__(self):
             yield Resource(self, db_id)

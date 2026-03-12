@@ -150,6 +150,15 @@ class PJTTableBase:
 
         self.project_id = project_id
 
+    def _table_needs_update(self) -> bool:
+        raise NotImplementedError
+
+    def _add_table_to_db(self):
+        raise NotImplementedError
+
+    def _update_table_in_db(self):
+        raise NotImplementedError
+
     def __getitem__(self, item):
         self._con.execute(f'SELECT * FROM {self.__table_name__} WHERE id = {item};')
 

@@ -15,6 +15,23 @@ if TYPE_CHECKING:
 class WiresTable(TableBase):
     __table_name__: str = 'wires'
 
+    def _table_needs_update(self) -> bool:
+        from ..create_database import wires
+
+        return wires.table.is_ok(self)
+
+    def _add_table_to_db(self, splash):
+        from ..create_database import wires
+
+        wires.table.add_to_db(self)
+        wires.add_records(self._con, splash)
+
+
+    def _update_table_in_db(self):
+        from ..create_database import wires
+
+        wires.table.update_fields(self)
+
     def __iter__(self) -> _Iterable["Wire"]:
 
         for db_id in TableBase.__iter__(self):
