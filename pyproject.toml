@@ -11,7 +11,7 @@ name = "harness_designer"
 version = "0.0.1"
 description = "Wiring harness design software."
 readme = "README.md"
-requires-python = "3.11.14"
+requires-python = "==3.11.14"
 keywords = []
 authors = [{ name = "Kevin G. Schlosser" }]
 maintainers = [{ name = "Kevin G. Schlosser" }]
