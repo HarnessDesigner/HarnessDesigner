@@ -63,6 +63,40 @@ def main():
     if os.path.exists(toml_path):
         os.rename(toml_path, toml_path + '.bak')
 
+    assimp_files = []
+    for file in os.listdir(assimp_binary_path):
+        src = os.path.join(assimp_binary_path, file)
+        dst = os.path.join(assimp_lib_path, file)
+
+        assimp_files.append(dst)
+        shutil.copyfile(src, dst)
+
+    os.environ['PATH'] += os.pathsep + assimp_binary_path
+
+    os.chdir(assimp_path)
+    setup(
+        name='pyassimp',
+        version='5.2.5',
+        description='Python bindings for the Open Asset Import Library (ASSIMP)',
+        url='https://github.com/assimp/assimp',
+        author='ASSIMP developers',
+        zip_safe=False,
+        author_email='assimp-discussions@lists.sourceforge.net',
+        maintainer='Séverin Lemaignan',
+        maintainer_email='severin@guakamole.org',
+        packages=['pyassimp'],
+        include_package_data=True,
+        package_data={
+            'pyassimp': assimp_files,
+            'share/pyassimp': ['README.rst'],
+            'share/examples/pyassimp': ['scripts/' + f for f in
+                                        os.listdir('scripts/')]
+        },
+        install_requires=['numpy==2.2.6']
+    )
+
+    os.chdir(base_path)
+
     from builder import build_pyx
 
     build_pyx.run('harness_designer')
@@ -79,6 +113,7 @@ def main():
         description="Wiring harness design software.",
         url="https://github.com/HarnessDesigner/HarnessDesigner",
         packages=packages,
+        zip_safe=False,
         setup_requires=[
             "wheel==0.46.3",
             "wxPython==4.2.5",
@@ -107,39 +142,6 @@ def main():
             "pyassimp"  # @ file:///" + os.path.join(base_path, 'libs/assimp/port/PyAssimp')
         ]
     )
-
-    assimp_files = []
-    for file in os.listdir(assimp_binary_path):
-        src = os.path.join(assimp_binary_path, file)
-        dst = os.path.join(assimp_lib_path, file)
-
-        assimp_files.append(dst)
-        shutil.copyfile(src, dst)
-
-    os.environ['PATH'] += os.pathsep + assimp_binary_path
-
-    os.chdir(assimp_path)
-    setup(
-        name='pyassimp',
-        version='5.2.5',
-        description='Python bindings for the Open Asset Import Library (ASSIMP)',
-        url='https://github.com/assimp/assimp',
-        author='ASSIMP developers',
-        author_email='assimp-discussions@lists.sourceforge.net',
-        maintainer='Séverin Lemaignan',
-        maintainer_email='severin@guakamole.org',
-        packages=['pyassimp'],
-        include_package_data=True,
-        package_data={
-            'pyassimp': assimp_files,
-            'share/pyassimp': ['README.rst'],
-            'share/examples/pyassimp': ['scripts/' + f for f in
-                                        os.listdir('scripts/')]
-        },
-        install_requires=['numpy==2.2.6']
-    )
-
-    os.chdir(base_path)
 
     while base_path in sys.path:
         sys.path.remove(base_path)
