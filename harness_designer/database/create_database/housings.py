@@ -38,22 +38,6 @@ def add_housing(con, part_number, description, mfg, family, series, num_pins,
     direction_id = _directions.get_direction_id(con, direction)
     color_id = _colors.get_color_id(con, color)
 
-    if min_temp is None:
-        min_temp = 0
-
-    if max_temp is None:
-        max_temp = 0
-
-    if min_temp > 0:
-        min_temp = '+' + str(min_temp) + '°C'
-    else:
-        min_temp = str(min_temp) + '°C'
-
-    if max_temp > 0:
-        max_temp = '+' + str(max_temp) + '°C'
-    else:
-        max_temp = str(max_temp) + '°C'
-
     min_temp_id = _temperatures.get_temperature_id(con, min_temp)
     max_temp_id = _temperatures.get_temperature_id(con, max_temp)
 

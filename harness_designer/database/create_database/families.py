@@ -9,9 +9,8 @@ def add_records(con, splash):
 
     data = (0, 'No Family', 0)
 
-    splash.SetText(f'Adding families to db [0 | {len(data)}]...')
-    con.execute('INSERT INTO families (id, name, mfg_id) VALUES(?, ?, ?);', data)
     splash.SetText(f'Adding families to db [{len(data)} | {len(data)}]...')
+    con.execute('INSERT INTO families (id, name, mfg_id) VALUES(?, ?, ?);', data)
     con.commit()
 
 

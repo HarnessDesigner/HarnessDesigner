@@ -7,9 +7,8 @@ def add_records(con, splash):
     if con.fetchall():
         return
 
-    splash.SetText(f'Adding series to db [0 | 1]...')
-    con.execute('INSERT INTO series (id, name) VALUES(0, "No Series");')
     splash.SetText(f'Adding series to db [1 | 1]...')
+    con.execute('INSERT INTO series (id, name) VALUES(0, "No Series");')
     con.commit()
 
 

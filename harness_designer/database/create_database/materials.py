@@ -9,9 +9,8 @@ def add_records(con, splash):
     data = ((0, 'Unknown Material'),)
 
     try:
-        splash.SetText(f'Adding materials to db [0 | {len(data)}]...')
-        con.executemany('INSERT INTO materials (id, name) VALUES(?, ?);', data)
         splash.SetText(f'Adding materials to db [{len(data)} | {len(data)}]...')
+        con.executemany('INSERT INTO materials (id, name) VALUES(?, ?);', data)
         con.commit()
     except:  # NOQA
         res = con.execute('SELECT * FROM materials;').fetchall()

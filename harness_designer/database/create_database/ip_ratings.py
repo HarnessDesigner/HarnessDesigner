@@ -10,6 +10,8 @@ def add_records(con, splash):
     if con.fetchall():
         return
 
+    splash.SetText(f'Building IP ratings...')
+
     data = (('IPOO', 0, 0), ('IPXX', 7, 12), ('IP01', 0, 1), ('IP02', 0, 2),
             ('IP03', 0, 3),
             ('IP04', 0, 4), ('IP05', 0, 5), ('IP06', 0, 6), ('IP07', 0, 7),
@@ -40,9 +42,8 @@ def add_records(con, splash):
 
     data = [(i,) + item for i, item in enumerate(data)]
 
-    splash.SetText(f'Adding IP ratings to db [0 | {len(data)}]...')
-    con.executemany('INSERT INTO ip_ratings (id, name, solid_id, fluid_id) VALUES (?, ?, ?, ?);', data)
     splash.SetText(f'Adding IP ratings to db [{len(data)} | {len(data)}]...')
+    con.executemany('INSERT INTO ip_ratings (id, name, solid_id, fluid_id) VALUES (?, ?, ?, ?);', data)
 
     con.commit()
 

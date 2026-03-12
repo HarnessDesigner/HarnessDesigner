@@ -6,6 +6,8 @@ def add_records(con, splash):
     if con.fetchall():
         return
 
+    splash.SetText(f'Building adhesives...')
+
     data = (
         (0, 'None', 'No Adhesive', '[]'),
         (1, '225', 'Precoated latent-curing epoxy/polyamide', '[]'),
@@ -18,9 +20,8 @@ def add_records(con, splash):
         (8, 'S1125', 'Epoxy/polyamide two-part paste (Thermoset)', '["S1125-KIT-1", "S1125-KIT-4", "S1125-KIT-5", "S1125-KIT-8","S1125-APPLICATOR"]')
     )
 
-    splash.SetText(f'Adding adhesives to db [0 | {len(data)}]...')
-    con.executemany('INSERT INTO adhesives (id, code, description, accessory_part_nums) VALUES (?, ?, ?, ?);', data)
     splash.SetText(f'Adding adhesives to db [{len(data)} | {len(data)}]...')
+    con.executemany('INSERT INTO adhesives (id, code, description, accessory_part_nums) VALUES (?, ?, ?, ?);', data)
 
     con.commit()
 

@@ -2,9 +2,11 @@ from .. import db_connectors as _con
 
 
 def add_records(con, splash):
-    res = cur.execute('SELECT id FROM file_types WHERE id=1;')
-    if res.fetchall():
+    con.execute('SELECT id FROM file_types WHERE id=1;')
+    if con.fetchall():
         return
+
+    splash.SetText(f'Building file types...')
 
     data = (
         ['image/apng', 'apng', 'APNG', 0],
@@ -106,10 +108,9 @@ def add_records(con, splash):
         ['', 'pmx', 'MikuMikuDance Format', 1]
     )
 
-    splash.SetText(f'Adding file types to db [0 | {len(data)}]...')
+    splash.SetText(f'Adding file types to db [{len(data)} | {len(data)}]...')
     con.executemany('INSERT INTO file_types (mimetype, extension, name, is_model) '
                     'VALUES (?, ?, ?, ?);', data)
-    splash.SetText(f'Adding file types to db [{len(data)} | {len(data)}]...')
     con.commit()
 
 

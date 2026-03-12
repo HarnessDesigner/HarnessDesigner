@@ -41,8 +41,7 @@ def add_records(con, splash):
     if con.fetchall():
         return
 
-    splash.SetText(f'Adding core wire marker to db [1 | 1]...')
-
+    splash.SetText(f'Adding wire marker to db [1 | 1]...')
     con.execute('INSERT INTO wire_markers (id, part_number, description, mfg_id, color_id, '
                 'min_diameter, max_diameter, min_awg, max_awg, length, weight, has_label) '
                 'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
@@ -50,20 +49,15 @@ def add_records(con, splash):
     con.commit()
 
     splash.SetText(f'Building wire markers...')
-
     data = _build_wire_markers(con)
 
     data_len = len(data)
-
-    splash.SetText(f'Adding wire markers to db [0 | {data_len}]')
-
-    cur.executemany('INSERT INTO wire_markers (part_number, description, mfg_id, color_id, '
+    splash.SetText(f'Adding wire markers to db [{data_len} | {data_len}]')
+    con.executemany('INSERT INTO wire_markers (part_number, description, mfg_id, color_id, '
                     'min_diameter, max_diameter, min_awg, max_awg, length, weight, has_label, '
                     'image_id, datasheet_id, cad_id) '
                     'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
                     data)
-
-    splash.SetText(f'Adding wire markers to db [{data_len} | {data_len}]')
     con.commit()
 
 
@@ -343,7 +337,6 @@ def _build_wire_markers(con):
     }
 
     for part_number, item_data in data.items():
-
         description = item_data['description']
         min_awg = item_data['min_awg']
         max_awg = item_data['max_awg']
@@ -357,8 +350,6 @@ def _build_wire_markers(con):
         cad_id = None
 
         image_id = _resources.add_resource(con, _resources.IMAGE_TYPE_IMAGE, image_url)
-
-        # image_id = get_resource_id(con, cur, image_url, type='jpg')
 
         res.append((part_number, description, mfg_id, 1020, min_diameter,
                     max_diameter, min_awg, max_awg, image_id, datasheet_id, cad_id,

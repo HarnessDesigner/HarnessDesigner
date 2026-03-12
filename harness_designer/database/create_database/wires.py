@@ -23,7 +23,6 @@ from harness_designer.database import db_connectors as _con
 
 
 def add_wires(con, data: tuple[dict] | list[dict]):
-
     for line in data:
         add_wire(con, **line)
 
@@ -33,8 +32,7 @@ def add_records(con, splash):
     if con.fetchall():
         return
 
-    splash.SetText(f'Adding core wire to db [1 | 1]...')
-
+    splash.SetText(f'Adding wire to db [1 | 1]...')
     con.execute('INSERT INTO wires (id, part_number, mfg_id, description, size_mm2, '
                 'size_awg, od_mm, conductor_dia_mm, weight_1km, resistance_1km, '
                 'core_material_id, min_temp_id, max_temp_id, volts, material_id, '
@@ -44,13 +42,11 @@ def add_records(con, splash):
     con.commit()
 
     splash.SetText(f'Building wires...')
-
     data = _build_wires(con)
 
     data_len = len(data)
 
-    splash.SetText(f'Adding wires to db [0 | {data_len}]...')
-
+    splash.SetText(f'Adding wires to db [{data_len} | {data_len}]...')
     con.executemany('INSERT INTO wires (part_number, mfg_id, description, size_mm2, '
                     'size_awg, od_mm, conductor_dia_mm, weight_1km, resistance_1km, '
                     'core_material_id, min_temp_id, max_temp_id, volts, material_id, '
@@ -58,7 +54,6 @@ def add_records(con, splash):
                     'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
                     data)
 
-    splash.SetText(f'Adding wires to db [{data_len} | {data_len}]...')
     con.commit()
 
     # os.path.join(DATA_PATH, 'wires.json')
@@ -67,7 +62,6 @@ def add_records(con, splash):
 
     for json_path in json_paths:
         if os.path.exists(json_path):
-
             splash.SetText(f'Loading Wire file...')
             print(json_path)
 
@@ -78,8 +72,6 @@ def add_records(con, splash):
                 data = [value for value in data.values()]
 
             data_len = len(data)
-
-            splash.SetText(f'Adding wire to db [0 | {data_len}]...')
 
             for i, item in enumerate(data):
                 splash.SetText(f'Adding wire to db [{i} | {data_len}]...')
@@ -102,7 +94,6 @@ def add_wire(con, part_number, mfg, description, size_mm2, size_awg, od_mm,
     material_id = _materials.get_material_id(con, material)
     min_temp_id = _temperatures.get_temperature_id(con, min_temp)
     max_temp_id = _temperatures.get_temperature_id(con, max_temp)
-
     datasheet_id = _resources.add_resource(con, _resources.IMAGE_TYPE_DATASHEET, datasheet)
     image_id = _resources.add_resource(con, _resources.IMAGE_TYPE_IMAGE, image)
     cad_id = _resources.add_resource(con, _resources.IMAGE_TYPE_CAD, cad)

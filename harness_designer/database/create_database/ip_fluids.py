@@ -11,6 +11,8 @@ def add_records(con, splash):
     if con.fetchall():
         return
 
+    splash.SetText(f'Building IP fluids...')
+
     data = (
         (0, '0', 'No Protection', 'No protection against ingress of water.', None),
         (1, '1', 'Dripping water', 'Dripping water (vertically falling drops) shall have no unsafe effect on the specimen when mounted upright.', open(f'{BASE_PATH}/image/ip/IPX1.png', 'rb').read()),
@@ -27,9 +29,8 @@ def add_records(con, splash):
         (12, 'X', 'Unknown', 'No data is available to specify a protection rating about this criterion.', None)
     )
 
-    splash.SetText(f'Adding IP fluids to db [0 | {len(data)}]...')
-    con.executemany('INSERT INTO ip_fluids (id, name, short_desc, description, icon_data) VALUES (?, ?, ?, ?, ?);', data)
     splash.SetText(f'Adding IP fluids to db [{len(data)} | {len(data)}]...')
+    con.executemany('INSERT INTO ip_fluids (id, name, short_desc, description, icon_data) VALUES (?, ?, ?, ?, ?);', data)
 
     con.commit()
 

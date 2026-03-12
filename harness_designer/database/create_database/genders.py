@@ -6,11 +6,12 @@ def add_records(con, splash):
     if con.fetchall():
         return
 
+    splash.SetText(f'Building genders...')
+
     data = ((0, "Unknown"), (1, "Male"), (2, "Female"))
 
-    splash.SetText(f'Adding genders to db [0 | {len(data)}]...')
-    con.executemany('INSERT INTO genders (id, name) VALUES(?, ?);', data)
     splash.SetText(f'Adding genders to db [{len(data)} | {len(data)}]...')
+    con.executemany('INSERT INTO genders (id, name) VALUES(?, ?);', data)
     con.commit()
 
 

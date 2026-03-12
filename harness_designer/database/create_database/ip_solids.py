@@ -10,6 +10,8 @@ def add_records(con, splash):
     if con.fetchall():
         return
 
+    splash.SetText(f'Building IP solids...')
+
     data = (
         (0, '0', 'No Protection', 'No protection against contact and ingress of objects.', None),
         (1, '1', '>= 50.00mm sized objects', 'Any large surface of the body, such as the back of a hand, but no protection against deliberate contact with a body part.', open(f'{BASE_PATH}/image/ip/IP1X.png', 'rb').read()),
@@ -21,9 +23,8 @@ def add_records(con, splash):
         (7, 'X', 'Unknown', 'No data is available to specify a protection rating about this criterion.', None)
     )
 
-    splash.SetText(f'Adding IP solids to db [0 | {len(data)}]...')
-    con.executemany('INSERT INTO ip_solids (id, name, short_desc, description, icon_data) VALUES (?, ?, ?, ?, ?);', data)
     splash.SetText(f'Adding IP solids to db [{len(data)} | {len(data)}]...')
+    con.executemany('INSERT INTO ip_solids (id, name, short_desc, description, icon_data) VALUES (?, ?, ?, ?, ?);', data)
 
     con.commit()
 

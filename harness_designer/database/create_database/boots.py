@@ -19,7 +19,6 @@ from harness_designer.database import db_connectors as _con
 
 
 def add_boots(con, data: tuple[dict] | list[dict]):
-
     for line in data:
         add_boot(con, **line)
 
@@ -59,8 +58,8 @@ def add_records(con, splash):
     if con.fetchall():
         return
 
+    splash.SetText(f'Adding boot to db [1 | 1]...')
     con.execute('INSERT INTO boots (id, part_number, description) VALUES(0, "N/A", "Internal Use DO NOT DELETE");')
-    splash.SetText(f'Adding core boot to db [1 | 1]...')
     con.commit()
 
     # os.path.join(DATA_PATH, 'boots.json')
@@ -78,8 +77,6 @@ def add_records(con, splash):
                 data = [value for value in data.values()]
 
             data_len = len(data)
-
-            splash.SetText(f'Adding boots to db [0 | {data_len}]...')
 
             for i, item in enumerate(data):
                 splash.SetText(f'Adding boots to db [{i} | {data_len}]...')

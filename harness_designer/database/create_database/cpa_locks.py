@@ -32,23 +32,6 @@ def add_cpa_lock(con, part_number, description, mfg, series, family, length,
     cad_id = _resources.add_resource(con, _resources.IMAGE_TYPE_CAD, cad)
     datasheet_id = _resources.add_resource(con, _resources.IMAGE_TYPE_DATASHEET, datasheet)
     model3d_id = _models3d.add_model3d(con, model3d)
-
-    if min_temp is None:
-        min_temp = 0
-
-    if max_temp is None:
-        max_temp = 0
-
-    if min_temp > 0:
-        min_temp = '+' + str(min_temp) + '°C'
-    else:
-        min_temp = str(min_temp) + '°C'
-
-    if max_temp > 0:
-        max_temp = '+' + str(max_temp) + '°C'
-    else:
-        max_temp = str(max_temp) + '°C'
-
     min_temp_id = _temperatures.get_temperature_id(con, min_temp)
     max_temp_id = _temperatures.get_temperature_id(con, max_temp)
 
@@ -83,19 +66,16 @@ def add_cpa_lock(con, part_number, description, mfg, series, family, length,
 
 
 def add_cpa_locks(con, data: tuple[dict] | list[dict]):
-
     for line in data:
         add_cpa_lock(con, **line)
 
 
 def add_records(con, splash):
     con.execute('SELECT id FROM cpa_locks WHERE id=0;')
-
     if con.fetchall():
         return
 
-    splash.SetText(f'Adding core CPA lock to db [1 | 1]...')
-
+    splash.SetText(f'Adding CPA lock to db [1 | 1]...')
     con.execute('INSERT INTO cpa_locks (id, part_number, description) VALUES(0, "None", "No CPA Lock");')
 
     # os.path.join(DATA_PATH, 'cpa_locks.json')
@@ -113,8 +93,6 @@ def add_records(con, splash):
                 data = [value for value in data.values()]
 
             data_len = len(data)
-
-            splash.SetText(f'Adding CPA locks to db [0 | {data_len}]...')
 
             for i, item in enumerate(data):
                 splash.SetText(f'Adding CPA locks to db [{i} | {data_len}]...')

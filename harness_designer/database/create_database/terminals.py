@@ -25,11 +25,6 @@ def add_terminal(con, part_number, description, mfg, series, cavity_lock,
                  datasheet=None, model3d=None, length=0.0, width=0.0, height=0.0,
                  weight=0.0, family=''):
 
-    print('adding terminal:', part_number)
-    res = con.execute(f'SELECT id FROM terminals WHERE part_number="{part_number}";').fetchall()
-    if res:
-        return
-
     mfg_id = _manufacturers.get_mfg_id(con, mfg)
     series_id = _series.get_series_id(con, series, mfg_id)
     family_id = _families.get_family_id(con, family, mfg_id)
@@ -105,8 +100,7 @@ def add_records(con, splash):
     if con.fetchall():
         return
 
-    splash.SetText(f'Adding core terminal to db [1 | 1]...')
-
+    splash.SetText(f'Adding terminal to db [1 | 1]...')
     con.execute('INSERT INTO terminals (id, part_number, description) VALUES(0, "N/A", "Internal Use DO NOT DELETE");')
     con.commit()
 
@@ -126,8 +120,6 @@ def add_records(con, splash):
                 data = [value for value in data.values()]
 
             data_len = len(data)
-
-            splash.SetText(f'Adding terminals to db [0 | {data_len}]...')
 
             for i, item in enumerate(data):
                 splash.SetText(f'Adding terminals to db [{i} | {data_len}]...')

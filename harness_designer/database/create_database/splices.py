@@ -24,8 +24,7 @@ def add_records(con, splash):
     if con.fetchall():
         return
 
-    splash.SetText(f'Adding core splice to db [1 | 1]...')
-
+    splash.SetText(f'Adding splice to db [1 | 1]...')
     con.execute('INSERT INTO splices (id, part_number, description) VALUES(0, "N/A", "Internal Use DO NOT DELETE");')
     con.commit()
 
@@ -46,11 +45,8 @@ def add_records(con, splash):
 
             data_len = len(data)
 
-            splash.SetText(f'Adding splices to db [0 | {data_len}]')
-
             for i, item in enumerate(data):
                 splash.SetText(f'Adding splices to db [{i + 1} | {data_len}]')
-
                 add_splice(con, **item)
 
         con.commit()
@@ -78,7 +74,7 @@ def add_splice(con, part_number, description, mfg, family, series, material,
     type_id = _splice_types.get_splice_type_id(con, type)
     model3d_id = _models3d.add_model3d(con, model3d)
 
-    cur.execute('INSERT INTO bundle_covers (part_number, mfg_id, description, family_id, '
+    con.execute('INSERT INTO bundle_covers (part_number, mfg_id, description, family_id, '
                 'series_id, color_id, material_id, image_id, datasheet_id, cad_id, '
                 'plating_id, type_id, model3d_id, resistance, length, min_dia, max_dia, weight) '
                 'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',

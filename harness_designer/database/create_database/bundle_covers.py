@@ -21,7 +21,6 @@ DATA_PATH = os.path.join(os.path.dirname(__file__), 'data')
 
 
 def add_bundle_covers(con, data: tuple[dict] | list[dict]):
-
     for line in data:
         add_bundle_cover(con, **line)
 
@@ -32,8 +31,7 @@ def add_records(con, splash):
     if con.fetchall():
         return
 
-    splash.SetText(f'Adding core bundle cover to db [1 | 1]...')
-
+    splash.SetText(f'Adding bundle cover to db [1 | 1]...')
     con.execute('INSERT INTO bundle_covers (id, part_number, description) VALUES(0, "N/A", "Internal Use DO NOT DELETE");')
     con.commit()
 
@@ -52,8 +50,6 @@ def add_records(con, splash):
                 data = [value for value in data.values()]
 
             data_len = len(data)
-
-            splash.SetText(f'Adding bundle covers to db [0 | {data_len}]')
 
             for i, item in enumerate(data):
                 splash.SetText(f'Adding bundle covers to db [{i + 1} | {data_len}]')

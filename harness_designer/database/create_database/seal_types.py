@@ -6,6 +6,8 @@ def add_records(con, splash):
     if con.fetchall():
         return
 
+    splash.SetText(f'Building seal types...')
+
     data = (
         (0, 'None'),
         (1, 'Unknown Seal'),
@@ -15,10 +17,8 @@ def add_records(con, splash):
         (5, 'Single Wire Seal'),
         (5, 'Mat Seal')
     )
-
-    splash.SetText(f'Adding seal types to db [0 | {len(data)}]...')
-    con.executemany('INSERT INTO seal_types (id, name) VALUES (?, ?);', data)
     splash.SetText(f'Adding seal types to db [{len(data)} | {len(data)}]...')
+    con.executemany('INSERT INTO seal_types (id, name) VALUES (?, ?);', data)
 
     con.commit()
 

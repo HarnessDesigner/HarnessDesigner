@@ -6,6 +6,8 @@ def add_records(con, splash):
     if con.fetchall():
         return
 
+    splash.SetText(f'Building cavity locks...')
+
     data = (
         (0, 'No Lock'),
         (1, 'Cavity Lock'),
@@ -19,9 +21,8 @@ def add_records(con, splash):
         (9, 'Press Fit')
     )
 
-    splash.SetText(f'Adding cavity locks to db [0 | {len(data)}]...')
-    con.executemany('INSERT INTO cavity_locks (id, name) VALUES (?, ?);', data)
     splash.SetText(f'Adding cavity locks to db [{len(data)} | {len(data)}]...')
+    con.executemany('INSERT INTO cavity_locks (id, name) VALUES (?, ?);', data)
 
     con.commit()
 

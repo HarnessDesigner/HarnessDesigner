@@ -35,16 +35,6 @@ def add_transition(con, part_number, description, mfg, series, transition_series
     shape_id = _shapes.get_shape_id(con, shape)
     min_temp_id = _temperatures.get_temperature_id(con, min_temp)
     max_temp_id = _temperatures.get_temperature_id(con, max_temp)
-
-    if cad is not None:
-        cad = cad['path']
-
-    if datasheet is not None:
-        datasheet = datasheet['path']
-
-    if image is not None:
-        image = image['path']
-
     protections = '\n'.join(resistances)
     protection_id = _protections.get_protection_id(con, protections)
     image_id = _resources.add_resource(con, _resources.IMAGE_TYPE_IMAGE, image)
@@ -87,12 +77,10 @@ def add_transitions(con, data: tuple[dict] | list[dict]):
 
 def add_records(con, splash):
     con.execute('SELECT id FROM transitions WHERE id=0;')
-
     if con.fetchall():
         return
 
-    splash.SetText(f'Adding core transition to db [1 | 1]...')
-
+    splash.SetText(f'Adding transition to db [1 | 1]...')
     con.execute('INSERT INTO transitions (id, part_number, description) VALUES(0, "N/A", "Internal Use DO NOT DELETE");')
     con.commit()
 
@@ -104,9 +92,6 @@ def add_records(con, splash):
             data = json.loads(f.read())
 
         data_len = len(data)
-
-        splash.SetText(f'Adding transitions to db [0 | {data_len}]...')
-
         for i, item in enumerate(data):
             splash.SetText(f'Adding transitions to db [{i} | {data_len}]...')
             add_transition(con, **item)

@@ -8,16 +8,26 @@ def add_records(con, splash):
 
     splash.SetText(f'Building temperatures...')
     data = _build_temps()
-    splash.SetText(f'Adding temperatures to db [0 | {len(data)}]...')
-    con.executemany('INSERT INTO temperatures (id, name) VALUES (?, ?);', data)
-    splash.SetText(f'Adding temperatures to db [{len(data)} | {len(data)}]...')
 
+    splash.SetText(f'Adding temperatures to db [{len(data)} | {len(data)}]...')
+    con.executemany('INSERT INTO temperatures (id, name) VALUES (?, ?);', data)
     con.commit()
 
 
 def get_temperature_id(con, name):
-    if not name:
+    if name in ('', None):
         return 0
+
+    if isinstance(name, str):
+        if '-' in name:
+            name = -int(name[1:].replace('°', '').replace('C', ''))
+        else:
+            name = int(name.replace('°', '').replace('C', ''))
+
+    if name > 0:
+        name = '+' + str(name) + '°C'
+    else:
+        name = str(name) + '°C'
 
     con.execute(f'SELECT id FROM temperatures WHERE name="{name}";')
     res = con.fetchall()

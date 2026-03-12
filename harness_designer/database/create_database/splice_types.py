@@ -6,13 +6,14 @@ def add_records(con, splash):
     if con.fetchall():
         return
 
+    splash.SetText(f'Building splice types...')
+
     data = ((0, "Unknown"), (1, "Butt"), (2, "Cable"), (3, "Closed End"),
             (4, "Parallel"), (5, "Pigtail"), (6, "Tap"),
             (7, "Thru"), (8, "Solder Sleeve"), (9, "Solder Sleeve w/Pigtail"))
 
-    splash.SetText(f'Adding splice types to db [0 | {len(data)}]...')
-    con.executemany('INSERT INTO splice_types (id, name) VALUES(?, ?);', data)
     splash.SetText(f'Adding splice types to db [{len(data)} | {len(data)}]...')
+    con.executemany('INSERT INTO splice_types (id, name) VALUES(?, ?);', data)
     con.commit()
 
 

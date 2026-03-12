@@ -9,11 +9,11 @@ def get_setting(con, cur, name):  # NOQA
 
 
 def add_records(con, splash, appdata):
-
     con.execute('SELECT id FROM settings WHERE id=1;')
-
     if con.fetchall():
         return
+
+    splash.SetText(f'Building settings...')
 
     model_path = os.path.join(appdata, "models")
     image_path = os.path.join(appdata, "images")
@@ -24,7 +24,10 @@ def add_records(con, splash, appdata):
     if not os.path.exists(image_path):
         os.makedirs(image_path)
 
+    splash.SetText(f'Adding CPA lock to db [1 | 2]...')
     con.execute(f'INSERT INTO settings (id, name, value) VALUES(1, "model_path", "{model_path}");')
+
+    splash.SetText(f'Adding CPA lock to db [2 | 2]...')
     con.execute(f'INSERT INTO settings (id, name, value) VALUES(2, "image_path", "{image_path}");')
 
     con.commit()

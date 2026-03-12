@@ -6,6 +6,8 @@ def add_records(con, splash):
     if con.fetchall():
         return
 
+    splash.SetText(f'Building IP suppliments...')
+
     data = (
         ('D', 'Wire'),
         ('G', 'Oil resistant'),
@@ -15,9 +17,9 @@ def add_records(con, splash):
         ('S', 'Stationary during water test'),
         ('W', 'Weather conditions')
     )
-    splash.SetText(f'Adding IP suppliments to db [0 | {len(data)}]...')
-    con.executemany('INSERT INTO ip_supps (name, description) VALUES (?, ?);', data)
+
     splash.SetText(f'Adding IP suppliments to db [{len(data)} | {len(data)}]...')
+    con.executemany('INSERT INTO ip_supps (name, description) VALUES (?, ?);', data)
     con.commit()
 
 
