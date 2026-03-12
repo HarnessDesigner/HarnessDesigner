@@ -12,7 +12,6 @@ version = "0.0.1"
 description = "Wiring harness design software."
 readme = "README.md"
 requires-python = "==3.11.14"
-license = "GPL-3.0-or-later"
 keywords = []
 authors = [{ name = "Kevin G. Schlosser" }]
 maintainers = [{ name = "Kevin G. Schlosser" }]
