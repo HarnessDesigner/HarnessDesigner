@@ -9,6 +9,8 @@ LOW_POLE_URL = URL + '/bcp/b2bshop-psconnectors/en/EUR/Terminals/c/ps1/?sort=nam
 HIGH_POLE_URL = URL + '/bcp/b2bshop-psconnectors/en/EUR/Terminals/c/ps2/?sort=name-asc&productperpage=1000&q=%3Arelevance'
 TERMINALS_URL = URL + '/bcp/b2bshop-psconnectors/en/EUR/Terminals/c/ps3/?sort=name-asc&productperpage=1000&q=%3Arelevance'
 HIGH_CURRENT_URL = URL + '/bcp/b2bshop-psconnectors/en/EUR/Terminals/c/ps179/?sort=name-asc&productperpage=1000&q=%3Arelevance'
+CAP_URL = URL + '/bcp/b2bshop-psconnectors/en/EUR/search?text=Cap'
+
 
 headers = {
     'Host': 'bosch-connectors.com',
@@ -21,7 +23,7 @@ headers = {
     'Sec-GPC': '1',
     'Connection': 'keep-alive',
     'Referer': 'https://bosch-connectors.com/bcp/b2bshop-psconnectors/en/EUR/High-Pole-Connectors/26P-EuCon/26P-EuCon-Contact-Housing-CBO-Code-0/p/1928405762/',
-    'Cookie': 'JSESSIONID=B06D25B337DC786C246830CC641DB310.accstorefront-578868745-clqbz; ROUTE=.accstorefront-578868745-clqbz; acceleratorSecureGUID=f40ce35fdc099debb1ce9a857311924d9d4e3f8d',
+    'Cookie': 'JSESSIONID=FCA09293CB5CE4E659E2AD15689B41DA.accstorefront-578868745-q4gcm; ROUTE=.accstorefront-578868745-q4gcm; acceleratorSecureGUID=daa2893340c597be8e725b4d7fcdc62aa64dd6a3',
     'Sec-Fetch-Dest': 'empty',
     'Sec-Fetch-Mode': 'cors',
     'Sec-Fetch-Site': 'same-origin'
@@ -301,7 +303,7 @@ docs_path = r'data'
 # }
 
 
-def get_products(url):
+def get_products(url, found_products):
     print('GET PRODUCTS:', url)
 
     url_data = urllib.parse.unquote(url, encoding='utf-8', errors='replace')
@@ -320,15 +322,26 @@ def get_products(url):
     for item in content:
         item = item.split('<a id="plpItemName', 1)[-1]
         item_url = item.split('href="', 1)[-1]
-        item_url = item_url.split('"', 1)[0]
-        item_urls.append(URL + item_url)
+        item_url, desc = item_url.split('"', 1)
+        desc = desc.split('title="', 1)[-1].split('">', 1)[0]
+        desc = desc.split('data-tooltip="', 1)[-1]
+        desc = desc.split('"', 1)[0]
 
-    return item_urls
+        if desc not in found_products:
+            found_products[desc] = set()
+
+        found_products[desc].add(URL + item_url)
+
+
+import time
 
 
 def get_product_data(url, url_list=None):
-    print('GET PRODUCT DATA:', url)
+    print('GET PRODUCT DATA:', repr(url))
+    if url.strip() == URL:
+        return None
 
+    time.sleep(0.2)
     response = requests.get(url, headers=headers)
     content = response.content.decode('utf-8')
     product = {}
@@ -349,6 +362,8 @@ def get_product_data(url, url_list=None):
         image_url = None
 
     product['image'] = image_url
+    product['model3d'] = None
+    product['cad'] = None
 
     if '<a href="">Product Order Quantity</a>' in content:
         product_order = content.split('<a href="">Product Order Quantity</a>', 1)[-1]
@@ -365,6 +380,9 @@ def get_product_data(url, url_list=None):
             file_blobs = content.split('<!-- Blob storage -->')[1:]
 
             for blob in file_blobs:
+                if None not in (product['cad'], product['model3d']):
+                    break
+
                 blob = blob.split('<a href="', 1)[-1]
                 href, blob = blob.split('"', 1)
                 blob = blob.split('>', 1)[-1]
@@ -373,9 +391,14 @@ def get_product_data(url, url_list=None):
                 filename = filename.split(')', 1)[0].strip()
                 file_description = file_description.strip()
 
-                if '3D Model' in file_description:
+                if (
+                    product['model3d'] is None and
+                    '3D Model' in file_description and
+                    'pdf' not in file_description
+                ):
                     filename = os.path.join(docs_path, part_number + '.stp')
                     if not os.path.exists(filename):
+                        time.sleep(0.2)
                         response = requests.get(URL + href, headers=headers)
 
                         import zipfile
@@ -395,16 +418,19 @@ def get_product_data(url, url_list=None):
                             import traceback
                             traceback.print_exc()
                             filename = None
-
                         else:
                             filename = None
 
                     if filename is not None:
                         product['model3d'] = filename
 
-                if 'Offer Drawing' in file_description:
+                elif (
+                    product['cad'] is None and
+                    'Offer Drawing' in file_description
+                ):
                     filename = os.path.join(docs_path, part_number + '.pdf')
                     if not os.path.exists(filename):
+                        time.sleep(0.2)
                         response = requests.get(URL + href, headers=headers)
 
                         with open(filename, 'wb') as f:
@@ -461,8 +487,6 @@ def get_product_data(url, url_list=None):
 
     else:
         part_number = None
-        product['model3d'] = None
-        product['cad'] = None
 
     product['datasheet'] = None
     product['part_number'] = part_number
@@ -525,79 +549,113 @@ def get_product_data(url, url_list=None):
         if a_url in url_list:
             continue
 
-        product['accessories'].append(get_product_data(a_url, url_list))
+        acc_pdata = get_product_data(a_url, url_list)
+        if acc_pdata is None:
+            break
 
-    product['accessories'] = accessory_urls
+        product['accessories'].append(acc_pdata)
+
+    # product['accessories'] = accessory_urls
 
     return product
 
 
-if not os.path.exists('low_pole_urls.json'):
-    product_urls = get_products(LOW_POLE_URL)
-    with open('low_pole_urls.json', 'w') as f:
-        f.write(json.dumps(product_urls, indent=4))
+if not os.path.exists('product_urls.json'):
+    f_products = {}
+    for i in range(10):
+        search_url = URL + f'/bcp/b2bshop-psconnectors/en/EUR/search?sort=articlenumber-asc&productperpage=1000&q={i}%3Aarticlenumber-asc'
+        get_products(search_url, f_products)
 
-if not os.path.exists('high_pole_urls.json'):
-    product_urls = get_products(HIGH_POLE_URL)
-    with open('high_pole_urls.json', 'w') as f:
-        f.write(json.dumps(product_urls, indent=4))
+    get_products(LOW_POLE_URL, f_products)
 
-if not os.path.exists('terminal_urls.json'):
-    product_urls = get_products(TERMINALS_URL)
-    with open('terminal_urls.json', 'w') as f:
-        f.write(json.dumps(product_urls, indent=4))
+    get_products(HIGH_POLE_URL, f_products)
 
-if not os.path.exists('high_current_urls.json'):
-    product_urls = get_products(HIGH_CURRENT_URL)
-    with open('high_current_urls.json', 'w') as f:
-        f.write(json.dumps(product_urls, indent=4))
+    get_products(TERMINALS_URL, f_products)
+
+    get_products(HIGH_CURRENT_URL, f_products)
+
+    count = 0
+
+    for key, value in list(f_products.items()):
+        value = list(value)
+        f_products[key] = value
+        count += len(value)
+
+    print('COUNT:', count)
+    with open('product_urls.json', 'w') as f:
+        f.write(json.dumps(f_products, indent=4))
 
 
-if not os.path.exists('low_pole_product_data.json'):
-    with open('low_pole_urls.json', 'r') as f:
+if not os.path.exists('product_data.json'):
+    with open('product_urls.json', 'r') as f:
         product_urls = json.loads(f.read())
 
     p_data = []
-    for p_url in product_urls:
-        p_data.append(get_product_data(p_url))
+    for p_urls in product_urls.values():
+        for p_url in p_urls:
+            p_data.append(get_product_data(p_url))
 
-    with open('low_pole_product_data.json', 'w') as f:
-        f.write(json.dumps(p_data, indent=4))
-
-if not os.path.exists('high_pole_product_data.json'):
-    with open('high_pole_urls.json', 'r') as f:
-        product_urls = json.loads(f.read())
-
-    p_data = []
-    for p_url in product_urls:
-        p_data.append(get_product_data(p_url))
-
-    with open('high_pole_product_data.json', 'w') as f:
+    with open('product_data.json', 'w') as f:
         f.write(json.dumps(p_data, indent=4))
 
 
-if not os.path.exists('terminal_product_data.json'):
-    with open('terminal_urls.json', 'r') as f:
-        product_urls = json.loads(f.read())
-
-    p_data = []
-    for p_url in product_urls:
-        p_data.append(get_product_data(p_url))
-
-    with open('terminal_product_data.json', 'w') as f:
-        f.write(json.dumps(p_data, indent=4))
-
-
-if not os.path.exists('high_current_product_data.json'):
-    with open('high_current_urls.json', 'r') as f:
-        product_urls = json.loads(f.read())
-
-    p_data = []
-    for p_url in product_urls:
-        p_data.append(get_product_data(p_url))
-
-    with open('high_current_product_data.json', 'w') as f:
-        f.write(json.dumps(p_data, indent=4))
+# if not os.path.exists('low_pole_product_data.json'):
+#     with open('low_pole_urls.json', 'r') as f:
+#         product_urls = json.loads(f.read())
+#
+#     p_data = []
+#     for p_url in product_urls:
+#         p_data.append(get_product_data(p_url))
+#
+#     with open('low_pole_product_data.json', 'w') as f:
+#         f.write(json.dumps(p_data, indent=4))
+#
+# if not os.path.exists('high_pole_product_data.json'):
+#     with open('high_pole_urls.json', 'r') as f:
+#         product_urls = json.loads(f.read())
+#
+#     p_data = []
+#     for p_url in product_urls:
+#         p_data.append(get_product_data(p_url))
+#
+#     with open('high_pole_product_data.json', 'w') as f:
+#         f.write(json.dumps(p_data, indent=4))
+#
+#
+# if not os.path.exists('terminal_product_data.json'):
+#     with open('terminal_urls.json', 'r') as f:
+#         product_urls = json.loads(f.read())
+#
+#     p_data = []
+#     for p_url in product_urls:
+#         p_data.append(get_product_data(p_url))
+#
+#     with open('terminal_product_data.json', 'w') as f:
+#         f.write(json.dumps(p_data, indent=4))
+#
+#
+# if not os.path.exists('high_current_product_data.json'):
+#     with open('high_current_urls.json', 'r') as f:
+#         product_urls = json.loads(f.read())
+#
+#     p_data = []
+#     for p_url in product_urls:
+#         p_data.append(get_product_data(p_url))
+#
+#     with open('high_current_product_data.json', 'w') as f:
+#         f.write(json.dumps(p_data, indent=4))
+#
+#
+# if not os.path.exists('boots_product_data.json'):
+#     with open('boots_urls.json', 'r') as f:
+#         product_urls = json.loads(f.read())
+#
+#     p_data = []
+#     for p_url in product_urls:
+#         p_data.append(get_product_data(p_url))
+#
+#     with open('boots_product_data.json', 'w') as f:
+#         f.write(json.dumps(p_data, indent=4))
 
 
 def convert_dimension(dim):
@@ -846,6 +904,8 @@ tpa_locks = []
 cpa_locks = []
 covers = []
 seals = []
+accessories = []
+boots = []
 
 
 def read_product_specs(product):
@@ -871,6 +931,7 @@ def read_product_specs(product):
         description = product['description']
 
         description = description.replace('&deg;', '°')
+        description = description.replace('&empty; ', '')
         description = description.replace('&empty;', '')
 
         product['description'] = description
@@ -1111,14 +1172,18 @@ def read_product_specs(product):
         'Holding Plate',
         'Lever',
         'Locking Lever'
-    ):
+    ) or 'CPA' in product['description'] or 'End Clip' in product['description']:
 
         description = product['description']
 
         if 'EMS' in description:
             family, series = description.split('/')[0].strip().split(' ', 1)
         elif 'Kompakt' in description:
-            series, family = description.split('/')[0].strip().split(' ', 1)
+            if 'End Clip' in description:
+                series = 'Kompakt'
+                family = description.split(' / ')[1].split(' ', 1)[-1]
+            else:
+                series, family = description.split('/')[0].strip().split(' ', 1)
         elif 'Microflex' in description:
             tmp1, tmp2 = [item.strip() for item in description.split('/')[:2]]
             if 'Microflex' in tmp1:
@@ -1155,7 +1220,10 @@ def read_product_specs(product):
         product['height'] = height
         product['lock_type'] = lock_type
 
-        if specs['Product Type'] == 'Holding Plate':
+        if (
+            specs['Product Type'] == 'Holding Plate' or
+            'End Clip' in product['description']
+        ):
             tpa_locks.append(product)
         else:
             cpa_locks.append(product)
@@ -1223,7 +1291,7 @@ def read_product_specs(product):
         'Dummy Terminal',
         'Single Wire Seal',
         'Dummy Plug'
-    ):
+    ) or 'Radial Seal' in product['description']:
         description = product['description'].replace('&empty; ', '')
         description = description.replace('&le; ', ' 0.0 - ')
         description = description.replace('&sup2;', '²')
@@ -1280,12 +1348,6 @@ def read_product_specs(product):
                 length, width = height, width
                 o_dia = height
 
-        '''
-        "length": 3.9,
-        "width": 3.9,
-        "height": 7.8,
-        '''
-
         i_dia = 0.0
 
         weight = 0.0
@@ -1310,6 +1372,71 @@ def read_product_specs(product):
 
         seals.append(product)
 
+    elif specs['Product Type'] == 'Accessories':
+        if 'Cap' in product['description']:
+            mfg = 'Bosch'
+
+            description = product['description']
+
+            if 'Jetronic' in description:
+                if 'Exit' in description:
+                    tmp1, tmp2, tmp3 = [item.strip() for item in description.split('/')]
+                    direction = tmp3.replace('Exit', '').strip()
+                    series = tmp1
+                    family = tmp2.split(' ')[-1]
+
+                elif 'mm' in description:
+                    tmp1, tmp2, _, tmp4 = [item.strip() for item in description.split('/')]
+                    direction = 'Straight'
+                    series = tmp1
+                    family = tmp2.split(' ', 1)[-1] + ' ' + tmp4
+                else:
+                    tmp1, tmp2, tmp3 = [item.strip() for item in description.split('/')]
+                    direction = 'Straight'
+                    series = tmp1
+                    family = tmp2.split(' ', 1)[-1] + ' ' + tmp3
+
+            elif 'Kompakt' in description:
+                series = 'Kompakt'
+
+                if 'Design' in description:
+                    family = description.split(' / ')[1].split(' ', 1)[-1]
+                    direction = '90°'
+
+                else:
+                    direction = 'Straight'
+                    family = description.split(' / ')[1].split(' ', 1)[-1]
+
+            else:
+                series = None
+                family = description.split(' / ')[0]
+                direction = 'Straight'
+
+            color = convert_color(specs.get('Colour', None))
+            material = None
+            min_temp = convert_temperature(specs.get('Temperature range, min.', None))
+            max_temp = convert_temperature(specs.get('Temperature range, max.', None))
+            length = convert_dimension(specs.get('Length', None))
+            width = convert_dimension(specs.get('Width', None))
+            height = convert_dimension(specs.get('Height', None))
+            weight = 0.0
+
+            product['mfg'] = mfg
+            product['series'] = series
+            product['family'] = family
+            product['color'] = color
+            product['min_temp'] = min_temp
+            product['max_temp'] = max_temp
+            product['direction'] = direction
+            product['length'] = length
+            product['width'] = width
+            product['height'] = height
+            product['material'] = material
+            product['weight'] = weight
+
+            boots.append(product)
+        else:
+            accessories.append(product['description'])
     else:
         product_type = specs['Product Type']
 
@@ -1328,58 +1455,570 @@ def read_product_specs(product):
 
 product_specs = {}
 
-
-with open('low_pole_product_data.json', 'r') as f:
+with open('product_data.json', 'r') as f:
     product_data = json.loads(f.read())
 
 for p_data in product_data:
     read_product_specs(p_data)
 
-
-with open('high_pole_product_data.json', 'r') as f:
-    product_data = json.loads(f.read())
-
-for p_data in product_data:
-    read_product_specs(p_data)
-
-with open('terminal_product_data.json', 'r') as f:
-    product_data = json.loads(f.read())
-
-for p_data in product_data:
-    read_product_specs(p_data)
-
-with open('high_current_product_data.json', 'r') as f:
-    product_data = json.loads(f.read())
-
-for p_data in product_data:
-    read_product_specs(p_data)
-
-
-# print(len(housings))
-# with open('bosch_housings.json', 'w') as f:
-#     f.write(json.dumps(housings, indent=4))
-
-# print(len(terminals))
-# with open('bosch_terminals.json', 'w') as f:
-#     f.write(json.dumps(terminals, indent=4))
+#
+# with open('low_pole_product_data.json', 'r') as f:
+#     product_data = json.loads(f.read())
+#
+# for p_data in product_data:
+#     read_product_specs(p_data)
+#
+# with open('high_pole_product_data.json', 'r') as f:
+#     product_data = json.loads(f.read())
+#
+# for p_data in product_data:
+#     read_product_specs(p_data)
+#
+# with open('terminal_product_data.json', 'r') as f:
+#     product_data = json.loads(f.read())
+#
+# for p_data in product_data:
+#     read_product_specs(p_data)
+#
+# with open('high_current_product_data.json', 'r') as f:
+#     product_data = json.loads(f.read())
+#
+# for p_data in product_data:
+#     read_product_specs(p_data)
 
 
-print(len(cpa_locks))
+print()
+print()
+
+print(accessories)
+
+print()
+print()
+
+print(product_specs)
+
+print()
+print()
+
+
+def find_accessory_part(container, description):
+    description = description.replace('&deg;', '°')
+    description = description.replace('&empty; ', '')
+    description = description.replace('&empty;', '')
+    description = description.replace('&le; ', ' 0.0 - ')
+    description = description.replace('&sup2;', '²')
+
+    for item in container:
+        if item['description'] == description:
+            return item['part_number']
+
+
+print()
+print('HOUSING')
+
+for housing in housings:
+    compat_cpas = []
+    compat_tpas = []
+    compat_covers = []
+    compat_terminals = []
+    compat_seals = []
+    compat_housings = []
+    compat_boots = []
+
+    for accessory in housing['accessories'][:]:
+        acc_desc = accessory['description']
+
+        found = find_accessory_part(housings, acc_desc)
+        if found is not None:
+            compat_housings.append(found)
+            housing['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(terminals, acc_desc)
+        if found is not None:
+            compat_terminals.append(found)
+            housing['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(cpa_locks, acc_desc)
+        if found is not None:
+            compat_cpas.append(found)
+            housing['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(tpa_locks, acc_desc)
+        if found is not None:
+            compat_tpas.append(found)
+            housing['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(covers, acc_desc)
+        if found is not None:
+            compat_covers.append(found)
+            housing['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(seals, acc_desc)
+        if found is not None:
+            compat_seals.append(found)
+            housing['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(boots, acc_desc)
+        if found is not None:
+            compat_boots.append(found)
+            housing['accessories'].remove(accessory)
+            continue
+
+    housing['compat_cpas'] = compat_cpas
+    housing['compat_tpas'] = compat_tpas
+    housing['compat_covers'] = compat_covers
+    housing['compat_terminals'] = compat_terminals
+    housing['compat_seals'] = compat_seals
+    housing['compat_housings'] = compat_housings
+    housing['compat_boots'] = compat_boots
+
+    del housing['accessories']
+
+
+print()
+print('CPA')
+
+for cpa_lock in cpa_locks:
+    compat_cpas = []
+    compat_tpas = []
+    compat_covers = []
+    compat_terminals = []
+    compat_seals = []
+    compat_housings = []
+    compat_boots = []
+
+    for accessory in cpa_lock['accessories'][:]:
+        acc_desc = accessory['description']
+
+        found = find_accessory_part(housings, acc_desc)
+        if found is not None:
+            compat_housings.append(found)
+            cpa_lock['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(terminals, acc_desc)
+        if found is not None:
+            compat_terminals.append(found)
+            cpa_lock['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(cpa_locks, acc_desc)
+        if found is not None:
+            compat_cpas.append(found)
+            cpa_lock['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(tpa_locks, acc_desc)
+        if found is not None:
+            compat_tpas.append(found)
+            cpa_lock['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(covers, acc_desc)
+        if found is not None:
+            compat_covers.append(found)
+            cpa_lock['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(seals, acc_desc)
+        if found is not None:
+            compat_seals.append(found)
+            cpa_lock['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(boots, acc_desc)
+        if found is not None:
+            compat_boots.append(found)
+            cpa_lock['accessories'].remove(accessory)
+            continue
+
+    cpa_lock['compat_housings'] = compat_housings
+
+    del cpa_lock['accessories']
+
+print()
+print('TPA')
+
+for tpa_lock in tpa_locks:
+    compat_cpas = []
+    compat_tpas = []
+    compat_covers = []
+    compat_terminals = []
+    compat_seals = []
+    compat_housings = []
+    compat_boots = []
+
+    for accessory in tpa_lock['accessories'][:]:
+        acc_desc = accessory['description']
+
+        found = find_accessory_part(housings, acc_desc)
+        if found is not None:
+            compat_housings.append(found)
+            tpa_lock['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(terminals, acc_desc)
+        if found is not None:
+            compat_terminals.append(found)
+            tpa_lock['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(cpa_locks, acc_desc)
+        if found is not None:
+            compat_cpas.append(found)
+            tpa_lock['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(tpa_locks, acc_desc)
+        if found is not None:
+            compat_tpas.append(found)
+            tpa_lock['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(covers, acc_desc)
+        if found is not None:
+            compat_covers.append(found)
+            tpa_lock['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(seals, acc_desc)
+        if found is not None:
+            compat_seals.append(found)
+            tpa_lock['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(boots, acc_desc)
+        if found is not None:
+            compat_boots.append(found)
+            tpa_lock['accessories'].remove(accessory)
+            continue
+
+    tpa_lock['compat_housings'] = compat_housings
+
+    del tpa_lock['accessories']
+
+
+print()
+print('COVERS')
+
+for cover in covers:
+    compat_cpas = []
+    compat_tpas = []
+    compat_covers = []
+    compat_terminals = []
+    compat_seals = []
+    compat_housings = []
+    compat_boots = []
+
+    for accessory in cover['accessories'][:]:
+        acc_desc = accessory['description']
+
+        found = find_accessory_part(housings, acc_desc)
+        if found is not None:
+            compat_housings.append(found)
+            cover['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(terminals, acc_desc)
+        if found is not None:
+            compat_terminals.append(found)
+            cover['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(cpa_locks, acc_desc)
+        if found is not None:
+            compat_cpas.append(found)
+            cover['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(tpa_locks, acc_desc)
+        if found is not None:
+            compat_tpas.append(found)
+            cover['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(covers, acc_desc)
+        if found is not None:
+            compat_covers.append(found)
+            cover['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(seals, acc_desc)
+        if found is not None:
+            compat_seals.append(found)
+            cover['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(boots, acc_desc)
+        if found is not None:
+            compat_boots.append(found)
+            cover['accessories'].remove(accessory)
+            continue
+
+    cover['compat_housings'] = compat_housings
+
+    del cover['accessories']
+
+
+print()
+print('TERMINALS')
+
+for terminal in terminals:
+    compat_cpas = []
+    compat_tpas = []
+    compat_covers = []
+    compat_terminals = []
+    compat_seals = []
+    compat_housings = []
+    compat_boots = []
+
+    for accessory in terminal['accessories'][:]:
+        acc_desc = accessory['description']
+
+        found = find_accessory_part(housings, acc_desc)
+        if found is not None:
+            compat_housings.append(found)
+            terminal['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(terminals, acc_desc)
+        if found is not None:
+            compat_terminals.append(found)
+            terminal['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(cpa_locks, acc_desc)
+        if found is not None:
+            compat_cpas.append(found)
+            terminal['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(tpa_locks, acc_desc)
+        if found is not None:
+            compat_tpas.append(found)
+            terminal['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(covers, acc_desc)
+        if found is not None:
+            compat_covers.append(found)
+            terminal['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(seals, acc_desc)
+        if found is not None:
+            compat_seals.append(found)
+            terminal['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(boots, acc_desc)
+        if found is not None:
+            compat_boots.append(found)
+            terminal['accessories'].remove(accessory)
+            continue
+
+    terminal['compat_seals'] = compat_seals
+
+    del terminal['accessories']
+
+
+print()
+print('SEALS')
+
+for seal in seals:
+    compat_cpas = []
+    compat_tpas = []
+    compat_covers = []
+    compat_terminals = []
+    compat_seals = []
+    compat_housings = []
+    compat_boots = []
+
+    for accessory in seal['accessories'][:]:
+        acc_desc = accessory['description']
+
+        found = find_accessory_part(housings, acc_desc)
+        if found is not None:
+            compat_housings.append(found)
+            seal['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(terminals, acc_desc)
+        if found is not None:
+            compat_terminals.append(found)
+            seal['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(cpa_locks, acc_desc)
+        if found is not None:
+            compat_cpas.append(found)
+            seal['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(tpa_locks, acc_desc)
+        if found is not None:
+            compat_tpas.append(found)
+            seal['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(covers, acc_desc)
+        if found is not None:
+            compat_covers.append(found)
+            seal['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(seals, acc_desc)
+        if found is not None:
+            compat_seals.append(found)
+            seal['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(boots, acc_desc)
+        if found is not None:
+            compat_boots.append(found)
+            seal['accessories'].remove(accessory)
+            continue
+
+    seal['compat_housings'] = compat_housings
+
+    del seal['accessories']
+
+
+for boot in boots:
+    compat_cpas = []
+    compat_tpas = []
+    compat_covers = []
+    compat_terminals = []
+    compat_seals = []
+    compat_housings = []
+    compat_boots = []
+
+    for accessory in boot['accessories'][:]:
+        acc_desc = accessory['description']
+
+        found = find_accessory_part(housings, acc_desc)
+        if found is not None:
+            compat_housings.append(found)
+            boot['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(terminals, acc_desc)
+        if found is not None:
+            compat_terminals.append(found)
+            boot['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(cpa_locks, acc_desc)
+        if found is not None:
+            compat_cpas.append(found)
+            boot['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(tpa_locks, acc_desc)
+        if found is not None:
+            compat_tpas.append(found)
+            boot['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(covers, acc_desc)
+        if found is not None:
+            compat_covers.append(found)
+            boot['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(seals, acc_desc)
+        if found is not None:
+            compat_seals.append(found)
+            boot['accessories'].remove(accessory)
+            continue
+
+        found = find_accessory_part(boots, acc_desc)
+        if found is not None:
+            compat_boots.append(found)
+            boot['accessories'].remove(accessory)
+            continue
+
+    # boot['compat_cpas'] = compat_cpas
+    # boot['compat_tpas'] = compat_tpas
+    # boot['compat_covers'] = compat_covers
+    # boot['compat_terminals'] = compat_terminals
+    # boot['compat_seals'] = compat_seals
+    boot['compat_housings'] = compat_housings
+    # boot['compat_boots'] = compat_boots
+
+    del boot['accessories']
+
+
+for housing in housings:
+    for seal in seals:
+        if (
+            housing['part_number'] in seal['compat_housings'] and
+            seal['part_number'] not in housing['compat_seals']
+        ):
+            housing['compat_seals'].append(seal['part_number'])
+
+    for boot in boots:
+        if (
+            housing['part_number'] in boot['compat_housings'] and
+            boot['part_number'] not in housing['compat_boots']
+        ):
+            housing['compat_boots'].append(boot['part_number'])
+
+    for cpa_lock in cpa_locks:
+        if (
+            housing['part_number'] in cpa_lock['compat_housings'] and
+            cpa_lock['part_number'] not in housing['compat_cpas']
+        ):
+            housing['compat_cpas'].append(cpa_lock['part_number'])
+
+    for tpa_lock in tpa_locks:
+        if (
+            housing['part_number'] in tpa_lock['compat_housings'] and
+            tpa_lock['part_number'] not in housing['compat_tpas']
+        ):
+            housing['compat_tpas'].append(tpa_lock['part_number'])
+
+    for cover in covers:
+        if (
+            housing['part_number'] in cover['compat_housings'] and
+            cover['part_number'] not in housing['compat_covers']
+        ):
+            housing['compat_covers'].append(cover['part_number'])
+
+
+print('housings:', len(housings))
+with open('bosch_housings.json', 'w') as f:
+    f.write(json.dumps(housings, indent=4))
+
+print('terminals:', len(terminals))
+with open('bosch_terminals.json', 'w') as f:
+    f.write(json.dumps(terminals, indent=4))
+
+print('cpa locks:', len(cpa_locks))
 with open('bosch_cpa_locks.json', 'w') as f:
     f.write(json.dumps(cpa_locks, indent=4))
 
-print(len(tpa_locks))
+print('tpa locks:', len(tpa_locks))
 with open('bosch_tpa_locks.json', 'w') as f:
     f.write(json.dumps(tpa_locks, indent=4))
 
-print(len(covers))
+print('covers:', len(covers))
 with open('bosch_covers.json', 'w') as f:
     f.write(json.dumps(covers, indent=4))
 
-print(len(seals))
+print('seals:', len(seals))
 with open('bosch_seals.json', 'w') as f:
     f.write(json.dumps(seals, indent=4))
 
+print('boots:', len(boots))
+with open('bosch_boots.json', 'w') as f:
+    f.write(json.dumps(boots, indent=4))
 
 #
 # print()

@@ -8,6 +8,7 @@ from . import colors as _colors
 from . import resources as _resources
 from . import models3d as _models3d
 from . import seal_types as _seal_types
+from . import families as _families
 
 from . import projects as _projects
 from . import points3d as _points3d
@@ -21,16 +22,24 @@ from harness_designer.database import db_connectors as _con
 DATA_PATH = os.path.join(os.path.dirname(__file__), 'data')
 
 
-def add_seal(con, part_number, description, mfg, series, type, length, o_dia,  # NOQA
-             i_dia, color, hardness, lubricant, min_temp, max_temp, wire_dia_min,
-             wire_dia_max, weight=0.0, image=None, datasheet=None, cad=None, model3d=None):
+def add_seal(con, part_number, description, mfg=None, family=None, series=None,
+             color=None, image=None, datasheet=None, cad=None, min_temp=None,
+             max_temp=None, model3d=None, type=None, hardness=-1, lubricant='',
+             length=0.0, width=0.0, height=0.0, weight=0.0, o_dia=0.0, i_dia=0.0,
+             wire_dia_min=0.0, wire_dia_max=0.0, compat_housings=None, compat_terminals=None):
 
-    con.execute(f'SELECT id FROM seals WHERE part_number="{part_number}";')
-    if con.fetchall():
-        return
+    if compat_housings is None:
+        compat_housings = []
+
+    if compat_terminals is None:
+        compat_terminals = []
+
+    if color is None:
+        color = 'Dark Gray'
 
     mfg_id = _manufacturers.get_mfg_id(con, mfg)
     series_id = _series.get_series_id(con, series, mfg_id)
+    family_id = _families.get_family_id(con, family, mfg_id)
     color_id = _colors.get_color_id(con, color)
     image_id = _resources.add_resource(con, _resources.IMAGE_TYPE_IMAGE, image)
     cad_id = _resources.add_resource(con, _resources.IMAGE_TYPE_CAD, cad)
@@ -63,19 +72,41 @@ def add_seal(con, part_number, description, mfg, series, type, length, o_dia,  #
         description += ' Seal'
 
     print(f'DATABASE: adding seal {part_number}, {description}')
-    con.execute('INSERT INTO seals (part_number, description, mfg_id, series_id, '
-                'type_id, color_id, lubricant, min_temp_id, max_temp_id, length, '
-                'o_dia, i_dia, hardness, wire_dia_min, wire_dia_max, image_id, '
-                'datasheet_id, cad_id, model3d_id, weight) '
-                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (part_number, description, mfg_id, series_id, type_id, color_id,
-                 lubricant, min_temp_id, max_temp_id, length, o_dia, i_dia, hardness,
-                 wire_dia_min, wire_dia_max, image_id, datasheet_id, cad_id, model3d_id, weight))
+    con.execute('INSERT INTO seals (part_number, description, mfg_id, family_id, '
+                'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
+                'max_temp_id, model3d_id, type_id, hardness, lubricant, length, '
+                'width, height, weight, o_dia, i_dia, wire_dia_min, wire_dia_max, '
+                'compat_housings, compat_terminals) '
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '
+                '?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                (part_number, description, mfg_id, family_id, series_id, color_id,
+                 image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, model3d_id,
+                 type_id, hardness, lubricant, length, width, height, weight, o_dia,
+                 i_dia, wire_dia_min, wire_dia_max, compat_housings, compat_terminals))
 
     con.commit()
     db_id = con.lastrowid
 
     print(f'DATABASE: seal added "{part_number}" = {db_id}')
+
+
+def add_pjt_seal(con, project_id, part_id, point3d_id=None, housing_id=None,
+                 terminal_id=None, name='', notes='', quat3d=None, angle3d=None,
+                 is_visible3d=0):
+
+    if quat3d is None:
+        quat3d = [1.0, 0.0, 0.0, 0.0]
+
+    if angle3d is None:
+        angle3d = [0.0, 0.0, 0.0]
+
+    con.execute('INSERT INTO pjt_seals (project_id, part_id, point3d_id, housing_id, '
+                'terminal_id, name, notes, quat3d, angle3d, is_visible3d) '
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                (project_id, part_id, point3d_id, housing_id, terminal_id, name,
+                 notes, str(quat3d), str(angle3d), is_visible3d))
+
+    con.commit()
 
 
 def add_seals(con, data: tuple[dict] | list[dict]):
@@ -94,7 +125,7 @@ def add_records(con, splash):
     con.commit()
 
     # os.path.join(DATA_PATH, 'seals.json'),
-    json_paths = [os.path.join(DATA_PATH, 'aptiv_seals.json')]
+    json_paths = []  # os.path.join(DATA_PATH, 'aptiv_seals.json')]
 
     for json_path in json_paths:
         if os.path.exists(json_path):
@@ -127,6 +158,10 @@ table = _con.SQLTable(
                   references=_con.SQLFieldReference(_manufacturers.table,
                                                     _manufacturers.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('family_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_series.table,
+                                                    _series.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('series_id', default='0', no_null=True,
                   references=_con.SQLFieldReference(_series.table,
                                                     _series.id_field,
@@ -155,24 +190,26 @@ table = _con.SQLTable(
                   references=_con.SQLFieldReference(_temperatures.table,
                                                     _temperatures.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('type_id', default='0', no_null=True,
-                  references=_con.SQLFieldReference(_seal_types.table,
-                                                    _seal_types.id_field,
-                                                    on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('model3d_id', default='NULL',
                   references=_con.SQLFieldReference(_models3d.table,
                                                     _models3d.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('type_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_seal_types.table,
+                                                    _seal_types.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('hardness', default='-1', no_null=True),
     _con.TextField('lubricant', default='""', no_null=True),
     _con.FloatField('length', default='"0.0"', no_null=True),
     _con.FloatField('width', default='"0.0"', no_null=True),
     _con.FloatField('height', default='"0.0"', no_null=True),
+    _con.FloatField('weight', default='"0.0"', no_null=True),
     _con.FloatField('o_dia', default='"0.0"', no_null=True),
     _con.FloatField('i_dia', default='"0.0"', no_null=True),
     _con.FloatField('wire_dia_min', default='"0.0"', no_null=True),
     _con.FloatField('wire_dia_max', default='"0.0"', no_null=True),
-    _con.FloatField('weight', default='"0.0"', no_null=True)
+    _con.TextField('compat_housings', default='"[]"', no_null=True),
+    _con.TextField('compat_terminals', default='"[]"', no_null=True)
 )
 
 

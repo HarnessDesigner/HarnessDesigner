@@ -36,7 +36,7 @@ def add_records(con, splash):
     con.commit()
 
     # os.path.join(DATA_PATH, 'covers.json'),
-    json_paths = [os.path.join(DATA_PATH, 'aptiv_covers.json')]
+    json_paths = []  # os.path.join(DATA_PATH, 'aptiv_covers.json')]
 
     for json_path in json_paths:
         if os.path.exists(json_path):
@@ -58,9 +58,13 @@ def add_records(con, splash):
             con.commit()
 
 
-def add_cover(con, part_number, description, mfg, series, family, length, width,
-              height, color, min_temp, max_temp, direction=None, pins='', weight=0.0,
-              image=None, datasheet=None, cad=None, model3d=None):
+def add_cover(con, part_number, description, mfg=None, family=None, series=None,
+              color=None, direction=None, image=None, datasheet=None, cad=None,
+              min_temp=None, max_temp=None, model3d=None, length=0.0, width=0.0,
+              height=0.0, weight=0.0, pins=0, compat_housings=None):
+
+    if compat_housings is None:
+        compat_housings = []
 
     mfg_id = _manufacturers.get_mfg_id(con, mfg)
     series_id = _series.get_series_id(con, series, mfg_id)
@@ -72,23 +76,6 @@ def add_cover(con, part_number, description, mfg, series, family, length, width,
     cad_id = _resources.add_resource(con, _resources.IMAGE_TYPE_CAD, cad)
     datasheet_id = _resources.add_resource(con, _resources.IMAGE_TYPE_DATASHEET, datasheet)
     model3d_id = _models3d.add_model3d(con, model3d)
-
-    if min_temp is None:
-        min_temp = 0
-
-    if max_temp is None:
-        max_temp = 0
-
-    if min_temp > 0:
-        min_temp = '+' + str(min_temp) + '°C'
-    else:
-        min_temp = str(min_temp) + '°C'
-
-    if max_temp > 0:
-        max_temp = '+' + str(max_temp) + '°C'
-    else:
-        max_temp = str(max_temp) + '°C'
-
     min_temp_id = _temperatures.get_temperature_id(con, min_temp)
     max_temp_id = _temperatures.get_temperature_id(con, max_temp)
 
@@ -110,14 +97,14 @@ def add_cover(con, part_number, description, mfg, series, family, length, width,
 
     print(f'DATABASE: adding cover {part_number}: {description}')
 
-    con.execute('INSERT INTO covers (part_number, description, mfg_id, series_id, '
-                'family_id, color_id, direction_id, min_temp_id, max_temp_id, length, '
-                'width, height, pins, image_id, datasheet_id, cad_id, model3d_id, '
-                'weight) '
-                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (part_number, description, mfg_id, series_id, family_id, color_id,
-                 direction_id, min_temp_id, max_temp_id, length, width, height,
-                 pins, image_id, datasheet_id, cad_id, model3d_id, weight))
+    con.execute('INSERT INTO covers (part_number, description, mfg_id, family_id, '
+                'series_id, color_id, direction_id, image_id, datasheet_id, cad_id, '
+                'min_temp_id, max_temp_id, model3d_id, length, width, height, weight, '
+                'pins, compat_housings) '
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                (part_number, description, mfg_id, family_id, series_id, color_id,
+                 direction_id, image_id, datasheet_id, cad_id, min_temp_id, max_temp_id,
+                 model3d_id, length, width, height, weight, pins, compat_housings))
 
     con.commit()
     db_id = con.lastrowid
@@ -181,9 +168,9 @@ table = _con.SQLTable(
     _con.FloatField('width', default='"0.0"', no_null=True),
     _con.FloatField('height', default='"0.0"', no_null=True),
     _con.FloatField('weight', default='"0.0"', no_null=True),
-    _con.IntField('pins', default='0', no_null=True)
+    _con.IntField('pins', default='0', no_null=True),
+    _con.TextField('compat_housings', default='"[]"', no_null=True)
 )
-
 
 pjt_id_field = _con.PrimaryKeyField('id')
 

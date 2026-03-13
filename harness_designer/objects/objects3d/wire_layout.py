@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING
 
 import wx
 
-# from ...widgets.context_menus import RotateMenu, MirrorMenu
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from . import base3d as _base3d
@@ -103,6 +102,9 @@ class WireLayout(_base3d.Base3D):
         """Override delete to clean up bundle bindings."""
         self.unbind_from_bundle_layout_point()
         super().delete()
+
+    def get_context_menu(self):
+        return WireLayoutMenu(self.mainframe.editor3d.editor, self)
 
 
 class WireLayoutMenu(wx.Menu):

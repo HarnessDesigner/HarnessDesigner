@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 
 import wx
 
-# from ...widgets.context_menus import RotateMenu, MirrorMenu
+from ...ui.widgets import context_menus as _context_menus
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from . import base3d as _base3d
@@ -51,6 +51,9 @@ class WireServiceLoop(_base3d.Base3D):
             position2.z = tmp_position.z
 
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
+
+    def get_context_menu(self):
+        return WireServiceLoopMenu(self.mainframe.editor3d.editor, self)
 
 
 class WireServiceLoopMenu(wx.Menu):

@@ -8,6 +8,7 @@ from . import colors as _colors
 from . import resources as _resources
 from . import models3d as _models3d
 from . import temperatures as _temperatures
+from . import cpa_lock_types as _cpa_lock_types
 
 from . import projects as _projects
 from . import points3d as _points3d
@@ -19,15 +20,19 @@ from .. import db_connectors as _con
 DATA_PATH = os.path.join(os.path.dirname(__file__), 'data')
 
 
-def add_cpa_lock(con, part_number, description, mfg, series, family, length,
-                 width, height, color, min_temp, max_temp, pins='', weight=0.0,
-                 terminal_size=0.0, image=None, datasheet=None, cad=None, model3d=None, lock_type=''):
+def add_cpa_lock(con, part_number, description, mfg=None, family=None, series=None,
+                 color=None, image=None, datasheet=None, cad=None, min_temp=None,
+                 max_temp=None, model3d=None, type=None, length=0.0, width=0.0,  # NOQA
+                 height=0.0, weight=0.0, pins=0, terminal_size=0.0, compat_housings=None):
+
+    if compat_housings is None:
+        compat_housings = []
 
     mfg_id = _manufacturers.get_mfg_id(con, mfg)
     series_id = _series.get_series_id(con, series, mfg_id)
     family_id = _families.get_family_id(con, family, mfg_id)
     color_id = _colors.get_color_id(con, color)
-
+    type_id = _cpa_lock_types.get_cpa_lock_type_id(con, type)
     image_id = _resources.add_resource(con, _resources.IMAGE_TYPE_IMAGE, image)
     cad_id = _resources.add_resource(con, _resources.IMAGE_TYPE_CAD, cad)
     datasheet_id = _resources.add_resource(con, _resources.IMAGE_TYPE_DATASHEET, datasheet)
@@ -51,13 +56,15 @@ def add_cpa_lock(con, part_number, description, mfg, series, family, length,
 
     print(f'DATABASE: adding cpa lock {part_number}, {description}')
 
-    con.execute('INSERT INTO cpa_locks (part_number, description, mfg_id, series_id, '
-                'family_id, color_id, terminal_size, min_temp_id, max_temp_id, length, '
-                'width, height, pins, image_id, datasheet_id, cad_id, model3d_id, weight, lock_type) '
-                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (part_number, description, mfg_id, series_id, family_id, color_id,
-                 terminal_size, min_temp_id, max_temp_id, length, width, height,
-                 pins, image_id, datasheet_id, cad_id, model3d_id, weight, lock_type))
+    con.execute('INSERT INTO cpa_locks (part_number, description, mfg_id, family_id, '
+                'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
+                'max_temp_id, model3d_id, type_id, length, width, height, weight, pins, '
+                'terminal_size, compat_housings) '
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                (part_number, description, mfg_id, family_id, series_id, color_id,
+                 image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, model3d_id,
+                 type_id, length, width, height, weight, pins, terminal_size,
+                 compat_housings))
 
     con.commit()
     db_id = con.lastrowid
@@ -79,7 +86,7 @@ def add_records(con, splash):
     con.execute('INSERT INTO cpa_locks (id, part_number, description) VALUES(0, "None", "No CPA Lock");')
 
     # os.path.join(DATA_PATH, 'cpa_locks.json')
-    json_paths = [os.path.join(DATA_PATH, 'aptiv_cpa_locks.json')]
+    json_paths = []  # os.path.join(DATA_PATH, 'aptiv_cpa_locks.json')]
 
     for json_path in json_paths:
         if os.path.exists(json_path):
@@ -148,14 +155,17 @@ table = _con.SQLTable(
                   references=_con.SQLFieldReference(_models3d.table,
                                                     _models3d.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
-
+    _con.IntField('type_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_cpa_lock_types.table,
+                                                    _cpa_lock_types.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
     _con.FloatField('length', default='"0.0"', no_null=True),
     _con.FloatField('width', default='"0.0"', no_null=True),
     _con.FloatField('height', default='"0.0"', no_null=True),
+    _con.FloatField('weight', default='"0.0"', no_null=True),
     _con.IntField('pins', default='0', no_null=True),
     _con.FloatField('terminal_size', default='"0.0"', no_null=True),
-    _con.FloatField('weight', default='"0.0"', no_null=True),
-    _con.TextField('lock_type', default='""', no_null=True)
+    _con.TextField('compat_housings', default='"[]"', no_null=True)
 )
 
 

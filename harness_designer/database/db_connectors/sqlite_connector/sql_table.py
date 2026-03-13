@@ -2,7 +2,7 @@
 
 FIELD_TYPE_REAL = 'REAL'
 FIELD_TYPE_TEXT = 'TEXT'
-FIELD_TYPE_INT = 'INT'
+FIELD_TYPE_INT = 'INTEGER'
 FIELD_TYPE_BLOB = 'BLOB'
 
 REFERENCE_CASCADE = 'CASCADE'
@@ -16,18 +16,18 @@ class SQLTable:
         self.fields = fields
 
     def is_in_db(self, db_cursor) -> bool:
-        db_cursor.execute(f'SELECT name FROM {db_cursor.database_name}.sqlite_master WHERE type="table";')
-        rows = db_cursor.fetchall()
+        db_cursor._con.execute(f'SELECT name FROM {db_cursor.database_name}.sqlite_master WHERE type="table";')
+        rows = db_cursor._con.fetchall()
 
         table_names = [row[0] for row in rows]
 
         return self.name in table_names
 
     def is_ok(self, db_cursor) -> bool:
-        db_cursor(f'SELECT "(\'" || group_concat(name, "\', \'") || "\')" from '
-                  f'pragma_table_info("{self.name}");')
+        db_cursor._con.execute(f'SELECT "(\'" || group_concat(name, "\', \'") || "\')" from '
+                               f'pragma_table_info("{self.name}");')
 
-        column_names = eval(db_cursor.fetchall()[0][0])
+        column_names = eval(db_cursor._con.fetchall()[0][0])
         for field in self.fields:
             if field.name not in column_names:
                 return False
@@ -36,10 +36,10 @@ class SQLTable:
 
     def update_fields(self, db_cursor):
 
-        db_cursor(f'SELECT "(\'" || group_concat(name, "\', \'") || "\')" from '
+        db_cursor._con.execute(f'SELECT "(\'" || group_concat(name, "\', \'") || "\')" from '
                   f'pragma_table_info("{self.name}");')
 
-        column_names = eval(db_cursor.fetchall()[0][0])
+        column_names = eval(db_cursor._con.fetchall()[0][0])
         for field in self.fields:
             if field.name not in column_names:
                 field.add_to_table(db_cursor, self.name)
@@ -47,9 +47,18 @@ class SQLTable:
     def add_to_db(self, db_cursor):
         fields = [str(field) for field in self.fields]
 
+        for i, field in enumerate(fields[:]):
+            if 'FOREIGN KEY' in field:
+                field, foreign_key = field.rsplit(',', 1)
+                fields[i] = field
+                fields.append(foreign_key)
+
         fields = ', '.join(fields)
 
-        db_cursor.execute(f'CREATE TABLE {self.name} ({fields}); COMMIT;')
+        print(f'CREATE TABLE {self.name} ({fields});')
+
+        db_cursor._con.execute(f'CREATE TABLE {self.name} ({fields});')
+        db_cursor._con.commit()
 
 
 class SQLFieldReference:
@@ -113,23 +122,22 @@ class SQLField:
         return ', '.join(res)
 
     def is_field_in_table(self, db_cursor, table_name: str):
-        db_cursor(f'SELECT "(\'" || group_concat(name, "\', \'") || "\')" from '
+        db_cursor._con.execute(f'SELECT "(\'" || group_concat(name, "\', \'") || "\')" from '
                   f'pragma_table_info("{table_name}");')
 
-        column_names = eval(db_cursor.fetchall()[0][0])
+        column_names = eval(db_cursor._con.fetchall()[0][0])
 
         return self.name in column_names
 
     def add_to_table(self, db_cursor, table_name: str):
-        db_cursor.execute(f'ALTER TABLE {table_name} ADD {str(self)}; COMMIT;')
+        db_cursor._con.execute(f'ALTER TABLE {table_name} ADD {str(self)}; COMMIT;')
 
 
 class PrimaryKeyField(SQLField):
 
     def __init__(self, name: str):
 
-        super().__init__(name, FIELD_TYPE_INT, no_null=True,
-                         is_unique=True, is_primary=True)
+        super().__init__(name, FIELD_TYPE_INT, is_primary=True)
 
 
 class TextField(SQLField):

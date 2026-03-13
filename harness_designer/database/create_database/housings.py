@@ -111,7 +111,7 @@ def add_records(con, splash):
     con.commit()
 
     # os.path.join(DATA_PATH, 'housings.json'),
-    json_paths = [os.path.join(DATA_PATH, 'aptiv_housings.json')]
+    json_paths = []  # os.path.join(DATA_PATH, 'aptiv_housings.json')]
 
     for json_path in json_paths:
         if os.path.exists(json_path):

@@ -7,6 +7,17 @@ from .. import db_connectors as _con
 
 pjt_id_field = _con.PrimaryKeyField('id')
 
+
+def add_pjt_wire_layout(con, project_id, point2d_id=None, point3d_id=None, notes='',
+                        is_visible2d=0, is_visible3d=0):
+
+    con.execute('INSERT INTO pjt_wire_layouts (project_id, point2d_id, point3d_id, '
+                'notes, is_visible2d, is_visible3d) VALUES (?, ?, ?, ?, ?, ?);',
+                (project_id, point2d_id, point3d_id, notes, is_visible2d, is_visible3d))
+
+    con.commit()
+
+
 pjt_table = _con.SQLTable(
     'pjt_wire_layouts',
     pjt_id_field,

@@ -51,7 +51,7 @@ def get_adhesive_id(con, code):
 id_field = _con.PrimaryKeyField('id')
 
 table = _con.SQLTable(
-    'ashesives',
+    'adhesives',
     id_field,
     _con.TextField('code', is_unique=True, no_null=True),
     _con.TextField('description', default='""', no_null=True),

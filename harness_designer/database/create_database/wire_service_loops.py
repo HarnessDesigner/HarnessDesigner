@@ -9,8 +9,22 @@ from .. import db_connectors as _con
 
 pjt_id_field = _con.PrimaryKeyField('id')
 
+
+def add_pjt_wire_service_loop(con, project_id, part_id, start_point3d_id=None,
+                              stop_point3d_id=None, circuit_id=None, notes='',
+                              quat3d=[1.0, 0.0, 0.0, 0.0], angle3d=[0.0, 0.0, 0.0],
+                              is_visible3d=1):
+
+    con.execute('INSERT INTO pjt_wire_service_loop (project_id, part_id, '
+                'start_point3d_id, stop_point3d_id, circuit_id, notes, quat3d, '
+                'angle3d, is_visible3d) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                (project_id, part_id, start_point3d_id, stop_point3d_id, circuit_id,
+                 notes, quat3d, angle3d, is_visible3d))
+    con.commit()
+
+
 pjt_table = _con.SQLTable(
-    'pjt_boots',
+    'pjt_wire_service_loop',
     pjt_id_field,
     _con.IntField('project_id', no_null=True,
                   references=_con.SQLFieldReference(_projects.pjt_table,
@@ -43,6 +57,8 @@ pjt_table = _con.SQLTable(
     _con.TextField('angle3d', default='"[0.0, 0.0, 0.0]"', no_null=True),
     _con.IntField('is_visible3d', default='1', no_null=True)
 )
+
+
 
 # def pjt_wire_service_loops(con, cur):
 #     cur.execute('CREATE TABLE pjt_wire_service_loops('

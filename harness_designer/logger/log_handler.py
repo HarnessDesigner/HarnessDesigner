@@ -133,6 +133,9 @@ class LogHandler:
         self._index = 1
 
     def write(self, value):
+        if not value.strip():
+            return
+
         self.log_data += value
         self._logfile.write(value)
         self._callback(value)

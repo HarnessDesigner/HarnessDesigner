@@ -65,8 +65,6 @@ class LogData:
 class LogViewerPanel(wx.Panel):
 
     def __init__(self, parent, logger: "_logger.Log"):
-
-        print('binding log handler')
         logger.log_handler.bind(self.new_data)
         self.logger = logger
 
@@ -75,18 +73,26 @@ class LogViewerPanel(wx.Panel):
         self.treectrl = wx.TreeCtrl(self, wx.ID_ANY, style=wx.TR_HAS_BUTTONS | wx.TR_LINES_AT_ROOT | wx.TR_SINGLE)
         self.root = self.treectrl.AddRoot('Logs')
         self._curr_log = None
-        self._visible = None
+        self._visible: LogData = None
 
-        self.textctrl = wx.TextCtrl(self, wx.ID_ANY, value='\n' * 200, style=wx.TE_MULTILINE | wx.TE_READONLY)
+        self.textctrl = wx.TextCtrl(self, wx.ID_ANY, value='\n' * 200, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.HSCROLL)
 
         self.treectrl.Bind(wx.EVT_TREE_ITEM_ACTIVATED, self.on_tree_activated)
         self.treectrl.Bind(wx.EVT_TREE_ITEM_EXPANDING, self.on_tree_expanding)
         self.treectrl.Bind(wx.EVT_TREE_ITEM_COLLAPSED, self.on_tree_collapsed)
 
+        hsizer = wx.BoxSizer(wx.HORIZONTAL)
+        vsizer = wx.BoxSizer(wx.VERTICAL)
+        vsizer.Add(hsizer, 0, wx.EXPAND)
+        hsizer.Add(self.treectrl, 1, wx.EXPAND)
+        hsizer.Add(self.textctrl, 3, wx.EXPAND)
+        self.SetSizer(vsizer)
+
         def _do():
+            wx.BeginBusyCursor()
             self.load()
             self.textctrl.ChangeValue(self.logger.log_handler.log_data)
-
+            wx.EndBusyCursor()
         wx.CallAfter(_do)
 
     def new_data(self, data=None):
@@ -97,22 +103,27 @@ class LogViewerPanel(wx.Panel):
                 log_data = self.logger.log_handler.log_data
                 log_data = log_data.rsplit(data, 1)[0]
 
-                if self._visible == log_data:
-                    self._visible += data
-                    self.textctrl.AppendText(data)
+                if self._visible.data == log_data:
+                    self._visible.append(data)
+                    self.textctrl.AppendText(data.data)
 
     def on_tree_activated(self, evt: wx.TreeEvent):
+        wx.BeginBusyCursor()
+
         treeitem = evt.GetItem()
 
         if treeitem.IsOk():
             if not self.treectrl.ItemHasChildren(treeitem):
                 data = self.treectrl.GetItemData(treeitem)
-                self.textctrl.ChangeValue(data)
+
+                self.textctrl.ChangeValue(data.data)
                 self._visible = data
+        wx.EndBusyCursor()
 
         evt.Skip()
 
     def on_tree_expanding(self, evt: wx.TreeEvent):
+        wx.BeginBusyCursor()
         treeitem = evt.GetItem()
 
         if treeitem.IsOk():
@@ -140,7 +151,9 @@ class LogViewerPanel(wx.Panel):
                     self.treectrl.SetItemData(child, date_data)
 
                 child = self.treectrl.AppendItem(treeitem, 'Whole File')
-                self.treectrl.SetItemData(child, log_data)
+                ld = LogData()
+                ld.append('\n'.join(log_data))
+                self.treectrl.SetItemData(child, ld)
 
             elif isinstance(data, str):
                 if data.endswith('.zip'):
@@ -203,7 +216,7 @@ class LogViewerPanel(wx.Panel):
 
                 child = self.treectrl.AppendItem(treeitem, 'Whole File')
                 self.treectrl.SetItemData(child, log_data)
-
+        wx.EndBusyCursor()
         evt.Skip()
 
     def _iter_delete(self, parent):
@@ -238,8 +251,6 @@ class LogViewerPanel(wx.Panel):
         self._curr_log = None
 
         for log_name, timestamp, log_path in logfiles:
-
-
             child = self.treectrl.AppendItem(self.root, f'{log_name} ({timestamp})')
             self.treectrl.SetItemHasChildren(child, True)
             if self._curr_log is None:

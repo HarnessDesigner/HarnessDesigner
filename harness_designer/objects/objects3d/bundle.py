@@ -194,6 +194,9 @@ class Bundle(_base3d.Base3D):
         self._wires.clear()
         super().delete()
 
+    def get_context_menu(self):
+        return BundleMenu(self.mainframe.editor3d.editor, self)
+
 
 class BundleMenu(wx.Menu):
 

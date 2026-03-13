@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING
 
 from . import base2d as _base2d
 
+
 if TYPE_CHECKING:
     from ...database.project_db import pjt_cpa_lock as _pjt_cpa_lock
     from .. import cpa_lock as _cpa_lock

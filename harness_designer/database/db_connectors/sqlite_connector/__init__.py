@@ -48,7 +48,7 @@ class SQLConnector(ConnectorBase):
         self.database_name = 'harness_designer'
 
     def get_tables(self) -> list[str]:
-        self.execute(f'SELECT name FROM {self.database_name}.sqlite_master WHERE type="table";')
+        self.execute(f'SELECT name FROM sqlite_master WHERE type="table";')
         rows = self.fetchall()
 
         return [row[0] for row in rows]

@@ -176,7 +176,6 @@ table = _con.SQLTable(
 
 )
 
-
 # def file_types(con, cur):
 #     cur.execute('CREATE TABLE file_types('
 #                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '

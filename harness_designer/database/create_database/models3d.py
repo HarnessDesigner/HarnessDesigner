@@ -34,7 +34,7 @@ def download_model(con, url):
                     zf.close()
                     buf.close()
                     return None, None
-                db_id = _file_types.get_file_type(con, cur, os.path.splitext(file_name)[-1][1:])
+                db_id = _file_types.get_file_type(con, os.path.splitext(file_name)[-1][1:])
                 data = zf.read(file_name)
 
                 return db_id, data

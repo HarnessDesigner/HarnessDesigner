@@ -209,6 +209,6 @@ def main():
         libsm-dev libtiff-dev libxtst-dev libunwind-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev"
         '''
 
-
+r'C:\Users\drsch\PycharmProjects\harness_designer\builder\scripts\dist\harness_designer'
 if __name__ == '__main__':
     main()

@@ -62,7 +62,7 @@ table = _con.SQLTable(
                   references=_con.SQLFieldReference(_ip_solids.table, _ip_solids.id_field)),
     _con.IntField('fluid_id', default='7', no_null=True,
                   references=_con.SQLFieldReference(_ip_fluids.table, _ip_fluids.id_field)),
-    _con.IntField('solid_id', default='7', no_null=True,
+    _con.IntField('supp_id', default='7', no_null=True,
                   references=_con.SQLFieldReference(_ip_supps.table, _ip_supps.id_field))
 )
 

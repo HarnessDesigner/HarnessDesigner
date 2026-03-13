@@ -1,6 +1,10 @@
 from typing import TYPE_CHECKING
 
+import wx
+
 from . import base2d as _base2d
+from ...ui.widgets import context_menus as _context_menus
+
 
 if TYPE_CHECKING:
     from ...database.project_db import pjt_cavity as _pjt_cavity

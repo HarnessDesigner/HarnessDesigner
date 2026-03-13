@@ -19,9 +19,13 @@ from .. import db_connectors as _con
 DATA_PATH = os.path.join(os.path.dirname(__file__), 'data')
 
 
-def add_tpa_lock(con, part_number, description, mfg, series, family, length,
-                 width, height, color, min_temp, max_temp, pins='', terminal_size=0.0,
-                 image=None, datasheet=None, cad=None, model3d=None, weight=0.0, lock_type=''):
+def add_tpa_lock(con, part_number, description, mfg=None, family=None, series=None,
+                 color=None, image=None, datasheet=None, cad=None, min_temp=None,
+                 max_temp=None, model3d=None, lock_type='', length=0.0, width=0.0,
+                 height=0.0, weight=0.0, pins=0, terminal_size=0.0, compat_housings=None):
+
+    if compat_housings is None:
+        compat_housings = []
 
     mfg_id = _manufacturers.get_mfg_id(con, mfg)
     series_id = _series.get_series_id(con, series, mfg_id)
@@ -50,18 +54,38 @@ def add_tpa_lock(con, part_number, description, mfg, series, family, length,
 
     print(f'DATABASE: adding tpa lock {part_number}, {description}')
 
-    con.execute('INSERT INTO tpa_locks (part_number, description, mfg_id, series_id, '
-                'family_id, color_id, terminal_size, min_temp_id, max_temp_id, length, '
-                'width, height, pins, image_id, datasheet_id, cad_id, model3d_id, weight, lock_type) '
-                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (part_number, description, mfg_id, series_id, family_id, color_id,
-                 terminal_size, min_temp_id, max_temp_id, length, width, height,
-                 pins, image_id, datasheet_id, cad_id, model3d_id, weight, lock_type))
+    con.execute('INSERT INTO tpa_locks (part_number, description, mfg_id, family_id, '
+                'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
+                'max_temp_id, model3d_id, lock_type, length, width, height, weight, '
+                'pins, terminal_size, compat_housings) '
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                (part_number, description, mfg_id, family_id, series_id, color_id,
+                 image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, model3d_id,
+                 lock_type, length, width, height, weight, pins, terminal_size,
+                 compat_housings))
 
     con.commit()
     db_id = con.lastrowid
 
     print(f'DATABASE: tpa lock added "{part_number}" = {db_id}')
+
+
+def add_pjt_tpa_lock(con, project_id, part_id, point3d_id=None, housing_id=None,
+                     name='', notes='', quat3d=None, angle3d=None, is_visible3d=0):
+
+    if quat3d is None:
+        quat3d = [1.0, 0.0, 0.0, 0.0]
+
+    if angle3d is None:
+        angle3d = [1.0, 0.0, 0.0, 0.0]
+
+    con.execute('INSERT INTO pjt_tpa_locks (project_id, part_id, point3d_id, housing_id, '
+                'name, notes, quat3d, angle3d, is_visible3d) '
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                (project_id, part_id, point3d_id, housing_id, name,
+                 notes, str(quat3d), str(angle3d), is_visible3d))
+
+    con.commit()
 
 
 def add_tpa_locks(con, data: tuple[dict] | list[dict]):
@@ -79,7 +103,7 @@ def add_records(con, splash):
     con.execute('INSERT INTO tpa_locks (id, part_number, description) VALUES(0, "None", "No TPA Lock");')
 
     # os.path.join(DATA_PATH, 'tpa_locks.json'),
-    json_paths = [os.path.join(DATA_PATH, 'aptiv_tpa_locks.json')]
+    json_paths = []  # os.path.join(DATA_PATH, 'aptiv_tpa_locks.json')]
 
     for json_path in json_paths:
         if os.path.exists(json_path):
@@ -102,6 +126,7 @@ def add_records(con, splash):
 
 
 id_field = _con.PrimaryKeyField('id')
+
 
 table = _con.SQLTable(
     'tpa_locks',
@@ -148,14 +173,16 @@ table = _con.SQLTable(
                   references=_con.SQLFieldReference(_models3d.table,
                                                     _models3d.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
+    _con.TextField('lock_type', default='""', no_null=True),
     _con.FloatField('length', default='"0.0"', no_null=True),
     _con.FloatField('width', default='"0.0"', no_null=True),
     _con.FloatField('height', default='"0.0"', no_null=True),
+    _con.FloatField('weight', default='"0.0"', no_null=True),
     _con.IntField('pins', default='0', no_null=True),
     _con.FloatField('terminal_size', default='"0.0"', no_null=True),
-    _con.FloatField('weight', default='"0.0"', no_null=True),
-    _con.TextField('lock_type', default='""', no_null=True)
+    _con.TextField('compat_housings', default='"[]"', no_null=True)
 )
+
 
 pjt_id_field = _con.PrimaryKeyField('id')
 

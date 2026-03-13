@@ -30,7 +30,7 @@ class TerminalsModel(_model_base.ModelBase):
         8: 'sealing',
         9: 'cavity_lock_id',
         10: 'blade_size',
-        11: 'resistance_mohms',
+        11: 'resistance',
         12: 'mating_cycles',
         13: 'max_vibration_g',
         14: 'max_current_ma',

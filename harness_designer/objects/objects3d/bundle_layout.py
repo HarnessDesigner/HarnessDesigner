@@ -57,6 +57,9 @@ class BundleLayout(_base3d.Base3D):
                 bundle.obj3d.set_diameter(self, value)
                 break
 
+    def get_context_menu(self):
+        return BundleLayoutMenu(self.mainframe.editor3d.editor, self)
+
 
 class BundleLayoutMenu(wx.Menu):
 

@@ -1,5 +1,6 @@
 
 from .bases import TableBase
+from ... import utils as _utils
 
 
 class SettingsTable(TableBase):
@@ -14,7 +15,7 @@ class SettingsTable(TableBase):
         from ..create_database import settings
 
         settings.table.add_to_db(self)
-        settings.add_records(self._con, splash)
+        settings.add_records(self._con, splash, _utils.get_appdata())
 
     def _update_table_in_db(self):
         from ..create_database import settings

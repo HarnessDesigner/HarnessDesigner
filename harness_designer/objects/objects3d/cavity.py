@@ -2,6 +2,8 @@
 from typing import TYPE_CHECKING
 
 from . import base3d as _base3d
+from ...ui.widgets import context_menus as _context_menus
+
 
 if TYPE_CHECKING:
     from ...database.project_db import pjt_cavity as _pjt_cavity
@@ -10,6 +12,9 @@ if TYPE_CHECKING:
 
 class Cavity(_base3d.Base3D):
     _parent: "_cavity.Cavity" = None
+
+    def get_context_menu(self):
+        return HousingMenu(self.mainframe.editor3d.editor, self)
 
     def __init__(self, parent: "_cavity.Cavity",
                  db_obj: "_pjt_cavity.PJTCavity"):

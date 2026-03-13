@@ -19,11 +19,19 @@ from . import cavities as _cavities
 from .. import db_connectors as _con
 
 
-def add_terminal(con, part_number, description, mfg, series, cavity_lock,
-                 wire_dia_min, wire_dia_max, min_wire_cross, max_wire_cross,
-                 gender, blade_size, sealing, plating, image=None, cad=None,
-                 datasheet=None, model3d=None, length=0.0, width=0.0, height=0.0,
-                 weight=0.0, family=''):
+def add_terminal(con, part_number, description, mfg=None, family=None, series=None,
+                 plating=None, image=None, datasheet=None, cad=None, gender=None,
+                 cavity_lock=None, model3d=None, sealing=0, blade_size=0.0,
+                 resistance=0.0, mating_cycles=0, max_vibration_g=0, max_current_ma=0,
+                 wire_size_min_awg=-1, wire_size_max_awg=-1, wire_dia_min=0.0,
+                 wire_dia_max=0.0, min_wire_cross=0.0, max_wire_cross=0.0, length=0.0,
+                 width=0.0, height=0.0, weight=0.0, compat_housings=None, compat_seals=None):
+
+    if compat_housings is None:
+        compat_housings = []
+
+    if compat_seals is None:
+        compat_seals = []
 
     mfg_id = _manufacturers.get_mfg_id(con, mfg)
     series_id = _series.get_series_id(con, series, mfg_id)
@@ -69,21 +77,58 @@ def add_terminal(con, part_number, description, mfg, series, cavity_lock,
 
     print(f'DATABASE: adding terminal {part_number}, {description}')
 
-    con.execute('INSERT INTO terminals (part_number, description, mfg_id, series_id, '
-                'plating_id, gender_id, sealing, cavity_lock_id, blade_size, wire_dia_min, '
-                'wire_dia_max, min_wire_cross, max_wire_cross, image_id, datasheet_id, '
-                'cad_id, model3d_id, family_id, length, width, height, weight) '
-                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (part_number, description, mfg_id, series_id, plating_id, gender_id,
-                 sealing, cavity_lock_id, blade_size, wire_dia_min, wire_dia_max,
-                 min_wire_cross, max_wire_cross, image_id, datasheet_id, cad_id,
-                 model3d_id, family_id, length, width, height, weight))
+    con.execute('INSERT INTO terminals (part_number, description, mfg_id, family_id, '
+                'series_id, plating_id, image_id, datasheet_id, cad_id, gender_id, '
+                'cavity_lock_id, model3d_id, sealing, blade_size, resistance, '
+                'mating_cycles, max_vibration_g, max_current_ma, wire_size_min_awg, '
+                'wire_size_max_awg, wire_dia_min, wire_dia_max, min_wire_cross, '
+                'max_wire_cross, length, width, height, weight, compat_housings, '
+                'compat_seals) '
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '
+                '?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                (part_number, description, mfg_id, family_id, series_id, plating_id,
+                 image_id, datasheet_id, cad_id, gender_id, cavity_lock_id, model3d_id,
+                 sealing, blade_size, resistance, mating_cycles, max_vibration_g,
+                 max_current_ma, wire_size_min_awg, wire_size_max_awg, wire_dia_min,
+                 wire_dia_max, min_wire_cross, max_wire_cross, length, width, height,
+                 weight, str(compat_housings), str(compat_seals)))
 
     con.commit()
     db_id = con.lastrowid
 
     print(f'DATABASE: terminal added "{part_number}" = {db_id}')
     print()
+
+
+def add_pjt_terminal(con, project_id, part_id, cavity_id=None, circuit_id=None,
+                     wire_point3d_id=None, point3d_id=None, point2d_id=None,
+                     wire_point2d_id=None, name='', notes='', quat3d=None,
+                     angle3d=None, quat2d=None, angle2d=None, is_start=0, volts=0.0,
+                     load=0.0, voltage_drop=0.0, is_visible3d=0, is_visible2d=0):
+
+    if quat3d is None:
+        quat3d = [1.0, 0.0, 0.0, 0.0]
+
+    if angle3d is None:
+        angle3d = [0.0, 0.0, 0.0]
+
+    if quat2d is None:
+        quat2d = [1.0, 0.0, 0.0, 0.0]
+
+    if angle2d is None:
+        angle2d = [0.0, 0.0, 0.0]
+
+    con.execute('INSERT INTO pjt_terminals (project_id, part_id, cavity_id, circuit_id, '
+                'wire_point3d_id, point3d_id, point2d_id, wire_point2d_id, name, notes, '
+                'quat3d, angle3d, quat2d, angle2d, is_start, volts, load, voltage_drop, '
+                'is_visible3d, is_visible2d) '
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                (project_id, part_id, cavity_id, circuit_id, wire_point3d_id, point3d_id,
+                 point2d_id, wire_point2d_id, name, notes, str(quat3d), str(angle3d),
+                 str(quat2d), str(angle2d), is_start, volts, load, voltage_drop,
+                 is_visible3d, is_visible2d))
+
+    con.commit()
 
 
 DATA_PATH = os.path.join(os.path.dirname(__file__), 'data')
@@ -106,7 +151,7 @@ def add_records(con, splash):
 
     # [os.path.join(DATA_PATH, 'terminals.json')
 
-    json_paths = [os.path.join(DATA_PATH, 'aptiv_terminals.json')]
+    json_paths = []  # os.path.join(DATA_PATH, 'aptiv_terminals.json')]
 
     for json_path in json_paths:
         if os.path.exists(json_path):
@@ -191,6 +236,8 @@ table = _con.SQLTable(
     _con.FloatField('width', default='"0.0"', no_null=True),
     _con.FloatField('height', default='"0.0"', no_null=True),
     _con.FloatField('weight', default='"0.0"', no_null=True),
+    _con.TextField('compat_housings', default='"[]"', no_null=True),
+    _con.TextField('compat_seals', default='"[]"', no_null=True)
 )
 
 

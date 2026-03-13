@@ -400,3 +400,7 @@ class Base3D:
     @property
     def is_opaque(self):
         return self._is_opaque
+
+    def get_context_menu(self):
+        raise NotImplementedError
+

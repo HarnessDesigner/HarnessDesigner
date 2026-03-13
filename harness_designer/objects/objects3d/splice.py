@@ -5,7 +5,6 @@ import math
 import wx
 import build123d
 
-# from ...widgets.context_menus import RotateMenu, MirrorMenu
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ...geometry import line as _line
@@ -116,6 +115,9 @@ class Splice(_base3d.Base3D):
         position = self._p1
 
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
+
+    def get_context_menu(self):
+        return SpliceMenu(self.mainframe.editor3d.editor, self)
 
 
 class SpliceMenu(wx.Menu):

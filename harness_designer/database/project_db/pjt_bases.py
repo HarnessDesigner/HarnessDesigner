@@ -4,6 +4,7 @@ import weakref
 
 if TYPE_CHECKING:
     from ... import ui as _ui
+    from ...ui import splash as _splash
 
 
 class _PJTEntrySingleton(type):
@@ -144,10 +145,23 @@ class PJTEntryBase(metaclass=_PJTEntrySingleton):
 class PJTTableBase:
     __table_name__: str = None
 
-    def __init__(self, db: "PJTTables", project_id: int | None = None):
+    def __init__(self, db: "PJTTables", project_id: int, table_names: list['str'], splash: "_splash.Splash"):
         self.db = db
         self._con = db.connector
 
+        if self.__table_name__ not in table_names:
+            splash.SetText(f'Creating {self.__table_name__.replace("_", " ")} database table...')
+            self._add_table_to_db()
+
+        if self._table_needs_update():
+            splash.SetText(f'Adding {self.__table_name__.replace("_", " ")} table fields...')
+            self._update_table_in_db()
+
+        splash.SetText(f'Loading {self.__table_name__.replace("_", " ")} database table...')
+
+        self.project_id = project_id
+
+    def set_project(self, project_id: int | None = None):
         self.project_id = project_id
 
     def _table_needs_update(self) -> bool:
@@ -306,16 +320,8 @@ class PJTTables:
         self.global_db = mainframe.global_db
         self.connector = mainframe.db_connector
 
-        from ..setup_db import create_tables
-
         tables = self.connector.get_tables()
-
-        for table_name, func in create_tables.project_table_mapping():
-            if table_name not in tables:
-                splash.SetText(f'Creating database table {table_name}...')
-                func(self.connector, self.connector)
-
-        self._projects_table = ProjectsTable(self)
+        self._projects_table = ProjectsTable(self, None, tables, splash)
 
         self._pjt_bundles_table = None
         self._pjt_bundle_layouts_table = None
@@ -349,33 +355,40 @@ class PJTTables:
 
     def load(self, project_id):
         self.mainframe.unload()
+        tables = self.connector.get_tables()
+
+        class Splash:
+
+            @staticmethod
+            def SetText(msg):
+                self.mainframe.logger.print_info(msg)
 
         self._current_count = 0
 
-        self._pjt_bundles_table = PJTBundlesTable(self, project_id)
-        self._pjt_bundle_layouts_table = PJTBundleLayoutsTable(self, project_id)
-        self._pjt_circuits_table = PJTCircuitsTable(self, project_id)
-        self._pjt_points2d_table = PJTPoints2DTable(self, project_id)
-        self._pjt_points3d_table = PJTPoints3DTable(self, project_id)
-        self._pjt_housings_table = PJTHousingsTable(self, project_id)
-        self._pjt_splices_table = PJTSplicesTable(self, project_id)
-        self._pjt_transitions_table = PJTTransitionsTable(self, project_id)
-        self._pjt_wires_table = PJTWiresTable(self, project_id)
-        self._pjt_wire_layouts_table = PJTWireLayoutsTable(self, project_id)
-        self._pjt_cavities_table = PJTCavitiesTable(self, project_id)
-        self._pjt_terminals_table = PJTTerminalsTable(self, project_id)
-        self._pjt_seals_table = PJTSealsTable(self, project_id)
-        self._pjt_covers_table = PJTCoversTable(self, project_id)
-        self._pjt_boots_table = PJTBootsTable(self, project_id)
-        self._pjt_cpa_locks_table = PJTCPALocksTable(self, project_id)
-        self._pjt_tpa_locks_table = PJTTPALocksTable(self, project_id)
-        self._pjt_wire_markers_table = PJTWireMarkersTable(self, project_id)
-        self._pjt_wire_service_loops_table = PJTWireServiceLoopsTable(self, project_id)
-        self._pjt_notes_table = PJTNotesTable(self, project_id)
-        self._pjt_concentrics_table = PJTConcentricsTable(self, project_id)
-        self._pjt_concentric_layers_table = PJTConcentricLayersTable(self, project_id)
-        self._pjt_concentric_wires_table = PJTConcentricWiresTable(self, project_id)
-        self._pjt_transition_branches_table = PJTTransitionBranchesTable(self, project_id)
+        self._pjt_bundles_table = PJTBundlesTable(self, project_id, tables, Splash)
+        self._pjt_bundle_layouts_table = PJTBundleLayoutsTable(self, project_id, tables, Splash)
+        self._pjt_circuits_table = PJTCircuitsTable(self, project_id, tables, Splash)
+        self._pjt_points2d_table = PJTPoints2DTable(self, project_id, tables, Splash)
+        self._pjt_points3d_table = PJTPoints3DTable(self, project_id, tables, Splash)
+        self._pjt_housings_table = PJTHousingsTable(self, project_id, tables, Splash)
+        self._pjt_splices_table = PJTSplicesTable(self, project_id, tables, Splash)
+        self._pjt_transitions_table = PJTTransitionsTable(self, project_id, tables, Splash)
+        self._pjt_wires_table = PJTWiresTable(self, project_id, tables, Splash)
+        self._pjt_wire_layouts_table = PJTWireLayoutsTable(self, project_id, tables, Splash)
+        self._pjt_cavities_table = PJTCavitiesTable(self, project_id, tables, Splash)
+        self._pjt_terminals_table = PJTTerminalsTable(self, project_id, tables, Splash)
+        self._pjt_seals_table = PJTSealsTable(self, project_id, tables, Splash)
+        self._pjt_covers_table = PJTCoversTable(self, project_id, tables, Splash)
+        self._pjt_boots_table = PJTBootsTable(self, project_id, tables, Splash)
+        self._pjt_cpa_locks_table = PJTCPALocksTable(self, project_id, tables, Splash)
+        self._pjt_tpa_locks_table = PJTTPALocksTable(self, project_id, tables, Splash)
+        self._pjt_wire_markers_table = PJTWireMarkersTable(self, project_id, tables, Splash)
+        self._pjt_wire_service_loops_table = PJTWireServiceLoopsTable(self, project_id, tables, Splash)
+        self._pjt_notes_table = PJTNotesTable(self, project_id, tables, Splash)
+        self._pjt_concentrics_table = PJTConcentricsTable(self, project_id, tables, Splash)
+        self._pjt_concentric_layers_table = PJTConcentricLayersTable(self, project_id, tables, Splash)
+        self._pjt_concentric_wires_table = PJTConcentricWiresTable(self, project_id, tables, Splash)
+        self._pjt_transition_branches_table = PJTTransitionBranchesTable(self, project_id, tables, Splash)
 
     @property
     def pjt_bundles_table(self) -> PJTBundlesTable:

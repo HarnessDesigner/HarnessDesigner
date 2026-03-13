@@ -58,9 +58,10 @@ def add_splices(con, data: tuple[dict] | list[dict]):
         add_splice(con, **line)
 
 
-def add_splice(con, part_number, description, mfg, family, series, material,
-               plating, color, image, datasheet, cad, type, min_dia, max_dia,  # NOQA
-               resistance, length, weight, model3d):
+def add_splice(con, part_number, description, mfg=None, family=None, series=None,
+               material=None, plating=None, color=None, image=None, datasheet=None,
+               cad=None, model3d=None, type=None, min_dia=0.0, max_dia=0.0,  # NOQA
+               resistance=0.0, length=0.0, weight=0.0):
 
     mfg_id = _manufacturers.get_mfg_id(con, mfg)
     family_id = _families.get_family_id(con, family, mfg_id)
@@ -74,13 +75,27 @@ def add_splice(con, part_number, description, mfg, family, series, material,
     type_id = _splice_types.get_splice_type_id(con, type)
     model3d_id = _models3d.add_model3d(con, model3d)
 
-    con.execute('INSERT INTO bundle_covers (part_number, mfg_id, description, family_id, '
-                'series_id, color_id, material_id, image_id, datasheet_id, cad_id, '
-                'plating_id, type_id, model3d_id, resistance, length, min_dia, max_dia, weight) '
+    con.execute('INSERT INTO splices (part_number, description, mfg_id, family_id, '
+                'series_id, material_id, plating_id, color_id, image_id, datasheet_id, '
+                'cad_id, model3d_id, type_id, min_dia, max_dia, resistance, length, weight) '
                 'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (part_number, mfg_id, description, family_id, series_id, color_id,
-                 material_id, image_id, datasheet_id, cad_id, plating_id, type_id,
-                 model3d_id, resistance, length, min_dia, max_dia, weight))
+                (part_number, description, mfg_id, family_id, series_id, material_id,
+                 plating_id, color_id, image_id, datasheet_id, cad_id, model3d_id,
+                 type_id, min_dia, max_dia, resistance, length, weight))
+    con.commit()
+
+
+def add_pjt_splice(con, project_id, part_id, start_point3d_id=None, stop_point3d_id=None,
+                   branch_point3d_id=None, point2d_id=None, circuit_id=None, name='',
+                   notes='', is_visible2d=0, is_visible3d=0):
+
+    con.execute('INSERT INTO pjt_splices (project_id, part_id, start_point3d_id, '
+                'stop_point3d_id, branch_point3d_id, point2d_id, circuit_id, name, '
+                'notes, is_visible2d, is_visible3d) '
+                'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                (project_id, part_id, start_point3d_id, stop_point3d_id, branch_point3d_id,
+                 point2d_id, circuit_id, name, notes, is_visible2d, is_visible3d))
+
     con.commit()
 
 
@@ -127,14 +142,13 @@ table = _con.SQLTable(
                   references=_con.SQLFieldReference(_resources.table,
                                                     _resources.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
-
-    _con.IntField('type_id', default='0', no_null=True,
-                  references=_con.SQLFieldReference(_splice_types.table,
-                                                    _splice_types.id_field,
-                                                    on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('model3d_id', default='NULL',
                   references=_con.SQLFieldReference(_models3d.table,
                                                     _models3d.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('type_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_splice_types.table,
+                                                    _splice_types.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.FloatField('min_dia', default='"0.0"', no_null=True),
     _con.FloatField('max_dia', default='"0.0"', no_null=True),

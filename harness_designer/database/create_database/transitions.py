@@ -22,9 +22,13 @@ from .. import db_connectors as _con
 DATA_PATH = os.path.join(os.path.dirname(__file__), 'data')
 
 
-def add_transition(con, part_number, description, mfg, series, transition_series,
-                   family, color, material, shape, max_temp, min_temp, resistances,
-                   adhesive, branch_count, branches, cad=None, datasheet=None, image=None):
+def add_transition(con, part_number, description, mfg=None, family=None, series=None, 
+                   color=None, material=None, transition_series=None, image=None, 
+                   datasheet=None, cad=None, min_temp=None, max_temp=None, shape=None, 
+                   protection=None, branch_count=0, adhesive_ids=None, weight=0.0, branches=[]):
+    
+    if adhesive_ids is None:
+        adhesive_ids = []
 
     mfg_id = _manufacturers.get_mfg_id(con, mfg)
     series_id = _series.get_series_id(con, series, mfg_id)
@@ -35,24 +39,21 @@ def add_transition(con, part_number, description, mfg, series, transition_series
     shape_id = _shapes.get_shape_id(con, shape)
     min_temp_id = _temperatures.get_temperature_id(con, min_temp)
     max_temp_id = _temperatures.get_temperature_id(con, max_temp)
-    protections = '\n'.join(resistances)
-    protection_id = _protections.get_protection_id(con, protections)
+    protection_id = _protections.get_protection_id(con, protection)
     image_id = _resources.add_resource(con, _resources.IMAGE_TYPE_IMAGE, image)
     cad_id = _resources.add_resource(con, _resources.IMAGE_TYPE_CAD, cad)
     datasheet_id = _resources.add_resource(con, _resources.IMAGE_TYPE_DATASHEET, datasheet)
 
-    adhesive_ids = str(adhesive)
-
     try:
-        con.execute('INSERT INTO transitions (part_number, mfg_id, description, '
-                    'family_id, series_id, color_id, material_id, branch_count, '
-                    'shape_id, protection_id, adhesive_ids, min_temp_id, max_temp_id, '
-                    'transition_series_id, image_id, datasheet_id, cad_id) '
-                    'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                    (part_number, mfg_id, description, family_id, series_id, color_id,
-                     material_id, branch_count, shape_id, protection_id, adhesive_ids,
-                     min_temp_id, max_temp_id, transition_series_id, image_id,
-                     datasheet_id, cad_id))
+        con.execute('INSERT INTO transitions (part_number, description, mfg_id, '
+                    'family_id, series_id, color_id, material_id, transition_series_id, '
+                    'image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, shape_id, '
+                    'protection_id, branch_count, adhesive_ids, weight) '
+                    'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                    (part_number, description, mfg_id, family_id, series_id, color_id, 
+                     material_id, transition_series_id, image_id, datasheet_id, cad_id, 
+                     min_temp_id, max_temp_id, shape_id, protection_id, branch_count, 
+                     str(adhesive_ids), weight))
     except:  # NOQA
         print('ERROR:', part_number)
         raise
@@ -67,6 +68,22 @@ def add_transition(con, part_number, description, mfg, series, transition_series
         except:  # NOQA
             print('BRANCH ERROR:', part_number)
             continue
+
+
+def add_pjt_transition(con, project_id, part_id, point3d_id=None, name='', notes='',
+                       quat3d=None, angle3d=None, is_visible3d=1):
+    
+    if quat3d is None:
+        quat3d = [1.0, 0.0, 0.0, 0.0]
+
+    if angle3d is None:
+        angle3d = [0.0, 0.0, 0.0]
+
+    con.execute('INSERT INTO pjt_transitions (project_id, part_id, point3d_id, name, '
+                'notes, quat3d, angle3d, is_visible3d) VALUES (?, ?, ?, ?, ?, ?, ?, ?);',
+                (project_id, part_id, point3d_id, name, notes, quat3d, angle3d, is_visible3d))
+
+    con.commit()
 
 
 def add_transitions(con, data: tuple[dict] | list[dict]):
@@ -94,6 +111,13 @@ def add_records(con, splash):
         data_len = len(data)
         for i, item in enumerate(data):
             splash.SetText(f'Adding transitions to db [{i} | {data_len}]...')
+
+            item['protection'] = '\n'.join(item['protection'])
+
+            item['image'] = None
+            item['datasheet'] = None
+            item['cad'] = None
+
             add_transition(con, **item)
 
         con.commit()

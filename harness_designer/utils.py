@@ -2,6 +2,7 @@ import numpy as np
 import wx
 import sys
 import os
+import math
 
 from OCP.TopAbs import TopAbs_REVERSED
 from OCP.BRep import BRep_Tool
@@ -9,6 +10,15 @@ from OCP.BRepMesh import BRepMesh_IncrementalMesh
 from OCP.TopLoc import TopLoc_Location
 
 from .geometry import point as _point
+from .geometry.decimal import Decimal as _d
+
+
+def mm2_to_awg(mm2: float) -> int:
+    mm2 = _d(mm2)
+    d_mm = _d(2.0) * _d(math.sqrt(mm2 / _d(math.pi)))
+    d_in = d_mm / _d(25.4)
+    awg = _d(36) - _d(39) * _d(math.log(float(d_in / _d(0.005)), 92))
+    return int(round(awg))
 
 
 def get_appdata():

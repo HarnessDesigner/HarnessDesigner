@@ -3,8 +3,9 @@ import os
 from .. import db_connectors as _con
 
 
-def get_setting(con, cur, name):  # NOQA
-    res = cur.execute(f'SELECT value FROM settings WHERE name="{name}";').fetchall()
+def get_setting(con, name):  # NOQA
+    con.execute(f'SELECT value FROM settings WHERE name="{name}";')
+    res = con.fetchall()
     return res[0][0]
 
 
@@ -33,12 +34,20 @@ def add_records(con, splash, appdata):
     con.commit()
 
 
+def add_setting(con, key, value):
+
+    con.execute(f'INSERT INTO pjt_transition_branches (name, value) VALUES (?, ?);',
+                (key, value))
+
+    con.commit()
+
+
 id_field = _con.PrimaryKeyField('id')
 
 table = _con.SQLTable(
     'settings',
     id_field,
-    _con.TextField('key', is_unique=True, no_null=True),
+    _con.TextField('name', is_unique=True, no_null=True),
     _con.TextField('value', no_null=True)
 )
 

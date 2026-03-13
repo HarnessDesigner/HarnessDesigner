@@ -3,7 +3,7 @@ import os
 from .. import db_connectors as _con
 
 
-BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 
 def add_records(con, splash):

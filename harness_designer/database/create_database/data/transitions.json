@@ -24,10 +24,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "S1125"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -63,10 +63,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Mechanical Damage",
@@ -109,10 +109,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "86"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -148,10 +148,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "S1125"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Flexing"
         ],
@@ -188,10 +188,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Heat Shocks",
             "High & Low Temperatures",
@@ -231,10 +231,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "86"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -282,10 +282,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Mechanical Damage",
@@ -324,10 +324,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Flexing"
         ],
@@ -364,10 +364,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "S1125"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -403,10 +403,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -455,10 +455,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "S1125"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Flexing"
         ],
@@ -508,10 +508,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Strain Relief",
@@ -563,10 +563,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -615,10 +615,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "86"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Strain Relief",
@@ -669,10 +669,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "S1125"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -720,10 +720,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -771,10 +771,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "S1125"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -822,10 +822,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Mechanical Damage",
@@ -876,10 +876,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "86"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -927,10 +927,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "S1125"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Mechanical Damage",
@@ -981,10 +981,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Mechanical Damage",
@@ -1035,10 +1035,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "S1125"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Flexing"
         ],
@@ -1088,11 +1088,11 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "225",
             "86"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -1140,10 +1140,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Strain Relief",
@@ -1194,12 +1194,12 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "S1017",
             "S1048",
             "S1125"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -1247,10 +1247,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Fluids",
             "Abrasion",
             "Strain Relief",
@@ -1303,12 +1303,12 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "S1017",
             "S1048",
             "S1125"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Flexing"
         ],
@@ -1357,10 +1357,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -1411,12 +1411,12 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "S1017",
             "S1048",
             "S1125"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -1467,12 +1467,12 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "S1125",
             "S1048",
             "S1017"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids"
         ],
@@ -1524,12 +1524,12 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "S1017",
             "S1048",
             "S1125"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -1577,14 +1577,14 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "S1048",
             "S1006",
             "S1030",
             "S1017",
             "S1125"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -1632,10 +1632,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -1681,10 +1681,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "S1125"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -1730,10 +1730,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -1779,10 +1779,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "42"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -1828,10 +1828,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "86"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -1876,10 +1876,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "S1125"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Strain Relief",
@@ -1927,10 +1927,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Mechanical Damage"
@@ -1977,10 +1977,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "42"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Flexing"
         ],
@@ -2026,10 +2026,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "86"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Heat Shocks",
             "High & Low Temperatures",
@@ -2078,10 +2078,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Impact",
@@ -2130,10 +2130,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "86"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Strain Relief",
@@ -2181,10 +2181,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "86"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -2229,10 +2229,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Heat Shocks",
             "High & Low Temperatures",
@@ -2292,10 +2292,10 @@
             }
         ],
         "branch_count": 4,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -2351,10 +2351,10 @@
             }
         ],
         "branch_count": 4,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -2403,10 +2403,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "S1125"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -2455,10 +2455,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Fluids",
             "Strain Relief",
             "Impact",
@@ -2512,10 +2512,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "S1125"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Mechanical Damage",
@@ -2567,10 +2567,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids"
         ],
@@ -2620,10 +2620,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "86"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Strain Relief",
@@ -2675,10 +2675,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -2727,12 +2727,12 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "S1030",
             "S1006",
             "S1125"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -2780,10 +2780,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Mechanical Damage"
@@ -2834,10 +2834,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -2886,10 +2886,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "S1125"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Abrasion",
@@ -2941,10 +2941,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Mechanical Damage",
@@ -2996,10 +2996,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "86"
         ],
-        "resistances": [
+        "protection": [
             "Fluids",
             "Strain Relief",
             "Impact",
@@ -3053,10 +3053,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "S1125"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -3105,10 +3105,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Mechanical Damage",
@@ -3162,12 +3162,12 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "S1125",
             "S1048",
             "S1017"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Strain Relief"
@@ -3218,10 +3218,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "S1125"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Abrasion",
             "Fluids",
@@ -3274,12 +3274,12 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "S1017",
             "S1048",
             "S1125"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -3328,10 +3328,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -3380,10 +3380,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "42"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Mechanical Damage"
@@ -3434,10 +3434,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "86"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Strain Relief",
@@ -3489,12 +3489,12 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "S1017",
             "S1048",
             "S1125"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -3543,10 +3543,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -3595,10 +3595,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "42"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -3647,10 +3647,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "86"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -3699,10 +3699,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "S1125"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -3751,10 +3751,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Mechanical Damage",
@@ -3806,10 +3806,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "S1125"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Strain Relief",
@@ -3861,10 +3861,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -3913,10 +3913,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "86"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Strain Relief",
@@ -3968,10 +3968,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Fluids",
             "Abrasion",
             "Strain Relief",
@@ -4024,10 +4024,10 @@
             }
         ],
         "branch_count": 3,
-        "adhesive": [
+        "adhesive_ids": [
             "86"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -4083,10 +4083,10 @@
             }
         ],
         "branch_count": 4,
-        "adhesive": [
+        "adhesive_ids": [
             "S1125"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -4142,12 +4142,12 @@
             }
         ],
         "branch_count": 4,
-        "adhesive": [
+        "adhesive_ids": [
             "S1017",
             "S1048",
             "S1125"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Mechanical Damage",
@@ -4206,12 +4206,12 @@
             }
         ],
         "branch_count": 4,
-        "adhesive": [
+        "adhesive_ids": [
             "S1017",
             "S1048",
             "S1125"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Abrasion",
             "Fluids",
@@ -4271,10 +4271,10 @@
             }
         ],
         "branch_count": 4,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Strain Relief",
@@ -4333,10 +4333,10 @@
             }
         ],
         "branch_count": 4,
-        "adhesive": [
+        "adhesive_ids": [
             "42"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Strain Relief",
@@ -4395,10 +4395,10 @@
             }
         ],
         "branch_count": 4,
-        "adhesive": [
+        "adhesive_ids": [
             "86"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Heat Shocks",
             "High & Low Temperatures",
@@ -4458,10 +4458,10 @@
             }
         ],
         "branch_count": 4,
-        "adhesive": [
+        "adhesive_ids": [
             "S1125"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Strain Relief",
@@ -4523,10 +4523,10 @@
             }
         ],
         "branch_count": 4,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -4582,10 +4582,10 @@
             }
         ],
         "branch_count": 4,
-        "adhesive": [
+        "adhesive_ids": [
             "86"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -4641,10 +4641,10 @@
             }
         ],
         "branch_count": 4,
-        "adhesive": [
+        "adhesive_ids": [
             "S1125"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Mechanical Damage",
@@ -4703,10 +4703,10 @@
             }
         ],
         "branch_count": 4,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -4762,10 +4762,10 @@
             }
         ],
         "branch_count": 4,
-        "adhesive": [
+        "adhesive_ids": [
             "S1125"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Mechanical Damage",
@@ -4824,10 +4824,10 @@
             }
         ],
         "branch_count": 4,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Mechanical Damage",
@@ -4886,10 +4886,10 @@
             }
         ],
         "branch_count": 4,
-        "adhesive": [
+        "adhesive_ids": [
             "S1125"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -4945,10 +4945,10 @@
             }
         ],
         "branch_count": 4,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -5003,10 +5003,10 @@
             }
         ],
         "branch_count": 4,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -5062,10 +5062,10 @@
             }
         ],
         "branch_count": 4,
-        "adhesive": [
+        "adhesive_ids": [
             "S1125"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Strain Relief",
@@ -5124,10 +5124,10 @@
             }
         ],
         "branch_count": 4,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Mechanical Damage",
@@ -5193,10 +5193,10 @@
             }
         ],
         "branch_count": 5,
-        "adhesive": [
+        "adhesive_ids": [
             "S1125"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Mechanical Damage",
@@ -5262,10 +5262,10 @@
             }
         ],
         "branch_count": 5,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Strain Relief",
@@ -5331,10 +5331,10 @@
             }
         ],
         "branch_count": 5,
-        "adhesive": [
+        "adhesive_ids": [
             "86"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Strain Relief",
@@ -5400,10 +5400,10 @@
             }
         ],
         "branch_count": 5,
-        "adhesive": [
+        "adhesive_ids": [
             "S1125"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Mechanical Damage",
@@ -5469,10 +5469,10 @@
             }
         ],
         "branch_count": 5,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Strain Relief",
@@ -5538,10 +5538,10 @@
             }
         ],
         "branch_count": 5,
-        "adhesive": [
+        "adhesive_ids": [
             "86"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -5604,10 +5604,10 @@
             }
         ],
         "branch_count": 5,
-        "adhesive": [
+        "adhesive_ids": [
             "S1125"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Abrasion",
             "Fluids",
@@ -5674,10 +5674,10 @@
             }
         ],
         "branch_count": 5,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Heat Shocks",
             "High & Low Temperatures",
@@ -5744,10 +5744,10 @@
             }
         ],
         "branch_count": 5,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Strain Relief",
@@ -5813,10 +5813,10 @@
             }
         ],
         "branch_count": 5,
-        "adhesive": [
+        "adhesive_ids": [
             "86"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -5879,10 +5879,10 @@
             }
         ],
         "branch_count": 5,
-        "adhesive": [
+        "adhesive_ids": [
             "S1125"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -5942,10 +5942,10 @@
             }
         ],
         "branch_count": 5,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Mechanical Damage"
@@ -6007,10 +6007,10 @@
             }
         ],
         "branch_count": 5,
-        "adhesive": [
+        "adhesive_ids": [
             "86"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Mechanical Damage"
@@ -6075,10 +6075,10 @@
             }
         ],
         "branch_count": 5,
-        "adhesive": [
+        "adhesive_ids": [
             "225"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures"
         ],
         "min_temp": "-75\u00b0C",
@@ -6141,10 +6141,10 @@
             }
         ],
         "branch_count": 5,
-        "adhesive": [
+        "adhesive_ids": [
             "86"
         ],
-        "resistances": [
+        "protection": [
             "Long-Term Fluid Exposure at High Temperatures",
             "Fluids",
             "Strain Relief",

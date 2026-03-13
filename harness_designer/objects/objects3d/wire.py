@@ -146,6 +146,9 @@ class Wire(_base3d.Base3D):
         if self._stripe is not None:
             self._stripe.is_visible = value
 
+    def get_context_menu(self):
+        return WireMenu(self.mainframe.editor3d.editor, self)
+
 
 class WireStripe(_base3d.Base3D):
 

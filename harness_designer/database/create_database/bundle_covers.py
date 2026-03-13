@@ -35,7 +35,7 @@ def add_records(con, splash):
     con.execute('INSERT INTO bundle_covers (id, part_number, description) VALUES(0, "N/A", "Internal Use DO NOT DELETE");')
     con.commit()
 
-    os.path.join(DATA_PATH, 'bundle_covers.json')
+    # os.path.join(DATA_PATH, 'bundle_covers.json')
     json_paths = []
 
     for json_path in json_paths:
@@ -58,10 +58,14 @@ def add_records(con, splash):
         con.commit()
 
 
-def add_bundle_cover(con, part_number, description, mfg, family, series, color,
-                     material, image, datasheet, cad, shrink_temp, min_temp, max_temp,
-                     rigidity, shrink_ratio, wall, min_dia, max_dia, protection,
-                     adhesive, weight):
+def add_bundle_cover(con, part_number, description, mfg=None, family=None, series=None,
+                     color=None, material=None, image=None, datasheet=None, cad=None,
+                     shrink_temp=None, min_temp=None, max_temp=None, protection=None,
+                     rigidity='', shrink_ratio='', wall='', min_dia=0.0, max_dia=0.0,
+                     adhesive_ids=None, weight=0.0):
+
+    if adhesive_ids is None:
+        adhesive_ids = []
 
     mfg_id = _manufacturers.get_mfg_id(con, mfg)
     family_id = _families.get_family_id(con, family, mfg_id)
@@ -74,18 +78,17 @@ def add_bundle_cover(con, part_number, description, mfg, family, series, color,
     shrink_temp_id = _temperatures.get_temperature_id(con, shrink_temp)
     min_temp_id = _temperatures.get_temperature_id(con, min_temp)
     max_temp_id = _temperatures.get_temperature_id(con, max_temp)
-    adhesive_id = _adhesives.get_adhesive_id(con, adhesive)
     protection_id = _protections.get_protection_id(con, protection)
 
-    con.execute('INSERT INTO bundle_covers (part_number, mfg_id, description, family_id, '
-                'series_id, color_id, material_id, image_id, datasheet_id, '
-                'cad_id, shrink_temp_id, min_temp_id, max_temp_id, adhesive_id, '
-                'protection_id, rigidity, shrink_ratio, wall, min_dia, max_dia, weight) '
+    con.execute('INSERT INTO bundle_covers (part_number, description, mfg_id, family_id, '
+                'series_id, color_id, material_id, image_id, datasheet_id, cad_id, '
+                'shrink_temp_id, min_temp_id, max_temp_id, protection_id, rigidity, '
+                'shrink_ratio, wall, min_dia, max_dia, adhesive_ids, weight) '
                 'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (part_number, mfg_id, description, family_id, series_id, color_id,
-                 material_id, image_id, datasheet_id, cad_id, shrink_temp_id, min_temp_id,
-                 max_temp_id, adhesive_id, protection_id, rigidity, shrink_ratio, wall,
-                 min_dia, max_dia, weight))
+                (part_number, description, mfg_id, family_id, series_id, color_id, material_id,
+                 image_id, datasheet_id, cad_id, shrink_temp_id, min_temp_id, max_temp_id,
+                 protection_id, rigidity, shrink_ratio, wall, min_dia, max_dia, adhesive_ids,
+                 weight))
     con.commit()
 
 

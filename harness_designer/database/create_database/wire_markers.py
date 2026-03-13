@@ -11,25 +11,6 @@ from . import wires as _wires
 from .. import db_connectors as _con
 
 
-def add_wire_marker(con, part_number, description, mfg, color, min_diameter, max_diameter,
-                    min_awg, max_awg, image, datasheet, cad, length, weight, has_label):
-
-    mfg_id = _manufacturers.get_mfg_id(con, mfg)
-    color_id = _colors.get_color_id(con, color)
-    image_id = _resources.add_resource(con, _resources.IMAGE_TYPE_IMAGE, image)
-    datasheet_id = _resources.add_resource(con, _resources.IMAGE_TYPE_DATASHEET, datasheet)
-    cad_id = _resources.add_resource(con, _resources.IMAGE_TYPE_CAD, cad)
-
-    con.execute('INSERT INTO wire_markers (part_number, description, mfg_id, color_id, '
-                'min_diameter, max_diameter, length, weight, image_id, datasheet_id, '
-                'cad_id, has_label) '
-                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (part_number, description, mfg_id, color_id, min_diameter, max_diameter,
-                 min_awg, max_awg, length, weight, image_id, datasheet_id, cad_id, has_label))
-
-    con.commit()
-
-
 def add_wire_markers(con, data: tuple[dict] | list[dict]):
 
     for line in data:
@@ -42,10 +23,12 @@ def add_records(con, splash):
         return
 
     splash.SetText(f'Adding wire marker to db [1 | 1]...')
-    con.execute('INSERT INTO wire_markers (id, part_number, description, mfg_id, color_id, '
-                'min_diameter, max_diameter, min_awg, max_awg, length, weight, has_label) '
-                'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (0, 'N/A', 'Internal Use DO NOT DELETE', 0, 999999, 0, 0, 30, 30, 0, 0, 0))
+    con.execute('INSERT INTO wire_markers (id, part_number, description, mfg_id, '
+                'color_id, image_id, datasheet_id, cad_id, min_diameter, '
+                'max_diameter, min_awg, max_awg, length, weight, has_label) '
+                'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                (0, 'N/A', 'Internal Use DO NOT DELETE', 0, 999999, None, None,
+                 None, 0.0, 0.0, -1, -1, 0.0, 0.0, 0))
     con.commit()
 
     splash.SetText(f'Building wire markers...')
@@ -53,11 +36,50 @@ def add_records(con, splash):
 
     data_len = len(data)
     splash.SetText(f'Adding wire markers to db [{data_len} | {data_len}]')
-    con.executemany('INSERT INTO wire_markers (part_number, description, mfg_id, color_id, '
-                    'min_diameter, max_diameter, min_awg, max_awg, length, weight, has_label, '
-                    'image_id, datasheet_id, cad_id) '
+    for line in data:
+        print(line)
+
+    con.executemany('INSERT INTO wire_markers (part_number, description, mfg_id, '
+                    'color_id, image_id, datasheet_id, cad_id, min_diameter, '
+                    'max_diameter, min_awg, max_awg, length, weight, has_label'
+                    ') '
                     'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
                     data)
+
+    con.commit()
+
+
+def add_wire_marker(con, part_number, description, mfg=None, color=None, image=None,
+                    datasheet=None, cad=None, min_diameter=0.0, max_diameter=0.0,
+                    min_awg=-1, max_awg=-1, length=0.0, weight=0.0, has_label=0):
+
+    mfg_id = _manufacturers.get_mfg_id(con, mfg)
+    color_id = _colors.get_color_id(con, color)
+    image_id = _resources.add_resource(con, _resources.IMAGE_TYPE_IMAGE, image)
+    datasheet_id = _resources.add_resource(con, _resources.IMAGE_TYPE_DATASHEET, datasheet)
+    cad_id = _resources.add_resource(con, _resources.IMAGE_TYPE_CAD, cad)
+
+    con.execute('INSERT INTO wire_markers (part_number, description, mfg_id, color_id, '
+                'image_id, datasheet_id, cad_id, min_diameter, max_diameter, min_awg, '
+                'max_awg, length, weight, has_label) '
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                (part_number, description, mfg_id, color_id, image_id, datasheet_id,
+                 cad_id, min_diameter, max_diameter, min_awg, max_awg, length, weight,
+                 has_label))
+
+    con.commit()
+
+
+def add_pjt_wire_marker(con, project_id, part_id, point3d_id=None, point2d_id=None,
+                        wire_id=None, name='', notes='', label='', is_visible2d=1,
+                        is_visible3d=1):
+
+    con.execute('INSERT INTO pjt_wire_markers (project_id, part_id, point3d_id, '
+                'point2d_id, wire_id, name, notes, label, is_visible2d, is_visible3d) '
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                (project_id, part_id, point3d_id, point2d_id, wire_id, name, notes,
+                 label, is_visible2d, is_visible3d))
+
     con.commit()
 
 
@@ -76,11 +98,6 @@ table = _con.SQLTable(
                   references=_con.SQLFieldReference(_colors.table,
                                                     _colors.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
-
-    _con.FloatField('min_diameter', default='"0.0"', no_null=True),
-    _con.FloatField('max_diameter', default='"0.0"', no_null=True),
-    _con.IntField('min_awg', default='NULL'),
-    _con.IntField('max_awg', default='NULL'),
     _con.IntField('image_id', default='NULL',
                   references=_con.SQLFieldReference(_resources.table,
                                                     _resources.id_field,
@@ -93,7 +110,10 @@ table = _con.SQLTable(
                   references=_con.SQLFieldReference(_resources.table,
                                                     _resources.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
-
+    _con.FloatField('min_diameter', default='"0.0"', no_null=True),
+    _con.FloatField('max_diameter', default='"0.0"', no_null=True),
+    _con.IntField('min_awg', default='NULL'),
+    _con.IntField('max_awg', default='NULL'),
     _con.FloatField('length', default='"0.0"', no_null=True),
     _con.FloatField('weight', default='"0.0"', no_null=True),
     _con.IntField('has_label', default='0', no_null=True)
@@ -103,7 +123,7 @@ table = _con.SQLTable(
 pjt_id_field = _con.PrimaryKeyField('id')
 
 pjt_table = _con.SQLTable(
-    'pjt_boots',
+    'pjt_wire_marker',
     pjt_id_field,
     _con.IntField('project_id', no_null=True,
                   references=_con.SQLFieldReference(_projects.pjt_table,
@@ -236,12 +256,12 @@ def _build_wire_markers(con):
             cad_id = None
             has_label = 0
 
-            image_id = _resources.add_resource(con, _resources.IMAGE_TYPE_IMAGE, image_url)
+            image_id = None  # _resources.add_resource(con, _resources.IMAGE_TYPE_IMAGE, image_url)
             # image_id = get_resource_id(con, cur, image_url, type='jpg')
 
-            res.append((part_number, description, mfg_id, color_id, min_diameter,
-                        max_diameter, min_awg, max_awg, image_id, datasheet_id, cad_id,
-                        length, weight, has_label))
+            res.append((part_number, description, mfg_id, color_id, image_id,
+                        datasheet_id, cad_id, min_diameter, max_diameter,
+                        min_awg, max_awg, length, weight, has_label))
 
     data = {
         'SH CT 3/32K': {
@@ -349,10 +369,10 @@ def _build_wire_markers(con):
         datasheet_id = None
         cad_id = None
 
-        image_id = _resources.add_resource(con, _resources.IMAGE_TYPE_IMAGE, image_url)
+        image_id = None  # _resources.add_resource(con, _resources.IMAGE_TYPE_IMAGE, image_url)
 
-        res.append((part_number, description, mfg_id, 1020, min_diameter,
-                    max_diameter, min_awg, max_awg, image_id, datasheet_id, cad_id,
-                    length, weight, has_label))
+        res.append((part_number, description, mfg_id, 1020, image_id,
+                        datasheet_id, cad_id, min_diameter, max_diameter,
+                        min_awg, max_awg, length, weight, has_label))
 
     return res

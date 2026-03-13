@@ -15,7 +15,7 @@ def add_records(con, splash):
         (3, 'Radial Seal'),
         (4, 'Rubber Cap Over Wires'),
         (5, 'Single Wire Seal'),
-        (5, 'Mat Seal')
+        (6, 'Mat Seal')
     )
     splash.SetText(f'Adding seal types to db [{len(data)} | {len(data)}]...')
     con.executemany('INSERT INTO seal_types (id, name) VALUES (?, ?);', data)

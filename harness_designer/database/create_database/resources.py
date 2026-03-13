@@ -179,7 +179,7 @@ def add_resource(con, image_type, path):
     uuid_, ext = os.path.splitext(uuid_)
     ext = ext[1:]
 
-    con.execute(f'SELECT extension FROM file_types WHERE is_model=0 AND extension="{ext[1:]}";')
+    con.execute(f'SELECT extension FROM file_types WHERE is_model=0 AND extension="{ext}";')
     file_type_id = con.fetchall()[0][0]
 
     con.execute('INSERT INTO resources (uuid, file_type_id, path) VALUES(?, ?, ?);', (uuid_, file_type_id, path))

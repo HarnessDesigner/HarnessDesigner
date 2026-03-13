@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING
 
 import wx
 
-# from ...widgets.context_menus import RotateMenu, MirrorMenu
 from ...geometry import point as _point
 from ...geometry import line as _line
 from ...geometry import angle as _angle
@@ -100,6 +99,9 @@ class WireMarker(_base3d.Base3D):
         self._compute_aabb()
 
         self.editor3d.Refresh(False)
+
+    def get_context_menu(self):
+        return WireMarkerMenu(self.mainframe.editor3d.editor, self)
 
 
 class WireMarkerMenu(wx.Menu):

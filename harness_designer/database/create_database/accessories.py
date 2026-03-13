@@ -8,6 +8,7 @@ from . import models3d as _models3d
 from . import resources as _resources
 
 from .. import db_connectors as _con
+from ... import utils as _utils
 
 
 def add_records(con, splash):
@@ -32,6 +33,55 @@ def add_records(con, splash):
     splash.SetText(f'Adding accessories to db [{len(data)} | {len(data)}]...')
     con.executemany('INSERT INTO accessories (id, part_number, description, mfg_id) VALUES(?, ?, ?, ?);', data)
     con.commit()
+
+
+def add_accessory(con, part_number, mfg, description=None, series=None,
+                  family=None, color=None, material=None, image=None,
+                  datasheet=None, cad=None, model3d=None, length=0.0,
+                  width=0.0, height=0.0, weight=0.0):
+
+    if color is None:
+        color = 'Dark Gray'
+
+    mfg_id = _manufacturers.get_mfg_id(con, mfg)
+    series_id = _series.get_series_id(con, series, mfg_id)
+    family_id = _families.get_family_id(con, family, mfg_id)
+    color_id = _colors.get_color_id(con, color)
+    material_id = _materials.get_material_id(con, material)
+    image_id = _resources.add_resource(con, _resources.IMAGE_TYPE_IMAGE, image)
+    cad_id = _resources.add_resource(con, _resources.IMAGE_TYPE_CAD, cad)
+    datasheet_id = _resources.add_resource(con, _resources.IMAGE_TYPE_DATASHEET, datasheet)
+    model3d_id = _models3d.add_model3d(con, model3d)
+
+    if not description:
+        description = mfg
+        if series:
+            description += f' {series}'
+
+        if family:
+            description += f' {family}'
+
+        if material:
+            description += f' {material}'
+
+        if color:
+            description += f' {color}'
+
+        description += ' Accessory'
+
+    print(f'DATABASE: adding accessory {part_number}, {description}')
+    con.execute('INSERT INTO accessories (part_number, description, mfg_id, '
+                'family_id, series_id, color_id, material_id, image_id, '
+                'datasheet_id, cad_id, model3d_id, length, width, height, weight) '
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                (part_number, description, mfg_id, family_id, series_id, color_id,
+                 material_id, image_id, datasheet_id, cad_id, model3d_id, length,
+                 width, height, weight))
+
+    con.commit()
+    db_id = con.lastrowid
+
+    print(f'DATABASE: accessory added "{part_number}" = {db_id}')
 
 
 id_field = _con.PrimaryKeyField('id')
@@ -84,6 +134,7 @@ table = _con.SQLTable(
     _con.FloatField('height', default='"0.0"', no_null=True),
     _con.FloatField('weight', default='"0.0"', no_null=True)
 )
+
 
 
 # def accessories(con, cur):

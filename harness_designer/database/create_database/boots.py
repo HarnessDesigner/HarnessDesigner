@@ -23,9 +23,13 @@ def add_boots(con, data: tuple[dict] | list[dict]):
         add_boot(con, **line)
 
 
-def add_boot(con, part_number, description, mfg, family, series, color, material,
-             direction, image, datasheet, cad, min_temp, max_temp, length, width, height,
-             weight, model3d):
+def add_boot(con, part_number, description, mfg=None, family=None, series=None,
+             color=None, material=None, direction=None, image=None, datasheet=None,
+             cad=None, min_temp=None, max_temp=None, model3d=None, length=0.0,
+             width=0.0, height=0.0, weight=0.0, compat_housings=None):
+
+    if compat_housings is None:
+        compat_housings = []
 
     mfg_id = _manufacturers.get_mfg_id(con, mfg)
     family_id = _families.get_family_id(con, family, mfg_id)
@@ -41,13 +45,14 @@ def add_boot(con, part_number, description, mfg, family, series, color, material
     model3d_id = _models3d.add_model3d(con, model3d)
 
     con.execute('INSERT INTO boots (part_number, description, mfg_id, family_id, '
-                'series_id, color_id, material_id, min_temp_id, max_temp_id, direction_id, '
-                'length, width, height, weight, image_id, datasheet_id, cad_id, model3d_id) '
-                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                'series_id, color_id, material_id, direction_id, image_id, '
+                'datasheet_id, cad_id, min_temp_id, max_temp_id, model3d_id, length, '
+                'width, height, weight, compat_housings) '
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
                 (part_number, description, mfg_id, family_id, series_id, color_id,
-                 material_id, min_temp_id, max_temp_id, direction_id, length, width,
-                 height, weight, image_id, datasheet_id, cad_id, model3d_id
-                 ))
+                 material_id, direction_id, image_id, datasheet_id, cad_id, min_temp_id,
+                 max_temp_id, model3d_id, length, width, height, weight,
+                 str(compat_housings)))
 
     con.commit()
 
@@ -87,6 +92,7 @@ def add_records(con, splash):
 
 id_field = _con.PrimaryKeyField('id')
 
+
 table = _con.SQLTable(
     'boots',
     id_field,
@@ -112,7 +118,6 @@ table = _con.SQLTable(
                   references=_con.SQLFieldReference(_materials.table,
                                                     _materials.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
-
     _con.IntField('direction_id', default='0', no_null=True,
                   references=_con.SQLFieldReference(_directions.table,
                                                     _directions.id_field,
@@ -144,8 +149,10 @@ table = _con.SQLTable(
     _con.FloatField('length', default='"0.0"', no_null=True),
     _con.FloatField('width', default='"0.0"', no_null=True),
     _con.FloatField('height', default='"0.0"', no_null=True),
-    _con.FloatField('weight', default='"0.0"', no_null=True)
+    _con.FloatField('weight', default='"0.0"', no_null=True),
+    _con.TextField('compat_housings', default='"[]"', no_null=True)
 )
+
 
 pjt_id_field = _con.PrimaryKeyField('id')
 

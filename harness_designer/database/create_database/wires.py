@@ -80,10 +80,11 @@ def add_records(con, splash):
             con.commit()
 
 
-def add_wire(con, part_number, mfg, description, size_mm2, size_awg, od_mm,
-             conductor_dia_mm, weight_1km, resistance_1km, core_material, min_temp,
-             max_temp, volts, material, color, stripe_color, family, series,
-             datasheet=None, image=None, cad=None):
+def add_wire(con, part_number, description, mfg=None, family=None, series=None,
+             color=None, material=None, image=None, datasheet=None, cad=None,
+             min_temp=None, max_temp=None, stripe_color=None, core_material=None,
+             num_conductors=1, shielded=0, tpi=0.0, conductor_dia_mm=0.0, size_mm2=0.0,
+             size_awg=-1, od_mm=0.0, weight_1km=0.0, resistance_1km=0.0, volts=0.0):
 
     mfg_id = _manufacturers.get_mfg_id(con, mfg)
     core_material_id = _platings.get_plating_id(con, core_material)
@@ -98,15 +99,17 @@ def add_wire(con, part_number, mfg, description, size_mm2, size_awg, od_mm,
     image_id = _resources.add_resource(con, _resources.IMAGE_TYPE_IMAGE, image)
     cad_id = _resources.add_resource(con, _resources.IMAGE_TYPE_CAD, cad)
 
-    con.execute('INSERT INTO wires (part_number, mfg_id, description, size_mm2, '
-                'size_awg, od_mm, conductor_dia_mm, weight_1km, resistance_1km, '
-                'core_material_id, min_temp_id, max_temp_id, volts, material_id, '
-                'color_id, stripe_color_id, family_id, series_id, image_id, datasheet_id, cad_id) '
-                'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (part_number, mfg_id, description, size_mm2, size_awg, od_mm,
-                 conductor_dia_mm, weight_1km, resistance_1km, core_material_id,
-                 min_temp_id, max_temp_id, volts, material_id, color_id,
-                 stripe_color_id, family_id, series_id, image_id, datasheet_id, cad_id))
+    con.execute('INSERT INTO wires (part_number, description, mfg_id, family_id, '
+                'series_id, color_id, material_id, image_id, datasheet_id, cad_id, '
+                'min_temp_id, max_temp_id, stripe_color_id, core_material_id, '
+                'num_conductors, shielded, tpi, conductor_dia_mm, size_mm2, size_awg, '
+                'od_mm, weight_1km, resistance_1km, volts) '
+                'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                (part_number, description, mfg_id, family_id, series_id, color_id,
+                 material_id, image_id, datasheet_id, cad_id, min_temp_id, max_temp_id,
+                 stripe_color_id, core_material_id, num_conductors, shielded, tpi,
+                 conductor_dia_mm, size_mm2, size_awg, od_mm, weight_1km, resistance_1km,
+                 volts))
     con.commit()
 
 
@@ -161,6 +164,10 @@ table = _con.SQLTable(
                   references=_con.SQLFieldReference(_colors.table,
                                                     _colors.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('core_material_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_platings.table,
+                                                    _platings.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('num_conductors', default='1', no_null=True),
     _con.IntField('shielded', default='0', no_null=True),
     _con.FloatField('tpi', default='"0.0"', no_null=True),
@@ -169,14 +176,9 @@ table = _con.SQLTable(
     _con.IntField('size_awg', default='NULL'),
     _con.FloatField('od_mm', no_null=True),
     _con.FloatField('weight_1km', default='"0.0"', no_null=True),
-    _con.IntField('core_material_id', default='0', no_null=True,
-                  references=_con.SQLFieldReference(_platings.table,
-                                                    _platings.id_field,
-                                                    on_update=_con.REFERENCE_CASCADE)),
-    _con.FloatField('resistance_ikm', default='"0.0"', no_null=True),
+    _con.FloatField('resistance_1km', default='"0.0"', no_null=True),
     _con.FloatField('volts', default='"0.0"', no_null=True)
 )
-
 
 pjt_id_field = _con.PrimaryKeyField('id')
 
