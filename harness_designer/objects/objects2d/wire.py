@@ -1,18 +1,13 @@
 from typing import TYPE_CHECKING
 
 import wx
+from OpenGL import GL
+import math
 
-# import math
-#
-# from ...geometry import point as _point
-# from ...geometry import line as _line
-# from ...geometry import angle as _angle
-# from ...geometry.decimal import Decimal as _d
 from . import base2d as _base2d
 
 
 if TYPE_CHECKING:
-    # from .. import wire_info as _wire_info
     from ...database.project_db import pjt_wire as _pjt_wire
     from .. import wire as _wire
 
@@ -22,82 +17,179 @@ SIX_0 = 6.0
 
 
 class Wire(_base2d.Base2D):
+    """
+    2D representation of a wire for schematic view
+    
+    Renders as a colored line between two points using OpenGL.
+    """
     _parent: "_wire.Wire" = None
     db_obj: "_pjt_wire.PJTWire"
 
     def __init__(self, parent: "_wire.Wire", db_obj: "_pjt_wire.PJTWire"):
         _base2d.Base2D.__init__(self, parent, db_obj)
 
-        # self._wire_info = wire_info
         self._part = db_obj.part
         self._p1 = db_obj.start_point2d.point
         self._p2 = db_obj.stop_point2d.point
-        #
-        # self._p1.bind(self._reset_hit_test)
-        # self._p2.bind(self._reset_hit_test)
-        #
-        # self._hit_test_rect = None
-
-    # def _reset_hit_test(self, *_):
-    #     dia = self._wire_info.pixel_width
-    #     length = _line.Line(self._p1, self._p2).length()
-    #     angle = _angle.Angle.from_points(self._p1, self._p2)
-    #
-    #     p1 = _point.Point(_d(0.0), _d(0.0))
-    #     p2 = _point.Point(_d(dia), length)
-    #
-    #     p2 @= angle
-    #
-    #     p1 += self._p1
-    #     p2 += self._p2
-    #
-    #     self._hit_test_rect = [p1, p2]
-    #
-    # def get_rect(self):
-    #     if self._hit_test_rect is None:
-    #         dia = self._wire_info.pixel_width
-    #         length = _line.Line(self._p1, self._p2).length()
-    #         angle = _angle.Angle.from_points(self._p1, self._p2)
-    #
-    #         p1 = _point.Point(_d(0.0), _d(0.0))
-    #         p2 = _point.Point(_d(dia), length)
-    #
-    #         p2 @= angle
-    #
-    #         p1 += self._p1
-    #         p2 += self._p2
-    #
-    #         self._hit_test_rect = [p1, p2]
-    #     return self._hit_test_rect
-    #
-    # def stripe_lines(self) -> list[list[tuple[float, float], tuple[float, float]]]:
-    #     line = _line.Line(self._p1, self._p2)
-    #     line_angle = _angle.Angle.from_points(self._p1, self._p2)
-    #
-    #     stripe_angle1 = _angle.Angle.from_points(_point.Point(68, 0), _point.Point(68 - 32, 24))
-    #     stripe_angle1 += line_angle
-    #
-    #     stripe_angle2 = stripe_angle1.copy()
-    #     stripe_angle2.z += _d(180.0)
-    #
-    #     line_len = len(line)
-    #     step = 40
-    #
-    #     wire_size = self._wire_info.pixel_width
-    #
-    #     curr_dist = 0
-    #     points = []
-    #
-    #     while curr_dist < line_len - step:
-    #         curr_dist += step
-    #
-    #         p = line.point_from_start(curr_dist)
-    #         s1 = _line.Line(p, None, angle=stripe_angle1, length=max(wire_size, 1))
-    #         s2 = _line.Line(p, None, angle=stripe_angle2, length=max(wire_size, 1))
-    #
-    #         points.append([s1.p2.as_float[:-1], s2.p2.as_float[:-1]])
-    #
-    #     return points
+        
+        # Bind to point changes to trigger re-render
+        self._p1.bind(self._on_point_changed)
+        self._p2.bind(self._on_point_changed)
+        
+        # Wire visual properties
+        self._line_width = 3.0
+        self._hit_tolerance = 5.0  # pixels for hit testing
+        
+    def _on_point_changed(self, *args):
+        """Called when wire endpoints change"""
+        if self.editor2d and hasattr(self.editor2d, 'editor') and hasattr(self.editor2d.editor, 'canvas'):
+            self.editor2d.editor.canvas.Refresh()
+            
+    def render_gl(self):
+        """Render wire using OpenGL"""
+        if self._p1 is None or self._p2 is None:
+            return
+            
+        # Get wire color from part
+        color = self._get_wire_color()
+        
+        # Draw wire line
+        GL.glLineWidth(self._line_width)
+        GL.glColor4f(color[0], color[1], color[2], 1.0)
+        
+        GL.glBegin(GL.GL_LINES)
+        GL.glVertex2f(self._p1.x, self._p1.y)
+        GL.glVertex2f(self._p2.x, self._p2.y)
+        GL.glEnd()
+        
+    def render_selection(self):
+        """Render selection highlight"""
+        if self._p1 is None or self._p2 is None:
+            return
+            
+        # Draw thicker line in highlight color
+        GL.glLineWidth(self._line_width + 4.0)
+        GL.glColor4f(1.0, 1.0, 0.0, 0.5)  # Yellow with transparency
+        
+        GL.glBegin(GL.GL_LINES)
+        GL.glVertex2f(self._p1.x, self._p1.y)
+        GL.glVertex2f(self._p2.x, self._p2.y)
+        GL.glEnd()
+        
+        # Draw endpoint handles
+        self._draw_endpoint_handle(self._p1.x, self._p1.y)
+        self._draw_endpoint_handle(self._p2.x, self._p2.y)
+        
+    def _draw_endpoint_handle(self, x, y):
+        """Draw a handle at an endpoint"""
+        size = 4.0
+        
+        GL.glColor4f(1.0, 1.0, 0.0, 1.0)  # Yellow
+        GL.glBegin(GL.GL_QUADS)
+        GL.glVertex2f(x - size, y - size)
+        GL.glVertex2f(x + size, y - size)
+        GL.glVertex2f(x + size, y + size)
+        GL.glVertex2f(x - size, y + size)
+        GL.glEnd()
+        
+    def hit_test(self, world_x: float, world_y: float) -> bool:
+        """Test if point is near the wire line"""
+        if self._p1 is None or self._p2 is None:
+            return False
+            
+        # Calculate distance from point to line segment
+        distance = self._point_to_line_distance(
+            world_x, world_y,
+            self._p1.x, self._p1.y,
+            self._p2.x, self._p2.y
+        )
+        
+        # Get canvas to convert tolerance to world units
+        if self.editor2d and hasattr(self.editor2d, 'editor') and hasattr(self.editor2d.editor, 'canvas'):
+            canvas = self.editor2d.editor.canvas
+            tolerance_world = self._hit_tolerance / canvas.zoom
+        else:
+            tolerance_world = self._hit_tolerance
+            
+        return distance <= tolerance_world
+        
+    def _point_to_line_distance(self, px, py, x1, y1, x2, y2):
+        """Calculate minimum distance from point to line segment"""
+        # Vector from start to end
+        dx = x2 - x1
+        dy = y2 - y1
+        
+        # If line is actually a point
+        if dx == 0 and dy == 0:
+            return math.sqrt((px - x1)**2 + (py - y1)**2)
+            
+        # Parameter t for projection onto line
+        t = max(0, min(1, ((px - x1) * dx + (py - y1) * dy) / (dx**2 + dy**2)))
+        
+        # Closest point on line segment
+        closest_x = x1 + t * dx
+        closest_y = y1 + t * dy
+        
+        # Distance to closest point
+        return math.sqrt((px - closest_x)**2 + (py - closest_y)**2)
+        
+    def get_bounds(self):
+        """Get bounding box"""
+        if self._p1 is None or self._p2 is None:
+            return None
+            
+        min_x = min(self._p1.x, self._p2.x)
+        max_x = max(self._p1.x, self._p2.x)
+        min_y = min(self._p1.y, self._p2.y)
+        max_y = max(self._p1.y, self._p2.y)
+        
+        return (min_x, min_y, max_x, max_y)
+        
+    def move_to(self, world_x: float, world_y: float):
+        """Move wire (both endpoints) to new position"""
+        # Calculate offset
+        if self._p1 is None or self._p2 is None:
+            return
+            
+        # For now, just move p1 to the target position
+        # More sophisticated dragging would maintain wire length/angle
+        dx = world_x - self._p1.x
+        dy = world_y - self._p1.y
+        
+        # Move both points
+        with self._p1:
+            self._p1.x = world_x
+            self._p1.y = world_y
+            
+        with self._p2:
+            self._p2.x += dx
+            self._p2.y += dy
+            
+    def _get_wire_color(self):
+        """Get wire color from part or default"""
+        # Try to get color from part
+        if self._part and hasattr(self._part, 'color'):
+            color_name = self._part.color
+            # Map color name to RGB
+            color_map = {
+                'black': (0.0, 0.0, 0.0),
+                'red': (1.0, 0.0, 0.0),
+                'blue': (0.0, 0.0, 1.0),
+                'green': (0.0, 1.0, 0.0),
+                'yellow': (1.0, 1.0, 0.0),
+                'white': (1.0, 1.0, 1.0),
+                'orange': (1.0, 0.5, 0.0),
+                'brown': (0.6, 0.3, 0.0),
+                'purple': (0.5, 0.0, 0.5),
+                'gray': (0.5, 0.5, 0.5),
+                'grey': (0.5, 0.5, 0.5),
+                'pink': (1.0, 0.75, 0.8),
+            }
+            if color_name and color_name.lower() in color_map:
+                return color_map[color_name.lower()]
+                
+        # Default color
+        return (0.8, 0.8, 0.8)  # Light gray
     #
     # def draw_selected(self, gc, selected):
     #     x1 = selected.p1.x

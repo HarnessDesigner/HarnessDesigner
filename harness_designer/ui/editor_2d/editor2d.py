@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 import wx
 
 from wx import aui
+from ...gl.canvas2d import Canvas2D
 
 
 if TYPE_CHECKING:
@@ -53,23 +54,49 @@ class Editor2D(aui.AuiPaneInfo):
 
 
 class Editor2DPanel(wx.Panel):
+    """
+    2D Schematic Editor Panel
+    
+    Contains the OpenGL canvas for rendering the schematic view.
+    """
 
     def __init__(self, parent: "_mainframe.MainFrame"):
         wx.Panel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_NONE)
         self.mainframe = parent
 
+        # Create sizer
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        
+        # Create OpenGL canvas for 2D rendering
+        self.canvas = Canvas2D(self, parent.config.editor3d)
+        sizer.Add(self.canvas, 1, wx.EXPAND)
+        
+        self.SetSizer(sizer)
+        
         self._objects = []
         self._selected = None
 
     def set_selected(self, obj):
         self._selected = obj
+        if self.canvas:
+            self.canvas.set_selected(obj)
 
     def add_object(self, obj):
         self._objects.append(obj)
+        if self.canvas:
+            self.canvas.add_object(obj)
 
     def remove_object(self, obj):
         try:
             self._objects.remove(obj)
+            if self.canvas:
+                self.canvas.remove_object(obj)
         except ValueError:
             pass
+    
+    def Refresh(self, *args, **kwargs):
+        if self.canvas:
+            self.canvas.Refresh(*args, **kwargs)
+        wx.Panel.Refresh(self, *args, **kwargs)
+
 
