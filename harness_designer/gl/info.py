@@ -57,9 +57,6 @@ def get():
                 style=wx.FRAME_NO_TASKBAR | wx.NO_BORDER | wx.STAY_ON_TOP
             )
             
-            # Don't show the frame at all
-            # frame.Show(False)  # Explicitly don't show
-            
             try:
                 # Create GL canvas with minimal attributes
                 canvas = glcanvas.GLCanvas(frame, -1, size=(1, 1))
