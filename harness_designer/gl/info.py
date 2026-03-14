@@ -1,5 +1,6 @@
 from OpenGL import GL
-from OpenGL import GLUT
+import wx
+import wx.glcanvas as glcanvas
 
 
 def _safe_gl_get_string(param) -> str:
@@ -38,80 +39,101 @@ def get():
     global _info
 
     if _info is None:
-        # Initialize GLUT with minimal setup
-        GLUT.glutInit([])
-        GLUT.glutInitDisplayMode(GLUT.GLUT_SINGLE | GLUT.GLUT_RGB)
-        GLUT.glutInitWindowSize(1, 1)
-        GLUT.glutInitWindowPosition(-1000, -1000)  # Position off-screen
+        # Create a temporary wx.App if one doesn't exist
+        # This is necessary for wx.glcanvas to work
+        temp_app = None
+        if not wx.App.Get():
+            temp_app = wx.App(False)  # Don't redirect stdout/stderr
+        
+        try:
+            # Create a minimal hidden frame for GL context
+            # Position it off-screen and use flags to prevent it from showing
+            frame = wx.Frame(
+                None, 
+                -1, 
+                "GL Info", 
+                pos=(-10000, -10000),  # Far off-screen
+                size=(1, 1),
+                style=wx.FRAME_NO_TASKBAR | wx.NO_BORDER | wx.STAY_ON_TOP
+            )
+            
+            # Don't show the frame at all
+            # frame.Show(False)  # Explicitly don't show
+            
+            try:
+                # Create GL canvas with minimal attributes
+                canvas = glcanvas.GLCanvas(frame, -1, size=(1, 1))
+                context = glcanvas.GLContext(canvas)
+                
+                # Make the context current to query GL information
+                canvas.SetCurrent(context)
 
-        # Create window (don't call glutMainLoop, so it never shows)
-        window = GLUT.glutCreateWindow(b"Hidden OpenGL Context")
-
-        # Hide the window immediately
-        GLUT.glutHideWindow()
-
-        # Query OpenGL information
-        _info = {
-            'GFX Vendor': _safe_gl_get_string(GL.GL_VENDOR),
-            'GFX Adapter': _safe_gl_get_string(GL.GL_RENDERER),
-            'OpenGL Version': _safe_gl_get_string(GL.GL_VERSION),
-            'GLSL Version': _safe_gl_get_string(GL.GL_SHADING_LANGUAGE_VERSION),
-            'Extension Count': _safe_gl_get_integer(GL.GL_NUM_EXTENSIONS),
-            'Element Limits': {
-                'Max Elements Indices': _safe_gl_get_integer(GL.GL_MAX_ELEMENTS_INDICES),
-                'Max Elements Vertices': _safe_gl_get_integer(GL.GL_MAX_ELEMENTS_VERTICES)
-            },
-            'Texture Capabilities': {
-                'Max Texture Size': _safe_gl_get_integer(GL.GL_MAX_TEXTURE_SIZE),
-                'Max 3D Texture Size': _safe_gl_get_integer(GL.GL_MAX_3D_TEXTURE_SIZE),
-                'Max Cube Map Texture Size': _safe_gl_get_integer(GL.GL_MAX_CUBE_MAP_TEXTURE_SIZE),
-                'Max Array Texture Layers': _safe_gl_get_integer(GL.GL_MAX_ARRAY_TEXTURE_LAYERS),
-                'Max Texture Image Units': _safe_gl_get_integer(GL.GL_MAX_TEXTURE_IMAGE_UNITS),
-                'Max Combined Texture Image Units': _safe_gl_get_integer(GL.GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS),
-                'Max Texture Buffer Size': _safe_gl_get_integer(GL.GL_MAX_TEXTURE_BUFFER_SIZE)
-            },
-            'Vertex Processing': {
-                'Max Vertex Attributes': _safe_gl_get_integer(GL.GL_MAX_VERTEX_ATTRIBS),
-                'Max Vertex Uniform Components': _safe_gl_get_integer(GL.GL_MAX_VERTEX_UNIFORM_COMPONENTS),
-                'Max Vertex Texture Units': _safe_gl_get_integer(GL.GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS),
-                'Max Vertex Output Components': _safe_gl_get_integer(GL.GL_MAX_VERTEX_OUTPUT_COMPONENTS)
-            },
-            'Fragment Processing': {
-                'Max Fragment Uniform Components': _safe_gl_get_integer(GL.GL_MAX_FRAGMENT_UNIFORM_COMPONENTS),
-                'Max Fragment Input Components': _safe_gl_get_integer(GL.GL_MAX_FRAGMENT_INPUT_COMPONENTS)
-            },
-            'Rendering Capabilities': {
-                'Max Draw Buffers': _safe_gl_get_integer(GL.GL_MAX_DRAW_BUFFERS),
-                'Max Color Attachments': _safe_gl_get_integer(GL.GL_MAX_COLOR_ATTACHMENTS),
-                'Max Samples (MSAA)': _safe_gl_get_integer(GL.GL_MAX_SAMPLES),
-                'Max Viewport Dimensions': _safe_gl_get_integerv(GL.GL_MAX_VIEWPORT_DIMS),
-                'Max Renderbuffer Size': _safe_gl_get_integer(GL.GL_MAX_RENDERBUFFER_SIZE)
-            },
-            'Buffer Capabilities': {
-                'Max Uniform Buffer Bindings': _safe_gl_get_integer(GL.GL_MAX_UNIFORM_BUFFER_BINDINGS),
-                'Max Uniform Block Size': _safe_gl_get_integer(GL.GL_MAX_UNIFORM_BLOCK_SIZE),
-                'Max Vertex Uniform Blocks': _safe_gl_get_integer(GL.GL_MAX_VERTEX_UNIFORM_BLOCKS),
-                'Max Fragment Uniform Blocks': _safe_gl_get_integer(GL.GL_MAX_FRAGMENT_UNIFORM_BLOCKS)
-            },
-            'Geometry Shader Capabilities': {
-                'Max Geometry Uniform Components': _safe_gl_get_integer(GL.GL_MAX_GEOMETRY_UNIFORM_COMPONENTS),
-                'Max Geometry Output Vertices': _safe_gl_get_integer(GL.GL_MAX_GEOMETRY_OUTPUT_VERTICES)
-            },
-            'Compute Shader Capabilities': {
-                'Max Compute Work Group Count': _safe_gl_get_integerv(GL.GL_MAX_COMPUTE_WORK_GROUP_COUNT),
-                'Max Compute Work Group Size': _safe_gl_get_integerv(GL.GL_MAX_COMPUTE_WORK_GROUP_SIZE)
-            },
-            'Additional': {
-                'Max Clip Distances': _safe_gl_get_integer(GL.GL_MAX_CLIP_DISTANCES)
-            },
-            'Atomic Counters': {
-                'Max Vertex Atomic Counters': _safe_gl_get_integer(GL.GL_MAX_VERTEX_ATOMIC_COUNTERS),
-                'Max Fragment Atomic Counters': _safe_gl_get_integer(GL.GL_MAX_FRAGMENT_ATOMIC_COUNTERS)
-            },
-        }
-
-        # Destroy the window
-        GLUT.glutDestroyWindow(window)
+                # Query OpenGL information
+                _info = {
+                    'GFX Vendor': _safe_gl_get_string(GL.GL_VENDOR),
+                    'GFX Adapter': _safe_gl_get_string(GL.GL_RENDERER),
+                    'OpenGL Version': _safe_gl_get_string(GL.GL_VERSION),
+                    'GLSL Version': _safe_gl_get_string(GL.GL_SHADING_LANGUAGE_VERSION),
+                    'Extension Count': _safe_gl_get_integer(GL.GL_NUM_EXTENSIONS),
+                    'Element Limits': {
+                        'Max Elements Indices': _safe_gl_get_integer(GL.GL_MAX_ELEMENTS_INDICES),
+                        'Max Elements Vertices': _safe_gl_get_integer(GL.GL_MAX_ELEMENTS_VERTICES)
+                    },
+                    'Texture Capabilities': {
+                        'Max Texture Size': _safe_gl_get_integer(GL.GL_MAX_TEXTURE_SIZE),
+                        'Max 3D Texture Size': _safe_gl_get_integer(GL.GL_MAX_3D_TEXTURE_SIZE),
+                        'Max Cube Map Texture Size': _safe_gl_get_integer(GL.GL_MAX_CUBE_MAP_TEXTURE_SIZE),
+                        'Max Array Texture Layers': _safe_gl_get_integer(GL.GL_MAX_ARRAY_TEXTURE_LAYERS),
+                        'Max Texture Image Units': _safe_gl_get_integer(GL.GL_MAX_TEXTURE_IMAGE_UNITS),
+                        'Max Combined Texture Image Units': _safe_gl_get_integer(GL.GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS),
+                        'Max Texture Buffer Size': _safe_gl_get_integer(GL.GL_MAX_TEXTURE_BUFFER_SIZE)
+                    },
+                    'Vertex Processing': {
+                        'Max Vertex Attributes': _safe_gl_get_integer(GL.GL_MAX_VERTEX_ATTRIBS),
+                        'Max Vertex Uniform Components': _safe_gl_get_integer(GL.GL_MAX_VERTEX_UNIFORM_COMPONENTS),
+                        'Max Vertex Texture Units': _safe_gl_get_integer(GL.GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS),
+                        'Max Vertex Output Components': _safe_gl_get_integer(GL.GL_MAX_VERTEX_OUTPUT_COMPONENTS)
+                    },
+                    'Fragment Processing': {
+                        'Max Fragment Uniform Components': _safe_gl_get_integer(GL.GL_MAX_FRAGMENT_UNIFORM_COMPONENTS),
+                        'Max Fragment Input Components': _safe_gl_get_integer(GL.GL_MAX_FRAGMENT_INPUT_COMPONENTS)
+                    },
+                    'Rendering Capabilities': {
+                        'Max Draw Buffers': _safe_gl_get_integer(GL.GL_MAX_DRAW_BUFFERS),
+                        'Max Color Attachments': _safe_gl_get_integer(GL.GL_MAX_COLOR_ATTACHMENTS),
+                        'Max Samples (MSAA)': _safe_gl_get_integer(GL.GL_MAX_SAMPLES),
+                        'Max Viewport Dimensions': _safe_gl_get_integerv(GL.GL_MAX_VIEWPORT_DIMS),
+                        'Max Renderbuffer Size': _safe_gl_get_integer(GL.GL_MAX_RENDERBUFFER_SIZE)
+                    },
+                    'Buffer Capabilities': {
+                        'Max Uniform Buffer Bindings': _safe_gl_get_integer(GL.GL_MAX_UNIFORM_BUFFER_BINDINGS),
+                        'Max Uniform Block Size': _safe_gl_get_integer(GL.GL_MAX_UNIFORM_BLOCK_SIZE),
+                        'Max Vertex Uniform Blocks': _safe_gl_get_integer(GL.GL_MAX_VERTEX_UNIFORM_BLOCKS),
+                        'Max Fragment Uniform Blocks': _safe_gl_get_integer(GL.GL_MAX_FRAGMENT_UNIFORM_BLOCKS)
+                    },
+                    'Geometry Shader Capabilities': {
+                        'Max Geometry Uniform Components': _safe_gl_get_integer(GL.GL_MAX_GEOMETRY_UNIFORM_COMPONENTS),
+                        'Max Geometry Output Vertices': _safe_gl_get_integer(GL.GL_MAX_GEOMETRY_OUTPUT_VERTICES)
+                    },
+                    'Compute Shader Capabilities': {
+                        'Max Compute Work Group Count': _safe_gl_get_integerv(GL.GL_MAX_COMPUTE_WORK_GROUP_COUNT),
+                        'Max Compute Work Group Size': _safe_gl_get_integerv(GL.GL_MAX_COMPUTE_WORK_GROUP_SIZE)
+                    },
+                    'Additional': {
+                        'Max Clip Distances': _safe_gl_get_integer(GL.GL_MAX_CLIP_DISTANCES)
+                    },
+                    'Atomic Counters': {
+                        'Max Vertex Atomic Counters': _safe_gl_get_integer(GL.GL_MAX_VERTEX_ATOMIC_COUNTERS),
+                        'Max Fragment Atomic Counters': _safe_gl_get_integer(GL.GL_MAX_FRAGMENT_ATOMIC_COUNTERS)
+                    },
+                }
+            finally:
+                # Clean up - destroy the frame
+                frame.Destroy()
+        finally:
+            # Clean up temporary app if we created one
+            if temp_app:
+                temp_app.Destroy()
 
     return _info
 
