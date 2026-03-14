@@ -44,5 +44,11 @@ _app = None
 
 def __main__():
     global _app
+    
+    # Pre-cache GL info BEFORE creating wx.App to avoid event loop conflicts
+    # This allows GLUT to work without wxPython interference
+    from .gl import info as _gl_info
+    _gl_info.get()
+    
     _app = App()
     _app.MainLoop()
