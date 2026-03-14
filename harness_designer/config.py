@@ -310,6 +310,15 @@ class Config(metaclass=ConfigDB):
 
     class editor2d(metaclass=ConfigDB):
 
+        class angle(metaclass=ConfigDB):
+            lock = False
+            lock_increment = 90.0
+
+        class grid(metaclass=ConfigDB):
+            enabled = True
+            spacing = 10.0
+            snap = False
+
         class pan(metaclass=ConfigDB):
             mouse = MOUSE_RIGHT
             up_key = wx.WXK_UP
@@ -318,6 +327,12 @@ class Config(metaclass=ConfigDB):
             right_key = wx.WXK_RIGHT
             sensitivity = 0.4
 
+        class zoom(metaclass=ConfigDB):
+            mouse = MOUSE_NONE  # | MOUSE_REVERSE_WHEEL_AXIS
+            in_key = wx.WXK_ADD
+            out_key = wx.WXK_SUBTRACT
+            sensitivity = 5.0
+
         class reset(metaclass=ConfigDB):
             key = wx.WXK_HOME
             mouse = MOUSE_NONE
@@ -325,10 +340,6 @@ class Config(metaclass=ConfigDB):
         class canvas(metaclass=ConfigDB):
             width = 3840
             height = 2160
-            show_grid = True
-            grid_snap = True
-            angle_snap = True
-            snap_angle = 45
 
     class editor3d(metaclass=ConfigDB):
         selected_color = [0.2, 0.6, 0.2, 0.35]

@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING
+from OpenGL import GL
 
 if TYPE_CHECKING:
     from .. import ObjectBase as _ObjectBase
@@ -8,6 +9,11 @@ if TYPE_CHECKING:
 
 
 class Base2D:
+    """
+    Base class for 2D schematic representations of objects
+    
+    Uses OpenGL for rendering in the 2D schematic editor.
+    """
 
     def __init__(self, parent: "_ObjectBase",
                  db_obj: "_project_db.PJTEntryBase"):
@@ -32,6 +38,51 @@ class Base2D:
     def is_selected(self) -> bool:
         return self._is_selected
 
-    def render(self, pdc, gcdc, gc):
+    def render_gl(self):
+        """
+        Render this object using OpenGL
+        
+        Override this method in subclasses to implement specific rendering.
+        """
+        pass
+    
+    def render_selection(self):
+        """
+        Render selection highlight using OpenGL
+        
+        Override this method to customize selection appearance.
+        """
+        pass
+        
+    def hit_test(self, world_x: float, world_y: float) -> bool:
+        """
+        Test if a point hits this object
+        
+        Args:
+            world_x: World X coordinate
+            world_y: World Y coordinate
+            
+        Returns:
+            True if the point hits this object
+        """
+        return False
+        
+    def get_bounds(self):
+        """
+        Get bounding box of this object
+        
+        Returns:
+            tuple: (min_x, min_y, max_x, max_y) or None
+        """
+        return None
+        
+    def move_to(self, world_x: float, world_y: float):
+        """
+        Move this object to a new position
+        
+        Args:
+            world_x: New world X coordinate
+            world_y: New world Y coordinate
+        """
         pass
 
