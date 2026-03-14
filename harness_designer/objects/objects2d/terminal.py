@@ -30,7 +30,9 @@ class Terminal(_base2d.Base2D):
         self._position = db_obj.position2d.point if hasattr(db_obj, 'position2d') else None
         
         # Terminal visual properties
-        self._radius = 3.0  # mm
+        self._radius = 3.0  # mm - circle radius
+        self._line_length = 10.0  # mm - length of the line
+        self._line_angle = 0.0  # radians - angle of the line (0 = horizontal right)
         
         # Bind to position changes
         if self._position:
@@ -42,18 +44,34 @@ class Terminal(_base2d.Base2D):
             self.editor2d.editor.canvas.Refresh()
             
     def render_gl(self):
-        """Render terminal using OpenGL"""
+        """Render terminal using OpenGL - straight line with circle for wire attachment"""
         if self._position is None:
             return
             
+        import math
+        
         x = self._position.x
         y = self._position.y
         
-        # Draw terminal as filled circle
-        GL.glColor4f(0.8, 0.6, 0.2, 1.0)  # Gold/bronze color
+        # Calculate line endpoints
+        line_start_x = x - (self._line_length / 2) * math.cos(self._line_angle)
+        line_start_y = y - (self._line_length / 2) * math.sin(self._line_angle)
+        line_end_x = x + (self._line_length / 2) * math.cos(self._line_angle)
+        line_end_y = y + (self._line_length / 2) * math.sin(self._line_angle)
+        
+        # Draw terminal line
+        GL.glColor4f(0.6, 0.4, 0.1, 1.0)  # Bronze/gold color
+        GL.glLineWidth(2.5)
+        GL.glBegin(GL.GL_LINES)
+        GL.glVertex2f(line_start_x, line_start_y)
+        GL.glVertex2f(line_end_x, line_end_y)
+        GL.glEnd()
+        
+        # Draw connection point circle (filled)
+        GL.glColor4f(0.8, 0.6, 0.2, 1.0)  # Lighter gold/bronze
         self._draw_circle(x, y, self._radius, filled=True)
         
-        # Draw outline
+        # Draw circle outline
         GL.glColor4f(0.6, 0.4, 0.1, 1.0)  # Darker outline
         GL.glLineWidth(1.5)
         self._draw_circle(x, y, self._radius, filled=False)

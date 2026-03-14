@@ -21,6 +21,12 @@ class Wire(_base2d.Base2D):
     2D representation of a wire for schematic view
     
     Renders as a colored line between two points using OpenGL.
+    
+    Wire Connection Rules:
+    - Wire endpoints can ONLY attach to: Terminals, Splices, or WireLayouts (handles)
+    - WireLayouts (handles) can be added along the wire for positioning
+    - Wire visual width scales with wire gauge/size
+    - Diagonal stripes are rendered if stripe color is available
     """
     _parent: "_wire.Wire" = None
     db_obj: "_pjt_wire.PJTWire"
@@ -50,11 +56,13 @@ class Wire(_base2d.Base2D):
         if self._p1 is None or self._p2 is None:
             return
             
-        # Get wire color from part
+        # Get wire properties
         color = self._get_wire_color()
+        stripe_color = self._get_wire_stripe_color()
+        line_width = self._get_wire_width()
         
         # Draw wire line
-        GL.glLineWidth(self._line_width)
+        GL.glLineWidth(line_width)
         GL.glColor4f(color[0], color[1], color[2], 1.0)
         
         GL.glBegin(GL.GL_LINES)
@@ -62,13 +70,86 @@ class Wire(_base2d.Base2D):
         GL.glVertex2f(self._p2.x, self._p2.y)
         GL.glEnd()
         
+        # Draw diagonal stripes if stripe color is available
+        if stripe_color is not None:
+            self._render_stripes(stripe_color, line_width)
+            
+    def _render_stripes(self, stripe_color, wire_width):
+        """Render diagonal stripes on wire"""
+        import math
+        
+        # Calculate wire angle and length
+        dx = self._p2.x - self._p1.x
+        dy = self._p2.y - self._p1.y
+        wire_length = math.sqrt(dx*dx + dy*dy)
+        
+        if wire_length < 0.1:
+            return
+            
+        wire_angle = math.atan2(dy, dx)
+        
+        # Stripe properties
+        stripe_interval = 40.0  # mm between stripes
+        stripe_angle = math.radians(45.0)  # 45 degrees from wire direction
+        stripe_length = max(wire_width, 1.0)
+        
+        # Draw stripes along the wire
+        GL.glColor4f(stripe_color[0], stripe_color[1], stripe_color[2], 1.0)
+        GL.glLineWidth(max(wire_width / 3.0, 2.0))
+        
+        GL.glBegin(GL.GL_LINES)
+        
+        current_dist = 0.0
+        while current_dist < wire_length - stripe_interval:
+            current_dist += stripe_interval
+            
+            # Calculate position along wire
+            t = current_dist / wire_length
+            px = self._p1.x + t * dx
+            py = self._p1.y + t * dy
+            
+            # Calculate stripe endpoints perpendicular to wire
+            angle1 = wire_angle + stripe_angle
+            angle2 = wire_angle - stripe_angle
+            
+            # First stripe line
+            sx1 = px + stripe_length * math.cos(angle1)
+            sy1 = py + stripe_length * math.sin(angle1)
+            ex1 = px - stripe_length * math.cos(angle1)
+            ey1 = py - stripe_length * math.sin(angle1)
+            
+            GL.glVertex2f(sx1, sy1)
+            GL.glVertex2f(ex1, ey1)
+            
+        GL.glEnd()
+        
+    def _get_wire_width(self):
+        """Get wire width based on wire gauge"""
+        # Try to get wire gauge/size from part
+        if self._part and hasattr(self._part, 'gauge'):
+            # Map AWG gauge to visual width (smaller gauge = thicker wire)
+            # AWG 10 = ~5mm, AWG 20 = ~2mm, AWG 30 = ~1mm
+            gauge = float(self._part.gauge)
+            # Approximate formula: diameter ≈ 0.127 * 92^((36-AWG)/39)
+            # Simplified for visualization
+            width = max(1.0, 10.0 - (gauge / 4.0))
+            return width
+        elif self._part and hasattr(self._part, 'outer_diameter'):
+            # Use outer diameter if available
+            return float(self._part.outer_diameter)
+            
+        # Default width
+        return 3.0
+        
     def render_selection(self):
         """Render selection highlight"""
         if self._p1 is None or self._p2 is None:
             return
             
+        line_width = self._get_wire_width()
+        
         # Draw thicker line in highlight color
-        GL.glLineWidth(self._line_width + 4.0)
+        GL.glLineWidth(line_width + 4.0)
         GL.glColor4f(1.0, 1.0, 0.0, 0.5)  # Yellow with transparency
         
         GL.glBegin(GL.GL_LINES)
@@ -146,17 +227,24 @@ class Wire(_base2d.Base2D):
         return (min_x, min_y, max_x, max_y)
         
     def move_to(self, world_x: float, world_y: float):
-        """Move wire (both endpoints) to new position"""
-        # Calculate offset
+        """
+        Move wire to new position
+        
+        Moves the wire's start point (p1) to the target position and maintains
+        the wire's length and direction by moving the end point (p2) by the same offset.
+        
+        Args:
+            world_x: New world X coordinate for p1
+            world_y: New world Y coordinate for p1
+        """
+        # Calculate offset before modifying p1
         if self._p1 is None or self._p2 is None:
             return
             
-        # For now, just move p1 to the target position
-        # More sophisticated dragging would maintain wire length/angle
         dx = world_x - self._p1.x
         dy = world_y - self._p1.y
         
-        # Move both points
+        # Move both points by the same offset to maintain wire geometry
         with self._p1:
             self._p1.x = world_x
             self._p1.y = world_y
@@ -190,6 +278,39 @@ class Wire(_base2d.Base2D):
                 
         # Default color
         return (0.8, 0.8, 0.8)  # Light gray
+        
+    def _get_wire_stripe_color(self):
+        """Get wire stripe color from part or None"""
+        # Try to get stripe color from part
+        if self._part and hasattr(self._part, 'stripe_color'):
+            stripe_color_obj = self._part.stripe_color
+            if stripe_color_obj is not None:
+                if hasattr(stripe_color_obj, 'name'):
+                    color_name = stripe_color_obj.name
+                elif isinstance(stripe_color_obj, str):
+                    color_name = stripe_color_obj
+                else:
+                    return None
+                    
+                # Map color name to RGB
+                color_map = {
+                    'black': (0.0, 0.0, 0.0),
+                    'red': (1.0, 0.0, 0.0),
+                    'blue': (0.0, 0.0, 1.0),
+                    'green': (0.0, 1.0, 0.0),
+                    'yellow': (1.0, 1.0, 0.0),
+                    'white': (1.0, 1.0, 1.0),
+                    'orange': (1.0, 0.5, 0.0),
+                    'brown': (0.6, 0.3, 0.0),
+                    'purple': (0.5, 0.0, 0.5),
+                    'gray': (0.5, 0.5, 0.5),
+                    'grey': (0.5, 0.5, 0.5),
+                    'pink': (1.0, 0.75, 0.8),
+                }
+                if color_name and color_name.lower() in color_map:
+                    return color_map[color_name.lower()]
+                    
+        return None
     #
     # def draw_selected(self, gc, selected):
     #     x1 = selected.p1.x

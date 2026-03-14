@@ -17,6 +17,7 @@ class Housing(_base2d.Base2D):
     2D representation of a housing for schematic view
     
     Renders as a rectangle with cavity positions using OpenGL.
+    When moved, all child cavities move with it (hierarchical movement).
     """
     _parent: "_housing.Housing" = None
     db_obj: "_pjt_housing.PJTHousing"
@@ -33,9 +34,38 @@ class Housing(_base2d.Base2D):
         self._width = 40.0  # mm
         self._height = 30.0  # mm
         
+        # Track child cavities for hierarchical movement
+        self._cavities = []
+        
         # Bind to position changes
         if self._position:
             self._position.bind(self._on_position_changed)
+            
+    def add_cavity(self, cavity):
+        """
+        Add a cavity to this housing
+        
+        Args:
+            cavity: Cavity object to add
+        """
+        if cavity not in self._cavities:
+            self._cavities.append(cavity)
+            if hasattr(cavity, 'obj2d'):
+                cavity.obj2d._housing = self
+                
+    def remove_cavity(self, cavity):
+        """
+        Remove a cavity from this housing
+        
+        Args:
+            cavity: Cavity object to remove
+        """
+        try:
+            self._cavities.remove(cavity)
+            if hasattr(cavity, 'obj2d'):
+                cavity.obj2d._housing = None
+        except ValueError:
+            pass
             
     def _on_position_changed(self, *args):
         """Called when housing position changes"""
@@ -50,20 +80,19 @@ class Housing(_base2d.Base2D):
         x = self._position.x
         y = self._position.y
         
-        # Draw housing body
-        GL.glColor4f(0.4, 0.4, 0.4, 1.0)  # Dark gray
-        GL.glLineWidth(2.0)
-        
-        GL.glBegin(GL.GL_LINE_LOOP)
+        # Draw housing body (filled)
+        GL.glColor4f(0.3, 0.3, 0.3, 0.4)  # Semi-transparent dark gray
+        GL.glBegin(GL.GL_QUADS)
         GL.glVertex2f(x - self._width/2, y - self._height/2)
         GL.glVertex2f(x + self._width/2, y - self._height/2)
         GL.glVertex2f(x + self._width/2, y + self._height/2)
         GL.glVertex2f(x - self._width/2, y + self._height/2)
         GL.glEnd()
         
-        # Fill housing
-        GL.glColor4f(0.3, 0.3, 0.3, 0.3)  # Semi-transparent gray
-        GL.glBegin(GL.GL_QUADS)
+        # Draw housing outline
+        GL.glColor4f(0.4, 0.4, 0.4, 1.0)  # Dark gray
+        GL.glLineWidth(2.5)
+        GL.glBegin(GL.GL_LINE_LOOP)
         GL.glVertex2f(x - self._width/2, y - self._height/2)
         GL.glVertex2f(x + self._width/2, y - self._height/2)
         GL.glVertex2f(x + self._width/2, y + self._height/2)
@@ -80,9 +109,9 @@ class Housing(_base2d.Base2D):
         
         # Draw selection outline
         GL.glColor4f(1.0, 1.0, 0.0, 1.0)  # Yellow
-        GL.glLineWidth(3.0)
+        GL.glLineWidth(3.5)
         
-        offset = 2.0
+        offset = 3.0
         GL.glBegin(GL.GL_LINE_LOOP)
         GL.glVertex2f(x - self._width/2 - offset, y - self._height/2 - offset)
         GL.glVertex2f(x + self._width/2 + offset, y - self._height/2 - offset)
@@ -113,13 +142,31 @@ class Housing(_base2d.Base2D):
                 x + self._width/2, y + self._height/2)
                 
     def move_to(self, world_x: float, world_y: float):
-        """Move housing to new position"""
+        """
+        Move housing to new position
+        
+        This implements hierarchical movement - all child cavities move with the housing.
+        """
         if self._position is None:
             return
             
+        # Calculate offset from current position
+        dx = world_x - self._position.x
+        dy = world_y - self._position.y
+        
+        # Move the housing
         with self._position:
             self._position.x = world_x
             self._position.y = world_y
+            
+        # Move all child cavities by the same offset
+        for cavity in self._cavities:
+            if hasattr(cavity, 'obj2d') and hasattr(cavity.obj2d, '_position'):
+                cavity_pos = cavity.obj2d._position
+                if cavity_pos is not None:
+                    with cavity_pos:
+                        cavity_pos.x += dx
+                        cavity_pos.y += dy
 
 
 class HousingMenu(wx.Menu):

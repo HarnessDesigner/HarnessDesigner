@@ -16,7 +16,8 @@ class Cavity(_base2d.Base2D):
     """
     2D representation of a cavity for schematic view
     
-    Renders as a small square slot within a housing using OpenGL.
+    Renders as a stippled (dashed) rectangular box within a housing using OpenGL.
+    Cavities hold terminal pins within a housing.
     """
     _parent: "_cavity.Cavity" = None
     db_obj: "_pjt_cavity.PJTCavity"
@@ -27,9 +28,11 @@ class Cavity(_base2d.Base2D):
         _base2d.Base2D.__init__(self, parent, db_obj)
         
         self._position = db_obj.position2d.point if hasattr(db_obj, 'position2d') else None
+        self._housing = None  # Reference to parent housing
         
         # Cavity visual properties
-        self._size = 4.0  # mm
+        self._width = 8.0  # mm
+        self._height = 6.0  # mm
         
         # Bind to position changes
         if self._position:
@@ -41,31 +44,39 @@ class Cavity(_base2d.Base2D):
             self.editor2d.editor.canvas.Refresh()
             
     def render_gl(self):
-        """Render cavity using OpenGL"""
+        """Render cavity using OpenGL - stippled rectangular box"""
         if self._position is None:
             return
             
         x = self._position.x
         y = self._position.y
-        half = self._size / 2
+        half_w = self._width / 2
+        half_h = self._height / 2
         
-        # Draw cavity as square
-        GL.glColor4f(0.5, 0.5, 0.5, 0.5)  # Gray, semi-transparent
-        GL.glBegin(GL.GL_QUADS)
-        GL.glVertex2f(x - half, y - half)
-        GL.glVertex2f(x + half, y - half)
-        GL.glVertex2f(x + half, y + half)
-        GL.glVertex2f(x - half, y + half)
+        # Enable line stippling for dashed effect
+        GL.glEnable(GL.GL_LINE_STIPPLE)
+        GL.glLineStipple(2, 0xAAAA)  # Dashed pattern
+        
+        # Draw cavity outline as stippled rectangle
+        GL.glColor4f(0.5, 0.5, 0.5, 0.8)  # Gray
+        GL.glLineWidth(1.5)
+        GL.glBegin(GL.GL_LINE_LOOP)
+        GL.glVertex2f(x - half_w, y - half_h)
+        GL.glVertex2f(x + half_w, y - half_h)
+        GL.glVertex2f(x + half_w, y + half_h)
+        GL.glVertex2f(x - half_w, y + half_h)
         GL.glEnd()
         
-        # Draw outline
-        GL.glColor4f(0.3, 0.3, 0.3, 1.0)  # Dark gray
-        GL.glLineWidth(1.0)
-        GL.glBegin(GL.GL_LINE_LOOP)
-        GL.glVertex2f(x - half, y - half)
-        GL.glVertex2f(x + half, y - half)
-        GL.glVertex2f(x + half, y + half)
-        GL.glVertex2f(x - half, y + half)
+        # Disable line stippling
+        GL.glDisable(GL.GL_LINE_STIPPLE)
+        
+        # Draw very light fill to show the cavity area
+        GL.glColor4f(0.4, 0.4, 0.4, 0.15)  # Very transparent gray
+        GL.glBegin(GL.GL_QUADS)
+        GL.glVertex2f(x - half_w, y - half_h)
+        GL.glVertex2f(x + half_w, y - half_h)
+        GL.glVertex2f(x + half_w, y + half_h)
+        GL.glVertex2f(x - half_w, y + half_h)
         GL.glEnd()
         
     def render_selection(self):
@@ -75,16 +86,17 @@ class Cavity(_base2d.Base2D):
             
         x = self._position.x
         y = self._position.y
-        half = self._size / 2 + 1.0
+        half_w = self._width / 2 + 1.5
+        half_h = self._height / 2 + 1.5
         
-        # Draw selection outline
+        # Draw selection outline (solid, not stippled)
         GL.glColor4f(1.0, 1.0, 0.0, 1.0)  # Yellow
-        GL.glLineWidth(2.0)
+        GL.glLineWidth(2.5)
         GL.glBegin(GL.GL_LINE_LOOP)
-        GL.glVertex2f(x - half, y - half)
-        GL.glVertex2f(x + half, y - half)
-        GL.glVertex2f(x + half, y + half)
-        GL.glVertex2f(x - half, y + half)
+        GL.glVertex2f(x - half_w, y - half_h)
+        GL.glVertex2f(x + half_w, y - half_h)
+        GL.glVertex2f(x + half_w, y + half_h)
+        GL.glVertex2f(x - half_w, y + half_h)
         GL.glEnd()
         
     def hit_test(self, world_x: float, world_y: float) -> bool:
@@ -92,9 +104,10 @@ class Cavity(_base2d.Base2D):
         if self._position is None:
             return False
             
-        half = self._size / 2
-        return (abs(world_x - self._position.x) <= half and
-                abs(world_y - self._position.y) <= half)
+        half_w = self._width / 2
+        half_h = self._height / 2
+        return (abs(world_x - self._position.x) <= half_w and
+                abs(world_y - self._position.y) <= half_h)
                 
     def get_bounds(self):
         """Get bounding box"""
@@ -103,9 +116,10 @@ class Cavity(_base2d.Base2D):
             
         x = self._position.x
         y = self._position.y
-        half = self._size / 2
+        half_w = self._width / 2
+        half_h = self._height / 2
         
-        return (x - half, y - half, x + half, y + half)
+        return (x - half_w, y - half_h, x + half_w, y + half_h)
                 
     def move_to(self, world_x: float, world_y: float):
         """Move cavity to new position"""
