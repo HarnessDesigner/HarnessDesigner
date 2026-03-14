@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 class Splash(wx.Frame):
 
-    def __init__(self, parent, logger: "_logger.Log"):
+    def __init__(self, parent, logger: "_logger.Log" = None):
 
         wx.Frame.__init__(self, parent, wx.ID_ANY, style=wx.FRAME_NO_TASKBAR | wx.FRAME_SHAPED | wx.STAY_ON_TOP)
 
@@ -54,6 +54,10 @@ class Splash(wx.Frame):
 
         self.event = threading.Event()
 
+        # Collect GL info using this frame as parent to avoid extra window
+        from ..gl import info as _gl_info
+        _gl_info.get(parent=self)
+
         t = threading.Thread(target=self.run_thread)
         t.daemon = True
         t.start()
@@ -70,7 +74,8 @@ class Splash(wx.Frame):
         try:
             from . import mainframe as _mainframe
         except Exception as err:  # NOQA
-            self.logger.print_traceback(err)
+            if self.logger:
+                self.logger.print_traceback(err)
 
             dlg = _critical_error.CriticalErrorDialog(self, err)
 
@@ -92,7 +97,8 @@ class Splash(wx.Frame):
             try:
                 _mainframe._mainframe = _mainframe.MainFrame(self, self.logger)
             except Exception as err:  # NOQA
-                self.logger.print_traceback(err)
+                if self.logger:
+                    self.logger.print_traceback(err)
                 dlg = _critical_error.CriticalErrorDialog(self, err)
 
                 dlg.ShowModal()
@@ -142,7 +148,8 @@ class Splash(wx.Frame):
         if self.main_thread != threading.current_thread():
 
             def _do(t):
-                self.logger.print_info(t)
+                if self.logger:
+                    self.logger.print_info(t)
                 self.text = t
                 self.draw()
                 self.event.set()
@@ -151,7 +158,8 @@ class Splash(wx.Frame):
             self.event.wait(0.2)
             self.event.clear()
         else:
-            self.logger.print_info(text)
+            if self.logger:
+                self.logger.print_info(text)
             self.text = text
             self.draw()
             time.sleep(0.05)

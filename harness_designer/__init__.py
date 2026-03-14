@@ -20,8 +20,14 @@ class App(wx.App):
         from .ui import splash as _splsh
         from . import logger as _lggr
 
+        # Create splash first - it will collect GL info using itself as parent
+        splash = _splsh.Splash(None, None)
+        
+        # Now create logger - GL info is already cached
         self.logger = _lggr.Log()
-        splash = _splsh.Splash(None, self.logger)
+        
+        # Set the logger on splash
+        splash.logger = self.logger
 
         splash.Show()
         return True
@@ -44,11 +50,6 @@ _app = None
 
 def __main__():
     global _app
-    
-    # Pre-cache GL info BEFORE creating main wx.App
-    # Creates temporary wx.App for GL context, then destroys it
-    from .gl import info as _gl_info
-    _gl_info.get()
     
     _app = App()
     _app.MainLoop()
