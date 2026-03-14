@@ -324,8 +324,14 @@ class MouseHandler2D:
         pos = event.GetPosition()
         rotation = event.GetWheelRotation()
         
+        # Convert rotation to delta (positive = zoom in, negative = zoom out)
+        if rotation > 0:
+            delta = 1.0
+        else:
+            delta = -1.0
+        
         # Zoom centered on cursor position
-        self.canvas.zoom_at_point(pos.x, pos.y, rotation)
+        self.canvas.Zoom_at_point(pos.x, pos.y, delta)
         
         event.Skip()
         

@@ -72,30 +72,6 @@ class Camera2D:
     def focal_position(self) -> _point.Point:
         """Get the focal position (what the camera is looking at)"""
         return self._focal_position
-            
-    @property
-    def zoom(self) -> float:
-        """
-        Get current zoom level (for compatibility)
-        
-        Zoom is calculated from distance:
-        - zoom = 1000.0 / distance
-        - Higher zoom = closer camera = more zoomed in
-        """
-        return 1000.0 / self._distance
-    
-    @zoom.setter
-    def zoom(self, value: float):
-        """
-        Set zoom level (for compatibility)
-        
-        Converts zoom to distance:
-        - distance = 1000.0 / zoom
-        """
-        if value > 0:
-            self._distance = 1000.0 / float(value)
-            self._distance = max(self._min_distance, min(self._max_distance, self._distance))
-            self.canvas.Refresh()
     
     @property
     def distance(self) -> float:
@@ -106,6 +82,27 @@ class Camera2D:
     def distance(self, value: float):
         """Set camera distance (clamped to min/max)"""
         self._distance = max(self._min_distance, min(self._max_distance, float(value)))
+        self.canvas.Refresh()
+    
+    def Zoom(self, delta: float):
+        """
+        Zoom in/out by changing the distance between camera and focal plane.
+        
+        Similar to 3D camera Zoom method. Positive delta zooms in (decreases distance),
+        negative delta zooms out (increases distance).
+        
+        Args:
+            delta: Signed value where positive = zoom in, negative = zoom out
+        """
+        # Apply delta to distance (positive delta = zoom in = decrease distance)
+        # Use sensitivity to control how much distance changes per delta unit
+        sensitivity = self.canvas.config.zoom.sensitivity if hasattr(self.canvas, 'config') else 5.0
+        
+        # Calculate new distance (negative delta to zoom in, like 3D camera)
+        new_distance = self._distance - (delta * sensitivity)
+        
+        # Clamp to limits
+        self._distance = max(self._min_distance, min(self._max_distance, new_distance))
         self.canvas.Refresh()
         
     def pan(self, dx: float, dy: float):
@@ -138,23 +135,24 @@ class Camera2D:
             self._focal_position.x += world_dx
             self._focal_position.y += world_dy
             
-    def zoom_at_point(self, screen_x: int, screen_y: int, zoom_delta: int):
+    def Zoom_at_point(self, screen_x: int, screen_y: int, delta: float):
         """
-        Zoom in/out centered on a specific screen point
+        Zoom in/out centered on a specific screen point.
         
         Changes the distance while keeping the point under cursor fixed.
+        Similar to 3D camera but for 2D orthographic view.
         
         Args:
             screen_x: Screen X coordinate
             screen_y: Screen Y coordinate
-            zoom_delta: Amount to change zoom (positive = zoom in)
+            delta: Signed value where positive = zoom in, negative = zoom out
         """
         # Get world position before zoom
         world_pos_before = self.screen_to_world(screen_x, screen_y)
         
-        # Change distance (zoom in = decrease distance, zoom out = increase distance)
-        zoom_factor = 1.1 if zoom_delta > 0 else 0.9
-        new_distance = self._distance * zoom_factor
+        # Apply zoom using the Zoom method logic
+        sensitivity = self.canvas.config.zoom.sensitivity if hasattr(self.canvas, 'config') else 5.0
+        new_distance = self._distance - (delta * sensitivity)
         self._distance = max(self._min_distance, min(self._max_distance, new_distance))
         
         # Get world position after zoom

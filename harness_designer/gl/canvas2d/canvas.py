@@ -35,7 +35,7 @@ class Canvas2D(glcanvas.GLCanvas):
     - Snap-to-grid functionality
     """
     
-    def __init__(self, parent, config: _config.Config.editor3d, size=wx.DefaultSize, pos=wx.DefaultPosition):
+    def __init__(self, parent, config: _config.Config.editor2d, size=wx.DefaultSize, pos=wx.DefaultPosition):
         glcanvas.GLCanvas.__init__(self, parent, -1, size=size, pos=pos)
         
         try:
@@ -50,13 +50,6 @@ class Canvas2D(glcanvas.GLCanvas):
         # Camera for 2D view
         from . import camera as _camera
         self.camera = _camera.Camera2D(self)
-        
-        # Grid and snapping
-        self._grid_enabled = True
-        self._grid_spacing = 10.0  # mm
-        self._snap_to_grid = False
-        self._angle_lock = False  # Lock movements to orthogonal angles (0, 90, 180, 270)
-        self._angle_lock_increment = 90.0  # degrees (90 for orthogonal, 45 for diagonal)
         
         # Mouse state
         self._mouse_down_pos = None
@@ -86,37 +79,7 @@ class Canvas2D(glcanvas.GLCanvas):
         font = self.GetFont()
         font.SetPointSize(12)
         self.SetFont(font)
-        
-    @property
-    def camera_x(self):
-        """Get camera X position in world coordinates"""
-        return self.camera.x
-    
-    @camera_x.setter
-    def camera_x(self, value):
-        """Set camera X position in world coordinates"""
-        self.camera.x = float(value)
-        
-    @property
-    def camera_y(self):
-        """Get camera Y position in world coordinates"""
-        return self.camera.y
-    
-    @camera_y.setter
-    def camera_y(self, value):
-        """Set camera Y position in world coordinates"""
-        self.camera.y = float(value)
-        
-    @property
-    def zoom(self):
-        """Get current zoom level"""
-        return self.camera.zoom
-    
-    @zoom.setter
-    def zoom(self, value):
-        """Set zoom level (clamped between 0.01 and 100.0)"""
-        self.camera.zoom = float(value)
-        
+           
     def pan(self, dx, dy):
         """
         Pan the view by delta pixels
@@ -127,16 +90,16 @@ class Canvas2D(glcanvas.GLCanvas):
         """
         self.camera.pan(dx, dy)
         
-    def zoom_at_point(self, screen_x, screen_y, zoom_delta):
+    def Zoom_at_point(self, screen_x, screen_y, delta):
         """
         Zoom in/out centered on a specific screen point
         
         Args:
             screen_x: Screen X coordinate
             screen_y: Screen Y coordinate
-            zoom_delta: Amount to change zoom (positive = zoom in)
+            delta: Signed value where positive = zoom in, negative = zoom out
         """
-        self.camera.zoom_at_point(screen_x, screen_y, zoom_delta)
+        self.camera.Zoom_at_point(screen_x, screen_y, delta)
         
     def screen_to_world(self, screen_x, screen_y):
         """
@@ -175,10 +138,10 @@ class Canvas2D(glcanvas.GLCanvas):
         Returns:
             tuple: (snapped_world_x, snapped_world_y)
         """
-        if not self._snap_to_grid:
+        if not self.config.grid.snap:
             return (world_x, world_y)
             
-        spacing = self._grid_spacing
+        spacing = self.config.grid.spacing
         snapped_x = round(world_x / spacing) * spacing
         snapped_y = round(world_y / spacing) * spacing
         
@@ -197,7 +160,7 @@ class Canvas2D(glcanvas.GLCanvas):
         Returns:
             tuple: (locked_x, locked_y) - position locked to nearest angle
         """
-        if not self._angle_lock:
+        if not self.config.angle.lock:
             return (end_x, end_y)
             
         import math
@@ -215,7 +178,7 @@ class Canvas2D(glcanvas.GLCanvas):
             angle_deg += 360
             
         # Round to nearest increment
-        locked_angle_deg = round(angle_deg / self._angle_lock_increment) * self._angle_lock_increment
+        locked_angle_deg = round(angle_deg / self.config.angle.lock_increment) * self.config.angle.lock_increment
         locked_angle_rad = math.radians(locked_angle_deg)
         
         # Calculate distance
@@ -227,45 +190,45 @@ class Canvas2D(glcanvas.GLCanvas):
         
         return (locked_x, locked_y)
         
-    def toggle_snap_to_grid(self):
-        """Toggle snap-to-grid on/off"""
-        self._snap_to_grid = not self._snap_to_grid
-        return self._snap_to_grid
+    def get_grid_snap(self):
+        """Get grid snap setting from config"""
+        return self.config.grid.snap
         
-    def toggle_angle_lock(self):
-        """Toggle angle lock on/off"""
-        self._angle_lock = not self._angle_lock
-        return self._angle_lock
+    def set_grid_snap(self, value):
+        """Set grid snap setting in config"""
+        self.config.grid.snap = bool(value)
         
-    def set_angle_lock_increment(self, degrees):
-        """
-        Set the angle lock increment
+    def get_angle_lock(self):
+        """Get angle lock setting from config"""
+        return self.config.angle.lock
         
-        Args:
-            degrees: Angle increment in degrees (e.g., 90 for orthogonal, 45 for diagonal)
-        """
-        self._angle_lock_increment = float(degrees)
+    def set_angle_lock(self, value):
+        """Set angle lock setting in config"""
+        self.config.angle.lock = bool(value)
         
-    def toggle_grid_display(self):
-        """Toggle grid display on/off"""
-        self._grid_enabled = not self._grid_enabled
+    def get_grid_display(self):
+        """Get grid display setting from config"""
+        return self.config.grid.enabled
+        
+    def set_grid_display(self, value):
+        """Set grid display setting in config"""
+        self.config.grid.enabled = bool(value)
         self.Refresh()
-        return self._grid_enabled
         
     @property
     def snap_enabled(self):
         """Check if snap-to-grid is enabled"""
-        return self._snap_to_grid
+        return self.config.grid.snap
         
     @property
     def angle_lock_enabled(self):
         """Check if angle lock is enabled"""
-        return self._angle_lock
+        return self.config.angle.lock
         
     @property
     def grid_enabled(self):
         """Check if grid display is enabled"""
-        return self._grid_enabled
+        return self.config.grid.enabled
         
     def set_selected(self, obj):
         """Set the currently selected object"""
@@ -377,7 +340,7 @@ class Canvas2D(glcanvas.GLCanvas):
         """Initialize OpenGL settings"""
         with self.context:
             # Basic OpenGL setup
-            GL.glClearColor(0.15, 0.15, 0.15, 1.0)  # Dark gray background
+            GL.glClearColor(0.9600, 0.9568, 0.9372, 1.0)  # Light beige background
             GL.glEnable(GL.GL_BLEND)
             GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
             GL.glEnable(GL.GL_LINE_SMOOTH)
@@ -424,14 +387,14 @@ class Canvas2D(glcanvas.GLCanvas):
         
     def _render_grid(self):
         """Render background grid with major and minor lines that adapt to zoom level"""
-        if not self._grid_enabled or self.size is None:
+        if not self.config.grid.enabled or self.size is None:
             return
             
         width, height = self.size
         
         # Calculate grid spacing based on distance (zoom)
         # Grid should be between 20-100 pixels apart for minor lines
-        base_spacing = 10.0  # mm - base minor grid spacing
+        base_spacing = self.config.grid.spacing  # mm - base minor grid spacing
         minor_spacing = base_spacing
         
         # Calculate how many pixels per world unit
@@ -467,9 +430,9 @@ class Canvas2D(glcanvas.GLCanvas):
         
         # Draw minor grid lines (dashed, thinner, lighter)
         GL.glEnable(GL.GL_LINE_STIPPLE)
-        GL.glLineStipple(1, 0xAAAA)  # Dotted pattern
-        GL.glColor4f(0.18, 0.18, 0.18, 1.0)  # Slightly lighter than background
-        GL.glLineWidth(1.0)
+        GL.glLineStipple(1, 0x8000)  # Sparser dotted pattern
+        GL.glColor4f(0.7098, 0.7098, 0.7098, 1.0)  # Light gray
+        GL.glLineWidth(1.5)
         
         GL.glBegin(GL.GL_LINES)
         
@@ -495,8 +458,8 @@ class Canvas2D(glcanvas.GLCanvas):
         GL.glDisable(GL.GL_LINE_STIPPLE)
         
         # Draw major grid lines (solid, thicker, more visible)
-        GL.glColor4f(0.25, 0.25, 0.25, 1.0)  # More visible than minor
-        GL.glLineWidth(1.5)
+        GL.glColor4f(0.25, 0.25, 0.25, 1.0)  # Dark gray for contrast
+        GL.glLineWidth(1.0)
         
         GL.glBegin(GL.GL_LINES)
         
