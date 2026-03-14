@@ -1,5 +1,6 @@
 from OpenGL import GL
-from OpenGL import GLUT
+import wx
+import wx.glcanvas as glcanvas
 
 
 def _safe_gl_get_string(param) -> str:
@@ -38,17 +39,16 @@ def get():
     global _info
 
     if _info is None:
-
-        # Initialize GLUT with minimal setup
-        GLUT.glutInit([])
-        GLUT.glutInitDisplayMode(GLUT.GLUT_SINGLE | GLUT.GLUT_RGB)
-        GLUT.glutInitWindowSize(1, 1)
-
-        # Create hidden window (don't call glutMainLoop, so it never shows)
-        window = GLUT.glutCreateWindow(b"Hidden OpenGL Context")
-
-        # Hide the window immediately
-        GLUT.glutHideWindow()
+        # Create a minimal hidden frame for GL context
+        frame = wx.Frame(None, -1, "Hidden GL Info", size=(1, 1), 
+                         style=wx.FRAME_NO_TASKBAR | wx.NO_BORDER)
+        
+        # Create GL canvas with minimal attributes
+        canvas = glcanvas.GLCanvas(frame, -1, size=(1, 1))
+        context = glcanvas.GLContext(canvas)
+        
+        # Make the context current to query GL information
+        canvas.SetCurrent(context)
 
         # Query OpenGL information
         _info = {
@@ -110,7 +110,8 @@ def get():
             },
         }
 
-        GLUT.glutDestroyWindow(window)
+        # Clean up - destroy the frame and context
+        frame.Destroy()
 
     return _info
 
