@@ -410,26 +410,29 @@ class Canvas2D(glcanvas.GLCanvas):
         self.SwapBuffers()
         
     def _render_grid(self):
-        """Render background grid"""
+        """Render background grid with major and minor lines that adapt to zoom level"""
         if not self._grid_enabled or self.size is None:
             return
             
         width, height = self.size
         
         # Calculate grid spacing based on zoom
-        # Grid should be between 20-100 pixels apart
-        base_spacing = 10.0  # mm
-        spacing = base_spacing
+        # Grid should be between 20-100 pixels apart for minor lines
+        base_spacing = 10.0  # mm - base minor grid spacing
+        minor_spacing = base_spacing
         
-        # Adjust spacing for zoom
-        pixel_spacing = spacing * self._zoom
+        # Adjust spacing for zoom to keep grid visible but not too dense
+        pixel_spacing = minor_spacing * self._zoom
         while pixel_spacing < 20:
-            spacing *= 10
-            pixel_spacing = spacing * self._zoom
+            minor_spacing *= 10
+            pixel_spacing = minor_spacing * self._zoom
         while pixel_spacing > 100:
-            spacing /= 10
-            pixel_spacing = spacing * self._zoom
+            minor_spacing /= 10
+            pixel_spacing = minor_spacing * self._zoom
             
+        # Major grid is 10x minor grid
+        major_spacing = minor_spacing * 10
+        
         # Calculate visible bounds
         half_width = (width / 2.0) / self._zoom
         half_height = (height / 2.0) / self._zoom
@@ -440,33 +443,68 @@ class Canvas2D(glcanvas.GLCanvas):
         top = self._camera_y + half_height
         
         # Round to grid
-        start_x = int(left / spacing) * spacing
-        start_y = int(bottom / spacing) * spacing
+        minor_start_x = int(left / minor_spacing) * minor_spacing
+        minor_start_y = int(bottom / minor_spacing) * minor_spacing
+        major_start_x = int(left / major_spacing) * major_spacing
+        major_start_y = int(bottom / major_spacing) * major_spacing
         
-        # Draw grid lines
-        GL.glColor4f(0.2, 0.2, 0.2, 1.0)  # Dark gray
+        # Draw minor grid lines (dashed, thinner, lighter)
+        GL.glEnable(GL.GL_LINE_STIPPLE)
+        GL.glLineStipple(1, 0xAAAA)  # Dotted pattern
+        GL.glColor4f(0.18, 0.18, 0.18, 1.0)  # Slightly lighter than background
         GL.glLineWidth(1.0)
         
         GL.glBegin(GL.GL_LINES)
         
-        # Vertical lines
-        x = start_x
+        # Minor vertical lines
+        x = minor_start_x
         while x <= right:
-            GL.glVertex2f(x, bottom)
-            GL.glVertex2f(x, top)
-            x += spacing
+            # Skip if this is a major grid line
+            if abs(x % major_spacing) > 0.01:
+                GL.glVertex2f(x, bottom)
+                GL.glVertex2f(x, top)
+            x += minor_spacing
             
-        # Horizontal lines
-        y = start_y
+        # Minor horizontal lines
+        y = minor_start_y
         while y <= top:
-            GL.glVertex2f(left, y)
-            GL.glVertex2f(right, y)
-            y += spacing
+            # Skip if this is a major grid line
+            if abs(y % major_spacing) > 0.01:
+                GL.glVertex2f(left, y)
+                GL.glVertex2f(right, y)
+            y += minor_spacing
+            
+        GL.glEnd()
+        GL.glDisable(GL.GL_LINE_STIPPLE)
+        
+        # Draw major grid lines (solid, thicker, more visible)
+        GL.glColor4f(0.25, 0.25, 0.25, 1.0)  # More visible than minor
+        GL.glLineWidth(1.5)
+        
+        GL.glBegin(GL.GL_LINES)
+        
+        # Major vertical lines
+        x = major_start_x
+        while x <= right:
+            # Don't draw major line at origin (will be drawn separately)
+            if abs(x) > 0.01:
+                GL.glVertex2f(x, bottom)
+                GL.glVertex2f(x, top)
+            x += major_spacing
+            
+        # Major horizontal lines
+        y = major_start_y
+        while y <= top:
+            # Don't draw major line at origin (will be drawn separately)
+            if abs(y) > 0.01:
+                GL.glVertex2f(left, y)
+                GL.glVertex2f(right, y)
+            y += major_spacing
             
         GL.glEnd()
         
-        # Draw axes
-        GL.glColor4f(0.3, 0.3, 0.3, 1.0)  # Lighter gray for axes
+        # Draw axes (origin) with distinct color
+        GL.glColor4f(0.35, 0.35, 0.35, 1.0)  # Brighter for axes
         GL.glLineWidth(2.0)
         
         GL.glBegin(GL.GL_LINES)

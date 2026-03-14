@@ -15,6 +15,22 @@ if TYPE_CHECKING:
 FIVE_0 = 5.0
 SIX_0 = 6.0
 
+# Color mapping for wire colors and stripe colors
+WIRE_COLOR_MAP = {
+    'black': (0.0, 0.0, 0.0),
+    'red': (1.0, 0.0, 0.0),
+    'blue': (0.0, 0.0, 1.0),
+    'green': (0.0, 1.0, 0.0),
+    'yellow': (1.0, 1.0, 0.0),
+    'white': (1.0, 1.0, 1.0),
+    'orange': (1.0, 0.5, 0.0),
+    'brown': (0.6, 0.3, 0.0),
+    'purple': (0.5, 0.0, 0.5),
+    'gray': (0.5, 0.5, 0.5),
+    'grey': (0.5, 0.5, 0.5),
+    'pink': (1.0, 0.75, 0.8),
+}
+
 
 class Wire(_base2d.Base2D):
     """
@@ -258,23 +274,9 @@ class Wire(_base2d.Base2D):
         # Try to get color from part
         if self._part and hasattr(self._part, 'color'):
             color_name = self._part.color
-            # Map color name to RGB
-            color_map = {
-                'black': (0.0, 0.0, 0.0),
-                'red': (1.0, 0.0, 0.0),
-                'blue': (0.0, 0.0, 1.0),
-                'green': (0.0, 1.0, 0.0),
-                'yellow': (1.0, 1.0, 0.0),
-                'white': (1.0, 1.0, 1.0),
-                'orange': (1.0, 0.5, 0.0),
-                'brown': (0.6, 0.3, 0.0),
-                'purple': (0.5, 0.0, 0.5),
-                'gray': (0.5, 0.5, 0.5),
-                'grey': (0.5, 0.5, 0.5),
-                'pink': (1.0, 0.75, 0.8),
-            }
-            if color_name and color_name.lower() in color_map:
-                return color_map[color_name.lower()]
+            # Map color name to RGB using shared color map
+            if color_name and color_name.lower() in WIRE_COLOR_MAP:
+                return WIRE_COLOR_MAP[color_name.lower()]
                 
         # Default color
         return (0.8, 0.8, 0.8)  # Light gray
@@ -292,23 +294,9 @@ class Wire(_base2d.Base2D):
                 else:
                     return None
                     
-                # Map color name to RGB
-                color_map = {
-                    'black': (0.0, 0.0, 0.0),
-                    'red': (1.0, 0.0, 0.0),
-                    'blue': (0.0, 0.0, 1.0),
-                    'green': (0.0, 1.0, 0.0),
-                    'yellow': (1.0, 1.0, 0.0),
-                    'white': (1.0, 1.0, 1.0),
-                    'orange': (1.0, 0.5, 0.0),
-                    'brown': (0.6, 0.3, 0.0),
-                    'purple': (0.5, 0.0, 0.5),
-                    'gray': (0.5, 0.5, 0.5),
-                    'grey': (0.5, 0.5, 0.5),
-                    'pink': (1.0, 0.75, 0.8),
-                }
-                if color_name and color_name.lower() in color_map:
-                    return color_map[color_name.lower()]
+                # Map color name to RGB using shared color map
+                if color_name and color_name.lower() in WIRE_COLOR_MAP:
+                    return WIRE_COLOR_MAP[color_name.lower()]
                     
         return None
     #

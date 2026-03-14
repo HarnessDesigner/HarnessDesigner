@@ -337,16 +337,22 @@ class MouseHandler2D:
         menu.AppendSeparator()
         
         item = menu.Append(wx.ID_ANY, "Zoom In")
-        self.canvas.Bind(wx.EVT_MENU, lambda e: self.canvas.zoom_at_point(pos.x, pos.y, 120), id=item.GetId())
+        self.canvas.Bind(wx.EVT_MENU, self._create_zoom_handler(pos.x, pos.y, 120), id=item.GetId())
         
         item = menu.Append(wx.ID_ANY, "Zoom Out")
-        self.canvas.Bind(wx.EVT_MENU, lambda e: self.canvas.zoom_at_point(pos.x, pos.y, -120), id=item.GetId())
+        self.canvas.Bind(wx.EVT_MENU, self._create_zoom_handler(pos.x, pos.y, -120), id=item.GetId())
         
         item = menu.Append(wx.ID_ANY, "Zoom to Fit")
         self.canvas.Bind(wx.EVT_MENU, self._on_zoom_to_fit, id=item.GetId())
         
         self.canvas.PopupMenu(menu, pos)
         menu.Destroy()
+        
+    def _create_zoom_handler(self, x, y, delta):
+        """Create a zoom handler with captured position"""
+        def handler(event):
+            self.canvas.zoom_at_point(x, y, delta)
+        return handler
         
     def _on_reset_view(self, event):
         """Reset view to origin"""
