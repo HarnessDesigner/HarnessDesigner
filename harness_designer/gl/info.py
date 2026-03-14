@@ -51,7 +51,7 @@ def get(parent=None):
                 # Create a minimal hidden frame for GL context
                 frame = wx.Frame(
                     None, 
-                    -1, 
+                    wx.ID_ANY, 
                     "GL Info", 
                     pos=(-10000, -10000),  # Far off-screen
                     size=(1, 1),
@@ -59,7 +59,7 @@ def get(parent=None):
                 )
                 parent_for_canvas = frame
                 cleanup_frame = True
-            except:
+            except Exception:
                 if temp_app:
                     temp_app.Destroy()
                 raise
@@ -71,7 +71,7 @@ def get(parent=None):
         
         try:
             # Create GL canvas - don't show it
-            canvas = glcanvas.GLCanvas(parent_for_canvas, -1, size=(1, 1))
+            canvas = glcanvas.GLCanvas(parent_for_canvas, wx.ID_ANY, size=(1, 1))
             context = glcanvas.GLContext(canvas)
             
             # Make the context current to query GL information
