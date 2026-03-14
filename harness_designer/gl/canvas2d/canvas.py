@@ -56,6 +56,8 @@ class Canvas2D(glcanvas.GLCanvas):
         self._grid_enabled = True
         self._grid_spacing = 10.0  # mm
         self._snap_to_grid = False
+        self._angle_lock = False  # Lock movements to orthogonal angles (0, 90, 180, 270)
+        self._angle_lock_increment = 90.0  # degrees (90 for orthogonal, 45 for diagonal)
         
         # Mouse state
         self._mouse_down_pos = None
@@ -236,10 +238,67 @@ class Canvas2D(glcanvas.GLCanvas):
         
         return (snapped_x, snapped_y)
         
+    def apply_angle_lock(self, start_x, start_y, end_x, end_y):
+        """
+        Apply angle lock to constrain movement to specific angles
+        
+        Args:
+            start_x: Starting X position
+            start_y: Starting Y position
+            end_x: Target X position
+            end_y: Target Y position
+            
+        Returns:
+            tuple: (locked_x, locked_y) - position locked to nearest angle
+        """
+        if not self._angle_lock:
+            return (end_x, end_y)
+            
+        import math
+        
+        # Calculate delta
+        dx = end_x - start_x
+        dy = end_y - start_y
+        
+        # Calculate angle in degrees
+        angle_rad = math.atan2(dy, dx)
+        angle_deg = math.degrees(angle_rad)
+        
+        # Normalize to 0-360
+        if angle_deg < 0:
+            angle_deg += 360
+            
+        # Round to nearest increment
+        locked_angle_deg = round(angle_deg / self._angle_lock_increment) * self._angle_lock_increment
+        locked_angle_rad = math.radians(locked_angle_deg)
+        
+        # Calculate distance
+        distance = math.sqrt(dx*dx + dy*dy)
+        
+        # Apply locked angle
+        locked_x = start_x + distance * math.cos(locked_angle_rad)
+        locked_y = start_y + distance * math.sin(locked_angle_rad)
+        
+        return (locked_x, locked_y)
+        
     def toggle_snap_to_grid(self):
         """Toggle snap-to-grid on/off"""
         self._snap_to_grid = not self._snap_to_grid
         return self._snap_to_grid
+        
+    def toggle_angle_lock(self):
+        """Toggle angle lock on/off"""
+        self._angle_lock = not self._angle_lock
+        return self._angle_lock
+        
+    def set_angle_lock_increment(self, degrees):
+        """
+        Set the angle lock increment
+        
+        Args:
+            degrees: Angle increment in degrees (e.g., 90 for orthogonal, 45 for diagonal)
+        """
+        self._angle_lock_increment = float(degrees)
         
     def toggle_grid_display(self):
         """Toggle grid display on/off"""
@@ -251,6 +310,11 @@ class Canvas2D(glcanvas.GLCanvas):
     def snap_enabled(self):
         """Check if snap-to-grid is enabled"""
         return self._snap_to_grid
+        
+    @property
+    def angle_lock_enabled(self):
+        """Check if angle lock is enabled"""
+        return self._angle_lock
         
     @property
     def grid_enabled(self):

@@ -285,6 +285,17 @@ class MouseHandler2D:
             # Drag object
             world_pos = self.canvas.screen_to_world(pos.x, pos.y)
             
+            # Apply snap to grid if enabled
+            if self.canvas.snap_enabled:
+                world_pos = self.canvas.snap_to_grid(world_pos[0], world_pos[1])
+                
+            # Apply angle lock if enabled and we have a drag offset
+            if self.canvas.angle_lock_enabled and self._drag_offset is not None:
+                world_pos = self.canvas.apply_angle_lock(
+                    self._drag_offset[0], self._drag_offset[1],
+                    world_pos[0], world_pos[1]
+                )
+            
             # Send drag event
             evt = GLEvent2D(wxEVT_GL2D_OBJECT_DRAG)
             evt.obj = self._dragging_object
@@ -345,6 +356,21 @@ class MouseHandler2D:
         item = menu.Append(wx.ID_ANY, "Zoom to Fit")
         self.canvas.Bind(wx.EVT_MENU, self._on_zoom_to_fit, id=item.GetId())
         
+        menu.AppendSeparator()
+        
+        # Grid and snap options
+        grid_text = "Hide Grid" if self.canvas.grid_enabled else "Show Grid"
+        item = menu.Append(wx.ID_ANY, grid_text)
+        self.canvas.Bind(wx.EVT_MENU, self._on_toggle_grid, id=item.GetId())
+        
+        snap_text = "Disable Snap to Grid" if self.canvas.snap_enabled else "Enable Snap to Grid"
+        item = menu.Append(wx.ID_ANY, snap_text)
+        self.canvas.Bind(wx.EVT_MENU, self._on_toggle_snap, id=item.GetId())
+        
+        angle_text = "Disable Angle Lock" if self.canvas.angle_lock_enabled else "Enable Angle Lock"
+        item = menu.Append(wx.ID_ANY, angle_text)
+        self.canvas.Bind(wx.EVT_MENU, self._on_toggle_angle_lock, id=item.GetId())
+        
         self.canvas.PopupMenu(menu, pos)
         menu.Destroy()
         
@@ -353,6 +379,20 @@ class MouseHandler2D:
         def handler(event):
             self.canvas.zoom_at_point(x, y, delta)
         return handler
+        
+    def _on_toggle_grid(self, event):
+        """Toggle grid display"""
+        self.canvas.toggle_grid_display()
+        
+    def _on_toggle_snap(self, event):
+        """Toggle snap to grid"""
+        enabled = self.canvas.toggle_snap_to_grid()
+        # Could show a status message
+        
+    def _on_toggle_angle_lock(self, event):
+        """Toggle angle lock"""
+        enabled = self.canvas.toggle_angle_lock()
+        # Could show a status message
         
     def _on_reset_view(self, event):
         """Reset view to origin"""
