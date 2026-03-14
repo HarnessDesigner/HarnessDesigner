@@ -32,6 +32,7 @@ class Canvas2D(glcanvas.GLCanvas):
     - Pan and zoom capabilities
     - Object selection and dragging
     - Point-based coordinate system
+    - Snap-to-grid functionality
     """
     
     def __init__(self, parent, config: _config.Config.editor3d, size=wx.DefaultSize, pos=wx.DefaultPosition):
@@ -50,6 +51,11 @@ class Canvas2D(glcanvas.GLCanvas):
         self._camera_x = 0.0  # Camera center X position (world coords)
         self._camera_y = 0.0  # Camera center Y position (world coords)
         self._zoom = 1.0  # Zoom level (1.0 = 1 pixel = 1 mm)
+        
+        # Grid and snapping
+        self._grid_enabled = True
+        self._grid_spacing = 10.0  # mm
+        self._snap_to_grid = False
         
         # Mouse state
         self._mouse_down_pos = None
@@ -210,6 +216,47 @@ class Canvas2D(glcanvas.GLCanvas):
         
         return (int(screen_x), int(screen_y))
         
+    def snap_to_grid(self, world_x, world_y):
+        """
+        Snap world coordinates to grid
+        
+        Args:
+            world_x: World X coordinate
+            world_y: World Y coordinate
+            
+        Returns:
+            tuple: (snapped_world_x, snapped_world_y)
+        """
+        if not self._snap_to_grid:
+            return (world_x, world_y)
+            
+        spacing = self._grid_spacing
+        snapped_x = round(world_x / spacing) * spacing
+        snapped_y = round(world_y / spacing) * spacing
+        
+        return (snapped_x, snapped_y)
+        
+    def toggle_snap_to_grid(self):
+        """Toggle snap-to-grid on/off"""
+        self._snap_to_grid = not self._snap_to_grid
+        return self._snap_to_grid
+        
+    def toggle_grid_display(self):
+        """Toggle grid display on/off"""
+        self._grid_enabled = not self._grid_enabled
+        self.Refresh()
+        return self._grid_enabled
+        
+    @property
+    def snap_enabled(self):
+        """Check if snap-to-grid is enabled"""
+        return self._snap_to_grid
+        
+    @property
+    def grid_enabled(self):
+        """Check if grid display is enabled"""
+        return self._grid_enabled
+        
     def set_selected(self, obj):
         """Set the currently selected object"""
         if self._selected == obj:
@@ -364,7 +411,7 @@ class Canvas2D(glcanvas.GLCanvas):
         
     def _render_grid(self):
         """Render background grid"""
-        if self.size is None:
+        if not self._grid_enabled or self.size is None:
             return
             
         width, height = self.size
