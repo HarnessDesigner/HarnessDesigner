@@ -92,8 +92,6 @@ class Wire(_base2d.Base2D):
             
     def _render_stripes(self, stripe_color, wire_width):
         """Render diagonal stripes on wire"""
-        import math
-        
         # Calculate wire angle and length
         dx = self._p2.x - self._p1.x
         dy = self._p2.y - self._p1.y

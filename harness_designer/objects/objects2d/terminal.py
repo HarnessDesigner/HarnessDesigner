@@ -99,7 +99,7 @@ class Terminal(_base2d.Base2D):
         else:
             GL.glBegin(GL.GL_LINE_LOOP)
             
-        for i in range(segments + 1):
+        for i in range(segments):
             angle = 2.0 * math.pi * i / segments
             cx = x + radius * math.cos(angle)
             cy = y + radius * math.sin(angle)
