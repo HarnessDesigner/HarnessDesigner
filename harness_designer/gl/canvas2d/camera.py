@@ -2,7 +2,8 @@
 2D Camera for Schematic Editor
 
 Manages camera position, zoom, and viewport transformations for 2D orthographic view.
-Similar to the 3D camera but simplified for 2D orthographic projection.
+Uses distance-based zoom similar to 3D camera, where zoom changes the distance between
+the camera and the focal plane.
 """
 
 from typing import TYPE_CHECKING
@@ -17,84 +18,131 @@ class Camera2D:
     """
     2D Camera for orthographic schematic view
     
-    Manages:
-    - Camera position (center point in world coordinates)
-    - Zoom level (1.0 = 1 pixel = 1 mm)
-    - Viewport transformations
+    Similar to 3D camera but adapted for 2D orthographic projection:
+    - Focal position: center point in world coordinates (what we're looking at)
+    - Distance: camera distance from focal plane (controls zoom)
+    - Pan: moves focal position
+    - Zoom: changes distance (closer = more zoomed in, farther = more zoomed out)
     """
     
     def __init__(self, canvas: "_canvas.Canvas2D"):
         self.canvas = canvas
         
-        # Camera position in world coordinates
-        self._position = _point.Point(0.0, 0.0, 0.0, db_id=None)
+        # Focal position - the point in world coordinates we're looking at (center of view)
+        self._focal_position = _point.Point(0.0, 0.0, 0.0, db_id=None)
         
-        # Zoom level (1.0 = 1:1 mapping, 2.0 = 2x zoom)
-        self._zoom = 1.0
+        # Distance from camera to focal plane (controls zoom level)
+        # Higher distance = see more (zoomed out), lower distance = see less (zoomed in)
+        self._distance = 1000.0  # Default distance in "units"
         
-        # Zoom limits
-        self._min_zoom = 0.01
-        self._max_zoom = 100.0
+        # Distance limits (controls zoom range)
+        self._min_distance = 10.0    # Max zoom in
+        self._max_distance = 100000.0  # Max zoom out
         
         # Bind callbacks for automatic refresh
-        self._position.bind(self._on_position_changed)
+        self._focal_position.bind(self._on_focal_position_changed)
         
-    def _on_position_changed(self, position: _point.Point):
-        """Called when camera position changes"""
+    def _on_focal_position_changed(self, position: _point.Point):
+        """Called when focal position changes"""
         self.canvas.Refresh()
         
     @property
     def x(self) -> float:
-        """Get camera X position in world coordinates"""
-        return self._position.x
+        """Get focal position X in world coordinates"""
+        return self._focal_position.x
     
     @x.setter
     def x(self, value: float):
-        """Set camera X position"""
-        with self._position:
-            self._position.x = float(value)
+        """Set focal position X"""
+        with self._focal_position:
+            self._focal_position.x = float(value)
         
     @property
     def y(self) -> float:
-        """Get camera Y position in world coordinates"""
-        return self._position.y
+        """Get focal position Y in world coordinates"""
+        return self._focal_position.y
     
     @y.setter
     def y(self, value: float):
-        """Set camera Y position"""
-        with self._position:
-            self._position.y = float(value)
+        """Set focal position Y"""
+        with self._focal_position:
+            self._focal_position.y = float(value)
+    
+    @property
+    def focal_position(self) -> _point.Point:
+        """Get the focal position (what the camera is looking at)"""
+        return self._focal_position
             
     @property
     def zoom(self) -> float:
-        """Get current zoom level"""
-        return self._zoom
+        """
+        Get current zoom level (for compatibility)
+        
+        Zoom is calculated from distance:
+        - zoom = 1000.0 / distance
+        - Higher zoom = closer camera = more zoomed in
+        """
+        return 1000.0 / self._distance
     
     @zoom.setter
     def zoom(self, value: float):
-        """Set zoom level (clamped to min/max)"""
-        self._zoom = max(self._min_zoom, min(self._max_zoom, float(value)))
+        """
+        Set zoom level (for compatibility)
+        
+        Converts zoom to distance:
+        - distance = 1000.0 / zoom
+        """
+        if value > 0:
+            self._distance = 1000.0 / float(value)
+            self._distance = max(self._min_distance, min(self._max_distance, self._distance))
+            self.canvas.Refresh()
+    
+    @property
+    def distance(self) -> float:
+        """Get camera distance from focal plane"""
+        return self._distance
+    
+    @distance.setter
+    def distance(self, value: float):
+        """Set camera distance (clamped to min/max)"""
+        self._distance = max(self._min_distance, min(self._max_distance, float(value)))
         self.canvas.Refresh()
         
     def pan(self, dx: float, dy: float):
         """
         Pan the camera by delta in screen pixels
         
+        Moves the focal position in world coordinates.
+        
         Args:
             dx: Change in X (screen coordinates)
             dy: Change in Y (screen coordinates)
         """
-        # Convert screen delta to world delta (accounting for zoom)
-        world_dx = dx / self._zoom
-        world_dy = -dy / self._zoom  # Invert Y for screen coordinates
+        # Convert screen delta to world delta
+        # The conversion factor depends on distance (farther = bigger world movement per pixel)
+        size = self.canvas.size
+        if size is None:
+            return
+            
+        width, height = size
         
-        with self._position:
-            self._position.x -= world_dx
-            self._position.y -= world_dy
+        # Calculate world units per pixel based on distance and screen size
+        # For orthographic projection, visible width at focal plane depends on distance
+        world_per_pixel = self._distance / 1000.0  # Scale factor
+        
+        world_dx = -dx * world_per_pixel  # Negate to make pan feel natural
+        world_dy = dy * world_per_pixel   # Y is already inverted below
+        
+        # Move focal position
+        with self._focal_position:
+            self._focal_position.x += world_dx
+            self._focal_position.y += world_dy
             
     def zoom_at_point(self, screen_x: int, screen_y: int, zoom_delta: int):
         """
         Zoom in/out centered on a specific screen point
+        
+        Changes the distance while keeping the point under cursor fixed.
         
         Args:
             screen_x: Screen X coordinate
@@ -104,17 +152,20 @@ class Camera2D:
         # Get world position before zoom
         world_pos_before = self.screen_to_world(screen_x, screen_y)
         
-        # Apply zoom
+        # Change distance (zoom in = decrease distance, zoom out = increase distance)
         zoom_factor = 1.1 if zoom_delta > 0 else 0.9
-        self.zoom = self._zoom * zoom_factor
+        new_distance = self._distance * zoom_factor
+        self._distance = max(self._min_distance, min(self._max_distance, new_distance))
         
-        # Get world position after zoom (at same screen point)
+        # Get world position after zoom
         world_pos_after = self.screen_to_world(screen_x, screen_y)
         
-        # Adjust camera to keep the point under cursor
-        with self._position:
-            self._position.x += world_pos_before[0] - world_pos_after[0]
-            self._position.y += world_pos_before[1] - world_pos_after[1]
+        # Adjust focal position to keep the point under cursor fixed
+        with self._focal_position:
+            self._focal_position.x += world_pos_before[0] - world_pos_after[0]
+            self._focal_position.y += world_pos_before[1] - world_pos_after[1]
+        
+        self.canvas.Refresh()
             
     def screen_to_world(self, screen_x: int, screen_y: int) -> tuple:
         """
@@ -137,13 +188,16 @@ class Camera2D:
         center_x = width / 2.0
         center_y = height / 2.0
         
-        # Offset from center
+        # Offset from center in pixels
         offset_x = screen_x - center_x
-        offset_y = center_y - screen_y  # Invert Y
+        offset_y = center_y - screen_y  # Invert Y (screen Y goes down, world Y goes up)
+        
+        # Convert to world units based on distance
+        world_per_pixel = self._distance / 1000.0
         
         # World coordinates
-        world_x = self._position.x + (offset_x / self._zoom)
-        world_y = self._position.y + (offset_y / self._zoom)
+        world_x = self._focal_position.x + (offset_x * world_per_pixel)
+        world_y = self._focal_position.y + (offset_y * world_per_pixel)
         
         return (world_x, world_y)
         
@@ -164,22 +218,25 @@ class Camera2D:
             
         width, height = size
         
-        # Offset from camera
-        offset_x = (world_x - self._position.x) * self._zoom
-        offset_y = (world_y - self._position.y) * self._zoom
+        # Offset from focal position in world units
+        offset_x = world_x - self._focal_position.x
+        offset_y = world_y - self._focal_position.y
+        
+        # Convert to pixels based on distance
+        pixels_per_world = 1000.0 / self._distance
         
         # Screen coordinates
-        screen_x = (width / 2.0) + offset_x
-        screen_y = (height / 2.0) - offset_y  # Invert Y
+        screen_x = (width / 2.0) + (offset_x * pixels_per_world)
+        screen_y = (height / 2.0) - (offset_y * pixels_per_world)  # Invert Y
         
         return (int(screen_x), int(screen_y))
         
     def reset(self):
-        """Reset camera to origin with default zoom"""
-        with self._position:
-            self._position.x = 0.0
-            self._position.y = 0.0
-        self._zoom = 1.0
+        """Reset camera to origin with default distance"""
+        with self._focal_position:
+            self._focal_position.x = 0.0
+            self._focal_position.y = 0.0
+        self._distance = 1000.0
         self.canvas.Refresh()
         
     def zoom_to_fit(self, objects):
@@ -212,7 +269,7 @@ class Camera2D:
             self.reset()
             return
             
-        # Calculate center and zoom
+        # Calculate center and required distance
         center_x = (min_x + max_x) / 2.0
         center_y = (min_y + max_y) / 2.0
         width_obj = max_x - min_x
@@ -221,12 +278,18 @@ class Camera2D:
         size = self.canvas.size
         if size:
             canvas_width, canvas_height = size
-            zoom_x = canvas_width / width_obj if width_obj > 0 else 1.0
-            zoom_y = canvas_height / height_obj if height_obj > 0 else 1.0
-            zoom = min(zoom_x, zoom_y) * 0.9  # 90% to add padding
             
-            with self._position:
-                self._position.x = center_x
-                self._position.y = center_y
-            self._zoom = zoom
+            # Calculate required distance to fit objects
+            # Distance needed for width
+            distance_for_width = (width_obj * 1000.0 / canvas_width) if width_obj > 0 else 1000.0
+            # Distance needed for height
+            distance_for_height = (height_obj * 1000.0 / canvas_height) if height_obj > 0 else 1000.0
+            
+            # Use the larger distance to fit both dimensions, then add padding
+            required_distance = max(distance_for_width, distance_for_height) * 1.1  # 10% padding
+            
+            with self._focal_position:
+                self._focal_position.x = center_x
+                self._focal_position.y = center_y
+            self._distance = max(self._min_distance, min(self._max_distance, required_distance))
             self.canvas.Refresh()

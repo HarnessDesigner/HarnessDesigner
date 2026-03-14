@@ -354,9 +354,13 @@ class Canvas2D(glcanvas.GLCanvas):
         GL.glMatrixMode(GL.GL_PROJECTION)
         GL.glLoadIdentity()
         
-        # Calculate visible world bounds using camera
-        half_width = (width / 2.0) / self.camera.zoom
-        half_height = (height / 2.0) / self.camera.zoom
+        # Calculate visible world bounds based on camera distance
+        # The distance controls how much of the world we see
+        # Larger distance = see more (zoomed out), smaller distance = see less (zoomed in)
+        world_per_pixel = self.camera.distance / 1000.0
+        
+        half_width = (width / 2.0) * world_per_pixel
+        half_height = (height / 2.0) * world_per_pixel
         
         left = self.camera.x - half_width
         right = self.camera.x + half_width
@@ -425,26 +429,30 @@ class Canvas2D(glcanvas.GLCanvas):
             
         width, height = self.size
         
-        # Calculate grid spacing based on zoom
+        # Calculate grid spacing based on distance (zoom)
         # Grid should be between 20-100 pixels apart for minor lines
         base_spacing = 10.0  # mm - base minor grid spacing
         minor_spacing = base_spacing
         
-        # Adjust spacing for zoom to keep grid visible but not too dense
-        pixel_spacing = minor_spacing * self.camera.zoom
+        # Calculate how many pixels per world unit
+        pixels_per_world = 1000.0 / self.camera.distance
+        pixel_spacing = minor_spacing * pixels_per_world
+        
+        # Adjust spacing to keep grid visible but not too dense
         while pixel_spacing < 20:
             minor_spacing *= 10
-            pixel_spacing = minor_spacing * self.camera.zoom
+            pixel_spacing = minor_spacing * pixels_per_world
         while pixel_spacing > 100:
             minor_spacing /= 10
-            pixel_spacing = minor_spacing * self.camera.zoom
+            pixel_spacing = minor_spacing * pixels_per_world
             
         # Major grid is 10x minor grid
         major_spacing = minor_spacing * 10
         
         # Calculate visible bounds using camera
-        half_width = (width / 2.0) / self.camera.zoom
-        half_height = (height / 2.0) / self.camera.zoom
+        world_per_pixel = self.camera.distance / 1000.0
+        half_width = (width / 2.0) * world_per_pixel
+        half_height = (height / 2.0) * world_per_pixel
         
         left = self.camera.x - half_width
         right = self.camera.x + half_width
