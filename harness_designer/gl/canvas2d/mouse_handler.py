@@ -396,49 +396,8 @@ class MouseHandler2D:
         
     def _on_reset_view(self, event):
         """Reset view to origin"""
-        self.canvas._camera_x = 0.0
-        self.canvas._camera_y = 0.0
-        self.canvas._zoom = 1.0
-        self.canvas.Refresh()
+        self.canvas.camera.reset()
         
     def _on_zoom_to_fit(self, event):
         """Zoom to fit all objects"""
-        if not self.canvas.objects:
-            self._on_reset_view(event)
-            return
-            
-        # Calculate bounding box of all objects
-        min_x = float('inf')
-        min_y = float('inf')
-        max_x = float('-inf')
-        max_y = float('-inf')
-        
-        for obj in self.canvas.objects:
-            if hasattr(obj, 'obj2d') and hasattr(obj.obj2d, 'get_bounds'):
-                bounds = obj.obj2d.get_bounds()
-                if bounds is not None:
-                    min_x = min(min_x, bounds[0])
-                    min_y = min(min_y, bounds[1])
-                    max_x = max(max_x, bounds[2])
-                    max_y = max(max_y, bounds[3])
-                    
-        if min_x == float('inf'):
-            self._on_reset_view(event)
-            return
-            
-        # Calculate center and zoom
-        center_x = (min_x + max_x) / 2.0
-        center_y = (min_y + max_y) / 2.0
-        width = max_x - min_x
-        height = max_y - min_y
-        
-        if self.canvas.size:
-            canvas_width, canvas_height = self.canvas.size
-            zoom_x = canvas_width / width if width > 0 else 1.0
-            zoom_y = canvas_height / height if height > 0 else 1.0
-            zoom = min(zoom_x, zoom_y) * 0.9  # 90% to add padding
-            
-            self.canvas._camera_x = center_x
-            self.canvas._camera_y = center_y
-            self.canvas._zoom = zoom
-            self.canvas.Refresh()
+        self.canvas.camera.zoom_to_fit(self.canvas.objects)

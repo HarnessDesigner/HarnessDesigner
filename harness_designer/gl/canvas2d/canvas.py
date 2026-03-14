@@ -47,10 +47,9 @@ class Canvas2D(glcanvas.GLCanvas):
         self._init = False
         self.context = _context.GLContext(self)
         
-        # Camera/view properties for 2D
-        self._camera_x = 0.0  # Camera center X position (world coords)
-        self._camera_y = 0.0  # Camera center Y position (world coords)
-        self._zoom = 1.0  # Zoom level (1.0 = 1 pixel = 1 mm)
+        # Camera for 2D view
+        from . import camera as _camera
+        self.camera = _camera.Camera2D(self)
         
         # Grid and snapping
         self._grid_enabled = True
@@ -91,35 +90,32 @@ class Canvas2D(glcanvas.GLCanvas):
     @property
     def camera_x(self):
         """Get camera X position in world coordinates"""
-        return self._camera_x
+        return self.camera.x
     
     @camera_x.setter
     def camera_x(self, value):
         """Set camera X position in world coordinates"""
-        self._camera_x = float(value)
-        self.Refresh()
+        self.camera.x = float(value)
         
     @property
     def camera_y(self):
         """Get camera Y position in world coordinates"""
-        return self._camera_y
+        return self.camera.y
     
     @camera_y.setter
     def camera_y(self, value):
         """Set camera Y position in world coordinates"""
-        self._camera_y = float(value)
-        self.Refresh()
+        self.camera.y = float(value)
         
     @property
     def zoom(self):
         """Get current zoom level"""
-        return self._zoom
+        return self.camera.zoom
     
     @zoom.setter
     def zoom(self, value):
         """Set zoom level (clamped between 0.01 and 100.0)"""
-        self._zoom = max(0.01, min(100.0, float(value)))
-        self.Refresh()
+        self.camera.zoom = float(value)
         
     def pan(self, dx, dy):
         """
@@ -129,13 +125,7 @@ class Canvas2D(glcanvas.GLCanvas):
             dx: Change in X (screen coordinates)
             dy: Change in Y (screen coordinates)
         """
-        # Convert screen delta to world delta (accounting for zoom)
-        world_dx = dx / self._zoom
-        world_dy = -dy / self._zoom  # Invert Y for screen coordinates
-        
-        self._camera_x -= world_dx
-        self._camera_y -= world_dy
-        self.Refresh()
+        self.camera.pan(dx, dy)
         
     def zoom_at_point(self, screen_x, screen_y, zoom_delta):
         """
@@ -146,21 +136,7 @@ class Canvas2D(glcanvas.GLCanvas):
             screen_y: Screen Y coordinate
             zoom_delta: Amount to change zoom (positive = zoom in)
         """
-        # Get world position before zoom
-        world_pos_before = self.screen_to_world(screen_x, screen_y)
-        
-        # Apply zoom
-        zoom_factor = 1.1 if zoom_delta > 0 else 0.9
-        self._zoom = max(0.01, min(100.0, self._zoom * zoom_factor))
-        
-        # Get world position after zoom
-        world_pos_after = self.screen_to_world(screen_x, screen_y)
-        
-        # Adjust camera to keep the point under cursor
-        self._camera_x += world_pos_before[0] - world_pos_after[0]
-        self._camera_y += world_pos_before[1] - world_pos_after[1]
-        
-        self.Refresh()
+        self.camera.zoom_at_point(screen_x, screen_y, zoom_delta)
         
     def screen_to_world(self, screen_x, screen_y):
         """
@@ -173,24 +149,7 @@ class Canvas2D(glcanvas.GLCanvas):
         Returns:
             tuple: (world_x, world_y)
         """
-        if self.size is None:
-            return (0.0, 0.0)
-            
-        width, height = self.size
-        
-        # Screen center
-        center_x = width / 2.0
-        center_y = height / 2.0
-        
-        # Offset from center
-        offset_x = screen_x - center_x
-        offset_y = center_y - screen_y  # Invert Y
-        
-        # World coordinates
-        world_x = self._camera_x + (offset_x / self._zoom)
-        world_y = self._camera_y + (offset_y / self._zoom)
-        
-        return (world_x, world_y)
+        return self.camera.screen_to_world(screen_x, screen_y)
         
     def world_to_screen(self, world_x, world_y):
         """
@@ -203,20 +162,7 @@ class Canvas2D(glcanvas.GLCanvas):
         Returns:
             tuple: (screen_x, screen_y)
         """
-        if self.size is None:
-            return (0, 0)
-            
-        width, height = self.size
-        
-        # Offset from camera
-        offset_x = (world_x - self._camera_x) * self._zoom
-        offset_y = (world_y - self._camera_y) * self._zoom
-        
-        # Screen coordinates
-        screen_x = (width / 2.0) + offset_x
-        screen_y = (height / 2.0) - offset_y  # Invert Y
-        
-        return (int(screen_x), int(screen_y))
+        return self.camera.world_to_screen(world_x, world_y)
         
     def snap_to_grid(self, world_x, world_y):
         """
@@ -408,14 +354,14 @@ class Canvas2D(glcanvas.GLCanvas):
         GL.glMatrixMode(GL.GL_PROJECTION)
         GL.glLoadIdentity()
         
-        # Calculate visible world bounds
-        half_width = (width / 2.0) / self._zoom
-        half_height = (height / 2.0) / self._zoom
+        # Calculate visible world bounds using camera
+        half_width = (width / 2.0) / self.camera.zoom
+        half_height = (height / 2.0) / self.camera.zoom
         
-        left = self._camera_x - half_width
-        right = self._camera_x + half_width
-        bottom = self._camera_y - half_height
-        top = self._camera_y + half_height
+        left = self.camera.x - half_width
+        right = self.camera.x + half_width
+        bottom = self.camera.y - half_height
+        top = self.camera.y + half_height
         
         # Orthographic projection
         GL.glOrtho(left, right, bottom, top, -1.0, 1.0)
@@ -425,22 +371,21 @@ class Canvas2D(glcanvas.GLCanvas):
         
     def _init_gl(self):
         """Initialize OpenGL settings"""
-        self.context.SetCurrent(self)
-        
-        # Basic OpenGL setup
-        GL.glClearColor(0.15, 0.15, 0.15, 1.0)  # Dark gray background
-        GL.glEnable(GL.GL_BLEND)
-        GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
-        GL.glEnable(GL.GL_LINE_SMOOTH)
-        GL.glHint(GL.GL_LINE_SMOOTH_HINT, GL.GL_NICEST)
-        
-        # Disable depth test for 2D
-        GL.glDisable(GL.GL_DEPTH_TEST)
-        
-        # Setup projection
-        if self.size:
-            GL.glViewport(0, 0, self.size[0], self.size[1])
-        self._setup_projection()
+        with self.context:
+            # Basic OpenGL setup
+            GL.glClearColor(0.15, 0.15, 0.15, 1.0)  # Dark gray background
+            GL.glEnable(GL.GL_BLEND)
+            GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
+            GL.glEnable(GL.GL_LINE_SMOOTH)
+            GL.glHint(GL.GL_LINE_SMOOTH_HINT, GL.GL_NICEST)
+            
+            # Disable depth test for 2D
+            GL.glDisable(GL.GL_DEPTH_TEST)
+            
+            # Setup projection
+            if self.size:
+                GL.glViewport(0, 0, self.size[0], self.size[1])
+            self._setup_projection()
         
         self._init = True
         
@@ -448,30 +393,30 @@ class Canvas2D(glcanvas.GLCanvas):
         """Handle paint events - render the scene"""
         if not self._init:
             self._init_gl()
+        
+        # Use context manager for thread-safe OpenGL access
+        with self.context:
+            # Clear the screen
+            GL.glClear(GL.GL_COLOR_BUFFER_BIT)
             
-        self.context.SetCurrent(self)
-        
-        # Clear the screen
-        GL.glClear(GL.GL_COLOR_BUFFER_BIT)
-        
-        # Setup projection (in case zoom/pan changed)
-        self._setup_projection()
-        
-        # Render grid
-        self._render_grid()
-        
-        # Render all objects
-        for obj in self._objects:
-            if hasattr(obj, 'obj2d') and hasattr(obj.obj2d, 'render_gl'):
-                obj.obj2d.render_gl()
-                
-        # Render selection highlight
-        if self._selected is not None:
-            if hasattr(self._selected, 'obj2d') and hasattr(self._selected.obj2d, 'render_selection'):
-                self._selected.obj2d.render_selection()
-                
-        # Swap buffers
-        self.SwapBuffers()
+            # Setup projection (in case zoom/pan changed)
+            self._setup_projection()
+            
+            # Render grid
+            self._render_grid()
+            
+            # Render all objects
+            for obj in self._objects:
+                if hasattr(obj, 'obj2d') and hasattr(obj.obj2d, 'render_gl'):
+                    obj.obj2d.render_gl()
+                    
+            # Render selection highlight
+            if self._selected is not None:
+                if hasattr(self._selected, 'obj2d') and hasattr(self._selected.obj2d, 'render_selection'):
+                    self._selected.obj2d.render_selection()
+                    
+            # Swap buffers
+            self.SwapBuffers()
         
     def _render_grid(self):
         """Render background grid with major and minor lines that adapt to zoom level"""
@@ -486,25 +431,25 @@ class Canvas2D(glcanvas.GLCanvas):
         minor_spacing = base_spacing
         
         # Adjust spacing for zoom to keep grid visible but not too dense
-        pixel_spacing = minor_spacing * self._zoom
+        pixel_spacing = minor_spacing * self.camera.zoom
         while pixel_spacing < 20:
             minor_spacing *= 10
-            pixel_spacing = minor_spacing * self._zoom
+            pixel_spacing = minor_spacing * self.camera.zoom
         while pixel_spacing > 100:
             minor_spacing /= 10
-            pixel_spacing = minor_spacing * self._zoom
+            pixel_spacing = minor_spacing * self.camera.zoom
             
         # Major grid is 10x minor grid
         major_spacing = minor_spacing * 10
         
-        # Calculate visible bounds
-        half_width = (width / 2.0) / self._zoom
-        half_height = (height / 2.0) / self._zoom
+        # Calculate visible bounds using camera
+        half_width = (width / 2.0) / self.camera.zoom
+        half_height = (height / 2.0) / self.camera.zoom
         
-        left = self._camera_x - half_width
-        right = self._camera_x + half_width
-        bottom = self._camera_y - half_height
-        top = self._camera_y + half_height
+        left = self.camera.x - half_width
+        right = self.camera.x + half_width
+        bottom = self.camera.y - half_height
+        top = self.camera.y + half_height
         
         # Round to grid
         minor_start_x = int(left / minor_spacing) * minor_spacing
