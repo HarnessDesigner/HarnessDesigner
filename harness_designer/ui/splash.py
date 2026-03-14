@@ -55,8 +55,23 @@ class Splash(wx.Frame):
         self.event = threading.Event()
 
         # Collect GL info using this frame as parent to avoid extra window
-        from ..gl import info as _gl_info
-        _gl_info.get(parent=self)
+        # Wrap in error handling to show dialog if GL info collection fails
+        try:
+            from ..gl import info as _gl_info
+            _gl_info.get(parent=self)
+        except Exception as err:  # NOQA
+            # GL info collection failed - show error dialog
+            dlg = _critical_error.CriticalErrorDialog(self, err)
+            dlg.ShowModal()
+            dlg.Destroy()
+            
+            # Cannot continue without GL info - exit application
+            self.Show(False)
+            self.Destroy()
+            
+            app = wx.GetApp()
+            app.ExitMainLoop()
+            return
 
         t = threading.Thread(target=self.run_thread)
         t.daemon = True
