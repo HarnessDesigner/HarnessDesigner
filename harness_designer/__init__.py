@@ -5,7 +5,7 @@ from . import utils as _utils
 
 
 if TYPE_CHECKING:
-    from .ui import splash as _splash
+    from . import splash as _splash
     from . import logger as _logger
 
 splash: "_splash.Splash" = None
@@ -17,13 +17,53 @@ class App(wx.App):
     def OnInit(self):
         global splash
 
-        from .ui import splash as _splsh
-        from . import logger as _lggr
+        try:
+            from .splash import Splash
 
-        self.logger = _lggr.Log()
-        splash = _splsh.Splash(None, self.logger)
+            print(type(Splash))
 
-        splash.Show()
+            splash = Splash()
+            splash.Show()
+        except Exception as err:  # NOQA
+            from . import critical_error_dialog as _critical_error_dialog
+
+            frame = wx.Frame(None, wx.ID_ANY)
+            frame.Show(False)
+
+            dlg = _critical_error_dialog.CriticalErrorDialog(frame, err)
+            dlg.ShowModal()
+            dlg.Destroy()
+            frame.Destroy()
+            return False
+
+        try:
+            from .gl import info as _gl_info
+
+            _gl_info.get(parent=splash)
+        except Exception as err:  # NOQA
+            from . import critical_error_dialog as _critical_error_dialog
+
+            dlg = _critical_error_dialog.CriticalErrorDialog(splash, err)
+            dlg.ShowModal()
+            dlg.Destroy()
+            splash.Destroy()
+            return False
+
+        try:
+            from . import logger as _lggr
+
+            self.logger = _lggr.Log()
+
+            splash.set_logger(self.logger)
+        except Exception as err:  # NOQA
+            from . import critical_error_dialog as _critical_error_dialog
+
+            dlg = _critical_error_dialog.CriticalErrorDialog(splash, err)
+            dlg.ShowModal()
+            dlg.Destroy()
+            splash.Destroy()
+            return False
+
         return True
 
     def OnExit(self):
@@ -44,5 +84,6 @@ _app = None
 
 def __main__():
     global _app
+
     _app = App()
     _app.MainLoop()

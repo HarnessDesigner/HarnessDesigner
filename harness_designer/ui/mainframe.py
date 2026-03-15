@@ -31,6 +31,7 @@ class MainFrame(wx.Frame):
     project: "_project.Project" = None
 
     def __init__(self, splash, logger: "_logger.Log"):
+        self.config = _config.Config
 
         splash.SetText('Startup logging ...')
 

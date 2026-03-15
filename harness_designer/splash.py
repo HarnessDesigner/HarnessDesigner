@@ -1,28 +1,28 @@
 from typing import TYPE_CHECKING
 
+import os
 import wx
 import time
 import threading
 from PIL import Image
 
-from .dialogs import critical_error as _critical_error
+from . import critical_error_dialog as _critical_error_dialog
 
 if TYPE_CHECKING:
-    from .. import logger as _logger
+    from . import logger as _logger
 
 
 class Splash(wx.Frame):
 
-    def __init__(self, parent, logger: "_logger.Log"):
+    def __init__(self):
+        wx.Frame.__init__(self, None, wx.ID_ANY, style=wx.FRAME_NO_TASKBAR | wx.FRAME_SHAPED | wx.STAY_ON_TOP)
 
-        wx.Frame.__init__(self, parent, wx.ID_ANY, style=wx.FRAME_NO_TASKBAR | wx.FRAME_SHAPED | wx.STAY_ON_TOP)
-
-        self.logger = logger
-        import os
+        self.logger: "_logger.Log" = None
+        self.init_event = threading.Event()
 
         base_path = os.path.dirname(__file__)
 
-        img = Image.open(os.path.join(base_path, '../image/small_splash.png'))
+        img = Image.open(os.path.join(base_path, 'image/small_splash.png'))
 
         rgb_data = img.convert('RGB').tobytes()
         alpha_data = img.convert('RGBA').tobytes()[3::4]
@@ -47,32 +47,34 @@ class Splash(wx.Frame):
         self.Bind(wx.EVT_PAINT, self.OnPaint)
         self.Bind(wx.EVT_ERASE_BACKGROUND, self.on_erase_background)
         self.text = 'Loading....'
-        self.init = True
 
         self.main_thread = threading.current_thread()
         self.text_lock = threading.Lock()
 
         self.event = threading.Event()
 
+        if wx.Platform == "__WXMAC__":
+            wx.SafeYield(self, True)
+
+    def set_logger(self, value: "_logger.Log"):
+        self.logger = value
+
+        # we start the thread once the logger has been set.
         t = threading.Thread(target=self.run_thread)
         t.daemon = True
         t.start()
 
-        if wx.Platform == "__WXMAC__":
-            wx.SafeYield(self, True)
-
     def run_thread(self):
-        while self.init:
-            time.sleep(0.1)
+        self.init_event.wait()
 
         event = threading.Event()
 
         try:
-            from . import mainframe as _mainframe
+            from .ui import mainframe as _mainframe
         except Exception as err:  # NOQA
             self.logger.print_traceback(err)
 
-            dlg = _critical_error.CriticalErrorDialog(self, err)
+            dlg = _critical_error_dialog.CriticalErrorDialog(self, err)
 
             dlg.ShowModal()
             dlg.Destroy()
@@ -93,7 +95,7 @@ class Splash(wx.Frame):
                 _mainframe._mainframe = _mainframe.MainFrame(self, self.logger)
             except Exception as err:  # NOQA
                 self.logger.print_traceback(err)
-                dlg = _critical_error.CriticalErrorDialog(self, err)
+                dlg = _critical_error_dialog.CriticalErrorDialog(self, err)
 
                 dlg.ShowModal()
                 dlg.Destroy()
@@ -115,7 +117,7 @@ class Splash(wx.Frame):
             _mainframe._mainframe.open_database(self)  # NOQA
 
             self.SetText('DONE!')
-            time.sleep(0.25)
+            time.sleep(0.50)
 
             def _do():
                 self.Show(False)
@@ -197,4 +199,4 @@ class Splash(wx.Frame):
         del gcdc
 
         self.draw(dc)
-        self.init = False
+        self.init_event.set()

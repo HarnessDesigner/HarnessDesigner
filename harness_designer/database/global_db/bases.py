@@ -6,7 +6,7 @@ import json
 
 if TYPE_CHECKING:
     from ... import ui as _ui
-    from ...ui import splash as _splash
+    from ... import splash as _splash
 
 
 class _EntrySingleton(type):

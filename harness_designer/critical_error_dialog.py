@@ -5,7 +5,7 @@ import traceback
 class CriticalErrorDialog(wx.MessageDialog):
 
     def __init__(self, parent, err):
-        message = traceback.format_exception(err)
+        message = ''.join(traceback.format_exception(err))
 
         message = (
             'A critical error has occured...\n\n'

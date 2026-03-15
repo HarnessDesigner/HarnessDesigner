@@ -267,7 +267,6 @@ class Canvas(glcanvas.GLCanvas):
         dx *= self.config.zoom.sensitivity
         self.camera.Zoom(dx)
 
-    @_debug.logfunc
     def Rotate(self, dx: float, dy: float) -> None:
         if self.config.rotate.mouse & MOUSE_REVERSE_X_AXIS:
             dx = -dx
