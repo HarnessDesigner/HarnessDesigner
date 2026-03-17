@@ -19,13 +19,13 @@ class AddPlatingDialog(_dialog_base.BaseDialog):
 
         if symbol:
             self.symbol = _text_ctrl.TextCtrl(self.panel, 'Symbol:',
-                                            (-1, -1), style=wx.TE_READONLY, 
-                                            apply_button=False)
+                                              (-1, -1), style=wx.TE_READONLY,
+                                              apply_button=False)
             self.symbol.SetValue(symbol)
             
         else:
             self.symbol = _text_ctrl.TextCtrl(self.panel, 'Symbol:',
-                                            (-1, -1), apply_button=False)
+                                              (-1, -1), apply_button=False)
             self.symbol.SetValue('')
             self.symbol.Bind(wx.EVT_CHAR, self.on_symbol)
 

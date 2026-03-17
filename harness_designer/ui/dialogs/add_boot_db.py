@@ -15,51 +15,60 @@ from . import add_material_db as _add_material_db
 
 
 if TYPE_CHECKING:
-    from ...database.global_db import accessory as _accessory
+    from ...database.global_db import boot as _boot
 
 
-class AddAccessoryDialog(_dialog_base.BaseDialog):
+class AddBootDialog(_dialog_base.BaseDialog):
 
-    def __init__(self, parent, part_number, table: "_accessory.AccessoriesTable"):
-        _dialog_base.BaseDialog.__init__(self, parent, 'Add to Database', 
-                                         'Add Accessory')
+    def __init__(self, parent, part_number, table: "_boot.BootsTable"):
+        _dialog_base.BaseDialog.__init__(
+            self, parent, 'Add to Database', 'Add Boot')
+
         self.table = table
 
         if part_number:
-            self.part_number = _text_ctrl.TextCtrl(self, 'Part Number:', 
-                                                   (-1, -1), style=wx.TE_READONLY, 
-                                                   apply_button=False)
+            self.part_number = _text_ctrl.TextCtrl(
+                self, 'Part Number:', (-1, -1), style=wx.TE_READONLY,
+                apply_button=False)
+
             self.part_number.SetValue(part_number)
         else:
-            self.part_number = _text_ctrl.TextCtrl(self, 'Part Number:', 
-                                                   (-1, -1), apply_button=False)
+            self.part_number = _text_ctrl.TextCtrl(
+                self, 'Part Number:', (-1, -1), apply_button=False)
 
             self.part_number.Bind(wx.EVT_CHAR, self.on_part_number)
 
-        table.execute('SELECT part_number from accessories;')
+        table.execute('SELECT part_number FROM boots;')
         rows = table.fetchall()
         self._part_numbers = sorted(row[0] for row in rows)
 
-        self.description = _text_ctrl.TextCtrl(self, 'Description:', 
-                                               (-1, -1), style=wx.TE_MULTILINE, 
-                                               apply_button=False)
+        self.description = _text_ctrl.TextCtrl(
+            self, 'Description:', (-1, -1), style=wx.TE_MULTILINE,
+            apply_button=False)
 
         table.execute('SELECT id, name FROM manufacturers;')
         rows = table.fetchall()
         self._mfgs = sorted([row for row in rows], key=lambda x: x[1])
-        self.mfg = _combobox_ctrl.ComboBoxCtrl(self, 'Manufacturer:', 
-                                               [item[1] for item in self._mfgs])
+
+        self.mfg = _combobox_ctrl.ComboBoxCtrl(
+            self, 'Manufacturer:', [item[1] for item in self._mfgs])
+
         self.mfg.SetValue('')
 
-        self.family = _combobox_ctrl.ComboBoxCtrl(self, 'Family:', [])
+        self.family = _combobox_ctrl.ComboBoxCtrl(
+            self, 'Family:', [])
+
         self.family.SetValue('')
         self.family.Enable(False)
 
-        self.series = _combobox_ctrl.ComboBoxCtrl(self, 'Series:', [])
+        self.series = _combobox_ctrl.ComboBoxCtrl(
+            self, 'Series:', [])
+
         self.series.SetValue('')
         self.series.Enable(False)
 
-        self.color = _color_ctrl.ColorCtrl(self, 'Color:', table.db.colors_table)
+        self.color = _color_ctrl.ColorCtrl(
+            self, 'Color:', table.db.colors_table)
 
         self._families = []
         self._series = []
@@ -67,32 +76,62 @@ class AddAccessoryDialog(_dialog_base.BaseDialog):
         table.execute('SELECT name FROM materials;')
         rows = table.fetchall()
         self._materials = sorted([row[0] for row in rows])
-        self.material = _combobox_ctrl.ComboBoxCtrl(self, 'Material:', 
-                                                    self._materials)
+
+        self.material = _combobox_ctrl.ComboBoxCtrl(
+            self, 'Material:', self._materials)
+
         self.material.SetValue('')
 
-        self.image = _text_ctrl.TextCtrl(self, 'Image:', 
-                                         (-1, -1), apply_button=False)
-        self.datasheet = _text_ctrl.TextCtrl(self, 'Datasheet:', 
-                                             (-1, -1), apply_button=False)
-        self.cad = _text_ctrl.TextCtrl(self, 'CAD:', 
-                                       (-1, -1), apply_button=False)
-        self.model3d = _text_ctrl.TextCtrl(self, '3D Model:', 
-                                           (-1, -1), apply_button=False)
+        table.execute('SELECT name FROM directions;')
+        rows = table.fetchall()
+        self._directions = sorted([row[0] for row in rows])
+
+        self.direction = _combobox_ctrl.ComboBoxCtrl(
+            self, 'Direction:', self._directions)
+
+        self.direction.SetValue('')
+
+        table.execute('SELECT name FROM temperatures;')
+        rows = table.fetchall()
+        self._temperatures = sorted([row[0] for row in rows])
+
+        self.min_temp = _combobox_ctrl.ComboBoxCtrl(
+            self, 'Min Temperature:', self._temperatures)
+
+        self.max_temp = _combobox_ctrl.ComboBoxCtrl(
+            self, 'Max Temperature:', self._temperatures)
+
+        self.image = _text_ctrl.TextCtrl(
+            self, 'Image:', (-1, -1), apply_button=False)
+
+        self.datasheet = _text_ctrl.TextCtrl(
+            self, 'Datasheet:', (-1, -1), apply_button=False)
+
+        self.cad = _text_ctrl.TextCtrl(
+            self, 'CAD:', (-1, -1), apply_button=False)
+
+        self.model3d = _text_ctrl.TextCtrl(
+            self, '3D Model:', (-1, -1), apply_button=False)
 
         self.image.SetValue('')
         self.datasheet.SetValue('')
         self.cad.SetValue('')
         self.model3d.SetValue('')
 
-        self.length = _float_ctrl.FloatCtrl(self, 'Length:', 0.0, 
-                                            9999.99, inc=0.01, slider=True)
-        self.width = _float_ctrl.FloatCtrl(self, 'Width:', 0.0, 
-                                           9999.99, inc=0.01, slider=True)
-        self.height = _float_ctrl.FloatCtrl(self, 'Height:', 0.0, 
-                                            9999.99, inc=0.01, slider=True)
-        self.weight = _float_ctrl.FloatCtrl(self, 'Weight:', 0.0, 
-                                            9999.99, inc=0.01, slider=True)
+        self.length = _float_ctrl.FloatCtrl(
+            self, 'Length:', 0.0, 9999.99, inc=0.01, slider=True)
+
+        self.width = _float_ctrl.FloatCtrl(
+            self, 'Width:', 0.0, 9999.99, inc=0.01, slider=True)
+
+        self.height = _float_ctrl.FloatCtrl(
+            self, 'Height:', 0.0, 9999.99, inc=0.01, slider=True)
+
+        self.weight = _float_ctrl.FloatCtrl(
+            self, 'Weight:', 0.0, 9999.99, inc=0.01, slider=True)
+
+        self.compat_housings = _text_ctrl.TextCtrl(
+                self, 'Compat Housings:', (-1, -1), apply_button=False)
 
         self.length.SetValue(0.0)
         self.width.SetValue(0.0)
@@ -103,6 +142,9 @@ class AddAccessoryDialog(_dialog_base.BaseDialog):
         self.family.Bind(wx.EVT_COMBOBOX, self.on_family)
         self.series.Bind(wx.EVT_COMBOBOX, self.on_series)
         self.material.Bind(wx.EVT_COMBOBOX, self.on_material)
+        self.direction.Bind(wx.EVT_COMBOBOX, self.on_direction)
+        self.min_temp.Bind(wx.EVT_COMBOBOX, self.on_min_temp)
+        self.max_temp.Bind(wx.EVT_COMBOBOX, self.on_max_temp)
 
         sizer = wx.BoxSizer(wx.VERTICAL)
 
@@ -113,6 +155,9 @@ class AddAccessoryDialog(_dialog_base.BaseDialog):
         sizer.Add(self.series, 1, wx.EXPAND)
         sizer.Add(self.color, 1, wx.EXPAND)
         sizer.Add(self.material, 1, wx.EXPAND)
+        sizer.Add(self.direction, 1, wx.EXPAND)
+        sizer.Add(self.min_temp, 1, wx.EXPAND)
+        sizer.Add(self.max_temp, 1, wx.EXPAND)
         sizer.Add(self.image, 1, wx.EXPAND)
         sizer.Add(self.datasheet, 1, wx.EXPAND)
         sizer.Add(self.cad, 1, wx.EXPAND)
@@ -129,11 +174,11 @@ class AddAccessoryDialog(_dialog_base.BaseDialog):
             value = self.part_number.GetValue()
             hit = any(s.startswith(value) for s in self._part_numbers)
             if hit:
-                self.part_number.SetStyle(0, len(value), 
-                                          wx.TextAttr(wx.Colour(255, 0, 0)))
+                self.part_number.SetStyle(
+                    0, len(value), wx.TextAttr(wx.Colour(255, 0, 0)))
             else:
-                self.part_number.SetStyle(0, len(value), 
-                                          wx.TextAttr(self.GetForegroundColour()))
+                self.part_number.SetStyle(
+                    0, len(value), wx.TextAttr(self.GetForegroundColour()))
 
         wx.CallAfter(_do)
         evt.Skip()
@@ -303,6 +348,53 @@ class AddAccessoryDialog(_dialog_base.BaseDialog):
             finally:
                 dlg.Destroy()
 
+    def on_direction(self, evt: wx.CommandEvent):
+        evt.Skip()
+        name = self.direction.GetValue().strip()
+        if name not in self._directions:
+            self.table.execute(
+                'INSERT INTO directions (name) VALUES (?);', (name,))
+
+            self.table.commit()
+            self._directions.append(name)
+            self._directions = sorted(self._directions)
+            self.direction.SetItemMinSize(self._directions)
+            self.direction.SetValue(name)
+
+    def on_min_temp(self, evt: wx.CommandEvent):
+        evt.Skip()
+        name = self.min_temp.GetValue().strip()
+        if name not in self._temperatures:
+            self.table.execute(
+                'INSERT INTO temperatures (name) VALUES (?);', (name,))
+
+            self.table.commit()
+            self._temperatures.append(name)
+            self._temperatures = sorted(self._temperatures)
+            self.min_temp.SetItemMinSize(self._temperatures)
+            self.min_temp.SetValue(name)
+
+            name = self.max_temp.GetValue()
+            self.max_temp.SetItems(self._temperatures)
+            self.max_temp.SetValue(name)
+
+    def on_max_temp(self, evt: wx.CommandEvent):
+        evt.Skip()
+        name = self.max_temp.GetValue().strip()
+        if name not in self._temperatures:
+            self.table.execute(
+                'INSERT INTO temperatures (name) VALUES (?);', (name,))
+
+            self.table.commit()
+            self._temperatures.append(name)
+            self._temperatures = sorted(self._temperatures)
+            self.max_temp.SetItemMinSize(self._temperatures)
+            self.max_temp.SetValue(name)
+
+            name = self.min_temp.GetValue()
+            self.min_temp.SetItems(self._temperatures)
+            self.min_temp.SetValue(name)
+
     def GetValue(self):
         pn = self.part_number.GetValue().strip()
         desc = self.description.GetValue().strip()
@@ -312,21 +404,32 @@ class AddAccessoryDialog(_dialog_base.BaseDialog):
         color_name = self.color.GetValue().strip()
         color = self.color.GetColour()
         material = self.material.GetValue().strip()
+        direction = self.direction.GetValue()
         image = self.image.GetValue().strip()
         datasheet = self.datasheet.GetValue().strip()
         cad = self.cad.GetValue().strip()
+        min_temp = self.min_temp.GetValue()
+        max_temp = self.max_temp.GetValue()
         model3d = self.model3d.GetValue().strip()
         length = self.length.GetValue()
         width = self.width.GetValue()
         height = self.height.GetValue()
         weight = self.weight.GetValue()
-        
+        compat_housings = self.compat_housings.GetValue().strip()
+
+        if compat_housings.endswith(','):
+            compat_housings = compat_housings[:-1]
+
+        compat_housings = [f'"{item.strip()}"' for item in compat_housings.split(',')]
+        compat_housings = str(compat_housings)
+
         self.table.execute(f'SELECT id FROM colors where name="{color_name}";')
         rows = self.table.fetchall()
         if not rows:
             self.table.execute('INSERT INTO colors (name, rgb) VALUES (?, ?);',
                                (color_name, color.rgba_scalar))
             self.table.commit()
-            
-        return (pn, desc, mfg, family, series, color_name, material, 
-                image, datasheet, cad, model3d, length, width, height, weight)
+
+        return (pn, desc, mfg, family, series, color_name, material, direction,
+                image, datasheet, cad, min_temp, max_temp, model3d, length, width,
+                height, weight, compat_housings)

@@ -15,51 +15,60 @@ from . import add_material_db as _add_material_db
 
 
 if TYPE_CHECKING:
-    from ...database.global_db import accessory as _accessory
+    from ...database.global_db import bundle_cover as _bundle_cover
 
 
-class AddAccessoryDialog(_dialog_base.BaseDialog):
+class AddBundleCoverDialog(_dialog_base.BaseDialog):
 
-    def __init__(self, parent, part_number, table: "_accessory.AccessoriesTable"):
-        _dialog_base.BaseDialog.__init__(self, parent, 'Add to Database', 
-                                         'Add Accessory')
+    def __init__(self, parent, part_number, table: "_bundle_cover.BundleCoversTable"):
+        _dialog_base.BaseDialog.__init__(
+            self, parent, 'Add to Database', 'Add Bundle Covering')
+
         self.table = table
 
         if part_number:
-            self.part_number = _text_ctrl.TextCtrl(self, 'Part Number:', 
-                                                   (-1, -1), style=wx.TE_READONLY, 
-                                                   apply_button=False)
+            self.part_number = _text_ctrl.TextCtrl(
+                self, 'Part Number:', (-1, -1), style=wx.TE_READONLY,
+                apply_button=False)
+
             self.part_number.SetValue(part_number)
         else:
-            self.part_number = _text_ctrl.TextCtrl(self, 'Part Number:', 
-                                                   (-1, -1), apply_button=False)
+            self.part_number = _text_ctrl.TextCtrl(
+                self, 'Part Number:', (-1, -1), apply_button=False)
 
             self.part_number.Bind(wx.EVT_CHAR, self.on_part_number)
 
-        table.execute('SELECT part_number from accessories;')
+        table.execute('SELECT part_number FROM bundle_covers;')
         rows = table.fetchall()
         self._part_numbers = sorted(row[0] for row in rows)
 
-        self.description = _text_ctrl.TextCtrl(self, 'Description:', 
-                                               (-1, -1), style=wx.TE_MULTILINE, 
-                                               apply_button=False)
+        self.description = _text_ctrl.TextCtrl(
+            self, 'Description:', (-1, -1), style=wx.TE_MULTILINE,
+            apply_button=False)
 
         table.execute('SELECT id, name FROM manufacturers;')
         rows = table.fetchall()
         self._mfgs = sorted([row for row in rows], key=lambda x: x[1])
-        self.mfg = _combobox_ctrl.ComboBoxCtrl(self, 'Manufacturer:', 
-                                               [item[1] for item in self._mfgs])
+
+        self.mfg = _combobox_ctrl.ComboBoxCtrl(
+            self, 'Manufacturer:', [item[1] for item in self._mfgs])
+
         self.mfg.SetValue('')
 
-        self.family = _combobox_ctrl.ComboBoxCtrl(self, 'Family:', [])
+        self.family = _combobox_ctrl.ComboBoxCtrl(
+            self, 'Family:', [])
+
         self.family.SetValue('')
         self.family.Enable(False)
 
-        self.series = _combobox_ctrl.ComboBoxCtrl(self, 'Series:', [])
+        self.series = _combobox_ctrl.ComboBoxCtrl(
+            self, 'Series:', [])
+
         self.series.SetValue('')
         self.series.Enable(False)
 
-        self.color = _color_ctrl.ColorCtrl(self, 'Color:', table.db.colors_table)
+        self.color = _color_ctrl.ColorCtrl(
+            self, 'Color:', table.db.colors_table)
 
         self._families = []
         self._series = []
@@ -67,42 +76,74 @@ class AddAccessoryDialog(_dialog_base.BaseDialog):
         table.execute('SELECT name FROM materials;')
         rows = table.fetchall()
         self._materials = sorted([row[0] for row in rows])
-        self.material = _combobox_ctrl.ComboBoxCtrl(self, 'Material:', 
-                                                    self._materials)
+
+        self.material = _combobox_ctrl.ComboBoxCtrl(
+            self, 'Material:', self._materials)
+
         self.material.SetValue('')
 
-        self.image = _text_ctrl.TextCtrl(self, 'Image:', 
-                                         (-1, -1), apply_button=False)
-        self.datasheet = _text_ctrl.TextCtrl(self, 'Datasheet:', 
-                                             (-1, -1), apply_button=False)
-        self.cad = _text_ctrl.TextCtrl(self, 'CAD:', 
-                                       (-1, -1), apply_button=False)
-        self.model3d = _text_ctrl.TextCtrl(self, '3D Model:', 
-                                           (-1, -1), apply_button=False)
+        table.execute('SELECT name FROM temperatures;')
+        rows = table.fetchall()
+        self._temperatures = sorted([row[0] for row in rows])
+
+        self.shrink_temp = _combobox_ctrl.ComboBoxCtrl(
+            self, 'Shrink Temperature:', self._temperatures)
+
+        self.min_temp = _combobox_ctrl.ComboBoxCtrl(
+            self, 'Min Temperature:', self._temperatures)
+
+        self.max_temp = _combobox_ctrl.ComboBoxCtrl(
+            self, 'Max Temperature:', self._temperatures)
+
+        table.execute('SELECT name FROM protections;')
+        rows = table.fetchall()
+        self._protections = sorted([row[0] for row in rows])
+
+        self.protections = _combobox_ctrl.ComboBoxCtrl(
+            self, 'Protections:', self._protections)
+
+        self.rigidity = _text_ctrl.TextCtrl(
+            self, 'Rigidity:', (-1, -1), apply_button=False)
+
+        self.shrink_ratio = _text_ctrl.TextCtrl(
+            self, 'Shrink Ratio:', (-1, -1), apply_button=False)
+
+        self.wall = _text_ctrl.TextCtrl(
+            self, 'Wall Type:', (-1, -1), apply_button=False)
+
+        self.image = _text_ctrl.TextCtrl(
+            self, 'Image:', (-1, -1), apply_button=False)
+
+        self.datasheet = _text_ctrl.TextCtrl(
+            self, 'Datasheet:', (-1, -1), apply_button=False)
+
+        self.cad = _text_ctrl.TextCtrl(
+            self, 'CAD:', (-1, -1), apply_button=False)
 
         self.image.SetValue('')
         self.datasheet.SetValue('')
         self.cad.SetValue('')
-        self.model3d.SetValue('')
 
-        self.length = _float_ctrl.FloatCtrl(self, 'Length:', 0.0, 
-                                            9999.99, inc=0.01, slider=True)
-        self.width = _float_ctrl.FloatCtrl(self, 'Width:', 0.0, 
-                                           9999.99, inc=0.01, slider=True)
-        self.height = _float_ctrl.FloatCtrl(self, 'Height:', 0.0, 
-                                            9999.99, inc=0.01, slider=True)
-        self.weight = _float_ctrl.FloatCtrl(self, 'Weight:', 0.0, 
-                                            9999.99, inc=0.01, slider=True)
+        self.min_dia = _float_ctrl.FloatCtrl(
+            self, 'Min Diameter:', 0.0, 9999.99, inc=0.01, slider=True)
 
-        self.length.SetValue(0.0)
-        self.width.SetValue(0.0)
-        self.height.SetValue(0.0)
+        self.max_dia = _float_ctrl.FloatCtrl(
+            self, 'Max Diameter:', 0.0, 9999.99, inc=0.01, slider=True)
+
+        self.weight = _float_ctrl.FloatCtrl(
+            self, 'Weight:', 0.0, 9999.99, inc=0.01, slider=True)
+
+        self.max_dia.SetValue(0.0)
+        self.min_dia.SetValue(0.0)
         self.weight.SetValue(0.0)
 
         self.mfg.Bind(wx.EVT_COMBOBOX, self.on_mfg)
         self.family.Bind(wx.EVT_COMBOBOX, self.on_family)
         self.series.Bind(wx.EVT_COMBOBOX, self.on_series)
         self.material.Bind(wx.EVT_COMBOBOX, self.on_material)
+        self.shrink_temp.Bind(wx.EVT_COMBOBOX, self.on_shrink_temp)
+        self.min_temp.Bind(wx.EVT_COMBOBOX, self.on_min_temp)
+        self.max_temp.Bind(wx.EVT_COMBOBOX, self.on_max_temp)
 
         sizer = wx.BoxSizer(wx.VERTICAL)
 
@@ -113,13 +154,17 @@ class AddAccessoryDialog(_dialog_base.BaseDialog):
         sizer.Add(self.series, 1, wx.EXPAND)
         sizer.Add(self.color, 1, wx.EXPAND)
         sizer.Add(self.material, 1, wx.EXPAND)
+        sizer.Add(self.rigidity, 1, wx.EXPAND)
+        sizer.Add(self.protections, 1, wx.EXPAND)
+        sizer.Add(self.shrink_ratio, 1, wx.EXPAND)
+        sizer.Add(self.shrink_temp, 1, wx.EXPAND)
+        sizer.Add(self.min_temp, 1, wx.EXPAND)
+        sizer.Add(self.max_temp, 1, wx.EXPAND)
         sizer.Add(self.image, 1, wx.EXPAND)
         sizer.Add(self.datasheet, 1, wx.EXPAND)
         sizer.Add(self.cad, 1, wx.EXPAND)
-        sizer.Add(self.model3d, 1, wx.EXPAND)
-        sizer.Add(self.length, 1, wx.EXPAND)
-        sizer.Add(self.width, 1, wx.EXPAND)
-        sizer.Add(self.height, 1, wx.EXPAND)
+        sizer.Add(self.min_dia, 1, wx.EXPAND)
+        sizer.Add(self.max_dia, 1, wx.EXPAND)
         sizer.Add(self.weight, 1, wx.EXPAND)
 
         self.panel.SetSizer(sizer)
@@ -129,11 +174,11 @@ class AddAccessoryDialog(_dialog_base.BaseDialog):
             value = self.part_number.GetValue()
             hit = any(s.startswith(value) for s in self._part_numbers)
             if hit:
-                self.part_number.SetStyle(0, len(value), 
-                                          wx.TextAttr(wx.Colour(255, 0, 0)))
+                self.part_number.SetStyle(
+                    0, len(value), wx.TextAttr(wx.Colour(255, 0, 0)))
             else:
-                self.part_number.SetStyle(0, len(value), 
-                                          wx.TextAttr(self.GetForegroundColour()))
+                self.part_number.SetStyle(
+                    0, len(value), wx.TextAttr(self.GetForegroundColour()))
 
         wx.CallAfter(_do)
         evt.Skip()
@@ -303,6 +348,70 @@ class AddAccessoryDialog(_dialog_base.BaseDialog):
             finally:
                 dlg.Destroy()
 
+    def on_shrink_temp(self, evt: wx.CommandEvent):
+        evt.Skip()
+        name = self.shrink_temp.GetValue().strip()
+        if name not in self._temperatures:
+            self.table.execute(
+                'INSERT INTO temperatures (name) VALUES (?);', (name,))
+
+            self.table.commit()
+            self._temperatures.append(name)
+            self._temperatures = sorted(self._temperatures)
+
+            self.shrink_temp.SetItemMinSize(self._temperatures)
+            self.shrink_temp.SetValue(name)
+
+            name = self.min_temp.GetValue()
+            self.min_temp.SetItemMinSize(self._temperatures)
+            self.min_temp.SetValue(name)
+
+            name = self.max_temp.GetValue()
+            self.max_temp.SetItems(self._temperatures)
+            self.max_temp.SetValue(name)
+
+    def on_min_temp(self, evt: wx.CommandEvent):
+        evt.Skip()
+        name = self.min_temp.GetValue().strip()
+        if name not in self._temperatures:
+            self.table.execute(
+                'INSERT INTO temperatures (name) VALUES (?);', (name,))
+
+            self.table.commit()
+            self._temperatures.append(name)
+            self._temperatures = sorted(self._temperatures)
+            self.min_temp.SetItemMinSize(self._temperatures)
+            self.min_temp.SetValue(name)
+
+            name = self.max_temp.GetValue()
+            self.max_temp.SetItems(self._temperatures)
+            self.max_temp.SetValue(name)
+
+            name = self.shrink_temp.GetValue()
+            self.shrink_temp.SetItemMinSize(self._temperatures)
+            self.shrink_temp.SetValue(name)
+
+    def on_max_temp(self, evt: wx.CommandEvent):
+        evt.Skip()
+        name = self.max_temp.GetValue().strip()
+        if name not in self._temperatures:
+            self.table.execute(
+                'INSERT INTO temperatures (name) VALUES (?);', (name,))
+
+            self.table.commit()
+            self._temperatures.append(name)
+            self._temperatures = sorted(self._temperatures)
+            self.max_temp.SetItemMinSize(self._temperatures)
+            self.max_temp.SetValue(name)
+
+            name = self.min_temp.GetValue()
+            self.min_temp.SetItems(self._temperatures)
+            self.min_temp.SetValue(name)
+
+            name = self.shrink_temp.GetValue()
+            self.shrink_temp.SetItemMinSize(self._temperatures)
+            self.shrink_temp.SetValue(name)
+
     def GetValue(self):
         pn = self.part_number.GetValue().strip()
         desc = self.description.GetValue().strip()
@@ -315,18 +424,27 @@ class AddAccessoryDialog(_dialog_base.BaseDialog):
         image = self.image.GetValue().strip()
         datasheet = self.datasheet.GetValue().strip()
         cad = self.cad.GetValue().strip()
-        model3d = self.model3d.GetValue().strip()
-        length = self.length.GetValue()
-        width = self.width.GetValue()
-        height = self.height.GetValue()
-        weight = self.weight.GetValue()
+        shrink_temp = self.shrink_temp.GetValue()
+        min_temp = self.min_temp.GetValue()
+        max_temp = self.max_temp.GetValue()
+        protection = self.protection.GetValue()
+        rigidity = self.rigidity.GetValue()
+        shrink_ratio = self.shrink_ratio.GetValue()
+        wall = self.wall.GetValue()
+        min_dia = self.min_dia.GetValue()
+        max_dia = self.max_dia.GetValue()
         
+        # TODO: Add adhesive part numbers
+        adhesive_ids = '[]'
+        weight = self.weight.GetValue()
+
         self.table.execute(f'SELECT id FROM colors where name="{color_name}";')
         rows = self.table.fetchall()
         if not rows:
             self.table.execute('INSERT INTO colors (name, rgb) VALUES (?, ?);',
                                (color_name, color.rgba_scalar))
             self.table.commit()
-            
-        return (pn, desc, mfg, family, series, color_name, material, 
-                image, datasheet, cad, model3d, length, width, height, weight)
+
+        return (pn, desc, mfg, family, series, color_name, material,
+                image, datasheet, cad, shrink_temp, min_temp, max_temp, protection,
+                rigidity, shrink_ratio, wall, min_dia, max_dia, adhesive_ids, weight)
