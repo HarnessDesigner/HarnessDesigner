@@ -433,7 +433,7 @@ class AddBundleCoverDialog(_dialog_base.BaseDialog):
         wall = self.wall.GetValue()
         min_dia = self.min_dia.GetValue()
         max_dia = self.max_dia.GetValue()
-        
+
         # TODO: Add adhesive part numbers
         adhesive_ids = '[]'
         weight = self.weight.GetValue()
