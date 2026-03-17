@@ -34,7 +34,7 @@ class AddAccessoryDialog(_dialog_base.BaseDialog):
             self.part_number = _text_ctrl.TextCtrl(self, 'Part Number:', 
                                                    (-1, -1), apply_button=False)
 
-        self.part_number.Bind(wx.EVT_CHAR, self.on_part_number)
+            self.part_number.Bind(wx.EVT_CHAR, self.on_part_number)
 
         table.execute('SELECT part_number from accessories;')
         rows = table.fetchall()
