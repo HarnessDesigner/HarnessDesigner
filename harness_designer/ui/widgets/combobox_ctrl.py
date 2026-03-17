@@ -1,0 +1,84 @@
+
+import wx
+
+from . import autocomplete_combobox as _autocomplete_combobox
+
+
+class ComboBoxCtrl(wx.BoxSizer):
+    """
+    Combo box control with autocomplete and a label
+
+    Bind the EVT_COMBOBOX event to get updates.
+
+    In order to enter a new item using the text ctrlpressing the enter key after
+    entering the item will cause the EVT_COMBOBOX even to occur. Enter MUST be used
+    when keying in an item that doesn't exist in the list of items.
+    """
+
+    def __init__(self, parent, label, choices):
+        wx.BoxSizer.__init__(self, wx.HORIZONTAL)
+        vsizer = wx.BoxSizer(wx.VERTICAL)
+        hsizer = wx.BoxSizer(wx.HORIZONTAL)
+
+        self.st = wx.StaticText(parent, wx.ID_ANY, label=label)
+        self.ctrl = _autocomplete_combobox.AutoCompleteComboBox(
+            self, wx.ID_ANY, choices, style=wx.CB_SORT | wx.TE_PROCESS_ENTER | wx.CB_DROPDOWN)
+
+        self.ctrl.Bind(wx.EVT_TEXT_ENTER, self._on_enter)
+
+        hsizer.Add(self.st, 1, wx.ALL, 5)
+        hsizer.Add(self.ctrl, 1, wx.ALL | wx.EXPAND, 5)
+        vsizer.Add(hsizer, 1, wx.EXPAND)
+
+        self.Add(vsizer, 1)
+
+    def _on_enter(self, _):
+        event = wx.CommandEvent(wx.wxEVT_COMBOBOX)
+        event.SetString(self.ctrl.GetValue())
+        event.SetEventObject(self.ctrl)
+        event.SetId(self.ctrl.GetId())
+        self.ctrl.GetEventHandler().ProcessEvent(event)
+
+    def Enable(self, flag=True):
+        self.ctrl.Enable(flag)
+        self.st.Enable(flag)
+
+    def SetToolTipString(self, text):
+        self.ctrl.SetToolTipString(text)
+        self.st.SetToolTipString(text)
+
+    def Bind(self, event, handler):
+        self.ctrl.Bind(event, handler)
+
+    def SetValue(self, value: str):
+        items = self.ctrl.GetItems()
+        if value in items:
+            self.ctrl.SetStringSelection(value)
+        else:
+            self.ctrl.ChangeValue(value)
+
+    def GetValue(self) -> str:
+        return self.ctrl.GetValue()
+
+    def Clear(self):  # NOQA
+        self.ctrl.Clear()
+
+    def Delete(self, n: int):
+        self.ctrl.Delete(n)
+
+    def Insert(self, item: str, pos: int, clientData):  # NOQA
+        self.ctrl.Insert(item, pos, clientData)
+
+    def Set(self, items):
+        self.ctrl.set(items)
+
+    def SetItems(self, items: list[str]):
+        self.ctrl.SetItems(items)
+
+    def AppendItems(self, items):
+        self.ctrl.AppendItems(items)
+
+    def Append(self, item):
+        return self.ctrl.Append(item)
+
+

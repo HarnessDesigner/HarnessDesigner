@@ -20,6 +20,9 @@ class AutoCompleter(wx.TextCompleter):
 
         return False
 
+    def AppendChoices(self, choices):
+        self.choices.extend(choices[:])
+
     def SetChoices(self, choices):
         self.choices = choices[:]
         self._last_returned = wx.NOT_FOUND
@@ -74,3 +77,15 @@ class AutoCompleteComboBox(wx.ComboBox):
     def SetItems(self, items: list[str]):
         wx.ComboBox.SetItems(self, items)
         self._ac.SetChoices(items)
+
+    def AppendItems(self, items):
+        self.Append(items)
+
+    def Append(self, item):
+        if not isinstance(item, list):
+            item = [item]
+
+        res = wx.ComboBox.AppendItems(self, item)
+        self._ac.AppendChoices(item)
+
+        return res

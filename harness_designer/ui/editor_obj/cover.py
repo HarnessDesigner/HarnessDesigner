@@ -1,8 +1,34 @@
-'''
-class Cover:
+from typing import TYPE_CHECKING
 
-    def __init__(self, fpb: foldpanelbar.FoldPanelBar, db_obj: _pjt_boot.PJTBoot):
-        self.db_obj = db_obj
+import wx
+
+from . import bases as _bases
+
+from .mixins import MfgMixin
+
+if TYPE_CHECKING:
+    from ...objects import boot as _boot
+
+
+
+
+class Cover(_bases.FPBBase, MfgMixin):
+    obj: "_boot.Boot" = None
+
+    def __init__(self, parent, obj: "_boot.Boot"):
+        _bases.FPBBase.__init__(self, parent, obj)
+
+        fold_panel1 = self.AddFoldPanel("Thing1")
+
+        thing1 = wx.TextCtrl(fold_panel1, -1, size=(-1, -1), style=wx.TE_MULTILINE)
+
+        AddFoldPanel
+
+
+        self.ApplyCaptionStyleAll(style)
+
+        MfgMixin.__init__(self)
+
         self.settings = fpb.AddFoldPanel('Settings')
         self.visible = wx.CheckBox(self.settings, wx.ID_ANY, 'Visible')
         sizer = wx.BoxSizer(wx.VERTICAL)
@@ -15,9 +41,9 @@ class Cover:
         self.scale_z = FloatCtrl(self.scale, 'Z:', min_val=0.1, max_val=99.9)
 
         self.rotate = fpb.AddFoldPanel('Rotate')
-        self.rotate_x = FloatCtrl(self.rotate, 'X Angle:', min_val=0.0, max_val=359.9)
-        self.rotate_y = FloatCtrl(self.rotate, 'Y Angle:', min_val=0.0, max_val=359.9)
-        self.rotate_z = FloatCtrl(self.rotate, 'Z Angle:', min_val=0.0, max_val=359.9)
+        self.rotate_x = FloatCtrl(self.rotate, 'X Angle:', min_val=-180.0, max_val=180.0)
+        self.rotate_y = FloatCtrl(self.rotate, 'Y Angle:', min_val=-180.0, max_val=180.0)
+        self.rotate_z = FloatCtrl(self.rotate, 'Z Angle:', min_val=-180.0, max_val=180.0)
 
         self.position = fpb.AddFoldPanel('Position')
         self.position_x = FloatCtrl(self.position, 'X:', min_val=-9999.9, max_val=9999.9)
@@ -77,5 +103,3 @@ class Cover:
     def on_position_z(self, evt):
         self.db_obj.point3d.point.z = self.position_z.GetValue()
         evt.Skip()
-
-'''

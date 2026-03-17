@@ -254,6 +254,13 @@ class TableBase:
         else:
             return self._con.execute(cmd, params)
 
+    def commit(self):
+        self._con.commit()
+
+    @property
+    def lastrowid(self):
+        return self._con.lastrowid
+
     def fetchall(self):
         return self._con.fetchall()
 

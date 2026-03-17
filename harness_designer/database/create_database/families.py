@@ -49,7 +49,6 @@ table = _con.SQLTable(
                                                     on_update=_con.REFERENCE_CASCADE))
 )
 
-
 # def families(con, cur):
 #     cur.execute('CREATE TABLE families('
 #                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '

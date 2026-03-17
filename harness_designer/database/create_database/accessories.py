@@ -86,6 +86,7 @@ def add_accessory(con, part_number, mfg, description=None, series=None,
 
 id_field = _con.PrimaryKeyField('id')
 
+
 table = _con.SQLTable(
     'accessories',
     id_field,
@@ -134,7 +135,6 @@ table = _con.SQLTable(
     _con.FloatField('height', default='"0.0"', no_null=True),
     _con.FloatField('weight', default='"0.0"', no_null=True)
 )
-
 
 
 # def accessories(con, cur):

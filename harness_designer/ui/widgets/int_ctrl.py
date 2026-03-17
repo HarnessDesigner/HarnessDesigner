@@ -15,29 +15,31 @@ class IntCtrl(wx.BoxSizer):
         self.__min_val = min_val
         self.__max_val = max_val
 
-        hsizer.Add(self.st, 0, wx.ALL, 5)
-        hsizer.Add(self.ctrl, 0, wx.ALL, 5)
-        vsizer.Add(hsizer, 0, wx.EXPAND)
+        hsizer.Add(self.st, 1, wx.ALL, 5)
+        hsizer.Add(self.ctrl, 1, wx.EXPAND | wx.ALL, 5)
+        vsizer.Add(hsizer, 1, wx.EXPAND)
 
         if slider:
+            hsizer = wx.BoxSizer(wx.HORIZONTAL)
             self.slider = wx.Slider(parent, wx.ID_ANY, value=max_val, minValue=min_val,
                                     maxValue=max_val, style=wx.SL_HORIZONTAL)
 
-            vsizer.Add(self.slider, 0, wx.EXPAND)
+            hsizer.Add(self.slider, 1, wx.ALL | wx.EXPAND, 5)
+            vsizer.Add(hsizer, 1, wx.EXPAND)
 
             self.slider.Bind(wx.EVT_SCROLL_CHANGED, self._on_slider_scroll)
 
         else:
             self.slider: wx.Slider = None
 
-        self.Add(vsizer, 0)
+        self.Add(vsizer, 1)
 
     def _on_slider_scroll(self, evt):
         spin_value = self.slider.GetValue()
 
         self.ctrl.SetValue(spin_value)
 
-        event = wx.SpinEvent(wx.EVT_SPINCTRL)
+        event = wx.SpinEvent(wx.wxEVT_SPINCTRL)
         event.SetPosition(spin_value)
         event.SetEventObject(self.ctrl)
         event.SetId(self.ctrl.GetId())

@@ -67,7 +67,6 @@ table = _con.SQLTable(
     _con.TextField('website', default='""', no_null=True)
 )
 
-
 # def manufacturers(con, cur):
 #     cur.execute('CREATE TABLE manufacturers('
 #                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '

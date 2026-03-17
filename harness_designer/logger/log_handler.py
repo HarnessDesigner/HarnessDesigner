@@ -227,6 +227,9 @@ class Log(object):
 
         wx.Log.SetActiveTarget(MyLog())
 
+        from ..import logger as _logger
+        _logger.logger = self
+
     def print(self, *args, msg_type=INFO):
         msg = _build_message(msg_type, args)
         self.log_handler.write(msg)

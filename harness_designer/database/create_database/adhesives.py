@@ -58,7 +58,6 @@ table = _con.SQLTable(
     _con.TextField('accessory_part_nums', default='"[]"', no_null=True)
 )
 
-
 # def adhesives(con, cur):
 #     cur.execute('CREATE TABLE adhesives('
 #                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '

@@ -19,9 +19,9 @@ class FloatCtrl(wx.BoxSizer):
         self.__max_val = max_val
         self.__increment = inc
 
-        hsizer.Add(self.st, 0, wx.ALL, 5)
-        hsizer.Add(self.ctrl, 0, wx.ALL, 5)
-        vsizer.Add(hsizer, 0, wx.EXPAND)
+        hsizer.Add(self.st, 1, wx.ALL, 5)
+        hsizer.Add(self.ctrl, 1, wx.EXPAND | wx.ALL, 5)
+        vsizer.Add(hsizer, 1, wx.EXPAND)
 
         if slider:
             slider_max = 100
@@ -30,19 +30,21 @@ class FloatCtrl(wx.BoxSizer):
                 s_inc *= 10
                 slider_max *= 10
 
+            hsizer = wx.BoxSizer(wx.HORIZONTAL)
             self.slider = wx.Slider(parent, wx.ID_ANY, value=slider_max, minValue=0,
                                     maxValue=slider_max, style=wx.SL_HORIZONTAL)
 
             self.__s_max = slider_max
 
-            vsizer.Add(self.slider, 0, wx.EXPAND)
+            hsizer.Add(self.slider, 1, wx.ALL | wx.EXPAND, 5)
+            vsizer.Add(hsizer, 1, wx.EXPAND)
 
             self.slider.Bind(wx.EVT_SCROLL_CHANGED, self._on_slider_scroll)
 
         else:
             self.slider: wx.Slider = None
 
-        self.Add(vsizer, 0)
+        self.Add(vsizer, 1)
 
     def _on_slider_scroll(self, evt):
         slider_value = self.slider.GetValue()
@@ -58,7 +60,7 @@ class FloatCtrl(wx.BoxSizer):
 
         self.ctrl.SetValue(float(spin_value))
 
-        event = wx.SpinDoubleEvent(wx.EVT_SPINCTRLDOUBLE)
+        event = wx.SpinDoubleEvent(wx.wxEVT_SPINCTRLDOUBLE)
         event.SetValue(float(spin_value))
         event.SetEventObject(self.ctrl)
         event.SetId(self.ctrl.GetId())

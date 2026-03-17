@@ -66,6 +66,7 @@ class BaseDialog(wx.Dialog):
         hsizer.Add(vsizer, 0, wx.EXPAND | wx.ALL, 5)
 
         self.SetSizer(hsizer)
+        self.CenterOnParent()
 
     def GetValue(self):
         raise NotImplementedError
