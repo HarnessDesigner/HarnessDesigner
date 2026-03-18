@@ -1,16 +1,14 @@
-PartNumberMixin,
-DescriptionMixin
-ColorMixin
-FamilyMixin
-SeriesMixin
-
-
 from typing import TYPE_CHECKING, Union
 
 import wx
 from . import mixinbase as _mixinbase
 from ...widgets import text_ctrl as _text_ctrl
 from ...widgets import combobox_ctrl as _combobox_ctrl
+from ...widgets import color_ctrl as _color_ctrl
+
+from ...dialogs import add_family_db as _add_family_db
+from ...dialogs import add_series_db as _add_series_db
+from ...dialogs import add_manufacturer_db as _add_manufacturer_db
 
 
 if TYPE_CHECKING:
@@ -20,13 +18,20 @@ if TYPE_CHECKING:
     from ....database.global_db.mixins import color as _color
     from ....database.global_db.mixins import family as _family
     from ....database.global_db.mixins import series as _series
+    from ....database.global_db.mixins import temperature as _temperature
+    from ....database.global_db.mixins import resource as _resource
 
 
-class ManufacturerMixin(_mixinbase.MixinBase):
+class PartMixin(_mixinbase.MixinBase):
 
-    def __init__(self, db_obj: Union["_part_number.PartNumberMixin", "_description.DescriptionMixin",
-                                     "_color.ColorMixin", "_family.FamilyMixin", "_series.SeriesMixin",
-                                     "_manufacturer.ManufacturerMixin"]):
+    def __init__(self, db_obj: Union["_part_number.PartNumberMixin",
+                                     "_description.DescriptionMixin",
+                                     "_color.ColorMixin",
+                                     "_family.FamilyMixin",
+                                     "_series.SeriesMixin",
+                                     "_manufacturer.ManufacturerMixin",
+                                     "_temperature.TemperatureMixin",
+                                     "_resource.ResourceMixin"]):
 
         self.db_obj = db_obj
         _mixinbase.MixinBase.__init__(self)
@@ -36,20 +41,25 @@ class ManufacturerMixin(_mixinbase.MixinBase):
         panel = wx.Panel(fold_panel, wx.ID_ANY, style=wx.BORDER_NONE)
 
         vsizer = wx.BoxSizer(wx.VERTICAL)
-        pn_label = wx.StaticText(panel, wx.ID_ANY, 'Part Number:')
-        pn = wx.StaticText(panel, wx.ID_ANY, db_obj.part_number)
 
-        hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        hsizer.Add(pn_label, 1, wx.ALL, 5)
-        hsizer.Add(pn, 1, wx.ALL, 5)
-        vsizer.Add(hsizer, 1, wx.EXPAND)
+        self.part_number = _text_ctrl.TextCtrl(
+            panel, 'Part Number:', (-1, -1),
+            style=wx.TE_READONLY, apply_button=False)
 
-        self.desc_ctrl = _text_ctrl.TextCtrl(panel, 'Description:', (-1, -1), wx.TE_MULTILINE)
-        self.desc_ctrl.SetValue(db_obj.description)
+        self.part_number.SetValue(db_obj.part_number)
 
-        self.desc_ctrl.Bind(wx.EVT_BUTTON, self._on_description)
+        self.description = _text_ctrl.TextCtrl(
+            panel, 'Description:', (-1, -1), wx.TE_MULTILINE)
+        self.description.SetValue(db_obj.description)
+        self.description.Bind(wx.EVT_BUTTON, self._on_description)
 
-        vsizer.Add(self.desc_ctrl, 1, wx.EXPAND)
+        db_obj.table.execute(f'SELECT id, name FROM manufacturers;')
+        rows = db_obj.table.fetchall()
+        self._mfg_choices = sorted([row for row in rows], key=lambda x: x[1])
+
+        self.mfg = _combobox_ctrl.ComboBoxCtrl(
+            panel, 'Manufacturer:', [item[1] for item in self._mfg_choices])
+        self.mfg.SetValue(db_obj.manufacturer.name)
 
         mfg_id = db_obj.mfg_id
 
@@ -57,85 +67,239 @@ class ManufacturerMixin(_mixinbase.MixinBase):
         rows = db_obj.table.fetchall()
         self._family_choices = sorted([row for row in rows], key=lambda x: x[1])
 
+        self.family = _combobox_ctrl.ComboBoxCtrl(
+            panel, 'Family:', [item[1] for item in self._family_choices])
+
+        self.family.SetValue(db_obj.family.name)
+        self.family.Bind(wx.EVT_COMBOBOX, self._on_family)
+
         db_obj.table.execute(f'SELECT id, name FROM series WHERE mfg_id={mfg_id};')
         rows = db_obj.table.fetchall()
         self._series_choices = sorted([row for row in rows], key=lambda x: x[1])
 
-        self.family_ctrl = _combobox_ctrl.ComboBoxCtrl(panel, 'Family:', [item[1] for item in self._family_choices])
-        self.series_ctrl = _combobox_ctrl.ComboBoxCtrl(panel, 'Series:', [item[1] for item in self._series_choices])
+        self.series = _combobox_ctrl.ComboBoxCtrl(
+            panel, 'Series:', [item[1] for item in self._series_choices])
 
-        self.family_ctrl.Bind(wx.EVT_COMBOBOX, self._on_family)
-        self.series_ctrl.Bind(wx.EVT_COMBOBOX, self._on_series)
+        self.series.SetValue(db_obj.series.name)
+        self.series.Bind(wx.EVT_COMBOBOX, self._on_series)
 
-        vsizer.Add(self.family_ctrl, 1, wx.EXPAND)
-        vsizer.Add(self.series_ctrl, 1, wx.EXPAND)
+        self.color = _color_ctrl.ColorCtrl(
+            panel, 'Color:', db_obj.table.db.colors_table)
 
+        self.color.SetValue(db_obj.color.name)
 
-        db_obj.table.execute(f'SELECT id, name FROM series WHERE mfg_id={mfg_id};')
+        self.image = _text_ctrl.TextCtrl(
+            panel, 'Image:', (-1, -1))
 
-        def hsizer(label, data):
-            sizer = wx.BoxSizer(wx.HORIZONTAL)
-            st1 = wx.StaticText(panel, wx.ID_ANY, label)
-            st2 = wx.StaticText(panel, wx.ID_ANY, data)
+        image_id = db_obj.image_id
+        if image_id:
+            resource = db_obj.table.db.resources_table[image_id]
+            self.image.SetValue(resource.path)
 
-            sizer.Add(st1, 1, wx.ALL | wx.ALIGN_TOP, 3)
-            sizer.Add(st2, 1, wx.ALL, 3)
-            vsizer.Add(sizer, 1)
+        self.datasheet = _text_ctrl.TextCtrl(
+            panel, 'Datasheet:', (-1, -1))
 
-        hsizer('Name:', db_obj.name)
-        hsizer('Description:', db_obj.description)
-        hsizer('Address:', db_obj.address)
-        hsizer('Contact:', db_obj.contact_person)
-        hsizer('Phone:', db_obj.phone + ' : ' + db_obj.ext)
-        hsizer('Email:', db_obj.email)
-        hsizer('Website:', db_obj.website)
+        datasheet_id = db_obj.datasheet_id
+        if datasheet_id:
+            resource = db_obj.table.db.resources_table[datasheet_id]
+            self.datasheet.SetValue(resource.path)
+
+        self.cad = _text_ctrl.TextCtrl(
+            panel, 'CAD:', (-1, -1))
+
+        cad_id = db_obj.cad_id
+        if cad_id:
+            resource = db_obj.table.db.resources_table[cad_id]
+            self.cad.SetValue(resource.path)
+
+        db_obj.table.execute(f'SELECT id, name FROM temperatures;')
+        rows = db_obj.table.fetchall()
+        self._temperature_choices = sorted([row for row in rows], key=lambda x: x[1])
+
+        self.min_temp = _combobox_ctrl.ComboBoxCtrl(
+            panel, 'Min Temperature:', [item[1] for item in self._temperature_choices])
+        self.min_temp.SetValue(db_obj.min_temp)
+
+        self.max_temp = _combobox_ctrl.ComboBoxCtrl(
+            panel, 'Max Temperature:', [item[1] for item in self._temperature_choices])
+        self.max_temp.SetValue(db_obj.max_temp)
+
+        vsizer.Add(self.part_number, 1, wx.EXPAND)
+        vsizer.Add(self.description, 1, wx.EXPAND)
+        vsizer.Add(self.mfg, 1, wx.EXPAND)
+        vsizer.Add(self.family, 1, wx.EXPAND)
+        vsizer.Add(self.series, 1, wx.EXPAND)
+        vsizer.Add(self.color, 1, wx.EXPAND)
+        vsizer.Add(self.image, 1, wx.EXPAND)
+        vsizer.Add(self.datasheet, 1, wx.EXPAND)
+        vsizer.Add(self.cad, 1, wx.EXPAND)
+        vsizer.Add(self.min_temp, 1, wx.EXPAND)
+        vsizer.Add(self.max_temp, 1, wx.EXPAND)
 
         panel.SetSizer(vsizer)
         self.AddFoldPanelWindow(fold_panel, panel)
 
-    def _on_family(self, evt):
-        value = self.family_ctrl.GetValue()
+    def _on_mfg(self, evt):
+        value = self.family.GetValue().strip()
         values = [item[1] for item in self._family_choices]
         if value not in values:
-            self.db_obj.table.execute('INSERT INTO families mfg_id, name VALUES (?, ?);', (self.db_obj.mfg_id, value))
-            self.db_obj.table.commit()
-            family_id = self.db_obj.table.lastrowid
-            self._family_choices.append((family_id, value))
-            self._family_choices = sorted(self._family_choices, key=lambda x: x[1])
-            self.family_ctrl.SetItems([item[1] for item in self._family_choices])
+            mfg = self.mfg.GetValue().strip()
+
+            dlg = _add_family_db.AddFamilyDialog(self, value, mfg, self.db_obj.table.db.families_table)
+            try:
+                if dlg.ShowModal() == wx.ID_OK:
+                    values = dlg.GetValues()
+                    family = self.db_obj.table.db.families_table.insert(*values)
+                    family_id = family.db_id
+                else:
+                    return
+            finally:
+                dlg.Destroy()
+
         else:
-            for family_id, name in self._family_choices:
-                if name == value:
-                    break
-            else:
-                raise RuntimeError('sanity check')
+            family_id = self._family_choices[values.index(value)][0]
 
         self.db_obj.family_id = family_id
+        self._family_choices.append((family_id, value))
+        self._family_choices = sorted(self._family_choices, key=lambda x: x[1])
+        self.family.SetItems([item[1] for item in self._family_choices])
+        self.family.SetValue(value)
+        evt.Skip()
+
+    def _on_family(self, evt):
+        value = self.mfg.GetValue().strip()
+        values = [item[1] for item in self._mfg_choices]
+        if value not in values:
+            dlg = _add_manufacturer_db.AddManufacturerDialog(self, value, self.db_obj.table.db.manufacturers_table)
+            try:
+                if dlg.ShowModal() == wx.ID_OK:
+                    values = dlg.GetValues()
+                    mfg = self.db_obj.table.db.manufacturers_table.insert(*values)
+                    mfg_id = mfg.db_id
+                else:
+                    return
+            finally:
+                dlg.Destroy()
+
+        else:
+            mfg_id = self._mfg_choices[values.index(value)][0]
+
+        self.db_obj.mfg_id = mfg_id
+        self._mfg_choices.append((mfg_id, value))
+        self._mfg_choices = sorted(self._mfg_choices, key=lambda x: x[1])
+        self.mfg.SetItems([item[1] for item in self._mfg_choices])
+        self.mfg.SetValue(value)
         evt.Skip()
 
     def _on_series(self, evt):
-        value = self.series_ctrl.GetValue()
-        values = [item[1] for item in self._family_choices]
-
+        value = self.series.GetValue().strip()
+        values = [item[1] for item in self._series_choices]
         if value not in values:
-            self.db_obj.table.execute('INSERT INTO series mfg_id, name VALUES (?, ?);', (self.db_obj.mfg_id, value))
-            self.db_obj.table.commit()
-            series_id = self.db_obj.table.lastrowid
-            self._series_choices.append((series_id, value))
-            self._series_choices = sorted(self._series_choices, key=lambda x: x[1])
-            self.series_ctrl.SetItems([item[1] for item in self._series_choices])
+            mfg = self.mfg.GetValue().strip()
+
+            dlg = _add_series_db.AddSeriesDialog(self, value, mfg, self.db_obj.table.db.series_table)
+            try:
+                if dlg.ShowModal() == wx.ID_OK:
+                    values = dlg.GetValues()
+                    series = self.db_obj.table.db.series_table.insert(*values)
+                    series_id = series.db_id
+                else:
+                    return
+            finally:
+                dlg.Destroy()
+
         else:
-            for series_id, name in self._series_choices:
-                if name == value:
-                    break
-            else:
-                raise RuntimeError('sanity check')
+            series_id = self._series_choices[values.index(value)][0]
 
         self.db_obj.series_id = series_id
-
+        self._series_choices.append((series_id, value))
+        self._series_choices = sorted(self._series_choices, key=lambda x: x[1])
+        self.series.SetItems([item[1] for item in self._series_choices])
+        self.series.SetValue(value)
         evt.Skip()
 
     def _on_description(self, evt):
-        desc = self.desc_ctrl.GetValue()
+        desc = self.description.GetValue()
         self.db_obj.description = desc
+        evt.Skip()
+
+    def _on_image(self, evt):
+        path = self.image.GetValue().strip()
+        if path:
+            rt = self.db_obj.table.db.resources_table
+
+            resource = rt.insert(rt.IMAGE_TYPE_IMAGE, path)
+            resource_id = resource.db_id
+
+            self.db_obj.image_id = resource_id
+            evt.Skip()
+        else:
+            self.db_obj.image_id = None
+
+    def _on_datasheet(self, evt):
+        path = self.datasheet.GetValue().strip()
+        if path:
+            rt = self.db_obj.table.db.resources_table
+
+            resource = rt.insert(rt.IMAGE_TYPE_DATASHEET, path)
+            resource_id = resource.db_id
+
+            self.db_obj.datasheet_id = resource_id
+            evt.Skip()
+        else:
+            self.db_obj.datasheet_id = None
+
+    def _on_cad(self, evt):
+        path = self.cad.GetValue().strip()
+        if path:
+            rt = self.db_obj.table.db.resources_table
+
+            resource = rt.insert(rt.IMAGE_TYPE_CAD, path)
+            resource_id = resource.db_id
+
+            self.db_obj.cad_id = resource_id
+            evt.Skip()
+        else:
+            self.db_obj.cad_id = None
+
+    def _on_min_temp(self, evt):
+        value = self.min_temp.GetValue().strip()
+        values = [item[1] for item in self._temperature_choices]
+        if value not in values:
+            temp = self.db_obj.table.db.temperatures_table.insert(value)
+            temp_id = temp.db_id
+        else:
+            temp_id = self._temperature_choices[values.index(value)][0]
+
+        self.db_obj.min_temp_id = temp_id
+        self._temperature_choices.append((temp_id, value))
+        self._temperature_choices = sorted(self._temperature_choices, key=lambda x: x[1])
+        self.min_temp.SetItems([item[1] for item in self._temperature_choices])
+        self.min_temp.SetValue(value)
+
+        value = self.max_temp.GetValue()
+        self.max_temp.SetItems([item[1] for item in self._temperature_choices])
+        self.max_temp.SetValue(value)
+
+        evt.Skip()
+
+    def _on_max_temp(self, evt):
+        value = self.max_temp.GetValue().strip()
+        values = [item[1] for item in self._temperature_choices]
+        if value not in values:
+            temp = self.db_obj.table.db.temperatures_table.insert(value)
+            temp_id = temp.db_id
+        else:
+            temp_id = self._temperature_choices[values.index(value)][0]
+
+        self.db_obj.max_temp_id = temp_id
+        self._temperature_choices.append((temp_id, value))
+        self._temperature_choices = sorted(self._temperature_choices, key=lambda x: x[1])
+        self.max_temp.SetItems([item[1] for item in self._temperature_choices])
+        self.max_temp.SetValue(value)
+
+        value = self.min_temp.GetValue()
+        self.min_temp.SetItems([item[1] for item in self._temperature_choices])
+        self.min_temp.SetValue(value)
+
         evt.Skip()

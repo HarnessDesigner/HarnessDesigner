@@ -8,6 +8,8 @@ from . import resources as _resources
 from . import genders as _genders
 from . import platings as _platings
 from . import cavity_locks as _cavity_locks
+from . import temperatures as _temperatures
+from . import colors as _colors
 from . import models3d as _models3d
 
 from . import projects as _projects
@@ -19,11 +21,15 @@ from . import cavities as _cavities
 from .. import db_connectors as _con
 
 
+'''
+part_number, description, mfg_id, family_id, series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, model3d_id, plating_id, gender_id, cavity_lock_id, sealing, blade_size, resistance, mating_cycles, max_vibration_g, max_current_ma, wire_size_min_awg, wire_size_max_awg, wire_dia_min, wire_dia_max, min_wire_cross, max_wire_cross, length, width, height, weight, compat_housings, compat_seals
+
+'''
 def add_terminal(con, part_number, description, mfg=None, family=None, series=None,
-                 plating=None, image=None, datasheet=None, cad=None, gender=None,
-                 cavity_lock=None, model3d=None, sealing=0, blade_size=0.0,
-                 resistance=0.0, mating_cycles=0, max_vibration_g=0, max_current_ma=0,
-                 wire_size_min_awg=-1, wire_size_max_awg=-1, wire_dia_min=0.0,
+                 color=None, image=None, datasheet=None, cad=None, min_temp=None,
+                 max_temp=None, model3d=None, plating=None, gender=None, cavity_lock=None,
+                 sealing=0, blade_size=0.0, resistance=0.0, mating_cycles=0, max_vibration_g=0,
+                 max_current_ma=0, wire_size_min_awg=-1, wire_size_max_awg=-1, wire_dia_min=0.0,
                  wire_dia_max=0.0, min_wire_cross=0.0, max_wire_cross=0.0, length=0.0,
                  width=0.0, height=0.0, weight=0.0, compat_housings=None, compat_seals=None):
 
@@ -36,9 +42,12 @@ def add_terminal(con, part_number, description, mfg=None, family=None, series=No
     mfg_id = _manufacturers.get_mfg_id(con, mfg)
     series_id = _series.get_series_id(con, series, mfg_id)
     family_id = _families.get_family_id(con, family, mfg_id)
+    color_id = _colors.get_color_id(con, color)
     cavity_lock_id = _cavity_locks.get_cavity_lock_id(con, cavity_lock)
     plating_id = _platings.get_plating_id(con, plating)
     gender_id = _genders.get_gender_id(con, gender)
+    min_temp_id = _temperatures.get_temperature_id(con, min_temp)
+    max_temp_id = _temperatures.get_temperature_id(con, max_temp)
     image_id = _resources.add_resource(con, _resources.IMAGE_TYPE_IMAGE, image)
     cad_id = _resources.add_resource(con, _resources.IMAGE_TYPE_CAD, cad)
     datasheet_id = _resources.add_resource(con, _resources.IMAGE_TYPE_DATASHEET, datasheet)
@@ -78,20 +87,21 @@ def add_terminal(con, part_number, description, mfg=None, family=None, series=No
     print(f'DATABASE: adding terminal {part_number}, {description}')
 
     con.execute('INSERT INTO terminals (part_number, description, mfg_id, family_id, '
-                'series_id, plating_id, image_id, datasheet_id, cad_id, gender_id, '
-                'cavity_lock_id, model3d_id, sealing, blade_size, resistance, '
-                'mating_cycles, max_vibration_g, max_current_ma, wire_size_min_awg, '
-                'wire_size_max_awg, wire_dia_min, wire_dia_max, min_wire_cross, '
-                'max_wire_cross, length, width, height, weight, compat_housings, '
-                'compat_seals) '
+                'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
+                'max_temp_id, model3d_id, plating_id, gender_id, cavity_lock_id, '
+                'sealing, blade_size, resistance, mating_cycles, max_vibration_g, '
+                'max_current_ma, wire_size_min_awg, wire_size_max_awg, wire_dia_min, '
+                'wire_dia_max, min_wire_cross, max_wire_cross, length, width, height, '
+                'weight, compat_housings, compat_seals) '
                 'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '
-                '?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (part_number, description, mfg_id, family_id, series_id, plating_id,
-                 image_id, datasheet_id, cad_id, gender_id, cavity_lock_id, model3d_id,
-                 sealing, blade_size, resistance, mating_cycles, max_vibration_g,
-                 max_current_ma, wire_size_min_awg, wire_size_max_awg, wire_dia_min,
-                 wire_dia_max, min_wire_cross, max_wire_cross, length, width, height,
-                 weight, str(compat_housings), str(compat_seals)))
+                '?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                (part_number, description, mfg_id, family_id, series_id, color_id,
+                 image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, model3d_id,
+                 plating_id, gender_id, cavity_lock_id, sealing, blade_size, resistance,
+                 mating_cycles, max_vibration_g, max_current_ma, wire_size_min_awg,
+                 wire_size_max_awg, wire_dia_min, wire_dia_max, min_wire_cross,
+                 max_wire_cross, length, width, height, weight, str(compat_housings),
+                 str(compat_seals)))
 
     con.commit()
     db_id = con.lastrowid
@@ -192,9 +202,9 @@ table = _con.SQLTable(
                   references=_con.SQLFieldReference(_series.table,
                                                     _series.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('plating_id', default='0', no_null=True,
-                  references=_con.SQLFieldReference(_platings.table,
-                                                    _platings.id_field,
+    _con.IntField('color_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_colors.table,
+                                                    _colors.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('image_id', default='NULL',
                   references=_con.SQLFieldReference(_resources.table,
@@ -208,6 +218,22 @@ table = _con.SQLTable(
                   references=_con.SQLFieldReference(_resources.table,
                                                     _resources.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('min_temp_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_temperatures.table,
+                                                    _temperatures.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('max_temp_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_temperatures.table,
+                                                    _temperatures.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('model3d_id', default='NULL',
+                  references=_con.SQLFieldReference(_models3d.table,
+                                                    _models3d.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('plating_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_platings.table,
+                                                    _platings.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('gender_id', default='0', no_null=True,
                   references=_con.SQLFieldReference(_genders.table,
                                                     _genders.id_field,
@@ -215,10 +241,6 @@ table = _con.SQLTable(
     _con.IntField('cavity_lock_id', default='0', no_null=True,
                   references=_con.SQLFieldReference(_cavity_locks.table,
                                                     _cavity_locks.id_field,
-                                                    on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('model3d_id', default='NULL',
-                  references=_con.SQLFieldReference(_models3d.table,
-                                                    _models3d.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('sealing', default='0', no_null=True),
     _con.FloatField('blade_size', default='"0.0"', no_null=True),
@@ -301,40 +323,39 @@ pjt_table = _con.SQLTable(
 
 )
 
-
-def pjt_terminals(con, cur):
-    cur.execute('CREATE TABLE pjt_terminals('
-                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-                'project_id INTEGER NOT NULL, '
-                'part_id INTEGER NOT NULL, '
-                'name TEXT DEFAULT "" NOT NULL, '
-                'notes TEXT DEFAULT "" NOT NULL, '
-                'cavity_id INTEGER NOT NULL, '
-                'circuit_id INTEGER DEFAULT NULL, '
-                'quat3d TEXT DEFAULT "[1.0, 0.0, 0.0, 0.0]" NOT NULL, '
-                'angle3d TEXT DEFAULT "[0.0, 0.0, 0.0]" NOT NULL, '
-                'point3d_id INTEGER NOT NULL, '  # will snap to a cavity point
-                'wire_point3d_id INTEGER NOT NULL, '  # calculated point for where a wire or seal will snap onto
-                'quat2d TEXT DEFAULT "[1.0, 0.0, 0.0, 0.0]" NOT NULL, '
-                'angle2d TEXT DEFAULT "[0.0, 0.0, 0.0]" NOT NULL, '
-                'point2d_id INTEGER NOT NULL, '
-                'wire_point2d_id INTEGER NOT NULL, '  # calculated point for where a wire or seal will snap onto
-                'is_start INTEGER DEFAULT 0 NOT NULL, '
-                'volts REAL DEFAULT "0.0" NOT NULL, '
-                'load REAL DEFAULT "0.0" NOT NULL, '
-                'voltage_drop REAL DEFAULT "0.0" NOT NULL, '
-                'is_visible2d INTEGER DEFAULT 1 NOT NULL, '
-                'is_visible3d INTEGER DEFAULT 1 NOT NULL, '
-                'FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-                'FOREIGN KEY (part_id) REFERENCES terminals(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-                'FOREIGN KEY (cavity_id) REFERENCES pjt_cavities(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-                'FOREIGN KEY (circuit_id) REFERENCES pjt_circuits(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-                'FOREIGN KEY (point3d_id) REFERENCES pjt_points3d(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-                'FOREIGN KEY (wire_point3d_id) REFERENCES pjt_points3d(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-                'FOREIGN KEY (point2d_id) REFERENCES pjt_points2d(id) ON DELETE SET DEFAULT ON UPDATE CASCADE'
-                ');')
-    con.commit()
-
+#
+# def pjt_terminals(con, cur):
+#     cur.execute('CREATE TABLE pjt_terminals('
+#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+#                 'project_id INTEGER NOT NULL, '
+#                 'part_id INTEGER NOT NULL, '
+#                 'name TEXT DEFAULT "" NOT NULL, '
+#                 'notes TEXT DEFAULT "" NOT NULL, '
+#                 'cavity_id INTEGER NOT NULL, '
+#                 'circuit_id INTEGER DEFAULT NULL, '
+#                 'quat3d TEXT DEFAULT "[1.0, 0.0, 0.0, 0.0]" NOT NULL, '
+#                 'angle3d TEXT DEFAULT "[0.0, 0.0, 0.0]" NOT NULL, '
+#                 'point3d_id INTEGER NOT NULL, '  # will snap to a cavity point
+#                 'wire_point3d_id INTEGER NOT NULL, '  # calculated point for where a wire or seal will snap onto
+#                 'quat2d TEXT DEFAULT "[1.0, 0.0, 0.0, 0.0]" NOT NULL, '
+#                 'angle2d TEXT DEFAULT "[0.0, 0.0, 0.0]" NOT NULL, '
+#                 'point2d_id INTEGER NOT NULL, '
+#                 'wire_point2d_id INTEGER NOT NULL, '  # calculated point for where a wire or seal will snap onto
+#                 'is_start INTEGER DEFAULT 0 NOT NULL, '
+#                 'volts REAL DEFAULT "0.0" NOT NULL, '
+#                 'load REAL DEFAULT "0.0" NOT NULL, '
+#                 'voltage_drop REAL DEFAULT "0.0" NOT NULL, '
+#                 'is_visible2d INTEGER DEFAULT 1 NOT NULL, '
+#                 'is_visible3d INTEGER DEFAULT 1 NOT NULL, '
+#                 'FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (part_id) REFERENCES terminals(id) ON DELETE CASCADE ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (cavity_id) REFERENCES pjt_cavities(id) ON DELETE CASCADE ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (circuit_id) REFERENCES pjt_circuits(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (point3d_id) REFERENCES pjt_points3d(id) ON DELETE CASCADE ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (wire_point3d_id) REFERENCES pjt_points3d(id) ON DELETE CASCADE ON UPDATE CASCADE, '
+#                 'FOREIGN KEY (point2d_id) REFERENCES pjt_points2d(id) ON DELETE SET DEFAULT ON UPDATE CASCADE'
+#                 ');')
+#     con.commit()
 
 # def terminals(con, cur):
 #     cur.execute('CREATE TABLE terminals('

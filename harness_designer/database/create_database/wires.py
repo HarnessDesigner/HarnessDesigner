@@ -31,14 +31,20 @@ def add_records(con, splash):
     con.execute('SELECT id FROM wires WHERE id=0;')
     if con.fetchall():
         return
+    '''
+    
+    
+    '''
 
     splash.SetText(f'Adding wire to db [1 | 1]...')
-    con.execute('INSERT INTO wires (id, part_number, mfg_id, description, size_mm2, '
-                'size_awg, od_mm, conductor_dia_mm, weight_1km, resistance_1km, '
-                'core_material_id, min_temp_id, max_temp_id, volts, material_id, '
-                'color_id, stripe_color_id, family_id, series_id) '
-                'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (0, 'N/A', 0, 'Internal Use DO NOT DELETE', 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 999999, 999999, 0, 0))
+    con.execute('INSERT INTO wires (id, part_number, description, mfg_id, family_id, '
+                'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
+                'max_temp_id, material_id, stripe_color_id, core_material_id, num_conductors, '
+                'shielded, tpi, conductor_dia_mm, size_mm2, size_awg, od_mm, weight_1km, '
+                'resistance_1km, volts) '
+                'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                (0, 'N/A', 'Internal Use DO NOT DELETE', 0, 0, 0, 999999, 0, 0, 0,
+                 0, 0, 0, 999999, 0, 0, 0, 0, 0.0, 0.0, -1, 0.0, 0.0, 0.0, 0.0))
     con.commit()
 
     splash.SetText(f'Building wires...')
@@ -47,11 +53,12 @@ def add_records(con, splash):
     data_len = len(data)
 
     splash.SetText(f'Adding wires to db [{data_len} | {data_len}]...')
-    con.executemany('INSERT INTO wires (part_number, mfg_id, description, size_mm2, '
-                    'size_awg, od_mm, conductor_dia_mm, weight_1km, resistance_1km, '
-                    'core_material_id, min_temp_id, max_temp_id, volts, material_id, '
-                    'color_id, stripe_color_id, family_id, series_id) '
-                    'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+    con.executemany('INSERT INTO wires (part_number, description, mfg_id, family_id, '
+                    'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
+                    'max_temp_id, material_id, stripe_color_id, core_material_id, '
+                    'num_conductors, shielded, tpi, conductor_dia_mm, size_mm2, '
+                    'size_awg, od_mm, weight_1km, resistance_1km, volts) '
+                    'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
                     data)
 
     con.commit()
@@ -81,8 +88,8 @@ def add_records(con, splash):
 
 
 def add_wire(con, part_number, description, mfg=None, family=None, series=None,
-             color=None, material=None, image=None, datasheet=None, cad=None,
-             min_temp=None, max_temp=None, stripe_color=None, core_material=None,
+             color=None, image=None, datasheet=None, cad=None, min_temp=None,
+             max_temp=None, material=None, stripe_color=None, core_material=None,
              num_conductors=1, shielded=0, tpi=0.0, conductor_dia_mm=0.0, size_mm2=0.0,
              size_awg=-1, od_mm=0.0, weight_1km=0.0, resistance_1km=0.0, volts=0.0):
 
@@ -100,13 +107,13 @@ def add_wire(con, part_number, description, mfg=None, family=None, series=None,
     cad_id = _resources.add_resource(con, _resources.IMAGE_TYPE_CAD, cad)
 
     con.execute('INSERT INTO wires (part_number, description, mfg_id, family_id, '
-                'series_id, color_id, material_id, image_id, datasheet_id, cad_id, '
-                'min_temp_id, max_temp_id, stripe_color_id, core_material_id, '
+                'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
+                'max_temp_id, material_id, stripe_color_id, core_material_id, '
                 'num_conductors, shielded, tpi, conductor_dia_mm, size_mm2, size_awg, '
                 'od_mm, weight_1km, resistance_1km, volts) '
                 'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
                 (part_number, description, mfg_id, family_id, series_id, color_id,
-                 material_id, image_id, datasheet_id, cad_id, min_temp_id, max_temp_id,
+                 image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, material_id,
                  stripe_color_id, core_material_id, num_conductors, shielded, tpi,
                  conductor_dia_mm, size_mm2, size_awg, od_mm, weight_1km, resistance_1km,
                  volts))
@@ -136,10 +143,6 @@ table = _con.SQLTable(
                   references=_con.SQLFieldReference(_colors.table,
                                                     _colors.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('material_id', default='0', no_null=True,
-                  references=_con.SQLFieldReference(_materials.table,
-                                                    _materials.id_field,
-                                                    on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('image_id', default='NULL',
                   references=_con.SQLFieldReference(_resources.table,
                                                     _resources.id_field,
@@ -159,6 +162,10 @@ table = _con.SQLTable(
     _con.IntField('max_temp_id', default='0', no_null=True,
                   references=_con.SQLFieldReference(_temperatures.table,
                                                     _temperatures.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('material_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_materials.table,
+                                                    _materials.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('stripe_color_id', default='999999', no_null=True,
                   references=_con.SQLFieldReference(_colors.table,
@@ -792,20 +799,31 @@ def _build_wires(con):
 
             mm_2 = __awg_to_mm2(awg)
 
+            image_id = 0
+            datasheet_id = 0
+            cad_id = 0
+
             for p_id in range(10):
                 part_number = pn_template.format(series=series, awg=awg, primary=p_id, secondary='')
                 description = f'{awg}AWG ({mm_2}mm²) {color_mapping[p_id]} Tefzel milspec single conductor wire'
+                s_id = 999999
+                num_conductors = 1
+                shielded = 0
+                tpi = 0.0
 
-                values.append((part_number, mfg_id, description, str(mm_2), awg, od_mm, dia,
-                               weight, resistance, plating_id, min_temp_id, max_temp_id, volts,
-                               material_id, p_id, 999999, family_id, series_id))
+                values.append((part_number, description, mfg_id, family_id, series_id,
+                               p_id, image_id, datasheet_id, cad_id,  min_temp_id,
+                               max_temp_id, material_id, s_id, plating_id, num_conductors,
+                               shielded, tpi, dia, mm_2, awg, od_mm, weight, resistance, volts))
                 for s_id in range(10):
                     if p_id == s_id:
                         continue
                     description = f'{awg}AWG ({mm_2}mm²) {color_mapping[p_id]}/{color_mapping[s_id]} Tefzel milspec single conductor wire'
 
-                    values.append((part_number + str(s_id), mfg_id, description, mm_2, awg,
-                                   od_mm, dia, weight, resistance, plating_id, min_temp_id,
-                                   max_temp_id, volts, material_id, p_id, s_id, family_id, series_id))
+                    values.append((part_number + str(s_id), description, mfg_id,
+                                   family_id, series_id, p_id, image_id, datasheet_id,
+                                   cad_id,  min_temp_id, max_temp_id, material_id,
+                                   s_id, plating_id, num_conductors, shielded, tpi,
+                                   mm_2, awg, od_mm, weight, resistance, volts))
 
     return values

@@ -6,8 +6,15 @@ import io
 from .bases import EntryBase, TableBase
 
 
+from ..create_database import resources as _resources
+
+
 class ResourcesTable(TableBase):
     __table_name__ = 'resources'
+
+    IMAGE_TYPE_IMAGE = _resources.IMAGE_TYPE_IMAGE
+    IMAGE_TYPE_DATASHEET = _resources.IMAGE_TYPE_DATASHEET
+    IMAGE_TYPE_CAD = _resources.IMAGE_TYPE_CAD
 
     def _table_needs_update(self) -> bool:
         from ..create_database import resources
@@ -36,8 +43,14 @@ class ResourcesTable(TableBase):
 
         raise KeyError(item)
 
-    def insert(self, path: str, data: bytes | None, type: str) -> "Resource":  # NOQA
-        db_id = TableBase.insert(self, path=path, data=data)
+    def insert(self, image_type: int, path: str) -> "Resource":  # NOQA
+        self._con.execute(f'SELECT id FROM resources WHERE path="{path}";')
+        rows = self._con.fetchall()
+        if rows:
+            db_id = rows[0][0]
+        else:
+            db_id = _resources.add_resource(self._con, image_type, path)
+
         return Resource(self, db_id)
 
 

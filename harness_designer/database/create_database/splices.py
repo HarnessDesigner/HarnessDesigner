@@ -9,6 +9,7 @@ from . import materials as _materials
 from . import resources as _resources
 from . import platings as _platings
 from . import splice_types as _splice_types
+from . import temperatures as _temperatures
 from . import models3d as _models3d
 
 from . import projects as _projects
@@ -57,11 +58,15 @@ def add_splices(con, data: tuple[dict] | list[dict]):
     for line in data:
         add_splice(con, **line)
 
+'''
+part_number, description, mfg_id, family_id, series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, model3d_id, material_id, plating_id, type_id, min_dia, max_dia, resistance, length, weight
+
+'''
 
 def add_splice(con, part_number, description, mfg=None, family=None, series=None,
-               material=None, plating=None, color=None, image=None, datasheet=None,
-               cad=None, model3d=None, type=None, min_dia=0.0, max_dia=0.0,  # NOQA
-               resistance=0.0, length=0.0, weight=0.0):
+               color=None, image=None, datasheet=None, cad=None, min_temp=None,
+               max_temp=None, model3d=None, material=None, plating=None,  type=None,  # NOQA
+               min_dia=0.0, max_dia=0.0, resistance=0.0, length=0.0, weight=0.0):
 
     mfg_id = _manufacturers.get_mfg_id(con, mfg)
     family_id = _families.get_family_id(con, family, mfg_id)
@@ -71,17 +76,21 @@ def add_splice(con, part_number, description, mfg=None, family=None, series=None
     image_id = _resources.add_resource(con, _resources.IMAGE_TYPE_IMAGE, image)
     datasheet_id = _resources.add_resource(con, _resources.IMAGE_TYPE_DATASHEET, datasheet)
     cad_id = _resources.add_resource(con, _resources.IMAGE_TYPE_CAD, cad)
+    min_temp_id = _temperatures.get_temperature_id(con, min_temp)
+    max_temp_id = _temperatures.get_temperature_id(con, max_temp)
     plating_id = _platings.get_plating_id(con, plating)
     type_id = _splice_types.get_splice_type_id(con, type)
     model3d_id = _models3d.add_model3d(con, model3d)
 
     con.execute('INSERT INTO splices (part_number, description, mfg_id, family_id, '
-                'series_id, material_id, plating_id, color_id, image_id, datasheet_id, '
-                'cad_id, model3d_id, type_id, min_dia, max_dia, resistance, length, weight) '
-                'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (part_number, description, mfg_id, family_id, series_id, material_id,
-                 plating_id, color_id, image_id, datasheet_id, cad_id, model3d_id,
-                 type_id, min_dia, max_dia, resistance, length, weight))
+                'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
+                'max_temp_id, model3d_id, material_id, plating_id, type_id, min_dia, '
+                'max_dia, resistance, length, weight) '
+                'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                (part_number, description, mfg_id, family_id, series_id, color_id,
+                 image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, model3d_id,
+                 material_id, plating_id, type_id, min_dia, max_dia, resistance,
+                 length, weight))
     con.commit()
 
 
@@ -118,14 +127,6 @@ table = _con.SQLTable(
                   references=_con.SQLFieldReference(_series.table,
                                                     _series.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('material_id', default='0', no_null=True,
-                  references=_con.SQLFieldReference(_materials.table,
-                                                    _materials.id_field,
-                                                    on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('plating_id', default='0', no_null=True,
-                  references=_con.SQLFieldReference(_platings.table,
-                                                    _platings.id_field,
-                                                    on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('color_id', default='0', no_null=True,
                   references=_con.SQLFieldReference(_colors.table,
                                                     _colors.id_field,
@@ -142,9 +143,25 @@ table = _con.SQLTable(
                   references=_con.SQLFieldReference(_resources.table,
                                                     _resources.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('min_temp_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_temperatures.table,
+                                                    _temperatures.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('max_temp_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_temperatures.table,
+                                                    _temperatures.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('model3d_id', default='NULL',
                   references=_con.SQLFieldReference(_models3d.table,
                                                     _models3d.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('material_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_materials.table,
+                                                    _materials.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('plating_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_platings.table,
+                                                    _platings.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('type_id', default='0', no_null=True,
                   references=_con.SQLFieldReference(_splice_types.table,

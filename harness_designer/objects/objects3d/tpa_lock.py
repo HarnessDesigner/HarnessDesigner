@@ -59,7 +59,7 @@ class TPALock(_base3d.Base3D):
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, db_obj.position3d, scale, material)
 
     def get_context_menu(self):
-        return HousingMenu(self.mainframe.editor3d.editor, self)
+        return TPALockMenu(self.mainframe.editor3d.editor, self)
 
 
 class TPALockMenu(wx.Menu):

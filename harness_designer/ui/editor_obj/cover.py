@@ -10,8 +10,6 @@ if TYPE_CHECKING:
     from ...objects import boot as _boot
 
 
-
-
 class Cover(_bases.FPBBase, MfgMixin):
     obj: "_boot.Boot" = None
 
@@ -21,6 +19,7 @@ class Cover(_bases.FPBBase, MfgMixin):
         fold_panel1 = self.AddFoldPanel("Thing1")
 
         thing1 = wx.TextCtrl(fold_panel1, -1, size=(-1, -1), style=wx.TE_MULTILINE)
+
 
         AddFoldPanel
 

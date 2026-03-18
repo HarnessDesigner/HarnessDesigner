@@ -39,12 +39,6 @@ class Wire(_base3d.Base3D):
 
         material = _materials.Plastic(color)
 
-        start_layout = db_obj.start_layout
-        stop_layout = db_obj.stop_layout
-
-        self._is_start_clickable = start_layout is None
-        self._is_stop_clickable = stop_layout is None
-
         self._p1 = db_obj.start_position3d
         self._p2 = db_obj.stop_position3d
 

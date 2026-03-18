@@ -2,6 +2,10 @@
 from . import manufacturers as _manufacturers
 from . import colors as _colors
 from . import resources as _resources
+from . import series as _series
+from . import families as _families
+from . import temperatures as _temperatures
+
 
 from . import projects as _projects
 from . import points3d as _points3d
@@ -24,11 +28,12 @@ def add_records(con, splash):
 
     splash.SetText(f'Adding wire marker to db [1 | 1]...')
     con.execute('INSERT INTO wire_markers (id, part_number, description, mfg_id, '
-                'color_id, image_id, datasheet_id, cad_id, min_diameter, '
-                'max_diameter, min_awg, max_awg, length, weight, has_label) '
-                'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (0, 'N/A', 'Internal Use DO NOT DELETE', 0, 999999, None, None,
-                 None, 0.0, 0.0, -1, -1, 0.0, 0.0, 0))
+                'family_id, series_id, color_id, image_id, datasheet_id, cad_id, '
+                'min_temp_id, max_temp_id, min_diameter, max_diameter, min_awg, '
+                'max_awg, length, weight, has_label) '
+                'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                (0, 'N/A', 'Internal Use DO NOT DELETE', 0, 0, 0, 999999, None, None,
+                 None, 0, 0, 0.0, 0.0, -1, -1, 0.0, 0.0, 0))
     con.commit()
 
     splash.SetText(f'Building wire markers...')
@@ -40,32 +45,38 @@ def add_records(con, splash):
         print(line)
 
     con.executemany('INSERT INTO wire_markers (part_number, description, mfg_id, '
-                    'color_id, image_id, datasheet_id, cad_id, min_diameter, '
-                    'max_diameter, min_awg, max_awg, length, weight, has_label'
-                    ') '
-                    'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                    'family_id, series_id, color_id, image_id, datasheet_id, cad_id, '
+                    'min_temp_id, max_temp_id, min_diameter, max_diameter, min_awg, '
+                    'max_awg, length, weight, has_label) '
+                    'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
                     data)
 
     con.commit()
 
 
-def add_wire_marker(con, part_number, description, mfg=None, color=None, image=None,
-                    datasheet=None, cad=None, min_diameter=0.0, max_diameter=0.0,
-                    min_awg=-1, max_awg=-1, length=0.0, weight=0.0, has_label=0):
+def add_wire_marker(con, part_number, description, mfg=None, family=None, series=None,
+                    color=None, image=None, datasheet=None, cad=None, min_temp=None,
+                    max_temp=None, min_diameter=0.0, max_diameter=0.0, min_awg=-1,
+                    max_awg=-1, length=0.0, weight=0.0, has_label=0):
 
     mfg_id = _manufacturers.get_mfg_id(con, mfg)
+    series_id = _series.get_series_id(con, series, mfg_id)
+    family_id = _families.get_family_id(con, family, mfg_id)
     color_id = _colors.get_color_id(con, color)
+    min_temp_id = _temperatures.get_temperature_id(con, min_temp)
+    max_temp_id = _temperatures.get_temperature_id(con, max_temp)
     image_id = _resources.add_resource(con, _resources.IMAGE_TYPE_IMAGE, image)
     datasheet_id = _resources.add_resource(con, _resources.IMAGE_TYPE_DATASHEET, datasheet)
     cad_id = _resources.add_resource(con, _resources.IMAGE_TYPE_CAD, cad)
 
-    con.execute('INSERT INTO wire_markers (part_number, description, mfg_id, color_id, '
-                'image_id, datasheet_id, cad_id, min_diameter, max_diameter, min_awg, '
-                'max_awg, length, weight, has_label) '
-                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (part_number, description, mfg_id, color_id, image_id, datasheet_id,
-                 cad_id, min_diameter, max_diameter, min_awg, max_awg, length, weight,
-                 has_label))
+    con.execute('INSERT INTO wire_markers (part_number, description, mfg_id, family_id, '
+                'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
+                'max_temp_id, min_diameter, max_diameter, min_awg, max_awg, length, '
+                'weight, has_label) '
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                (part_number, description, mfg_id, family_id, series_id, color_id,
+                 image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, min_diameter,
+                 max_diameter, min_awg, max_awg, length, weight, has_label))
 
     con.commit()
 
@@ -94,6 +105,14 @@ table = _con.SQLTable(
                   references=_con.SQLFieldReference(_manufacturers.table,
                                                     _manufacturers.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('family_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_families.table,
+                                                    _families.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('series_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_series.table,
+                                                    _series.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('color_id', default='0', no_null=True,
                   references=_con.SQLFieldReference(_colors.table,
                                                     _colors.id_field,
@@ -109,6 +128,14 @@ table = _con.SQLTable(
     _con.IntField('cad_id', default='NULL',
                   references=_con.SQLFieldReference(_resources.table,
                                                     _resources.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('min_temp_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_temperatures.table,
+                                                    _temperatures.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('max_temp_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_temperatures.table,
+                                                    _temperatures.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.FloatField('min_diameter', default='"0.0"', no_null=True),
     _con.FloatField('max_diameter', default='"0.0"', no_null=True),
@@ -256,12 +283,19 @@ def _build_wire_markers(con):
             cad_id = None
             has_label = 0
 
+            family_id = 0
+            series_id = 0
+
+            min_temp_id = 0
+            max_temp_id = 0
+
             image_id = None  # _resources.add_resource(con, _resources.IMAGE_TYPE_IMAGE, image_url)
             # image_id = get_resource_id(con, cur, image_url, type='jpg')
 
-            res.append((part_number, description, mfg_id, color_id, image_id,
-                        datasheet_id, cad_id, min_diameter, max_diameter,
-                        min_awg, max_awg, length, weight, has_label))
+            res.append((part_number, description, mfg_id, family_id, series_id,
+                        color_id, image_id, datasheet_id, cad_id, min_temp_id,
+                        max_temp_id, min_diameter, max_diameter, min_awg, max_awg,
+                        length, weight, has_label))
 
     data = {
         'SH CT 3/32K': {
@@ -368,11 +402,18 @@ def _build_wire_markers(con):
         weight = 0.0
         datasheet_id = None
         cad_id = None
+        color_id = 1020
 
         image_id = None  # _resources.add_resource(con, _resources.IMAGE_TYPE_IMAGE, image_url)
 
-        res.append((part_number, description, mfg_id, 1020, image_id,
-                        datasheet_id, cad_id, min_diameter, max_diameter,
-                        min_awg, max_awg, length, weight, has_label))
+        family_id = 0
+        series_id = 0
+
+        min_temp_id = 0
+        max_temp_id = 0
+
+        res.append((part_number, description, mfg_id, family_id, series_id, color_id, image_id,
+                    datasheet_id, cad_id, min_temp_id, max_temp_id, min_diameter, max_diameter,
+                    min_awg, max_awg, length, weight, has_label))
 
     return res

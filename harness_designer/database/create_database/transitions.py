@@ -4,11 +4,11 @@ import json
 from . import manufacturers as _manufacturers
 from . import series as _series
 from . import families as _families
+from . import temperatures as _temperatures
 from . import transition_series as _transition_series
 from . import colors as _colors
 from . import materials as _materials
 from . import shapes as _shapes
-from . import temperatures as _temperatures
 from . import protections as _protections
 from . import resources as _resources
 from . import transition_branches as _transition_branches
@@ -21,10 +21,9 @@ from .. import db_connectors as _con
 
 DATA_PATH = os.path.join(os.path.dirname(__file__), 'data')
 
-
-def add_transition(con, part_number, description, mfg=None, family=None, series=None, 
-                   color=None, material=None, transition_series=None, image=None, 
-                   datasheet=None, cad=None, min_temp=None, max_temp=None, shape=None, 
+def add_transition(con, part_number, description, mfg=None, family=None, series=None,
+                   color=None, image=None, datasheet=None, cad=None, min_temp=None,
+                   max_temp=None, material=None, transition_series=None, shape=None,
                    protection=None, branch_count=0, adhesive_ids=None, weight=0.0, branches=[]):
     
     if adhesive_ids is None:
@@ -46,14 +45,14 @@ def add_transition(con, part_number, description, mfg=None, family=None, series=
 
     try:
         con.execute('INSERT INTO transitions (part_number, description, mfg_id, '
-                    'family_id, series_id, color_id, material_id, transition_series_id, '
-                    'image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, shape_id, '
-                    'protection_id, branch_count, adhesive_ids, weight) '
+                    'family_id, series_id, color_id, image_id, datasheet_id, cad_id, '
+                    'min_temp_id, max_temp_id, material_id, transition_series_id, '
+                    'shape_id, protection_id, branch_count, adhesive_ids, weight) '
                     'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                    (part_number, description, mfg_id, family_id, series_id, color_id, 
-                     material_id, transition_series_id, image_id, datasheet_id, cad_id, 
-                     min_temp_id, max_temp_id, shape_id, protection_id, branch_count, 
-                     str(adhesive_ids), weight))
+                    (part_number, description, mfg_id, family_id, series_id, color_id,
+                     image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, material_id,
+                     transition_series_id, shape_id, protection_id, branch_count,
+                     adhesive_ids, weight))
     except:  # NOQA
         print('ERROR:', part_number)
         raise
@@ -98,7 +97,12 @@ def add_records(con, splash):
         return
 
     splash.SetText(f'Adding transition to db [1 | 1]...')
-    con.execute('INSERT INTO transitions (id, part_number, description) VALUES(0, "N/A", "Internal Use DO NOT DELETE");')
+    con.execute('INSERT INTO transitions (id, part_number, description, mfg_id, family_id, '
+                'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
+                'max_temp_id, material_id, transition_series_id, shape_id, protection_id, '
+                'branch_count, adhesive_ids, weight) VALUES '
+                '(0, "N/A", "Internal Use DO NOT DELETE", 0, 0, 0, 999999, '
+                'NULL, NULL, NULL, 0, 0, 0, 0, 0, 0, 0, "[]", 0.0);')
     con.commit()
 
     json_path = os.path.join(DATA_PATH, 'transitions.json')
@@ -146,14 +150,6 @@ table = _con.SQLTable(
                   references=_con.SQLFieldReference(_colors.table,
                                                     _colors.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('material_id', default='0', no_null=True,
-                  references=_con.SQLFieldReference(_materials.table,
-                                                    _materials.id_field,
-                                                    on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('transition_series_id', default='0', no_null=True,
-                  references=_con.SQLFieldReference(_transition_series.table,
-                                                    _transition_series.id_field,
-                                                    on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('image_id', default='NULL',
                   references=_con.SQLFieldReference(_resources.table,
                                                     _resources.id_field,
@@ -175,7 +171,14 @@ table = _con.SQLTable(
                   references=_con.SQLFieldReference(_temperatures.table,
                                                     _temperatures.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
-
+    _con.IntField('material_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_materials.table,
+                                                    _materials.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('transition_series_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_transition_series.table,
+                                                    _transition_series.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('shape_id', default='0', no_null=True,
                   references=_con.SQLFieldReference(_shapes.table,
                                                     _shapes.id_field,

@@ -100,7 +100,12 @@ def add_records(con, splash):
         return
 
     splash.SetText(f'Adding TPA lock to db [1 | 1]...')
-    con.execute('INSERT INTO tpa_locks (id, part_number, description) VALUES(0, "None", "No TPA Lock");')
+    con.execute('INSERT INTO tpa_locks (id, part_number, description, mfg_id, family_id, '
+                'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
+                'max_temp_id, model3d_id, lock_type, length, width, height, weight, '
+                'pins, terminal_size, compat_housings) VALUES '
+                '(0, "N/A", "No TPA Lock", 0, 0, 0, 99999, NULL, NULL, NULL, '
+                '0, 0, NULL, 0, 0.0, 0.0, 0.0, 0.0, 0, 0.0, "[]");')
 
     # os.path.join(DATA_PATH, 'tpa_locks.json'),
     json_paths = []  # os.path.join(DATA_PATH, 'aptiv_tpa_locks.json')]

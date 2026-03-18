@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING
 
 import wx
 
-from ...ui.widgets import context_menus as _context_menus
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from . import base3d as _base3d

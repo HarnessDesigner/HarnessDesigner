@@ -4,6 +4,7 @@ import wx
 
 from ...ui.widgets import context_menus as _context_menus
 from ...geometry import point as _point
+from ...geometry import angle as _angle
 from . import base3d as _base3d
 from ...shapes import cylinder as _cylinder
 from ...shapes import box as _box
@@ -83,6 +84,24 @@ class Terminal(_base3d.Base3D):
                 vbo = _box.create_vbo()
 
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, db_obj.position3d, scale, material)
+
+    def _update_position(self, position: _point.Point):
+        seal = self.db_obj.seal
+        if seal is not None:
+            delta = position - self._o_position
+            t_position = seal.position3d
+            t_position += delta
+
+        _base3d.Base3D._update_position(self, position)
+
+    def _update_angle(self, angle: _angle.Angle):
+        seal = self.db_obj.seal
+        if seal is not None:
+            delta = angle - self._o_angle
+            t_angle = seal.angle3d
+            t_angle += delta
+
+        _base3d.Base3D._update_angle(self, angle)
 
     def get_context_menu(self):
         return TerminalMenu(self.mainframe.editor3d.editor, self)

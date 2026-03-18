@@ -25,12 +25,55 @@ from .. import db_connectors as _con
 DATA_PATH = os.path.join(os.path.dirname(__file__), 'data')
 
 
-def add_housing(con, part_number, description, mfg, family, series, num_pins,
-                gender, direction, color, sealed, min_temp, max_temp, length,
-                width, height, cavity_lock, seal_type, cpa_lock_type, terminal_sizes,
-                compat_terminals, mates_to, compat_seals, compat_covers, compat_cpas,
-                compat_tpas, weight=0.0, ip_rating='IP00', centerline=0.0, rows=1,
-                cad=None, image=None, datasheet=None, model3d=None, terminal_size_counts=[]):
+def add_housing(con, part_number, description, mfg=None, family=None, series=None,
+                color=None, image=None, datasheet=None, cad=None, min_temp=None,
+                max_temp=None, model3d=None, direction=None, gender=None, cavity_lock=None,
+                ip_rating='IP00', seal_type=None, cpa_lock_type=None, sealing=0, rows=0,
+                num_pins=0, terminal_sizes=None, terminal_size_counts=None, centerline=0.0,
+                compat_cpas=None, compat_tpas=None, compat_covers=None, compat_terminals=None,
+                compat_seals=None, compat_housings=None, compat_boots=None, length=0.0,
+                width=0.0, height=0.0, weight=0.0, cover_point3d=None, seal_point3d=None,
+                boot_point3d=None, tpa_lock_1_point3d=None, tpa_lock_2_point3d=None,
+                cpa_lock_point3d=None):
+
+    if compat_cpas is None:
+        compat_cpas = []
+
+    if compat_tpas is None:
+        compat_tpas = []
+
+    if compat_covers is None:
+        compat_covers = []
+
+    if compat_terminals is None:
+        compat_terminals = []
+
+    if compat_seals is None:
+        compat_seals = []
+
+    if compat_housings is None:
+        compat_housings = []
+
+    if compat_boots is None:
+        compat_boots = []
+
+    if cover_point3d is None:
+        cover_point3d = [0.0, 0.0, 0.0]
+
+    if seal_point3d is None:
+        seal_point3d = [0.0, 0.0, 0.0]
+
+    if boot_point3d is None:
+        boot_point3d = [0.0, 0.0, 0.0]
+
+    if tpa_lock_1_point3d is None:
+        tpa_lock_1_point3d = [0.0, 0.0, 0.0]
+
+    if tpa_lock_2_point3d is None:
+        tpa_lock_2_point3d = [0.0, 0.0, 0.0]
+
+    if cpa_lock_point3d is None:
+        cpa_lock_point3d = [0.0, 0.0, 0.0]
 
     mfg_id = _manufacturers.get_mfg_id(con, mfg)
     family_id = _families.get_family_id(con, family, mfg_id)
@@ -74,21 +117,25 @@ def add_housing(con, part_number, description, mfg, family, series, num_pins,
         description += ' Housing'
 
     con.execute('INSERT INTO housings (part_number, description, mfg_id, family_id, '
-                'series_id, color_id, min_temp_id, max_temp_id, gender_id, direction_id, '
-                'length, width, height, weight, cavity_lock_id, sealing, rows, num_pins, '
-                'terminal_sizes, centerline, compat_cpas, compat_tpas, compat_covers, '
-                'compat_terminals, compat_seals, compat_housings, image_id, datasheet_id, '
-                'cad_id, model3d_id, ip_rating_id, terminal_size_counts, seal_type_id, '
-                'cpa_lock_type_id) '
+                'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
+                'max_temp_id, model3d_id, direction_id, gender_id, cavity_lock_id, '
+                'ip_rating_id, seal_type_id, cpa_lock_type_id, sealing, rows, num_pins, '
+                'terminal_sizes, terminal_size_counts, centerline, compat_cpas, '
+                'compat_tpas, compat_covers, compat_terminals, compat_seals, '
+                'compat_housings, compat_boots, length, width, height, weight, '
+                'cover_point3d, seal_point3d, boot_point3d, tpa_lock_1_point3d, '
+                'tpa_lock_2_point3d, cpa_lock_point3d) '
                 'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '
                 '?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
                 (part_number, description, mfg_id, family_id, series_id, color_id,
-                 min_temp_id, max_temp_id, gender_id, direction_id, length, width,
-                 height, weight, cavity_lock_id, sealed, rows, num_pins,
-                 str(terminal_sizes), centerline, str(compat_cpas), str(compat_tpas),
+                 image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, model3d_id,
+                 direction_id, gender_id, cavity_lock_id, ip_rating_id, seal_type_id,
+                 cpa_lock_type_id, sealing, rows, num_pins, terminal_sizes,
+                 terminal_size_counts, centerline, str(compat_cpas), str(compat_tpas),
                  str(compat_covers), str(compat_terminals), str(compat_seals),
-                 str(mates_to), image_id, datasheet_id, cad_id, model3d_id,
-                 ip_rating_id, str(terminal_size_counts), seal_type_id, cpa_lock_type_id))
+                 str(compat_housings), str(compat_boots), length, width, height,
+                 weight, str(cover_point3d), str(seal_point3d), str(boot_point3d),
+                 str(tpa_lock_1_point3d), str(tpa_lock_2_point3d), str(cpa_lock_point3d)))
 
     con.commit()
 
@@ -157,14 +204,6 @@ table = _con.SQLTable(
                   references=_con.SQLFieldReference(_colors.table,
                                                     _colors.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('gender_id', default='0', no_null=True,
-                  references=_con.SQLFieldReference(_genders.table,
-                                                    _genders.id_field,
-                                                    on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('direction_id', default='0', no_null=True,
-                  references=_con.SQLFieldReference(_directions.table,
-                                                    _directions.id_field,
-                                                    on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('image_id', default='NULL',
                   references=_con.SQLFieldReference(_resources.table,
                                                     _resources.id_field,
@@ -185,6 +224,18 @@ table = _con.SQLTable(
                   references=_con.SQLFieldReference(_temperatures.table,
                                                     _temperatures.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('model3d_id', default='NULL',
+                  references=_con.SQLFieldReference(_models3d.table,
+                                                    _models3d.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('gender_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_genders.table,
+                                                    _genders.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('direction_id', default='0', no_null=True,
+                  references=_con.SQLFieldReference(_directions.table,
+                                                    _directions.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('cavity_lock_id', default='0', no_null=True,
                   references=_con.SQLFieldReference(_cavity_locks.table,
                                                     _cavity_locks.id_field,
@@ -200,10 +251,6 @@ table = _con.SQLTable(
     _con.IntField('cpa_lock_type_id', default='0', no_null=True,
                   references=_con.SQLFieldReference(_cpa_lock_types.table,
                                                     _cpa_lock_types.id_field,
-                                                    on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('model3d_id', default='NULL',
-                  references=_con.SQLFieldReference(_models3d.table,
-                                                    _models3d.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('sealing', default='0', no_null=True),
     _con.IntField('rows', default='0', no_null=True),
