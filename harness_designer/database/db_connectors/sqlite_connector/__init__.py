@@ -4,6 +4,11 @@ from typing import (
     Generator as _Generator,
 )
 
+import os
+import requests
+import zipfile
+import tempfile
+
 from datetime import (
     date as _date,
     datetime as _datetime,
@@ -16,7 +21,7 @@ from time import struct_time as _struct_time
 
 import sqlite3
 
-from .. import ConnectorBase
+from .. import base as _base
 
 from .... import config as _config
 from .... import logger as _logger
@@ -39,10 +44,12 @@ _ParamsSequenceOrDictType = _Union[_ParamsDictType, _ParamsSequenceType]
 _RowType = tuple[_ToPythonOutputTypes, ...]
 
 
-class SQLConnector(ConnectorBase):
+class SQLConnector(_base.ConnectorBase):
 
     def __init__(self, mainframe):
-        super().__init__(mainframe, Config.database_path)
+        db_path = Config.database_path
+
+        super().__init__(mainframe, db_path)
 
         self._connection: sqlite3.Connection = None
         self._cursor: sqlite3.Cursor = None

@@ -13,7 +13,7 @@ from .. import db_connectors as _con
 from ... import logger as _logger
 
 
-def add_records(con, splash):
+def add_records(con, splash, data_path):
     con.execute('SELECT id FROM accessories WHERE id=0;')
     if con.fetchall():
         return

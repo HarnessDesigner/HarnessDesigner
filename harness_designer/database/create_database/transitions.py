@@ -22,9 +22,6 @@ from .. import db_connectors as _con
 from ... import logger as _logger
 
 
-DATA_PATH = os.path.join(os.path.dirname(__file__), 'data')
-
-
 def add_transition(con, part_number, description, mfg=None, family=None, series=None,
                    color=None, image=None, datasheet=None, cad=None, min_temp=None,
                    max_temp=None, material=None, transition_series=None, shape=None,
@@ -95,7 +92,7 @@ def add_transitions(con, data: tuple[dict] | list[dict]):
         add_transition(con, **line)
 
 
-def add_records(con, splash):
+def add_records(con, splash, data_path):
     con.execute('SELECT id FROM transitions WHERE id=0;')
     if con.fetchall():
         return
@@ -109,7 +106,7 @@ def add_records(con, splash):
                 'NULL, NULL, NULL, 0, 0, 0, 0, 0, 0, 0, "[]", 0.0);')
     con.commit()
 
-    json_path = os.path.join(DATA_PATH, 'transitions.json')
+    json_path = os.path.join(data_path, 'transitions.json')
     if os.path.exists(json_path):
         splash.SetText(f'Loading trasitions file...')
 

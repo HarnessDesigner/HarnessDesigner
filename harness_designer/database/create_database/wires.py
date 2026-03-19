@@ -25,15 +25,12 @@ from harness_designer.database import db_connectors as _con
 from ... import logger as _logger
 
 
-DATA_PATH = os.path.join(os.path.dirname(__file__), 'data')
-
-
 def add_wires(con, data: tuple[dict] | list[dict]):
     for line in data:
         add_wire(con, **line)
 
 
-def add_records(con, splash):
+def add_records(con, splash, data_path):
     con.execute('SELECT id FROM wires WHERE id=0;')
     if con.fetchall():
         return
@@ -69,8 +66,8 @@ def add_records(con, splash):
         pass
 
     dirs = []
-    for file in os.listdir(DATA_PATH):
-        file = os.path.join(DATA_PATH, file)
+    for file in os.listdir(data_path):
+        file = os.path.join(data_path, file)
         if os.path.isdir(file):
             dirs.append(file)
 

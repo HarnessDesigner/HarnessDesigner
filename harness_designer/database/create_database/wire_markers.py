@@ -23,7 +23,7 @@ def add_wire_markers(con, data: tuple[dict] | list[dict]):
         add_wire_marker(con, **line)
 
 
-def add_records(con, splash):
+def add_records(con, splash, data_path):
     con.execute('SELECT id FROM wire_markers WHERE id=0;')
     if con.fetchall():
         return

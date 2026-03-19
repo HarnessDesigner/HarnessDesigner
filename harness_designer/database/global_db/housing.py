@@ -36,7 +36,9 @@ class HousingsTable(TableBase):
         from ..create_database import housings
 
         housings.table.add_to_db(self)
-        housings.add_records(self._con, splash)
+        data_path = self._con.db_data.open(splash)
+
+        housings.add_records(self._con, splash, data_path)
 
     def _update_table_in_db(self):
         from ..create_database import housings

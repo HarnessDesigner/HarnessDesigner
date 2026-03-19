@@ -24,7 +24,9 @@ class BootsTable(TableBase):
         from ..create_database import boots
 
         boots.table.add_to_db(self)
-        boots.add_records(self._con, splash)
+        data_path = self._con.db_data.open(splash)
+
+        boots.add_records(self._con, splash, data_path)
 
     def _update_table_in_db(self):
         from ..create_database import boots

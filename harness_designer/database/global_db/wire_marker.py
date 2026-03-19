@@ -18,8 +18,9 @@ class WireMarkersTable(TableBase):
         from ..create_database import wire_markers
 
         wire_markers.table.add_to_db(self)
-        wire_markers.add_records(self._con, splash)
+        data_path = self._con.db_data.open(splash)
 
+        wire_markers.add_records(self._con, splash, data_path)
 
     def _update_table_in_db(self):
         from ..create_database import wire_markers

@@ -81,7 +81,9 @@ def get_modules():
 
     return res
 
-
+'''
+https://github.com/HarnessDesigner/HarnessDesigner/archive/refs/heads/main.zip
+'''
 '''
 curses
 OpenGL.raw.GLES3

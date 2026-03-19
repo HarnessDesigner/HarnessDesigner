@@ -19,9 +19,6 @@ from .. import db_connectors as _con
 from ... import logger as _logger
 
 
-DATA_PATH = os.path.join(os.path.dirname(__file__), 'data')
-
-
 def add_tpa_lock(con, part_number, description, mfg=None, family=None, series=None,
                  color=None, image=None, datasheet=None, cad=None, min_temp=None,
                  max_temp=None, model3d=None, lock_type='', length=0.0, width=0.0,
@@ -97,7 +94,7 @@ def add_tpa_locks(con, data: tuple[dict] | list[dict]):
         add_tpa_lock(con, **line)
 
 
-def add_records(con, splash):
+def add_records(con, splash, data_path):
     con.execute('SELECT id FROM tpa_locks WHERE id=0;')
     if con.fetchall():
         return
@@ -111,8 +108,8 @@ def add_records(con, splash):
                 '0, 0, NULL, 0, 0.0, 0.0, 0.0, 0.0, 0, 0.0, "[]");')
 
     dirs = []
-    for file in os.listdir(DATA_PATH):
-        file = os.path.join(DATA_PATH, file)
+    for file in os.listdir(data_path):
+        file = os.path.join(data_path, file)
         if os.path.isdir(file):
             dirs.append(file)
 

@@ -28,7 +28,9 @@ class TerminalsTable(TableBase):
         from ..create_database import terminals
 
         terminals.table.add_to_db(self)
-        terminals.add_records(self._con, splash)
+        data_path = self._con.db_data.open(splash)
+
+        terminals.add_records(self._con, splash, data_path)
 
 
     def _update_table_in_db(self):

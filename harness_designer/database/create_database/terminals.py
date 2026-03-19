@@ -139,16 +139,13 @@ def add_pjt_terminal(con, project_id, part_id, cavity_id=None, circuit_id=None,
     con.commit()
 
 
-DATA_PATH = os.path.join(os.path.dirname(__file__), 'data')
-
-
 def add_terminals(con, data: tuple[dict] | list[dict]):
 
     for line in data:
         add_terminal(con, **line)
 
 
-def add_records(con, splash):
+def add_records(con, splash, data_path):
     con.execute('SELECT id FROM terminals WHERE id=0;')
     if con.fetchall():
         return
@@ -158,8 +155,8 @@ def add_records(con, splash):
     con.commit()
 
     dirs = []
-    for file in os.listdir(DATA_PATH):
-        file = os.path.join(DATA_PATH, file)
+    for file in os.listdir(data_path):
+        file = os.path.join(data_path, file)
         if os.path.isdir(file):
             dirs.append(file)
 

@@ -26,7 +26,9 @@ class SplicesTable(TableBase):
         from ..create_database import splices
 
         splices.table.add_to_db(self)
-        splices.add_records(self._con, splash)
+        data_path = self._con.db_data.open(splash)
+
+        splices.add_records(self._con, splash, data_path)
 
     def _update_table_in_db(self):
         from ..create_database import splices

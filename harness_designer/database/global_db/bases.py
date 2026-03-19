@@ -495,6 +495,8 @@ class GLBTables:
         self._wires_table = WiresTable(self, tables, splash, load_database)
         self._wire_markers_table = WireMarkersTable(self, tables, splash, load_database)
 
+        self.connector.db_data = None
+
     @property
     def cpa_lock_types_table(self) -> CPALockTypesTable:
         return self._cpa_lock_types_table

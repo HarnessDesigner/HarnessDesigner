@@ -21,7 +21,7 @@ import mysql.connector
 from mysql.connector import errorcode
 import mysql.connector.constants
 
-from .. import ConnectorBase
+from .. import base as _base
 
 from .... import config as _config
 
@@ -122,9 +122,9 @@ class LoginDialog(wx.Dialog):
         )
 
 
-class SQLConnector(ConnectorBase):
+class SQLConnector(_base.ConnectorBase):
 
-    def __init__(self, mainframe):
+    def __init__(self, mainframe, splash, args):
         super().__init__(mainframe, Config.database_name)
         self._connection: mysql.connector.MySQLConnection = None
         self._cursor: _MySQLCursor = None

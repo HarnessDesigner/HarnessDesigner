@@ -18,7 +18,9 @@ class AccessoriesTable(TableBase):
         from ..create_database import accessories
 
         accessories.table.add_to_db(self)
-        accessories.add_records(self._con, splash)
+
+        data_path = self._con.db_data.open(splash)
+        accessories.add_records(self._con, splash, data_path)
 
     def _update_table_in_db(self):
         from ..create_database import accessories

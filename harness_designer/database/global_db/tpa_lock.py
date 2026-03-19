@@ -23,7 +23,9 @@ class TPALocksTable(TableBase):
         from ..create_database import tpa_locks
 
         tpa_locks.table.add_to_db(self)
-        tpa_locks.add_records(self._con, splash)
+        data_path = self._con.db_data.open(splash)
+
+        tpa_locks.add_records(self._con, splash, data_path)
 
     def _update_table_in_db(self):
         from ..create_database import tpa_locks

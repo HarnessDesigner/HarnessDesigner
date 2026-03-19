@@ -24,7 +24,9 @@ class TransitionsTable(TableBase):
         from ..create_database import transitions
 
         transitions.table.add_to_db(self)
-        transitions.add_records(self._con, splash)
+        data_path = self._con.db_data.open(splash)
+
+        transitions.add_records(self._con, splash, data_path)
 
     def _update_table_in_db(self):
         from ..create_database import transitions

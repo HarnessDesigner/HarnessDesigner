@@ -28,7 +28,9 @@ class WiresTable(TableBase):
         from ..create_database import wires
 
         wires.table.add_to_db(self)
-        wires.add_records(self._con, splash)
+        data_path = self._con.db_data.open(splash)
+
+        wires.add_records(self._con, splash, data_path)
 
     def _update_table_in_db(self):
         from ..create_database import wires
