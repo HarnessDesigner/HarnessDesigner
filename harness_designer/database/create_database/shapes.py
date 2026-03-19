@@ -1,4 +1,5 @@
 from .. import db_connectors as _con
+from ... import logger as _logger
 
 
 def add_records(con, splash):
@@ -21,14 +22,14 @@ def get_shape_id(con, name):
     res = con.fetchall()
 
     if not res:
-        print(f'DATABASE: adding shape ("{name}")')
+        _logger.logger.database(f'adding shape ("{name}")')
 
         con.execute('INSERT INTO shapes (name) VALUES (?);', (name,))
 
         con.commit()
         db_id = con.lastrowid
 
-        print(f'DATABASE: shape added "{name}" = {db_id}')
+        _logger.logger.database(f'shape added "{name}" = {db_id}')
 
         return db_id
     else:
@@ -42,11 +43,3 @@ table = _con.SQLTable(
     id_field,
     _con.TextField('name', is_unique=True, no_null=True)
 )
-
-
-# def shapes(con, cur):
-#     cur.execute('CREATE TABLE shapes('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'name TEXT UNIQUE NOT NULL'
-#                 ');')
-#     con.commit()

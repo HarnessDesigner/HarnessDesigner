@@ -14,7 +14,10 @@ if TYPE_CHECKING:
 
 class Splash(wx.Frame):
 
-    def __init__(self):
+    def __init__(self, args):
+        self.load_database = '--load-database' in args
+        self.startup_args = args
+
         wx.Frame.__init__(self, None, wx.ID_ANY, style=wx.FRAME_NO_TASKBAR | wx.FRAME_SHAPED | wx.STAY_ON_TOP)
 
         self.logger: "_logger.Log" = None
@@ -72,7 +75,7 @@ class Splash(wx.Frame):
         try:
             from .ui import mainframe as _mainframe
         except Exception as err:  # NOQA
-            self.logger.print_traceback(err)
+            self.logger.traceback(err)
 
             dlg = _critical_error_dialog.CriticalErrorDialog(self, err)
 
@@ -94,7 +97,7 @@ class Splash(wx.Frame):
             try:
                 _mainframe._mainframe = _mainframe.MainFrame(self, self.logger)
             except Exception as err:  # NOQA
-                self.logger.print_traceback(err)
+                self.logger.traceback(err)
                 dlg = _critical_error_dialog.CriticalErrorDialog(self, err)
 
                 dlg.ShowModal()
@@ -144,7 +147,7 @@ class Splash(wx.Frame):
         if self.main_thread != threading.current_thread():
 
             def _do(t):
-                self.logger.print_info(t)
+                self.logger.info(t)
                 self.text = t
                 self.draw()
                 self.event.set()
@@ -153,7 +156,7 @@ class Splash(wx.Frame):
             self.event.wait(0.2)
             self.event.clear()
         else:
-            self.logger.print_info(text)
+            self.logger.info(text)
             self.text = text
             self.draw()
             time.sleep(0.05)

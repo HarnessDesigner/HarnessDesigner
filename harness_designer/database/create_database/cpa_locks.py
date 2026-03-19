@@ -5,7 +5,9 @@ from . import manufacturers as _manufacturers
 from . import series as _series
 from . import families as _families
 from . import colors as _colors
-from . import resources as _resources
+from . import images as _images
+from . import datasheets as _datasheets
+from . import cads as _cads
 from . import models3d as _models3d
 from . import temperatures as _temperatures
 from . import cpa_lock_types as _cpa_lock_types
@@ -15,6 +17,7 @@ from . import points3d as _points3d
 from . import housings as _housings
 
 from .. import db_connectors as _con
+from ... import logger as _logger
 
 
 DATA_PATH = os.path.join(os.path.dirname(__file__), 'data')
@@ -33,10 +36,10 @@ def add_cpa_lock(con, part_number, description, mfg=None, family=None, series=No
     family_id = _families.get_family_id(con, family, mfg_id)
     color_id = _colors.get_color_id(con, color)
     type_id = _cpa_lock_types.get_cpa_lock_type_id(con, type)
-    image_id = _resources.add_resource(con, _resources.IMAGE_TYPE_IMAGE, image)
-    cad_id = _resources.add_resource(con, _resources.IMAGE_TYPE_CAD, cad)
-    datasheet_id = _resources.add_resource(con, _resources.IMAGE_TYPE_DATASHEET, datasheet)
-    model3d_id = _models3d.add_model3d(con, model3d)
+    image_id = _images.get_image_id(con, image)
+    cad_id = _cads.get_cad_id(con, cad)
+    datasheet_id = _datasheets.get_datasheet_id(con, datasheet)
+    model3d_id = _models3d.get_model3d_id(con, model3d)
     min_temp_id = _temperatures.get_temperature_id(con, min_temp)
     max_temp_id = _temperatures.get_temperature_id(con, max_temp)
 
@@ -54,7 +57,7 @@ def add_cpa_lock(con, part_number, description, mfg=None, family=None, series=No
 
         description += ' CPA Lock'
 
-    print(f'DATABASE: adding cpa lock {part_number}, {description}')
+    _logger.logger.database(f'adding cpa lock {part_number}, {description}')
 
     con.execute('INSERT INTO cpa_locks (part_number, description, mfg_id, family_id, '
                 'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
@@ -64,12 +67,12 @@ def add_cpa_lock(con, part_number, description, mfg=None, family=None, series=No
                 (part_number, description, mfg_id, family_id, series_id, color_id,
                  image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, model3d_id,
                  type_id, length, width, height, weight, pins, terminal_size,
-                 compat_housings))
+                 str(compat_housings)))
 
     con.commit()
     db_id = con.lastrowid
 
-    print(f'DATABASE: cpa lock added "{part_number}" = {db_id}')
+    _logger.logger.database(f'cpa lock added "{part_number}" = {db_id}')
 
 
 def add_cpa_locks(con, data: tuple[dict] | list[dict]):
@@ -85,13 +88,21 @@ def add_records(con, splash):
     splash.SetText(f'Adding CPA lock to db [1 | 1]...')
     con.execute('INSERT INTO cpa_locks (id, part_number, description) VALUES(0, "None", "No CPA Lock");')
 
-    # os.path.join(DATA_PATH, 'cpa_locks.json')
-    json_paths = []  # os.path.join(DATA_PATH, 'aptiv_cpa_locks.json')]
+    dirs = []
+    for file in os.listdir(DATA_PATH):
+        file = os.path.join(DATA_PATH, file)
+        if os.path.isdir(file):
+            dirs.append(file)
 
-    for json_path in json_paths:
+    cwd = os.getcwd()
+    for path in dirs:
+        os.chdir(path)
+
+        json_path = os.path.join(path, 'cpa_locks.json')
+
         if os.path.exists(json_path):
             splash.SetText(f'Loading CPA locks file...')
-            print(json_path)
+            _logger.logger.database(json_path)
 
             with open(json_path, 'r') as f:
                 data = json.loads(f.read())
@@ -103,9 +114,21 @@ def add_records(con, splash):
 
             for i, item in enumerate(data):
                 splash.SetText(f'Adding CPA locks to db [{i} | {data_len}]...')
-                add_cpa_lock(con, **item)
 
-            con.commit()
+                pn = item['part_number']
+                con.execute(f'SELECT id FROM cpa_locks WHERE part_number="{pn}";')
+                rows = con.fetchall()
+                if not rows:
+                    if 'shared_cad' in item:
+                        del item['shared_cad']
+
+                    if 'shared_model3d' in item:
+                        del item['shared_model3d']
+
+                    add_cpa_lock(con, **item)
+
+        con.commit()
+    os.chdir(cwd)
 
 
 id_field = _con.PrimaryKeyField('id')
@@ -132,16 +155,16 @@ table = _con.SQLTable(
                                                     _colors.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('image_id', default='NULL',
-                  references=_con.SQLFieldReference(_resources.table,
-                                                    _resources.id_field,
+                  references=_con.SQLFieldReference(_images.table,
+                                                    _images.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('datasheet_id', default='NULL',
-                  references=_con.SQLFieldReference(_resources.table,
-                                                    _resources.id_field,
+                  references=_con.SQLFieldReference(_datasheets.table,
+                                                    _datasheets.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('cad_id', default='NULL',
-                  references=_con.SQLFieldReference(_resources.table,
-                                                    _resources.id_field,
+                  references=_con.SQLFieldReference(_cads.table,
+                                                    _cads.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('min_temp_id', default='0', no_null=True,
                   references=_con.SQLFieldReference(_temperatures.table,
@@ -200,75 +223,3 @@ pjt_table = _con.SQLTable(
     _con.TextField('angle3d', default='"[0.0, 0.0, 0.0]"', no_null=True),
     _con.IntField('is_visible3d', default='1', no_null=True)
 )
-
-# def pjt_cpa_locks(con, cur):
-#     cur.execute('CREATE TABLE pjt_cpa_locks('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'project_id INTEGER NOT NULL, '
-#                 'part_id INTEGER NOT NULL, '
-#                 'name TEXT DEFAULT "" NOT NULL, '
-#                 'notes TEXT DEFAULT "" NOT NULL, '
-#                 'quat3d TEXT DEFAULT "[1.0, 0.0, 0.0, 0.0]" NOT NULL, '
-#                 'angle3d TEXT DEFAULT "[0.0, 0.0, 0.0]" NOT NULL, '
-#                 'point3d_id INTEGER NOT NULL, '  # absolute, calculated using housing relative point
-#                 'housing_id INTEGER NOT NULL, '
-#                 'is_visible3d INTEGER DEFAULT 1 NOT NULL, '
-#                 'FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (part_id) REFERENCES cpa_locks(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (point3d_id) REFERENCES pjt_points3d(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (housing_id) REFERENCES pjt_housings(id) ON DELETE CASCADE ON UPDATE CASCADE'
-#                 ');')
-#     con.commit()
-
-# def cpa_locks(con, cur):
-#     cur.execute('CREATE TABLE cpa_locks('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'part_number TEXT UNIQUE NOT NULL, '
-#                 'description TEXT DEFAULT "" NOT NULL, '
-#                 'mfg_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'family_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'series_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'color_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'image_id INTEGER DEFAULT NULL, '
-#                 'datasheet_id INTEGER DEFAULT NULL, '
-#                 'cad_id INTEGER DEFAULT NULL, '
-#                 'min_temp_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'max_temp_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'length REAL DEFAULT "0.0" NOT NULL, '
-#                 'width REAL DEFAULT "0.0" NOT NULL, '
-#                 'height REAL DEFAULT "0.0" NOT NULL, '
-#                 'pins TEXT DEFAULT "" NOT NULL, '
-#                 'terminal_size REAL DEFAULT "0.0" NOT NULL, '
-#                 'weight REAL DEFAULT "0.0" NOT NULL, '
-#                 'model3d_id INTEGER DEFAULT NULL, '
-#                 'type_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'FOREIGN KEY (mfg_id) REFERENCES manufacturers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (image_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (datasheet_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (cad_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (min_temp_id) REFERENCES temperatures(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (max_temp_id) REFERENCES temperatures(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (type_id) REFERENCES cpa_lock_types(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (model3d_id) REFERENCES models3d(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (color_id) REFERENCES colors(id) ON DELETE SET DEFAULT ON UPDATE CASCADE'
-#                 ');')
-#     con.commit()
-#
-#
-# def cpa_lock_crossref(con, cur):
-#     cur.execute('CREATE TABLE cpa_lock_crossref('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'part_number1 TEXT NOT NULL, '
-#                 'cpa_lock_id1 INTEGER DEFAULT NULL, '
-#                 'mfg_id1 INTEGER DEFAULT NULL, '
-#                 'part_number2 TEXT NOT NULL, '
-#                 'cpa_lock_id2 INTEGER DEFAULT NULL, '
-#                 'mfg_id2 INTEGER DEFAULT NULL, '
-#                 'FOREIGN KEY (cpa_lock_id1) REFERENCES cpa_locks(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (mfg_id1) REFERENCES manufacturers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (cpa_lock_id2) REFERENCES cpa_locks(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (mfg_id2) REFERENCES manufacturers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE'
-#                 ');')
-#     con.commit()

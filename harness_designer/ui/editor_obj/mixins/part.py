@@ -93,24 +93,24 @@ class PartMixin(_mixinbase.MixinBase):
 
         image_id = db_obj.image_id
         if image_id:
-            resource = db_obj.table.db.resources_table[image_id]
-            self.image.SetValue(resource.path)
+            image = db_obj.table.db.images_table[image_id]
+            self.image.SetValue(image.path)
 
         self.datasheet = _text_ctrl.TextCtrl(
             panel, 'Datasheet:', (-1, -1))
 
         datasheet_id = db_obj.datasheet_id
         if datasheet_id:
-            resource = db_obj.table.db.resources_table[datasheet_id]
-            self.datasheet.SetValue(resource.path)
+            datasheet = db_obj.table.db.datasheets_table[datasheet_id]
+            self.datasheet.SetValue(datasheet.path)
 
         self.cad = _text_ctrl.TextCtrl(
             panel, 'CAD:', (-1, -1))
 
         cad_id = db_obj.cad_id
         if cad_id:
-            resource = db_obj.table.db.resources_table[cad_id]
-            self.cad.SetValue(resource.path)
+            cad = db_obj.table.db.cads_table[cad_id]
+            self.cad.SetValue(cad.path)
 
         db_obj.table.execute(f'SELECT id, name FROM temperatures;')
         rows = db_obj.table.fetchall()
@@ -226,12 +226,8 @@ class PartMixin(_mixinbase.MixinBase):
     def _on_image(self, evt):
         path = self.image.GetValue().strip()
         if path:
-            rt = self.db_obj.table.db.resources_table
-
-            resource = rt.insert(rt.IMAGE_TYPE_IMAGE, path)
-            resource_id = resource.db_id
-
-            self.db_obj.image_id = resource_id
+            image = self.db_obj.table.db.images_table.insert(path)
+            self.db_obj.image_id = image.db_id
             evt.Skip()
         else:
             self.db_obj.image_id = None
@@ -239,12 +235,8 @@ class PartMixin(_mixinbase.MixinBase):
     def _on_datasheet(self, evt):
         path = self.datasheet.GetValue().strip()
         if path:
-            rt = self.db_obj.table.db.resources_table
-
-            resource = rt.insert(rt.IMAGE_TYPE_DATASHEET, path)
-            resource_id = resource.db_id
-
-            self.db_obj.datasheet_id = resource_id
+            datasheet = self.db_obj.table.db.datasheets_table.insert(path)
+            self.db_obj.datasheet_id = datasheet.db_id
             evt.Skip()
         else:
             self.db_obj.datasheet_id = None
@@ -252,12 +244,8 @@ class PartMixin(_mixinbase.MixinBase):
     def _on_cad(self, evt):
         path = self.cad.GetValue().strip()
         if path:
-            rt = self.db_obj.table.db.resources_table
-
-            resource = rt.insert(rt.IMAGE_TYPE_CAD, path)
-            resource_id = resource.db_id
-
-            self.db_obj.cad_id = resource_id
+            cad = self.db_obj.table.db.cads_table.insert(path)
+            self.db_obj.cad_id = cad.db_id
             evt.Skip()
         else:
             self.db_obj.cad_id = None

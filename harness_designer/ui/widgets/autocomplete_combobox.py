@@ -53,8 +53,8 @@ class AutoCompleteComboBox(wx.ComboBox):
         size=wx.DefaultSize, style=0, validator=wx.DefaultValidator,
         name=wx.ComboBoxNameStr
     ):
-        wx.ComboBox.__init__(self, parent, id, pos=pos, size=size, style=style,
-                             validator=validator, name=name, choices=choices)
+        wx.ComboBox.__init__(self, parent, id, value='', pos=pos, size=size, choices=choices,
+                             style=style, validator=validator, name=name)
 
         self._ac = AutoCompleter(choices[:])
         self.AutoComplete(self._ac)

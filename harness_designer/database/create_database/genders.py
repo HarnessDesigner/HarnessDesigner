@@ -1,4 +1,5 @@
 from .. import db_connectors as _con
+from ... import logger as _logger
 
 
 def add_records(con, splash):
@@ -23,13 +24,13 @@ def get_gender_id(con, name):
     res = con.fetchall()
 
     if not res:
-        print(f'DATABASE: adding gender ("{name}")')
+        _logger.logger.database(f'adding gender ("{name}")')
         con.execute('INSERT INTO genders (name) VALUES (?);', (name,))
 
         con.commit()
         db_id = con.lastrowid
 
-        print(f'DATABASE: gender added "{name}" = {db_id}')
+        _logger.logger.database(f'gender added "{name}" = {db_id}')
 
         return db_id
     else:
@@ -43,11 +44,3 @@ table = _con.SQLTable(
     id_field,
     _con.TextField('name', no_null=True)
 )
-
-
-# def genders(con, cur):
-#     cur.execute('CREATE TABLE genders('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'name TEXT UNIQUE NOT NULL'
-#                 ');')
-#     con.commit()

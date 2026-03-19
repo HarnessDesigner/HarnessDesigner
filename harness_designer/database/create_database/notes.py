@@ -4,6 +4,7 @@ from . import points3d as _points3d
 from . import points2d as _points2d
 
 from harness_designer.database import db_connectors as _con
+from ... import logger as _logger
 
 
 pjt_id_field = _con.PrimaryKeyField('id')
@@ -42,31 +43,3 @@ pjt_table = _con.SQLTable(
     _con.IntField('style3d', no_null=True),
     _con.IntField('is_visible3d', default='1', no_null=True)
 )
-
-# def pjt_notes(con, cur):
-#     cur.execute('CREATE TABLE pjt_notes('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'project_id INTEGER NOT NULL, '
-#                 'point2d_id INTEGER DEFAULT NULL, '
-#                 'point3d_id INTEGER DEFAULT NULL, '  # absolute
-#
-#                 'quat2d TEXT DEFAULT "[1.0, 0.0, 0.0, 0.0]" NOT NULL, '
-#                 'angle2d TEXT DEFAULT "[0.0, 0.0, 0.0]" NOT NULL, '
-#                 'size2d INTEGER NOT NULL, '
-#                 'h_align2d INTEGER NOT NULL, '
-#                 'v_align2d INTEGER NOT NULL, '
-#                 'style2d INTEGER NOT NULL, '
-#                 'is_visible2d INTEGER DEFAULT 1 NOT NULL, '
-#                 'quat3d TEXT DEFAULT "[1.0, 0.0, 0.0, 0.0]" NOT NULL, '
-#                 'angle3d TEXT DEFAULT "[0.0, 0.0, 0.0]" NOT NULL, '
-#                 'size3d REAL NOT NULL, '
-#                 'h_align3d INTEGER NOT NULL, '
-#                 'v_align3d INTEGER NOT NULL, '
-#                 'style3d INTEGER NOT NULL, '
-#                 'is_visible3d INTEGER DEFAULT 1 NOT NULL, '
-#                 'note TEXT DEFAULT "" NOT NULL, '
-#                 'FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (point2d_id) REFERENCES pjt_points2d(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (point3d_id) REFERENCES pjt_points3d(id) ON DELETE SET DEFAULT ON UPDATE CASCADE'
-#                 ');')
-#     con.commit()

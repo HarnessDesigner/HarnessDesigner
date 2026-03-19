@@ -108,7 +108,6 @@ class GLOverlay(glcanvas.GLCanvas):
 
         self.distance = 10.0
 
-        print('DISTANCE:', self.distance)
         self.Bind(wx.EVT_SIZE, self.on_size)
         self.Bind(wx.EVT_PAINT, self.on_paint)
 

@@ -18,11 +18,14 @@ from .mixins import (PartNumberMixin, ManufacturerMixin, DescriptionMixin, Famil
 
 if TYPE_CHECKING:
     from . import cavity as _cavity
-    from . import resource as _resource
 
 
 class HousingsTable(TableBase):
     __table_name__ = 'housings'
+
+    def _load_database(self, splash):
+        from ..create_database import housings
+        housings.add_records(self._con, splash)
 
     def _table_needs_update(self) -> bool:
         from ..create_database import housings
@@ -372,26 +375,6 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
             res[idx] = self._table.db.cavities_table[db_id]
         return res
 
-    @property
-    def dxf(self) -> "_resource.Resource":
-        db_id = self.dxf_id
-        if db_id is None:
-            return None
-
-        return self._table.db.resources_table[db_id]
-
-    @dxf.setter
-    def dxf(self, value: "_resource.Resource"):
-        self._table.update(self._db_id, dxf_id=value.db_id)
-
-    @property
-    def dxf_id(self) -> int:
-        return self._table.select('dxf_id', id=self._db_id)[0][0]
-
-    @dxf_id.setter
-    def dxf_id(self, value: int):
-        self._table.update(self._db_id, dxf_id=value)
-        
     _cover_position3d: str = None
     
     def __update_cover_position3d(self, point: _point.Point):

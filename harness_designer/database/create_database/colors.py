@@ -1,4 +1,5 @@
 from .. import db_connectors as _con
+from ... import logger as _logger
 
 
 def add_records(con, splash):
@@ -41,15 +42,6 @@ table = _con.SQLTable(
     _con.TextField('name', no_null=True),
     _con.IntField('rgb', default='""', no_null=True)
 )
-
-
-# def colors(con, cur):
-#     cur.execute('CREATE TABLE colors('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'name TEXT UNIQUE NOT NULL, '
-#                 'rgb INTEGER NOT NULL'
-#                 ');')
-#     con.commit()
 
 
 def _build_colors():

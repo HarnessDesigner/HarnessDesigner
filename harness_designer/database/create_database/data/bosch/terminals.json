@@ -3,7 +3,7 @@
         "description": "BCB 0.6 / Terminal Sn / 0.35 - 0.5 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928492555.JPG?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8ODY5N3xpbWFnZS9qcGVnfGFHWmpMMmd6TXk4NE9ERTROVEF6T1RjME9UUXlMMk16TURCWGVETXdNRWhmTVRreU9EUTVNalUxTlM1S1VFY3xkZTk3OWQ0MjE2ZDNmNTkxMGZiMjZjMWVmZjc3MDQ1NTYxY2EzNzlkNzk4NjNjOTgxMjk5Yzc3NjFmOGRiNTNm",
         "model3d": null,
-        "cad": "data\\1 928 492 555.pdf",
+        "cad": "data/1 928 492 555.pdf",
         "datasheet": null,
         "part_number": "1 928 492 555",
         "mfg": "Bosch",
@@ -36,7 +36,7 @@
         "description": "BCB 0.6 / Terminal Sn / 0.75 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928492555-3-.JPG?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8ODY5N3xpbWFnZS9qcGVnfGFEZG1MMmd4WVM4NE9ERTROVEEwTVRjeE5UVXdMMk16TURCWGVETXdNRWhmTVRreU9EUTVNalUxTlNBb015a3VTbEJIfDk4ZGVhMmRmYjAzNzgxNjdhYWY1MDc3OTI2YTM5YWQwZGRiNWY1MWE2OTNmMTcyNmQ1NzkxNzU3OWJkZGQxOTk",
         "model3d": null,
-        "cad": "data\\1 928 492 556.pdf",
+        "cad": "data/1 928 492 555.pdf",
         "datasheet": null,
         "part_number": "1 928 492 556",
         "mfg": "Bosch",
@@ -63,13 +63,14 @@
         "weight": 0.0,
         "max_current_ma": 7000,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 492 555"
     },
     {
         "description": "BMK 0.6 / Terminal Sn / 0.35 - 0.5 mm\u00b2 / FLR ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498000.JPG?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8OTY4MnxpbWFnZS9qcGVnfGFERTFMMmc0T1M4NE9ERTRORGN4TnpNeE1qTXdMMk16TURCWGVETXdNRWhmTVRreU9EUTVPREF3TUM1S1VFY3wyODg3MDNiZTJhMDYwZWIyYmQxMDE5ZjY0ZTkwNjliZWI1Y2ZlNWZkYTZjNzdkNDE2OWI0ZmQ3N2YwOWFhYTdk",
         "model3d": null,
-        "cad": "data\\1 928 498 000.pdf",
+        "cad": "data/1 928 498 000.pdf",
         "datasheet": null,
         "part_number": "1 928 498 000",
         "mfg": "Bosch",
@@ -102,7 +103,7 @@
         "description": "BMK 0.6 / Terminal Sn / 0.5 - 0.75 mm\u00b2 / FLR ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498001.JPG?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8OTY4MnxpbWFnZS9qcGVnfGFEVTRMMmc0TWk4NE9ERTRORGN4T1RJM09ETTRMMk16TURCWGVETXdNRWhmTVRreU9EUTVPREF3TVM1S1VFY3xkMGRhNDBjOGZkNjcwNDg4YzNhYmNlNWFkYWRlNDFhOTFhNmQ1MmUwNmY3NWI5NGFiZWQ5NTFkYmY1YWM2YTA5",
         "model3d": null,
-        "cad": "data\\1 928 498 001.pdf",
+        "cad": "data/1 928 498 000.pdf",
         "datasheet": null,
         "part_number": "1 928 498 001",
         "mfg": "Bosch",
@@ -129,13 +130,14 @@
         "weight": 0.0,
         "max_current_ma": 6000,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 498 000"
     },
     {
         "description": "BMK 0.6 / Terminal Au / 0.35 - 0.5 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498002.JPG?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8OTY4MnxpbWFnZS9qcGVnfGFHUmpMMmd6TXk4NE9ERTRORGN5TVRJME5EUTJMMk16TURCWGVETXdNRWhmTVRreU9EUTVPREF3TWk1S1VFY3w3OTQxMzcxNTBmZGU4NGRkZDViM2NkNjIzOTQ2YTM3YTkzZDk3ZTMzNjRkNzgwMmQxNWM5YjJhZjgzMThiYzM2",
         "model3d": null,
-        "cad": "data\\1 928 498 002.pdf",
+        "cad": "data/1 928 498 000.pdf",
         "datasheet": null,
         "part_number": "1 928 498 002",
         "mfg": "Bosch",
@@ -162,13 +164,14 @@
         "weight": 0.0,
         "max_current_ma": 6000,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 498 000"
     },
     {
         "description": "BMK 0.6 / Terminal Au / 0.35 - 0.5 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498015.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8OTY2MnxpbWFnZS9qcGVnfGFEYzVMMmd6Wmk4NE9ERTRORGswTVRRME5UUXlMMk16TURCWGVETXdNRWhmTVRreU9EUTVPREF4TlM1cWNHY3w3OWIxNzFhMDYxNjRhMmU1Mjk2YzlkMTIxMmUwZmIxNzQ5YWM1MTg2ZmQzOGM3ZmU2NWY0NTU3YjY1Yzc0ZGIw",
         "model3d": null,
-        "cad": "data\\1 928 498 015.pdf",
+        "cad": "data/1 928 498 013.pdf",
         "datasheet": null,
         "part_number": "1 928 498 015",
         "mfg": "Bosch",
@@ -195,13 +198,14 @@
         "weight": 0.0,
         "max_current_ma": 6000,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 498 013"
     },
     {
         "description": "BMK 0.6 / Terminal Au / 0.5 - 0.75 mm\u00b2 / FLR ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498003.JPG?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8OTY4MnxpbWFnZS9qcGVnfGFEQmlMMmd5WkM4NE9ERTRORGN5TXpJeE1EVTBMMk16TURCWGVETXdNRWhmTVRreU9EUTVPREF3TXk1S1VFY3wwOTBlZGU4MzBlYTA5Yjk4YTgwYjA0YWRlMGVmOWE0ZDg3MThiNjFjYTc2MzNhZDNlMjZhZDljZTU1MzJlMDdk",
         "model3d": null,
-        "cad": "data\\1 928 498 003.pdf",
+        "cad": "data/1 928 498 000.pdf",
         "datasheet": null,
         "part_number": "1 928 498 003",
         "mfg": "Bosch",
@@ -228,13 +232,14 @@
         "weight": 0.0,
         "max_current_ma": 6000,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 498 000"
     },
     {
         "description": "BMK 0.6 / Terminal Sn / 0.35 - 0.5 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498013.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8OTY2MnxpbWFnZS9qcGVnfGFHSm1MMmd4TlM4NE9ERTRORGt6TnpVeE16STJMMk16TURCWGVETXdNRWhmTVRreU9EUTVPREF4TXk1cWNHY3w5Y2VmYTg3ZmI4ZjdhZmZlYjJmOGI0NzE4ZWM3MGU3ZmMxMDE3NTdkYTdiYWYxNzg5NzQ1M2YzNDU4MmJmMzQ1",
         "model3d": null,
-        "cad": "data\\1 928 498 013.pdf",
+        "cad": "data/1 928 498 013.pdf",
         "datasheet": null,
         "part_number": "1 928 498 013",
         "mfg": "Bosch",
@@ -267,7 +272,7 @@
         "description": "BMK 0.6 / Terminal Sn / 0.5 - 0.75 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498014.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8OTY2MnxpbWFnZS9qcGVnfGFEQXlMMmd3Wmk4NE9ERTRORGt6T1RRM09UTTBMMk16TURCWGVETXdNRWhmTVRreU9EUTVPREF4TkM1cWNHY3wyNDIwYjY3YzhlNTYzNjE3MGU2ZDlhZjdjNjA2ZjdiMWY1Y2MyYmIxZmI2Y2EzYzZjNWM4NzZhNzI2NjJmNDdl",
         "model3d": null,
-        "cad": "data\\1 928 498 014.pdf",
+        "cad": "data/1 928 498 013.pdf",
         "datasheet": null,
         "part_number": "1 928 498 014",
         "mfg": "Bosch",
@@ -294,13 +299,14 @@
         "weight": 0.0,
         "max_current_ma": 6000,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 498 013"
     },
     {
         "description": "BMK 0.6 / Terminal Au / 0.5 - 0.75 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498016.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8OTY2MnxpbWFnZS9qcGVnfGFEUmhMMmcwTmk4NE9ERTRORGswTXpReE1UVXdMMk16TURCWGVETXdNRWhmTVRreU9EUTVPREF4Tmk1cWNHY3xjOTRmNGY5NGUxZDY3ZDlmMzZiNzk1Mzg1NzlkZTg5ZTE5Zjk3NGZjMDQyNDY0ZDIzYzQyZGI2NTY3NmI5ZTkz",
         "model3d": null,
-        "cad": "data\\1 928 498 016.pdf",
+        "cad": "data/1 928 498 013.pdf",
         "datasheet": null,
         "part_number": "1 928 498 016",
         "mfg": "Bosch",
@@ -327,13 +333,14 @@
         "weight": 0.0,
         "max_current_ma": 6000,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 498 013"
     },
     {
         "description": "BDK 2.8 / Terminal Au / 0.5 - 1.0 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498054.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8MTI4MDl8aW1hZ2UvanBlZ3xhRGN4TDJoaU5pODRPREU0TlRBeU1qQTFORGN3TDJNek1EQlhlRE13TUVoZk1Ua3lPRFE1T0RBMU5DNXFjR2N8OTRiZGVlZjE4YmZkMGI5ZDM4ZTE1Y2IwNmY5NmYxOGYxNzE4YTUxMTUyN2I3ZTQ1NTI0ZmRiNzgxNTA3OTUzOA",
         "model3d": null,
-        "cad": "data\\1 928 498 054.pdf",
+        "cad": "data/1 928 498 054.pdf",
         "datasheet": null,
         "part_number": "1 928 498 054",
         "mfg": "Bosch",
@@ -366,7 +373,7 @@
         "description": "BDK 2.8 / Terminal Sn / 0.5 - 1.0 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498056.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8MTI4MDl8aW1hZ2UvanBlZ3xhRE0wTDJoaFlpODRPREU0TlRBeU5UazROamcyTDJNek1EQlhlRE13TUVoZk1Ua3lPRFE1T0RBMU5pNXFjR2N8NjZiNjU3YTEyYjE1MjU1MGQ2OWMyMDM2YWNlMDc2YzMwMmZkYzlmNTg2Y2QyNjU0OWU5MDdmZjc5MzMyMDYwMQ",
         "model3d": null,
-        "cad": "data\\1 928 498 056.pdf",
+        "cad": "data/1 928 498 054.pdf",
         "datasheet": null,
         "part_number": "1 928 498 056",
         "mfg": "Bosch",
@@ -393,13 +400,14 @@
         "weight": 0.0,
         "max_current_ma": 0,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 498 054"
     },
     {
         "description": "BDK 2.8 / Terminal Ag / 0.5 - 1 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498058.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8MTI4MDl8aW1hZ2UvanBlZ3xhRGt6TDJnNVpDODRPREU0TlRBeU9Ua3hPVEF5TDJNek1EQlhlRE13TUVoZk1Ua3lPRFE1T0RBMU9DNXFjR2N8YzZiZThmMDAzMzE2N2U5NWQ4ZGZhOTgxMmRmYjM5YzRkODIzYmM3NjBlOWFjZTI2ZTU4ODNiNTY0Y2UzYjlhMQ",
         "model3d": null,
-        "cad": "data\\1 928 498 058.pdf",
+        "cad": "data/1 928 498 054.pdf",
         "datasheet": null,
         "part_number": "1 928 498 058",
         "mfg": "Bosch",
@@ -426,13 +434,14 @@
         "weight": 0.0,
         "max_current_ma": 25000,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 498 054"
     },
     {
         "description": "Matrix 1.2 / SWS / Terminal Au / 0.35 - 0.5 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498140.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8ODk4MHxpbWFnZS9qcGVnfGFEQTVMMmc0WVM4NE9ERTROVEV6TkRFeU1USTJMMk16TURCWGVETXdNRWhmTVRreU9EUTVPREUwTUM1cWNHY3xmOGQ3NjdmMGEwNWIyNTVjN2U4ZmJjOWUzNmRjODI5NjU4ODI4YzVkNDYyYjAxNjg0ZDZlMzJiNDY5OGM3NmEz",
         "model3d": null,
-        "cad": "data\\1 928 498 140.pdf",
+        "cad": "data/1 928 498 140.pdf",
         "datasheet": null,
         "part_number": "1 928 498 140",
         "mfg": "Bosch",
@@ -465,7 +474,7 @@
         "description": "Matrix 1.2 / SWS / Terminal Au / 0.75 - 1.0  mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498141.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8ODk4MHxpbWFnZS9qcGVnfGFEazNMMmc1Tnk4NE9ERTROVEV6T0RBMU16UXlMMk16TURCWGVETXdNRWhmTVRreU9EUTVPREUwTVM1cWNHY3xiZjU0ZTI3ZWQwYzFiNWJlMGYyNDRlMmRhNzRlMjI2NzUwNzQzOTFiNTBiOGNkNmU2NDZjZjJhYTNiNmIyM2Zi",
         "model3d": null,
-        "cad": "data\\1 928 498 141.pdf",
+        "cad": "data/1 928 498 140.pdf",
         "datasheet": null,
         "part_number": "1 928 498 141",
         "mfg": "Bosch",
@@ -492,13 +501,14 @@
         "weight": 0.0,
         "max_current_ma": 19000,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 498 140"
     },
     {
         "description": "Matrix 1.2 / SWS / Terminal Ag / 0.35 - 0.5 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498143.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8ODk4MHxpbWFnZS9qcGVnfGFHTTJMMmc1TUM4NE9ERTROVEV6TmpBNE56TTBMMk16TURCWGVETXdNRWhmTVRreU9EUTVPREUwTXk1cWNHY3w5YTMxM2M3OTk2ZmMwZjlmYWM2NzM5ODczNjQ5ZWNjOTFjYmU2YzAzNzM1MDAzYWUwNzM4ZWM4ZTcyYmM4ZDQz",
         "model3d": null,
-        "cad": "data\\1 928 498 143.pdf",
+        "cad": "data/1 928 498 140.pdf",
         "datasheet": null,
         "part_number": "1 928 498 143",
         "mfg": "Bosch",
@@ -525,13 +535,14 @@
         "weight": 0.0,
         "max_current_ma": 19000,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 498 140"
     },
     {
         "description": "Matrix 1.2 / SWS / Terminal Ag / 0.75 - 1.0  mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498144.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8ODk4MHxpbWFnZS9qcGVnfGFETTVMMmc0TXk4NE9ERTROVEV6TWpFMU5URTRMMk16TURCWGVETXdNRWhmTVRreU9EUTVPREUwTkM1cWNHY3w3NmI3OTlkYTE2ZDllMWUyN2ViMWFkMjVjMDNiMjlkY2EwODQwNWY4ZGFmYTA1MTQwNzc3YTA5YWFkNGU1OGQx",
         "model3d": null,
-        "cad": "data\\1 928 498 144.pdf",
+        "cad": "data/1 928 498 140.pdf",
         "datasheet": null,
         "part_number": "1 928 498 144",
         "mfg": "Bosch",
@@ -558,13 +569,14 @@
         "weight": 0.0,
         "max_current_ma": 19000,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 498 140"
     },
     {
         "description": "Matrix 1.2 / SWS / Terminal Sn / 0.35 - 0.5 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498146.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8ODk4MHxpbWFnZS9qcGVnfGFEWTRMMmczWXk4NE9ERTROVEV6TURFNE9URXdMMk16TURCWGVETXdNRWhmTVRreU9EUTVPREUwTmk1cWNHY3w3ZjI3MjFmODdlYWYyN2Q2MTgwYmRmZDIxNWI2MWFkYmRkNGZjYTk2NDY1OWNmZjdhNTI5ODYwM2E0ZGI4ODEx",
         "model3d": null,
-        "cad": "data\\1 928 498 146.pdf",
+        "cad": "data/1 928 498 140.pdf",
         "datasheet": null,
         "part_number": "1 928 498 146",
         "mfg": "Bosch",
@@ -591,13 +603,14 @@
         "weight": 0.0,
         "max_current_ma": 19000,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 498 140"
     },
     {
         "description": "Matrix 1.2 / SWS / Terminal Sn / 0.75 - 1.0  mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498147.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8ODk4MHxpbWFnZS9qcGVnfGFERXlMMmhsTmk4NE9ERTROVEUwTURBeE9UVXdMMk16TURCWGVETXdNRWhmTVRreU9EUTVPREUwTnk1cWNHY3w5N2MwYmNlNmEzMWQ1Y2MzY2QxMGIwNjVmZDA0ZWI4ZTNjNmQ2YzBkZWQ4OGUwNTMxMTAzNDY4MDJjYWQyNmU3",
         "model3d": null,
-        "cad": "data\\1 928 498 147.pdf",
+        "cad": "data/1 928 498 140.pdf",
         "datasheet": null,
         "part_number": "1 928 498 147",
         "mfg": "Bosch",
@@ -624,13 +637,14 @@
         "weight": 0.0,
         "max_current_ma": 19000,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 498 140"
     },
     {
         "description": "GPC / Terminal Ag / 90&deg; angle / 1.5 - 2.5 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-gsk-kontakt-gross.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8MzE4NnxpbWFnZS9qcGVnfGFHVTJMMmc0WVM4NE9ERTROVEExTXpVeE1UazRMMk16TURCWGVETXdNRWhmWjNOckxXdHZiblJoYTNSZlozSnZjM011YW5CbnwwOTVmNTgzOWI0NmZhZGFhNGFiZjIyNDc4MTFiYWM4NTlkMDgzNDA0M2VmMDE5ZDRkMmU0N2IyMDU3MWRmMmE2",
         "model3d": null,
-        "cad": "data\\1 928 498 243.pdf",
+        "cad": "data/1 928 498 243.pdf",
         "datasheet": null,
         "part_number": "1 928 498 243",
         "mfg": "Bosch",
@@ -663,7 +677,7 @@
         "description": "BTL 1.5 / Terminal Sn / &gt; 0.5 - 1.0 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498650.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8MTE3MzZ8aW1hZ2UvanBlZ3xhRFpqTDJobU55ODRPREU0TlRJM01UYzBOamcyTDJNek1EQlhlRE13TUVoZk1Ua3lPRFE1T0RZMU1DNXFjR2N8NWZlNWQzYzJlYjE0ZjE0MmM3NThlZmY5ZDM5YjkyMGUzNGFiYmNmZTEwMTdkN2VkOTc4MGVjYWQwNTc4MDBlYg",
         "model3d": null,
-        "cad": "data\\1 928 498 650.pdf",
+        "cad": "data/1 928 498 650.pdf",
         "datasheet": null,
         "part_number": "1 928 498 650",
         "mfg": "Bosch",
@@ -696,7 +710,7 @@
         "description": "BTL 4.8 / 6.3 / Terminal Sn / 2.5 - 4 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498652.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8ODAwMnxpbWFnZS9qcGVnfGFETTJMMmhtTkM4NE9ERTROVEkzTnpZME5URXdMMk16TURCWGVETXdNRWhmTVRreU9EUTVPRFkxTWk1cWNHY3xkMWMyODhkYmIyYmQ4ZWY5OWRlOWE4YjczZWQ2ODkxZDBmZTUxZmM1NDk0N2Q2OWZlMmNkM2RlMDQxZTZkOGM2",
         "model3d": null,
-        "cad": "data\\1 928 498 652.pdf",
+        "cad": "data/1 928 498 652.pdf",
         "datasheet": null,
         "part_number": "1 928 498 652",
         "mfg": "Bosch",
@@ -729,7 +743,7 @@
         "description": "Matrix 1.2 / Feed 8 mm / Terminal Au / 0.35 - 0.5 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498673.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8NzkxM3xpbWFnZS9qcGVnfGFEZ3dMMmhsWVM4NE9ERTROVEUwTVRrNE5UVTRMMk16TURCWGVETXdNRWhmTVRreU9EUTVPRFkzTXk1cWNHY3xjMzcxOWY0OWZmZWEyNmQ1NTM0NWE1MjdjMGExZmVmN2YyM2I1MzJmNWQzMGZlNWYzOWI4YTQ5Yzc5M2NmYmYz",
         "model3d": null,
-        "cad": "data\\1 928 498 673.pdf",
+        "cad": "data/1 928 498 673.pdf",
         "datasheet": null,
         "part_number": "1 928 498 673",
         "mfg": "Bosch",
@@ -762,7 +776,7 @@
         "description": "Matrix 1.2 / Feed 8 mm / Terminal Au / 0.75 - 1.0 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498674.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8NzkxM3xpbWFnZS9qcGVnfGFEVXdMMmhtTVM4NE9ERTROVEUwTXprMU1UWTJMMk16TURCWGVETXdNRWhmTVRreU9EUTVPRFkzTkM1cWNHY3wzOTI0YTM0NDhhZjFlYzIzNmFjOTliMDFiMGNkYWQ5ZmJjNDQ1MzI5Nzc1MjRmYWQxMjBjNDQwNzY0MzNlYzE3",
         "model3d": null,
-        "cad": "data\\1 928 498 674.pdf",
+        "cad": "data/1 928 498 673.pdf",
         "datasheet": null,
         "part_number": "1 928 498 674",
         "mfg": "Bosch",
@@ -789,13 +803,14 @@
         "weight": 0.0,
         "max_current_ma": 19000,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 498 673"
     },
     {
         "description": "Matrix 1.2 / Feed 8 mm / Terminal Au / 1.5 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498675.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8NzkxM3xpbWFnZS9qcGVnfGFESXdMMmhtT0M4NE9ERTROVEUwTlRreE56YzBMMk16TURCWGVETXdNRWhmTVRreU9EUTVPRFkzTlM1cWNHY3xmNWVjOWJlZjMzZjlhYWIzMmZlZjUwMDYwYmY3YzBhZjAxMjYxODcyOWI4M2I3ZjIxNmYwY2ZlODQxM2YwNjM5",
         "model3d": null,
-        "cad": "data\\1 928 498 675.pdf",
+        "cad": "data/1 928 498 673.pdf",
         "datasheet": null,
         "part_number": "1 928 498 675",
         "mfg": "Bosch",
@@ -822,13 +837,14 @@
         "weight": 0.0,
         "max_current_ma": 19000,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 498 673"
     },
     {
         "description": "Matrix 1.2 / Feed 8 mm / Terminal Ag / 0.35 - 0.5 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498676.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8NzkxM3xpbWFnZS9qcGVnfGFHUmxMMmhtWlM4NE9ERTROVEUwTnpnNE16Z3lMMk16TURCWGVETXdNRWhmTVRreU9EUTVPRFkzTmk1cWNHY3w2MDg5M2NiMjQ5M2M2OWU2M2QxY2YxMzcwOWRlOGYyMWQzOGZmMWNjOGQ5MTNiODMyZjZlZmZhODA2ZDU5ZTRl",
         "model3d": null,
-        "cad": "data\\1 928 498 676.pdf",
+        "cad": "data/1 928 498 673.pdf",
         "datasheet": null,
         "part_number": "1 928 498 676",
         "mfg": "Bosch",
@@ -855,13 +871,14 @@
         "weight": 0.0,
         "max_current_ma": 19000,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 498 673"
     },
     {
         "description": "Matrix 1.2 / Feed 8 mm / Terminal Ag / 0.75 - 1.0 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498677.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8NzkxM3xpbWFnZS9qcGVnfGFEVXhMMmhtWVM4NE9ERTROVEUwT1RnME9Ua3dMMk16TURCWGVETXdNRWhmTVRreU9EUTVPRFkzTnk1cWNHY3w2ZmZiZmNiYzBlZDgwMjFjN2VkMWRkODU1NjBkYmYyYjAzODQ1ZDgzYjdkZjRlYTg2ODZmZTFmNWFlNTA4NGY0",
         "model3d": null,
-        "cad": "data\\1 928 498 677.pdf",
+        "cad": "data/1 928 498 673.pdf",
         "datasheet": null,
         "part_number": "1 928 498 677",
         "mfg": "Bosch",
@@ -888,13 +905,14 @@
         "weight": 0.0,
         "max_current_ma": 19000,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 498 673"
     },
     {
         "description": "Matrix 1.2 / Feed 8 mm / Terminal Ag / 1.5 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498678.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8NzkxM3xpbWFnZS9qcGVnfGFHUTFMMmhoWWk4NE9ERTROVEUxTVRneE5UazRMMk16TURCWGVETXdNRWhmTVRreU9EUTVPRFkzT0M1cWNHY3w3OTI1NzJhYTBlZGJlNGNjYWQxZTc2OTIzMTNhOGJhNjg0NjM3OTdiMmI5NTI3NTQxOTM1MDI5YzdkZDY5Yzhk",
         "model3d": null,
-        "cad": "data\\1 928 498 678.pdf",
+        "cad": "data/1 928 498 673.pdf",
         "datasheet": null,
         "part_number": "1 928 498 678",
         "mfg": "Bosch",
@@ -921,7 +939,8 @@
         "weight": 0.0,
         "max_current_ma": 19000,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 498 673"
     },
     {
         "description": "Matrix 1.2 / Feed 8 mm / Terminal Sn / 0.35 - 0.5 mm\u00b2 ",
@@ -993,7 +1012,7 @@
         "description": "Matrix 1.2 / Feed 8 mm / Terminal Sn / 1.5 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498681.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8NzkxM3xpbWFnZS9qcGVnfGFEYzNMMmc1Tnk4NE9ERTROVEUxTnpjeE5ESXlMMk16TURCWGVETXdNRWhmTVRreU9EUTVPRFk0TVM1cWNHY3xmYTMzYTI5ZDBkZTk1ZjVlMzdkOGNjYjAyZmUwMjVmMjc1ODNlZTVmNzc2NzZjMTYxNGU4YjJjZGE5ZDU4NTJl",
         "model3d": null,
-        "cad": "data\\1 928 498 681.pdf",
+        "cad": "data/1 928 498 673.pdf",
         "datasheet": null,
         "part_number": "1 928 498 681",
         "mfg": "Bosch",
@@ -1020,13 +1039,14 @@
         "weight": 0.0,
         "max_current_ma": 19000,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 498 673"
     },
     {
         "description": "BTL 1.5 / Terminal Sn / 0.35 - 0.5 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498690.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8MTEwMDh8aW1hZ2UvanBlZ3xhRE5qTDJobVpTODRPREU0TlRJM016Y3hNamswTDJNek1EQlhlRE13TUVoZk1Ua3lPRFE1T0RZNU1DNXFjR2N8M2I1MTc2M2MyMTk2NTQ5MDA3OTFmOGM1NTUzYWYzZDczYTZiNzg1NzYyYTZjOTU1OGE4NjJlNTQ0NWFmNTVkMw",
         "model3d": null,
-        "cad": "data\\1 928 498 690.pdf",
+        "cad": "data/1 928 498 650.pdf",
         "datasheet": null,
         "part_number": "1 928 498 690",
         "mfg": "Bosch",
@@ -1053,13 +1073,14 @@
         "weight": 0.0,
         "max_current_ma": 19000,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 498 650"
     },
     {
         "description": "BTC 1.5 / Terminal Sn / 0.35 - 0.5 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498705.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8MTAzNzB8aW1hZ2UvanBlZ3xhRFkxTDJobFpDODRPREU0TlRJM09UWXhNVEU0TDJNek1EQlhlRE13TUVoZk1Ua3lPRFE1T0Rjd05TNXFjR2N8MWE5MzVhZGQzM2VkOGU5MjFmOGMxZmE3YzQ1ZjYwODFjYTVjN2JhZWRmNmY5MWE1OWI5ODJmZGVmYmUzN2FlMg",
         "model3d": null,
-        "cad": "data\\1 928 498 705.pdf",
+        "cad": "data/1 928 498 705.pdf",
         "datasheet": null,
         "part_number": "1 928 498 705",
         "mfg": "Bosch",
@@ -1092,7 +1113,7 @@
         "description": "BCB 0.6 / Terminal Sn / 0.85 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498748.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8ODkzOXxpbWFnZS9qcGVnfGFEVXhMMmhoTWk4NE9ERTROVE14TmprMk5qY3dMMk16TURCWGVETXdNRWhmTVRreU9EUTVPRGMwT0M1cWNHY3wwMDFmOWJkNzQ4N2MzZjE1ZTkxMWIwMTI1ZWY5ZjNkNDgyYTk2NTkzYThjYTNkNzY2MzlkNzEwM2U3ZTFmYzdl",
         "model3d": null,
-        "cad": "data\\1 928 498 748.pdf",
+        "cad": "data/1 928 492 555.pdf",
         "datasheet": null,
         "part_number": "1 928 498 748",
         "mfg": "Bosch",
@@ -1119,13 +1140,14 @@
         "weight": 0.0,
         "max_current_ma": 7000,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 492 555"
     },
     {
         "description": "BTC 1.5 / Terminal Sn / &gt; 0.5 - 1 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498805.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8MTAwNTB8aW1hZ2UvanBlZ3xhREpqTDJnNU9DODRPREU0TlRJNE16VTBNek0wTDJNek1EQlhlRE13TUVoZk1Ua3lPRFE1T0Rnd05TNXFjR2N8MTc4NTE5NjNhYmIxNTQ5ZWMyZDVlYWVlYTc3MTFkZTVkYjM1NjU5NTQ0YTg3YjViMTk2MDBkNGQ4MDQ0YTRhOQ",
         "model3d": null,
-        "cad": "data\\1 928 498 805.pdf",
+        "cad": "data/1 928 498 705.pdf",
         "datasheet": null,
         "part_number": "1 928 498 805",
         "mfg": "Bosch",
@@ -1152,13 +1174,14 @@
         "weight": 0.0,
         "max_current_ma": 19000,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 498 705"
     },
     {
         "description": "BTC 4.8 / Terminal Sn / &gt; 2.5 - 4 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498807.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8ODkzNHxpbWFnZS9qcGVnfGFHWmxMMmd5TkM4NE9ERTROVFExT0RVeU5EUTJMMk16TURCWGVETXdNRWhmTVRreU9EUTVPRGd3Tnk1cWNHY3w1OGRlYzBlN2M2MzM4MzM5MjZjNWJjNzUyMmJlZGRiZDIwMWJlODM4YjkyYjMxZWZiY2M5MzBiYjU4OWVmNjA2",
         "model3d": null,
-        "cad": "data\\1 928 498 807.pdf",
+        "cad": "data/1 928 498 807.pdf",
         "datasheet": null,
         "part_number": "1 928 498 807",
         "mfg": "Bosch",
@@ -1191,7 +1214,7 @@
         "description": "Matrix 1.2 / HV / Terminal Au / 0.35 - 0.5 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498808.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8OTcwOXxpbWFnZS9qcGVnfGFHRTBMMmd6WlM4NE9ERTROVE00TlRjM09UVXdMMk16TURCWGVETXdNRWhmTVRreU9EUTVPRGd3T0M1cWNHY3w2ZjVjZDZjYzlkMDAwZjhlNjQ4YjI2NjU0MmQ5NGNiMjcyYTQ4NDVjYjQ2YjYzNjEzOGM1MTk1OWI0YzFmMDM3",
         "model3d": null,
-        "cad": "data\\1 928 498 808.pdf",
+        "cad": "data/1 928 498 808.pdf",
         "datasheet": null,
         "part_number": "1 928 498 808",
         "mfg": "Bosch",
@@ -1224,7 +1247,7 @@
         "description": "Matrix 1.2 / HV / Terminal Au / 0.75 - 1.0 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498809.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8OTcwOXxpbWFnZS9qcGVnfGFEYzBMMmcwTlM4NE9ERTROVE00TnpjME5UVTRMMk16TURCWGVETXdNRWhmTVRreU9EUTVPRGd3T1M1cWNHY3wyNmZmNzUwOTgyNmY2NzQyMGEwZmI3ZWVjNWEzMWI3ZDUzYzJhZWVmYmZjMjBjNzdhYTlhZWRlMTI1OTI2NjZk",
         "model3d": null,
-        "cad": "data\\1 928 498 809.pdf",
+        "cad": "data/1 928 498 808.pdf",
         "datasheet": null,
         "part_number": "1 928 498 809",
         "mfg": "Bosch",
@@ -1251,13 +1274,14 @@
         "weight": 0.0,
         "max_current_ma": 15000,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 498 808"
     },
     {
         "description": "Matrix 1.2 / HV / Terminal Ag / 0.35 - 0.5 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498810.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8OTcwOXxpbWFnZS9qcGVnfGFEUTFMMmcwWXk4NE9ERTROVE00T1RjeE1UWTJMMk16TURCWGVETXdNRWhmTVRreU9EUTVPRGd4TUM1cWNHY3xiYjIyZTRiNGNkNTIzM2EyMDM2NDE0NWQ3YWVkZTRkZWFkMWUzYWZkNmU1OWYxYzM4MWVhYjBjZjJmMjg5Y2Q5",
         "model3d": null,
-        "cad": "data\\1 928 498 810.pdf",
+        "cad": "data/1 928 498 808.pdf",
         "datasheet": null,
         "part_number": "1 928 498 810",
         "mfg": "Bosch",
@@ -1284,13 +1308,14 @@
         "weight": 0.0,
         "max_current_ma": 9000,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 498 808"
     },
     {
         "description": "Matrix 1.2 / HV / Terminal Ag / 0.75 - 1.0 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498811.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8OTcwOXxpbWFnZS9qcGVnfGFHRmtMMmc1WVM4NE9ERTROVE01TVRZM056YzBMMk16TURCWGVETXdNRWhmTVRreU9EUTVPRGd4TVM1cWNHY3w2M2E5ZjFmZTcxYjllNWM3MjY2MjYwOGVlNDk3MGVjZjRiYWVkNzZiZWY2YmZiMTBmYjc2MzljYmVkOGVmNDYz",
         "model3d": null,
-        "cad": "data\\1 928 498 811.pdf",
+        "cad": "data/1 928 498 808.pdf",
         "datasheet": null,
         "part_number": "1 928 498 811",
         "mfg": "Bosch",
@@ -1317,13 +1342,14 @@
         "weight": 0.0,
         "max_current_ma": 15000,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 498 808"
     },
     {
         "description": "Matrix 1.2 / CB / Terminal Sn / 0.35 - 0.5 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498991.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8NDYyNXxpbWFnZS9qcGVnfGFHVXlMMmd6Tmk4NE9ERTROVFF4T1RJd01qZzJMMk16TURCWGVETXdNRWhmTVRreU9EUTVPRGs1TVM1cWNHY3w5YzBmM2Q1ZDI2M2YwOGU0OTA1Yjc2ZjEwZDk2ZGEwNmZjMTQyMTc3YzllZTA0ZDg2MWFhOGQzOWQ4ZTE0YjY1",
         "model3d": null,
-        "cad": "data\\1 928 498 991.pdf",
+        "cad": "data/1 928 498 991.pdf",
         "datasheet": null,
         "part_number": "1 928 498 991",
         "mfg": "Bosch",
@@ -1356,7 +1382,7 @@
         "description": "Matrix 1.2 / CB / Terminal Sn / 0.75 - 1.0 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498992.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8NDYyNXxpbWFnZS9qcGVnfGFEUmlMMmc0TlM4NE9ERTROVFF5TVRFMk9EazBMMk16TURCWGVETXdNRWhmTVRreU9EUTVPRGs1TWk1cWNHY3xhMTZiOWVlOWE3OGI3MGMwZTJlYTMwMjQxMDVjZDU2ZGZhMTFjYWU4MjY0OGYxNWE4YWZkYjBlNmI5OTg5NjUz",
         "model3d": null,
-        "cad": "data\\1 928 498 992.pdf",
+        "cad": "data/1 928 498 991.pdf",
         "datasheet": null,
         "part_number": "1 928 498 992",
         "mfg": "Bosch",
@@ -1383,13 +1409,14 @@
         "weight": 0.0,
         "max_current_ma": 19000,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 498 991"
     },
     {
         "description": "BCB 0.6 / Terminal Ag / 0.35 - 0.5 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928499044.JPG?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8ODY5N3xpbWFnZS9qcGVnfGFEVmpMMmd6T1M4NE9ERTROVFExTWpZeU5qSXlMMk16TURCWGVETXdNRWhmTVRreU9EUTVPVEEwTkM1S1VFY3w2ZmMxNGI2OTI3ODFiZTA3YmVmMDI5NmUxNmU1NzM2ZjE3OTVjYTlmMzA1NTY1OGQ3MzQwNTAxNmRlMTEyYzU5",
         "model3d": null,
-        "cad": "data\\1 928 499 044.pdf",
+        "cad": "data/1 928 492 555.pdf",
         "datasheet": null,
         "part_number": "1 928 499 044",
         "mfg": "Bosch",
@@ -1416,13 +1443,14 @@
         "weight": 0.0,
         "max_current_ma": 8500,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 492 555"
     },
     {
         "description": "BCB 0.6 / Terminal Ag / 0.75 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928499045.JPG?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8ODY5N3xpbWFnZS9qcGVnfGFEbG1MMmd6TWk4NE9ERTROVFExTkRVNU1qTXdMMk16TURCWGVETXdNRWhmTVRreU9EUTVPVEEwTlM1S1VFY3w5N2QzNWM2ODk1ODg0OGNjNGIxYjAyNjhhYzcxNThkNmNkN2NmYzA5ODI0YTEwOGIyNmNiMDhjODViODc0YjMw",
         "model3d": null,
-        "cad": "data\\1 928 499 045.pdf",
+        "cad": "data/1 928 492 555.pdf",
         "datasheet": null,
         "part_number": "1 928 499 045",
         "mfg": "Bosch",
@@ -1449,13 +1477,14 @@
         "weight": 0.0,
         "max_current_ma": 8500,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 492 555"
     },
     {
         "description": "Matrix 1.2 / CB SWS / Terminal Sn / 0.35 - 0.5 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928499259.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8ODU5NnxpbWFnZS9qcGVnfGFEZzBMMmhtWXk4NE9ERTROVFE0TWpFeE56UXlMMk16TURCWGVETXdNRWhmTVRreU9EUTVPVEkxT1M1cWNHY3wyY2YwNDAyZDFiMGI2ZjY5YzgzYzhiYmZhNmJkNzA3MjExZmM0NjlhNjM3NmVkZTdkNjRjYWMxOTYxYzQ2ODU0",
         "model3d": null,
-        "cad": "data\\1 928 499 259.pdf",
+        "cad": "data/1 928 499 259.pdf",
         "datasheet": null,
         "part_number": "1 928 499 259",
         "mfg": "Bosch",
@@ -1488,7 +1517,7 @@
         "description": "Matrix 1.2 / CB SWS / Terminal Sn / 0.75 - 1.0 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928499260.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8ODU5NnxpbWFnZS9qcGVnfGFHTTNMMmhtTlM4NE9ERTROVFE0TkRBNE16VXdMMk16TURCWGVETXdNRWhmTVRreU9EUTVPVEkyTUM1cWNHY3w3YjgzYWMwYTQ0ZWYwMjAxNTk3ODY4ZjcyMmM1Y2ViMGVjNDAzYTMzNzk4OWZjYmNhYTk2ZGEzZTlkNmIyMGFh",
         "model3d": null,
-        "cad": "data\\1 928 499 260.pdf",
+        "cad": "data/1 928 499 259.pdf",
         "datasheet": null,
         "part_number": "1 928 499 260",
         "mfg": "Bosch",
@@ -1515,13 +1544,14 @@
         "weight": 0.0,
         "max_current_ma": 19000,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 499 259"
     },
     {
         "description": "Matrix 1.2 / CB SWS / Terminal Au / 0.35 - 0.5 mm\u00b2 ",
         "image": null,
         "model3d": null,
-        "cad": "data\\1 928 499 261.pdf",
+        "cad": "data/1 928 499 259.pdf",
         "datasheet": null,
         "part_number": "1 928 499 261",
         "mfg": "Bosch",
@@ -1548,13 +1578,14 @@
         "weight": 0.0,
         "max_current_ma": 19000,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 499 259"
     },
     {
         "description": "Matrix 1.2 / CB SWS / Terminal Au / 0.75 - 1.0 mm\u00b2 ",
         "image": null,
         "model3d": null,
-        "cad": "data\\1 928 499 262.pdf",
+        "cad": "data/1 928 499 259.pdf",
         "datasheet": null,
         "part_number": "1 928 499 262",
         "mfg": "Bosch",
@@ -1581,13 +1612,14 @@
         "weight": 0.0,
         "max_current_ma": 19000,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 499 259"
     },
     {
         "description": "Matrix 1.2 / CB / Terminal Ag / 0.35 - 0.5 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928499357.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8NzMzMXxpbWFnZS9qcGVnfGFHVm1MMmc0T0M4NE9ERTROVFV3TXpjME5ETXdMMk16TURCWGVETXdNRWhmTVRreU9EUTVPVE0xTnk1cWNHY3xiYzgzODBjMzYzNjk3NDZjYzM5ZDViNjc2YThjZWZiMzVlNzFmN2U5OTE1Mjg3YmQxMTc5MzRlOWQxOTQ5ZWNj",
         "model3d": null,
-        "cad": "data\\1 928 499 357.pdf",
+        "cad": "data/1 928 498 991.pdf",
         "datasheet": null,
         "part_number": "1 928 499 357",
         "mfg": "Bosch",
@@ -1614,13 +1646,14 @@
         "weight": 0.0,
         "max_current_ma": 19000,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 498 991"
     },
     {
         "description": "Matrix 1.2 / CB / Terminal Ag / 0.75 - 1.0 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928499358.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8NzMzMXxpbWFnZS9qcGVnfGFHSm1MMmc0Wmk4NE9ERTROVFV3TlRjeE1ETTRMMk16TURCWGVETXdNRWhmTVRreU9EUTVPVE0xT0M1cWNHY3w4ZTI0ZWQ0MzJhNDZmNWYzNWUxZWNjNzViZGJjZjQ0YTk1ZGY5YTY2YWM3M2Y0YzllOTAwMmNlNDQwZjQ3ODQ0",
         "model3d": null,
-        "cad": "data\\1 928 499 358.pdf",
+        "cad": "data/1 928 498 991.pdf",
         "datasheet": null,
         "part_number": "1 928 499 358",
         "mfg": "Bosch",
@@ -1647,13 +1680,14 @@
         "weight": 0.0,
         "max_current_ma": 19000,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 498 991"
     },
     {
         "description": "BTC 4.8 / Terminal Sn / &gt; 4.0 - 6.0 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928499399.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8OTU3NXxpbWFnZS9qcGVnfGFHRTBMMmc1Tmk4NE9ERTROVFUxTWpnNU5qTXdMMk16TURCWGVETXdNRWhmTVRreU9EUTVPVE01T1M1cWNHY3xmNjJkZDc4NDNhOWVlZTBmNGQ2ZmQ3NDMwZjQwMDg5OTJjOWIzMzliY2EwZGI1ZTQ5ZTlkM2JiOTI4OTM4ZjE1",
         "model3d": null,
-        "cad": "data\\1 928 499 399.pdf",
+        "cad": "data/1 928 498 807.pdf",
         "datasheet": null,
         "part_number": "1 928 499 399",
         "mfg": "Bosch",
@@ -1682,13 +1716,14 @@
         "sealing": true,
         "compat_seals": [
             "1 928 301 695"
-        ]
+        ],
+        "shared_cad": "1 928 498 807"
     },
     {
         "description": "BTC 4.8 / Terminal Ag / &gt;4.0 - 6.0 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928499629.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8MTE1NDZ8aW1hZ2UvanBlZ3xhREF5TDJoaFlpODRPREU0TlRVMU9EYzVORFUwTDJNek1EQlhlRE13TUVoZk1Ua3lPRFE1T1RZeU9TNXFjR2N8NGNjODcwMjllOTAxYTkzMTNmMTVjOTdhNTM4NDlkY2I2YTJiN2M3YjFhMDk0ZGRjZWU0MDQ5ZjhjZTYwYjVhNA",
         "model3d": null,
-        "cad": "data\\1 928 499 629.pdf",
+        "cad": "data/1 928 498 807.pdf",
         "datasheet": null,
         "part_number": "1 928 499 629",
         "mfg": "Bosch",
@@ -1717,13 +1752,14 @@
         "sealing": true,
         "compat_seals": [
             "1 928 301 695"
-        ]
+        ],
+        "shared_cad": "1 928 498 807"
     },
     {
         "description": "BTC 4.8 / Terminal Ag / &gt;2.5 - 4.0 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928499630.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8MTE1NDZ8aW1hZ2UvanBlZ3xhRFExTDJoaE5DODRPREU0TlRVMU5qZ3lPRFEyTDJNek1EQlhlRE13TUVoZk1Ua3lPRFE1T1RZek1DNXFjR2N8M2IxYTI3NzU2NDZmMGZjNjFmMDRjMGUzZDczZTI2YzU1OTU2NzhkNGFhYmMzNGViNzM5NzIyZWFhYjg2MGI0OQ",
         "model3d": null,
-        "cad": "data\\1 928 499 630.pdf",
+        "cad": "data/1 928 498 807.pdf",
         "datasheet": null,
         "part_number": "1 928 499 630",
         "mfg": "Bosch",
@@ -1752,13 +1788,14 @@
         "sealing": true,
         "compat_seals": [
             "1 928 301 086"
-        ]
+        ],
+        "shared_cad": "1 928 498 807"
     },
     {
         "description": "BTL 4.8 / Kontakt Ag / 4 - 6 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-photo-5-.png?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8Mjc2MzF8aW1hZ2UvcG5nfGFHVXpMMmd4WlM4NE9ERTROVFU0TmpNeE9UWTJMMk16TURCWGVETXdNRWhmY0dodmRHOGdLRFVwTG5CdVp3fGQwMjhhMzI3OTcxZTJlNGNkNDEyYjE5ZmM5YzIzZTgyMWI0ZWMwNDQ2NDNjNzUzZTI4ZDRiNzk5ODQwMzk0ZmU",
         "model3d": null,
-        "cad": "data\\1 928 499 632.pdf",
+        "cad": "data/1 928 499 632.pdf",
         "datasheet": null,
         "part_number": "1 928 499 632",
         "mfg": "Bosch",
@@ -1857,7 +1894,7 @@
         "description": "BDK 2.8 / Terminal Au / 1.5 - 2.5 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498055.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8MTI4MDl8aW1hZ2UvanBlZ3xhR0V4TDJoaFppODRPREU0TlRBeU5EQXlNRGM0TDJNek1EQlhlRE13TUVoZk1Ua3lPRFE1T0RBMU5TNXFjR2N8Mzk5OTUzNzk1Y2U1MTY0OGM0NDJlZjdjMGM4NTE1ZTU1MjNlYmY4MDcyYjcwMjlhMWQwYTJmNzU5YmE1MGE5OA",
         "model3d": null,
-        "cad": "data\\1 928 498 055.pdf",
+        "cad": "data/1 928 498 054.pdf",
         "datasheet": null,
         "part_number": "1 928 498 055",
         "mfg": "Bosch",
@@ -1884,13 +1921,14 @@
         "weight": 0.0,
         "max_current_ma": 25000,
         "sealing": false,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 498 054"
     },
     {
         "description": "BDK 2.8 / Terminal Sn / 1.5 - 2.5 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498057.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8MTI4MDl8aW1hZ2UvanBlZ3xhRFl6TDJoaE5DODRPREU0TlRBeU56azFNamswTDJNek1EQlhlRE13TUVoZk1Ua3lPRFE1T0RBMU55NXFjR2N8ZjA4MmFkN2YxOGI3ZjUzNGQzZGZjOTAyZWMyNmQ2YzYyNWMzN2RlMzc3Njk3YTBhNWIyODVlNDAxYzYwY2Q3ZQ",
         "model3d": null,
-        "cad": "data\\1 928 498 057.pdf",
+        "cad": "data/1 928 498 054.pdf",
         "datasheet": null,
         "part_number": "1 928 498 057",
         "mfg": "Bosch",
@@ -1917,13 +1955,14 @@
         "weight": 0.0,
         "max_current_ma": 0,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 498 054"
     },
     {
         "description": "BDK 2.8 / Terminal Ag / 1.5 - 2.5 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498059.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8MTI4MDl8aW1hZ2UvanBlZ3xhREpoTDJnMFppODRPREU0TlRBek1UZzROVEV3TDJNek1EQlhlRE13TUVoZk1Ua3lPRFE1T0RBMU9TNXFjR2N8YjdmNGQyYjM2NjllMWEyYTMwNDdjMzZjODhiMWIzMmY2NDU3YWZlMjJkMTJkZGIyNjM4NWMxYTg2NDE1NWRkYg",
         "model3d": null,
-        "cad": "data\\1 928 498 059.pdf",
+        "cad": "data/1 928 498 054.pdf",
         "datasheet": null,
         "part_number": "1 928 498 059",
         "mfg": "Bosch",
@@ -1950,13 +1989,14 @@
         "weight": 0.0,
         "max_current_ma": 0,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 498 054"
     },
     {
         "description": "BTL 2.8 / Terminal Sn / 1.5 - 2.5 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498651.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8OTAzNnxpbWFnZS9qcGVnfGFEQTJMMmhtWWk4NE9ERTROVEkzTlRZM09UQXlMMk16TURCWGVETXdNRWhmTVRreU9EUTVPRFkxTVM1cWNHY3w0NjBkZjE4ZTk2ZTEwZDAwMDg0YTdkMjUyMzEzNWIyZWJlNjJhYzA5ZTQwNmYyOTRiMjA3M2E0M2VhZmE4ZTNj",
         "model3d": null,
-        "cad": "data\\1 928 498 651.pdf",
+        "cad": "data/1 928 498 651.pdf",
         "datasheet": null,
         "part_number": "1 928 498 651",
         "mfg": "Bosch",
@@ -1989,7 +2029,7 @@
         "description": "BTC 2.8 / Terminal Sn / 1.5 - 2.5 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498806.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8ODQ1NXxpbWFnZS9qcGVnfGFHTm1MMmd5WWk4NE9ERTROVFExTmpVMU9ETTRMMk16TURCWGVETXdNRWhmTVRreU9EUTVPRGd3Tmk1cWNHY3wwMmIxMWY1YjkyN2ViYmQ5NjRiZDMzMWY2MjIxZWRhMmI1MjFkYjcyMjA2NmVlNzUyMzIxYzQzMDgzOGZiZDFi",
         "model3d": null,
-        "cad": "data\\1 928 498 806.pdf",
+        "cad": "data/1 928 498 806.pdf",
         "datasheet": null,
         "part_number": "1 928 498 806",
         "mfg": "Bosch",
@@ -2022,7 +2062,7 @@
         "description": "Matrix 1.2 / CB / Terminal Sn / 2.5 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498993.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8NDYyNXxpbWFnZS9qcGVnfGFERmlMMmc0WXk4NE9ERTROVFF5TXpFek5UQXlMMk16TURCWGVETXdNRWhmTVRreU9EUTVPRGs1TXk1cWNHY3w0ZWE0MTc0ZDI3MGYyOTgyNTg2ODY0YmY3MmUwODZmODRhNTYxODA3N2Y5YjQ2MzdlNTA0ZTYzODliMzc2YTk3",
         "model3d": null,
-        "cad": "data\\1 928 498 993.pdf",
+        "cad": "data/1 928 498 991.pdf",
         "datasheet": null,
         "part_number": "1 928 498 993",
         "mfg": "Bosch",
@@ -2049,13 +2089,14 @@
         "weight": 0.0,
         "max_current_ma": 19000,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 498 991"
     },
     {
         "description": "Matrix 1.2 / CB / Terminal Ag / 2.5 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928499359.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8NzMzMXxpbWFnZS9qcGVnfGFEZGpMMmc1Tmk4NE9ERTROVFV3TnpZM05qUTJMMk16TURCWGVETXdNRWhmTVRreU9EUTVPVE0xT1M1cWNHY3wxYTNhMTdmNDczY2IwOTU2MGFlNTE0NGIzZTY4NDYyZTM2MjFjNmY4NmQ2MTU5ZTQwZWE2ZmE2NDI1YTI4ZGQz",
         "model3d": null,
-        "cad": "data\\1 928 499 359.pdf",
+        "cad": "data/1 928 498 991.pdf",
         "datasheet": null,
         "part_number": "1 928 499 359",
         "mfg": "Bosch",
@@ -2082,13 +2123,14 @@
         "weight": 0.0,
         "max_current_ma": 19000,
         "sealing": true,
-        "compat_seals": []
+        "compat_seals": [],
+        "shared_cad": "1 928 498 991"
     },
     {
         "description": "BTL 2.8 / Terminal Ag / 1.5 - 2.5 mm\u00b2 ",
         "image": "https://bosch-connectors.com/medias/c300Wx300H-1928498651-1-1-.jpg?context\\u003dbWFzdGVyfHBzY29ubmVjdG9ycy1wdWJsaWN8OTAzNnxpbWFnZS9qcGVnfGFERmhMMmc1Tmk4NE9ERTROVFUzTWpVMU56RXdMMk16TURCWGVETXdNRWhmTVRreU9EUTVPRFkxTVNBb01Ta2dLREVwTG1wd1p3fDc2Y2RiOTU4MmQ2YjUzY2JkMjg5M2QwYzJjYzY1Yzk3MzQwZDA2YWQ5Yjg4ODA2NTUzMjJkNWZkMzU1NjYzNTg",
         "model3d": null,
-        "cad": "data\\1 928 499 360.pdf",
+        "cad": "data/1 928 499 360.pdf",
         "datasheet": null,
         "part_number": "1 928 499 360",
         "mfg": "Bosch",

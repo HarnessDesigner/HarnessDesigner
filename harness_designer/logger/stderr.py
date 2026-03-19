@@ -1,5 +1,6 @@
 from typing import Iterator, BinaryIO, Iterable
 
+import codecs
 import sys
 
 import io
@@ -12,40 +13,65 @@ class StdErr(io.TextIOWrapper):
         o_stderr = sys.stderr
         self.__original_stderr__ = o_stderr
 
-        io.TextIOWrapper.__init__(self, self.__original_stderr__.buffer,
-                                  encoding=o_stderr.encoding,
-                                  errors=o_stderr.errors, newline=None,
-                                  line_buffering=o_stderr.line_buffering,
-                                  write_through=False)
+        if o_stderr is not None:
+            io.TextIOWrapper.__init__(self, o_stderr.buffer,
+                                      encoding=o_stderr.encoding,
+                                      errors=o_stderr.errors, newline=None,
+                                      line_buffering=o_stderr.line_buffering,
+                                      write_through=False)
+        else:
+            self.__buffer = io.BytesIO()
+            io.TextIOWrapper.__init__(self, self.__buffer,
+                                      encoding='utf-8',
+                                      errors='backslashreplace', newline=None,
+                                      line_buffering=False, write_through=False)
+
+            sys._stderr = self
 
         sys.stderr = self
 
     def close(self) -> None:
-        self.__original_stderr__.close()
+        if self.__original_stderr__ is None:
+            io.TextIOWrapper.close(self)
+        else:
+            self.__original_stderr__.close()
 
     def fileno(self) -> int:
-        return self.__original_stderr__.fileno()
+        if self.__original_stderr__ is None:
+            return io.TextIOWrapper.fileno(self)
+        else:
+            return self.__original_stderr__.fileno()
 
     def flush(self) -> None:
-        self.__original_stderr__.flush()
+        if self.__original_stderr__ is not None:
+            self.__original_stderr__.flush()
+
+        self.__logger.flush()
 
     def isatty(self) -> bool:
-        return True
+        return False
 
     def readable(self) -> bool:
-        return self.__original_stderr__.readable()
+        return False
 
     def seekable(self) -> bool:
-        return self.__original_stderr__.seekable()
+        return True
 
     def tell(self) -> int:
-        return self.__original_stderr__.tell()
+        if self.__original_stderr__ is None:
+            return io.TextIOWrapper.tell(self)
+
+        else:
+            return self.__original_stderr__.tell()
 
     def truncate(self, __size: int | None = None) -> int:
-        return self.__original_stderr__.truncate(__size)
+        if self.__original_stderr__ is None:
+            return io.TextIOWrapper.truncate(self, __size)
+        else:
+            return self.__original_stderr__.truncate(__size)
 
     def writable(self) -> bool:
-        return self.__original_stderr__.writable()
+        return True
 
     def __del__(self) -> None:
         pass
@@ -57,23 +83,34 @@ class StdErr(io.TextIOWrapper):
         pass
 
     def write(self, __s: str) -> int:
-        self.__original_stderr__.write(__s)
-        self.__logger.print_error(__s.rstrip())
+        if self.__original_stderr__ is not None:
+            self.__original_stderr__.write(__s)
+
+        self.__logger.error(__s.rstrip())
 
     def read(self, __size: int | None = 1) -> str:
-        self.__original_stderr__.read(__size)
+        if self.__original_stderr__ is None:
+            return io.TextIOBase.read(self, __size)
+        else:
+            return self.__original_stderr__.read(__size)
 
     @property
     def buffer(self) -> BinaryIO:
-        return self.__original_stderr__.buffer
+        if self.__original_stderr__ is None:
+            return self.__buffer
+        else:
+            return self.__original_stderr__.buffer
 
     @property
     def closed(self) -> bool:
-        return self.__original_stderr__.closed
+        if self.__original_stderr__ is None:
+            return io.TextIOWrapper.closed.fget(self)
+        else:
+            return self.__original_stderr__.closed
 
     @property
     def line_buffering(self) -> bool:
-        return self.__original_stderr__.line_buffering
+        return False
 
     @property
     def write_through(self) -> bool:
@@ -92,33 +129,57 @@ class StdErr(io.TextIOWrapper):
 
     # These are inherited from TextIOBase, but must exist in the stub to satisfy mypy.
     def __enter__(self):
-        self._context = self.__original_stderr__.__enter__()
+        if self.__original_stderr__ is None:
+            self._context = io.TextIOWrapper.__enter__(self)
+        else:
+            self._context = self.__original_stderr__.__enter__()
+
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.__original_stderr__.__exit__(exc_type, exc_val, exc_tb)
-        self._context = None
+        if self.__original_stderr__ is None:
+            io.TextIOWrapper.__exit__(self, exc_type, exc_val, exc_tb)
+            self._context = None
+        else:
+            self.__original_stderr__.__exit__(exc_type, exc_val, exc_tb)
+            self._context = None
 
     def __iter__(self) -> Iterator[str]:
-        return self.__original_stderr__.__iter__()
+        if self.__original_stderr__ is None:
+            return io.TextIOWrapper.__iter__(self)
+        else:
+            return self.__original_stderr__.__iter__()
 
     def __next__(self) -> str:
-        return self.__original_stderr__.__next__()
+        if self.__original_stderr__ is None:
+            return io.TextIOWrapper.__next__(self)
+        else:
+            return self.__original_stderr__.__next__()
 
     def writelines(self, __lines: Iterable[str]) -> None:
-        self.__original_stderr__.writelines(__lines)
+        if self.__original_stderr__ is not None:
+            self.__original_stderr__.writelines(__lines)
 
         __lines = '\n'.join(__lines)
-        self.__logger.print_error(__lines.rstrip())
+        self.__logger.error(__lines.rstrip())
 
     def readline(self, __size: int = -1) -> str:
-        return self.__original_stderr__.readline(__size)
+        if self.__original_stderr__ is None:
+            return io.TextIOWrapper.readline(self, __size)
+        else:
+            return self.__original_stderr__.readline(__size)
 
     def readlines(self, __hint: int = -1) -> list[str]:
-        self.__original_stderr__.readlines(__hint)
+        if self.__original_stderr__ is None:
+            return io.TextIOWrapper.readlines(self, __hint)
+        else:
+            self.__original_stderr__.readlines(__hint)
 
     def seek(self, __cookie: int, __whence: int = 0) -> int:
-        return self.__original_stderr__.seek(__cookie, __whence)
+        if self.__original_stderr__ is None:
+            return io.TextIOWrapper.seek(self, __cookie, __whence)
+        else:
+            return self.__original_stderr__.seek(__cookie, __whence)
 
 
 if __name__ == '__main__':

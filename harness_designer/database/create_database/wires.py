@@ -7,7 +7,9 @@ from . import manufacturers as _manufacturers
 from . import series as _series
 from . import colors as _colors
 from . import materials as _materials
-from . import resources as _resources
+from . import images as _images
+from . import datasheets as _datasheets
+from . import cads as _cads
 from . import temperatures as _temperatures
 from . import platings as _platings
 
@@ -20,6 +22,10 @@ from . import transitions as _transitions
 
 
 from harness_designer.database import db_connectors as _con
+from ... import logger as _logger
+
+
+DATA_PATH = os.path.join(os.path.dirname(__file__), 'data')
 
 
 def add_wires(con, data: tuple[dict] | list[dict]):
@@ -31,10 +37,6 @@ def add_records(con, splash):
     con.execute('SELECT id FROM wires WHERE id=0;')
     if con.fetchall():
         return
-    '''
-    
-    
-    '''
 
     splash.SetText(f'Adding wire to db [1 | 1]...')
     con.execute('INSERT INTO wires (id, part_number, description, mfg_id, family_id, '
@@ -53,24 +55,34 @@ def add_records(con, splash):
     data_len = len(data)
 
     splash.SetText(f'Adding wires to db [{data_len} | {data_len}]...')
-    con.executemany('INSERT INTO wires (part_number, description, mfg_id, family_id, '
-                    'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
-                    'max_temp_id, material_id, stripe_color_id, core_material_id, '
-                    'num_conductors, shielded, tpi, conductor_dia_mm, size_mm2, '
-                    'size_awg, od_mm, weight_1km, resistance_1km, volts) '
-                    'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                    data)
+    try:
+        con.executemany('INSERT INTO wires (part_number, description, mfg_id, family_id, '
+                        'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
+                        'max_temp_id, material_id, stripe_color_id, core_material_id, '
+                        'num_conductors, shielded, tpi, conductor_dia_mm, size_mm2, '
+                        'size_awg, od_mm, weight_1km, resistance_1km, volts) '
+                        'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                        data)
 
-    con.commit()
+        con.commit()
+    except:  # NOQA
+        pass
 
-    # os.path.join(DATA_PATH, 'wires.json')
+    dirs = []
+    for file in os.listdir(DATA_PATH):
+        file = os.path.join(DATA_PATH, file)
+        if os.path.isdir(file):
+            dirs.append(file)
 
-    json_paths = []
+    cwd = os.getcwd()
+    for path in dirs:
+        os.chdir(path)
 
-    for json_path in json_paths:
+        json_path = os.path.join(path, 'wires.json')
+
         if os.path.exists(json_path):
             splash.SetText(f'Loading Wire file...')
-            print(json_path)
+            _logger.logger.database(json_path)
 
             with open(json_path, 'r') as f:
                 data = json.loads(f.read())
@@ -82,9 +94,16 @@ def add_records(con, splash):
 
             for i, item in enumerate(data):
                 splash.SetText(f'Adding wire to db [{i} | {data_len}]...')
-                add_wire(con, **item)
 
-            con.commit()
+                pn = item['part_number']
+                con.execute(f'SELECT id FROM wires WHERE part_number="{pn}";')
+                rows = con.fetchall()
+                if not rows:
+                    add_wire(con, **item)
+
+        con.commit()
+
+    os.chdir(cwd)
 
 
 def add_wire(con, part_number, description, mfg=None, family=None, series=None,
@@ -102,9 +121,9 @@ def add_wire(con, part_number, description, mfg=None, family=None, series=None,
     material_id = _materials.get_material_id(con, material)
     min_temp_id = _temperatures.get_temperature_id(con, min_temp)
     max_temp_id = _temperatures.get_temperature_id(con, max_temp)
-    datasheet_id = _resources.add_resource(con, _resources.IMAGE_TYPE_DATASHEET, datasheet)
-    image_id = _resources.add_resource(con, _resources.IMAGE_TYPE_IMAGE, image)
-    cad_id = _resources.add_resource(con, _resources.IMAGE_TYPE_CAD, cad)
+    datasheet_id = _datasheets.get_datasheet_id(con, datasheet)
+    image_id = _images.get_image_id(con, image)
+    cad_id = _cads.get_cad_id(con, cad)
 
     con.execute('INSERT INTO wires (part_number, description, mfg_id, family_id, '
                 'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
@@ -144,16 +163,16 @@ table = _con.SQLTable(
                                                     _colors.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('image_id', default='NULL',
-                  references=_con.SQLFieldReference(_resources.table,
-                                                    _resources.id_field,
+                  references=_con.SQLFieldReference(_images.table,
+                                                    _images.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('datasheet_id', default='NULL',
-                  references=_con.SQLFieldReference(_resources.table,
-                                                    _resources.id_field,
+                  references=_con.SQLFieldReference(_datasheets.table,
+                                                    _datasheets.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('cad_id', default='NULL',
-                  references=_con.SQLFieldReference(_resources.table,
-                                                    _resources.id_field,
+                  references=_con.SQLFieldReference(_cads.table,
+                                                    _cads.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('min_temp_id', default='0', no_null=True,
                   references=_con.SQLFieldReference(_temperatures.table,
@@ -190,7 +209,7 @@ table = _con.SQLTable(
 pjt_id_field = _con.PrimaryKeyField('id')
 
 pjt_table = _con.SQLTable(
-    'pjt_boots',
+    'pjt_wires',
     pjt_id_field,
     _con.IntField('project_id', no_null=True,
                   references=_con.SQLFieldReference(_projects.pjt_table,
@@ -242,77 +261,6 @@ pjt_table = _con.SQLTable(
     _con.IntField('is_visible2d', default='1', no_null=True),
     _con.IntField('is_visible3d', default='1', no_null=True)
 )
-
-# def pjt_wires(con, cur):
-#     cur.execute('CREATE TABLE pjt_wires('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'project_id INTEGER NOT NULL, '
-#                 'part_id INTEGER NOT NULL, '
-#                 'circuit_id INTEGER DEFAULT NULL, '
-#                 'bundle_id INTEGER DEFAULT NULL, '
-#                 'transition_id INTEGER DEFAULT NULL, '
-#                 'start_point3d_id INTEGER NOT NULL, '  # can be shared with a wire layout or terminal
-#                 'stop_point3d_id INTEGER NOT NULL, '  # can be shared with a wire layout or terminal
-#                 'start_point2d_id INTEGER NOT NULL, '
-#                 'stop_point2d_id INTEGER NOT NULL, '
-#                 'notes TEXT DEFAULT "" NOT NULL, '
-#                 'is_visible2d INTEGER DEFAULT 1, '
-#                 'is_visible3d INTEGER DEFAULT 1, '
-#                 'FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (part_id) REFERENCES wires(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (circuit_id) REFERENCES pjt_circuits(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (bundle_id) REFERENCES pjt_bundles(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (transition_id) REFERENCES pjt_transitions(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (start_point3d_id) REFERENCES pjt_points3d(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (stop_point3d_id) REFERENCES pjt_points3d(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (start_point2d_id) REFERENCES pjt_points3d(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (stop_point2d_id) REFERENCES pjt_points3d(id) ON DELETE CASCADE ON UPDATE CASCADE'
-#                 ');')
-#     con.commit()
-
-
-# def wires(con, cur):
-#     cur.execute('CREATE TABLE wires('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'part_number TEXT UNIQUE NOT NULL, '
-#                 'description TEXT DEFAULT "" NOT NULL, '
-#                 'mfg_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'family_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'series_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'color_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'material_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'image_id INTEGER DEFAULT NULL, '
-#                 'datasheet_id INTEGER DEFAULT NULL, '
-#                 'cad_id INTEGER DEFAULT NULL, '
-#                 'min_temp_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'max_temp_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'stripe_color_id INTEGER DEFAULT 999999 NOT NULL, '
-#                 'num_conductors INTEGER DEFAULT 1 NOT NULL, '
-#                 'shielded INTEGER DEFAULT 0 NOT NULL, '
-#                 'tpi REAL DEFAULT "0.0" NOT NULL, '
-#                 'conductor_dia_mm REAL DEFAULT NULL, '
-#                 'size_mm2 REAL DEFAULT NULL, '
-#                 'size_awg INTEGER DEFAULT NULL, '
-#                 'od_mm REAL NOT NULL, '
-#                 'weight_1km REAL DEFAULT "0.0" NOT NULL, '
-#                 'core_material_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'resistance_1km REAL DEFAULT "0.0" NOT NULL, '
-#                 'volts REAL DEFAULT "0.0" NOT NULL, '
-#                 'FOREIGN KEY (mfg_id) REFERENCES manufacturers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (image_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (datasheet_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (cad_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (color_id) REFERENCES colors(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (material_id) REFERENCES materials(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (stripe_color_id) REFERENCES colors(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (core_material_id) REFERENCES platings(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (min_temp_id) REFERENCES temperatures(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (max_temp_id) REFERENCES temperatures(id) ON DELETE SET DEFAULT ON UPDATE CASCADE'
-#                 ');')
-#     con.commit()
-
 
 def _build_wires(con):
     mapping = {
@@ -823,7 +771,7 @@ def _build_wires(con):
                     values.append((part_number + str(s_id), description, mfg_id,
                                    family_id, series_id, p_id, image_id, datasheet_id,
                                    cad_id,  min_temp_id, max_temp_id, material_id,
-                                   s_id, plating_id, num_conductors, shielded, tpi,
+                                   s_id, plating_id, num_conductors, shielded, tpi, dia,
                                    mm_2, awg, od_mm, weight, resistance, volts))
 
     return values

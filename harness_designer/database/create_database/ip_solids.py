@@ -1,6 +1,7 @@
 import os
 
 from .. import db_connectors as _con
+from ... import logger as _logger
 
 
 BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -41,14 +42,3 @@ table = _con.SQLTable(
     _con.BlobField('icon_data', default='"NULL"'),
 
 )
-
-
-# def ip_solids(con, cur):
-#     cur.execute('CREATE TABLE ip_solids('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'name TEXT UNIQUE NOT NULL, '
-#                 'short_desc TEXT NOT NULL, '
-#                 'description TEXT NOT NULL, '
-#                 'icon_data BLOB DEFAULT NULL'
-#                 ');')
-#     con.commit()

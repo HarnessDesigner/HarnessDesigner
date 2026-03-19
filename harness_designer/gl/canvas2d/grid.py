@@ -36,8 +36,6 @@ class Grid:
         size = _d(self.config.grid.size) / _d(2.0)
         num_layers = min(7, int(size / _d(1000)))
 
-        print('num_layers:', num_layers)
-
         def _get_vbo(verts):
             # Flatten the data
             verts = np.array(verts, dtype=np.float32).flatten()
@@ -61,12 +59,8 @@ class Grid:
         for _ in range(num_layers - 1):
             layer_factors.append(layer_factors[-1] * _d(2.0))
 
-        print('layer_factors:', layer_factors)
-
         layer_steps = [size / item for item in layer_factors]
         layers = [[] for _ in range(num_layers)]
-
-        print('layer_steps:', layer_steps)
 
         def _frange(start, stop, step):
             cur = start
@@ -83,14 +77,9 @@ class Grid:
                         layers[i].extend([[float(x), float(y)], [-float(x), float(y)],
                                           [float(x), -float(y)], [-float(x), -float(y)]])
 
-        for i, layer in enumerate(layers):
-            print(f'layer {i + 1}:', len(layer))
-
-        print('finished building grid')
         event = threading.Event()
 
         def _do():
-            print('getting VBOS')
             self.vbos = [_get_vbo(layer) for layer in layers]
             self.canvas.Refresh(False)
             event.set()

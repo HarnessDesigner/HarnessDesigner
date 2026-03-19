@@ -1,4 +1,5 @@
 from .. import db_connectors as _con
+from ... import logger as _logger
 
 
 def add_records(con, splash):
@@ -35,14 +36,14 @@ def get_cavity_lock_id(con, name):
     res = con.fetchall()
 
     if not res:
-        print(f'DATABASE: adding cavity lock ("{name}")')
+        _logger.logger.database(f'adding cavity lock ("{name}")')
 
         con.execute('INSERT INTO cavity_locks (name) VALUES (?);', (name,))
 
         con.commit()
         db_id = con.lastrowid
 
-        print(f'DATABASE: cavity lock added "{name}" = {db_id}')
+        _logger.logger.database(f'cavity lock added "{name}" = {db_id}')
 
         return db_id
     else:
@@ -58,11 +59,3 @@ table = _con.SQLTable(
     _con.TextField('description', default='""', no_null=True)
 )
 
-
-# def cavity_locks(con, cur):
-#     cur.execute('CREATE TABLE cavity_locks('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'name TEXT UNIQUE NOT NULL, '
-#                 'description TEXT DEFAULT "" NOT NULL'
-#                 ');')
-#     con.commit()

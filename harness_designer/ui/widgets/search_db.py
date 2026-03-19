@@ -54,12 +54,12 @@ class _ItemsPanel(scrolledpanel.ScrolledPanel):
 
         for choice in choices:
             checkbox = wx.CheckBox(self, wx.ID_ANY)
-            vsizer.Add(_HSizer(choice, checkbox), 0, wx.EXPAND)
+            vsizer.Add(_HSizer(choice, checkbox), 1, wx.EXPAND)
 
         self.SetupScrolling(scroll_x=False)
 
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        hsizer.Add(vsizer, 0, wx.EXPAND)
+        hsizer.Add(vsizer, 1, wx.EXPAND)
         self.SetSizer(hsizer)
 
     def Reset(self):
@@ -93,7 +93,7 @@ class _SearchPanelField(wx.Panel):
         vsizer = wx.BoxSizer(wx.VERTICAL)
 
         st = wx.StaticText(self, wx.ID_ANY, label=label)
-        vsizer.Add(st, 0, wx.ALL | wx.ALIGN_CENTER, 5)
+        vsizer.Add(st, 1, wx.ALL | wx.ALIGN_CENTER, 5)
 
         self.items_panel = _ItemsPanel(self, choices)
         vsizer.Add(self.items_panel, 1, wx.ALL | wx.EXPAND, 5)
@@ -102,10 +102,10 @@ class _SearchPanelField(wx.Panel):
 
         self.reset_button.Bind(wx.EVT_BUTTON, self.on_reset)
 
-        vsizer.Add(self.reset_button, 0, wx.ALL | wx.ALIGN_RIGHT, 10)
+        vsizer.Add(self.reset_button, 1, wx.ALL | wx.ALIGN_RIGHT, 10)
 
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        hsizer.Add(vsizer, 0, wx.EXPAND)
+        hsizer.Add(vsizer, 1, wx.EXPAND)
         self.SetSizer(hsizer)
 
     def on_reset(self, evt):
@@ -163,7 +163,7 @@ class _SearchPanel(scrolledpanel.ScrolledPanel):
                 field = _SearchPanelField(self, value['label'], value['search_params'], value['type'])
                 self.fields.append(field)
 
-                hsizer.Add(field, 0, wx.EXPAND)
+                hsizer.Add(field, 1, wx.EXPAND)
 
                 field.Bind(wx.EVT_CHECKBOX, self.on_update)
                 field.Bind(wx.EVT_BUTTON, self.on_update)
@@ -200,6 +200,8 @@ class _PreviewConfig:
     class editor3d:
         selected_color = [0.2, 1.0, 0.2, 0.35]
 
+        lighting = _config.Config.editor3d.lighting
+        headlight = _config.Config.editor3d.headlight
         renderer = _config.Config.editor3d.renderer
         keyboard_settings = _config.Config.editor3d.keyboard_settings
         rotate = _config.Config.editor3d.rotate
@@ -228,12 +230,6 @@ class _PreviewConfig:
             class reflections:
                 enable = False
                 strength = 50.0
-
-        class headlight:
-            enable = False
-            cutoff = 8.0
-            dissipate = 50.0
-            color = [0.4, 0.4, 0.4, 0.8]
 
         class debug:
             bounding_boxes = False
@@ -357,7 +353,7 @@ class SearchPanel(wx.Panel):
         hsizer.Add(vsizer, 1, wx.EXPAND)
 
         vsizer = wx.BoxSizer(wx.VERTICAL)
-        vsizer.Add(self.preview_ctrl, 0, wx.EXPAND | wx.ALL, 10)
+        vsizer.Add(self.preview_ctrl, 1, wx.EXPAND | wx.ALL, 10)
         hsizer.Add(vsizer, 1, wx.EXPAND)
 
         self.SetSizer(hsizer)
@@ -415,16 +411,11 @@ class _ResultCtrl(wx.ListCtrl):
         item = evt.GetItem()
         item_id = item.GetId()
         db_id = self._loaded_results[item_id][0]
-        print(db_id)
 
         self._selected_db_id = db_id
         obj = self.parent.table[db_id]
 
         model = obj.model3d
-
-        print(model)
-        print(obj)
-        print(obj.part_number)
 
         self.parent.clear_model_preview()
         if model is not None:
@@ -437,7 +428,6 @@ class _ResultCtrl(wx.ListCtrl):
         item = evt.GetItem()
         item_id = item.GetId()
         db_id = self._loaded_results[item_id][0]
-        print(db_id)
         self._selected_db_id = db_id
 
         parent = self.GetParent().GetTopLevelParent()

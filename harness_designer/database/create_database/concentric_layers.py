@@ -3,6 +3,7 @@ from . import projects as _projects
 from . import concentrics as _concentrics
 
 from .. import db_connectors as _con
+from ... import logger as _logger
 
 
 pjt_id_field = _con.PrimaryKeyField('id')
@@ -25,17 +26,3 @@ pjt_table = _con.SQLTable(
     _con.IntField('num_wires', default='0', no_null=True),
     _con.IntField('num_fillers', default='0', no_null=True)
 )
-
-# def pjt_concentric_layers(con, cur):
-#     cur.execute('CREATE TABLE pjt_concentric_layers('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'project_id INTEGER NOT NULL, '
-#                 'idx INTEGER NOT NULL, '
-#                 'diameter REAL DEFULT "0.0" NOT NULL, '
-#                 'num_wires INTEGER DEFAULT 0 NOT NULL, '
-#                 'num_fillers INTEGER DEFAULT 0 NOT NULL, '
-#                 'concentric_id INTEGER DEFAULT NULL, '
-#                 'FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (concentric_id) REFERENCES pjt_concentrics(id) ON DELETE CASCADE ON UPDATE CASCADE'
-#                 ');')
-#     con.commit()

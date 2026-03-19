@@ -1,4 +1,5 @@
 from .. import db_connectors as _con
+from ... import logger as _logger
 
 
 def add_records(con, splash):
@@ -31,12 +32,3 @@ table = _con.SQLTable(
     _con.TextField('name', is_unique=True, no_null=True),
     _con.TextField('description', no_null=True)
 )
-
-
-# def ip_supps(con, cur):
-#     cur.execute('CREATE TABLE ip_supps('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'name TEXT UNIQUE NOT NULL, '
-#                 'description TEXT NOT NULL'
-#                 ');')
-#     con.commit()

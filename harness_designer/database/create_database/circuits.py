@@ -1,7 +1,7 @@
-
 from . import projects as _projects
 
 from .. import db_connectors as _con
+from ... import logger as _logger
 
 
 pjt_id_field = _con.PrimaryKeyField('id')
@@ -20,14 +20,3 @@ pjt_table = _con.SQLTable(
     _con.TextField('description', default='""', no_null=True)
 )
 
-# def pjt_circuits(con, cur):
-#     cur.execute('CREATE TABLE pjt_circuits('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'project_id INTEGER NOT NULL, '
-#                 'circuit_num INTEGER NOT NULL, '
-#                 'name TEXT DEFAULT "" NOT NULL, '
-#                 'notes TEXT DEFAULT "" NOT NULL, '
-#                 'description TEXT DEFAULT "" NOT NULL, '
-#                 'FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE'
-#                 ');')
-#     con.commit()

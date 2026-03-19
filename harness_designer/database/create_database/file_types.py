@@ -1,4 +1,5 @@
 from .. import db_connectors as _con
+from ... import logger as _logger
 
 
 def add_records(con, splash):
@@ -125,14 +126,14 @@ def get_file_type(con, extension=None, mimetype=None):
         if res:
             return res[0][0]
 
-        print(f'DATABASE: adding file type ("{extension}", "{mimetype}")')
+        _logger.logger.database(f'adding file type ("{extension}", "{mimetype}")')
 
         con.execute('INSERT INTO file_types (extension, mimetype) VALUES (?, ?);', (extension, mimetype))
 
         con.commit()
         db_id = con.lastrowid
 
-        print(f'DATABASE: file type added "{extension}" = {db_id}')
+        _logger.logger.database(f'file type added "{extension}" = {db_id}')
 
         return db_id
 
@@ -143,14 +144,14 @@ def get_file_type(con, extension=None, mimetype=None):
         if res:
             return res[0][0]
 
-        print(f'DATABASE: adding file type ("{extension}")')
+        _logger.logger.database(f'adding file type ("{extension}")')
 
         con.execute('INSERT INTO file_types (extension,) VALUES (?);', (extension,))
 
         con.commit()
         db_id = con.lastrowid
 
-        print(f'DATABASE: file type added "{extension}" = {db_id}')
+        _logger.logger.database(f'file type added "{extension}" = {db_id}')
 
         return db_id
 
@@ -175,13 +176,3 @@ table = _con.SQLTable(
     _con.IntField('is_model', default='1', no_null=True)
 
 )
-
-# def file_types(con, cur):
-#     cur.execute('CREATE TABLE file_types('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'extension TEXT, '
-#                 'name TEXT DEFAULT "" NOT NULL, '
-#                 'mimetype TEXT DEFAULT "" NOT NULL, '
-#                 'is_model INTEGER DEFAULT 1 NOT NULL'
-#                 ');')
-#     con.commit()

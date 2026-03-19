@@ -5,7 +5,9 @@ from . import manufacturers as _manufacturers
 from . import series as _series
 from . import families as _families
 from . import colors as _colors
-from . import resources as _resources
+from . import images as _images
+from . import datasheets as _datasheets
+from . import cads as _cads
 from . import models3d as _models3d
 from . import directions as _directions
 from . import temperatures as _temperatures
@@ -20,6 +22,7 @@ from . import points3d as _points3d
 from . import points2d as _points2d
 
 from .. import db_connectors as _con
+from ... import logger as _logger
 
 
 DATA_PATH = os.path.join(os.path.dirname(__file__), 'data')
@@ -86,10 +89,10 @@ def add_housing(con, part_number, description, mfg=None, family=None, series=Non
 
     cavity_lock_id = _cavity_locks.get_cavity_lock_id(con, cavity_lock)
     gender_id = _genders.get_gender_id(con, gender)
-    image_id = _resources.add_resource(con, _resources.IMAGE_TYPE_IMAGE, image)
-    cad_id = _resources.add_resource(con, _resources.IMAGE_TYPE_CAD, cad)
-    datasheet_id = _resources.add_resource(con, _resources.IMAGE_TYPE_DATASHEET, datasheet)
-    model3d_id = _models3d.add_model3d(con, model3d)
+    image_id = _images.get_image_id(con, image)
+    cad_id = _cads.get_cad_id(con, cad)
+    datasheet_id = _datasheets.get_datasheet_id(con, datasheet)
+    model3d_id = _models3d.get_model3d_id(con, model3d)
     ip_rating_id = _ip_ratings.get_ip_rating_id(con, ip_rating)
     seal_type_id = _seal_types.get_seal_type_id(con, seal_type)
     cpa_lock_type_id = _cpa_lock_types.get_cpa_lock_type_id(con, cpa_lock_type)
@@ -126,12 +129,12 @@ def add_housing(con, part_number, description, mfg=None, family=None, series=Non
                 'cover_point3d, seal_point3d, boot_point3d, tpa_lock_1_point3d, '
                 'tpa_lock_2_point3d, cpa_lock_point3d) '
                 'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '
-                '?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                '?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
                 (part_number, description, mfg_id, family_id, series_id, color_id,
                  image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, model3d_id,
                  direction_id, gender_id, cavity_lock_id, ip_rating_id, seal_type_id,
-                 cpa_lock_type_id, sealing, rows, num_pins, terminal_sizes,
-                 terminal_size_counts, centerline, str(compat_cpas), str(compat_tpas),
+                 cpa_lock_type_id, sealing, rows, num_pins, str(terminal_sizes),
+                 str(terminal_size_counts), centerline, str(compat_cpas), str(compat_tpas),
                  str(compat_covers), str(compat_terminals), str(compat_seals),
                  str(compat_housings), str(compat_boots), length, width, height,
                  weight, str(cover_point3d), str(seal_point3d), str(boot_point3d),
@@ -157,13 +160,21 @@ def add_records(con, splash):
     con.execute('INSERT INTO housings (id, part_number, description) VALUES(0, "N/A", "Internal Use DO NOT DELETE");')
     con.commit()
 
-    # os.path.join(DATA_PATH, 'housings.json'),
-    json_paths = []  # os.path.join(DATA_PATH, 'aptiv_housings.json')]
+    dirs = []
+    for file in os.listdir(DATA_PATH):
+        file = os.path.join(DATA_PATH, file)
+        if os.path.isdir(file):
+            dirs.append(file)
 
-    for json_path in json_paths:
+    cwd = os.getcwd()
+    for path in dirs:
+        os.chdir(path)
+
+        json_path = os.path.join(path, 'housings.json')
+
         if os.path.exists(json_path):
             splash.SetText(f'Loading housings file...')
-            print(json_path)
+            _logger.logger.database(json_path)
 
             with open(json_path, 'r') as f:
                 data = json.loads(f.read())
@@ -176,9 +187,21 @@ def add_records(con, splash):
             splash.SetText(f'Adding housings to db [0 | {data_len}]')
             for i, item in enumerate(data):
                 splash.SetText(f'Adding housings to db [{i + 1} | {data_len}]')
-                add_housing(con, **item)
 
-            con.commit()
+                pn = item['part_number']
+                con.execute(f'SELECT id FROM housings WHERE part_number="{pn}";')
+                rows = con.fetchall()
+                if not rows:
+                    if 'shared_cad' in item:
+                        del item['shared_cad']
+
+                    if 'shared_model3d' in item:
+                        del item['shared_model3d']
+
+                    add_housing(con, **item)
+
+        con.commit()
+    os.chdir(cwd)
 
 
 id_field = _con.PrimaryKeyField('id')
@@ -205,16 +228,16 @@ table = _con.SQLTable(
                                                     _colors.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('image_id', default='NULL',
-                  references=_con.SQLFieldReference(_resources.table,
-                                                    _resources.id_field,
+                  references=_con.SQLFieldReference(_images.table,
+                                                    _images.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('datasheet_id', default='NULL',
-                  references=_con.SQLFieldReference(_resources.table,
-                                                    _resources.id_field,
+                  references=_con.SQLFieldReference(_datasheets.table,
+                                                    _datasheets.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('cad_id', default='NULL',
-                  references=_con.SQLFieldReference(_resources.table,
-                                                    _resources.id_field,
+                  references=_con.SQLFieldReference(_cads.table,
+                                                    _cads.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('min_temp_id', default='0', no_null=True,
                   references=_con.SQLFieldReference(_temperatures.table,
@@ -345,115 +368,3 @@ pjt_table = _con.SQLTable(
     _con.IntField('is_visible2d', default='1', no_null=True),
     _con.IntField('is_visible3d', default='1', no_null=True)
 )
-
-# def pjt_housings(con, cur):
-#     cur.execute('CREATE TABLE pjt_housings('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'project_id INTEGER NOT NULL, '
-#                 'part_id INTEGER NOT NULL, '
-#                 'name TEXT DEFAULT "" NOT NULL, '
-#                 'notes TEXT DEFAULT "" NOT NULL, '
-#                 'cover_point3d_id INTEGER DEFAULT NULL, '  # relative to housing, for cover to snap onto
-#                 'seal_point3d_id INTEGER DEFAULT NULL, '  # relative to housing, for seal to snap onto
-#                 'boot_point3d_id INTEGER DEFAULT NULL, '  # relative to housing, for boot to snap onto
-#                 'tpa_lock_1_point3d_id INTEGER DEFAULT NULL, '  # relative to housing, for the first tpa lock to snap onto
-#                 'tpa_lock_2_point3d_id INTEGER DEFAULT NULL, '  # relative to housing, for a second tpa lock to snap onto
-#                 'cpa_lock_point3d_id INTEGER DEFAULT NULL, '  # relative to housing, for cpa lock to snap onto
-#                 'point3d_id INTEGER DEFAULT NULL, '  # absolute
-#                 'point2d_id INTEGER DEFAULT NULL, '
-#                 'quat3d TEXT DEFAULT "[1.0, 0.0, 0.0, 0.0]" NOT NULL, '
-#                 'angle3d TEXT DEFAULT "[0.0, 0.0, 0.0]" NOT NULL, '
-#                 'quat2d TEXT DEFAULT "[1.0, 0.0, 0.0, 0.0]" NOT NULL, '
-#                 'angle2d TEXT DEFAULT "[0.0, 0.0, 0.0]" NOT NULL, '
-#                 'is_visible2d INTEGER DEFAULT 1 NOT NULL, '
-#                 'is_visible3d INTEGER DEFAULT 1 NOT NULL, '
-#                 'FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (part_id) REFERENCES housings(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (point3d_id) REFERENCES pjt_points3d(id)  ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (cover_point3d_id) REFERENCES pjt_points3d(id)  ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (seal_point3d_id) REFERENCES pjt_points3d(id)  ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (boot_point3d_id) REFERENCES pjt_points3d(id)  ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (tpa_lock_1_point3d_id) REFERENCES pjt_points3d(id)  ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (tpa_lock_2_point3d_id) REFERENCES pjt_points3d(id)  ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (cpa_lock_point3d_id) REFERENCES pjt_points3d(id)  ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (point2d_id) REFERENCES pjt_points2d(id) ON DELETE CASCADE ON UPDATE CASCADE'
-#                 ');')
-#     con.commit()
-
-# def housings(con, cur):
-#     cur.execute('CREATE TABLE housings('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'part_number TEXT UNIQUE NOT NULL, '
-#                 'description TEXT DEFAULT "" NOT NULL, '
-#                 'mfg_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'family_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'series_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'color_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'gender_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'direction_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'image_id INTEGER DEFAULT NULL, '
-#                 'datasheet_id INTEGER DEFAULT NULL, '
-#                 'cad_id INTEGER DEFAULT NULL, '
-#                 'min_temp_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'max_temp_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'cavity_lock_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'sealing INTEGER DEFAULT 0 NOT NULL, '
-#                 'rows INTEGER DEFAULT 0 NOT NULL, '
-#                 'num_pins INTEGER DEFAULT 0 NOT NULL, '
-#                 'terminal_sizes TEXT DEFAULT "[]" NOT NULL, '
-#                 'terminal_size_counts TEXT DEFAULT "[]" NOT NULL,'
-#                 'centerline REAL DEFAULT "0.0" NOT NULL, '
-#                 'compat_cpas TEXT DEFAULT "[]" NOT NULL, '
-#                 'compat_tpas TEXT DEFAULT "[]" NOT NULL, '
-#                 'compat_covers TEXT DEFAULT "[]" NOT NULL, '
-#                 'compat_terminals TEXT DEFAULT "[]" NOT NULL, '
-#                 'compat_seals TEXT DEFAULT "[]" NOT NULL, '
-#                 'compat_housings TEXT DEFAULT "[]" NOT NULL, '
-#                 'ip_rating_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'length REAL DEFAULT "0.0" NOT NULL, '
-#                 'width REAL DEFAULT "0.0" NOT NULL, '
-#                 'height REAL DEFAULT "0.0" NOT NULL, '
-#                 'weight REAL DEFAULT "0.0" NOT NULL, '
-#                 'seal_type_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'cpa_lock_type_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'model3d_id INTEGER DEFAULT NULL, '
-#                 'cover_point3d TEXT DEFAULT "[0.0, 0.0, 0.0]" NOT NULL, '
-#                 'seal_point3d TEXT DEFAULT "[0.0, 0.0, 0.0]" NOT NULL, '
-#                 'boot_point3d TEXT DEFAULT "[0.0, 0.0, 0.0]" NOT NULL, '
-#                 'tpa_lock_1_point3d TEXT DEFAULT "[0.0, 0.0, 0.0]" NOT NULL, '
-#                 'tpa_lock_2_point3d TEXT DEFAULT "[0.0, 0.0, 0.0]" NOT NULL, '
-#                 'cpa_lock_point3d TEXT DEFAULT "[0.0, 0.0, 0.0]" NOT NULL, '
-#                 'FOREIGN KEY (mfg_id) REFERENCES manufacturers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (gender_id) REFERENCES genders(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (ip_rating_id) REFERENCES ip_ratings(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (image_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (datasheet_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (cad_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (min_temp_id) REFERENCES temperatures(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (max_temp_id) REFERENCES temperatures(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (cavity_lock_id) REFERENCES terminal_locks(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (direction_id) REFERENCES directions(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (seal_type_id) REFERENCES seal_types(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (cpa_lock_type_id) REFERENCES cpa_lock_types(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (model3d_id) REFERENCES models3d(id) ON DELETE SET DEFAULT ON UPDATE CASCADE'
-#                 ');')
-#     con.commit()
-#
-#
-# def housing_crossref(con, cur):
-#     cur.execute('CREATE TABLE housing_crossref('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'part_number1 TEXT NOT NULL, '
-#                 'housing_id1 INTEGER DEFAULT NULL, '
-#                 'mfg_id1 INTEGER DEFAULT NULL, '
-#                 'part_number2 TEXT NOT NULL, '
-#                 'housing_id2 INTEGER DEFAULT NULL, '
-#                 'mfg_id2 INTEGER DEFAULT NULL, '
-#                 'FOREIGN KEY (housing_id1) REFERENCES housings(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (mfg_id1) REFERENCES manufacturers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (housing_id2) REFERENCES housings(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (mfg_id2) REFERENCES manufacturers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE'
-#                 ');')
-#     con.commit()

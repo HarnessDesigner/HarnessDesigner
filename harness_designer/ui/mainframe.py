@@ -6,6 +6,7 @@ from wx import aui
 
 from .. import config as _config
 from . import dialogs as _dialogs
+from . import toolbar as _toolbar
 from ..gl import canvas3d as _canvas3d
 
 
@@ -129,7 +130,6 @@ class MainFrame(wx.Frame):
         self.log_viewer = log_viewer.LogViewer(self)
 
         splash.SetText('Creating toolbars...')
-        from . import toolbar as _toolbar
 
         self.general_toolbar = _toolbar.GeneralToolbar(self)
         self.editor_toolbar = _toolbar.EditorToolbar(self)
@@ -139,7 +139,7 @@ class MainFrame(wx.Frame):
 
         splash.SetText('Loading UI perspective...')
         if Config.ui_perspective:
-            print(repr(Config.ui_perspective))
+            logger.debug('SAVED UI:', repr(Config.ui_perspective))
             self.manager.LoadPerspective(Config.ui_perspective)
 
         if Config.position:
@@ -151,8 +151,8 @@ class MainFrame(wx.Frame):
             self.CenterOnScreen()
 
         self.manager.Update()
-        #
-        # self.editor3d.Bind(_canvas3d.EVT_GL_LEFT_DOWN, self._on_left_down_3d)
+
+        self.editor3d.Bind(_canvas3d.EVT_GL_LEFT_DOWN, self._on_left_down_3d)
         # self.editor3d.Bind(_canvas3d.EVT_GL_LEFT_UP, self._on_left_up_3d)
         #
         # self.editor3d.Bind(_canvas3d.EVT_GL_OBJECT_SELECTED, self._on_object_selected_3d)
@@ -238,33 +238,33 @@ class MainFrame(wx.Frame):
         self.status_bar.SetStatusText(f'Z: {round(float(z), 4)}', 2)
 
     def on_close(self, _):
-        print('Harness Designer shutting down')
+        self.logger.info('Harness Designer shutting down')
 
-        print('Saving UI layout...')
+        self.logger.info('Saving UI layout...')
         Config.ui_perspective = self.manager.SavePerspective()
 
-        print('Closing 2D Editor....')
+        self.logger.info('Closing 2D Editor....')
         self.editor2d.Destroy()
 
-        print('Closing 3D Editor....')
+        self.logger.info('Closing 3D Editor....')
         self.editor3d.Destroy()
 
-        print('Closing Database Editor....')
+        self.logger.info('Closing Database Editor....')
         self.editor_db.Destroy()
 
-        print('Closing Object Editor....')
+        self.logger.info('Closing Object Editor....')
         self.editor_obj.Destroy()
 
-        print('Closing Assembly Editor....')
+        self.logger.info('Closing Assembly Editor....')
         self.editor_assembly.Destroy()
 
-        print('Closing Log Viewer....')
+        self.logger.info('Closing Log Viewer....')
         self.log_viewer.Destroy()
 
-        print('Uninitizing UI Manager...')
+        self.logger.info('Uninitizing UI Manager...')
         self.manager.UnInit()
 
-        print('Closing UI')
+        self.logger.info('Closing UI')
         self.Destroy()
 
     def on_size(self, evt: wx.SizeEvent):
@@ -306,48 +306,50 @@ class MainFrame(wx.Frame):
     def _on_left_down_3d(self, evt: _canvas3d.GLEvent):
         mode = self.editor_toolbar.get_mode()
 
-        if self._mode == self.ID_CONNECTOR:
+        if mode == _toolbar.ID_SELECT:
+            return
+        elif mode == _toolbar.ID_CONNECTOR:
             evt.StopPropagation()
             self.add_housing(evt.GetWorldPosition())
-        elif self._mode == self.ID_TERMINAL:
+        elif mode == _toolbar.ID_TERMINAL:
             evt.StopPropagation()
-            self.mainframe.add_terminal(evt.GetWorldPosition())
-        elif self._mode == self.ID_WIRE:
+            self.add_terminal(evt.GetWorldPosition())
+        elif mode == _toolbar.ID_WIRE:
             evt.StopPropagation()
-            self.mainframe.add_wire(evt.GetWorldPosition())
-        elif self._mode == self.ID_SPLICE:
+            self.add_wire(evt.GetWorldPosition())
+        elif mode == _toolbar.ID_SPLICE:
             evt.StopPropagation()
-            self.mainframe.add_splice(evt.GetWorldPosition())
-        elif self._mode == self.ID_NOTE:
+            self.add_splice(evt.GetWorldPosition())
+        elif mode == _toolbar.ID_NOTE:
             evt.StopPropagation()
-            self.mainframe.add_note(evt.GetWorldPosition())
-        elif self._mode == self.ID_CIRCLE:
+            self.add_note(evt.GetWorldPosition())
+        elif mode == _toolbar.ID_CIRCLE:
             evt.StopPropagation()
-            self.mainframe.add_circle(evt.GetWorldPosition())
-        elif self._mode == self.ID_SQUARE:
+            self.add_circle(evt.GetWorldPosition())
+        elif mode == _toolbar.ID_SQUARE:
             evt.StopPropagation()
-            self.mainframe.add_square(evt.GetWorldPosition())
-        elif self._mode == self.ID_TRANSITION:
+            self.add_square(evt.GetWorldPosition())
+        elif mode == _toolbar.ID_TRANSITION:
             evt.StopPropagation()
-            self.mainframe.add_transition(evt.GetWorldPosition())
-        elif self._mode == self.ID_SEAL:
+            self.add_transition(evt.GetWorldPosition())
+        elif mode == _toolbar.ID_SEAL:
             evt.StopPropagation()
-            self.mainframe.add_seal(evt.GetWorldPosition())
-        elif self._mode == self.ID_BUNDLE_COVER:
+            self.add_seal(evt.GetWorldPosition())
+        elif mode == _toolbar.ID_BUNDLE_COVER:
             evt.StopPropagation()
-            self.mainframe.add_bundle(evt.GetWorldPosition())
-        elif self._mode == self.ID_TPA_LOCK:
+            self.add_bundle(evt.GetWorldPosition())
+        elif mode == _toolbar.ID_TPA_LOCK:
             evt.StopPropagation()
-            self.mainframe.add_tpa_lock(evt.GetWorldPosition())
-        elif self._mode == self.ID_CPA_LOCK:
+            self.add_tpa_lock(evt.GetWorldPosition())
+        elif mode == _toolbar.ID_CPA_LOCK:
             evt.StopPropagation()
-            self.mainframe.add_cpa_lock(evt.GetWorldPosition())
-        elif self._mode == self.ID_ZOOM_IN:
+            self.add_cpa_lock(evt.GetWorldPosition())
+        elif mode == _toolbar.ID_ZOOM_IN:
             evt.StopPropagation()
-            self.mainframe.editor3d.Zoom(1.0)
-        elif self._mode == self.ID_ZOOM_OUT:
+            self.editor3d.editor.Zoom(1.0)
+        elif mode == _toolbar.ID_ZOOM_OUT:
             evt.StopPropagation()
-            self.mainframe.editor3d.Zoom(-1.0)
+            self.editor3d.editor.Zoom(-1.0)
 
         evt.Skip()
 

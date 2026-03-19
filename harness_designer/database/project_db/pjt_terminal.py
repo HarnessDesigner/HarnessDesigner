@@ -7,6 +7,7 @@ from .pjt_bases import PJTEntryBase, PJTTableBase
 from .mixins import (Angle3DMixin, Angle2DMixin, Position3DMixin, Position2DMixin,
                      PartMixin, Visible3DMixin, Visible2DMixin, NameMixin)
 
+from ... import logger as _logger
 
 if TYPE_CHECKING:
     from . import pjt_cavity as _pjt_cavity
@@ -78,7 +79,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin,
     def is_start(self) -> bool:
         value = bool(self._table.select('is_start', id=self._db_id)[0][0])
         if value and self.load:
-            print('You cannot have a load set for the start terminal of a circuit')
+            _logger.logger.warning('You cannot have a load set for the start terminal of a circuit')
 
             value = False
             self.is_start = False
@@ -101,8 +102,8 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin,
         db_ids = self._table.select('db_id', circuit_id=self.circuit_id, is_start=1)
         for db_id in db_ids:
             if db_id[0] != self.db_id:
-                print('A circuit cannot have multiple start points. setting '
-                      'other terminal so it is not a start point')
+                _logger.logger.warning('A circuit cannot have multiple start points. setting '
+                                       'other terminal so it is not a start point')
 
                 self._table.update(db_id[0], is_start=0)
 

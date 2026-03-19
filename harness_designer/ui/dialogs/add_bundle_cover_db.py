@@ -210,7 +210,7 @@ class AddBundleCoverDialog(_dialog_base.BaseDialog):
                     except Exception as err:  # NOQA
                         from ...logger import logger as _logger
 
-                        _logger.print_traceback(err, 'Adding Manufacturer')
+                        _logger.traceback(err, 'Adding Manufacturer')
                         self.family.Enable(False)
                         self.series.Enable(False)
                         return
@@ -261,7 +261,7 @@ class AddBundleCoverDialog(_dialog_base.BaseDialog):
                     except Exception as err:  # NOQA
                         from ...logger import logger as _logger
 
-                        _logger.print_traceback(err, 'Adding Family')
+                        _logger.traceback(err, 'Adding Family')
                         return
                 else:
                     return
@@ -290,7 +290,7 @@ class AddBundleCoverDialog(_dialog_base.BaseDialog):
                     except Exception as err:  # NOQA
                         from ...logger import logger as _logger
 
-                        _logger.print_traceback(err, 'Adding Series')
+                        _logger.traceback(err, 'Adding Series')
                         return
                 else:
                     return
@@ -341,7 +341,7 @@ class AddBundleCoverDialog(_dialog_base.BaseDialog):
                     except Exception as err:  # NOQA
                         from ...logger import logger as _logger
 
-                        _logger.print_traceback(err, 'Adding Material')
+                        _logger.traceback(err, 'Adding Material')
                         return
                 else:
                     return

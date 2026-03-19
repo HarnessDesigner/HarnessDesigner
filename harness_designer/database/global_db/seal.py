@@ -13,6 +13,10 @@ from .mixins import (PartNumberMixin, ManufacturerMixin, DescriptionMixin, Serie
 class SealsTable(TableBase):
     __table_name__ = 'seals'
 
+    def _load_database(self, splash):
+        from ..create_database import seals
+        seals.add_records(self._con, splash)
+
     def _table_needs_update(self) -> bool:
         from ..create_database import seals
 

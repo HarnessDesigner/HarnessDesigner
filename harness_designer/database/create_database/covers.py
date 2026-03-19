@@ -4,7 +4,9 @@ import json
 from . import manufacturers as _manufacturers
 from . import series as _series
 from . import colors as _colors
-from . import resources as _resources
+from . import images as _images
+from . import datasheets as _datasheets
+from . import cads as _cads
 from . import models3d as _models3d
 from . import directions as _directions
 from . import temperatures as _temperatures
@@ -15,6 +17,7 @@ from . import points3d as _points3d
 from . import housings as _housings
 
 from .. import db_connectors as _con
+from ... import logger as _logger
 
 
 DATA_PATH = os.path.join(os.path.dirname(__file__), 'data')
@@ -35,13 +38,21 @@ def add_records(con, splash):
     con.execute('INSERT INTO covers (id, part_number, description) VALUES(0, "N/A", "Internal Use DO NOT DELETE");')
     con.commit()
 
-    # os.path.join(DATA_PATH, 'covers.json'),
-    json_paths = []  # os.path.join(DATA_PATH, 'aptiv_covers.json')]
+    dirs = []
+    for file in os.listdir(DATA_PATH):
+        file = os.path.join(DATA_PATH, file)
+        if os.path.isdir(file):
+            dirs.append(file)
 
-    for json_path in json_paths:
+    cwd = os.getcwd()
+    for path in dirs:
+        os.chdir(path)
+
+        json_path = os.path.join(path, 'covers.json')
+
         if os.path.exists(json_path):
             splash.SetText(f'Loading covers file...')
-            print(json_path)
+            _logger.logger.database(json_path)
 
             with open(json_path, 'r') as f:
                 data = json.loads(f.read())
@@ -53,9 +64,22 @@ def add_records(con, splash):
 
             for i, item in enumerate(data):
                 splash.SetText(f'Adding covers to db [{i} | {data_len}]...')
-                add_cover(con, **item)
+                pn = item['part_number']
 
-            con.commit()
+                con.execute(f'SELECT id FROM covers WHERE part_number="{pn}";')
+                rows = con.fetchall()
+                if not rows:
+                    if 'shared_cad' in item:
+                        del item['shared_cad']
+
+                    if 'shared_model3d' in item:
+                        del item['shared_model3d']
+
+                    add_cover(con, **item)
+
+        con.commit()
+
+    os.chdir(cwd)
 
 
 def add_cover(con, part_number, description, mfg=None, family=None, series=None,
@@ -72,10 +96,10 @@ def add_cover(con, part_number, description, mfg=None, family=None, series=None,
     color_id = _colors.get_color_id(con, color)
     direction_id = _directions.get_direction_id(con, direction)
 
-    image_id = _resources.add_resource(con, _resources.IMAGE_TYPE_IMAGE, image)
-    cad_id = _resources.add_resource(con, _resources.IMAGE_TYPE_CAD, cad)
-    datasheet_id = _resources.add_resource(con, _resources.IMAGE_TYPE_DATASHEET, datasheet)
-    model3d_id = _models3d.add_model3d(con, model3d)
+    image_id = _images.get_image_id(con, image)
+    cad_id = _cads.get_cad_id(con, cad)
+    datasheet_id = _datasheets.get_datasheet_id(con, datasheet)
+    model3d_id = _models3d.get_model3d_id(con, model3d)
     min_temp_id = _temperatures.get_temperature_id(con, min_temp)
     max_temp_id = _temperatures.get_temperature_id(con, max_temp)
 
@@ -95,7 +119,7 @@ def add_cover(con, part_number, description, mfg=None, family=None, series=None,
 
         description += ' Cover'
 
-    print(f'DATABASE: adding cover {part_number}: {description}')
+    _logger.logger.database(f'adding cover {part_number}: {description}')
 
     con.execute('INSERT INTO covers (part_number, description, mfg_id, family_id, '
                 'series_id, color_id, direction_id, image_id, datasheet_id, cad_id, '
@@ -104,12 +128,12 @@ def add_cover(con, part_number, description, mfg=None, family=None, series=None,
                 'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
                 (part_number, description, mfg_id, family_id, series_id, color_id,
                  direction_id, image_id, datasheet_id, cad_id, min_temp_id, max_temp_id,
-                 model3d_id, length, width, height, weight, pins, compat_housings))
+                 model3d_id, length, width, height, weight, pins, str(compat_housings)))
 
     con.commit()
     db_id = con.lastrowid
 
-    print(f'DATABASE: cover added "{part_number}" = {db_id}')
+    _logger.logger.database(f'cover added "{part_number}" = {db_id}')
 
 
 id_field = _con.PrimaryKeyField('id')
@@ -140,16 +164,16 @@ table = _con.SQLTable(
                                                     _directions.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('image_id', default='NULL',
-                  references=_con.SQLFieldReference(_resources.table,
-                                                    _resources.id_field,
+                  references=_con.SQLFieldReference(_images.table,
+                                                    _images.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('datasheet_id', default='NULL',
-                  references=_con.SQLFieldReference(_resources.table,
-                                                    _resources.id_field,
+                  references=_con.SQLFieldReference(_datasheets.table,
+                                                    _directions.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('cad_id', default='NULL',
-                  references=_con.SQLFieldReference(_resources.table,
-                                                    _resources.id_field,
+                  references=_con.SQLFieldReference(_cads.table,
+                                                    _cads.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('min_temp_id', default='0', no_null=True,
                   references=_con.SQLFieldReference(_temperatures.table,
@@ -203,74 +227,3 @@ pjt_table = _con.SQLTable(
     _con.TextField('angle3d', default='"[0.0, 0.0, 0.0]"', no_null=True),
     _con.IntField('is_visible3d', default='1', no_null=True)
 )
-
-# def pjt_covers(con, cur):
-#     cur.execute('CREATE TABLE pjt_covers('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'project_id INTEGER NOT NULL, '
-#                 'part_id INTEGER NOT NULL, '
-#                 'name TEXT DEFAULT "" NOT NULL, '
-#                 'notes TEXT DEFAULT "" NOT NULL, '
-#                 'quat3d TEXT DEFAULT "[1.0, 0.0, 0.0, 0.0]" NOT NULL, '
-#                 'angle3d TEXT DEFAULT "[0.0, 0.0, 0.0]" NOT NULL, '
-#                 'point3d_id INTEGER NOT NULL, '  # absolute, calculated using housing relative point
-#                 'housing_id INTEGER NOT NULL, '
-#                 'is_visible3d INTEGER DEFAULT 1 NOT NULL, '
-#                 'FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (part_id) REFERENCES covers(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (point3d_id) REFERENCES pjt_points3d(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (housing_id) REFERENCES pjt_housings(id) ON DELETE CASCADE ON UPDATE CASCADE'
-#                 ');')
-#     con.commit()
-
-# def covers(con, cur):
-#     cur.execute('CREATE TABLE covers('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'part_number TEXT UNIQUE NOT NULL, '
-#                 'description TEXT DEFAULT "" NOT NULL, '
-#                 'mfg_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'family_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'series_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'color_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'direction_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'image_id INTEGER DEFAULT NULL, '
-#                 'datasheet_id INTEGER DEFAULT NULL, '
-#                 'cad_id INTEGER DEFAULT NULL, '
-#                 'min_temp_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'max_temp_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'length REAL DEFAULT "0.0" NOT NULL, '
-#                 'width REAL DEFAULT "0.0" NOT NULL, '
-#                 'height REAL DEFAULT "0.0" NOT NULL, '
-#                 'pins TEXT DEFAULT "" NOT NULL, '
-#                 'weight REAL DEFAULT "0.0" NOT NULL, '
-#                 'model3d_id INTEGER DEFAULT NULL, '
-#                 'FOREIGN KEY (mfg_id) REFERENCES manufacturers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (image_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (datasheet_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (cad_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (direction_id) REFERENCES directions(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (min_temp_id) REFERENCES temperatures(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (max_temp_id) REFERENCES temperatures(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (model3d_id) REFERENCES models3d(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (color_id) REFERENCES colors(id) ON DELETE SET DEFAULT ON UPDATE CASCADE'
-#                 ');')
-#     con.commit()
-#
-#
-# def cover_crossref(con, cur):
-#     cur.execute('CREATE TABLE cover_crossref('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'part_number1 TEXT NOT NULL, '
-#                 'cover_id1 INTEGER DEFAULT NULL, '
-#                 'mfg_id1 INTEGER DEFAULT NULL, '
-#                 'part_number2 TEXT NOT NULL, '
-#                 'cover_id2 INTEGER DEFAULT NULL, '
-#                 'mfg_id2 INTEGER DEFAULT NULL, '
-#                 'FOREIGN KEY (cover_id1) REFERENCES covers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (mfg_id1) REFERENCES manufacturers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (cover_id2) REFERENCES covers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (mfg_id2) REFERENCES manufacturers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE'
-#                 ');')
-#     con.commit()

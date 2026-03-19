@@ -13,6 +13,10 @@ if TYPE_CHECKING:
 class BundleCoversTable(TableBase):
     __table_name__ = 'bundle_covers'
 
+    def _load_database(self, splash):
+        from ..create_database import bundle_covers
+        bundle_covers.add_records(self._con, splash)
+
     def _table_needs_update(self) -> bool:
         from ..create_database import bundle_covers
 

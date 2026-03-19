@@ -22,11 +22,11 @@ class ComboBoxCtrl(wx.BoxSizer):
 
         self.st = wx.StaticText(parent, wx.ID_ANY, label=label)
         self.ctrl = _autocomplete_combobox.AutoCompleteComboBox(
-            self, wx.ID_ANY, choices, style=wx.CB_SORT | wx.TE_PROCESS_ENTER | wx.CB_DROPDOWN)
+            parent, wx.ID_ANY, choices=choices, style=wx.CB_SORT | wx.TE_PROCESS_ENTER | wx.CB_DROPDOWN)
 
         self.ctrl.Bind(wx.EVT_TEXT_ENTER, self._on_enter)
 
-        hsizer.Add(self.st, 1, wx.ALL, 5)
+        hsizer.Add(self.st, 0, wx.ALL | wx.ALIGN_CENTER, 5)
         hsizer.Add(self.ctrl, 1, wx.ALL | wx.EXPAND, 5)
         vsizer.Add(hsizer, 1, wx.EXPAND)
 

@@ -43,15 +43,15 @@ class AhesiveMixin(_mixinbase.MixinBase):
             '''
 
 
-            adhesive.code
+            # adhesive.code
             accessory_pns = [accessory.part_number for accessory in adhesive.accessories]
 
 
 
-
-
-code
-description
-accessory_part_nums
+#
+#
+# code
+# description
+# accessory_part_nums
 
 

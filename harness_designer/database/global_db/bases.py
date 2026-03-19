@@ -3,6 +3,8 @@ from typing import Iterable as _Iterable, TYPE_CHECKING, IO
 import weakref
 import json
 
+from ... import logger as _logger
+
 
 if TYPE_CHECKING:
     from ... import ui as _ui
@@ -58,19 +60,24 @@ class EntryBase(metaclass=_EntrySingleton):
 class TableBase:
     __table_name__: str = None
 
-    def __init__(self, db: "GLBTables", table_names: list['str'], splash: "_splash.Splash"):
+    def __init__(self, db: "GLBTables", table_names: list['str'], splash: "_splash.Splash", load_database: bool):
         self.db = db
         self._con = db.connector
 
         if self.__table_name__ not in table_names:
             splash.SetText(f'Creating {self.__table_name__.replace("_", " ")} database table...')
             self._add_table_to_db(splash)
+        elif load_database:
+            self._load_database(splash)
 
         if self._table_needs_update():
             splash.SetText(f'Adding {self.__table_name__.replace("_", " ")} table fields...')
             self._update_table_in_db()
 
         splash.SetText(f'Loading {self.__table_name__.replace("_", " ")} database table...')
+
+    def _load_database(self, splash):
+        pass
 
     def _table_needs_update(self) -> bool:
         raise NotImplementedError
@@ -333,9 +340,9 @@ class TableBase:
         select_args = ['tbl1.id']
         tables = []
 
-        print('search_items:', search_items)
-        print('compat_parts:', compat_parts)
-        print('kwargs:', kwargs)
+        _logger.logger.database('search_items:', search_items)
+        _logger.logger.database('compat_parts:', compat_parts)
+        _logger.logger.database('kwargs:', kwargs)
 
         for key in sorted(list(search_items.keys())):
             value = search_items[key]
@@ -408,7 +415,6 @@ from .housing import HousingsTable  # NOQA
 from .color import ColorsTable  # NOQA
 from .seal_type import SealTypesTable  # NOQA
 from .temperature import TemperaturesTable  # NOQA
-from .resource import ResourcesTable  # NOQA
 from .cavity import CavitiesTable  # NOQA
 from .cavity_lock import CavityLocksTable  # NOQA
 from .family import FamiliesTable  # NOQA
@@ -430,6 +436,10 @@ from .splice_types import SpliceTypesTable  # NOQA
 from .setting import SettingsTable # NOQA
 from .file_types import FileTypesTable  # NOQA
 from .transition_series import TransitionSeriesTable  # NOQA
+from .cad import CADsTable  # NOQA
+from .image import ImagesTable  # NOQA
+from .datasheet import DatasheetsTable  # NOQA
+from .cpa_lock_type import CPALockTypesTable  # NOQA
 
 
 class GLBTables:
@@ -441,45 +451,65 @@ class GLBTables:
 
         tables = self.connector.get_tables()
 
-        self._settings_table = SettingsTable(self, tables, splash)
-        self._manufacturers_table = ManufacturersTable(self, tables, splash)
-        self._colors_table = ColorsTable(self, tables, splash)
-        self._platings_table = PlatingsTable(self, tables, splash)
-        self._seal_types_table = SealTypesTable(self, tables, splash)
-        self._cavity_locks_table = CavityLocksTable(self, tables, splash)
-        self._materials_table = MaterialsTable(self, tables, splash)
-        self._temperatures_table = TemperaturesTable(self, tables, splash)
-        self._shapes_table = ShapesTable(self, tables, splash)
-        self._genders_table = GendersTable(self, tables, splash)
-        self._file_types_table = FileTypesTable(self, tables, splash)
-        self._directions_table = DirectionsTable(self, tables, splash)
-        self._transition_series_table = TransitionSeriesTable(self, tables, splash)
-        self._splice_types_table = SpliceTypesTable(self, tables, splash)
-        self._protections_table = ProtectionsTable(self, tables, splash)
-        self._resources_table = ResourcesTable(self, tables, splash)
-        self._models3d_table = Models3DTable(self, tables, splash)
-        self._ip_solids_table = IPSolidsTable(self, tables, splash)
-        self._ip_fluids_table = IPFluidsTable(self, tables, splash)
-        self._ip_supps_table = IPSuppsTable(self, tables, splash)
-        self._ip_ratings_table = IPRatingsTable(self, tables, splash)
-        self._families_table = FamiliesTable(self, tables, splash)
-        self._series_table = SeriesTable(self, tables, splash)
-        self._adhesives_table = AdhesivesTable(self, tables, splash)
-        self._splices_table = SplicesTable(self, tables, splash)
-        self._accessories_table = AccessoriesTable(self, tables, splash)
-        self._cavities_table = CavitiesTable(self, tables, splash)
-        self._seals_table = SealsTable(self, tables, splash)
-        self._boots_table = BootsTable(self, tables, splash)
-        self._tpa_locks_table = TPALocksTable(self, tables, splash)
-        self._cpa_locks_table = CPALocksTable(self, tables, splash)
-        self._covers_table = CoversTable(self, tables, splash)
-        self._terminals_table = TerminalsTable(self, tables, splash)
-        self._housings_table = HousingsTable(self, tables, splash)
-        self._bundle_covers_table = BundleCoversTable(self, tables, splash)
-        self._transition_branches_table = TransitionBranchesTable(self, tables, splash)
-        self._transitions_table = TransitionsTable(self, tables, splash)
-        self._wires_table = WiresTable(self, tables, splash)
-        self._wire_markers_table = WireMarkersTable(self, tables, splash)
+        load_database = splash.load_database
+        self._settings_table = SettingsTable(self, tables, splash, load_database)
+        self._file_types_table = FileTypesTable(self, tables, splash, load_database)
+        self._images_table = ImagesTable(self, tables, splash, load_database)
+        self._datasheets_table = DatasheetsTable(self, tables, splash, load_database)
+        self._cads_table = CADsTable(self, tables, splash, load_database)
+        self._models3d_table = Models3DTable(self, tables, splash, load_database)
+        self._manufacturers_table = ManufacturersTable(self, tables, splash, load_database)
+        self._cpa_lock_types_table = CPALockTypesTable(self, tables, splash, load_database)
+        self._colors_table = ColorsTable(self, tables, splash, load_database)
+        self._platings_table = PlatingsTable(self, tables, splash, load_database)
+        self._seal_types_table = SealTypesTable(self, tables, splash, load_database)
+        self._cavity_locks_table = CavityLocksTable(self, tables, splash, load_database)
+        self._materials_table = MaterialsTable(self, tables, splash, load_database)
+        self._temperatures_table = TemperaturesTable(self, tables, splash, load_database)
+        self._shapes_table = ShapesTable(self, tables, splash, load_database)
+        self._genders_table = GendersTable(self, tables, splash, load_database)
+        self._directions_table = DirectionsTable(self, tables, splash, load_database)
+        self._transition_series_table = TransitionSeriesTable(self, tables, splash, load_database)
+        self._splice_types_table = SpliceTypesTable(self, tables, splash, load_database)
+        self._protections_table = ProtectionsTable(self, tables, splash, load_database)
+        self._ip_solids_table = IPSolidsTable(self, tables, splash, load_database)
+        self._ip_fluids_table = IPFluidsTable(self, tables, splash, load_database)
+        self._ip_supps_table = IPSuppsTable(self, tables, splash, load_database)
+        self._ip_ratings_table = IPRatingsTable(self, tables, splash, load_database)
+        self._families_table = FamiliesTable(self, tables, splash, load_database)
+        self._series_table = SeriesTable(self, tables, splash, load_database)
+        self._adhesives_table = AdhesivesTable(self, tables, splash, load_database)
+        self._cavities_table = CavitiesTable(self, tables, splash, load_database)
+        self._transition_branches_table = TransitionBranchesTable(self, tables, splash, load_database)
+        self._accessories_table = AccessoriesTable(self, tables, splash, load_database)
+        self._boots_table = BootsTable(self, tables, splash, load_database)
+        self._bundle_covers_table = BundleCoversTable(self, tables, splash, load_database)
+        self._covers_table = CoversTable(self, tables, splash, load_database)
+        self._cpa_locks_table = CPALocksTable(self, tables, splash, load_database)
+        self._housings_table = HousingsTable(self, tables, splash, load_database)
+        self._seals_table = SealsTable(self, tables, splash, load_database)
+        self._splices_table = SplicesTable(self, tables, splash, load_database)
+        self._terminals_table = TerminalsTable(self, tables, splash, load_database)
+        self._tpa_locks_table = TPALocksTable(self, tables, splash, load_database)
+        self._transitions_table = TransitionsTable(self, tables, splash, load_database)
+        self._wires_table = WiresTable(self, tables, splash, load_database)
+        self._wire_markers_table = WireMarkersTable(self, tables, splash, load_database)
+
+    @property
+    def cpa_lock_types_table(self) -> CPALockTypesTable:
+        return self._cpa_lock_types_table
+
+    @property
+    def images_table(self) -> ImagesTable:
+        return self._images_table
+
+    @property
+    def datasheets_table(self) -> DatasheetsTable:
+        return self._datasheets_table
+
+    @property
+    def cads_table(self) -> CADsTable:
+        return self._cads_table
 
     @property
     def transition_series_table(self) -> TransitionSeriesTable:
@@ -556,10 +586,6 @@ class GLBTables:
     @property
     def directions_table(self) -> DirectionsTable:
         return self._directions_table
-
-    @property
-    def resources_table(self) -> ResourcesTable:
-        return self._resources_table
 
     @property
     def families_table(self) -> FamiliesTable:

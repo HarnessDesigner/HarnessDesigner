@@ -2,6 +2,8 @@ from typing import Iterable as _Iterable, TYPE_CHECKING
 
 import weakref
 
+from ... import logger as _logger
+
 if TYPE_CHECKING:
     from ... import ui as _ui
     from ... import splash as _splash
@@ -357,11 +359,13 @@ class PJTTables:
         self.mainframe.unload()
         tables = self.connector.get_tables()
 
+        _logger.logger.database('TABLES:', tables)
+
         class Splash:
 
             @staticmethod
             def SetText(msg):
-                self.mainframe.logger.print_info(msg)
+                self.mainframe.logger.info(msg)
 
         self._current_count = 0
 

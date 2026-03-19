@@ -22,7 +22,6 @@ class LogViewer(aui.AuiPaneInfo):
 
     def __init__(self, mainframe: "_mainframe.MainFrame"):
         self.viewer = LogViewerPanel(mainframe, mainframe.logger)
-        print('viewer created')
         self.mainframe = mainframe
         self.manager = mainframe.manager
 
@@ -62,13 +61,13 @@ class LogData:
         self.data += line + '\n'
 
 
-class LogViewerPanel(wx.Panel):
+class LogViewerPanel(wx.SplitterWindow):
 
     def __init__(self, parent, logger: "_logger.Log"):
         logger.log_handler.bind(self.new_data)
         self.logger = logger
 
-        wx.Panel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_NONE)
+        wx.SplitterWindow.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_NONE | wx.SP_LIVE_UPDATE)
 
         self.treectrl = wx.TreeCtrl(self, wx.ID_ANY, style=wx.TR_HAS_BUTTONS | wx.TR_LINES_AT_ROOT | wx.TR_SINGLE)
         self.root = self.treectrl.AddRoot('Logs')
@@ -81,12 +80,15 @@ class LogViewerPanel(wx.Panel):
         self.treectrl.Bind(wx.EVT_TREE_ITEM_EXPANDING, self.on_tree_expanding)
         self.treectrl.Bind(wx.EVT_TREE_ITEM_COLLAPSED, self.on_tree_collapsed)
 
-        hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        vsizer = wx.BoxSizer(wx.VERTICAL)
-        vsizer.Add(hsizer, 0, wx.EXPAND)
-        hsizer.Add(self.treectrl, 1, wx.EXPAND)
-        hsizer.Add(self.textctrl, 3, wx.EXPAND)
-        self.SetSizer(vsizer)
+        self.SetMinimumPaneSize(20)
+        self.SplitVertically(self.treectrl, self.textctrl, 100)
+
+        # hsizer = wx.BoxSizer(wx.HORIZONTAL)
+        # vsizer = wx.BoxSizer(wx.VERTICAL)
+        # vsizer.Add(hsizer, 1, wx.EXPAND)
+        # hsizer.Add(self.treectrl, 1, wx.EXPAND)
+        # hsizer.Add(self.textctrl, 3, wx.EXPAND)
+        # self.SetSizer(vsizer)
 
         def _do():
             wx.BeginBusyCursor()

@@ -1,4 +1,5 @@
 from .. import db_connectors as _con
+from ... import logger as _logger
 
 
 def add_records(con, splash):
@@ -40,14 +41,14 @@ def get_cpa_lock_type_id(con, name):
     res = con.fetchall()
 
     if not res:
-        print(f'DATABASE: adding cpa lock type ("{name}")')
+        _logger.logger.database(f'adding cpa lock type ("{name}")')
 
         con.execute('INSERT INTO cpa_lock_types (name) VALUES (?);', (name,))
 
         con.commit()
         db_id = con.lastrowid
 
-        print(f'DATABASE: cpa lock type added "{name}" = {db_id}')
+        _logger.logger.database(f'cpa lock type added "{name}" = {db_id}')
 
         return db_id
     else:
@@ -61,11 +62,3 @@ table = _con.SQLTable(
     id_field,
     _con.TextField('name', no_null=True)
 )
-
-
-# def cpa_lock_types(con, cur):
-#     cur.execute('CREATE TABLE cpa_lock_types('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'name TEXT UNIQUE NOT NULL'
-#                 ');')
-#     con.commit()

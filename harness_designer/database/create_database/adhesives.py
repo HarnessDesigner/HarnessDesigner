@@ -1,4 +1,5 @@
 from .. import db_connectors as _con
+from ... import logger as _logger
 
 
 def add_records(con, splash):
@@ -34,14 +35,14 @@ def get_adhesive_id(con, code):
     res = con.fetchall()
 
     if not res:
-        print(f'DATABASE: adding adhesive ("{code}")')
+        _logger.logger.database(f'adding adhesive ("{code}")')
 
         con.execute('INSERT INTO adhesives (code) VALUES (?);', (code,))
 
         con.commit()
         db_id = con.lastrowid
 
-        print(f'DATABASE: adhesive added "{code}" = {db_id}')
+        _logger.logger.database(f'adhesive added "{code}" = {db_id}')
 
         return db_id
     else:
@@ -57,12 +58,3 @@ table = _con.SQLTable(
     _con.TextField('description', default='""', no_null=True),
     _con.TextField('accessory_part_nums', default='"[]"', no_null=True)
 )
-
-# def adhesives(con, cur):
-#     cur.execute('CREATE TABLE adhesives('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'code TEXT DEFAULT "" NOT NULL, '
-#                 'description TEXT DEFAULT "" NOT NULL, '
-#                 'accessory_part_nums TEXT DEFAULT "[]" NOT NULL'
-#                 ');')
-#     con.commit()

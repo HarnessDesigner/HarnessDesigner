@@ -1,11 +1,12 @@
 
 from . import manufacturers as _manufacturers
 from . import colors as _colors
-from . import resources as _resources
+from . import images as _images
+from . import datasheets as _datasheets
+from . import cads as _cads
 from . import series as _series
 from . import families as _families
 from . import temperatures as _temperatures
-
 
 from . import projects as _projects
 from . import points3d as _points3d
@@ -13,6 +14,7 @@ from . import points2d as _points2d
 from . import wires as _wires
 
 from .. import db_connectors as _con
+from ... import logger as _logger
 
 
 def add_wire_markers(con, data: tuple[dict] | list[dict]):
@@ -41,17 +43,18 @@ def add_records(con, splash):
 
     data_len = len(data)
     splash.SetText(f'Adding wire markers to db [{data_len} | {data_len}]')
-    for line in data:
-        print(line)
 
-    con.executemany('INSERT INTO wire_markers (part_number, description, mfg_id, '
-                    'family_id, series_id, color_id, image_id, datasheet_id, cad_id, '
-                    'min_temp_id, max_temp_id, min_diameter, max_diameter, min_awg, '
-                    'max_awg, length, weight, has_label) '
-                    'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                    data)
+    try:
+        con.executemany('INSERT INTO wire_markers (part_number, description, mfg_id, '
+                        'family_id, series_id, color_id, image_id, datasheet_id, cad_id, '
+                        'min_temp_id, max_temp_id, min_diameter, max_diameter, min_awg, '
+                        'max_awg, length, weight, has_label) '
+                        'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                        data)
 
-    con.commit()
+        con.commit()
+    except:  # NOQA
+        pass
 
 
 def add_wire_marker(con, part_number, description, mfg=None, family=None, series=None,
@@ -65,9 +68,9 @@ def add_wire_marker(con, part_number, description, mfg=None, family=None, series
     color_id = _colors.get_color_id(con, color)
     min_temp_id = _temperatures.get_temperature_id(con, min_temp)
     max_temp_id = _temperatures.get_temperature_id(con, max_temp)
-    image_id = _resources.add_resource(con, _resources.IMAGE_TYPE_IMAGE, image)
-    datasheet_id = _resources.add_resource(con, _resources.IMAGE_TYPE_DATASHEET, datasheet)
-    cad_id = _resources.add_resource(con, _resources.IMAGE_TYPE_CAD, cad)
+    image_id = _images.get_image_id(con, image)
+    datasheet_id = _datasheets.get_datasheet_id(con, datasheet)
+    cad_id = _cads.get_cad_id(con, cad)
 
     con.execute('INSERT INTO wire_markers (part_number, description, mfg_id, family_id, '
                 'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
@@ -118,16 +121,16 @@ table = _con.SQLTable(
                                                     _colors.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('image_id', default='NULL',
-                  references=_con.SQLFieldReference(_resources.table,
-                                                    _resources.id_field,
+                  references=_con.SQLFieldReference(_images.table,
+                                                    _images.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('datasheet_id', default='NULL',
-                  references=_con.SQLFieldReference(_resources.table,
-                                                    _resources.id_field,
+                  references=_con.SQLFieldReference(_datasheets.table,
+                                                    _datasheets.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('cad_id', default='NULL',
-                  references=_con.SQLFieldReference(_resources.table,
-                                                    _resources.id_field,
+                  references=_con.SQLFieldReference(_cads.table,
+                                                    _cads.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('min_temp_id', default='0', no_null=True,
                   references=_con.SQLFieldReference(_temperatures.table,
@@ -150,7 +153,7 @@ table = _con.SQLTable(
 pjt_id_field = _con.PrimaryKeyField('id')
 
 pjt_table = _con.SQLTable(
-    'pjt_wire_marker',
+    'pjt_wire_markers',
     pjt_id_field,
     _con.IntField('project_id', no_null=True,
                   references=_con.SQLFieldReference(_projects.pjt_table,
@@ -184,52 +187,6 @@ pjt_table = _con.SQLTable(
     _con.IntField('is_visible2d', default='1', no_null=True),
     _con.IntField('is_visible3d', default='1', no_null=True)
 )
-
-# def pjt_wire_markers(con, cur):
-#     cur.execute('CREATE TABLE pjt_wire_markers('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'project_id INTEGER NOT NULL, '
-#                 'name TEXT DEFAULT "" NOT NULL, '
-#                 'notes TEXT DEFAULT "" NOT NULL, '
-#                 'point2d_id INTEGER DEFAULT NULL, '
-#                 'point3d_id INTEGER DEFAULT NULL, '  # absolute but must be on a wire
-#                 'part_id INTEGER NOT NULL, '
-#                 'wire_id INTEGER NOT NULL, '
-#                 'label TEXT DEFAULT "" NOT NULL, '
-#                 'is_visible2d INTEGER DEFAULT 1 NOT NULL, '
-#                 'is_visible3d INTEGER DEFAULT 1 NOT NULL, '
-#                 'FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (point2d_id) REFERENCES pjt_points2d(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (point3d_id) REFERENCES pjt_points3d(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (part_id) REFERENCES wire_markers(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (wire_id) REFERENCES pjt_wires(id) ON DELETE CASCADE ON UPDATE CASCADE'
-#                 ');')
-#     con.commit()
-
-# def wire_markers(con, cur):
-#     cur.execute('CREATE TABLE wire_markers('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'part_number TEXT UNIQUE NOT NULL, '
-#                 'description TEXT DEFAULT "" NOT NULL, '
-#                 'mfg_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'color_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'min_diameter REAL DEFAULT "0.0" NOT NULL, '
-#                 'max_diameter REAL DEFAULT "0.0" NOT NULL, '
-#                 'min_awg INTEGER DEFAULT NULL, '
-#                 'max_awg INTEGER DEFAULT NULL, '
-#                 'image_id INTEGER DEFAULT NULL, '
-#                 'datasheet_id INTEGER DEFAULT NULL, '
-#                 'cad_id INTEGER DEFAULT NULL, '
-#                 'length REAL DEFAULT "0.0" NOT NULL, '
-#                 'weight REAL DEFAULT "0.0" NOT NULL, '
-#                 'has_label INTEGER DEFAULT 0 NOT NULL, '
-#                 'FOREIGN KEY (mfg_id) REFERENCES manufacturers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (image_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (datasheet_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (cad_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (color_id) REFERENCES colors(id) ON DELETE SET DEFAULT ON UPDATE CASCADE'
-#                 ');')
-#     con.commit()
 
 
 def _build_wire_markers(con):
@@ -289,8 +246,7 @@ def _build_wire_markers(con):
             min_temp_id = 0
             max_temp_id = 0
 
-            image_id = None  # _resources.add_resource(con, _resources.IMAGE_TYPE_IMAGE, image_url)
-            # image_id = get_resource_id(con, cur, image_url, type='jpg')
+            image_id = _images.get_image_id(con, image_url)
 
             res.append((part_number, description, mfg_id, family_id, series_id,
                         color_id, image_id, datasheet_id, cad_id, min_temp_id,
@@ -404,13 +360,13 @@ def _build_wire_markers(con):
         cad_id = None
         color_id = 1020
 
-        image_id = None  # _resources.add_resource(con, _resources.IMAGE_TYPE_IMAGE, image_url)
-
         family_id = 0
         series_id = 0
 
         min_temp_id = 0
         max_temp_id = 0
+
+        image_id = _images.get_image_id(con, image_url)
 
         res.append((part_number, description, mfg_id, family_id, series_id, color_id, image_id,
                     datasheet_id, cad_id, min_temp_id, max_temp_id, min_diameter, max_diameter,

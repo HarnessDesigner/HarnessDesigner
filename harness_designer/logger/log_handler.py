@@ -20,6 +20,8 @@ DEBUG = 3
 TRACEBACK = 4
 ERROR = 5
 WX_ERROR = 6
+DATABASE = 7
+FILE_TRANSFER = 8
 
 _message_mapping = {
     INFO: 'INFO:',
@@ -28,7 +30,10 @@ _message_mapping = {
     DEBUG: 'DEBUG:',
     TRACEBACK: 'TRACEBACK:',
     ERROR: 'ERROR:',
-    WX_ERROR: 'WX_ERROR:'
+    WX_ERROR: 'WX_ERROR:',
+    DATABASE: 'DATABASE:',
+    FILE_TRANSFER: 'FILE:'
+
 }
 
 
@@ -169,13 +174,13 @@ class Log(object):
 
         from ..gl import info as _gl_info
 
-        self.print_info('----------------------------------------')
-        self.print_info('        Harness Designer started')
-        self.print_info('----------------------------------------')
-        self.print_info('')
-        self.print_info('Harness Designer Version:', __version__.string)
-        self.print_info('\n')
-        self.print_info('--------------    GL     ---------------')
+        self.info('----------------------------------------')
+        self.info('        Harness Designer started')
+        self.info('----------------------------------------')
+        self.info('')
+        self.info('Harness Designer Version:', __version__.string)
+        self.info('\n')
+        self.info('--------------    GL     ---------------')
 
         data = _gl_info.get()
         for header, items in data.items():
@@ -190,21 +195,21 @@ class Log(object):
                 if pre_suf_count % 2:
                     pre_suf = f' {pre_suf}'
 
-                self.print_info(header + pre_suf)
+                self.info(header + pre_suf)
 
                 for label, value in items.items():
-                    self.print_info(f'{label}:', value)
+                    self.info(f'{label}:', value)
 
-                self.print_info('\n')
+                self.info('\n')
             else:
-                self.print_info(f'{header}:', items)
-        self.print_info('\n', '----------------------------------------', '\n')
+                self.info(f'{header}:', items)
+        self.info('\n', '----------------------------------------', '\n')
 
-        self.print_info('--------------  Machine  ---------------', '\n')
-        self.print_info('Machine type:', platform.machine())
-        self.print_info('Processor:', platform.processor())
-        self.print_info('Architecture:', platform.architecture())
-        self.print_info(
+        self.info('--------------  Machine  ---------------', '\n')
+        self.info('Machine type:', platform.machine())
+        self.info('Processor:', platform.processor())
+        self.info('Architecture:', platform.architecture())
+        self.info(
             'Python:',
             platform.python_branch(),
             platform.python_version(),
@@ -212,7 +217,7 @@ class Log(object):
             platform.python_build(),
             f'[{platform.python_compiler()}]'
         )
-        self.print_info('\n', '----------------------------------------', '\n')
+        self.info('\n', '----------------------------------------', '\n')
 
         # redirect all wxPython error messages to our log
         class MyLog(wx.Log):
@@ -222,8 +227,9 @@ class Log(object):
                 if level >= 6:
                     return
 
-                msg = _build_message(WX_ERROR, f'({level})  {msg}')
-                _stderr.write(msg)
+                if Config.log_wx_error:
+                    msg = _build_message(WX_ERROR, f'({level})  {msg}')
+                    _stderr.write(msg)
 
         wx.Log.SetActiveTarget(MyLog())
 
@@ -234,32 +240,46 @@ class Log(object):
         msg = _build_message(msg_type, args)
         self.log_handler.write(msg)
 
-    def print_info(self, *args):
+    def info(self, *args):
         msg = _build_message(INFO, args)
         self.log_handler.write(msg)
 
-    def print_debug(self, *args):
-        msg = _build_message(DEBUG, args)
-        self.log_handler.write(msg)
+    def debug(self, *args):
+        if Config.log_debug:
+            msg = _build_message(DEBUG, args)
+            self.log_handler.write(msg)
 
-    def print_notice(self, *args):
-        msg = _build_message(NOTICE, args)
-        self.log_handler.write(msg)
+    def notice(self, *args):
+        if Config.log_notice:
+            msg = _build_message(NOTICE, args)
+            self.log_handler.write(msg)
 
-    def print_warning(self, *args):
-        msg = _build_message(WARNING, args)
-        self.log_handler.write(msg)
+    def warning(self, *args):
+        if Config.log_warning:
+            msg = _build_message(WARNING, args)
+            self.log_handler.write(msg)
 
-    def print_error(self, *args):
-        msg = _build_message(ERROR, args)
-        self.log_handler.write(msg)
+    def error(self, *args):
+        if Config.log_error:
+            msg = _build_message(ERROR, args)
+            self.log_handler.write(msg)
 
-    def print_traceback(self, exception, msg=None):
+    def traceback(self, exception, msg=None):
         if msg:
-            self.print_error(msg)
+            self.error(msg)
 
-        err = ''.join(traceback.format_exception(exception))
+        if Config.log_traceback:
+            err = ''.join(traceback.format_exception(exception))
 
-        args = err.rstrip().splitlines()
-        msg = _build_message(TRACEBACK, args)
-        self.log_handler.write(msg)
+            args = err.rstrip().splitlines()
+            msg = _build_message(TRACEBACK, args)
+            self.log_handler.write(msg)
+
+    def database(self, *args):
+        if Config.log_database:
+            msg = _build_message(DATABASE, args)
+            self.log_handler.write(msg)
+
+
+
+

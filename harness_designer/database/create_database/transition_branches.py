@@ -4,6 +4,7 @@ from . import projects as _projects
 from . import points3d as _points3d
 
 from .. import db_connectors as _con
+from ... import logger as _logger
 
 
 def add_transition_branch(con, transition_id, idx, name='', bulb_offset=None,
@@ -82,37 +83,3 @@ pjt_table = _con.SQLTable(
     _con.FloatField('diameter', no_null=True),
     _con.IntField('branch_id', no_null=True)
 )
-
-
-# def pjt_transition_branches(con, cur):
-#     cur.execute('CREATE TABLE pjt_transition_branches('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'project_id INTEGER NOT NULL, '
-#                 'branch_id INTEGER NOT NULL, '
-#                 'transition_id INTEGER NOT NULL, '
-#                 'point3d_id INTEGER NOT NULL, '  # can be shared with a bundle cover
-#                 'diameter REAL DEFAULT NULL, '
-#                 'FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (transition_id) REFERENCES pjt_transitions(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (point3d_id) REFERENCES pjt_points3d(id) ON DELETE CASCADE ON UPDATE CASCADE'
-#                 ');')
-#     con.commit()
-
-# def transition_branches(con, cur):
-#     cur.execute('CREATE TABLE transition_branches('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'transition_id INTEGER NOT NULL, '
-#                 'idx INTEGER NOT NULL, '
-#                 'name TEXT DEFAULT "" NOT NULL, '
-#                 'bulb_offset TEXT DEFAULT NULL, '
-#                 'bulb_length REAL DEFUALT NULL, '
-#                 'min_dia REAL NOT NULL, '
-#                 'max_dia REAL NOT NULL, '
-#                 'length REAL NOT NULL, '
-#                 'offset TEXT DEFAULT NULL, '
-#                 'angle REAL DEFAULT NULL, '
-#                 'flange_height REAL DEFAULT NULL, '
-#                 'flange_width REAL DEFAULT NULL, '
-#                 'FOREIGN KEY (transition_id) REFERENCES transitions(id) ON DELETE CASCADE ON UPDATE CASCADE'
-#                 ');')
-#     con.commit()

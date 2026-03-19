@@ -10,6 +10,10 @@ from .mixins import (PartNumberMixin, ManufacturerMixin, DescriptionMixin, Direc
 class CoversTable(TableBase):
     __table_name__ = 'covers'
 
+    def _load_database(self, splash):
+        from ..create_database import covers
+        covers.add_records(self._con, splash)
+
     def _table_needs_update(self) -> bool:
         from ..create_database import covers
 

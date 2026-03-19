@@ -1,4 +1,5 @@
 from .. import db_connectors as _con
+from ... import logger as _logger
 
 
 def add_records(con, splash):
@@ -38,13 +39,13 @@ def get_mfg_id(con, name):
     res = con.fetchall()
 
     if not res:
-        print(f'DATABASE: adding manufacturer ("{name}", "", "", "", "")')
+        _logger.logger.database(f'adding manufacturer ("{name}", "", "", "", "")')
         con.execute('INSERT INTO manufacturers (name, phone, address, email, website) '
                     'VALUES (?, ?, ?, ?, ?);', (name, '', '', '', ''))
 
         con.commit()
         db_id = con.lastrowid
-        print(f'DATABASE: manufacturer added "{name}" = {db_id}')
+        _logger.logger.database(f'manufacturer added "{name}" = {db_id}')
 
         return db_id
 
@@ -66,17 +67,3 @@ table = _con.SQLTable(
     _con.TextField('email', default='""', no_null=True),
     _con.TextField('website', default='""', no_null=True)
 )
-
-# def manufacturers(con, cur):
-#     cur.execute('CREATE TABLE manufacturers('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'name TEXT UNIQUE NOT NULL, '
-#                 'description TEXT DEFAULT "" NOT NULL, '
-#                 'address TEXT DEFAULT "" NOT NULL, '
-#                 'contact_person TEXT DEFAULT "" NOT NULL, '
-#                 'phone TEXT DEFAULT "" NOT NULL, '
-#                 'ext TEXT DEFAULT "" NOT NULL, '
-#                 'email TEXT DEFAULT "" NOT NULL, '
-#                 'website TEXT DEFAULT "" NOT NULL'
-#                 ');')
-#     con.commit()

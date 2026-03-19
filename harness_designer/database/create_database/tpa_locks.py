@@ -6,7 +6,9 @@ from . import manufacturers as _manufacturers
 from . import series as _series
 from . import families as _families
 from . import colors as _colors
-from . import resources as _resources
+from . import images as _images
+from . import datasheets as _datasheets
+from . import cads as _cads
 from . import models3d as _models3d
 
 from . import projects as _projects
@@ -14,6 +16,7 @@ from . import points3d as _points3d
 from . import housings as _housings
 
 from .. import db_connectors as _con
+from ... import logger as _logger
 
 
 DATA_PATH = os.path.join(os.path.dirname(__file__), 'data')
@@ -31,10 +34,10 @@ def add_tpa_lock(con, part_number, description, mfg=None, family=None, series=No
     series_id = _series.get_series_id(con, series, mfg_id)
     family_id = _families.get_family_id(con, family, mfg_id)
     color_id = _colors.get_color_id(con, color)
-    image_id = _resources.add_resource(con, _resources.IMAGE_TYPE_IMAGE, image)
-    cad_id = _resources.add_resource(con, _resources.IMAGE_TYPE_CAD, cad)
-    datasheet_id = _resources.add_resource(con, _resources.IMAGE_TYPE_DATASHEET, datasheet)
-    model3d_id = _models3d.add_model3d(con, model3d)
+    image_id = _images.get_image_id(con, image)
+    cad_id = _cads.get_cad_id(con, cad)
+    datasheet_id = _datasheets.get_datasheet_id(con, datasheet)
+    model3d_id = _models3d.get_model3d_id(con, model3d)
     min_temp_id = _temperatures.get_temperature_id(con, min_temp)
     max_temp_id = _temperatures.get_temperature_id(con, max_temp)
 
@@ -52,7 +55,7 @@ def add_tpa_lock(con, part_number, description, mfg=None, family=None, series=No
 
         description += ' TPA Lock'
 
-    print(f'DATABASE: adding tpa lock {part_number}, {description}')
+    _logger.logger.database(f'adding tpa lock {part_number}, {description}')
 
     con.execute('INSERT INTO tpa_locks (part_number, description, mfg_id, family_id, '
                 'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
@@ -62,12 +65,12 @@ def add_tpa_lock(con, part_number, description, mfg=None, family=None, series=No
                 (part_number, description, mfg_id, family_id, series_id, color_id,
                  image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, model3d_id,
                  lock_type, length, width, height, weight, pins, terminal_size,
-                 compat_housings))
+                 str(compat_housings)))
 
     con.commit()
     db_id = con.lastrowid
 
-    print(f'DATABASE: tpa lock added "{part_number}" = {db_id}')
+    _logger.logger.database(f'tpa lock added "{part_number}" = {db_id}')
 
 
 def add_pjt_tpa_lock(con, project_id, part_id, point3d_id=None, housing_id=None,
@@ -104,16 +107,24 @@ def add_records(con, splash):
                 'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
                 'max_temp_id, model3d_id, lock_type, length, width, height, weight, '
                 'pins, terminal_size, compat_housings) VALUES '
-                '(0, "N/A", "No TPA Lock", 0, 0, 0, 99999, NULL, NULL, NULL, '
+                '(0, "N/A", "No TPA Lock", 0, 0, 0, 999999, NULL, NULL, NULL, '
                 '0, 0, NULL, 0, 0.0, 0.0, 0.0, 0.0, 0, 0.0, "[]");')
 
-    # os.path.join(DATA_PATH, 'tpa_locks.json'),
-    json_paths = []  # os.path.join(DATA_PATH, 'aptiv_tpa_locks.json')]
+    dirs = []
+    for file in os.listdir(DATA_PATH):
+        file = os.path.join(DATA_PATH, file)
+        if os.path.isdir(file):
+            dirs.append(file)
 
-    for json_path in json_paths:
+    cwd = os.getcwd()
+    for path in dirs:
+        os.chdir(path)
+
+        json_path = os.path.join(path, 'tpa_locks.json')
+
         if os.path.exists(json_path):
             splash.SetText(f'Loading TPA locks file...')
-            print(json_path)
+            _logger.logger.database(json_path)
 
             with open(json_path, 'r') as f:
                 data = json.loads(f.read())
@@ -125,9 +136,21 @@ def add_records(con, splash):
 
             for i, item in enumerate(data):
                 splash.SetText(f'Adding TPA locks to db [{i} | {data_len}]...')
-                add_tpa_lock(con, **item)
 
-            con.commit()
+                pn = item['part_number']
+                con.execute(f'SELECT id FROM tpa_locks WHERE part_number="{pn}";')
+                rows = con.fetchall()
+                if not rows:
+                    if 'shared_cad' in item:
+                        del item['shared_cad']
+
+                    if 'shared_model3d' in item:
+                        del item['shared_model3d']
+
+                    add_tpa_lock(con, **item)
+
+        con.commit()
+    os.chdir(cwd)
 
 
 id_field = _con.PrimaryKeyField('id')
@@ -155,16 +178,16 @@ table = _con.SQLTable(
                                                     _colors.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('image_id', default='NULL',
-                  references=_con.SQLFieldReference(_resources.table,
-                                                    _resources.id_field,
+                  references=_con.SQLFieldReference(_images.table,
+                                                    _images.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('datasheet_id', default='NULL',
-                  references=_con.SQLFieldReference(_resources.table,
-                                                    _resources.id_field,
+                  references=_con.SQLFieldReference(_datasheets.table,
+                                                    _datasheets.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('cad_id', default='NULL',
-                  references=_con.SQLFieldReference(_resources.table,
-                                                    _resources.id_field,
+                  references=_con.SQLFieldReference(_cads.table,
+                                                    _cads.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('min_temp_id', default='0', no_null=True,
                   references=_con.SQLFieldReference(_temperatures.table,
@@ -221,74 +244,3 @@ pjt_table = _con.SQLTable(
     _con.TextField('angle3d', default='"[0.0, 0.0, 0.0]"', no_null=True),
     _con.IntField('is_visible3d', default='1', no_null=True)
 )
-
-# def pjt_tpa_locks(con, cur):
-#     cur.execute('CREATE TABLE pjt_tpa_locks('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'project_id INTEGER NOT NULL, '
-#                 'part_id INTEGER NOT NULL, '
-#                 'name TEXT DEFAULT "" NOT NULL, '
-#                 'notes TEXT DEFAULT "" NOT NULL, '
-#                 'quat3d TEXT DEFAULT "[1.0, 0.0, 0.0, 0.0]" NOT NULL, '
-#                 'angle3d TEXT DEFAULT "[0.0, 0.0, 0.0]" NOT NULL, '
-#                 'point3d_id INTEGER NOT NULL, '  # absolute, calculated using housing relative point
-#                 'housing_id INTEGER DEFAULT NULL, '
-#                 'is_visible3d INTEGER DEFAULT 1 NOT NULL, '
-#                 'FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (part_id) REFERENCES tpa_locks(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (point3d_id) REFERENCES pjt_points3d(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (housing_id) REFERENCES pjt_housings(id) ON DELETE CASCADE ON UPDATE CASCADE'
-#                 ');')
-#     con.commit()
-
-# def tpa_locks(con, cur):
-#     cur.execute('CREATE TABLE tpa_locks('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'part_number TEXT UNIQUE NOT NULL, '
-#                 'description TEXT DEFAULT "" NOT NULL, '
-#                 'mfg_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'family_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'series_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'color_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'image_id INTEGER DEFAULT NULL, '
-#                 'datasheet_id INTEGER DEFAULT NULL, '
-#                 'cad_id INTEGER DEFAULT NULL, '
-#                 'min_temp_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'max_temp_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'length REAL DEFAULT "0.0" NOT NULL, '
-#                 'width REAL DEFAULT "0.0" NOT NULL, '
-#                 'height REAL DEFAULT "0.0" NOT NULL, '
-#                 'pins TEXT DEFAULT "" NOT NULL, '
-#                 'terminal_size REAL DEFAULT "0.0" NOT NULL, '
-#                 'weight REAL DEFAULT "0.0" NOT NULL, '
-#                 'model3d_id INTEGER DEFAULT NULL, '
-#                 'lock_type TEXT DEFAULT "" NOT NULL,'
-#                 'FOREIGN KEY (mfg_id) REFERENCES manufacturers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (image_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (datasheet_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (cad_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (min_temp_id) REFERENCES temperatures(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (max_temp_id) REFERENCES temperatures(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (model3d_id) REFERENCES models3d(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (color_id) REFERENCES colors(id) ON DELETE SET DEFAULT ON UPDATE CASCADE'
-#                 ');')
-#     con.commit()
-
-#
-# def tpa_lock_crossref(con, cur):
-#     cur.execute('CREATE TABLE tpa_lock_crossref('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'part_number1 TEXT NOT NULL, '
-#                 'tpa_lock_id1 INTEGER DEFAULT NULL, '
-#                 'mfg_id1 INTEGER DEFAULT NULL, '
-#                 'part_number2 TEXT NOT NULL, '
-#                 'tpa_lock_id2 INTEGER DEFAULT NULL, '
-#                 'mfg_id2 INTEGER DEFAULT NULL, '
-#                 'FOREIGN KEY (tpa_lock_id1) REFERENCES tpa_locks(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (mfg_id1) REFERENCES manufacturers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (tpa_lock_id2) REFERENCES tpa_locks(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (mfg_id2) REFERENCES manufacturers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE'
-#                 ');')
-#     con.commit()

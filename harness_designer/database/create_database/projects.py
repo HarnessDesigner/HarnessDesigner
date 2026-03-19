@@ -1,5 +1,6 @@
 
 from .. import db_connectors as _con
+from ... import logger as _logger
 
 
 pjt_id_field = _con.PrimaryKeyField('id')
@@ -13,14 +14,3 @@ pjt_table = _con.SQLTable(
     _con.TextField('description', default='""', no_null=True),
     _con.IntField('object_count', default='0', no_null=True)
 )
-
-# def projects(con, cur):
-#     cur.execute('CREATE TABLE projects('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'name TEXT NOT NULL, '
-#                 'user_model TEXT DEFAULT "" NOT NULL, '
-#                 'creator TEXT DEFAULT "" NOT NULL, '
-#                 'object_count INTEGER DEFAULT 0 NOT NULL, '
-#                 'description TEXT DEFAULT "" NOT NULL'
-#                 ');')
-#     con.commit()

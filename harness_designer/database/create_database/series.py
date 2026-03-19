@@ -1,5 +1,6 @@
 from .. import db_connectors as _con
 from . import manufacturers as _manufacturers
+from ... import logger as _logger
 
 
 def add_records(con, splash):
@@ -20,14 +21,14 @@ def get_series_id(con, name, mfg_id):
     res = con.fetchall()
 
     if not res:
-        print(f'DATABASE: adding series ("{name}")')
+        _logger.logger.database(f'adding series ("{name}")')
 
         con.execute('INSERT INTO series (name, mfg_id) VALUES (?, ?);', (name, mfg_id))
 
         con.commit()
         db_id = con.lastrowid
 
-        print(f'DATABASE: series added "{name}" = {db_id}')
+        _logger.logger.database(f'series added "{name}" = {db_id}')
 
         return db_id
     else:
@@ -46,15 +47,3 @@ table = _con.SQLTable(
                                                     _manufacturers.id_field,
                                                     on_update=_con.REFERENCE_CASCADE))
 )
-
-
-# def series(con, cur):
-#     cur.execute('CREATE TABLE series('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'name TEXT NOT NULL, '
-#                 'mfg_id INTEGER DEFAULT 1 NOT NULL, '
-#                 'description TEXT DEFAULT "" NOT NULL, '
-#                 'FOREIGN KEY (mfg_id) REFERENCES manufacturers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE'
-#                 ');')
-#     con.commit()
-

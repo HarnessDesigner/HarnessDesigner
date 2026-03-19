@@ -1,4 +1,5 @@
 from .. import db_connectors as _con
+from ... import logger as _logger
 
 
 def add_records(con, splash):
@@ -24,14 +25,14 @@ def get_direction_id(con, name):
     res = con.fetchall()
 
     if not res:
-        print(f'DATABASE: adding direction ("{name}")')
+        _logger.logger.database(f'adding direction ("{name}")')
 
         con.execute('INSERT INTO directions (name) VALUES (?);', (name,))
 
         con.commit()
         db_id = con.lastrowid
 
-        print(f'DATABASE: direction added "{name}" = {db_id}')
+        _logger.logger.database(f'direction added "{name}" = {db_id}')
 
         return db_id
     else:
@@ -45,11 +46,3 @@ table = _con.SQLTable(
     id_field,
     _con.TextField('name', no_null=True)
 )
-
-
-# def directions(con, cur):
-#     cur.execute('CREATE TABLE directions('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'name TEXT UNIQUE NOT NULL'
-#                 ');')
-#     con.commit()

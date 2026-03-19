@@ -105,8 +105,7 @@ def build_installer(base_import):
     else:
         pass
 
-    # '--windowed'
-    args += ['--collect-all=harness_designer', '--noconfirm', '--clean', f'{script}']
+    args += ['--collect-all=harness_designer', '--noconfirm', '--clean', '--windowed', f'{script}']
 
     full_imports = set(list(sys.modules.keys()))
     base_import = set(base_import)

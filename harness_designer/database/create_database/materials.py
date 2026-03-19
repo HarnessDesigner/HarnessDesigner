@@ -1,4 +1,5 @@
 from .. import db_connectors as _con
+from ... import logger as _logger
 
 
 def add_records(con, splash):
@@ -14,7 +15,7 @@ def add_records(con, splash):
         con.commit()
     except:  # NOQA
         res = con.execute('SELECT * FROM materials;').fetchall()
-        print('ERROR:', res)
+        _logger.logger.error(res)
         raise
 
 
@@ -26,14 +27,14 @@ def get_material_id(con, name):
     res = con.fetchall()
 
     if not res:
-        print(f'DATABASE: adding material ("{name}")')
+        _logger.logger.database(f'adding material ("{name}")')
 
         con.execute('INSERT INTO materials (name) VALUES (?);', (name,))
 
         con.commit()
         db_id = con.lastrowid
 
-        print(f'DATABASE: material added "{name}" = {db_id}')
+        _logger.logger.database(f'material added "{name}" = {db_id}')
 
         return db_id
     else:
@@ -48,12 +49,3 @@ table = _con.SQLTable(
     _con.TextField('name', is_unique=True, no_null=True),
     _con.TextField('description', default='""', no_null=True)
 )
-
-
-# def materials(con, cur):
-#     cur.execute('CREATE TABLE materials('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'name TEXT UNIQUE NOT NULL, '
-#                 'description TEXT DEFAULT "" NOT NULL'
-#                 ');')
-#     con.commit()

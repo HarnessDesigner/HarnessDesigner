@@ -7,16 +7,18 @@ IGNORE_PATH = [
 ]
 
 
-def iter_mod_path(p):
+def iter_mod_path(p, ignore_files=()):
     res = []
 
     for f in os.listdir(p):
         if f in IGNORE_PATH:
             continue
+        if f in ignore_files:
+            continue
 
         file_path = os.path.join(p, f)
         if os.path.isdir(file_path):
-            res.extend(iter_mod_path(file_path))
+            res.extend(iter_mod_path(file_path, ignore_files))
         else:
             c = file_path[:2] + 'c'
 

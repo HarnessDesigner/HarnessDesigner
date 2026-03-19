@@ -91,7 +91,7 @@ class AddFamilyDialog(_dialog_base.BaseDialog):
                     except Exception as err:  # NOQA
                         from ...logger import logger as _logger
 
-                        _logger.print_traceback(err, 'Adding Manufacturer')
+                        _logger.traceback(err, 'Adding Manufacturer')
                         return
                 else:
                     return

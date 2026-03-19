@@ -70,13 +70,16 @@ class AddProjectDialog(_dialog_base.BaseDialog):
     def __init__(self, parent, name, table: "_project.ProjectsTable"):
         self.table = table
 
-        _dialog_base.BaseDialog.__init__(self, parent, 'Project', 'Add Project')
+        _dialog_base.BaseDialog.__init__(self, parent, 'Project', 'Add Project', size=(-1, 475))
 
-        self.name_ctrl = _text_ctrl.TextCtrl(self.panel, 'Project Name:', (-1, -1))
-        self.creator_ctrl = _text_ctrl.TextCtrl(self.panel, 'Creator:', (-1, -1))
-        self.desc_ctrl = _text_ctrl.TextCtrl(self.panel, 'Description:', (-1, -1), style=wx.TE_MULTILINE)
-        self.user_model_ctrl = _text_ctrl.TextCtrl(self.panel, 'User Model:', (-1, -1))
-        self.user_model_button = wx.Button(self.panel, wx.ID_ANY, label='Open File')
+        width, height = self.GetTextExtent('Open File')
+        height = int(height * 2.5)
+
+        self.name_ctrl = _text_ctrl.TextCtrl(self.panel, 'Project Name:', (-1, int(height / 1.5)), apply_button=False, hslider=False)
+        self.creator_ctrl = _text_ctrl.TextCtrl(self.panel, 'Creator:', (-1, int(height / 1.5)), apply_button=False, hslider=False)
+        self.desc_ctrl = _text_ctrl.TextCtrl(self.panel, 'Description:', (-1, height * 4), style=wx.TE_MULTILINE, apply_button=False)
+        self.user_model_ctrl = _text_ctrl.TextCtrl(self.panel, 'User Model:', (-1, height), apply_button=False)
+        self.user_model_button = wx.Button(self.panel, wx.ID_ANY, label='Open File', size=(-1, -1))
 
         self.user_model_ctrl.ctrl.AutoCompleteDirectories()
         self.user_model_ctrl.ctrl.AutoCompleteFileNames()
@@ -87,16 +90,17 @@ class AddProjectDialog(_dialog_base.BaseDialog):
         self.name_ctrl.SetValue(name)
 
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        hsizer.Add(self.user_model_ctrl, 1, wx.EXPAND | wx.RIGHT, 10)
-        hsizer.Add(self.user_model_button, 0, wx.EXPAND)
+        hsizer.Add(self.user_model_ctrl, 1, wx.RIGHT, 10)
+        hsizer.Add(self.user_model_button, 0, wx.ALIGN_CENTER)
 
         vsizer = wx.BoxSizer(wx.VERTICAL)
-        vsizer.Add(self.name_ctrl, 0, wx.EXPAND)
-        vsizer.Add(self.creator_ctrl, 0, wx.EXPAND)
-        vsizer.Add(self.desc_ctrl, 0, wx.EXPAND)
-        vsizer.Add(hsizer, 0, wx.EXPAND)
+        vsizer.Add(self.name_ctrl, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 5)
+        vsizer.Add(self.creator_ctrl, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 5)
+        vsizer.Add(self.desc_ctrl, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 5)
+        vsizer.Add(hsizer, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 5)
 
         self.panel.SetSizer(vsizer)
+        self.Layout()
 
     def GetValue(self):
         return (
@@ -140,7 +144,7 @@ class AddProjectDialog(_dialog_base.BaseDialog):
         except (AttributeError, NameError):
             pass
 
-        path = self.user_model_ctrl
+        path = self.user_model_ctrl.GetValue()
         if path:
             default_dir, default_file = os.path.split(path)
         else:

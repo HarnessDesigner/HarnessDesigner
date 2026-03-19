@@ -10,6 +10,10 @@ from .mixins import (PartNumberMixin, ManufacturerMixin, DescriptionMixin, Famil
 class TPALocksTable(TableBase):
     __table_name__ = 'tpa_locks'
 
+    def _load_database(self, splash):
+        from ..create_database import tpa_locks
+        tpa_locks.add_records(self._con, splash)
+
     def _table_needs_update(self) -> bool:
         from ..create_database import tpa_locks
 
@@ -20,7 +24,6 @@ class TPALocksTable(TableBase):
 
         tpa_locks.table.add_to_db(self)
         tpa_locks.add_records(self._con, splash)
-
 
     def _update_table_in_db(self):
         from ..create_database import tpa_locks

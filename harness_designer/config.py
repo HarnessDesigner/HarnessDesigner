@@ -448,6 +448,14 @@ class Config(metaclass=ConfigDB):
         num_archives = 10
         num_logfiles = 10
         max_logfile_size = 10485760
+        log_notice = True
+        log_warning = True
+        log_debug = True
+        log_traceback = True
+        log_error = True
+        log_wx_error = True
+        log_database = False
+        log_file_transfers = True
 
     class debug(metaclass=ConfigDB):
         log_args = False

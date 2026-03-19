@@ -4,7 +4,9 @@ import json
 from . import manufacturers as _manufacturers
 from . import series as _series
 from . import families as _families
-from . import resources as _resources
+from . import images as _images
+from . import datasheets as _datasheets
+from . import cads as _cads
 from . import genders as _genders
 from . import platings as _platings
 from . import cavity_locks as _cavity_locks
@@ -19,12 +21,9 @@ from . import circuits as _circuits
 from . import cavities as _cavities
 
 from .. import db_connectors as _con
+from ... import logger as _logger
 
 
-'''
-part_number, description, mfg_id, family_id, series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, model3d_id, plating_id, gender_id, cavity_lock_id, sealing, blade_size, resistance, mating_cycles, max_vibration_g, max_current_ma, wire_size_min_awg, wire_size_max_awg, wire_dia_min, wire_dia_max, min_wire_cross, max_wire_cross, length, width, height, weight, compat_housings, compat_seals
-
-'''
 def add_terminal(con, part_number, description, mfg=None, family=None, series=None,
                  color=None, image=None, datasheet=None, cad=None, min_temp=None,
                  max_temp=None, model3d=None, plating=None, gender=None, cavity_lock=None,
@@ -48,10 +47,10 @@ def add_terminal(con, part_number, description, mfg=None, family=None, series=No
     gender_id = _genders.get_gender_id(con, gender)
     min_temp_id = _temperatures.get_temperature_id(con, min_temp)
     max_temp_id = _temperatures.get_temperature_id(con, max_temp)
-    image_id = _resources.add_resource(con, _resources.IMAGE_TYPE_IMAGE, image)
-    cad_id = _resources.add_resource(con, _resources.IMAGE_TYPE_CAD, cad)
-    datasheet_id = _resources.add_resource(con, _resources.IMAGE_TYPE_DATASHEET, datasheet)
-    model3d_id = _models3d.add_model3d(con, model3d)
+    image_id = _images.get_image_id(con, image)
+    cad_id = _cads.get_cad_id(con, cad)
+    datasheet_id = _datasheets.get_datasheet_id(con, datasheet)
+    model3d_id = _models3d.get_model3d_id(con, model3d)
 
     if not width and blade_size:
         width = blade_size
@@ -84,7 +83,7 @@ def add_terminal(con, part_number, description, mfg=None, family=None, series=No
 
         description += ' Terminal'
 
-    print(f'DATABASE: adding terminal {part_number}, {description}')
+    _logger.logger.database(f'adding terminal {part_number}, {description}')
 
     con.execute('INSERT INTO terminals (part_number, description, mfg_id, family_id, '
                 'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
@@ -106,8 +105,7 @@ def add_terminal(con, part_number, description, mfg=None, family=None, series=No
     con.commit()
     db_id = con.lastrowid
 
-    print(f'DATABASE: terminal added "{part_number}" = {db_id}')
-    print()
+    _logger.logger.database(f'terminal added "{part_number}" = {db_id}')
 
 
 def add_pjt_terminal(con, project_id, part_id, cavity_id=None, circuit_id=None,
@@ -159,14 +157,21 @@ def add_records(con, splash):
     con.execute('INSERT INTO terminals (id, part_number, description) VALUES(0, "N/A", "Internal Use DO NOT DELETE");')
     con.commit()
 
-    # [os.path.join(DATA_PATH, 'terminals.json')
+    dirs = []
+    for file in os.listdir(DATA_PATH):
+        file = os.path.join(DATA_PATH, file)
+        if os.path.isdir(file):
+            dirs.append(file)
 
-    json_paths = []  # os.path.join(DATA_PATH, 'aptiv_terminals.json')]
+    cwd = os.getcwd()
+    for path in dirs:
+        os.chdir(path)
 
-    for json_path in json_paths:
+        json_path = os.path.join(path, 'terminals.json')
+
         if os.path.exists(json_path):
             splash.SetText(f'Loading terminals file...')
-            print(json_path)
+            _logger.logger.database(json_path)
 
             with open(json_path, 'r') as f:
                 data = json.loads(f.read())
@@ -178,9 +183,21 @@ def add_records(con, splash):
 
             for i, item in enumerate(data):
                 splash.SetText(f'Adding terminals to db [{i} | {data_len}]...')
-                add_terminal(con, **item)
+
+                pn = item['part_number']
+                con.execute(f'SELECT id FROM terminals WHERE part_number="{pn}";')
+                rows = con.fetchall()
+                if not rows:
+                    if 'shared_cad' in item:
+                        del item['shared_cad']
+
+                    if 'shared_model3d' in item:
+                        del item['shared_model3d']
+
+                    add_terminal(con, **item)
 
             con.commit()
+    os.chdir(cwd)
 
 
 id_field = _con.PrimaryKeyField('id')
@@ -207,16 +224,16 @@ table = _con.SQLTable(
                                                     _colors.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('image_id', default='NULL',
-                  references=_con.SQLFieldReference(_resources.table,
-                                                    _resources.id_field,
+                  references=_con.SQLFieldReference(_images.table,
+                                                    _images.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('datasheet_id', default='NULL',
-                  references=_con.SQLFieldReference(_resources.table,
-                                                    _resources.id_field,
+                  references=_con.SQLFieldReference(_datasheets.table,
+                                                    _datasheets.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('cad_id', default='NULL',
-                  references=_con.SQLFieldReference(_resources.table,
-                                                    _resources.id_field,
+                  references=_con.SQLFieldReference(_cads.table,
+                                                    _cads.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('min_temp_id', default='0', no_null=True,
                   references=_con.SQLFieldReference(_temperatures.table,
@@ -322,98 +339,3 @@ pjt_table = _con.SQLTable(
     _con.IntField('is_visible2d', default='1', no_null=True)
 
 )
-
-#
-# def pjt_terminals(con, cur):
-#     cur.execute('CREATE TABLE pjt_terminals('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'project_id INTEGER NOT NULL, '
-#                 'part_id INTEGER NOT NULL, '
-#                 'name TEXT DEFAULT "" NOT NULL, '
-#                 'notes TEXT DEFAULT "" NOT NULL, '
-#                 'cavity_id INTEGER NOT NULL, '
-#                 'circuit_id INTEGER DEFAULT NULL, '
-#                 'quat3d TEXT DEFAULT "[1.0, 0.0, 0.0, 0.0]" NOT NULL, '
-#                 'angle3d TEXT DEFAULT "[0.0, 0.0, 0.0]" NOT NULL, '
-#                 'point3d_id INTEGER NOT NULL, '  # will snap to a cavity point
-#                 'wire_point3d_id INTEGER NOT NULL, '  # calculated point for where a wire or seal will snap onto
-#                 'quat2d TEXT DEFAULT "[1.0, 0.0, 0.0, 0.0]" NOT NULL, '
-#                 'angle2d TEXT DEFAULT "[0.0, 0.0, 0.0]" NOT NULL, '
-#                 'point2d_id INTEGER NOT NULL, '
-#                 'wire_point2d_id INTEGER NOT NULL, '  # calculated point for where a wire or seal will snap onto
-#                 'is_start INTEGER DEFAULT 0 NOT NULL, '
-#                 'volts REAL DEFAULT "0.0" NOT NULL, '
-#                 'load REAL DEFAULT "0.0" NOT NULL, '
-#                 'voltage_drop REAL DEFAULT "0.0" NOT NULL, '
-#                 'is_visible2d INTEGER DEFAULT 1 NOT NULL, '
-#                 'is_visible3d INTEGER DEFAULT 1 NOT NULL, '
-#                 'FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (part_id) REFERENCES terminals(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (cavity_id) REFERENCES pjt_cavities(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (circuit_id) REFERENCES pjt_circuits(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (point3d_id) REFERENCES pjt_points3d(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (wire_point3d_id) REFERENCES pjt_points3d(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (point2d_id) REFERENCES pjt_points2d(id) ON DELETE SET DEFAULT ON UPDATE CASCADE'
-#                 ');')
-#     con.commit()
-
-# def terminals(con, cur):
-#     cur.execute('CREATE TABLE terminals('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'part_number TEXT UNIQUE NOT NULL, '
-#                 'description TEXT DEFAULT "" NOT NULL, '
-#                 'mfg_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'family_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'series_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'plating_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'image_id INTEGER DEFAULT NULL, '
-#                 'datasheet_id INTEGER DEFAULT NULL, '
-#                 'cad_id INTEGER DEFAULT NULL, '
-#                 'gender_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'sealing INTEGER DEFAULT 0 NOT NULL, '
-#                 'cavity_lock_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'blade_size REAL DEFAULT "0.0" NOT NULL, '
-#                 'resistance REAL DEFAULT "0.0" NOT NULL, '
-#                 'mating_cycles INTEGER DEFAULT 0 NOT NULL, '
-#                 'max_vibration_g INTEGER DEFAULT 0 NOT NULL, '
-#                 'max_current_ma INTEGER DEFAULT 0 NOT NULL, '
-#                 'wire_size_min_awg INTEGER DEFAULT 20 NOT NULL, '
-#                 'wire_size_max_awg INTEGER DEFAULT 20 NOT NULL, '
-#                 'wire_dia_min REAL DEFAULT "0.0" NOT NULL, '
-#                 'wire_dia_max REAL DEFAULT "0.0" NOT NULL, '
-#                 'min_wire_cross REAL DEFAULT "0.0" NOT NULL, '
-#                 'max_wire_cross REAL DEFAULT "0.0" NOT NULL, '
-#                 'length REAL DEFAULT "0.0" NOT NULL, '
-#                 'width REAL DEFAULT "0.0" NOT NULL, '
-#                 'height REAL DEFAULT "0.0" NOT NULL, '
-#                 'weight REAL DEFAULT "0.0" NOT NULL, '
-#                 'model3d_id INTEGER DEFAULT NULL, '
-#                 'FOREIGN KEY (mfg_id) REFERENCES manufacturers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (gender_id) REFERENCES genders(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (cavity_lock_id) REFERENCES cavity_locks(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (image_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (datasheet_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (cad_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (model3d_id) REFERENCES models3d(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (plating_id) REFERENCES platings(id) ON DELETE SET DEFAULT ON UPDATE CASCADE'
-#                 ');')
-#     con.commit()
-#
-#
-# def terminal_crossref(con, cur):
-#     cur.execute('CREATE TABLE terminal_crossref('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'part_number1 TEXT NOT NULL, '
-#                 'terminal_id1 INTEGER DEFAULT NULL, '
-#                 'mfg_id1 INTEGER DEFAULT NULL, '
-#                 'part_number2 TEXT NOT NULL, '
-#                 'terminal_id2 INTEGER DEFAULT NULL, '
-#                 'mfg_id2 INTEGER DEFAULT NULL, '
-#                 'FOREIGN KEY (terminal_id1) REFERENCES terminals(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (mfg_id1) REFERENCES manufacturers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (terminal_id2) REFERENCES terminals(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (mfg_id2) REFERENCES manufacturers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE'
-#                 ');')
-#     con.commit()

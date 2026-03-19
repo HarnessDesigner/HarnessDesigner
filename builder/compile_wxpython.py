@@ -5,35 +5,34 @@ try:
 except ImportError:
     import utils_
 
+IGNORE_FILES = [
+    'dbg.py',
+    'sliceshell.py',
+    'crustslices.py',
+    'pydocview.py',
+    'xmltopicdefnprovider.py',
+    'basic.py',
+    'imagelist.py',
+    'timectrl.py',
+    'maskededit.py',
+    'langlistctrl.py',
+    'intctrl.py',
+    'inspection.py',
+    'graphics.py',
+    'evtmgr.py',
+    'docview.py',
+    'dialogs.py',
+    'CDate.py',
+    'ultimatelistctrl.py'
+]
 
-'''
-wx\tools\dbg.py
-wx\py\sliceshell.py
-wx\py\crustslices.py
-wx\lib\pydocview.py
-wx\lib\pubsub\utils\xmltopicdefnprovider.py
-wx\lib\ogl\basic.py
-wx\lib\mixins\imagelist.py
-wx\lib\masked\timectrl.py
-wx\lib\masked\maskededit.py
-wx\lib\langlistctrl.py
-wx\lib\intctrl.py
-wx\lib\inspection.py
-wx\lib\graphics.py
-wx\lib\evtmgr.py
-wx\lib\docview.py
-wx\lib\dialogs.py
-wx\lib\CDate.py
-wx\lib\agw\ultimatelistctrl.py
-
-'''
 
 def run():
     import wx
 
     wx_path = os.path.dirname(wx.__file__)
 
-    cfiles = utils_.iter_mod_path(wx_path)
+    cfiles = utils_.iter_mod_path(wx_path, ignore_files=IGNORE_FILES)
 
     from Cython.Build import Cythonize
 
@@ -45,7 +44,7 @@ def run():
         utils_.cleanup_after_compile(wx_path, False)
 
 
-'''
+r'''
 [1/1] Cythonizing c:\python3.11.14\Lib\site-packages\wx\tools\dbg.py
 
 Error compiling Cython file:

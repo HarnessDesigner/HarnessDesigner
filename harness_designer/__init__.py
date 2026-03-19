@@ -1,6 +1,8 @@
 from typing import TYPE_CHECKING
 
 import wx
+import sys
+
 from . import utils as _utils
 
 
@@ -14,15 +16,18 @@ splash: "_splash.Splash" = None
 class App(wx.App):
     logger: "_logger.Log" = None
 
+    def __init__(self, args):
+        self._args = args
+        wx.App.__init__(self)
+
     def OnInit(self):
         global splash
 
         try:
             from .splash import Splash
 
-            print(type(Splash))
+            splash = Splash(self._args)
 
-            splash = Splash()
             splash.Show()
         except Exception as err:  # NOQA
             from . import critical_error_dialog as _critical_error_dialog
@@ -69,10 +74,10 @@ class App(wx.App):
     def OnExit(self):
         from . import config
 
-        print('Saving Config Data...')
+        self.logger.info('Saving Config Data...')
         config.Config.close()
 
-        print('Exiting Application...')
+        self.logger.info('Exiting Application...')
 
         self.logger.log_handler.close()
         self.logger = None
@@ -82,8 +87,11 @@ class App(wx.App):
 _app = None
 
 
-def __main__():
+def __main__(args=None):
+    if args is None:
+        args = sys.argv[1:]
+
     global _app
 
-    _app = App()
+    _app = App(args)
     _app.MainLoop()

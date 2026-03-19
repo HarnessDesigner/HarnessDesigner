@@ -6,7 +6,9 @@ from . import series as _series
 from . import families as _families
 from . import colors as _colors
 from . import materials as _materials
-from . import resources as _resources
+from . import images as _images
+from . import datasheets as _datasheets
+from . import cads as _cads
 from . import platings as _platings
 from . import splice_types as _splice_types
 from . import temperatures as _temperatures
@@ -18,6 +20,10 @@ from . import points2d as _points2d
 from . import circuits as _circuits
 
 from .. import db_connectors as _con
+from ... import logger as _logger
+
+
+DATA_PATH = os.path.join(os.path.dirname(__file__), 'data')
 
 
 def add_records(con, splash):
@@ -29,14 +35,21 @@ def add_records(con, splash):
     con.execute('INSERT INTO splices (id, part_number, description) VALUES(0, "N/A", "Internal Use DO NOT DELETE");')
     con.commit()
 
-    # os.path.join(DATA_PATH, 'splices.json')
+    dirs = []
+    for file in os.listdir(DATA_PATH):
+        file = os.path.join(DATA_PATH, file)
+        if os.path.isdir(file):
+            dirs.append(file)
 
-    json_paths = []
+    cwd = os.getcwd()
+    for path in dirs:
+        os.chdir(path)
 
-    for json_path in json_paths:
+        json_path = os.path.join(path, 'splices.json')
+
         if os.path.exists(json_path):
             splash.SetText(f'Loading splices file...')
-            print(json_path)
+            _logger.logger.database(json_path)
 
             with open(json_path, 'r') as f:
                 data = json.loads(f.read())
@@ -48,9 +61,15 @@ def add_records(con, splash):
 
             for i, item in enumerate(data):
                 splash.SetText(f'Adding splices to db [{i + 1} | {data_len}]')
-                add_splice(con, **item)
+
+                pn = item['part_number']
+                con.execute(f'SELECT id FROM splices WHERE part_number="{pn}";')
+                rows = con.fetchall()
+                if not rows:
+                    add_splice(con, **item)
 
         con.commit()
+    os.chdir(cwd)
 
 
 def add_splices(con, data: tuple[dict] | list[dict]):
@@ -58,10 +77,6 @@ def add_splices(con, data: tuple[dict] | list[dict]):
     for line in data:
         add_splice(con, **line)
 
-'''
-part_number, description, mfg_id, family_id, series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, model3d_id, material_id, plating_id, type_id, min_dia, max_dia, resistance, length, weight
-
-'''
 
 def add_splice(con, part_number, description, mfg=None, family=None, series=None,
                color=None, image=None, datasheet=None, cad=None, min_temp=None,
@@ -73,14 +88,14 @@ def add_splice(con, part_number, description, mfg=None, family=None, series=None
     series_id = _series.get_series_id(con, series, mfg_id)
     color_id = _colors.get_color_id(con, color)
     material_id = _materials.get_material_id(con, material)
-    image_id = _resources.add_resource(con, _resources.IMAGE_TYPE_IMAGE, image)
-    datasheet_id = _resources.add_resource(con, _resources.IMAGE_TYPE_DATASHEET, datasheet)
-    cad_id = _resources.add_resource(con, _resources.IMAGE_TYPE_CAD, cad)
+    image_id = _images.get_image_id(con, image)
+    datasheet_id = _datasheets.get_datasheet_id(con, datasheet)
+    cad_id = _cads.get_cad_id(con, cad)
     min_temp_id = _temperatures.get_temperature_id(con, min_temp)
     max_temp_id = _temperatures.get_temperature_id(con, max_temp)
     plating_id = _platings.get_plating_id(con, plating)
     type_id = _splice_types.get_splice_type_id(con, type)
-    model3d_id = _models3d.add_model3d(con, model3d)
+    model3d_id = _models3d.get_model3d_id(con, model3d)
 
     con.execute('INSERT INTO splices (part_number, description, mfg_id, family_id, '
                 'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
@@ -132,16 +147,16 @@ table = _con.SQLTable(
                                                     _colors.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('image_id', default='NULL',
-                  references=_con.SQLFieldReference(_resources.table,
-                                                    _resources.id_field,
+                  references=_con.SQLFieldReference(_images.table,
+                                                    _images.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('datasheet_id', default='NULL',
-                  references=_con.SQLFieldReference(_resources.table,
-                                                    _resources.id_field,
+                  references=_con.SQLFieldReference(_datasheets.table,
+                                                    _datasheets.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('cad_id', default='NULL',
-                  references=_con.SQLFieldReference(_resources.table,
-                                                    _resources.id_field,
+                  references=_con.SQLFieldReference(_cads.table,
+                                                    _cads.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('min_temp_id', default='0', no_null=True,
                   references=_con.SQLFieldReference(_temperatures.table,
@@ -222,62 +237,3 @@ pjt_table = _con.SQLTable(
     _con.IntField('is_visible2d', default='1', no_null=True),
     _con.IntField('is_visible3d', default='1', no_null=True)
 )
-
-# def pjt_splices(con, cur):
-#     cur.execute('CREATE TABLE pjt_splices('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'project_id INTEGER NOT NULL, '
-#                 'part_id INTEGER NOT NULL, '
-#                 'name TEXT DEFAULT "" NOT NULL, '
-#                 'notes TEXT DEFAULT "" NOT NULL, '
-#                 'circuit_id INTEGER DEFAULT NULL, '
-#                 'start_point3d_id INTEGER NOT NULL, '  # absolute
-#                 'stop_point3d_id INTEGER NOT NULL, '  # absolute
-#                 'branch_point3d_id INTEGER NOT NULL, '  # absolute
-#                 'point2d_id INTEGER NOT NULL, '
-#                 'is_visible2d INTEGER DEFAULT 1 NOT NULL, '
-#                 'is_visible3d INTEGER DEFAULT 1 NOT NULL, '
-#                 'FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (part_id) REFERENCES splices(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (start_point3d_id) REFERENCES pjt_circuits(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (stop_point3d_id) REFERENCES pjt_circuits(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (branch_point3d_id) REFERENCES pjt_circuits(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (point2d_id) REFERENCES pjt_points2d(id) ON DELETE CASCADE ON UPDATE CASCADE'
-#                 ');')
-#     con.commit()
-
-# def splices(con, cur):
-#     cur.execute('CREATE TABLE splices('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'part_number TEXT NOT NULL, '
-#                 'description TEXT DEFAULT "" NOT NULL, '
-#                 'mfg_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'family_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'series_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'material_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'plating_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'color_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'image_id INTEGER DEFAULT NULL, '
-#                 'datasheet_id INTEGER DEFAULT NULL, '
-#                 'cad_id INTEGER DEFAULT NULL, '
-#                 'type_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'min_dia REAL DEFAULT "0.0" NOT NULL, '
-#                 'max_dia REAL DEFAULT "0.0" NOT NULL, '
-#                 'resistance REAL DEFAULT "0.0" NOT NULL, '
-#                 'length REAL DEFAULT "0.0" NOT NULL, '
-#                 'weight REAL DEFAULT "0.0" NOT NULL, '
-#                 'model3d_id INTEGER DEFAULT NULL, '
-#                 'FOREIGN KEY (mfg_id) REFERENCES manufacturers(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (material_id) REFERENCES materials(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (plating_id) REFERENCES platings(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (image_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (datasheet_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (cad_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (model3d_id) REFERENCES models3d(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (type_id) REFERENCES splice_types(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (color_id) REFERENCES colors(id) ON DELETE SET DEFAULT ON UPDATE CASCADE'
-#                 ');')
-#
-#     con.commit()

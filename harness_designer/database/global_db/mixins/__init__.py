@@ -10,7 +10,6 @@ from . import gender as _gender
 from . import manufacturer as _manufacturer
 from . import material as _material
 from . import name as _name
-from . import overlay as _overlay
 from . import part_number as _part_number
 from . import sealing as _sealing
 from . import series as _series
@@ -33,7 +32,6 @@ GenderMixin = _gender.GenderMixin
 ManufacturerMixin = _manufacturer.ManufacturerMixin
 MaterialMixin = _material.MaterialMixin
 NameMixin = _name.NameMixin
-OverlayMixin = _overlay.OverlayMixin
 PartNumberMixin = _part_number.PartNumberMixin
 SealingMixin = _sealing.SealingMixin
 SeriesMixin = _series.SeriesMixin
@@ -57,7 +55,6 @@ del _resource
 del _manufacturer
 del _material
 del _name
-del _overlay
 del _part_number
 del _sealing
 del _series

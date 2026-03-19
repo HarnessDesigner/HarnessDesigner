@@ -5,6 +5,7 @@ from . import wires as _wires
 from . import points2d as _points2d
 
 from .. import db_connectors as _con
+from ... import logger as _logger
 
 
 pjt_id_field = _con.PrimaryKeyField('id')
@@ -37,19 +38,3 @@ pjt_table = _con.SQLTable(
     _con.IntField('is_filler', no_null=True),
     _con.TextField('notes', default='""', no_null=True)
 )
-
-# def pjt_concentric_wires(con, cur):
-#     cur.execute('CREATE TABLE pjt_concentric_wires('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'project_id INTEGER NOT NULL, '
-#                 'idx INTEGER NOT NULL, '
-#                 'layer_id INTEGER NOT NULL, '
-#                 'wire_id INTEGER NOT NULL, '
-#                 'point_id INTEGER NOT NULL, '
-#                 'is_filler INTEGER DEFAULT 0 NOT NULL, '
-#                 'FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (layer_id) REFERENCES pjt_concentric_layers(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (wire_id) REFERENCES pjt_wires(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (point_id) REFERENCES pjt_point2d(id) ON DELETE CASCADE ON UPDATE CASCADE'
-#                 ');')
-#     con.commit()

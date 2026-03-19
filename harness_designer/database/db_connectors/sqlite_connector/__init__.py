@@ -19,6 +19,7 @@ import sqlite3
 from .. import ConnectorBase
 
 from .... import config as _config
+from .... import logger as _logger
 
 
 Config = _config.Config.database.sqlite
@@ -74,7 +75,7 @@ class SQLConnector(ConnectorBase):
             else:
                 return self._cursor.execute(operation, params)
         except:  # NOQA
-            print(operation)
+            _logger.logger.error('SQLITE ERROR:', 'CMD:', operation, '\n', 'PARAMS:', params)
             raise
 
     def executemany(

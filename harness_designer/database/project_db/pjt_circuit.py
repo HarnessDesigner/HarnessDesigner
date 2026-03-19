@@ -11,6 +11,7 @@ from . import pjt_housing as _pjt_housing
 from . import pjt_wire_service_loop as _pjt_wire_service_loop
 
 from ...geometry import point as _point
+from ... import logger as _logger
 
 
 if TYPE_CHECKING:
@@ -235,7 +236,7 @@ class PJTCircuit(PJTEntryBase, NameMixin):
                     for s in wires[1:]:
                         result = result.intersection(s)
 
-                    print(result)
+                    _logger.logger.database('SEARCH RESULT:', result)
                     # common_obj = list(result)[0]
 
                     raise RuntimeError

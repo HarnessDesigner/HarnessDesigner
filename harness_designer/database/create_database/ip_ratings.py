@@ -3,6 +3,7 @@ from .. import db_connectors as _con
 from . import ip_supps as _ip_supps
 from . import ip_fluids as _ip_fluids
 from . import ip_solids as _ip_solids
+from ... import logger as _logger
 
 
 def add_records(con, splash):
@@ -48,7 +49,15 @@ def add_records(con, splash):
     con.commit()
 
 
-def get_ip_rating_id(con, cur, ip_rating):  # NOQA
+def get_ip_rating_id(con, ip_rating):  # NOQA
+    if ip_rating is None:
+        return 0
+
+    con.execute(f'SELECT id FROM ip_ratings WHERE name="{ip_rating}";')
+    rows = con.fetchall()
+    if rows:
+        return rows[0][0]
+
     return 0
 
 
@@ -65,17 +74,3 @@ table = _con.SQLTable(
     _con.IntField('supp_id', default='7', no_null=True,
                   references=_con.SQLFieldReference(_ip_supps.table, _ip_supps.id_field))
 )
-
-
-# def ip_ratings(con, cur):
-#     cur.execute('CREATE TABLE ip_ratings('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'name TEXT NOT NULL, '
-#                 'solid_id INTEGER DEFAULT 7 NOT NULL, '
-#                 'fluid_id INTEGER DEFAULT 12 NOT NULL, '
-#                 'supp_id INTEGER DEFAULT NULL, '
-#                 'FOREIGN KEY (solid_id) REFERENCES ip_solids(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (fluid_id) REFERENCES ip_fluids(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (supp_id) REFERENCES ip_supps(id) ON DELETE SET DEFAULT ON UPDATE CASCADE'
-#                 ');')
-#     con.commit()

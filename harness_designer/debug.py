@@ -31,7 +31,7 @@ class DebugPrinter:
         self._flush = sys.stdout.flush
 
     def set_logger(self, logger: "_logger.Log"):
-        self._logger = logger.print_debug
+        self._logger = logger.debug
         self._flush = logger.log_handler.flush
 
     def __call__(self, *args, end_stack=False):

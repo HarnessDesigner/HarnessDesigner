@@ -26,7 +26,7 @@ from .. import ConnectorBase
 from .... import config as _config
 
 from ....ui.widgets import auto_complete
-
+from .... import logger as _logger
 
 Config = _config.Config.database.mysql
 
@@ -171,11 +171,11 @@ class SQLConnector(ConnectorBase):
             )
         except mysql.connector.Error as err:
             if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
-                print("Something is wrong with your user name or password")
+                _logger.logger.database("Something is wrong with your user name or password")
             elif err.errno == errorcode.ER_BAD_DB_ERROR:
-                print("Database does not exist")
+                _logger.logger.database("Database does not exist")
             else:
-                print(err)
+                _logger.logger.traceback(err, 'MYSQL DATABASE')
             return False
 
         if username in Config.recent_users:

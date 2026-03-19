@@ -1,4 +1,5 @@
 from .. import db_connectors as _con
+from ... import logger as _logger
 
 
 def add_records(con, splash):
@@ -41,14 +42,14 @@ def get_plating_id(con, symbol):
     res = con.fetchall()
 
     if not res:
-        print(f'DATABASE: adding plating ("{symbol}")')
+        _logger.logger.database(f'adding plating ("{symbol}")')
 
         con.execute('INSERT INTO platings (symbol) VALUES (?);', (symbol,))
 
         con.commit()
         db_id = con.lastrowid
 
-        print(f'DATABASE: plating added "{symbol}" = {db_id}')
+        _logger.logger.database(f'plating added "{symbol}" = {db_id}')
 
         return db_id
     else:
@@ -63,12 +64,3 @@ table = _con.SQLTable(
     _con.TextField('symbol', is_unique=True, no_null=True),
     _con.TextField('description', default='""', no_null=True)
 )
-
-
-# def platings(con, cur):
-#     cur.execute('CREATE TABLE platings('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'symbol TEXT UNIQUE NOT NULL, '
-#                 'description TEXT DEFAULT "" NOT NULL'
-#                 ');')
-#     con.commit()

@@ -119,15 +119,10 @@ class Arcball:
             self.canvas.set_angle_overlay(*self._get_euler_angles())
 
             r_angle = _angle.Angle.from_matrix(self.rotation_matrix[0:3, 0:-1])
-            print('set_angle:', r_angle)
             angle = self.selected.angle
-            print('old_angle:', angle)
 
             diff = r_angle - angle
-            print('angle_diff:', diff)
             angle += diff
-            print('new_angle:', angle)
-            print()
 
         # Update starting vector for next rotation
         self.start_vector = current_vector

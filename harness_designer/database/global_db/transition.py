@@ -26,7 +26,6 @@ class TransitionsTable(TableBase):
         transitions.table.add_to_db(self)
         transitions.add_records(self._con, splash)
 
-
     def _update_table_in_db(self):
         from ..create_database import transitions
 

@@ -23,11 +23,21 @@ class TextCtrl(wx.BoxSizer):
 
     """
 
-    def __init__(self, parent, label, size, style=0, apply_button=True):
+    def __init__(self, parent, label, size, style=0, apply_button=True, hslider=True):
         wx.BoxSizer.__init__(self, wx.HORIZONTAL)
         self._show_apply_button = apply_button
 
-        style |= wx.TE_LEFT | wx.HSCROLL | wx.TE_PROCESS_ENTER
+        # width, height = size
+        # if height == -1:
+        #     height = parent.GetTextExtent('W')[1]
+        #
+        # size = (width, int(height * 2.6))
+
+        style |= wx.TE_LEFT | wx.TE_PROCESS_ENTER
+
+        if hslider:
+            style |= wx.HSCROLL
+
         self.st = wx.StaticText(parent, wx.ID_ANY, label=label)
         self.ctrl = wx.TextCtrl(parent, wx.ID_ANY, value='', size=size, style=style)
         self.apply_button = wx.Button(parent, wx.ID_ANY, label='Apply')
@@ -40,12 +50,14 @@ class TextCtrl(wx.BoxSizer):
         self.ctrl.Bind(wx.EVT_TEXT_ENTER, self._on_enter)
 
         if style & wx.TE_MULTILINE:
-            self.Add(self.st, 3, wx.ALL | wx.ALIGN_TOP, 5)
+            self.Add(self.st, 1, wx.ALL | wx.ALIGN_TOP, 5)
+        elif hslider:
+            self.Add(self.st, 1, wx.ALL, 5)
         else:
-            self.Add(self.st, 3, wx.ALL, 5)
+            self.Add(self.st, 1, wx.ALL | wx.ALIGN_CENTER, 5)
 
-        self.Add(self.ctrl, 3, wx.EXPAND | wx.ALL, 5)
-        self.Add(self.apply_button, 1, wx.EXPAND | wx.ALL, 5)
+        self.Add(self.ctrl, 4, wx.ALL, 5)
+        self.Add(self.apply_button, 1, wx.ALL, 5)
 
     def SetStyle(self, start: int, end: int, style: wx.TextAttr):
         self.ctrl.SetStyle(start, end, style)

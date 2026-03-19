@@ -1,4 +1,4 @@
-
+from ....import logger as _logger
 
 FIELD_TYPE_REAL = 'REAL'
 FIELD_TYPE_TEXT = 'TEXT'
@@ -55,7 +55,7 @@ class SQLTable:
 
         fields = ', '.join(fields)
 
-        print(f'CREATE TABLE {self.name} ({fields});')
+        _logger.logger.database(f'CREATE TABLE {self.name} ({fields});')
 
         db_cursor._con.execute(f'CREATE TABLE {self.name} ({fields});')
         db_cursor._con.commit()

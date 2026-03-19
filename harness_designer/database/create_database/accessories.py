@@ -5,10 +5,12 @@ from . import series as _series
 from . import colors as _colors
 from . import materials as _materials
 from . import models3d as _models3d
-from . import resources as _resources
+from . import images as _images
+from . import datasheets as _datasheets
+from . import cads as _cads
 
 from .. import db_connectors as _con
-from ... import utils as _utils
+from ... import logger as _logger
 
 
 def add_records(con, splash):
@@ -48,10 +50,10 @@ def add_accessory(con, part_number, mfg, description=None, series=None,
     family_id = _families.get_family_id(con, family, mfg_id)
     color_id = _colors.get_color_id(con, color)
     material_id = _materials.get_material_id(con, material)
-    image_id = _resources.add_resource(con, _resources.IMAGE_TYPE_IMAGE, image)
-    cad_id = _resources.add_resource(con, _resources.IMAGE_TYPE_CAD, cad)
-    datasheet_id = _resources.add_resource(con, _resources.IMAGE_TYPE_DATASHEET, datasheet)
-    model3d_id = _models3d.add_model3d(con, model3d)
+    image_id = _images.get_image_id(con, image)
+    cad_id = _cads.get_cad_id(con, cad)
+    datasheet_id = _datasheets.get_datasheet_id(con, datasheet)
+    model3d_id = _models3d.get_model3d_id(con, model3d)
 
     if not description:
         description = mfg
@@ -69,7 +71,7 @@ def add_accessory(con, part_number, mfg, description=None, series=None,
 
         description += ' Accessory'
 
-    print(f'DATABASE: adding accessory {part_number}, {description}')
+    _logger.logger.database(f'adding accessory {part_number}, {description}')
     con.execute('INSERT INTO accessories (part_number, description, mfg_id, '
                 'family_id, series_id, color_id, material_id, image_id, '
                 'datasheet_id, cad_id, model3d_id, length, width, height, weight) '
@@ -81,7 +83,7 @@ def add_accessory(con, part_number, mfg, description=None, series=None,
     con.commit()
     db_id = con.lastrowid
 
-    print(f'DATABASE: accessory added "{part_number}" = {db_id}')
+    _logger.logger.database(f'accessory added "{part_number}" = {db_id}')
 
 
 id_field = _con.PrimaryKeyField('id')
@@ -113,16 +115,16 @@ table = _con.SQLTable(
                                                     _materials.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('image_id', default='NULL',
-                  references=_con.SQLFieldReference(_resources.table,
-                                                    _resources.id_field,
+                  references=_con.SQLFieldReference(_images.table,
+                                                    _images.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('datasheet_id', default='NULL',
-                  references=_con.SQLFieldReference(_resources.table,
-                                                    _resources.id_field,
+                  references=_con.SQLFieldReference(_datasheets.table,
+                                                    _datasheets.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('cad_id', default='NULL',
-                  references=_con.SQLFieldReference(_resources.table,
-                                                    _resources.id_field,
+                  references=_con.SQLFieldReference(_cads.table,
+                                                    _cads.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('model3d_id', default='NULL',
                   references=_con.SQLFieldReference(_models3d.table,
@@ -135,24 +137,3 @@ table = _con.SQLTable(
     _con.FloatField('height', default='"0.0"', no_null=True),
     _con.FloatField('weight', default='"0.0"', no_null=True)
 )
-
-
-# def accessories(con, cur):
-#     cur.execute('CREATE TABLE accessories('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'part_number TEXT UNIQUE NOT NULL, '
-#                 'description TEXT DEFAULT "" NOT NULL, '
-#                 'mfg_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'family_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'series_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'color_id INTEGER DEFAULT NULL, '
-#                 'material_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'model3d_id INTEGER DEFAULT NULL,'
-#                 'FOREIGN KEY (mfg_id) REFERENCES manufacturers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (color_id) REFERENCES colors(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (material_id) REFERENCES materials(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (model3d_id) REFERENCES models3d(id) ON DELETE SET DEFAULT ON UPDATE CASCADE'
-#                 ');')
-#     con.commit()

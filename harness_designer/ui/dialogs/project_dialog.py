@@ -1,6 +1,6 @@
 import wx
 
-from ..widgets import auto_complete
+from ..widgets import combobox_ctrl as _combobox_ctrl
 from . import dialog_base as _dialog_base
 
 
@@ -16,16 +16,13 @@ class OpenProjectDialog(_dialog_base.BaseDialog):
         else:
             value = wx.EmptyString
 
-        self.project_ctrl = auto_complete.AutoComplete(self.panel, wx.ID_ANY, value=value, autocomplete_choices=project_names, size=(200, -1))
-        project_label = wx.StaticText(self.panel, wx.ID_ANY, label='Project:')
+        self.project_ctrl = _combobox_ctrl.ComboBoxCtrl(self.panel, 'Project:', project_names)
 
         h_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        h_sizer.Add(project_label, 0, wx.ALIGN_CENTER_VERTICAL | wx.TOP | wx.BOTTOM, 20)
-        h_sizer.Add(self.project_ctrl, 1, wx.ALIGN_CENTER_VERTICAL | wx.TOP | wx.BOTTOM | wx.LEFT, 20)
+        h_sizer.Add(self.project_ctrl, 1, wx.LEFT | wx.RIGHT, 100)
 
         sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add(h_sizer, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.LEFT | wx.RIGHT | wx.TOP, 40)
-        sizer.AddStretchSpacer(1)
+        sizer.Add(h_sizer, 1, wx.TOP | wx.BOTTOM | wx.EXPAND, 10)
 
         b_sizer = self.button_sizer.GetItem(1).GetSizer()
 

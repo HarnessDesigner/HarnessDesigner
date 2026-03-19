@@ -11,25 +11,11 @@ from ... import image as _image
 
 class ImageViewer(wx.Panel):
 
-    def __init__(self, parent, format_type, img):
+    def __init__(self, parent, img):
         wx.Panel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_NONE)
 
-        if isinstance(img, str):
-            self.bmp = wx.Bitmap(img)
-            self.filename = None
-        elif format_type == 'png':
-            self.bmp = wx.Bitmap.FromPNGData(img)
-            self.filename = None
-        else:
-            temp_dir = tempfile.gettempdir()
-            file = f'{str(uuid.uuid4())}.{format_type}'
-            filename = os.path.join(temp_dir, file)
-
-            with open(filename, 'wb') as f:
-                f.write(img)
-
-            self.bmp = wx.Bitmap(filename)
-            self.filename = filename
+        self.bmp = wx.Bitmap(img)
+        self.filename = None
 
         self.scale = 1.0
 
@@ -166,27 +152,23 @@ class PDFViewer(wx.Panel):
         self.buttonpanel.viewer = self.viewer
         self.viewer.buttonpanel = self.buttonpanel
 
-        if isinstance(pdf_file, str):
-            buf = pdf_file
-        else:
-            buf = io.BytesIO(pdf_file)
-            buf.seek(0)
-
         wx.BeginBusyCursor()
-        self.viewer.LoadFile(buf)
+        self.viewer.LoadFile(pdf_file)
         wx.EndBusyCursor()
 
 
 class DatasheetViewer(wx.Panel):
-    def __init__(self, parent, format_type, datasheet):
+    def __init__(self, parent, datasheet):
         wx.Panel.__init__(self, parent, wx.ID_ANY)
 
         sizer = wx.BoxSizer(wx.VERTICAL)
 
+        format_type = os.path.splitext(datasheet)[-1][1:]
+
         if format_type == 'pdf':
             ctrl = PDFViewer(self, datasheet)
         else:
-            ctrl = ImageViewer(self, format_type, datasheet)
+            ctrl = ImageViewer(self, datasheet)
 
         sizer.Add(ctrl, 0, wx.ALL, 10)
 

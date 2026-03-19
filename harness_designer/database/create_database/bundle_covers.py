@@ -6,7 +6,9 @@ from . import series as _series
 from . import families as _families
 from . import colors as _colors
 from . import materials as _materials
-from . import resources as _resources
+from . import images as _images
+from . import datasheets as _datasheets
+from . import cads as _cads
 from . import adhesives as _adhesives
 from . import protections as _protections
 from . import temperatures as _temperatures
@@ -15,6 +17,7 @@ from . import projects as _projects
 from . import points3d as _points3d
 
 from .. import db_connectors as _con
+from ... import logger as _logger
 
 
 DATA_PATH = os.path.join(os.path.dirname(__file__), 'data')
@@ -35,13 +38,21 @@ def add_records(con, splash):
     con.execute('INSERT INTO bundle_covers (id, part_number, description) VALUES(0, "N/A", "Internal Use DO NOT DELETE");')
     con.commit()
 
-    # os.path.join(DATA_PATH, 'bundle_covers.json')
-    json_paths = []
+    dirs = []
+    for file in os.listdir(DATA_PATH):
+        file = os.path.join(DATA_PATH, file)
+        if os.path.isdir(file):
+            dirs.append(file)
 
-    for json_path in json_paths:
+    cwd = os.getcwd()
+    for path in dirs:
+        os.chdir(path)
+
+        json_path = os.path.join(path, 'bundle_covers.json')
+
         if os.path.exists(json_path):
             splash.SetText(f'Loading bundle covers file...')
-            print(json_path)
+            _logger.logger.database(json_path)
 
             with open(json_path, 'r') as f:
                 data = json.loads(f.read())
@@ -53,9 +64,15 @@ def add_records(con, splash):
 
             for i, item in enumerate(data):
                 splash.SetText(f'Adding bundle covers to db [{i + 1} | {data_len}]')
-                add_bundle_cover(con, **item)
+                pn = item['part_number']
+                con.execute(f'SELECT id FROM bundle_covers WHERE part_number="{pn}";')
+                rows = con.fetchall()
+                if not rows:
+                    add_bundle_cover(con, **item)
 
         con.commit()
+
+    os.chdir(cwd)
 
 
 def add_bundle_cover(con, part_number, description, mfg=None, family=None, series=None,
@@ -72,9 +89,9 @@ def add_bundle_cover(con, part_number, description, mfg=None, family=None, serie
     series_id = _series.get_series_id(con, series, mfg_id)
     color_id = _colors.get_color_id(con, color)
     material_id = _materials.get_material_id(con, material)
-    image_id = _resources.add_resource(con, _resources.IMAGE_TYPE_IMAGE, image)
-    datasheet_id = _resources.add_resource(con, _resources.IMAGE_TYPE_DATASHEET, datasheet)
-    cad_id = _resources.add_resource(con, _resources.IMAGE_TYPE_CAD, cad)
+    image_id = _images.get_image_id(con, image)
+    datasheet_id = _datasheets.get_datasheet_id(con, datasheet)
+    cad_id = _cads.get_cad_id(con, cad)
     shrink_temp_id = _temperatures.get_temperature_id(con, shrink_temp)
     min_temp_id = _temperatures.get_temperature_id(con, min_temp)
     max_temp_id = _temperatures.get_temperature_id(con, max_temp)
@@ -87,7 +104,7 @@ def add_bundle_cover(con, part_number, description, mfg=None, family=None, serie
                 'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
                 (part_number, description, mfg_id, family_id, series_id, color_id, material_id,
                  image_id, datasheet_id, cad_id, shrink_temp_id, min_temp_id, max_temp_id,
-                 protection_id, rigidity, shrink_ratio, wall, min_dia, max_dia, adhesive_ids,
+                 protection_id, rigidity, shrink_ratio, wall, min_dia, max_dia, str(adhesive_ids),
                  weight))
     con.commit()
 
@@ -120,16 +137,16 @@ table = _con.SQLTable(
                                                     _materials.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('image_id', default='NULL',
-                  references=_con.SQLFieldReference(_resources.table,
-                                                    _resources.id_field,
+                  references=_con.SQLFieldReference(_images.table,
+                                                    _images.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('datasheet_id', default='NULL',
-                  references=_con.SQLFieldReference(_resources.table,
-                                                    _resources.id_field,
+                  references=_con.SQLFieldReference(_datasheets.table,
+                                                    _datasheets.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('cad_id', default='NULL',
-                  references=_con.SQLFieldReference(_resources.table,
-                                                    _resources.id_field,
+                  references=_con.SQLFieldReference(_cads.table,
+                                                    _cads.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('shrink_temp_id', default='0', no_null=True,
                   references=_con.SQLFieldReference(_temperatures.table,
@@ -188,59 +205,3 @@ pjt_table = _con.SQLTable(
     _con.IntField('is_visible3d', default='1', no_null=True)
 )
 
-
-# def pjt_bundles(con, cur):
-#     cur.execute('CREATE TABLE pjt_bundles('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'project_id INTEGER NOT NULL, '
-#                 'part_id INTEGER NOT NULL, '
-#                 'name TEXT DEFAULT "" NOT NULL, '
-#                 'notes TEXT DEFAULT "" NOT NULL, '
-#                 'start_point3d_id INTEGER NOT NULL, '  # absolute, can be shared with a bundle layout or transition
-#                 'stop_point3d_id INTEGER NOT NULL, '  # absolute, can be shared with a bundle layout or transition
-#                 'is_visible3d INTEGER DEFAULT 1 NOT NULL, '
-#                 'FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (part_id) REFERENCES bundle_covers(id) ON DELETE CASCADE ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (start_point3d_id) REFERENCES pjt_points3d(id), '
-#                 'FOREIGN KEY (stop_point3d_id) REFERENCES pjt_points3d(id)'
-#                 ');')
-#     con.commit()
-
-# def bundle_covers(con, cur):
-#     cur.execute('CREATE TABLE bundle_covers('
-#                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-#                 'part_number TEXT UNIQUE NOT NULL, '
-#                 'description TEXT DEFAULT "" NOT NULL, '
-#                 'mfg_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'family_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'series_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'color_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'material_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'image_id INTEGER DEFAULT NULL, '
-#                 'datasheet_id INTEGER DEFAULT NULL, '
-#                 'cad_id INTEGER DEFAULT NULL, '
-#                 'shrink_temp_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'min_temp_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'max_temp_id INTEGER DEFAULT 0 NOT NULL, '
-#                 'rigidity TEXT DEFAULT "NOT SET" NOT NULL, '
-#                 'shrink_ratio TEXT DEFAULT "" NOT NULL, '
-#                 'wall TEXT DEFAULT "Single" NOT NULL, '
-#                 'min_dia INTEGER DEFAULT 0 NOT NULL, '
-#                 'max_dia INTEGER DEFAULT 0 NOT NULL, '
-#                 'protection_id TEXT DEFAULT 0 NOT NULL, '
-#                 'adhesive_ids TEXT DEFAULT "[]" NOT NULL, '
-#                 'weight REAL DEFAULT "0.0" NOT NULL, '
-#                 'FOREIGN KEY (mfg_id) REFERENCES manufacturers(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (image_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (datasheet_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (cad_id) REFERENCES resources(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (min_temp_id) REFERENCES temperatures(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (max_temp_id) REFERENCES temperatures(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (color_id) REFERENCES colors(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (material_id) REFERENCES materials(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (protection_id) REFERENCES potections(id) ON DELETE SET DEFAULT ON UPDATE CASCADE, '
-#                 'FOREIGN KEY (shrink_temp_id) REFERENCES temperatures(id) ON DELETE SET DEFAULT ON UPDATE CASCADE'
-#                 ');')
-#     con.commit()
