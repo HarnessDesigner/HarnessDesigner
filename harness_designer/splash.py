@@ -31,9 +31,14 @@ class Splash(wx.Frame):
         alpha_data = img.convert('RGBA').tobytes()[3::4]
         wx_img = wx.Image(img.size[0], img.size[1], rgb_data, alpha_data)
         self.bmp = wx_img.ConvertToBitmap()
+        self._dc = dc = wx.MemoryDC()
 
         img.close()
 
+        self._draw_lock = threading.Lock()
+        self.bmp_lock = threading.Lock()
+
+        self.main_thread = threading.current_thread()
         self.Bind(wx.EVT_WINDOW_CREATE, self.on_window_create)
 
         if wx.Platform != "__WXGTK__":
@@ -42,22 +47,41 @@ class Splash(wx.Frame):
         w = self.bmp.GetWidth() + 1
         h = self.bmp.GetHeight() + 1
 
+        self._size = (w - 65, h)
+
+        buf = bytearray([0] * (w * h * 4))
+        bmp = wx.Bitmap.FromBufferRGBA(w, h, buf)
+
+        dc.SelectObject(bmp)
+        gcdc = wx.GCDC(dc)
+        gc = gcdc.GetGraphicsContext()
+        gc.DrawBitmap(self.bmp, -30, -20, self.bmp.GetWidth(), self.bmp.GetHeight())
+        dc.SelectObject(wx.NullBitmap)
+
+        gcdc.Destroy()
+        del gcdc
+
+        self.render_bmp = bmp
+
         # Set The AdvancedSplash Size To The Bitmap Size
         self.SetClientSize((w - 65, h))
-
         self.CenterOnScreen()
 
         self.Bind(wx.EVT_PAINT, self.OnPaint)
         self.Bind(wx.EVT_ERASE_BACKGROUND, self.on_erase_background)
-        self.text = 'Loading....'
-
-        self.main_thread = threading.current_thread()
-        self.text_lock = threading.Lock()
 
         self.event = threading.Event()
 
+        self.draw('Loading...')
+
+        self.yield_count = 0
+
         if wx.Platform == "__WXMAC__":
             wx.SafeYield(self, True)
+
+    def Destroy(self):
+        self._dc.Destroy()
+        wx.Frame.Destroy(self)
 
     def set_logger(self, value: "_logger.Log"):
         self.logger = value
@@ -93,7 +117,8 @@ class Splash(wx.Frame):
 
         def _do():
             time.sleep(0.25)
-            self.SetText('starting mainframe')
+            self.SetText('Starting Mainframe')
+
             try:
                 _mainframe._mainframe = _mainframe.MainFrame(self, self.logger)
             except Exception as err:  # NOQA
@@ -144,62 +169,59 @@ class Splash(wx.Frame):
         self.SetShape(reg)
 
     def SetText(self, text: str) -> None:
+        self.logger.info(text)
+        self.draw(text)
+
         if self.main_thread != threading.current_thread():
-
-            def _do(t):
-                self.logger.info(t)
-                self.text = t
-                self.draw()
-                self.event.set()
-
-            wx.CallAfter(_do, text)
-            self.event.wait(0.2)
-            self.event.clear()
+            wx.CallAfter(self.Refresh, False)
+            self.yield_count += 1
+            if self.yield_count == 10:
+                self.yield_count = 0
+                wx.GetApp().Yield(False)
         else:
-            self.logger.info(text)
-            self.text = text
-            self.draw()
-            time.sleep(0.05)
+            self.Refresh(False)
 
-    def draw(self, dc=None):
-        if dc is None:
-            dc = wx.ClientDC(self)
+    def draw(self, text):
+        with self._draw_lock:
+            w, h = self._size
+            dc = self._dc
 
-        gcdc = wx.GCDC(dc)
-        gc = gcdc.GetGraphicsContext()
+            dc.SelectObject(self.render_bmp)
+            gcdc = wx.GCDC(dc)
+            gc = gcdc.GetGraphicsContext()
 
-        w, h = self.GetClientSize()
+            bmp_height = self.bmp.GetHeight() - 35
 
-        bmp_height = self.bmp.GetHeight() - 30
+            height = h - bmp_height
 
-        gcdc.SetTextForeground(wx.Colour(190, 190, 190, 255))
-        tw = dc.GetTextExtent(self.text)[0]
+            gcdc.SetBrush(wx.BLACK_BRUSH)
+            gcdc.SetPen(wx.BLACK_PEN)
+            gcdc.DrawRectangle(0, bmp_height, w, height)
 
-        tx = (w // 2) - (tw // 2)
+            gcdc.SetTextForeground(wx.Colour(190, 190, 190, 255))
 
-        ty = bmp_height
+            tw, th = dc.GetTextExtent(text)
+            tx = (w - tw) // 2
+            ty = bmp_height + ((height - th) // 2) - 5
 
-        gcdc.SetBrush(wx.Brush(wx.Colour(0, 0, 0, 255)))
-        gcdc.DrawRectangle(0, bmp_height, w, h - bmp_height)
+            gc.DrawText(text, tx, ty)
+            dc.SelectObject(wx.NullBitmap)
 
-        gc.DrawText(self.text, tx, ty)
-
-        gcdc.Destroy()
-        del gcdc
+            gcdc.Destroy()
+            del gcdc
 
     def OnPaint(self, _):
-        dc = wx.BufferedPaintDC(self)
-        gcdc = wx.GCDC(dc)
+        with self._draw_lock:
+            dc = wx.BufferedPaintDC(self)
+            gcdc = wx.GCDC(dc)
+            #
+            # gcdc.SetBackground(wx.Brush(wx.Colour(0, 0, 0, 0)))
+            # gcdc.Clear()
 
-        gcdc.SetBackground(wx.Brush(wx.Colour(0, 0, 0, 0)))
-        gcdc.Clear()
+            gc = gcdc.GetGraphicsContext()
+            gc.DrawBitmap(self.render_bmp, 0, 0, self.render_bmp.GetWidth(), self.render_bmp.GetHeight())
 
-        gc = gcdc.GetGraphicsContext()
+            gcdc.Destroy()
+            del gcdc
 
-        gc.DrawBitmap(self.bmp, -30, -20, self.bmp.GetWidth(), self.bmp.GetHeight())
-
-        gcdc.Destroy()
-        del gcdc
-
-        self.draw(dc)
-        self.init_event.set()
+            self.init_event.set()

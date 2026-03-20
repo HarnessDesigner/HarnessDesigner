@@ -18,14 +18,17 @@ class DBData:
     def open(self, splash):
         if self._data_dir is None:
             response = requests.get('https://github.com/HarnessDesigner/database/archive/refs/heads/main.zip', stream=True)
-            total_size = int(response.headers.get("content-length", 0))
-            block_size = 1024
+            block_size = 1048576
             cur_size = 0
 
-            splash.SetText(f'Downloading Database Data {cur_size}:{total_size}')
+            splash.SetText(f'Downloading Database Data {cur_size}')
 
             tmpdir = tempfile.gettempdir()
             tmp_zipfile = os.path.join(tmpdir, 'harness_designer_data.zip')
+
+            if os.path.exists(tmp_zipfile):
+                os.remove(tmp_zipfile)
+
             tmpzipdata = os.path.join(tmpdir, 'harness_designer.database_data')
 
             if os.path.exists(tmpzipdata):
@@ -35,9 +38,12 @@ class DBData:
 
             with open(tmp_zipfile, "wb") as file:
                 for data in response.iter_content(block_size):
+                    if not data:
+                        break
+
                     cur_size += len(data)
                     file.write(data)
-                    splash.SetText(f'Downloading Database Data {cur_size}:{total_size}')
+                    splash.SetText(f'Downloading Database Data {cur_size}')
 
             splash.SetText(f'Decompressing Database Data...')
 
@@ -49,5 +55,5 @@ class DBData:
             os.remove(tmp_zipfile)
             self._data_dir = tmpzipdata
 
-        return self._data_dir
+        return os.path.join(self._data_dir, 'database-main')
 
