@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 class Position3DMixin:
 
     def __init__(self, panel, db_obj: "_position3d.Position3DMixin"):
-        self.db_obj = db_obj
+        self._position3d_obj = db_obj
 
         self.position3d = db_obj.position3d
 

@@ -1,81 +1,85 @@
-'''
-class Boot:
+from typing import TYPE_CHECKING
 
-    def __init__(self, fpb: foldpanelbar.FoldPanelBar, db_obj: _pjt_boot.PJTBoot):
-        self.db_obj = db_obj
-        self.settings = fpb.AddFoldPanel('Settings')
-        self.visible = wx.CheckBox(self.settings, wx.ID_ANY, 'Visible')
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add(self.visible, 0, wx.ALL, 10)
-        self.settings.SetSizer(sizer)
+import wx
 
-        self.scale = fpb.AddFoldPanel('Scale')
-        self.scale_x = FloatCtrl(self.scale, 'X:', min_val=0.1, max_val=99.9)
-        self.scale_y = FloatCtrl(self.scale, 'Y:', min_val=0.1, max_val=99.9)
-        self.scale_z = FloatCtrl(self.scale, 'Z:', min_val=0.1, max_val=99.9)
+from . import bases as _bases
+from . import mixins as _mixins
 
-        self.rotate = fpb.AddFoldPanel('Rotate')
-        self.rotate_x = FloatCtrl(self.rotate, 'X Angle:', min_val=0.0, max_val=359.9)
-        self.rotate_y = FloatCtrl(self.rotate, 'Y Angle:', min_val=0.0, max_val=359.9)
-        self.rotate_z = FloatCtrl(self.rotate, 'Z Angle:', min_val=0.0, max_val=359.9)
+if TYPE_CHECKING:
+    from ...database.project_db import pjt_boot as _pjt_boot
 
-        self.position = fpb.AddFoldPanel('Position')
-        self.position_x = FloatCtrl(self.position, 'X:', min_val=-9999.9, max_val=9999.9)
-        self.position_y = FloatCtrl(self.position, 'Y:', min_val=-9999.9, max_val=9999.9)
-        self.position_z = FloatCtrl(self.position, 'Z:', min_val=-9999.9, max_val=9999.9)
 
-        self.visible.Bind(wx.EVT_CHECKBOX, self.on_visible)
+class Boot(_bases.FPBBase, _mixins.Angle3DMixin,
+           _mixins.DimensionMixin, _mixins.PartMixin,
+           _mixins.Position3DMixin, _mixins.Visible3DMixin,
+           _mixins.WeightMixin, _mixins.Scale3DMixin):
 
-        self.scale_x.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_scale_x)
-        self.scale_y.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_scale_y)
-        self.scale_z.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_scale_z)
+    db_obj: "_pjt_boot.PJTBoot" = None
 
-        self.rotate_x.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_rotate_x)
-        self.rotate_y.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_rotate_y)
-        self.rotate_z.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_rotate_z)
+    def __init__(self, parent, db_obj: "_pjt_boot.PJTBoot"):
+        _bases.FPBBase.__init__(self, parent, db_obj)
 
-        self.position_x.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_position_x)
-        self.position_y.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_position_y)
-        self.position_z.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_position_z)
+        self.part_bar = self.AddFoldPanel('Part', collapsed=True)
+        self.part_panel = wx.Panel(self.part_bar, wx.ID_ANY, style=wx.BORDER_NONE)
 
-    def on_visible(self, evt):
-        self.db_obj.is_visible = self.visible.GetValue()
-        evt.Skip()
+        part_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.part_panel.SetSizer(part_sizer)
 
-    def on_scale_x(self, evt):
-        self.db_obj.scale.x = self.scale_x.GetValue()
-        evt.Skip()
+        _mixins.PartMixin.__init__(self, self.part_panel, db_obj.part)
 
-    def on_scale_y(self, evt):
-        self.db_obj.scale.y = self.scale_y.GetValue()
-        evt.Skip()
 
-    def on_scale_z(self, evt):
-        self.db_obj.scale.z = self.scale_z.GetValue()
-        evt.Skip()
 
-    def on_rotate_x(self, evt):
-        self.db_obj.angl3d.x = self.rotate_x.GetValue()
-        evt.Skip()
+        self.settings_bar = self.AddFoldPanel('Settings')
+        self.settings_panel = wx.Panel(self.settings_bar, wx.ID_ANY, wx.BORDER_NONE)
+        settings_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.settings_panel.SetSizer(settings_sizer)
 
-    def on_rotate_y(self, evt):
-        self.db_obj.angle3d.y = self.rotate_y.GetValue()
-        evt.Skip()
+        _mixins.Visible3DMixin.__init__(self, self.settings_panel, db_obj)
 
-    def on_rotate_z(self, evt):
-        self.db_obj.angle3d.z = self.rotate_z.GetValue()
-        evt.Skip()
+        self.dimension_bar = self.AddFoldPanel('Dimensions/Scale')
+        self.dimension_panel = wx.Panel(self.dimension_bar, wx.ID_ANY, wx.BORDER_NONE)
+        dimension_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.dimension_panel.SetSizer(dimension_sizer)
 
-    def on_position_x(self, evt):
-        self.db_obj.point3d.point.x = self.position_x.GetValue()
-        evt.Skip()
+        _mixins.DimensionMixin.__init__(self, self.dimension_panel, db_obj.part)
+        _mixins.WeightMixin.__init__(self, self.dimension_panel, db_obj.part)
+        _mixins.Scale3DMixin.__init__(self, self.dimension_panel, db_obj.part)
 
-    def on_position_y(self, evt):
-        self.db_obj.point3d.point.y = self.position_y.GetValue()
-        evt.Skip()
+        self.angle_bar = self.AddFoldPanel('Angle')
+        self.angle_panel = wx.Panel(self.angle_bar, wx.ID_ANY, wx.BORDER_NONE)
+        angle_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.angle_panel.SetSizer(angle_sizer)
 
-    def on_position_z(self, evt):
-        self.db_obj.point3d.point.z = self.position_z.GetValue()
-        evt.Skip()
+        _mixins.Angle3DMixin.__init__(self, self.angle_panel, db_obj)
 
-'''
+        self.position_bar = self.AddFoldPanel('Position')
+        self.position_panel = wx.Panel(self.position_bar, wx.ID_ANY, wx.BORDER_NONE)
+        position_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.position_panel.SetSizer(position_sizer)
+
+        _mixins.Position3DMixin.__init__(self, self.position_panel, db_obj)
+
+        self.AddFoldPanelWindow(self.part_bar, self.part_panel)
+        self.AddFoldPanelWindow(self.settings_bar, self.settings_panel)
+        self.AddFoldPanelWindow(self.dimension_bar, self.dimension_panel)
+        self.AddFoldPanelWindow(self.position_bar, self.position_panel)
+        self.AddFoldPanelWindow(self.angle_bar, self.angle_panel)
+
+        part_number
+        description
+        mfg
+        family
+        series
+        color
+        image
+        datasheet
+        cad
+        min_temp
+        max_temp
+
+        material = None
+        direction = None
+
+        model3d = None
+
+        compat_housings = None

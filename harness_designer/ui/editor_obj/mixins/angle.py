@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 class Angle3DMixin:
 
     def __init__(self, panel, db_obj: "_angle3d.Angle3DMixin"):
-        self.db_obj = db_obj
+        self.angle3d_obj = db_obj
         
         self.angle3d = db_obj.angle3d
 
@@ -62,7 +62,7 @@ class Angle3DMixin:
 class Angle2DMixin:
 
     def __init__(self, panel, db_obj: "_angle2d.Angle2DMixin"):
-        self.db_obj = db_obj
+        self._angle2d_obj = db_obj
 
         sz = wx.StaticBoxSizer(wx.VERTICAL, panel, "Angle 2D")
         sb = sz.GetStaticBox()

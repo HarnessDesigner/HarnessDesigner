@@ -50,7 +50,7 @@ class Splash(wx.Frame):
         self._size = (w - 65, h)
 
         buf = bytearray([0] * (w * h * 4))
-        bmp = wx.Bitmap.FromBufferRGBA(w, h, buf)
+        bmp = wx.Bitmap.FromBufferRGBA(w, h, buf)  # NOQA
 
         dc.SelectObject(bmp)
         gcdc = wx.GCDC(dc)
@@ -123,10 +123,10 @@ class Splash(wx.Frame):
                 _mainframe._mainframe = _mainframe.MainFrame(self, self.logger)
             except Exception as err:  # NOQA
                 self.logger.traceback(err)
-                dlg = _critical_error_dialog.CriticalErrorDialog(self, err)
+                dlg1 = _critical_error_dialog.CriticalErrorDialog(self, err)
 
-                dlg.ShowModal()
-                dlg.Destroy()
+                dlg1.ShowModal()
+                dlg1.Destroy()
                 has_error[0] = True
 
             event.set()

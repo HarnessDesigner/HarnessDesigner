@@ -1,5 +1,14 @@
+from typing import TYPE_CHECKING
+
 import math
+import os
+
 from .. import utils as _utils
+from .. import logger as _logger
+
+
+if TYPE_CHECKING:
+    from . import global_db as _global_db
 
 
 get_appdata = _utils.get_appdata
@@ -86,3 +95,44 @@ def get_cavity_ids(str_cav):
             out_ids.append(id_)
 
     return out_ids
+
+
+def purge_stale_files(db: "_global_db.GLBTables"):
+    con = db.connector
+
+    def _get_files_to_prune(table, path):
+        alias = table[:-1]
+        con.execute(f'SELECT {alias}.uuid, ft.extension FROM {table} {alias} JOIN file_types ft ON {alias}.file_type_id=ft.id;')
+        rows = con.fetchall()
+        files_db = set([row[0] + '.' + row[1] for row in rows])
+        files = set(list(os.listdir(image_path)))
+        return list(files.difference(files_db))
+
+    def _remove_files(files, path):
+        for file in files:
+            file = os.path.join(path, file)
+            try:
+                os.remove(file)
+            except Exception as err:  # NOQA
+                _logger.logger.traceback(err, 'PRUNING ERROR')
+
+    image_path = db.settings_table['image_path']
+    datasheet_path = db.settings_table['datasheet_path']
+    cad_path = db.settings_table['cad_path']
+    model_path = db.settings_table['model_path']
+
+    image_diff = _get_files_to_prune('images', image_path)
+    _logger.logger.info(f'purging {len(image_diff)} image files from {image_path}...')
+    _remove_files(image_diff, image_path)
+
+    datasheet_diff = _get_files_to_prune('datasheets', datasheet_path)
+    _logger.logger.info(f'purging {len(datasheet_diff)} datasheet files from {datasheet_path}...')
+    _remove_files(datasheet_diff, datasheet_path)
+
+    cad_diff = _get_files_to_prune('cads', cad_path)
+    _logger.logger.info(f'purging {len(cad_diff)} cad files from {cad_path}...')
+    _remove_files(cad_diff, cad_path)
+
+    model_diff = _get_files_to_prune('models3d', model_path)
+    _logger.logger.info(f'purging {len(model_diff)} model files from {model_path}...')
+    _remove_files(model_diff, model_path)

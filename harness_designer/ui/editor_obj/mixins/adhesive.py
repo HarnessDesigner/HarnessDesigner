@@ -12,10 +12,9 @@ if TYPE_CHECKING:
 
 
 class AhesiveMixin(_mixinbase.MixinBase):
-    db_obj: "_adhesive.AdhesiveMixin" = None
 
     def __init__(self, db_obj: "_adhesive.AdhesiveMixin"):
-        self.db_obj = db_obj
+        self._adhesive_obj = db_obj
         _mixinbase.MixinBase.__init__(self)
 
         fold_panel = self.AddFoldPanel('Ashesive', collapsed=True)

@@ -8,11 +8,10 @@ if TYPE_CHECKING:
     from ....database.global_db.mixins import dimension as _dimension
 
 
-class ScaleMixin:
-    db_obj: "_dimension.DimensionMixin" = None
+class Scale3DMixin:
 
     def __init__(self, panel, db_obj: "_dimension.DimensionMixin"):
-        self.db_obj = db_obj
+        self._scale3d_obj = db_obj
         
         self.scale3d = db_obj.scale
 

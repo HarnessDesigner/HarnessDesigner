@@ -10,10 +10,9 @@ if TYPE_CHECKING:
 
 
 class DimensionMixin:
-    db_obj: "_dimension.DimensionMixin" = None
 
     def __init__(self, panel, db_obj: "_dimension.DimensionMixin"):
-        self.db_obj = db_obj
+        self._dimension_obj = db_obj
 
         length = round(db_obj.length, 2)
         height = round(db_obj.height, 2)
@@ -46,15 +45,15 @@ class DimensionMixin:
 
     def _on_length(self, evt):
         value = self.length.GetValue()
-        self.db_obj.length = value
+        self._dimension_obj.length = value
         evt.Skip()
 
     def _on_width(self, evt):
         value = self.width.GetValue()
-        self.db_obj.width = value
+        self._dimension_obj.width = value
         evt.Skip()
 
     def _on_height(self, evt):
         value = self.height.GetValue()
-        self.db_obj.height = value
+        self._dimension_obj.height = value
         evt.Skip()
