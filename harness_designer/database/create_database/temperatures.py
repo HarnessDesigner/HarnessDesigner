@@ -8,9 +8,13 @@ def add_records(con, splash):
         return
 
     splash.SetText(f'Building temperatures...')
+    splash.flush()
+
     data = _build_temps()
 
     splash.SetText(f'Adding temperatures to db [{len(data)} | {len(data)}]...')
+    splash.flush()
+
     con.executemany('INSERT INTO temperatures (id, name) VALUES (?, ?);', data)
     con.commit()
 

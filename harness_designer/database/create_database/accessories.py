@@ -19,6 +19,8 @@ def add_records(con, splash, data_path):
         return
 
     splash.SetText(f'Building accessories...')
+    splash.flush()
+
     data = (
         (0, 'None', 'No Accessories', 0),
         (1, 'S1017-1.0X50', '1" x 50\' Polyamide Adhesive, -20 – 60 °C [-4 – 140 °F], Hot Melt Tape', 1),
@@ -33,6 +35,8 @@ def add_records(con, splash, data_path):
         (10, 'S1125-APPLICATOR', 'Epoxy Adhesives Dispensing Gun', 1)
     )
     splash.SetText(f'Adding accessories to db [{len(data)} | {len(data)}]...')
+    splash.flush()
+
     con.executemany('INSERT INTO accessories (id, part_number, description, mfg_id) VALUES(?, ?, ?, ?);', data)
     con.commit()
 

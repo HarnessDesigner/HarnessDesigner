@@ -13,6 +13,7 @@ def add_records(con, splash):
         return
 
     splash.SetText(f'Building IP fluids...')
+    splash.flush()
 
     data = (
         (0, '0', 'No Protection', 'No protection against ingress of water.', None),
@@ -31,6 +32,8 @@ def add_records(con, splash):
     )
 
     splash.SetText(f'Adding IP fluids to db [{len(data)} | {len(data)}]...')
+    splash.flush()
+
     con.executemany('INSERT INTO ip_fluids (id, name, short_desc, description, icon_data) VALUES (?, ?, ?, ?, ?);', data)
 
     con.commit()

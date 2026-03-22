@@ -36,6 +36,8 @@ def add_records(con, splash, data_path):
         return
 
     splash.SetText(f'Adding wire to db [1 | 1]...')
+    splash.flush()
+
     con.execute('INSERT INTO wires (id, part_number, description, mfg_id, family_id, '
                 'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
                 'max_temp_id, material_id, stripe_color_id, core_material_id, num_conductors, '
@@ -47,11 +49,15 @@ def add_records(con, splash, data_path):
     con.commit()
 
     splash.SetText(f'Building wires...')
+    splash.flush()
+
     data = _build_wires(con)
 
     data_len = len(data)
 
     splash.SetText(f'Adding wires to db [{data_len} | {data_len}]...')
+    splash.flush()
+
     try:
         con.executemany('INSERT INTO wires (part_number, description, mfg_id, family_id, '
                         'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
@@ -79,6 +85,8 @@ def add_records(con, splash, data_path):
 
         if os.path.exists(json_path):
             splash.SetText(f'Loading Wire file...')
+            splash.flush()
+
             _logger.logger.database(json_path)
 
             with open(json_path, 'r') as f:
@@ -89,8 +97,11 @@ def add_records(con, splash, data_path):
 
             data_len = len(data)
 
+            splash.SetText(f'Adding wire to db [0 | {data_len}]...')
+            splash.flush()
+
             for i, item in enumerate(data):
-                splash.SetText(f'Adding wire to db [{i} | {data_len}]...')
+                splash.SetText(f'Adding wire to db [{i + 1} | {data_len}]...')
 
                 pn = item['part_number']
                 con.execute(f'SELECT id FROM wires WHERE part_number="{pn}";')

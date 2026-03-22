@@ -98,6 +98,8 @@ def add_records(con, splash, data_path):
         return
 
     splash.SetText(f'Adding transition to db [1 | 1]...')
+    splash.flush()
+
     con.execute('INSERT INTO transitions (id, part_number, description, mfg_id, family_id, '
                 'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
                 'max_temp_id, material_id, transition_series_id, shape_id, protection_id, '
@@ -109,13 +111,18 @@ def add_records(con, splash, data_path):
     json_path = os.path.join(data_path, 'transitions.json')
     if os.path.exists(json_path):
         splash.SetText(f'Loading trasitions file...')
+        splash.flush()
 
         with open(json_path, 'r') as f:
             data = json.loads(f.read())
 
         data_len = len(data)
+
+        splash.SetText(f'Adding transitions to db [0 | {data_len}]...')
+        splash.flush()
+
         for i, item in enumerate(data):
-            splash.SetText(f'Adding transitions to db [{i} | {data_len}]...')
+            splash.SetText(f'Adding transitions to db [{i + 1} | {data_len}]...')
 
             pn = item['part_number']
             con.execute(f'SELECT id FROM transitions WHERE part_number="{pn}";')

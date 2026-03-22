@@ -35,6 +35,7 @@ class MainFrame(wx.Frame):
         self.config = _config.Config
 
         splash.SetText('Startup logging ...')
+        splash.flush()
 
         self.logger = logger
 
@@ -73,6 +74,8 @@ class MainFrame(wx.Frame):
         self._selected_obj: "_objects.ObjectBase" = None
 
         splash.SetText('Starting UI manager...')
+        splash.flush()
+
         self.manager = aui.AuiManager(flags=aui.AUI_MGR_ALLOW_FLOATING |
                                       aui.AUI_MGR_ALLOW_ACTIVE_PANE |
                                       aui.AUI_MGR_TRANSPARENT_DRAG |
@@ -84,6 +87,8 @@ class MainFrame(wx.Frame):
         self.manager.Bind(aui.EVT_AUI_PANE_ACTIVATED, self._on_pane_activated)
 
         splash.SetText('Creating statusbar...')
+        splash.flush()
+
         self.status_bar = status_bar = self.CreateStatusBar(3, id=wx.ID_ANY)
         status_bar.SetStatusText('X: 0.000000', 0)
         status_bar.SetStatusText('Y: 0.000000', 1)
@@ -95,41 +100,56 @@ class MainFrame(wx.Frame):
         # status_bar_pane = status_bar.GetField(6)
 
         splash.SetText('Creating 3D editor...')
+        splash.flush()
+
         from . import editor_3d
 
         self.editor3d = editor_3d.Editor3D(self)
 
         splash.SetText('Creating 2D editor...')
+        splash.flush()
+
         from . import editor_2d
 
         self.editor2d = editor_2d.Editor2D(self)
 
         splash.SetText('Creating database editor...')
+        splash.flush()
+
         from . import editor_db
 
         self.editor_db = editor_db.EditorDB(self)
 
         splash.SetText('Creating attribute editor...')
+        splash.flush()
+
         from . import editor_obj
 
         self.editor_obj = editor_obj.EditorObj(self)
 
         splash.SetText('Creating assembly editor...')
+        splash.flush()
+
         from . import editor_assembly
 
         self.editor_assembly = editor_assembly.EditorAssembly(self)
 
         splash.SetText('Creating object browser...')
+        splash.flush()
+
         from . import object_browser
 
         self.object_browser = object_browser.ObjectBrowser(self)
 
         splash.SetText('Creating log viewer...')
+        splash.flush()
+
         from . import log_viewer
 
         self.log_viewer = log_viewer.LogViewer(self)
 
         splash.SetText('Creating toolbars...')
+        splash.flush()
 
         self.general_toolbar = _toolbar.GeneralToolbar(self)
         self.editor_toolbar = _toolbar.EditorToolbar(self)
@@ -138,6 +158,8 @@ class MainFrame(wx.Frame):
         self.settings3d_toolbar = _toolbar.Setting3DToolbar(self)
 
         splash.SetText('Loading UI perspective...')
+        splash.flush()
+
         if Config.ui_perspective:
             logger.debug('SAVED UI:', repr(Config.ui_perspective))
             self.manager.LoadPerspective(Config.ui_perspective)

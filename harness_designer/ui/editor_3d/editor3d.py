@@ -100,4 +100,4 @@ class Editor3DPanel(_canvas3d.Canvas3D):
         size = (Config.virtual_canvas.width,
                 Config.virtual_canvas.height)
 
-        _canvas3d.Canvas3D.__init__(self, parent, Config, size)
+        super().__init__(parent, Config, size, True)

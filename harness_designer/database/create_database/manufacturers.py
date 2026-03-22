@@ -8,6 +8,7 @@ def add_records(con, splash):
         return
 
     splash.SetText(f'Building manufacturers...')
+    splash.flush()
 
     data = (
         (0, 'Internal Use DO NOT DELETE', '', '', '', ''),
@@ -26,6 +27,8 @@ def add_records(con, splash):
     )
 
     splash.SetText(f'Adding manufacturers to db [{len(data)} | {len(data)}]...')
+    splash.flush()
+
     con.executemany('INSERT INTO manufacturers (id, name, phone, address, email, website) '
                     'VALUES (?, ?, ?, ?, ?, ?);', data)
     con.commit()

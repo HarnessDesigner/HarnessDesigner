@@ -16,6 +16,7 @@ def add_records(con, splash, appdata):
         return
 
     splash.SetText(f'Building settings...')
+    splash.flush()
 
     model_path = os.path.join(appdata, 'models')
     image_path = os.path.join(appdata, 'images')
@@ -35,15 +36,23 @@ def add_records(con, splash, appdata):
         os.makedirs(datasheet_path)
 
     splash.SetText(f'Adding setting to db [1 | 4]...')
+    splash.flush()
+
     con.execute(f'INSERT INTO settings (id, name, value) VALUES(1, "model_path", "{model_path}");')
 
     splash.SetText(f'Adding setting to db [2 | 4]...')
+    splash.flush()
+
     con.execute(f'INSERT INTO settings (id, name, value) VALUES(2, "image_path", "{image_path}");')
 
     splash.SetText(f'Adding setting to db [3 | 4]...')
+    splash.flush()
+
     con.execute(f'INSERT INTO settings (id, name, value) VALUES(3, "cad_path", "{cad_path}");')
 
     splash.SetText(f'Adding setting to db [4 | 4]...')
+    splash.flush()
+
     con.execute(f'INSERT INTO settings (id, name, value) VALUES(4, "datasheet_path", "{datasheet_path}");')
 
     con.commit()

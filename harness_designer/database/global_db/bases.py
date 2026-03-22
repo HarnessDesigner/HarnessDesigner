@@ -66,15 +66,18 @@ class TableBase:
 
         if self.__table_name__ not in table_names:
             splash.SetText(f'Creating {self.__table_name__.replace("_", " ")} database table...')
+            splash.flush()
             self._add_table_to_db(splash)
         elif load_database:
             self._load_database(splash)
 
         if self._table_needs_update():
             splash.SetText(f'Adding {self.__table_name__.replace("_", " ")} table fields...')
+            splash.flush()
             self._update_table_in_db()
 
         splash.SetText(f'Loading {self.__table_name__.replace("_", " ")} database table...')
+        splash.flush()
 
     def _load_database(self, splash):
         pass

@@ -36,6 +36,10 @@ class GLMaterial:
         self.shininess = self._shine
 
     @property
+    def color_scalar(self):
+        return self._color.rgba_scalar
+
+    @property
     def is_opaque(self):
         return self._is_opaque
 

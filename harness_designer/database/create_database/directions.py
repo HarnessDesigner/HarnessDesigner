@@ -8,11 +8,14 @@ def add_records(con, splash):
         return
 
     splash.SetText(f'Building directions...')
+    splash.flush()
 
     data = ((0, "Unknown"), (1, "Left"), (2, "Right"), (3, "Straight"),
             (4, "90°"), (5, "180°"), (6, "270°"))
 
     splash.SetText(f'Adding directions to db [{len(data)} | {len(data)}]...')
+    splash.flush()
+
     con.executemany('INSERT INTO directions (id, name) VALUES(?, ?);', data)
     con.commit()
 

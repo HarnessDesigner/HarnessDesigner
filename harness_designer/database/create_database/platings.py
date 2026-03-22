@@ -8,6 +8,7 @@ def add_records(con, splash):
         return
 
     splash.SetText(f'Building platings...')
+    splash.flush()
 
     data = (
         (0, 'Unknown', 'Unknown Plating'),
@@ -29,6 +30,7 @@ def add_records(con, splash):
     )
 
     splash.SetText(f'Adding platings to db [{len(data)} | {len(data)}]...')
+    splash.flush()
 
     con.executemany('INSERT INTO platings (id, symbol, description) VALUES(?, ?, ?);', data)
     con.commit()

@@ -153,10 +153,12 @@ class PJTTableBase:
 
         if self.__table_name__ not in table_names:
             splash.SetText(f'Creating {self.__table_name__.replace("_", " ")} database table...')
+
             self._add_table_to_db()
 
         if self._table_needs_update():
             splash.SetText(f'Adding {self.__table_name__.replace("_", " ")} table fields...')
+
             self._update_table_in_db()
 
         splash.SetText(f'Loading {self.__table_name__.replace("_", " ")} database table...')

@@ -8,10 +8,13 @@ def add_records(con, splash):
         return
 
     splash.SetText(f'Building colors...')
+    splash.flush()
 
     data = _build_colors()
 
     splash.SetText(f'Adding colors to db [{len(data)} | {len(data)}]...')
+    splash.flush()
+
     con.executemany('INSERT INTO colors (id, name, rgb) VALUES(?, ?, ?);', data)
 
     con.commit()

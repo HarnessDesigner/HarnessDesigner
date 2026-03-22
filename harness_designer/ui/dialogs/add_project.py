@@ -14,11 +14,19 @@ if TYPE_CHECKING:
 Config = _config.Config
 
 FILE_WILDCARD = (
+    "All Supported Models |*.3mf;*.glTF;*.igs;*.iges;*.dae;*.obj;*.stp;*.step;"
+    "*.stl;*.vrml;*.wrl;*.mdl;*.hmp;*.3ds;*.ase;*.ac;*.ac3d;*.dxf;*.bvh;*.blend;"
+    "*.csm;*.x;*.md5mesh;*.md5anim;*.md5camera;*.fbx;*.ifc;*.irr;*.irrmesh;*.lwo;"
+    "*.lws;*.ms3d;*.lxo;*.nff;*.off;*.mesh.xml;*.skeleton.xml;*.ogex;*.mdl;*.md2;"
+    "*.md3;*.pk3;*.q3o;*.q3s;*.raw;*.mdc;*.ply;*.ter;*.cob;*.scn;*.smd;*.vta;*.xgl;"
+    "*.amf;*.assbin;*.b3d;*.iqm;*.ndo;*.q3d;*.sib;*.x3d;*.x3db;*.x3dz;*.x3dbz;"
+    "*.pmd;*.pmx|"
+    "All Files |*.*|"
     "3MF (3mf)|*.3mf|"
     "glTF (glTF)|*.glTF|"
     "IGES (igs; iges)|*.igs;*.iges|"
     "Collada (dae)|*.dae|"
-    "Wavefront Object (obj)|*.obj"
+    "Wavefront Object (obj)|*.obj|"
     "STEP (stp; step)|*.stp;*.step|"
     "STL (stl)|*.stl|"
     "VRML (vrml; wrl)|*.vrml;*.wrl|"
@@ -60,8 +68,7 @@ FILE_WILDCARD = (
     "Quest3D (q3d)|*.q3d|"
     "Silo Model Format (sib)|*.sib|"
     "Extensible 3D (x3d; x3db; x3dz; x3dbz)|*.x3d;*.x3db;*.x3dz;*.x3dbz|"
-    "MikuMikuDance Format (pmd; pmx)|*.pmd;*.pmx|"
-    "All Files |*.*"
+    "MikuMikuDance Format (pmd; pmx)|*.pmd;*.pmx"
 )
 
 

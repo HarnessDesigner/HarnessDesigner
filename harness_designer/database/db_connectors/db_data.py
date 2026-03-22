@@ -22,12 +22,9 @@ class DBData:
             cur_size = 0
 
             splash.SetText(f'Downloading Database Data {cur_size}')
+            splash.flush()
 
             tmpdir = tempfile.gettempdir()
-            tmp_zipfile = os.path.join(tmpdir, 'harness_designer_data.zip')
-
-            if os.path.exists(tmp_zipfile):
-                os.remove(tmp_zipfile)
 
             tmpzipdata = os.path.join(tmpdir, 'harness_designer.database_data')
 
@@ -36,23 +33,29 @@ class DBData:
 
             os.makedirs(tmpzipdata)
 
-            with open(tmp_zipfile, "wb") as file:
-                for data in response.iter_content(block_size):
-                    if not data:
-                        break
+            tmp_zipfile = os.path.join(tmpdir, 'harness_designer_data.zip')
 
-                    cur_size += len(data)
-                    file.write(data)
-                    splash.SetText(f'Downloading Database Data {cur_size}')
+            if not os.path.exists(tmp_zipfile):
+
+                with open(tmp_zipfile, "wb") as file:
+                    for data in response.iter_content(block_size):
+                        if not data:
+                            break
+
+                        cur_size += len(data)
+                        file.write(data)
+                        splash.SetText(f'Downloading Database Data {cur_size}')
 
             splash.SetText(f'Decompressing Database Data...')
+            splash.flush()
 
             with zipfile.ZipFile(tmp_zipfile) as zdata:
                 zdata.extractall(tmpzipdata)
 
             splash.SetText('Finished Decompressing Data!')
+            splash.flush()
 
-            os.remove(tmp_zipfile)
+            # os.remove(tmp_zipfile)
             self._data_dir = tmpzipdata
 
         return os.path.join(self._data_dir, 'database-main')

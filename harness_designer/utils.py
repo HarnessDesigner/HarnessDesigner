@@ -54,9 +54,6 @@ def HSizer(parent, label, ctrl) -> wx.BoxSizer:
     return sizer
 
 
-from .geometry.decimal import Decimal as _d
-
-
 def remap(value, old_min, old_max, new_min, new_max, type=_d):
     value = _d(value)
     old_min = _d(old_min)

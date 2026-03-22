@@ -3,6 +3,7 @@ import threading
 
 from wx import glcanvas
 
+
 class GLContext:
 
     def __init__(self, canvas: glcanvas.GLCanvas):
@@ -26,7 +27,7 @@ class GLContext:
 
             return True
 
-    def __enter__(self):
+    def acquire(self):
         cur_thread = threading.current_thread()
 
         with self._refs_lock:
@@ -38,9 +39,8 @@ class GLContext:
 
         self._lock.acquire()
         self.canvas.SetCurrent(self.context)
-        return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def release(self):
         self._lock.release()
         cur_thread = threading.current_thread()
 
@@ -50,3 +50,10 @@ class GLContext:
             if self._refs[cur_thread] == 0:
                 del self._refs[cur_thread]
                 self._refs_order.remove(cur_thread)
+
+    def __enter__(self):
+        self.acquire()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.release()

@@ -2,43 +2,37 @@ from typing import TYPE_CHECKING
 
 import os
 import wx
-import time
 import threading
 from PIL import Image
-
-from . import critical_error_dialog as _critical_error_dialog
 
 if TYPE_CHECKING:
     from . import logger as _logger
 
+import time
+
 
 class Splash(wx.Frame):
 
-    def __init__(self, args):
+    def __init__(self, args, logger: "_logger.Log"):
+        self.logger = logger
         self.load_database = '--load-database' in args
         self.startup_args = args
-
         wx.Frame.__init__(self, None, wx.ID_ANY, style=wx.FRAME_NO_TASKBAR | wx.FRAME_SHAPED | wx.STAY_ON_TOP)
 
-        self.logger: "_logger.Log" = None
-        self.init_event = threading.Event()
-
         base_path = os.path.dirname(__file__)
-
         img = Image.open(os.path.join(base_path, 'image/small_splash.png'))
 
         rgb_data = img.convert('RGB').tobytes()
         alpha_data = img.convert('RGBA').tobytes()[3::4]
         wx_img = wx.Image(img.size[0], img.size[1], rgb_data, alpha_data)
+        img.close()
+
         self.bmp = wx_img.ConvertToBitmap()
         self._dc = dc = wx.MemoryDC()
 
-        img.close()
-
         self._draw_lock = threading.Lock()
-        self.bmp_lock = threading.Lock()
+        self._init_event = threading.Event()
 
-        self.main_thread = threading.current_thread()
         self.Bind(wx.EVT_WINDOW_CREATE, self.on_window_create)
 
         if wx.Platform != "__WXGTK__":
@@ -62,6 +56,7 @@ class Splash(wx.Frame):
         del gcdc
 
         self.render_bmp = bmp
+        self.draw('Loading...')
 
         # Set The AdvancedSplash Size To The Bitmap Size
         self.SetClientSize((w - 65, h))
@@ -70,89 +65,18 @@ class Splash(wx.Frame):
         self.Bind(wx.EVT_PAINT, self.OnPaint)
         self.Bind(wx.EVT_ERASE_BACKGROUND, self.on_erase_background)
 
-        self.event = threading.Event()
-
-        self.draw('Loading...')
-
-        self.yield_count = 0
-
         if wx.Platform == "__WXMAC__":
             wx.SafeYield(self, True)
 
+    def wait(self):
+        self._init_event.wait()
+
     def Destroy(self):
-        self._dc.Destroy()
+        with self._draw_lock:
+            self._dc.Destroy()
+            self._dc = None
+
         wx.Frame.Destroy(self)
-
-    def set_logger(self, value: "_logger.Log"):
-        self.logger = value
-
-        # we start the thread once the logger has been set.
-        t = threading.Thread(target=self.run_thread)
-        t.daemon = True
-        t.start()
-
-    def run_thread(self):
-        self.init_event.wait()
-
-        event = threading.Event()
-
-        try:
-            from .ui import mainframe as _mainframe
-        except Exception as err:  # NOQA
-            self.logger.traceback(err)
-
-            dlg = _critical_error_dialog.CriticalErrorDialog(self, err)
-
-            dlg.ShowModal()
-            dlg.Destroy()
-
-            self.Show(False)
-            self.Destroy()
-
-            app = wx.GetApp()
-            app.ExitMainLoop()
-            return
-
-        has_error = [False]
-
-        def _do():
-            time.sleep(0.25)
-            self.SetText('Starting Mainframe')
-
-            try:
-                _mainframe._mainframe = _mainframe.MainFrame(self, self.logger)
-            except Exception as err:  # NOQA
-                self.logger.traceback(err)
-                dlg1 = _critical_error_dialog.CriticalErrorDialog(self, err)
-
-                dlg1.ShowModal()
-                dlg1.Destroy()
-                has_error[0] = True
-
-            event.set()
-
-        wx.CallAfter(_do)
-
-        event.wait()
-
-        if has_error[0]:
-            self.Show(False)
-            self.Destroy()
-
-            app = wx.GetApp()
-            app.ExitMainLoop()
-        else:
-            _mainframe._mainframe.open_database(self)  # NOQA
-
-            self.SetText('DONE!')
-            time.sleep(0.50)
-
-            def _do():
-                self.Show(False)
-                _mainframe._mainframe.Show()  # NOQA
-                self.Destroy()
-
-            wx.CallAfter(_do)
 
     def on_window_create(self, evt):
         if wx.Platform == "__WXGTK__":
@@ -172,17 +96,29 @@ class Splash(wx.Frame):
         self.logger.info(text)
         self.draw(text)
 
-        if self.main_thread != threading.current_thread():
-            wx.CallAfter(self.Refresh, False)
-            self.yield_count += 1
-            if self.yield_count == 10:
-                self.yield_count = 0
-                wx.GetApp().Yield(False)
-        else:
+        if threading.main_thread() != threading.current_thread():
+            event = threading.Event()
+
+            def _do():
+                if self._dc is None:
+                    return
+
+                self.Refresh(False)
+                event.set()
+
+            wx.CallAfter(_do)
+            event.wait()
+        elif self._dc is not None:
             self.Refresh(False)
+
+    def flush(self):
+        pass
 
     def draw(self, text):
         with self._draw_lock:
+            if self._dc is None:
+                return
+
             w, h = self._size
             dc = self._dc
 
@@ -212,6 +148,9 @@ class Splash(wx.Frame):
 
     def OnPaint(self, _):
         with self._draw_lock:
+            if self._dc is None:
+                return
+
             dc = wx.BufferedPaintDC(self)
             gcdc = wx.GCDC(dc)
             #
@@ -224,4 +163,4 @@ class Splash(wx.Frame):
             gcdc.Destroy()
             del gcdc
 
-            self.init_event.set()
+            self._init_event.set()

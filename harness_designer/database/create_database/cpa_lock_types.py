@@ -8,6 +8,7 @@ def add_records(con, splash):
         return
 
     splash.SetText(f'Building cpa lock types...')
+    splash.flush()
 
     data = (
         (0, 'No Lock'),
@@ -28,6 +29,8 @@ def add_records(con, splash):
     )
 
     splash.SetText(f'Adding cpa lock types to db [{len(data)} | {len(data)}]...')
+    splash.flush()
+
     con.executemany('INSERT INTO cpa_lock_types (id, name) VALUES (?, ?);', data)
 
     con.commit()

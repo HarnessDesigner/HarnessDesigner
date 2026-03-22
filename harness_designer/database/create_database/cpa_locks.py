@@ -83,6 +83,8 @@ def add_records(con, splash, data_path):
         return
 
     splash.SetText(f'Adding CPA lock to db [1 | 1]...')
+    splash.flush()
+
     con.execute('INSERT INTO cpa_locks (id, part_number, description) VALUES(0, "None", "No CPA Lock");')
 
     dirs = []
@@ -99,6 +101,8 @@ def add_records(con, splash, data_path):
 
         if os.path.exists(json_path):
             splash.SetText(f'Loading CPA locks file...')
+            splash.flush()
+
             _logger.logger.database(json_path)
 
             with open(json_path, 'r') as f:
@@ -109,8 +113,11 @@ def add_records(con, splash, data_path):
 
             data_len = len(data)
 
+            splash.SetText(f'Adding CPA locks to db [0 | {data_len}]...')
+            splash.flush()
+
             for i, item in enumerate(data):
-                splash.SetText(f'Adding CPA locks to db [{i} | {data_len}]...')
+                splash.SetText(f'Adding CPA locks to db [{i + 1} | {data_len}]...')
 
                 pn = item['part_number']
                 con.execute(f'SELECT id FROM cpa_locks WHERE part_number="{pn}";')

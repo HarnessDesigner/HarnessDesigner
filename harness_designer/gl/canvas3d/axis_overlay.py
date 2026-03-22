@@ -8,8 +8,9 @@ from OpenGL import GLU
 from ...geometry import angle as _angle
 from ...geometry import line as _line
 from ...geometry import point as _point
+from ... import color as _color
 
-from ...objects.objects3d import base3d as _base3d
+from ... import utils as _utils
 from ...shapes import cylinder as _cylinder
 from ...shapes import sphere as _sphere
 
@@ -48,8 +49,7 @@ class Overlay(wx.Panel):
 
         self.Bind(wx.EVT_ERASE_BACKGROUND, self.on_erase_background)
 
-        if Config.is_visible:
-            self.Show()
+        self.Show(Config.is_visible)
 
         def _do():
             self.Move(Config.position)
@@ -309,24 +309,24 @@ class GLOverlay(glcanvas.GLCanvas):
         size /= 40.0
         r = (size / 22)
 
-        x_vertices, x_faces = _cylinder.create(r, size)
-        y_vertices, y_faces = _cylinder.create(r, size)
-        z_vertices, z_faces = _cylinder.create(r, size)
-        s_vertices, s_faces = _sphere.create(r)
+        x_vertices, x_faces = _cylinder.create(r, size, resolution=10, split=1)
+        y_vertices, y_faces = _cylinder.create(r, size, resolution=10, split=1)
+        z_vertices, z_faces = _cylinder.create(r, size, resolution=10, split=1)
+        s_vertices, s_faces = _sphere.create(r, resolution=10)
 
-        x_material = _materials.Plastic([1.0, 0.2, 0.2, 1.0])
-        y_material = _materials.Plastic([0.2, 1.0, 0.2, 1.0])
-        z_material = _materials.Plastic([0.2, 0.2, 1.0, 1.0])
-        s_material = _materials.Plastic([0.1, 0.1, 0.1, 1.0])
+        x_material = _materials.Plastic(_color.Color(1.0, 0.2, 0.2, 1.0))
+        y_material = _materials.Plastic(_color.Color(0.2, 1.0, 0.2, 1.0))
+        z_material = _materials.Plastic(_color.Color(0.2, 0.2, 1.0, 1.0))
+        s_material = _materials.Plastic(_color.Color(0.1, 0.1, 0.1, 1.0))
 
         x_tris, x_nrmls, x_count = (
-            _base3d.Base3D._compute_smoothed_vertex_normals(x_vertices, x_faces))  # NOQA
+            _utils.compute_smoothed_vertex_normals(x_vertices, x_faces))
         y_tris, y_nrmls, y_count = (
-            _base3d.Base3D._compute_smoothed_vertex_normals(y_vertices, y_faces))  # NOQA
+            _utils.compute_smoothed_vertex_normals(y_vertices, y_faces))
         z_tris, z_nrmls, z_count = (
-            _base3d.Base3D._compute_smoothed_vertex_normals(z_vertices, z_faces))  # NOQA
+            _utils.compute_smoothed_vertex_normals(z_vertices, z_faces))
         s_tris, s_nrmls, s_count = (
-            _base3d.Base3D._compute_smoothed_vertex_normals(s_vertices, s_faces))  # NOQA
+            _utils.compute_smoothed_vertex_normals(s_vertices, s_faces))
 
         x_angle = _angle.Angle.from_euler(0.0, 90.0, 0.0)
         y_angle = _angle.Angle.from_euler(270.0, 0.0, 0.0)
@@ -472,8 +472,22 @@ class GLOverlay(glcanvas.GLCanvas):
 
         GL.glPushMatrix()
 
-        for renderer in self._triangles:
-            renderer()
+        GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
+        GL.glEnableClientState(GL.GL_NORMAL_ARRAY)
+
+        for tris, nrmls, count, material in self._triangles:
+            GL.glColor4f(*material.color_scalar)
+            GL.glMaterialfv(GL.GL_FRONT, GL.GL_AMBIENT, material.ambient)
+            GL.glMaterialfv(GL.GL_FRONT, GL.GL_DIFFUSE, material.diffuse)
+            GL.glMaterialfv(GL.GL_FRONT, GL.GL_SPECULAR, material.specular)
+            GL.glMaterialf(GL.GL_FRONT, GL.GL_SHININESS, material.shininess)
+
+            GL.glVertexPointer(3, GL.GL_DOUBLE, 0, tris)
+            GL.glNormalPointer(GL.GL_DOUBLE, 0, nrmls)
+            GL.glDrawArrays(GL.GL_TRIANGLES, 0, count)
+
+        GL.glDisableClientState(GL.GL_VERTEX_ARRAY)
+        GL.glDisableClientState(GL.GL_NORMAL_ARRAY)
 
         GL.glPopMatrix()
 

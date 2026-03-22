@@ -29,6 +29,8 @@ def add_records(con, splash, data_path):
         return
 
     splash.SetText(f'Adding wire marker to db [1 | 1]...')
+    splash.flush()
+
     con.execute('INSERT INTO wire_markers (id, part_number, description, mfg_id, '
                 'family_id, series_id, color_id, image_id, datasheet_id, cad_id, '
                 'min_temp_id, max_temp_id, min_diameter, max_diameter, min_awg, '
@@ -39,10 +41,13 @@ def add_records(con, splash, data_path):
     con.commit()
 
     splash.SetText(f'Building wire markers...')
+    splash.flush()
+
     data = _build_wire_markers(con)
 
     data_len = len(data)
     splash.SetText(f'Adding wire markers to db [{data_len} | {data_len}]')
+    splash.flush()
 
     try:
         con.executemany('INSERT INTO wire_markers (part_number, description, mfg_id, '

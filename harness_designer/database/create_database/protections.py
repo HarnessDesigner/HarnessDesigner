@@ -10,6 +10,8 @@ def add_records(con, splash):
     data = ((0, 'No Protection'),)
 
     splash.SetText(f'Adding protections to db [{len(data)} | {len(data)}]...')
+    splash.flush()
+
     con.executemany('INSERT INTO protections (id, name) VALUES (?, ?);', data)
     con.commit()
 

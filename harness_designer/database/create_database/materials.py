@@ -11,6 +11,8 @@ def add_records(con, splash):
 
     try:
         splash.SetText(f'Adding materials to db [{len(data)} | {len(data)}]...')
+        splash.flush()
+
         con.executemany('INSERT INTO materials (id, name) VALUES(?, ?);', data)
         con.commit()
     except:  # NOQA

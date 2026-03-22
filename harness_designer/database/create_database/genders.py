@@ -8,10 +8,13 @@ def add_records(con, splash):
         return
 
     splash.SetText(f'Building genders...')
+    splash.flush()
 
     data = ((0, "Unknown"), (1, "Male"), (2, "Female"))
 
     splash.SetText(f'Adding genders to db [{len(data)} | {len(data)}]...')
+    splash.flush()
+
     con.executemany('INSERT INTO genders (id, name) VALUES(?, ?);', data)
     con.commit()
 

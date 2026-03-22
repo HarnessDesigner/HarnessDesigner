@@ -84,7 +84,8 @@ class Canvas(glcanvas.GLCanvas):
     possible objects that might exist which would impact the program performance
     if it is done on the same core that the UI is running on.
     """
-    def __init__(self, parent, config: _config.Config.editor3d, size=wx.DefaultSize, pos=wx.DefaultPosition):
+    def __init__(self, parent, config: _config.Config.editor3d, size=wx.DefaultSize,
+                 pos=wx.DefaultPosition, axis_overlay=False):
         glcanvas.GLCanvas.__init__(self, parent, -1, size=size, pos=pos)
 
         try:
@@ -97,6 +98,12 @@ class Canvas(glcanvas.GLCanvas):
 
         from .. import context as _context
         from . import camera as _camera
+        from . import axis_overlay as _axis_overlay
+
+        if axis_overlay:
+            self._axis_overlay = _axis_overlay.Overlay(self)
+        else:
+            self._axis_overlay = None
 
         self._init = False
         self.context = _context.GLContext(self)
@@ -124,7 +131,7 @@ class Canvas(glcanvas.GLCanvas):
         self._grid_lines_stipple = None
         self._grid_lines_solid = None
 
-        self._angle_overlay_bitmap = wx.NullBitmap
+        self._angle_view_bitmap = wx.NullBitmap
 
         from . import key_handler as _key_handler
         from . import mouse_handler as _mouse_handler
@@ -148,9 +155,9 @@ class Canvas(glcanvas.GLCanvas):
         return self._objects_in_view
 
     @_debug.logfunc
-    def set_angle_overlay(self, x, y, z):
+    def set_angle_view(self, x, y, z):
         if None in (x, y, z):
-            self._angle_overlay_bitmap = wx.NullBitmap
+            self._angle_view_bitmap = wx.NullBitmap
             return
 
         angle_overlay = f'X: {round(x, 6)}  Y: {round(y, 6)}  Z: {round(z, 6)}'
@@ -160,7 +167,7 @@ class Canvas(glcanvas.GLCanvas):
         h += 4
 
         buf = bytearray([0] * (w * h * 4))
-        bitmap = wx.Bitmap.FromBufferRGBA(w, h, buf)
+        bitmap = wx.Bitmap.FromBufferRGBA(w, h, buf)  # NOQA
         dc = wx.MemoryDC()
         dc.SelectObject(bitmap)
         gcdc = wx.GCDC(dc)
@@ -178,7 +185,7 @@ class Canvas(glcanvas.GLCanvas):
         dc.Destroy()
         del dc
 
-        self._angle_overlay_bitmap = bitmap
+        self._angle_view_bitmap = bitmap
 
     def set_selected(self, obj):
         self._selected = obj
@@ -331,54 +338,56 @@ class Canvas(glcanvas.GLCanvas):
     def _on_paint(self, _):
         pdc = wx.PaintDC(self)
 
-        with self.context:
-            if not self._init:
-                self._init_gl()
-                self._init = True
+        self.context.acquire()
+        if not self._init:
+            self._init_gl()
+            self._init = True
 
-            self._on_draw()
+        self._on_draw()
 
-            if self._angle_overlay_bitmap.IsOk():
-                w, h = self._angle_overlay_bitmap.GetSize()
+        if self._angle_view_bitmap.IsOk():
+            w, h = self._angle_view_bitmap.GetSize()
 
-                img = _image_utils.wx_bitmap_2_pil_image(self._angle_overlay_bitmap)
+            img = _image_utils.wx_bitmap_2_pil_image(self._angle_view_bitmap)
+            
+            pw, ph = self.GetParent().GetSize()
+            sw, sh = self.GetSize()
 
-                pw, ph = self.GetParent().GetSize()
-                sw, sh = self.GetSize()
+            x = (sw - pw) // 2
+            y = (sh - ph) // 2
+            
+            x += 30
+            y += 20
+            gl_y = sh - y
 
-                x = (sw - pw) // 2
-                y = (sh - ph) // 2
+            # Read pixel data from the front buffer (now visible on the screen)
+            GL.glReadBuffer(GL.GL_FRONT)  # Set read buffer explicitly
+            pixel_data = GL.glReadPixels(x, gl_y, w, h, GL.GL_RGBA, GL.GL_UNSIGNED_BYTE)
 
-                x += 30
-                y += 20
-                gl_y = sh - y
+            def _cc(r_, g_, b_):
+                return 255 - r_, 255 - g_, 255 - b_
 
-                # Read pixel data from the front buffer (now visible on the screen)
-                GL.glReadBuffer(GL.GL_FRONT)  # Set read buffer explicitly
-                pixel_data = GL.glReadPixels(x, gl_y, w, h, GL.GL_RGBA, GL.GL_UNSIGNED_BYTE)
+            for y_ in range(h):
+                corrected_y = h - 1 - y_
+                row = corrected_y * w
+                for x_ in range(w):
+                    r, g, b, a = img.getpixel((x_, y_))
+                    if a == 0:
+                        continue
 
-                def _cc(r_, g_, b_):
-                    return 255 - r_, 255 - g_, 255 - b_
+                    i = (row + x_) * 4
+                    r, g, b = _cc(pixel_data[i], pixel_data[i + 1], pixel_data[i + 2])
+                    img.putpixel((x_, y_), (r, g, b, a))
 
-                for y_ in range(h):
-                    corrected_y = h - 1 - y_
-                    row = corrected_y * w
-                    for x_ in range(w):
-                        r, g, b, a = img.getpixel((x_, y_))
-                        if a == 0:
-                            continue
+            gcdc = wx.GCDC(pdc)
+            gc = gcdc.GetGraphicsContext()
+            bitmap = _image_utils.pil_image_2_wx_bitmap(img)
+            gc.DrawBitmap(bitmap, float(x + 5), float(y - 35), float(w), float(h))
 
-                        i = (row + x_) * 4
-                        r, g, b = _cc(pixel_data[i], pixel_data[i + 1], pixel_data[i + 2])
-                        img.putpixel((x_, y_), (r, g, b, a))
-
-                gcdc = wx.GCDC(pdc)
-                gc = gcdc.GetGraphicsContext()
-                bitmap = _image_utils.pil_image_2_wx_bitmap(img)
-                gc.DrawBitmap(bitmap, float(x + 5), float(y - 35), float(w), float(h))
-
-                gcdc.Destroy()
-                del gcdc
+            gcdc.Destroy()
+            del gcdc
+        
+        self.context.release()
 
     @staticmethod
     def _normalize(v: np.ndarray) -> np.ndarray:
@@ -637,45 +646,52 @@ class Canvas(glcanvas.GLCanvas):
 
     @_debug.logfunc
     def _on_draw(self):
-        with self.context:
-            w, h = self.GetSize()
-            aspect = w / float(h)
+        self.context.acquire()
+        w, h = self.GetSize()
+        aspect = w / float(h)
 
-            f_size = self.config.floor.grid.size ** 2
+        f_size = self.config.floor.grid.size ** 2
 
-            GL.glEnable(GL.GL_DEPTH_TEST)
-            GL.glEnable(GL.GL_BLEND)
-            GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
+        GL.glEnable(GL.GL_DEPTH_TEST)
+        GL.glEnable(GL.GL_BLEND)
+        GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
 
-            GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
-            GL.glMatrixMode(GL.GL_PROJECTION)
-            GL.glLoadIdentity()
-            GLU.gluPerspective(65, aspect, 0.1, float(math.sqrt(f_size * f_size)))
+        GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
+        GL.glMatrixMode(GL.GL_PROJECTION)
+        GL.glLoadIdentity()
+        GLU.gluPerspective(65, aspect, 0.1, float(math.sqrt(f_size * f_size)))
 
-            GL.glMatrixMode(GL.GL_MODELVIEW)
-            GL.glLoadIdentity()
+        GL.glMatrixMode(GL.GL_MODELVIEW)
+        GL.glLoadIdentity()
 
-            self.camera.Set()
+        self.camera.Set()
 
-            objs = self._view_culling.cull(
-                self._object_data, self.camera.frustum_normals,
-                self.camera.frustum_distances, self.camera.position.as_numpy)
+        if self._axis_overlay is not None:
+            self.context.release()
+            self._axis_overlay.set_angle((self.camera.position - self.camera.focal_position).inverse)
+            self.context.acquire()
 
-            # GL.glPushMatrix()
+        objs = self._view_culling.cull(
+            self._object_data, self.camera.frustum_normals,
+            self.camera.frustum_distances, self.camera.position.as_numpy)
 
-            self._draw_scene(objs)
+        # GL.glPushMatrix()
 
-            # if self.config.debug.bounding_boxes:
-            #     self._render_bounding_boxes()
+        self._draw_scene(objs)
 
-            if self.config.focal_target.enable:
-                # Re-enable shader for focal target rendering
-                GL.glUseProgram(self._shader_program)
-                self._focal_target.obj3d.render(self._shader_program)
-                GL.glUseProgram(0)
+        # if self.config.debug.bounding_boxes:
+        #     self._render_bounding_boxes()
 
-            # GL.glPopMatrix()
+        if self.config.focal_target.enable:
+            # Re-enable shader for focal target rendering
+            GL.glUseProgram(self._shader_program)
+            self._focal_target.obj3d.render(self._shader_program)
+            GL.glUseProgram(0)
 
-            self.floor.render(self._shader_program)
-            
-            self.SwapBuffers()
+        # GL.glPopMatrix()
+
+        self.floor.render(self._shader_program)
+        
+        self.SwapBuffers()
+
+        self.context.release()

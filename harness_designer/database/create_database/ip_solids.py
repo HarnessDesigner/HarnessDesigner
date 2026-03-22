@@ -13,6 +13,7 @@ def add_records(con, splash):
         return
 
     splash.SetText(f'Building IP solids...')
+    splash.flush()
 
     data = (
         (0, '0', 'No Protection', 'No protection against contact and ingress of objects.', None),
@@ -26,6 +27,8 @@ def add_records(con, splash):
     )
 
     splash.SetText(f'Adding IP solids to db [{len(data)} | {len(data)}]...')
+    splash.flush()
+
     con.executemany('INSERT INTO ip_solids (id, name, short_desc, description, icon_data) VALUES (?, ?, ?, ?, ?);', data)
 
     con.commit()

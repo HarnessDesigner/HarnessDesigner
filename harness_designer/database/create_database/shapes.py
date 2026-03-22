@@ -10,6 +10,8 @@ def add_records(con, splash):
     data = ((0, 'Internal Use DO NOT DELETE'),)
 
     splash.SetText(f'Adding shape to db [1 | 1]...')
+    splash.flush()
+
     con.executemany('INSERT INTO shapes (id, name) VALUES (?, ?);', data)
     con.commit()
 

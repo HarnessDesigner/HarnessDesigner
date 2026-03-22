@@ -8,6 +8,7 @@ def add_records(con, splash):
         return
 
     splash.SetText(f'Building IP suppliments...')
+    splash.flush()
 
     data = (
         ('D', 'Wire'),
@@ -20,6 +21,8 @@ def add_records(con, splash):
     )
 
     splash.SetText(f'Adding IP suppliments to db [{len(data)} | {len(data)}]...')
+    splash.flush()
+
     con.executemany('INSERT INTO ip_supps (name, description) VALUES (?, ?);', data)
     con.commit()
 

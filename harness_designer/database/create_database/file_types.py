@@ -8,6 +8,7 @@ def add_records(con, splash):
         return
 
     splash.SetText(f'Building file types...')
+    splash.flush()
 
     data = (
         ['image/apng', 'apng', 'APNG', 0],
@@ -110,6 +111,8 @@ def add_records(con, splash):
     )
 
     splash.SetText(f'Adding file types to db [{len(data)} | {len(data)}]...')
+    splash.flush()
+
     con.executemany('INSERT INTO file_types (mimetype, extension, name, is_model) '
                     'VALUES (?, ?, ?, ?);', data)
     con.commit()

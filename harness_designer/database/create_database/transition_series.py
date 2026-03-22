@@ -10,6 +10,8 @@ def add_records(con, splash):
     data = ((0, 'Internal Use DO NOT DELETE'),)
 
     splash.SetText(f'Adding transition series to db [1 | 1]...')
+    splash.flush()
+
     con.executemany('INSERT INTO transition_series (id, name) VALUES (?, ?);', data)
     con.commit()
 

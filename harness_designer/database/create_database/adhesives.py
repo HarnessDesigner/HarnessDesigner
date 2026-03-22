@@ -8,6 +8,7 @@ def add_records(con, splash, data_path):
         return
 
     splash.SetText(f'Building adhesives...')
+    splash.flush()
 
     data = (
         (0, 'None', 'No Adhesive', '[]'),
@@ -22,6 +23,8 @@ def add_records(con, splash, data_path):
     )
 
     splash.SetText(f'Adding adhesives to db [{len(data)} | {len(data)}]...')
+    splash.flush()
+
     con.executemany('INSERT INTO adhesives (id, code, description, accessory_part_nums) VALUES (?, ?, ?, ?);', data)
 
     con.commit()

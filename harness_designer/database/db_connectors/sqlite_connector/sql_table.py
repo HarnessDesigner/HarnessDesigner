@@ -28,11 +28,12 @@ class SQLTable:
                                f'pragma_table_info("{self.name}");')
 
         column_names = eval(db_cursor._con.fetchall()[0][0])
+
         for field in self.fields:
             if field.name not in column_names:
-                return False
+                return True
 
-        return True
+        return False
 
     def update_fields(self, db_cursor):
 
@@ -40,6 +41,7 @@ class SQLTable:
                   f'pragma_table_info("{self.name}");')
 
         column_names = eval(db_cursor._con.fetchall()[0][0])
+
         for field in self.fields:
             if field.name not in column_names:
                 field.add_to_table(db_cursor, self.name)
