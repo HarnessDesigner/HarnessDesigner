@@ -43,12 +43,6 @@ class AngleMeta(type):
 class Angle(metaclass=AngleMeta):
 
     def __array_ufunc__(self, func, method, inputs, instance, **kwargs):  # NOQA
-        # print('angle func:', func)
-        # print('angle method:', method)
-        # print('angle inputs:', inputs)
-        # print('angle instance:', instance)
-        # print()
-
         if func == np.matmul:
             if isinstance(instance, np.ndarray):
                 if instance.shape == (4,):
@@ -63,12 +57,6 @@ class Angle(metaclass=AngleMeta):
 
                 return self
             else:
-                # print()
-                # print('QUAT:', self._q.as_numpy)
-                # print('EULER:', self._q.as_euler)
-                # print('MATRIX:', self._q.as_matrix)
-                # print('TRANSFORM MATRIX:', self._q.as_matrix.T)
-                # print()
                 return inputs @ self._q.as_matrix.T
 
         if func == np.add:
@@ -339,27 +327,6 @@ class Angle(metaclass=AngleMeta):
     def __sub__(self, other: Union["Angle", np.ndarray]) -> "Angle":
         q = self._q - self.__get_quat_from_other(other)
         return self.from_quat(q)
-
-    # def __rmatmul__(self, other: Union[np.ndarray, _point.Point]) -> np.ndarray:
-    #     print(type(other))
-    #
-    #     if isinstance(other, np.ndarray):
-    #         other @= self._q.as_matrix.T
-    #     elif isinstance(other, _point.Point):
-    #         values = other.as_numpy @ self._matrix.T
-    #
-    #         x = float(values[0])
-    #         y = float(values[1])
-    #         z = float(values[2])
-    #         with other:
-    #             other.x = x
-    #             other.y = y
-    #
-    #         other.z = z
-    #     else:
-    #         raise RuntimeError('sanity check')
-    #
-    #     return other
 
     def __imatmul__(self, other: Union[np.ndarray, _point.Point]) -> np.ndarray:
         if isinstance(other, np.ndarray):

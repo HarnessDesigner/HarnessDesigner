@@ -387,11 +387,33 @@ class VirtualLogListCtrl(wx.ListCtrl):
 
         self.attr_info = wx.ItemAttr()
         self.attr_info.SetTextColour(wx.BLACK)
+        self._is_destroyed = False
+
+    def Destroy(self):
+        self._is_destroyed = True
+
+        wx.ListCtrl.Destroy(self)
 
     def AppendData(self, data: pd.DataFrame):
-        self.data = pd.concat([self.data, data], ignore_index=True)
-        self.SetItemCount(len(self.data))
-        wx.CallAfter(self.Refresh, False)
+        # Convert timestamp to string for the incoming data only
+
+        def _do(new_data):
+            if not new_data.empty and 'timestamp' in new_data.columns:
+                if pd.api.types.is_datetime64_any_dtype(new_data['timestamp']):
+                    new_data['timestamp_str'] = (
+                        new_data['timestamp'].dt.strftime('%m.%d.%Y-%H:%M:%S'))
+
+                else:
+                    new_data['timestamp_str'] = new_data['timestamp'].astype(str)
+
+            # Now concatenate with the already-formatted existing data
+            self.data = pd.concat([self.data, new_data], ignore_index=True)
+
+            if not self._is_destroyed:
+                self.SetItemCount(len(self.data))
+                self.Refresh(False)
+
+        wx.CallAfter(_do, data)
 
     def SetData(self, df: pd.DataFrame):
         """
@@ -496,6 +518,8 @@ class LogViewerPanel(wx.SplitterWindow):
 
     def Destroy(self):
         self._is_destroyed = True
+        wx.GetApp().Yield(False)
+        self.log_list.Destroy()
         wx.SplitterWindow.Destroy(self)
 
     def _load_current_log_initial(self):

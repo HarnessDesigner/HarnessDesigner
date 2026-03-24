@@ -145,17 +145,12 @@ class Housing(_base3d.Base3D):
             # use context so the data only gets written to the database
             # on the last change
 
-            print(i, type(p))
             with p:
                 p -= self.position
-                print(i, type(p))
                 p @= inverse_angle
-                print(i, type(p))
                 p @= angle
-                print(i, type(p))
 
             p += self.position
-            print(i, type(p))
 
         boot = self.db_obj.boot
         seal = self.db_obj.seal

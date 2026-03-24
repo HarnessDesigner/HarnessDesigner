@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 
 from ...geometry import point as _point
 from ... import debug as _debug
+from . import move_arrows as _move_arrows
 
 if TYPE_CHECKING:
     from . import canvas as _canvas
@@ -18,6 +19,7 @@ class DragObject:
         # last object world _point.Point used for incremental moves
         self.last_pos = selected.obj3d.position.copy()
         self.axis_lock = _point.Point(0, 0, 0)
+        self.move_arrows = None
 
         self.pick_offset = None
 
@@ -52,6 +54,10 @@ class DragObject:
             dominant_axis = max(axis_values, key=axis_values.get)
             setattr(self.axis_lock, dominant_axis, 1.0)
 
+            # Create movement arrows when the axis is first determined
+            self.move_arrows = _move_arrows.MoveArrows(self.selected.obj3d.position, dominant_axis,
+                                                       self.canvas.mainframe, self.selected.obj3d.aabb)
+
         # Step 8: Apply axis locking
         delta3d *= self.axis_lock
 
@@ -62,5 +68,3 @@ class DragObject:
 
         # Step 10: Update the last position for the next drag
         self.last_pos = position.copy()
-
-

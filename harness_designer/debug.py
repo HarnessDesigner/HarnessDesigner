@@ -86,7 +86,7 @@ def logfunc(func):
             kwargs_ = ''
 
         if _stack_count == 0:
-            print('START STACK')
+            _print_func('START STACK')
 
         _stack_count += 1
 
@@ -104,16 +104,15 @@ def logfunc(func):
 
         if Config.debug.log_args:
             if Config.debug.call_duration:
-                print(f'({duration}ms){func.__qualname__}({", ".join(item for item in [args_, kwargs_] if item)}) --> {repr(ret)}')
+                _print_func(f'({duration}ms){func.__qualname__}({", ".join(item for item in [args_, kwargs_] if item)}) --> {repr(ret)}')
             else:
-                print(f'{func.__qualname__}({", ".join(item for item in [args_, kwargs_] if item)}) --> {repr(ret)}')
+                _print_func(f'{func.__qualname__}({", ".join(item for item in [args_, kwargs_] if item)}) --> {repr(ret)}')
 
         elif Config.debug.call_duration:
-            print(f'({duration}ms){func.__qualname__}')
+            _print_func(f'({duration}ms){func.__qualname__}')
 
         if _stack_count == 0:
-            print('END STACK')
-            print()
+            _print_func('END STACK', end_stack=True)
 
         return ret
 
