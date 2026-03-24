@@ -357,6 +357,7 @@ class MouseHandler:
 
             if self._drag_obj is not None:
                 self._drag_obj = None
+                self.canvas.move_arrows = None
 
         self._mouse_pos = None
         self._is_motion = False

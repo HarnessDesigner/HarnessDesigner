@@ -142,6 +142,7 @@ class Canvas(glcanvas.GLCanvas):
         self._headlight = _headlight.Headlight(self)
         self._scene_light = _scene_light.SceneLight(self)
         self._focal_target: _focal_target.FocalPoint = None
+        self.move_arrows = None
 
         font = self.GetFont()
         font.SetPointSize(15)
@@ -686,6 +687,11 @@ class Canvas(glcanvas.GLCanvas):
             # Re-enable shader for focal target rendering
             GL.glUseProgram(self._shader_program)
             self._focal_target.obj3d.render(self._shader_program)
+            GL.glUseProgram(0)
+
+        if self.move_arrows is not None:
+            GL.glUseProgram(self._shader_program)
+            self.move_arrows.render(self._shader_program)
             GL.glUseProgram(0)
 
         # GL.glPopMatrix()
