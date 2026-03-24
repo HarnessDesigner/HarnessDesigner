@@ -340,24 +340,26 @@ class Angle(metaclass=AngleMeta):
         q = self._q - self.__get_quat_from_other(other)
         return self.from_quat(q)
 
-    def __rmatmul__(self, other: Union[np.ndarray, _point.Point]) -> np.ndarray:
-        if isinstance(other, np.ndarray):
-            other @= self._q.as_matrix.T
-        elif isinstance(other, _point.Point):
-            values = other.as_numpy @ self._matrix.T
-
-            x = float(values[0])
-            y = float(values[1])
-            z = float(values[2])
-            with other:
-                other.x = x
-                other.y = y
-
-            other.z = z
-        else:
-            raise RuntimeError('sanity check')
-
-        return other
+    # def __rmatmul__(self, other: Union[np.ndarray, _point.Point]) -> np.ndarray:
+    #     print(type(other))
+    #
+    #     if isinstance(other, np.ndarray):
+    #         other @= self._q.as_matrix.T
+    #     elif isinstance(other, _point.Point):
+    #         values = other.as_numpy @ self._matrix.T
+    #
+    #         x = float(values[0])
+    #         y = float(values[1])
+    #         z = float(values[2])
+    #         with other:
+    #             other.x = x
+    #             other.y = y
+    #
+    #         other.z = z
+    #     else:
+    #         raise RuntimeError('sanity check')
+    #
+    #     return other
 
     def __imatmul__(self, other: Union[np.ndarray, _point.Point]) -> np.ndarray:
         if isinstance(other, np.ndarray):

@@ -6,7 +6,7 @@ from ...geometry import angle as _angle
 
 if TYPE_CHECKING:
     from . import canvas as _canvas
-    from ...objects.objects3d import base3d as _base3d
+    from ... import objects as _objects
 
 
 # TODO: drag rotation is not working. the angles are not being calculated
@@ -14,27 +14,27 @@ if TYPE_CHECKING:
 
 
 class Arcball:
-    def __init__(self, canvas: "_canvas.Canvas", selected: "_base3d.Base3D"):
+    def __init__(self, canvas: "_canvas.Canvas", selected: "_objects.ObjectBase"):
         self.canvas = canvas
         self.selected = selected
 
         self.width, self.height = self._get_screen_rect()
 
+        self.camera_focal_pos = canvas.camera.focal_position.copy()
         self.camera_pos = canvas.camera.position.copy()
-        self.camera_eye = canvas.camera.eye.copy()
 
-        matrix = selected.angle.as_matrix
+        matrix = selected.obj3d.angle.as_matrix_numpy
         matrix = [row.tolist() + [0] for row in matrix]
         matrix.append([0.0, 0.0, 0.0, 1.0])
         self.rotation_matrix = np.array(matrix, dtype=np.float64)
-        canvas.set_angle_overlay(*self._get_euler_angles())
+        canvas.set_angle_view(*self._get_euler_angles())
 
         self.rotation_matrix = np.identity(4)
         self.start_vector = None
         self.is_dragging = False
 
     def __del__(self):
-        self.canvas.set_angle_overlay(None, None, None)
+        self.canvas.set_angle_view(None, None, None)
 
     def _get_screen_rect(self):
         # min_x = 999999
@@ -81,7 +81,7 @@ class Arcball:
         else:
             nz = np.sqrt(1.0 - r)
 
-        return np.array([nx, ny, nz])
+        return np.array([float(nx), float(ny), float(nz)])
 
     def __call__(self, mouse_pos: _point.Point):
         if self.start_vector is None:
@@ -89,11 +89,11 @@ class Arcball:
             return
 
         if (
-            self.camera_pos != self.canvas.camera.position or
-            self.camera_eye != self.canvas.camera.eye
+            self.camera_focal_pos != self.canvas.camera.focal_position or
+            self.camera_pos != self.canvas.camera.position
         ):
+            self.camera_focal_pos = self.canvas.camera.focal_position.copy()
             self.camera_pos = self.canvas.camera.position.copy()
-            self.camera_eye = self.canvas.camera.eye.copy()
 
             self.width, self.height = self._get_screen_rect()
 
@@ -116,10 +116,10 @@ class Arcball:
             rotation_matrix = self._rotation_matrix_from_axis_angle(rotation_axis, angle_change)
             self.rotation_matrix = np.dot(rotation_matrix, self.rotation_matrix)
 
-            self.canvas.set_angle_overlay(*self._get_euler_angles())
+            self.canvas.set_angle_view(*self._get_euler_angles())
 
             r_angle = _angle.Angle.from_matrix(self.rotation_matrix[0:3, 0:-1])
-            angle = self.selected.angle
+            angle = self.selected.obj3d.angle
 
             diff = r_angle - angle
             angle += diff

@@ -1,11 +1,12 @@
 from typing import TYPE_CHECKING
-from OpenGL import GL
+
 
 if TYPE_CHECKING:
     from .. import ObjectBase as _ObjectBase
     from ... import ui as _ui
     from ...ui import editor_2d as _editor_2d
     from ...database import project_db as _project_db
+    from ...geometry import point as _point
 
 
 class Base2D:
@@ -54,13 +55,12 @@ class Base2D:
         """
         pass
 
-    def hit_test(self, world_x: float, world_y: float) -> bool:
+    def hit_test(self, world_pos: "_point.Point") -> bool:
         """
         Test if a point hits this object
 
         Args:
-            world_x: World X coordinate
-            world_y: World Y coordinate
+            world_pos: world position
 
         Returns:
             True if the point hits this object

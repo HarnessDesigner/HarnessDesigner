@@ -8,7 +8,7 @@ class Position3DMixin(BaseMixin):
 
     def _update_position3d(self, point: _point.Point):
         x, y, z = point.as_float
-        point_id = int(point.db_id)
+        point_id = int(point.db_id[:-2])
 
         self._table.execute(f'UPDATE pjt_points3d SET x=?, y=?, z=? WHERE id = {point_id};', (x, y, z))
         self._table.commit()
@@ -21,7 +21,7 @@ class Position3DMixin(BaseMixin):
         rows = self._table.fetchall()
 
         if rows:
-            point = _point.Point(*rows[0], db_id=str(point_id))
+            point = _point.Point(*rows[0], db_id=str(point_id) + '3d')
             point.bind(self._update_position3d)
             return point
 

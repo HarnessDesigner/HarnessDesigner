@@ -8,7 +8,8 @@ import numpy as np
 from . import base2d as _base2d
 from ...ui.widgets import context_menus as _context_menus
 from ...geometry import angle as _angle
-
+from ...geometry import point as _point
+from ...geometry.decimal import Decimal as _d
 
 if TYPE_CHECKING:
     from ...database.project_db import pjt_housing as _pjt_housing
@@ -108,20 +109,24 @@ class Housing(_base2d.Base2D):
         # Draw housing body (filled) - centered at origin after translation
         GL.glColor4f(0.3, 0.3, 0.3, 0.4)  # Semi-transparent dark gray
         GL.glBegin(GL.GL_QUADS)
-        GL.glVertex2f(-self._width/2, -self._height/2)
-        GL.glVertex2f(self._width/2, -self._height/2)
-        GL.glVertex2f(self._width/2, self._height/2)
-        GL.glVertex2f(-self._width/2, self._height/2)
+        h_width = self._width / 2
+        h_height = self._height / 2
+
+        GL.glVertex2f(-h_width, -h_height)
+        GL.glVertex2f(h_width, -h_height)
+        GL.glVertex2f(h_width, h_height)
+        GL.glVertex2f(-h_width, h_height)
         GL.glEnd()
 
         # Draw housing outline
         GL.glColor4f(0.4, 0.4, 0.4, 1.0)  # Dark gray
         GL.glLineWidth(2.5)
         GL.glBegin(GL.GL_LINE_LOOP)
-        GL.glVertex2f(-self._width/2, -self._height/2)
-        GL.glVertex2f(self._width/2, -self._height/2)
-        GL.glVertex2f(self._width/2, self._height/2)
-        GL.glVertex2f(-self._width/2, self._height/2)
+
+        GL.glVertex2f(-h_width, -h_height)
+        GL.glVertex2f(h_width, -h_height)
+        GL.glVertex2f(h_width, h_height)
+        GL.glVertex2f(-h_width, h_height)
         GL.glEnd()
 
         # Restore transformation matrix
@@ -149,16 +154,19 @@ class Housing(_base2d.Base2D):
 
         offset = 3.0
         GL.glBegin(GL.GL_LINE_LOOP)
-        GL.glVertex2f(-self._width/2 - offset, -self._height/2 - offset)
-        GL.glVertex2f(self._width/2 + offset, -self._height/2 - offset)
-        GL.glVertex2f(self._width/2 + offset, self._height/2 + offset)
-        GL.glVertex2f(-self._width/2 - offset, self._height/2 + offset)
+        h_width = self._width / 2
+        h_height = self._height / 2
+
+        GL.glVertex2f(-h_width - offset, -h_height - offset)
+        GL.glVertex2f(h_width + offset, -h_height - offset)
+        GL.glVertex2f(h_width + offset, h_height + offset)
+        GL.glVertex2f(-h_width - offset, h_height + offset)
         GL.glEnd()
 
         # Restore transformation matrix
         GL.glPopMatrix()
 
-    def hit_test(self, world_x: float, world_y: float) -> bool:
+    def hit_test(self, world_pos: _point.Point) -> bool:
         """
         Test if point is inside housing (accounting for rotation)
 
@@ -168,20 +176,19 @@ class Housing(_base2d.Base2D):
             return False
 
         # Translate point to housing's local space
-        local_x = world_x - self._position.x
-        local_y = world_y - self._position.y
+        local_pos = world_pos - self._position
 
         # Rotate point by negative angle (inverse rotation)
         rotation_rad = -self._angle.z
-        cos_a = math.cos(rotation_rad)
-        sin_a = math.sin(rotation_rad)
+        cos_a = _d(math.cos(rotation_rad))
+        sin_a = _d(math.sin(rotation_rad))
 
-        rotated_x = local_x * cos_a - local_y * sin_a
-        rotated_y = local_x * sin_a + local_y * cos_a
+        rotated_x = local_pos.x * cos_a - local_pos.y * sin_a
+        rotated_y = local_pos.x * sin_a + local_pos.y * cos_a
 
         # Check if within bounds
-        return (abs(rotated_x) <= self._width/2 and
-                abs(rotated_y) <= self._height/2)
+        return (abs(rotated_x) <= self._width / 2 and
+                abs(rotated_y) <= self._height / 2)
 
     def get_bounds(self):
         """Get bounding box"""
@@ -191,8 +198,11 @@ class Housing(_base2d.Base2D):
         x = self._position.x
         y = self._position.y
 
-        return (x - self._width/2, y - self._height/2,
-                x + self._width/2, y + self._height/2)
+        h_width = self._width / 2
+        h_height = self._height / 2
+
+        return (x - h_width, y - h_height,
+                x + h_width, y + h_height)
 
     def move_to(self, world_x: float, world_y: float):
         """

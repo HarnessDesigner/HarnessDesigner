@@ -58,7 +58,7 @@ class PJTHousingsTable(PJTTableBase):
         if position3d is None:
             position3d = _point.Point(0.0, 0.0, 0.0)
 
-        x, y = position3d.as_float[:-1]
+        x, y = position2d.as_float[:-1]
         pos2d = self.db.pjt_points2d_table.insert(x, y)
 
         x, y, z = position3d.as_float
@@ -101,7 +101,7 @@ class PJTHousing(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin,
         
     def __update_cover_position3d(self, point: _point.Point):
         x, y, z = point.as_float
-        point_id = int(point.db_id)
+        point_id = int(point.db_id[:-2])
 
         self._table.execute(f'UPDATE pjt_points3d SET x=?, y=?, z=? WHERE id = {point_id};', (x, y, z))
         self._table.commit()
@@ -113,7 +113,7 @@ class PJTHousing(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin,
         self._table.execute(f'SELECT x, y, z FROM pjt_points3d WHERE id={point_id};')
         rows = self._table.fetchall()
 
-        point = _point.Point(*rows[0], db_id=str(point_id))
+        point = _point.Point(*rows[0], db_id=str(point_id) + '3d')
         point.bind(self.__update_cover_position3d)
         return point
 
@@ -133,7 +133,7 @@ class PJTHousing(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin,
     
     def __update_seal_position3d(self, point: _point.Point):
         x, y, z = point.as_float
-        point_id = int(point.db_id)
+        point_id = int(point.db_id[:-2])
 
         self._table.execute(f'UPDATE pjt_points3d SET x=?, y=?, z=? WHERE id = {point_id};', (x, y, z))
         self._table.commit()
@@ -146,7 +146,7 @@ class PJTHousing(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin,
         rows = self._table.fetchall()
 
         if rows:
-            point = _point.Point(*rows[0], db_id=str(point_id))
+            point = _point.Point(*rows[0], db_id=str(point_id) + '3d')
             point.bind(self.__update_seal_position3d)
             return point
 
@@ -165,7 +165,7 @@ class PJTHousing(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin,
 
     def __update_boot_position3d(self, point: _point.Point):
         x, y, z = point.as_float
-        point_id = int(point.db_id)
+        point_id = int(point.db_id[:-2])
 
         self._table.execute(f'UPDATE pjt_points3d SET x=?, y=?, z=? WHERE id = {point_id};', (x, y, z))
         self._table.commit()
@@ -178,7 +178,7 @@ class PJTHousing(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin,
         rows = self._table.fetchall()
 
         if rows:
-            point = _point.Point(*rows[0], db_id=str(point_id))
+            point = _point.Point(*rows[0], db_id=str(point_id) + '3d')
             point.bind(self.__update_boot_position3d)
             return point
 
@@ -197,7 +197,7 @@ class PJTHousing(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin,
 
     def __update_tpa_lock_1_position3d(self, point: _point.Point):
         x, y, z = point.as_float
-        point_id = int(point.db_id)
+        point_id = int(point.db_id[:-2])
 
         self._table.execute(f'UPDATE pjt_points3d SET x=?, y=?, z=? WHERE id = {point_id};', (x, y, z))
         self._table.commit()
@@ -210,7 +210,7 @@ class PJTHousing(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin,
         rows = self._table.fetchall()
 
         if rows:
-            point = _point.Point(*rows[0], db_id=str(point_id))
+            point = _point.Point(*rows[0], db_id=str(point_id) + '3d')
             point.bind(self.__update_tpa_lock_1_position3d)
             return point
 
@@ -229,7 +229,7 @@ class PJTHousing(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin,
 
     def __update_tpa_lock_2_position3d(self, point: _point.Point):
         x, y, z = point.as_float
-        point_id = int(point.db_id)
+        point_id = int(point.db_id[:-2])
 
         self._table.execute(f'UPDATE pjt_points3d SET x=?, y=?, z=? WHERE id = {point_id};', (x, y, z))
         self._table.commit()
@@ -242,7 +242,7 @@ class PJTHousing(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin,
         rows = self._table.fetchall()
 
         if rows:
-            point = _point.Point(*rows[0], db_id=str(point_id))
+            point = _point.Point(*rows[0], db_id=str(point_id) + '3d')
             point.bind(self.__update_tpa_lock_2_position3d)
             return point
 
@@ -261,7 +261,7 @@ class PJTHousing(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin,
 
     def __update_cpa_lock_position3d(self, point: _point.Point):
         x, y, z = point.as_float
-        point_id = int(point.db_id)
+        point_id = int(point.db_id[:-2])
 
         self._table.execute(f'UPDATE pjt_points3d SET x=?, y=?, z=? WHERE id = {point_id};', (x, y, z))
         self._table.commit()
@@ -274,7 +274,7 @@ class PJTHousing(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin,
         rows = self._table.fetchall()
 
         if rows:
-            point = _point.Point(*rows[0], db_id=str(point_id))
+            point = _point.Point(*rows[0], db_id=str(point_id) + '3d')
             point.bind(self.__update_cpa_lock_position3d)
             return point
 

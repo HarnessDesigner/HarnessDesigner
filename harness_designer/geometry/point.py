@@ -286,6 +286,8 @@ class Point(metaclass=PointMeta):
 
         self._process_update()
 
+        return self
+
     def set_angle(self, angle: "_angle.Angle", origin: "Point"):
         p = self.copy()
 

@@ -7,7 +7,7 @@ class Position2DMixin(BaseMixin):
 
     def _update_position2d(self, point: _point.Point):
         x, y = point.as_float[:-1]
-        point_id = int(point.db_id)
+        point_id = int(point.db_id[:-2])
 
         self._table.execute(f'UPDATE pjt_points2d SET x=?, y=? WHERE id = {point_id};', (x, y))
         self._table.commit()
@@ -20,7 +20,7 @@ class Position2DMixin(BaseMixin):
         rows = self._table.fetchall()
 
         if rows:
-            point = _point.Point(*rows[0], db_id=str(point_id))
+            point = _point.Point(*rows[0], db_id=str(point_id) + '2d')
             point.bind(self._update_position2d)
             return point
 

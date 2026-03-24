@@ -85,72 +85,100 @@ class Project:
         self._obj_count = mainframe.project_db.projects_table.get_object_count(project_id)
 
         for wire_service_loop in ptables.pjt_wire_service_loops_table:
-            obj = _wire_service_loop.WireServiceLoop(mainframe, wire_service_loop)
+            with self.mainframe.editor3d.context:
+                obj = _wire_service_loop.WireServiceLoop(mainframe, wire_service_loop)
+
             self._wire_service_loops[wire_service_loop.db_id] = obj
             mainframe.object_browser.add_wire_service_loop(obj)
 
         for wire_marker in ptables.pjt_wire_markers_table:
-            obj = _wire_marker.WireMarker(mainframe, wire_marker)
+            with self.mainframe.editor3d.context:
+                obj = _wire_marker.WireMarker(mainframe, wire_marker)
+
             self._wire_markers[wire_marker.db_id] = obj
             mainframe.object_browser.add_wire_marker(obj)
 
         for note in ptables.pjt_notes_table:
-            obj = _note.Note(mainframe, note)
+            with self.mainframe.editor3d.context:
+                obj = _note.Note(mainframe, note)
+
             self._notes[note.db_id] = obj
             mainframe.object_browser.add_note(obj)
 
         for circuit in ptables.pjt_circuits_table:
-            obj = _circuit.Circuit(mainframe, circuit)
+            with self.mainframe.editor3d.context:
+                obj = _circuit.Circuit(mainframe, circuit)
+
             self._circuits[circuit.db_id] = obj
             mainframe.object_browser.add_circuit(obj)
 
         for boot in ptables.pjt_boots_table:
-            obj = _boot.Boot(mainframe, boot)
+            with self.mainframe.editor3d.context:
+                obj = _boot.Boot(mainframe, boot)
+
             self._boots[boot.db_id] = obj
             mainframe.object_browser.add_boot(obj)
 
         for cover in ptables.pjt_covers_table:
-            obj = _cover.Cover(mainframe, cover)
+            with self.mainframe.editor3d.context:
+                obj = _cover.Cover(mainframe, cover)
+
             self._covers[cover.db_id] = obj
             mainframe.object_browser.add_cover(obj)
 
         for cpa_lock in ptables.pjt_cpa_locks_table:
-            obj = _cpa_lock.CPALock(mainframe, cpa_lock)
+            with self.mainframe.editor3d.context:
+                obj = _cpa_lock.CPALock(mainframe, cpa_lock)
+
             self._cpa_locks[cpa_lock.db_id] = obj
             mainframe.object_browser.add_cpa_lock(obj)
 
         for tpa_lock in ptables.pjt_tpa_locks_table:
-            obj = _tpa_lock.TPALock(mainframe, tpa_lock)
+            with self.mainframe.editor3d.context:
+                obj = _tpa_lock.TPALock(mainframe, tpa_lock)
+
             self._tpa_locks[tpa_lock.db_id] = obj
             mainframe.object_browser.add_tpa_lock(obj)
 
         for seal in ptables.pjt_seals_table:
-            obj = _seal.Seal(mainframe, seal)
+            with self.mainframe.editor3d.context:
+                obj = _seal.Seal(mainframe, seal)
+
             self._seals[seal.db_id] = obj
             mainframe.object_browser.add_seal(obj)
 
         for terminal in ptables.pjt_terminals_table:
-            obj = _terminal.Terminal(mainframe, terminal)
+            with self.mainframe.editor3d.context:
+                obj = _terminal.Terminal(mainframe, terminal)
+
             self._terminals[terminal.db_id] = obj
             mainframe.object_browser.add_terminal(obj)
 
         for transition in ptables.pjt_transitions_table:
-            obj = _transition.Transition(mainframe, transition)
+            with self.mainframe.editor3d.context:
+                obj = _transition.Transition(mainframe, transition)
+
             self._transitions[transition.db_id] = obj
             mainframe.object_browser.add_transition(obj)
 
         for housing in ptables.pjt_housings_table:
-            obj = _housing.Housing(mainframe, housing)
+            with self.mainframe.editor3d.context:
+                obj = _housing.Housing(mainframe, housing)
+
             self._housings[housing.db_id] = obj
             mainframe.object_browser.add_housing(obj)
 
         for splice in ptables.pjt_splices_table:
-            obj = _splice.Splice(mainframe, splice)
+            with self.mainframe.editor3d.context:
+                obj = _splice.Splice(mainframe, splice)
+
             self._splices[splice.db_id] = obj
             mainframe.object_browser.add_splice(obj)
 
         for wire in ptables.pjt_wires_table:
-            obj = _wire.Wire(mainframe, wire)
+            with self.mainframe.editor3d.context:
+                obj = _wire.Wire(mainframe, wire)
+
             self._wires[wire.db_id] = obj
             mainframe.object_browser.add_wire(obj)
 

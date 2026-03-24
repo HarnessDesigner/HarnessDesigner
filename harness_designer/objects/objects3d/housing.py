@@ -134,22 +134,28 @@ class Housing(_base3d.Base3D):
         cpa_lock_position = self.db_obj.cpa_lock_position3d
         boot_position = self.db_obj.boot_position3d
 
-        for p in (
+        for i, p in enumerate([
             seal_position,
             tpa_lock1_position,
             tpa_lock2_position,
             cover_position,
             cpa_lock_position,
             boot_position
-        ):
+        ]):
             # use context so the data only gets written to the database
             # on the last change
+
+            print(i, type(p))
             with p:
                 p -= self.position
+                print(i, type(p))
                 p @= inverse_angle
+                print(i, type(p))
                 p @= angle
+                print(i, type(p))
 
             p += self.position
+            print(i, type(p))
 
         boot = self.db_obj.boot
         seal = self.db_obj.seal

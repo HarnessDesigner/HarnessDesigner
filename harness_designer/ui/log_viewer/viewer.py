@@ -365,9 +365,9 @@ class VirtualLogListCtrl(wx.ListCtrl):
         )
 
         # Define columns
-        self.InsertColumn(0, "Timestamp", width=180)
-        self.InsertColumn(1, "Level", width=100)
-        self.InsertColumn(2, "Message", width=600)
+        self.InsertColumn(0, "Timestamp", 180)
+        self.InsertColumn(1, "Level", 100)
+        self.InsertColumn(2, "Message", 600)
 
         # Data storage
         self.data = pd.DataFrame(columns=['timestamp', 'level', 'message'])
@@ -387,6 +387,11 @@ class VirtualLogListCtrl(wx.ListCtrl):
 
         self.attr_info = wx.ItemAttr()
         self.attr_info.SetTextColour(wx.BLACK)
+
+    def AppendData(self, data: pd.DataFrame):
+        self.data = pd.concat([self.data, data], ignore_index=True)
+        self.SetItemCount(len(self.data))
+        wx.CallAfter(self.Refresh, False)
 
     def SetData(self, df: pd.DataFrame):
         """
@@ -410,7 +415,7 @@ class VirtualLogListCtrl(wx.ListCtrl):
         self.SetItemCount(len(self.data))
 
         # Refresh display
-        self.Refresh()
+        self.Refresh(False)
 
     def OnGetItemText(self, item: int, column: int) -> str:
         """
@@ -517,7 +522,8 @@ class LogViewerPanel(wx.SplitterWindow):
             # Real-time update - append new data to current view
             # Only update if we're viewing the current log
             if self._curr_log is not None:
-                wx.CallAfter(self._load_current_log_initial)
+                self.log_list.AppendData(data)
+                # wx.CallAfter(self._load_current_log_initial)
 
     def on_tree_selection(self, evt: wx.TreeEvent):
         """Handle tree selection - load log data"""

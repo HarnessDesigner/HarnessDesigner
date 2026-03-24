@@ -163,20 +163,7 @@ class Canvas2D(glcanvas.GLCanvas):
 
     def set_selected(self, obj):
         """Set the currently selected object"""
-        if self._selected == obj:
-            return
-
-        if self._selected is not None:
-            if hasattr(self._selected, 'obj2d'):
-                self._selected.obj2d.set_selected(False)
-
         self._selected = obj
-
-        if self._selected is not None:
-            if hasattr(self._selected, 'obj2d'):
-                self._selected.obj2d.set_selected(True)
-
-        self.Refresh()
 
     def get_selected(self):
         """Get the currently selected object"""

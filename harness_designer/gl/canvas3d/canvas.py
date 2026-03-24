@@ -666,10 +666,10 @@ class Canvas(glcanvas.GLCanvas):
 
         self.camera.Set()
 
-        if self._axis_overlay is not None:
-            self.context.release()
-            self._axis_overlay.set_angle((self.camera.position - self.camera.focal_position).inverse)
-            self.context.acquire()
+        # if self._axis_overlay is not None:
+        #     self.context.release()
+        #     self._axis_overlay.set_angle((self.camera.position - self.camera.focal_position).inverse)
+        #     self.context.acquire()
 
         objs = self._view_culling.cull(
             self._object_data, self.camera.frustum_normals,

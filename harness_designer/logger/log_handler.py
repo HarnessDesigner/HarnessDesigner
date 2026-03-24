@@ -370,10 +370,11 @@ class LogHandler:
             df.to_csv(last_log, index=False)
 
         self._logfile_path = last_log
+        self._logfile = open(last_log, 'a')
         self._index = index
 
         # Track current file size
-        self._current_size = os.path.getsize(last_log) if os.path.exists(last_log) else 0
+        self._current_size = os.path.getsize(last_log)
 
     def bind(self, callback):
         self._callback = callback
@@ -383,6 +384,9 @@ class LogHandler:
         return self._logfile_path
 
     def _open_next_file(self):
+        if self._logfile is not None:
+            self._logfile.close()
+
         log = f'log-{self._index}.csv'
         log = os.path.join(Config.save_path, log)
         self._logfile_path = log
@@ -392,9 +396,13 @@ class LogHandler:
         df.to_csv(log, index=False)
 
         self._current_size = os.path.getsize(log)
+        self._logfile = open(log, 'a')
         self._callback()
 
     def _archive_files(self):
+        if self._logfile is not None:
+            self._logfile.close()
+
         for i in range(Config.num_archives):
             archive_name = f'log_archive-{i + 1}.zip'
             archive_path = os.path.join(Config.save_path, archive_name)
@@ -442,13 +450,14 @@ class LogHandler:
             df = pd.DataFrame([log_entry])
 
             # Append to CSV file
-            df.to_csv(self._logfile_path, mode='a', header=False, index=False)
+            data = df.to_csv(header=False, index=False) + '\n'
+            self._logfile.write(data)
 
             # Update file size
-            self._current_size = os.path.getsize(self._logfile_path)
+            self._current_size += len(data)
 
             # Notify callback
-            self._callback(log_entry)
+            self._callback(df)
 
             # Check if we need to rotate
             if self._current_size >= Config.max_logfile_size:
