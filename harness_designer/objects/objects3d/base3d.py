@@ -94,12 +94,24 @@ class Base3D:
             p1, p2 = _utils.compute_aabb(self._data[0])
             aabb = _utils.adjust_aabb(np.array([p1.as_float, p2.as_float], dtype=np.float64))
         else:
-            local_aabb = self._vbo.local_aabb * self._scale
-            local_aabb @= self._angle
+            local_min = self._vbo.local_aabb[0]
+            local_max = self._vbo.local_aabb[1]
 
-            local_aabb += self._position
+            x1, y1, z1 = local_min
+            x2, y2, z2 = local_max
 
-            aabb = _utils.adjust_aabb(local_aabb)
+            corners = np.array([
+                [x1, y1, z1], [x1, y1, z2],
+                [x1, y2, z1], [x1, y2, z2],
+                [x2, y1, z1], [x2, y1, z2],
+                [x2, y2, z1], [x2, y2, z2]
+            ], dtype=np.float64)
+
+            corners *= self._scale.as_numpy
+            corners @= self._angle
+            corners += self._position.as_numpy
+
+            aabb = _utils.adjust_aabb(corners)
 
         for i in range(2):
             for j in range(3):

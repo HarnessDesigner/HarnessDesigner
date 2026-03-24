@@ -330,9 +330,13 @@ class Angle(metaclass=AngleMeta):
 
     def __imatmul__(self, other: Union[np.ndarray, _point.Point]) -> np.ndarray:
         if isinstance(other, np.ndarray):
-            other @= self._matrix.T
+            if other.ndim == 1:
+                result = self._matrix @ other
+                other[:] = result
+            else:
+                other[:] = (self._matrix @ other.T).T
         elif isinstance(other, _point.Point):
-            values = other.as_numpy @ self._matrix.T
+            values = self._matrix @ other.as_numpy
 
             x = float(values[0])
             y = float(values[1])
@@ -350,9 +354,12 @@ class Angle(metaclass=AngleMeta):
 
     def __matmul__(self, other: Union[np.ndarray, _point.Point]) -> np.ndarray:
         if isinstance(other, np.ndarray):
-            other = other @ self._matrix.T
+            if other.ndim == 1:
+                return self._matrix @ other
+            else:
+                return (self._matrix @ other.T).T
         elif isinstance(other, _point.Point):
-            values = other.as_numpy @ self._matrix.T
+            values = self._matrix @ other.as_numpy
             x = float(values[0])
             y = float(values[1])
             z = float(values[2])
