@@ -688,6 +688,12 @@ class Canvas(glcanvas.GLCanvas):
             self._focal_target.obj3d.render(self._shader_program)
             GL.glUseProgram(0)
 
+        drag_obj = self._mouse_handler._drag_obj
+        if drag_obj is not None and drag_obj.move_arrows is not None:
+            GL.glUseProgram(self._shader_program)
+            drag_obj.move_arrows.render(self._shader_program)
+            GL.glUseProgram(0)
+
         # GL.glPopMatrix()
 
         self.floor.render(self._shader_program)
