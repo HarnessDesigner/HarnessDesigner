@@ -1,21 +1,54 @@
+import os
+import json
+
 from .. import db_connectors as _con
 from ... import logger as _logger
 
 
-def add_records(con, splash):
+def add_records(con, splash, data_path):
     con.execute('SELECT id FROM temperatures WHERE id=0;')
     if con.fetchall():
         return
 
-    splash.SetText(f'Building temperatures...')
-    splash.flush()
+    json_path = os.path.join(data_path, 'temperatures.json')
 
-    data = _build_temps()
+    if os.path.exists(json_path):
+        splash.SetText(f'Loading Temperatures file...')
+        splash.flush()
 
-    splash.SetText(f'Adding temperatures to db [{len(data)} | {len(data)}]...')
-    splash.flush()
+        _logger.logger.database(json_path)
 
-    con.executemany('INSERT INTO temperatures (id, name) VALUES (?, ?);', data)
+        with open(json_path, 'r') as f:
+            data = json.loads(f.read())
+
+        if isinstance(data, dict):
+            data = [value for value in data.values()]
+
+        data_len = len(data)
+
+        splash.SetText(f'Adding temperature to db [0 | {data_len}]...')
+        splash.flush()
+
+        for i, item in enumerate(data):
+            splash.SetText(f'Adding temperature to db [{i + 1} | {data_len}]...')
+            add_temperature(con, **item)
+
+    con.commit()
+
+
+def add_temperature(con, name, id=None):
+
+    if id is None:
+        con.execute(
+            'INSERT INTO temperatures (name) '
+            'VALUES (?);', (name,)
+            )
+    else:
+        con.execute(
+            'INSERT INTO temperatures (id, name) '
+            'VALUES (?, ?);', (id, name)
+            )
+
     con.commit()
 
 
@@ -49,21 +82,6 @@ def get_temperature_id(con, name):
         return db_id
     else:
         return res[0][0]
-
-
-def _build_temps():
-    data = [(0, 'Unknown',)]
-
-    for i in range(-100, 305, 5):
-        if i > 0:
-            i = '+' + str(i)
-        else:
-            i = str(i)
-
-        i += '°C'
-        data.append((len(data), i))
-
-    return data
 
 
 id_field = _con.PrimaryKeyField('id')

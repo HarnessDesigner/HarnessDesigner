@@ -190,15 +190,12 @@ class MainFrame(wx.Frame):
         #
         # self.SetMenuBar(self.menubar)
 
-    def add_housing(self, position):
-        dialog = _dialogs.AddHousingDialog(self, self.global_db.housings_table)
+    def add_housing(self, position2d=None, position3d=None):
+        db_id = self.editor_db.housings.GetSelection()
+        if db_id is None:
+            return
 
-        if dialog.ShowModal() == wx.ID_OK:
-            db_id = dialog.GetValue()
-
-            self.project.add_housing(position, db_id)
-
-        dialog.Destroy()
+        self.project.add_housing(db_id,  position2d=position2d, position3d=position3d)
 
     def _on_pane_activated(self, evt: aui.AuiManagerEvent):
         pane = evt.GetPane()
@@ -332,7 +329,7 @@ class MainFrame(wx.Frame):
             return
         elif mode == _toolbar.ID_CONNECTOR:
             evt.StopPropagation()
-            self.add_housing(evt.GetWorldPosition())
+            self.add_housing(position3d=evt.GetWorldPosition())
         elif mode == _toolbar.ID_TERMINAL:
             evt.StopPropagation()
             self.add_terminal(evt.GetWorldPosition())

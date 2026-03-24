@@ -56,6 +56,10 @@ class Canvas3D(wx.Panel):
         self.Bind(wx.EVT_SIZE, self._on_size)
 
     @property
+    def context(self):
+        return self._canvas.context
+
+    @property
     def camera(self):
         return self._canvas.camera
 

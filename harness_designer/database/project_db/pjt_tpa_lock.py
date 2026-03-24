@@ -42,8 +42,9 @@ class PJTTPALocksTable(PJTTableBase):
 
         raise KeyError(item)
 
-    def insert(self, part_id: int, housing_id: int | None) -> "PJTTPALock":
-        db_id = PJTTableBase.insert(self, part_id=part_id, housing_id=housing_id)
+    def insert(self, part_id: int, position3d_id: int, housing_id: int | None) -> "PJTTPALock":
+        db_id = PJTTableBase.insert(
+            self, part_id=part_id, position3d_id=position3d_id, housing_id=housing_id)
 
         return PJTTPALock(self, db_id, self.project_id)
 

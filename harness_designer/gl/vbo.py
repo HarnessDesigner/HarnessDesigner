@@ -79,6 +79,8 @@ class VBOHandler(metaclass=VBOSingleton):
         self.__faces = faces
         self.__count = count
 
+        print(id, len(vertices), len(normals), len(faces), endpoint)
+
         (
             self.__vao,
             self.__vbo_vertices,

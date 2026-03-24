@@ -1,4 +1,7 @@
 
+import json
+import os
+
 from . import manufacturers as _manufacturers
 from . import colors as _colors
 from . import images as _images
@@ -17,10 +20,13 @@ from .. import db_connectors as _con
 from ... import logger as _logger
 
 
+
+
 def add_wire_markers(con, data: tuple[dict] | list[dict]):
 
     for line in data:
         add_wire_marker(con, **line)
+
 
 
 def add_records(con, splash, data_path):
@@ -40,26 +46,30 @@ def add_records(con, splash, data_path):
                  None, 0, 0, 0.0, 0.0, -1, -1, 0.0, 0.0, 0))
     con.commit()
 
-    splash.SetText(f'Building wire markers...')
-    splash.flush()
+    json_path = os.path.join(data_path, 'wire_markers.json')
 
-    data = _build_wire_markers(con)
+    if os.path.exists(json_path):
+        splash.SetText(f'Loading Wire Markers file...')
+        splash.flush()
 
-    data_len = len(data)
-    splash.SetText(f'Adding wire markers to db [{data_len} | {data_len}]')
-    splash.flush()
+        _logger.logger.database(json_path)
 
-    try:
-        con.executemany('INSERT INTO wire_markers (part_number, description, mfg_id, '
-                        'family_id, series_id, color_id, image_id, datasheet_id, cad_id, '
-                        'min_temp_id, max_temp_id, min_diameter, max_diameter, min_awg, '
-                        'max_awg, length, weight, has_label) '
-                        'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                        data)
+        with open(json_path, 'r') as f:
+            data = json.loads(f.read())
 
-        con.commit()
-    except:  # NOQA
-        pass
+        if isinstance(data, dict):
+            data = [value for value in data.values()]
+
+        data_len = len(data)
+
+        splash.SetText(f'Adding wire marker to db [0 | {data_len}]...')
+        splash.flush()
+
+        for i, item in enumerate(data):
+            splash.SetText(f'Adding wire marker to db [{i + 1} | {data_len}]...')
+            add_wire_marker(con, **item)
+
+    con.commit()
 
 
 def add_wire_marker(con, part_number, description, mfg=None, family=None, series=None,
@@ -193,188 +203,3 @@ pjt_table = _con.SQLTable(
     _con.IntField('is_visible3d', default='1', no_null=True)
 )
 
-
-def _build_wire_markers(con):
-    data = {
-        'SH RNF-3000-3/1-{color_id}': {
-            'min_awg': 18,
-            'max_awg': 10,
-            'description': 'Shrink Markers ({color}/Standard)',
-            'min_diameter': 1.0,
-            'max_diameter': 3.0,
-            'image_url': 'https://www.milspecwiring.com/assets/images/thumbnails/SH%20RNF-3000-3%201-{color_id}_thumbnail.jpg'
-        },
-        'SH RNF-3000-0-{color_id}': {
-            'min_awg': 26,
-            'max_awg': 18,
-            'description': 'Shrink Markers ({color}/Mini)',
-            'min_diameter': 0.5,
-            'max_diameter': 1.5,
-            'image_url': 'https://www.milspecwiring.com/assets/images/thumbnails/SH%20RNF-3000-{color_id}_thumbnail.jpg'
-        }
-    }
-
-    color_mapping = {
-        0: 'Black',
-        1: 'Brown',
-        2: 'Red',
-        3: 'Orange',
-        4: 'Yellow',
-        5: 'Green',
-        6: 'Blue',
-        7: 'Violet',
-        8: 'Gray',
-        9: 'White'
-    }
-
-    mfg_id = _manufacturers.get_mfg_id(con, 'Milspecwiring.com')
-    res = []
-
-    for color_id, color_name in color_mapping.items():
-        for pn, item_data in data.items():
-            part_number = pn.format(color_id=color_id)
-            description = item_data['description'].format(color=color_name)
-            min_awg = item_data['min_awg']
-            max_awg = item_data['max_awg']
-            min_diameter = item_data['min_diameter']
-            max_diameter = item_data['max_diameter']
-            image_url = item_data['image_url'].format(color_id=color_id)
-            length = 5.0
-            weight = 0.0
-            datasheet_id = None
-            cad_id = None
-            has_label = 0
-
-            family_id = 0
-            series_id = 0
-
-            min_temp_id = 0
-            max_temp_id = 0
-
-            image_id = _images.get_image_id(con, image_url)
-
-            res.append((part_number, description, mfg_id, family_id, series_id,
-                        color_id, image_id, datasheet_id, cad_id, min_temp_id,
-                        max_temp_id, min_diameter, max_diameter, min_awg, max_awg,
-                        length, weight, has_label))
-
-    data = {
-        'SH CT 3/32K': {
-            'min_awg': None,
-            'max_awg': None,
-            'description': 'Custom 3/32" Shrink Label',
-            'min_diameter': 0.79,
-            'max_diameter': 2.36,
-            'image_url': 'https://www.milspecwiring.com/assets/images/thumbnails/SH%20TRAC%20quarter%20inch%20fixed_thumbnail.jpg'
-
-        },
-        'SH CT 1/8K': {
-            'min_awg': None,
-            'max_awg': None,
-            'description': 'Custom 1/8" Shrink Label',
-            'min_diameter': 1.07,
-            'max_diameter': 3.18,
-            'image_url': 'https://www.milspecwiring.com/assets/images/thumbnails/SH%20TRAC%20quarter%20inch%20fixed_thumbnail.jpg'
-
-        },
-        'SH CT 3/16K': {
-            'min_awg': None,
-            'max_awg': None,
-            'description': 'Custom 3/16" Shrink Label',
-            'min_diameter': 1.57,
-            'max_diameter': 4.75,
-            'image_url': 'https://www.milspecwiring.com/assets/images/thumbnails/SH%20TRAC%20quarter%20inch%20fixed_thumbnail.jpg'
-
-        },
-        'SH CT 1/4K': {
-            'min_awg': None,
-            'max_awg': None,
-            'description': 'Custom 1/4" Shrink Label',
-            'min_diameter': 6.35,
-            'max_diameter': 2.11,
-            'image_url': 'https://www.milspecwiring.com/assets/images/thumbnails/SH%20TRAC%20quarter%20inch%20fixed_thumbnail.jpg'
-
-        },
-        'SH CT 3/8K': {
-            'min_awg': None,
-            'max_awg': None,
-            'description': 'Custom 3/8" Shrink Label',
-            'min_diameter': 3.18,
-            'max_diameter': 9.53,
-            'image_url': 'https://www.milspecwiring.com/assets/images/thumbnails/SH%20TRAC%20quarter%20inch%20fixed_thumbnail.jpg'
-
-        },
-        'SH CT 1/2K': {
-            'min_awg': None,
-            'max_awg': None,
-            'description': 'Custom 1/2" Shrink Label',
-            'min_diameter': 4.22,
-            'max_diameter': 12.7,
-            'image_url': 'https://www.milspecwiring.com/assets/images/thumbnails/SH%20TRAC%20half%20inch_thumbnail.jpg'
-
-        },
-        'SH CT 3/4K': {
-            'min_awg': None,
-            'max_awg': None,
-            'description': 'Custom 3/4" Shrink Label',
-            'min_diameter': 6.35,
-            'max_diameter': 19.05,
-            'image_url': 'https://www.milspecwiring.com/assets/images/thumbnails/SH%20TRAC%20half%20inch_thumbnail.jpg'
-
-        },
-        'SH CT 1K': {
-            'min_awg': None,
-            'max_awg': None,
-            'description': 'Custom 1" Shrink Label',
-            'min_diameter': 8.46,
-            'max_diameter': 25.4,
-            'image_url': 'https://www.milspecwiring.com/assets/images/thumbnails/SH%20TRAC%201K%20updated_thumbnail.jpg'
-
-        },
-        'SH CT 1-1/2K': {
-            'min_awg': None,
-            'max_awg': None,
-            'description': 'Custom 1-1/2" Shrink Label',
-            'min_diameter': 19.05,
-            'max_diameter': 38.1,
-            'image_url': 'https://www.milspecwiring.com/assets/images/thumbnails/SH%20TRAC%201K%20updated_thumbnail.jpg'
-
-        },
-        'SH CT 2K': {
-            'min_awg': None,
-            'max_awg': None,
-            'description': 'Custom 2" Shrink Label',
-            'min_diameter': 25.4,
-            'max_diameter': 50.8,
-            'image_url': 'https://www.milspecwiring.com/assets/images/thumbnails/SH%20TRAC%201K%20updated_thumbnail.jpg'
-
-        }
-    }
-
-    for part_number, item_data in data.items():
-        description = item_data['description']
-        min_awg = item_data['min_awg']
-        max_awg = item_data['max_awg']
-        has_label = 1
-        min_diameter = item_data['min_diameter']
-        max_diameter = item_data['max_diameter']
-        image_url = item_data['image_url']
-        length = -1.0
-        weight = 0.0
-        datasheet_id = None
-        cad_id = None
-        color_id = 1020
-
-        family_id = 0
-        series_id = 0
-
-        min_temp_id = 0
-        max_temp_id = 0
-
-        image_id = _images.get_image_id(con, image_url)
-
-        res.append((part_number, description, mfg_id, family_id, series_id, color_id, image_id,
-                    datasheet_id, cad_id, min_temp_id, max_temp_id, min_diameter, max_diameter,
-                    min_awg, max_awg, length, weight, has_label))
-
-    return res

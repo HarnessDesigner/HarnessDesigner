@@ -1,36 +1,57 @@
+import json
+import os
+
 from .. import db_connectors as _con
 from ... import logger as _logger
 
 
-def add_records(con, splash):
+def add_records(con, splash, data_path):
     con.execute('SELECT id FROM manufacturers WHERE id=0;')
     if con.fetchall():
         return
 
-    splash.SetText(f'Building manufacturers...')
-    splash.flush()
+    json_path = os.path.join(data_path, 'manufacturers.json')
 
-    data = (
-        (0, 'Internal Use DO NOT DELETE', '', '', '', ''),
-        (1, 'TE', '1-800-522-6752', '', '', 'https://www.te.com/en/home.html'),
-        (2, 'Bosch', '+49 304 036 94077',
-         'Robert-Bosch-Platz 1\n70839 Gerlingen-Schillerhöhe\nGERMANY\n',
-         'Connectors-Webshop-Hotline.PSCTS1-CO@de.bosch.com',
-         'https://bosch-connectors.com/bcp/b2bshop-psconnectors/en/EUR'),
-        (3, 'Aptiv', '', '', '', 'https://www.aptiv.com/en/contact'),
-        (4, 'Molex', '+800-786-6539', '2222 Wellington Ct\nLisle, IL 60532, USA', '',
-         'https://www.molex.com/en-us/products/connectors'),
-        (5, 'EPC', '', '', '', ''),
-        (6, 'Yazaki', '', '', '', ''),
-        (7, 'Milspecwiring.com', '', '', '', 'https://www.milspecwiring.com'),
+    if os.path.exists(json_path):
+        splash.SetText(f'Loading Manufacturers file...')
+        splash.flush()
 
-    )
+        _logger.logger.database(json_path)
 
-    splash.SetText(f'Adding manufacturers to db [{len(data)} | {len(data)}]...')
-    splash.flush()
+        with open(json_path, 'r') as f:
+            data = json.loads(f.read())
 
-    con.executemany('INSERT INTO manufacturers (id, name, phone, address, email, website) '
-                    'VALUES (?, ?, ?, ?, ?, ?);', data)
+        if isinstance(data, dict):
+            data = [value for value in data.values()]
+
+        data_len = len(data)
+
+        splash.SetText(f'Adding manufacturer to db [0 | {data_len}]...')
+        splash.flush()
+
+        for i, item in enumerate(data):
+            splash.SetText(f'Adding manufacturer to db [{i + 1} | {data_len}]...')
+            add_manufacturer(con, **item)
+
+    con.commit()
+
+
+def add_manufacturer(con, name, description='', address='', contact_person='', phone='',
+                     ext='', email='', website='', id=None):
+
+    if id is None:
+        con.execute(
+            'INSERT INTO manufacturers (name, description, address, contact_person, phone, ext, email, website) '
+            'VALUES (?, ?, ?, ?, ?, ?, ?, ?);',
+            (name, description, address, contact_person, phone, ext, email, website)
+            )
+    else:
+        con.execute(
+            'INSERT INTO manufacturers (id, name, description, address, contact_person, phone, ext, email, website) '
+            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);',
+            (id, name, description, address, contact_person, phone, ext, email, website)
+            )
+
     con.commit()
 
 
@@ -54,6 +75,7 @@ def get_mfg_id(con, name):
 
     else:
         return res[0][0]
+
 
 
 id_field = _con.PrimaryKeyField('id')

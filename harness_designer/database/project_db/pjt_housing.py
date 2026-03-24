@@ -51,8 +51,20 @@ class PJTHousingsTable(PJTTableBase):
 
         raise KeyError(item)
 
-    def insert(self, part_id: int) -> "PJTHousing":
-        db_id = PJTTableBase.insert(self, part_id=part_id)
+    def insert(self, part_id: int, position3d: "_point.Point" = None, position2d: "_point.Point" = None) -> "PJTHousing":
+        if position2d is None:
+            position2d = _point.Point(0, 0)
+
+        if position3d is None:
+            position3d = _point.Point(0.0, 0.0, 0.0)
+
+        x, y = position3d.as_float[:-1]
+        pos2d = self.db.pjt_points2d_table.insert(x, y)
+
+        x, y, z = position3d.as_float
+        pos3d = self.db.pjt_points3d_table.insert(x, y, z)
+
+        db_id = PJTTableBase.insert(self, point3d_id=pos3d.db_id, point2d_id=pos2d.db_id, part_id=part_id)
 
         return PJTHousing(self, db_id, self.project_id)
 
@@ -101,20 +113,16 @@ class PJTHousing(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin,
         self._table.execute(f'SELECT x, y, z FROM pjt_points3d WHERE id={point_id};')
         rows = self._table.fetchall()
 
-        if rows:
-            point = _point.Point(*rows[0], db_id=str(point_id))
-            point.bind(self.__update_cover_position3d)
-            return point
+        point = _point.Point(*rows[0], db_id=str(point_id))
+        point.bind(self.__update_cover_position3d)
+        return point
 
     @property
     def cover_position3d_id(self) -> int:
         point_id = self._table.select('cover_point3d_id', id=self._db_id)[0][0]
-        if point_id is None:
-            self._table.execute(f'INSERT INTO pjt_points3d (project_id, x, y, z) VALUES (?, ?, ?, ?);',
-                                (self._table.project_id, 0.0, 0.0, 0.0))
 
-            self._table.commit()
-            point_id = self._table.lastrowid
+        if point_id is None:
+            point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
             self.cover_position3d_id = point_id
 
         return point_id
@@ -146,11 +154,7 @@ class PJTHousing(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin,
     def seal_position3d_id(self) -> int:
         point_id = self._table.select('seal_point3d_id', id=self._db_id)[0][0]
         if point_id is None:
-            self._table.execute(f'INSERT INTO pjt_points3d (project_id, x, y, z) VALUES (?, ?, ?, ?);',
-                                (self._table.project_id, 0.0, 0.0, 0.0))
-
-            self._table.commit()
-            point_id = self._table.lastrowid
+            point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
             self.seal_position3d_id = point_id
 
         return point_id
@@ -182,11 +186,7 @@ class PJTHousing(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin,
     def boot_position3d_id(self) -> int:
         point_id = self._table.select('boot_point3d_id', id=self._db_id)[0][0]
         if point_id is None:
-            self._table.execute(f'INSERT INTO pjt_points3d (project_id, x, y, z) VALUES (?, ?, ?, ?);',
-                                (self._table.project_id, 0.0, 0.0, 0.0))
-
-            self._table.commit()
-            point_id = self._table.lastrowid
+            point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
             self.boot_position3d_id = point_id
 
         return point_id
@@ -218,11 +218,7 @@ class PJTHousing(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin,
     def tpa_lock_1_position3d_id(self) -> int:
         point_id = self._table.select('tpa_lock_1_point3d_id', id=self._db_id)[0][0]
         if point_id is None:
-            self._table.execute(f'INSERT INTO pjt_points3d (project_id, x, y, z) VALUES (?, ?, ?, ?);',
-                                (self._table.project_id, 0.0, 0.0, 0.0))
-
-            self._table.commit()
-            point_id = self._table.lastrowid
+            point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
             self.tpa_lock_1_position3d_id = point_id
 
         return point_id
@@ -254,11 +250,7 @@ class PJTHousing(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin,
     def tpa_lock_2_position3d_id(self) -> int:
         point_id = self._table.select('tpa_lock_2_point3d_id', id=self._db_id)[0][0]
         if point_id is None:
-            self._table.execute(f'INSERT INTO pjt_points3d (project_id, x, y, z) VALUES (?, ?, ?, ?);',
-                                (self._table.project_id, 0.0, 0.0, 0.0))
-
-            self._table.commit()
-            point_id = self._table.lastrowid
+            point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
             self.tpa_lock_2_position3d_id = point_id
 
         return point_id
@@ -290,11 +282,7 @@ class PJTHousing(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin,
     def cpa_lock_position3d_id(self) -> int:
         point_id = self._table.select('cpa_lock_point3d_id', id=self._db_id)[0][0]
         if point_id is None:
-            self._table.execute(f'INSERT INTO pjt_points3d (project_id, x, y, z) VALUES (?, ?, ?, ?);',
-                                (self._table.project_id, 0.0, 0.0, 0.0))
-
-            self._table.commit()
-            point_id = self._table.lastrowid
+            point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
             self.cpa_lock_position3d_id = point_id
 
         return point_id

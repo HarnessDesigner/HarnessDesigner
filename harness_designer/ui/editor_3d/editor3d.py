@@ -43,6 +43,10 @@ class Editor3D(aui.AuiPaneInfo):
         self.manager.Update()
 
     @property
+    def context(self):
+        return self.editor.context
+
+    @property
     def camera(self):
         return self.editor.camera
 

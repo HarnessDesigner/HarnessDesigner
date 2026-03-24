@@ -28,11 +28,17 @@ class SettingsTable(TableBase):
             if not value:
                 raise IndexError(str(item))
 
-            return eval(value[0][0])
+            try:
+                return eval(value[0][0])
+            except SyntaxError:
+                return value[0][0]
 
         value = self.select('value', name=item)
 
         if not value:
             raise AttributeError(item)
 
-        return eval(value[0][0])
+        try:
+            return eval(value[0][0])
+        except SyntaxError:
+            return value[0][0]

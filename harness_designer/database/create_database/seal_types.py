@@ -1,5 +1,55 @@
+import json
+import os
+
 from .. import db_connectors as _con
 from ... import logger as _logger
+
+
+def add_records(con, splash, data_path):
+    con.execute('SELECT id FROM seal_types WHERE id=0;')
+    if con.fetchall():
+        return
+
+    json_path = os.path.join(data_path, 'seal_types.json')
+
+    if os.path.exists(json_path):
+        splash.SetText(f'Loading Seal Types file...')
+        splash.flush()
+
+        _logger.logger.database(json_path)
+
+        with open(json_path, 'r') as f:
+            data = json.loads(f.read())
+
+        if isinstance(data, dict):
+            data = [value for value in data.values()]
+
+        data_len = len(data)
+
+        splash.SetText(f'Adding seal type to db [0 | {data_len}]...')
+        splash.flush()
+
+        for i, item in enumerate(data):
+            splash.SetText(f'Adding seal type to db [{i + 1} | {data_len}]...')
+            add_seal_type(con, **item)
+
+    con.commit()
+
+
+def add_seal_type(con, name, id=None):
+
+    if id is None:
+        con.execute(
+            'INSERT INTO seal_types (name) '
+            'VALUES (?);', (name,)
+            )
+    else:
+        con.execute(
+            'INSERT INTO seal_types (id, name) '
+            'VALUES (?, ?);', (id, name)
+            )
+
+    con.commit()
 
 
 def add_records(con, splash):

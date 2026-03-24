@@ -1,23 +1,54 @@
+import json
+import os
+
 from .. import db_connectors as _con
 from ... import logger as _logger
 
 
-def add_records(con, splash):
+def add_records(con, splash, data_path):
     con.execute('SELECT id FROM splice_types WHERE id=0;')
     if con.fetchall():
         return
 
-    splash.SetText(f'Building splice types...')
-    splash.flush()
+    json_path = os.path.join(data_path, 'splice_types.json')
 
-    data = ((0, "Unknown"), (1, "Butt"), (2, "Cable"), (3, "Closed End"),
-            (4, "Parallel"), (5, "Pigtail"), (6, "Tap"),
-            (7, "Thru"), (8, "Solder Sleeve"), (9, "Solder Sleeve w/Pigtail"))
+    if os.path.exists(json_path):
+        splash.SetText(f'Loading Splice Types file...')
+        splash.flush()
 
-    splash.SetText(f'Adding splice types to db [{len(data)} | {len(data)}]...')
-    splash.flush()
+        _logger.logger.database(json_path)
 
-    con.executemany('INSERT INTO splice_types (id, name) VALUES(?, ?);', data)
+        with open(json_path, 'r') as f:
+            data = json.loads(f.read())
+
+        if isinstance(data, dict):
+            data = [value for value in data.values()]
+
+        data_len = len(data)
+
+        splash.SetText(f'Adding splice type to db [0 | {data_len}]...')
+        splash.flush()
+
+        for i, item in enumerate(data):
+            splash.SetText(f'Adding splice type to db [{i + 1} | {data_len}]...')
+            add_splice_type(con, **item)
+
+    con.commit()
+
+
+def add_splice_type(con, name, id=None):
+
+    if id is None:
+        con.execute(
+            'INSERT INTO splice_types (name) '
+            'VALUES (?);', (name,)
+            )
+    else:
+        con.execute(
+            'INSERT INTO splice_types (id, name) '
+            'VALUES (?, ?);', (id, name)
+            )
+
     con.commit()
 
 

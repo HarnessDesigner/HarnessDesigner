@@ -2,17 +2,34 @@ from .. import db_connectors as _con
 from ... import logger as _logger
 
 
-def add_records(con, splash):
+def add_records(con, splash, data_path):
     con.execute('SELECT id FROM protections WHERE id=0;')
     if con.fetchall():
         return
 
-    data = ((0, 'No Protection'),)
+    data = (dict(id=0, name='No Protection'),)
 
-    splash.SetText(f'Adding protections to db [{len(data)} | {len(data)}]...')
+    splash.SetText(f'Adding protections to db [0 | {len(data)}]...')
     splash.flush()
 
-    con.executemany('INSERT INTO protections (id, name) VALUES (?, ?);', data)
+    for item in data:
+        splash.SetText(f'Adding protections to db [1 | {len(data)}]...')
+        add_protection(con, **item)
+
+
+def add_protection(con, name, id=None):
+
+    if id is None:
+        con.execute(
+            'INSERT INTO protections (name) '
+            'VALUES (?);', (name,)
+            )
+    else:
+        con.execute(
+            'INSERT INTO protections (id, name) '
+            'VALUES (?, ?);', (id, name)
+            )
+
     con.commit()
 
 

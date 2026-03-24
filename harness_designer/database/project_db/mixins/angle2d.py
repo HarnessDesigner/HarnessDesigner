@@ -8,8 +8,8 @@ class Angle2DMixin(BaseMixin):
     _angle2d_db_id: str = None
 
     def __update_angle2d(self, angle: _angle.Angle):
-        quat = [float(item) for item in angle.as_quat]
-        euler_angle = [angle.x, angle.y, angle.z]
+        quat = list(angle.as_quat_float)
+        euler_angle = list(angle.as_euler_float)
 
         self._table.update(self._db_id, quat2d=str(quat))
         self._table.update(self._db_id, angle2d=str(euler_angle))

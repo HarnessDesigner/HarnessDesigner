@@ -65,7 +65,7 @@ class Model3D(EntryBase):
     def data_path(self) -> str | None:
         file_id = self.uuid
         if file_id is None:
-            values = _resources.collect_resource(self, _resources.IMAGE_TYPE_MODEL, self.path)
+            values = _resources.collect_resource(self._table, _resources.IMAGE_TYPE_MODEL, self.path)
             if values is None:
                 return None
 

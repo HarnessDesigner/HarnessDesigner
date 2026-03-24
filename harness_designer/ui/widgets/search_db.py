@@ -195,130 +195,6 @@ class _SearchPanel(scrolledpanel.ScrolledPanel):
         self.parent.SetResults(con, results)
 
 
-class _PreviewConfig:
-
-    class editor3d:
-        selected_color = [0.2, 1.0, 0.2, 0.35]
-
-        lighting = _config.Config.editor3d.lighting
-        headlight = _config.Config.editor3d.headlight
-        renderer = _config.Config.editor3d.renderer
-        keyboard_settings = _config.Config.editor3d.keyboard_settings
-        rotate = _config.Config.editor3d.rotate
-        pan_tilt = _config.Config.editor3d.pan_tilt
-        truck_pedestal = _config.Config.editor3d.truck_pedestal
-        walk = _config.Config.editor3d.walk
-        zoom = _config.Config.editor3d.zoom
-        reset = _config.Config.editor3d.reset
-
-        class focal_target:
-            enable = False
-            color = [1.0, 0.4, 0.4, 1.0]
-            radius = 0.25
-
-        class floor:
-            enable = False
-            ground_height = 0.0
-            distance = 1000
-
-            class grid:
-                primary_color = [0.2039, 0.2549, 0.2902, 0.8]
-                secondary_color = [0.3058, 0.3843, 0.3804, 0.8]
-                size = 50
-                enable = False
-
-            class reflections:
-                enable = False
-                strength = 50.0
-
-        class debug:
-            bounding_boxes = False
-
-
-class _PreviewModel(_objects.ObjectBase):
-
-    def __init__(self, parent, model, color):
-        _objects.ObjectBase.__init__(self, parent)
-        self.obj3d = _PreviewModel3D(self, model, color)
-
-    def set_selected(self, flag):
-        pass
-
-    @property
-    def is_selected(self) -> bool:
-        return False
-
-    @is_selected.setter
-    def is_selected(self, value: bool):
-        pass
-
-
-class _PreviewModel3D(_base3d.Base3D):
-
-    def __init__(self, parent, model, color):
-
-        angle = _angle.Angle()
-        scale = _point.Point(0.0, 0.0, 0.0)
-
-        vertices, faces = model.load()
-
-        vertices, normals, count = _utils.compute_vertex_normals(vertices, faces)
-
-        aabb = _utils.compute_aabb(vertices)
-
-        x1, y1, z1 = aabb[0]
-        x2, y2, z2 = aabb[1]
-
-        x2 -= x1
-        y2 -= y1
-        z2 -= z1
-
-        position = _point.Point(x2, y2, z2) / 2.0
-        vertices -= aabb[0]
-        vertices -= position
-        material = _materials.Plastic(color)
-
-        position = _point.Point(0.0, 0.0, 0.0)
-
-        _base3d.Base3D.__init__(self, parent, None, None, angle,
-                                position, scale, material, data=[vertices, normals, count])
-
-        self._is_visible = True
-        self.editor3d.Refresh(False)
-
-    def _update_position(self, position: _point.Point):
-        delta = position - self._o_position
-        with position:
-            position -= delta
-
-    def _update_angle(self, angle: _angle.Angle):
-        angle._q = self._o_angle._q  # NOQA
-
-    def _update_scale(self, scale: _point.Point):
-        delta = scale - self._o_scale
-        with scale:
-            scale -= delta
-
-    @property
-    def is_selected(self) -> bool:
-        return False
-
-    def set_selected(self, flag: bool):
-        pass
-
-    @property
-    def material(self):
-        return self._material
-
-    @property
-    def is_visible(self) -> bool:
-        return True
-
-    @is_visible.setter
-    def is_visible(self, value: bool):
-        pass
-
-
 class SearchPanel(wx.Panel):
 
     def __init__(self, parent, table, *compat_parts):
@@ -329,8 +205,7 @@ class SearchPanel(wx.Panel):
         self._object = None
         self.search_panel = _SearchPanel(self, table)
         self.result_ctrl = _ResultCtrl(self, self.search_panel.columns)
-        self.preview_ctrl = canvas3d.Canvas3D(self, _PreviewConfig.editor3d, size=(600, 480))
-        self.editor3d = self.preview_ctrl
+        self.image_ctrl = wx.StaticBitmap(self, wx.ID_ANY, size=(600, 480))
         self._search_all_parts = wx.CheckBox(self, wx.ID_ANY, label='Search All Parts')
         self._search_all_parts.Bind(wx.EVT_CHECKBOX, self._on_search_all_parts)
 
@@ -353,7 +228,7 @@ class SearchPanel(wx.Panel):
         hsizer.Add(vsizer, 1, wx.EXPAND)
 
         vsizer = wx.BoxSizer(wx.VERTICAL)
-        vsizer.Add(self.preview_ctrl, 1, wx.EXPAND | wx.ALL, 10)
+        vsizer.Add(self.image_ctrl, 1, wx.EXPAND | wx.ALL, 10)
         hsizer.Add(vsizer, 1, wx.EXPAND)
 
         self.SetSizer(hsizer)
@@ -364,19 +239,13 @@ class SearchPanel(wx.Panel):
         self.search_panel.load()
         evt.Skip()
 
-    def clear_model_preview(self):
-        if self._object is not None:
-            self.preview_ctrl.remove_object(self._object)
-            self._object = None
+    def set_image(self, image):
+        if image is None:
+            image = wx.Bitmap(250, 250)
+        else:
+            image = wx.Bitmap(image.data_path)
 
-    def load_model_preview(self, model, color):
-        self._object = _PreviewModel(self, model, color)
-
-    def add_object(self, obj):
-        self.preview_ctrl.add_object(obj)
-
-    def remove_obj(self, obj):
-        self.preview_ctrl.remove_object(obj)
+        self.image_ctrl.SetBitmap(image)
 
     def SetResults(self, con, results):
         self.result_ctrl.SetValues(con, results)
@@ -415,12 +284,8 @@ class _ResultCtrl(wx.ListCtrl):
         self._selected_db_id = db_id
         obj = self.parent.table[db_id]
 
-        model = obj.model3d
-
-        self.parent.clear_model_preview()
-        if model is not None:
-            color = obj.color.ui
-            self.parent.load_model_preview(model, color)
+        image = obj.image
+        self.parent.set_image(image)
 
         evt.Skip()
 

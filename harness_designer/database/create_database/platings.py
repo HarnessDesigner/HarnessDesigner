@@ -1,38 +1,54 @@
+import json
+import os
+
 from .. import db_connectors as _con
 from ... import logger as _logger
 
 
-def add_records(con, splash):
+def add_records(con, splash, data_path):
     con.execute('SELECT id FROM platings WHERE id=0;')
     if con.fetchall():
         return
 
-    splash.SetText(f'Building platings...')
-    splash.flush()
+    json_path = os.path.join(data_path, 'platings.json')
 
-    data = (
-        (0, 'Unknown', 'Unknown Plating'),
-        (1, 'Sn', 'Tin'),
-        (2, 'Cu', 'Copper'),
-        (3, 'Al', 'Aluminum'),
-        (4, 'Ti', 'Titanium'),
-        (5, 'Zn', 'Zinc'),
-        (6, 'Au', 'Gold'),
-        (7, 'Ag', 'Silver'),
-        (8, 'Ni', 'Nickel'),
-        (9, 'Ag/Cu', 'Silver-plated Copper'),
-        (10, 'Sn/Cu', 'Tin-plated Copper'),
-        (11, 'Au/Cu', 'Gold-plated Copper'),
-        (12, 'Ni/Cu', 'Nickel-plated Copper'),
-        (13, 'Ag/Al', 'Silver-plated Aluminum'),
-        (14, 'Sn/Al', 'Tin-plated Aluminum'),
-        (15, 'Au/Al', 'Gold-plated Aluminum')
-    )
+    if os.path.exists(json_path):
+        splash.SetText(f'Loading Plating file...')
+        splash.flush()
 
-    splash.SetText(f'Adding platings to db [{len(data)} | {len(data)}]...')
-    splash.flush()
+        _logger.logger.database(json_path)
 
-    con.executemany('INSERT INTO platings (id, symbol, description) VALUES(?, ?, ?);', data)
+        with open(json_path, 'r') as f:
+            data = json.loads(f.read())
+
+        if isinstance(data, dict):
+            data = [value for value in data.values()]
+
+        data_len = len(data)
+
+        splash.SetText(f'Adding plating to db [0 | {data_len}]...')
+        splash.flush()
+
+        for i, item in enumerate(data):
+            splash.SetText(f'Adding plating to db [{i + 1} | {data_len}]...')
+            add_plating(con, **item)
+
+    con.commit()
+
+
+def add_plating(con, symbol, description='', id=None):
+
+    if id is None:
+        con.execute(
+            'INSERT INTO platings (symbol, description) '
+            'VALUES (?);', (symbol, description)
+            )
+    else:
+        con.execute(
+            'INSERT INTO platings (id, symbol, description) '
+            'VALUES (?, ?);', (id, symbol, description)
+            )
+
     con.commit()
 
 

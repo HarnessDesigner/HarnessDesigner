@@ -8,6 +8,7 @@ from . import bundle as _bundle
 from . import bundle_layout as _bundle_layout
 from . import circuit as _circuit
 from . import cover as _cover
+from . import cavity as _cavity
 from . import cpa_lock as _cpa_lock
 from . import housing as _housing
 from . import note as _note
@@ -34,14 +35,10 @@ if TYPE_CHECKING:
     from .. import ui as _ui
     from ..database.global_db import wire_marker as _wire_marker_part
     from ..database.global_db import transition as _transition_part
-    from ..database.global_db import tpa_lock as _tpa_lock_part
-    from ..database.global_db import cpa_lock as _cpa_lock_part
-    from ..database.global_db import boot as _boot_part
     from ..database.global_db import bundle_cover as _bundle_cover_part
     from ..database.global_db import splice as _splice_part
     from ..database.global_db import wire as _wire_part
     from ..database.global_db import seal as _seal_part
-    from ..database.global_db import cover as _cover_part
     from ..database.global_db import terminal as _terminal_part
 
     from ..database.project_db import project as _project
@@ -284,24 +281,20 @@ class Project:
         seal.delete()
         self.obj_count -= 1
 
-    def add_terminal(self, point: _point.Point, cavity, 
-                     part: "_terminal_part.Terminal") -> _terminal.Terminal:
-        
-        if point.is2d:
-            point2d_id = point.point_id
-            point3d_id = cavity.point3d.db_id
-        else:
-            point2d_id = cavity.point2d.db_id
-            point3d_id = point.point_id
- 
-        t_db_obj = self.ptables.pjt_terminals_table.insert(
-            part.db_id, cavity.db_id, 0, point3d_id, point2d_id, cavity.angle2d, 
-            cavity.angle3d.as_quat, False, _d(0.0), _d(0.0), _d(0.0))
-        
-        new_obj = _terminal.Terminal(self.mainframe, t_db_obj)
-        self._terminals[t_db_obj.db_id] = new_obj
+    def add_terminal(self, part_id, cavity: "_cavity.Cavity") -> _terminal.Terminal:
+
+        position2d_id = cavity.db_obj.position2d_id
+        position3d_id = cavity.db_obj.position3d_id
+
+        db_obj = self.ptables.pjt_terminals_table.insert(part_id, position2d_id, position3d_id, cavity.db_obj.db_id)
+
+        with self.mainframe.editor3d.context:
+            obj = _terminal.Terminal(self.mainframe, db_obj)
+
+        self._terminals[db_obj.db_id] = obj
+
         self.obj_count += 1
-        return new_obj
+        return obj
 
     @property
     def terminals(self) -> list["_terminal.Terminal"]:
@@ -312,17 +305,20 @@ class Project:
         seal.delete()
         self.obj_count -= 1
 
-    def add_tpa_lock(self, point: _point.Point, housing: _housing.Housing, 
-                     part: "_tpa_lock_part.TPALock") -> _tpa_lock.TPALock:
-        
-        tpa_db_obj = self.ptables.pjt_tpa_locks_table.insert(
-            point.point_id, housing.db_obj.db_id, part.db_id)
-        
-        new_obj = _tpa_lock.TPALock(self.mainframe, tpa_db_obj)
-        self._tpa_locks[tpa_db_obj.db_id] = new_obj
+    def add_tpa_lock(self, part_id: int, housing: _housing.Housing) -> _tpa_lock.TPALock:
+
+        position_id = housing.obj3d.db_obj.tpa_lock_1_position3d_id
+
+        db_obj = self.ptables.pjt_tpa_locks_table.insert(
+            part_id, position_id, housing.db_obj.db_id)
+
+        with self.mainframe.editor3d.context:
+            obj = _tpa_lock.TPALock(self.mainframe, db_obj)
+
+        self._tpa_locks[db_obj.db_id] = obj
 
         self.obj_count += 1
-        return new_obj
+        return obj
 
     @property
     def tpa_locks(self) -> list["_tpa_lock.TPALock"]:
@@ -358,22 +354,16 @@ class Project:
     def add_wire_service_loop(self, point: _point.Point) -> _wire_service_loop.WireServiceLoop:
         from .objects3d import wire
 
-        for obj in point.objects:
-            if isinstance(obj, wire.Wire):
-                break
-        else:
-            raise RuntimeError('sanity check')
-
-        start_point = obj.db_obj.start_point3d.point
-        stop_point = obj.db_obj.stop_point3d.point
+        start_point = obj.db_obj.start_position3d
+        stop_point = obj.db_obj.stop_position3d
         if start_point == point:
             angle = _angle.Angle.from_points(stop_point, start_point)
             point = start_point
-            p_db_obj = obj.db_obj.start_point3d
+            p_db_obj = obj.db_obj.start_position3d
         else:
             angle = _angle.Angle.from_points(start_point, stop_point)
             point = stop_point
-            p_db_obj = obj.db_obj.stop_point3d
+            p_db_obj = obj.db_obj.stop_position3d
 
         part = obj.db_obj.part
         diameter = part.od_mm
@@ -413,17 +403,19 @@ class Project:
         seal.delete()
         self.obj_count -= 1
 
-    def add_cpa_lock(self, point: _point.Point, housing: _housing.Housing, 
-                     part: "_cpa_lock_part.CPALock") -> _cpa_lock.CPALock:
-        
-        cpa_db_obj = self.ptables.pjt_cpa_locks_table.insert(
-            point.point_id, housing.db_obj.db_id, part.db_id)
-        
-        new_obj = _cpa_lock.CPALock(self.mainframe, cpa_db_obj)
-        self._cpa_locks[cpa_db_obj.db_id] = new_obj
+    def add_cpa_lock(self, part_id: int, housing: _housing.Housing) -> _cpa_lock.CPALock:
+        position_id = housing.obj3d.db_obj.cpa_lock_position3d_id
+
+        db_obj = self.ptables.pjt_cpa_locks_table.insert(
+            part_id, position_id, housing.db_obj.db_id)
+
+        with self.mainframe.editor3d.context:
+            obj = _cpa_lock.CPALock(self.mainframe, db_obj)
+
+        self._cpa_locks[db_obj.db_id] = obj
 
         self.obj_count += 1
-        return new_obj
+        return obj
 
     @property
     def cpa_locks(self) -> list["_cpa_lock.CPALock"]:
@@ -434,17 +426,19 @@ class Project:
         seal.delete()
         self.obj_count -= 1
 
-    def add_cover(self, point: _point.Point, housing: _housing.Housing, 
-                  part: "_cover_part.Cover") -> _cover.Cover:
-        
-        cpa_db_obj = self.ptables.pjt_covers_table.insert(
-            point.point_id, housing.db_obj.db_id, part.db_id)
-        
-        new_obj = _cover.Cover(self.mainframe, cpa_db_obj)
-        self._covers[cpa_db_obj.db_id] = new_obj
+    def add_cover(self, part_id: int, housing: _housing.Housing) -> _cover.Cover:
+        position_id = housing.obj3d.db_obj.cover_position3d_id
+
+        db_obj = self.ptables.pjt_covers_table.insert(
+            part_id, position_id, housing.db_obj.db_id)
+
+        with self.mainframe.editor3d.context:
+            obj = _cover.Cover(self.mainframe, db_obj)
+
+        self._covers[db_obj.db_id] = obj
 
         self.obj_count += 1
-        return new_obj
+        return obj
 
     @property
     def covers(self) -> list["_cover.Cover"]:
@@ -455,17 +449,20 @@ class Project:
         seal.delete()
         self.obj_count -= 1
 
-    def add_boot(self, point: _point.Point, housing: _housing.Housing, 
-                 part: "_boot_part.Boot") -> _boot.Boot:
-        
-        cpa_db_obj = self.ptables.pjt_boots_table.insert(
-            point.point_id, housing.db_obj.db_id, part.db_id)
-        
-        new_obj = _boot.Boot(self.mainframe, cpa_db_obj)
-        self._boots[cpa_db_obj.db_id] = new_obj
+    def add_boot(self, part_id: int, housing: _housing.Housing) -> _boot.Boot:
+
+        position_id = housing.obj3d.db_obj.boot_position3d_id
+
+        db_obj = self.ptables.pjt_boots_table.insert(
+            part_id, position_id, housing.db_obj.db_id)
+
+        with self.mainframe.editor3d.context:
+            obj = _boot.Boot(self.mainframe, db_obj)
+
+        self._boots[db_obj.db_id] = obj
 
         self.obj_count += 1
-        return new_obj
+        return obj
 
     @property
     def boots(self) -> list["_boot.Boot"]:
@@ -507,34 +504,37 @@ class Project:
         housing.delete()
         self.obj_count -= 1
 
-    def add_housing(self, position: _point.Point, part_id: int) -> _housing.Housing:
-        housing = self.ptables.pjt_housings_table.insert(part_id)
+    def add_housing(self, part_id: int, position3d: _point.Point = None,
+                    position2d: _point.Point = None) -> _housing.Housing:
+        housing = self.ptables.pjt_housings_table.insert(part_id, position2d=position2d, position3d=position3d)
 
         part = housing.part
 
+        position3d = housing.position3d
+
         cover_position3d = housing.cover_position3d
-        cover_position3d += part.cover_position3d + position
+        cover_position3d += part.cover_position3d + position3d
 
         boot_position3d = housing.boot_position3d
-        boot_position3d += part.boot_position3d + position
+        boot_position3d += part.boot_position3d + position3d
 
         cpa_lock_position3d = housing.cpa_lock_position3d
-        cpa_lock_position3d += part.cpa_lock_position3d + position
+        cpa_lock_position3d += part.cpa_lock_position3d + position3d
 
         tpa_lock_1_position3d = housing.tpa_lock_1_position3d
-        tpa_lock_1_position3d += part.tpa_lock_1_position3d + position
+        tpa_lock_1_position3d += part.tpa_lock_1_position3d + position3d
 
         tpa_lock_2_position3d = housing.tpa_lock_2_position3d
-        tpa_lock_2_position3d += part.tpa_lock_2_position3d + position
-
-        position3d = housing.position3d
-        position3d += position
+        tpa_lock_2_position3d += part.tpa_lock_2_position3d + position3d
 
         for cavity in part.cavities:
+            if cavity is None:
+                continue
+
             pjt_cavity = self.ptables.pjt_cavities_table.insert(cavity.db_id, housing.db_id)
 
             position3d = pjt_cavity.position3d
-            position3d += cavity.position3d + position
+            position3d += cavity.position3d + position3d
 
             angle3d = pjt_cavity.angle3d
             angle3d += cavity.angle3d
@@ -547,7 +547,9 @@ class Project:
 
             pjt_cavity.name = cavity.name
 
-        obj = _housing.Housing(self.mainframe, housing)
+        with self.mainframe.editor3d.context:
+            obj = _housing.Housing(self.mainframe, housing)
+
         self._housings[housing.db_id] = obj
         self.obj_count += 1
 

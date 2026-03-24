@@ -7,7 +7,7 @@ def add_records(con, splash):
     if con.fetchall():
         return
 
-    data = ((0, 'Internal Use DO NOT DELETE'),)
+    data = ((0, 'No Shape'),)
 
     splash.SetText(f'Adding shape to db [1 | 1]...')
     splash.flush()

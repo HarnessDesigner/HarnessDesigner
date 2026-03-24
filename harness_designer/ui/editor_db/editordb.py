@@ -20,9 +20,8 @@ from . import wire_marker as _wire_marker
 
 
 if TYPE_CHECKING:
-    from .. import global_db as _global_db
+    from ...database import global_db as _global_db
     from .. import mainframe as _mainframe
-
 
 
 class EditorDB(aui.AuiPaneInfo):
@@ -60,6 +59,58 @@ class EditorDB(aui.AuiPaneInfo):
 
     def load_db(self, g_db: "_global_db.GLBTables"):
         self.editor.load_db(g_db)
+
+    @property
+    def accessories(self):
+        return self.editor.accessories
+
+    @property
+    def boots(self):
+        return self.editor.boots
+
+    @property
+    def bundle_covers(self):
+        return self.editor.bundle_covers
+
+    @property
+    def covers(self):
+        return self.editor.covers
+
+    @property
+    def cpa_locks(self):
+        return self.editor.cpa_locks
+
+    @property
+    def housings(self):
+        return self.editor.housings
+
+    @property
+    def seals(self):
+        return self.editor.seals
+
+    @property
+    def splices(self):
+        return self.editor.splices
+
+    @property
+    def terminals(self):
+        return self.editor.terminals
+
+    @property
+    def tpa_locks(self):
+        return self.editor.tpa_locks
+
+    @property
+    def transitions(self):
+        return self.editor.transitions
+
+    @property
+    def wires(self):
+        return self.editor.wires
+
+    @property
+    def wire_markers(self):
+        return self.editor.wire_markers
 
 
 class EditorDBPanel(aui.AuiNotebook):

@@ -56,7 +56,6 @@ def _download_model(con, url, model_path):
                     return None
 
                 data = zf.read(file_name)
-
             else:
                 con.execute('SELECT extension, mimetype FROM file_types WHERE is_model=1;')
                 res = con.fetchall()
@@ -71,6 +70,8 @@ def _download_model(con, url, model_path):
                     return None
 
                 data = response.content
+
+            break
     else:
         con.execute('SELECT extension FROM file_types WHERE is_model=1;')
         res = con.fetchall()

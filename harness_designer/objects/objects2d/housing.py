@@ -35,26 +35,16 @@ class Housing(_base2d.Base2D):
         self._part = db_obj.part
 
         # Get position from database (Point instance)
-        if hasattr(db_obj, 'position2d') and db_obj.position2d:
-            self._position = db_obj.position2d.point
-        else:
-            from ...geometry import point as _point
-            self._position = _point.Point(0.0, 0.0, 0.0)
+
+        self._position = db_obj.position2d
 
         # Get angle from database (Angle instance) - for rotation
-        if hasattr(db_obj, 'angle2d') and db_obj.angle2d:
-            self._angle = db_obj.angle2d
-        else:
-            self._angle = _angle.Angle.from_euler(0.0, 0.0, 0.0)
+
+        self._angle = db_obj.angle2d
 
         # Get dimensions from part if available
-        if self._part and hasattr(self._part, 'width_mm') and hasattr(self._part, 'height_mm'):
-            self._width = float(self._part.width_mm)
-            self._height = float(self._part.height_mm)
-        else:
-            # Default dimensions
-            self._width = 40.0  # mm
-            self._height = 30.0  # mm
+        self._width = float(self._part.width)
+        self._height = float(self._part.height)
 
         # Track child cavities for hierarchical movement
         self._cavities = []
@@ -91,13 +81,11 @@ class Housing(_base2d.Base2D):
 
     def _on_position_changed(self, *args):
         """Called when housing position changes"""
-        if self.editor2d and hasattr(self.editor2d, 'editor') and hasattr(self.editor2d.editor, 'canvas'):
-            self.editor2d.editor.canvas.Refresh()
+        self.editor2d.editor.canvas.Refresh()
 
     def _on_angle_changed(self, *args):
         """Called when housing angle changes"""
-        if self.editor2d and hasattr(self.editor2d, 'editor') and hasattr(self.editor2d.editor, 'canvas'):
-            self.editor2d.editor.canvas.Refresh()
+        self.editor2d.editor.canvas.Refresh()
 
     def render_gl(self):
         """Render housing using OpenGL with rotation support"""

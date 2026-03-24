@@ -323,3 +323,8 @@ class HousingsPanel(wx.Panel):
 
         self.Sizer = wx.BoxSizer(wx.VERTICAL)
         self.Sizer.Add(self.dvc, 1, wx.EXPAND)
+
+    def GetSelection(self):
+        selection = self.dvc.GetSelection()
+        if selection.IsOk():
+            return int(self.model.GetValue(selection, 0))
