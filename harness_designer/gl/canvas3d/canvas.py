@@ -452,7 +452,7 @@ class Canvas(glcanvas.GLCanvas):
         self.floor.set(flag)
 
     @_debug.logfunc
-    def _render_bounding_boxes(self):
+    def _render_bounding_boxes(self, obj):
         selected = None
 
         offset = 0
@@ -461,13 +461,12 @@ class Canvas(glcanvas.GLCanvas):
         faces = []
         edges = []
 
-        for obj in self._objects:
-            p1, p2 = obj.aabb
+        aabb = obj.aabb
 
-            x1, y1, z1 = p1.as_float
-            x2, y2, z2 = p2.as_float
+        x1, y1, z1 = aabb[0]
+        x2, y2, z2 = aabb[1]
 
-            verts = np.array([
+        verts = np.array([
                 [x1, y1, z1],  # 0: bottom-left-front
                 [x2, y1, z1],  # 1: bottom-right-front
                 [x2, y2, z1],  # 2: top-right-front
@@ -478,7 +477,7 @@ class Canvas(glcanvas.GLCanvas):
                 [x1, y2, z2],  # 7: top-left-back
             ], dtype=np.float32)
 
-            facs = np.array([
+        facs = np.array([
                 (0, 1, 2, 3),  # front
                 (5, 4, 7, 6),  # back
                 (4, 0, 3, 7),  # left
@@ -487,19 +486,19 @@ class Canvas(glcanvas.GLCanvas):
                 (4, 5, 1, 0),  # bottom
             ], dtype=np.int32)
 
-            edgs = np.array([
+        edgs = np.array([
                 (0, 1), (1, 2), (2, 3), (3, 0),  # front face
                 (4, 5), (5, 6), (6, 7), (7, 4),  # back face
                 (0, 4), (1, 5), (2, 6), (3, 7),  # connecting edges
             ], dtype=np.int32)
 
-            if obj.is_selected:
-                selected = [verts, facs, edgs]
-            else:
-                vertices.append(verts)
-                faces.append(facs + offset)
-                edges.append(edgs + offset)
-                offset += 8
+        if obj.is_selected:
+            selected = [verts, facs, edgs]
+        else:
+            vertices.append(verts)
+            faces.append(facs + offset)
+            edges.append(edgs + offset)
+            offset += 8
 
         vertices = np.array(vertices, dtype=np.float32).reshape(-1, 3)
         faces = np.array(faces, dtype=np.int32).reshape(-1, 4)
@@ -608,6 +607,8 @@ class Canvas(glcanvas.GLCanvas):
             if obj.is_selected:
                 GL.glUseProgram(0)
 
+                self._render_bounding_boxes(obj.obj3d)
+
                 GL.glColor4f(1.0, 0.4, 0.4, 1.0)
                 GL.glLineWidth(2.0)
                 p1, p2 = obj.obj3d.aabb
@@ -680,7 +681,7 @@ class Canvas(glcanvas.GLCanvas):
         self._draw_scene(objs)
 
         # if self.config.debug.bounding_boxes:
-        #     self._render_bounding_boxes()
+        #    self._render_bounding_boxes()
 
         if self.config.focal_target.enable:
             # Re-enable shader for focal target rendering

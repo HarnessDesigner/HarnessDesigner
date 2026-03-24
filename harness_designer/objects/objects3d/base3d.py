@@ -120,6 +120,9 @@ class Base3D:
         self._o_position = position.copy()
         self.numpy_position = position.as_numpy
 
+        self._compute_obb()
+        self._compute_aabb()
+
         self.editor3d.Refresh(False)
 
     def _update_angle(self, angle: _angle.Angle):
