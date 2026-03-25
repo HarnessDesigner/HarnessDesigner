@@ -21,6 +21,7 @@ uniform mat4 view;
 uniform float floorY;
 uniform int objectHasReflection;
 
+
 void main() {
     // Emit original triangle
     for(int i = 0; i < 3; i++) {

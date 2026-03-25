@@ -24,6 +24,9 @@ MOUSE_REVERSE_Y_AXIS = _config.MOUSE_REVERSE_Y_AXIS
 MOUSE_REVERSE_X_AXIS = _config.MOUSE_REVERSE_X_AXIS
 
 
+_debug_config = _config.Config.debug.rendering3d
+
+
 class Canvas(glcanvas.GLCanvas):
     """
     GL Engine
@@ -581,6 +584,15 @@ class Canvas(glcanvas.GLCanvas):
             GL.glColor4f(0.5, 1.0, 0.5, 1.0)
             _render_edges(vertices, edges)
 
+    def _render_normals(self, obj):
+        pass
+    
+    def _render_edges(self, obj):
+        pass
+
+    def _render_vertices(self, obj):
+        pass
+
     @_debug.logfunc
     def _draw_scene(self, obj_data):
         # Get current projection and view matrices from OpenGL BEFORE activating shader
@@ -640,8 +652,22 @@ class Canvas(glcanvas.GLCanvas):
             if obj.is_selected:
                 GL.glUseProgram(0)
 
-                self._render_obb(obj.obj3d)
-                self._render_aabb(obj.obj3d)
+                if _debug_config.draw_obb:
+                    self._render_obb(obj.obj3d)
+
+                if _debug_config.draw_aabb:
+                    self._render_aabb(obj.obj3d)
+
+                if _debug_config.draw_normals:
+                    self._render_normals(obj.obj3d)
+
+                if _debug_config.draw_edges:
+                    self._render_edges(obj.obj3d)
+
+                if _debug_config.draw_vertices:
+                    self._render_vertices(obj.obj3d)
+
+
 
                 GL.glColor4f(1.0, 0.4, 0.4, 1.0)
                 GL.glLineWidth(2.0)

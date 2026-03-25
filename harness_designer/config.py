@@ -457,10 +457,17 @@ class Config(metaclass=ConfigDB):
         log_database = False
         log_file_transfers = True
 
-    class debug(metaclass=ConfigDB):
-        log_args = False
-        call_duration = True
-        bypass = True
+    class debug:
+        class functions(metaclass=ConfigDB):
+            log_args = False
+            log_duration = True
+
+        class rendering3d(metaclass=ConfigDB):
+            draw_obb = False
+            draw_aabb = False
+            draw_normals = False
+            draw_edges = False
+            draw_vertices = False
 
     class colors(metaclass=ConfigDB):
         custom_colors = ''

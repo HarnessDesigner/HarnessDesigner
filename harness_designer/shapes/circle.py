@@ -3,17 +3,17 @@ from typing import TYPE_CHECKING
 import wx
 
 from ..geometry import point as _point
-from ..wrappers.decimal import Decimal as _decimal
-from ..wrappers import color as _color
+from ..geometry.decimal import Decimal as _d
+from .. import color as _color
 
 
 if TYPE_CHECKING:
-    from .. import editor_2d as _editor_2d
+    from ..ui import editor_2d as _editor_2d
 
 
 class Circle:
 
-    def __init__(self, center: _point.Point, diameter: _decimal, color: _color.Color):
+    def __init__(self, center: _point.Point, diameter: _d, color: _color.Color):
         self._center = center
         self._diameter = diameter
         self._color = color

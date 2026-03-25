@@ -68,6 +68,44 @@ def remap(value, old_min, old_max, new_min, new_max, type=_d):
     return type(new_value)
 
 
+def compute_edges(faces):
+    """
+    Create a numpy array of edges from vertices and triangle faces.
+
+    Parameters:
+    -----------
+    verts : numpy.ndarray
+        Array of vertices with shape (N, 3) where N is the number of vertices
+    faces : numpy.ndarray
+        Array of triangle faces with shape (M, 3) where M is the number of faces.
+        Each face contains indices into the verts array.
+
+    Returns:
+    --------
+    edges : numpy.ndarray
+        Array of unique edges with shape (E, 2) where E is the number of edges.
+        Each edge contains two vertex indices.
+    """
+    # Extract all edges from faces
+    # Each triangle has 3 edges: (v0,v1), (v1,v2), (v2,v0)
+    edges = np.concatenate(
+        [
+            faces[:, [0, 1]],  # edge between vertex 0 and 1
+            faces[:, [1, 2]],  # edge between vertex 1 and 2
+            faces[:, [2, 0]]  # edge between vertex 2 and 0
+        ], axis=0
+    )
+
+    # Sort each edge so that smaller index comes first
+    # This ensures (i,j) and (j,i) are treated as the same edge
+    edges = np.sort(edges, axis=1)
+
+    # Remove duplicate edges
+    edges = np.unique(edges, axis=0)
+
+    return edges
+
+
 def compute_smoothed_vertex_normals(vertices: np.ndarray, faces: np.ndarray) -> tuple[np.ndarray, np.ndarray, int]:
     """
     Compute smoothed vertex normals by averaging face normals at each vertex.

@@ -15,7 +15,9 @@ def create_vbo() -> _vbo_handler.VBOHandler:
     if _vbo is None:
         vertices, faces = create(0.5, 1.0, 360, 1)
         verts, nrmls, faces, count = _utils.compute_vbo_smoothed_vertex_normals(vertices, faces)
-        _vbo = _vbo_handler.VBOHandler('cylinder', verts, nrmls, faces, count)
+        edges = _utils.compute_edges(faces)
+
+        _vbo = _vbo_handler.VBOHandler('cylinder', verts, edges, nrmls, faces, count)
 
     return _vbo
 

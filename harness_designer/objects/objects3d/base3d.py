@@ -400,6 +400,18 @@ class Base3D:
 
             self._vbo.render()
 
+    def render_obb(self):
+        pass
+
+    def render_aabb(self):
+        pass
+
+    def render_edges(self):
+        pass
+
+    def render_vertices(self):
+        pass
+
     @property
     def is_visible(self) -> bool:
         return self._is_visible

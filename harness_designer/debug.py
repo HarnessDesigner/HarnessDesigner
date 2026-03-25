@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from . import logger as _logger
 
 
-Config = _config.Config
+Config = _config.Config.debug.functions
 
 _stack_count = 0
 
@@ -46,7 +46,7 @@ _print_func = DebugPrinter()
 
 def logfunc(func):
 
-    if Config.debug.bypass:
+    if True not in (Config.log_args, Config.log_duration):
         return func
 
     # there is a bug in Cython staticmethods when there is a second decorator
@@ -78,7 +78,7 @@ def logfunc(func):
         if is_static_method:
             args = list(args[1:])
 
-        if Config.debug.log_args:
+        if Config.log_args:
             args_ = ', '.join(repr(arg) for arg in args)
             kwargs_ = ', '.join(f'{key}={repr(value)}' for key, value in kwargs.items())
         else:
@@ -90,25 +90,24 @@ def logfunc(func):
 
         _stack_count += 1
 
-        if Config.debug.call_duration:
+        if Config.log_duration:
             start = time.perf_counter_ns()
             ret = func(*args, **kwargs)
             stop = time.perf_counter_ns()
             duration = (stop - start) / 1000000
-
         else:
             duration = 0
             ret = func(*args, **kwargs)
 
         _stack_count -= 1
 
-        if Config.debug.log_args:
-            if Config.debug.call_duration:
+        if Config.log_args:
+            if Config.log_duration:
                 _print_func(f'({duration}ms){func.__qualname__}({", ".join(item for item in [args_, kwargs_] if item)}) --> {repr(ret)}')
             else:
                 _print_func(f'{func.__qualname__}({", ".join(item for item in [args_, kwargs_] if item)}) --> {repr(ret)}')
 
-        elif Config.debug.call_duration:
+        elif Config.log_duration:
             _print_func(f'({duration}ms){func.__qualname__}')
 
         if _stack_count == 0:

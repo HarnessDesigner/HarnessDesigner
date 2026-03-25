@@ -44,7 +44,7 @@ mat3 quaternionToMatrix(vec4 q) {
 }
 
 void main() {
-    vec3 scaledPosition = in_position * objectScale;
+    vec3 scaledPosition = in_position;
     mat3 rotationMatrix = quaternionToMatrix(objectRotation);
     vec3 rotatedPosition = rotationMatrix * scaledPosition;
     vec3 worldPosition = rotatedPosition + objectPosition;
