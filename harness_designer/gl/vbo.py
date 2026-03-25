@@ -74,6 +74,13 @@ class VBOHandler(metaclass=VBOSingleton):
 
         self.id = id
         self.endpoint = endpoint
+
+        if vertices is not None:
+            vertices_reshaped = vertices.reshape(-1, 3)
+            centroid = vertices_reshaped.mean(axis=0)
+            vertices_reshaped -= centroid
+            vertices = vertices_reshaped.ravel()
+
         self.__vertices = vertices
         self.__normals = normals
         self.__faces = faces

@@ -1,8 +1,9 @@
-from typing import Self
+from typing import Self, TYPE_CHECKING
 
 import math
 import numpy as np
 from ..decimal import Decimal as _d
+from .. import point as _point
 
 
 ONE = _d(1.0)
@@ -25,6 +26,12 @@ class Quaternion:
         self._data[1] = x
         self._data[2] = y
         self._data[3] = z
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.__normalize()
 
     def __init__(self, w=None, x=None, y=None, z=None, q=None):
         if q is None:
@@ -85,12 +92,11 @@ class Quaternion:
 
         new_q = self.__sub__(other).as_numpy
 
-        self._data[0] = new_q[0]
-        self._data[1] = new_q[1]
-        self._data[2] = new_q[2]
-        self._data[3] = new_q[3]
-        self.__normalize()
-
+        with self:
+            self._data[0] = new_q[0]
+            self._data[1] = new_q[1]
+            self._data[2] = new_q[2]
+            self._data[3] = new_q[3]
         return self
 
     def __sub__(self, other: "Quaternion") -> "Quaternion":
@@ -116,12 +122,11 @@ class Quaternion:
 
         new_q = self.__add__(other).as_numpy
 
-        self._data[0] = new_q[0]
-        self._data[1] = new_q[1]
-        self._data[2] = new_q[2]
-        self._data[3] = new_q[3]
-
-        self.__normalize()
+        with self:
+            self._data[0] = new_q[0]
+            self._data[1] = new_q[1]
+            self._data[2] = new_q[2]
+            self._data[3] = new_q[3]
 
         return self
 
@@ -149,12 +154,11 @@ class Quaternion:
             except ZeroDivisionError:
                 return 0.0
 
-        self._data[0] = _div(w1, w2)
-        self._data[1] = _div(x1, x2)
-        self._data[2] = _div(y1, y2)
-        self._data[3] = _div(z1, z2)
-
-        self.__normalize()
+        with self:
+            self._data[0] = _div(w1, w2)
+            self._data[1] = _div(x1, x2)
+            self._data[2] = _div(y1, y2)
+            self._data[3] = _div(z1, z2)
 
         return self
 
@@ -181,6 +185,66 @@ class Quaternion:
         z = _div(z1, z2)
 
         return Quaternion(w, x, y, z)
+
+    def __array_ufunc__(self, func, method, inputs, instance, out=None, **kwargs):  # NOQA
+        if func == np.matmul:
+            w, x, y, z = self.as_float
+
+            # Vectorized quaternion rotation formula
+            qvec = np.array([x, y, z], dtype=np.float64)
+
+            t = np.cross(qvec, inputs)
+            result = inputs + 2.0 * w * t + 2.0 * np.cross(qvec, t)
+
+            if out is None:
+                return result
+            else:
+                inputs[:] = result
+                return inputs
+
+        raise RuntimeError
+
+    def __matmul__(self, other: _point.Point | np.ndarray) -> _point.Point | np.ndarray:
+        w, x, y, z = self.as_float
+
+        # Vectorized quaternion rotation formula
+        qvec = np.array([x, y, z], dtype=np.float64)
+
+        if isinstance(other, _point.Point):
+            array = other.as_numpy
+
+            t = np.cross(qvec, array)
+            result = array + 2.0 * w * t + 2.0 * np.cross(qvec, t)
+
+            return _point.Point(*result)
+        else:
+            t = np.cross(qvec, other)
+            result = other + 2.0 * w * t + 2.0 * np.cross(qvec, t)
+            return result
+
+    def __rmatmul__(self, other: _point.Point | np.ndarray) -> _point.Point | np.ndarray:
+        w, x, y, z = self.as_float
+
+        # Vectorized quaternion rotation formula
+        qvec = np.array([x, y, z], dtype=np.float64)
+
+        if isinstance(other, _point.Point):
+            array = other.as_numpy
+
+            t = np.cross(qvec, array)
+            result = array + 2.0 * w * t + 2.0 * np.cross(qvec, t)
+
+            with other:
+                other.x = float(result[0])
+                other.y = float(result[1])
+
+            other.z = float(result[2])
+        else:
+            t = np.cross(qvec, other)
+            result = other + 2.0 * w * t + 2.0 * np.cross(qvec, t)
+            other[:] = result
+
+        return other
 
     def __iter__(self):
         return iter(self._data.tolist())

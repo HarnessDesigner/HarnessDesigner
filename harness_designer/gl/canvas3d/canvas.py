@@ -452,13 +452,8 @@ class Canvas(glcanvas.GLCanvas):
         self.floor.set(flag)
 
     @_debug.logfunc
-    def _render_bounding_boxes(self, obj):
-        selected = None
-
-        offset = 0
-
+    def _render_aabb(self, obj):
         vertices = []
-        faces = []
         edges = []
 
         aabb = obj.aabb
@@ -476,6 +471,44 @@ class Canvas(glcanvas.GLCanvas):
                 [x2, y2, z2],  # 6: top-right-back
                 [x1, y2, z2],  # 7: top-left-back
             ], dtype=np.float32)
+
+        edgs = np.array([
+                (0, 1), (1, 2), (2, 3), (3, 0),  # front face
+                (4, 5), (5, 6), (6, 7), (7, 4),  # back face
+                (0, 4), (1, 5), (2, 6), (3, 7),  # connecting edges
+            ], dtype=np.int32)
+
+        vertices.append(verts)
+        edges.append(edgs)
+
+        vertices = np.array(vertices, dtype=np.float32).reshape(-1, 3)
+        edges = np.array(edges, dtype=np.int32).reshape(-1, 2)
+
+        def _render_edges(v, e):
+            e = v[e].reshape(-1, 3)
+            GL.glLineWidth(1.5)
+            GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
+
+            GL.glVertexPointer(3, GL.GL_FLOAT, 0, e)
+            GL.glDrawArrays(GL.GL_LINES, 0, len(e))
+
+            GL.glDisableClientState(GL.GL_VERTEX_ARRAY)
+
+        # render edges
+        GL.glColor4f(1.0, 0.2, 0.2, 1.0)
+        _render_edges(vertices, edges)
+
+    @_debug.logfunc
+    def _render_obb(self, obj):
+        selected = None
+
+        offset = 0
+
+        vertices = []
+        faces = []
+        edges = []
+
+        verts = obj.obb
 
         facs = np.array([
                 (0, 1, 2, 3),  # front
@@ -607,7 +640,8 @@ class Canvas(glcanvas.GLCanvas):
             if obj.is_selected:
                 GL.glUseProgram(0)
 
-                self._render_bounding_boxes(obj.obj3d)
+                self._render_obb(obj.obj3d)
+                self._render_aabb(obj.obj3d)
 
                 GL.glColor4f(1.0, 0.4, 0.4, 1.0)
                 GL.glLineWidth(2.0)

@@ -138,7 +138,11 @@ def compute_smoothed_vertex_normals(vertices: np.ndarray, faces: np.ndarray) -> 
     # Produce per-face per-vertex normals by indexing smoothed vertex normals
     normals = vertex_normals[faces].reshape(-1, 3)  # shape (F*K, 3)
 
-    return expanded_verts.reshape(-1, 3), normals, len(expanded_verts) * verts_per_face
+    verts = expanded_verts.reshape(-1, 3)
+
+    print(type(verts))
+
+    return verts, normals, len(expanded_verts) * verts_per_face
 
 
 def compute_vertex_normals(vertices: np.ndarray, faces: np.ndarray) -> tuple[np.ndarray, np.ndarray, int]:
@@ -193,11 +197,16 @@ def compute_obb(p1, p2):
     x1, y1, z1 = p1.as_float
     x2, y2, z2 = p2.as_float
 
-    corners = np.array([[x1, y1, z1], [x1, y1, z2],
-                       [x1, y2, z1], [x1, y2, z2],
-                       [x2, y1, z1], [x2, y1, z2],
-                       [x2, y2, z1], [x2, y2, z2]],
-                       dtype=np.float64)
+    corners = np.array([
+                [x1, y1, z1],  # 0: bottom-left-front
+                [x2, y1, z1],  # 1: bottom-right-front
+                [x2, y2, z1],  # 2: top-right-front
+                [x1, y2, z1],  # 3: top-left-front
+                [x1, y1, z2],  # 4: bottom-left-back
+                [x2, y1, z2],  # 5: bottom-right-back
+                [x2, y2, z2],  # 6: top-right-back
+                [x1, y2, z2],  # 7: top-left-back
+            ], dtype=np.float32)
     return corners
 
 

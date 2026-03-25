@@ -42,22 +42,14 @@ class AngleMeta(type):
 
 class Angle(metaclass=AngleMeta):
 
-    def __array_ufunc__(self, func, method, inputs, instance, **kwargs):  # NOQA
+    def __array_ufunc__(self, func, method, inputs, instance, out=None, **kwargs):  # NOQA
         if func == np.matmul:
-            if isinstance(instance, np.ndarray):
-                if instance.shape == (4,):
-                    quat = _quaternion.Quaternion(*[float(item) for item in instance])
-                elif instance.shape == (3,):
-                    quat = _quaternion.Quaternion.from_euler(*[float(item) for item in instance])
-                else:
-                    raise ValueError('Incorrect array shape')
 
-                self._q += quat
-                self._process_update()
-
-                return self
+            if out is None:
+                return inputs @ self._q
             else:
-                return inputs @ self._q.as_matrix.T
+                inputs @= self._q
+                return inputs
 
         if func == np.add:
             if isinstance(instance, np.ndarray):
@@ -328,47 +320,53 @@ class Angle(metaclass=AngleMeta):
         q = self._q - self.__get_quat_from_other(other)
         return self.from_quat(q)
 
-    def __imatmul__(self, other: Union[np.ndarray, _point.Point]) -> np.ndarray:
-        if isinstance(other, np.ndarray):
-            if other.ndim == 1:
-                result = self._matrix @ other
-                other[:] = result
-            else:
-                other[:] = (self._matrix @ other.T).T
-        elif isinstance(other, _point.Point):
-            values = self._matrix @ other.as_numpy
-
-            x = float(values[0])
-            y = float(values[1])
-            z = float(values[2])
-
-            with other:
-                other.x = x
-                other.y = y
-
-            other.z = z
-        else:
-            raise RuntimeError('sanity check')
-
+    def __rmatmul__(self, other: Union[np.ndarray, _point.Point]) -> np.ndarray | _point.Point:
+        other @= self._q
         return other
 
-    def __matmul__(self, other: Union[np.ndarray, _point.Point]) -> np.ndarray:
-        if isinstance(other, np.ndarray):
-            if other.ndim == 1:
-                return self._matrix @ other
-            else:
-                return (self._matrix @ other.T).T
-        elif isinstance(other, _point.Point):
-            values = self._matrix @ other.as_numpy
-            x = float(values[0])
-            y = float(values[1])
-            z = float(values[2])
+        # if isinstance(other, np.ndarray):
+        #     if other.ndim == 1:
+        #         result = self._matrix @ other
+        #         other[:] = result
+        #     else:
+        #         other[:] = (self._matrix @ other.T).T
+        # elif isinstance(other, _point.Point):
+        #     values = self._matrix @ other.as_numpy
+        #
+        #     x = float(values[0])
+        #     y = float(values[1])
+        #     z = float(values[2])
+        #
+        #     with other:
+        #         other.x = x
+        #         other.y = y
+        #
+        #     other.z = z
+        # else:
+        #     raise RuntimeError('sanity check')
+        #
+        # return other
 
-            other = _point.Point(x, y, z)
-        else:
-            raise RuntimeError('sanity check')
-
+    def __matmul__(self, other: Union[np.ndarray, _point.Point]) -> np.ndarray | _point.Point:
+        other = other @ self._q
         return other
+
+        # if isinstance(other, np.ndarray):
+        #     if other.ndim == 1:
+        #         return self._matrix @ other
+        #     else:
+        #         return (self._matrix @ other.T).T
+        # elif isinstance(other, _point.Point):
+        #     values = self._matrix @ other.as_numpy
+        #     x = float(values[0])
+        #     y = float(values[1])
+        #     z = float(values[2])
+        #
+        #     other = _point.Point(x, y, z)
+        # else:
+        #     raise RuntimeError('sanity check')
+        #
+        # return other
 
     def __bool__(self):
         arr = np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float64)

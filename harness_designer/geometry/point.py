@@ -266,22 +266,44 @@ class Point(metaclass=PointMeta):
 
         return Point(x1 / x2, y1 / y2, z1 / z2)
 
-    def __imatmul__(self, other: ["_angle.Angle", np.ndarray]) -> "Point":
+    def __matmul__(self, other: Union[np.ndarray, "_angle.Angle"]) -> "Point":
         if isinstance(other, np.ndarray):
             if other.shape[0] == 3:
-                angle = _angle.Angle.from_euler(*other.tolist()).as_matrix_numpy
+                angle = _angle.Angle.from_euler(*other.tolist())
             elif other.shape[0] == 4:
-                angle = _angle.Angle.from_quat(*other.tolist()).as_matrix_numpy
+                angle = _angle.Angle.from_quat(*other.tolist())
             else:
-                angle = other
+                raise TypeError
         else:
-            angle = other.as_matrix_numpy
+            angle = other
 
-        pn = angle @ self.as_numpy
+        p = self.as_numpy
+        p @= angle._q  # NOQA
 
-        self._data[0] = pn[0]
-        self._data[1] = pn[1]
-        self._data[2] = pn[2]
+        p = Point(*p.tolist())
+
+        return p
+
+    def __imatmul__(self, other: Union[np.ndarray, "_angle.Angle"]) -> "Point":
+        if isinstance(other, np.ndarray):
+            if other.shape[0] == 3:
+                angle = _angle.Angle.from_euler(*other.tolist())
+            elif other.shape[0] == 4:
+                angle = _angle.Angle.from_quat(*other.tolist())
+            else:
+                raise TypeError
+        elif isinstance(other, _angle.Angle):
+            angle = other
+
+        else:
+            raise RuntimeError
+
+        p = self.as_numpy
+        p @= angle._q  # NOQA
+
+        self._data[0] = p[0]
+        self._data[1] = p[1]
+        self._data[2] = p[2]
 
         self._process_update()
 
