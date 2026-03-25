@@ -114,6 +114,9 @@ class Canvas(glcanvas.GLCanvas):
         self.camera = _camera.Camera(self)
         self._angle_overlay = None
         self._shader_program = None
+        self._lines_program = None
+        self._points_program = None
+        self._floor_program = None
         self.floor: _floor.Floor = None
         self._view_culling = _culling.CullingThreadPool()
         self._last_culled = []
@@ -402,9 +405,12 @@ class Canvas(glcanvas.GLCanvas):
     def _init_gl(self):
         GL.glEnable(GL.GL_DEPTH_TEST)
         GL.glClearColor(0.20, 0.20, 0.20, 1.0)
-        self._shader_program = _shaders.create_program()
+        self._shader_program = _shaders.compile_triangles_program()
+        self._lines_program = _shaders.compile_lines_program()
+        self._points_program = _shaders.compile_points_program()
+        self._floor_program = _shaders.compile_floor_program()
 
-        self.floor = _floor.Floor(self, self._shader_program)
+        self.floor = _floor.Floor(self, self._floor_program)
 
         # GL.glEnable(GL.GL_LIGHTING)
         GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
@@ -573,7 +579,7 @@ class Canvas(glcanvas.GLCanvas):
         projection_matrix = GL.glGetFloatv(GL.GL_PROJECTION_MATRIX)
         view_matrix = GL.glGetFloatv(GL.GL_MODELVIEW_MATRIX)
 
-        # Set global shader uniforms that are the same for all objects
+        # Set global shader uniforms for the triangles program
         GL.glUseProgram(self._shader_program)
 
         # Set view position (camera position) for specular lighting
@@ -596,6 +602,25 @@ class Canvas(glcanvas.GLCanvas):
         # Set headlight
         self._headlight(self._shader_program)
 
+        # Set global uniforms for the lines program
+        if self._lines_program is not None:
+            GL.glUseProgram(self._lines_program)
+            projection_loc = GL.glGetUniformLocation(self._lines_program, "projection")
+            view_loc = GL.glGetUniformLocation(self._lines_program, "view")
+            GL.glUniformMatrix4fv(projection_loc, 1, GL.GL_FALSE, projection_matrix)
+            GL.glUniformMatrix4fv(view_loc, 1, GL.GL_FALSE, view_matrix)
+
+        # Set global uniforms for the points program
+        if self._points_program is not None:
+            GL.glUseProgram(self._points_program)
+            projection_loc = GL.glGetUniformLocation(self._points_program, "projection")
+            view_loc = GL.glGetUniformLocation(self._points_program, "view")
+            GL.glUniformMatrix4fv(projection_loc, 1, GL.GL_FALSE, projection_matrix)
+            GL.glUniformMatrix4fv(view_loc, 1, GL.GL_FALSE, view_matrix)
+
+        # Switch back to triangles program as default
+        GL.glUseProgram(self._shader_program)
+
         removed_objects = []
         objects_in_view = []
 
@@ -613,7 +638,7 @@ class Canvas(glcanvas.GLCanvas):
 
             objects_in_view.append(obj)
 
-            obj.obj3d.render(self._shader_program)
+            obj.obj3d.render(self._shader_program, self._lines_program, self._points_program)
 
         # Disable shader program after rendering objects
         GL.glUseProgram(0)
@@ -677,7 +702,7 @@ class Canvas(glcanvas.GLCanvas):
 
         # GL.glPopMatrix()
 
-        self.floor.render(self._shader_program)
+        self.floor.render(self._floor_program)
         
         self.SwapBuffers()
 
