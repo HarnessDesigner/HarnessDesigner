@@ -108,7 +108,7 @@ class Base3D:
             ], dtype=np.float64)
 
             corners *= self._scale.as_numpy
-            corners @= self._angle
+            corners = self._angle.rotate_points(corners)
             corners += self._position.as_numpy
 
             aabb = _utils.adjust_aabb(corners)

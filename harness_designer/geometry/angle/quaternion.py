@@ -249,6 +249,45 @@ class Quaternion:
                          [float(item) for item in m3]
                          ], dtype=np.float64)
 
+    def rotate_point(self, point: np.ndarray) -> np.ndarray:
+        """
+        Rotate a single 3D point using this quaternion
+
+        Args:
+            point: numpy array of shape (3,) representing a 3D point
+
+        Returns:
+            Rotated point as numpy array of shape (3,)
+        """
+        w, x, y, z = self.as_float
+
+        # Vectorized quaternion rotation formula
+        # Equivalent to q * p * q^(-1) but more efficient
+        qvec = np.array([x, y, z], dtype=np.float64)
+        t = 2.0 * np.cross(qvec, point)
+        rotated = point + w * t + np.cross(qvec, t)
+
+        return rotated
+
+    def rotate_points(self, points: np.ndarray) -> np.ndarray:
+        """
+        Rotate multiple 3D points using this quaternion (vectorized)
+
+        Args:
+            points: numpy array of shape (N, 3) representing N points
+
+        Returns:
+            Rotated points as numpy array of shape (N, 3)
+        """
+        w, x, y, z = self.as_float
+
+        # Vectorized quaternion rotation formula
+        qvec = np.array([x, y, z], dtype=np.float64)
+        t = 2.0 * np.cross(qvec, points)
+        rotated = points + w * t + np.cross(qvec, t)
+
+        return rotated
+
     @classmethod
     def from_axis_angle(cls, axis, angle):
         """
