@@ -116,6 +116,7 @@ class Canvas(glcanvas.GLCanvas):
         self._shader_program = None
         self._lines_program = None
         self._points_program = None
+        self._floor_program = None
         self.floor: _floor.Floor = None
         self._view_culling = _culling.CullingThreadPool()
         self._last_culled = []
@@ -407,8 +408,9 @@ class Canvas(glcanvas.GLCanvas):
         self._shader_program = _shaders.compile_triangles_program()
         self._lines_program = _shaders.compile_lines_program()
         self._points_program = _shaders.compile_points_program()
+        self._floor_program = _shaders.compile_floor_program()
 
-        self.floor = _floor.Floor(self, self._shader_program)
+        self.floor = _floor.Floor(self, self._floor_program)
 
         # GL.glEnable(GL.GL_LIGHTING)
         GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
@@ -700,7 +702,7 @@ class Canvas(glcanvas.GLCanvas):
 
         # GL.glPopMatrix()
 
-        self.floor.render(self._shader_program)
+        self.floor.render(self._floor_program)
         
         self.SwapBuffers()
 

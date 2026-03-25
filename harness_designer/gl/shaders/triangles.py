@@ -127,6 +127,13 @@ uniform vec4 lightSpecular;
 uniform vec3 viewPosition;
 uniform float floorY;
 
+// Headlight (spotlight from the camera position)
+uniform vec3 headlightPosition;
+uniform vec3 headlightDirection;
+uniform vec4 headlightDiffuse;
+uniform float headlightDiameter;  // half-angle of the spotlight cone in radians (set by headlight.py)
+uniform int headlightEnabled;
+
 void main() {
     vec3 normal = normalize(fragNormalGeom);
     vec3 viewDir = normalize(viewPosition - fragPositionGeom);
@@ -154,6 +161,19 @@ void main() {
             vec3 reflectDir = reflect(-lightDir, normal);
             float specularStrength = pow(max(dot(viewDir, reflectDir), 0.0), materialShininess);
             specular = lightSpecular.rgb * (specularStrength * materialSpecular.rgb);
+        }
+    }
+
+    // Headlight (spotlight from the camera)
+    if (headlightEnabled == 1) {
+        vec3 headDir = normalize(fragPositionGeom - headlightPosition);
+        float spotAngle = acos(clamp(dot(headDir, normalize(headlightDirection)), -1.0, 1.0));
+        if (spotAngle < headlightDiameter) {
+            // Smooth falloff toward the edge of the cone
+            float spotFactor = 1.0 - smoothstep(0.0, headlightDiameter, spotAngle);
+            vec3 headLightDir = -headDir;
+            float headDiffuseStrength = max(dot(normal, headLightDir), 0.0);
+            diffuse += headlightDiffuse.rgb * (headDiffuseStrength * materialDiffuse.rgb) * spotFactor;
         }
     }
 
