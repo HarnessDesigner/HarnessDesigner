@@ -10,6 +10,7 @@ SHADER = """
 in vec3 fragPositionGeom;
 in vec3 fragNormalGeom;
 in float isReflection;
+in vec3 debugColor;
 
 out vec4 FragColor;
 
@@ -27,51 +28,60 @@ uniform vec3 viewPosition;
 uniform float floorY;
 
 void main() {
+    // Check if this is debug rendering (debugColor.x >= 0 indicates debug mode)
+    if (debugColor.x >= 0.0) {
+        FragColor = vec4(debugColor, 1.0);
+        return;
+    }
+    
+    // === Normal Phong Shading ===
     vec3 normal = normalize(fragNormalGeom);
     vec3 viewDir = normalize(viewPosition - fragPositionGeom);
 
     // Determine which side of floor we're on
     bool fragAboveFloor = (fragPositionGeom.y > floorY);
 
-    // Ambient
+    // Ambient component
     vec3 ambient = lightAmbient.rgb * materialAmbient.rgb;
 
     vec3 diffuse = vec3(0.0);
     vec3 specular = vec3(0.0);
 
-    // Mirror light if rendering reflection
+    // Mirror light position if rendering reflection
     vec3 effectiveLightPos = lightPosition;
     if (isReflection > 0.5) {
         effectiveLightPos.y = 2.0 * floorY - lightPosition.y;
     }
 
-    // Only apply light if on same side of floor
+    // Only apply light if fragment and light are on same side of floor
     bool lightAboveFloor = (effectiveLightPos.y > floorY);
     if (fragAboveFloor == lightAboveFloor) {
         vec3 lightDir = normalize(effectiveLightPos - fragPositionGeom);
 
-        float diff = max(dot(normal, lightDir), 0.0);
-        diffuse = lightDiffuse.rgb * (diff * materialDiffuse.rgb);
+        // Diffuse component
+        float diffuseStrength = max(dot(normal, lightDir), 0.0);
+        diffuse = lightDiffuse.rgb * (diffuseStrength * materialDiffuse.rgb);
 
-        if (diff > 0.0) {
+        // Specular component (only if surface faces light)
+        if (diffuseStrength > 0.0) {
             vec3 reflectDir = reflect(-lightDir, normal);
-            float spec = pow(max(dot(viewDir, reflectDir), 0.0), materialShininess);
-            specular = lightSpecular.rgb * (spec * materialSpecular.rgb);
+            float specularStrength = pow(max(dot(viewDir, reflectDir), 0.0), materialShininess);
+            specular = lightSpecular.rgb * (specularStrength * materialSpecular.rgb);
         }
     }
 
     vec3 result = ambient + diffuse + specular;
-
     float alpha = materialDiffuse.a;
 
+    // Darken reflections slightly
     if (isReflection > 0.5) {
-        // Darken reflections slightly
         result *= 0.75;
     }
 
     FragColor = vec4(result, alpha);
 }
 """
+
 
 def compile_shader():
     return _compiler.compile(SHADER, GL.GL_FRAGMENT_SHADER)

@@ -24,11 +24,11 @@ class Circle:
         center.bind(self._update_point)
 
     @property
-    def diameter(self) -> _decimal:
+    def diameter(self) -> _d:
         return self._diameter
 
     @diameter.setter
-    def diameter(self, value: _decimal):
+    def diameter(self, value: _d):
         self._diameter = value
         self._bmp.Destroy()
         self._update_artist()
@@ -72,8 +72,8 @@ class Circle:
 
             x, y = self._center.as_float[:-1]
 
-            x -= dia / _decimal(2.0)
-            y -= dia / _decimal(2.0)
+            x -= dia / _d(2.0)
+            y -= dia / _d(2.0)
 
             gc.DrawEllipse(int(x), int(y), int(dia), int(dia))
 
@@ -100,6 +100,6 @@ class Circle:
         bmp = self._get_bmp()
         self.artist.update((5, 5), bmp)
     
-    def add_to_plot(self, axes: "Editor2D") -> None:
+    def add_to_plot(self, axes: "_editor_2d.Editor2D") -> None:
         self.artist = axes.add_line(self)
         self._update_artist()

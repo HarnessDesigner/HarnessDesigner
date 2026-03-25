@@ -30,18 +30,11 @@ class Housing(_base2d.Base2D):
     def __init__(self, parent: "_housing.Housing",
                  db_obj: "_pjt_housing.PJTHousing"):
 
-        _base2d.Base2D.__init__(self, parent, db_obj)
-
-        # Pull data from database
         self._part = db_obj.part
+        position = db_obj.position2d
+        angle = db_obj.angle2d
 
-        # Get position from database (Point instance)
-
-        self._position = db_obj.position2d
-
-        # Get angle from database (Angle instance) - for rotation
-
-        self._angle = db_obj.angle2d
+        _base2d.Base2D.__init__(self, parent, db_obj, position, angle)
 
         # Get dimensions from part if available
         self._width = float(self._part.width)
@@ -49,10 +42,6 @@ class Housing(_base2d.Base2D):
 
         # Track child cavities for hierarchical movement
         self._cavities = []
-
-        # Bind to position and angle changes for automatic refresh
-        self._position.bind(self._on_position_changed)
-        self._angle.bind(self._on_angle_changed)
 
     def add_cavity(self, cavity):
         """
@@ -79,14 +68,6 @@ class Housing(_base2d.Base2D):
                 cavity.obj2d._housing = None
         except ValueError:
             pass
-
-    def _on_position_changed(self, *args):
-        """Called when housing position changes"""
-        self.editor2d.editor.canvas.Refresh()
-
-    def _on_angle_changed(self, *args):
-        """Called when housing angle changes"""
-        self.editor2d.editor.canvas.Refresh()
 
     def render_gl(self):
         """Render housing using OpenGL with rotation support"""

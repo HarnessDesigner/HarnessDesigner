@@ -184,8 +184,7 @@ def create_vbo():
 
     vertices, faces = _utils.convert_model_to_mesh(cyl)
     vertices, normals, faces, count = _utils.compute_vbo_smoothed_vertex_normals(vertices, faces)
-    edges = _utils.compute_edges(faces)
 
-    _vbo = _vbo_handler.VBOHandler('cylinder_helix', vertices, edges, normals, faces, count, cn)
+    _vbo = _vbo_handler.VBOHandler('cylinder_helix', vertices, normals, faces, count, cn)
 
     return _vbo

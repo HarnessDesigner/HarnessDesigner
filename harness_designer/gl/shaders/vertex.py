@@ -7,8 +7,8 @@ from . import compiler as _compiler
 SHADER = """
 #version 330 core
 
-layout(location = 0) in vec3 in_position;
-layout(location = 1) in vec3 in_normal;
+layout(location = 0) in vec3 in_vertexLocal;   // Local/model-space vertex coordinate
+layout(location = 1) in vec3 in_normalLocal;   // Local/model-space normal
 
 uniform mat4 projection;
 uniform mat4 view;
@@ -16,8 +16,8 @@ uniform vec3 objectPosition;
 uniform vec4 objectRotation;
 uniform vec3 objectScale;
 
-out vec3 fragPosition;
-out vec3 fragNormal;
+out vec3 fragPositionWorld;
+out vec3 fragNormalWorld;
 
 mat3 quaternionToMatrix(vec4 q) {
     float w = q.x;
@@ -44,17 +44,19 @@ mat3 quaternionToMatrix(vec4 q) {
 }
 
 void main() {
-    vec3 scaledPosition = in_position;
+    // Transform local vertex to world space: Scale → Rotate → Translate (SRT)
+    vec3 scaledVertex = in_vertexLocal * objectScale;
     mat3 rotationMatrix = quaternionToMatrix(objectRotation);
-    vec3 rotatedPosition = rotationMatrix * scaledPosition;
-    vec3 worldPosition = rotatedPosition + objectPosition;
+    vec3 rotatedVertex = rotationMatrix * scaledVertex;
+    vec3 worldPosition = rotatedVertex + objectPosition;
 
-    vec3 scaledNormal = in_normal / objectScale;
-    vec3 rotatedNormal = rotationMatrix * scaledNormal;
+    // Transform normal to world space: Inverse-scale → Rotate (no translation)
+    vec3 scaledNormal = in_normalLocal / objectScale;  // Inverse scale for normals
+    vec3 worldNormal = rotationMatrix * scaledNormal;
 
     gl_Position = projection * view * vec4(worldPosition, 1.0);
-    fragPosition = worldPosition;
-    fragNormal = normalize(rotatedNormal);
+    fragPositionWorld = worldPosition;
+    fragNormalWorld = normalize(worldNormal);
 }
 """
 

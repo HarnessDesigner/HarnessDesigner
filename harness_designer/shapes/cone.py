@@ -2,7 +2,6 @@ import math
 import numpy as np
 
 from .. import utils as _utils
-from ..import debug as _debug
 
 from ..gl import vbo as _vbo_handler
 
@@ -15,14 +14,12 @@ def create_vbo() -> _vbo_handler.VBOHandler:
     if _vbo is None:
         vertices, faces = create(0.5, 1.0, 360, 1)
         verts, nrmls, faces, count = _utils.compute_vbo_smoothed_vertex_normals(vertices, faces)
-        edges = _utils.compute_edges(faces)
 
-        _vbo = _vbo_handler.VBOHandler('cone', verts, edges, nrmls, faces, count)
+        _vbo = _vbo_handler.VBOHandler('cone', verts, nrmls, faces, count)
 
     return _vbo
 
 
-@_debug.timeit
 def create(radius=1.0, height=2.0, resolution=None, split=None):
     if resolution is None:
         resolution = int(max(20.0, _utils.remap(radius, 0.0, 1.0, 0.0, 20.0)))

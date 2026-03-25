@@ -3,7 +3,6 @@ import math
 import numpy as np
 
 from .. import utils as _utils
-from ..import debug as _debug
 from ..gl import vbo as _vbo_handler
 
 
@@ -16,9 +15,7 @@ def create_vbo() -> _vbo_handler.VBOHandler:
     if _vbo is None:
         vertices, faces = create(0.5, resolution=40)
         verts, nrmls, faces, count = _utils.compute_vbo_smoothed_vertex_normals(vertices, faces)
-        edges = _utils.compute_edges(faces)
-
-        _vbo = _vbo_handler.VBOHandler('sphere', verts, edges, nrmls, faces, count)
+        _vbo = _vbo_handler.VBOHandler('sphere', verts, nrmls, faces, count)
 
     return _vbo
 

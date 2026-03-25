@@ -468,6 +468,10 @@ class Config(metaclass=ConfigDB):
             draw_normals = False
             draw_edges = False
             draw_vertices = False
+            draw_faces = True
+            edge_color_dark = [0.7, 0.7, 0.7]  # For dark materials
+            edge_color_light = [0.0, 0.0, 0.0]  # For light materials
+            edge_luminance_threshold = 0.5  # Brightness cutoff
 
     class colors(metaclass=ConfigDB):
         custom_colors = ''

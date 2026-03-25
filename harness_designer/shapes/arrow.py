@@ -44,8 +44,6 @@ def create_vbo() -> _vbo_handler.VBOHandler:
 
     vertices, faces = _utils.convert_model_to_mesh(arrow)
     vertices, normals, faces, count = _utils.compute_vbo_vertex_normals(vertices, faces)
-    edges = _utils.compute_edges(faces)
-
-    _vbo = _vbo_handler.VBOHandler('move_arrow', vertices, edges, normals, faces, count)
+    _vbo = _vbo_handler.VBOHandler('move_arrow', vertices, normals, faces, count)
 
     return _vbo

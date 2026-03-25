@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 
 
 Config = _config.Config.editor3d
+_debug_config = _config.Config.debug.rendering3d
 
 
 class Base3D:
@@ -368,9 +369,42 @@ class Base3D:
         pos_loc = GL.glGetUniformLocation(shader_program, "objectPosition")
         rot_loc = GL.glGetUniformLocation(shader_program, "objectRotation")
         scale_loc = GL.glGetUniformLocation(shader_program, "objectScale")
+        show_edges_loc = GL.glGetUniformLocation(shader_program, "showEdges")
+        show_vertices_loc = GL.glGetUniformLocation(shader_program, "showVertices")
+        show_normals_loc = GL.glGetUniformLocation(shader_program, "showNormals")
+        show_faces_loc = GL.glGetUniformLocation(shader_program, "showFaces")
+        normal_length_loc = GL.glGetUniformLocation(shader_program, "normalLength")
+        edge_color_loc = GL.glGetUniformLocation(shader_program, "edgeColor")
+        object_has_reflection_loc = GL.glGetUniformLocation(shader_program, "objectHasReflection")
 
-        objectHasReflectionLoc = GL.glGetUniformLocation(shader_program, "objectHasReflection")
-        GL.glUniform1i(objectHasReflectionLoc, 1)
+        GL.glUniform1i(object_has_reflection_loc, int(Config.floor.reflections.enable))
+
+        GL.glUniform1i(show_edges_loc, int(_debug_config.draw_edges))
+        GL.glUniform1i(show_vertices_loc, int(_debug_config.draw_vertices))
+        GL.glUniform1i(show_normals_loc, int(_debug_config.draw_normals))
+        GL.glUniform1i(show_faces_loc, int(_debug_config.draw_faces))
+
+        p1, p2 = self.aabb
+        width = abs(p2[0] - p1[0])
+        height = abs(p2[1] - p1[1])
+        depth = abs(p2[2] - p1[2])
+        smallest_dimension = min(width, height, depth)
+        dynamic_normal_length = smallest_dimension / 10.0
+        GL.glUniform1f(normal_length_loc, dynamic_normal_length)
+
+        material_color = self.material.diffuse[:3]  # Get RGB
+
+        # Calculate perceived brightness using standard luminance formula
+        # Human eye perceives green more than red, and red more than blue
+        luminance = 0.299 * material_color[0] + 0.587 * material_color[
+            1] + 0.114 * material_color[2]
+
+        if luminance < _debug_config.edge_luminance_threshold:
+            e_color = _debug_config.edge_color_dark
+        else:
+            e_color = _debug_config.edge_color_light
+
+        GL.glUniform3f(edge_color_loc, *e_color)
 
         if self._vbo is None:
             # we set these to values that will not cause anything to move
@@ -400,16 +434,127 @@ class Base3D:
 
             self._vbo.render()
 
-    def render_obb(self):
-        pass
+        if self.is_selected:
+            GL.glUseProgram(0)
+
+            if _debug_config.draw_obb:
+                self._render_obb()
+
+            if _debug_config.draw_aabb:
+                self._render_aabb()
+
+            GL.glColor4f(1.0, 0.4, 0.4, 1.0)
+            GL.glLineWidth(2.0)
+            p1, p2 = self.aabb
+
+            y = Config.floor.ground_height + 0.20
+
+            GL.glBegin(GL.GL_LINES)
+            GL.glVertex3f(p1[0], y, p1[2])
+            GL.glVertex3f(p1[0], y, p2[2])
+
+            GL.glVertex3f(p1[0], y, p2[2])
+            GL.glVertex3f(p2[0], y, p2[2])
+
+            GL.glVertex3f(p2[0], y, p2[2])
+            GL.glVertex3f(p2[0], y, p1[2])
+
+            GL.glVertex3f(p2[0], y, p1[2])
+            GL.glVertex3f(p1[0], y, p1[2])
+            GL.glEnd()
+
+            GL.glUseProgram(shader_program)
+
+    def _render_aabb(self):
+        aabb = self.aabb
+
+        x1, y1, z1 = aabb[0]
+        x2, y2, z2 = aabb[1]
+
+        vertices = np.array([
+                [x1, y1, z1],  # 0: bottom-left-front
+                [x2, y1, z1],  # 1: bottom-right-front
+                [x2, y2, z1],  # 2: top-right-front
+                [x1, y2, z1],  # 3: top-left-front
+                [x1, y1, z2],  # 4: bottom-left-back
+                [x2, y1, z2],  # 5: bottom-right-back
+                [x2, y2, z2],  # 6: top-right-back
+                [x1, y2, z2],  # 7: top-left-back
+            ], dtype=np.float32)
+
+        edges = np.array([
+                (0, 1), (1, 2), (2, 3), (3, 0),  # front face
+                (4, 5), (5, 6), (6, 7), (7, 4),  # back face
+                (0, 4), (1, 5), (2, 6), (3, 7),  # connecting edges
+            ], dtype=np.int32)
+
+        def _render_edges(v, e):
+            e = v[e].reshape(-1, 3)
+            GL.glLineWidth(1.5)
+            GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
+
+            GL.glVertexPointer(3, GL.GL_FLOAT, 0, e)
+            GL.glDrawArrays(GL.GL_LINES, 0, len(e))
+
+            GL.glDisableClientState(GL.GL_VERTEX_ARRAY)
+
+        # render edges
+        GL.glColor4f(1.0, 0.2, 0.2, 1.0)
+        _render_edges(vertices, edges)
+
+    def _render_obb(self):
+        vertices = self.obb
+
+        faces = np.array([
+                (0, 1, 2, 3),  # front
+                (5, 4, 7, 6),  # back
+                (4, 0, 3, 7),  # left
+                (1, 5, 6, 2),  # right
+                (3, 2, 6, 7),  # top
+                (4, 5, 1, 0),  # bottom
+            ], dtype=np.int32)
+
+        edges = np.array([
+                (0, 1), (1, 2), (2, 3), (3, 0),  # front face
+                (4, 5), (5, 6), (6, 7), (7, 4),  # back face
+                (0, 4), (1, 5), (2, 6), (3, 7),  # connecting edges
+            ], dtype=np.int32)
+
+        def _render_bb(v, f):
+            vers, normals, count = _utils.compute_vertex_normals(v, f)
+
+            # Enable vertex arrays
+            GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
+            GL.glEnableClientState(GL.GL_NORMAL_ARRAY)
+
+            # Set pointers
+            GL.glVertexPointer(3, GL.GL_FLOAT, 0, vers)
+            GL.glNormalPointer(GL.GL_FLOAT, 0, normals)
+
+            # Draw all quads
+            GL.glDrawArrays(GL.GL_QUADS, 0, count)
+
+            # Disable vertex arrays
+            GL.glDisableClientState(GL.GL_NORMAL_ARRAY)
+            GL.glDisableClientState(GL.GL_VERTEX_ARRAY)
+
+        def _render_edges(v, e):
+            e = v[e].reshape(-1, 3)
+            GL.glLineWidth(1.0)
+            GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
+
+            GL.glVertexPointer(3, GL.GL_FLOAT, 0, e)
+            GL.glDrawArrays(GL.GL_LINES, 0, len(e))
+
+            GL.glDisableClientState(GL.GL_VERTEX_ARRAY)
+
+        GL.glColor4f(0.5, 1.0, 0.5, 0.3)
+        _render_bb(vertices, faces)
+
+        GL.glColor4f(0.5, 1.0, 0.5, 1.0)
+        _render_edges(vertices, edges)
 
     def render_aabb(self):
-        pass
-
-    def render_edges(self):
-        pass
-
-    def render_vertices(self):
         pass
 
     @property

@@ -25,14 +25,13 @@ class VBOSingleton(type):
         return item in cls._instances
 
     def __call__(cls, id: str, vertices: np.ndarray | None = None,  # NOQA
-                 edges: np.ndarray | None = None,
                  normals: np.ndarray | None = None,
                  faces: np.ndarray | None = None,
                  count: int = 0,
                  endpoint: _point.Point | None = None) -> "VBOHandler":
 
         if id not in cls._instances:
-            instance = super().__call__(id, vertices, edges, normals, faces,
+            instance = super().__call__(id, vertices, normals, faces,
                                         count, endpoint)
 
             cls._instances[id] = weakref.ref(instance, cls._remove_ref)
@@ -45,7 +44,7 @@ class VBOSingleton(type):
             # mechanics in weakref and not wanting it to remove
             # the newly added reference
             del cls._instances[id]
-            instance = super().__call__(id, vertices, edges, normals, faces,
+            instance = super().__call__(id, vertices, normals, faces,
                                         count, endpoint)
 
             cls._instances[id] = weakref.ref(instance, cls._remove_ref)
@@ -70,7 +69,6 @@ class VBOHandler(metaclass=VBOSingleton):
     #       time.
 
     def __init__(self, id: str, vertices: np.ndarray | None = None,  # NOQA
-                 edges: np.ndarray | None = None,
                  normals: np.ndarray | None = None,
                  faces: np.ndarray | None = None,
                  count: int = 0,
@@ -86,7 +84,6 @@ class VBOHandler(metaclass=VBOSingleton):
             vertices = vertices_reshaped.ravel()
 
         self.__vertices = vertices
-        self.__edges = edges
         self.__normals = normals
         self.__faces = faces
         self.__count = count
@@ -94,11 +91,10 @@ class VBOHandler(metaclass=VBOSingleton):
         (
             self.__vao,
             self.__vbo_vertices,
-            self._vbo_edges,
             self.__vbo_normals,
             self.__vbo_faces,
             self.__vert_count
-        ) = self._create_vbo(vertices, edges, normals, faces, count)
+        ) = self._create_vbo(vertices, normals, faces, count)
 
         local_aabb = _utils.compute_aabb(vertices.reshape(-1, 3))
         self.local_obb = _utils.compute_obb(*local_aabb)
@@ -115,18 +111,17 @@ class VBOHandler(metaclass=VBOSingleton):
         return self.__faces
 
     def __del__(self):
-        self._release_buffers(self.__vao, self.__vbo_vertices, self.__vbo_faces,
+        self._release_buffers(self.__vao, self.__vbo_vertices,
                               self.__vbo_normals, self.__vbo_faces)
 
         self.__vao = None
         self.__vbo_vertices = None
-        self.__vbo_edges = None
         self.__vbo_normals = None
         self.__vbo_faces = None
         self.__vert_count = 0
 
     @staticmethod
-    def _release_buffers(vao=None, vbo_vertices=None, vbo_edges=None, vbo_normals=None, vbo_faces=None):
+    def _release_buffers(vao=None, vbo_vertices=None, vbo_normals=None, vbo_faces=None):
         # Clean up any partially created buffers
         if vao is not None:
             try:
@@ -137,12 +132,6 @@ class VBOHandler(metaclass=VBOSingleton):
         if vbo_vertices is not None:
             try:
                 GL.glDeleteBuffers(1, [vbo_vertices])
-            except:  # NOQA
-                pass
-
-        if vbo_edges is not None:
-            try:
-                GL.glDeleteBuffers(1, [vbo_edges])
             except:  # NOQA
                 pass
 
@@ -159,7 +148,7 @@ class VBOHandler(metaclass=VBOSingleton):
                 pass
 
     @classmethod
-    def _create_vbo(cls, vertices, edges, normals, faces, count):
+    def _create_vbo(cls, vertices, normals, faces, count):
         # Create VAO
         vao = GL.glGenVertexArrays(1)
         GL.glBindVertexArray(vao)
@@ -185,19 +174,6 @@ class VBOHandler(metaclass=VBOSingleton):
         GL.glEnableVertexAttribArray(0)
         GL.glVertexAttribPointer(0, 3, GL.GL_FLOAT, GL.GL_FALSE, 0, None)
 
-        # Element buffer
-        vbo_edges = GL.glGenBuffers(1)
-        GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, vbo_edges)
-
-        GL.glBufferData(GL.GL_ELEMENT_ARRAY_BUFFER, edges.nbytes,
-                        edges, GL.GL_STATIC_DRAW)
-
-        # Check for OpenGL errors
-        err = GL.glGetError()
-        if err != GL.GL_NO_ERROR:
-            cls._release_buffers(vao, vbo_vertices)
-            raise RuntimeError(f"OpenGL error creating edges buffer: {err}")
-
         # Normal buffer
         vbo_normals = GL.glGenBuffers(1)
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, vbo_normals)
@@ -208,7 +184,7 @@ class VBOHandler(metaclass=VBOSingleton):
         # Check for OpenGL errors
         err = GL.glGetError()
         if err != GL.GL_NO_ERROR:
-            cls._release_buffers(vao, vbo_vertices, vbo_edges, vbo_normals)
+            cls._release_buffers(vao, vbo_vertices, vbo_normals)
             raise RuntimeError(f"OpenGL error creating normals buffer: {err}")
 
         GL.glEnableVertexAttribArray(1)
@@ -224,11 +200,11 @@ class VBOHandler(metaclass=VBOSingleton):
         # Check for OpenGL errors
         err = GL.glGetError()
         if err != GL.GL_NO_ERROR:
-            cls._release_buffers(vao, vbo_vertices, vbo_edges, vbo_normals, vbo_faces)
+            cls._release_buffers(vao, vbo_vertices, vbo_normals, vbo_faces)
             raise RuntimeError(f"OpenGL error creating faces buffer: {err}")
 
         GL.glBindVertexArray(0)
-        return vao, vbo_vertices, vbo_edges, vbo_normals, vbo_faces, int(count / 3)
+        return vao, vbo_vertices, vbo_normals, vbo_faces, int(count / 3)
 
     def get_aspect(self) -> tuple[float, float]:
         p1, p2 = self.local_aabb

@@ -14,9 +14,7 @@ def create_vbo() -> _vbo_handler.VBOHandler:
         vertices, faces = create(0.5, 1.0)
 
         verts, nrmls, faces, count = _utils.compute_vbo_smoothed_vertex_normals(vertices, faces)
-        edges = _utils.compute_edges(faces)
-
-        _vbo = _vbo_handler.VBOHandler('stripe', verts, edges, nrmls, faces, count)
+        _vbo = _vbo_handler.VBOHandler('stripe', verts, nrmls, faces, count)
 
     return _vbo
 

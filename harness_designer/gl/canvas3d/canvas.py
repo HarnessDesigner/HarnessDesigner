@@ -8,6 +8,7 @@ from wx import aui
 from OpenGL import GL
 from OpenGL import GLU
 import math
+import ctypes
 
 from . import headlight as _headlight
 from . import focal_target as _focal_target
@@ -454,169 +455,140 @@ class Canvas(glcanvas.GLCanvas):
     def set_draw_grid(self, flag):
         self.floor.set(flag)
 
-    @_debug.logfunc
-    def _render_aabb(self, obj):
-        vertices = []
-        edges = []
-
-        aabb = obj.aabb
-
-        x1, y1, z1 = aabb[0]
-        x2, y2, z2 = aabb[1]
-
-        verts = np.array([
-                [x1, y1, z1],  # 0: bottom-left-front
-                [x2, y1, z1],  # 1: bottom-right-front
-                [x2, y2, z1],  # 2: top-right-front
-                [x1, y2, z1],  # 3: top-left-front
-                [x1, y1, z2],  # 4: bottom-left-back
-                [x2, y1, z2],  # 5: bottom-right-back
-                [x2, y2, z2],  # 6: top-right-back
-                [x1, y2, z2],  # 7: top-left-back
-            ], dtype=np.float32)
-
-        edgs = np.array([
-                (0, 1), (1, 2), (2, 3), (3, 0),  # front face
-                (4, 5), (5, 6), (6, 7), (7, 4),  # back face
-                (0, 4), (1, 5), (2, 6), (3, 7),  # connecting edges
-            ], dtype=np.int32)
-
-        vertices.append(verts)
-        edges.append(edgs)
-
-        vertices = np.array(vertices, dtype=np.float32).reshape(-1, 3)
-        edges = np.array(edges, dtype=np.int32).reshape(-1, 2)
-
-        def _render_edges(v, e):
-            e = v[e].reshape(-1, 3)
-            GL.glLineWidth(1.5)
-            GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
-
-            GL.glVertexPointer(3, GL.GL_FLOAT, 0, e)
-            GL.glDrawArrays(GL.GL_LINES, 0, len(e))
-
-            GL.glDisableClientState(GL.GL_VERTEX_ARRAY)
-
-        # render edges
-        GL.glColor4f(1.0, 0.2, 0.2, 1.0)
-        _render_edges(vertices, edges)
-
-    @_debug.logfunc
-    def _render_obb(self, obj):
-        selected = None
-
-        offset = 0
-
-        vertices = []
-        faces = []
-        edges = []
-
-        verts = obj.obb
-
-        facs = np.array([
-                (0, 1, 2, 3),  # front
-                (5, 4, 7, 6),  # back
-                (4, 0, 3, 7),  # left
-                (1, 5, 6, 2),  # right
-                (3, 2, 6, 7),  # top
-                (4, 5, 1, 0),  # bottom
-            ], dtype=np.int32)
-
-        edgs = np.array([
-                (0, 1), (1, 2), (2, 3), (3, 0),  # front face
-                (4, 5), (5, 6), (6, 7), (7, 4),  # back face
-                (0, 4), (1, 5), (2, 6), (3, 7),  # connecting edges
-            ], dtype=np.int32)
-
-        if obj.is_selected:
-            selected = [verts, facs, edgs]
-        else:
-            vertices.append(verts)
-            faces.append(facs + offset)
-            edges.append(edgs + offset)
-            offset += 8
-
-        vertices = np.array(vertices, dtype=np.float32).reshape(-1, 3)
-        faces = np.array(faces, dtype=np.int32).reshape(-1, 4)
-        edges = np.array(edges, dtype=np.int32).reshape(-1, 2)
-
-        def _render_bb(v, f):
-            vers, normals, count = _utils.compute_vertex_normals(v, f)
-
-            # Enable vertex arrays
-            GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
-            GL.glEnableClientState(GL.GL_NORMAL_ARRAY)
-
-            # Set pointers
-            GL.glVertexPointer(3, GL.GL_FLOAT, 0, vers)
-            GL.glNormalPointer(GL.GL_FLOAT, 0, normals)
-
-            # Draw all quads
-            GL.glDrawArrays(GL.GL_QUADS, 0, count)
-
-            # Disable vertex arrays
-            GL.glDisableClientState(GL.GL_NORMAL_ARRAY)
-            GL.glDisableClientState(GL.GL_VERTEX_ARRAY)
-
-        def _render_edges(v, e):
-            e = v[e].reshape(-1, 3)
-            GL.glLineWidth(1.0)
-            GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
-
-            GL.glVertexPointer(3, GL.GL_FLOAT, 0, e)
-            GL.glDrawArrays(GL.GL_LINES, 0, len(e))
-
-            GL.glDisableClientState(GL.GL_VERTEX_ARRAY)
-
-        GL.glColor4f(1.0, 0.5, 0.5, 0.3)
-        _render_bb(vertices, faces)
-
-        # render edges
-        GL.glColor4f(1.0, 0.2, 0.2, 1.0)
-        _render_edges(vertices, edges)
-
-        if selected is not None:
-            vertices, faces, edges = selected
-
-            GL.glColor4f(0.5, 1.0, 0.5, 0.3)
-            _render_bb(vertices, faces)
-
-            GL.glColor4f(0.5, 1.0, 0.5, 1.0)
-            _render_edges(vertices, edges)
-
-    def _render_normals(self, obj):
-        pass
-    
-    def _render_edges(self, obj):
-        pass
-
-    def _render_vertices(self, obj):
-        pass
+    # @_debug.logfunc
+    # def _draw_scene(self, obj_data):
+    #     # Get current projection and view matrices from OpenGL BEFORE activating shader
+    #     # (these are set by the fixed-function pipeline in _on_draw)
+    #     projection_matrix = GL.glGetFloatv(GL.GL_PROJECTION_MATRIX)
+    #     view_matrix = GL.glGetFloatv(GL.GL_MODELVIEW_MATRIX)
+    #
+    #     # Set global shader uniforms that are the same for all objects
+    #     GL.glUseProgram(self._shader_program)
+    #
+    #     # Set view position (camera position) for specular lighting
+    #     viewPosition_loc = GL.glGetUniformLocation(self._shader_program, "viewPosition")
+    #     GL.glUniform3fv(viewPosition_loc, 1, self.camera.position.as_numpy)
+    #
+    #     # Set projection and view matrices
+    #     projection_loc = GL.glGetUniformLocation(self._shader_program, "projection")
+    #     view_loc = GL.glGetUniformLocation(self._shader_program, "view")
+    #
+    #     GL.glUniformMatrix4fv(projection_loc, 1, GL.GL_FALSE, projection_matrix)
+    #     GL.glUniformMatrix4fv(view_loc, 1, GL.GL_FALSE, view_matrix)
+    #
+    #     floorYLoc = GL.glGetUniformLocation(self._shader_program, "floorY")
+    #     reflectionAlphaLoc = GL.glGetUniformLocation(self._shader_program, "reflectionAlpha")
+    #     reflectionTintLoc = GL.glGetUniformLocation(self._shader_program, "reflectionTint")
+    #
+    #     # Set scene lighting
+    #     self._scene_light.set(self._shader_program)
+    #
+    #     # Set headlight
+    #     self._headlight(self._shader_program)
+    #
+    #     GL.glUniform1f(floorYLoc, self.config.floor.ground_height)  # Floor at Y=0
+    #     GL.glUniform1f(reflectionAlphaLoc, 0.8)  # 40% opacity
+    #     GL.glUniform3f(reflectionTintLoc, 0.9, 0.9, 1.0)  # Slight blue tint
+    #
+    #     removed_objects = []
+    #     objects_in_view = []
+    #
+    #     # Render each object
+    #     for row in obj_data:
+    #         ref_address = row[-1]
+    #
+    #         import ctypes
+    #
+    #         obj_ref = ctypes.cast(ref_address, ctypes.py_object).value
+    #         obj = obj_ref()
+    #
+    #         if obj is None:
+    #             removed_objects.append(row)
+    #             self._object_refs.remove(obj_ref)
+    #             continue
+    #
+    #         objects_in_view.append(obj)
+    #
+    #         obj.obj3d.render(self._shader_program)
+    #
+    #         if obj.is_selected:
+    #             GL.glUseProgram(0)
+    #
+    #             if _debug_config.draw_obb:
+    #                 self._render_obb(obj.obj3d)
+    #
+    #             if _debug_config.draw_aabb:
+    #                 self._render_aabb(obj.obj3d)
+    #
+    #             if _debug_config.draw_normals:
+    #                 self._render_normals(obj.obj3d)
+    #
+    #             if _debug_config.draw_edges:
+    #                 self._render_edges(obj.obj3d)
+    #
+    #             if _debug_config.draw_vertices:
+    #                 self._render_vertices(obj.obj3d)
+    #
+    #
+    #
+    #             GL.glColor4f(1.0, 0.4, 0.4, 1.0)
+    #             GL.glLineWidth(2.0)
+    #             p1, p2 = obj.obj3d.aabb
+    #
+    #             y = self.config.floor.ground_height + 0.20
+    #
+    #             GL.glBegin(GL.GL_LINES)
+    #             GL.glVertex3f(p1[0], y, p1[2])
+    #             GL.glVertex3f(p1[0], y, p2[2])
+    #
+    #             GL.glVertex3f(p1[0], y, p2[2])
+    #             GL.glVertex3f(p2[0], y, p2[2])
+    #
+    #             GL.glVertex3f(p2[0], y, p2[2])
+    #             GL.glVertex3f(p2[0], y, p1[2])
+    #
+    #             GL.glVertex3f(p2[0], y, p1[2])
+    #             GL.glVertex3f(p1[0], y, p1[2])
+    #             GL.glEnd()
+    #
+    #             GL.glUseProgram(self._shader_program)
+    #
+    #     # Disable shader program after rendering objects
+    #     GL.glUseProgram(0)
+    #     self._objects_in_view = objects_in_view
+    #
+    #     for row in removed_objects:
+    #         for container in self._object_data:
+    #             try:
+    #                 container.remove(row)
+    #                 break
+    #             except ValueError:
+    #                 continue
+    #         else:
+    #             raise RuntimeError('This should not occur')
 
     @_debug.logfunc
     def _draw_scene(self, obj_data):
         # Get current projection and view matrices from OpenGL BEFORE activating shader
-        # (these are set by the fixed-function pipeline in _on_draw)
         projection_matrix = GL.glGetFloatv(GL.GL_PROJECTION_MATRIX)
         view_matrix = GL.glGetFloatv(GL.GL_MODELVIEW_MATRIX)
-        
+
         # Set global shader uniforms that are the same for all objects
         GL.glUseProgram(self._shader_program)
-        
+
         # Set view position (camera position) for specular lighting
         viewPosition_loc = GL.glGetUniformLocation(self._shader_program, "viewPosition")
         GL.glUniform3fv(viewPosition_loc, 1, self.camera.position.as_numpy)
-        
+
         # Set projection and view matrices
         projection_loc = GL.glGetUniformLocation(self._shader_program, "projection")
         view_loc = GL.glGetUniformLocation(self._shader_program, "view")
-        
+
         GL.glUniformMatrix4fv(projection_loc, 1, GL.GL_FALSE, projection_matrix)
         GL.glUniformMatrix4fv(view_loc, 1, GL.GL_FALSE, view_matrix)
 
         floorYLoc = GL.glGetUniformLocation(self._shader_program, "floorY")
-        reflectionAlphaLoc = GL.glGetUniformLocation(self._shader_program, "reflectionAlpha")
-        reflectionTintLoc = GL.glGetUniformLocation(self._shader_program, "reflectionTint")
+        GL.glUniform1f(floorYLoc, self.config.floor.ground_height)
 
         # Set scene lighting
         self._scene_light.set(self._shader_program)
@@ -624,18 +596,12 @@ class Canvas(glcanvas.GLCanvas):
         # Set headlight
         self._headlight(self._shader_program)
 
-        GL.glUniform1f(floorYLoc, self.config.floor.ground_height)  # Floor at Y=0
-        GL.glUniform1f(reflectionAlphaLoc, 0.8)  # 40% opacity
-        GL.glUniform3f(reflectionTintLoc, 0.9, 0.9, 1.0)  # Slight blue tint
-
         removed_objects = []
         objects_in_view = []
-        
+
         # Render each object
         for row in obj_data:
             ref_address = row[-1]
-
-            import ctypes
 
             obj_ref = ctypes.cast(ref_address, ctypes.py_object).value
             obj = obj_ref()
@@ -648,48 +614,6 @@ class Canvas(glcanvas.GLCanvas):
             objects_in_view.append(obj)
 
             obj.obj3d.render(self._shader_program)
-
-            if obj.is_selected:
-                GL.glUseProgram(0)
-
-                if _debug_config.draw_obb:
-                    self._render_obb(obj.obj3d)
-
-                if _debug_config.draw_aabb:
-                    self._render_aabb(obj.obj3d)
-
-                if _debug_config.draw_normals:
-                    self._render_normals(obj.obj3d)
-
-                if _debug_config.draw_edges:
-                    self._render_edges(obj.obj3d)
-
-                if _debug_config.draw_vertices:
-                    self._render_vertices(obj.obj3d)
-
-
-
-                GL.glColor4f(1.0, 0.4, 0.4, 1.0)
-                GL.glLineWidth(2.0)
-                p1, p2 = obj.obj3d.aabb
-
-                y = self.config.floor.ground_height + 0.20
-
-                GL.glBegin(GL.GL_LINES)
-                GL.glVertex3f(p1[0], y, p1[2])
-                GL.glVertex3f(p1[0], y, p2[2])
-
-                GL.glVertex3f(p1[0], y, p2[2])
-                GL.glVertex3f(p2[0], y, p2[2])
-
-                GL.glVertex3f(p2[0], y, p2[2])
-                GL.glVertex3f(p2[0], y, p1[2])
-
-                GL.glVertex3f(p2[0], y, p1[2])
-                GL.glVertex3f(p1[0], y, p1[2])
-                GL.glEnd()
-
-                GL.glUseProgram(self._shader_program)
 
         # Disable shader program after rendering objects
         GL.glUseProgram(0)
@@ -716,6 +640,8 @@ class Canvas(glcanvas.GLCanvas):
         GL.glEnable(GL.GL_DEPTH_TEST)
         GL.glEnable(GL.GL_BLEND)
         GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
+        GL.glEnable(GL.GL_PROGRAM_POINT_SIZE)  # Enable shader-controlled point size
+        GL.glLineWidth(2.0)  # Set default line width
 
         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
         GL.glMatrixMode(GL.GL_PROJECTION)

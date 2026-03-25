@@ -2,7 +2,6 @@ import math
 import numpy as np
 
 from .. import utils as _utils
-from ..import debug as _debug
 from ..gl import vbo as _vbo_handler
 
 
@@ -15,14 +14,11 @@ def create_vbo() -> _vbo_handler.VBOHandler:
     if _vbo is None:
         vertices, faces = create(0.5, 0.5, 360, 360)
         verts, nrmls, faces, count = _utils.compute_vbo_smoothed_vertex_normals(vertices, faces)
-        edges = _utils.compute_edges(faces)
-
-        _vbo = _vbo_handler.VBOHandler('torus', verts, edges, nrmls, faces, count)
+        _vbo = _vbo_handler.VBOHandler('torus', verts, nrmls, faces, count)
 
     return _vbo
 
 
-@_debug.timeit
 def create(torus_radius=1.0, tube_radius=0.5, radial_resolution=20, tubular_resolution=20):
 
     count = radial_resolution * tubular_resolution
