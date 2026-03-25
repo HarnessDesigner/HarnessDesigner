@@ -275,10 +275,9 @@ class Point(metaclass=PointMeta):
             else:
                 angle = other
         else:
-            angle = other.as_matrix_numpy.T
+            angle = other.as_matrix_numpy
 
-        pn = self.as_numpy.copy()
-        pn @= angle.T
+        pn = angle @ self.as_numpy
 
         self._data[0] = pn[0]
         self._data[1] = pn[1]
