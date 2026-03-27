@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 
 # Scale factor applied to the object's max dimension to determine arrow length
-ARROW_LENGTH_SCALE = 0.05
+ARROW_LENGTH_SCALE = 0.055
 
 # Scale factor applied to the object's max dimension to determine arrow offset from the object
 ARROW_OFFSET_SCALE = 2.0
@@ -64,7 +64,10 @@ class MoveArrows(_object_base.ObjectBase):
 class Arrows2D(_base2d.Base2D):
 
     def __init__(self, parent):
-        _base2d.Base2D.__init__(self, parent, None)
+        angle = _angle.Angle()
+        position = _point.Point(0, 0)
+
+        _base2d.Base2D.__init__(self, parent, None, position, angle)
 
     def set_selected(self, flag: bool):
         pass
@@ -82,7 +85,8 @@ class Arrows3D(_base3d.Base3D):
         Create movement arrows for visual feedback during dragging.
 
         Args:
-            obj_position: The Point instance from the object being dragged (to bind callback)
+            obj_position: The Point instance from the object being dragged
+                          (to bind callback)
             axis: String - 'x', 'y', or 'z' indicating which axis is locked
             mainframe: MainFrame reference
             aabb: The object's axis-aligned bounding box for sizing calculations
@@ -92,7 +96,7 @@ class Arrows3D(_base3d.Base3D):
             vbo = _arrow.create_vbo()
 
         # Create cyan material
-        cyan = _color.Color(0, 255, 255, 170)
+        cyan = _color.Color(255, 255, 0, 255)
         material = _materials.Polished(cyan)
 
         # Calculate arrow dimensions from object AABB
@@ -107,23 +111,31 @@ class Arrows3D(_base3d.Base3D):
 
         if axis == 'x':
             # Arrow along X axis, positioned above the object
-            offset = _point.Point(width / 2, 0, 0)
-            arrow_angle = _angle.Angle.from_euler(0, 0, 0)  # Rotate Z to X
-            flip = _angle.Angle.from_euler(0, 180, 0)        # 180° around Y
+            offset1 = _point.Point(width / 2 * 1.20, 0, 0)
+            arrow_angle = _angle.Angle.from_euler(0, 0, 0)
+
+            offset2 = _point.Point(0, 0, 0)
+            flip = _angle.Angle.from_euler(0, 180, 0)
 
         elif axis == 'z':
             # Arrow along Z axis, positioned above the object
-            offset = _point.Point(0, 0, depth / 2)
-            arrow_angle = _angle.Angle.from_euler(0, 90, 0)   # Already points along Z
-            flip = _angle.Angle.from_euler(0, 270, 0)        # 180° around X
+            offset1 = _point.Point(0, 0, depth / 2 * 1.20)
+
+            arrow_angle = _angle.Angle.from_euler(0, 270, 0)
+
+            offset2 = _point.Point(0, 0, 0)
+            flip = _angle.Angle.from_euler(0, 90, 0)
 
         else:  # axis == 'y'
             # Arrow along Y axis, positioned to the side of the object
-            offset = _point.Point(0, height / 2, 0)
-            arrow_angle = _angle.Angle.from_euler(0, 0, -90)  # Rotate Z to Y
-            flip = _angle.Angle.from_euler(180, 0, 90)         # 180° around X
+            offset1 = _point.Point(width / 2.0 * 1.40, -height / 2.0 * 0.7, 0)
+            arrow_angle = _angle.Angle.from_euler(0, 0, -90)
 
-        self._offset = offset
+            offset2 = _point.Point(width / 2.0 * 1.40, height / 2.0 * 0.7, 0)
+            flip = _angle.Angle.from_euler(180, 0,  -90)
+
+        self._arrow1_offset = offset1
+        self._arrow2_offset = offset2
         self._flip_angle = flip
 
         # Set initial arrow position relative to tracked object
@@ -134,7 +146,8 @@ class Arrows3D(_base3d.Base3D):
         self._obj_position = obj_position
         self._o_obj_position = obj_position.copy()
 
-        _base3d.Base3D.__init__(self, parent, None, vbo, arrow_angle, position, scale, material)
+        _base3d.Base3D.__init__(self, parent, None, vbo,
+                                arrow_angle, position, scale, material)
         self._is_visible = True
 
     def _on_obj_position(self, position: _point.Point):
@@ -145,28 +158,27 @@ class Arrows3D(_base3d.Base3D):
 
         self._position += delta
 
-    def render(self, shader_program):
+    def render(self, faces_program, edges_program, vertices_program):
         """Render bidirectional arrow by drawing the VBO twice with a 180° rotation."""
 
         # Set material
-        self._material.set(shader_program)
+        GL.glUseProgram(faces_program)
+
+        self._material.set(faces_program)
 
         # Get uniform locations
-        pos_loc = GL.glGetUniformLocation(shader_program, "objectPosition")
-        rot_loc = GL.glGetUniformLocation(shader_program, "objectRotation")
-        scale_loc = GL.glGetUniformLocation(shader_program, "objectScale")
+        pos_loc = GL.glGetUniformLocation(faces_program, "objectPosition")
+        rot_loc = GL.glGetUniformLocation(faces_program, "objectRotation")
+        scale_loc = GL.glGetUniformLocation(faces_program, "objectScale")
 
-        objectHasReflectionLoc = GL.glGetUniformLocation(shader_program, "objectHasReflection")
-        GL.glUniform1i(objectHasReflectionLoc, 1)
-
-        GL.glUniform3f(pos_loc, *(self._position + self._offset).as_float)
+        GL.glUniform3f(pos_loc, *(self._position + self._arrow1_offset).as_float)
         GL.glUniform3f(scale_loc, *self._scale.as_float)
 
         # Render first arrow (positive direction)
         GL.glUniform4f(rot_loc, *self._angle.as_quat_numpy.tolist())
         self._vbo.render()
 
-        GL.glUniform3f(pos_loc, *(self._position + (-self._offset)).as_float)
+        GL.glUniform3f(pos_loc, *(self._position + self._arrow2_offset).as_float)
         # Render second arrow (negative direction - 180° flipped)
         GL.glUniform4f(rot_loc, *self._flip_angle.as_quat_numpy.tolist())
         self._vbo.render()

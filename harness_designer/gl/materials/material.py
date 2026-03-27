@@ -16,16 +16,12 @@ class GLMaterial:
     # plastics white, metals darker color
     _specular = (0.5, 0.5, 0.5)
 
-    # polished metals has the highest shine, rubber type materials will have a rally low shine. plastics are in between
+    # polished metals has the highest shine, rubber type materials will have a
+    # really low shine. plastics are in between
     _shine = 32.0  # 0.0 to 128.0
 
     def __init__(self, color: _color.Color):
         self._color = color
-        # self._saved_emission = []
-        # self._saved_ambient = []
-        # self._saved_diffuse = []
-        # self._saved_specular = []
-        # self._saved_shine = []
 
         a = color.rgba_scalar[-1]
         self._is_opaque = a == 1.0
@@ -53,11 +49,3 @@ class GLMaterial:
         GL.glUniform4fv(diffuse, 1, self.diffuse)
         GL.glUniform4fv(specular, 1, self.specular)
         GL.glUniform1f(shininess, self.shininess)
-
-    def unset(self):
-        # GL.glMaterialfv(GL.GL_FRONT, GL.GL_EMISSION, self._saved_emission)
-        # GL.glMaterialfv(GL.GL_FRONT, GL.GL_AMBIENT, self._saved_ambient)
-        # GL.glMaterialfv(GL.GL_FRONT, GL.GL_DIFFUSE, self._saved_diffuse)
-        # GL.glMaterialfv(GL.GL_FRONT, GL.GL_SPECULAR, self._saved_specular)
-        # GL.glMaterialf(GL.GL_FRONT, GL.GL_SHININESS, self._saved_shine)
-        pass

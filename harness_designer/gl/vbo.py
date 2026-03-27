@@ -3,8 +3,6 @@ import weakref
 from OpenGL import GL
 
 from ..geometry import point as _point
-from ..geometry import angle as _angle
-from ..gl import materials as _materials
 from .. import utils as _utils
 
 
@@ -121,7 +119,9 @@ class VBOHandler(metaclass=VBOSingleton):
         self.__vert_count = 0
 
     @staticmethod
-    def _release_buffers(vao=None, vbo_vertices=None, vbo_normals=None, vbo_faces=None):
+    def _release_buffers(vao=None, vbo_vertices=None,
+                         vbo_normals=None, vbo_faces=None):
+
         # Clean up any partially created buffers
         if vao is not None:
             try:
@@ -224,5 +224,8 @@ class VBOHandler(metaclass=VBOSingleton):
 
     def render(self):
         GL.glBindVertexArray(self.__vao)
-        GL.glDrawElements(GL.GL_TRIANGLES, self.__vert_count, GL.GL_UNSIGNED_INT, None)
+
+        GL.glDrawElements(GL.GL_TRIANGLES, self.__vert_count,
+                          GL.GL_UNSIGNED_INT, None)
+
         GL.glBindVertexArray(0)

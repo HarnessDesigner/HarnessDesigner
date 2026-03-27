@@ -19,8 +19,8 @@ class FloatCtrl(wx.BoxSizer):
         self.__max_val = max_val
         self.__increment = inc
 
-        hsizer.Add(self.st, 1, wx.ALL, 5)
-        hsizer.Add(self.ctrl, 1, wx.EXPAND | wx.ALL, 5)
+        hsizer.Add(self.st, 1, wx.RIGHT, 5)
+        hsizer.Add(self.ctrl, 1, wx.LEFT, 5)
         vsizer.Add(hsizer, 1, wx.EXPAND)
 
         if slider:
@@ -36,7 +36,7 @@ class FloatCtrl(wx.BoxSizer):
 
             self.__s_max = slider_max
 
-            hsizer.Add(self.slider, 1, wx.ALL | wx.EXPAND, 5)
+            hsizer.Add(self.slider, 1, wx.TOP, 5)
             vsizer.Add(hsizer, 1, wx.EXPAND)
 
             self.slider.Bind(wx.EVT_SCROLL_CHANGED, self._on_slider_scroll)

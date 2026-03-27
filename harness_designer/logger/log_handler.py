@@ -162,8 +162,8 @@ class LogHandler:
             df = pd.DataFrame([log_entry])
 
             # Append to CSV file
-            data = df.to_csv(header=False, index=False) + '\n'
-            self._logfile.write(data)
+            data = df.to_csv(header=False, index=False)
+            self._logfile.write(data.strip() + '\n')
 
             # Update file size
             self._current_size += len(data)
@@ -258,14 +258,18 @@ class Log(object):
                 if Config.log_wx_error:
                     msg = msg.split('\n')
 
-                    log_entry = build_message(WX_ERROR, (f'({level})  {msg[0]}',))
+                    log_entry = build_message(
+                        WX_ERROR, (f'({level})  {msg[0]}',))
+
                     _stderr.write_log(log_entry)
 
                     for line in msg[1:]:
-                        log_entry = build_message(WX_ERROR, (f'     {line}',))
+                        log_entry = build_message(
+                            WX_ERROR, (f'     {line}',))
+
                         _stderr.write_log(log_entry)
 
-        wx.Log.SetActiveTarget(MyLog())
+        wx.Log.SetActiveTarget(MyLog())  # NOQA
 
         from ..import logger as _logger
         _logger.logger = self

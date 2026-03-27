@@ -53,7 +53,9 @@ class StdErr(io.TextIOWrapper):
             self._line = ''
 
             if line:
-                log_entry = _log_handler.build_message(_log_handler.INFO, (line,))
+                log_entry = _log_handler.build_message(
+                    _log_handler.INFO, (line,))
+
                 self.__logger.log_handler.write(log_entry)
 
     def isatty(self) -> bool:
@@ -111,7 +113,9 @@ class StdErr(io.TextIOWrapper):
             line = self._line.rstrip()
             self._line = ''
             if line:
-                log_entry = _log_handler.build_message(_log_handler.ERROR, (line,))
+                log_entry = _log_handler.build_message(
+                    _log_handler.ERROR, (line,))
+
                 self.__logger.log_handler.write(log_entry)
 
         return len(__s)
@@ -119,7 +123,10 @@ class StdErr(io.TextIOWrapper):
     def write_log(self, log_entry: dict):
         """Write a pre-built log entry (used by wx log redirection)"""
         if self.__original_stderr__ is not None:
-            msg = f"{log_entry['timestamp']} {log_entry['level']}: {log_entry['message']}\n"
+
+            msg = (f"{log_entry['timestamp']} {log_entry['level']}: "
+                   f"{log_entry['message']}\n")
+
             self.__original_stderr__.write(msg)
 
         self.__logger.log_handler.write(log_entry)
@@ -193,7 +200,9 @@ class StdErr(io.TextIOWrapper):
         else:
             __lines = '\n'.join(__lines)
 
-        log_entry = _log_handler.build_message(_log_handler.ERROR, (__lines.rstrip(),))
+        log_entry = _log_handler.build_message(
+            _log_handler.ERROR, (__lines.rstrip(),))
+
         self.__logger.log_handler.write(log_entry)
 
     def readline(self, __size: int = -1) -> str:

@@ -41,11 +41,12 @@ class FocalPoint3D(_generic.Generic3D):
         position = parent.canvas.camera.focal_position
         data = self._build_point(Config.focal_target.radius)
 
-        _generic.Generic3D.__init__(self, parent.canvas, None, angle, position, scale, material, data)
+        super().__init__(parent.canvas, None, angle, position, scale, material, data)
 
     @staticmethod
     def _build_point(radius=1.0):
-        resolution = int(max(20.0, _utils.remap(radius, 0.35, 19.0, 20.0, 30.0)))
+        resolution = int(max(20.0, _utils.remap(
+            radius, 0.35, 19.0, 20.0, 30.0)))
 
         count = 2 * resolution * (resolution - 1) + 2
         vertices = np.full((count, 3), [0.0, 0.0, 0.0], dtype=np.float64)

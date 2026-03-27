@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING
 import wx
 
 from . import canvas as _canvas
-from ...geometry import point as _point
 from . import mouse_handler as _mouse_handler
 
 
@@ -44,13 +43,16 @@ GLObjectEvent = _mouse_handler.GLObjectEvent
 
 class Canvas3D(wx.Panel):
 
-    def __init__(self, parent, config, size=wx.DefaultSize, axis_overlay=False):
+    def __init__(self, parent: "_ui.MainFrame", config,
+                 size=wx.DefaultSize, axis_overlay=False):
+
         wx.Panel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_NONE)
         self._ref_count = 0
 
         self._panel = wx.Panel(self, wx.ID_ANY, pos=(0, 0))
 
-        self._canvas = _canvas.Canvas(self._panel, config, size=size, pos=(0, 0), axis_overlay=axis_overlay)
+        self._canvas = _canvas.Canvas(
+            self._panel, config, size=size, pos=(0, 0), axis_overlay=axis_overlay)
 
         self.Bind(wx.EVT_ERASE_BACKGROUND, self._on_erase_background)
         self.Bind(wx.EVT_SIZE, self._on_size)

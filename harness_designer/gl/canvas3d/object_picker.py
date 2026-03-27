@@ -101,8 +101,8 @@ def _aabb_screen_bbox_and_depth(bboxes, camera: "_camera.Camera"):
 
 
 @_debug.logfunc
-def _pick_candidates_at_mouse(mx, my, scene_objects, camera: "_camera.Camera",
-                             tol_pixels=3.0):  # NOQA
+def _pick_candidates_at_mouse(mx, my, scene_objects,
+                              camera: "_camera.Camera", tol_pixels=3.0):  # NOQA
     """
     scene_objects: iterable of objects with attributes:
         - aabb_min (3-tuple), aabb_max (3-tuple)

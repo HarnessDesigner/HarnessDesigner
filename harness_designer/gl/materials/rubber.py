@@ -19,17 +19,26 @@ class RubberMaterial(_material.GLMaterial):
             dr, dg, db = (0.01, 0.01, 0.01)
             sr, sg, sb = (0.4, 0.4, 0.4)
         else:
-            ar = _utils.remap(r, 0.0, 1.0, 0.0, 0.05)
-            ag = _utils.remap(g, 0.0, 1.0, 0.0, 0.05)
-            ab = _utils.remap(b, 0.0, 1.0, 0.0, 0.05)
+            ar = _utils.remap(r, 0.0, 1.0,
+                              0.0, 0.05)
+            ag = _utils.remap(g, 0.0, 1.0,
+                              0.0, 0.05)
+            ab = _utils.remap(b, 0.0, 1.0,
+                              0.0, 0.05)
 
-            dr = _utils.remap(r, 0.0, 1.0, 0.4, 0.5)
-            dg = _utils.remap(g, 0.0, 1.0, 0.4, 0.5)
-            db = _utils.remap(b, 0.0, 1.0, 0.4, 0.5)
+            dr = _utils.remap(r, 0.0, 1.0,
+                              0.4, 0.5)
+            dg = _utils.remap(g, 0.0, 1.0,
+                              0.4, 0.5)
+            db = _utils.remap(b, 0.0, 1.0,
+                              0.4, 0.5)
 
-            sr = _utils.remap(r, 0.0, 1.0, 0.04, 0.7)
-            sg = _utils.remap(g, 0.0, 1.0, 0.04, 0.7)
-            sb = _utils.remap(b, 0.0, 1.0, 0.04, 0.7)
+            sr = _utils.remap(r, 0.0, 1.0,
+                              0.04, 0.7)
+            sg = _utils.remap(g, 0.0, 1.0,
+                              0.04, 0.7)
+            sb = _utils.remap(b, 0.0, 1.0,
+                              0.04, 0.7)
 
         self._ambient = (ar, ag, ab)
         self._diffuse = (dr, dg, db)

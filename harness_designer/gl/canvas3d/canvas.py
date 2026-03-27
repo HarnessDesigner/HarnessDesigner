@@ -16,7 +16,6 @@ from .. import shaders as _shaders
 from ... import debug as _debug
 from ... import config as _config
 from ...image import utils as _image_utils
-from ... import utils as _utils
 from . import floor as _floor
 from . import culling as _culling
 
@@ -113,7 +112,12 @@ class Canvas(glcanvas.GLCanvas):
         self.context = _context.GLContext(self)
         self.camera = _camera.Camera(self)
         self._angle_overlay = None
-        self._shader_program = None
+
+        self._faces_program = None
+        self._edges_program = None
+        self._vertices_program = None
+        self._floor_program = None
+
         self.floor: _floor.Floor = None
         self._view_culling = _culling.CullingThreadPool()
         self._last_culled = []
@@ -239,8 +243,8 @@ class Canvas(glcanvas.GLCanvas):
 
     def remove_object(self, obj):
 
-        # we don't need to do any specific cleanup for the data in self._object_data
-        # that is handled by the weakref and the render process.
+        # we don't need to do any specific cleanup for the data in
+        # self._object_data that is handled by the weakref and the render process.
         try:
             self._objects.remove(obj)
         except ValueError:
@@ -364,8 +368,7 @@ class Canvas(glcanvas.GLCanvas):
             y += 20
             gl_y = sh - y
 
-            # Read pixel data from the front buffer (now visible on the screen)
-            GL.glReadBuffer(GL.GL_FRONT)  # Set read buffer explicitly
+            GL.glReadBuffer(GL.GL_FRONT)
             pixel_data = GL.glReadPixels(x, gl_y, w, h, GL.GL_RGBA, GL.GL_UNSIGNED_BYTE)
 
             def _cc(r_, g_, b_):
@@ -401,32 +404,18 @@ class Canvas(glcanvas.GLCanvas):
     @_debug.logfunc
     def _init_gl(self):
         GL.glEnable(GL.GL_DEPTH_TEST)
-        GL.glClearColor(0.20, 0.20, 0.20, 1.0)
-        self._shader_program = _shaders.create_program()
+        GL.glClearColor(*self.config.background_color)
 
-        self.floor = _floor.Floor(self, self._shader_program)
+        self._faces_program = _shaders.compile_faces_program()
+        self._edges_program = _shaders.compile_edges_program()
+        self._vertices_program = _shaders.compile_vertices_program()
+        self._floor_program = _shaders.compile_floor_program()
 
-        # GL.glEnable(GL.GL_LIGHTING)
+        self.floor = _floor.Floor(self, self._floor_program)
+
         GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
         GL.glEnable(GL.GL_BLEND)
-        # GL.glEnable(GL.GL_DITHER)
-        # GL.glEnable(GL.GL_MULTISAMPLE)
-        # GL.glDepthMask(GL.GL_TRUE)
-        # GL.glShadeModel(GL.GL_SMOOTH)
-        # GL.glColorMaterial(GL.GL_FRONT, GL.GL_AMBIENT_AND_DIFFUSE)
-        # GL.glEnable(GL.GL_COLOR_MATERIAL)
-        # GL.glEnable(GL.GL_RESCALE_NORMAL)
-        #
-        # GL.glLightfv(GL.GL_LIGHT0, GL.GL_AMBIENT, [0.5, 0.5, 0.5, 1.0])
-        # GL.glLightfv(GL.GL_LIGHT0, GL.GL_DIFFUSE, [0.3, 0.3, 0.3, 1.0])
-        # GL.glLightfv(GL.GL_LIGHT0, GL.GL_SPECULAR, [0.5, 0.5, 0.5, 1.0])
-        #
-        # GL.glMaterialfv(GL.GL_FRONT, GL.GL_AMBIENT, [0.3, 0.3, 0.3, 1.0])
-        # GL.glMaterialfv(GL.GL_FRONT, GL.GL_DIFFUSE, [0.5, 0.5, 0.5, 1.0])
-        # GL.glMaterialfv(GL.GL_FRONT, GL.GL_SPECULAR, [0.8, 0.8, 0.8, 1.0])
-        # GL.glMaterialf(GL.GL_FRONT, GL.GL_SHININESS, 80.0)
 
-        # GL.glEnable(GL.GL_LIGHT0)
         self.camera.Set()
 
         w, h = self.GetSize()
@@ -455,151 +444,45 @@ class Canvas(glcanvas.GLCanvas):
     def set_draw_grid(self, flag):
         self.floor.set(flag)
 
-    # @_debug.logfunc
-    # def _draw_scene(self, obj_data):
-    #     # Get current projection and view matrices from OpenGL BEFORE activating shader
-    #     # (these are set by the fixed-function pipeline in _on_draw)
-    #     projection_matrix = GL.glGetFloatv(GL.GL_PROJECTION_MATRIX)
-    #     view_matrix = GL.glGetFloatv(GL.GL_MODELVIEW_MATRIX)
-    #
-    #     # Set global shader uniforms that are the same for all objects
-    #     GL.glUseProgram(self._shader_program)
-    #
-    #     # Set view position (camera position) for specular lighting
-    #     viewPosition_loc = GL.glGetUniformLocation(self._shader_program, "viewPosition")
-    #     GL.glUniform3fv(viewPosition_loc, 1, self.camera.position.as_numpy)
-    #
-    #     # Set projection and view matrices
-    #     projection_loc = GL.glGetUniformLocation(self._shader_program, "projection")
-    #     view_loc = GL.glGetUniformLocation(self._shader_program, "view")
-    #
-    #     GL.glUniformMatrix4fv(projection_loc, 1, GL.GL_FALSE, projection_matrix)
-    #     GL.glUniformMatrix4fv(view_loc, 1, GL.GL_FALSE, view_matrix)
-    #
-    #     floorYLoc = GL.glGetUniformLocation(self._shader_program, "floorY")
-    #     reflectionAlphaLoc = GL.glGetUniformLocation(self._shader_program, "reflectionAlpha")
-    #     reflectionTintLoc = GL.glGetUniformLocation(self._shader_program, "reflectionTint")
-    #
-    #     # Set scene lighting
-    #     self._scene_light.set(self._shader_program)
-    #
-    #     # Set headlight
-    #     self._headlight(self._shader_program)
-    #
-    #     GL.glUniform1f(floorYLoc, self.config.floor.ground_height)  # Floor at Y=0
-    #     GL.glUniform1f(reflectionAlphaLoc, 0.8)  # 40% opacity
-    #     GL.glUniform3f(reflectionTintLoc, 0.9, 0.9, 1.0)  # Slight blue tint
-    #
-    #     removed_objects = []
-    #     objects_in_view = []
-    #
-    #     # Render each object
-    #     for row in obj_data:
-    #         ref_address = row[-1]
-    #
-    #         import ctypes
-    #
-    #         obj_ref = ctypes.cast(ref_address, ctypes.py_object).value
-    #         obj = obj_ref()
-    #
-    #         if obj is None:
-    #             removed_objects.append(row)
-    #             self._object_refs.remove(obj_ref)
-    #             continue
-    #
-    #         objects_in_view.append(obj)
-    #
-    #         obj.obj3d.render(self._shader_program)
-    #
-    #         if obj.is_selected:
-    #             GL.glUseProgram(0)
-    #
-    #             if _debug_config.draw_obb:
-    #                 self._render_obb(obj.obj3d)
-    #
-    #             if _debug_config.draw_aabb:
-    #                 self._render_aabb(obj.obj3d)
-    #
-    #             if _debug_config.draw_normals:
-    #                 self._render_normals(obj.obj3d)
-    #
-    #             if _debug_config.draw_edges:
-    #                 self._render_edges(obj.obj3d)
-    #
-    #             if _debug_config.draw_vertices:
-    #                 self._render_vertices(obj.obj3d)
-    #
-    #
-    #
-    #             GL.glColor4f(1.0, 0.4, 0.4, 1.0)
-    #             GL.glLineWidth(2.0)
-    #             p1, p2 = obj.obj3d.aabb
-    #
-    #             y = self.config.floor.ground_height + 0.20
-    #
-    #             GL.glBegin(GL.GL_LINES)
-    #             GL.glVertex3f(p1[0], y, p1[2])
-    #             GL.glVertex3f(p1[0], y, p2[2])
-    #
-    #             GL.glVertex3f(p1[0], y, p2[2])
-    #             GL.glVertex3f(p2[0], y, p2[2])
-    #
-    #             GL.glVertex3f(p2[0], y, p2[2])
-    #             GL.glVertex3f(p2[0], y, p1[2])
-    #
-    #             GL.glVertex3f(p2[0], y, p1[2])
-    #             GL.glVertex3f(p1[0], y, p1[2])
-    #             GL.glEnd()
-    #
-    #             GL.glUseProgram(self._shader_program)
-    #
-    #     # Disable shader program after rendering objects
-    #     GL.glUseProgram(0)
-    #     self._objects_in_view = objects_in_view
-    #
-    #     for row in removed_objects:
-    #         for container in self._object_data:
-    #             try:
-    #                 container.remove(row)
-    #                 break
-    #             except ValueError:
-    #                 continue
-    #         else:
-    #             raise RuntimeError('This should not occur')
-
     @_debug.logfunc
     def _draw_scene(self, obj_data):
-        # Get current projection and view matrices from OpenGL BEFORE activating shader
         projection_matrix = GL.glGetFloatv(GL.GL_PROJECTION_MATRIX)
         view_matrix = GL.glGetFloatv(GL.GL_MODELVIEW_MATRIX)
 
-        # Set global shader uniforms that are the same for all objects
-        GL.glUseProgram(self._shader_program)
+        GL.glUseProgram(self._faces_program)
 
-        # Set view position (camera position) for specular lighting
-        viewPosition_loc = GL.glGetUniformLocation(self._shader_program, "viewPosition")
-        GL.glUniform3fv(viewPosition_loc, 1, self.camera.position.as_numpy)
+        view_position_loc = GL.glGetUniformLocation(self._faces_program, "viewPosition")
+        projection_loc = GL.glGetUniformLocation(self._faces_program, "projection")
+        view_loc = GL.glGetUniformLocation(self._faces_program, "view")
+        floor_y_loc = GL.glGetUniformLocation(self._faces_program, "floorY")
+        object_has_reflection_loc = GL.glGetUniformLocation(self._faces_program, "objectHasReflection")
 
-        # Set projection and view matrices
-        projection_loc = GL.glGetUniformLocation(self._shader_program, "projection")
-        view_loc = GL.glGetUniformLocation(self._shader_program, "view")
+        GL.glUniform3fv(view_position_loc, 1, self.camera.position.as_numpy)
+        GL.glUniformMatrix4fv(projection_loc, 1, GL.GL_FALSE, projection_matrix)
+        GL.glUniformMatrix4fv(view_loc, 1, GL.GL_FALSE, view_matrix)
+        GL.glUniform1f(floor_y_loc, self.config.floor.ground_height)
+        GL.glUniform1i(object_has_reflection_loc, int(self.config.floor.reflections.enable))
 
+        GL.glUseProgram(self._edges_program)
+        projection_loc = GL.glGetUniformLocation(self._edges_program, "projection")
+        view_loc = GL.glGetUniformLocation(self._edges_program, "view")
         GL.glUniformMatrix4fv(projection_loc, 1, GL.GL_FALSE, projection_matrix)
         GL.glUniformMatrix4fv(view_loc, 1, GL.GL_FALSE, view_matrix)
 
-        floorYLoc = GL.glGetUniformLocation(self._shader_program, "floorY")
-        GL.glUniform1f(floorYLoc, self.config.floor.ground_height)
+        GL.glUseProgram(self._vertices_program)
+        projection_loc = GL.glGetUniformLocation(self._vertices_program, "projection")
+        view_loc = GL.glGetUniformLocation(self._vertices_program, "view")
+        GL.glUniformMatrix4fv(projection_loc, 1, GL.GL_FALSE, projection_matrix)
+        GL.glUniformMatrix4fv(view_loc, 1, GL.GL_FALSE, view_matrix)
 
-        # Set scene lighting
-        self._scene_light.set(self._shader_program)
+        GL.glUseProgram(self._faces_program)
 
-        # Set headlight
-        self._headlight(self._shader_program)
+        self._scene_light.set(self._faces_program)
+        self._headlight(self._faces_program)
 
         removed_objects = []
         objects_in_view = []
 
-        # Render each object
         for row in obj_data:
             ref_address = row[-1]
 
@@ -613,9 +496,8 @@ class Canvas(glcanvas.GLCanvas):
 
             objects_in_view.append(obj)
 
-            obj.obj3d.render(self._shader_program)
+            obj.obj3d.render(self._faces_program, self._edges_program, self._vertices_program)
 
-        # Disable shader program after rendering objects
         GL.glUseProgram(0)
         self._objects_in_view = objects_in_view
 
@@ -640,8 +522,8 @@ class Canvas(glcanvas.GLCanvas):
         GL.glEnable(GL.GL_DEPTH_TEST)
         GL.glEnable(GL.GL_BLEND)
         GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
-        GL.glEnable(GL.GL_PROGRAM_POINT_SIZE)  # Enable shader-controlled point size
-        GL.glLineWidth(2.0)  # Set default line width
+        GL.glEnable(GL.GL_PROGRAM_POINT_SIZE)
+        GL.glLineWidth(2.0)
 
         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
         GL.glMatrixMode(GL.GL_PROJECTION)
@@ -653,32 +535,24 @@ class Canvas(glcanvas.GLCanvas):
 
         self.camera.Set()
 
-        # if self._axis_overlay is not None:
-        #     self.context.release()
-        #     self._axis_overlay.set_angle((self.camera.position - self.camera.focal_position).inverse)
-        #     self.context.acquire()
+        if self._axis_overlay is not None:
+            self.context.release()
+            self._axis_overlay.set_angle((self.camera.position - self.camera.focal_position).inverse)
+            self.context.acquire()
 
         objs = self._view_culling.cull(
             self._object_data, self.camera.frustum_normals,
             self.camera.frustum_distances, self.camera.position.as_numpy)
 
-        # GL.glPushMatrix()
-
         self._draw_scene(objs)
 
-        # if self.config.debug.bounding_boxes:
-        #    self._render_bounding_boxes()
-
         if self.config.focal_target.enable:
-            # Re-enable shader for focal target rendering
-            GL.glUseProgram(self._shader_program)
-            self._focal_target.obj3d.render(self._shader_program)
+            GL.glUseProgram(self._faces_program)
+            self._focal_target.obj3d.render(self._faces_program, self._edges_program, self._vertices_program)
             GL.glUseProgram(0)
 
-        # GL.glPopMatrix()
+        self.floor.render(self._floor_program)
 
-        self.floor.render(self._shader_program)
-        
         self.SwapBuffers()
 
         self.context.release()

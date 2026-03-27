@@ -342,6 +342,7 @@ class Config(metaclass=ConfigDB):
             height = 2160
 
     class editor3d(metaclass=ConfigDB):
+        background_color = [0.20, 0.20, 0.20, 1.0]
         selected_color = [0.2, 0.6, 0.2, 0.35]
 
         class lighting(metaclass=ConfigDB):
@@ -472,6 +473,8 @@ class Config(metaclass=ConfigDB):
             edge_color_dark = [0.7, 0.7, 0.7]  # For dark materials
             edge_color_light = [0.0, 0.0, 0.0]  # For light materials
             edge_luminance_threshold = 0.5  # Brightness cutoff
+            vertices_color = [1.0, 0.0, 0.0]
+            normals_color = [1.0, 1.0, 1.0]
 
     class colors(metaclass=ConfigDB):
         custom_colors = ''

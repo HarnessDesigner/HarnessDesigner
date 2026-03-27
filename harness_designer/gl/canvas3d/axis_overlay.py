@@ -6,7 +6,6 @@ from OpenGL import GL
 from OpenGL import GLU
 
 from ...geometry import angle as _angle
-from ...geometry import line as _line
 from ...geometry import point as _point
 from ... import color as _color
 
@@ -15,7 +14,6 @@ from ...shapes import cylinder as _cylinder
 from ...shapes import sphere as _sphere
 
 from ...gl import materials as _materials
-from ... import debug as _debug
 from ... import config as _config
 
 
@@ -61,12 +59,14 @@ class Overlay(wx.Panel):
         Config.is_visible = flag
         wx.Panel.Show(self, flag)
 
-    def on_size(self, evt):
+    @staticmethod
+    def on_size(evt):
         w, h = evt.GetSize()
         Config.size = (w, h)
         evt.Skip()
 
-    def on_move(self, evt):
+    @staticmethod
+    def on_move(evt):
         x, y = evt.GetPosition()
         Config.position = (x, y)
         evt.Skip()

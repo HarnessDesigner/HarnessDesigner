@@ -17,7 +17,7 @@ class SceneLight:
     def set(self, shader_program):
         """Set the light uniforms in the shader"""
 
-        position = np.array(self.config.position, dtype=np.float32)
+        position = self.canvas.camera.position.as_numpy
         ambient = np.array(self.config.ambient, dtype=np.float32)
         diffuse = np.array(self.config.diffuse, dtype=np.float32)
         specular = np.array(self.config.specular, dtype=np.float32)

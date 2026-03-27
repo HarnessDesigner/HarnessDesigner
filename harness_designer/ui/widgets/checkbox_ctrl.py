@@ -9,8 +9,8 @@ class CheckboxCtrl(wx.BoxSizer):
         self.st = wx.StaticText(parent, wx.ID_ANY, label=label)
         self.ctrl = wx.CheckBox(parent, wx.ID_ANY, label='')
 
-        self.Add(self.st, 0, wx.ALL, 5)
-        self.Add(self.ctrl, 0, wx.ALL, 5)
+        self.Add(self.st, 1, wx.RIGHT, 5)
+        self.Add(self.ctrl, 1, wx.LEFT, 5)
 
     def Enable(self, flag=True):
         self.ctrl.Enable(flag)

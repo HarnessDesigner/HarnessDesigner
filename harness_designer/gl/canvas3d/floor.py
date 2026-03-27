@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 class Floor:
 
-    def __init__(self, canvas: "_canvas.Canvas", shader_program):
+    def __init__(self, canvas: "_canvas.Canvas", floor_program):
         self.canvas = canvas
 
         self.grid_vbo = None
@@ -24,23 +24,8 @@ class Floor:
         self.solid_vertex_count = 0
 
         with self.canvas.context:
-            self.objectPosition = GL.glGetUniformLocation(shader_program, "objectPosition")
-            self.objectRotation = GL.glGetUniformLocation(shader_program, "objectRotation")
-            self.objectScale = GL.glGetUniformLocation(shader_program, "objectScale")
-            self.materialAmbient = GL.glGetUniformLocation(shader_program, "materialAmbient")
-            self.materialDiffuse = GL.glGetUniformLocation(shader_program, "materialDiffuse")
-            self.materialSpecular = GL.glGetUniformLocation(shader_program, "materialSpecular")
-            self.materialShininess = GL.glGetUniformLocation(shader_program, "materialShininess")
-            self.objectHasReflection = GL.glGetUniformLocation(shader_program, "objectHasReflection")
-
-        self.rotation = np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32)
-        self.scale = np.array([1.0, 1.0, 1.0], dtype=np.float32)
-        self.position = np.array([0.0, 0.0, 0.0], dtype=np.float32)
-        self.material_ambient = np.array([0.2, 0.2, 0.2, 1.0], dtype=np.float32)
-        self.material_diffuse = np.array([0.3, 0.3, 0.35, 0.4], dtype=np.float32)
-        self.material_specular = np.array([0.8, 0.8, 0.8, 1.0], dtype=np.float32)
-        self.material_shininess = 64.0
-        self.has_reflection = False
+            self.projection_loc = GL.glGetUniformLocation(floor_program, "projection")
+            self.view_loc = GL.glGetUniformLocation(floor_program, "view")
 
         self.config = canvas.config
 
@@ -173,53 +158,41 @@ class Floor:
 
         self.canvas.Refresh(False)
 
-    def render(self, shader_program):
+    def render(self, floor_program):
         """Render the precomputed grid using the VBO."""
 
         if not self.config.floor.enable:
             return
 
+        projection_matrix = GL.glGetFloatv(GL.GL_PROJECTION_MATRIX)
+        view_matrix = GL.glGetFloatv(GL.GL_MODELVIEW_MATRIX)
+
+        GL.glUseProgram(floor_program)
+
+        GL.glUniformMatrix4fv(self.projection_loc, 1, GL.GL_FALSE, projection_matrix)
+        GL.glUniformMatrix4fv(self.view_loc, 1, GL.GL_FALSE, view_matrix)
+
         # type_ is either GL.GL_LINES or GL.GL_QUADS
         def _draw_vbo(vbo, count, type_):
-            # Setup the VBO for rendering
             GL.glBindBuffer(GL.GL_ARRAY_BUFFER, vbo)
-            # Configure vertex attributes (position and color)
-            # Total size of vertex data (position: x, y, z)
-            vertex_size = count * 3 * 4
 
-            # Colors start immediately after vertices
-            color_offset = vertex_size
+            # Colors start immediately after all position data: count vertices × 3 position floats × 4 bytes per float
+            color_offset = count * 3 * 4  # byte offset to the color block
 
-            stride = 0  # No stride between consecutive vertex positions
-            GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
+            # Layout 0: position (vec3)
+            GL.glEnableVertexAttribArray(0)
+            GL.glVertexAttribPointer(0, 3, GL.GL_FLOAT, GL.GL_FALSE, 0, ctypes.c_void_p(0))
 
-            # First 3 floats are position
-            GL.glVertexPointer(3, GL.GL_FLOAT, stride, ctypes.c_void_p(0))
+            # Layout 1: color (vec4)
+            GL.glEnableVertexAttribArray(1)
+            GL.glVertexAttribPointer(1, 4, GL.GL_FLOAT, GL.GL_FALSE, 0, ctypes.c_void_p(color_offset))
 
-            GL.glEnableClientState(GL.GL_COLOR_ARRAY)
-
-            # Next 3 floats are color
-            GL.glColorPointer(4, GL.GL_FLOAT, stride, ctypes.c_void_p(color_offset))
-
-            # Draw
             GL.glDrawArrays(type_, 0, count)
 
-            # Cleanup
-            GL.glDisableClientState(GL.GL_COLOR_ARRAY)
-            GL.glDisableClientState(GL.GL_VERTEX_ARRAY)
-            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+            GL.glDisableVertexAttribArray(1)
+            GL.glDisableVertexAttribArray(0)
 
-        GL.glDepthMask(GL.GL_FALSE)
-        GL.glUseProgram(shader_program)
-        GL.glUniform3fv(self.objectPosition, 1, self.position)
-        GL.glUniform4fv(self.objectRotation, 1, self.rotation)
-        GL.glUniform3fv(self.objectScale, 1, self.scale)
-        GL.glUniform4fv(self.materialAmbient, 1, self.material_ambient)
-        GL.glUniform4fv(self.materialDiffuse, 1, self.material_diffuse)
-        GL.glUniform4fv(self.materialSpecular, 1, self.material_specular)
-        GL.glUniform1f(self.materialShininess, self.material_shininess)
-        GL.glUniform1i(self.objectHasReflection, 0)
-        GL.glUseProgram(0)
+            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
 
         # enable blending and disable the depth mask to remove the moiré that
         # occurs from the grid lines.
@@ -243,3 +216,4 @@ class Floor:
             _draw_vbo(self.solid_vbo, self.solid_vertex_count, GL.GL_LINES)
 
         GL.glDepthMask(GL.GL_TRUE)
+        GL.glUseProgram(0)

@@ -358,73 +358,28 @@ class Base3D:
 
         return self._material
 
-    def render(self, shader_program):
-        if not self.is_visible:
-            return
+    def _render_geometry(self, active_shader, pos_loc, rot_loc, scale_loc):
+        """Render the object geometry using the active shader program.
 
-        # Set material properties
-        self.material.set(shader_program)
-
-        # Set object transformation uniforms
-        pos_loc = GL.glGetUniformLocation(shader_program, "objectPosition")
-        rot_loc = GL.glGetUniformLocation(shader_program, "objectRotation")
-        scale_loc = GL.glGetUniformLocation(shader_program, "objectScale")
-        show_edges_loc = GL.glGetUniformLocation(shader_program, "showEdges")
-        show_vertices_loc = GL.glGetUniformLocation(shader_program, "showVertices")
-        show_normals_loc = GL.glGetUniformLocation(shader_program, "showNormals")
-        show_faces_loc = GL.glGetUniformLocation(shader_program, "showFaces")
-        normal_length_loc = GL.glGetUniformLocation(shader_program, "normalLength")
-        edge_color_loc = GL.glGetUniformLocation(shader_program, "edgeColor")
-        object_has_reflection_loc = GL.glGetUniformLocation(shader_program, "objectHasReflection")
-
-        GL.glUniform1i(object_has_reflection_loc, int(Config.floor.reflections.enable))
-
-        GL.glUniform1i(show_edges_loc, int(_debug_config.draw_edges))
-        GL.glUniform1i(show_vertices_loc, int(_debug_config.draw_vertices))
-        GL.glUniform1i(show_normals_loc, int(_debug_config.draw_normals))
-        GL.glUniform1i(show_faces_loc, int(_debug_config.draw_faces))
-
-        p1, p2 = self.aabb
-        width = abs(p2[0] - p1[0])
-        height = abs(p2[1] - p1[1])
-        depth = abs(p2[2] - p1[2])
-        smallest_dimension = min(width, height, depth)
-        dynamic_normal_length = smallest_dimension / 10.0
-        GL.glUniform1f(normal_length_loc, dynamic_normal_length)
-
-        material_color = self.material.diffuse[:3]  # Get RGB
-
-        # Calculate perceived brightness using standard luminance formula
-        # Human eye perceives green more than red, and red more than blue
-        luminance = 0.299 * material_color[0] + 0.587 * material_color[
-            1] + 0.114 * material_color[2]
-
-        if luminance < _debug_config.edge_luminance_threshold:
-            e_color = _debug_config.edge_color_dark
-        else:
-            e_color = _debug_config.edge_color_light
-
-        GL.glUniform3f(edge_color_loc, *e_color)
-
+        Called by render() for each rendering pass (faces, edges, normals, vertices).
+        Sets the per-object transform uniforms (position, rotation, scale) and
+        issues the draw call via vertex attribute arrays or the VBO.
+        """
         if self._vbo is None:
-            # we set these to values that will not cause anything to move
-            # This is done because the processing is being done CPU side and
-            # not GPU side.
             GL.glUniform3f(pos_loc, 0.0, 0.0, 0.0)
             GL.glUniform4f(rot_loc, 1.0, 0.0, 0.0, 0.0)
             GL.glUniform3f(scale_loc, 1.0, 1.0, 1.0)
 
-            # Use vertex attribute arrays (shader-compatible)
             verts, nrmls, count = self._data
-            
+
             GL.glEnableVertexAttribArray(0)
             GL.glEnableVertexAttribArray(1)
-            
+
             GL.glVertexAttribPointer(0, 3, GL.GL_FLOAT, GL.GL_FALSE, 0, verts)
             GL.glVertexAttribPointer(1, 3, GL.GL_FLOAT, GL.GL_FALSE, 0, nrmls)
-            
+
             GL.glDrawArrays(GL.GL_TRIANGLES, 0, count)
-            
+
             GL.glDisableVertexAttribArray(0)
             GL.glDisableVertexAttribArray(1)
         else:
@@ -433,6 +388,82 @@ class Base3D:
             GL.glUniform3f(scale_loc, *self._scale.as_float)
 
             self._vbo.render()
+
+    def render(self, faces_program, edges_program, vertices_program):
+        if not self.is_visible:
+            return
+
+        if _debug_config.draw_faces:
+            GL.glUseProgram(faces_program)
+
+            self.material.set(faces_program)
+
+            # Set object transformation uniforms
+            pos_loc = GL.glGetUniformLocation(faces_program, "objectPosition")
+            rot_loc = GL.glGetUniformLocation(faces_program, "objectRotation")
+            scale_loc = GL.glGetUniformLocation(faces_program, "objectScale")
+
+            self._render_geometry(faces_program, pos_loc, rot_loc, scale_loc)
+
+        if _debug_config.draw_edges:
+            material_color = self.material.diffuse[:3]  # Get RGB
+
+            # Calculate perceived brightness using standard luminance formula
+            # Human eye perceives green more than red, and red more than blue
+            luminance = (0.299 * material_color[0] +
+                         0.587 * material_color[1] +
+                         0.114 * material_color[2])
+
+            if luminance < _debug_config.edge_luminance_threshold:
+                e_color = _debug_config.edge_color_dark
+            else:
+                e_color = _debug_config.edge_color_light
+
+            GL.glUseProgram(edges_program)
+
+            pos_loc = GL.glGetUniformLocation(edges_program, "objectPosition")
+            rot_loc = GL.glGetUniformLocation(edges_program, "objectRotation")
+            scale_loc = GL.glGetUniformLocation(edges_program, "objectScale")
+            render_mode_loc = GL.glGetUniformLocation(edges_program, "renderMode")
+            edge_color_loc = GL.glGetUniformLocation(edges_program, "edgeColor")
+
+            GL.glUniform1i(render_mode_loc, 0)
+            GL.glUniform3f(edge_color_loc, *e_color)
+
+            self._render_geometry(edges_program, pos_loc, rot_loc, scale_loc)
+
+        if _debug_config.draw_normals:
+            p1, p2 = self.aabb
+            width = abs(p2[0] - p1[0])
+            height = abs(p2[1] - p1[1])
+            depth = abs(p2[2] - p1[2])
+            smallest_dimension = min(width, height, depth)
+            dynamic_normal_length = smallest_dimension / 10.0
+
+            GL.glUseProgram(edges_program)
+
+            pos_loc = GL.glGetUniformLocation(edges_program, "objectPosition")
+            rot_loc = GL.glGetUniformLocation(edges_program, "objectRotation")
+            scale_loc = GL.glGetUniformLocation(edges_program, "objectScale")
+            render_mode_loc = GL.glGetUniformLocation(edges_program, "renderMode")
+            normal_length_loc = GL.glGetUniformLocation(edges_program, "normalLength")
+
+            GL.glUniform1i(render_mode_loc, 1)
+            GL.glUniform1f(normal_length_loc, dynamic_normal_length)
+
+            self._render_geometry(edges_program, pos_loc, rot_loc, scale_loc)
+
+        if _debug_config.draw_vertices:
+            GL.glUseProgram(vertices_program)
+
+            pos_loc = GL.glGetUniformLocation(vertices_program, "objectPosition")
+            rot_loc = GL.glGetUniformLocation(vertices_program, "objectRotation")
+            scale_loc = GL.glGetUniformLocation(vertices_program, "objectScale")
+            vertex_color_loc = GL.glGetUniformLocation(vertices_program, "vertexColor")
+
+            GL.glUniform3f(vertex_color_loc, *_debug_config.vertices_color)  # Red vertices
+
+            self._render_geometry(vertices_program, pos_loc, rot_loc, scale_loc)
 
         if self.is_selected:
             GL.glUseProgram(0)
@@ -462,8 +493,6 @@ class Base3D:
             GL.glVertex3f(p2[0], y, p1[2])
             GL.glVertex3f(p1[0], y, p1[2])
             GL.glEnd()
-
-            GL.glUseProgram(shader_program)
 
     def _render_aabb(self):
         aabb = self.aabb
@@ -553,9 +582,6 @@ class Base3D:
 
         GL.glColor4f(0.5, 1.0, 0.5, 1.0)
         _render_edges(vertices, edges)
-
-    def render_aabb(self):
-        pass
 
     @property
     def is_visible(self) -> bool:

@@ -127,7 +127,7 @@ class Model3D(EntryBase):
         self._table.update(self._db_id, offset=str(list(offset.as_float)))
 
     @property
-    def point3d(self) -> _point.Point:
+    def position3d(self) -> _point.Point:
         if self._position3d_id is None:
             self._position3d_id = str(uuid.uuid4())
 
@@ -219,7 +219,7 @@ class Model3D(EntryBase):
                 self.update_rate = update_rate
                 self.iterations = iterations
 
-            p = self.point3d
+            p = self.position3d
             with p:
                 p.x = position.x
                 p.y = position.y
@@ -250,6 +250,8 @@ class Model3D(EntryBase):
         except _loader.ModelLoadError:
             return None
 
+
+
         if self.simplify:
             target_count = self.target_count
             aggressiveness = self.aggressiveness
@@ -259,10 +261,13 @@ class Model3D(EntryBase):
 
         scale = self.scale
         angle = self.angle3d
-        position = self.point3d
+        position = self.position3d
 
         vertices *= scale
         vertices @= angle
         vertices += position
+
+        vertices = vertices.reshape(-1, 3)
+        faces = faces.reshape(-1, 3)
 
         return vertices, faces

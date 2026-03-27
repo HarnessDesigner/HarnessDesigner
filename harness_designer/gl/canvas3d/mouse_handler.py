@@ -252,7 +252,8 @@ class MouseHandler:
         if self._send_event(event, evt):
             cur_selected = self.canvas.get_selected()
 
-            selected = _object_picker.find_object(mouse_pos, self.canvas.objects_in_view,
+            selected = _object_picker.find_object(mouse_pos,
+                                                  self.canvas.objects_in_view,
                                                   self.canvas.camera)
 
             with self.canvas:
@@ -268,7 +269,8 @@ class MouseHandler:
                             refresh = False
                 else:
                     if selected == cur_selected:
-                        self._drag_obj = _dragging.DragObject(self.canvas, selected)
+                        self._drag_obj = _dragging.DragObject(self.canvas,
+                                                              selected)
                         refresh = False
                     else:
                         process_next_event = True
@@ -341,7 +343,8 @@ class MouseHandler:
 
             cur_selected = self.canvas.get_selected()
 
-            selected = _object_picker.find_object(mouse_pos, self.canvas.objects_in_view,
+            selected = _object_picker.find_object(mouse_pos,
+                                                  self.canvas.objects_in_view,
                                                   self.canvas.camera)
 
             if not self._is_motion and self._drag_obj is not None:
@@ -377,7 +380,8 @@ class MouseHandler:
         event = GLEvent(wxEVT_GL_LEFT_DCLICK)
         if self._send_event(event, evt):
 
-            selected = _object_picker.find_object(mouse_pos, self.canvas.objects_in_view,
+            selected = _object_picker.find_object(mouse_pos,
+                                                  self.canvas.objects_in_view,
                                                   self.canvas.camera)
             with self.canvas:
                 if selected:
@@ -399,7 +403,8 @@ class MouseHandler:
                 with self.canvas:
                     x, y = evt.GetPosition()
                     mouse_pos = _point.Point(x, y)
-                    selected = _object_picker.find_object(mouse_pos, self.canvas.objects_in_view,
+                    selected = _object_picker.find_object(mouse_pos,
+                                                          self.canvas.objects_in_view,
                                                           self.canvas.camera)
 
                     if selected:
@@ -441,7 +446,8 @@ class MouseHandler:
         event = GLEvent(wxEVT_GL_MIDDLE_DCLICK)
         if self._send_event(event, evt):
 
-            selected = _object_picker.find_object(mouse_pos, self.canvas.objects_in_view,
+            selected = _object_picker.find_object(mouse_pos,
+                                                  self.canvas.objects_in_view,
                                                   self.canvas.camera)
             with self.canvas:
                 if selected:
@@ -469,7 +475,8 @@ class MouseHandler:
                     x, y = evt.GetPosition()
                     mouse_pos = _point.Point(x, y)
 
-                    selected = _object_picker.find_object(mouse_pos, self.canvas.objects_in_view,
+                    selected = _object_picker.find_object(mouse_pos,
+                                                          self.canvas.objects_in_view,
                                                           self.canvas.camera)
 
                     if self._arcball is None:
@@ -500,7 +507,8 @@ class MouseHandler:
 
         event = GLEvent(wxEVT_GL_RIGHT_DOWN)
         if self._send_event(event, evt):
-            selected = _object_picker.find_object(mouse_pos, self.canvas.objects_in_view,
+            selected = _object_picker.find_object(mouse_pos,
+                                                  self.canvas.objects_in_view,
                                                   self.canvas.camera)
 
             if selected and self.canvas.get_selected() == selected:
@@ -523,7 +531,8 @@ class MouseHandler:
         event = GLEvent(wxEVT_GL_RIGHT_DCLICK)
         if self._send_event(event, evt):
 
-            selected = _object_picker.find_object(mouse_pos, self.canvas.objects_in_view,
+            selected = _object_picker.find_object(mouse_pos,
+                                                  self.canvas.objects_in_view,
                                                   self.canvas.camera)
             with self.canvas:
                 if selected:
@@ -608,7 +617,8 @@ class MouseHandler:
             with self.canvas:
                 x, y = evt.GetPosition()
                 mouse_pos = _point.Point(x, y)
-                selected = _object_picker.find_object(mouse_pos, self.canvas.objects_in_view,
+                selected = _object_picker.find_object(mouse_pos,
+                                                      self.canvas.objects_in_view,
                                                       self.canvas.camera)
 
                 if selected:
@@ -638,7 +648,8 @@ class MouseHandler:
     def on_aux1_dclick(self, evt: wx.MouseEvent):
         x, y = evt.GetPosition()
         mouse_pos = _point.Point(x, y)
-        selected = _object_picker.find_object(mouse_pos, self.canvas.objects_in_view,
+        selected = _object_picker.find_object(mouse_pos,
+                                              self.canvas.objects_in_view,
                                               self.canvas.camera)
 
         refresh = False
@@ -661,7 +672,8 @@ class MouseHandler:
             with self.canvas:
                 x, y = evt.GetPosition()
                 mouse_pos = _point.Point(x, y)
-                selected = _object_picker.find_object(mouse_pos, self.canvas.objects_in_view,
+                selected = _object_picker.find_object(mouse_pos,
+                                                      self.canvas.objects_in_view,
                                                       self.canvas.camera)
 
                 if selected:
@@ -691,7 +703,8 @@ class MouseHandler:
     def on_aux2_dclick(self, evt: wx.MouseEvent):
         x, y = evt.GetPosition()
         mouse_pos = _point.Point(x, y)
-        selected = _object_picker.find_object(mouse_pos, self.canvas.objects_in_view,
+        selected = _object_picker.find_object(mouse_pos,
+                                              self.canvas.objects_in_view,
                                               self.canvas.camera)
 
         refresh = False

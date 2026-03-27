@@ -157,6 +157,13 @@ class MainFrame(wx.Frame):
         self.object_toolbar = _toolbar.EditorObjectToolbar(self)
         self.settings3d_toolbar = _toolbar.Setting3DToolbar(self)
 
+        splash.SetText('Loading system menu...')
+        splash.flush()
+
+        from . import system_menu
+        self.system_menu = system_menu.SystemMenu(self)
+        self.SetMenuBar(self.system_menu)
+
         splash.SetText('Loading UI perspective...')
         splash.flush()
 
@@ -195,7 +202,38 @@ class MainFrame(wx.Frame):
         if db_id is None:
             return
 
+        housing = self.project.add_housing(db_id,  position2d=position2d, position3d=position3d)
+
+        cavities = housing.db_obj.cavities
+        for cavity in cavities:
+            if cavity is not None:
+                break
+        else:
+            from .editor_3d import housing_editor
+
+            editor = housing_editor.HousingEditor(self, housing.db_obj.part)
+            # self.editor3d.notebook.AddPage(editor, housing.db_obj.part.part_number)
+
+    def add_wire(self, position2d=None, position3d=None):
+        db_id = self.editor_db.wires.GetSelection()
+        if db_id is None:
+            return
+
+        self.project.add_wire(db_id,  position2d=position2d, position3d=position3d)
+
+    def add_wire_service_loop(self, position2d=None, position3d=None):
+        db_id = self.editor_db.housings.GetSelection()
+        if db_id is None:
+            return
+
         self.project.add_housing(db_id,  position2d=position2d, position3d=position3d)
+
+    def add_terminal(self, position2d=None, position3d=None):
+        db_id = self.editor_db.terminals.GetSelection()
+        if db_id is None:
+            return
+
+        self.project.add_terminal(db_id,  position2d=position2d, position3d=position3d)
 
     def _on_pane_activated(self, evt: aui.AuiManagerEvent):
         pane = evt.GetPane()

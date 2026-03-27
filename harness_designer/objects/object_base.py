@@ -54,8 +54,8 @@ class ObjectBase:
     def is_selected(self, value: bool):
         self._is_selected = value
 
-        if self.obj2d.is_selected != value:
+        if self.obj2d is not None and self.obj2d.is_selected != value:
             self.obj2d.set_selected(value)
 
-        if self.obj3d.is_selected != value:
+        if self.obj3d is not None and self.obj3d.is_selected != value:
             self.obj3d.set_selected(value)

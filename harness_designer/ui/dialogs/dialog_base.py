@@ -58,31 +58,33 @@ class BaseDialog(wx.Dialog):
 
     def __init__(self, parent, title, label, size=wx.DefaultSize, button_ids=wx.OK | wx.CANCEL):
 
+        style = wx.CAPTION | wx.CLOSE_BOX | wx.STAY_ON_TOP
+
         width, height = size
+        if width == -1 and height == -1:
+            style |= wx.RESIZE_BORDER
+
         if width != 600:
             width = 600
 
         size = (width, height)
 
         wx.Dialog.__init__(self, parent, wx.ID_ANY, title='', size=size,
-                           style=wx.CAPTION | wx.CLOSE_BOX | wx.STAY_ON_TOP)
+                           style=style)
 
         self.panel = wx.Panel(self, wx.ID_ANY, style=wx.BORDER_NONE)
         self.header = HeaderPanel(self, label)
 
-        self.button_sizer = self.CreateSeparatedButtonSizer(button_ids)
+        button_sizer = self.CreateStdDialogButtonSizer(button_ids)
+        self.button_sizer = self.CreateSeparatedSizer(button_sizer)
 
-        hsizer = wx.BoxSizer(wx.HORIZONTAL)
         vsizer = wx.BoxSizer(wx.VERTICAL)
-
         vsizer.Add(self.header, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 5)
-        hsizer.Add(self.panel, 1, wx.EXPAND | wx.ALL, 5)
-        vsizer.Add(hsizer, 1, wx.EXPAND)
-        hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        vsizer.Add(self.button_sizer, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 5)
-        hsizer.Add(vsizer, 1)
 
-        self.SetSizer(hsizer)
+        vsizer.Add(self.panel, 1, wx.ALL | wx.EXPAND, 5)
+
+        vsizer.Add(self.button_sizer, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 5)
+        self.SetSizer(vsizer)
         self.CenterOnParent()
 
     def GetValue(self):
