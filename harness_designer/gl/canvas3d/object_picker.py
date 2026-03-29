@@ -28,16 +28,25 @@ def _unproject_from_ndc(ndc, inv_mvp):
 
 # Ray vs AABB (slab method)
 def _ray_intersect_aabb(orig, direc, aabb_min, aabb_max, t0=0.0, t1=inf):
-    inv_dir = 1.0 / direc
+    tmin_vals = np.full(3, -inf, dtype=np.float64)
+    tmax_vals = np.full(3, inf, dtype=np.float64)
 
-    tmin_all = (aabb_min - orig) * inv_dir
-    tmax_all = (aabb_max - orig) * inv_dir
+    for i in range(3):
+        if np.abs(direc[i]) > 1e-8:  # not parallel to this slab
+            inv_d = 1.0 / direc[i]
+            t_near = (aabb_min[i] - orig[i]) * inv_d
+            t_far = (aabb_max[i] - orig[i]) * inv_d
 
-    tmin = np.minimum(tmin_all, tmax_all)
-    tmax = np.maximum(tmin_all, tmax_all)
+            tmin_vals[i] = min(t_near, t_far)
+            tmax_vals[i] = max(t_near, t_far)
+        else:
+            # Ray is parallel to this slab
+            if orig[i] < aabb_min[i] or orig[i] > aabb_max[i]:
+                # Ray origin is outside the slab, no intersection
+                return False, None
 
-    t_enter = max(t0, np.max(tmin))
-    t_exit = min(t1, np.min(tmax))
+    t_enter = max(t0, np.max(tmin_vals))
+    t_exit = min(t1, np.min(tmax_vals))
 
     if t_enter <= t_exit and t_exit >= 0.0:
         return True, t_enter

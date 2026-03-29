@@ -46,7 +46,17 @@ class PJTCavitiesTable(PJTTableBase):
         raise KeyError(item)
 
     def insert(self, part_id: int, housing_id: int) -> "PJTCavity":
-        db_id = PJTTableBase.insert(self, part_id=part_id, housing_id=housing_id)
+
+        g_cavity = self.db.global_db.cavities_table[part_id]
+        p3d = g_cavity.position3d
+        p2d = g_cavity.position2d
+        housing = self.db.pjt_housings_table[housing_id]
+
+        position3d = self.db.pjt_points3d_table.insert(*p3d.as_float)
+        position2d = self.db.pjt_points2d_table.insert(*p2d.as_float[:-1])
+
+        db_id = PJTTableBase.insert(self, part_id=part_id, housing_id=housing_id,
+                                    point3d_id=position3d.db_id, point2d_id=position2d.db_id)
 
         return PJTCavity(self, db_id, self.project_id)
 

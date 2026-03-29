@@ -65,24 +65,19 @@ layout(line_strip, max_vertices = 6) out;  // 3 edges/normals × 2 vertices each
 in vec3 fragPositionWorld[];
 in vec3 fragNormalWorld[];
 
-out vec3 lineColor;
-
 uniform mat4 projection;
 uniform mat4 view;
 uniform int renderMode;      // 0 = edges, 1 = normals
 uniform float normalLength;
-uniform vec3 edgeColor;
 
 void emitEdges() {
     // Emit three edges of the triangle as line segments
     for (int i = 0; i < 3; i++) {
         int next = (i + 1) % 3;
 
-        lineColor = edgeColor;
         gl_Position = gl_in[i].gl_Position;
         EmitVertex();
 
-        lineColor = edgeColor;
         gl_Position = gl_in[next].gl_Position;
         EmitVertex();
 
@@ -94,11 +89,9 @@ void emitNormals() {
     for (int i = 0; i < 3; i++) {
         vec3 normalEnd = fragPositionWorld[i] + fragNormalWorld[i] * normalLength;
 
-        lineColor = vec3(1.0, 1.0, 1.0);
         gl_Position = gl_in[i].gl_Position;
         EmitVertex();
 
-        lineColor = vec3(1.0, 1.0, 1.0);
         gl_Position = projection * view * vec4(normalEnd, 1.0);
         EmitVertex();
 
@@ -118,11 +111,20 @@ void main() {
 FRAGMENT_SHADER = """
 #version 330 core
 
-in vec3 lineColor;
 out vec4 FragColor;
 
+uniform vec4 materialAmbient;
+uniform vec4 materialDiffuse;
+uniform vec4 materialSpecular;
+uniform float materialShininess;
+uniform vec4 materialEmissive;
+
+
 void main() {
-    FragColor = vec4(lineColor, 1.0);
+    vec3 result = materialAmbient.rgb + materialDiffuse.rgb + materialSpecular.rgb + materialEmissive.rgb;
+    float alpha = materialDiffuse.a;
+    
+    FragColor = vec4(result, alpha);
 }
 """
 

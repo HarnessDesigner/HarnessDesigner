@@ -32,6 +32,14 @@ class CavitiesTable(TableBase):
 
         cavities.table.update_fields(self)
 
+    def __getitem__(self, item) -> "Cavity":
+        if isinstance(item, int):
+            if item in self:
+                return Cavity(self, item)
+            raise IndexError(str(item))
+
+        raise KeyError(item)
+
     def __iter__(self) -> _Iterable["Cavity"]:
         for db_id in TableBase.__iter__(self):
             yield Cavity(self, db_id)
@@ -65,12 +73,15 @@ class Cavity(EntryBase, NameMixin):
         self._table.update(self._db_id, idx=value)
     
     @property
-    def terminal_size(self) -> float:
-        return self._table.select('terminal_size', id=self._db_id)[0][0]
+    def terminal_sizes(self) -> list[float]:
+        return eval(self._table.select('terminal_sizes', id=self._db_id)[0][0])
 
-    @terminal_size.setter
-    def terminal_size(self, value: float):
-        self._table.update(self._db_id, terminal_size=round(value, 6))
+    @terminal_sizes.setter
+    def terminal_sizes(self, value: list[float]):
+        for i, item in enumerate(value):
+            value[i] = round(item, 6)
+
+        self._table.update(self._db_id, terminal_sizes=str(value))
 
     _position3d_id: str = None
 
@@ -267,19 +278,23 @@ class Cavity(EntryBase, NameMixin):
 
     @property
     def compat_terminals(self) -> list["_terminal.Terminal"]:
-        terminal_size = self.terminal_size
+        terminal_sizes = self.terminal_sizes
         round_terminal = self.round_terminal
-
-        if not terminal_size:
-            return []
 
         res = []
 
         for terminal in self.housing.compat_terminals:
             if (
-                terminal.blade_size == terminal_size and
+                not terminal_sizes and
                 terminal.round_terminal == round_terminal
             ):
                 res.append(terminal)
+            elif terminal_sizes:
+                for terminal_size in terminal_sizes:
+                    if (
+                        terminal.blade_size == terminal_size and
+                        terminal.round_terminal == round_terminal
+                    ):
+                        res.append(terminal)
 
         return res

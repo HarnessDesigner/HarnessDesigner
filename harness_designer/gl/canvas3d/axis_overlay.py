@@ -17,16 +17,15 @@ from ...gl import materials as _materials
 from ... import config as _config
 
 
-Config = _config.Config.axis_overlay
-
-
 class Overlay(wx.Panel):
-    def __init__(self, parent):
+    def __init__(self, parent, config: _config.Config.editor3d.axis_overlay):
 
-        wx.Panel.__init__(self, parent, wx.ID_ANY, size=Config.size,
-                          pos=Config.position, style=wx.BORDER_DOUBLE)
+        wx.Panel.__init__(self, parent, wx.ID_ANY, size=config.size,
+                          pos=config.position, style=wx.BORDER_DOUBLE)
 
-        self.gl_overlay = GLOverlay(self, size=Config.size)
+        self.gl_overlay = GLOverlay(self, size=config.size)
+
+        self.config = config
 
         vsizer = wx.BoxSizer(wx.VERTICAL)
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -47,28 +46,26 @@ class Overlay(wx.Panel):
 
         self.Bind(wx.EVT_ERASE_BACKGROUND, self.on_erase_background)
 
-        self.Show(Config.is_visible)
+        self.Show(config.is_visible)
 
         def _do():
-            self.Move(Config.position)
+            self.Move(self.config.position)
             self.SendSizeEvent()
 
         wx.CallAfter(_do)
 
     def Show(self, flag=True):
-        Config.is_visible = flag
+        self.config.is_visible = flag
         wx.Panel.Show(self, flag)
 
-    @staticmethod
-    def on_size(evt):
+    def on_size(self, evt):
         w, h = evt.GetSize()
-        Config.size = (w, h)
+        self.config.size = (w, h)
         evt.Skip()
 
-    @staticmethod
-    def on_move(evt):
+    def on_move(self, evt):
         x, y = evt.GetPosition()
-        Config.position = (x, y)
+        self.config.position = (x, y)
         evt.Skip()
 
     def set_angle(self, point: _point.Point):

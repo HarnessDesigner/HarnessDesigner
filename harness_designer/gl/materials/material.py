@@ -16,6 +16,9 @@ class GLMaterial:
     # plastics white, metals darker color
     _specular = (0.5, 0.5, 0.5)
 
+    # light emitting like LED's
+    _emissive = (0.0, 0.0, 0.0, 0.0)
+
     # polished metals has the highest shine, rubber type materials will have a
     # really low shine. plastics are in between
     _shine = 32.0  # 0.0 to 128.0
@@ -30,6 +33,7 @@ class GLMaterial:
         self.diffuse = np.array(self._diffuse + (a,), dtype=np.float32)
         self.specular = np.array(self._specular + (a,), dtype=np.float32)
         self.shininess = self._shine
+        self.emissive = np.array(self._emissive, dtype=np.float32)
 
     @property
     def color_scalar(self):
@@ -44,8 +48,23 @@ class GLMaterial:
         diffuse = GL.glGetUniformLocation(shader_program, "materialDiffuse")
         specular = GL.glGetUniformLocation(shader_program, "materialSpecular")
         shininess = GL.glGetUniformLocation(shader_program, "materialShininess")
+        emissive = GL.glGetUniformLocation(shader_program, "materialEmissive")
+        emissive_rim_power = GL.glGetUniformLocation(shader_program, "emissiveRimPower")
+        emissive_rim_intensity = GL.glGetUniformLocation(shader_program, "emissiveRimIntensity")
 
         GL.glUniform4fv(ambient, 1, self.ambient)
         GL.glUniform4fv(diffuse, 1, self.diffuse)
         GL.glUniform4fv(specular, 1, self.specular)
         GL.glUniform1f(shininess, self.shininess)
+        GL.glUniform4fv(emissive, 1, self.emissive)
+
+        if (
+            self.emissive[0] != 0.0 or
+            self.emissive[1] != 0.0 or
+            self.emissive[2] != 0.0
+        ):
+            GL.glUniform1f(emissive_rim_power, sum(self.emissive[:-1].tolist()) * 2)
+            GL.glUniform1f(emissive_rim_intensity, sum(self.emissive[:-1].tolist()) * 2)
+        else:
+            GL.glUniform1f(emissive_rim_power, 0.0)
+            GL.glUniform1f(emissive_rim_intensity, 0.0)

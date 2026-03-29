@@ -60,12 +60,19 @@ class IntCtrl(wx.BoxSizer):
         if self.slider is not None:
             self.slider.Enable(flag)
 
-    def SetToolTipString(self, text):
-        self.ctrl.SetToolTipString(text)
-        self.st.SetToolTipString(text)
+    def SetToolTip(self, text):
+        self.ctrl.SetToolTip(text)
+        self.st.SetToolTip(text)
 
         if self.slider is not None:
-            self.slider.SetToolTipString(text)
+            self.slider.SetToolTip(text)
+
+    def SetToolTipString(self, text):
+        self.ctrl.SetToolTip(text)
+        self.st.SetToolTip(text)
+
+        if self.slider is not None:
+            self.slider.SetToolTip(text)
 
     def Bind(self, event, handler):
         self.ctrl.Bind(event, handler)

@@ -118,6 +118,7 @@ uniform vec4 materialAmbient;
 uniform vec4 materialDiffuse;
 uniform vec4 materialSpecular;
 uniform float materialShininess;
+uniform vec4 materialEmissive;
 
 uniform vec3 lightPosition;
 uniform vec4 lightAmbient;
@@ -127,43 +128,69 @@ uniform vec4 lightSpecular;
 uniform vec3 viewPosition;
 uniform float floorY;
 
+// ===== EMISSIVE GLOW CONTROLS =====
+uniform float emissiveRimPower;      // Controls glow width (2.0-5.0, default 3.0)
+uniform float emissiveRimIntensity;  // Controls glow brightness (1.0-10.0, default 4.0)
+// ==================================
+
 void main() {
     vec3 normal = normalize(fragNormalGeom);
     vec3 viewDir = normalize(viewPosition - fragPositionGeom);
 
     bool fragAboveFloor = (fragPositionGeom.y > floorY);
 
+    // Check if material is emissive
+    float emissiveStrength = max(max(materialEmissive.r, materialEmissive.g), materialEmissive.b);
+    bool isEmissive = emissiveStrength > 0.0;
+
     vec3 ambient = lightAmbient.rgb * materialAmbient.rgb;
 
     vec3 diffuse = vec3(0.0);
     vec3 specular = vec3(0.0);
 
-    vec3 effectiveLightPos = lightPosition;
-    if (isReflection > 0.5) {
-        effectiveLightPos.y = 2.0 * floorY - lightPosition.y;
-    }
+    // Only apply lighting to non-emissive materials
+    if (!isEmissive) {
+        vec3 effectiveLightPos = lightPosition;
+        if (isReflection > 0.5) {
+            effectiveLightPos.y = 2.0 * floorY - lightPosition.y;
+        }
 
-    bool lightAboveFloor = (effectiveLightPos.y > floorY);
-    if (fragAboveFloor == lightAboveFloor) {
-        vec3 lightDir = normalize(effectiveLightPos - fragPositionGeom);
+        bool lightAboveFloor = (effectiveLightPos.y > floorY);
+        if (fragAboveFloor == lightAboveFloor) {
+            vec3 lightDir = normalize(effectiveLightPos - fragPositionGeom);
 
-        float diffuseStrength = max(dot(normal, lightDir), 0.0);
-        diffuse = lightDiffuse.rgb * (diffuseStrength * materialDiffuse.rgb);
+            float diffuseStrength = max(dot(normal, lightDir), 0.0);
+            diffuse = lightDiffuse.rgb * (diffuseStrength * materialDiffuse.rgb);
 
-        if (diffuseStrength > 0.0) {
-            vec3 reflectDir = reflect(-lightDir, normal);
-            float specularStrength = pow(max(dot(viewDir, reflectDir), 0.0), materialShininess);
-            specular = lightSpecular.rgb * (specularStrength * materialSpecular.rgb);
+            if (diffuseStrength > 0.0) {
+                vec3 reflectDir = reflect(-lightDir, normal);
+                float specularStrength = pow(max(dot(viewDir, reflectDir), 0.0), materialShininess);
+                specular = lightSpecular.rgb * (specularStrength * materialSpecular.rgb);
+            }
         }
     }
 
     vec3 result = ambient + diffuse + specular;
+    
+    // ===== EMISSIVE GLOW =====
+    if (isEmissive) {
+        // ALL faces get the full emissive color
+        result = materialEmissive.rgb;
+        
+        // Edges get EXTRA brightness on top
+        float rimAmount = 1.0 - max(dot(viewDir, normal), 0.0);
+        rimAmount = pow(rimAmount, emissiveRimPower);
+        vec3 rimGlow = materialEmissive.rgb * rimAmount * emissiveRimIntensity;
+        result += rimGlow;
+    }
+    // =========================
+    
     float alpha = materialDiffuse.a;
 
     if (isReflection > 0.5) {
         result *= 0.75;
     }
-
+        
     FragColor = vec4(result, alpha);
 }
 """

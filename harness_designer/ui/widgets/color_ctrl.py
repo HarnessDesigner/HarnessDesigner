@@ -73,9 +73,13 @@ class ColorCtrl(wx.BoxSizer):
         self.ctrl.Enable(flag)
         self.button.Enable(flag)
 
+    def SetToolTip(self, text):
+        self.ctrl.SetToolTip(text)
+        self.button.SetToolTip(text)
+
     def SetToolTipString(self, text):
-        self.ctrl.SetToolTipString(text)
-        self.button.SetToolTipString(text)
+        self.ctrl.SetToolTip(text)
+        self.button.SetToolTip(text)
 
     def Bind(self, event, handler):
         self.ctrl.Bind(event, handler)

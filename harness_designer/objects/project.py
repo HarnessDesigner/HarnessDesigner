@@ -536,45 +536,6 @@ class Project:
                     position2d: _point.Point = None) -> _housing.Housing:
         housing = self.ptables.pjt_housings_table.insert(part_id, position2d=position2d, position3d=position3d)
 
-        part = housing.part
-
-        position3d = housing.position3d
-
-        cover_position3d = housing.cover_position3d
-        cover_position3d += part.cover_position3d + position3d
-
-        boot_position3d = housing.boot_position3d
-        boot_position3d += part.boot_position3d + position3d
-
-        cpa_lock_position3d = housing.cpa_lock_position3d
-        cpa_lock_position3d += part.cpa_lock_position3d + position3d
-
-        tpa_lock_1_position3d = housing.tpa_lock_1_position3d
-        tpa_lock_1_position3d += part.tpa_lock_1_position3d + position3d
-
-        tpa_lock_2_position3d = housing.tpa_lock_2_position3d
-        tpa_lock_2_position3d += part.tpa_lock_2_position3d + position3d
-
-        for cavity in part.cavities:
-            if cavity is None:
-                continue
-
-            pjt_cavity = self.ptables.pjt_cavities_table.insert(cavity.db_id, housing.db_id)
-
-            position3d = pjt_cavity.position3d
-            position3d += cavity.position3d + position3d
-
-            angle3d = pjt_cavity.angle3d
-            angle3d += cavity.angle3d
-
-            position2d = pjt_cavity.position2d
-            position2d += cavity.position2d
-
-            angle2d = pjt_cavity.angle2d
-            angle2d += cavity.angle2d
-
-            pjt_cavity.name = cavity.name
-
         with self.mainframe.editor3d.context:
             obj = _housing.Housing(self.mainframe, housing)
 

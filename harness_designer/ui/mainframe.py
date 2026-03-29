@@ -61,7 +61,9 @@ class MainFrame(wx.Frame):
 
         wx.Frame.__init__(self, None, wx.ID_ANY, title='Harness Designer',
                           size=Config.size, pos=Config.position,
-                          style=wx.CLIP_CHILDREN | wx.CAPTION | wx.MINIMIZE_BOX | wx.MAXIMIZE_BOX | wx.CLOSE_BOX | wx.SYSTEM_MENU | wx.RESIZE_BORDER)
+                          style=(wx.CLIP_CHILDREN | wx.MINIMIZE_BOX | wx.CLOSE_BOX |
+                                 wx.RESIZE_BORDER | wx.MAXIMIZE_BOX | wx.SYSTEM_MENU |
+                                 wx.CAPTION))
 
         self.Bind(wx.EVT_MOVE, self.on_move)
         self.Bind(wx.EVT_SIZE, self.on_size)
@@ -181,7 +183,9 @@ class MainFrame(wx.Frame):
 
         self.manager.Update()
 
-        self.editor3d.Bind(_canvas3d.EVT_GL_LEFT_DOWN, self._on_left_down_3d)
+        self.editor3d.Bind(_canvas3d.EVT_GL_OBJECT_RIGHT_CLICK, self._on_obj_right_click_3d)
+
+        self.editor3d.Bind(_canvas3d.EVT_GL_LEFT_UP, self._on_left_up_3d)
         # self.editor3d.Bind(_canvas3d.EVT_GL_LEFT_UP, self._on_left_up_3d)
         #
         # self.editor3d.Bind(_canvas3d.EVT_GL_OBJECT_SELECTED, self._on_object_selected_3d)
@@ -202,28 +206,25 @@ class MainFrame(wx.Frame):
         if db_id is None:
             return
 
-        housing = self.project.add_housing(db_id,  position2d=position2d, position3d=position3d)
+        housing = self.global_db.housings_table[db_id]
 
-        cavities = housing.db_obj.cavities
-        for cavity in cavities:
+        for cavity in housing.cavities:
             if cavity is not None:
                 break
         else:
-            from .editor_3d import housing_editor
+            def _do(hsng, p2d, p3d):
+                from .dialogs import housing_editor
 
-            editor = housing_editor.HousingEditor(self, housing.db_obj.part)
-            # self.editor3d.notebook.AddPage(editor, housing.db_obj.part.part_number)
+                dlg = housing_editor.HousingEditorDialog(self, hsng)
+                if dlg.ShowModal() != wx.ID_OK:
+                    dlg.Destroy()
+                    return
 
-    def add_wire(self, position2d=None, position3d=None):
-        db_id = self.editor_db.wires.GetSelection()
-        if db_id is None:
-            return
+                dlg.Destroy()
 
-        self.project.add_wire(db_id,  position2d=position2d, position3d=position3d)
+                self.project.add_housing(db_id, position2d=p2d, position3d=p3d)
 
-    def add_wire_service_loop(self, position2d=None, position3d=None):
-        db_id = self.editor_db.housings.GetSelection()
-        if db_id is None:
+            wx.CallAfter(_do, housing, position2d, position3d)
             return
 
         self.project.add_housing(db_id,  position2d=position2d, position3d=position3d)
@@ -234,6 +235,76 @@ class MainFrame(wx.Frame):
             return
 
         self.project.add_terminal(db_id,  position2d=position2d, position3d=position3d)
+
+    def add_wire(self, position2d=None, position3d=None):
+        db_id = self.editor_db.wires.GetSelection()
+        if db_id is None:
+            return
+
+        self.project.add_wire(db_id,  position2d=position2d, position3d=position3d)
+
+    def add_wire_service_loop(self, position3d=None):
+        db_id = self.editor_db.housings.GetSelection()
+        if db_id is None:
+            return
+
+        self.project.add_wire_service_loop(db_id,  position2d=position2d, position3d=position3d)
+
+    def add_splice(self, position2d=None, position3d=None):
+        db_id = self.editor_db.housings.GetSelection()
+        if db_id is None:
+            return
+
+        self.project.add_splice(db_id,  position2d=position2d, position3d=position3d)
+
+    def add_note(self, position2d=None, position3d=None):
+        db_id = self.editor_db.housings.GetSelection()
+        if db_id is None:
+            return
+
+        self.project.add_note(db_id,  position2d=position2d, position3d=position3d)
+
+    def add_transition(self, position3d=None):
+        db_id = self.editor_db.housings.GetSelection()
+        if db_id is None:
+            return
+
+        self.project.add_transition(db_id,  position3d=position3d)
+
+    def add_seal(self, position3d=None):
+        db_id = self.editor_db.housings.GetSelection()
+        if db_id is None:
+            return
+
+        self.project.add_seal(db_id,  position3d=position3d)
+
+    def add_bundle(self, position3d=None):
+        db_id = self.editor_db.housings.GetSelection()
+        if db_id is None:
+            return
+
+        self.project.add_bundle(db_id,  position3d=position3d)
+
+    def add_tpa_lock(self, position3d=None):
+        db_id = self.editor_db.housings.GetSelection()
+        if db_id is None:
+            return
+
+        self.project.add_tpa_lock(db_id,  position3d=position3d)
+
+    def add_cpa_lock(self, position3d=None):
+        db_id = self.editor_db.housings.GetSelection()
+        if db_id is None:
+            return
+
+        self.project.add_cpa_lock(db_id,  position3d=position3d)
+
+    def add_cover(self, position3d=None):
+        db_id = self.editor_db.housings.GetSelection()
+        if db_id is None:
+            return
+
+        self.project.add_cover(db_id,  position3d=position3d)
 
     def _on_pane_activated(self, evt: aui.AuiManagerEvent):
         pane = evt.GetPane()
@@ -360,7 +431,7 @@ class MainFrame(wx.Frame):
 
         wx.CallAfter(_do)
 
-    def _on_left_down_3d(self, evt: _canvas3d.GLEvent):
+    def _on_left_up_3d(self, evt: _canvas3d.GLEvent):
         mode = self.editor_toolbar.get_mode()
 
         if mode == _toolbar.ID_SELECT:
@@ -374,6 +445,9 @@ class MainFrame(wx.Frame):
         elif mode == _toolbar.ID_WIRE:
             evt.StopPropagation()
             self.add_wire(evt.GetWorldPosition())
+        elif mode == _toolbar.ID_WIRE_SERVICE_LOOP:
+            evt.StopPropagation()
+            self.add_wire_service_loop(evt.GetWorldPosition())
         elif mode == _toolbar.ID_SPLICE:
             evt.StopPropagation()
             self.add_splice(evt.GetWorldPosition())
@@ -401,6 +475,9 @@ class MainFrame(wx.Frame):
         elif mode == _toolbar.ID_CPA_LOCK:
             evt.StopPropagation()
             self.add_cpa_lock(evt.GetWorldPosition())
+        elif mode == _toolbar.ID_COVER:
+            evt.StopPropagation()
+            self.add_cover(evt.GetWorldPosition())
         elif mode == _toolbar.ID_ZOOM_IN:
             evt.StopPropagation()
             self.editor3d.editor.Zoom(1.0)
@@ -410,9 +487,10 @@ class MainFrame(wx.Frame):
 
         evt.Skip()
 
-    def _on_left_up_3d(self, evt: _canvas3d.GLEvent):
-        if self._mode in (self.ID_ZOOM_IN, self.ID_ZOOM_OUT):
-            evt.StopPropagation()
+    def _on_obj_right_click_3d(self, evt: _canvas3d.GLObjectEvent):
+        obj = evt.GetGLObject()
 
-        evt.Skip()
-
+        context_menu = obj.obj3d.get_context_menu()
+        if context_menu is not None:
+            x, y = evt.GetPosition()
+            self.editor3d.editor.PopupMenu(context_menu, x, y)

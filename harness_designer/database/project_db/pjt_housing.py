@@ -1,10 +1,12 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
+import uuid
+
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from ...geometry import point as _point
+from ...geometry import angle as _angle
 
-from .mixins import (Angle3DMixin, Angle2DMixin, Position3DMixin, Position2DMixin,
-                     NameMixin, PartMixin, Visible3DMixin, Visible2DMixin)
+from .mixins import NameMixin, PartMixin, Visible3DMixin, Visible2DMixin
 
 
 if TYPE_CHECKING:
@@ -65,12 +67,44 @@ class PJTHousingsTable(PJTTableBase):
         pos3d = self.db.pjt_points3d_table.insert(x, y, z)
 
         db_id = PJTTableBase.insert(self, point3d_id=pos3d.db_id, point2d_id=pos2d.db_id, part_id=part_id)
+        db_obj = PJTHousing(self, db_id, self.project_id)
 
-        return PJTHousing(self, db_id, self.project_id)
+        # add the cavities from the part to the project
+        for cavity in db_obj.part.cavities:
+            if cavity is None:
+                continue
+
+            pjt_cavity = self.db.pjt_cavities_table.insert(cavity.db_id, db_id)
+            cpos3d = pjt_cavity.position3d
+            cpos2d = pjt_cavity.position2d
+
+            cpos3d += pos3d
+            cpos2d += pos2d
+
+            pjt_cavity.name = cavity.name
+
+        pos = db_obj.cover_position3d
+        pos += pos3d
+
+        pos = db_obj.seal_position3d
+        pos += pos3d
+
+        pos = db_obj.boot_position3d
+        pos += pos3d
+
+        pos = db_obj.tpa_lock_1_position3d
+        pos += pos3d
+
+        pos = db_obj.tpa_lock_2_position3d
+        pos += pos3d
+
+        pos = db_obj.cpa_lock_position3d
+        pos += pos3d
+
+        return db_obj
 
 
-class PJTHousing(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin,
-                 Position2DMixin, NameMixin, PartMixin, Visible3DMixin, Visible2DMixin):
+class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Visible3DMixin, Visible2DMixin):
 
     _table: PJTHousingsTable = None
 
@@ -384,3 +418,189 @@ class PJTHousing(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin,
             return None
 
         return self._table.db.global_db.housings_table[part_id]
+
+    def _update_position3d(self, point: _point.Point):
+        point_id = int(point.db_id[:-2])
+
+        # when the position of a houseing is changed all of the objects that
+        # attach to the housing also need to change. That update should happen
+        # in a location where the points for those accessory items change even if
+        # there is no accessory attached to them. The positions of the accessories
+        # are set in the housing editor dialog and those positions are calculated
+        # with the housing center positioned at (0, 0, 0). This makes updating the
+        # the positions easier to do because we simply calculate the difference
+        # between the old housing position and the new position and apply that
+        # difference to each of the accessory points.
+
+        rows = self._table.execute(f'SELECT x, y, z FROM pjt_points3d WHERE id={point_id};')
+
+        o_position = _point.Point(*rows[0])
+        delta = point - o_position
+
+        for cavity in self.cavities:
+            if cavity is None:
+                continue
+
+            c_position = cavity.position3d
+            c_position += delta
+
+        pos = self.cover_position3d
+        pos += delta
+
+        pos = self.seal_position3d
+        pos += delta
+
+        pos = self.boot_position3d
+        pos += delta
+
+        pos = self.tpa_lock_1_position3d
+        pos += delta
+
+        pos = self.tpa_lock_2_position3d
+        pos += delta
+
+        pos = self.cpa_lock_position3d
+        pos += delta
+
+        x, y, z = point.as_float
+        self._table.execute(f'UPDATE pjt_points3d SET x=?, y=?, z=? WHERE id={point_id};', (x, y, z))
+
+        self._table.commit()
+
+    @property
+    def position3d(self) -> "_point.Point":
+        point_id = self.position3d_id
+
+        self._table.execute(f'SELECT x, y, z FROM pjt_points3d WHERE id={point_id};')
+        rows = self._table.fetchall()
+
+        if rows:
+            point = _point.Point(*rows[0], db_id=str(point_id) + '3d')
+            point.bind(self._update_position3d)
+            return point
+
+    @property
+    def position3d_id(self) -> int:
+        point_id = self._table.select('point3d_id', id=self._db_id)[0][0]
+        if point_id is None:
+            self._table.execute(f'INSERT INTO pjt_points3d (project_id, x, y, z) VALUES (?, ?, ?, ?);',
+                                (self._table.project_id, 0.0, 0.0, 0.0))
+
+            self._table.commit()
+            point_id = self._table.lastrowid
+            self.position3d_id = point_id
+
+        return point_id
+
+    @position3d_id.setter
+    def position3d_id(self, value: int):
+        self._table.update(self._db_id, point3d_id=value)
+
+    def _update_position2d(self, point: _point.Point):
+        point_id = int(point.db_id[:-2])
+        rows = self._table.execute(f'SELECT x, y FROM pjt_points2d WHERE id={point_id};')
+
+        o_position = _point.Point(*rows[0])
+        delta = point - o_position
+
+        for cavity in self.cavities:
+            if cavity is None:
+                continue
+
+            c_position = cavity.position2d
+            c_position += delta
+
+        x, y = point.as_float[:-1]
+
+        self._table.execute(f'UPDATE pjt_points2d SET x=?, y=? WHERE id = {point_id};', (x, y))
+        self._table.commit()
+
+    @property
+    def position2d(self) -> "_point.Point":
+        point_id = self.position2d_id
+
+        self._table.execute(f'SELECT x, y FROM pjt_points2d WHERE id={point_id};')
+        rows = self._table.fetchall()
+
+        if rows:
+            point = _point.Point(*rows[0], db_id=str(point_id) + '2d')
+            point.bind(self._update_position2d)
+            return point
+
+    @property
+    def position2d_id(self) -> int:
+        point_id = self._table.select('point2d_id', id=self._db_id)[0][0]
+        if point_id is None:
+            self._table.execute(f'INSERT INTO pjt_points3d (project_id, x, y) VALUES (?, ?, ?);',
+                                (self._table.project_id, 0.0, 0.0))
+
+            self._table.commit()
+            point_id = self._table.lastrowid
+            self.position2d_id = point_id
+
+        return point_id
+
+    @position2d_id.setter
+    def position2d_id(self, value: int):
+        self._table.update(self._db_id, point2d_id=value)
+
+    _angle3d_db_id: str = None
+
+    def __update_angle3d(self, angle: _angle.Angle):
+        quat = eval(self._table.select('quat3d', id=self._db_id)[0][0])
+        euler_angle = eval(self._table.select('angle3d', id=self._db_id)[0][0])
+        o_angle = _angle.Angle.from_quat(quat, euler_angle)
+
+        delta = angle - o_angle
+
+        quat = list(angle.as_quat_float)
+        euler_angle = list(angle.as_euler_float)
+
+        self._table.update(self._db_id, quat3d=str(quat))
+        self._table.update(self._db_id, angle3d=str(euler_angle))
+
+        for cavity in self.cavities:
+            if cavity is None:
+                continue
+
+            c_angle = cavity.angle3d
+            c_angle += delta
+            
+    @property
+    def angle3d(self) -> _angle.Angle:
+        quat = eval(self._table.select('quat3d', id=self._db_id)[0][0])
+        euler_angle = eval(self._table.select('angle3d', id=self._db_id)[0][0])
+
+        if self._angle3d_db_id is None:
+            self._angle3d_db_id = str(uuid.uuid4())
+
+        angle = _angle.Angle.from_quat(quat, euler_angle, db_id=self._angle3d_db_id)
+        angle.bind(self.__update_angle3d)
+
+        return angle
+
+    _angle2d_db_id: str = None
+
+    def __update_angle2d(self, angle: _angle.Angle):
+        quat = list(angle.as_quat_float)
+        euler_angle = list(angle.as_euler_float)
+
+        self._table.update(self._db_id, quat2d=str(quat))
+        self._table.update(self._db_id, angle2d=str(euler_angle))
+
+    @property
+    def angle2d(self) -> _angle.Angle:
+        quat = eval(self._table.select('quat2d', id=self._db_id)[0][0])
+        euler_angle = eval(self._table.select('angle2d', id=self._db_id)[0][0])
+
+        if self._angle2d_db_id is None:
+            self._angle2d_db_id = str(uuid.uuid4())
+
+        angle = _angle.Angle.from_quat(
+            quat,
+            euler_angle,
+            db_id=self._angle2d_db_id
+            )
+        angle.bind(self.__update_angle2d)
+
+        return angle

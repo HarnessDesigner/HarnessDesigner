@@ -61,130 +61,61 @@ class Housing(_base3d.Base3D):
         if self._aabb[0][1] < Config.floor.ground_height:
             self._position.y += Config.floor.ground_height - self._aabb[0][1]
 
-    def _update_position(self, position: _point.Point):
-        # we are overriding this method because we need to move all of the
-        # objects that are attached to a housing at the same time the housing
-        # is moved
-        delta = position - self._o_position
-
-        for cavity in self.db_obj.cavities:
-            c_position = cavity.position3d
-            c_position += delta
-
-        seal_position = self.db_obj.seal_position3d
-        tpa_lock1_position = self.db_obj.tpa_lock_1_position3d
-        tpa_lock2_position = self.db_obj.tpa_lock_2_position3d
-        cover_position = self.db_obj.cover_position3d
-        cpa_lock_position = self.db_obj.cpa_lock_position3d
-        boot_position = self.db_obj.boot_position3d
-
-        for p in (
-            seal_position,
-            tpa_lock1_position,
-            tpa_lock2_position,
-            cover_position,
-            cpa_lock_position,
-            boot_position
-        ):
-            p += delta
-
-        boot = self.db_obj.boot
-        seal = self.db_obj.seal
-        cpa_lock = self.db_obj.cpa_lock
-        cover = self.db_obj.cover
-        tpa_locks = self.db_obj.tpa_locks
-        tpa_locks.extend([boot, cpa_lock, cover, seal])
-
-        for obj in tpa_locks:
-            if obj is None:
-                continue
-
-            o_position = obj.position3d
-            o_position += delta
-
-        _base3d.Base3D._update_position(self, position)
-
-    def _update_angle(self, angle: _angle.Angle):
-        # we are overriding this method because we need to change the angles
-        # for all of the objects that are attached to a housing at the same time
-        # the housing angle is changed.
-
-        # TODO: I am going to need to do some work with this code to add
-        #       updating the angles for the attahced items so they stay in a
-        #       correct orientation to the housing.
-
-        inverse_angle = self._o_angle.inverse
-
-        for cavity in self.db_obj.cavities:
-            c_position = cavity.position3d
-
-            # use context so the data only gets written to the database
-            # on the last change
-            with c_position:
-                c_position -= self.position
-                c_position @= inverse_angle
-                c_position @= angle
-
-            c_position += self.position
-
-        seal_position = self.db_obj.seal_position3d
-        tpa_lock1_position = self.db_obj.tpa_lock_1_position3d
-        tpa_lock2_position = self.db_obj.tpa_lock_2_position3d
-        cover_position = self.db_obj.cover_position3d
-        cpa_lock_position = self.db_obj.cpa_lock_position3d
-        boot_position = self.db_obj.boot_position3d
-
-        for i, p in enumerate([
-            seal_position,
-            tpa_lock1_position,
-            tpa_lock2_position,
-            cover_position,
-            cpa_lock_position,
-            boot_position
-        ]):
-            # use context so the data only gets written to the database
-            # on the last change
-
-            with p:
-                p -= self.position
-                p @= inverse_angle
-                p @= angle
-
-            p += self.position
-
-        boot = self.db_obj.boot
-        seal = self.db_obj.seal
-        cpa_lock = self.db_obj.cpa_lock
-        cover = self.db_obj.cover
-        tpa_locks = self.db_obj.tpa_locks
-        tpa_locks.extend([boot, cpa_lock, cover, seal])
-
-        for obj in tpa_locks:
-            if obj is None:
-                continue
-            o_position = obj.position3d
-
-            # use context so the data only gets written to the database
-            # on the last change
-            with o_position:
-                o_position -= self.position
-                o_position @= inverse_angle
-                o_position @= angle
-
-            o_position += self.position
-
-        _base3d.Base3D._update_angle(self, angle)
-
     def get_context_menu(self):
         return HousingMenu(self.mainframe.editor3d.editor, self)
 
 
+from ...ui.widgets import combobox_ctrl
+
+
+class AddCavity(wx.PopupWindow):
+
+    def __init__(self, parent, housing: "Housing", choices):
+
+        wx.PopupWindow.__init__(self, parent, flags=wx.BORDER_SUNKEN | wx.PU_CONTAINS_CONTROLS)
+
+        self.housing = housing
+
+        self.ctrl = combobox_ctrl.ComboBoxCtrl(self, 'Select Cavity:', choices)
+        self.ctrl.SetToolTipString('Select a cavity to add or enter a name to add a new one.')
+
+        self.add_button = wx.Button(self, wx.ID_ANY, label='Add Cavity')
+        self.cancel_button = wx.Button(self, wx.ID_ANY, label='Cancel')
+
+        vsizer = wx.BoxSizer(wx.VERTICAL)
+
+        button_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        button_sizer.AddStretchSpacer(3)
+        button_sizer.Add(self.cancel_button, 1, wx.RIGHT, 5)
+        button_sizer.Add(self.add_button, 1, wx.LEFT, 5)
+
+        vsizer.Add(self.ctrl, 0, wx.EXPAND | wx.ALL, 15)
+        vsizer.Add(button_sizer, 0, wx.EXPAND | wx.ALL, 15)
+
+        self.add_button.Bind(wx.EVT_BUTTON, self.on_add)
+        self.cancel_button.Bind(wx.EVT_BUTTON, self.on_cancel)
+
+        self.SetSizer(vsizer)
+
+    def on_add(self):
+        name = self.ctrl.GetValue().split(':')[-1].strip()
+        self.housing.add_cavity(name)
+        self.Destroy()
+
+    def on_cancel(self):
+        self.Destroy()
+
+
+
 class HousingMenu(wx.Menu):
 
-    def __init__(self, canvas, selected):
+    def __init__(self, canvas, selected: Housing):
         wx.Menu.__init__(self)
         self.canvas = canvas
         self.selected = selected
+
+        item = self.Append(wx.ID_ANY, 'Add Cavity')
+        canvas.Bind(wx.EVT_MENU, self.on_add_cavity, id=item.GetId())
 
         item = self.Append(wx.ID_ANY, 'Add Seal')
         canvas.Bind(wx.EVT_MENU, self.on_add_seal, id=item.GetId())
@@ -226,6 +157,19 @@ class HousingMenu(wx.Menu):
         self.AppendSeparator()
         item = self.Append(wx.ID_ANY, 'Properties')
         canvas.Bind(wx.EVT_MENU, self.on_properties, id=item.GetId())
+
+    def on_add_cavity(self, evt: wx.MenuEvent):
+        num_pins = self.selected.db_obj.part.num_pins
+        part_cavities = self.selected.db_obj.part.cavities
+        cavities = self.selected.db_obj.cavities
+
+        names_list = []
+
+        for cavity in part_cavities:
+            if cavity is not None:
+                names_list.append(f'{cavity.idx}: {cavity.name}')
+
+        evt.Skip()
 
     def on_add_seal(self, evt: wx.MenuEvent):
         evt.Skip()

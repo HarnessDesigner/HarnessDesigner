@@ -373,7 +373,11 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
         response = self._table.db.cavities_table.select("id", "idx",
                                                         housing_id=self._db_id)
+        print(response)
+
         for db_id, idx in response:
+            print(db_id, idx)
+
             res[idx] = self._table.db.cavities_table[db_id]
         return res
 

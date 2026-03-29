@@ -104,7 +104,7 @@ class Canvas(glcanvas.GLCanvas):
         from . import axis_overlay as _axis_overlay
 
         if axis_overlay:
-            self._axis_overlay = _axis_overlay.Overlay(self)
+            self._axis_overlay = _axis_overlay.Overlay(self, config.axis_overlay)
         else:
             self._axis_overlay = None
 

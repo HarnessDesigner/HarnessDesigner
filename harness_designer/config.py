@@ -441,8 +441,10 @@ class Config(metaclass=ConfigDB):
             dissipate = 50.0
             color = [0.6, 0.6, 0.4, 0.8]
 
-        class debug(metaclass=ConfigDB):
-            bounding_boxes = False
+        class axis_overlay(metaclass=ConfigDB):
+            is_visible = True
+            size = (150, 150)
+            position = (830, 245)
 
     class logging(metaclass=ConfigDB):
         save_path = os.path.join(_utils.get_appdata(), 'log')
@@ -478,11 +480,6 @@ class Config(metaclass=ConfigDB):
 
     class colors(metaclass=ConfigDB):
         custom_colors = ''
-
-    class axis_overlay(metaclass=ConfigDB):
-        is_visible = True
-        size = (150, 150)
-        position = (830, 245)
 
     class database(metaclass=ConfigDB):
         connector = CONNECTOR_SQLITE

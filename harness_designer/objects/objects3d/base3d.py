@@ -415,20 +415,22 @@ class Base3D:
                          0.114 * material_color[2])
 
             if luminance < _debug_config.edge_luminance_threshold:
-                e_color = _debug_config.edge_color_dark
+                e_color = _debug_config.edge_color_dark[:] + [1.0]
             else:
-                e_color = _debug_config.edge_color_light
+                e_color = _debug_config.edge_color_light[:] + [1.0]
 
             GL.glUseProgram(edges_program)
+
+            material = _materials.Metallic(_color.Color(*e_color))
+
+            material.set(edges_program)
 
             pos_loc = GL.glGetUniformLocation(edges_program, "objectPosition")
             rot_loc = GL.glGetUniformLocation(edges_program, "objectRotation")
             scale_loc = GL.glGetUniformLocation(edges_program, "objectScale")
             render_mode_loc = GL.glGetUniformLocation(edges_program, "renderMode")
-            edge_color_loc = GL.glGetUniformLocation(edges_program, "edgeColor")
 
             GL.glUniform1i(render_mode_loc, 0)
-            GL.glUniform3f(edge_color_loc, *e_color)
 
             self._render_geometry(edges_program, pos_loc, rot_loc, scale_loc)
 
@@ -441,6 +443,10 @@ class Base3D:
             dynamic_normal_length = smallest_dimension / 10.0
 
             GL.glUseProgram(edges_program)
+
+            color = _debug_config.normals_color[:] + [1.0]
+            material = _materials.Glowing(_color.Color(*color))
+            material.set(edges_program)
 
             pos_loc = GL.glGetUniformLocation(edges_program, "objectPosition")
             rot_loc = GL.glGetUniformLocation(edges_program, "objectRotation")
@@ -600,5 +606,5 @@ class Base3D:
         return self._is_opaque
 
     def get_context_menu(self):
-        raise NotImplementedError
+        return None
 

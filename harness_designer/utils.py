@@ -13,12 +13,39 @@ from .geometry import point as _point
 from .geometry.decimal import Decimal as _d
 
 
-def mm2_to_awg(mm2: float) -> int:
-    mm2 = _d(mm2)
-    d_mm = _d(2.0) * _d(math.sqrt(mm2 / _d(math.pi)))
+def mm2_to_awg(mm2: float | int | _d) -> int:
+    d_mm = _d(2.0) * _d(math.sqrt(_d(mm2) / _d(math.pi)))
     d_in = d_mm / _d(25.4)
     awg = _d(36) - _d(39) * _d(math.log(float(d_in / _d(0.005)), 92))
     return int(round(awg))
+
+
+def mm2_to_d_mm(mm2: float | int | _d) -> float:
+    d_mm = _d(2.0) * _d(math.sqrt(_d(mm2) / _d(math.pi)))
+    return float(round(d_mm, 4))
+
+
+def d_mm_to_mm2(d_mm: float | int | _d) -> float:
+    mm2 = _d(d_mm) / _d(2.0)
+    mm2 *= mm2
+    mm2 *= _d(math.pi)
+    return float(round(mm2, 4))
+
+
+def mm2_to_in2(mm2: float | int | _d) -> float:
+    in2 = _d(mm2) / _d(25.4)
+    return float(round(in2, 4))
+
+
+def in2_to_mm2(in2: float | int | _d) -> float:
+    mm2 = _d(in2) * _d(25.4)
+    return float(round(mm2, 4))
+
+
+def mm2_to_d_in(mm2: float | int | _d) -> float:
+    d_mm = mm2_to_d_mm(mm2)
+    d_in = _d(d_mm) / _d(25.4)
+    return float(round(d_in, 4))
 
 
 def get_appdata():
@@ -54,7 +81,27 @@ def HSizer(parent, label, ctrl) -> wx.BoxSizer:
     return sizer
 
 
-def remap(value, old_min, old_max, new_min, new_max, type=_d):
+def remap(value: int | float | _d,
+          old_min: int | float | _d, old_max: int | float | _d,
+          new_min: int | float | _d, new_max: int | float | _d,
+          type=_d) -> int | float | _d:  # NOQA
+    """
+    Remaps/Reranges a value from one range to another range.
+
+    Lets say you have a value of 25 and that value fits into a range of 1-100.
+    You need that value to fit into the 1-250 range but still be 25% of the range
+    like it is in the 0-100 range. This is the function to use to do that.
+
+    :param value: input value
+
+    :param old_min: input value's minimum
+
+    :param old_max: input values maximum
+    :param new_min: new minimum
+    :param new_max: new maximum
+    :param type: what type to return the value as; `int`, `float` or `Decimal`
+    :return: The new value mapped to the new range
+    """
     value = _d(value)
     old_min = _d(old_min)
     old_max = _d(old_max)
@@ -68,7 +115,7 @@ def remap(value, old_min, old_max, new_min, new_max, type=_d):
     return type(new_value)
 
 
-def compute_edges(faces):
+def compute_edges(faces: np.ndarray) -> np.ndarray:
     """
     Create a numpy array of edges from vertices and triangle faces.
 
@@ -106,7 +153,7 @@ def compute_edges(faces):
     return edges
 
 
-def compute_smoothed_vertex_normals(vertices: np.ndarray, faces: np.ndarray) -> tuple[np.ndarray, np.ndarray, int]:
+def compute_smoothed_vertex_normals(vertices: np.ndarray, faces: np.ndarray) -> list[np.ndarray, np.ndarray, int]:
     """
     Compute smoothed vertex normals by averaging face normals at each vertex.
     Works for both triangles and quads.
@@ -180,10 +227,10 @@ def compute_smoothed_vertex_normals(vertices: np.ndarray, faces: np.ndarray) -> 
 
     print(type(verts))
 
-    return verts, normals, len(expanded_verts) * verts_per_face
+    return [verts, normals, len(expanded_verts) * verts_per_face]
 
 
-def compute_vertex_normals(vertices: np.ndarray, faces: np.ndarray) -> tuple[np.ndarray, np.ndarray, int]:
+def compute_vertex_normals(vertices: np.ndarray, faces: np.ndarray) -> list[np.ndarray, np.ndarray, int]:
     """
     Compute face normals duplicated per vertex for triangles or quads.
 
@@ -222,7 +269,7 @@ def compute_vertex_normals(vertices: np.ndarray, faces: np.ndarray) -> tuple[np.
     # Changed from hardcoded 3 to verts_per_face
     normals = np.repeat(face_normals[:, np.newaxis, :], verts_per_face, axis=1)
 
-    return expanded_verts.reshape(-1, 3), normals.reshape(-1, 3), len(expanded_verts) * verts_per_face
+    return [expanded_verts.reshape(-1, 3), normals.reshape(-1, 3), len(expanded_verts) * verts_per_face]
 
 
 def compute_aabb(verts):
@@ -293,7 +340,7 @@ def adjust_aabb(aabb: np.ndarray) -> np.ndarray:
 
 def compute_vbo_smoothed_vertex_normals(
     vertices: np.ndarray, faces: np.ndarray
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, int]:
+) -> list[np.ndarray, np.ndarray, np.ndarray, int]:
 
     """
     Compute smoothed vertex normals by averaging face normals at each vertex.
@@ -364,12 +411,12 @@ def compute_vbo_smoothed_vertex_normals(
     normals_array = vertex_normals.astype(np.float32).ravel()  # (V*3,)
     indices_array = faces.astype(np.uint32).ravel()  # (F*3,)
 
-    return vertices_array, normals_array, indices_array, len(indices_array) * 3
+    return [vertices_array, normals_array, indices_array, len(indices_array) * 3]
 
 
 def compute_vbo_vertex_normals(
     vertices: np.ndarray, faces: np.ndarray
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, int]:
+) -> list[np.ndarray, np.ndarray, np.ndarray, int]:
 
     """
     Compute flat-shaded vertex normals (face normals replicated per vertex).
@@ -420,4 +467,4 @@ def compute_vbo_vertex_normals(
     # (F*3,) - sequential 0,1,2,3,4,5...
     indices_array = np.arange(num_triangles * 3, dtype=np.uint32)
 
-    return vertices_array, normals_array, indices_array, len(indices_array) * 3
+    return [vertices_array, normals_array, indices_array, len(indices_array) * 3]

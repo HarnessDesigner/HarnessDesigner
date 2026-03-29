@@ -21,11 +21,13 @@ table = _con.SQLTable(
     _con.TextField('point2d', default='"[0.0, 0.0]"', no_null=True),
     _con.TextField('angle2d', default='"[0.0, 0.0, 0.0]"', no_null=True),
     _con.TextField('quat2d', default='"[1.0, 0.0, 0.0, 0.0]"', no_null=True),
-
     _con.TextField('point3d', default='"[0.0, 0.0, 0.0]"', no_null=True),
     _con.TextField('angle3d', default='"[0.0, 0.0, 0.0]"', no_null=True),
     _con.TextField('quat3d', default='"[1.0, 0.0, 0.0, 0.0]"', no_null=True),
-    _con.FloatField('length', default='2.0', no_null=True),
+    _con.FloatField('width', default='1.0', no_null=True),
+    _con.FloatField('height', default='1.0', no_null=True),
+    _con.FloatField('length', default='3.0', no_null=True),
+    _con.IntField('round_terminal', default='0', no_null=True),
     _con.TextField('terminal_sizes', default='"[]"', no_null=True)
 )
 

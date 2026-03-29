@@ -81,12 +81,12 @@ class DebugSettingsDialog(_dialog_base.BaseDialog):
 
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
 
-        self.aabb = _checkbox_ctrl.CheckboxCtrl(bound_box_sb, 'Absolute Bounding Box:')
+        self.aabb = _checkbox_ctrl.CheckboxCtrl(bound_box_sb, 'Axis Aligned Bounding Box (AABB):')
         self.aabb.SetValue(rendering3d.draw_aabb)
 
         hsizer.Add(self.aabb, 1, wx.ALL, 5)
 
-        self.obb = _checkbox_ctrl.CheckboxCtrl(bound_box_sb, 'Oriented Bounding Box:')
+        self.obb = _checkbox_ctrl.CheckboxCtrl(bound_box_sb, 'Oriented Bounding Box (OBB):')
         self.obb.SetValue(rendering3d.draw_obb)
 
         hsizer.Add(self.obb, 1, wx.ALL, 5)
@@ -186,7 +186,7 @@ class DebugSettingsDialog(_dialog_base.BaseDialog):
         Config.debug.rendering3d.edge_color_light = _get_color(self.edge_color_light.GetColour())
         Config.debug.rendering3d.edge_luminance_threshold = self.edge_threshold.GetValue()
         Config.debug.rendering3d.draw_aabb = self.aabb.GetValue()
-        Config.debug.rendering3d.draw_oobb = self.obb.GetValue()
+        Config.debug.rendering3d.draw_obb = self.obb.GetValue()
         Config.debug.rendering3d.draw_normals = self.normals.GetValue()
         Config.debug.rendering3d.normals_color = _get_color(self.normals_color.GetColour())
         Config.debug.rendering3d.draw_vertices = self.vertices.GetValue()

@@ -1,7 +1,10 @@
 import wx
 
-from ... import utils as _utils
-from ...geometry.decimal import Decimal as _d
+try:
+    from ... import utils as _utils
+    from ...geometry.decimal import Decimal as _d
+except ImportError:
+    pass
 
 
 class FloatCtrl(wx.BoxSizer):
@@ -19,27 +22,47 @@ class FloatCtrl(wx.BoxSizer):
         self.__max_val = max_val
         self.__increment = inc
 
+        precision = 0
+        inc = _d(self.__increment)
+
+        while inc < 1:
+            precision += 1
+            inc *= _d(10.0)
+
+        self.__precision = precision
+
+        value_range = _d(max_val) - _d(min_val)
+        middle_value = (value_range / _d(2.0)) + _d(min_val)
+
+        inc = _d(self.__increment)
+
+        remaining = middle_value % inc
+
+        if remaining:
+            middle_value += inc - remaining
+
+        self.ctrl.SetValue(float(middle_value))
+
         hsizer.Add(self.st, 1, wx.RIGHT, 5)
         hsizer.Add(self.ctrl, 1, wx.LEFT, 5)
         vsizer.Add(hsizer, 1, wx.EXPAND)
 
         if slider:
-            slider_max = 100
-            s_inc = inc
-            while s_inc < 0:
-                s_inc *= 10
-                slider_max *= 10
+            s_inc = _d(10) * _d(self.__precision)
+            slider_max = _d(100) * s_inc
+
+            self.__s_max = int(slider_max)
+            slider_value = _utils.remap(middle_value, self.__min_val, self.__max_val, 0, self.__s_max)
 
             hsizer = wx.BoxSizer(wx.HORIZONTAL)
-            self.slider = wx.Slider(parent, wx.ID_ANY, value=slider_max, minValue=0,
-                                    maxValue=slider_max, style=wx.SL_HORIZONTAL)
+            self.slider = wx.Slider(parent, wx.ID_ANY, value=int(slider_value), minValue=0,
+                                    maxValue=int(slider_max), style=wx.SL_HORIZONTAL)
 
-            self.__s_max = slider_max
-
-            hsizer.Add(self.slider, 1, wx.TOP, 5)
+            hsizer.Add(self.slider, 1)
             vsizer.Add(hsizer, 1, wx.EXPAND)
 
-            self.slider.Bind(wx.EVT_SCROLL_CHANGED, self._on_slider_scroll)
+            self.slider.Bind(wx.EVT_SLIDER, self._on_slider_scroll)
+            self.ctrl.Bind(wx.EVT_SPINCTRLDOUBLE, self._on_spin_changed)
 
         else:
             self.slider: wx.Slider = None
@@ -52,7 +75,6 @@ class FloatCtrl(wx.BoxSizer):
                                   self.__min_val, self.__max_val)
 
         inc = _d(self.__increment)
-
         remaining = spin_value % inc
 
         if remaining:
@@ -71,10 +93,10 @@ class FloatCtrl(wx.BoxSizer):
     def _on_spin_changed(self, evt: wx.SpinDoubleEvent):
         if self.slider is not None:
             spin_value = self.ctrl.GetValue()
-            spin_value = _utils.remap(spin_value, self.__min_val, self.__max_val,
-                                      0, self.__s_max)
+            slider_value = _utils.remap(spin_value, self.__min_val, self.__max_val,
+                                        0, self.__s_max)
 
-            self.slider.SetValue(int(spin_value))
+            self.slider.SetValue(int(slider_value))
 
         evt.Skip()
 
@@ -84,25 +106,25 @@ class FloatCtrl(wx.BoxSizer):
         if self.slider is not None:
             self.slider.Enable(flag)
 
-    def SetToolTipString(self, text):
-        self.ctrl.SetToolTipString(text)
-        self.st.SetToolTipString(text)
+    def SetToolTip(self, text):
+        self.ctrl.SetToolTip(text)
+        self.st.SetToolTip(text)
 
         if self.slider is not None:
-            self.slider.SetToolTipString(text)
+            self.slider.SetToolTip(text)
+
+    def SetToolTipString(self, text):
+        self.ctrl.SetToolTip(text)
+        self.st.SetToolTip(text)
+
+        if self.slider is not None:
+            self.slider.SetToolTip(text)
 
     def Bind(self, event, handler):
         self.ctrl.Bind(event, handler)
 
     def SetValue(self, value: float):
-        inc = self.__increment
-        precision = 0
-
-        while inc < 1:
-            precision += 1
-            inc *= 10.0
-
-        value = round(value, precision)
+        value = round(value, self.__precision)
         value = _d(value)
         inc = _d(self.__increment)
 
@@ -118,6 +140,42 @@ class FloatCtrl(wx.BoxSizer):
 
         self.ctrl.SetValue(float(value))
 
+        if self.slider is not None:
+            slider_value = _utils.remap(value, self.__min_val, self.__max_val,
+                                        0, self.__s_max)
+
+            self.slider.SetValue(int(slider_value))
+
     def GetValue(self) -> float:
         return self.ctrl.GetValue()
 
+
+if __name__ == '__main__':
+    app = wx.App()
+
+    frame = wx.Frame(None, wx.ID_ANY, size=(600, 300))
+    panel = wx.Panel(frame, wx.ID_ANY, style=wx.BORDER_NONE)
+    hsizer = wx.BoxSizer(wx.HORIZONTAL)
+    hsizer.Add(panel, 1, wx.EXPAND)
+
+    vsizer = wx.BoxSizer(wx.VERTICAL)
+    vsizer.Add(hsizer, 1, wx.EXPAND)
+
+    frame.SetSizer(vsizer)
+
+    sz = wx.StaticBoxSizer(wx.VERTICAL, panel, "Static Box")
+    sb = sz.GetStaticBox()
+
+    ctrl = FloatCtrl(sb, 'This is a test:', min_val=0.0, max_val=99999.09, inc=0.01)
+
+    sz.Add(ctrl, 1, wx.ALL, 5)
+
+    sizer = wx.BoxSizer(wx.VERTICAL)
+
+    sizer.Add(sz, 1, wx.EXPAND | wx.ALL, 10)
+
+    panel.SetSizer(sizer)
+
+    frame.Show()
+
+    app.MainLoop()

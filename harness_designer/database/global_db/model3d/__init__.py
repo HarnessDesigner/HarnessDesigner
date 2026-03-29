@@ -65,7 +65,9 @@ class Model3D(EntryBase):
     def data_path(self) -> str | None:
         file_id = self.uuid
         if file_id is None:
-            values = _resources.collect_resource(self._table, _resources.IMAGE_TYPE_MODEL, self.path)
+            values = _resources.collect_resource(
+                self._table, _resources.IMAGE_TYPE_MODEL, self.path)
+
             if values is None:
                 return None
 
@@ -199,7 +201,8 @@ class Model3D(EntryBase):
         except _loader.ModelLoadError:
             return
 
-        dialog = _positioning.PositioningDialog(self._table.db.mainframe, vertices, faces, self)
+        dialog = _positioning.PositioningDialog(
+            self._table.db.mainframe, vertices, faces, self)
 
         if dialog.ShowModal() == wx.OK:
             (
@@ -250,14 +253,30 @@ class Model3D(EntryBase):
         except _loader.ModelLoadError:
             return None
 
+        # this code block makes sure the model has 0, 0 as the center of
+        # the model. I have found that the models that are loaded from
+        # the manufacturers don't always have 0, 0 as the center of the model
+        # and for alignment of objects we need to make sure that the centers are
+        # used.
+        vertices_reshaped = vertices.reshape(-1, 3)
+        centroid = vertices_reshaped.mean(axis=0)
+        vertices_reshaped -= centroid
+        vertices = vertices_reshaped.ravel()
 
-
+        # If the user has a GPU that doesn't have a large amount of
+        # memory available or the GPU doesn't have a lot of processing power
+        # the user has the ability to reduce the quality by reducing the number
+        # of vertices a model has. This will shrink the amount of memory used
+        # on the GPU as well as increasing the speed in which the GPU renders
+        # a model
         if self.simplify:
             target_count = self.target_count
             aggressiveness = self.aggressiveness
             update_rate = self.update_rate
             iterations = self.iterations
-            vertices, faces = _loader.reduce_triangles(vertices, faces, target_count, aggressiveness, update_rate, iterations)
+            vertices, faces = _loader.reduce_triangles(vertices, faces, target_count,
+                                                       aggressiveness, update_rate,
+                                                       iterations)
 
         scale = self.scale
         angle = self.angle3d

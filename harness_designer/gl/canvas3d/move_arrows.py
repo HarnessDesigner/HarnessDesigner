@@ -96,8 +96,8 @@ class Arrows3D(_base3d.Base3D):
             vbo = _arrow.create_vbo()
 
         # Create cyan material
-        cyan = _color.Color(255, 255, 0, 255)
-        material = _materials.Polished(cyan)
+        color = _color.Color(0, 170, 170, 255)
+        material = _materials.Glowing(color)
 
         # Calculate arrow dimensions from object AABB
         width = abs(aabb[1][0] - aabb[0][0])
@@ -111,19 +111,19 @@ class Arrows3D(_base3d.Base3D):
 
         if axis == 'x':
             # Arrow along X axis, positioned above the object
-            offset1 = _point.Point(width / 2 * 1.20, 0, 0)
+            offset1 = _point.Point(width / 2 * 0.7, 0, depth / 2.0 * 1.40)
             arrow_angle = _angle.Angle.from_euler(0, 0, 0)
 
-            offset2 = _point.Point(0, 0, 0)
+            offset2 = _point.Point(-width / 2 * 0.7, 0, depth / 2.0 * 1.40)
             flip = _angle.Angle.from_euler(0, 180, 0)
 
         elif axis == 'z':
             # Arrow along Z axis, positioned above the object
-            offset1 = _point.Point(0, 0, depth / 2 * 1.20)
+            offset1 = _point.Point(-width / 2.0 * 1.40, 0, depth / 2 * 0.7)
 
             arrow_angle = _angle.Angle.from_euler(0, 270, 0)
 
-            offset2 = _point.Point(0, 0, 0)
+            offset2 = _point.Point(-width / 2.0 * 1.40, 0, -depth / 2 * 0.7)
             flip = _angle.Angle.from_euler(0, 90, 0)
 
         else:  # axis == 'y'

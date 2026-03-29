@@ -250,50 +250,7 @@ class MouseHandler:
 
         event = GLEvent(wxEVT_GL_LEFT_DOWN)
         if self._send_event(event, evt):
-            cur_selected = self.canvas.get_selected()
-
-            selected = _object_picker.find_object(mouse_pos,
-                                                  self.canvas.objects_in_view,
-                                                  self.canvas.camera)
-
-            with self.canvas:
-                if selected is None:
-                    if cur_selected is not None:
-                        cur_selected.set_selected(False)
-                        event = GLObjectEvent(wxEVT_GL_OBJECT_UNSELECTED)
-                        event.SetGLObject(cur_selected)
-                        refresh = True
-
-                        if not self._send_event(event, evt):
-                            cur_selected.set_selected(True)
-                            refresh = False
-                else:
-                    if selected == cur_selected:
-                        self._drag_obj = _dragging.DragObject(self.canvas,
-                                                              selected)
-                        refresh = False
-                    else:
-                        process_next_event = True
-
-                        if cur_selected is not None:
-                            cur_selected.set_selected(False)
-                            event = GLObjectEvent(wxEVT_GL_OBJECT_UNSELECTED)
-                            event.SetGLObject(cur_selected)
-
-                            if not self._send_event(event, evt):
-                                cur_selected.set_selected(True)
-                                process_next_event = False
-
-                        if process_next_event:
-                            selected.set_selected(True)
-
-                            event = GLObjectEvent(wxEVT_GL_OBJECT_SELECTED)
-                            event.SetGLObject(selected)
-
-                            if not self._send_event(event, evt):
-                                selected.set_selected(False)
-
-                        refresh = True
+            return
 
         if not self.canvas.HasCapture():
             self.canvas.CaptureMouse()
@@ -347,16 +304,57 @@ class MouseHandler:
                                                   self.canvas.objects_in_view,
                                                   self.canvas.camera)
 
-            if not self._is_motion and self._drag_obj is not None:
-                if selected is not None and selected == cur_selected:
+            if not self._is_motion:
+                if cur_selected is None and selected is not None:
+                    selected.set_selected(True)
+
+                    event = GLObjectEvent(wxEVT_GL_OBJECT_SELECTED)
+                    event.SetGLObject(selected)
+
+                    if not self._send_event(event, evt):
+                        selected.set_selected(False)
+
+                elif selected is None and cur_selected is not None:
+                    cur_selected.set_selected(False)
+                    event = GLObjectEvent(wxEVT_GL_OBJECT_UNSELECTED)
+                    event.SetGLObject(selected)
+
+                    if not self._send_event(event, evt):
+                        cur_selected.set_selected(True)
+
+                elif (
+                    selected is not None and
+                    cur_selected is not None and
+                    selected == cur_selected
+                ):
                     selected.set_selected(False)
                     event = GLObjectEvent(wxEVT_GL_OBJECT_UNSELECTED)
                     event.SetGLObject(selected)
-                    refresh = True
 
                     if not self._send_event(event, evt):
                         selected.set_selected(True)
-                        refresh = False
+
+                elif (
+                    selected is not None and
+                    cur_selected is not None and
+                    selected != cur_selected
+                ):
+                    cur_selected.set_selected(False)
+                    event = GLObjectEvent(wxEVT_GL_OBJECT_UNSELECTED)
+                    event.SetGLObject(cur_selected)
+
+                    if not self._send_event(event, evt):
+                        cur_selected.set_selected(True)
+                    else:
+                        selected.set_selected(True)
+
+                        event = GLObjectEvent(wxEVT_GL_OBJECT_SELECTED)
+                        event.SetGLObject(selected)
+
+                        if not self._send_event(event, evt):
+                            selected.set_selected(False)
+
+                refresh = True
 
             if self._drag_obj is not None:
                 self._drag_obj = None
@@ -569,16 +567,30 @@ class MouseHandler:
             delta = mouse_pos - self._mouse_pos
             self._mouse_pos = mouse_pos
 
+            cur_selected = self.canvas.get_selected()
+
+            selected = _object_picker.find_object(mouse_pos,
+                                                  self.canvas.objects_in_view,
+                                                  self.canvas.camera)
+
             with self.canvas:
                 if evt.LeftIsDown():
                     self._is_motion = True
 
                     if self._drag_obj is None:
-                        self._process_mouse(MOUSE_LEFT)(*list(delta)[:-1])
+                        if (
+                            selected is not None and
+                            cur_selected is not None and
+                            selected == cur_selected
+                        ):
+                            self._drag_obj = _dragging.DragObject(self.canvas, selected)
+                            refresh = False
+                        else:
+                            self._process_mouse(MOUSE_LEFT)(*list(delta)[:-1])
+                            refresh = True
                     else:
                         self._drag_obj(delta)
-
-                    refresh = True
+                        refresh = True
 
                 if evt.MiddleIsDown():
                     self._is_motion = True

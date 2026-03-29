@@ -72,11 +72,11 @@ class AutoCompleteComboBox(wx.ComboBox):
         self._ac.InsertChoice(item, pos)
 
     def Set(self, items):
-        self.SetItems(items)
+        wx.ComboBox.Set(self, items)
+        self._ac.SetChoices(items)
 
     def SetItems(self, items: list[str]):
         wx.ComboBox.SetItems(self, items)
-        self._ac.SetChoices(items)
 
     def AppendItems(self, items):
         self.Append(items)

@@ -92,9 +92,13 @@ class TextCtrl(wx.BoxSizer):
             else:
                 self.apply_button.Enable(flag)
 
+    def SetToolTip(self, text):
+        self.ctrl.SetToolTip(text)
+        self.st.SetToolTip(text)
+
     def SetToolTipString(self, text):
-        self.ctrl.SetToolTipString(text)
-        self.st.SetToolTipString(text)
+        self.ctrl.SetToolTip(text)
+        self.st.SetToolTip(text)
 
     def Bind(self, event, handler):
         if self._show_apply_button:
@@ -108,3 +112,36 @@ class TextCtrl(wx.BoxSizer):
 
     def GetValue(self) -> str:
         return self.ctrl.GetValue()
+
+
+if __name__ == '__main__':
+    app = wx.App()
+
+    frame = wx.Frame(None, wx.ID_ANY, size=(600, 300))
+    panel = wx.Panel(frame, wx.ID_ANY, style=wx.BORDER_NONE)
+    hsizer = wx.BoxSizer(wx.HORIZONTAL)
+    hsizer.Add(panel, 1, wx.EXPAND)
+
+    vsizer = wx.BoxSizer(wx.VERTICAL)
+    vsizer.Add(hsizer, 1, wx.EXPAND)
+
+    frame.SetSizer(vsizer)
+
+    sz = wx.StaticBoxSizer(wx.VERTICAL, panel, "Static Box")
+    sb = sz.GetStaticBox()
+
+    ctrl1 = TextCtrl(sb, 'This is a test:', size=(100, -1), hslider=False)
+    ctrl2 = TextCtrl(sb, 'This is a test:', size=(100, 40), hslider=True)
+
+    sz.Add(ctrl1, 0, wx.ALL, 5)
+    sz.Add(ctrl2, 1, wx.ALL, 5)
+
+    sizer = wx.BoxSizer(wx.VERTICAL)
+
+    sizer.Add(sz, 1, wx.EXPAND | wx.ALL, 10)
+
+    panel.SetSizer(sizer)
+
+    frame.Show()
+
+    app.MainLoop()
