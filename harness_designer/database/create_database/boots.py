@@ -215,4 +215,3 @@ pjt_table = _con.SQLTable(
     _con.TextField('angle3d', default='"[0.0, 0.0, 0.0]"', no_null=True),
     _con.IntField('is_visible3d', default='1', no_null=True)
 )
-

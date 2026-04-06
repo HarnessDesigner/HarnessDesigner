@@ -36,7 +36,6 @@ class Config:
 
     class editor3d:
         lighting = _config.Config.editor3d.lighting
-        virtual_canvas = _config.Config.editor3d.virtual_canvas
         keyboard_settings = _config.Config.editor3d.keyboard_settings
         rotate = _config.Config.editor3d.rotate
         pan_tilt = _config.Config.editor3d.pan_tilt
@@ -44,10 +43,34 @@ class Config:
         walk = _config.Config.editor3d.walk
         zoom = _config.Config.editor3d.zoom
         reset = _config.Config.editor3d.reset
-        floor = _config.Config.editor3d.floor
-        headlight = _config.Config.editor3d.headlight
         selected_color = [0.2, 0.6, 0.2, 0.35]
-        background_color = [0.70, 0.70, 0.70, 1.0]
+        background_color = [1.0, 0.96, 0.96, 1.0]
+
+        class headlight:
+            enable = False
+            cutoff = 8.0
+            dissipate = 50.0
+            color = [0.6, 0.6, 0.4, 0.8]
+
+        class virtual_canvas:
+            width = 750
+            height = 300
+
+        class floor:
+            enable = True
+            ground_height = 0.0
+            distance = 300
+            enable_floor_lock = False
+
+            class grid:
+                primary_color = [0.8, 0.1, 0.1, 0.3]
+                secondary_color = [0.2925, 0.3430, 0.3430, 0.3]
+                size = 50
+                enable = False
+
+            class reflections:
+                enable = False
+                strength = 50.0
 
         class renderer:
             smooth_covers = False
@@ -66,7 +89,7 @@ class Config:
             radius = 0.25
 
         class axis_overlay:
-            is_visible = True
+            is_visible = False
             size = (35, 35)
             position = (0, 0)
 
@@ -141,11 +164,6 @@ class Cavity3D(_base3d.Base3D):
 
         self._angle = db_obj.angle3d
         self._position = db_obj.position3d.copy()
-        self._position.y += abs(self.dialog.housing.obj3d.y_offset)
-
-        self._allow_real_update = True
-        self._real_position = db_obj.position3d
-        self._o_real_position = self._real_position.copy()
 
         scale = _point.Point(1.0, 1.0, 1.0)
 
@@ -156,29 +174,10 @@ class Cavity3D(_base3d.Base3D):
 
         _base3d.Base3D.__init__(self, parent, db_obj, None, self._angle, self._position, scale, material, data=data)
 
-        self._selected_material = _materials.Glowing(_color.Color(0.3, 1.0, 0.3, 1.0))
+        self._selected_material = _materials.Plastic(_color.Color(0.3, 1.0, 0.3, 1.0))
 
         self._is_visible = True
         self.editor3d.Refresh(False)
-
-    def _update_real_position(self, position: _point.Point):
-        delta = position - self._o_real_position
-
-        if self._allow_real_update:
-            self._allow_real_update = False
-            self._position += delta
-            self._allow_real_update = True
-            self._o_real_position = position.copy()
-
-    def _update_position(self, position: _point.Point):
-        if self._allow_real_update:
-            delta = position - self._o_position
-            self._allow_real_update = False
-            self._real_position += delta
-            self._allow_real_update = True
-            self._o_real_position = self._real_position.copy()
-
-        _base3d.Base3D._update_position(self, position)
 
     def set_selected(self, flag: bool):
         if flag:
@@ -212,16 +211,10 @@ class Cavity3D(_base3d.Base3D):
     @height.setter
     def height(self, value: float):
         self.db_obj.height = value
-        old_data = self._data[:]
         self._data = self.build()
         self._compute_obb()
         self._compute_aabb()
 
-        if self._aabb[0][1] < Config.editor3d.floor.ground_height:
-            self._data = old_data
-
-        self._compute_obb()
-        self._compute_aabb()
         self.editor3d.Refresh(False)
 
     @property
@@ -270,14 +263,31 @@ class Cavity3D(_base3d.Base3D):
         if self.is_round:
             radius = float(_d(self.width) / _d(2.0))
             vertices, faces = _cylinder.create(radius, self.length, resolution=90, split=1)
+            p1, p2 = _utils.compute_aabb(vertices)
+
+            position = p2 - p1
+            position.z = p1.z
+
+            position -= self._position
+
+            vertices += position
             vertices @= self._angle
             vertices += self._position
 
             verts, nrmls, count = _utils.compute_smoothed_vertex_normals(vertices, faces)
         else:
             vertices, faces = _box.create(self.width, self.height, self.length)
+            p1, p2 = _utils.compute_aabb(vertices)
+
+            position = p2 - p1
+            position.z = p1.z
+
+            position -= self._position
+
+            vertices += position
             vertices @= self._angle
             vertices += self._position
+
             verts, nrmls, count = _utils.compute_vertex_normals(vertices, faces)
 
         return [verts, nrmls, count]
@@ -304,53 +314,28 @@ class HousingAccessory3D(_base3d.Base3D):
         angle = _angle.Angle()
         scale = _point.Point(3.0, 3.0, 3.0)
 
-        self._allow_real_update = True
-        self._real_position = position
-        self._o_real_position = self._real_position.copy()
-        self._real_position.bind(self._update_real_position)
-
         self._position = position.copy()
-        self._position.y += abs(self.dialog.housing.obj3d.y_offset)
 
         vertices, faces = _sphere.create(1.0, 20)
         vertices += self._position
 
         data = _utils.compute_smoothed_vertex_normals(vertices, faces)
-        material_color = _color.Color(0.8, 0.2, 0.8, 1.0)
+        material_color = _color.Color(0.8, 0.2, 0.8, 0.99)
         material = _materials.Plastic(material_color)
 
         _base3d.Base3D.__init__(self, parent, None, None, angle, self._position, scale, material, data=data)
 
-        self._selected_material = _materials.Plastic(_color.Color(0.8, 0.8, 0.2, 1.0))
+        self._selected_material = _materials.Plastic(_color.Color(0.8, 0.8, 0.2, 0.99))
         self._is_visible = True
         self.editor3d.Refresh(False)
-
-    def _update_real_position(self, position: _point.Point):
-        delta = position - self._o_real_position
-
-        if self._allow_real_update:
-            self._allow_real_update = False
-            self._position += delta
-            self._allow_real_update = True
-            self._o_real_position = position.copy()
-
-    def _update_position(self, position: _point.Point):
-        delta = position - self._o_position
-
-        if self._allow_real_update:
-            self._allow_real_update = False
-            self._real_position += delta
-            self._allow_real_update = True
-            self._o_real_position = self._real_position.copy()
-
-        _base3d.Base3D._update_position(self, position)
 
 
 class Housing(_objects.ObjectBase):
     obj3d: "Housing3D" = None
 
-    def __init__(self, parent, housing):
+    def __init__(self, parent: "HousingEditorDialog", housing: "_housing.Housing"):
         super().__init__(parent)
+        self.dialog = parent
         self.obj3d = Housing3D(self, housing)
         self.obj2d = None
 
@@ -360,10 +345,10 @@ class Housing(_objects.ObjectBase):
 class Housing3D(_base3d.Base3D):
     db_obj: "_housing.Housing" = None
 
-    def __init__(self, parent, db_obj: "_housing.Housing"):
-        angle = _angle.Angle()
-        scale = _point.Point(1.0, 1.0, 1.0)
+    def __init__(self, parent: "Housing", db_obj: "_housing.Housing"):
+        self.dialog = parent.dialog
 
+        scale = _point.Point(1.0, 1.0, 1.0)
         model = db_obj.model3d
 
         if model is not None:
@@ -371,11 +356,10 @@ class Housing3D(_base3d.Base3D):
         else:
             vertices, faces = _box.create(db_obj.width, db_obj.height, db_obj.length)
 
-        aabb = _utils.compute_aabb(vertices)
+        angle = db_obj.angle3d
+        vertices @= angle
 
-        self.y_offset = aabb[0].y
-
-        position = _point.Point(0.0, abs(self.y_offset), 0.0)
+        position = _point.Point(0.0, 0.0, 0.0)
         vertices += position
 
         data = _utils.compute_vertex_normals(vertices, faces)
@@ -562,6 +546,9 @@ class CavityPanel(scrolledpanel.ScrolledPanel):
         self.SetSizer(vsizer)
         self.SetupScrolling()
 
+        if not self.cavities:
+            self.dialog.housing_panel.enable_housing_rotation(True)
+
     def on_cavity_terminal_sizes(self, evt):
         evt.Skip()
 
@@ -641,6 +628,9 @@ class CavityPanel(scrolledpanel.ScrolledPanel):
                 if (num_pins > 0 and idx <= num_pins) or num_pins == 0:
                     cavity = self.housing.db_obj.table.db.cavities_table.insert(housing_id, idx)
 
+                    if not self.cavities:
+                        self.dialog.housing_panel.enable_housing_rotation(False)
+
                     cavity = Cavity(self.dialog, cavity).obj3d
                     cavity.name = name
                     self.cavity_names.append(name)
@@ -660,7 +650,6 @@ class CavityPanel(scrolledpanel.ScrolledPanel):
                     housing_y = housing_length / 2.0
 
                     y_offset = -housing_y
-
                     c_x_offset = 0
 
                     for name in self.cavity_names:
@@ -832,6 +821,7 @@ class HousingPanel(scrolledpanel.ScrolledPanel):
         scrolledpanel.ScrolledPanel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_NONE)
 
         vsizer = wx.BoxSizer(wx.VERTICAL)
+
         boot_position_sz = wx.StaticBoxSizer(wx.VERTICAL, self, "Boot Position")
         boot_position_sb = boot_position_sz.GetStaticBox()
 
@@ -1020,8 +1010,102 @@ class HousingPanel(scrolledpanel.ScrolledPanel):
 
         vsizer.Add(seal_position_sz, 0, wx.EXPAND | wx.ALL, 5)
 
+        housing_angle_sz = wx.StaticBoxSizer(wx.VERTICAL, self, "Housing Angle")
+        housing_angle_sb = housing_angle_sz.GetStaticBox()
+
+        self.housing_x_angle = _float_ctrl.FloatCtrl(
+            housing_angle_sb, 'X:', min_val=-180.0, max_val=180.0, inc=0.01, slider=True)
+        self.housing_x_angle.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_housing_x_angle)
+        self.housing_x_angle.Enable(False)
+        self.housing_x_angle.SetToolTip('You need to remove all added cavities in order to rotare the housing')
+
+        self.housing_y_angle = _float_ctrl.FloatCtrl(
+            housing_angle_sb, 'Y:', min_val=-180.0, max_val=180.0, inc=0.01, slider=True)
+        self.housing_y_angle.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_housing_y_angle)
+        self.housing_y_angle.Enable(False)
+        self.housing_y_angle.SetToolTip('You need to remove all added cavities in order to rotare the housing')
+
+        self.housing_z_angle = _float_ctrl.FloatCtrl(
+            housing_angle_sb, 'Z:', min_val=-180.0, max_val=180.0, inc=0.01, slider=True)
+        self.housing_z_angle.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_housing_z_angle)
+        self.housing_z_angle.Enable(False)
+        self.housing_z_angle.SetToolTip('You need to remove all added cavities in order to rotare the housing')
+
+        self.housing_angle = housing.angle
+        self.housing_angle.bind(self.update_housing_angle)
+        self.o_housing_angle = self.housing_angle.copy()
+        x, y, z = self.housing_angle.as_euler_float
+
+        self.housing_x_angle.SetValue(x)
+        self.housing_y_angle.SetValue(y)
+        self.housing_z_angle.SetValue(z)
+
+        housing_angle_sz.Add(self.housing_x_angle, 0, wx.EXPAND | wx.ALL, 5)
+        housing_angle_sz.Add(self.housing_y_angle, 0, wx.EXPAND | wx.ALL, 5)
+        housing_angle_sz.Add(self.housing_z_angle, 0, wx.EXPAND | wx.ALL, 5)
+
+        vsizer.Add(housing_angle_sz, 0, wx.EXPAND | wx.ALL, 5)
+
         self.SetSizer(vsizer)
         self.SetupScrolling()
+
+    def update_housing_angle(self, angle: _angle.Angle):
+        seal_pos = self.seal_pos.copy()
+        cover_pos = self.cover_pos.copy()
+        cpa_pos = self.cpa_pos.copy()
+        tpa1_pos = self.tpa1_pos.copy()
+        tpa2_pos = self.tpa2_pos.copy()
+        boot_pos = self.boot_pos.copy()
+
+        inverse = self.o_housing_angle.inverse
+
+        seal_pos @= inverse
+        cover_pos @= inverse
+        cpa_pos @= inverse
+        tpa1_pos @= inverse
+        tpa2_pos @= inverse
+        boot_pos @= inverse
+
+        seal_pos @= angle
+        cover_pos @= angle
+        cpa_pos @= angle
+        tpa1_pos @= angle
+        tpa2_pos @= angle
+        boot_pos @= angle
+
+        self.o_housing_angle = angle.copy()
+
+        delta = seal_pos - self.seal_pos
+        self.seal_pos += delta
+
+        delta = cover_pos - self.cover_pos
+        self.cover_pos += delta
+
+        delta = cpa_pos - self.cpa_pos
+        self.cpa_pos += delta
+
+        delta = tpa1_pos - self.tpa1_pos
+        self.tpa1_pos += delta
+
+        delta = tpa2_pos - self.tpa2_pos
+        self.tpa2_pos += delta
+
+        delta = boot_pos - self.boot_pos
+        self.boot_pos += delta
+
+    def enable_housing_rotation(self, flag: bool):
+        if flag:
+            self.housing_x_angle.SetToolTip('')
+            self.housing_z_angle.SetToolTip('')
+            self.housing_y_angle.SetToolTip('')
+        else:
+            self.housing_x_angle.SetToolTip('You need to remove all added cavities in order to rotare the housing')
+            self.housing_z_angle.SetToolTip('You need to remove all added cavities in order to rotare the housing')
+            self.housing_y_angle.SetToolTip('You need to remove all added cavities in order to rotare the housing')
+
+        self.housing_x_angle.Enable(flag)
+        self.housing_y_angle.Enable(flag)
+        self.housing_z_angle.Enable(flag)
 
     def on_boot_pos(self, position: _point.Point):
         x, y, z = position.as_float
@@ -1191,6 +1275,21 @@ class HousingPanel(scrolledpanel.ScrolledPanel):
         self.seal_pos.bind(self.on_seal_pos)
         evt.Skip()
 
+    def on_housing_x_angle(self, evt):
+        x = self.housing_x_angle.GetValue()
+        self.housing_angle.x = x
+        evt.Skip()
+
+    def on_housing_y_angle(self, evt):
+        y = self.housing_y_angle.GetValue()
+        self.housing_angle.y = y
+        evt.Skip()
+
+    def on_housing_z_angle(self, evt):
+        z = self.housing_z_angle.GetValue()
+        self.housing_angle.z = z
+        evt.Skip()
+
 
 class HousingEditorDialog(wx.Dialog):
 
@@ -1252,3 +1351,7 @@ class HousingEditorDialog(wx.Dialog):
 
     def get_selected(self):
         return self._selected_obj
+
+    @property
+    def config(self):
+        return Config.editor3d

@@ -1,3 +1,5 @@
+
+from wx import propgrid as wxpg
 from .base import BaseMixin
 
 
@@ -10,3 +12,11 @@ class Visible2DMixin(BaseMixin):
     @is_visible2d.setter
     def is_visible2d(self, value: bool):
         self._table.update(self._db_id, is_visible2d=int(value))
+
+    @property
+    def _visible2d_propgrid(self) -> wxpg.PGProperty:
+        from ....ui.editor_obj.prop_grid import bool_prop as _bool_prop
+
+        visible_prop = _bool_prop.BoolProperty('Visible 2D', 'is_visible2d', self.is_visible2d)
+
+        return visible_prop

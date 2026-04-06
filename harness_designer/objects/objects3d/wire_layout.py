@@ -20,8 +20,8 @@ Config = _config.Config.editor3d
 
 
 class WireLayout(_base3d.Base3D):
-    _parent: "_wire_layout.WireLayout" = None
-    db_obj: "_pjt_wire_layout.PJTWireLayout"
+    parent: "_wire_layout.WireLayout" = None
+    db_obj: "_pjt_wire_layout.PJTWireLayout" = None
 
     def __init__(self, parent: "_wire_layout.WireLayout",
                  db_obj: "_pjt_wire_layout.PJTWireLayout"):

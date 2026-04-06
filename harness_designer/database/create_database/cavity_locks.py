@@ -2,7 +2,7 @@ from .. import db_connectors as _con
 from ... import logger as _logger
 
 
-def add_records(con, splash):
+def add_records(con, splash, _):
     con.execute('SELECT id FROM cavity_locks WHERE id=0;')
     if con.fetchall():
         return
@@ -61,4 +61,3 @@ table = _con.SQLTable(
     _con.TextField('name', is_unique=True, no_null=True),
     _con.TextField('description', default='""', no_null=True)
 )
-

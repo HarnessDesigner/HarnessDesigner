@@ -1,7 +1,10 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
+import weakref
+from wx import propgrid as wxpg
+
 from .pjt_bases import PJTEntryBase, PJTTableBase
-from .mixins import Position3DMixin, Visible3DMixin
+from .mixins import Position3DMixin, Visible3DMixin, NotesMixin
 
 if TYPE_CHECKING:
     from . import pjt_bundle as _pjt_bundle
@@ -11,6 +14,11 @@ if TYPE_CHECKING:
 
 class PJTBundleLayoutsTable(PJTTableBase):
     __table_name__ = 'pjt_bundle_layouts'
+
+    def get_from_position3d_id(self, position3d_id) -> "PJTBundleLayout":
+        rows = self.select('id', position3d_id=position3d_id)
+        if rows:
+            return self[rows[0][0]]
 
     def _table_needs_update(self) -> bool:
         from ..create_database import bundle_cover_layouts
@@ -45,14 +53,30 @@ class PJTBundleLayoutsTable(PJTTableBase):
         return PJTBundleLayout(self, db_id, self.project_id)
 
 
-class PJTBundleLayout(PJTEntryBase, Position3DMixin, Visible3DMixin):
+class PJTBundleLayout(PJTEntryBase, Position3DMixin, Visible3DMixin, NotesMixin):
     _table: PJTBundleLayoutsTable = None
 
+    def build_monitor_packet(self):
+        packet = {
+            'pjt_bundle_layouts': [self.db_id],
+            'pjt_points3d': [self.position3d_id],
+        }
+        return packet
+
     def get_object(self) -> "_bundle_layout_obj.BundleLayout":
+        if self._obj is not None:
+            return self._obj()
+
         return self._obj
 
+    def __release_obj_ref(self, _):
+        self._obj = None
+
     def set_object(self, obj: "_bundle_layout_obj.BundleLayout"):
-        self._obj = obj
+        if obj is not None:
+            self._obj = weakref.ref(obj, self.__release_obj_ref)
+        else:
+            self._obj = obj
 
     @property
     def attached_bundles(self) -> list["_pjt_bundle.PJTBundle"]:
@@ -78,3 +102,17 @@ class PJTBundleLayout(PJTEntryBase, Position3DMixin, Visible3DMixin):
     def diameter(self, value: float):
         self._table.update(self._db_id, diameter=value)
         self._process_callbacks()
+
+    @property
+    def propgrid(self) -> wxpg.PGProperty:
+        group = wxpg.PropertyCategory('Project')
+
+        notes_prop = self._notes_propgrid
+        position_prop = self._position3d_propgrid
+        visible_prop = self._visible3d_propgrid
+
+        group.AppendChild(notes_prop)
+        group.AppendChild(position_prop)
+        group.AppendChild(visible_prop)
+
+        return group

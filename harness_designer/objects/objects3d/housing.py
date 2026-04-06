@@ -6,6 +6,14 @@ from ...ui.widgets import context_menus as _context_menus
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ...geometry.decimal import Decimal as _d
+from ...ui.dialogs import housing_editor as _housing_editor
+from ...ui.dialogs import pjt_add_seal as _pjt_add_seal
+from ...ui.dialogs import pjt_add_terminal as _pjt_add_terminal
+from ...ui.dialogs import pjt_add_cpa_lock as _pjt_add_cpa_lock
+from ...ui.dialogs import pjt_add_tpa_lock as _pjt_add_tpa_lock
+from ...ui.dialogs import pjt_add_cover as _pjt_add_cover
+from ...ui.dialogs import pjt_add_boot as _pjt_add_boot
+
 from . import base3d as _base3d
 from ...shapes import box as _box
 from ...gl import vbo as _vbo
@@ -17,14 +25,15 @@ from ... import utils as _utils
 if TYPE_CHECKING:
     from ...database.project_db import pjt_housing as _pjt_housing
     from .. import housing as _housing
+    from ... import ui as _ui
 
 
 Config = _config.Config.editor3d
 
 
 class Housing(_base3d.Base3D):
-    _parent: "_housing.Housing" = None
-    db_obj: "_pjt_housing.PJTHousing"
+    parent: "_housing.Housing" = None
+    db_obj: "_pjt_housing.PJTHousing" = None
 
     def __init__(self, parent: "_housing.Housing",
                  db_obj: "_pjt_housing.PJTHousing"):
@@ -58,305 +67,181 @@ class Housing(_base3d.Base3D):
 
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, db_obj.position3d, scale, material)
 
-        if self._aabb[0][1] < Config.floor.ground_height:
-            self._position.y += Config.floor.ground_height - self._aabb[0][1]
-
     def get_context_menu(self):
-        return HousingMenu(self.mainframe.editor3d.editor, self)
-
-
-from ...ui.widgets import combobox_ctrl
-
-
-class AddCavity(wx.PopupWindow):
-
-    def __init__(self, parent, housing: "Housing", choices):
-
-        wx.PopupWindow.__init__(self, parent, flags=wx.BORDER_SUNKEN | wx.PU_CONTAINS_CONTROLS)
-
-        self.housing = housing
-
-        self.ctrl = combobox_ctrl.ComboBoxCtrl(self, 'Select Cavity:', choices)
-        self.ctrl.SetToolTipString('Select a cavity to add or enter a name to add a new one.')
-
-        self.add_button = wx.Button(self, wx.ID_ANY, label='Add Cavity')
-        self.cancel_button = wx.Button(self, wx.ID_ANY, label='Cancel')
-
-        vsizer = wx.BoxSizer(wx.VERTICAL)
-
-        button_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        button_sizer.AddStretchSpacer(3)
-        button_sizer.Add(self.cancel_button, 1, wx.RIGHT, 5)
-        button_sizer.Add(self.add_button, 1, wx.LEFT, 5)
-
-        vsizer.Add(self.ctrl, 0, wx.EXPAND | wx.ALL, 15)
-        vsizer.Add(button_sizer, 0, wx.EXPAND | wx.ALL, 15)
-
-        self.add_button.Bind(wx.EVT_BUTTON, self.on_add)
-        self.cancel_button.Bind(wx.EVT_BUTTON, self.on_cancel)
-
-        self.SetSizer(vsizer)
-
-    def on_add(self):
-        name = self.ctrl.GetValue().split(':')[-1].strip()
-        self.housing.add_cavity(name)
-        self.Destroy()
-
-    def on_cancel(self):
-        self.Destroy()
-
+        return HousingMenu(self.mainframe, self)
 
 
 class HousingMenu(wx.Menu):
 
-    def __init__(self, canvas, selected: Housing):
+    def __init__(self, mainframe: "_ui.MainFrame", obj: Housing):
         wx.Menu.__init__(self)
-        self.canvas = canvas
-        self.selected = selected
-
-        item = self.Append(wx.ID_ANY, 'Add Cavity')
-        canvas.Bind(wx.EVT_MENU, self.on_add_cavity, id=item.GetId())
+        self.mainframe = mainframe
+        self.canvas = mainframe.editor3d.editor
+        self.obj = obj
 
         item = self.Append(wx.ID_ANY, 'Add Seal')
-        canvas.Bind(wx.EVT_MENU, self.on_add_seal, id=item.GetId())
+        self.canvas.Bind(wx.EVT_MENU, self.on_add_seal, id=item.GetId())
 
         item = self.Append(wx.ID_ANY, 'Add Terminal')
-        canvas.Bind(wx.EVT_MENU, self.on_add_terminal, id=item.GetId())
+        self.canvas.Bind(wx.EVT_MENU, self.on_add_terminal, id=item.GetId())
 
         item = self.Append(wx.ID_ANY, 'Add CPA Lock')
-        canvas.Bind(wx.EVT_MENU, self.on_add_cpa_lock, id=item.GetId())
+        self.canvas.Bind(wx.EVT_MENU, self.on_add_cpa_lock, id=item.GetId())
 
         item = self.Append(wx.ID_ANY, 'Add TPA Lock')
-        canvas.Bind(wx.EVT_MENU, self.on_add_tpa_lock, id=item.GetId())
+        self.canvas.Bind(wx.EVT_MENU, self.on_add_tpa_lock, id=item.GetId())
 
         item = self.Append(wx.ID_ANY, 'Add Cover')
-        canvas.Bind(wx.EVT_MENU, self.on_add_cover, id=item.GetId())
+        self.canvas.Bind(wx.EVT_MENU, self.on_add_cover, id=item.GetId())
 
         item = self.Append(wx.ID_ANY, 'Add Boot')
-        canvas.Bind(wx.EVT_MENU, self.on_add_boot, id=item.GetId())
+        self.canvas.Bind(wx.EVT_MENU, self.on_add_boot, id=item.GetId())
 
         self.AppendSeparator()
 
-        rotate_menu = _context_menus.Rotate3DMenu(canvas, selected)
+        rotate_menu = _context_menus.Rotate3DMenu(self.canvas, obj)
         self.AppendSubMenu(rotate_menu, 'Rotate')
 
-        mirror_menu = _context_menus.Mirror3DMenu(canvas, selected)
+        mirror_menu = _context_menus.Mirror3DMenu(self.canvas, obj)
         self.AppendSubMenu(mirror_menu, 'Mirror')
 
         self.AppendSeparator()
         item = self.Append(wx.ID_ANY, 'Select')
-        canvas.Bind(wx.EVT_MENU, self.on_select, id=item.GetId())
+        self.canvas.Bind(wx.EVT_MENU, self.on_select, id=item.GetId())
 
         item = self.Append(wx.ID_ANY, 'Clone')
-        canvas.Bind(wx.EVT_MENU, self.on_clone, id=item.GetId())
+        self.canvas.Bind(wx.EVT_MENU, self.on_clone, id=item.GetId())
 
         self.AppendSeparator()
         item = self.Append(wx.ID_ANY, 'Delete')
-        canvas.Bind(wx.EVT_MENU, self.on_delete, id=item.GetId())
+        self.canvas.Bind(wx.EVT_MENU, self.on_delete, id=item.GetId())
 
         self.AppendSeparator()
         item = self.Append(wx.ID_ANY, 'Properties')
-        canvas.Bind(wx.EVT_MENU, self.on_properties, id=item.GetId())
+        self.canvas.Bind(wx.EVT_MENU, self.on_properties, id=item.GetId())
 
-    def on_add_cavity(self, evt: wx.MenuEvent):
-        num_pins = self.selected.db_obj.part.num_pins
-        part_cavities = self.selected.db_obj.part.cavities
-        cavities = self.selected.db_obj.cavities
+        item = self.Append(wx.ID_ANY, 'Housing Editor')
+        self.canvas.Bind(wx.EVT_MENU, self.on_housing_editor, id=item.GetId())
 
-        names_list = []
+    def on_housing_editor(self, evt: wx.MenuEvent):
 
-        for cavity in part_cavities:
-            if cavity is not None:
-                names_list.append(f'{cavity.idx}: {cavity.name}')
+        def _do(housing):
+            dlg = _housing_editor.HousingEditorDialog(self.mainframe, housing)
+            dlg.ShowModal()
+            dlg.Destroy()
+
+        wx.CallAfter(_do, self.selected.db_obj.part)
 
         evt.Skip()
 
     def on_add_seal(self, evt: wx.MenuEvent):
+
+        def _do(housing: "_pjt_housing.PJTHousing"):
+            dlg = _pjt_add_seal.AddSealDialog(self.mainframe, housing)
+            if dlg.ShowModal() == wx.ID_OK:
+                part_id, db_id = dlg.GetValue()
+                obj_type = dlg.GetObjectType()
+
+                if obj_type == _pjt_add_seal.CAVITY:
+                    self.mainframe.project.add_seal(part_id, cavity_id=db_id)
+                elif obj_type == _pjt_add_seal.TERMINAL:
+                    self.mainframe.project.add_seal(part_id, terminal_id=db_id)
+                elif obj_type == _pjt_add_seal.HOUSING:
+                    self.mainframe.project.add_seal(part_id, housing_id=db_id)
+                else:
+                    raise RuntimeError('sanity check')
+
+            dlg.Destroy()
+
+        wx.CallAfter(_do, self.obj.db_obj)
         evt.Skip()
 
     def on_add_terminal(self, evt: wx.MenuEvent):
+        def _do(housing: "_pjt_housing.PJTHousing"):
+            dlg = _pjt_add_terminal.AddTerminalDialog(self.mainframe, housing)
+
+            if dlg.ShowModal() == wx.ID_OK:
+                part_id, db_id = dlg.GetValue()
+                self.mainframe.project.add_terminal(part_id, cavity_id=db_id)
+
+            dlg.Destroy()
+
+        wx.CallAfter(_do, self.obj.db_obj)
         evt.Skip()
 
     def on_add_cpa_lock(self, evt: wx.MenuEvent):
+
+        def _do(housing: "_pjt_housing.PJTHousing"):
+            dlg = _pjt_add_cpa_lock.AddCPALockDialog(self.mainframe, housing)
+
+            if dlg.ShowModal() == wx.ID_OK:
+                part_id = dlg.GetValue()
+                self.mainframe.project.add_cpa_lock(part_id, housing_id=housing.db_id)
+
+            dlg.Destroy()
+
+        wx.CallAfter(_do, self.obj.db_obj)
         evt.Skip()
 
     def on_add_tpa_lock(self, evt: wx.MenuEvent):
+        def _do(housing: "_pjt_housing.PJTHousing"):
+            dlg = _pjt_add_tpa_lock.AddTPALockDialog(self.mainframe, housing)
+
+            if dlg.ShowModal() == wx.ID_OK:
+                part_id, idx = dlg.GetValue()
+                self.mainframe.project.add_tpa_lock(part_id, idx=idx, housing_id=housing.db_id)
+
+            dlg.Destroy()
+
+        wx.CallAfter(_do, self.obj.db_obj)
         evt.Skip()
 
     def on_add_cover(self, evt: wx.MenuEvent):
+        def _do(housing: "_pjt_housing.PJTHousing"):
+            dlg = _pjt_add_cover.AddCoverDialog(self.mainframe, housing)
+
+            if dlg.ShowModal() == wx.ID_OK:
+                part_id = dlg.GetValue()
+                self.mainframe.project.add_cover(part_id, housing_id=housing.db_id)
+
+            dlg.Destroy()
+
+        wx.CallAfter(_do, self.obj.db_obj)
         evt.Skip()
 
     def on_add_boot(self, evt: wx.MenuEvent):
+        def _do(housing: "_pjt_housing.PJTHousing"):
+            dlg = _pjt_add_boot.AddBootDialog(self.mainframe, housing)
+
+            if dlg.ShowModal() == wx.ID_OK:
+                part_id = dlg.GetValue()
+                self.mainframe.project.add_boot(part_id, housing_id=housing.db_id)
+
+            dlg.Destroy()
+
+        wx.CallAfter(_do, self.obj.db_obj)
         evt.Skip()
 
     def on_select(self, evt: wx.MenuEvent):
+        selected = self.mainframe.get_selected()
+
+        if selected is not None:
+            selected.set_selected(False)
+
+        self.obj.set_selected(True)
+
         evt.Skip()
 
     def on_clone(self, evt: wx.MenuEvent):
+        self.mainframe.editor3d.SetCursor(wx.CURSOR_BULLSEYE)
+        self.mainframe.set_clone_obj(self.obj.parent)
+
         evt.Skip()
 
     def on_delete(self, evt: wx.MenuEvent):
+        self.obj.delete()
+
         evt.Skip()
 
     def on_properties(self, evt: wx.MenuEvent):
         evt.Skip()
-
-
-# import build123d
-# import numpy as np
-#
-# from .mixins import angle as _arrow_angle
-# from .mixins import move as _arrow_move
-# from . import cavity as _cavity
-#
-# from ...editor_3d import gl_object as _gl_object
-# from ...geometry import point as _point
-# from ...geometry import angle as _angle
-# from ...wrappers.decimal import Decimal as _decimal
-# from ...editor_3d import debug as _debug
-#
-#
-# class Housing(_gl_object.GLObject, _arrow_move.MoveMixin, _arrow_angle.AngleMixin):
-#
-#     def __init__(self, parent, file, position: _point.Point):
-#         super().__init__()
-#         self.parent = parent
-#         self._detent_update_counter: int = 0
-#
-#         self.cavities = []
-#
-#         self._model = self._read_mesh(file)
-#
-#         tris, normals, count = self.get_mesh_triangles(self._verts, self._faces)
-#
-#         verts = self._verts.reshape(-1, 3)
-#
-#         col_min = verts.min(axis=0)  # shape (3,) -> array([-0.7,  0.3, -1. ])
-#         col_max = verts.max(axis=0)  # shape (3,) -> array([1.2, 3.1, 4. ])
-#
-#         p1 = _point.Point(*[_decimal(item) for item in col_min])
-#         p2 = _point.Point(*[_decimal(item) for item in col_max])
-#
-#         self.hit_test_rect = [[p1, p2]]
-#         self.adjust_hit_points()
-#
-#         p1, p2 = self.hit_test_rect[0]
-#
-#         center = ((p2 - p1) / _decimal(2.0)) + p1
-#         c_offset = _point.Point(-center.x, -center.y, -center.z)
-#         tris += c_offset
-#
-#         p1 += c_offset
-#         p2 += c_offset
-#
-#         self._point = position
-#         self._o_point = self._point.copy()
-#         self._point.bind(self._update_point)
-#
-#         self._angle = _angle.Angle()
-#
-#         self._o_angle = self._angle.copy()
-#         self._angle.bind(self._update_angle)
-#
-#         self._colors = [
-#             np.full((count, 4), [0.4, 0.4, 0.4, 1.0], dtype=np.float32),
-#             np.full((count, 4), [0.5, 0.5, 1.0, 0.40], dtype=np.float32),
-#             np.full((count, 4), [0.5, 1.0, 0.5, 0.40], dtype=np.float32)
-#         ]
-#
-#         normals @= self.angle
-#         tris @= self.angle
-#         tris += position
-#
-#         p1 @= self.angle
-#         p2 @= self.angle
-#
-#         p1 += position
-#         p2 += position
-#
-#         self.adjust_hit_points()
-#         self._triangles = [[tris, normals, count]]
-#
-#         parent.canvas.add_object(self)
-#
-#     @staticmethod
-#     def get_housing_triangles(model):
-#         if Config.modeling.smooth_housings:
-#             return model_to_mesh.get_smooth_triangles(model)
-#         else:
-#             return model_to_mesh.get_triangles(model)
-#
-#     def release_mouse(self):
-#         self._detent_update_counter = 0
-#
-#     def get_first_points(self):
-#         tris = self._triangles[0][0]
-#         p = _point.Point(_decimal(tris[0][0][0]), _decimal(tris[0][0][1]), _decimal(tris[0][0][2]))
-#         return [p]
-#
-#     @property
-#     def triangles(self):
-#         tris, norms, count = self._triangles[0]
-#         if self._is_selected and self._detent_update_counter:
-#             color = self._colors[2]
-#         else:
-#             color = self._colors[int(self._is_selected)]
-#
-#         triangles = [[tris, norms, color, count, color[0][-1] == 1.0]]
-#         return triangles
-#
-#     def get_canvas(self):
-#         return self.parent.canvas
-#
-#     @property
-#     def position(self) -> _point.Point:
-#         return self._point
-#
-#     @property
-#     def angle(self) -> _angle.Angle:
-#         return self._angle
-#
-#     @_debug.timeit
-#     def _update_point(self, point: _point.Point):
-#         delta = point - self._o_point
-#         self._o_point = point.copy()
-#
-#         self._triangles[0][0] += delta
-#
-#         for p in self.hit_test_rect[0]:
-#             p += delta
-#
-#         self.adjust_hit_points()
-#
-#     @_debug.timeit
-#     def _update_angle(self, angle: _angle.Angle):
-#         delta = angle - self._o_angle
-#         self._o_angle = angle.copy()
-#
-#         self._triangles[0][0] -= self._point
-#
-#         self._triangles[0][0] @= delta
-#         self._triangles[0][1] @= delta
-#
-#         # self.triangles[3][0] += self._point
-#         self._triangles[0][0] += self._point
-#
-#         for p in self.hit_test_rect[0]:
-#             p -= self._point
-#             p @= delta
-#             p += self._point
-#
-#         self.adjust_hit_points()
-#
-#     def add_cavity(self):
-#         if len(self.cavities) < 6:
-#             index = len(self.cavities)
-#             name = 'ABCDEF'[index]
-#
-#             pos = _point.Point(_decimal(0.0), _decimal(0.0), _decimal(0.0))
-#             angle = _angle.Angle.from_quat(np.array([0.0, 0.0, 0.0, 1.0], dtype=np.float64))
-#             length = _decimal(40.0)
-#
-#             self.cavities.append(_cavity.Cavity(self, index, name, angle=angle, point=pos,
-#                                                 length=length, terminal_size=_decimal(1.5)))
-#

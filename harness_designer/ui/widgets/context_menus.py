@@ -4,9 +4,9 @@ import wx
 
 class Rotate2DMenu(wx.Menu):
 
-    def __init__(self, canvas, selected):
+    def __init__(self, canvas, obj):
         wx.Menu.__init__(self)
-        self.selected = selected
+        self.selected = obj
         self.canvas = canvas
 
         item = self.Append(wx.ID_ANY, 'Clockwise 90°')
@@ -31,9 +31,9 @@ class Rotate2DMenu(wx.Menu):
 
 class Mirror2DMenu(wx.Menu):
 
-    def __init__(self, canvas, selected):
+    def __init__(self, canvas, obj):
         wx.Menu.__init__(self)
-        self.selected = selected
+        self.selected = obj
         self.canvas = canvas
 
         item = self.Append(wx.ID_ANY, 'X')

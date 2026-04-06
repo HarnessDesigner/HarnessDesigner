@@ -4,6 +4,8 @@ import sys
 import os
 import wx
 
+from PIL import Image as _Image
+
 from . import utils
 
 
@@ -24,6 +26,10 @@ class Image:
 
         with open(self._path, 'rb') as f:
             return f.read()
+
+    @property
+    def pil(self) -> _Image.Image:
+        return utils.bytes_data_2_pil_image(self.png_data)
 
     @property
     def bitmap(self) -> wx.Bitmap:
@@ -64,6 +70,42 @@ class Image:
         res = Image(self.name, png_data=utils.pil_image_2_png_bytes(img))
         img.close()
         return res
+
+    def __or__(self, other: "Image"):
+        img1 = self.pil
+        img2 = other.pil
+
+        w1, h1 = img1.size
+        w2, h2 = img2.size
+
+        w = w1 + w2
+
+        if h1 > h2:
+            h = h1
+
+            img = _Image.new('RGBA', (w, h), (0, 0, 0, 0))
+            x_offset = int((h1 - h2) / 2)
+            y_offset = w1
+
+            img.paste(img1)
+            img.paste(img2, (x_offset, y_offset))
+
+        else:
+            h = h2
+
+            img = _Image.new('RGBA', (w, h), (0, 0, 0, 0))
+            x_offset = int((h2 - h1) / 2)
+            y_offset = w1
+
+            img.paste(img1, (0, y_offset))
+            img.paste(img2, (x_offset, 0))
+
+        data = utils.pil_image_2_png_bytes(img)
+        img1.close()
+        img2.close()
+        img.close()
+
+        return Image(f'{self.name}|{other.name}', png_data=data)
 
     def __add__(self, other: "Image") -> "Image":
         dc = wx.MemoryDC()
@@ -154,6 +196,25 @@ __base = ImageLoader(BASE_PATH)
 
 if TYPE_CHECKING:
 
+    class ip:
+        IP1X: Image = ...
+        IP2X: Image = ...
+        IP3X: Image = ...
+        IP4X: Image = ...
+        IP5X: Image = ...
+        IP6X: Image = ...
+        IPX1: Image = ...
+        IPX2: Image = ...
+        IPX3: Image = ...
+        IPX4: Image = ...
+        IPX5: Image = ...
+        IPX6: Image = ...
+        IPX6K: Image = ...
+        IPX7: Image = ...
+        IPX8: Image = ...
+        IPX9: Image = ...
+        IPX9K: Image = ...
+
     class cursors(ImageLoader):
         back_angle: Image = ...
         forward_angle: Image = ...
@@ -243,3 +304,4 @@ if TYPE_CHECKING:
 
     class images(ImageLoader):
         header_600x80: Image = ...
+        no_image: Image = ...

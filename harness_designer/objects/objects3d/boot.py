@@ -23,8 +23,8 @@ Config = _config.Config.editor3d
 
 
 class Boot(_base3d.Base3D):
-    _parent: "_boot.Boot" = None
-    db_obj: "_pjt_boot.PJTBoot"
+    parent: "_boot.Boot" = None
+    db_obj: "_pjt_boot.PJTBoot" = None
 
     def __init__(self, parent: "_boot.Boot", db_obj: "_pjt_boot.PJTBoot"):
         self._part = db_obj.part

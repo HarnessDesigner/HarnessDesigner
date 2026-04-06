@@ -25,8 +25,8 @@ Config = _config.Config.editor3d
 
 
 class Wire(_base3d.Base3D):
-    _parent: "_wire.Wire" = None
-    db_obj: "_pjt_wire.PJTWire"
+    parent: "_wire.Wire" = None
+    db_obj: "_pjt_wire.PJTWire" = None
 
     def __init__(self, parent: "_wire.Wire", db_obj: "_pjt_wire.PJTWire"):
         self._part = db_obj.part

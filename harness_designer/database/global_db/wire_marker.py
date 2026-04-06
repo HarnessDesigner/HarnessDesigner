@@ -1,9 +1,11 @@
 from typing import Iterable as _Iterable
 
+from wx import propgrid as wxpg
+
 from .bases import EntryBase, TableBase
 
-from .mixins import (PartNumberMixin, ManufacturerMixin, DescriptionMixin,
-                     ResourceMixin, ColorMixin)
+from .mixins import (PartNumberMixin, ManufacturerMixin, DescriptionMixin, FamilyMixin,
+                     SeriesMixin, ColorMixin, TemperatureMixin, ResourceMixin, WeightMixin)
 
 
 class WireMarkersTable(TableBase):
@@ -118,9 +120,26 @@ class WireMarkersTable(TableBase):
 
 
 class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
-                 ColorMixin, ResourceMixin):
+                 FamilyMixin, SeriesMixin, ColorMixin, TemperatureMixin, ResourceMixin,
+                 WeightMixin):
 
     _table: WireMarkersTable = None
+
+    def build_monitor_packet(self):
+        mfg = self.manufacturer
+        color = self.color
+
+        packet = {
+            'wire_markers': [self.db_id],
+            'colors': [color.db_id],
+            'datasheets': [self.datasheet_id],
+            'cads': [self.cad_id],
+            'images': [self.image_id]
+        }
+
+        self.merge_packet_data(mfg.build_monitor_packet(), packet)
+
+        return packet
 
     @property
     def weight(self) -> float:
@@ -155,9 +174,94 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
         self._table.update(self._db_id, max_diameter=value)
 
     @property
+    def min_awg(self) -> int:
+        return self._table.select('min_awg', id=self._db_id)[0][0]
+
+    @min_awg.setter
+    def min_awg(self, value: int):
+        self._table.update(self._db_id, min_awg=value)
+
+    @property
+    def max_awg(self) -> int:
+        return self._table.select('max_awg', id=self._db_id)[0][0]
+
+    @max_awg.setter
+    def max_awg(self, value: int):
+        self._table.update(self._db_id, max_awg=value)
+
+    @property
     def length(self) -> float:
         return self._table.select('length', id=self._db_id)[0][0]
 
     @length.setter
     def length(self, value: float):
         self._table.update(self._db_id, length=value)
+
+    @property
+    def propgrid(self):
+        from ...ui.editor_obj.prop_grid import float_prop as _float_prop
+        from ...ui.editor_obj.prop_grid import int_prop as _int_prop
+        from ...ui.editor_obj.prop_grid import bool_prop as _bool_prop
+
+        part_cat = wxpg.PropertyCategory('Part Attributes')
+        
+        part_number_prop = self._part_number_propgrid
+        manufacturer_prop = self._manufacturer_propgrid
+        description_prop = self._description_propgrid
+
+        family_prop = self._family_propgrid
+        series_prop = self._series_propgrid
+        color_prop = self._color_propgrid
+        temperature_prop = self._temperature_propgrid
+
+        diameter_prop = wxpg.PGProperty('Diameter')
+
+        min_diameter_prop = _float_prop.FloatProperty(
+            'Minimum', 'min_diameter', self.min_diameter, min_value=0.05,
+            max_value=60.0, increment=0.01, units='mm')
+            
+        max_diameter_prop = _float_prop.FloatProperty(
+            'Maximum', 'max_diameter', self.max_diameter, min_value=0.05,
+            max_value=60.0, increment=0.01, units='mm')
+
+        diameter_prop.AppendChild(min_diameter_prop)
+        diameter_prop.AppendChild(max_diameter_prop)
+
+        wire_size_prop = wxpg.PGProperty('Wire Size')
+
+        min_awg_prop = _int_prop.IntProperty(
+            'Minimum', 'min_awg', self.min_awg, min_value=30,
+            max_value=0, units='awg')
+            
+        max_awg_prop = _int_prop.IntProperty(
+            'Maximum', 'max_awg', self.max_awg, min_value=30,
+            max_value=0, units='awg')
+
+        wire_size_prop.AppendChild(min_awg_prop)
+        wire_size_prop.AppendChild(max_awg_prop)
+
+        length_prop = _float_prop.FloatProperty(
+            'Length', 'length', self.length, min_value=0.01,
+            max_value=99.99, increment=0.01, units='mm')
+
+        label_prop = _bool_prop.BoolProperty(
+            'Has Label', 'has_label', self.has_label)
+
+        weight_prop = self._weight_propgrid
+        resource_prop = self._resource_propgrid
+
+        part_cat.AppendChild(part_number_prop)
+        part_cat.AppendChild(manufacturer_prop)
+        part_cat.AppendChild(description_prop)
+        part_cat.AppendChild(family_prop)
+        part_cat.AppendChild(series_prop)
+        part_cat.AppendChild(color_prop)
+        part_cat.AppendChild(temperature_prop)
+        part_cat.AppendChild(label_prop)
+        part_cat.AppendChild(length_prop)
+        part_cat.AppendChild(weight_prop)
+        part_cat.AppendChild(resource_prop)
+        part_cat.AppendChild(wire_size_prop)
+        part_cat.AppendChild(diameter_prop)
+
+        return part_cat

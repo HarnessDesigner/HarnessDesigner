@@ -19,8 +19,8 @@ Config = _config.Config.editor3d
 
 
 class WireServiceLoop(_base3d.Base3D):
-    _parent: "_wire_service_loop.WireServiceLoop" = None
-    db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop"
+    parent: "_wire_service_loop.WireServiceLoop" = None
+    db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop" = None
 
     def __init__(self, parent: "_wire_service_loop.WireServiceLoop",
                  db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop"):

@@ -27,7 +27,7 @@ MOUSE_REVERSE_X_AXIS = _config.MOUSE_REVERSE_X_AXIS
 MOUSE_REVERSE_Y_AXIS = _config.MOUSE_REVERSE_Y_AXIS
 
 
-class Canvas2D(glcanvas.GLCanvas):
+class Canvas(glcanvas.GLCanvas):
     """
     2D OpenGL Canvas for Schematic Editor
 
@@ -110,7 +110,7 @@ class Canvas2D(glcanvas.GLCanvas):
         if not self.config.grid.snap:
             return world_pos
 
-        spacing = self.config.grid.spacing
+        spacing = self._grid.grid_spacing
         snapped_x = round(world_pos.x / spacing) * spacing
         snapped_y = round(world_pos.y / spacing) * spacing
 

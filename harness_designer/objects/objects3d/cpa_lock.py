@@ -23,8 +23,8 @@ Config = _config.Config.editor3d
 
 
 class CPALock(_base3d.Base3D):
-    _parent: "_cpa_lock.CPALock" = None
-    db_obj: "_pjt_cpa_lock.PJTCPALock"
+    parent: "_cpa_lock.CPALock" = None
+    db_obj: "_pjt_cpa_lock.PJTCPALock" = None
 
     def __init__(self, parent: "_cpa_lock.CPALock", db_obj: "_pjt_cpa_lock.PJTCPALock"):
         self._part = db_obj.part

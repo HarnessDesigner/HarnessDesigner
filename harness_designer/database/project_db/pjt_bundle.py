@@ -1,7 +1,10 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable, Union
 
+import weakref
+from wx import propgrid as wxpg
+
 from .pjt_bases import PJTEntryBase, PJTTableBase
-from .mixins import PartMixin, StartStopPosition3DMixin, Visible3DMixin, NameMixin
+from .mixins import PartMixin, StartStopPosition3DMixin, Visible3DMixin, NameMixin, NotesMixin
 
 
 if TYPE_CHECKING:
@@ -51,14 +54,34 @@ class PJTBundlesTable(PJTTableBase):
 
 
 class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
-                Visible3DMixin, NameMixin):
+                Visible3DMixin, NameMixin, NotesMixin):
     _table: PJTBundlesTable = None
 
+    def build_monitor_packet(self):
+        packet = {
+            'pjt_bundles': [self.db_id],
+            'bundle_covers': [self.part_id],
+            'pjt_points3d': [self.start_position3d_id, self.stop_position3d_id],
+        }
+
+        self.merge_packet_data(self.part.build_monitor_packet(), packet)
+
+        return packet
+
     def get_object(self) -> "_bundle_obj.Bundle":
+        if self._obj is not None:
+            return self._obj()
+
         return self._obj
 
+    def __release_obj_ref(self, _):
+        self._obj = None
+
     def set_object(self, obj: "_bundle_obj.Bundle"):
-        self._obj = obj
+        if obj is not None:
+            self._obj = weakref.ref(obj, self.__release_obj_ref)
+        else:
+            self._obj = obj
 
     @property
     def table(self) -> PJTBundlesTable:
@@ -103,3 +126,23 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
             return None
 
         return self._table.db.global_db.bundle_covers_table[part_id]
+
+    @property
+    def propgrid(self) -> wxpg.PGProperty:
+        group = wxpg.PropertyCategory('Project')
+
+        notes_prop = self._notes_propgrid
+        name_prop = self._name_propgrid
+        position_prop = self._start_stop_position3d_propgrid
+        visible_prop = self._visible3d_propgrid
+
+        concentric_prop = self.concentric.propgrid
+
+        group.AppendChild(name_prop)
+        group.AppendChild(notes_prop)
+        group.AppendChild(position_prop)
+        group.AppendChild(visible_prop)
+
+        part_prop = self._part_propgrid
+
+        return group, part_prop, concentric_prop

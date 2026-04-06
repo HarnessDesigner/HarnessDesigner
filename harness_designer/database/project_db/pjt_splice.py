@@ -1,8 +1,12 @@
 
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
+import weakref
+from wx import propgrid as wxpg
+
 from .pjt_bases import PJTEntryBase, PJTTableBase
-from .mixins import PartMixin, StartStopPosition3DMixin, Visible3DMixin, Visible2DMixin, NameMixin
+from .mixins import (PartMixin, StartStopPosition3DMixin, Visible3DMixin,
+                     Visible2DMixin, NameMixin, NotesMixin)
 from ...geometry import point as _point
 
 
@@ -58,15 +62,37 @@ class PJTSplicesTable(PJTTableBase):
 
 
 class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
-                Visible3DMixin, Visible2DMixin, NameMixin):
+                Visible3DMixin, Visible2DMixin, NameMixin, NotesMixin):
 
     _table: PJTSplicesTable = None
 
+    def build_monitor_packet(self):
+
+        packet = {
+            'pjt_cavities': [self.db_id],
+            'cavities': [self.part_id],
+            'pjt_points3d': [self.start_position3d_id, self.stop_position3d_id, self.branch_position3d_id],
+            'pjt_points2d': [self.start_position2d_id, self._stop_position2d_id],
+        }
+
+        self.merge_packet_data(self.part.build_monitor_packet(), packet)
+
+        return packet
+
     def get_object(self) -> "_splice_obj.Splice":
+        if self._obj is not None:
+            return self._obj()
+
         return self._obj
 
+    def __release_obj_ref(self, _):
+        self._obj = None
+
     def set_object(self, obj: "_splice_obj.Splice"):
-        self._obj = obj
+        if obj is not None:
+            self._obj = weakref.ref(obj, self.__release_obj_ref)
+        else:
+            self._obj = obj
 
     @property
     def table(self) -> PJTSplicesTable:
@@ -101,31 +127,26 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
 
         return [start_wires, stop_wires, branch_wires]
 
-    def _update_branch_position3d(self, point: _point.Point):
-        x, y, z = point.as_float
-        point_id = int(point.db_id)
-
-        self._table.execute(f'UPDATE pjt_points3d SET x=?, y=?, z=? WHERE id = {point_id};', (x, y, z))
-        self._table.commit()
+    _stored_branch_position3d: "_pjt_point3d.PJTPoint3D" = None
 
     @property
-    def branch_position3d(self) -> _point.Point:
-        point_id = self.branch_position3d_id
+    def branch_position3d(self) -> "_point.Point":
+        if self._stored_branch_position3d is None and self._obj is not None:
 
-        self._table.execute(f'SELECT x, y, z FROM pjt_points3d WHERE id={point_id};')
-        rows = self._table.fetchall()
+            point_id = self.branch_position3d_id
+            self._stored_branch_position3d = self._table.db.pjt_points3d_table[point_id]
+            self._stored_branch_position3d.add_object(self._obj())
 
-        if rows:
-            point = _point.Point(*rows[0], db_id=str(point_id))
-            point.bind(self._update_branch_position3d)
-            return point
+        return self._stored_branch_position3d.point
 
     @property
     def branch_position3d_id(self) -> int:
         point_id = self._table.select('branch_point3d_id', id=self._db_id)[0][0]
         if point_id is None:
-            self._table.execute(f'INSERT INTO pjt_points3d (project_id, x, y, z) VALUES (?, ?, ?, ?);',
-                                (self._table.project_id, 0.0, 0.0, 0.0))
+            self._table.execute(
+                f'INSERT INTO pjt_points3d (project_id, x, y, z) VALUES (?, ?, ?, ?);',
+                (self._table.project_id, 0.0, 0.0, 0.0)
+                )
 
             self._table.commit()
             point_id = self._table.lastrowid
@@ -137,31 +158,24 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
     def branch_position3d_id(self, value: int):
         self._table.update(self._db_id, branch_point3d_id=value)
 
-    @property
-    def branch_point3d(self) -> "_pjt_point3d.PJTPoint3D":
-        point_id = self.branch_point3d_id
-        return self._table.db.pjt_points3d_table[point_id]
+    _stored_position2d: "_pjt_point2d.PJTPoint2D" = None
 
     @property
-    def branch_point3d_id(self) -> int:
-        return self._table.select('branch_point3d_id', id=self._db_id)[0][0]
+    def position2d(self) -> "_point.Point":
+        if self._stored_position2d is None and self._obj is not None:
 
-    @branch_point3d_id.setter
-    def branch_point3d_id(self, value: int):
-        self._table.update(self._db_id, point33d_id=value)
-        self._process_callbacks()
+            point_id = self.position2d_id
 
-    @property
-    def point2d(self) -> "_pjt_point2d.PJTPoint2D":
-        point_id = self.point2d_id
-        return self._table.db.pjt_points2d_table[point_id]
+            self._stored_position2d = self._table.db.pjt_points2d_table[point_id]
+            self._stored_position2d.add_object(self._obj())
+        return self._stored_position2d.point
 
     @property
-    def point2d_id(self) -> int:
+    def position2d_id(self) -> int:
         return self._table.select('point2d_id', id=self._db_id)[0][0]
 
-    @point2d_id.setter
-    def point2d_id(self, value: int):
+    @position2d_id.setter
+    def position2d_id(self, value: int):
         self._table.update(self._db_id, point2d_id=value)
         self._process_callbacks()
 
@@ -190,3 +204,28 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
             return None
 
         return self._table.db.global_db.splices_table[part_id]
+
+    @property
+    def propgrid(self) -> wxpg.PGProperty:
+        group = wxpg.PropertyCategory('Project')
+
+        notes_prop = self._notes_propgrid
+        name_prop = self._name_propgrid
+
+        angle_prop = self._angle3d_propgrid
+
+        position_prop = self._start_stop_position3d_propgrid
+
+        housing_prop = self._housing_propgrid
+        visible_prop = self._visible3d_propgrid
+
+        group.AppendChild(name_prop)
+        group.AppendChild(notes_prop)
+        group.AppendChild(angle_prop)
+        group.AppendChild(position_prop)
+        group.AppendChild(visible_prop)
+        group.AppendChild(housing_prop)
+
+        part_prop = self._part_propgrid
+
+        return group, part_prop

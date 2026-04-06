@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 
 class Generic(_base3d.Base3D):
-    _parent: "_generic.Generic" = None
+    parent: "_generic.Generic" = None
 
     def __init__(self, parent: "_generic.Generic", vbo: _vbo.VBOHandler | None,
                  angle: _angle.Angle, position: _point.Point, scale: _point.Point,

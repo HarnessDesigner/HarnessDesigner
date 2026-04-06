@@ -3,47 +3,16 @@ from typing import TYPE_CHECKING
 import wx
 
 from . import canvas as _canvas
-from . import mouse_handler as _mouse_handler
 
 
 if TYPE_CHECKING:
     from ... import ui as _ui
-
-EVT_GL_OBJECT_SELECTED = _mouse_handler.EVT_GL_OBJECT_SELECTED
-EVT_GL_OBJECT_UNSELECTED = _mouse_handler.EVT_GL_OBJECT_UNSELECTED
-EVT_GL_OBJECT_ACTIVATED = _mouse_handler.EVT_GL_OBJECT_ACTIVATED
-EVT_GL_OBJECT_RIGHT_CLICK = _mouse_handler.EVT_GL_OBJECT_RIGHT_CLICK
-EVT_GL_OBJECT_RIGHT_DCLICK = _mouse_handler.EVT_GL_OBJECT_RIGHT_DCLICK
-EVT_GL_OBJECT_MIDDLE_CLICK = _mouse_handler.EVT_GL_OBJECT_MIDDLE_CLICK
-EVT_GL_OBJECT_MIDDLE_DCLICK = _mouse_handler.EVT_GL_OBJECT_MIDDLE_DCLICK
-EVT_GL_OBJECT_AUX1_CLICK = _mouse_handler.EVT_GL_OBJECT_AUX1_CLICK
-EVT_GL_OBJECT_AUX1_DCLICK = _mouse_handler.EVT_GL_OBJECT_AUX1_DCLICK
-EVT_GL_OBJECT_AUX2_CLICK = _mouse_handler.EVT_GL_OBJECT_AUX2_CLICK
-EVT_GL_OBJECT_AUX2_DCLICK = _mouse_handler.EVT_GL_OBJECT_AUX2_DCLICK
-EVT_GL_OBJECT_DRAG = _mouse_handler.EVT_GL_OBJECT_DRAG
-EVT_GL_LEFT_DOWN = _mouse_handler.EVT_GL_LEFT_DOWN
-EVT_GL_LEFT_UP = _mouse_handler.EVT_GL_LEFT_UP
-EVT_GL_LEFT_DCLICK = _mouse_handler.EVT_GL_LEFT_DCLICK
-EVT_GL_RIGHT_DOWN = _mouse_handler.EVT_GL_RIGHT_DOWN
-EVT_GL_RIGHT_UP = _mouse_handler.EVT_GL_RIGHT_UP
-EVT_GL_RIGHT_DCLICK = _mouse_handler.EVT_GL_RIGHT_DCLICK
-EVT_GL_MIDDLE_DOWN = _mouse_handler.EVT_GL_MIDDLE_DOWN
-EVT_GL_MIDDLE_UP = _mouse_handler.EVT_GL_MIDDLE_UP
-EVT_GL_MIDDLE_DCLICK = _mouse_handler.EVT_GL_MIDDLE_DCLICK
-EVT_GL_AUX1_DOWN = _mouse_handler.EVT_GL_AUX1_DOWN
-EVT_GL_AUX1_UP = _mouse_handler.EVT_GL_AUX1_UP
-EVT_GL_AUX1_DCLICK = _mouse_handler.EVT_GL_AUX1_DCLICK
-EVT_GL_AUX2_DOWN = _mouse_handler.EVT_GL_AUX2_DOWN
-EVT_GL_AUX2_UP = _mouse_handler.EVT_GL_AUX2_UP
-EVT_GL_AUX2_DCLICK = _mouse_handler.EVT_GL_AUX2_DCLICK
-
-GLEvent = _mouse_handler.GLEvent
-GLObjectEvent = _mouse_handler.GLObjectEvent
+    from ... import config as _config
 
 
 class Canvas3D(wx.Panel):
 
-    def __init__(self, parent: "_ui.MainFrame", config,
+    def __init__(self, parent: "_ui.MainFrame", config: "_config.Config.editor3d",
                  size=wx.DefaultSize, axis_overlay=False):
 
         wx.Panel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_NONE)
@@ -56,6 +25,14 @@ class Canvas3D(wx.Panel):
 
         self.Bind(wx.EVT_ERASE_BACKGROUND, self._on_erase_background)
         self.Bind(wx.EVT_SIZE, self._on_size)
+        self.config = config
+        self.Bind(wx.EVT_MOUSE_CAPTURE_LOST, self.on_mouse_capture_lost)
+
+    def on_mouse_capture_lost(self, evt: wx.MouseCaptureLostEvent):
+        if self.canvas.HasCapture():
+            self.canvas.ReleaseMouse()
+
+        evt.Skip()
 
     @property
     def context(self):

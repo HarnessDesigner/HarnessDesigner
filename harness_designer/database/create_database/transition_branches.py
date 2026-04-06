@@ -4,17 +4,22 @@ from . import projects as _projects
 from . import points3d as _points3d
 
 from .. import db_connectors as _con
-from ... import logger as _logger
 
 
-def add_transition_branch(con, transition_id, idx, name='', bulb_offset=None,
-                          bulb_length=None, min_dia=0.0, max_dia=0.0, length=0.0,
-                          offset=None, angle=None, flange_height=None, flange_width=None):
+def add_transition_branch(con, idx, transition_id, bulb_offset=None, bulb_length=None,
+                          min_dia=0.0, max_dia=0.0, length=0.0, offset=None, angle=None,
+                          flange_height=None, flange_width=None):
 
-    con.execute(f'INSERT INTO transition_branches (transition_id, idx, name, bulb_offset, '
+    if offset is not None:
+        offset = str(offset)
+
+    if bulb_offset is not None:
+        bulb_offset = str(bulb_offset)
+
+    con.execute(f'INSERT INTO transition_branches (transition_id, idx, bulb_offset, '
                 f'bulb_length, min_dia, max_dia, length, offset, angle, flange_height, '
-                f'flange_width) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (transition_id, idx, name, bulb_offset, bulb_length, min_dia, max_dia,
+                f'flange_width) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                (transition_id, idx, bulb_offset, bulb_length, min_dia, max_dia,
                  length, offset, angle, flange_height, flange_width))
 
     con.commit()
@@ -42,7 +47,6 @@ table = _con.SQLTable(
                                                     on_delete=_con.REFERENCE_CASCADE,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('idx', no_null=True),
-    _con.TextField('name', default='""', no_null=True),
     _con.TextField('bulb_offset', default='NULL'),
     _con.FloatField('bulb_length', default='NULL'),
     _con.FloatField('min_dia', no_null=True),

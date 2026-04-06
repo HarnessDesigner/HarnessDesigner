@@ -1,7 +1,10 @@
 
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
+from wx import propgrid as wxpg
+
 from .pjt_bases import PJTEntryBase, PJTTableBase
+from .mixins import NotesMixin, Position2DMixin
 
 if TYPE_CHECKING:
     from . import pjt_point2d as _pjt_point2d
@@ -48,14 +51,45 @@ class PJTConcentricWiresTable(PJTTableBase):
         return PJTConcentricWire(self, db_id, self.project_id)
 
 
-class PJTConcentricWire(PJTEntryBase):
+class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
     _table: PJTConcentricWiresTable = None
 
-    def get_object(self) -> "_boot_obj.Boot":
-        return self._obj
+    def build_monitor_packet(self):
+        layer = self.layer
+        wire = self.wire
 
-    def set_object(self, obj: "_boot_obj.Boot"):
-        self._obj = obj
+        packet = {
+            'pjt_concentric_wires': [self.db_id],
+            'pjt_wires': [wire.db_id],
+            'pjt_points2d': [self.point_id],
+            'pjt_concentric_layers': [layer.db_id]
+        }
+
+        self.merge_packet_data(layer.build_monitor_packet(), packet)
+        self.merge_packet_data(wire.build_monitor_packet(), packet)
+
+        return packet
+    #
+    # def get_object(self) -> "_boot_obj.Boot":
+    #     if self._obj is not None:
+    #         return self._obj()
+    #
+    #     return self._obj
+
+    # def __release_obj_ref(self, _):
+    #     self._obj = None
+    #
+    # def set_object(self, obj: "_boot_obj.Boot"):
+    #     if obj is not None:
+    #         self._obj = weakref.ref(obj, self.__release_obj_ref)
+    #     else:
+    #         self._obj = obj
+    #
+    # def get_object(self) -> "_boot_obj.Boot":
+    #     return self._obj
+    #
+    # def set_object(self, obj: "_boot_obj.Boot"):
+    #     self._obj = obj
 
     @property
     def table(self) -> PJTConcentricWiresTable:
@@ -76,11 +110,11 @@ class PJTConcentricWire(PJTEntryBase):
         self._process_callbacks()
 
     @property
-    def index(self) -> int:
+    def idx(self) -> int:
         return self._table.select('idx', id=self._db_id)[0][0]
 
-    @index.setter
-    def index(self, value: int):
+    @idx.setter
+    def idx(self, value: int):
         self._table.update(self._db_id, idx=value)
         self._process_callbacks()
 
@@ -93,6 +127,7 @@ class PJTConcentricWire(PJTEntryBase):
         self._table.update(self._db_id, is_filler=int(value))
         self._process_callbacks()
 
+    @property
     def wire(self) -> "_pjt_wire.PJTWire":
         wire_id = self.wire_id
         return self.table.db.pjt_wires_table[wire_id]
@@ -106,16 +141,18 @@ class PJTConcentricWire(PJTEntryBase):
         self._table.update(self._db_id, wire_id=value)
         self._process_callbacks()
 
-    # TODO: Create table for concentric layer points?
-    def point(self) -> "_pjt_point2d.PJTPoint2D":
-        point_id = self.point_id
-        return self.table.db.pjt_points2d_table[point_id]
-
     @property
-    def point_id(self) -> int:
-        return self._table.select('point_id', id=self._db_id)[0][0]
+    def propgrid(self) -> wxpg.PGProperty:
+        from ...ui.editor_obj.prop_grid import bool_prop as _bool_prop
+        group = wxpg.PGProperty(f'Wire {self.idx}')
 
-    @point_id.setter
-    def point_id(self, value: int):
-        self._table.update(self._db_id, point_id=value)
-        self._process_callbacks()
+        notes_prop = self._notes_propgrid
+        position_prop = self._position2d_propgrid
+
+        is_filler_prop = _bool_prop.BoolProperty('Is Filler Wire', 'is_filler', self.is_filler)
+
+        group.AppendChild(notes_prop)
+        group.AppendChild(is_filler_prop)
+        group.AppendChild(position_prop)
+
+        return group

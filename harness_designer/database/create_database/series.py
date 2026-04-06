@@ -3,7 +3,7 @@ from . import manufacturers as _manufacturers
 from ... import logger as _logger
 
 
-def add_records(con, splash):
+def add_records(con, splash, _):
     con.execute('SELECT id FROM series WHERE id=0;')
     if con.fetchall():
         return

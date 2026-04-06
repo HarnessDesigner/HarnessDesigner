@@ -1,5 +1,7 @@
 from typing import Iterable as _Iterable, TYPE_CHECKING
+
 import os
+from wx import propgrid as wxpg
 
 from ... import resources as _resources
 from ..create_database import images as _images
@@ -50,6 +52,17 @@ class ImagesTable(TableBase):
 class Image(EntryBase):
     _table: ImagesTable = None
 
+    def build_monitor_packet(self):
+        packet = {
+            'images': [self.db_id]
+        }
+
+        file_type_id = self.file_type_id
+        if file_type_id is not None:
+            packet['file_types'] = [file_type_id]
+
+        return packet
+
     @property
     def data_path(self) -> str | None:
         file_id = self.uuid
@@ -92,3 +105,14 @@ class Image(EntryBase):
     @file_type_id.setter
     def file_type_id(self, value: int):
         self._table.update(self._db_id, file_type_id=value)
+
+    @property
+    def propgrid(self) -> wxpg.PGProperty:
+        from ...ui.editor_obj.prop_grid import image_prop as _image_prop
+
+        file_types = self._table.db.file_types_table.select('mimetype', 'extension', is_model=0)
+
+        file_types = {k: v for k, v in file_types}
+        image_prop = _image_prop.ImageProperty('Image', 'image', self.path, file_types, self.data_path)
+
+        return image_prop

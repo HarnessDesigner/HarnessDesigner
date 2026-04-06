@@ -22,8 +22,8 @@ Config = _config.Config.editor3d
 
 
 class Bundle(_base3d.Base3D):
-    _parent: "_bundle.Bundle" = None
-    db_obj: "_pjt_bundle.PJTBundle"
+    parent: "_bundle.Bundle" = None
+    db_obj: "_pjt_bundle.PJTBundle" = None
 
     def __init__(self, parent: "_bundle.Bundle",
                  db_obj: "_pjt_bundle.PJTBundle"):

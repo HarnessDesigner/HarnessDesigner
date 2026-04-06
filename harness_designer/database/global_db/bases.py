@@ -49,6 +49,25 @@ class EntryBase(metaclass=_EntrySingleton):
         self._table = table
         self._db_id = db_id
 
+        self._objects = []
+
+    def update_objects(self):
+        for ref in self._objects:
+            obj = ref()
+            if obj is None:
+                continue
+
+            obj.reload_from_db()
+
+    def __remove_ref(self, ref):
+        try:
+            self._objects.remove(ref)
+        except ValueError:
+            pass
+
+    def add_object(self, obj):
+        self._objects.append(weakref.ref(obj, self.__remove_ref))
+
     @property
     def db_id(self):
         return self._db_id
@@ -56,11 +75,21 @@ class EntryBase(metaclass=_EntrySingleton):
     def delete(self) -> None:
         self._table.delete(self.db_id)
 
+    @staticmethod
+    def merge_packet_data(src: dict, dst: dict):
+        for key, values in src.items():
+            if key in dst:
+                values = [value for value in values if value not in dst[key]]
+                dst[key].extend(values)
+            else:
+                dst[key] = values[:]
+
 
 class TableBase:
     __table_name__: str = None
 
     def __init__(self, db: "GLBTables", table_names: list['str'], splash: "_splash.Splash", load_database: bool):
+        self.__field_names__ = None
         self.db = db
         self._con = db.connector
 
@@ -78,6 +107,32 @@ class TableBase:
 
         splash.SetText(f'Loading {self.__table_name__.replace("_", " ")} database table...')
         splash.flush()
+
+    @property
+    def field_names(self):
+        if self.__field_names__ is None:
+            field_names = self._con.get_table_column_names(self.__table_name__)
+            if 'id' in field_names:
+                field_names.remove('id')
+
+            field_names = sorted(field_names)
+            field_names.insert(0, 'id')
+
+            self.__field_names__ = field_names
+
+        return self.__field_names__
+
+    def get_record(self, db_id):
+        self.execute(f'SELECT {", ".join(self.field_names)} FROM {self.__table_name__} WHERE id={db_id};')
+        rows = self.fetchall()
+
+        if rows:
+            rows = list(rows)
+        else:
+            rows = []
+
+        rows.insert(0, tuple(self.field_names))
+        return rows
 
     def _load_database(self, splash):
         pass
@@ -438,7 +493,6 @@ from .wire_marker import WireMarkersTable  # NOQA
 from .splice_types import SpliceTypesTable  # NOQA
 from .setting import SettingsTable # NOQA
 from .file_types import FileTypesTable  # NOQA
-from .transition_series import TransitionSeriesTable  # NOQA
 from .cad import CADsTable  # NOQA
 from .image import ImagesTable  # NOQA
 from .datasheet import DatasheetsTable  # NOQA
@@ -472,7 +526,6 @@ class GLBTables:
         self._shapes_table = ShapesTable(self, tables, splash, load_database)
         self._genders_table = GendersTable(self, tables, splash, load_database)
         self._directions_table = DirectionsTable(self, tables, splash, load_database)
-        self._transition_series_table = TransitionSeriesTable(self, tables, splash, load_database)
         self._splice_types_table = SpliceTypesTable(self, tables, splash, load_database)
         self._protections_table = ProtectionsTable(self, tables, splash, load_database)
         self._ip_solids_table = IPSolidsTable(self, tables, splash, load_database)
@@ -515,10 +568,6 @@ class GLBTables:
     @property
     def cads_table(self) -> CADsTable:
         return self._cads_table
-
-    @property
-    def transition_series_table(self) -> TransitionSeriesTable:
-        return self._transition_series_table
 
     @property
     def file_types_table(self) -> FileTypesTable:

@@ -22,8 +22,8 @@ Config = _config.Config.editor3d
 
 
 class Cover(_base3d.Base3D):
-    _parent: "_cover.Cover" = None
-    db_obj: "_pjt_cover.PJTCover"
+    parent: "_cover.Cover" = None
+    db_obj: "_pjt_cover.PJTCover" = None
 
     def __init__(self, parent: "_cover.Cover", db_obj: "_pjt_cover.PJTCover"):
         self._part = db_obj.part

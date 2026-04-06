@@ -1,12 +1,15 @@
 from typing import Iterable as _Iterable, TYPE_CHECKING
+
 import uuid
+from wx import propgrid as wxpg
 
 from .bases import EntryBase, TableBase
 from ...geometry import point as _point
 
 from .mixins import (PartNumberMixin, ManufacturerMixin, DescriptionMixin, GenderMixin,
                      SeriesMixin, FamilyMixin, ResourceMixin, WeightMixin, CavityLockMixin,
-                     Model3DMixin, PlatingMixin)
+                     Model3DMixin, PlatingMixin, CompatHousingsMixin, CompatSealsMixin,
+                     TemperatureMixin, ColorMixin, WireSizeMixin)
 
 if TYPE_CHECKING:
     from . import seal as _seal
@@ -17,7 +20,9 @@ class TerminalsTable(TableBase):
 
     def _load_database(self, splash):
         from ..create_database import terminals
-        terminals.add_records(self._con, splash)
+
+        data_path = self._con.db_data.open(splash)
+        terminals.add_records(self._con, splash, data_path)
 
     def _table_needs_update(self) -> bool:
         from ..create_database import terminals
@@ -31,7 +36,6 @@ class TerminalsTable(TableBase):
         data_path = self._con.db_data.open(splash)
 
         terminals.add_records(self._con, splash, data_path)
-
 
     def _update_table_in_db(self):
         from ..create_database import terminals
@@ -191,24 +195,45 @@ class TerminalsTable(TableBase):
 
 
 class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
-               GenderMixin, SeriesMixin, FamilyMixin, ResourceMixin,
-               WeightMixin, CavityLockMixin, PlatingMixin, Model3DMixin):
+               GenderMixin, SeriesMixin, FamilyMixin, ResourceMixin, TemperatureMixin,
+               WeightMixin, CavityLockMixin, PlatingMixin, Model3DMixin,
+               CompatHousingsMixin, CompatSealsMixin, ColorMixin, WireSizeMixin):
 
     _table: TerminalsTable = None
+
+    def build_monitor_packet(self):
+        mfg = self.manufacturer
+
+        packet = {
+            'terminals': [self.db_id],
+            'families': [self.family_id],
+            'series': [self.series_id],
+            'platings': [self.plating_id],
+            'datasheets': [self.datasheet_id],
+            'cavity_locks': [self.cavity_lock_id],
+            'genders': [self.gender_id],
+            'cads': [self.cad_id],
+            'images': [self.image_id],
+            'models3d': [self.model3d_id]
+        }
+
+        self.merge_packet_data(mfg.build_monitor_packet(), packet)
+
+        return packet
 
     @property
     def compat_seals(self) -> list["_seal.Seal"]:
         if not self.sealing:
             return []
 
-        dia_min = self.wire_dia_min
-        dia_max = self.wire_dia_max
+        min_dia = self.min_dia
+        max_dia = self.max_dia
 
-        if not dia_min or not dia_max:
+        if not min_dia or not max_dia:
             return []
 
-        cmd = (f'SELECT id FROM seals WHERE wire_dia_min <= {self.wire_dia_min} '
-               f'AND wire_dia_max >= {self.wire_dia_max};')
+        cmd = (f'SELECT id FROM seals WHERE wire_dia_min <= {min_dia} '
+               f'AND wire_dia_max >= {max_dia};')
 
         self._table.db.seals_table.execute(cmd)
         rows = self._table.db.seals_table.fetchall()
@@ -269,54 +294,6 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     @max_current_ma.setter
     def max_current_ma(self, value: int):
         self._table.update(self._db_id, max_current_ma=value)
-
-    @property
-    def wire_size_min_awg(self) -> int:
-        return self._table.select('wire_size_min_awg', id=self._db_id)[0][0]
-
-    @wire_size_min_awg.setter
-    def wire_size_min_awg(self, value: int):
-        self._table.update(self._db_id, wire_size_min_awg=value)
-
-    @property
-    def wire_size_max_awg(self) -> int:
-        return self._table.select('wire_size_max_awg', id=self._db_id)[0][0]
-
-    @wire_size_max_awg.setter
-    def wire_size_max_awg(self, value: int):
-        self._table.update(self._db_id, wire_size_max_awg=value)
-
-    @property
-    def wire_dia_min(self) -> float:
-        return self._table.select('wire_dia_min', id=self._db_id)[0][0]
-
-    @wire_dia_min.setter
-    def wire_dia_min(self, value: float):
-        self._table.update(self._db_id, wire_dia_min=value)
-
-    @property
-    def wire_dia_max(self) -> float:
-        return self._table.select('wire_dia_max', id=self._db_id)[0][0]
-
-    @wire_dia_max.setter
-    def wire_dia_max(self, value: float):
-        self._table.update(self._db_id, wire_dia_max=value)
-
-    @property
-    def min_wire_cross(self) -> float:
-        return self._table.select('min_wire_cross', id=self._db_id)[0][0]
-
-    @min_wire_cross.setter
-    def min_wire_cross(self, value: float):
-        self._table.update(self._db_id, min_wire_cross=value)
-
-    @property
-    def max_wire_cross(self) -> float:
-        return self._table.select('max_wire_cross', id=self._db_id)[0][0]
-
-    @max_wire_cross.setter
-    def max_wire_cross(self, value: float):
-        self._table.update(self._db_id, max_wire_cross=value)
 
     @property
     def round_terminal(self) -> bool:
@@ -425,3 +402,102 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         scale = _point.Point(x, y, z, db_id=self._scale_id)
         scale.bind(self._update_scale)
         return scale
+
+    @property
+    def _dimension_propgrid(self) -> wxpg.PGProperty:
+        from ...ui.editor_obj.prop_grid import float_prop as _float_prop
+
+        group_prop = wxpg.PGProperty('Dimensions', '')
+
+        length_prop = _float_prop.FloatProperty(
+            'Length', 'length', self.length,
+            min_value=0.01, max_value=999.0, increment=0.01, units='mm')
+
+        width_prop = _float_prop.FloatProperty(
+            'Width', 'width', self.width,
+            min_value=0.01, max_value=999.0, increment=0.01, units='mm')
+
+        height_prop = _float_prop.FloatProperty(
+            'Height', 'height', self.height,
+            min_value=0.01, max_value=999.0, increment=0.01, units='mm')
+
+        group_prop.AppendChild(length_prop)
+        group_prop.AppendChild(width_prop)
+        group_prop.AppendChild(height_prop)
+
+        return group_prop
+
+    @property
+    def propgrid(self):
+        from ...ui.editor_obj.prop_grid import float_prop as _float_prop
+        from ...ui.editor_obj.prop_grid import bool_prop as _bool_prop
+        from ...ui.editor_obj.prop_grid import int_prop as _int_prop
+
+        part_cat = wxpg.PropertyCategory('Part Attributes')
+        
+        part_number_prop = self._part_number_propgrid
+        manufacturer_prop = self._manufacturer_propgrid
+        description_prop = self._description_propgrid
+        family_prop = self._family_propgrid
+        series_prop = self._series_propgrid
+        gender_prop = self._gender_propgrid
+        color_prop = self._color_propgrid
+        temperature_prop = self._temperature_propgrid
+        dimension_prop = self._dimension_propgrid
+        weight_prop = self._weight_propgrid
+        resource_prop = self._resource_propgrid
+        model3d_prop = self._model3d_propgrid
+        wire_size_prop = self._wire_size_propgrid
+        compat_housings_prop = self._compat_housings_propgrid
+        compat_seals_prop = self._compat_seals_propgrid
+        plating_prop = self._plating_propgrid
+        cavity_lock_prop = self._cavity_lock_propgrid
+
+        sealing_prop = _bool_prop.BoolProperty(
+            'Sealing', 'sealing', self.sealing)
+
+        blade_size_prop = _float_prop.FloatProperty(
+            'Blade Size', 'blade_size', self.blade_size,
+            min_value=0.01, max_value=99.00, increment=0.01, units='mm')
+
+        resistance_prop = _float_prop.FloatProperty(
+            'Resistance', 'resistance', self.resistance,
+            min_value=0.1, max_value=10000000.00, increment=0.1, units='Ω')
+
+        mating_cycles_prop = _int_prop.IntProperty(
+            'Mating Cycles', 'mating_cycles', self.mating_cycles,
+            min_value=1, max_value=100000)
+
+        max_vibration_g_prop = _int_prop.IntProperty(
+            'Maximum Vibration', 'max_vibration_g', self.max_vibration_g,
+            min_value=0, max_value=100000, units='G')
+
+        max_current_ma_prop = _int_prop.IntProperty(
+            'Maximum Current', 'max_current_ma', self.max_current_ma,
+            min_value=0, max_value=100000, units='ma')
+
+        part_cat.AppendChild(part_number_prop)
+        part_cat.AppendChild(manufacturer_prop)
+        part_cat.AppendChild(description_prop)
+        part_cat.AppendChild(family_prop)
+        part_cat.AppendChild(series_prop)
+        part_cat.AppendChild(gender_prop)
+        part_cat.AppendChild(color_prop)
+        part_cat.AppendChild(plating_prop)
+        part_cat.AppendChild(max_current_ma_prop)
+        part_cat.AppendChild(resistance_prop)
+        part_cat.AppendChild(blade_size_prop)
+        part_cat.AppendChild(wire_size_prop)
+        part_cat.AppendChild(sealing_prop)
+        part_cat.AppendChild(cavity_lock_prop)
+        part_cat.AppendChild(temperature_prop)
+        part_cat.AppendChild(dimension_prop)
+        part_cat.AppendChild(weight_prop)
+        part_cat.AppendChild(resource_prop)
+        part_cat.AppendChild(model3d_prop)
+        part_cat.AppendChild(max_vibration_g_prop)
+        part_cat.AppendChild(mating_cycles_prop)
+        part_cat.AppendChild(compat_housings_prop)
+        part_cat.AppendChild(compat_seals_prop)
+
+        return part_cat

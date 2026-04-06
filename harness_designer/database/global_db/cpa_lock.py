@@ -1,10 +1,15 @@
-from typing import Iterable as _Iterable
+from typing import TYPE_CHECKING, Iterable as _Iterable
+
+from wx import propgrid as wxpg
 
 from .bases import EntryBase, TableBase
 
 from .mixins import (PartNumberMixin, ManufacturerMixin, DescriptionMixin, FamilyMixin,
                      SeriesMixin, ResourceMixin, TemperatureMixin, WeightMixin,
-                     ColorMixin, DimensionMixin, Model3DMixin)
+                     ColorMixin, DimensionMixin, Model3DMixin, CompatHousingsMixin)
+
+if TYPE_CHECKING:
+    from . import cpa_lock_type as _cpa_lock_type
 
 
 class CPALocksTable(TableBase):
@@ -12,7 +17,9 @@ class CPALocksTable(TableBase):
 
     def _load_database(self, splash):
         from ..create_database import cpa_locks
-        cpa_locks.add_records(self._con, splash)
+
+        data_path = self._con.db_data.open(splash)
+        cpa_locks.add_records(self._con, splash, data_path)
 
     def _table_needs_update(self) -> bool:
         from ..create_database import cpa_locks
@@ -137,9 +144,40 @@ class CPALocksTable(TableBase):
 
 class CPALock(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, FamilyMixin,
               SeriesMixin, ResourceMixin, TemperatureMixin, WeightMixin,
-              ColorMixin, DimensionMixin, Model3DMixin):
+              ColorMixin, DimensionMixin, Model3DMixin, CompatHousingsMixin):
 
     _table: CPALocksTable = None
+
+    def build_monitor_packet(self):
+        color = self.color
+
+        packet = {
+            'cpa_locks': [self.db_id],
+            'families': [self.family_id],
+            'series': [self.series_id],
+            'temperatures': [self.min_temp_id, self.max_temp],
+            'colors': [color.db_id],
+            'datasheets': [self.datasheet_id],
+            'cads': [self.cad_id],
+            'images': [self.image_id],
+            'models3d': [self.model3d_id]
+        }
+        self.merge_packet_data(self.manufacturer.build_monitor_packet(), packet)
+
+        return packet
+
+    @property
+    def type(self) -> "_cpa_lock_type.CPALockType":
+        type_id = self.type_id
+        return self._table.db.cpa_locks_table[type_id]
+
+    @property
+    def type_id(self) -> int:
+        return self._table.select('type_id', id=self._db_id)[0][0]
+
+    @type_id.setter
+    def type_id(self, value: int):
+        self._table.update(self._db_id, type_id=value)
 
     @property
     def pins(self) -> str:
@@ -156,3 +194,42 @@ class CPALock(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     @terminal_size.setter
     def terminal_size(self, value: float):
         self._table.update(self._db_id, terminal_size=value)
+
+    @property
+    def propgrid(self):       
+        part_cat = wxpg.PropertyCategory('Part Attributes')
+        
+        part_number_prop = self._part_number_propgrid
+        manufacturer_prop = self._manufacturer_propgrid
+        description_prop = self._description_propgrid
+        family_prop = self._family_propgrid
+        series_prop = self._series_propgrid
+        color_prop = self._color_propgrid
+        temperature_prop = self._temperature_propgrid
+        dimension_prop = self._dimension_propgrid
+        weight_prop = self._weight_propgrid
+        resource_prop = self._resource_propgrid
+        model3d_prop = self._model3d_propgrid
+        
+        compat_housings_prop = self._compat_housings_propgrid
+
+        type_prop = self.type.propgrid
+
+        pins_prop = wxpg.StringProperty('Pins', 'pins', self.pins)       
+
+        part_cat.AppendChild(part_number_prop)
+        part_cat.AppendChild(manufacturer_prop)
+        part_cat.AppendChild(description_prop)
+        part_cat.AppendChild(family_prop)
+        part_cat.AppendChild(series_prop)
+        part_cat.AppendChild(color_prop)
+        part_cat.AppendChild(type_prop)
+        part_cat.AppendChild(temperature_prop)
+        part_cat.AppendChild(dimension_prop)
+        part_cat.AppendChild(weight_prop)
+        part_cat.AppendChild(pins_prop)
+        part_cat.AppendChild(resource_prop)
+        part_cat.AppendChild(model3d_prop)
+        part_cat.AppendChild(compat_housings_prop)
+
+        return part_cat

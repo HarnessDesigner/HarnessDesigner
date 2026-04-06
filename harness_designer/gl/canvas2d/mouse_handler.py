@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 import wx
 from ... import config as _config
 from ...geometry import point as _point
+from .. import events as _events
 
 if TYPE_CHECKING:
     from . import canvas as _canvas
@@ -23,24 +24,7 @@ MOUSE_REVERSE_WHEEL_AXIS = _config.MOUSE_REVERSE_WHEEL_AXIS
 MOUSE_SWAP_AXIS = _config.MOUSE_SWAP_AXIS
 
 
-# Custom event types for 2D canvas
-wxEVT_GL2D_OBJECT_SELECTED = wx.NewEventType()
-EVT_GL2D_OBJECT_SELECTED = wx.PyEventBinder(wxEVT_GL2D_OBJECT_SELECTED, 0)
-
-wxEVT_GL2D_OBJECT_UNSELECTED = wx.NewEventType()
-EVT_GL2D_OBJECT_UNSELECTED = wx.PyEventBinder(wxEVT_GL2D_OBJECT_UNSELECTED, 0)
-
-wxEVT_GL2D_OBJECT_ACTIVATED = wx.NewEventType()
-EVT_GL2D_OBJECT_ACTIVATED = wx.PyEventBinder(wxEVT_GL2D_OBJECT_ACTIVATED, 0)
-
-wxEVT_GL2D_OBJECT_RIGHT_CLICK = wx.NewEventType()
-EVT_GL2D_OBJECT_RIGHT_CLICK = wx.PyEventBinder(wxEVT_GL2D_OBJECT_RIGHT_CLICK, 0)
-
-wxEVT_GL2D_OBJECT_DRAG = wx.NewEventType()
-EVT_GL2D_OBJECT_DRAG = wx.PyEventBinder(wxEVT_GL2D_OBJECT_DRAG, 0)
-
-
-class GLEvent2D(wx.PyEvent):
+class GLEvent(wx.PyEvent):
     """Custom event for 2D GL canvas operations"""
 
     def __init__(self, event_type):
@@ -57,7 +41,7 @@ class MouseHandler2D:
     Handles mouse interactions for the 2D schematic canvas
     """
 
-    def __init__(self, canvas: "_canvas.Canvas2D"):
+    def __init__(self, canvas: "_canvas.Canvas"):
         self.canvas = canvas
 
         self._mouse_pos: _point.Point = None
@@ -226,7 +210,7 @@ class MouseHandler2D:
                 selected.set_selected(True)
                 refresh = True
 
-            event = GLEvent2D(wxEVT_GL2D_OBJECT_ACTIVATED)
+            event = _events.GLEvent(_events.wxEVT_GL_OBJECT_ACTIVATED)
             event.obj = selected
             event.world_pos = world_pos
             event.screen_pos = mouse_pos

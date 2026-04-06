@@ -9,7 +9,7 @@ from . import materials as _materials
 from . import images as _images
 from . import datasheets as _datasheets
 from . import cads as _cads
-from . import adhesives as _adhesives
+# from . import adhesives as _adhesives
 from . import protections as _protections
 from . import temperatures as _temperatures
 
@@ -207,4 +207,3 @@ pjt_table = _con.SQLTable(
     _con.TextField('notes', default='""', no_null=True),
     _con.IntField('is_visible3d', default='1', no_null=True)
 )
-

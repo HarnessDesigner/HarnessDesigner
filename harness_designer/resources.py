@@ -261,7 +261,7 @@ def collect_resource(con, image_type, in_path):
             aspect_ratio = h / w
 
             w = 256
-            h = int(480 * aspect_ratio)
+            h = int(w * aspect_ratio)
         else:
             aspect_ratio = w / h
 
@@ -280,7 +280,9 @@ def collect_resource(con, image_type, in_path):
         new_img.paste(img, (offset_x, offset_y))
         new_img.save(new_image_path)
 
-        os.remove(image_path)
+        if image_path != new_image_path:
+            os.remove(image_path)
+
         image_path = new_image_path
 
     filename = os.path.split(image_path)[-1]

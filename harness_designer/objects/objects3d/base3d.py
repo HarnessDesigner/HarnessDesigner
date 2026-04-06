@@ -33,7 +33,7 @@ class Base3D:
                  position: _point.Point, scale: _point.Point,
                  material: _materials.GLMaterial, data=None):
 
-        self._parent: "_ObjectBase" = parent
+        self.parent: "_ObjectBase" = parent
         self.editor3d = parent.mainframe.editor3d
         self.mainframe: "_ui.MainFrame" = parent.mainframe
 
@@ -65,7 +65,7 @@ class Base3D:
         except AttributeError:
             self._is_visible = False
 
-        self._is_opaque = np.array([1], dtype=np.uint8)
+        self._is_opaque = np.array([int(material.is_opaque)], dtype=np.uint8)
         self._aabb: np.ndarray = np.ascontiguousarray(np.array(
             [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype=np.float64))
 
@@ -75,6 +75,15 @@ class Base3D:
 
         self._compute_obb()
         self._compute_aabb()
+
+        if (
+            self.editor3d.config.floor.enable_floor_lock and
+            self._aabb[0][1] < Config.floor.ground_height
+        ):
+            y = _d(position.y)
+            y += _d(Config.floor.ground_height) - _d(float(self._aabb[0][1]))
+
+            position.y = float(y)
 
         position.bind(self._update_position)
         angle.bind(self._update_angle)
@@ -122,16 +131,23 @@ class Base3D:
         self._compute_obb()
         self._compute_aabb()
 
-        if self._vbo is not None and self._aabb[0][1] < Config.floor.ground_height:
-            self._position.y += Config.floor.ground_height - self._aabb[0][1]
-            return
+        if (
+            self.editor3d.config.floor.enable_floor_lock and
+            self._aabb[0][1] < Config.floor.ground_height
+        ):
+            y = _d(position.y)
+            y += _d(Config.floor.ground_height) - _d(float(self._aabb[0][1]))
+
+            position.unbind(self._update_position)
+            position.y = float(y)
+            position.bind(self._update_position)
 
         if self._vbo is None:
             delta = position - self._o_position
             self._data[0] += delta
 
         self._o_position = position.copy()
-        self.numpy_position = position.as_numpy
+        self.numpy_position[:] = position.as_numpy
 
         self._compute_obb()
         self._compute_aabb()
@@ -140,15 +156,19 @@ class Base3D:
 
     def _update_angle(self, angle: _angle.Angle):
         if self._vbo is None:
-            delta = angle - self._o_angle
-            tris, nrmls = self._data[:-1]
+            inverse = self._o_angle.inverse
 
-            tris -= self._position
-            tris @= delta
-            nrmls @= delta
+            verts, nrmls = self._data[:-1]
 
-            tris += self._position
-            self._data[0] = tris
+            verts -= self._position
+            verts @= inverse
+            verts @= angle
+            verts += self._position
+
+            nrmls @= inverse
+            nrmls @= angle
+
+            self._data[0] = verts
             self._data[1] = nrmls
 
         self._o_angle = angle.copy()
@@ -157,8 +177,13 @@ class Base3D:
         self._compute_obb()
         self._compute_aabb()
 
-        if self._vbo is not None and self._aabb[0][1] < Config.floor.ground_height:
-            self._position.y += Config.floor.ground_height - self._aabb[0][1]
+        if (
+            self.editor3d.config.floor.enable_floor_lock and
+            self._aabb[0][1] < Config.floor.ground_height
+        ):
+            y = _d(self._position.y)
+            y += _d(Config.floor.ground_height) - _d(float(self._aabb[0][1]))
+            self._position.y = float(y)
             return
 
         self.editor3d.Refresh(False)
@@ -169,8 +194,13 @@ class Base3D:
         self._compute_obb()
         self._compute_aabb()
 
-        if self._vbo is not None and self._aabb[0][1] < Config.floor.ground_height:
-            self._position.y += Config.floor.ground_height - self._aabb[0][1]
+        if (
+            self.editor3d.config.floor.enable_floor_lock and
+            self._aabb[0][1] < Config.floor.ground_height
+        ):
+            y = _d(self._position.y)
+            y += _d(Config.floor.ground_height) - _d(float(self._aabb[0][1]))
+            self._position.y = float(y)
             return
 
         self.editor3d.Refresh(False)
@@ -344,7 +374,7 @@ class Base3D:
         self._is_selected = flag
 
         if flag:
-            self.mainframe._set_selected(self._parent)  # NOQA
+            self.mainframe._set_selected(self.parent)  # NOQA
         else:
             self.mainframe._set_selected(None)  # NOQA
 

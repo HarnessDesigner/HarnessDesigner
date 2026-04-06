@@ -1,8 +1,11 @@
 from typing import Iterable as _Iterable, Union as _Union, TYPE_CHECKING
 
-from .pjt_bases import PJTEntryBase, PJTTableBase
-from .mixins import NameMixin
+import weakref
 
+from .pjt_bases import PJTEntryBase, PJTTableBase
+from .mixins import NameMixin, NotesMixin
+
+from wx import propgrid as wxpg
 
 from . import pjt_wire as _pjt_wire
 from . import pjt_splice as _pjt_splice
@@ -94,15 +97,31 @@ class _Set:
         return _iter(self.items)
 
 
-class PJTCircuit(PJTEntryBase, NameMixin):
+class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
     _table: PJTCircuitsTable = None
 
+    def build_monitor_packet(self):
+
+        packet = {
+            'pjt_circuits': [self.db_id],
+        }
+
+        return packet
 
     def get_object(self) -> "_circuit_obj.Circuit":
+        if self._obj is not None:
+            return self._obj()
+
         return self._obj
 
+    def __release_obj_ref(self, _):
+        self._obj = None
+
     def set_object(self, obj: "_circuit_obj.Circuit"):
-        self._obj = obj
+        if obj is not None:
+            self._obj = weakref.ref(obj, self.__release_obj_ref)
+        else:
+            self._obj = obj
 
     @property
     def start_terminal(self) -> _pjt_terminal.PJTTerminal:
@@ -193,7 +212,7 @@ class PJTCircuit(PJTEntryBase, NameMixin):
 
                 for db_id in db_ids:
                     wire = obj.table.db.pjt_wires_table[db_id[0]]
-                    res.extend(iter_objs(wire, wire.stop_point3d))
+                    res.extend(iter_objs(wire, wire.stop_position3d))
 
                 db_ids = obj.table.db.pjt_wire_service_loops_table.select(
                     'db_id', circuit_id=self.db_id, start_point3d_id=int(point.db_id))
@@ -466,3 +485,23 @@ class PJTCircuit(PJTEntryBase, NameMixin):
             res.append(self._table.db.pjt_housings_table[wire_id[0]])
 
         return res
+
+    @property
+    def propgrid(self) -> wxpg.PGProperty:
+        from ...ui.editor_obj.prop_grid import long_string_prop as _long_string_prop
+        from ...ui.editor_obj.prop_grid import int_prop as _int_prop
+
+        group = wxpg.PropertyCategory('Circuit')
+
+        circuit_num_prop = _int_prop.IntPorperty('Circuit Number', 'curcuit_num', self.circuit_num, min_value=0, max_value=99999)
+        description_prop = _long_string_prop.LongStringProperty('Description', 'description', self.description)
+
+        notes_prop = self._notes_propgrid
+        name_prop = self._name_propgrid
+
+        group.AppendChild(name_prop)
+        group.AppendChild(circuit_num_prop)
+        group.AppendChild(description_prop)
+        group.AppendChild(notes_prop)
+
+        return group

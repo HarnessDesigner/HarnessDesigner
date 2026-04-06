@@ -7,6 +7,7 @@ from . import arcball as _arcball
 from ...geometry import point as _point
 
 from ... import config as _config
+from .. import events as _events
 
 
 MOUSE_NONE = _config.MOUSE_NONE
@@ -21,160 +22,6 @@ MOUSE_REVERSE_X_AXIS = _config.MOUSE_REVERSE_X_AXIS
 MOUSE_REVERSE_Y_AXIS = _config.MOUSE_REVERSE_Y_AXIS
 MOUSE_REVERSE_WHEEL_AXIS = _config.MOUSE_REVERSE_WHEEL_AXIS
 MOUSE_SWAP_AXIS = _config.MOUSE_SWAP_AXIS
-
-
-wxEVT_GL_OBJECT_SELECTED = wx.NewEventType()
-EVT_GL_OBJECT_SELECTED = wx.PyEventBinder(wxEVT_GL_OBJECT_SELECTED, 0)
-
-wxEVT_GL_OBJECT_UNSELECTED = wx.NewEventType()
-EVT_GL_OBJECT_UNSELECTED = wx.PyEventBinder(wxEVT_GL_OBJECT_UNSELECTED, 0)
-
-wxEVT_GL_OBJECT_ACTIVATED = wx.NewEventType()
-EVT_GL_OBJECT_ACTIVATED = wx.PyEventBinder(wxEVT_GL_OBJECT_ACTIVATED, 0)
-
-
-wxEVT_GL_OBJECT_RIGHT_CLICK = wx.NewEventType()
-EVT_GL_OBJECT_RIGHT_CLICK = wx.PyEventBinder(wxEVT_GL_OBJECT_RIGHT_CLICK, 0)
-
-wxEVT_GL_OBJECT_RIGHT_DCLICK = wx.NewEventType()
-EVT_GL_OBJECT_RIGHT_DCLICK = wx.PyEventBinder(wxEVT_GL_OBJECT_RIGHT_DCLICK, 0)
-
-
-wxEVT_GL_OBJECT_MIDDLE_CLICK = wx.NewEventType()
-EVT_GL_OBJECT_MIDDLE_CLICK = wx.PyEventBinder(wxEVT_GL_OBJECT_MIDDLE_CLICK, 0)
-
-wxEVT_GL_OBJECT_MIDDLE_DCLICK = wx.NewEventType()
-EVT_GL_OBJECT_MIDDLE_DCLICK = wx.PyEventBinder(wxEVT_GL_OBJECT_MIDDLE_DCLICK, 0)
-
-
-wxEVT_GL_OBJECT_AUX1_CLICK = wx.NewEventType()
-EVT_GL_OBJECT_AUX1_CLICK = wx.PyEventBinder(wxEVT_GL_OBJECT_AUX1_CLICK, 0)
-
-wxEVT_GL_OBJECT_AUX1_DCLICK = wx.NewEventType()
-EVT_GL_OBJECT_AUX1_DCLICK = wx.PyEventBinder(wxEVT_GL_OBJECT_AUX1_DCLICK, 0)
-
-
-wxEVT_GL_OBJECT_AUX2_CLICK = wx.NewEventType()
-EVT_GL_OBJECT_AUX2_CLICK = wx.PyEventBinder(wxEVT_GL_OBJECT_AUX2_CLICK, 0)
-
-wxEVT_GL_OBJECT_AUX2_DCLICK = wx.NewEventType()
-EVT_GL_OBJECT_AUX2_DCLICK = wx.PyEventBinder(wxEVT_GL_OBJECT_AUX2_DCLICK, 0)
-
-
-wxEVT_GL_OBJECT_DRAG = wx.NewEventType()
-EVT_GL_OBJECT_DRAG = wx.PyEventBinder(wxEVT_GL_OBJECT_DRAG, 0)
-
-
-wxEVT_GL_LEFT_DOWN = wx.NewEventType()
-EVT_GL_LEFT_DOWN = wx.PyEventBinder(wxEVT_GL_LEFT_DOWN, 0)
-
-wxEVT_GL_LEFT_UP = wx.NewEventType()
-EVT_GL_LEFT_UP = wx.PyEventBinder(wxEVT_GL_LEFT_UP, 0)
-
-wxEVT_GL_LEFT_DCLICK = wx.NewEventType()
-EVT_GL_LEFT_DCLICK = wx.PyEventBinder(wxEVT_GL_LEFT_DCLICK, 0)
-
-
-wxEVT_GL_RIGHT_DOWN = wx.NewEventType()
-EVT_GL_RIGHT_DOWN = wx.PyEventBinder(wxEVT_GL_RIGHT_DOWN, 0)
-
-wxEVT_GL_RIGHT_UP = wx.NewEventType()
-EVT_GL_RIGHT_UP = wx.PyEventBinder(wxEVT_GL_RIGHT_UP, 0)
-
-wxEVT_GL_RIGHT_DCLICK = wx.NewEventType()
-EVT_GL_RIGHT_DCLICK = wx.PyEventBinder(wxEVT_GL_RIGHT_DCLICK, 0)
-
-wxEVT_GL_MIDDLE_DOWN = wx.NewEventType()
-EVT_GL_MIDDLE_DOWN = wx.PyEventBinder(wxEVT_GL_MIDDLE_DOWN, 0)
-
-wxEVT_GL_MIDDLE_UP = wx.NewEventType()
-EVT_GL_MIDDLE_UP = wx.PyEventBinder(wxEVT_GL_MIDDLE_UP, 0)
-
-wxEVT_GL_MIDDLE_DCLICK = wx.NewEventType()
-EVT_GL_MIDDLE_DCLICK = wx.PyEventBinder(wxEVT_GL_MIDDLE_DCLICK, 0)
-
-wxEVT_GL_AUX1_DOWN = wx.NewEventType()
-EVT_GL_AUX1_DOWN = wx.PyEventBinder(wxEVT_GL_AUX1_DOWN, 0)
-
-wxEVT_GL_AUX1_UP = wx.NewEventType()
-EVT_GL_AUX1_UP = wx.PyEventBinder(wxEVT_GL_AUX1_UP, 0)
-
-wxEVT_GL_AUX1_DCLICK = wx.NewEventType()
-EVT_GL_AUX1_DCLICK = wx.PyEventBinder(wxEVT_GL_AUX1_DCLICK, 0)
-
-wxEVT_GL_AUX2_DOWN = wx.NewEventType()
-EVT_GL_AUX2_DOWN = wx.PyEventBinder(wxEVT_GL_AUX2_DOWN, 0)
-
-wxEVT_GL_AUX2_UP = wx.NewEventType()
-EVT_GL_AUX2_UP = wx.PyEventBinder(wxEVT_GL_AUX2_UP, 0)
-
-wxEVT_GL_AUX2_DCLICK = wx.NewEventType()
-EVT_GL_AUX2_DCLICK = wx.PyEventBinder(wxEVT_GL_AUX2_DCLICK, 0)
-
-
-wxEVT_GL_DRAG = wx.NewEventType()
-EVT_GL_DRAG = wx.PyEventBinder(wxEVT_GL_AUX2_DCLICK, 0)
-
-
-class GLEvent(wx.CommandEvent):
-
-    def __init__(self, evtType):
-        wx.CommandEvent.__init__(self, evtType)
-        self._mouse_pos = None
-        self._world_pos = None
-        self._mouse_button = wx.MOUSE_BTN_NONE
-
-    def RightIsDown(self) -> bool:
-        return bool(self._mouse_button & wx.MOUSE_BTN_RIGHT)
-
-    def LeftIsDown(self) -> bool:
-        return bool(self._mouse_button & wx.MOUSE_BTN_LEFT)
-
-    def MiddleIsDown(self) -> bool:
-        return bool(self._mouse_button & wx.MOUSE_BTN_MIDDLE)
-
-    def Aux1IsDown(self) -> bool:
-        return bool(self._mouse_button & wx.MOUSE_BTN_AUX1)
-
-    def Aux2IsDown(self) -> bool:
-        return bool(self._mouse_button & wx.MOUSE_BTN_AUX2)
-
-    def SetMouseButtons(self, buttons):
-        """
-        :param buttons: OR'ed of
-        wx.MOUSE_BTN_LEFT
-        wx.MOUSE_BTN_RIGHT
-        wx.MOUSE_BTN_MIDDLE
-        wx.MOUSE_BTN_AUX1
-        wx.MOUSE_BTN_AUX2
-        :return:
-        """
-        self._mouse_button = buttons
-
-    def GetPosition(self) -> _point.Point:
-        return self._mouse_pos
-
-    def SetPosition(self, pos: _point.Point):
-        self._mouse_pos = pos
-
-    def SetWorldPosition(self, pos: _point.Point):
-        self._world_pos = pos
-
-    def GetWorldPosition(self) -> _point.Point:
-        return self._world_pos
-
-
-class GLObjectEvent(GLEvent):
-
-    def __init__(self, evtType):
-        wx.CommandEvent.__init__(self, evtType)
-        self._gl_object = None
-
-    def GetGLObject(self):
-        return not self._gl_object
-
-    def SetGLObject(self, obj):
-        self._gl_object = obj
 
 
 class MouseHandler:
@@ -209,6 +56,8 @@ class MouseHandler:
 
         canvas.Bind(wx.EVT_MOTION, self.on_mouse_motion)
         canvas.Bind(wx.EVT_MOUSEWHEEL, self.on_mouse_wheel)
+
+        canvas.Bind(wx.EVT_MOUSE_CAPTURE_LOST, self.on_mouse_capture_lost)
 
     def _process_mouse(self, code):
         for config, func in (
@@ -248,7 +97,7 @@ class MouseHandler:
 
         refresh = False
 
-        event = GLEvent(wxEVT_GL_LEFT_DOWN)
+        event = _events.GLEvent(_events.wxEVT_GL_LEFT_DOWN)
         if self._send_event(event, evt):
             return
 
@@ -258,7 +107,7 @@ class MouseHandler:
         if refresh:
             self.canvas.Refresh(False)
 
-    def _send_event(self, new_event: GLEvent, old_event: wx.MouseEvent) -> bool:
+    def _send_event(self, new_event: _events.GLEvent, old_event: wx.MouseEvent) -> bool:
         position = _point.Point(*old_event.GetPosition())
         world_position = self.canvas.camera.UnprojectPoint(position)
 
@@ -288,10 +137,19 @@ class MouseHandler:
         self.canvas.GetEventHandler().ProcessEvent(new_event)
         return new_event.ShouldPropagate()
 
+    def on_mouse_capture_lost(self, evt: wx.MouseCaptureLostEvent):
+        self._drag_obj = None
+        self._arcball = None
+        self._is_motion = False
+        if self.canvas.HasCapture():
+            self.canvas.ReleaseMouse()
+
+        evt.Skip()
+
     def on_left_up(self, evt: wx.MouseEvent):
         refresh = False
 
-        event = GLEvent(wxEVT_GL_LEFT_UP)
+        event = _events.GLEvent(_events.wxEVT_GL_LEFT_UP)
         if self._send_event(event, evt):
 
             x, y = evt.GetPosition()
@@ -308,7 +166,7 @@ class MouseHandler:
                 if cur_selected is None and selected is not None:
                     selected.set_selected(True)
 
-                    event = GLObjectEvent(wxEVT_GL_OBJECT_SELECTED)
+                    event = _events.GLObjectEvent(_events.wxEVT_GL_OBJECT_SELECTED)
                     event.SetGLObject(selected)
 
                     if not self._send_event(event, evt):
@@ -316,7 +174,7 @@ class MouseHandler:
 
                 elif selected is None and cur_selected is not None:
                     cur_selected.set_selected(False)
-                    event = GLObjectEvent(wxEVT_GL_OBJECT_UNSELECTED)
+                    event = _events.GLObjectEvent(_events.wxEVT_GL_OBJECT_UNSELECTED)
                     event.SetGLObject(selected)
 
                     if not self._send_event(event, evt):
@@ -328,7 +186,7 @@ class MouseHandler:
                     selected == cur_selected
                 ):
                     selected.set_selected(False)
-                    event = GLObjectEvent(wxEVT_GL_OBJECT_UNSELECTED)
+                    event = _events.GLObjectEvent(_events.wxEVT_GL_OBJECT_UNSELECTED)
                     event.SetGLObject(selected)
 
                     if not self._send_event(event, evt):
@@ -340,7 +198,7 @@ class MouseHandler:
                     selected != cur_selected
                 ):
                     cur_selected.set_selected(False)
-                    event = GLObjectEvent(wxEVT_GL_OBJECT_UNSELECTED)
+                    event = _events.GLObjectEvent(_events.wxEVT_GL_OBJECT_UNSELECTED)
                     event.SetGLObject(cur_selected)
 
                     if not self._send_event(event, evt):
@@ -348,7 +206,7 @@ class MouseHandler:
                     else:
                         selected.set_selected(True)
 
-                        event = GLObjectEvent(wxEVT_GL_OBJECT_SELECTED)
+                        event = _events.GLObjectEvent(_events.wxEVT_GL_OBJECT_SELECTED)
                         event.SetGLObject(selected)
 
                         if not self._send_event(event, evt):
@@ -375,7 +233,7 @@ class MouseHandler:
         mouse_pos = _point.Point(x, y)
         refresh = False
 
-        event = GLEvent(wxEVT_GL_LEFT_DCLICK)
+        event = _events.GLEvent(_events.wxEVT_GL_LEFT_DCLICK)
         if self._send_event(event, evt):
 
             selected = _object_picker.find_object(mouse_pos,
@@ -383,7 +241,7 @@ class MouseHandler:
                                                   self.canvas.camera)
             with self.canvas:
                 if selected:
-                    event = GLObjectEvent(wxEVT_GL_OBJECT_ACTIVATED)
+                    event = _events.GLObjectEvent(_events.wxEVT_GL_OBJECT_ACTIVATED)
                     event.SetGLObject(selected)
                     self._send_event(event, evt)
 
@@ -395,7 +253,7 @@ class MouseHandler:
     def on_middle_up(self, evt: wx.MouseEvent):
         refresh = False
 
-        event = GLEvent(wxEVT_GL_MIDDLE_UP)
+        event = _events.GLEvent(_events.wxEVT_GL_MIDDLE_UP)
         if self._send_event(event, evt):
             if not self._is_motion:
                 with self.canvas:
@@ -406,7 +264,7 @@ class MouseHandler:
                                                           self.canvas.camera)
 
                     if selected:
-                        event = GLObjectEvent(wxEVT_GL_OBJECT_MIDDLE_CLICK)
+                        event = _events.GLObjectEvent(_events.wxEVT_GL_OBJECT_MIDDLE_CLICK)
                         event.SetGLObject(selected)
                         self._send_event(event, evt)
 
@@ -422,7 +280,7 @@ class MouseHandler:
         self._is_motion = False
         refresh = False
 
-        event = GLEvent(wxEVT_GL_MIDDLE_DOWN)
+        event = _events.GLEvent(_events.wxEVT_GL_MIDDLE_DOWN)
         self._send_event(event, evt)
 
         if not self.canvas.HasCapture():
@@ -441,7 +299,7 @@ class MouseHandler:
         mouse_pos = _point.Point(x, y)
         refresh = False
 
-        event = GLEvent(wxEVT_GL_MIDDLE_DCLICK)
+        event = _events.GLEvent(_events.wxEVT_GL_MIDDLE_DCLICK)
         if self._send_event(event, evt):
 
             selected = _object_picker.find_object(mouse_pos,
@@ -449,7 +307,7 @@ class MouseHandler:
                                                   self.canvas.camera)
             with self.canvas:
                 if selected:
-                    event = GLObjectEvent(wxEVT_GL_OBJECT_MIDDLE_DCLICK)
+                    event = _events.GLObjectEvent(_events.wxEVT_GL_OBJECT_MIDDLE_DCLICK)
                     event.SetGLObject(selected)
                     self._send_event(event, evt)
 
@@ -461,7 +319,7 @@ class MouseHandler:
     def on_right_up(self, evt: wx.MouseEvent):
         refresh = False
 
-        event = GLEvent(wxEVT_GL_RIGHT_UP)
+        event = _events.GLEvent(_events.wxEVT_GL_RIGHT_UP)
         if self._send_event(event, evt):
 
             with self.canvas:
@@ -479,7 +337,7 @@ class MouseHandler:
 
                     if self._arcball is None:
                         if selected:
-                            event = GLObjectEvent(wxEVT_GL_OBJECT_RIGHT_CLICK)
+                            event = _events.GLObjectEvent(_events.wxEVT_GL_OBJECT_RIGHT_CLICK)
                             event.SetGLObject(selected)
                             self._send_event(event, evt)
                     else:
@@ -503,7 +361,7 @@ class MouseHandler:
         mouse_pos = _point.Point(x, y)
         self._mouse_pos = mouse_pos
 
-        event = GLEvent(wxEVT_GL_RIGHT_DOWN)
+        event = _events.GLEvent(_events.wxEVT_GL_RIGHT_DOWN)
         if self._send_event(event, evt):
             selected = _object_picker.find_object(mouse_pos,
                                                   self.canvas.objects_in_view,
@@ -526,7 +384,7 @@ class MouseHandler:
         mouse_pos = _point.Point(x, y)
         refresh = False
 
-        event = GLEvent(wxEVT_GL_RIGHT_DCLICK)
+        event = _events.GLEvent(_events.wxEVT_GL_RIGHT_DCLICK)
         if self._send_event(event, evt):
 
             selected = _object_picker.find_object(mouse_pos,
@@ -534,7 +392,7 @@ class MouseHandler:
                                                   self.canvas.camera)
             with self.canvas:
                 if selected:
-                    event = GLObjectEvent(wxEVT_GL_OBJECT_RIGHT_DCLICK)
+                    event = _events.GLObjectEvent(_events.wxEVT_GL_OBJECT_RIGHT_DCLICK)
                     event.SetGLObject(selected)
                     self._send_event(event, evt)
 
@@ -634,7 +492,7 @@ class MouseHandler:
                                                       self.canvas.camera)
 
                 if selected:
-                    event = GLObjectEvent(wxEVT_GL_OBJECT_AUX1_CLICK)
+                    event = _events.GLObjectEvent(_events.wxEVT_GL_OBJECT_AUX1_CLICK)
                     event.SetGLObject(selected)
                     self._send_event(event, evt)
 
@@ -668,7 +526,7 @@ class MouseHandler:
 
         with self.canvas:
             if selected:
-                event = GLObjectEvent(wxEVT_GL_OBJECT_AUX1_DCLICK)
+                event = _events.GLObjectEvent(_events.wxEVT_GL_OBJECT_AUX1_DCLICK)
                 event.SetGLObject(selected)
                 self._send_event(event, evt)
 
@@ -689,7 +547,7 @@ class MouseHandler:
                                                       self.canvas.camera)
 
                 if selected:
-                    event = GLObjectEvent(wxEVT_GL_OBJECT_AUX2_CLICK)
+                    event = _events.GLObjectEvent(_events.wxEVT_GL_OBJECT_AUX2_CLICK)
                     event.SetGLObject(selected)
                     self._send_event(event, evt)
 
@@ -723,7 +581,7 @@ class MouseHandler:
 
         with self.canvas:
             if selected:
-                event = GLObjectEvent(wxEVT_GL_OBJECT_AUX2_DCLICK)
+                event = _events.GLObjectEvent(_events.wxEVT_GL_OBJECT_AUX2_DCLICK)
                 event.SetGLObject(selected)
                 self._send_event(event, evt)
 

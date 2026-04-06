@@ -1,6 +1,6 @@
 from typing import Iterable as _Iterable
 
-import uuid
+from wx import propgrid as wxpg
 
 from .pjt_bases import PJTEntryBase, PJTTableBase
 
@@ -45,7 +45,13 @@ class PJTPoints3DTable(PJTTableBase):
 
 class PJTPoint3D(PJTEntryBase):
     _table: PJTPoints3DTable = None
-    _point_id: str = None
+
+    def build_monitor_packet(self):
+        packet = {
+            'pjt_points3d': [self.db_id],
+        }
+
+        return packet
 
     @property
     def table(self) -> PJTPoints3DTable:
@@ -78,17 +84,37 @@ class PJTPoint3D(PJTEntryBase):
         self._table.update(self._db_id, z=value)
         self._process_callbacks()
 
-    def _update_point(self, point: _point.Point):
+    def __update_point(self, point: _point.Point):
         x, y, z = point.as_float
+
         self._table.update(self._db_id, x=x, y=y, z=z)
         self._process_callbacks()
 
     @property
     def point(self) -> _point.Point:
-        if self._point_id is None:
-            self._point_id = str(uuid.uuid4())
-
-        point = _point.Point(self.x, self.y, self.z, db_id=self._point_id)
-        point.bind(self._update_point)
+        point = _point.Point(self.x, self.y, self.z, db_id=str(self.db_id) + '3d')
+        point.bind(self.__update_point)
 
         return point
+
+    @property
+    def propgrid(self) -> wxpg.PGProperty:
+        group = wxpg.PropertyCategory('Project')
+
+        notes_prop = self._notes_propgrid
+        name_prop = self._name_propgrid
+        angle_prop = self._angle3d_propgrid
+        position_prop = self._position3d_propgrid
+        housing_prop = self._housing_propgrid
+        visible_prop = self._visible3d_propgrid
+
+        group.AppendChild(name_prop)
+        group.AppendChild(notes_prop)
+        group.AppendChild(angle_prop)
+        group.AppendChild(position_prop)
+        group.AppendChild(visible_prop)
+        group.AppendChild(housing_prop)
+
+        part_prop = self._part_propgrid
+
+        return group, part_prop

@@ -17,28 +17,9 @@ if TYPE_CHECKING:
     from .. import note as _note
 
 
-font_style_mapping = {
-    'Normal': build123d.FontStyle.REGULAR,
-    'Bold': build123d.FontStyle.BOLD,
-    'Bold Italic': build123d.FontStyle.BOLDITALIC,
-    'Italic': build123d.FontStyle.ITALIC
-}
-
-#
-# build123d.LEFT
-# build123d.CENTER
-# build123d.RIGHT
-#
-# build123d.BOTTOM
-# build123d.CENTER
-# build123d.TOP
-# build123d.TOPFIRSTLINE
-#
-
-
 class Note(_base3d.Base3D):
-    _parent: "_note.Note" = None
-    db_obj: "_pjt_note.PJTNote"
+    parent: "_note.Note" = None
+    db_obj: "_pjt_note.PJTNote" = None
 
     def __init__(self, parent: "_note.Note", db_obj: "_pjt_note.PJTNote"):
         self.db_obj = db_obj

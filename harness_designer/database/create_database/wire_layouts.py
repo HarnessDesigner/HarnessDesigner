@@ -3,7 +3,6 @@ from . import points3d as _points3d
 from . import points2d as _points2d
 
 from .. import db_connectors as _con
-from ... import logger as _logger
 
 
 pjt_id_field = _con.PrimaryKeyField('id')

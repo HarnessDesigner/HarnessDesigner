@@ -21,6 +21,8 @@ class Grid:
 
         self.vbos = None
         self.thread = None
+        self.grid_spacing = 1
+        self._layer_steps = None
 
         self.config = canvas.config
 
@@ -80,6 +82,7 @@ class Grid:
         event = threading.Event()
 
         def _do():
+            self._layer_steps = layer_steps
             self.vbos = [_get_vbo(layer) for layer in layers]
             self.canvas.Refresh(False)
             event.set()
@@ -101,6 +104,10 @@ class Grid:
 
                     self.vbos = None
 
+                # TODO: change the code to either the creation of the grid is done
+                #       using cython code and a thread this way the GIL doesn't
+                #       cause a stall in the program. Another option is to use a
+                #       subprocess to create the grid.
                 if self.thread is None and f:
                     self.thread = threading.Thread(target=self._initialize_grid)
                     self.thread.daemon = True
@@ -153,7 +160,11 @@ class Grid:
             GL.glColor4f(0.75, 0.75, 0.75, 1.0)  # Light gray
             GL.glPointSize(1.75)
             _draw_vbo(*self.vbos[major + 1])
+            self.grid_spacing = self._layer_steps[major + 1]
+        else:
+            self.grid_spacing = self._layer_steps[major]
 
         GL.glColor4f(0.25, 0.25, 0.25, 1.0)  # Dark gray for contrast
         GL.glPointSize(2.5)
         _draw_vbo(*self.vbos[major])
+

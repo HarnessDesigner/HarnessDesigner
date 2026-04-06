@@ -1,5 +1,7 @@
 from typing import Iterable as _Iterable
 
+from wx import propgrid as wxpg
+
 from .bases import EntryBase, TableBase
 from .mixins import NameMixin
 
@@ -16,7 +18,8 @@ class FileTypesTable(TableBase):
         from ..create_database import file_types
 
         file_types.table.add_to_db(self)
-        file_types.add_records(self._con, splash)
+        data_path = self._con.db_data.open(splash)
+        file_types.add_records(self._con, splash, data_path)
 
     def _update_table_in_db(self):
         from ..create_database import file_types
@@ -51,6 +54,13 @@ class FileTypesTable(TableBase):
 class FileType(EntryBase, NameMixin):
     _table: FileTypesTable = None
 
+    def build_monitor_packet(self):
+        packet = {
+            'file_types': [self.db_id],
+        }
+
+        return packet
+
     @property
     def extension(self) -> str:
         return self._table.select('extension', id=self._db_id)[0][0]
@@ -74,3 +84,27 @@ class FileType(EntryBase, NameMixin):
     @is_model.setter
     def is_model(self, value: bool):
         self._table.update(self._db_id, is_model=int(value))
+
+    @property
+    def propgrid(self) -> wxpg.PGProperty:
+        from ...ui.editor_obj.prop_grid import combobox_prop as _combobox_prop
+        from ...ui.editor_obj.prop_grid import bool_prop as _bool_prop
+
+        file_type_prop = wxpg.PGProperty('File Type')
+
+        rows = self.table.select('mimetype')
+
+        choices = [item[0] for item in rows]
+        mimetype_prop = _combobox_prop.ComboboxProperty('MimeType', 'mimetype', self.name, choices)
+        rows = self.table.select('extension')
+
+        choices = [item[0] for item in rows]
+        extension_prop = _combobox_prop.ComboboxProperty('Extension', 'extension', self.name, choices)
+        is_model_prop = _bool_prop.BoolProperty('Is Model', 'is_model', self.is_model)
+
+        file_type_prop.AppendChild(mimetype_prop)
+        file_type_prop.AppendChild(extension_prop)
+        file_type_prop.AppendChild(is_model_prop)
+
+        return file_type_prop
+

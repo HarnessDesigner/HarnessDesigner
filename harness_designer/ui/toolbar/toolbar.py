@@ -4,7 +4,7 @@ from wx import aui
 import wx
 
 from ...gl import canvas3d as _canvas3d
-
+from ... import gl as _gl
 from ... import image as _image
 
 
@@ -13,33 +13,33 @@ if TYPE_CHECKING:
 
 
 '''
-_canvas3d.EVT_GL_OBJECT_SELECTED
-_canvas3d.EVT_GL_OBJECT_UNSELECTED
-_canvas3d.EVT_GL_OBJECT_ACTIVATED
-_canvas3d.EVT_GL_OBJECT_RIGHT_CLICK
-_canvas3d.EVT_GL_OBJECT_RIGHT_DCLICK
-_canvas3d.EVT_GL_OBJECT_MIDDLE_CLICK
-_canvas3d.EVT_GL_OBJECT_MIDDLE_DCLICK
-_canvas3d.EVT_GL_OBJECT_AUX1_CLICK
-_canvas3d.EVT_GL_OBJECT_AUX1_DCLICK
-_canvas3d.EVT_GL_OBJECT_AUX2_CLICK
-_canvas3d.EVT_GL_OBJECT_AUX2_DCLICK
-_canvas3d.EVT_GL_OBJECT_DRAG
-_canvas3d.EVT_GL_LEFT_DOWN
-_canvas3d.EVT_GL_LEFT_UP
-_canvas3d.EVT_GL_LEFT_DCLICK
-_canvas3d.EVT_GL_RIGHT_DOWN
-_canvas3d.EVT_GL_RIGHT_UP
-_canvas3d.EVT_GL_RIGHT_DCLICK
-_canvas3d.EVT_GL_MIDDLE_DOWN
-_canvas3d.EVT_GL_MIDDLE_UP
-_canvas3d.EVT_GL_MIDDLE_DCLICK
-_canvas3d.EVT_GL_AUX1_DOWN
-_canvas3d.EVT_GL_AUX1_UP
-_canvas3d.EVT_GL_AUX1_DCLICK
-_canvas3d.EVT_GL_AUX2_DOWN
-_canvas3d.EVT_GL_AUX2_UP
-_canvas3d.EVT_GL_AUX2_DCLICK
+_gl.EVT_GL_OBJECT_SELECTED
+_gl.EVT_GL_OBJECT_UNSELECTED
+_gl.EVT_GL_OBJECT_ACTIVATED
+_gl.EVT_GL_OBJECT_RIGHT_CLICK
+_gl.EVT_GL_OBJECT_RIGHT_DCLICK
+_gl.EVT_GL_OBJECT_MIDDLE_CLICK
+_gl.EVT_GL_OBJECT_MIDDLE_DCLICK
+_gl.EVT_GL_OBJECT_AUX1_CLICK
+_gl.EVT_GL_OBJECT_AUX1_DCLICK
+_gl.EVT_GL_OBJECT_AUX2_CLICK
+_gl.EVT_GL_OBJECT_AUX2_DCLICK
+_gl.EVT_GL_OBJECT_DRAG
+_gl.EVT_GL_LEFT_DOWN
+_gl.EVT_GL_LEFT_UP
+_gl.EVT_GL_LEFT_DCLICK
+_gl.EVT_GL_RIGHT_DOWN
+_gl.EVT_GL_RIGHT_UP
+_gl.EVT_GL_RIGHT_DCLICK
+_gl.EVT_GL_MIDDLE_DOWN
+_gl.EVT_GL_MIDDLE_UP
+_gl.EVT_GL_MIDDLE_DCLICK
+_gl.EVT_GL_AUX1_DOWN
+_gl.EVT_GL_AUX1_UP
+_gl.EVT_GL_AUX1_DCLICK
+_gl.EVT_GL_AUX2_DOWN
+_gl.EVT_GL_AUX2_UP
+_gl.EVT_GL_AUX2_DCLICK
 '''
 
 ID_SELECT = wx.NewIdRef()
@@ -48,6 +48,8 @@ ID_TERMINAL = wx.NewIdRef()
 ID_WIRE = wx.NewIdRef()
 ID_SPLICE = wx.NewIdRef()
 ID_NOTE = wx.NewIdRef()
+ID_WIRE_SERVICE_LOOP = wx.NewIdRef()
+ID_COVER = wx.NewIdRef()
 
 ID_ZOOM_IN = wx.NewIdRef()
 ID_ZOOM_OUT = wx.NewIdRef()
@@ -183,13 +185,13 @@ class EditorToolbar(aui.AuiPaneInfo):
         self.Show()
         self.manager.Update()
 
-        self.mainframe.editor3d.Bind(_canvas3d.EVT_GL_OBJECT_SELECTED, self._on_obj_selected)
-        self.mainframe.editor3d.Bind(_canvas3d.EVT_GL_OBJECT_UNSELECTED, self._on_obj_unselected)
+        self.mainframe.editor3d.Bind(_gl.EVT_GL_OBJECT_SELECTED, self._on_obj_selected)
+        self.mainframe.editor3d.Bind(_gl.EVT_GL_OBJECT_UNSELECTED, self._on_obj_unselected)
 
     def get_mode(self) -> int:
         return self._mode
 
-    def _on_obj_selected(self, evt: _canvas3d.GLObjectEvent):
+    def _on_obj_selected(self, evt: _gl.GLObjectEvent):
         from ...objects import housing as _housing
         from ...objects import wire as _wire
         from ...objects import terminal as _terminal
@@ -258,7 +260,7 @@ class EditorToolbar(aui.AuiPaneInfo):
         self.toolbar.Refresh(False)
         evt.Skip()
 
-    def _on_obj_unselected(self, evt: _canvas3d.GLObjectEvent):
+    def _on_obj_unselected(self, evt: _gl.GLObjectEvent):
         self._cpa_lock.SetState(aui.AUI_BUTTON_STATE_DISABLED)
         self._tpa_lock.SetState(aui.AUI_BUTTON_STATE_DISABLED)
         self._bundle.SetState(aui.AUI_BUTTON_STATE_DISABLED)
@@ -672,4 +674,3 @@ class GeneralToolbar(aui.AuiPaneInfo):
 
     def Destroy(self):
         self.toolbar.Destroy()
-

@@ -1,13 +1,13 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
-from .pjt_bases import PJTEntryBase, PJTTableBase
+from wx import propgrid as wxpg
 
+from .pjt_bases import PJTEntryBase, PJTTableBase
+from .mixins import NotesMixin
 
 if TYPE_CHECKING:
     from . import pjt_concentric as _pjt_concentric
     from . import pjt_concentric_wire as _pjt_concentric_wire
-
-    from ...objects import boot as _boot_obj
 
 
 class PJTConcentricLayersTable(PJTTableBase):
@@ -49,14 +49,36 @@ class PJTConcentricLayersTable(PJTTableBase):
         return PJTConcentricLayer(self, db_id, self.project_id)
 
 
-class PJTConcentricLayer(PJTEntryBase):
+class PJTConcentricLayer(PJTEntryBase, NotesMixin):
     _table: PJTConcentricLayersTable = None
 
-    def get_object(self) -> "_boot_obj.Boot":
-        return self._obj
+    def build_monitor_packet(self):
+        concentric = self.concentric
 
-    def set_object(self, obj: "_boot_obj.Boot"):
-        self._obj = obj
+        packet = {
+            'pjt_concentric_layers': [self.db_id],
+            'pjt_concentrics': [concentric.db_id]
+        }
+
+        self.merge_packet_data(concentric.build_monitor_packet(), packet)
+
+        return packet
+
+    # def get_object(self) -> "_boot_obj.Boot":
+    #     if self._obj is not None:
+    #         return self._obj()
+    #
+    #     return self._obj
+    #
+    # def __release_obj_ref(self, _):
+    #     self._obj = None
+    #
+    # def set_object(self, obj: "_boot_obj.Boot"):
+    #     if obj is not None:
+    #         self._obj = weakref.ref(obj, self.__release_obj_ref)
+    #     else:
+    #         self._obj = obj
+    #
 
     @property
     def table(self) -> PJTConcentricLayersTable:
@@ -86,11 +108,11 @@ class PJTConcentricLayer(PJTEntryBase):
         self._process_callbacks()
 
     @property
-    def index(self) -> int:
+    def idx(self) -> int:
         return self._table.select('idx', id=self._db_id)[0][0]
 
-    @index.setter
-    def index(self, value: int):
+    @idx.setter
+    def idx(self, value: int):
         self._table.update(self._db_id, idx=value)
         self._process_callbacks()
 
@@ -120,3 +142,29 @@ class PJTConcentricLayer(PJTEntryBase):
     def diameter(self, value: float):
         self._table.update(self._db_id, diameter=value)
         self._process_callbacks()
+
+    @property
+    def propgrid(self) -> wxpg.PGProperty:
+        from ...ui.editor_obj.prop_grid import float_prop as _float_prop
+        from ...ui.editor_obj.prop_grid import int_prop as _int_prop
+
+        group = wxpg.PGProperty(f'Layer {self.idx}')
+
+        notes_prop = self._notes_propgrid
+
+        num_fillers_prop = _int_prop.IntProperty('Filler Count', 'num_fillders', self.num_fillers, min_value=0, max_value=999)
+        num_wires = _int_prop.IntProperty('Wire Count', 'num_wires', self.num_wires, min_value=0, max_value=999)
+        diameter = _float_prop.FloatProperty('Diameter', 'diameter', self.diameter, min_value=0.0, max_value=999.0, increment=0.1, units='mm')
+
+        wire_prop = wxpg.PGProperty(f'Wires')
+
+        for wire in self.wires:
+            wire_prop.AppendChild(wire.propgrid)
+
+        group.AppendChild(notes_prop)
+        group.AppendChild(num_fillers_prop)
+        group.AppendChild(num_wires)
+        group.AppendChild(diameter)
+        group.AppendChild(wire_prop)
+
+        return group

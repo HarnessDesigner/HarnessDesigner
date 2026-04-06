@@ -1,13 +1,12 @@
 import os
 
 from .. import db_connectors as _con
-from ... import logger as _logger
 
 
 BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 
-def add_records(con, splash):
+def add_records(con, splash, _=None):
     con.execute('SELECT id FROM ip_solids WHERE id=0;')
     if con.fetchall():
         return
@@ -16,20 +15,44 @@ def add_records(con, splash):
     splash.flush()
 
     data = (
-        (0, '0', 'No Protection', 'No protection against contact and ingress of objects.', None),
-        (1, '1', '>= 50.00mm sized objects', 'Any large surface of the body, such as the back of a hand, but no protection against deliberate contact with a body part.', open(f'{BASE_PATH}/image/ip/IP1X.png', 'rb').read()),
-        (2, '2', '>= 12.50mm sized objects', 'Fingers or similar objects.', open(f'{BASE_PATH}/image/ip/IP2X.png', 'rb').read()),
-        (3, '3', '>= 2.50mm sized objects', 'Tools, thick wires, etc.', open(f'{BASE_PATH}/image/ip/IP3X.png', 'rb').read()),
-        (4, '4', '>= 1.00mm sized objects', 'Most wires, slender screws, large ants, etc.', open(f'{BASE_PATH}/image/ip/IP4X.png', 'rb').read()),
-        (5, '5', 'Dust Protected', 'Ingress of dust is not entirely prevented.', open(f'{BASE_PATH}/image/ip/IP5X.png', 'rb').read()),
-        (6, '6', 'Dust Tight', 'No ingress of dust.', open(f'{BASE_PATH}/image/ip/IP6X.png', 'rb').read()),
-        (7, 'X', 'Unknown', 'No data is available to specify a protection rating about this criterion.', None)
+        (0, '0', 'No Protection',
+         'No protection against contact and ingress of objects.', None),
+
+        (1, '1', '>= 50.00mm sized objects',
+         '>= 50.00mm sized objects\n'
+         'Any large surface of the body, such as the back\n'
+         'of a hand, but no protection against deliberate\n'
+         'contact with a body part.'),
+
+        (2, '2', '>= 12.50mm sized objects',
+         '>= 12.50mm sized objects\n'
+         'Fingers or similar objects.'),
+
+        (3, '3', '>= 2.50mm sized objects',
+         '>= 2.50mm sized objects\n'
+         'Tools, thick wires, etc.'),
+
+        (4, '4', '>= 1.00mm sized objects',
+         '>= 1.00mm sized objects\n'
+         'Most wires, slender screws, large ants, etc.'),
+
+        (5, '5', 'Dust Protected',
+         'Dust Protected\n'
+         'Ingress of dust is not entirely prevented.'),
+
+        (6, '6', 'Dust Tight',
+         'Dust Tight\n'
+         'No ingress of dust.'),
+
+        (7, 'X', 'Unknown',
+         'No data is available to specify a protection\n'
+         'rating about this criterion.')
     )
 
     splash.SetText(f'Adding IP solids to db [{len(data)} | {len(data)}]...')
     splash.flush()
 
-    con.executemany('INSERT INTO ip_solids (id, name, short_desc, description, icon_data) VALUES (?, ?, ?, ?, ?);', data)
+    con.executemany('INSERT INTO ip_solids (id, name, short_desc, description) VALUES (?, ?, ?, ?);', data)
 
     con.commit()
 
@@ -41,7 +64,5 @@ table = _con.SQLTable(
     id_field,
     _con.TextField('name', is_unique=True, no_null=True),
     _con.TextField('short_desc', no_null=True),
-    _con.TextField('description', no_null=True),
-    _con.BlobField('icon_data', default='"NULL"'),
-
+    _con.TextField('description', no_null=True)
 )

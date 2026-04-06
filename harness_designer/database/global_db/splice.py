@@ -1,9 +1,11 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
+from wx import propgrid as wxpg
+
 from .bases import EntryBase, TableBase
 from .mixins import (PartNumberMixin, DescriptionMixin, ManufacturerMixin, FamilyMixin,
                      SeriesMixin, MaterialMixin, ColorMixin, PlatingMixin, ResourceMixin,
-                     Model3DMixin, WeightMixin)
+                     Model3DMixin, WeightMixin, TemperatureMixin)
 
 
 if TYPE_CHECKING:
@@ -15,7 +17,9 @@ class SplicesTable(TableBase):
 
     def _load_database(self, splash):
         from ..create_database import splices
-        splices.add_records(self._con, splash)
+
+        data_path = self._con.db_data.open(splash)
+        splices.add_records(self._con, splash, data_path)
 
     def _table_needs_update(self) -> bool:
         from ..create_database import splices
@@ -144,9 +148,29 @@ class SplicesTable(TableBase):
 
 class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
              FamilyMixin, SeriesMixin, MaterialMixin, ColorMixin, PlatingMixin,
-             ResourceMixin, Model3DMixin, WeightMixin):
+             ResourceMixin, Model3DMixin, WeightMixin, TemperatureMixin):
 
     _table: SplicesTable = None
+
+    def build_monitor_packet(self):
+        mfg = self.manufacturer
+        color = self.color
+
+        packet = {
+            'tpa_locks': [self.db_id],
+            'families': [self.family_id],
+            'splice_types': [self.type_id],
+            'series': [self.series_id],
+            'colors': [color.db_id],
+            'datasheets': [self.datasheet_id],
+            'cads': [self.cad_id],
+            'images': [self.image_id],
+            'models3d': [self.model3d_id]
+        }
+
+        self.merge_packet_data(mfg.build_monitor_packet(), packet)
+
+        return packet
 
     @property
     def type(self) -> "_splice_types.SpliceType":
@@ -196,3 +220,59 @@ class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
     @length.setter
     def length(self, value: float):
         self._table.update(self._db_id, length=value)
+
+    @property
+    def propgrid(self):
+        from ...ui.editor_obj.prop_grid import float_prop as _float_prop
+
+        part_cat = wxpg.PropertyCategory('Part Attributes')
+        
+        part_number_prop = self._part_number_propgrid
+        manufacturer_prop = self._manufacturer_propgrid
+        description_prop = self._description_propgrid
+        family_prop = self._family_propgrid
+        series_prop = self._series_propgrid
+        color_prop = self._color_propgrid
+        temperature_prop = self._temperature_propgrid
+        weight_prop = self._weight_propgrid
+        resource_prop = self._resource_propgrid
+        model3d_prop = self._model3d_propgrid
+        material_prop = self._material_propgrid
+        plating_prop = self._plating_propgrid
+        type_prop = self.type.propgrid
+
+        min_dia_prop = _float_prop.FloatProperty(
+            'Minimum Diameter', 'min_dia', self.min_dia,
+            min_value=0.26, max_value=8.25, increment=0.01, units='mm')
+
+        max_dia_prop = _float_prop.FloatProperty(
+            'Maximum Diameter', 'max_dia', self.max_dia,
+            min_value=0.26, max_value=8.25, increment=0.01, units='mm')
+        resistance_prop = _float_prop.FloatProperty(
+            'Resistance', 'resistance', self.resistance,
+            min_value=0.1, max_value=10000000.00, increment=0.1, units='Ω')
+
+        length_prop = _float_prop.FloatProperty(
+            'Length', 'length', self.length,
+            min_value=0.01, max_value=999.0, increment=0.01, units='mm')
+
+        part_cat.AppendChild(part_number_prop)
+        part_cat.AppendChild(manufacturer_prop)
+        part_cat.AppendChild(description_prop)
+        part_cat.AppendChild(family_prop)
+        part_cat.AppendChild(series_prop)
+        part_cat.AppendChild(length_prop)
+        part_cat.AppendChild(weight_prop)
+        part_cat.AppendChild(material_prop)
+        part_cat.AppendChild(color_prop)
+        part_cat.AppendChild(plating_prop)
+        part_cat.AppendChild(resistance_prop)
+        part_cat.AppendChild(temperature_prop)
+        part_cat.AppendChild(min_dia_prop)
+        part_cat.AppendChild(max_dia_prop)
+        part_cat.AppendChild(type_prop)
+        part_cat.AppendChild(weight_prop)
+        part_cat.AppendChild(resource_prop)
+        part_cat.AppendChild(model3d_prop)
+
+        return part_cat

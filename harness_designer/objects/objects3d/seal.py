@@ -39,8 +39,8 @@ def _build_sws(length, o_dia, i_dia):
 
 
 class Seal(_base3d.Base3D):
-    _parent: "_seal.Seal" = None
-    db_obj: "_pjt_seal.PJTSeal"
+    parent: "_seal.Seal" = None
+    db_obj: "_pjt_seal.PJTSeal" = None
 
     def __init__(self, parent: "_seal.Seal", db_obj: "_pjt_seal.PJTSeal"):
         self._part = db_obj.part

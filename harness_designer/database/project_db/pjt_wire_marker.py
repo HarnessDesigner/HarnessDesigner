@@ -1,5 +1,8 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
+import weakref
+from wx import propgrid as wxpg
+
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from .mixins import Position2DMixin, Position3DMixin, PartMixin, Visible3DMixin, Visible2DMixin, NameMixin
 
@@ -54,20 +57,47 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PartMixin,
                     Visible3DMixin, Visible2DMixin, NameMixin):
     _table: PJTWireMarkersTable = None
 
+    def build_monitor_packet(self):
+        packet = {
+            'pjt_wire_markers': [self.db_id],
+            'pjt_points3d': [self.position3d_id],
+            'pjt_points2d': [self.position2d_id]
+        }
+
+        self.merge_packet_data(self.part.build_monitor_packet(), packet)
+        self.merge_packet_data(self.wire.build_monitor_packet(), packet)
+
+        return packet
+
     def get_object(self) -> "_wire_marker_obj.WireMarker":
+        if self._obj is not None:
+            return self._obj()
+
         return self._obj
 
+    def __release_obj_ref(self, _):
+        self._obj = None
+
     def set_object(self, obj: "_wire_marker_obj.WireMarker"):
-        self._obj = obj
+        if obj is not None:
+            self._obj = weakref.ref(obj, self.__release_obj_ref)
+        else:
+            self._obj = obj
 
     @property
     def table(self) -> PJTWireMarkersTable:
         return self._table
 
+    _stored_wire: "_pjt_wire.PJTWire" = None
+
     @property
     def wire(self) -> "_pjt_wire.PJTWire":
-        wire_id = self.wire_id
-        return self._table.db.pjt_wires_table[wire_id]
+        if self._stored_wire is None and self._obj is not None:
+            wire_id = self.wire_id
+            self._stored_wire = self._table.db.pjt_wires_table[wire_id]
+            self._stored_wire.add_object(self._obj())
+
+        return self._stored_wire
 
     @property
     def wire_id(self) -> int:
@@ -75,16 +105,23 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PartMixin,
 
     @wire_id.setter
     def wire_id(self, value: int):
+        self._stored_wire = None
         self._table.update(self._db_id, wire_id=value)
         self._process_callbacks()
 
+    _stored_part: "_wire_marker.WireMarker" = None
+
     @property
     def part(self) -> "_wire_marker.WireMarker":
-        part_id = self.part_id
-        if part_id is None:
-            return None
+        if self._stored_part is None and self._obj is not None:
+            part_id = self.part_id
+            if part_id is None:
+                return None
 
-        return self._table.db.global_db.wire_markers_table[part_id]
+            self._stored_part = self._table.db.global_db.wire_markers_table[part_id]
+            self._stored_part.add_object(self._obj())
+
+        return self._stored_part
 
     @property
     def label(self) -> str:
@@ -94,3 +131,25 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PartMixin,
     def label(self, value: str):
         self._table.update(self._db_id, label=value)
         self._process_callbacks()
+
+    @property
+    def propgrid(self) -> wxpg.PGProperty:
+        group = wxpg.PropertyCategory('Project')
+
+        notes_prop = self._notes_propgrid
+        name_prop = self._name_propgrid
+        angle_prop = self._angle3d_propgrid
+        position_prop = self._position3d_propgrid
+        housing_prop = self._housing_propgrid
+        visible_prop = self._visible3d_propgrid
+
+        group.AppendChild(name_prop)
+        group.AppendChild(notes_prop)
+        group.AppendChild(angle_prop)
+        group.AppendChild(position_prop)
+        group.AppendChild(visible_prop)
+        group.AppendChild(housing_prop)
+
+        part_prop = self._part_propgrid
+
+        return group, part_prop

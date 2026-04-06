@@ -1,7 +1,11 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
+import weakref
+from wx import propgrid as wxpg
+
 from .pjt_bases import PJTEntryBase, PJTTableBase
-from .mixins import Angle3DMixin, Position3DMixin, PartMixin, HousingMixin, Visible3DMixin, NameMixin
+from .mixins import (Angle3DMixin, Position3DMixin, PartMixin, HousingMixin,
+                     Visible3DMixin, NameMixin, NotesMixin)
 
 
 if TYPE_CHECKING:
@@ -42,41 +46,90 @@ class PJTSealsTable(PJTTableBase):
 
         raise KeyError(item)
 
-    def insert(self, part_id: int, housing_id: int | None, terminal_id: int | None) -> "PJTSeal":
-        db_id = PJTTableBase.insert(self, part_id=part_id, housing_id=housing_id, terminal_id=terminal_id)
+    def insert(self, part_id: int, position3d_id: int, housing_id: int | None,
+               terminal_id: int | None, cavity_id: int = None) -> "PJTSeal":
+
+        db_id = PJTTableBase.insert(self, part_id=part_id, point3d_id=position3d_id,
+                                    housing_id=housing_id, terminal_id=terminal_id,
+                                    cavity_id=cavity_id)
 
         return PJTSeal(self, db_id, self.project_id)
 
 
-class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin,
+class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin,
               PartMixin, HousingMixin, Visible3DMixin, NameMixin):
+
     _table: PJTSealsTable = None
 
+    def build_monitor_packet(self):
+        housing = self.housing
+        terminal = self.terminal
+        cavity = self.cavity
+
+        packet = {
+            'pjt_seal': [self.db_id],
+            'cavities': [self.part_id],
+            'pjt_points3d': [self.position3d_id],
+        }
+
+        self.merge_packet_data(self.part.build_monitor_packet(), packet)
+        if housing is not None:
+            self.merge_packet_data(housing.build_monitor_packet(), packet)
+        if terminal is not None:
+            self.merge_packet_data(terminal.build_monitor_packet(), packet)
+        if cavity is not None:
+            self.merge_packet_data(cavity.build_monitor_packet(), packet)
+
+        return packet
+
     def get_object(self) -> "_seal_obj.Seal":
+        if self._obj is not None:
+            return self._obj()
+
         return self._obj
 
+    def __release_obj_ref(self, _):
+        self._obj = None
+
     def set_object(self, obj: "_seal_obj.Seal"):
-        self._obj = obj
+        if obj is not None:
+            self._obj = weakref.ref(obj, self.__release_obj_ref)
+        else:
+            self._obj = obj
 
     @property
     def table(self) -> PJTSealsTable:
         return self._table
 
+    _stored_part: "_seal.Seal" = None
+
     @property
     def part(self) -> "_seal.Seal":
-        part_id = self.part_id
-        if part_id is None:
-            return None
+        if self._stored_part is None and self._obj is not None:
+            part_id = self.part_id
 
-        return self._table.db.global_db.seals_table[part_id]
+            if part_id is None:
+                return None
+
+            self._stored_part = self._table.db.global_db.seals_table[part_id]
+            self._stored_part.add_object(self._obj())
+
+        return self._stored_part
+
+    _stored_terminal: "_pjt_terminal.PJTTerminal" = None
 
     @property
     def terminal(self) -> "_pjt_terminal.PJTTerminal":
-        db_id = self.terminal_id
-        if db_id is None:
-            return None
+        if self._stored_terminal is None and self._obj is not None:
+            db_id = self.terminal_id
 
-        return self._table.db.pjt_terminals_table[db_id]
+            if db_id is None:
+                return None
+
+            self._stored_terminal = self._table.db.pjt_terminals_table[db_id]
+            self._stored_terminal.add_object(self._obj())
+
+        return self._stored_terminal
 
     @property
     def terminal_id(self) -> int:
@@ -87,13 +140,20 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin,
         self._table.update(self._db_id, terminal_id=value)
         self._process_callbacks()
 
+    _stored_cavity: "_pjt_cavity.PJTCavity" = None
+
     @property
     def cavity(self) -> "_pjt_cavity.PJTCavity":
-        db_id = self.terminal_id
-        if db_id is None:
-            return None
+        if self._stored_cavity is None and self._obj is not None:
+            db_id = self.cavity_id
 
-        return self._table.db.pjt_cavities_table[db_id]
+            if db_id is None:
+                return None
+
+            self._stored_cavity = self._table.db.pjt_cavities_table[db_id]
+            self._stored_cavity.add_object(self._obj())
+
+        return self._stored_cavity
 
     @property
     def cavity_id(self) -> int:
@@ -103,3 +163,25 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin,
     def cavity_id(self, value: int):
         self._table.update(self._db_id, cavity_id=value)
         self._process_callbacks()
+
+    @property
+    def propgrid(self) -> wxpg.PGProperty:
+        group = wxpg.PropertyCategory('Project')
+
+        notes_prop = self._notes_propgrid
+        name_prop = self._name_propgrid
+        angle_prop = self._angle3d_propgrid
+        position_prop = self._position3d_propgrid
+        housing_prop = self._housing_propgrid
+        visible_prop = self._visible3d_propgrid
+
+        group.AppendChild(name_prop)
+        group.AppendChild(notes_prop)
+        group.AppendChild(angle_prop)
+        group.AppendChild(position_prop)
+        group.AppendChild(visible_prop)
+        group.AppendChild(housing_prop)
+
+        part_prop = self._part_propgrid
+
+        return group, part_prop

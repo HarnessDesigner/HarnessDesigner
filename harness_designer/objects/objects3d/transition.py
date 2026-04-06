@@ -125,8 +125,8 @@ def _build_model(b_data: "_g_transition.Transition", branches: list["Branch"], u
 
 
 class Transition(_base3d.Base3D):
-    _parent: "_transition.Transition" = None
-    db_obj: "_pjt_transition.PJTTransition"
+    parent: "_transition.Transition" = None
+    db_obj: "_pjt_transition.PJTTransition" = None
 
     def __init__(self, parent: "_transition.Transition",
                  db_obj: "_pjt_transition.PJTTransition"):

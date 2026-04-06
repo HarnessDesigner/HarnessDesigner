@@ -1,5 +1,6 @@
 from typing import Iterable as _Iterable
 
+from wx import propgrid as wxpg
 
 from .bases import EntryBase, TableBase
 from .mixins import NameMixin
@@ -17,7 +18,8 @@ class DirectionsTable(TableBase):
         from ..create_database import directions
 
         directions.table.add_to_db(self)
-        directions.add_records(self._con, splash)
+        data_path = self._con.db_data.open(splash)
+        directions.add_records(self._con, splash, data_path)
 
     def _update_table_in_db(self):
         from ..create_database import directions
@@ -52,3 +54,21 @@ class DirectionsTable(TableBase):
 
 class Direction(EntryBase, NameMixin):
     _table: DirectionsTable = None
+
+    def build_monitor_packet(self):
+        packet = {
+            'directions': [self.db_id]
+        }
+
+        return packet
+
+    @property
+    def propgrid(self) -> wxpg.PGProperty:
+        from ...ui.editor_obj.prop_grid import combobox_prop as _combobox_prop
+
+        rows = self.table.select('name')
+        choices = [item[0] for item in rows]
+
+        name_prop = _combobox_prop.ComboboxProperty('Direction', 'name', self.name, choices)
+
+        return name_prop

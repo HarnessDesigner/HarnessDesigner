@@ -1,8 +1,10 @@
 
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
+from wx import propgrid as wxpg
+
 from .pjt_bases import PJTEntryBase, PJTTableBase
-from .mixins import Position3DMixin
+from .mixins import Position3DMixin, PartMixin
 
 
 if TYPE_CHECKING:
@@ -10,6 +12,7 @@ if TYPE_CHECKING:
     from . import pjt_wire as _pjt_wire
     from . import pjt_concentric as _pjt_concentric
     from . import pjt_bundle as _pjt_bundle
+    from ..global_db import transition_branch as _transition_branch
 
 
 class PJTTransitionBranchesTable(PJTTableBase):
@@ -54,8 +57,19 @@ class PJTTransitionBranchesTable(PJTTableBase):
         return PJTTransitionBranch(self, db_id, self.project_id)
 
 
-class PJTTransitionBranch(PJTEntryBase, Position3DMixin):
+class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin):
     _table: PJTTransitionBranchesTable = None
+
+    def build_monitor_packet(self):
+
+        packet = {
+            'pjt_transition_branches': [self.db_id],
+            'pjt_points3d': [self.position3d_id],
+        }
+
+        self.merge_packet_data(self.part.build_monitor_packet(), packet)
+
+        return packet
 
     @property
     def table(self) -> PJTTransitionBranchesTable:
@@ -94,7 +108,6 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin):
     @property
     def transition(self) -> "_pjt_transition.PJTTransition":
         transition_id = self.transition_id
-
         return self._table.db.pjt_transitions_table[transition_id]
 
     @property
@@ -123,3 +136,39 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin):
     def diameter(self, value: float):
         self._table.update(self._db_id, diameter=value)
         self._process_callbacks()
+
+    _stored_part: "_transition_branch.TransitionBranch" = None
+
+    def reload_from_db(self):
+        self.transition.update_objects()
+
+    @property
+    def part(self) -> "_transition_branch.TransitionBranch":
+        if self._stored_part is None:
+            part_id = self.part_id
+            self._stored_part = self._table.db.global_db.transition_branches_table[part_id]
+            self._stored_part.add_object(self)
+
+        return self._stored_part
+
+    @property
+    def propgrid(self) -> wxpg.PGProperty:
+        group = wxpg.PropertyCategory('Project')
+
+        notes_prop = self._notes_propgrid
+        name_prop = self._name_propgrid
+        angle_prop = self._angle3d_propgrid
+        position_prop = self._position3d_propgrid
+        housing_prop = self._housing_propgrid
+        visible_prop = self._visible3d_propgrid
+
+        group.AppendChild(name_prop)
+        group.AppendChild(notes_prop)
+        group.AppendChild(angle_prop)
+        group.AppendChild(position_prop)
+        group.AppendChild(visible_prop)
+        group.AppendChild(housing_prop)
+
+        part_prop = self._part_propgrid
+
+        return group, part_prop

@@ -310,6 +310,10 @@ class Config(metaclass=ConfigDB):
 
     class editor2d(metaclass=ConfigDB):
 
+        class virtual_canvas(metaclass=ConfigDB):
+            width = 1920
+            height = 1080
+
         class angle(metaclass=ConfigDB):
             lock = False
             lock_increment = 90.0
@@ -371,6 +375,7 @@ class Config(metaclass=ConfigDB):
             enable = True
             ground_height = 0.0
             distance = 1000
+            enable_floor_lock = True
 
             class grid(metaclass=ConfigDB):
                 primary_color = [0.2039, 0.2549, 0.2902, 0.8]
@@ -483,6 +488,7 @@ class Config(metaclass=ConfigDB):
 
     class database(metaclass=ConfigDB):
         connector = CONNECTOR_SQLITE
+        monitor_duration = 60
 
         class sqlite(metaclass=ConfigDB):
             database_path = os.path.join(_utils.get_appdata(), 'harness_designer.db')

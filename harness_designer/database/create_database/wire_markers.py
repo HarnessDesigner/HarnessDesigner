@@ -20,13 +20,10 @@ from .. import db_connectors as _con
 from ... import logger as _logger
 
 
-
-
 def add_wire_markers(con, data: tuple[dict] | list[dict]):
 
     for line in data:
         add_wire_marker(con, **line)
-
 
 
 def add_records(con, splash, data_path):
@@ -202,4 +199,3 @@ pjt_table = _con.SQLTable(
     _con.IntField('is_visible2d', default='1', no_null=True),
     _con.IntField('is_visible3d', default='1', no_null=True)
 )
-

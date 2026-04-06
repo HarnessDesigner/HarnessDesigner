@@ -794,11 +794,7 @@ class HousingEditor(wx.Panel):
         idx = len(self.cavities) + 1
 
         if self.db_obj.num_pins > 0 and idx <= self.db_obj.num_pins:
-
-            print(housing_id, idx)
-
             cavity = self.db_obj.table.db.cavities_table.insert(housing_id, idx)
-            print(cavity)
 
             cavity = Cavity(self, cavity)
             self.cavities.append(cavity)

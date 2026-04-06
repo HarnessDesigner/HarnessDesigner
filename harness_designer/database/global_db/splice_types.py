@@ -1,5 +1,7 @@
 from typing import Iterable as _Iterable
 
+from wx import propgrid as wxpg
+
 from .bases import EntryBase, TableBase
 from .mixins import NameMixin
 
@@ -16,8 +18,9 @@ class SpliceTypesTable(TableBase):
         from ..create_database import splice_types
 
         splice_types.table.add_to_db(self)
-        splice_types.add_records(self._con, splash)
 
+        data_path = self._con.db_data.open(splash)
+        splice_types.add_records(self._con, splash, data_path)
 
     def _update_table_in_db(self):
         from ..create_database import splice_types
@@ -51,3 +54,21 @@ class SpliceTypesTable(TableBase):
 
 class SpliceType(EntryBase, NameMixin):
     _table: SpliceTypesTable = None
+
+    def build_monitor_packet(self):
+        packet = {
+            'splice_types': [self.db_id]
+        }
+
+        return packet
+
+    @property
+    def propgrid(self) -> wxpg.PGProperty:
+        from ...ui.editor_obj.prop_grid import combobox_prop as _combobox_prop
+
+        rows = self.table.select('name')
+
+        choices = [item[0] for item in rows]
+        name_prop = _combobox_prop.ComboboxProperty('Splice Type', 'name', self.name, choices)
+
+        return name_prop

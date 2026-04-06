@@ -1,5 +1,7 @@
-from .base import BaseMixin
 
+from wx import propgrid as wxpg
+
+from .base import BaseMixin
 from ....geometry import point as _point
 
 
@@ -76,3 +78,16 @@ class StartStopPosition3DMixin(BaseMixin):
     @stop_position3d_id.setter
     def stop_position3d_id(self, value: int):
         self._table.update(self._db_id, stop_point3d_id=value)
+
+    @property
+    def _start_stop_position3d_propgrid(self) -> wxpg.PGProperty:
+        from ....ui.editor_obj.prop_grid import position_prop as _position_prop
+
+        position_prop = wxpg.PGProperty('3D Positions')
+        start_position_prop = _position_prop.Position3DProperty('Start', 'start_position3d', self.start_position3d)
+        stop_position_prop = _position_prop.Position3DProperty('Stop', 'stop_position3d', self.stop_position3d)
+
+        position_prop.AppendChild(start_position_prop)
+        position_prop.AppendChild(stop_position_prop)
+
+        return position_prop

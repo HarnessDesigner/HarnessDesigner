@@ -4,7 +4,6 @@ from . import bundle_covers as _bundle_covers
 from . import transition_branches as _transition_branches
 
 from .. import db_connectors as _con
-from ... import logger as _logger
 
 
 pjt_id_field = _con.PrimaryKeyField('id')

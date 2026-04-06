@@ -1,26 +1,30 @@
+from typing import TYPE_CHECKING
+
+from wx import propgrid as wxpg
+
 from .base import BaseMixin
+
+if TYPE_CHECKING:
+    from .. import protection as _protection
 
 
 class ProtectionMixin(BaseMixin):
 
     @property
-    def protections(self) -> list[str]:
-        res = []
+    def protection_id(self) -> int:
+        return self._table.select('protection_id', id=self._db_id)[0][0]
 
-        protection_ids = eval(self._table.select('protection_ids', id=self._db_id)[0][0])
-        for protection_id in protection_ids:
-            res.append(self._table.db.protections_table[protection_id].name)
+    @protection_id.setter
+    def protection_id(self, value: int):
+        self._table.update(self._db_id, protection_id=value)
 
-        return res
+    @property
+    def protections(self) -> "_protection.Protection":
+        protection_id = self.protection_id
+        return self.table.db.protections_table[protection_id]
 
-    @protections.setter
-    def protections(self, value: list[str]):
-        protection_ids = []
+    @property
+    def _protections_propgrid(self) -> wxpg.PGProperty:
+        prop = self.protections.propgrid
 
-        for name in value:
-            try:
-                protection_ids.append(self._table.db.protections_table[name].db_id)
-            except KeyError:
-                pass
-
-        self._table.update(self._db_id, protection_ids=str(protection_ids))
+        return prop

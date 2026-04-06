@@ -461,7 +461,7 @@ class Canvas(glcanvas.GLCanvas):
         GL.glUniformMatrix4fv(projection_loc, 1, GL.GL_FALSE, projection_matrix)
         GL.glUniformMatrix4fv(view_loc, 1, GL.GL_FALSE, view_matrix)
         GL.glUniform1f(floor_y_loc, self.config.floor.ground_height)
-        GL.glUniform1i(object_has_reflection_loc, int(self.config.floor.reflections.enable))
+        GL.glUniform1i(object_has_reflection_loc, int(self.config.floor.reflections.enable and self.config.floor.enable_floor_lock))
 
         GL.glUseProgram(self._edges_program)
         projection_loc = GL.glGetUniformLocation(self._edges_program, "projection")

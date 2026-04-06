@@ -23,8 +23,8 @@ Config = _config.Config.editor3d
 
 
 class Terminal(_base3d.Base3D):
-    _parent: "_terminal.Terminal" = None
-    db_obj: "_pjt_terminal.PJTTerminal"
+    parent: "_terminal.Terminal" = None
+    db_obj: "_pjt_terminal.PJTTerminal" = None
 
     def __init__(self, parent: "_terminal.Terminal",
                  db_obj: "_pjt_terminal.PJTTerminal"):

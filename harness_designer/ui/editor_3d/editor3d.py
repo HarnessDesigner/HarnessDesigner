@@ -52,6 +52,10 @@ class Editor3D(aui.AuiPaneInfo):
     def camera(self):
         return self.editor.camera
 
+    @property
+    def config(self) -> _config.Config.editor3d:
+        return self.editor.config
+
     def set_selected(self, obj):
         self.editor.set_selected(obj)
 
@@ -69,6 +73,9 @@ class Editor3D(aui.AuiPaneInfo):
 
     def Bind(self, *args, **kwargs):
         self.editor.Bind(*args, **kwargs)
+
+    def set_clone_obj(self, obj):
+        self.editor.set_clone_obj(obj)
 
 #
 # class EditorNotebook(aui.AuiNotebook):

@@ -1,8 +1,7 @@
 from .. import db_connectors as _con
-from ... import logger as _logger
 
 
-def add_records(con, splash):
+def add_records(con, splash, _=None):
     con.execute('SELECT id FROM ip_supps WHERE id=0;')
     if con.fetchall():
         return

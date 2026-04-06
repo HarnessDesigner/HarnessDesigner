@@ -53,13 +53,31 @@ class PJTEntryBase(metaclass=_PJTEntrySingleton):
         self.__stop_callbacks = 0
 
         self._obj = None
+        self._objects = []
         self._treeitem = None
 
+    def update_objects(self):
+        for ref in self._objects:
+            obj = ref()
+            if obj is None:
+                continue
+
+            obj.reload_from_db()
+
+    def __remove_ref(self, ref):
+        try:
+            self._objects.remove(ref)
+        except ValueError:
+            pass
+
+    def add_object(self, obj):
+        self._objects.append(weakref.ref(obj, self.__remove_ref))
+
     def get_object(self):
-        raise NotImplemented
+        raise NotImplementedError
 
     def set_object(self, obj):
-        raise NotImplemented
+        raise NotImplementedError
 
     def __enter__(self):
         self.__stop_callbacks += 1
@@ -85,6 +103,15 @@ class PJTEntryBase(metaclass=_PJTEntrySingleton):
     def selected(self, flag: bool):
         self._selected = flag
         self._process_callbacks()
+
+    @staticmethod
+    def merge_packet_data(src: dict, dst: dict):
+        for key, values in src.items():
+            if key in dst:
+                values = [value for value in values if value not in dst[key]]
+                dst[key].extend(values)
+            else:
+                dst[key] = values[:]
 
     def Bind(self, callback):
         for ref in self.__callbacks[:]:
@@ -150,6 +177,7 @@ class PJTTableBase:
     def __init__(self, db: "PJTTables", project_id: int, table_names: list['str'], splash: "_splash.Splash"):
         self.db = db
         self._con = db.connector
+        self.__field_names__ = None
 
         if self.__table_name__ not in table_names:
             splash.SetText(f'Creating {self.__table_name__.replace("_", " ")} database table...')
@@ -164,6 +192,32 @@ class PJTTableBase:
         splash.SetText(f'Loading {self.__table_name__.replace("_", " ")} database table...')
 
         self.project_id = project_id
+
+    @property
+    def field_names(self):
+        if self.__field_names__ is None:
+            field_names = self._con.get_table_column_names(self.__table_name__)
+            if 'id' in field_names:
+                field_names.remove('id')
+
+            field_names = sorted(field_names)
+            field_names.insert(0, 'id')
+
+            self.__field_names__ = field_names
+
+        return self.__field_names__
+
+    def get_records(self, project_id):
+        self.execute(f'SELECT {", ".join(self.field_names)} FROM {self.__table_name__} WHERE project_id={project_id};')
+        rows = self.fetchall()
+        if rows:
+            rows = list(rows)
+        else:
+            rows = []
+
+        rows.insert(0, tuple(self.field_names))
+
+        return rows
 
     def set_project(self, project_id: int | None = None):
         self.project_id = project_id

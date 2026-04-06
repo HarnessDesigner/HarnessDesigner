@@ -22,10 +22,13 @@ class Base2D:
                  db_obj: "_project_db.PJTEntryBase",
                  position: _point.Point, angle: _angle.Angle):
 
-        self._parent: "_ObjectBase" = parent
+        self.parent: "_ObjectBase" = parent
         self.db_obj = db_obj
-        self.editor2d: "_editor_2d.Editor2D" = parent.mainframe.editor2d
-        self.mainframe: "_ui.MainFrame" = parent.mainframe
+        try:
+            self.editor2d: "_editor_2d.Editor2D" = parent.mainframe.editor2d
+            self.mainframe: "_ui.MainFrame" = parent.mainframe
+        except AttributeError:
+            return
 
         self._position = position
         self._o_position = position.copy()
@@ -59,7 +62,7 @@ class Base2D:
         self._is_selected = flag
 
         if flag:
-            self.mainframe._set_selected(self._parent)  # NOQA
+            self.mainframe._set_selected(self.parent)  # NOQA
         else:
             self.mainframe._set_selected(None)  # NOQA
 

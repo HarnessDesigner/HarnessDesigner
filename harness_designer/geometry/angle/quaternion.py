@@ -12,6 +12,67 @@ TWO = _d(2.0)
 
 class Quaternion:
 
+    def __array_ufunc__(self, func, method, inputs, instance, out=None, **kwargs):  # NOQA
+        if func == np.matmul:
+            if isinstance(instance, Quaternion):
+                w, x, y, z = self.as_float
+
+                # Vectorized quaternion rotation formula
+                qvec = np.array([x, y, z], dtype=np.float64)
+                # __matmul__
+                if out is None:
+                    t = np.cross(qvec, inputs)
+                    result = inputs + 2.0 * w * t + 2.0 * np.cross(qvec, t)
+
+                    return result
+
+                # __imatmul__
+                else:
+                    out = out[0]
+                    t = np.cross(qvec, out)
+                    out += (2.0 * w * t) + (2.0 * np.cross(qvec, t))
+                    return out
+
+        if func == np.add:
+            # numpy array is left hand and class instance is right hand
+            if isinstance(instance, Quaternion):
+                # __add__
+                if out is None:
+                    # quat array
+                    if inputs.shape == (4,):
+                        q = Quaternion(q=inputs)
+                        q += self
+                        return q.as_numpy
+                # __iadd__
+                else:
+                    out = out[0]
+                    if out.shape == (4,):
+                        q = Quaternion(q=out)
+                        q += self
+                        out[:] = q.as_numpy
+                        return out
+
+        if func == np.subtract:
+            # numpy array is left hand and class instance is right hand
+            if isinstance(instance, Quaternion):
+                # __sub__
+                if out is None:
+                    # quat array
+                    if inputs.shape == (4,):
+                        q = Quaternion(q=inputs)
+                        q -= self
+                        return q.as_numpy
+                # __isub__
+                else:
+                    out = out[0]
+                    if out.shape == (4,):
+                        q = Quaternion(q=out)
+                        q -= self
+                        out[:] = q.as_numpy
+                        return out
+
+        raise RuntimeError
+
     def __normalize(self):
         norm = _d(np.linalg.norm(self._data))
 
@@ -185,24 +246,6 @@ class Quaternion:
         z = _div(z1, z2)
 
         return Quaternion(w, x, y, z)
-
-    def __array_ufunc__(self, func, method, inputs, instance, out=None, **kwargs):  # NOQA
-        if func == np.matmul:
-            w, x, y, z = self.as_float
-
-            # Vectorized quaternion rotation formula
-            qvec = np.array([x, y, z], dtype=np.float64)
-
-            t = np.cross(qvec, inputs)
-            result = inputs + 2.0 * w * t + 2.0 * np.cross(qvec, t)
-
-            if out is None:
-                return result
-            else:
-                inputs[:] = result
-                return inputs
-
-        raise RuntimeError
 
     def __matmul__(self, other: _point.Point | np.ndarray) -> _point.Point | np.ndarray:
         w, x, y, z = self.as_float

@@ -1,95 +1,110 @@
 from typing import TYPE_CHECKING
 
 import wx
+from wx import propgrid as wxpg
 
-from ..widgets import foldpanelbar as _foldpanelbar
-from ..widgets import checkbox_ctrl as _checkbox_ctrl
-from ..widgets import float_ctrl as _float_ctrl
-from ..widgets import text_ctrl as _text_ctrl
+from .prop_grid import long_string_prop as _long_string_prop
 
 
 if TYPE_CHECKING:
-    from ...objects import housing as _housing
-    from . import EditorObjPanel
-#
-#
-# class HousingEditor:
-#
-#     def __init__(self, fpb: _foldpanelbar.FoldPanelBar, obj: "_housing.Housing"):
-#         self.db_obj = obj
-#
-#
-#         self.settings = fpb.AddFoldPanel('Settings')
-#         self.visible = wx.CheckBox(self.settings, wx.ID_ANY, 'Visible')
-#         sizer = wx.BoxSizer(wx.VERTICAL)
-#         sizer.Add(self.visible, 0, wx.ALL, 10)
-#         self.settings.SetSizer(sizer)
-#
-#         self.scale = fpb.AddFoldPanel('Scale')
-#         self.scale_x = _float_ctrl.FloatCtrl(self.scale, 'X:', min_val=0.1, max_val=99.9, inc=0.1)
-#         self.scale_y = _float_ctrl.FloatCtrl(self.scale, 'Y:', min_val=0.1, max_val=99.9, inc=0.1)
-#         self.scale_z = _float_ctrl.FloatCtrl(self.scale, 'Z:', min_val=0.1, max_val=99.9, inc=0.1)
-#
-#         self.rotate = fpb.AddFoldPanel('Rotate')
-#         self.rotate_x = _float_ctrl.FloatCtrl(self.rotate, 'X Angle:', min_val=0.0, max_val=359.9, inc=0.1)
-#         self.rotate_y = _float_ctrl.FloatCtrl(self.rotate, 'Y Angle:', min_val=0.0, max_val=359.9, inc=0.1)
-#         self.rotate_z = _float_ctrl.FloatCtrl(self.rotate, 'Z Angle:', min_val=0.0, max_val=359.9, inc=0.1)
-#
-#         self.position = fpb.AddFoldPanel('Position')
-#         self.position_x = _float_ctrl.FloatCtrl(self.position, 'X:', min_val=-9999.9, max_val=9999.9, inc=0.1)
-#         self.position_y = _float_ctrl.FloatCtrl(self.position, 'Y:', min_val=-9999.9, max_val=9999.9, inc=0.1)
-#         self.position_z = _float_ctrl.FloatCtrl(self.position, 'Z:', min_val=-9999.9, max_val=9999.9, inc=0.1)
-#
-#         self.visible.Bind(wx.EVT_CHECKBOX, self.on_visible)
-#
-#         self.scale_x.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_scale_x)
-#         self.scale_y.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_scale_y)
-#         self.scale_z.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_scale_z)
-#
-#         self.rotate_x.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_rotate_x)
-#         self.rotate_y.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_rotate_y)
-#         self.rotate_z.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_rotate_z)
-#
-#         self.position_x.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_position_x)
-#         self.position_y.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_position_y)
-#         self.position_z.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_position_z)
-#
-#     def on_visible(self, evt):
-#         self.db_obj.is_visible = self.visible.GetValue()
-#         evt.Skip()
-#
-#     def on_scale_x(self, evt):
-#         self.db_obj.scale.x = self.scale_x.GetValue()
-#         evt.Skip()
-#
-#     def on_scale_y(self, evt):
-#         self.db_obj.scale.y = self.scale_y.GetValue()
-#         evt.Skip()
-#
-#     def on_scale_z(self, evt):
-#         self.db_obj.scale.z = self.scale_z.GetValue()
-#         evt.Skip()
-#
-#     def on_rotate_x(self, evt):
-#         self.db_obj.angl3d.x = self.rotate_x.GetValue()
-#         evt.Skip()
-#
-#     def on_rotate_y(self, evt):
-#         self.db_obj.angle3d.y = self.rotate_y.GetValue()
-#         evt.Skip()
-#
-#     def on_rotate_z(self, evt):
-#         self.db_obj.angle3d.z = self.rotate_z.GetValue()
-#         evt.Skip()
-#
-#     def on_position_x(self, evt):
-#         self.db_obj.point3d.point.x = self.position_x.GetValue()
-#         evt.Skip()
-#
-#     def on_position_y(self, evt):
-#         self.db_obj.point3d.point.y = self.position_y.GetValue()
-#         evt.Skip()
-#
-#     def on_position_z(self, evt):
-#         self.db_obj.point3d.point.z = self.position_z.GetValue()
-#         evt.Skip()
+    from ...database.project_db import pjt_housing as _pjt_housing
+    from ... import ui as _ui
+
+
+class Housing(wxpg.PropertyGrid):
+
+    def __init__(self, parent, mainframe: "_ui.MainFrame", db_obj: "_pjt_housing"):
+        wxpg.PropertyGrid.__init__(self, parent, wx.ID_ANY)
+
+        self.db_obj = db_obj
+        self.part = db_obj.part
+
+        part_cat = wxpg.PropertyCategory('Part Attributes')
+
+        part_cat.AppendChild(wxpg.StringProperty('Part Number', 'part_number', self.part.part_number))
+        part_cat.AppendChild(_long_string_prop.LongStringProperty('Description', 'description', self.part.description))
+
+        '''
+        'Part Attributes'
+
+            'Part Number', part_number
+            'Description', description
+            'Manufacturer', mfg_id
+            'Family', family_id
+            'Series', series_id
+            'Color', color_id
+
+            'Documentation'
+                'Image', image_id
+                'Datasheet', datasheet_id
+                'CAD', cad_id
+                '3D Model', model3d_id
+
+            'Environmental Attributes'
+                'Min Temperature', min_temp_id
+                'Max Temperature', max_temp_id
+                'IP Rating', ip_rating_id
+
+            `Additional Information'
+                'Cavity Lock Type', cavity_lock_id
+                'Seal Type', seal_type_id
+                'CPA Lock Type', cpa_lock_type_id
+                'Is Sealable', sealing
+
+
+            'Pin Information'
+                'Rows', rows
+                'Pin Count', num_pins
+                'Terminal Sizes', terminal_sizes
+                'Size Counts', terminal_size_counts
+                'Pitch' centerline
+
+            'Physical Attributes'
+                'Gender', gender_id
+                'Direction', direction_id
+                'Length', length
+                'Width', width
+                'Height', height
+                'Weight', weight
+                'Angle 3D', angle3d
+
+
+            'Accessory Arrachment Positions'
+                'Cover Position', cover_position3d
+                'Seal Position', seal_position3d
+                'Boot Position', boot_position3d
+                'TPA Lock Position', tpa_lock_1_position3d
+                'TPA Lock Position', tpa_lock_2_position3d
+                'CPA Lock Position', cpa_lock_position3d
+
+            'Compatable Parts'
+                'CPAs', compat_cpas_array
+                'TPAs', compat_tpas_array
+                'Covers', compat_covers_array
+                'Terminals', compat_terminals_array
+                'Seals', compat_seals_array
+                'Housings', compat_housings_array
+                'Boots', compat_boots_array
+
+
+        'Project Attributes'
+            'Name', name
+            'Notes', notes
+
+            '3D'
+                'Position', position3d
+                'Angle', angle3d
+                'Visible', is_visible3d
+
+            '2D'
+                'Position', position2d
+                'Angle', angle2d
+                'Visible', is_visible2d
+
+
+
+
+
+        :param db_obj:
+        '''
+

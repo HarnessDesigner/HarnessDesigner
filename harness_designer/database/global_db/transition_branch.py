@@ -1,5 +1,7 @@
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
+from wx import propgrid as wxpg
+
 from .bases import EntryBase, TableBase
 from .mixins import NameMixin
 
@@ -22,7 +24,6 @@ class TransitionBranchesTable(TableBase):
         from ..create_database import transition_branches
 
         transition_branches.table.add_to_db(self)
-
 
     def _update_table_in_db(self):
         from ..create_database import transition_branches
@@ -57,6 +58,14 @@ class TransitionBranchesTable(TableBase):
 
 class TransitionBranch(EntryBase, NameMixin):
     _table: TransitionBranchesTable = None
+
+    def build_monitor_packet(self):
+        packet = {
+            'transition_branches': [self.db_id],
+            'transitions': [self.transition_id]
+        }
+
+        return packet
 
     @property
     def transition(self) -> "_transition.Transition":
@@ -184,3 +193,68 @@ class TransitionBranch(EntryBase, NameMixin):
     @flange_width.setter
     def flange_width(self, value: float):
         self._table.update(self._db_id, flange_width=value)
+
+    @property
+    def propgrid(self):
+        from ...ui.editor_obj.prop_grid import position_prop as _position_prop
+        from ...ui.editor_obj.prop_grid import float_prop as _float_prop
+
+        branch_prop = wxpg.PGProperty(f'Branch {self.idx}')
+
+        bulb_prop = wxpg.PGProperty(f'Bulb')
+
+        bulb_offset_prop = _position_prop.Position2DProperty(
+            'Bulb Offset', 'bulb_offset', self.bulb_offset)
+
+        bulb_length_prop = _float_prop.FloatProperty(
+            'Bulb Length', 'bulb_length', self.bulb_length,
+            min_value=0.00, max_value=999.9, increment=0.01, units='mm')
+
+        bulb_prop.AppendChild(bulb_offset_prop)
+        bulb_prop.AppendChild(bulb_length_prop)
+
+        size_prop = wxpg.PGProperty(f'Size (diameter)')
+
+        min_dia_prop = _float_prop.FloatProperty(
+            'Minimum', 'min_dia', self.min_dia,
+            min_value=0.01, max_value=999.9, increment=0.01, units='mm')
+
+        max_dia_prop = _float_prop.FloatProperty(
+            'Maximum', 'max_dia', self.max_dia,
+            min_value=0.01, max_value=999.9, increment=0.01, units='mm')
+
+        size_prop.AppendChild(min_dia_prop)
+        size_prop.AppendChild(max_dia_prop)
+
+        length_prop = _float_prop.FloatProperty(
+            'Length', 'length', self.length,
+            min_value=0.01, max_value=999.9, increment=0.01, units='mm')
+
+        angle_prop = _float_prop.FloatProperty(
+            'Angle', 'angle', self.angle, min_value=-180.0,
+            max_value=180.0, increment=0.1, units='°')
+
+        flange_prop = wxpg.PGProperty(f'Flange')
+
+        flange_height_prop = _float_prop.FloatProperty(
+            'Flange Height', 'flange_height', self.flange_height,
+            min_value=0.00, max_value=999.9, increment=0.01, units='mm')
+
+        flange_width_prop = _float_prop.FloatProperty(
+            'Flange Width', 'flange_width', self.flange_width,
+            min_value=0.00, max_value=999.9, increment=0.01, units='mm')
+
+        flange_prop.AppendChild(flange_height_prop)
+        flange_prop.AppendChild(flange_width_prop)
+
+        offset_prop = _position_prop.Position2DProperty(
+            'Offset', 'offset', self.offset)
+
+        branch_prop.AppendChild(offset_prop)
+        branch_prop.AppendChild(length_prop)
+        branch_prop.AppendChild(size_prop)
+        branch_prop.AppendChild(angle_prop)
+        branch_prop.AppendChild(bulb_prop)
+        branch_prop.AppendChild(flange_prop)
+
+        return branch_prop

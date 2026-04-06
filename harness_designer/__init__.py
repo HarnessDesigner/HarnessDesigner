@@ -196,6 +196,14 @@ _app = None
 
 
 def __main__(args=None):
+    import multiprocessing
+
+    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+
+        multiprocessing.freeze_support()
+
+    multiprocessing.set_start_method('spawn')
+
     if args is None:
         args = sys.argv[1:]
 

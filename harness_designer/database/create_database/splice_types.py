@@ -36,7 +36,7 @@ def add_records(con, splash, data_path):
     con.commit()
 
 
-def add_splice_type(con, name, id=None):
+def add_splice_type(con, name, id=None):  # NOQA
 
     if id is None:
         con.execute(

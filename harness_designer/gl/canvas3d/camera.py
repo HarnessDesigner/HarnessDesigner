@@ -263,7 +263,10 @@ class Camera:
     def _update_camera(self, _=None):
         self._camera_moved_since_last_cull = True
 
-        if self._position.y < self.canvas.config.floor.ground_height + 0.05:
+        if (
+            self.canvas.config.floor.enable_floor_lock and
+            self._position.y < self.canvas.config.floor.ground_height + 0.05
+        ):
             with self._position:
                 self._position.y = self.canvas.config.floor.ground_height + 0.25
 

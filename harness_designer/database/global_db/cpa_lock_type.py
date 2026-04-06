@@ -1,5 +1,7 @@
 from typing import Iterable as _Iterable
 
+from wx import propgrid as wxpg
+
 from .bases import EntryBase, TableBase
 from .mixins import NameMixin
 
@@ -16,7 +18,8 @@ class CPALockTypesTable(TableBase):
         from ..create_database import cpa_lock_types
 
         cpa_lock_types.table.add_to_db(self)
-        cpa_lock_types.add_records(self._con, splash)
+        data_path = self._con.db_data.open(splash)
+        cpa_lock_types.add_records(self._con, splash, data_path)
 
     def _update_table_in_db(self):
         from ..create_database import cpa_lock_types
@@ -50,3 +53,21 @@ class CPALockTypesTable(TableBase):
 
 class CPALockType(EntryBase, NameMixin):
     _table: CPALockTypesTable = None
+
+    def build_monitor_packet(self):
+        packet = {
+            'cpa_lock_types': [self.db_id]
+        }
+
+        return packet
+
+    @property
+    def propgrid(self) -> wxpg.PGProperty:
+        from ...ui.editor_obj.prop_grid import combobox_prop as _combobox_prop
+
+        rows = self.table.select('name')
+
+        choices = [item[0] for item in rows]
+        name_prop = _combobox_prop.ComboboxProperty('CPA Lock Type', 'name', self.name, choices)
+
+        return name_prop

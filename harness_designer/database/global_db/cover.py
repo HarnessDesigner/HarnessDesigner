@@ -1,10 +1,13 @@
 from typing import Iterable as _Iterable
 
+from wx import propgrid as wxpg
+
 from .bases import EntryBase, TableBase
 
 from .mixins import (PartNumberMixin, ManufacturerMixin, DescriptionMixin, DirectionMixin,
                      FamilyMixin, SeriesMixin, ResourceMixin, WeightMixin,
-                     TemperatureMixin, ColorMixin, DimensionMixin, Model3DMixin)
+                     TemperatureMixin, ColorMixin, DimensionMixin, Model3DMixin,
+                     CompatHousingsMixin)
 
 
 class CoversTable(TableBase):
@@ -137,9 +140,29 @@ class CoversTable(TableBase):
 
 class Cover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, DirectionMixin,
             FamilyMixin, SeriesMixin, ResourceMixin, TemperatureMixin,
-            ColorMixin, DimensionMixin, WeightMixin, Model3DMixin):
+            ColorMixin, DimensionMixin, WeightMixin, Model3DMixin, CompatHousingsMixin):
 
     _table: CoversTable = None
+
+    def build_monitor_packet(self):
+        color = self.color
+
+        packet = {
+            'covers': [self.db_id],
+            'families': [self.family_id],
+            'series': [self.series_id],
+            'directions': [self.direction_id],
+            'temperatures': [self.min_temp_id, self.max_temp],
+            'colors': [color.db_id],
+            'datasheets': [self.datasheet_id],
+            'cads': [self.cad_id],
+            'images': [self.image_id],
+            'models3d': [self.model3d_id]
+        }
+
+        self.merge_packet_data(self.manufacturer.build_monitor_packet(), packet)
+
+        return packet
 
     @property
     def pins(self) -> str:
@@ -148,3 +171,41 @@ class Cover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, Dir
     @pins.setter
     def pins(self, value: str):
         self._table.update(self._db_id, pins=value)
+
+    @property
+    def propgrid(self):       
+        part_cat = wxpg.PropertyCategory('Part Attributes')
+        
+        part_number_prop = self._part_number_propgrid
+        manufacturer_prop = self._manufacturer_propgrid
+        description_prop = self._description_propgrid
+        family_prop = self._family_propgrid
+        series_prop = self._series_propgrid
+        direction_prop = self._direction_propgrid
+        color_prop = self._color_propgrid
+        temperature_prop = self._temperature_propgrid
+        dimension_prop = self._dimension_propgrid
+        weight_prop = self._weight_propgrid
+        resource_prop = self._resource_propgrid
+        model3d_prop = self._model3d_propgrid
+        
+        compat_housings_prop = self._compat_housings_propgrid
+
+        pins_prop = wxpg.StringProperty('Pins', 'pins', self.pins)
+
+        part_cat.AppendChild(part_number_prop)
+        part_cat.AppendChild(manufacturer_prop)
+        part_cat.AppendChild(description_prop)
+        part_cat.AppendChild(family_prop)
+        part_cat.AppendChild(series_prop)
+        part_cat.AppendChild(color_prop)
+        part_cat.AppendChild(direction_prop)
+        part_cat.AppendChild(temperature_prop)
+        part_cat.AppendChild(dimension_prop)
+        part_cat.AppendChild(weight_prop)
+        part_cat.AppendChild(pins_prop)
+        part_cat.AppendChild(resource_prop)
+        part_cat.AppendChild(model3d_prop)
+        part_cat.AppendChild(compat_housings_prop)
+
+        return part_cat

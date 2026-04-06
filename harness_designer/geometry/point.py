@@ -46,38 +46,79 @@ class PointMeta(type):
 
 class Point(metaclass=PointMeta):
 
-    def __array_ufunc__(self, func, method, inputs, instance, **kwargs):
+    def __array_ufunc__(self, func, method, inputs, instance, out=None, **kwargs):
         if func == np.matmul:
-            if isinstance(instance, np.ndarray):
-                self._data @= instance
-                self._process_update()
-                return self
+            # numpy array is left hand and class instance is right hand
+            # there would be no case where we would use
+            # array @ point
+            # or
+            # array @= point
+            # but for hoots and ha ha's I added support for it.
+            if isinstance(instance, Point):
+                if out is None:
+                    return inputs @ self._data
+                else:
+                    out = out[0]
+                    out @= self._data
+                    return out
+
+            # class instance is left hand and numpy array is right hand
+            # this should not happen because of __imatmul__ and __matmul__
+            # being available
+            # elif isinstance(instance, np.ndarray):
             else:
-                return inputs @ self._data
+                raise RuntimeError('sanity check')
 
         if func == np.add:
-            if isinstance(instance, np.ndarray):
-                self._data += instance
-                self._process_update()
-                return self
+            # numpy array is left hand and class instance is right hand
+            if isinstance(instance, Point):
+                if out is None:
+                    return inputs + self._data
+                else:
+                    out = out[0]
+                    out += self._data
+                    return out
+
+            # class instance is left hand and numpy array is right hand
+            # this should not happen because of __iadd__ and __add__
+            # being available
+            # elif isinstance(instance, np.ndarray):
             else:
-                return inputs + self._data
+                raise RuntimeError('sanity check')
 
         if func == np.subtract:
-            if isinstance(instance, np.ndarray):
-                self._data -= instance
-                self._process_update()
+            # numpy array is left hand and class instance is right hand
+            if isinstance(instance, Point):
+                if out is None:
+                    return inputs - self._data
+                else:
+                    out = out[0]
+                    out -= self._data
+                    return out
 
-                return self
+            # class instance is left hand and numpy array is right hand
+            # this should not happen because of __isub__ and __sub__
+            # being available
+            # elif isinstance(instance, np.ndarray):
             else:
-                return inputs + self._data
+                raise RuntimeError('sanity check')
 
         if func == np.multiply:
-            if isinstance(instance, np.ndarray):
-                self._data *= instance
-                return self
+            # numpy array is left hand and class instance is right hand
+            if isinstance(instance, Point):
+                if out is None:
+                    return inputs * self._data
+                else:
+                    out = out[0]
+                    out *= self._data
+                    return out
+
+            # class instance is left hand and numpy array is right hand
+            # this should not happen because of __imul__ and __mul__
+            # being available
+            # elif isinstance(instance, np.ndarray):
             else:
-                return inputs * self._data
+                raise RuntimeError('sanity check')
 
         raise RuntimeError
 

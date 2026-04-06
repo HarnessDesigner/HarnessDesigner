@@ -1,6 +1,8 @@
 from typing import Iterable as _Iterable, TYPE_CHECKING
 import math
 
+from wx import propgrid as wxpg
+
 from .bases import EntryBase, TableBase
 
 from .mixins import (PartNumberMixin, ManufacturerMixin, DescriptionMixin, SeriesMixin,
@@ -17,7 +19,9 @@ class WiresTable(TableBase):
 
     def _load_database(self, splash):
         from ..create_database import wires
-        wires.add_records(self._con, splash)
+
+        data_path = self._con.db_data.open(splash)
+        wires.add_records(self._con, splash, data_path)
 
     def _table_needs_update(self) -> bool:
         from ..create_database import wires
@@ -183,6 +187,31 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     _table: WiresTable = None
 
+    def build_monitor_packet(self):
+        mfg = self.manufacturer
+        color = self.color
+
+        packet = {
+            'wires': [self.db_id],
+            'families': [self.family_id],
+            'series': [self.series_id],
+            'materials': [self.material_id],
+            'platings': [self.core_material_id],
+            'temperatures': [self.min_temp_id, self.max_temp],
+            'colors': [color.db_id],
+            'datasheets': [self.datasheet_id],
+            'cads': [self.cad_id],
+            'images': [self.image_id]
+        }
+
+        stripe_color_id = self.stripe_color_id
+        if stripe_color_id is not None:
+            packet['colors'].append(stripe_color_id)
+
+        self.merge_packet_data(mfg.build_monitor_packet(), packet)
+
+        return packet
+
     @property
     def resistance_1km(self) -> float:
         resistance = self._table.select('resistance_1km', id=self._db_id)[0][0]
@@ -266,6 +295,14 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     def weight_lb_ft(self, value: float):
         value *= 453.592
         self.weight_g_ft = value
+
+    @property
+    def volts(self) -> float:
+        return self._table.select('volts', id=self._db_id)[0][0]
+
+    @volts.setter
+    def volts(self, value: float):
+        self._table.update(self._db_id, volts=value)
 
     @property
     def od_mm(self) -> float:
@@ -442,3 +479,93 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     @stripe_color_id.setter
     def stripe_color_id(self, value: int | None):
         self._table.update(self._db_id, stripe_color_id=value)
+
+    @property
+    def propgrid(self):
+        from ...ui.editor_obj.prop_grid import float_prop as _float_prop
+        from ...ui.editor_obj.prop_grid import bool_prop as _bool_prop
+        from ...ui.editor_obj.prop_grid import int_prop as _int_prop
+
+        part_cat = wxpg.PropertyCategory('Part Attributes')
+        
+        part_number_prop = self._part_number_propgrid
+        manufacturer_prop = self._manufacturer_propgrid
+        description_prop = self._description_propgrid
+        family_prop = self._family_propgrid
+        series_prop = self._series_propgrid
+        color_prop = self._color_propgrid
+        temperature_prop = self._temperature_propgrid
+        resource_prop = self._resource_propgrid
+        material_prop = self._material_propgrid
+        stripe_color_prop = self.stripe_color.propgrid
+        core_material_prop = self.core_material.propgrid
+
+        stripe_color_prop.SetLabel('Stripe Color')
+        material_prop.SetLabel('Jacket Material')
+        core_material_prop.SetLabel('Core Material')
+
+        tpi_prop = _float_prop.FloatProperty(
+            'Twists per Inch', 'tpi', self.od_mm,
+            min_value=0.05, max_value=60.0, increment=0.01, units='tpi')
+            
+        conductor_dia_mm_prop = _float_prop.FloatProperty(
+            'Conductor Diameter', 'conductor_dia_mm', self.conductor_dia_mm,
+            min_value=0.05, max_value=60.0, increment=0.01, units='mm')
+            
+        weight_1km_prop = _float_prop.FloatProperty(
+            'Weight', 'weight_1km', self.weight_1km,
+            min_value=0.05, max_value=99999.99, increment=0.01, units='g/km')
+
+        volts_prop = _float_prop.FloatProperty(
+            'Volts', 'volts', self.volts,
+            min_value=0.05, max_value=100000.00, increment=0.01, units='V')
+            
+        resistance_1km_prop = _float_prop.FloatProperty(
+            'Resistance', 'resistance_1km', self.resistance_1km,
+            min_value=0.05, max_value=99999.99, increment=0.01, units='Ω/km')
+            
+        od_mm_prop = _float_prop.FloatProperty(
+            'Outside Diameter', 'od_mm', self.od_mm,
+            min_value=0.05, max_value=60.0, increment=0.01, units='mm')
+            
+        size_mm2_prop = _float_prop.FloatProperty(
+            'Size', 'size_mm2', self.size_mm2,
+            min_value=0.05, max_value=60.0, increment=0.01, units='mm²')
+
+        num_conductors_prop = _int_prop.IntProperty(
+            'Conductor Count', 'num_conductors', self.num_conductors, min_value=0, 
+            max_value=10)
+            
+        size_awg_prop = _int_prop.IntProperty(
+            'Size', 'size_awg', self.size_awg, min_value=30, 
+            max_value=0, units='awg')
+
+        shielded_prop = _bool_prop.BoolProperty(
+            'Shielded', 'shielded', self.shielded)
+
+        wire_size_prop = wxpg.PGProperty('Wire Size')
+        wire_size_prop.AppendChild(conductor_dia_mm_prop)
+        wire_size_prop.AppendChild(od_mm_prop)
+        wire_size_prop.AppendChild(size_mm2_prop)
+        wire_size_prop.AppendChild(size_awg_prop)
+
+        part_cat.AppendChild(part_number_prop)
+        part_cat.AppendChild(manufacturer_prop)
+        part_cat.AppendChild(description_prop)
+        part_cat.AppendChild(family_prop)
+        part_cat.AppendChild(series_prop)
+        part_cat.AppendChild(material_prop)
+        part_cat.AppendChild(core_material_prop)
+        part_cat.AppendChild(color_prop)
+        part_cat.AppendChild(stripe_color_prop)
+        part_cat.AppendChild(temperature_prop)
+        part_cat.AppendChild(tpi_prop)
+        part_cat.AppendChild(wire_size_prop)
+        part_cat.AppendChild(weight_1km_prop)
+        part_cat.AppendChild(resource_prop)
+        part_cat.AppendChild(volts_prop)
+        part_cat.AppendChild(resistance_1km_prop)
+        part_cat.AppendChild(num_conductors_prop)
+        part_cat.AppendChild(shielded_prop)
+
+        return part_cat

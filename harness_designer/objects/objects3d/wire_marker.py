@@ -22,8 +22,8 @@ Config = _config.Config.editor3d
 
 
 class WireMarker(_base3d.Base3D):
-    _parent: "_wire_marker.WireMarker" = None
-    db_obj: "_pjt_wire_marker.PJTWireMarker"
+    parent: "_wire_marker.WireMarker" = None
+    db_obj: "_pjt_wire_marker.PJTWireMarker" = None
 
     def __init__(self, parent: "_wire_marker.WireMarker",
                  db_obj: "_pjt_wire_marker.PJTWireMarker"):

@@ -1,5 +1,6 @@
-
 from typing import Iterable as _Iterable, TYPE_CHECKING
+
+from wx import propgrid as wxpg
 
 from .bases import EntryBase, TableBase
 from .mixins import (PartNumberMixin, SeriesMixin, MaterialMixin, FamilyMixin,
@@ -138,6 +139,27 @@ class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyM
     
     _table: TransitionsTable = None
 
+    def build_monitor_packet(self):
+        mfg = self.manufacturer
+        color = self.color
+
+        packet = {
+            'transitions': [self.db_id],
+            'families': [self.family_id],
+            'series': [self.series_id],
+            'shapes': [self.shape_id],
+            'materials': [self.material_id],
+            'temperatures': [self.min_temp_id, self.max_temp],
+            'colors': [color.db_id],
+            'datasheets': [self.datasheet_id],
+            'cads': [self.cad_id],
+            'images': [self.image_id]
+        }
+
+        self.merge_packet_data(mfg.build_monitor_packet(), packet)
+
+        return packet
+
     @property
     def branch_count(self) -> int:
         return self._table.select('branch_count', id=self._db_id)[0][0]
@@ -176,3 +198,53 @@ class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyM
     @shape_id.setter
     def shape_id(self, value: int):
         self._table.update(self._db_id, shape_id=value)
+
+    @property
+    def propgrid(self):
+        from ...ui.editor_obj.prop_grid import int_prop as _int_prop
+
+        part_cat = wxpg.PropertyCategory('Part Attributes')
+        
+        part_number_prop = self._part_number_propgrid
+        manufacturer_prop = self._manufacturer_propgrid
+        description_prop = self._description_propgrid
+        family_prop = self._family_propgrid
+        series_prop = self._series_propgrid
+        color_prop = self._color_propgrid
+        temperature_prop = self._temperature_propgrid
+        resource_prop = self._resource_propgrid
+        material_prop = self._material_propgrid
+        shape_prop = self.shape.propgrid
+        protection_prop = self._protections_propgrid
+        weight_prop = self._weight_propgrid
+
+        adhesives_prop = self._adhesives_propgrid
+
+        branch_count_prop = _int_prop.IntProperty(
+            'Branch Count', 'branch_count', self.branch_count, min_value=1, max_value=6)
+
+        branches_prop = wxpg.PGProperty('Branches')
+
+        for branch in self.branches:
+            if branch is None:
+                continue
+
+            branches_prop.AppendChild(branch.propgrid)
+
+        part_cat.AppendChild(part_number_prop)
+        part_cat.AppendChild(manufacturer_prop)
+        part_cat.AppendChild(description_prop)
+        part_cat.AppendChild(family_prop)
+        part_cat.AppendChild(series_prop)
+        part_cat.AppendChild(color_prop)
+        part_cat.AppendChild(temperature_prop)
+        part_cat.AppendChild(weight_prop)
+        part_cat.AppendChild(resource_prop)
+        part_cat.AppendChild(material_prop)
+        part_cat.AppendChild(shape_prop)
+        part_cat.AppendChild(protection_prop)
+        part_cat.AppendChild(adhesives_prop)
+        part_cat.AppendChild(branch_count_prop)
+        part_cat.AppendChild(branches_prop)
+
+        return part_cat

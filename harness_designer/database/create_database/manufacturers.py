@@ -37,7 +37,7 @@ def add_records(con, splash, data_path):
 
 
 def add_manufacturer(con, name, description='', address='', contact_person='', phone='',
-                     ext='', email='', website='', id=None):
+                     ext='', email='', website='', id=None):  # NOQA
 
     if id is None:
         con.execute(
@@ -75,7 +75,6 @@ def get_mfg_id(con, name):
 
     else:
         return res[0][0]
-
 
 
 id_field = _con.PrimaryKeyField('id')

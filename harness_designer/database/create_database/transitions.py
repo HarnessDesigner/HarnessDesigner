@@ -24,15 +24,14 @@ from ... import logger as _logger
 
 def add_transition(con, part_number, description, mfg=None, family=None, series=None,
                    color=None, image=None, datasheet=None, cad=None, min_temp=None,
-                   max_temp=None, material=None, transition_series=None, shape=None,
-                   protection=None, branch_count=0, adhesive_ids=None, weight=0.0, branches=[]):
+                   max_temp=None, material=None, shape=None, protection=None,
+                   branch_count=0, adhesive_ids=None, weight=0.0, branches=[]):
     
     if adhesive_ids is None:
         adhesive_ids = []
 
     mfg_id = _manufacturers.get_mfg_id(con, mfg)
     series_id = _series.get_series_id(con, series, mfg_id)
-    transition_series_id = _transition_series.get_transition_series_id(con, transition_series)
     family_id = _families.get_family_id(con, family, mfg_id)
     color_id = _colors.get_color_id(con, color)
     material_id = _materials.get_material_id(con, material)
@@ -47,12 +46,12 @@ def add_transition(con, part_number, description, mfg=None, family=None, series=
     try:
         con.execute('INSERT INTO transitions (part_number, description, mfg_id, '
                     'family_id, series_id, color_id, image_id, datasheet_id, cad_id, '
-                    'min_temp_id, max_temp_id, material_id, transition_series_id, '
-                    'shape_id, protection_id, branch_count, adhesive_ids, weight) '
-                    'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                    'min_temp_id, max_temp_id, material_id, shape_id, protection_id, '
+                    'branch_count, adhesive_ids, weight) '
+                    'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
                     (part_number, description, mfg_id, family_id, series_id, color_id,
                      image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, material_id,
-                     transition_series_id, shape_id, protection_id, branch_count,
+                     shape_id, protection_id, branch_count,
                      str(adhesive_ids), weight))
     except:  # NOQA
         _logger.logger.error(part_number)
@@ -187,10 +186,6 @@ table = _con.SQLTable(
     _con.IntField('material_id', default='0', no_null=True,
                   references=_con.SQLFieldReference(_materials.table,
                                                     _materials.id_field,
-                                                    on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('transition_series_id', default='0', no_null=True,
-                  references=_con.SQLFieldReference(_transition_series.table,
-                                                    _transition_series.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('shape_id', default='0', no_null=True,
                   references=_con.SQLFieldReference(_shapes.table,

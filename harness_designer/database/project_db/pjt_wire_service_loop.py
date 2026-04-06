@@ -2,6 +2,8 @@ from typing import TYPE_CHECKING, Iterable as _Iterable
 
 import math
 import numpy as np
+import weakref
+from wx import propgrid as wxpg
 
 from .pjt_bases import PJTEntryBase, PJTTableBase
 
@@ -65,11 +67,35 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
 
     _table: PJTWireServiceLoopsTable = None
 
+    def build_monitor_packet(self):
+        circuit = self.circuit
+
+        packet = {
+            'pjt_wire_service_loops': [self.db_id],
+            'pjt_points3d': [self.start_position3d_id, self.stop_position3d],
+        }
+
+        if circuit is not None:
+            self.merge_packet_data(circuit.build_monitor_packet(), packet)
+
+        self.merge_packet_data(self.part.build_monitor_packet(), packet)
+
+        return packet
+
     def get_object(self) -> "_wire_service_loop_obj.WireServiceLoop":
+        if self._obj is not None:
+            return self._obj()
+
         return self._obj
 
+    def __release_obj_ref(self, _):
+        self._obj = None
+
     def set_object(self, obj: "_wire_service_loop_obj.WireServiceLoop"):
-        self._obj = obj
+        if obj is not None:
+            self._obj = weakref.ref(obj, self.__release_obj_ref)
+        else:
+            self._obj = obj
 
     @property
     def terminal(self) -> "_pjt_terminal.PJTTerminal":
@@ -139,17 +165,30 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
     def table(self) -> PJTWireServiceLoopsTable:
         return self._table
 
-    @property
-    def circuit(self) -> "_pjt_circuit.PJTCircuit":
-        circuit_id = self.circuit_id
-        return self._table.db.pjt_circuits_table[circuit_id]
+    _stored_circuit: "_pjt_circuit.PJTCircuit" = None
 
     @property
-    def circuit_id(self) -> int:
+    def circuit(self) -> "_pjt_circuit.PJTCircuit":
+        if self._stored_circuit is None and self._obj is not None:
+            circuit_id = self.circuit_id
+
+            if circuit_id is None:
+                return None
+
+            self._stored_circuit = self._table.db.pjt_circuits_table[circuit_id]
+            self._stored_circuit.add_object(self._obj())
+
+        return self._stored_circuit
+
+    @property
+    def circuit_id(self) -> int | None:
         return self._table.select('circuit_id', id=self._db_id)[0][0]
 
     @circuit_id.setter
-    def circuit_id(self, value: int):
+    def circuit_id(self, value: int | None):
+        if value is None:
+            self._stored_circuit = None
+
         self._table.update(self._db_id, circuit_id=value)
         self._process_callbacks()
 
@@ -162,11 +201,40 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
         self._table.update(self._db_id, is_visible=int(value))
         self._process_callbacks()
 
+    _stored_part: "_wire.Wire" = None
+
     @property
     def part(self) -> "_wire.Wire":
-        part_id = self.part_id
+        if self._stored_part is None and self._obj is not None:
 
-        if part_id is None:
-            return None
+            part_id = self.part_id
 
-        return self._table.db.global_db.wires_table[part_id]
+            if part_id is None:
+                return None
+
+            self._stored_part = self._table.db.global_db.wires_table[part_id]
+            self._stored_part.add_object(self._obj())
+
+        return self._stored_part
+
+    @property
+    def propgrid(self) -> wxpg.PGProperty:
+        group = wxpg.PropertyCategory('Project')
+
+        notes_prop = self._notes_propgrid
+        name_prop = self._name_propgrid
+        angle_prop = self._angle3d_propgrid
+        position_prop = self._position3d_propgrid
+        housing_prop = self._housing_propgrid
+        visible_prop = self._visible3d_propgrid
+
+        group.AppendChild(name_prop)
+        group.AppendChild(notes_prop)
+        group.AppendChild(angle_prop)
+        group.AppendChild(position_prop)
+        group.AppendChild(visible_prop)
+        group.AppendChild(housing_prop)
+
+        part_prop = self._part_propgrid
+
+        return group, part_prop

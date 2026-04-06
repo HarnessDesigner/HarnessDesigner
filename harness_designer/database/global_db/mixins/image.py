@@ -1,5 +1,7 @@
 from .base import BaseMixin
 
+from wx import propgrid as wxpg
+
 
 class ImageMixin(BaseMixin):
 

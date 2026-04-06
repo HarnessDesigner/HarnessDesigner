@@ -139,6 +139,7 @@ def main():
             "build123d==0.10.0",
             "pyinstaller==6.19.0",
             "numpy==2.2.6",
+            "keyring==25.7.0",
             "pyassimp"  # @ file:///" + os.path.join(base_path, 'libs/assimp/port/PyAssimp')
         ]
     )
@@ -200,15 +201,6 @@ def main():
 
         build.build_installer(base_import)
 
-        '''
-        ubuntu-22.04
-        
-        
-        libwebkit2gtk-4.1-dev
-        freeglut3-dev libcurl4-openssl-dev libexpat1-dev libgl1-mesa-dev libglu1-mesa-dev libgtk-3-dev libjpeg-dev libnotify-dev libsdl2-dev
-        libsm-dev libtiff-dev libxtst-dev libunwind-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev"
-        '''
 
-r'C:\Users\drsch\PycharmProjects\harness_designer\builder\scripts\dist\harness_designer'
 if __name__ == '__main__':
     main()

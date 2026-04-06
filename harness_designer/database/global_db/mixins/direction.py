@@ -1,5 +1,7 @@
 from typing import TYPE_CHECKING
 
+from wx import propgrid as wxpg
+
 from .base import BaseMixin
 
 
@@ -27,5 +29,10 @@ class DirectionMixin(BaseMixin):
     @direction_id.setter
     def direction_id(self, value: int):
         self._table.update(self._db_id, direction_id=value)
+
+    @property
+    def _direction_propgrid(self) -> wxpg.PGProperty:
+        prop = self.direction.propgrid
+        return prop
 
 

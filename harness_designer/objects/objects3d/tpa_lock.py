@@ -22,8 +22,8 @@ Config = _config.Config.editor3d
 
 
 class TPALock(_base3d.Base3D):
-    _parent: "_tpa_lock.TPALock" = None
-    db_obj: "_pjt_tpa_lock.PJTTPALock"
+    parent: "_tpa_lock.TPALock" = None
+    db_obj: "_pjt_tpa_lock.PJTTPALock" = None
 
     def __init__(self, parent: "_tpa_lock.TPALock", db_obj: "_pjt_tpa_lock.PJTTPALock"):
         self._part = db_obj.part

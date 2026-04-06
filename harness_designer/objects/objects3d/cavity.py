@@ -18,8 +18,8 @@ if TYPE_CHECKING:
 
 
 class Cavity(_base3d.Base3D):
-    _parent: "_cavity.Cavity" = None
-    db_obj: "_pjt_cavity.PJTCavity"
+    parent: "_cavity.Cavity" = None
+    db_obj: "_pjt_cavity.PJTCavity" = None
 
     def get_context_menu(self):
         return CavityMenu(self.mainframe.editor3d.editor, self)

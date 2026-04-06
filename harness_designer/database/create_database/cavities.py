@@ -5,7 +5,7 @@ from . import points3d as _points3d
 from . import points2d as _points2d
 
 from .. import db_connectors as _con
-from ... import logger as _logger
+
 
 id_field = _con.PrimaryKeyField('id')
 
@@ -54,6 +54,11 @@ pjt_table = _con.SQLTable(
                                                     on_delete=_con.REFERENCE_CASCADE,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('point3d_id', no_null=True,
+                  references=_con.SQLFieldReference(_points3d.pjt_table,
+                                                    _points3d.pjt_id_field,
+                                                    on_delete=_con.REFERENCE_CASCADE,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('terminal_point3d_id', default='NULL',
                   references=_con.SQLFieldReference(_points3d.pjt_table,
                                                     _points3d.pjt_id_field,
                                                     on_delete=_con.REFERENCE_CASCADE,

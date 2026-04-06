@@ -21,8 +21,8 @@ Config = _config.Config.editor3d.renderer
 
 
 class BundleLayout(_base3d.Base3D):
-    _parent: "_bundle_layout.BundleLayout" = None
-    db_obj: "_pjt_bundle_layout.PJTBundleLayout"
+    parent: "_bundle_layout.BundleLayout" = None
+    db_obj: "_pjt_bundle_layout.PJTBundleLayout" = None
 
     def __init__(self, parent: "_bundle_layout.BundleLayout",
                  db_obj: "_pjt_bundle_layout.PJTBundleLayout"):

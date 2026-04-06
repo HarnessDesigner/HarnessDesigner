@@ -41,8 +41,8 @@ def _build_model(p1: _point.Point, p2: _point.Point, diameter: float):
 
 
 class Splice(_base3d.Base3D):
-    _parent: "_splice.Splice"
-    db_obj: "_pjt_splice.PJTSplice"
+    parent: "_splice.Splice" = None
+    db_obj: "_pjt_splice.PJTSplice" = None
 
     def __init__(self, parent: "_splice.Splice",
                  db_obj: "_pjt_splice.PJTSplice"):

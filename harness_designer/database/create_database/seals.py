@@ -24,7 +24,7 @@ from ... import logger as _logger
 
 def add_seal(con, part_number, description, mfg=None, family=None, series=None,
              color=None, image=None, datasheet=None, cad=None, min_temp=None,
-             max_temp=None, model3d=None, type=None, hardness=-1, lubricant='',
+             max_temp=None, model3d=None, type=None, hardness=-1, lubricant='',  # NOQA
              length=0.0, width=0.0, height=0.0, weight=0.0, o_dia=0.0, i_dia=0.0,
              wire_dia_min=0.0, wire_dia_max=0.0, compat_housings=None, compat_terminals=None):
 
@@ -231,8 +231,12 @@ table = _con.SQLTable(
     _con.FloatField('weight', default='"0.0"', no_null=True),
     _con.FloatField('o_dia', default='"0.0"', no_null=True),
     _con.FloatField('i_dia', default='"0.0"', no_null=True),
-    _con.FloatField('wire_dia_min', default='"0.0"', no_null=True),
-    _con.FloatField('wire_dia_max', default='"0.0"', no_null=True),
+    _con.FloatField('min_dia', default='"0.0"', no_null=True),
+    _con.FloatField('max_dia', default='"0.0"', no_null=True),
+    _con.FloatField('min_size_mm2', default='"0.0"', no_null=True),
+    _con.FloatField('max_size_mm2', default='"0.0"', no_null=True),
+    _con.FloatField('min_size_awg', default='"0.0"', no_null=True),
+    _con.FloatField('max_size_awg', default='"0.0"', no_null=True),
     _con.TextField('compat_housings', default='"[]"', no_null=True),
     _con.TextField('compat_terminals', default='"[]"', no_null=True)
 )
@@ -259,17 +263,21 @@ pjt_table = _con.SQLTable(
                                                     _points3d.pjt_id_field,
                                                     on_delete=_con.REFERENCE_CASCADE,
                                                     on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('housing_id', no_null=True,
+    _con.IntField('housing_id', default='NULL',
                   references=_con.SQLFieldReference(_housings.pjt_table,
                                                     _housings.pjt_id_field,
                                                     on_delete=_con.REFERENCE_CASCADE,
                                                     on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('terminal_id', no_null=True,
+    _con.IntField('terminal_id', default='NULL',
                   references=_con.SQLFieldReference(_terminals.pjt_table,
                                                     _terminals.pjt_id_field,
                                                     on_delete=_con.REFERENCE_CASCADE,
                                                     on_update=_con.REFERENCE_CASCADE)),
-
+    _con.IntField('cavity_id', default='NULL',
+                  references=_con.SQLFieldReference(_cavities.pjt_table,
+                                                    _cavities.pjt_id_field,
+                                                    on_delete=_con.REFERENCE_CASCADE,
+                                                    on_update=_con.REFERENCE_CASCADE)),
     _con.TextField('name', default='""', no_null=True),
     _con.TextField('notes', default='""', no_null=True),
     _con.TextField('quat3d', default='"[1.0, 0.0, 0.0, 0.0]"', no_null=True),

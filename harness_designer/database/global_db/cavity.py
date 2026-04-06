@@ -53,6 +53,15 @@ class CavitiesTable(TableBase):
 class Cavity(EntryBase, NameMixin):
     _table: CavitiesTable = None
 
+    def build_monitor_packet(self):
+        packet = {
+            'cavities': [self.db_id]
+        }
+
+        self.merge_packet_data(self.housing.build_monitor_packet(), packet)
+
+        return packet
+
     @property
     def housing(self) -> "_housing.Housing":
         from .housing import Housing
@@ -125,8 +134,8 @@ class Cavity(EntryBase, NameMixin):
     _angle3d_id: str = None
 
     def _update_angle3d(self, angle: _angle.Angle):
-        euler = [angle.x, angle.y, angle.z]
-        quat = angle.as_quat_float
+        euler = list(angle.as_euler_float)
+        quat = list(angle.as_quat_float)
         self._table.update(self._db_id, angle3d=str(euler), quat3d=str(quat))
 
     @property

@@ -59,9 +59,38 @@ class Project:
         self.project_id = project_id
         self.project_name = project_name
         self.ptables = ptables = mainframe.project_db
-
+        self.connector.monitor.reset()
         ptables.load(project_id)
         mainframe.object_browser.reset()
+
+        for table in (
+            self.ptables.pjt_boots_table,
+            self.ptables.pjt_bundle_layouts_table,
+            self.ptables.pjt_bundles_table,
+            self.ptables.pjt_cavities_table,
+            self.ptables.pjt_circuits_table,
+            self.ptables.pjt_concentric_layers_table,
+            self.ptables.pjt_concentric_wires_table,
+            self.ptables.pjt_concentrics_table,
+            self.ptables.pjt_covers_table,
+            self.ptables.pjt_cpa_locks_table,
+            self.ptables.pjt_housings_table,
+            self.ptables.pjt_notes_table,
+            self.ptables.pjt_points2d_table,
+            self.ptables.pjt_points3d_table,
+            self.ptables.pjt_seals_table,
+            self.ptables.pjt_splices_table,
+            self.ptables.pjt_terminals_table,
+            self.ptables.pjt_tpa_locks_table,
+            self.ptables.pjt_transition_branches_table,
+            self.ptables.pjt_transitions_table,
+            self.ptables.pjt_wire3d_layouts_table,
+            self.ptables.pjt_wire_markers_table,
+            self.ptables.pjt_wire_service_loops_table,
+            self.ptables.pjt_wires_table
+        ):
+            kwargs = {f'field_names_{table.table_name}': table.field_names}
+            self.connector.monitor.send(**kwargs)
 
         self._boots = {}
         self._bundles = {}
@@ -84,9 +113,13 @@ class Project:
 
         self._obj_count = mainframe.project_db.projects_table.get_object_count(project_id)
 
+        db_ids = {}
+
         for wire_service_loop in ptables.pjt_wire_service_loops_table:
             with self.mainframe.editor3d.context:
                 obj = _wire_service_loop.WireServiceLoop(mainframe, wire_service_loop)
+
+            wire_service_loop.merge_packet_data(wire_service_loop.build_monitor_packet(), db_ids)
 
             self._wire_service_loops[wire_service_loop.db_id] = obj
             mainframe.object_browser.add_wire_service_loop(obj)
@@ -95,12 +128,16 @@ class Project:
             with self.mainframe.editor3d.context:
                 obj = _wire_marker.WireMarker(mainframe, wire_marker)
 
+            wire_marker.merge_packet_data(wire_marker.build_monitor_packet(), db_ids)
+
             self._wire_markers[wire_marker.db_id] = obj
             mainframe.object_browser.add_wire_marker(obj)
 
         for note in ptables.pjt_notes_table:
             with self.mainframe.editor3d.context:
                 obj = _note.Note(mainframe, note)
+
+            note.merge_packet_data(note.build_monitor_packet(), db_ids)
 
             self._notes[note.db_id] = obj
             mainframe.object_browser.add_note(obj)
@@ -109,6 +146,7 @@ class Project:
             with self.mainframe.editor3d.context:
                 obj = _circuit.Circuit(mainframe, circuit)
 
+            circuit.merge_packet_data(circuit.build_monitor_packet(), db_ids)
             self._circuits[circuit.db_id] = obj
             mainframe.object_browser.add_circuit(obj)
 
@@ -116,6 +154,7 @@ class Project:
             with self.mainframe.editor3d.context:
                 obj = _boot.Boot(mainframe, boot)
 
+            boot.merge_packet_data(boot.build_monitor_packet(), db_ids)
             self._boots[boot.db_id] = obj
             mainframe.object_browser.add_boot(obj)
 
@@ -123,6 +162,7 @@ class Project:
             with self.mainframe.editor3d.context:
                 obj = _cover.Cover(mainframe, cover)
 
+            cover.merge_packet_data(cover.build_monitor_packet(), db_ids)
             self._covers[cover.db_id] = obj
             mainframe.object_browser.add_cover(obj)
 
@@ -130,6 +170,7 @@ class Project:
             with self.mainframe.editor3d.context:
                 obj = _cpa_lock.CPALock(mainframe, cpa_lock)
 
+            cpa_lock.merge_packet_data(cpa_lock.build_monitor_packet(), db_ids)
             self._cpa_locks[cpa_lock.db_id] = obj
             mainframe.object_browser.add_cpa_lock(obj)
 
@@ -137,6 +178,7 @@ class Project:
             with self.mainframe.editor3d.context:
                 obj = _tpa_lock.TPALock(mainframe, tpa_lock)
 
+            tpa_lock.merge_packet_data(tpa_lock.build_monitor_packet(), db_ids)
             self._tpa_locks[tpa_lock.db_id] = obj
             mainframe.object_browser.add_tpa_lock(obj)
 
@@ -144,6 +186,7 @@ class Project:
             with self.mainframe.editor3d.context:
                 obj = _seal.Seal(mainframe, seal)
 
+            seal.merge_packet_data(seal.build_monitor_packet(), db_ids)
             self._seals[seal.db_id] = obj
             mainframe.object_browser.add_seal(obj)
 
@@ -151,6 +194,7 @@ class Project:
             with self.mainframe.editor3d.context:
                 obj = _terminal.Terminal(mainframe, terminal)
 
+            terminal.merge_packet_data(terminal.build_monitor_packet(), db_ids)
             self._terminals[terminal.db_id] = obj
             mainframe.object_browser.add_terminal(obj)
 
@@ -158,6 +202,7 @@ class Project:
             with self.mainframe.editor3d.context:
                 obj = _transition.Transition(mainframe, transition)
 
+            transition.merge_packet_data(transition.build_monitor_packet(), db_ids)
             self._transitions[transition.db_id] = obj
             mainframe.object_browser.add_transition(obj)
 
@@ -165,6 +210,7 @@ class Project:
             with self.mainframe.editor3d.context:
                 obj = _housing.Housing(mainframe, housing)
 
+            housing.merge_packet_data(housing.build_monitor_packet(), db_ids)
             self._housings[housing.db_id] = obj
             mainframe.object_browser.add_housing(obj)
 
@@ -172,6 +218,7 @@ class Project:
             with self.mainframe.editor3d.context:
                 obj = _splice.Splice(mainframe, splice)
 
+            splice.merge_packet_data(splice.build_monitor_packet(), db_ids)
             self._splices[splice.db_id] = obj
             mainframe.object_browser.add_splice(obj)
 
@@ -179,6 +226,7 @@ class Project:
             with self.mainframe.editor3d.context:
                 obj = _wire.Wire(mainframe, wire)
 
+            wire.merge_packet_data(wire.build_monitor_packet(), db_ids)
             self._wires[wire.db_id] = obj
             mainframe.object_browser.add_wire(obj)
 
@@ -188,19 +236,33 @@ class Project:
         #     self._wire2d_layouts[layout.db_id] = (
         #         _wire2d_layout.Wire2DLayout(mainframe, layout))
         #
+        #     layout.merge_packet_data(layout.build_monitor_packet(), db_ids)
+        #
         # for layout in ptables.pjt_wire3d_layouts_table:
         #     mainframe.IncrementProgress()
         #     self._wire3d_layouts[layout.db_id] = (
         #         _wire3d_layout.Wire3DLayout(mainframe, layout))
+        #
+        #     layout.merge_packet_data(layout.build_monitor_packet(), db_ids)
 
         for bundle in ptables.pjt_bundles_table:
-            obj = _bundle.Bundle(mainframe, bundle)
+            with self.mainframe.editor3d.context:
+                obj = _bundle.Bundle(mainframe, bundle)
+
+            bundle.merge_packet_data(bundle.build_monitor_packet(), db_ids)
             self._bundles[bundle.db_id] = obj
             mainframe.object_browser.add_bundle(obj)
 
         for layout in ptables.pjt_bundle_layouts_table:
-            obj = _bundle_layout.BundleLayout(mainframe, layout)
+            with self.mainframe.editor3d.context:
+                obj = _bundle_layout.BundleLayout(mainframe, layout)
+
+            layout.merge_packet_data(layout.build_monitor_packet(), db_ids)
             self._bundle_layouts[layout.db_id] = obj
+
+        for table_name, ids in db_ids.items():
+            kwargs = {f'add_{table_name}': ids}
+            self.connector.monitor.send(**kwargs)
 
     @property
     def obj_count(self) -> int:
@@ -262,20 +324,36 @@ class Project:
         note.delete()
         self.obj_count -= 1
 
-    def add_note(self, point: _point.Point) -> _note.Note:
-        if point.is2d:
-            p_db_obj = self.ptables.pjt_points2d_table.insert(point.x, point.y)
-            note_db_obj = self.ptables.pjt_notes_table.insert(p_db_obj.db_id, None, 'NEW NOTE', 1)
+    def add_note(self, note: str,  position2d: _point.Point = None,
+                 position3d: _point.Point = None) -> _note.Note:
 
+        if not note:
+            note = 'NEW NOTE'
+
+        if position2d is None:
+            position2d_id = None
         else:
-            p_db_obj = self.ptables.pjt_points2d_table.insert(point.x, point.y)
-            note_db_obj = self.ptables.pjt_notes_table.insert(None, p_db_obj.db_id, 'NEW NOTE', 1)
+            position2d_id = self.ptables.pjt_points2d_table.insert(
+                position2d.x, position2d.y).db_id
 
-        new_obj = _note.Note(self.mainframe, note_db_obj)
-        self._notes[note_db_obj.db_id] = new_obj
+        if position3d is None:
+            position3d_id = None
+        else:
+            position3d_id = self.ptables.pjt_points3d_table.insert(
+                position3d.x, position3d.y, position3d.z).db_id
+
+        db_obj = self.ptables.pjt_notes_table.insert(
+            position2d_id, position3d_id, note, 1)
+
+        new_obj = _note.Note(self.mainframe, db_obj)
+        self._notes[db_obj.db_id] = new_obj
 
         self.obj_count += 1
         return new_obj
+
+    def get_note(self, db_id) -> _note.Note:
+        db_obj = self.ptables.pjt_notes_table[db_id]
+        return db_obj.get_object()
 
     @property
     def notes(self) -> list["_note.Note"]:
@@ -286,19 +364,45 @@ class Project:
         seal.delete()
         self.obj_count -= 1
 
-    def add_seal(self, point: _point.Point, housing: _housing.Housing, terminal: _terminal.Terminal | None, part: "_seal_part.Seal") -> _seal.Seal:
-        if terminal is None:
-            terminal_id = None
-        else:
-            terminal_id = terminal.db_obj.db_id
+    def add_seal(self, part_id: int,  position3d: _point.Point) -> _seal.Seal:
+        position3d_id = int(position3d.db_id[:-2])
 
-        seal_db_obj = self.ptables.pjt_seals_table.insert(
-            point.point_id, housing.db_obj.db_id, terminal_id, part.db_id)
-        new_obj = _seal.Seal(self.mainframe, seal_db_obj)
-        self._seals[seal_db_obj.db_id] = new_obj
+        c_table = self.ptables.pjt_cavities_table
+        t_table = self.ptables.pjt_terminals_table
+        h_table = self.ptables.pjt_housings_table
+
+        cavity = c_table.get_from_position3d_id(position3d_id)
+        if cavity is None:
+            cavity_id = None
+
+            terminal = t_table.get_from_position3d_id(position3d_id)
+            if terminal is None:
+                terminal_id = None
+
+                housing = h_table.get_from_position3d_id(position3d_id)
+
+                housing_id = housing.db_id
+            else:
+                terminal_id = terminal.db_id
+                housing_id = None
+        else:
+            cavity_id = cavity.db_id
+            terminal_id = None
+            housing_id = None
+
+        db_obj = self.ptables.pjt_seals_table.insert(
+            part_id, position3d_id, housing_id=housing_id,
+            terminal_id=terminal_id, cavity_id=cavity_id)
+
+        new_obj = _seal.Seal(self.mainframe, db_obj)
+        self._seals[db_obj.db_id] = new_obj
 
         self.obj_count += 1
         return new_obj
+
+    def get_seal(self, db_id) -> _seal.Seal:
+        db_obj = self.ptables.pjt_seals_table[db_id]
+        return db_obj.get_object()
 
     @property
     def seals(self) -> list["_seal.Seal"]:
@@ -309,12 +413,26 @@ class Project:
         seal.delete()
         self.obj_count -= 1
 
-    def add_terminal(self, part_id, cavity: "_cavity.Cavity") -> _terminal.Terminal:
+    def add_terminal(self, part_id: int, position2d: _point.Point = None,
+                     position3d: _point.Point = None) -> _terminal.Terminal:
 
-        position2d_id = cavity.db_obj.position2d_id
-        position3d_id = cavity.db_obj.position3d_id
+        c_table = self.ptables.pjt_cavities_table
 
-        db_obj = self.ptables.pjt_terminals_table.insert(part_id, position2d_id, position3d_id, cavity.db_obj.db_id)
+        if position2d is None:
+
+            position3d_id = int(position3d.db_id[:-2])
+            cavity = c_table.get_from_position3d_id(position3d_id)
+
+            position2d_id = cavity.position2d_id
+            position3d_id = cavity.terminal_position3d_id
+
+        else:
+            position2d_id = int(position2d.db_id[:-2])
+            cavity = c_table.get_from_position2d_id(position2d_id)
+
+            position3d_id = cavity.terminal_position3d_id
+
+        db_obj = self.ptables.pjt_terminals_table.insert(part_id, position2d_id, position3d_id, cavity.db_id)
 
         with self.mainframe.editor3d.context:
             obj = _terminal.Terminal(self.mainframe, db_obj)
@@ -323,6 +441,10 @@ class Project:
 
         self.obj_count += 1
         return obj
+
+    def get_terminal(self, db_id) -> _terminal.Terminal:
+        db_obj = self.ptables.pjt_terminals_table[db_id]
+        return db_obj.get_object()
 
     @property
     def terminals(self) -> list["_terminal.Terminal"]:
@@ -333,8 +455,7 @@ class Project:
         seal.delete()
         self.obj_count -= 1
 
-    def add_tpa_lock(self, part_id: int, housing: _housing.Housing) -> _tpa_lock.TPALock:
-
+    def add_tpa_lock(self, part_id: int, position3d: _point.Point) -> _tpa_lock.TPALock:
         position_id = housing.obj3d.db_obj.tpa_lock_1_position3d_id
 
         db_obj = self.ptables.pjt_tpa_locks_table.insert(
@@ -348,6 +469,10 @@ class Project:
         self.obj_count += 1
         return obj
 
+    def get_tpa_lock(self, db_id) -> _tpa_lock.TPALock:
+        db_obj = self.ptables.pjt_tpa_locks_table[db_id]
+        return db_obj.get_object()
+
     @property
     def tpa_locks(self) -> list["_tpa_lock.TPALock"]:
         return list(self._tpa_locks.values())
@@ -357,7 +482,9 @@ class Project:
         seal.delete()
         self.obj_count -= 1
 
-    def add_wire_marker(self, point, wire: _wire.Wire, part: "_wire_marker_part.WireMarker") -> _wire_marker.WireMarker:
+    def add_wire_marker(self, part_id: int, position2d: _point.Point = None,
+                        position3d: _point.Point = None) -> _wire_marker.WireMarker:
+
         if point.is2d:
             p_db_obj = self.ptables.pjt_points2d_table.insert(point.x, point.y)
             wm_db_obj = self.ptables.pjt_wire_markers_table.insert(p_db_obj.db_id, None, wire.db_obj.db_id, part.db_id, '')
@@ -370,6 +497,10 @@ class Project:
         self.obj_count += 1
         return new_obj
 
+    def get_wire_marker(self, db_id) -> _wire_marker.WireMarker:
+        db_obj = self.ptables.pjt_wire_markers_table[db_id]
+        return db_obj.get_object()
+
     @property
     def wire_markers(self) -> list["_wire_marker.WireMarker"]:
         return list(self._wire_markers.values())
@@ -379,7 +510,7 @@ class Project:
         seal.delete()
         self.obj_count -= 1
 
-    def add_wire_service_loop(self, point: _point.Point) -> _wire_service_loop.WireServiceLoop:
+    def add_wire_service_loop(self, part_id: int,  position3d: _point.Point) -> _wire_service_loop.WireServiceLoop:
         from .objects3d import wire
 
         start_point = obj.db_obj.start_position3d
@@ -418,6 +549,10 @@ class Project:
         self.obj_count += 1
         return new_obj
 
+    def get_wire_service_loop(self, db_id) -> _wire_service_loop.WireServiceLoop:
+        db_obj = self.ptables.pjt_wire_service_loops_table[db_id]
+        return db_obj.get_object()
+
     @property
     def wire_service_loops(self) -> list["_wire_service_loop.WireServiceLoop"]:
         return list(self._wire_service_loops.values())
@@ -431,7 +566,7 @@ class Project:
         seal.delete()
         self.obj_count -= 1
 
-    def add_cpa_lock(self, part_id: int, housing: _housing.Housing) -> _cpa_lock.CPALock:
+    def add_cpa_lock(self, part_id: int,  position3d: _point.Point) -> _cpa_lock.CPALock:
         position_id = housing.obj3d.db_obj.cpa_lock_position3d_id
 
         db_obj = self.ptables.pjt_cpa_locks_table.insert(
@@ -445,6 +580,10 @@ class Project:
         self.obj_count += 1
         return obj
 
+    def get_cpa_lock(self, db_id) -> _cpa_lock.CPALock:
+        db_obj = self.ptables.pjt_cpa_locks_table[db_id]
+        return db_obj.get_object()
+
     @property
     def cpa_locks(self) -> list["_cpa_lock.CPALock"]:
         return list(self._cpa_locks.values())
@@ -454,7 +593,7 @@ class Project:
         seal.delete()
         self.obj_count -= 1
 
-    def add_cover(self, part_id: int, housing: _housing.Housing) -> _cover.Cover:
+    def add_cover(self, part_id: int,  position3d: _point.Point) -> _cover.Cover:
         position_id = housing.obj3d.db_obj.cover_position3d_id
 
         db_obj = self.ptables.pjt_covers_table.insert(
@@ -468,6 +607,10 @@ class Project:
         self.obj_count += 1
         return obj
 
+    def get_cover(self, db_id) -> _cover.Cover:
+        db_obj = self.ptables.pjt_covers_table[db_id]
+        return db_obj.get_object()
+
     @property
     def covers(self) -> list["_cover.Cover"]:
         return list(self._covers.values())
@@ -477,7 +620,7 @@ class Project:
         seal.delete()
         self.obj_count -= 1
 
-    def add_boot(self, part_id: int, housing: _housing.Housing) -> _boot.Boot:
+    def add_boot(self, part_id: int,  position3d: _point.Point) -> _boot.Boot:
 
         position_id = housing.obj3d.db_obj.boot_position3d_id
 
@@ -492,6 +635,10 @@ class Project:
         self.obj_count += 1
         return obj
 
+    def get_boot(self, db_id) -> _boot.Boot:
+        db_obj = self.ptables.pjt_boots_table[db_id]
+        return db_obj.get_object()
+
     @property
     def boots(self) -> list["_boot.Boot"]:
         return list(self._boots.values())
@@ -501,8 +648,7 @@ class Project:
         seal.delete()
         self.obj_count -= 1
 
-    def add_transition(self, point: _point.Point, housing: _housing.Housing, 
-                       part: "_transition_part.Transition") -> _transition.Transition:
+    def add_transition(self, part_id: int,  position3d: _point.Point) -> _transition.Transition:
 
         '''
         part_id: int, center_id: int, angle: _angle.Angle, name: str,
@@ -523,6 +669,10 @@ class Project:
         self.obj_count += 1
         return new_obj
 
+    def get_transition(self, db_id) -> _transition.Transition:
+        db_obj = self.ptables.pjt_transitions_table[db_id]
+        return db_obj.get_object()
+
     @property
     def transitions(self) -> list["_transition.Transition"]:
         return list(self._transitions.values())
@@ -532,8 +682,8 @@ class Project:
         housing.delete()
         self.obj_count -= 1
 
-    def add_housing(self, part_id: int, position3d: _point.Point = None,
-                    position2d: _point.Point = None) -> _housing.Housing:
+    def add_housing(self, part_id: int, position2d: _point.Point = None,
+                   position3d: _point.Point = None) -> _housing.Housing:
         housing = self.ptables.pjt_housings_table.insert(part_id, position2d=position2d, position3d=position3d)
 
         with self.mainframe.editor3d.context:
@@ -544,6 +694,10 @@ class Project:
 
         return obj
 
+    def get_housing(self, db_id) -> _housing.Housing:
+        db_obj = self.ptables.pjt_housings_table[db_id]
+        return db_obj.get_object()
+
     @property
     def housings(self) -> list["_housing.Housing"]:
         return list(self._housings.values())
@@ -553,8 +707,13 @@ class Project:
         seal.delete()
         self.obj_count -= 1
 
-    def add_splice(self, point: _point.Point, part: "_splice_part.Splice") -> _splice.Splice:
+    def add_splice(self, part_id: int, position2d: _point.Point = None,
+                   position3d: _point.Point = None) -> _splice.Splice:
         pass
+
+    def get_splice(self, db_id) -> _splice.Splice:
+        db_obj = self.ptables.pjt_splices_table[db_id]
+        return db_obj.get_object()
 
     @property
     def splices(self) -> list["_splice.Splice"]:
@@ -565,8 +724,13 @@ class Project:
         seal.delete()
         self.obj_count -= 1
 
-    def add_wire(self, point: _point.Point, part: "_wire_part.Wire") -> _wire.Wire:
+    def add_wire(self, part_id: int, position2d: _point.Point = None,
+                 position3d: _point.Point = None) -> _wire.Wire:
         pass
+
+    def get_wire(self, db_id) -> _wire.Wire:
+        db_obj = self.ptables.pjt_wires_table[db_id]
+        return db_obj.get_object()
 
     @property
     def wires(self) -> list["_wire.Wire"]:
@@ -601,8 +765,12 @@ class Project:
         seal.delete()
         self.obj_count -= 1
 
-    def add_bundle(self, point: _point.Point, part: "_bundle_cover_part.BundleCover") -> _bundle.Bundle:
+    def add_bundle(self, part_id: int, position3d: _point.Point) -> _bundle.Bundle:
         pass
+
+    def get_bundle(self, db_id) -> _bundle.Bundle:
+        db_obj = self.ptables.pjt_bundles_table[db_id]
+        return db_obj.get_object()
 
     @property
     def bundles(self) -> list["_bundle.Bundle"]:

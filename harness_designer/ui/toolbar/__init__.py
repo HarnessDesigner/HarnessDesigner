@@ -22,6 +22,8 @@ ID_TRANSITION = _toolbar.ID_TRANSITION
 ID_WIRE = _toolbar.ID_WIRE
 ID_ZOOM_IN = _toolbar.ID_ZOOM_IN
 ID_ZOOM_OUT = _toolbar.ID_ZOOM_OUT
+ID_WIRE_SERVICE_LOOP = _toolbar.ID_WIRE_SERVICE_LOOP
+ID_COVER = _toolbar.ID_COVER
 
 
 del _toolbar

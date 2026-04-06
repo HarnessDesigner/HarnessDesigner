@@ -210,7 +210,7 @@ table = _con.SQLTable(
     _con.FloatField('width', default='"0.0"', no_null=True),
     _con.FloatField('height', default='"0.0"', no_null=True),
     _con.FloatField('weight', default='"0.0"', no_null=True),
-    _con.IntField('pins', default='0', no_null=True),
+    _con.TextField('pins', default='""', no_null=True),
     _con.FloatField('terminal_size', default='"0.0"', no_null=True),
     _con.TextField('compat_housings', default='"[]"', no_null=True)
 )
@@ -242,6 +242,7 @@ pjt_table = _con.SQLTable(
                                                     _housings.pjt_id_field,
                                                     on_delete=_con.REFERENCE_CASCADE,
                                                     on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('idx', no_null=True),
     _con.TextField('name', default='""', no_null=True),
     _con.TextField('notes', default='""', no_null=True),
     _con.TextField('quat3d', default='"[1.0, 0.0, 0.0, 0.0]"', no_null=True),

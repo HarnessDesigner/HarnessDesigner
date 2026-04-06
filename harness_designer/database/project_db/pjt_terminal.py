@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
-import numpy as np
+import weakref
+from wx import propgrid as wxpg
 
 from .pjt_bases import PJTEntryBase, PJTTableBase
 
@@ -49,17 +50,10 @@ class PJTTerminalsTable(PJTTableBase):
 
         raise KeyError(item)
 
-    def insert(self, part_id: int, cavity_id: int, circuit_id: int,
-               point3d_id: int, point2d_id: int, angle: float,
-               quat: np.ndarray, is_start: bool, volts: float,
-               load: float, voltage_drop: float) -> "PJTTerminal":
+    def insert(self, part_id: int, position2d_id: int, position3d_id: int, cavity_id: int) -> "PJTTerminal":
 
         db_id = PJTTableBase.insert(self, part_id=part_id, cavity_id=cavity_id,
-                                    circuit_id=circuit_id, point3d_id=point3d_id,
-                                    point2d_id=point2d_id, angle=float(angle),
-                                    quat=str(quat.tolist()), is_start=int(is_start),
-                                    volts=float(volts), load=float(load),
-                                    voltage_drop=float(voltage_drop))
+                                    point2d_id=position2d_id, point3d_id=position3d_id)
 
         return PJTTerminal(self, db_id, self.project_id)
 
@@ -69,11 +63,40 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin,
 
     _table: PJTTerminalsTable = None
 
+    def build_monitor_packet(self):
+        circuit = self.circuit
+        cavity = self.cavity
+
+        packet = {
+            'pjt_terminals': [self.db_id],
+            'pjt_points3d': [self.position3d_id],
+            'pjt_points2d': [self.position2d_id]
+        }
+
+        self.merge_packet_data(self.part.build_monitor_packet(), packet)
+
+        if cavity is not None:
+            self.merge_packet_data(cavity.build_monitor_packet(), packet)
+
+        if circuit is not None:
+            self.merge_packet_data(circuit.build_monitor_packet(), packet)
+
+        return packet
+
     def get_object(self) -> "_terminal_obj.Terminal":
+        if self._obj is not None:
+            return self._obj()
+
         return self._obj
 
+    def __release_obj_ref(self, _):
+        self._obj = None
+
     def set_object(self, obj: "_terminal_obj.Terminal"):
-        self._obj = obj
+        if obj is not None:
+            self._obj = weakref.ref(obj, self.__release_obj_ref)
+        else:
+            self._obj = obj
 
     @property
     def is_start(self) -> bool:
@@ -163,10 +186,20 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin,
     def table(self) -> PJTTerminalsTable:
         return self._table
 
+    _stored_cavity: "_pjt_cavity.PJTCavity" = None
+
     @property
     def cavity(self) -> "_pjt_cavity.PJTCavity":
-        cavity_id = self.cavity_id
-        return self._table.db.pjt_cavities_table[cavity_id]
+        if self._stored_cavity is None and self._obj is not None:
+            cavity_id = self.cavity_id
+
+            if cavity_id is None:
+                return None
+
+            self._stored_cavity = self._table.db.pjt_cavities_table[cavity_id]
+            self._stored_cavity.add_object(self._obj())
+
+        return self._stored_cavity
 
     @property
     def cavity_id(self) -> int:
@@ -174,13 +207,25 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin,
 
     @cavity_id.setter
     def cavity_id(self, value: int):
+        self._stored_cavity = None
+
         self._table.update(self._db_id, cavity_id=value)
         self._process_callbacks()
 
+    _stored_circuit: "_pjt_circuit.PJTCircuit" = None
+
     @property
     def circuit(self) -> "_pjt_circuit.PJTCircuit":
-        circuit_id = self.circuit_id
-        return self._table.db.pjt_circuits_table[circuit_id]
+        if self._stored_circuit is None and self._obj is not None:
+            circuit_id = self.circuit_id
+
+            if circuit_id is None:
+                return
+
+            self._stored_circuit = self._table.db.pjt_circuits_table[circuit_id]
+            self._stored_circuit.add_object(self._obj())
+
+        return self._stored_circuit
 
     @property
     def circuit_id(self) -> int:
@@ -188,6 +233,8 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin,
 
     @circuit_id.setter
     def circuit_id(self, value: int):
+        self._stored_circuit = None
+
         self._table.update(self._db_id, circuit_id=value)
         self._process_callbacks()
 
@@ -203,10 +250,39 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin,
 
             return seal
 
+    _stored_part: "_terminal.Terminal" = None
+
     @property
     def part(self) -> "_terminal.Terminal":
-        part_id = self.part_id
-        if part_id is None:
-            return None
+        if self._stored_part is None and self._obj is not None:
+            part_id = self.part_id
 
-        return self._table.db.global_db.terminals_table[part_id]
+            if part_id is None:
+                return None
+
+            self._stored_part = self._table.db.global_db.terminals_table[part_id]
+            self._stored_part.add_object(self._obj())
+
+        return self._stored_part
+
+    @property
+    def propgrid(self) -> wxpg.PGProperty:
+        group = wxpg.PropertyCategory('Project')
+
+        notes_prop = self._notes_propgrid
+        name_prop = self._name_propgrid
+        angle_prop = self._angle3d_propgrid
+        position_prop = self._position3d_propgrid
+        housing_prop = self._housing_propgrid
+        visible_prop = self._visible3d_propgrid
+
+        group.AppendChild(name_prop)
+        group.AppendChild(notes_prop)
+        group.AppendChild(angle_prop)
+        group.AppendChild(position_prop)
+        group.AppendChild(visible_prop)
+        group.AppendChild(housing_prop)
+
+        part_prop = self._part_propgrid
+
+        return group, part_prop

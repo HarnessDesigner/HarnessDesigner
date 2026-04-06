@@ -1,9 +1,12 @@
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
+from wx import propgrid as wxpg
+
 from .bases import EntryBase, TableBase
 from .mixins import (PartNumberMixin, ManufacturerMixin, DescriptionMixin,
                      ResourceMixin, TemperatureMixin, ColorMixin, SeriesMixin,
-                     MaterialMixin, ProtectionMixin, AdhesiveMixin, WeightMixin)
+                     MaterialMixin, ProtectionMixin, AdhesiveMixin, WeightMixin,
+                     FamilyMixin)
 
 
 if TYPE_CHECKING:
@@ -15,7 +18,9 @@ class BundleCoversTable(TableBase):
 
     def _load_database(self, splash):
         from ..create_database import bundle_covers
-        bundle_covers.add_records(self._con, splash)
+
+        data_path = self._con.db_data.open(splash)
+        bundle_covers.add_records(self._con, splash, data_path)
 
     def _table_needs_update(self) -> bool:
         from ..create_database import bundle_covers
@@ -162,9 +167,28 @@ class BundleCoversTable(TableBase):
 
 class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, 
                   ResourceMixin, TemperatureMixin, ColorMixin, SeriesMixin,
-                  MaterialMixin, ProtectionMixin, AdhesiveMixin, WeightMixin):
+                  MaterialMixin, ProtectionMixin, AdhesiveMixin, WeightMixin,
+                  FamilyMixin):
     
     _table: BundleCoversTable = None
+
+    def build_monitor_packet(self):
+        color = self.color
+
+        packet = {
+            'covers': [self.db_id],
+            'families': [self.family_id],
+            'series': [self.series_id],
+            'temperatures': [self.min_temp_id, self.max_temp],
+            'colors': [color.db_id],
+            'datasheets': [self.datasheet_id],
+            'cads': [self.cad_id],
+            'images': [self.image_id],
+        }
+
+        self.merge_packet_data(self.manufacturer.build_monitor_packet(), packet)
+
+        return packet
 
     @property
     def rigidity(self) -> str:
@@ -180,10 +204,6 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
         from .temperature import Temperature
 
         return Temperature(self._table.db.temperatures_table, shrink_temp_id)
-
-    @shrink_temp.setter
-    def shrink_temp(self, value: "_temperature.Temperature"):
-        self._table.update(self._db_id, shrink_temp_id=value.db_id)
 
     @property
     def shrink_temp_id(self) -> int:
@@ -210,17 +230,74 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
         self._table.update(self._db_id, wall=value)
     
     @property
-    def min_size(self) -> float:
-        return self._table.select('min_size', id=self._db_id)[0][0]
+    def min_dia(self) -> float:
+        return self._table.select('min_dia', id=self._db_id)[0][0]
 
-    @min_size.setter
-    def min_size(self, value: float):
-        self._table.update(self._db_id, min_size=round(value, 6))
+    @min_dia.setter
+    def min_dia(self, value: float):
+        self._table.update(self._db_id, min_dia=round(value, 6))
         
     @property
-    def max_size(self) -> float:
-        return self._table.select('max_size', id=self._db_id)[0][0]
+    def max_dia(self) -> float:
+        return self._table.select('max_dia', id=self._db_id)[0][0]
 
-    @max_size.setter
-    def max_size(self, value: float):
-        self._table.update(self._db_id, max_size=round(value, 6))
+    @max_dia.setter
+    def max_dia(self, value: float):
+        self._table.update(self._db_id, max_dia=round(value, 6))
+
+    @property
+    def propgrid(self):
+        from ...ui.editor_obj.prop_grid import float_prop as _float_prop
+
+        part_cat = wxpg.PropertyCategory('Part Attributes')
+        
+        part_number_prop = self._part_number_propgrid
+        manufacturer_prop = self._manufacturer_propgrid
+        description_prop = self._description_propgrid
+        family_prop = self._family_propgrid
+        series_prop = self._series_propgrid
+        material_prop = self._material_propgrid
+        color_prop = self._color_propgrid
+        temperature_prop = self._temperature_propgrid
+        weight_prop = self._weight_propgrid
+        resource_prop = self._resource_propgrid
+        adhesives_prop = self._adhesives_propgrid
+        shrink_temp_prop = self.shrink_temp.propgrid
+
+        shrink_temp_prop.SetLabel('Shrink Temperature')
+
+        rigidity_prop = wxpg.StringProperty('Rigidity', 'rigidity', self.rigidity)
+        shrink_ratio_prop = wxpg.StringProperty('Shrink Ratio', 'shrink_ratio', self.shrink_ratio)
+        wall_prop = wxpg.StringProperty('Wall', 'wall', self.wall)
+
+        diameter_prop = wxpg.PGProperty('Diameter')
+
+        min_dia_prop = _float_prop.FloatProperty(
+            'Minimum', 'min_dia', self.min_dia, min_value=0.01,
+            max_value=999.9, increment=0.01, units='mm')
+
+        max_dia_prop = _float_prop.FloatProperty(
+            'Maximum', 'max_dia', self.max_dia, min_value=0.01,
+            max_value=999.9, increment=0.01, units='mm')
+
+        diameter_prop.AppendChild(min_dia_prop)
+        diameter_prop.AppendChild(max_dia_prop)
+
+        part_cat.AppendChild(part_number_prop)
+        part_cat.AppendChild(manufacturer_prop)
+        part_cat.AppendChild(description_prop)
+        part_cat.AppendChild(family_prop)
+        part_cat.AppendChild(series_prop)
+        part_cat.AppendChild(diameter_prop)
+        part_cat.AppendChild(shrink_ratio_prop)
+        part_cat.AppendChild(shrink_temp_prop)
+        part_cat.AppendChild(color_prop)
+        part_cat.AppendChild(wall_prop)
+        part_cat.AppendChild(temperature_prop)
+        part_cat.AppendChild(rigidity_prop)
+        part_cat.AppendChild(weight_prop)
+        part_cat.AppendChild(resource_prop)
+        part_cat.AppendChild(material_prop)
+        part_cat.AppendChild(adhesives_prop)
+
+        return part_cat

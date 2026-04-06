@@ -1,11 +1,12 @@
 from typing import Iterable as _Iterable
 
+from wx import propgrid as wxpg
 
 from .bases import EntryBase, TableBase
 
 from .mixins import (PartNumberMixin, ManufacturerMixin, DescriptionMixin, ColorMixin,
                      FamilyMixin, SeriesMixin, ResourceMixin, WeightMixin, TemperatureMixin,
-                     Model3DMixin, DimensionMixin)
+                     Model3DMixin, DimensionMixin, CompatHousingsMixin, DirectionMixin)
 
 
 class BootsTable(TableBase):
@@ -13,7 +14,9 @@ class BootsTable(TableBase):
 
     def _load_database(self, splash):
         from ..create_database import boots
-        boots.add_records(self._con, splash)
+
+        data_path = self._con.db_data.open(splash)
+        boots.add_records(self._con, splash, data_path)
 
     def _table_needs_update(self) -> bool:
         from ..create_database import boots
@@ -124,5 +127,59 @@ class BootsTable(TableBase):
 
 class Boot(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, FamilyMixin,
            SeriesMixin, ResourceMixin, WeightMixin, ColorMixin, TemperatureMixin,
-           Model3DMixin, DimensionMixin):
+           Model3DMixin, DimensionMixin, CompatHousingsMixin, DirectionMixin):
     _table: BootsTable = None
+
+    def build_monitor_packet(self):
+        color = self.color
+
+        packet = {
+            'covers': [self.db_id],
+            'families': [self.family_id],
+            'series': [self.series_id],
+            'temperatures': [self.min_temp_id, self.max_temp],
+            'colors': [color.db_id],
+            'datasheets': [self.datasheet_id],
+            'cads': [self.cad_id],
+            'images': [self.image_id],
+            'models3d': [self.model3d_id]
+        }
+
+        self.merge_packet_data(self.manufacturer.build_monitor_packet(), packet)
+
+        return packet
+
+    @property
+    def propgrid(self):       
+        part_cat = wxpg.PropertyCategory('Part Attributes')
+        
+        part_number_prop = self._part_number_propgrid
+        manufacturer_prop = self._manufacturer_propgrid
+        description_prop = self._description_propgrid
+        family_prop = self._family_propgrid
+        series_prop = self._series_propgrid
+        direction_prop = self._direction_propgrid
+        color_prop = self._color_propgrid
+        temperature_prop = self._temperature_propgrid
+        dimension_prop = self._dimension_propgrid
+        weight_prop = self._weight_propgrid
+        resource_prop = self._resource_propgrid
+        model3d_prop = self._model3d_propgrid
+        
+        compat_housings_prop = self._compat_housings_propgrid
+
+        part_cat.AppendChild(part_number_prop)
+        part_cat.AppendChild(manufacturer_prop)
+        part_cat.AppendChild(description_prop)
+        part_cat.AppendChild(family_prop)
+        part_cat.AppendChild(series_prop)
+        part_cat.AppendChild(color_prop)
+        part_cat.AppendChild(direction_prop)
+        part_cat.AppendChild(temperature_prop)
+        part_cat.AppendChild(dimension_prop)
+        part_cat.AppendChild(weight_prop)
+        part_cat.AppendChild(resource_prop)
+        part_cat.AppendChild(model3d_prop)
+        part_cat.AppendChild(compat_housings_prop)
+
+        return part_cat

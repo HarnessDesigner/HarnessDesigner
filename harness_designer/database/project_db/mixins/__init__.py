@@ -8,6 +8,7 @@ from . import name as _name
 from . import start_stop_position3d as _start_stop_position3d
 from . import visible2d as _visible2d
 from . import visible3d as _visible3d
+from . import notes as _notes
 
 
 Angle3DMixin = _angle3d.Angle3DMixin
@@ -20,6 +21,7 @@ NameMixin = _name.NameMixin
 StartStopPosition3DMixin = _start_stop_position3d.StartStopPosition3DMixin
 Visible2DMixin = _visible2d.Visible2DMixin
 Visible3DMixin = _visible3d.Visible3DMixin
+NotesMixin = _notes.NotesMixin
 
 
 del _angle3d
@@ -32,3 +34,4 @@ del _name
 del _start_stop_position3d
 del _visible3d
 del _visible2d
+del _notes

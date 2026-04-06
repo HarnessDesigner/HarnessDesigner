@@ -1,5 +1,7 @@
 from typing import Iterable as _Iterable
 
+from wx import propgrid as wxpg
+
 from .bases import EntryBase, TableBase
 from .mixins import NameMixin
 
@@ -50,3 +52,21 @@ class TemperaturesTable(TableBase):
 
 class Temperature(EntryBase, NameMixin):
     _table: TemperaturesTable = None
+
+    def build_monitor_packet(self):
+        packet = {
+            'temperatures': [self.db_id],
+        }
+
+        return packet
+
+    @property
+    def propgrid(self) -> wxpg.PGProperty:
+        from ...ui.editor_obj.prop_grid import combobox_prop as _combobox_prop
+
+        rows = self.table.select('name')
+
+        choices = [item[0] for item in rows]
+        name_prop = _combobox_prop.ComboboxProperty('Name', 'name', self.name, choices)
+
+        return name_prop

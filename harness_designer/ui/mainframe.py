@@ -7,7 +7,7 @@ from wx import aui
 from .. import config as _config
 from . import dialogs as _dialogs
 from . import toolbar as _toolbar
-from ..gl import canvas3d as _canvas3d
+from .. import gl as _gl
 
 
 if TYPE_CHECKING:
@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from ..objects import project as _project
     from .. import objects as _objects
     from .. import logger as _logger
+    from ..geometry import point as _point
 
 
 _mainframe: "MainFrame" = None
@@ -38,6 +39,7 @@ class MainFrame(wx.Frame):
         splash.flush()
 
         self.logger = logger
+        self._clone_obj = None
 
         if not Config.size:
             w, h = wx.GetDisplaySize()
@@ -183,17 +185,17 @@ class MainFrame(wx.Frame):
 
         self.manager.Update()
 
-        self.editor3d.Bind(_canvas3d.EVT_GL_OBJECT_RIGHT_CLICK, self._on_obj_right_click_3d)
+        self.editor3d.Bind(_gl.EVT_GL_OBJECT_RIGHT_CLICK, self._on_obj_right_click_3d)
 
-        self.editor3d.Bind(_canvas3d.EVT_GL_LEFT_UP, self._on_left_up_3d)
-        # self.editor3d.Bind(_canvas3d.EVT_GL_LEFT_UP, self._on_left_up_3d)
+        self.editor3d.Bind(_gl.EVT_GL_LEFT_UP, self._on_left_up_3d)
+        # self.editor3d.Bind(_gl.EVT_GL_LEFT_UP, self._on_left_up_3d)
         #
-        # self.editor3d.Bind(_canvas3d.EVT_GL_OBJECT_SELECTED, self._on_object_selected_3d)
-        # self.editor3d.Bind(_canvas3d.EVT_GL_OBJECT_UNSELECTED, self._on_object_unselected_3d)
+        # self.editor3d.Bind(_gl.EVT_GL_OBJECT_SELECTED, self._on_object_selected_3d)
+        # self.editor3d.Bind(_gl.EVT_GL_OBJECT_UNSELECTED, self._on_object_unselected_3d)
         #
-        # self.editor3d.Bind(_canvas3d.EVT_GL_OBJECT_DRAG, self._on_object_drag_3d)
+        # self.editor3d.Bind(_gl.EVT_GL_OBJECT_DRAG, self._on_object_drag_3d)
         #
-        # self.editor3d.Bind(_canvas3d.EVT_GL_OBJECT_ACTIVATED, self._on_object_activated_3d)
+        # self.editor3d.Bind(_gl.EVT_GL_OBJECT_ACTIVATED, self._on_object_activated_3d)
 
         # from ..menus import menubar as _menubar
         #
@@ -201,12 +203,25 @@ class MainFrame(wx.Frame):
         #
         # self.SetMenuBar(self.menubar)
 
-    def add_housing(self, position2d=None, position3d=None):
-        db_id = self.editor_db.housings.GetSelection()
-        if db_id is None:
+    def set_clone_obj(self, obj):
+        self._clone_obj = obj
+
+        self.editor3d.set_clone_obj(obj)
+        self.editor2d.set_clone_obj(obj)
+
+    def get_clone_obj(self):
+        return self._clone_obj
+
+    def add_housing(self, position2d: "_point.Point" = None,
+                    position3d: "_point.Point" = None, part_id: int = None) -> None:
+
+        if part_id is None:
+            part_id = self.editor_db.housings.GetSelection()
+
+        if part_id is None:
             return
 
-        housing = self.global_db.housings_table[db_id]
+        housing = self.global_db.housings_table[part_id]
 
         for cavity in housing.cavities:
             if cavity is not None:
@@ -222,89 +237,149 @@ class MainFrame(wx.Frame):
 
                 dlg.Destroy()
 
-                self.project.add_housing(db_id, position2d=p2d, position3d=p3d)
+                self.project.add_housing(part_id, p2d, p3d)
 
             wx.CallAfter(_do, housing, position2d, position3d)
             return
 
-        self.project.add_housing(db_id,  position2d=position2d, position3d=position3d)
+        self.project.add_housing(part_id, position2d, position3d)
 
-    def add_terminal(self, position2d=None, position3d=None):
-        db_id = self.editor_db.terminals.GetSelection()
-        if db_id is None:
+    def add_terminal(self, position2d: "_point.Point" = None,
+                     position3d: "_point.Point" = None, part_id: int = None) -> None:
+
+        if part_id is None:
+            part_id = self.editor_db.terminals.GetSelection()
+
+        if part_id is None:
             return
 
-        self.project.add_terminal(db_id,  position2d=position2d, position3d=position3d)
+        self.project.add_terminal(part_id, position2d, position3d)
 
-    def add_wire(self, position2d=None, position3d=None):
-        db_id = self.editor_db.wires.GetSelection()
-        if db_id is None:
+    def add_wire(self, position2d: "_point.Point" = None,
+                 position3d: "_point.Point" = None, part_id: int = None) -> None:
+
+        if part_id is None:
+            part_id = self.editor_db.wires.GetSelection()
+
+        if part_id is None:
             return
 
-        self.project.add_wire(db_id,  position2d=position2d, position3d=position3d)
+        self.project.add_wire(part_id, position2d, position3d)
 
-    def add_wire_service_loop(self, position3d=None):
-        db_id = self.editor_db.housings.GetSelection()
-        if db_id is None:
+    def add_wire_service_loop(self, position3d: "_point.Point",
+                              part_id: int = None) -> None:
+
+        if part_id is None:
+            part_id = self.editor_db.wires.GetSelection()
+
+        if part_id is None:
             return
 
-        self.project.add_wire_service_loop(db_id,  position2d=position2d, position3d=position3d)
+        self.project.add_wire_service_loop(part_id, position3d)
 
-    def add_splice(self, position2d=None, position3d=None):
-        db_id = self.editor_db.housings.GetSelection()
-        if db_id is None:
+    def add_wire_marker(self, position2d: "_point.Point" = None,
+                        position3d: "_point.Point" = None, part_id: int = None) -> None:
+
+        if part_id is None:
+            part_id = self.editor_db.wire_markers.GetSelection()
+
+        if part_id is None:
             return
 
-        self.project.add_splice(db_id,  position2d=position2d, position3d=position3d)
+        self.project.add_wire_marker(part_id,  position2d, position3d)
 
-    def add_note(self, position2d=None, position3d=None):
-        db_id = self.editor_db.housings.GetSelection()
-        if db_id is None:
+    def add_splice(self, position2d: "_point.Point" = None,
+                   position3d: "_point.Point" = None, part_id: int = None) -> None:
+
+        if part_id is None:
+            part_id = self.editor_db.splices.GetSelection()
+
+        if part_id is None:
             return
 
-        self.project.add_note(db_id,  position2d=position2d, position3d=position3d)
+        self.project.add_splice(part_id, position2d, position3d)
 
-    def add_transition(self, position3d=None):
-        db_id = self.editor_db.housings.GetSelection()
-        if db_id is None:
+    def add_note(self, position2d: "_point.Point" = None,
+                 position3d: "_point.Point" = None, note: str = '') -> None:
+
+        self.project.add_note(note, position2d, position3d)
+
+    def add_transition(self, position3d: "_point.Point",
+                       part_id: int = None) -> None:
+
+        if part_id is None:
+            part_id = self.editor_db.transitions.GetSelection()
+
+        if part_id is None:
             return
 
-        self.project.add_transition(db_id,  position3d=position3d)
+        self.project.add_transition(part_id, position3d)
 
-    def add_seal(self, position3d=None):
-        db_id = self.editor_db.housings.GetSelection()
-        if db_id is None:
+    def add_seal(self, position3d: "_point.Point",
+                 part_id: int = None) -> None:
+
+        if part_id is None:
+            part_id = self.editor_db.seals.GetSelection()
+
+        if part_id is None:
             return
 
-        self.project.add_seal(db_id,  position3d=position3d)
+        self.project.add_seal(part_id, position3d)
 
-    def add_bundle(self, position3d=None):
-        db_id = self.editor_db.housings.GetSelection()
-        if db_id is None:
+    def add_bundle(self, position3d: "_point.Point",
+                   part_id: int = None) -> None:
+
+        if part_id is None:
+            part_id = self.editor_db.bundle_covers.GetSelection()
+
+        if part_id is None:
             return
 
-        self.project.add_bundle(db_id,  position3d=position3d)
+        self.project.add_bundle(part_id, position3d)
 
-    def add_tpa_lock(self, position3d=None):
-        db_id = self.editor_db.housings.GetSelection()
-        if db_id is None:
+    def add_tpa_lock(self, position3d: "_point.Point",
+                     part_id: int = None) -> None:
+
+        if part_id is None:
+            part_id = self.editor_db.tpa_locks.GetSelection()
+
+        if part_id is None:
             return
 
-        self.project.add_tpa_lock(db_id,  position3d=position3d)
+        self.project.add_tpa_lock(part_id, position3d)
 
-    def add_cpa_lock(self, position3d=None):
-        db_id = self.editor_db.housings.GetSelection()
-        if db_id is None:
+    def add_cpa_lock(self, position3d: "_point.Point",
+                     part_id: int = None) -> None:
+
+        if part_id is None:
+            part_id = self.editor_db.cpa_locks.GetSelection()
+
+        if part_id is None:
             return
 
-        self.project.add_cpa_lock(db_id,  position3d=position3d)
+        self.project.add_cpa_lock(part_id, position3d)
 
-    def add_cover(self, position3d=None):
-        db_id = self.editor_db.housings.GetSelection()
-        if db_id is None:
+    def add_boot(self, position3d: "_point.Point",
+                 part_id: int = None) -> None:
+
+        if part_id is None:
+            part_id = self.editor_db.boots.GetSelection()
+
+        if part_id is None:
             return
 
-        self.project.add_cover(db_id,  position3d=position3d)
+        self.project.add_boot(part_id, position3d)
+
+    def add_cover(self, position3d: "_point.Point",
+                  part_id: int = None) -> None:
+
+        if part_id is None:
+            part_id = self.editor_db.covers.GetSelection()
+
+        if part_id is None:
+            return
+
+        self.project.add_cover(part_id, position3d)
 
     def _on_pane_activated(self, evt: aui.AuiManagerEvent):
         pane = evt.GetPane()
@@ -431,7 +506,7 @@ class MainFrame(wx.Frame):
 
         wx.CallAfter(_do)
 
-    def _on_left_up_3d(self, evt: _canvas3d.GLEvent):
+    def _on_left_up_3d(self, evt: _gl.GLEvent):
         mode = self.editor_toolbar.get_mode()
 
         if mode == _toolbar.ID_SELECT:
@@ -487,10 +562,10 @@ class MainFrame(wx.Frame):
 
         evt.Skip()
 
-    def _on_obj_right_click_3d(self, evt: _canvas3d.GLObjectEvent):
+    def _on_obj_right_click_3d(self, evt: _gl.GLObjectEvent):
         obj = evt.GetGLObject()
 
         context_menu = obj.obj3d.get_context_menu()
         if context_menu is not None:
-            x, y = evt.GetPosition()
+            x, y, _ = evt.GetPosition().as_int
             self.editor3d.editor.PopupMenu(context_menu, x, y)

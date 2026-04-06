@@ -39,6 +39,16 @@ class IPRatingsTable(TableBase):
 class IPRating(EntryBase):
     _table: IPRatingsTable = None
 
+    def build_monitor_packet(self):
+        packet = {
+            'ip_ratings': [self.db_id],
+            'ip_solids': [self.ip_solid_id],
+            'ip_fluids': [self.ip_fluid_id],
+            'ip_supps': [self.ip_supp_id]
+        }
+
+        return packet
+
     @property
     def name(self):
         return self._table.select('name', id=self._db_id)[0][0]
@@ -113,36 +123,15 @@ class IPRating(EntryBase):
     def description(self) -> str:
         supp = self.ip_supp
         if supp is None:
-            return f'{self.ip_solid.description}\n{self.ip_fluid.description}'
+            return f'{self.ip_solid.description}\n\n{self.ip_fluid.description}'
 
-        return f'{self.ip_solid.description}\n{self.ip_fluid.description}\n{supp.description}'
+        return f'{self.ip_solid.description}\n\n{self.ip_fluid.description}\n\n{supp.description}'
 
     @property
-    def icon(self) -> wx.Bitmap:
-        bmp = wx.Bitmap(200, 60, depth=32)
+    def bitmap(self) -> wx.Bitmap:
+        simg = self.ip_solid.icon
+        fimg = self.ip_fluid.icon
 
-        solid_icon_data = self.ip_solid.icon_data
-        fluid_icon_data = self.ip_fluid.icon_data
+        img = simg | fimg
 
-        if (solid_icon_data, fluid_icon_data) != (None, None):
-            dc = wx.MemoryDC()
-            dc.SelectObject(bmp)
-
-            gcdc = wx.GCDC(dc)
-
-            if solid_icon_data is not None:
-                solid_icon = wx.Bitmap.FromPNGData(solid_icon_data)
-                gcdc.DrawBitmap(solid_icon, 0, 0)
-
-            if fluid_icon_data is not None:
-                fluid_icon = wx.Bitmap.FromPNGData(fluid_icon_data)
-                gcdc.DrawBitmap(fluid_icon, 100, 0)
-
-            dc.SelectObject(wx.NullBitmap)
-            gcdc.Destroy()
-            del gcdc
-
-            dc.Destroy()
-            del dc
-
-        return bmp
+        return img.bitmap

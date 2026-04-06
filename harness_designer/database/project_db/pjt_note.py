@@ -1,10 +1,12 @@
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
+import weakref
+from wx import propgrid as wxpg
 
 from .pjt_bases import PJTEntryBase, PJTTableBase
 
 from .mixins import (Angle3DMixin, Angle2DMixin, Position3DMixin, Position2DMixin,
-                     Visible3DMixin, Visible2DMixin)
+                     Visible3DMixin, Visible2DMixin, NotesMixin)
 
 
 if TYPE_CHECKING:
@@ -50,16 +52,35 @@ class PJTNotesTable(PJTTableBase):
         return PJTNote(self, db_id, self.project_id)
 
 
-class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin,
+class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin,
               Position3DMixin, Position2DMixin, Visible3DMixin, Visible2DMixin):
 
     _table: PJTNotesTable = None
 
+    def build_monitor_packet(self):
+
+        packet = {
+            'pjt_notes': [self.db_id],
+            'pjt_points3d': [self.position3d_id],
+            'pjt_points2d': [self.position2d_id],
+        }
+
+        return packet
+
     def get_object(self) -> "_note_obj.Note":
+        if self._obj is not None:
+            return self._obj()
+
         return self._obj
 
+    def __release_obj_ref(self, _):
+        self._obj = None
+
     def set_object(self, obj: "_note_obj.Note"):
-        self._obj = obj
+        if obj is not None:
+            self._obj = weakref.ref(obj, self.__release_obj_ref)
+        else:
+            self._obj = obj
 
     @property
     def table(self) -> PJTNotesTable:
@@ -156,10 +177,73 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin,
         self._process_callbacks()
 
     @property
-    def note(self) -> str:
-        return self._table.select('note', id=self._db_id)[0][0]
+    def propgrid(self) -> wxpg.PGProperty:
+        from ...ui.editor_obj.prop_grid import float_prop as _float_prop
 
-    @note.setter
-    def note(self, value: str):
-        self._table.update(self._db_id, note=value)
-        self._process_callbacks()
+        import build123d
+
+        group = wxpg.PropertyCategory('Project')
+
+        notes_prop = self._notes_propgrid
+
+        angle_prop = wxpg.PGProperty('Angle')
+        angle2d_prop = self._angle2d_propgrid
+        angle3d_prop = self._angle3d_propgrid
+        angle_prop.AppendChild(angle2d_prop)
+        angle_prop.AppendChild(angle3d_prop)
+
+        position_prop = wxpg.PGProperty('Position')
+        position2d_prop = self._position2d_propgrid
+        position3d_prop = self._position3d_propgrid
+        position_prop.AppendChild(position2d_prop)
+        position_prop.AppendChild(position3d_prop)
+
+        visible_prop = wxpg.PGProperty('Visible')
+        visible2d_prop = self._visible2d_propgrid
+        visible3d_prop = self._visible3d_propgrid
+        visible_prop.AppendChild(visible2d_prop)
+        visible_prop.AppendChild(visible3d_prop)
+
+        style_prop = wxpg.PGProperty('Style')
+        style2d_prop = wxpg.EnumProperty(
+            'Style 2D', 'style2d', labels=['Normal', 'Bold', 'Italic', 'Bold Italic'],
+            values=[build123d.FontStyle.REGULAR, build123d.FontStyle.BOLD, build123d.FontStyle.ITALIC, build123d.FontStyle.BOLDITALIC],
+            value=self.style2d)
+        style3d_prop = wxpg.EnumProperty(
+            'Style 3D', 'style3d', labels=['Normal', 'Bold', 'Italic', 'Bold Italic'],
+            values=[build123d.FontStyle.REGULAR, build123d.FontStyle.BOLD, build123d.FontStyle.ITALIC, build123d.FontStyle.BOLDITALIC],
+            value=self.style3d)
+        style_prop.AppendChild(style2d_prop)
+        style_prop.AppendChild(style3d_prop)
+
+        align_prop = wxpg.PGProperty('Align')
+        h_align2d_prop = wxpg.EnumProperty(
+            'Align 2D', 'h_align2d', labels=['Left', 'Center', 'Right'],
+            values=[build123d.TextAlign.LEFT, build123d.TextAlign.CENTER, build123d.TextAlign.RIGHT],
+            value=self.h_align2d)
+        h_align3d_prop = wxpg.EnumProperty(
+            'Align 3D', 'h_align3d', labels=['Left', 'Center', 'Right'],
+            values=[build123d.TextAlign.LEFT, build123d.TextAlign.CENTER, build123d.TextAlign.RIGHT],
+            value=self.h_align3d)
+        align_prop.AppendChild(h_align2d_prop)
+        align_prop.AppendChild(h_align3d_prop)
+
+        size_prop = wxpg.PGProperty('Size')
+        size2d_prop = _float_prop.FloatProperty(
+            'Size 2D', 'size2d', self.size2d,
+            min_value=0.2, max_value=99.9, increment=0.1, units='mm')
+        size3d_prop = _float_prop.FloatProperty(
+            'Size 3D', 'size3d', self.size3d,
+            min_value=0.2, max_value=99.9, increment=0.1, units='mm')
+        size_prop.AppendChild(size2d_prop)
+        size_prop.AppendChild(size3d_prop)
+
+        group.AppendChild(notes_prop)
+        group.AppendChild(angle_prop)
+        group.AppendChild(position_prop)
+        group.AppendChild(visible_prop)
+        group.AppendChild(style_prop)
+        group.AppendChild(align_prop)
+        group.AppendChild(size_prop)
+
+        return group

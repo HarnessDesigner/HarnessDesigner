@@ -1,5 +1,7 @@
 from typing import TYPE_CHECKING
 
+from wx import propgrid as wxpg
+
 from .base import BaseMixin
 
 if TYPE_CHECKING:
@@ -27,3 +29,7 @@ class Model3DMixin(BaseMixin):
     @model3d_id.setter
     def model3d_id(self, value: int):
         self._table.update(self._db_id, model3d_id=value)
+
+    @property
+    def _model3d_propgrid(self) -> wxpg.PGProperty:
+        return self.model3d.propgrid

@@ -38,7 +38,7 @@ class SQLTable:
     def update_fields(self, db_cursor):
 
         db_cursor._con.execute(f'SELECT "(\'" || group_concat(name, "\', \'") || "\')" from '
-                  f'pragma_table_info("{self.name}");')
+                               f'pragma_table_info("{self.name}");')
 
         column_names = eval(db_cursor._con.fetchall()[0][0])
 
@@ -132,7 +132,18 @@ class SQLField:
         return self.name in column_names
 
     def add_to_table(self, db_cursor, table_name: str):
-        db_cursor._con.execute(f'ALTER TABLE {table_name} ADD {str(self)}; COMMIT;')
+
+        field = str(self)
+
+        if 'FOREIGN KEY' in field:
+            field, foreign_key = field.rsplit(',', 1)
+            foreign_key = foreign_key.split(') ', 1)[-1]
+            field = field.rstrip()
+            foreign_key = foreign_key.lstrip()
+            field += ' ' + foreign_key
+
+        db_cursor._con.execute(f'ALTER TABLE {table_name} ADD COLUMN {field}')
+        db_cursor._con.commit()
 
 
 class PrimaryKeyField(SQLField):

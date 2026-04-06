@@ -1,5 +1,7 @@
 from .base import BaseMixin
 
+from wx import propgrid as wxpg
+
 
 class NameMixin(BaseMixin):
 
@@ -10,3 +12,9 @@ class NameMixin(BaseMixin):
     @name.setter
     def name(self, value: str):
         self._table.update(self._db_id, name=value)
+
+    @property
+    def _name_propgrid(self) -> wxpg.PGProperty:
+        name_prop = wxpg.StringProperty('Name', 'name', self.name)
+
+        return name_prop

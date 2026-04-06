@@ -238,7 +238,7 @@ class ObjectBrowserPanel(wx.Panel):
                 if child.IsOk() and self._treectrl.ItemHasChildren(child):
                     iter_tree(child)
 
-                child = self._treectrl.GetNextChild(parent, cookie)
+                child, cookie = self._treectrl.GetNextChild(parent, cookie)
 
         iter_tree(self._root)
 

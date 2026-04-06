@@ -299,7 +299,9 @@ table = _con.SQLTable(
     _con.TextField('boot_point3d', default='"[0.0, 0.0, 0.0]"', no_null=True),
     _con.TextField('tpa_lock_1_point3d', default='"[0.0, 0.0, 0.0]"', no_null=True),
     _con.TextField('tpa_lock_2_point3d', default='"[0.0, 0.0, 0.0]"', no_null=True),
-    _con.TextField('cpa_lock_point3d', default='"[0.0, 0.0, 0.0]"', no_null=True)
+    _con.TextField('cpa_lock_point3d', default='"[0.0, 0.0, 0.0]"', no_null=True),
+    _con.TextField('quat3d', default='"[1.0, 0.0, 0.0, 0.0]"', no_null=True),
+    _con.TextField('angle3d', default='"[0.0, 0.0, 0.0]"', no_null=True)
 )
 
 

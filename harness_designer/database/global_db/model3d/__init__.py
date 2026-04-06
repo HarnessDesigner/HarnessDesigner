@@ -3,6 +3,7 @@ from typing import Iterable as _Iterable, TYPE_CHECKING
 import os
 import wx
 import uuid
+from wx import propgrid as wxpg
 
 from .... import resources as _resources
 from ...create_database import models3d as _models3d
@@ -60,6 +61,17 @@ class Model3D(EntryBase):
     _table: Models3DTable = None
     _angle3d_id: str = None
     _position3d_id: str = None
+
+    def build_monitor_packet(self):
+        packet = {
+            'models3d': [self.db_id]
+        }
+
+        file_type_id = self.file_type_id
+        if file_type_id is not None:
+            packet['file_types'] = [file_type_id]
+
+        return packet
 
     @property
     def data_path(self) -> str | None:
@@ -261,7 +273,8 @@ class Model3D(EntryBase):
         vertices_reshaped = vertices.reshape(-1, 3)
         centroid = vertices_reshaped.mean(axis=0)
         vertices_reshaped -= centroid
-        vertices = vertices_reshaped.ravel()
+        vertices_reshaped = vertices_reshaped.ravel()
+        vertices = vertices_reshaped.reshape(-1, 3)
 
         # If the user has a GPU that doesn't have a large amount of
         # memory available or the GPU doesn't have a lot of processing power
@@ -290,3 +303,46 @@ class Model3D(EntryBase):
         faces = faces.reshape(-1, 3)
 
         return vertices, faces
+
+    @property
+    def propgrid(self) -> wxpg.PGProperty:
+        from ....ui.editor_obj.prop_grid import datasheet_cad_prop as _datasheet_cad_prop
+        from ....ui.editor_obj.prop_grid import position_prop as _position_prop
+        from ....ui.editor_obj.prop_grid import angle_prop as _angle_prop
+        from ....ui.editor_obj.prop_grid import float_prop as _float_prop
+        from ....ui.editor_obj.prop_grid import bool_prop as _bool_prop
+        from ....ui.editor_obj.prop_grid import int_prop as _int_prop
+
+        model3d_prop = wxpg.PGProperty('3D Model')
+
+        uuid_prop = wxpg.StringProperty('UUID', 'uuid', self.uuid)
+        path_prop = wxpg.StringProperty('Path', 'path', self.path)
+        data_path_prop = wxpg.StringProperty('Data Path', 'data_path', self.data_path)
+        file_type_prop = self.file_type.propgrid
+
+        position3d_prop = _position_prop.Position3DProperty('Position 3D', 'position3d', self.position3d)
+        angle3d_prop = _angle_prop.Angle3DProperty('Angle 3D', 'angle3d', self.angle3d)
+
+        reduction_prop = wxpg.PGProperty('Simplify Model')
+
+        simplify_prop = _bool_prop.BoolProperty('Enable', 'simplify', self.simplify)
+        target_count_prop = _int_prop.IntProperty('Target Vertices Count', 'target_count', self.target_count, min_value=10000, max_value=500000)
+        aggressiveness_prop = _float_prop.FloatProperty('Aggressiveness', 'aggressiveness', self.aggressiveness, min_value=0.1, max_value=11.9, increment=0.1)
+        update_rate_prop = _int_prop.IntProperty('Update Rate', 'update_rate', self.update_rate, min_value=1, max_value=100)
+        iterations_prop = _int_prop.IntProperty('Iterations', 'iterations', self.iterations, min_value=1, max_value=100)
+
+        reduction_prop.AppendChild(simplify_prop)
+        reduction_prop.AppendChild(target_count_prop)
+        reduction_prop.AppendChild(aggressiveness_prop)
+        reduction_prop.AppendChild(update_rate_prop)
+        reduction_prop.AppendChild(iterations_prop)
+
+        model3d_prop.AppendChild(uuid_prop)
+        model3d_prop.AppendChild(path_prop)
+        model3d_prop.AppendChild(data_path_prop)
+        model3d_prop.AppendChild(file_type_prop)
+        model3d_prop.AppendChild(position3d_prop)
+        model3d_prop.AppendChild(angle3d_prop)
+        model3d_prop.AppendChild(reduction_prop)
+
+        return model3d_prop

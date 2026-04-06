@@ -1,4 +1,5 @@
 import uuid
+from wx import propgrid as wxpg
 
 from .base import BaseMixin
 from ....geometry import angle as _angle
@@ -26,3 +27,11 @@ class Angle3DMixin(BaseMixin):
         angle.bind(self.__update_angle3d)
 
         return angle
+
+    @property
+    def _angle3d_propgrid(self) -> wxpg.PGProperty:
+        from ....ui.editor_obj.prop_grid import angle_prop as _angle_prop
+
+        angle_prop = _angle_prop.Angle3DProperty('Angle 3D', 'angle3d', self.angle3d)
+
+        return angle_prop

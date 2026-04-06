@@ -3,10 +3,9 @@ from .. import db_connectors as _con
 from . import ip_supps as _ip_supps
 from . import ip_fluids as _ip_fluids
 from . import ip_solids as _ip_solids
-from ... import logger as _logger
 
 
-def add_records(con, splash):
+def add_records(con, splash, _=None):
     con.execute('SELECT id FROM ip_ratings WHERE id=0;')
     if con.fetchall():
         return

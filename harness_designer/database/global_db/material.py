@@ -1,6 +1,8 @@
 
 from typing import Iterable as _Iterable
 
+from wx import propgrid as wxpg
+
 from .bases import EntryBase, TableBase
 from .mixins import NameMixin, DescriptionMixin
 
@@ -17,7 +19,8 @@ class MaterialsTable(TableBase):
         from ..create_database import materials
 
         materials.table.add_to_db(self)
-        materials.add_records(self._con, splash)
+        data_path = self._con.db_data.open(splash)
+        materials.add_records(self._con, splash, data_path)
 
     def _update_table_in_db(self):
         from ..create_database import materials
@@ -51,3 +54,28 @@ class MaterialsTable(TableBase):
 
 class Material(EntryBase, NameMixin, DescriptionMixin):
     _table: MaterialsTable = None
+
+    def build_monitor_packet(self):
+        packet = {
+            'materials': [self.db_id],
+        }
+
+        return packet
+
+    @property
+    def propgrid(self) -> wxpg.PGProperty:
+        from ...ui.editor_obj.prop_grid import combobox_prop as _combobox_prop
+        from ...ui.editor_obj.prop_grid import long_string_prop as _long_string_prop
+
+        group_prop = wxpg.PGProperty('Material', 'material')
+
+        rows = self.table.select('name', 'description')
+
+        choices = [item[0] for item in rows]
+        name_prop = _combobox_prop.ComboboxProperty('Name', 'name', self.name, choices)
+        desc_prop = _long_string_prop.LongStringProperty('Description', 'description', self.description)
+
+        group_prop.AppendChild(name_prop)
+        group_prop.AppendChild(desc_prop)
+
+        return group_prop

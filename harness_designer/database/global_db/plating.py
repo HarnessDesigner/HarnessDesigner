@@ -1,5 +1,7 @@
 from typing import Iterable as _Iterable
 
+from wx import propgrid as wxpg
+
 from .bases import EntryBase, TableBase
 from .mixins import DescriptionMixin
 
@@ -16,7 +18,8 @@ class PlatingsTable(TableBase):
         from ..create_database import platings
 
         platings.table.add_to_db(self)
-        platings.add_records(self._con, splash)
+        data_path = self._con.db_data.open(splash)
+        platings.add_records(self._con, splash, data_path)
 
     def _update_table_in_db(self):
         from ..create_database import platings
@@ -52,6 +55,13 @@ class PlatingsTable(TableBase):
 class Plating(EntryBase, DescriptionMixin):
     _table: PlatingsTable = None
 
+    def build_monitor_packet(self):
+        packet = {
+            'platings': [self.db_id],
+        }
+
+        return packet
+
     @property
     def symbol(self) -> str:
         return self._table.select('symbol', id=self._db_id)[0][0]
@@ -59,3 +69,20 @@ class Plating(EntryBase, DescriptionMixin):
     @symbol.setter
     def symbol(self, value: str):
         self._table.update(self._db_id, symbol=value)
+
+    @property
+    def propgrid(self) -> wxpg.PGProperty:
+        from ...ui.editor_obj.prop_grid import combobox_prop as _combobox_prop
+        from ...ui.editor_obj.prop_grid import long_string_prop as _long_string_prop
+
+        group_prop = wxpg.PGProperty('Plating', 'plating')
+        rows = self.table.select('symbol', 'description')
+
+        choices = [item[0] for item in rows]
+        name_prop = _combobox_prop.ComboboxProperty('Symbol', 'symbol', self.symbol, choices)
+        desc_prop = _long_string_prop.LongStringProperty('Description', 'description', self.description)
+
+        group_prop.AppendChild(name_prop)
+        group_prop.AppendChild(desc_prop)
+
+        return group_prop

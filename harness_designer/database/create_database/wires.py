@@ -1,6 +1,5 @@
 import os
 import json
-import math
 
 from . import families as _families
 from . import manufacturers as _manufacturers

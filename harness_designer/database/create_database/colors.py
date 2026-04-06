@@ -34,7 +34,7 @@ def add_records(con, splash, data_path):
     con.commit()
 
 
-def add_color(con, name, rgb, id=None):
+def add_color(con, name, rgb, id=None): # NOQA
     if id is None:
         con.execute('INSERT INTO colors (name, rgb) '
                     'VALUES (?, ?);', (name, rgb))

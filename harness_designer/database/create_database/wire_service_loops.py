@@ -5,7 +5,6 @@ from . import circuits as _circuits
 from . import wires as _wires
 
 from .. import db_connectors as _con
-from ... import logger as _logger
 
 
 pjt_id_field = _con.PrimaryKeyField('id')

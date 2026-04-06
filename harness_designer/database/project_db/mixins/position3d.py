@@ -1,4 +1,4 @@
-
+from wx import propgrid as wxpg
 
 from .base import BaseMixin
 from ....geometry import point as _point
@@ -41,3 +41,11 @@ class Position3DMixin(BaseMixin):
     @position3d_id.setter
     def position3d_id(self, value: int):
         self._table.update(self._db_id, point3d_id=value)
+        
+    @property
+    def _position3d_propgrid(self) -> wxpg.PGProperty:
+        from ....ui.editor_obj.prop_grid import position_prop as _position_prop
+
+        position_prop = _position_prop.Position3DProperty('Position 3D', 'position3d', self.position3d)
+
+        return position_prop

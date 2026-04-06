@@ -4,7 +4,6 @@ from . import points3d as _points3d
 
 
 from .. import db_connectors as _con
-from ... import logger as _logger
 
 
 pjt_id_field = _con.PrimaryKeyField('id')
@@ -25,4 +24,3 @@ pjt_table = _con.SQLTable(
     _con.TextField('notes', default='""', no_null=True),
     _con.IntField('is_visible3d', default='1', no_null=True)
 )
-

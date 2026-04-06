@@ -5,6 +5,7 @@ import numpy as np
 
 from . import quaternion as _quaternion
 from .. import point as _point
+from ..decimal import Decimal as _d
 
 
 ONE = 1.0
@@ -44,81 +45,108 @@ class Angle(metaclass=AngleMeta):
 
     def __array_ufunc__(self, func, method, inputs, instance, out=None, **kwargs):  # NOQA
         if func == np.matmul:
-
-            if out is None:
-                return inputs @ self._q
-            else:
-                inputs @= self._q
-                return inputs
+            if isinstance(instance, Angle):
+                # __matmul__
+                if out is None:
+                    return inputs @ self._q
+                # __imatmul__
+                else:
+                    out = out[0]
+                    out @= self._q
+                    return out
 
         if func == np.add:
-            if isinstance(instance, np.ndarray):
-                if instance.shape == (4,):
-                    quat = _quaternion.Quaternion(*[float(item) for item in instance])
-                elif instance.shape == (3,):
-                    quat = _quaternion.Quaternion.from_euler(*[float(item) for item in instance])
+            # numpy array is left hand and class instance is right hand
+            if isinstance(instance, Angle):
+                # __add__
+                if out is None:
+                    # euler angle array
+                    if inputs.shape == (3,):
+                        # arr = np.array(self.as_float, dtype=np.float64)
+                        angle = self.from_euler(*inputs.tolist())
+                        angle += self
+                        return angle.as_euler_numpy
+                    # quat array
+                    elif inputs.shape == (4,):
+                        angle = self.from_quat(inputs.tolist())
+                        angle += self
+                        return angle.as_quat_numpy
+                    # we assume this is a matrix array
+                    else:
+                        angle = self.from_matrix(inputs)
+                        angle += self
+                        return angle.as_matrix_numpy
+                # __iadd__
                 else:
-                    raise ValueError('Incorrect array shape')
+                    out = out[0]
 
-                self._q += quat
-                self._process_update()
+                    # euler angle array
+                    if out.shape == (3,):
+                        # arr = np.array(self.as_float, dtype=np.float64)
+                        angle = self.from_euler(*out.tolist())
+                        angle += self
+                        out[:] = angle.as_euler_numpy
+                        return out
+                    # quat array
+                    elif out.shape == (4,):
+                        angle = self.from_quat(out.tolist())
+                        angle += self
+                        out[:] = angle.as_quat_numpy
+                        return out
 
-                return self
-            else:
-                if inputs.shape == (3,):
-                    # arr = np.array(self.as_float, dtype=np.float64)
-                    point = self.from_euler(*[float(item) for item in inputs])
-                    point += self
-                    inputs[0] = point.x
-                    inputs[1] = point.y
-                    inputs[2] = point.z
-                    return inputs
-
-                elif inputs.shape == (4,):
-                    q = _quaternion.Quaternion(*[float(item) for item in inputs])
-                    q += self._q
-                    q = q.as_numpy
-                    inputs[0] = q[0]
-                    inputs[1] = q[1]
-                    inputs[2] = q[2]
-                    inputs[3] = q[3]
-                    return inputs
-
-                raise ValueError('array shape is not correct')
+                    # we assume this is a matrix array
+                    else:
+                        angle = self.from_matrix(out)
+                        angle += self
+                        out[:] = angle.as_matrix_numpy
+                        return out
 
         if func == np.subtract:
-            if isinstance(instance, np.ndarray):
-                if instance.shape == (4,):
-                    quat = _quaternion.Quaternion(*[float(item) for item in instance])
-                elif instance.shape == (3,):
-                    quat = _quaternion.Quaternion.from_euler(*[float(item) for item in instance])
+            # numpy array is left hand and class instance is right hand
+            if isinstance(instance, Angle):
+                # __sub__
+                if out is None:
+                    # euler angle array
+                    if inputs.shape == (3,):
+                        # arr = np.array(self.as_float, dtype=np.float64)
+                        angle = self.from_euler(*inputs.tolist())
+                        angle -= self
+                        return angle.as_euler_numpy
+                    # quat array
+                    elif inputs.shape == (4,):
+                        angle = self.from_quat(inputs.tolist())
+                        angle -= self
+                        return angle.as_quat_numpy
+                    # we assume this is a matrix array
+                    else:
+                        angle = self.from_matrix(inputs)
+                        angle += self
+                        return angle.as_matrix_numpy
+
+                # __isub__
                 else:
-                    raise ValueError('Incorrect array shape')
+                    out = out[0]
 
-                self._q -= quat
-                self._process_update()
+                    # euler angle array
+                    if out.shape == (3,):
+                        # arr = np.array(self.as_float, dtype=np.float64)
+                        angle = self.from_euler(*out.tolist())
+                        angle -= self
+                        out[:] = angle.as_euler_numpy
+                        return out
+                    # quat array
+                    elif out.shape == (4,):
+                        angle = self.from_quat(out.tolist())
+                        angle -= self
+                        out[:] = angle.as_quat_numpy
+                        return out
 
-                return self
-            else:
-                if inputs.shape == (3,):
-                    point = self.from_euler(*[float(item) for item in inputs])
-                    point -= self
-                    inputs[0] = point.x
-                    inputs[1] = point.y
-                    inputs[2] = point.z
-                    return inputs
-
-                elif inputs.shape == (4,):
-                    q = _quaternion.Quaternion(*[float(item) for item in inputs])
-                    q -= self._q
-                    q = q.as_numpy
-                    inputs[0] = q[0]
-                    inputs[1] = q[1]
-                    inputs[2] = q[2]
-                    inputs[3] = q[3]
-                    return inputs
-
-                raise ValueError('array shape is not correct')
+                    # we assume this is a matrix array
+                    else:
+                        angle = self.from_matrix(out)
+                        angle -= self
+                        out[:] = angle.as_matrix_numpy
+                        return out
 
         raise RuntimeError
 
@@ -204,7 +232,7 @@ class Angle(metaclass=AngleMeta):
             # self.__euler_angles = self._q.as_euler
             return math.nan
 
-        return self.__euler_angles[0]
+        return self.__euler_angles.tolist()[0]
 
     @x.setter
     def x(self, value: float):
@@ -232,7 +260,7 @@ class Angle(metaclass=AngleMeta):
             # self.__euler_angles = self._q.as_euler
             return math.nan
 
-        return self.__euler_angles[1]
+        return self.__euler_angles.tolist()[1]
 
     @y.setter
     def y(self, value: float):
@@ -252,7 +280,7 @@ class Angle(metaclass=AngleMeta):
             # self.__euler_angles = self._q.as_euler
             return math.nan
 
-        return self.__euler_angles[2]
+        return self.__euler_angles.tolist()[2]
 
     @z.setter
     def z(self, value: float):
@@ -262,13 +290,16 @@ class Angle(metaclass=AngleMeta):
 
         self.__euler_angles[2] = value
 
-        q = _quaternion.Quaternion.from_euler(*self.__euler_angles)
+        q = _quaternion.Quaternion.from_euler(*self.__euler_angles.tolist())
 
         self.__update_quat(q)
         self._process_update()
 
     def copy(self) -> "Angle":
-        return Angle.from_quat(self._q)
+        if self.__euler_angles is not None:
+            return Angle.from_quat(self._q.as_numpy.tolist(), euler_angles=self.__euler_angles.tolist())
+        else:
+            return Angle.from_quat(self._q.as_numpy.tolist())
 
     @staticmethod
     def __get_quat_from_other(other: Union["Angle", np.ndarray | _quaternion.Quaternion]) -> _quaternion.Quaternion:
@@ -300,23 +331,89 @@ class Angle(metaclass=AngleMeta):
                 self._matrix[i][j] = matrix[i][j]
 
     def __iadd__(self, other: Union["Angle", np.ndarray]) -> Self:
+
+        if isinstance(other, Angle):
+            x2, y2, z2 = other.x, other.y, other.z
+            if math.nan not in (x2, y2, z2) and self.__euler_angles is not None:
+                x1, y1, z1 = [_d(item) for item in self.__euler_angles.tolist()]
+                x2, y2, z2 = [_d(item) for item in (x2, y2, z2)]
+
+                x1 += x2
+                y1 += y2
+                z1 += z2
+
+                self.__euler_angles[0] = float(x1)
+                self.__euler_angles[1] = float(y1)
+                self.__euler_angles[2] = float(z1)
+
+                q = _quaternion.Quaternion.from_euler(*self.__euler_angles.tolist())
+
+                self.__update_quat(q)
+                self._process_update()
+                return
+
         self._q += self.__get_quat_from_other(other)
         self.__update_matrix()
         self._process_update()
         return self
 
     def __add__(self, other: Union["Angle", np.ndarray]) -> "Angle":
+        if isinstance(other, Angle):
+            x2, y2, z2 = other.x, other.y, other.z
+            if math.nan not in (x2, y2, z2) and self.__euler_angles is not None:
+                x1, y1, z1 = [_d(item) for item in self.__euler_angles.tolist()]
+                x2, y2, z2 = [_d(item) for item in (x2, y2, z2)]
+
+                x = x1 + x2
+                y = y1 + y2
+                z = z1 + z2
+
+                return self.from_euler(float(x), float(y), float(z))
+
         q = self._q + self.__get_quat_from_other(other)
 
         return self.from_quat(q)
 
     def __isub__(self, other: Union["Angle", np.ndarray]) -> Self:
+
+        if isinstance(other, Angle):
+            x2, y2, z2 = other.x, other.y, other.z
+            if math.nan not in (x2, y2, z2) and self.__euler_angles is not None:
+                x1, y1, z1 = [_d(item) for item in self.__euler_angles.tolist()]
+                x2, y2, z2 = [_d(item) for item in (x2, y2, z2)]
+
+                x1 -= x2
+                y1 -= y2
+                z1 -= z2
+
+                self.__euler_angles[0] = float(x1)
+                self.__euler_angles[1] = float(y1)
+                self.__euler_angles[2] = float(z1)
+
+                q = _quaternion.Quaternion.from_euler(*self.__euler_angles.tolist())
+
+                self.__update_quat(q)
+                self._process_update()
+                return
+
         self._q -= self.__get_quat_from_other(other)
         self.__update_matrix()
         self._process_update()
         return self
 
     def __sub__(self, other: Union["Angle", np.ndarray]) -> "Angle":
+        if isinstance(other, Angle):
+            x2, y2, z2 = other.x, other.y, other.z
+            if math.nan not in (x2, y2, z2) and self.__euler_angles is not None:
+                x1, y1, z1 = [_d(item) for item in self.__euler_angles.tolist()]
+                x2, y2, z2 = [_d(item) for item in (x2, y2, z2)]
+
+                x = x1 - x2
+                y = y1 - y2
+                z = z1 - z2
+
+                return self.from_euler(float(x), float(y), float(z))
+
         q = self._q - self.__get_quat_from_other(other)
         return self.from_quat(q)
 

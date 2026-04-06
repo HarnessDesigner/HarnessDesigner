@@ -1,7 +1,11 @@
 
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
+from wx import propgrid as wxpg
+
 from .pjt_bases import PJTEntryBase, PJTTableBase
+from .mixins import NotesMixin
+
 
 if TYPE_CHECKING:
     from . import pjt_transition_branch as _pjt_transition_branches
@@ -49,14 +53,44 @@ class PJTConcentricsTable(PJTTableBase):
         return PJTConcentric(self, db_id, self.project_id)
 
 
-class PJTConcentric(PJTEntryBase):
+class PJTConcentric(PJTEntryBase, NotesMixin):
     _table: PJTConcentricsTable = None
 
-    def get_object(self) -> "_boot_obj.Boot":
-        return self._obj
+    def build_monitor_packet(self):
+        bundle = self.bundle
+        transition_branch = self.transition_branch
 
-    def set_object(self, obj: "_boot_obj.Boot"):
-        self._obj = obj
+        packet = {
+            'pjt_concentrics': [self.db_id],
+        }
+
+        if bundle is not None:
+            packet['pjt_bundles'] = [bundle.db_id]
+
+        if transition_branch is not None:
+            packet['pjt_transition_branches'] = [transition_branch.db_id]
+
+        if bundle is not None:
+            self.merge_packet_data(bundle.build_monitor_packet(), packet)
+        if transition_branch is not None:
+            self.merge_packet_data(transition_branch.build_monitor_packet(), packet)
+
+        return packet
+
+    # def get_object(self) -> "_boot_obj.Boot":
+    #     if self._obj is not None:
+    #         return self._obj()
+    #
+    #     return self._obj
+    #
+    # def __release_obj_ref(self, _):
+    #     self._obj = None
+    #
+    # def set_object(self, obj: "_boot_obj.Boot"):
+    #     if obj is not None:
+    #         self._obj = weakref.ref(obj, self.__release_obj_ref)
+    #     else:
+    #         self._obj = obj
 
     @property
     def layers(self) -> list["_pjt_concentric_layer.PJTConcentricLayer"]:
@@ -105,3 +139,23 @@ class PJTConcentric(PJTEntryBase):
     def transition_branch_id(self, value: int):
         self._table.update(self._db_id, transition_branch_id=value)
         self._process_callbacks()
+
+    @property
+    def propgrid(self) -> wxpg.PGProperty:
+        group = wxpg.PropertyCategory('Concentric')
+
+        notes_prop = self._notes_propgrid
+
+        group.AppendChild(notes_prop)
+        if self.transition_branch is not None:
+            transition_branch_prop = self.transition_branch.propgrid
+            group.AppendChild(transition_branch_prop)
+
+        if self.bundle is not None:
+            bundle_prop = self.bundle.propgrid
+            group.AppendChild(bundle_prop)
+
+        for layer in self.layers:
+            group.AppendChild(layer.propgrid)
+
+        return group

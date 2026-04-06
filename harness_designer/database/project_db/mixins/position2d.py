@@ -1,3 +1,4 @@
+from wx import propgrid as wxpg
 
 from .base import BaseMixin
 from ....geometry import point as _point
@@ -28,7 +29,7 @@ class Position2DMixin(BaseMixin):
     def position2d_id(self) -> int:
         point_id = self._table.select('point2d_id', id=self._db_id)[0][0]
         if point_id is None:
-            self._table.execute(f'INSERT INTO pjt_points3d (project_id, x, y) VALUES (?, ?, ?);',
+            self._table.execute(f'INSERT INTO pjt_points2d (project_id, x, y) VALUES (?, ?, ?);',
                                 (self._table.project_id, 0.0, 0.0))
 
             self._table.commit()
@@ -40,3 +41,11 @@ class Position2DMixin(BaseMixin):
     @position2d_id.setter
     def position2d_id(self, value: int):
         self._table.update(self._db_id, point2d_id=value)
+        
+    @property
+    def _position2d_propgrid(self) -> wxpg.PGProperty:
+        from ....ui.editor_obj.prop_grid import position_prop as _position_prop
+
+        position_prop = _position_prop.Position2DProperty('Position 2D', 'position2d', self.position2d)
+
+        return position_prop

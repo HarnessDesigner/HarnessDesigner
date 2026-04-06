@@ -1,13 +1,17 @@
-from typing import Iterable as _Iterable
+from typing import TYPE_CHECKING, Iterable as _Iterable
 
 import uuid
+from wx import propgrid as wxpg
 
 from .bases import EntryBase, TableBase
 from ...geometry import point as _point
 
 from .mixins import (PartNumberMixin, ManufacturerMixin, DescriptionMixin, SeriesMixin,
                      ColorMixin, TemperatureMixin, ResourceMixin, WeightMixin, Model3DMixin,
-                     DimensionMixin)
+                     DimensionMixin, FamilyMixin, WireSizeMixin, CompatHousingsMixin, CompatTerminalsMixin)
+
+if TYPE_CHECKING:
+    from . import seal_type as _seal_type
 
 
 class SealsTable(TableBase):
@@ -15,7 +19,9 @@ class SealsTable(TableBase):
 
     def _load_database(self, splash):
         from ..create_database import seals
-        seals.add_records(self._con, splash)
+
+        data_path = self._con.db_data.open(splash)
+        seals.add_records(self._con, splash, data_path)
 
     def _table_needs_update(self) -> bool:
         from ..create_database import seals
@@ -154,9 +160,30 @@ class SealsTable(TableBase):
 
 class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
            SeriesMixin, ColorMixin, TemperatureMixin, ResourceMixin, WeightMixin,
-           Model3DMixin, DimensionMixin):
+           Model3DMixin, DimensionMixin, FamilyMixin, WireSizeMixin, CompatHousingsMixin,
+           CompatTerminalsMixin):
 
     _table: SealsTable = None
+
+    def build_monitor_packet(self):
+        mfg = self.manufacturer
+        color = self.color
+
+        packet = {
+            'seals': [self.db_id],
+            'series': [self.series_id],
+            'temperatures': [self.min_temp_id, self.max_temp],
+            'colors': [color.db_id],
+            'datasheets': [self.datasheet_id],
+            'cads': [self.cad_id],
+            'images': [self.image_id],
+            'models3d': [self.model3d_id]
+        }
+
+        self.merge_packet_data(mfg.build_monitor_packet(), packet)
+
+        return packet
+
     _scale_id: str = None
 
     def _update_scale(self, scale: _point.Point):
@@ -170,7 +197,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         if self._scale_id is None:
             self._scale_id = str(uuid.uuid4())
 
-        is_sws = self.type.lower() in ('sws', 'single wire seal')
+        is_sws = self.type.name.lower() in ('sws', 'single wire seal')
         if is_sws:
             x = y = self.o_dia
         else:
@@ -220,12 +247,17 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         self._table.update(self._db_id, i_dia=round(value, 6))
 
     @property
-    def type(self) -> str:
-        return self._table.select('type', id=self._db_id)[0][0]
+    def type(self) -> "_seal_type.SealType":
+        type_id = self.type_id
+        return self.table.db.seal_types_table[type_id]
 
-    @type.setter
-    def type(self, value: str):
-        self._table.update(self._db_id, type=value)
+    @property
+    def type_id(self) -> int:
+        return self._table.select('type_id', id=self._db_id)[0][0]
+
+    @type_id.setter
+    def type_id(self, value: int):
+        self._table.update(self._db_id, type_id=value)
 
     @property
     def hardness(self) -> int:
@@ -258,3 +290,61 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     @wire_dia_max.setter
     def wire_dia_max(self, value: float):
         self._table.update(self._db_id, wire_dia_max=round(value, 6))
+
+    @property
+    def propgrid(self):
+        from ...ui.editor_obj.prop_grid import float_prop as _float_prop
+        from ...ui.editor_obj.prop_grid import int_prop as _int_prop
+
+        part_cat = wxpg.PropertyCategory('Part Attributes')
+        
+        part_number_prop = self._part_number_propgrid
+        manufacturer_prop = self._manufacturer_propgrid
+        description_prop = self._description_propgrid
+        family_prop = self._family_propgrid
+        series_prop = self._series_propgrid
+        color_prop = self._color_propgrid
+        temperature_prop = self._temperature_propgrid
+        dimension_prop = self._dimension_propgrid
+        weight_prop = self._weight_propgrid
+        resource_prop = self._resource_propgrid
+        model3d_prop = self._model3d_propgrid
+        wire_size_prop = self._wire_size_propgrid
+        compat_housings_prop = self._compat_housings_propgrid
+        compat_terminals_prop = self._compat_terminals_propgrid
+        seal_type_prop = self.type.propgrid
+
+        hardness_prop = _int_prop.IntProperty(
+            'Hardness', 'hardness', self.hardness, min_value=1, max_value=999, units='shore')
+
+        lubricant_prop = wxpg.StringProperty('Lubricant', 'lubricant', self.lubricant)
+
+        o_dia_prop = _float_prop.FloatProperty(
+            'Outside Diameter', 'o_dia', self.o_dia, min_value=0.01,
+            max_value=99.9, increment=0.01, units='mm')
+
+        i_dia_prop = _float_prop.FloatProperty(
+            'Inside Diameter', 'i_dia', self.i_dia, min_value=0.01,
+            max_value=99.9, increment=0.01, units='mm')
+
+        part_cat.AppendChild(part_number_prop)
+        part_cat.AppendChild(manufacturer_prop)
+        part_cat.AppendChild(description_prop)
+        part_cat.AppendChild(family_prop)
+        part_cat.AppendChild(series_prop)
+        part_cat.AppendChild(color_prop)
+        part_cat.AppendChild(temperature_prop)
+        part_cat.AppendChild(dimension_prop)
+        part_cat.AppendChild(weight_prop)
+        part_cat.AppendChild(resource_prop)
+        part_cat.AppendChild(model3d_prop)
+        part_cat.AppendChild(i_dia_prop)
+        part_cat.AppendChild(o_dia_prop)
+        part_cat.AppendChild(wire_size_prop)
+        part_cat.AppendChild(seal_type_prop)
+        part_cat.AppendChild(hardness_prop)
+        part_cat.AppendChild(lubricant_prop)
+        part_cat.AppendChild(compat_housings_prop)
+        part_cat.AppendChild(compat_terminals_prop)
+
+        return part_cat

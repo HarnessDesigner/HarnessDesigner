@@ -1,12 +1,15 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
+import numpy as np
 import uuid
+import weakref
+from wx import propgrid as wxpg
 
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 
-from .mixins import NameMixin, PartMixin, Visible3DMixin, Visible2DMixin
+from .mixins import NameMixin, PartMixin, Visible3DMixin, Visible2DMixin, NotesMixin
 
 
 if TYPE_CHECKING:
@@ -17,6 +20,7 @@ if TYPE_CHECKING:
     from . import pjt_seal as _pjt_seal
     from . import pjt_boot as _pjt_boot
     from . import pjt_accessory as _pjt_accessory
+    from . import pjt_point3d as _pjt_point3d
 
     from ..global_db import housing as _housing
 
@@ -53,7 +57,9 @@ class PJTHousingsTable(PJTTableBase):
 
         raise KeyError(item)
 
-    def insert(self, part_id: int, position3d: "_point.Point" = None, position2d: "_point.Point" = None) -> "PJTHousing":
+    def insert(self, part_id: int, position3d: "_point.Point" = None,
+               position2d: "_point.Point" = None) -> "PJTHousing":
+
         if position2d is None:
             position2d = _point.Point(0, 0)
 
@@ -66,8 +72,13 @@ class PJTHousingsTable(PJTTableBase):
         x, y, z = position3d.as_float
         pos3d = self.db.pjt_points3d_table.insert(x, y, z)
 
-        db_id = PJTTableBase.insert(self, point3d_id=pos3d.db_id, point2d_id=pos2d.db_id, part_id=part_id)
+        db_id = PJTTableBase.insert(self, point3d_id=pos3d.db_id,
+                                    point2d_id=pos2d.db_id, part_id=part_id)
+
         db_obj = PJTHousing(self, db_id, self.project_id)
+
+        pos3d = pos3d.point
+        pos2d = pos2d.point
 
         # add the cavities from the part to the project
         for cavity in db_obj.part.cavities:
@@ -104,15 +115,41 @@ class PJTHousingsTable(PJTTableBase):
         return db_obj
 
 
-class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Visible3DMixin, Visible2DMixin):
+class PJTHousing(PJTEntryBase, NameMixin, PartMixin,
+                 Visible3DMixin, Visible2DMixin, NotesMixin):
 
     _table: PJTHousingsTable = None
 
+    def build_monitor_packet(self):
+        packet = {
+            'pjt_housings': [self.db_id],
+            'housings': [self.part_id],
+            'pjt_points3d': [self.position3d_id, self.cover_position3d_id,
+                             self.seal_position3d_id, self.boot_position3d_id,
+                             self.tpa_lock_1_position3d_id, self.tpa_lock_2_position3d_id,
+                             self.cpa_lock_position3d_id],
+            'pjt_points2d': [self.position2d_id],
+
+        }
+
+        self.merge_packet_data(self.part.build_monitor_packet(), packet)
+
+        return packet
+
     def get_object(self) -> "_housing_obj.Housing":
+        if self._obj is not None:
+            return self._obj()
+
         return self._obj
 
+    def __release_obj_ref(self, _):
+        self._obj = None
+
     def set_object(self, obj: "_housing_obj.Housing"):
-        self._obj = obj
+        if obj is not None:
+            self._obj = weakref.ref(obj, self.__release_obj_ref)
+        else:
+            self._obj = obj
 
     @property
     def table(self) -> PJTHousingsTable:
@@ -126,37 +163,33 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Visible3DMixin, Visible2DMi
             'id', housing_id=self._db_id)
 
         for cavity_id in cavity_ids:
-            cavity = _pjt_cavity.PJTCavity(
-                self._table.db.pjt_cavities_table, cavity_id[0], self.project_id)
+            cavity = self._table.db.pjt_cavities_table[cavity_id[0]]
 
             cavities.append(cavity)
 
         return cavities
-        
-    def __update_cover_position3d(self, point: _point.Point):
-        x, y, z = point.as_float
-        point_id = int(point.db_id[:-2])
 
-        self._table.execute(f'UPDATE pjt_points3d SET x=?, y=?, z=? WHERE id = {point_id};', (x, y, z))
-        self._table.commit()
+    _stored_cover_position3d: "_pjt_point3d.PJTPoint3D" = None
 
     @property
     def cover_position3d(self) -> "_point.Point":
-        point_id = self.cover_position3d_id
+        if self._stored_cover_position3d is None and self._obj is not None:
+            point_id = self.cover_position3d_id
 
-        self._table.execute(f'SELECT x, y, z FROM pjt_points3d WHERE id={point_id};')
-        rows = self._table.fetchall()
+            self._stored_cover_position3d = self._table.db.pjt_points3d_table[point_id]
+            self._stored_cover_position3d.add_object(self._obj())
 
-        point = _point.Point(*rows[0], db_id=str(point_id) + '3d')
-        point.bind(self.__update_cover_position3d)
-        return point
+        return self._stored_cover_position3d.point
 
     @property
     def cover_position3d_id(self) -> int:
-        point_id = self._table.select('cover_point3d_id', id=self._db_id)[0][0]
+        point_id = self._table.select('cover_point3d_id',
+                                      id=self._db_id)[0][0]
 
         if point_id is None:
-            point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
+            point_id = self._table.db.pjt_points3d_table.insert(
+                0.0, 0.0, 0.0).db_id
+
             self.cover_position3d_id = point_id
 
         return point_id
@@ -164,31 +197,29 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Visible3DMixin, Visible2DMi
     @cover_position3d_id.setter
     def cover_position3d_id(self, value: int):
         self._table.update(self._db_id, cover_point3d_id=value)
-    
-    def __update_seal_position3d(self, point: _point.Point):
-        x, y, z = point.as_float
-        point_id = int(point.db_id[:-2])
 
-        self._table.execute(f'UPDATE pjt_points3d SET x=?, y=?, z=? WHERE id = {point_id};', (x, y, z))
-        self._table.commit()
+    _stored_seal_position3d: "_pjt_point3d.PJTPoint3D" = None
 
     @property
     def seal_position3d(self) -> "_point.Point":
-        point_id = self.seal_position3d_id
+        if self._stored_seal_position3d is None and self._obj is not None:
 
-        self._table.execute(f'SELECT x, y, z FROM pjt_points3d WHERE id={point_id};')
-        rows = self._table.fetchall()
+            point_id = self.seal_position3d_id
 
-        if rows:
-            point = _point.Point(*rows[0], db_id=str(point_id) + '3d')
-            point.bind(self.__update_seal_position3d)
-            return point
+            self._stored_seal_position3d = self._table.db.pjt_points3d_table[point_id]
+            self._stored_seal_position3d.add_object(self._obj())
+
+        return self._stored_seal_position3d.point
 
     @property
     def seal_position3d_id(self) -> int:
-        point_id = self._table.select('seal_point3d_id', id=self._db_id)[0][0]
+        point_id = self._table.select('seal_point3d_id',
+                                      id=self._db_id)[0][0]
+
         if point_id is None:
-            point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
+            point_id = self._table.db.pjt_points3d_table.insert(
+                0.0, 0.0, 0.0).db_id
+
             self.seal_position3d_id = point_id
 
         return point_id
@@ -197,30 +228,26 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Visible3DMixin, Visible2DMi
     def seal_position3d_id(self, value: int):
         self._table.update(self._db_id, seal_point3d_id=value)
 
-    def __update_boot_position3d(self, point: _point.Point):
-        x, y, z = point.as_float
-        point_id = int(point.db_id[:-2])
-
-        self._table.execute(f'UPDATE pjt_points3d SET x=?, y=?, z=? WHERE id = {point_id};', (x, y, z))
-        self._table.commit()
-
     @property
     def boot_position3d(self) -> "_point.Point":
-        point_id = self.boot_position3d_id
+        if self._stored_boot_position3d is None and self._obj is not None:
 
-        self._table.execute(f'SELECT x, y, z FROM pjt_points3d WHERE id={point_id};')
-        rows = self._table.fetchall()
+            point_id = self.boot_position3d_id
 
-        if rows:
-            point = _point.Point(*rows[0], db_id=str(point_id) + '3d')
-            point.bind(self.__update_boot_position3d)
-            return point
+            self._stored_boot_position3d = self._table.db.pjt_points3d_table[point_id]
+            self._stored_boot_position3d.add_object(self._obj())
+
+        return self._stored_boot_position3d.point
 
     @property
     def boot_position3d_id(self) -> int:
-        point_id = self._table.select('boot_point3d_id', id=self._db_id)[0][0]
+        point_id = self._table.select('boot_point3d_id',
+                                      id=self._db_id)[0][0]
+
         if point_id is None:
-            point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
+            point_id = self._table.db.pjt_points3d_table.insert(
+                0.0, 0.0, 0.0).db_id
+
             self.boot_position3d_id = point_id
 
         return point_id
@@ -229,30 +256,28 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Visible3DMixin, Visible2DMi
     def boot_position3d_id(self, value: int):
         self._table.update(self._db_id, boot_point3d_id=value)
 
-    def __update_tpa_lock_1_position3d(self, point: _point.Point):
-        x, y, z = point.as_float
-        point_id = int(point.db_id[:-2])
-
-        self._table.execute(f'UPDATE pjt_points3d SET x=?, y=?, z=? WHERE id = {point_id};', (x, y, z))
-        self._table.commit()
+    _stored_tpa_lock_1_position3d: "_pjt_point3d.PJTPoint3D" = None
 
     @property
     def tpa_lock_1_position3d(self) -> "_point.Point":
-        point_id = self.tpa_lock_1_position3d_id
+        if self._stored_tpa_lock_1_position3d is None and self._obj is not None:
 
-        self._table.execute(f'SELECT x, y, z FROM pjt_points3d WHERE id={point_id};')
-        rows = self._table.fetchall()
+            point_id = self.tpa_lock_1_position3d_id
 
-        if rows:
-            point = _point.Point(*rows[0], db_id=str(point_id) + '3d')
-            point.bind(self.__update_tpa_lock_1_position3d)
-            return point
+            self._stored_tpa_lock_1_position3d = self._table.db.pjt_points3d_table[point_id]
+            self._stored_tpa_lock_1_position3d.add_object(self._obj())
+
+        return self._stored_tpa_lock_1_position3d.point
 
     @property
     def tpa_lock_1_position3d_id(self) -> int:
-        point_id = self._table.select('tpa_lock_1_point3d_id', id=self._db_id)[0][0]
+        point_id = self._table.select('tpa_lock_1_point3d_id',
+                                      id=self._db_id)[0][0]
+
         if point_id is None:
-            point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
+            point_id = self._table.db.pjt_points3d_table.insert(
+                0.0, 0.0, 0.0).db_id
+
             self.tpa_lock_1_position3d_id = point_id
 
         return point_id
@@ -261,30 +286,28 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Visible3DMixin, Visible2DMi
     def tpa_lock_1_position3d_id(self, value: int):
         self._table.update(self._db_id, tpa_lock_1_point3d_id=value)
 
-    def __update_tpa_lock_2_position3d(self, point: _point.Point):
-        x, y, z = point.as_float
-        point_id = int(point.db_id[:-2])
-
-        self._table.execute(f'UPDATE pjt_points3d SET x=?, y=?, z=? WHERE id = {point_id};', (x, y, z))
-        self._table.commit()
+    _stored_tpa_lock_2_position3d: "_pjt_point3d.PJTPoint3D" = None
 
     @property
     def tpa_lock_2_position3d(self) -> "_point.Point":
-        point_id = self.tpa_lock_2_position3d_id
+        if self._stored_tpa_lock_2_position3d is None and self._obj is not None:
 
-        self._table.execute(f'SELECT x, y, z FROM pjt_points3d WHERE id={point_id};')
-        rows = self._table.fetchall()
+            point_id = self.tpa_lock_2_position3d_id
 
-        if rows:
-            point = _point.Point(*rows[0], db_id=str(point_id) + '3d')
-            point.bind(self.__update_tpa_lock_2_position3d)
-            return point
+            self._stored_tpa_lock_2_position3d = self._table.db.pjt_points3d_table[point_id]
+            self._stored_tpa_lock_2_position3d.add_object(self._obj())
+
+        return self._stored_tpa_lock_2_position3d.point
 
     @property
     def tpa_lock_2_position3d_id(self) -> int:
-        point_id = self._table.select('tpa_lock_2_point3d_id', id=self._db_id)[0][0]
+        point_id = self._table.select('tpa_lock_2_point3d_id',
+                                      id=self._db_id)[0][0]
+
         if point_id is None:
-            point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
+            point_id = self._table.db.pjt_points3d_table.insert(
+                0.0, 0.0, 0.0).db_id
+
             self.tpa_lock_2_position3d_id = point_id
 
         return point_id
@@ -293,30 +316,28 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Visible3DMixin, Visible2DMi
     def tpa_lock_2_position3d_id(self, value: int):
         self._table.update(self._db_id, tpa_lock_2_point3d_id=value)
 
-    def __update_cpa_lock_position3d(self, point: _point.Point):
-        x, y, z = point.as_float
-        point_id = int(point.db_id[:-2])
-
-        self._table.execute(f'UPDATE pjt_points3d SET x=?, y=?, z=? WHERE id = {point_id};', (x, y, z))
-        self._table.commit()
+    _stored_cpa_lock_position3d: "_pjt_point3d.PJTPoint3D" = None
 
     @property
     def cpa_lock_position3d(self) -> "_point.Point":
-        point_id = self.cpa_lock_position3d_id
+        if self._stored_cpa_lock_position3d is None and self._obj is not None:
 
-        self._table.execute(f'SELECT x, y, z FROM pjt_points3d WHERE id={point_id};')
-        rows = self._table.fetchall()
+            point_id = self.cpa_lock_position3d_id
 
-        if rows:
-            point = _point.Point(*rows[0], db_id=str(point_id) + '3d')
-            point.bind(self.__update_cpa_lock_position3d)
-            return point
+            self._stored_cpa_lock_position3d = self._table.db.pjt_points3d_table[point_id]
+            self._stored_cpa_lock_position3d.add_object(self._obj())
+
+        return self._stored_cpa_lock_position3d.point
 
     @property
     def cpa_lock_position3d_id(self) -> int:
-        point_id = self._table.select('cpa_lock_point3d_id', id=self._db_id)[0][0]
+        point_id = self._table.select('cpa_lock_point3d_id',
+                                      id=self._db_id)[0][0]
+
         if point_id is None:
-            point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
+            point_id = self._table.db.pjt_points3d_table.insert(
+                0.0, 0.0, 0.0).db_id
+
             self.cpa_lock_position3d_id = point_id
 
         return point_id
@@ -335,7 +356,9 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Visible3DMixin, Visible2DMi
         if name is None:
             name = cavity_part.name
 
-        cavity = self._table.db.pjt_cavities_table.insert(cavity_part.db_id, self.db_id)
+        cavity = self._table.db.pjt_cavities_table.insert(cavity_part.db_id,
+                                                          self.db_id)
+
         cavity.name = name
 
         self._process_callbacks()
@@ -343,7 +366,9 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Visible3DMixin, Visible2DMi
 
     @property
     def seal(self) -> "_pjt_seal.PJTSeal":
-        db_ids = self._table.db.pjt_seals_table.select('id', housing_id=self.db_id)
+        db_ids = self._table.db.pjt_seals_table.select('id',
+                                                       housing_id=self.db_id)
+
         for db_id in db_ids:
             try:
                 seal = self._table.db.pjt_seals_table[db_id[0]]
@@ -354,7 +379,9 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Visible3DMixin, Visible2DMi
 
     @property
     def cpa_lock(self) -> "_pjt_cpa_lock.PJTCPALock":
-        db_ids = self._table.db.pjt_cpa_locks_table.select('id', housing_id=self.db_id)
+        db_ids = self._table.db.pjt_cpa_locks_table.select('id',
+                                                           housing_id=self.db_id)
+
         for db_id in db_ids:
             try:
                 cpa_lock = self._table.db.pjt_cpa_locks_table[db_id[0]]
@@ -364,9 +391,29 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Visible3DMixin, Visible2DMi
             return cpa_lock
 
     @property
+    def tpa_lock1(self) -> "_pjt_tpa_lock.PJTTPALock":
+        rows = self._table.db.pjt_tpa_locks_table.select(
+            'id', housing_id=self.db_id, idx=1)
+
+        if rows:
+            db_id = rows[0][0]
+            return self._table.db.pjt_tpa_locks_table[db_id]
+
+    @property
+    def tpa_lock2(self) -> "_pjt_tpa_lock.PJTTPALock":
+        rows = self._table.db.pjt_tpa_locks_table.select(
+            'id', housing_id=self.db_id, idx=2)
+
+        if rows:
+            db_id = rows[0][0]
+            return self._table.db.pjt_tpa_locks_table[db_id]
+
+    @property
     def tpa_locks(self) -> list["_pjt_tpa_lock.PJTTPALock"]:
         res = []
-        db_ids = self._table.db.pjt_tpa_locks_table.select('id', housing_id=self.db_id)
+        db_ids = self._table.db.pjt_tpa_locks_table.select('id',
+                                                           housing_id=self.db_id)
+
         for db_id in db_ids:
             try:
                 tpa_lock = self._table.db.pjt_tpa_locks_table[db_id[0]]
@@ -378,7 +425,9 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Visible3DMixin, Visible2DMi
 
     @property
     def cover(self) -> "_pjt_cover.PJTCover":
-        db_ids = self._table.db.pjt_covers_table.select('id', housing_id=self.db_id)
+        db_ids = self._table.db.pjt_covers_table.select('id',
+                                                        housing_id=self.db_id)
+
         for db_id in db_ids:
             try:
                 cover = self._table.db.pjt_covers_table[db_id[0]]
@@ -389,7 +438,9 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Visible3DMixin, Visible2DMi
 
     @property
     def boot(self) -> "_pjt_boot.PJTBoot":
-        db_ids = self._table.db.pjt_boots_table.select('id', housing_id=self.db_id)
+        db_ids = self._table.db.pjt_boots_table.select('id',
+                                                       housing_id=self.db_id)
+
         for db_id in db_ids:
             try:
                 boot = self._table.db.pjt_boots_table[db_id[0]]
@@ -401,7 +452,9 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Visible3DMixin, Visible2DMi
     @property
     def accessories(self) -> list["_pjt_accessory.PJTAccessory"]:
         res = []
-        db_ids = self._table.db.pjt_accessories_table.select('id', housing_id=self.db_id)
+        db_ids = self._table.db.pjt_accessories_table.select('id',
+                                                             housing_id=self.db_id)
+
         for db_id in db_ids:
             try:
                 accessory = self._table.db.pjt_accessories_table[db_id]
@@ -411,18 +464,24 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Visible3DMixin, Visible2DMi
             res.append(accessory)
         return res
 
+    _stored_part: "_housing.Housing" = None
+
     @property
     def part(self) -> "_housing.Housing":
-        part_id = self.part_id
-        if part_id is None:
-            return None
+        if self._stored_part is None and self._obj is not None:
+            part_id = self.part_id
 
-        return self._table.db.global_db.housings_table[part_id]
+            if part_id is None:
+                return None
+
+            self._stored_part = self._table.db.global_db.housings_table[part_id]
+            self._stored_part.add_object(self._obj())
+
+        return self._stored_part
 
     def _update_position3d(self, point: _point.Point):
-        point_id = int(point.db_id[:-2])
 
-        # when the position of a houseing is changed all of the objects that
+        # when the position of a housing is changed all of the objects that
         # attach to the housing also need to change. That update should happen
         # in a location where the points for those accessory items change even if
         # there is no accessory attached to them. The positions of the accessories
@@ -432,10 +491,8 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Visible3DMixin, Visible2DMi
         # between the old housing position and the new position and apply that
         # difference to each of the accessory points.
 
-        rows = self._table.execute(f'SELECT x, y, z FROM pjt_points3d WHERE id={point_id};')
-
-        o_position = _point.Point(*rows[0])
-        delta = point - o_position
+        delta = point - self._o_position3d
+        self._o_position3d = point.copy()
 
         for cavity in self.cavities:
             if cavity is None:
@@ -462,29 +519,33 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Visible3DMixin, Visible2DMi
         pos = self.cpa_lock_position3d
         pos += delta
 
-        x, y, z = point.as_float
-        self._table.execute(f'UPDATE pjt_points3d SET x=?, y=?, z=? WHERE id={point_id};', (x, y, z))
-
-        self._table.commit()
+    _stored_position3d: "_pjt_point3d.PJTPoint3D" = None
+    _o_position3d: "_point.Point" = None
 
     @property
     def position3d(self) -> "_point.Point":
-        point_id = self.position3d_id
+        if self._stored_position3d is None and self._obj is not None:
 
-        self._table.execute(f'SELECT x, y, z FROM pjt_points3d WHERE id={point_id};')
-        rows = self._table.fetchall()
+            point_id = self.position3d_id
 
-        if rows:
-            point = _point.Point(*rows[0], db_id=str(point_id) + '3d')
+            self._stored_position3d = self._table.db.pjt_points3d_table[point_id]
+            self._stored_position3d.add_object(self._obj())
+
+            point = self._stored_position3d.point
             point.bind(self._update_position3d)
-            return point
+            self._o_position3d = point.copy()
+
+        else:
+            point = None
+        return point
 
     @property
     def position3d_id(self) -> int:
         point_id = self._table.select('point3d_id', id=self._db_id)[0][0]
         if point_id is None:
-            self._table.execute(f'INSERT INTO pjt_points3d (project_id, x, y, z) VALUES (?, ?, ?, ?);',
-                                (self._table.project_id, 0.0, 0.0, 0.0))
+            self._table.execute(
+                f'INSERT INTO pjt_points3d (project_id, x, y, z) VALUES (?, ?, ?, ?);',
+                (self._table.project_id, 0.0, 0.0, 0.0))
 
             self._table.commit()
             point_id = self._table.lastrowid
@@ -498,10 +559,11 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Visible3DMixin, Visible2DMi
 
     def _update_position2d(self, point: _point.Point):
         point_id = int(point.db_id[:-2])
-        rows = self._table.execute(f'SELECT x, y FROM pjt_points2d WHERE id={point_id};')
+        rows = self._table.execute(
+            f'SELECT x, y FROM pjt_points2d WHERE id={point_id};')
 
-        o_position = _point.Point(*rows[0])
-        delta = point - o_position
+        delta = point - self._o_position2d
+        self._o_position2d = point.copy()
 
         for cavity in self.cavities:
             if cavity is None:
@@ -510,29 +572,34 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Visible3DMixin, Visible2DMi
             c_position = cavity.position2d
             c_position += delta
 
-        x, y = point.as_float[:-1]
-
-        self._table.execute(f'UPDATE pjt_points2d SET x=?, y=? WHERE id = {point_id};', (x, y))
-        self._table.commit()
+    _stored_position2d: "_pjt_point2d.PJTPoint2D" = None
+    _o_position2d: "_point.Point" = None
 
     @property
     def position2d(self) -> "_point.Point":
-        point_id = self.position2d_id
+        if self._stored_position2d is None and self._obj is not None:
 
-        self._table.execute(f'SELECT x, y FROM pjt_points2d WHERE id={point_id};')
-        rows = self._table.fetchall()
+            point_id = self.position2d_id
 
-        if rows:
-            point = _point.Point(*rows[0], db_id=str(point_id) + '2d')
+            self._stored_position2d = self._table.db.pjt_points2d_table[point_id]
+            self._stored_position2d.add_object(self._obj())
+
+            point = self._stored_position2d.point
             point.bind(self._update_position2d)
-            return point
+            self._o_position2d = point.copy()
+
+        else:
+            point = None
+
+        return point
 
     @property
     def position2d_id(self) -> int:
         point_id = self._table.select('point2d_id', id=self._db_id)[0][0]
         if point_id is None:
-            self._table.execute(f'INSERT INTO pjt_points3d (project_id, x, y) VALUES (?, ?, ?);',
-                                (self._table.project_id, 0.0, 0.0))
+            self._table.execute(
+                f'INSERT INTO pjt_points2d (project_id, x, y) VALUES (?, ?, ?);',
+                (self._table.project_id, 0.0, 0.0))
 
             self._table.commit()
             point_id = self._table.lastrowid
@@ -547,8 +614,12 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Visible3DMixin, Visible2DMi
     _angle3d_db_id: str = None
 
     def __update_angle3d(self, angle: _angle.Angle):
-        quat = eval(self._table.select('quat3d', id=self._db_id)[0][0])
-        euler_angle = eval(self._table.select('angle3d', id=self._db_id)[0][0])
+        quat = eval(self._table.select('quat3d',
+                                       id=self._db_id)[0][0])
+
+        euler_angle = eval(self._table.select('angle3d',
+                                              id=self._db_id)[0][0])
+
         o_angle = _angle.Angle.from_quat(quat, euler_angle)
 
         delta = angle - o_angle
@@ -559,22 +630,112 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Visible3DMixin, Visible2DMi
         self._table.update(self._db_id, quat3d=str(quat))
         self._table.update(self._db_id, angle3d=str(euler_angle))
 
-        for cavity in self.cavities:
-            if cavity is None:
-                continue
+        cavities = [c for c in self.cavities if c is not None]
+        if cavities:
+            housing_pos = self.position3d.as_numpy
 
-            c_angle = cavity.angle3d
-            c_angle += delta
-            
+            # Get all cavity centers: shape (N, 3)
+            centers = np.array(
+                [cavity.position3d.as_numpy for cavity in cavities],
+                dtype=np.float64)
+
+            # Create reference offset vector for all cavities
+            reference_vector = np.array([0.0, 0.0, 10.0], dtype=np.float64)
+
+            # Rotate reference vector by each cavity's current angle to get offset
+            # Then add to centers to get reference points
+            offsets = np.array(
+                [cavity.angle3d @ reference_vector for cavity in cavities],
+                dtype=np.float64)
+
+            references = centers + offsets
+
+            # Stack centers and references: shape (N*2, 3)
+            all_points = np.empty((len(cavities) * 2, 3), dtype=np.float64)
+            all_points[0::2] = centers      # Even indices: centers
+            all_points[1::2] = references   # Odd indices: references
+
+            # Vectorized transformation
+            all_points -= housing_pos
+            all_points @= delta
+            all_points += housing_pos
+
+            # Extract and update
+            for i, cavity in enumerate(cavities):
+                rotated_center = all_points[i * 2]
+                rotated_reference = all_points[i * 2 + 1]
+
+                # Update position
+                c_position = cavity.position3d
+                c_position.x = float(rotated_center[0])
+                c_position.y = float(rotated_center[1])
+                c_position.z = float(rotated_center[2])
+
+                # Calculate new angle
+                new_cavity_angle = _angle.Angle.from_points(
+                    _point.Point(*rotated_center),
+                    _point.Point(*rotated_reference)
+                )
+
+                c_angle = cavity.angle3d
+                angle_delta = new_cavity_angle - c_angle
+                c_angle += angle_delta
+
+        position = self.position3d
+        cover_pos = self.cover_position3d
+        cpa_pos = self.cpa_lock_position3d
+        tpa1_pos = self.tpa_lock_1_position3d
+        tpa2_pos = self.tpa_lock_2_position3d
+        seal_pos = self.seal_position3d
+        boot_pos = self.boot_position3d
+
+        objs = [self.tpa_lock1, self.tpa_lock2,
+                self.cover, self.cpa_lock, self.boot, self.seal]
+
+        objs = zip(objs, [tpa1_pos, tpa2_pos, cover_pos,
+                          cpa_pos, boot_pos, seal_pos])
+
+        reference_vector = _point.Point(0.0, 0.0, 10.0)
+
+        for obj, pos in objs:
+            if obj is not None:
+                reference_point = reference_vector @ obj.angle3d
+                reference_point += pos
+
+                reference_point -= position
+                new_pos = pos - position
+                reference_point @= delta
+                new_pos @= delta
+                reference_point += position
+                new_pos += position
+
+                new_angle = _angle.Angle.from_points(new_pos, reference_point)
+
+                obj_angle = obj.angle3d
+                angle_delta = new_angle - obj_angle
+                obj_angle += angle_delta
+            else:
+                new_pos = pos - position
+                new_pos @= delta
+                new_pos += position
+
+            pos_delta = new_pos - pos
+            pos += pos_delta
+
     @property
     def angle3d(self) -> _angle.Angle:
-        quat = eval(self._table.select('quat3d', id=self._db_id)[0][0])
-        euler_angle = eval(self._table.select('angle3d', id=self._db_id)[0][0])
+        quat = eval(self._table.select('quat3d',
+                                       id=self._db_id)[0][0])
+
+        euler_angle = eval(self._table.select('angle3d',
+                                              id=self._db_id)[0][0])
 
         if self._angle3d_db_id is None:
             self._angle3d_db_id = str(uuid.uuid4())
 
-        angle = _angle.Angle.from_quat(quat, euler_angle, db_id=self._angle3d_db_id)
+        angle = _angle.Angle.from_quat(quat, euler_angle,
+                                       db_id=self._angle3d_db_id)
+
         angle.bind(self.__update_angle3d)
 
         return angle
@@ -590,8 +751,11 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Visible3DMixin, Visible2DMi
 
     @property
     def angle2d(self) -> _angle.Angle:
-        quat = eval(self._table.select('quat2d', id=self._db_id)[0][0])
-        euler_angle = eval(self._table.select('angle2d', id=self._db_id)[0][0])
+        quat = eval(self._table.select('quat2d',
+                                       id=self._db_id)[0][0])
+
+        euler_angle = eval(self._table.select('angle2d',
+                                              id=self._db_id)[0][0])
 
         if self._angle2d_db_id is None:
             self._angle2d_db_id = str(uuid.uuid4())
@@ -604,3 +768,78 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Visible3DMixin, Visible2DMi
         angle.bind(self.__update_angle2d)
 
         return angle
+
+    @property
+    def _angle2d_propgrid(self) -> wxpg.PGProperty:
+        from ...ui.editor_obj.prop_grid import angle_prop as _angle_prop
+
+        angle_prop = _angle_prop.Angle2DProperty('Angle 2D', 'angle2d', self.angle2d)
+
+        return angle_prop
+
+    @property
+    def _angle3d_propgrid(self) -> wxpg.PGProperty:
+        from ...ui.editor_obj.prop_grid import angle_prop as _angle_prop
+
+        angle_prop = _angle_prop.Angle3DProperty('Angle 3D', 'angle3d', self.angle3d)
+
+        return angle_prop
+
+    @property
+    def _position2d_propgrid(self) -> wxpg.PGProperty:
+        from ...ui.editor_obj.prop_grid import position_prop as _position_prop
+
+        position_prop = _position_prop.Position2DProperty('Position 2D', 'position2d', self.position2d)
+
+        return position_prop
+
+    @property
+    def _position3d_propgrid(self) -> wxpg.PGProperty:
+        from ...ui.editor_obj.prop_grid import position_prop as _position_prop
+
+        position_prop = _position_prop.Position3DProperty('Position 3D', 'position3d', self.position3d)
+
+        return position_prop
+
+    @property
+    def propgrid(self) -> wxpg.PGProperty:
+        group = wxpg.PropertyCategory('Project')
+
+        notes_prop = self._notes_propgrid
+        name_prop = self._name_propgrid
+
+        angle_prop = wxpg.PGProperty('Angle')
+        angle2d_prop = self._angle2d_propgrid
+        angle3d_prop = self._angle3d_propgrid
+        angle_prop.AppendChild(angle2d_prop)
+        angle_prop.AppendChild(angle3d_prop)
+
+        position_prop = wxpg.PGProperty('Position')
+        position2d_prop = self._position2d_propgrid
+        position3d_prop = self._position3d_propgrid
+        position_prop.AppendChild(position2d_prop)
+        position_prop.AppendChild(position3d_prop)
+
+        visible_prop = wxpg.PGProperty('Visible')
+        visible2d_prop = self._visible2d_propgrid
+        visible3d_prop = self._visible3d_propgrid
+        visible_prop.AppendChild(visible2d_prop)
+        visible_prop.AppendChild(visible3d_prop)
+
+        cavities_prop = wxpg.PGProperty('Cavities')
+        for cavity in self.cavities:
+            if cavity is None:
+                continue
+
+            cavities_prop.AppendChild(cavity.propgrid)
+
+        group.AppendChild(name_prop)
+        group.AppendChild(notes_prop)
+        group.AppendChild(angle_prop)
+        group.AppendChild(position_prop)
+        group.AppendChild(visible_prop)
+        group.AppendChild(cavities_prop)
+
+        part_prop = self._part_propgrid
+
+        return group, part_prop

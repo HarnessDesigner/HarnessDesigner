@@ -102,12 +102,12 @@ class VirtualLogListCtrl(wx.ListCtrl):
 
         def _do(new_data):
             if not new_data.empty and 'timestamp' in new_data.columns:
-                if pd.api.types.is_datetime64_any_dtype(new_data['timestamp']):
-                    new_data['timestamp_str'] = (
-                        new_data['timestamp'].dt.strftime('%m.%d.%Y-%H:%M:%S'))
-
-                else:
-                    new_data['timestamp_str'] = new_data['timestamp'].astype(str)
+                # if pd.api.types.is_datetime64_any_dtype(new_data['timestamp']):
+                #     new_data['timestamp_str'] = (
+                #         new_data['timestamp'].dt.strftime('%m.%d.%Y-%H:%M:%S'))
+                #
+                # else:
+                new_data['timestamp_str'] = new_data['timestamp'].astype(str)
 
             # Now concatenate with the already-formatted existing data
             self.data = pd.concat([self.data, new_data], ignore_index=True)
@@ -129,10 +129,10 @@ class VirtualLogListCtrl(wx.ListCtrl):
 
         # Convert timestamp to string for display
         if not self.data.empty and 'timestamp' in self.data.columns:
-            if pd.api.types.is_datetime64_any_dtype(self.data['timestamp']):
-                self.data['timestamp_str'] = self.data['timestamp'].dt.strftime('%m.%d.%Y-%H:%M:%S')
-            else:
-                self.data['timestamp_str'] = self.data['timestamp'].astype(str)
+            # if pd.api.types.is_datetime64_any_dtype(self.data['timestamp']):
+            #     self.data['timestamp_str'] = self.data['timestamp'].dt.strftime('%m.%d.%Y-%H:%M:%S')
+            # else:
+            self.data['timestamp_str'] = self.data['timestamp'].astype(str)
         else:
             self.data['timestamp_str'] = []
 

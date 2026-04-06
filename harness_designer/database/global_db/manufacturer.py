@@ -1,6 +1,8 @@
 
 from typing import Iterable as _Iterable
 
+from wx import propgrid as wxpg
+
 from .bases import EntryBase, TableBase
 from .mixins import NameMixin, DescriptionMixin
 
@@ -17,7 +19,8 @@ class ManufacturersTable(TableBase):
         from ..create_database import manufacturers
 
         manufacturers.table.add_to_db(self)
-        manufacturers.add_records(self._con, splash)
+        data_path = self._con.db_data.open(splash)
+        manufacturers.add_records(self._con, splash, data_path)
 
     def _update_table_in_db(self):
         from ..create_database import manufacturers
@@ -57,6 +60,14 @@ class ManufacturersTable(TableBase):
 
 class Manufacturer(EntryBase, NameMixin, DescriptionMixin):
     _table: ManufacturersTable = None
+
+    def build_monitor_packet(self):
+
+        packet = {
+            'manufacturers': [self.db_id]
+        }
+
+        return packet
 
     @property
     def address(self) -> str:
@@ -105,3 +116,34 @@ class Manufacturer(EntryBase, NameMixin, DescriptionMixin):
     @website.setter
     def website(self, value: str):
         self._table.update(self._db_id, website=value)
+
+    @property
+    def propgrid(self) -> wxpg.PGProperty:
+        from ...ui.editor_obj.prop_grid import combobox_prop as _combobox_prop
+        from ...ui.editor_obj.prop_grid import long_string_prop as _long_string_prop
+
+        group_prop = wxpg.PGProperty('Manufacturer', 'manufacturer')
+
+        rows = self.table.select('name', 'description', 'address', 'contact_person', 'phone', 'ext', 'email', 'website')
+
+        choices = [item[0] for item in rows]
+
+        name_prop = _combobox_prop.ComboboxProperty('Name', 'name', self.name, choices)
+        desc_prop = _long_string_prop.LongStringProperty('Description', 'description', self.description)
+        address_prop = _long_string_prop.LongStringProperty('Address', 'address', self.address)
+        contact_prop = wxpg.StringProperty('Contact', 'contact_person', self.contact_person)
+        phone_prop = wxpg.StringProperty('Phon', 'phone', self.phone)
+        ext_prop = wxpg.StringProperty('Ext', 'ext', self.ext)
+        email_prop = wxpg.StringProperty('Email', 'email', self.email)
+        website_prop = wxpg.StringProperty('Website', 'website', self.website)
+
+        group_prop.AppendChild(name_prop)
+        group_prop.AppendChild(desc_prop)
+        group_prop.AppendChild(address_prop)
+        group_prop.AppendChild(contact_prop)
+        group_prop.AppendChild(phone_prop)
+        group_prop.AppendChild(ext_prop)
+        group_prop.AppendChild(email_prop)
+        group_prop.AppendChild(website_prop)
+
+        return group_prop

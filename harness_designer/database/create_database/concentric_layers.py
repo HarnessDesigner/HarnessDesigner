@@ -3,7 +3,6 @@ from . import projects as _projects
 from . import concentrics as _concentrics
 
 from .. import db_connectors as _con
-from ... import logger as _logger
 
 
 pjt_id_field = _con.PrimaryKeyField('id')
@@ -24,5 +23,6 @@ pjt_table = _con.SQLTable(
     _con.IntField('idx', no_null=True),
     _con.FloatField('diameter', default='"0.0"', no_null=True),
     _con.IntField('num_wires', default='0', no_null=True),
-    _con.IntField('num_fillers', default='0', no_null=True)
+    _con.IntField('num_fillers', default='0', no_null=True),
+    _con.TextField('notes', default='""', no_null=True)
 )

@@ -2,7 +2,7 @@ from .. import db_connectors as _con
 from ... import logger as _logger
 
 
-def add_records(con, splash, data_path):
+def add_records(con, splash, _):
     con.execute('SELECT * FROM materials;')
     if con.fetchall():
         return

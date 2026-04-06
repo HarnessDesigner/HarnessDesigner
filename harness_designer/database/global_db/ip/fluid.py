@@ -3,6 +3,8 @@ from typing import Iterable as _Iterable
 from ..bases import EntryBase, TableBase
 from ..mixins import (NameMixin, DescriptionMixin)
 
+from .... import image as _image
+
 
 class IPFluidsTable(TableBase):
     __table_name__ = 'ip_fluids'
@@ -44,9 +46,5 @@ class IPFluid(EntryBase, NameMixin, DescriptionMixin):
         self._table.update(self._db_id, short_desc=value)
 
     @property
-    def icon_data(self) -> bytes | None:
-        return self._table.select('icon_data', id=self._db_id)[0][0]
-
-    @icon_data.setter
-    def icon_data(self, value: bytes | None):
-        self._table.update(self._db_id, icon_data=value)
+    def icon(self) -> _image.Image:
+        return getattr(_image.ip, f'IPX{self.name}')

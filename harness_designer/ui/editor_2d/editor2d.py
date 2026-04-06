@@ -4,11 +4,15 @@ from typing import TYPE_CHECKING
 import wx
 
 from wx import aui
-from ...gl.canvas2d import Canvas2D
+from ...gl import canvas2d as _canvas2d
+from ... import config as _config
 
 
 if TYPE_CHECKING:
     from .. import mainframe as _mainframe
+
+
+Config = _config.Config.editor2d
 
 
 class Editor2D(aui.AuiPaneInfo):
@@ -53,49 +57,43 @@ class Editor2D(aui.AuiPaneInfo):
     def Destroy(self):
         self.editor.Destroy()
 
+    def set_clone_obj(self, obj):
+        self.editor.set_clone_obj(obj)
 
-class Editor2DPanel(wx.Panel):
-    """
-    2D Schematic Editor Panel
 
-    Contains the OpenGL canvas for rendering the schematic view.
-    """
+class Editor2DPanel(_canvas2d.Canvas2D):
 
     def __init__(self, parent: "_mainframe.MainFrame"):
-        wx.Panel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_NONE)
-        self.mainframe = parent
+        if not Config.virtual_canvas.width or not Config.virtual_canvas.height:
+            max_x = 0
+            max_y = 0
+            min_x = 0
+            min_y = 0
+            displays = (wx.Display(i) for i in range(wx.Display.GetCount()))
+            for display in displays:
+                geometry = display.GetGeometry()
+                x, y = geometry.GetPosition()
+                w, h = geometry.GetSize()
+                max_x = max(x + w, max_x)
+                max_y = max(y + h, max_y)
+                min_x = min(x, min_x)
+                min_y = min(y, min_y)
 
-        # Create sizer
-        sizer = wx.BoxSizer(wx.VERTICAL)
+            # we want to keep a 16:9 aspect ratio so the rendered
+            # canvas doesn't get distorted. This is the reason why we are using
+            # a "virtual" size. The canvas in most cases will actually be
+            # larger than what is being viewed. The window clips what is being
+            # seen. This allows th window size to be changed without causing
+            # the contents of the window to change size. It actually expands the
+            # field of view instead of altering the size of what is ebing seen.
+            # this virtual size is able to be adjusted in the settings.
+            width = max_x - min_x
+            height = int(width / 1.777777)
 
-        # Create OpenGL canvas for 2D rendering
-        self.canvas = Canvas2D(self, parent.config.editor2d)
-        sizer.Add(self.canvas, 1, wx.EXPAND)
+            Config.virtual_canvas.width = width
+            Config.virtual_canvas.height = height
 
-        self.SetSizer(sizer)
+        size = (Config.virtual_canvas.width,
+                Config.virtual_canvas.height)
 
-        self._objects = []
-        self._selected = None
-
-    def set_selected(self, obj):
-        self._selected = obj
-        if self.canvas:
-            self.canvas.set_selected(obj)
-
-    def add_object(self, obj):
-        self._objects.append(obj)
-        if self.canvas:
-            self.canvas.add_object(obj)
-
-    def remove_object(self, obj):
-        try:
-            self._objects.remove(obj)
-            if self.canvas:
-                self.canvas.remove_object(obj)
-        except ValueError:
-            pass
-
-    def Refresh(self, *args, **kwargs):
-        if self.canvas:
-            self.canvas.Refresh(*args, **kwargs)
-        wx.Panel.Refresh(self, *args, **kwargs)
+        super().__init__(parent, Config, size)

@@ -1,5 +1,7 @@
 from typing import TYPE_CHECKING
 
+from wx import propgrid as wxpg
+
 from .base import BaseMixin
 
 
@@ -27,3 +29,8 @@ class FamilyMixin(BaseMixin):
     @family_id.setter
     def family_id(self, value: int):
         self._table.update(self._db_id, family_id=value)
+
+    @property
+    def _family_propgrid(self) -> wxpg.PGProperty:
+        prop = self.family.propgrid
+        return prop

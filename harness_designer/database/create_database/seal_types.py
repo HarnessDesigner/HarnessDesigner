@@ -36,7 +36,7 @@ def add_records(con, splash, data_path):
     con.commit()
 
 
-def add_seal_type(con, name, id=None):
+def add_seal_type(con, name, id=None):  # NOQA
 
     if id is None:
         con.execute(
@@ -48,31 +48,6 @@ def add_seal_type(con, name, id=None):
             'INSERT INTO seal_types (id, name) '
             'VALUES (?, ?);', (id, name)
             )
-
-    con.commit()
-
-
-def add_records(con, splash):
-    con.execute('SELECT id FROM seal_types WHERE id=0;')
-    if con.fetchall():
-        return
-
-    splash.SetText(f'Building seal types...')
-    splash.flush()
-
-    data = (
-        (0, 'None'),
-        (1, 'Unknown Seal'),
-        (2, 'Axial Seal'),
-        (3, 'Radial Seal'),
-        (4, 'Rubber Cap Over Wires'),
-        (5, 'Single Wire Seal'),
-        (6, 'Mat Seal')
-    )
-    splash.SetText(f'Adding seal types to db [{len(data)} | {len(data)}]...')
-    splash.flush()
-
-    con.executemany('INSERT INTO seal_types (id, name) VALUES (?, ?);', data)
 
     con.commit()
 
