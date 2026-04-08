@@ -634,6 +634,14 @@ class Angle(metaclass=AngleMeta):
 
         return cls.from_matrix(rot, db_id)
 
+    def rotate_point(self, point: np.ndarray) -> np.ndarray:
+        """Rotate a 3D point using this angle's quaternion"""
+        return self._q.rotate_point(point)
+
+    def rotate_points(self, points: np.ndarray) -> np.ndarray:
+        """Rotate multiple 3D points using this angle's quaternion"""
+        return self._q.rotate_points(points)
+
     @classmethod
     def from_axis_angle(cls, axis: np.ndarray, angle: float, db_id: str | None = None):
         return cls(_quaternion.Quaternion.from_axis_angle(axis, angle), db_id=db_id)
