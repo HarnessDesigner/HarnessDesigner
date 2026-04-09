@@ -1,5 +1,7 @@
 from typing import Iterable as _Iterable
 
+from ...ui.editor_obj import prop_grid as _prop_grid
+
 from .bases import EntryBase, TableBase
 from .mixins import NameMixin
 import uuid
@@ -89,19 +91,7 @@ class Color(EntryBase, NameMixin):
         self._table.update(self._db_id, rgb=rgba)
 
     @property
-    def propgrid(self) -> wxpg.PGProperty:
-        from ...ui.editor_obj.prop_grid import combobox_prop as _combobox_prop
-        from ...ui.editor_obj.prop_grid import long_string_prop as _long_string_prop
+    def propgrid(self) -> _prop_grid.Property:
+        color_prop = _prop_grid.ColorProperty('Color', 'color', self.ui)
 
-        group_prop = wxpg.PGProperty('Family', 'family')
-
-        rows = self.table.select('name, description', mfg_id=self.mfg_id)
-
-        choices = [item[0] for item in rows]
-        name_prop = _combobox_prop.ComboboxProperty('Name', 'name', self.name, choices)
-        desc_prop = _long_string_prop.LongStringProperty('Description', 'description', self.description)
-
-        group_prop.AppendChild(name_prop)
-        group_prop.AppendChild(desc_prop)
-
-        return group_prop
+        return color_prop

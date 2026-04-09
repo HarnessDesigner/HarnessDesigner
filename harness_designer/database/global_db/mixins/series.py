@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from wx import propgrid as wxpg
+from ....ui.editor_obj import prop_grid as _prop_grid
 
 from .base import BaseMixin
 
@@ -31,7 +31,7 @@ class SeriesMixin(BaseMixin):
         self._table.update(self._db_id, series_id=value)
 
     @property
-    def _series_propgrid(self) -> wxpg.PGProperty:
+    def _series_propgrid(self) -> _prop_grid.Property:
 
         series_prop = self.series.propgrid
 

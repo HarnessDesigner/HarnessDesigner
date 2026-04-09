@@ -1,6 +1,6 @@
 from typing import Iterable as _Iterable
 
-from wx import propgrid as wxpg
+from ...ui.editor_obj import prop_grid as _prop_grid
 
 from .pjt_bases import PJTEntryBase, PJTTableBase
 
@@ -76,12 +76,15 @@ class PJTPoint2D(PJTEntryBase):
         self._table.update(self._db_id, y=value)
         self._process_callbacks()
 
+    _stored_point2d: _point.Point = None
+
     @property
     def point(self) -> _point.Point:
+        if self._stored_point2d is None:
+            self._stored_point2d = _point.Point(self.x, self.y, db_id=str(self.db_id) + '2d')
+            self._stored_point2d.bind(self.__update_point)
 
-        point = _point.Point(self.x, self.y, db_id=str(self.db_id) + '2d')
-        point.bind(self.__update_point)
-        return point
+        return self._stored_point2d
 
     def __update_point(self, point: _point.Point):
         x, y, z = point.as_float
@@ -89,23 +92,13 @@ class PJTPoint2D(PJTEntryBase):
         self._process_callbacks()
 
     @property
-    def propgrid(self) -> wxpg.PGProperty:
-        group = wxpg.PropertyCategory('Project')
+    def propgrid(self) -> _prop_grid.Property:
+        group = _prop_grid.Property('2D Position', 'position2d')
+        x = _prop_grid.FloatProperty('X', 'x', self.x, min_value=-99999.9, max_value=99999.99, increment=0.1)
+        y = _prop_grid.FloatProperty('Y', 'y', self.y, min_value=-99999.9, max_value=99999.99, increment=0.1)
 
-        notes_prop = self._notes_propgrid
-        name_prop = self._name_propgrid
-        angle_prop = self._angle3d_propgrid
-        position_prop = self._position3d_propgrid
-        housing_prop = self._housing_propgrid
-        visible_prop = self._visible3d_propgrid
+        group.Append(x)
+        group.Append(y)
 
-        group.AppendChild(name_prop)
-        group.AppendChild(notes_prop)
-        group.AppendChild(angle_prop)
-        group.AppendChild(position_prop)
-        group.AppendChild(visible_prop)
-        group.AppendChild(housing_prop)
+        return group
 
-        part_prop = self._part_propgrid
-
-        return group, part_prop

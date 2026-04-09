@@ -1,7 +1,7 @@
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
 import uuid
-from wx import propgrid as wxpg
+from ...ui.editor_obj import prop_grid as _prop_grid
 
 from .bases import EntryBase, TableBase
 from . import cpa_lock as _cpa_lock
@@ -214,7 +214,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
             'genders': [self.gender_id],
             'directions': [self.direction_id],
             'cavity_locks': [self.cavity_lock_id],
-            'temperatures': [self.min_temp_id, self.max_temp],
+            'temperatures': [self.min_temp_id, self.max_temp_id],
             'colors': [color.db_id],
             'datasheets': [self.datasheet_id],
             'cads': [self.cad_id],
@@ -545,10 +545,9 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         return angle
 
     @property
-    def propgrid(self):
-        from ...ui.editor_obj.prop_grid import array_string_prop as _array_string_prop
+    def propgrid(self) -> _prop_grid.Category:
 
-        part_cat = wxpg.PropertyCategory('Part Attributes')
+        part_cat = _prop_grid.Category('Part Attributes')
         
         part_number_prop = self._part_number_propgrid
         manufacturer_prop = self._manufacturer_propgrid
@@ -565,23 +564,21 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         resource_prop = self._resource_propgrid
         model3d_prop = self._model3d_propgrid
 
-        accessory_parts_prop = wxpg.PGProperty('Accessory Parts')
+        accessory_parts_prop = _prop_grid.Property('Accessory Parts')
 
         compat_housings_prop = self._compat_housings_propgrid
         compat_terminals_prop = self._compat_terminals_propgrid
         compat_seals_prop = self._compat_seals_propgrid
 
-        compat_tpas_prop = _array_string_prop.ArrayStringProperty(
+        compat_tpas_prop = _prop_grid.ArrayStringProperty(
             'Compatible TPA Locks', 'compat_tpas_array', self.compat_tpas_array)
-        compat_cpas_prop = _array_string_prop.ArrayStringProperty(
+        compat_cpas_prop = _prop_grid.ArrayStringProperty(
             'Compatible CPA Locks', 'compat_cpas_array', self.compat_cpas_array)
-        compat_boots_prop = _array_string_prop.ArrayStringProperty(
+        compat_boots_prop = _prop_grid.ArrayStringProperty(
             'Compatible Boots', 'compat_boots_array', self.compat_boots_array)
-        compat_covers_prop = _array_string_prop.ArrayStringProperty(
+        compat_covers_prop = _prop_grid.ArrayStringProperty(
             'Compatible Covers', 'compat_covers_array', self.compat_covers_array)
-
-        from ...ui.editor_obj.prop_grid import position_prop as _position_prop
-
+        
         cover_position3d_prop = _position_prop.Position3DProperty(
             'Cover Position', 'cover_position3d', self.cover_position3d)
 
@@ -600,98 +597,90 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         cpa_lock_position3d_prop = _position_prop.Position3DProperty(
             'CPA Lock Position', 'cpa_lock_position3d', self.cpa_lock_position3d)
 
-        from ...ui.editor_obj.prop_grid import array_float_prop as _array_float_prop
-        from ...ui.editor_obj.prop_grid import array_int_prop as _array_int_prop
-        from ...ui.editor_obj.prop_grid import bool_prop as _bool_prop
-        from ...ui.editor_obj.prop_grid import float_prop as _float_prop
-        from ...ui.editor_obj.prop_grid import int_prop as _int_prop
-
-        terminal_sizes_prop = _array_float_prop.ArrayFloatProperty(
+        terminal_sizes_prop = _prop_grid.ArrayFloatProperty(
             'Terminal Sizes', 'terminal_sizes', self.terminal_sizes)
 
-        terminal_size_counts_prop = _array_int_prop.ArrayIntProperty(
+        terminal_size_counts_prop = _prop_grid.ArrayIntProperty(
             'Terminal Size Counts', 'terminal_size_counts', self.terminal_size_counts)
 
-        centerline_prop = _float_prop.FloatProperty(
+        centerline_prop = _prop_grid.FloatProperty(
             'Pitch', 'centerline', self.centerline, min_value=0.01,
             max_value=999.9, increment=0.01, units='mm')
 
-        rows_prop = _int_prop.IntProperty(
+        rows_prop = _prop_grid.IntProperty(
             'Rows', 'rows', self.rows, min_value=1, max_value=999)
 
-        num_pins_prop = _int_prop.IntProperty(
+        num_pins_prop = _prop_grid.IntProperty(
             'Pin Count', 'num_pins', self.num_pins, min_value=1, max_value=999)
 
         cavity_lock_prop = self._cavity_lock_propgrid
 
-        terminal_prop = wxpg.PGProperty('Terminals')
-        terminal_prop.AppendChild(compat_terminals_prop)
-        terminal_prop.AppendChild(cavity_lock_prop)
-        terminal_prop.AppendChild(terminal_sizes_prop)
-        terminal_prop.AppendChild(terminal_size_counts_prop)
-        terminal_prop.AppendChild(centerline_prop)
-        terminal_prop.AppendChild(rows_prop)
-        terminal_prop.AppendChild(num_pins_prop)
+        terminal_prop = _prop_grid.Property('Terminals')
+        terminal_prop.Append(compat_terminals_prop)
+        terminal_prop.Append(cavity_lock_prop)
+        terminal_prop.Append(terminal_sizes_prop)
+        terminal_prop.Append(terminal_size_counts_prop)
+        terminal_prop.Append(centerline_prop)
+        terminal_prop.Append(rows_prop)
+        terminal_prop.Append(num_pins_prop)
 
-        housings_prop = wxpg.PGProperty('Housings')
-        housings_prop.AppendChild(compat_housings_prop)
-        accessory_parts_prop.AppendChild(housings_prop)
+        housings_prop = _prop_grid.Property('Housings')
+        housings_prop.Append(compat_housings_prop)
+        accessory_parts_prop.Append(housings_prop)
 
-        sealing_prop = _bool_prop.BoolProperty(
+        sealing_prop = _prop_grid.BoolProperty(
             'Sealing', 'sealing', self.sealing)
         seal_type_prop = self.seal_type.propgrid
 
-        seals_prop = wxpg.PGProperty('Seals')
-        seals_prop.AppendChild(compat_seals_prop)
-        seals_prop.AppendChild(sealing_prop)
-        seals_prop.AppendChild(seal_type_prop)
-        seals_prop.AppendChild(seal_position3d_prop)
-        accessory_parts_prop.AppendChild(seals_prop)
+        seals_prop = _prop_grid.Property('Seals')
+        seals_prop.Append(compat_seals_prop)
+        seals_prop.Append(sealing_prop)
+        seals_prop.Append(seal_type_prop)
+        seals_prop.Append(seal_position3d_prop)
+        accessory_parts_prop.Append(seals_prop)
 
-        tpas_prop = wxpg.PGProperty('TPA Locks')
-        tpas_prop.AppendChild(compat_tpas_prop)
-        tpas_prop.AppendChild(tpa_lock_1_position3d_prop)
-        tpas_prop.AppendChild(tpa_lock_2_position3d_prop)
-        accessory_parts_prop.AppendChild(tpas_prop)
+        tpas_prop = _prop_grid.Property('TPA Locks')
+        tpas_prop.Append(compat_tpas_prop)
+        tpas_prop.Append(tpa_lock_1_position3d_prop)
+        tpas_prop.Append(tpa_lock_2_position3d_prop)
+        accessory_parts_prop.Append(tpas_prop)
 
         cpa_lock_type_prop = self.cpa_lock_type.propgrid
 
-        cpas_prop = wxpg.PGProperty('CPA Locks')
-        cpas_prop.AppendChild(compat_cpas_prop)
-        cpas_prop.AppendChild(cpa_lock_type_prop)
-        cpas_prop.AppendChild(cpa_lock_position3d_prop)
-        accessory_parts_prop.AppendChild(cpas_prop)
+        cpas_prop = _prop_grid.Property('CPA Locks')
+        cpas_prop.Append(compat_cpas_prop)
+        cpas_prop.Append(cpa_lock_type_prop)
+        cpas_prop.Append(cpa_lock_position3d_prop)
+        accessory_parts_prop.Append(cpas_prop)
 
-        boots_prop = wxpg.PGProperty('Boots')
-        boots_prop.AppendChild(compat_boots_prop)
-        boots_prop.AppendChild(boot_position3d_prop)
-        accessory_parts_prop.AppendChild(boots_prop)
+        boots_prop = _prop_grid.Property('Boots')
+        boots_prop.Append(compat_boots_prop)
+        boots_prop.Append(boot_position3d_prop)
+        accessory_parts_prop.Append(boots_prop)
 
-        covers_prop = wxpg.PGProperty('Covers')
-        covers_prop.AppendChild(compat_covers_prop)
-        covers_prop.AppendChild(cover_position3d_prop)
-        accessory_parts_prop.AppendChild(covers_prop)
-
-        from ...ui.editor_obj.prop_grid import angle_prop as _angle_prop
+        covers_prop = _prop_grid.Property('Covers')
+        covers_prop.Append(compat_covers_prop)
+        covers_prop.Append(cover_position3d_prop)
+        accessory_parts_prop.Append(covers_prop)
 
         angle3d_prop = _angle_prop.Angle3DProperty(
             'Housing Angle', 'angle3d', self.angle3d)
 
-        part_cat.AppendChild(part_number_prop)
-        part_cat.AppendChild(manufacturer_prop)
-        part_cat.AppendChild(description_prop)
-        part_cat.AppendChild(family_prop)
-        part_cat.AppendChild(series_prop)
-        part_cat.AppendChild(ip_rating_prop)
-        part_cat.AppendChild(gender_prop)
-        part_cat.AppendChild(color_prop)
-        part_cat.AppendChild(direction_prop)
-        part_cat.AppendChild(temperature_prop)
-        part_cat.AppendChild(dimension_prop)
-        part_cat.AppendChild(weight_prop)
-        part_cat.AppendChild(resource_prop)
-        part_cat.AppendChild(model3d_prop)
-        part_cat.AppendChild(accessory_parts_prop)
-        part_cat.AppendChild(angle3d_prop)
+        part_cat.Append(part_number_prop)
+        part_cat.Append(manufacturer_prop)
+        part_cat.Append(description_prop)
+        part_cat.Append(family_prop)
+        part_cat.Append(series_prop)
+        part_cat.Append(ip_rating_prop)
+        part_cat.Append(gender_prop)
+        part_cat.Append(color_prop)
+        part_cat.Append(direction_prop)
+        part_cat.Append(temperature_prop)
+        part_cat.Append(dimension_prop)
+        part_cat.Append(weight_prop)
+        part_cat.Append(resource_prop)
+        part_cat.Append(model3d_prop)
+        part_cat.Append(accessory_parts_prop)
+        part_cat.Append(angle3d_prop)
 
         return part_cat

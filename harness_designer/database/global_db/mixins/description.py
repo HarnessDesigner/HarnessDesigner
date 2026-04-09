@@ -1,6 +1,6 @@
 from .base import BaseMixin
 
-from wx import propgrid as wxpg
+from ....ui.editor_obj import prop_grid as _prop_grid
 
 
 class DescriptionMixin(BaseMixin):
@@ -14,9 +14,8 @@ class DescriptionMixin(BaseMixin):
         self._table.update(self._db_id, description=value)
 
     @property
-    def _description_propgrid(self) -> wxpg.PGProperty:
-        from ....ui.editor_obj.prop_grid import long_string_prop as _long_string_prop
+    def _description_propgrid(self) -> _prop_grid.Property:
 
-        desc_prop = _long_string_prop.LongStringProperty('Description', 'description', self.description)
+        desc_prop = _prop_grid.LongStringProperty('Description', 'description', self.description)
 
         return desc_prop

@@ -1,7 +1,7 @@
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
 import uuid
-from wx import propgrid as wxpg
+from ...ui.editor_obj import prop_grid as _prop_grid
 
 from .bases import EntryBase, TableBase
 from ...geometry import point as _point
@@ -404,36 +404,31 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return scale
 
     @property
-    def _dimension_propgrid(self) -> wxpg.PGProperty:
-        from ...ui.editor_obj.prop_grid import float_prop as _float_prop
+    def _dimension_propgrid(self) -> _prop_grid.Property:
 
-        group_prop = wxpg.PGProperty('Dimensions', '')
+        group_prop = _prop_grid.Property('Dimensions', '')
 
-        length_prop = _float_prop.FloatProperty(
+        length_prop = _prop_grid.FloatProperty(
             'Length', 'length', self.length,
             min_value=0.01, max_value=999.0, increment=0.01, units='mm')
 
-        width_prop = _float_prop.FloatProperty(
+        width_prop = _prop_grid.FloatProperty(
             'Width', 'width', self.width,
             min_value=0.01, max_value=999.0, increment=0.01, units='mm')
 
-        height_prop = _float_prop.FloatProperty(
+        height_prop = _prop_grid.FloatProperty(
             'Height', 'height', self.height,
             min_value=0.01, max_value=999.0, increment=0.01, units='mm')
 
-        group_prop.AppendChild(length_prop)
-        group_prop.AppendChild(width_prop)
-        group_prop.AppendChild(height_prop)
+        group_prop.Append(length_prop)
+        group_prop.Append(width_prop)
+        group_prop.Append(height_prop)
 
         return group_prop
 
     @property
-    def propgrid(self):
-        from ...ui.editor_obj.prop_grid import float_prop as _float_prop
-        from ...ui.editor_obj.prop_grid import bool_prop as _bool_prop
-        from ...ui.editor_obj.prop_grid import int_prop as _int_prop
-
-        part_cat = wxpg.PropertyCategory('Part Attributes')
+    def propgrid(self) -> _prop_grid.Category:
+        part_cat = _prop_grid.Category('Part Attributes')
         
         part_number_prop = self._part_number_propgrid
         manufacturer_prop = self._manufacturer_propgrid
@@ -453,51 +448,51 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         plating_prop = self._plating_propgrid
         cavity_lock_prop = self._cavity_lock_propgrid
 
-        sealing_prop = _bool_prop.BoolProperty(
+        sealing_prop = _prop_grid.BoolProperty(
             'Sealing', 'sealing', self.sealing)
 
-        blade_size_prop = _float_prop.FloatProperty(
+        blade_size_prop = _prop_grid.FloatProperty(
             'Blade Size', 'blade_size', self.blade_size,
             min_value=0.01, max_value=99.00, increment=0.01, units='mm')
 
-        resistance_prop = _float_prop.FloatProperty(
+        resistance_prop = _prop_grid.FloatProperty(
             'Resistance', 'resistance', self.resistance,
             min_value=0.1, max_value=10000000.00, increment=0.1, units='Ω')
 
-        mating_cycles_prop = _int_prop.IntProperty(
+        mating_cycles_prop = _prop_grid.IntProperty(
             'Mating Cycles', 'mating_cycles', self.mating_cycles,
             min_value=1, max_value=100000)
 
-        max_vibration_g_prop = _int_prop.IntProperty(
+        max_vibration_g_prop = _prop_grid.IntProperty(
             'Maximum Vibration', 'max_vibration_g', self.max_vibration_g,
             min_value=0, max_value=100000, units='G')
 
-        max_current_ma_prop = _int_prop.IntProperty(
+        max_current_ma_prop = _prop_grid.IntProperty(
             'Maximum Current', 'max_current_ma', self.max_current_ma,
             min_value=0, max_value=100000, units='ma')
 
-        part_cat.AppendChild(part_number_prop)
-        part_cat.AppendChild(manufacturer_prop)
-        part_cat.AppendChild(description_prop)
-        part_cat.AppendChild(family_prop)
-        part_cat.AppendChild(series_prop)
-        part_cat.AppendChild(gender_prop)
-        part_cat.AppendChild(color_prop)
-        part_cat.AppendChild(plating_prop)
-        part_cat.AppendChild(max_current_ma_prop)
-        part_cat.AppendChild(resistance_prop)
-        part_cat.AppendChild(blade_size_prop)
-        part_cat.AppendChild(wire_size_prop)
-        part_cat.AppendChild(sealing_prop)
-        part_cat.AppendChild(cavity_lock_prop)
-        part_cat.AppendChild(temperature_prop)
-        part_cat.AppendChild(dimension_prop)
-        part_cat.AppendChild(weight_prop)
-        part_cat.AppendChild(resource_prop)
-        part_cat.AppendChild(model3d_prop)
-        part_cat.AppendChild(max_vibration_g_prop)
-        part_cat.AppendChild(mating_cycles_prop)
-        part_cat.AppendChild(compat_housings_prop)
-        part_cat.AppendChild(compat_seals_prop)
+        part_cat.Append(part_number_prop)
+        part_cat.Append(manufacturer_prop)
+        part_cat.Append(description_prop)
+        part_cat.Append(family_prop)
+        part_cat.Append(series_prop)
+        part_cat.Append(gender_prop)
+        part_cat.Append(color_prop)
+        part_cat.Append(plating_prop)
+        part_cat.Append(max_current_ma_prop)
+        part_cat.Append(resistance_prop)
+        part_cat.Append(blade_size_prop)
+        part_cat.Append(wire_size_prop)
+        part_cat.Append(sealing_prop)
+        part_cat.Append(cavity_lock_prop)
+        part_cat.Append(temperature_prop)
+        part_cat.Append(dimension_prop)
+        part_cat.Append(weight_prop)
+        part_cat.Append(resource_prop)
+        part_cat.Append(model3d_prop)
+        part_cat.Append(max_vibration_g_prop)
+        part_cat.Append(mating_cycles_prop)
+        part_cat.Append(compat_housings_prop)
+        part_cat.Append(compat_seals_prop)
 
         return part_cat

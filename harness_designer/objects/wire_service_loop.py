@@ -12,15 +12,15 @@ if TYPE_CHECKING:
 class WireServiceLoop(_ObjectBase):
     obj2d: _wire_service_loop_2d.WireServiceLoop = None
     obj3d: _wire_service_loop_3d.WireServiceLoop = None
+    db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop"):
 
-        super().__init__(mainframe)
-
-        self.db_obj = db_obj
         db_obj.set_object(self)
+        db_obj.add_object(self)
+
+        super().__init__(mainframe, db_obj)
 
         self.obj2d = _wire_service_loop_2d.WireServiceLoop(self, db_obj)
         self.obj3d = _wire_service_loop_3d.WireServiceLoop(self, db_obj)
-

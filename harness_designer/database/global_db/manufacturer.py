@@ -1,7 +1,7 @@
 
 from typing import Iterable as _Iterable
 
-from wx import propgrid as wxpg
+from ...ui.editor_obj import prop_grid as _prop_grid
 
 from .bases import EntryBase, TableBase
 from .mixins import NameMixin, DescriptionMixin
@@ -118,32 +118,29 @@ class Manufacturer(EntryBase, NameMixin, DescriptionMixin):
         self._table.update(self._db_id, website=value)
 
     @property
-    def propgrid(self) -> wxpg.PGProperty:
-        from ...ui.editor_obj.prop_grid import combobox_prop as _combobox_prop
-        from ...ui.editor_obj.prop_grid import long_string_prop as _long_string_prop
-
-        group_prop = wxpg.PGProperty('Manufacturer', 'manufacturer')
+    def propgrid(self) -> _prop_grid.Property:
+        group_prop = _prop_grid.Property('Manufacturer', 'manufacturer')
 
         rows = self.table.select('name', 'description', 'address', 'contact_person', 'phone', 'ext', 'email', 'website')
 
         choices = [item[0] for item in rows]
 
-        name_prop = _combobox_prop.ComboboxProperty('Name', 'name', self.name, choices)
-        desc_prop = _long_string_prop.LongStringProperty('Description', 'description', self.description)
-        address_prop = _long_string_prop.LongStringProperty('Address', 'address', self.address)
-        contact_prop = wxpg.StringProperty('Contact', 'contact_person', self.contact_person)
-        phone_prop = wxpg.StringProperty('Phon', 'phone', self.phone)
-        ext_prop = wxpg.StringProperty('Ext', 'ext', self.ext)
-        email_prop = wxpg.StringProperty('Email', 'email', self.email)
-        website_prop = wxpg.StringProperty('Website', 'website', self.website)
+        name_prop = _prop_grid.ComboBoxProperty('Name', 'name', self.name, choices)
+        desc_prop = _prop_grid.LongStringProperty('Description', 'description', self.description)
+        address_prop = _prop_grid.LongStringProperty('Address', 'address', self.address)
+        contact_prop = _prop_grid.StringProperty('Contact', 'contact_person', self.contact_person)
+        phone_prop = _prop_grid.StringProperty('Phon', 'phone', self.phone)
+        ext_prop = _prop_grid.StringProperty('Ext', 'ext', self.ext)
+        email_prop = _prop_grid.StringProperty('Email', 'email', self.email)
+        website_prop = _prop_grid.StringProperty('Website', 'website', self.website)
 
-        group_prop.AppendChild(name_prop)
-        group_prop.AppendChild(desc_prop)
-        group_prop.AppendChild(address_prop)
-        group_prop.AppendChild(contact_prop)
-        group_prop.AppendChild(phone_prop)
-        group_prop.AppendChild(ext_prop)
-        group_prop.AppendChild(email_prop)
-        group_prop.AppendChild(website_prop)
+        group_prop.Append(name_prop)
+        group_prop.Append(desc_prop)
+        group_prop.Append(address_prop)
+        group_prop.Append(contact_prop)
+        group_prop.Append(phone_prop)
+        group_prop.Append(ext_prop)
+        group_prop.Append(email_prop)
+        group_prop.Append(website_prop)
 
         return group_prop

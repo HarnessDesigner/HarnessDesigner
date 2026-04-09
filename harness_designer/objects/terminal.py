@@ -12,15 +12,15 @@ if TYPE_CHECKING:
 class Terminal(_ObjectBase):
     obj2d: _terminal_2d.Terminal = None
     obj3d: _terminal_3d.Terminal = None
+    db_obj: "_pjt_terminal.PJTTerminal" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_terminal.PJTTerminal"):
 
-        super().__init__(mainframe)
-
-        self.db_obj = db_obj
         db_obj.set_object(self)
+        db_obj.add_object(self)
+
+        super().__init__(mainframe, db_obj)
 
         self.obj2d = _terminal_2d.Terminal(self, db_obj)
         self.obj3d = _terminal_3d.Terminal(self, db_obj)
-

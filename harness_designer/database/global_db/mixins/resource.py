@@ -1,6 +1,6 @@
 from .base import BaseMixin
 
-from wx import propgrid as wxpg
+from ....ui.editor_obj import prop_grid as _prop_grid
 
 
 class ResourceMixin(BaseMixin):
@@ -91,22 +91,22 @@ class ResourceMixin(BaseMixin):
         self._table.update(self._db_id, datasheet_id=value)
 
     @property
-    def _resource_propgrid(self) -> wxpg.PGProperty:
-        group_prop = wxpg.PGProperty('Resources', '')
+    def _resource_propgrid(self) -> _prop_grid.Property:
+        group_prop = _prop_grid.Property('Resources', '')
         image_id = self.image_id
         datasheet_id = self.datasheet_id
         cad_id = self.cad_id
 
         image = self._table.db.images_table[image_id]
         image_prop = image.propgrid
-        group_prop.AppendChild(image_prop)
+        group_prop.Append(image_prop)
 
         datasheet = self._table.db.datasheets_table[datasheet_id]
         datasheet_prop = datasheet.propgrid
-        group_prop.AppendChild(datasheet_prop)
+        group_prop.Append(datasheet_prop)
 
         cad = self._table.db.cads_table[cad_id]
         cad_prop = cad.propgrid
-        group_prop.AppendChild(cad_prop)
+        group_prop.Append(cad_prop)
 
         return group_prop

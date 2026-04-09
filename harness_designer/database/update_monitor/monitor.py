@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 
 import multiprocessing
 import threading
-import sys
+import os
 import wx
 import json
 
@@ -104,16 +104,21 @@ def process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.Q
                    exit_event: multiprocessing.Event, print_lock: multiprocessing.Lock,
                    sleep_event: multiprocessing.Event):
 
+    while in_queue.empty():
+        pass
+
+    ppid = in_queue.get_nowait()
+
     field_names = {}
     records = {}
 
     # Regenerate service ID from inherited stealth environment variables
-    cred_manager = _manager.Manager()
+    cred_manager = _manager.Manager(print_lock, pid=ppid)
 
-    credentials = cred_manager.retrieve_credentials()
+    credentials = cred_manager.retrieve_credentials(print_lock)
     if credentials is None:
         with print_lock:
-            print('DB MONITOR: eror collecting credentials')
+            print('DB MONITOR: error collecting credentials')
 
         return
 
@@ -128,16 +133,10 @@ def process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.Q
         sleep_event.wait(Config.monitor_duration)
         sleep_event.clear()
 
-        ping_received = False
-
         while not in_queue.empty():
             message = json.loads(in_queue.get_nowait())
 
-            if message['type'] == 'ping':
-                ping_received = True
-                out_queue.put(json.dumps({'type': 'pong'}))
-
-            elif message['type'].startswith('field_names_'):
+            if message['type'].startswith('field_names_'):
                 table_name = message['type'].replace('field_names_', '')
                 field_names[table_name] = message['data']
 
@@ -147,12 +146,14 @@ def process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.Q
                     records[table_name] = {}
 
                 data = message['data']
+                if not data:
+                    continue
 
                 fields = ', '.join(field_names[table_name])
 
                 db_ids = [f'id={db_id}' for db_id in data]
                 db_ids = ' OR '.join(db_ids)
-                connector.execute(f'SELECT {fields} WHERE {table_name} WHERE {db_ids};')
+                connector.execute(f'SELECT {fields} FROM {table_name} WHERE {db_ids};')
                 rows = connector.fetchall()
                 for row in rows:
                     records[table_name][row[0]] = row
@@ -186,11 +187,6 @@ def process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.Q
                 records.clear()
             else:
                 out_queue.put(json.dumps({'type': 'unknown_type', 'data': message['type']}))
-
-        if not ping_received:
-            with print_lock:
-                print('DB MONITOR: synchronization error with child process')
-                break
 
         for table_name, fields in field_names.items():
             fields = ', '.join(fields)
@@ -232,6 +228,8 @@ class Monitor(threading.Thread):
         self.print_lock = multiprocessing.Lock()
         self.sleep_event = multiprocessing.Event()
 
+        self.out_queue.put(os.getpid())
+
         self.queue_lock = threading.Lock()
         self.exit_event = threading.Event()
         self.queue = []
@@ -255,12 +253,8 @@ class Monitor(threading.Thread):
             self.wait_event.wait(Config.monitor_duration)
             self.wait_event.clear()
 
-            got_pong = False
             while not self.in_queue.empty():
                 message = json.loads(self.in_queue.get_nowait())
-                if message['type'] == 'pong':
-                    got_pong = True
-
                 if message['type'].startswith('update_'):
                     table_name = message['type'].replace('update_', '')
                     db_id = message['data']
@@ -273,28 +267,25 @@ class Monitor(threading.Thread):
 
                     wx.CallAfter(self.mainframe.project.update_objects, table_name, db_id)
 
-            if not got_pong:
-                self.out_queue.put(json.dumps({'type': 'ping'}))
-                self.sleep_event.set()
-                self.wait_event.wait(0.01)
-                self.wait_event.set()
-                continue
-
             with self.queue_lock:
                 messages = self.queue[:]
                 del self.queue[:]
-
-            self.out_queue.put(json.dumps({'type': 'ping'}))
 
             for message in messages:
                 self.out_queue.put(message)
 
             self.sleep_event.set()
 
+    def reset(self):
+        self.send(type='reset_storage')
+
     def send(self, **kwargs):
+        print(kwargs)
         message = json.dumps(kwargs)
         with self.queue_lock:
             self.queue.append(message)
+
+        self.wait_event.set()
 
     def stop(self):
         self.process_exit_event.set()

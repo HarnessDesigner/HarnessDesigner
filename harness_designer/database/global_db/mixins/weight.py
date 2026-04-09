@@ -1,6 +1,6 @@
 from .base import BaseMixin
 
-from wx import propgrid as wxpg
+from ....ui.editor_obj import prop_grid as _prop_grid
 
 
 class WeightMixin(BaseMixin):
@@ -14,10 +14,9 @@ class WeightMixin(BaseMixin):
         self._table.update(self._db_id, weight=value)
 
     @property
-    def _weight_propgrid(self) -> wxpg.PGProperty:
-        from ....ui.editor_obj.prop_grid import float_prop as _float_prop
+    def _weight_propgrid(self) -> _prop_grid.Property:
 
-        prop = _float_prop.FloatProperty(
+        prop = _prop_grid.FloatProperty(
             'Weight', 'weight', self.weight, min_value=0.01,
             max_value=999.00, increment=0.01, units='g')
 

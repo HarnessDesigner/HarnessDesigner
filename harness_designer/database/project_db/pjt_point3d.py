@@ -1,6 +1,7 @@
 from typing import Iterable as _Iterable
 
-from wx import propgrid as wxpg
+from ...ui.editor_obj import prop_grid as _prop_grid
+import weakref
 
 from .pjt_bases import PJTEntryBase, PJTTableBase
 
@@ -90,31 +91,25 @@ class PJTPoint3D(PJTEntryBase):
         self._table.update(self._db_id, x=x, y=y, z=z)
         self._process_callbacks()
 
+    _stored_point3d: _point.Point = None
+
     @property
     def point(self) -> _point.Point:
-        point = _point.Point(self.x, self.y, self.z, db_id=str(self.db_id) + '3d')
-        point.bind(self.__update_point)
+        if self._stored_point3d is None:
+            self._stored_point3d = _point.Point(self.x, self.y, self.z, db_id=str(self.db_id) + '3d')
+            self._stored_point3d.bind(self.__update_point)
 
-        return point
+        return self._stored_point3d
 
     @property
-    def propgrid(self) -> wxpg.PGProperty:
-        group = wxpg.PropertyCategory('Project')
+    def propgrid(self) -> _prop_grid.Property:
+        group = _prop_grid.Property('3D Position', 'position3d')
+        x = _prop_grid.FloatProperty('X', 'x', self.x, min_value=-9999.99, max_value=9999.99, increment=0.01, units='mm')
+        y = _prop_grid.FloatProperty('Y', 'y', self.y, min_value=0.0, max_value=9999.99, increment=0.01, units='mm')
+        z = _prop_grid.FloatProperty('Z', 'z', self.z, min_value=-9999.99, max_value=9999.99, increment=0.01, units='mm')
 
-        notes_prop = self._notes_propgrid
-        name_prop = self._name_propgrid
-        angle_prop = self._angle3d_propgrid
-        position_prop = self._position3d_propgrid
-        housing_prop = self._housing_propgrid
-        visible_prop = self._visible3d_propgrid
+        group.Append(x)
+        group.Append(y)
+        group.Append(z)
 
-        group.AppendChild(name_prop)
-        group.AppendChild(notes_prop)
-        group.AppendChild(angle_prop)
-        group.AppendChild(position_prop)
-        group.AppendChild(visible_prop)
-        group.AppendChild(housing_prop)
-
-        part_prop = self._part_propgrid
-
-        return group, part_prop
+        return group

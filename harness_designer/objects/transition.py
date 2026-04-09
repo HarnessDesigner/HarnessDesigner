@@ -16,10 +16,10 @@ class Transition(_ObjectBase):
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_transition.PJTTransition"):
 
-        super().__init__(mainframe)
-
-        self.db_obj = db_obj
         db_obj.set_object(self)
+        db_obj.add_object(self)
+
+        super().__init__(mainframe, db_obj)
 
         self.obj2d = _transition_2d.Transition(self, db_obj)
         self.obj3d = _transition_3d.Transition(self, db_obj)

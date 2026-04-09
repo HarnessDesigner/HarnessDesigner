@@ -1,6 +1,6 @@
 from .base import BaseMixin
 
-from wx import propgrid as wxpg
+from ....ui.editor_obj import prop_grid as _prop_grid
 
 
 class NotesMixin(BaseMixin):
@@ -14,9 +14,8 @@ class NotesMixin(BaseMixin):
         self._table.update(self._db_id, name=value)
 
     @property
-    def _notes_propgrid(self) -> wxpg.PGProperty:
-        from ....ui.editor_obj.prop_grid import long_string_prop as _long_string_prop
+    def _notes_propgrid(self) -> _prop_grid.Property:
 
-        notes_prop = _long_string_prop.LongStringProperty('Notes', 'notes', self.notes)
+        notes_prop = _prop_grid.LongStringProperty('Notes', 'notes', self.notes)
 
         return notes_prop

@@ -1,7 +1,7 @@
 
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
-from wx import propgrid as wxpg
+from ...ui.editor_obj import prop_grid as _prop_grid
 
 import uuid
 import weakref
@@ -289,61 +289,82 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
         return angle
 
     @property
-    def _angle2d_propgrid(self) -> wxpg.PGProperty:
-        from ...ui.editor_obj.prop_grid import angle_prop as _angle_prop
+    def _angle2d_propgrid(self) -> _prop_grid.Property:
+        angle = self.angle2d
 
-        angle_prop = _angle_prop.Angle2DProperty('Angle 2D', 'angle2d', self.angle2d)
-
+        angle_prop = _prop_grid.FloatProperty('Angle 2D', 'angle2d.z', angle.z,
+                                              min_value=-180.0, max_value=180.0, increment=0.01, units='°')
         return angle_prop
 
     @property
-    def _angle3d_propgrid(self) -> wxpg.PGProperty:
-        from ...ui.editor_obj.prop_grid import angle_prop as _angle_prop
+    def _angle3d_propgrid(self) -> _prop_grid.Property:
+        angle = self.angle3d
 
-        angle_prop = _angle_prop.Angle3DProperty('Angle 3D', 'angle3d', self.angle3d)
+        group = _prop_grid.Property('Angle 3D', 'angle3d')
+        x = _prop_grid.FloatProperty(
+            'X', 'x', angle.x, min_value=-180.0,
+            max_value=180.0, increment=0.01, units='°')
 
-        return angle_prop
+        y = _prop_grid.FloatProperty(
+            'Y', 'y', angle.y,  min_value=-180.0,
+            max_value=180.0, increment=0.01, units='°')
+
+        z = _prop_grid.FloatProperty(
+            'Z', 'z', angle.z, min_value=-180.0,
+            max_value=180.0, increment=0.01, units='°')
+
+        group.Append(x)
+        group.Append(y)
+        group.Append(z)
+
+        return group
 
     @property
-    def propgrid(self) -> wxpg.PGProperty:
-        from ...ui.editor_obj.prop_grid import position_prop as _position_prop
-
-        group = wxpg.PropertyCategory('Project')
+    def propgrid(self) -> tuple[_prop_grid.Category, _prop_grid.Category]:
+        group = _prop_grid.Category('Project')
 
         notes_prop = self._notes_propgrid
         name_prop = self._name_propgrid
 
-        angle_prop = wxpg.PGProperty('Angle')
-        angle3d_prop = self._angle3d_propgrid
+        angle_prop = _prop_grid.Property('Angle')
         angle2d_prop = self._angle2d_propgrid
-        angle_prop.AppendChild(angle2d_prop)
-        angle_prop.AppendChild(angle3d_prop)
+        angle3d_prop = self._angle3d_propgrid
+        angle2d_prop.SetLabel('2D')
+        angle3d_prop.SetLabel('3D')
+        angle_prop.Append(angle2d_prop)
+        angle_prop.Append(angle3d_prop)
 
-        position_prop = wxpg.PGProperty('Position')
+        position_prop = _prop_grid.Property('Position')
         position2d_prop = self._position2d_propgrid
         position3d_prop = self._position3d_propgrid
-        position_prop.AppendChild(position2d_prop)
-        position_prop.AppendChild(position3d_prop)
+        position2d_prop.SetLabel('2D')
+        position3d_prop.SetLabel('3D')
+        position_prop.Append(position2d_prop)
+        position_prop.Append(position3d_prop)
+
+        visible_prop = _prop_grid.Property('Visible')
+        visible2d_prop = self._visible2d_propgrid
+        visible3d_prop = self._visible3d_propgrid
+        visible2d_prop.SetLabel('2D')
+        visible3d_prop.SetLabel('3D')
+        visible_prop.Append(visible2d_prop)
+        visible_prop.Append(visible3d_prop)
 
         housing_prop = self._housing_propgrid
 
-        visible_prop = wxpg.PGProperty('Visible')
-        visible2d_prop = self._visible2d_propgrid
-        visible3d_prop = self._visible3d_propgrid
-        visible_prop.AppendChild(visible2d_prop)
-        visible_prop.AppendChild(visible3d_prop)
+        _ = self.terminal_position3d
+        terminal_position_prop = self._stored_terminal_position3d.propgrid
+        terminal_position_prop.SetLabel('Terminal 3D Position')
+        terminal_position_prop.SetName('terminal_position3d')
 
-        terminal_position_prop = _position_prop.Position3DProperty(
-            'Terminal Position 3D', 'terminal_position3d', self.terminal_position3d)
+        position_prop.Append(terminal_position_prop)
 
-        position_prop.AppendChild(terminal_position_prop)
-
-        group.AppendChild(name_prop)
-        group.AppendChild(notes_prop)
-        group.AppendChild(position_prop)
-        group.AppendChild(angle_prop)
-        group.AppendChild(housing_prop)
-        group.AppendChild(visible_prop)
+        group.Append(name_prop)
+        group.Append(notes_prop)
+        group.Append(position_prop)
+        group.Append(angle_prop)
+        group.Append(housing_prop)
+        group.Append(visible_prop)
 
         part_prop = self._part_propgrid
 

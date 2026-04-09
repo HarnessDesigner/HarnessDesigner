@@ -1,6 +1,7 @@
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
 import weakref
+from ...ui.editor_obj import prop_grid as _prop_grid
 
 from ... import logger as _logger
 
@@ -18,7 +19,7 @@ class _PJTEntrySingleton(type):
         cls._instances = {}
 
     @classmethod
-    def __remove_ref(cls, ref):
+    def __remove_instance_ref(cls, ref):
         for key, value in cls._instances.items():
             if value == ref:
                 break
@@ -38,7 +39,7 @@ class _PJTEntrySingleton(type):
 
         if instance is None:
             instance = super().__call__(table, db_id, project_id)
-            cls._instances[key] = weakref.ref(instance, cls.__remove_ref)
+            cls._instances[key] = weakref.ref(instance, cls.__remove_instance_ref)
 
         return instance
 
@@ -87,7 +88,7 @@ class PJTEntryBase(metaclass=_PJTEntrySingleton):
         self.__stop_callbacks -= 1
         self._process_callbacks()
 
-    def __remove_ref(self, ref):
+    def __remove_callback_ref(self, ref):
         try:
             self.__callbacks.remove(ref)
         except ValueError:
@@ -125,7 +126,7 @@ class PJTEntryBase(metaclass=_PJTEntrySingleton):
             elif cb == callback:
                 return
         else:
-            self.__callbacks.append(weakref.ref(callback, self.__remove_ref))
+            self.__callbacks.append(weakref.ref(callback, self.__remove_callback_ref))
 
     def Unbind(self, callback):
         for ref in self.__callbacks[:]:
@@ -170,11 +171,15 @@ class PJTEntryBase(metaclass=_PJTEntrySingleton):
 
         self._process_callbacks()
 
+    @property
+    def propgrid(self) -> tuple[_prop_grid.Category]:
+        raise NotImplementedError
+
 
 class PJTTableBase:
     __table_name__: str = None
 
-    def __init__(self, db: "PJTTables", project_id: int, table_names: list['str'], splash: "_splash.Splash"):
+    def __init__(self, db: "PJTTables", project_id: int | None, table_names: list['str'], splash: "_splash.Splash"):
         self.db = db
         self._con = db.connector
         self.__field_names__ = None
@@ -196,7 +201,7 @@ class PJTTableBase:
     @property
     def field_names(self):
         if self.__field_names__ is None:
-            field_names = self._con.get_table_column_names(self.__table_name__)
+            field_names = list(self._con.get_table_column_names(self.__table_name__))
             if 'id' in field_names:
                 field_names.remove('id')
 

@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING
 
-from wx import propgrid as wxpg
-
+from ....ui.editor_obj import prop_grid as _prop_grid
 from .base import BaseMixin
 
 
@@ -33,11 +32,11 @@ class AdhesiveMixin(BaseMixin):
         self._table.update(self._db_id, adhesive_ids=str(value))
 
     @property
-    def _adhesives_propgrid(self) -> wxpg.PGProperty:
-        group_prop = wxpg.PGProperty('Adhesives')
+    def _adhesives_propgrid(self) -> _prop_grid.Property:
+        group_prop = _prop_grid.Property('Adhesives')
 
         for adhesive in self.adhesives:
             adhesive_prop = adhesive.propgrid
-            group_prop.AppendChild(adhesive_prop)
+            group_prop.Append(adhesive_prop)
 
         return group_prop

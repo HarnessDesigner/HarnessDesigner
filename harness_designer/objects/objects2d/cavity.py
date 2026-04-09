@@ -13,6 +13,7 @@ from ...geometry import angle as _angle
 if TYPE_CHECKING:
     from ...database.project_db import pjt_cavity as _pjt_cavity
     from .. import cavity as _cavity
+    from ...geometry import point as _point
 
 
 class Cavity(_base2d.Base2D):
@@ -29,40 +30,20 @@ class Cavity(_base2d.Base2D):
     def __init__(self, parent: "_cavity.Cavity",
                  db_obj: "_pjt_cavity.PJTCavity"):
 
-        _base2d.Base2D.__init__(self, parent, db_obj)
+        position = db_obj.position2d
+        angle = self._angle = db_obj.angle2d
 
-        # Get position from database (Point instance)
-        if hasattr(db_obj, 'position2d') and db_obj.position2d:
-            self._position = db_obj.position2d.point
-        else:
-            from ...geometry import point as _point
-            self._position = _point.Point(0.0, 0.0, 0.0)
-
-        # Get angle from database (Angle instance) - for rotation
-        if hasattr(db_obj, 'angle2d') and db_obj.angle2d:
-            self._angle = db_obj.angle2d
-        else:
-            self._angle = _angle.Angle.from_euler(0.0, 0.0, 0.0)
-
+        _base2d.Base2D.__init__(self, parent, db_obj, position, angle)
         self._housing = None  # Reference to parent housing
 
-        # Cavity visual properties
-        self._width = 8.0  # mm
-        self._height = 6.0  # mm
-
-        # Bind to position and angle changes for automatic refresh
-        self._position.bind(self._on_position_changed)
-        self._angle.bind(self._on_angle_changed)
 
     def _on_position_changed(self, *args):
         """Called when cavity position changes"""
-        if self.editor2d and hasattr(self.editor2d, 'editor') and hasattr(self.editor2d.editor, 'canvas'):
-            self.editor2d.editor.canvas.Refresh()
+        self.editor2d.editor.canvas.Refresh()
 
     def _on_angle_changed(self, *args):
         """Called when cavity angle changes"""
-        if self.editor2d and hasattr(self.editor2d, 'editor') and hasattr(self.editor2d.editor, 'canvas'):
-            self.editor2d.editor.canvas.Refresh()
+        self.editor2d.editor.canvas.Refresh()
 
     def render_gl(self):
         """Render cavity using OpenGL with rotation - stippled rectangular box"""
@@ -80,8 +61,11 @@ class Cavity(_base2d.Base2D):
         GL.glTranslatef(x, y, 0.0)
         GL.glRotatef(math.degrees(rotation_rad), 0.0, 0.0, 1.0)
 
-        half_w = self._width / 2
-        half_h = self._height / 2
+        length = self.db_obj.part.length
+        width = self.db_obj.part.width
+
+        half_w = width / 2
+        half_h = length / 2
 
         # Enable line stippling for dashed effect
         GL.glEnable(GL.GL_LINE_STIPPLE)
@@ -113,23 +97,22 @@ class Cavity(_base2d.Base2D):
         GL.glPopMatrix()
 
     def render_selection(self):
-        """Render selection highlight with rotation"""
-        if self._position is None:
-            return
+        x, y = self._position.as_float[:-1]
 
-        x = self._position.x
-        y = self._position.y
-        rotation_rad = self._angle.z
+        rotation = self._angle.z
 
         # Save current transformation matrix
         GL.glPushMatrix()
 
         # Apply transformations
         GL.glTranslatef(x, y, 0.0)
-        GL.glRotatef(math.degrees(rotation_rad), 0.0, 0.0, 1.0)
+        GL.glRotatef(rotation, 0.0, 0.0, 0.0)
 
-        half_w = self._width / 2 + 1.5
-        half_h = self._height / 2 + 1.5
+        length = self.db_obj.part.length
+        width = self.db_obj.part.width
+
+        half_w = width / 2 + 1.5
+        half_h = length / 2 + 1.5
 
         # Draw selection outline (solid, not stippled)
         GL.glColor4f(1.0, 1.0, 0.0, 1.0)  # Yellow
@@ -144,14 +127,14 @@ class Cavity(_base2d.Base2D):
         # Restore transformation matrix
         GL.glPopMatrix()
 
-    def hit_test(self, world_x: float, world_y: float) -> bool:
-        """Test if point is inside cavity (accounting for rotation)"""
+    def hit_test(self, world_pos: "_point.Point") -> bool
+
         if self._position is None:
             return False
 
         # Translate point to cavity's local space
-        local_x = world_x - self._position.x
-        local_y = world_y - self._position.y
+        local_x = world_pos.x - self._position.x
+        local_y = world_pos.y - self._position.y
 
         # Rotate point by negative angle (inverse rotation)
         rotation_rad = -self._angle.z
@@ -161,21 +144,27 @@ class Cavity(_base2d.Base2D):
         rotated_x = local_x * cos_a - local_y * sin_a
         rotated_y = local_x * sin_a + local_y * cos_a
 
-        half_w = self._width / 2
-        half_h = self._height / 2
-        return (abs(rotated_x) <= half_w and abs(rotated_y) <= half_h)
+        length = self.db_obj.part.length
+        width = self.db_obj.part.width
+        
+        half_w = width / 2
+        half_h = length / 2
+        return abs(rotated_x) <= half_w and abs(rotated_y) <= half_h
 
     def get_bounds(self):
         """Get bounding box"""
         if self._position is None:
             return None
 
-        x = self._position.x
-        y = self._position.y
-        half_w = self._width / 2
-        half_h = self._height / 2
+        x, y = self._position.as_float[:-1]
 
-        return (x - half_w, y - half_h, x + half_w, y + half_h)
+        length = self.db_obj.part.length
+        width = self.db_obj.part.width
+
+        half_w = width / 2
+        half_h = length / 2
+
+        return x - half_w, y - half_h, x + half_w, y + half_h
 
     def move_to(self, world_x: float, world_y: float):
         """Move cavity to new position (use context manager)"""

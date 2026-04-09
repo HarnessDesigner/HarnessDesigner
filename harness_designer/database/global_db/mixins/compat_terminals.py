@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 
 from .base import BaseMixin
 
-from wx import propgrid as wxpg
+from ....ui.editor_obj import prop_grid as _prop_grid
 
 
 if TYPE_CHECKING:
@@ -36,10 +36,9 @@ class CompatTerminalsMixin(BaseMixin):
         self._table.update(self._db_id, compat_terminals=str(value))
 
     @property
-    def _compat_terminals_propgrid(self) -> wxpg.PGProperty:
-        from ....ui.editor_obj.prop_grid import array_string_prop as _array_string_prop
+    def _compat_terminals_propgrid(self) -> _prop_grid.Property:
 
-        prop = _array_string_prop.ArrayStringProperty(
+        prop = _prop_grid.ArrayStringProperty(
             'Compatible Terminals', 'compat_terminals_array', self.compat_terminals_array)
 
         return prop

@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from wx import propgrid as wxpg
+from ....ui.editor_obj import prop_grid as _prop_grid
 
 from .base import BaseMixin
 
@@ -50,16 +50,16 @@ class TemperatureMixin(BaseMixin):
         self._table.update(self._db_id, max_temp_id=value)
 
     @property
-    def _temperature_propgrid(self) -> wxpg.PGProperty:
+    def _temperature_propgrid(self) -> _prop_grid.Property:
 
-        group_prop = wxpg.PGProperty('Temperatures', '')
+        group_prop = _prop_grid.Property('Temperatures', '')
 
         min_temp_prop = self.min_temp.propgrid
         max_temp_prop = self.max_temp.propgrid
         min_temp_prop.SetLabel('Minimum')
         max_temp_prop.SetLabel('Maximum')
 
-        group_prop.AppendChild(min_temp_prop)
-        group_prop.AppendChild(max_temp_prop)
+        group_prop.Append(min_temp_prop)
+        group_prop.Append(max_temp_prop)
 
         return group_prop

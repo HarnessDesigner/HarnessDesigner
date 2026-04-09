@@ -1,6 +1,6 @@
 from typing import Iterable as _Iterable
 
-from wx import propgrid as wxpg
+from ...ui.editor_obj import prop_grid as _prop_grid
 
 from .bases import EntryBase, TableBase
 
@@ -198,12 +198,9 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
         self._table.update(self._db_id, length=value)
 
     @property
-    def propgrid(self):
-        from ...ui.editor_obj.prop_grid import float_prop as _float_prop
-        from ...ui.editor_obj.prop_grid import int_prop as _int_prop
-        from ...ui.editor_obj.prop_grid import bool_prop as _bool_prop
+    def propgrid(self) -> _prop_grid.Category:
 
-        part_cat = wxpg.PropertyCategory('Part Attributes')
+        part_cat = _prop_grid.Category('Part Attributes')
         
         part_number_prop = self._part_number_propgrid
         manufacturer_prop = self._manufacturer_propgrid
@@ -214,54 +211,54 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
         color_prop = self._color_propgrid
         temperature_prop = self._temperature_propgrid
 
-        diameter_prop = wxpg.PGProperty('Diameter')
+        diameter_prop = _prop_grid.Property('Diameter')
 
-        min_diameter_prop = _float_prop.FloatProperty(
+        min_diameter_prop = _prop_grid.FloatProperty(
             'Minimum', 'min_diameter', self.min_diameter, min_value=0.05,
             max_value=60.0, increment=0.01, units='mm')
             
-        max_diameter_prop = _float_prop.FloatProperty(
+        max_diameter_prop = _prop_grid.FloatProperty(
             'Maximum', 'max_diameter', self.max_diameter, min_value=0.05,
             max_value=60.0, increment=0.01, units='mm')
 
-        diameter_prop.AppendChild(min_diameter_prop)
-        diameter_prop.AppendChild(max_diameter_prop)
+        diameter_prop.Append(min_diameter_prop)
+        diameter_prop.Append(max_diameter_prop)
 
-        wire_size_prop = wxpg.PGProperty('Wire Size')
+        wire_size_prop = _prop_grid.Property('Wire Size')
 
-        min_awg_prop = _int_prop.IntProperty(
+        min_awg_prop = _prop_grid.IntProperty(
             'Minimum', 'min_awg', self.min_awg, min_value=30,
             max_value=0, units='awg')
             
-        max_awg_prop = _int_prop.IntProperty(
+        max_awg_prop = _prop_grid.IntProperty(
             'Maximum', 'max_awg', self.max_awg, min_value=30,
             max_value=0, units='awg')
 
-        wire_size_prop.AppendChild(min_awg_prop)
-        wire_size_prop.AppendChild(max_awg_prop)
+        wire_size_prop.Append(min_awg_prop)
+        wire_size_prop.Append(max_awg_prop)
 
-        length_prop = _float_prop.FloatProperty(
+        length_prop = _prop_grid.FloatProperty(
             'Length', 'length', self.length, min_value=0.01,
             max_value=99.99, increment=0.01, units='mm')
 
-        label_prop = _bool_prop.BoolProperty(
+        label_prop = _prop_grid.BoolProperty(
             'Has Label', 'has_label', self.has_label)
 
         weight_prop = self._weight_propgrid
         resource_prop = self._resource_propgrid
 
-        part_cat.AppendChild(part_number_prop)
-        part_cat.AppendChild(manufacturer_prop)
-        part_cat.AppendChild(description_prop)
-        part_cat.AppendChild(family_prop)
-        part_cat.AppendChild(series_prop)
-        part_cat.AppendChild(color_prop)
-        part_cat.AppendChild(temperature_prop)
-        part_cat.AppendChild(label_prop)
-        part_cat.AppendChild(length_prop)
-        part_cat.AppendChild(weight_prop)
-        part_cat.AppendChild(resource_prop)
-        part_cat.AppendChild(wire_size_prop)
-        part_cat.AppendChild(diameter_prop)
+        part_cat.Append(part_number_prop)
+        part_cat.Append(manufacturer_prop)
+        part_cat.Append(description_prop)
+        part_cat.Append(family_prop)
+        part_cat.Append(series_prop)
+        part_cat.Append(color_prop)
+        part_cat.Append(temperature_prop)
+        part_cat.Append(label_prop)
+        part_cat.Append(length_prop)
+        part_cat.Append(weight_prop)
+        part_cat.Append(resource_prop)
+        part_cat.Append(wire_size_prop)
+        part_cat.Append(diameter_prop)
 
         return part_cat

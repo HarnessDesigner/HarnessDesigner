@@ -1,6 +1,6 @@
 from typing import Iterable as _Iterable
 
-from wx import propgrid as wxpg
+from ...ui.editor_obj import prop_grid as _prop_grid
 
 from .bases import EntryBase, TableBase
 from .mixins import NameMixin, DescriptionMixin, ManufacturerMixin
@@ -62,19 +62,17 @@ class Series(EntryBase, NameMixin, DescriptionMixin, ManufacturerMixin):
         return packet
 
     @property
-    def propgrid(self) -> wxpg.PGProperty:
-        from ...ui.editor_obj.prop_grid import combobox_prop as _combobox_prop
-        from ...ui.editor_obj.prop_grid import long_string_prop as _long_string_prop
+    def propgrid(self) -> _prop_grid.Property:
 
-        group_prop = wxpg.PGProperty('Series', 'series')
+        group_prop = _prop_grid.Property('Series', 'series')
 
         rows = self.table.select('name', 'description', mfg_id=self.mfg_id)
 
         choices = [item[0] for item in rows]
-        name_prop = _combobox_prop.ComboboxProperty('Name', 'name', self.name, choices)
-        desc_prop = _long_string_prop.LongStringProperty('Description', 'description', self.description)
+        name_prop = _prop_grid.ComboBoxProperty('Name', 'name', self.name, choices)
+        desc_prop = _prop_grid.LongStringProperty('Description', 'description', self.description)
 
-        group_prop.AppendChild(name_prop)
-        group_prop.AppendChild(desc_prop)
+        group_prop.Append(name_prop)
+        group_prop.Append(desc_prop)
 
         return group_prop

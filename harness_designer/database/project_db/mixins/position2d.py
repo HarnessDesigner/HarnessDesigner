@@ -1,29 +1,32 @@
-from wx import propgrid as wxpg
+from ....ui.editor_obj import prop_grid as _prop_grid
 
 from .base import BaseMixin
 from ....geometry import point as _point
+from .. import pjt_point2d as _pjt_point2d
 
 
 class Position2DMixin(BaseMixin):
-
-    def _update_position2d(self, point: _point.Point):
-        x, y = point.as_float[:-1]
-        point_id = int(point.db_id[:-2])
-
-        self._table.execute(f'UPDATE pjt_points2d SET x=?, y=? WHERE id = {point_id};', (x, y))
-        self._table.commit()
+    
+    _stored_position2d: _pjt_point2d.PJTPoint2D = None
 
     @property
-    def position2d(self) -> "_point.Point":
-        point_id = self.position2d_id
+    def position2d(self) -> _point.Point:
 
-        self._table.execute(f'SELECT x, y FROM pjt_points2d WHERE id={point_id};')
-        rows = self._table.fetchall()
+        print(self._stored_position2d, self._obj, self.position2d_id)
 
-        if rows:
-            point = _point.Point(*rows[0], db_id=str(point_id) + '2d')
-            point.bind(self._update_position2d)
-            return point
+        if self._stored_position2d is None and self._obj is not None:
+            point_id = self.position2d_id
+
+            self._stored_position2d = self._table.db.pjt_points2d_table[
+                point_id]
+            self._stored_position2d.add_object(self._obj)
+            point = self._stored_position2d.point
+        elif self._stored_position2d is not None:
+            point = self._stored_position2d.point
+        else:
+            point = None
+
+        return point
 
     @property
     def position2d_id(self) -> int:
@@ -43,9 +46,8 @@ class Position2DMixin(BaseMixin):
         self._table.update(self._db_id, point2d_id=value)
         
     @property
-    def _position2d_propgrid(self) -> wxpg.PGProperty:
-        from ....ui.editor_obj.prop_grid import position_prop as _position_prop
+    def _position2d_propgrid(self) -> _prop_grid.Property:
+        _ = self.position2d
 
-        position_prop = _position_prop.Position2DProperty('Position 2D', 'position2d', self.position2d)
-
+        position_prop = self._stored_position2d.propgrid
         return position_prop

@@ -51,7 +51,6 @@ class Project:
 
     def __init__(self, mainframe: "_ui.MainFrame", db_obj: "_project.Project", project_name: str, project_id: int):
         self.db_obj = db_obj
-        db_obj.set_object(self)
 
         self.mainframe = mainframe
         self.gtables = mainframe.global_db
@@ -59,38 +58,16 @@ class Project:
         self.project_id = project_id
         self.project_name = project_name
         self.ptables = ptables = mainframe.project_db
-        self.connector.monitor.reset()
+        self.connector.update_monitor.reset()
         ptables.load(project_id)
         mainframe.object_browser.reset()
 
-        for table in (
-            self.ptables.pjt_boots_table,
-            self.ptables.pjt_bundle_layouts_table,
-            self.ptables.pjt_bundles_table,
-            self.ptables.pjt_cavities_table,
-            self.ptables.pjt_circuits_table,
-            self.ptables.pjt_concentric_layers_table,
-            self.ptables.pjt_concentric_wires_table,
-            self.ptables.pjt_concentrics_table,
-            self.ptables.pjt_covers_table,
-            self.ptables.pjt_cpa_locks_table,
-            self.ptables.pjt_housings_table,
-            self.ptables.pjt_notes_table,
-            self.ptables.pjt_points2d_table,
-            self.ptables.pjt_points3d_table,
-            self.ptables.pjt_seals_table,
-            self.ptables.pjt_splices_table,
-            self.ptables.pjt_terminals_table,
-            self.ptables.pjt_tpa_locks_table,
-            self.ptables.pjt_transition_branches_table,
-            self.ptables.pjt_transitions_table,
-            self.ptables.pjt_wire3d_layouts_table,
-            self.ptables.pjt_wire_markers_table,
-            self.ptables.pjt_wire_service_loops_table,
-            self.ptables.pjt_wires_table
-        ):
-            kwargs = {f'field_names_{table.table_name}': table.field_names}
-            self.connector.monitor.send(**kwargs)
+        project_tables = [getattr(self.ptables, item) for item in dir(self.ptables) if not item.startswith('_') and item.endswith('_table')]
+        global_tables = [getattr(self.gtables, item) for item in dir(self.gtables) if not item.startswith('_') and item.endswith('_table')]
+
+        for table in project_tables + global_tables:
+            kwargs = {'type': f'field_names_{table.table_name}', 'data': table.field_names}
+            self.connector.update_monitor.send(**kwargs)
 
         self._boots = {}
         self._bundles = {}
@@ -261,8 +238,11 @@ class Project:
             self._bundle_layouts[layout.db_id] = obj
 
         for table_name, ids in db_ids.items():
-            kwargs = {f'add_{table_name}': ids}
-            self.connector.monitor.send(**kwargs)
+            kwargs = {'type': f'add_{table_name}', 'data': ids}
+            self.connector.update_monitor.send(**kwargs)
+
+    def update_objects(self, table_name, db_id):
+        print(table_name, db_id)
 
     @property
     def obj_count(self) -> int:

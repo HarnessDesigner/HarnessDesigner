@@ -16,10 +16,10 @@ class TPALock(_ObjectBase):
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_tpa_lock.PJTTPALock"):
 
-        super().__init__(mainframe)
-
-        self.db_obj = db_obj
         db_obj.set_object(self)
+        db_obj.add_object(self)
+
+        super().__init__(mainframe, db_obj)
 
         self.obj2d = _tpa_lock_2d.TPALock(self, db_obj)
         self.obj3d = _tpa_lock_3d.TPALock(self, db_obj)

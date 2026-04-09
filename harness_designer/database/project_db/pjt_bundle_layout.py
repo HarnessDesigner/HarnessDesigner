@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 import weakref
-from wx import propgrid as wxpg
+from ...ui.editor_obj import prop_grid as _prop_grid
 
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from .mixins import Position3DMixin, Visible3DMixin, NotesMixin
@@ -104,15 +104,15 @@ class PJTBundleLayout(PJTEntryBase, Position3DMixin, Visible3DMixin, NotesMixin)
         self._process_callbacks()
 
     @property
-    def propgrid(self) -> wxpg.PGProperty:
-        group = wxpg.PropertyCategory('Project')
+    def propgrid(self) -> tuple[_prop_grid.Category]:
+        group = _prop_grid.Category('Project')
 
         notes_prop = self._notes_propgrid
         position_prop = self._position3d_propgrid
         visible_prop = self._visible3d_propgrid
 
-        group.AppendChild(notes_prop)
-        group.AppendChild(position_prop)
-        group.AppendChild(visible_prop)
+        group.Append(notes_prop)
+        group.Append(position_prop)
+        group.Append(visible_prop)
 
-        return group
+        return (group,)

@@ -1,14 +1,69 @@
-from wx import propgrid as wxpg
-
-from . import combobox_prop as _combobox_prop
-from . import angle_prop as _angle_prop
-from . import choice_prop as _choice_prop
-from . import float_prop as _float_prop
-from . import position_prop as _position_prop
+import wx
+from wx.lib import scrolledpanel
 
 
-wxpg.PropertyGrid.RegisterEditorClass(_float_prop.FloatSpinEditor())
-wxpg.PropertyGrid.RegisterEditorClass(_combobox_prop.ComboboxEditor())
-wxpg.PropertyGrid.RegisterEditorClass(_combobox_prop.ComboboxEditor())
-wxpg.PropertyGrid.RegisterEditorClass(_float_prop.FloatSpinEditor())
-wxpg.PropertyGrid.RegisterEditorClass(_combobox_prop.ComboboxEditor())
+class Category:
+
+    def __init__(self, name):
+        self._name = name
+
+        self._children = []
+
+    def GetName(self):
+        return self._name
+
+    def Append(self, child):
+        self._children.append(child)
+
+    def Create(self, parent):
+        for child in self._children:
+            child.Create(parent)
+            yield child
+
+
+class Grid(scrolledpanel.ScrolledPanel):
+
+    def __init__(self, parent, category):
+        scrolledpanel.ScrolledPanel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_SUNKEN)
+        self.category = category
+
+        sizer = wx.BoxSizer(wx.VERTICAL)
+
+        for child in category.Create(self):
+            sizer.Add(child, 0, wx.EXPAND)
+
+        self._sizer = sizer
+
+        self.SetSizer(sizer)
+        self.SetupScrolling()
+
+    def Append(self, item):
+        item.Create(self)
+        self._sizer.Add(item, 0, wx.EXPAND)
+        self.category.append(item)
+        self.SetupScrolling()
+
+    def GetFQN(self):  # NOQA
+        return ''
+
+
+class PropertyGrid(wx.Notebook):
+
+    def __init__(self, parent):
+        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_FIXEDWIDTH)
+        self._cur_category = None
+
+    def Clear(self):
+        self.DeleteAllPages()
+
+    def Append(self, item):
+        if isinstance(item, Category):
+            self._cur_category = Grid(self, item)
+            self.AddPage(self._cur_category, item.GetName())
+            return
+
+        elif self._cur_category is None:
+            category = Category('General')
+            self._cur_category = Grid(self, category)
+
+        self._cur_category.Append(item)

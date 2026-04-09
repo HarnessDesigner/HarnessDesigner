@@ -111,7 +111,7 @@ class TableBase:
     @property
     def field_names(self):
         if self.__field_names__ is None:
-            field_names = self._con.get_table_column_names(self.__table_name__)
+            field_names = list(self._con.get_table_column_names(self.__table_name__))
             if 'id' in field_names:
                 field_names.remove('id')
 

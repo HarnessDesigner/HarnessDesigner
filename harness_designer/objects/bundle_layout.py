@@ -13,14 +13,14 @@ if TYPE_CHECKING:
 class BundleLayout(_ObjectBase):
     obj2d: _bundle_layout_2d.BundleLayout = None
     obj3d: _bundle_layout_3d.BundleLayout = None
+    db_obj: "_pjt_bundle_layout.PJTBundleLayout" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_bundle_layout.PJTBundleLayout"):
-        super().__init__(mainframe)
-
-        self.db_obj = db_obj
         db_obj.set_object(self)
+        db_obj.add_object(self)
+
+        super().__init__(mainframe, db_obj)
 
         self.obj2d = _bundle_layout_2d.BundleLayout(self, db_obj)
         self.obj3d = _bundle_layout_3d.BundleLayout(self, db_obj)
-

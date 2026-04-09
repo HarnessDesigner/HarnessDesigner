@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Iterable as _Iterable
 import numpy as np
 import uuid
 import weakref
-from wx import propgrid as wxpg
+from ...ui.editor_obj import prop_grid as _prop_grid
 
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from ...geometry import point as _point
@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from . import pjt_boot as _pjt_boot
     from . import pjt_accessory as _pjt_accessory
     from . import pjt_point3d as _pjt_point3d
+    from . import pjt_point2d as _pjt_point2d
 
     from ..global_db import housing as _housing
 
@@ -227,6 +228,8 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin,
     @seal_position3d_id.setter
     def seal_position3d_id(self, value: int):
         self._table.update(self._db_id, seal_point3d_id=value)
+
+    _stored_boot_position3d: "_pjt_point3d.PJTPoint3D" = None
 
     @property
     def boot_position3d(self) -> "_point.Point":
@@ -535,8 +538,11 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin,
             point.bind(self._update_position3d)
             self._o_position3d = point.copy()
 
-        else:
+        elif self._stored_position3d is None:
             point = None
+        else:
+            point = self._stored_position3d.point
+
         return point
 
     @property
@@ -558,10 +564,6 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin,
         self._table.update(self._db_id, point3d_id=value)
 
     def _update_position2d(self, point: _point.Point):
-        point_id = int(point.db_id[:-2])
-        rows = self._table.execute(
-            f'SELECT x, y FROM pjt_points2d WHERE id={point_id};')
-
         delta = point - self._o_position2d
         self._o_position2d = point.copy()
 
@@ -588,8 +590,12 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin,
             point.bind(self._update_position2d)
             self._o_position2d = point.copy()
 
-        else:
+        elif self._stored_position2d is None:
+            print('This should not be happening')
             point = None
+
+        else:
+            point = self._stored_position2d.point
 
         return point
 
@@ -760,85 +766,136 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin,
         if self._angle2d_db_id is None:
             self._angle2d_db_id = str(uuid.uuid4())
 
-        angle = _angle.Angle.from_quat(
-            quat,
-            euler_angle,
-            db_id=self._angle2d_db_id
-            )
+        angle = _angle.Angle.from_quat(quat, euler_angle, db_id=self._angle2d_db_id)
         angle.bind(self.__update_angle2d)
 
         return angle
 
     @property
-    def _angle2d_propgrid(self) -> wxpg.PGProperty:
-        from ...ui.editor_obj.prop_grid import angle_prop as _angle_prop
+    def _angle2d_propgrid(self) -> _prop_grid.Property:
+        angle = self.angle2d
 
-        angle_prop = _angle_prop.Angle2DProperty('Angle 2D', 'angle2d', self.angle2d)
-
+        angle_prop = _prop_grid.FloatProperty('Angle 2D', 'angle2d.z', angle.z,
+                                              min_value=-180.0, max_value=180.0, increment=0.01, units='°')
         return angle_prop
 
     @property
-    def _angle3d_propgrid(self) -> wxpg.PGProperty:
-        from ...ui.editor_obj.prop_grid import angle_prop as _angle_prop
+    def _angle3d_propgrid(self) -> _prop_grid.Property:
+        angle = self.angle3d
 
-        angle_prop = _angle_prop.Angle3DProperty('Angle 3D', 'angle3d', self.angle3d)
+        group = _prop_grid.Property('Angle 3D', 'angle3d')
+        x = _prop_grid.FloatProperty(
+            'X', 'x', angle.x, min_value=-180.0,
+            max_value=180.0, increment=0.01, units='°')
 
-        return angle_prop
+        y = _prop_grid.FloatProperty(
+            'Y', 'y', angle.y,  min_value=-180.0,
+            max_value=180.0, increment=0.01, units='°')
+
+        z = _prop_grid.FloatProperty(
+            'Z', 'z', angle.z, min_value=-180.0,
+            max_value=180.0, increment=0.01, units='°')
+
+        group.Append(x)
+        group.Append(y)
+        group.Append(z)
+
+        return group
 
     @property
-    def _position2d_propgrid(self) -> wxpg.PGProperty:
-        from ...ui.editor_obj.prop_grid import position_prop as _position_prop
-
-        position_prop = _position_prop.Position2DProperty('Position 2D', 'position2d', self.position2d)
-
-        return position_prop
+    def _position2d_propgrid(self) -> _prop_grid.Property:
+        _ = self.position2d
+        return self._stored_position2d.propgrid
 
     @property
-    def _position3d_propgrid(self) -> wxpg.PGProperty:
-        from ...ui.editor_obj.prop_grid import position_prop as _position_prop
-
-        position_prop = _position_prop.Position3DProperty('Position 3D', 'position3d', self.position3d)
-
-        return position_prop
+    def _position3d_propgrid(self) -> _prop_grid.Property:
+        _ = self.position3d
+        return self._stored_position3d.propgrid
 
     @property
-    def propgrid(self) -> wxpg.PGProperty:
-        group = wxpg.PropertyCategory('Project')
+    def propgrid(self) -> tuple[_prop_grid.Category, _prop_grid.Category]:
+        group = _prop_grid.Category('Project')
 
         notes_prop = self._notes_propgrid
         name_prop = self._name_propgrid
 
-        angle_prop = wxpg.PGProperty('Angle')
+        angle_prop = _prop_grid.Property('Angle')
         angle2d_prop = self._angle2d_propgrid
         angle3d_prop = self._angle3d_propgrid
-        angle_prop.AppendChild(angle2d_prop)
-        angle_prop.AppendChild(angle3d_prop)
+        angle2d_prop.SetLabel('2D')
+        angle3d_prop.SetLabel('3D')
+        angle_prop.Append(angle2d_prop)
+        angle_prop.Append(angle3d_prop)
 
-        position_prop = wxpg.PGProperty('Position')
+        position_prop = _prop_grid.Property('Position')
         position2d_prop = self._position2d_propgrid
         position3d_prop = self._position3d_propgrid
-        position_prop.AppendChild(position2d_prop)
-        position_prop.AppendChild(position3d_prop)
+        position2d_prop.SetLabel('2D')
+        position3d_prop.SetLabel('3D')
+        position_prop.Append(position2d_prop)
+        position_prop.Append(position3d_prop)
 
-        visible_prop = wxpg.PGProperty('Visible')
+        visible_prop = _prop_grid.Property('Visible')
         visible2d_prop = self._visible2d_propgrid
         visible3d_prop = self._visible3d_propgrid
-        visible_prop.AppendChild(visible2d_prop)
-        visible_prop.AppendChild(visible3d_prop)
+        visible2d_prop.SetLabel('2D')
+        visible3d_prop.SetLabel('3D')
+        visible_prop.Append(visible2d_prop)
+        visible_prop.Append(visible3d_prop)
 
-        cavities_prop = wxpg.PGProperty('Cavities')
+        cavities_group = _prop_grid.Property('Cavities')
         for cavity in self.cavities:
             if cavity is None:
                 continue
 
-            cavities_prop.AppendChild(cavity.propgrid)
+            cavities_group.Append(cavity.propgrid)
 
-        group.AppendChild(name_prop)
-        group.AppendChild(notes_prop)
-        group.AppendChild(angle_prop)
-        group.AppendChild(position_prop)
-        group.AppendChild(visible_prop)
-        group.AppendChild(cavities_prop)
+        _ = self.cover_position3d
+        _ = self.boot_position3d
+        _ = self.cpa_lock_position3d
+        _ = self.tpa_lock_1_position3d
+        _ = self.tpa_lock_2_position3d
+        _ = self.seal_position3d
+
+        cover_prop = self._stored_cover_position3d.propgrid
+        boot_prop = self._stored_boot_position3d.propgrid
+        cpa_lock_prop = self._stored_cpa_lock_position3d.propgrid
+        tpa_lock1_prop = self._stored_tpa_lock_1_position3d.propgrid
+        tpa_lock2_prop = self._stored_tpa_lock_2_position3d.propgrid
+        seal_prop = self._stored_seal_position3d.propgrid
+
+        cover_prop.SetLabel('Cover 3D')
+        cover_prop.SetName('cover_position3d')
+        boot_prop.SetLabel('Boot 3D')
+        boot_prop.SetName('boot_position3d')
+
+        cpa_lock_prop.SetLabel('CPA Lock 3D')
+        cpa_lock_prop.SetName('cpa_lock_position3d')
+
+        tpa_lock1_prop.SetLabel('TPA Lock 1 3D')
+        tpa_lock1_prop.SetName('tpa_lock_1_position3d')
+
+        tpa_lock2_prop.SetLabel('TPA Lock 2 3D')
+        tpa_lock2_prop.SetName('tpa_lock_2_position3d')
+
+        seal_prop.SetLabel('Seal 3D')
+        seal_prop.SetName('seal_position3d')
+
+        accessories_group = _prop_grid.Property('Accessory Positions')
+        accessories_group.Append(cover_prop)
+        accessories_group.Append(boot_prop)
+        accessories_group.Append(cpa_lock_prop)
+        accessories_group.Append(tpa_lock1_prop)
+        accessories_group.Append(tpa_lock2_prop)
+        accessories_group.Append(seal_prop)
+
+        group.Append(name_prop)
+        group.Append(notes_prop)
+        group.Append(angle_prop)
+        group.Append(position_prop)
+        group.Append(visible_prop)
+        group.Append(accessories_group)
+        group.Append(cavities_group)
 
         part_prop = self._part_propgrid
 

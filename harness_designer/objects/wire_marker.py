@@ -12,14 +12,15 @@ if TYPE_CHECKING:
 class WireMarker(_ObjectBase):
     obj2d: _wire_marker_2d.WireMarker = None
     obj3d: _wire_marker_3d.WireMarker = None
+    db_obj: "_wire_marker.PJTWireMarker" = None
 
     def __init__(self, mainframe: "_mainframe.MainFrame",
                  db_obj: "_wire_marker.PJTWireMarker"):
 
-        super().__init__(mainframe)
-
-        self.db_obj = db_obj
         db_obj.set_object(self)
+        db_obj.add_object(self)
+
+        super().__init__(mainframe, db_obj)
 
         self.obj2d = _wire_marker_2d.WireMarker(self, db_obj)
         self.obj3d = _wire_marker_3d.WireMarker(self, db_obj)

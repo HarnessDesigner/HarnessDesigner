@@ -13,15 +13,15 @@ if TYPE_CHECKING:
 class Splice(_ObjectBase):
     obj2d: _splice_2d.Splice = None
     obj3d: _splice_3d.Splice = None
+    db_obj: "_pjt_splice.PJTSplice" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_splice.PJTSplice"):
 
-        super().__init__(mainframe)
-
-        self.db_obj = db_obj
         db_obj.set_object(self)
+        db_obj.add_object(self)
+
+        super().__init__(mainframe, db_obj)
 
         self.obj2d = _splice_2d.Splice(self, db_obj)
         self.obj3d = _splice_3d.Splice(self, db_obj)
-

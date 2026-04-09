@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from wx import propgrid as wxpg
+from ....ui.editor_obj import prop_grid as _prop_grid
 
 from .base import BaseMixin
 
@@ -29,7 +29,7 @@ class PlatingMixin(BaseMixin):
         self._table.update(self._db_id, plating_id=value)
 
     @property
-    def _plating_propgrid(self) -> wxpg.PGProperty:
+    def _plating_propgrid(self) -> _prop_grid.Property:
         prop = self.plating.propgrid
 
         return prop

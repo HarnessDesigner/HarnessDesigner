@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
-from wx import propgrid as wxpg
+from ...ui.editor_obj import prop_grid as _prop_grid
 
 from .bases import EntryBase, TableBase
 from .mixins import (PartNumberMixin, DescriptionMixin, ManufacturerMixin, FamilyMixin,
@@ -222,10 +222,8 @@ class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
         self._table.update(self._db_id, length=value)
 
     @property
-    def propgrid(self):
-        from ...ui.editor_obj.prop_grid import float_prop as _float_prop
-
-        part_cat = wxpg.PropertyCategory('Part Attributes')
+    def propgrid(self) -> _prop_grid.Category:
+        part_cat = _prop_grid.Category('Part Attributes')
         
         part_number_prop = self._part_number_propgrid
         manufacturer_prop = self._manufacturer_propgrid
@@ -241,38 +239,39 @@ class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
         plating_prop = self._plating_propgrid
         type_prop = self.type.propgrid
 
-        min_dia_prop = _float_prop.FloatProperty(
+        min_dia_prop = _prop_grid.FloatProperty(
             'Minimum Diameter', 'min_dia', self.min_dia,
             min_value=0.26, max_value=8.25, increment=0.01, units='mm')
 
-        max_dia_prop = _float_prop.FloatProperty(
+        max_dia_prop = _prop_grid.FloatProperty(
             'Maximum Diameter', 'max_dia', self.max_dia,
             min_value=0.26, max_value=8.25, increment=0.01, units='mm')
-        resistance_prop = _float_prop.FloatProperty(
+
+        resistance_prop = _prop_grid.FloatProperty(
             'Resistance', 'resistance', self.resistance,
             min_value=0.1, max_value=10000000.00, increment=0.1, units='Ω')
 
-        length_prop = _float_prop.FloatProperty(
+        length_prop = _prop_grid.FloatProperty(
             'Length', 'length', self.length,
             min_value=0.01, max_value=999.0, increment=0.01, units='mm')
 
-        part_cat.AppendChild(part_number_prop)
-        part_cat.AppendChild(manufacturer_prop)
-        part_cat.AppendChild(description_prop)
-        part_cat.AppendChild(family_prop)
-        part_cat.AppendChild(series_prop)
-        part_cat.AppendChild(length_prop)
-        part_cat.AppendChild(weight_prop)
-        part_cat.AppendChild(material_prop)
-        part_cat.AppendChild(color_prop)
-        part_cat.AppendChild(plating_prop)
-        part_cat.AppendChild(resistance_prop)
-        part_cat.AppendChild(temperature_prop)
-        part_cat.AppendChild(min_dia_prop)
-        part_cat.AppendChild(max_dia_prop)
-        part_cat.AppendChild(type_prop)
-        part_cat.AppendChild(weight_prop)
-        part_cat.AppendChild(resource_prop)
-        part_cat.AppendChild(model3d_prop)
+        part_cat.Append(part_number_prop)
+        part_cat.Append(manufacturer_prop)
+        part_cat.Append(description_prop)
+        part_cat.Append(family_prop)
+        part_cat.Append(series_prop)
+        part_cat.Append(length_prop)
+        part_cat.Append(weight_prop)
+        part_cat.Append(material_prop)
+        part_cat.Append(color_prop)
+        part_cat.Append(plating_prop)
+        part_cat.Append(resistance_prop)
+        part_cat.Append(temperature_prop)
+        part_cat.Append(min_dia_prop)
+        part_cat.Append(max_dia_prop)
+        part_cat.Append(type_prop)
+        part_cat.Append(weight_prop)
+        part_cat.Append(resource_prop)
+        part_cat.Append(model3d_prop)
 
         return part_cat

@@ -13,14 +13,14 @@ if TYPE_CHECKING:
 class Bundle(_ObjectBase):
     obj2d: _bundle_2d.Bundle = None
     obj3d: _bundle_3d.Bundle = None
+    db_obj: "_pjt_bundle.PJTBundle" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_bundle.PJTBundle"):
-        super().__init__(mainframe)
-
-        self.db_obj = db_obj
         db_obj.set_object(self)
+        db_obj.add_object(self)
+
+        super().__init__(mainframe, db_obj)
 
         self.obj2d = _bundle_2d.Bundle(self, db_obj)
         self.obj3d = _bundle_3d.Bundle(self, db_obj)
-

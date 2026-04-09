@@ -1,5 +1,5 @@
 import uuid
-from wx import propgrid as wxpg
+from ....ui.editor_obj import prop_grid as _prop_grid
 
 from .base import BaseMixin
 from ....geometry import angle as _angle
@@ -29,9 +29,12 @@ class Angle2DMixin(BaseMixin):
         return angle
 
     @property
-    def _angle2d_propgrid(self) -> wxpg.PGProperty:
-        from ....ui.editor_obj.prop_grid import angle_prop as _angle_prop
+    def _angle2d_propgrid(self) -> _prop_grid.Property:
+        angle = self.angle2d
 
-        angle_prop = _angle_prop.Angle2DProperty('Angle 2D', 'angle2d', self.angle2d)
-
+        angle_prop = _prop_grid.FloatProperty(
+            'Angle 2D', 'angle2d.z', angle.z,
+            min_value=-180.0, max_value=180.0, increment=0.01, units='°')
+        
         return angle_prop
+

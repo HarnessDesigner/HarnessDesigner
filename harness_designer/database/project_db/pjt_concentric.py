@@ -1,7 +1,7 @@
 
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
-from wx import propgrid as wxpg
+from ...ui.editor_obj import prop_grid as _prop_grid
 
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from .mixins import NotesMixin
@@ -141,21 +141,49 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
         self._process_callbacks()
 
     @property
-    def propgrid(self) -> wxpg.PGProperty:
-        group = wxpg.PropertyCategory('Concentric')
+    def propgrid(self) -> _prop_grid.Category:
+        group = _prop_grid.Category('Concentric')
 
         notes_prop = self._notes_propgrid
 
-        group.AppendChild(notes_prop)
-        if self.transition_branch is not None:
-            transition_branch_prop = self.transition_branch.propgrid
-            group.AppendChild(transition_branch_prop)
-
-        if self.bundle is not None:
-            bundle_prop = self.bundle.propgrid
-            group.AppendChild(bundle_prop)
+        group.Append(notes_prop)
+        layers_group = _prop_grid.Property('Layers')
 
         for layer in self.layers:
-            group.AppendChild(layer.propgrid)
+            layers_group.Append(layer.propgrid)
+
+        if self.transition_branch is not None:
+            t_group, t_part_prop = self.transition_branch.propgrid
+            attach_group = _prop_grid.Property('Transition Branch')
+            project_group = _prop_grid.Property('Project')
+            part_group = _prop_grid.Property('Part')
+
+            for child in t_group._children:
+                project_group.Append(child)
+
+            for child in t_part_prop._children:
+                part_group.Append(child)
+
+            attach_group.Append(project_group)
+            attach_group.Append(part_group)
+
+            group.Append(attach_group)
+
+        if self.bundle is not None:
+            b_group, b_part_prop = self.bundle.propgrid
+            attach_group = _prop_grid.Property('Bundle')
+            project_group = _prop_grid.Property('Project')
+            part_group = _prop_grid.Property('Part')
+
+            for child in b_group._children:
+                project_group.Append(child)
+
+            for child in b_part_prop._children:
+                part_group.Append(child)
+
+            attach_group.Append(project_group)
+            attach_group.Append(part_group)
+
+            group.Append(attach_group)
 
         return group

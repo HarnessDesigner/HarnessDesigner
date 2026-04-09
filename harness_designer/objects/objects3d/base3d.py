@@ -1,13 +1,11 @@
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 import numpy as np
 from OpenGL import GL
 
-from ... import debug as _debug
 from ... import color as _color
 from ...geometry import point as _point
 from ...geometry import angle as _angle
-from ...geometry import line as _line
 
 from ...geometry.decimal import Decimal as _d
 from ... import config as _config
@@ -373,11 +371,6 @@ class Base3D:
         self._is_opaque[0] = int(self._material.is_opaque)
         self._is_selected = flag
 
-        if flag:
-            self.mainframe._set_selected(self.parent)  # NOQA
-        else:
-            self.mainframe._set_selected(None)  # NOQA
-
     def delete(self):
         self.db_obj.delete()
 
@@ -388,7 +381,7 @@ class Base3D:
 
         return self._material
 
-    def _render_geometry(self, active_shader, pos_loc, rot_loc, scale_loc):
+    def _render_geometry(self, _, pos_loc, rot_loc, scale_loc):
         """Render the object geometry using the active shader program.
 
         Called by render() for each rendering pass (faces, edges, normals, vertices).
@@ -637,4 +630,3 @@ class Base3D:
 
     def get_context_menu(self):
         return None
-

@@ -1,29 +1,28 @@
-from wx import propgrid as wxpg
+from ....ui.editor_obj import prop_grid as _prop_grid
 
 from .base import BaseMixin
 from ....geometry import point as _point
+from .. import pjt_point3d as _pjt_point3d
 
 
 class Position3DMixin(BaseMixin):
 
-    def _update_position3d(self, point: _point.Point):
-        x, y, z = point.as_float
-        point_id = int(point.db_id[:-2])
-
-        self._table.execute(f'UPDATE pjt_points3d SET x=?, y=?, z=? WHERE id = {point_id};', (x, y, z))
-        self._table.commit()
+    _stored_position3d: _pjt_point3d.PJTPoint3D = None
 
     @property
-    def position3d(self) -> "_point.Point":
-        point_id = self.position3d_id
+    def position3d(self) -> _point.Point:
+        if self._stored_position3d is None and self._obj is not None:
+            point_id = self.position3d_id
 
-        self._table.execute(f'SELECT x, y, z FROM pjt_points3d WHERE id={point_id};')
-        rows = self._table.fetchall()
+            self._stored_position3d = self._table.db.pjt_points3d_table[point_id]
+            self._stored_position3d.add_object(self._obj)
+            point = self._stored_position3d.point
+        elif self._stored_position3d is not None:
+            point = self._stored_position3d.point
+        else:
+            point = None
 
-        if rows:
-            point = _point.Point(*rows[0], db_id=str(point_id) + '3d')
-            point.bind(self._update_position3d)
-            return point
+        return point
 
     @property
     def position3d_id(self) -> int:
@@ -43,9 +42,8 @@ class Position3DMixin(BaseMixin):
         self._table.update(self._db_id, point3d_id=value)
         
     @property
-    def _position3d_propgrid(self) -> wxpg.PGProperty:
-        from ....ui.editor_obj.prop_grid import position_prop as _position_prop
+    def _position3d_propgrid(self) -> _prop_grid.Property:
+        _ = self.position3d
 
-        position_prop = _position_prop.Position3DProperty('Position 3D', 'position3d', self.position3d)
-
+        position_prop = self._stored_position3d.propgrid
         return position_prop

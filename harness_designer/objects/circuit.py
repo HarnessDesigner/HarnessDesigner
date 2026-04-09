@@ -630,7 +630,12 @@ if TYPE_CHECKING:
 
 class Circuit(_ObjectBase):
 
-    def __init__(self, mainframe: "_ui.MainFrame", db_obj: "_pjt_circuit.PJTCircuit"):
-        super().__init__(mainframe)
-        self.db_obj = db_obj
+    db_obj: "_pjt_circuit.PJTCircuit" = None
+
+    def __init__(self, mainframe: "_ui.MainFrame",
+                 db_obj: "_pjt_circuit.PJTCircuit"):
+
         db_obj.set_object(self)
+        db_obj.add_object(self)
+
+        super().__init__(mainframe, db_obj)

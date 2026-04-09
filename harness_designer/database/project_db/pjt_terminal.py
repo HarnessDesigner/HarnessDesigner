@@ -1,12 +1,13 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 import weakref
-from wx import propgrid as wxpg
+from ...ui.editor_obj import prop_grid as _prop_grid
 
 from .pjt_bases import PJTEntryBase, PJTTableBase
 
 from .mixins import (Angle3DMixin, Angle2DMixin, Position3DMixin, Position2DMixin,
-                     PartMixin, Visible3DMixin, Visible2DMixin, NameMixin)
+                     PartMixin, Visible3DMixin, Visible2DMixin, NameMixin, NotesMixin,
+                     HousingMixin)
 
 from ... import logger as _logger
 
@@ -58,8 +59,9 @@ class PJTTerminalsTable(PJTTableBase):
         return PJTTerminal(self, db_id, self.project_id)
 
 
-class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin,
-                  Position2DMixin, PartMixin, Visible3DMixin, Visible2DMixin, NameMixin):
+class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin, NotesMixin,
+                  Position2DMixin, PartMixin, Visible3DMixin, Visible2DMixin, NameMixin,
+                  HousingMixin):
 
     _table: PJTTerminalsTable = None
 
@@ -266,8 +268,8 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin,
         return self._stored_part
 
     @property
-    def propgrid(self) -> wxpg.PGProperty:
-        group = wxpg.PropertyCategory('Project')
+    def propgrid(self) -> tuple[_prop_grid.Category, _prop_grid.Category]:
+        group = _prop_grid.Category('Project')
 
         notes_prop = self._notes_propgrid
         name_prop = self._name_propgrid
@@ -276,12 +278,12 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin,
         housing_prop = self._housing_propgrid
         visible_prop = self._visible3d_propgrid
 
-        group.AppendChild(name_prop)
-        group.AppendChild(notes_prop)
-        group.AppendChild(angle_prop)
-        group.AppendChild(position_prop)
-        group.AppendChild(visible_prop)
-        group.AppendChild(housing_prop)
+        group.Append(name_prop)
+        group.Append(notes_prop)
+        group.Append(angle_prop)
+        group.Append(position_prop)
+        group.Append(visible_prop)
+        group.Append(housing_prop)
 
         part_prop = self._part_propgrid
 

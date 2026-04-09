@@ -1,6 +1,6 @@
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
-from wx import propgrid as wxpg
+from ...ui.editor_obj import prop_grid as _prop_grid
 
 from .bases import EntryBase, TableBase
 from .mixins import (PartNumberMixin, ManufacturerMixin, DescriptionMixin,
@@ -246,10 +246,8 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
         self._table.update(self._db_id, max_dia=round(value, 6))
 
     @property
-    def propgrid(self):
-        from ...ui.editor_obj.prop_grid import float_prop as _float_prop
-
-        part_cat = wxpg.PropertyCategory('Part Attributes')
+    def propgrid(self) -> _prop_grid.Category:
+        part_cat = _prop_grid.Category('Part Attributes')
         
         part_number_prop = self._part_number_propgrid
         manufacturer_prop = self._manufacturer_propgrid
@@ -266,38 +264,38 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
 
         shrink_temp_prop.SetLabel('Shrink Temperature')
 
-        rigidity_prop = wxpg.StringProperty('Rigidity', 'rigidity', self.rigidity)
-        shrink_ratio_prop = wxpg.StringProperty('Shrink Ratio', 'shrink_ratio', self.shrink_ratio)
-        wall_prop = wxpg.StringProperty('Wall', 'wall', self.wall)
+        rigidity_prop = _prop_grid.StringProperty('Rigidity', 'rigidity', self.rigidity)
+        shrink_ratio_prop = _prop_grid.StringProperty('Shrink Ratio', 'shrink_ratio', self.shrink_ratio)
+        wall_prop = _prop_grid.StringProperty('Wall', 'wall', self.wall)
 
-        diameter_prop = wxpg.PGProperty('Diameter')
+        diameter_prop = _prop_grid.Property('Diameter')
 
-        min_dia_prop = _float_prop.FloatProperty(
+        min_dia_prop = _prop_grid.FloatProperty(
             'Minimum', 'min_dia', self.min_dia, min_value=0.01,
             max_value=999.9, increment=0.01, units='mm')
 
-        max_dia_prop = _float_prop.FloatProperty(
+        max_dia_prop = _prop_grid.FloatProperty(
             'Maximum', 'max_dia', self.max_dia, min_value=0.01,
             max_value=999.9, increment=0.01, units='mm')
 
-        diameter_prop.AppendChild(min_dia_prop)
-        diameter_prop.AppendChild(max_dia_prop)
+        diameter_prop.Append(min_dia_prop)
+        diameter_prop.Append(max_dia_prop)
 
-        part_cat.AppendChild(part_number_prop)
-        part_cat.AppendChild(manufacturer_prop)
-        part_cat.AppendChild(description_prop)
-        part_cat.AppendChild(family_prop)
-        part_cat.AppendChild(series_prop)
-        part_cat.AppendChild(diameter_prop)
-        part_cat.AppendChild(shrink_ratio_prop)
-        part_cat.AppendChild(shrink_temp_prop)
-        part_cat.AppendChild(color_prop)
-        part_cat.AppendChild(wall_prop)
-        part_cat.AppendChild(temperature_prop)
-        part_cat.AppendChild(rigidity_prop)
-        part_cat.AppendChild(weight_prop)
-        part_cat.AppendChild(resource_prop)
-        part_cat.AppendChild(material_prop)
-        part_cat.AppendChild(adhesives_prop)
+        part_cat.Append(part_number_prop)
+        part_cat.Append(manufacturer_prop)
+        part_cat.Append(description_prop)
+        part_cat.Append(family_prop)
+        part_cat.Append(series_prop)
+        part_cat.Append(diameter_prop)
+        part_cat.Append(shrink_ratio_prop)
+        part_cat.Append(shrink_temp_prop)
+        part_cat.Append(color_prop)
+        part_cat.Append(wall_prop)
+        part_cat.Append(temperature_prop)
+        part_cat.Append(rigidity_prop)
+        part_cat.Append(weight_prop)
+        part_cat.Append(resource_prop)
+        part_cat.Append(material_prop)
+        part_cat.Append(adhesives_prop)
 
         return part_cat

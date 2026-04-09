@@ -28,8 +28,6 @@ class StdErr(io.TextIOWrapper):
                                       errors='backslashreplace', newline=None,
                                       line_buffering=False, write_through=False)
 
-            sys._stderr = self
-
         sys.stderr = self
 
     def close(self) -> None:

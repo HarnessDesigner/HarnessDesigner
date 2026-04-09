@@ -5,7 +5,7 @@ import weakref
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from .mixins import NameMixin, NotesMixin
 
-from wx import propgrid as wxpg
+from ...ui.editor_obj import prop_grid as _prop_grid
 
 from . import pjt_wire as _pjt_wire
 from . import pjt_splice as _pjt_splice
@@ -487,21 +487,19 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return res
 
     @property
-    def propgrid(self) -> wxpg.PGProperty:
-        from ...ui.editor_obj.prop_grid import long_string_prop as _long_string_prop
-        from ...ui.editor_obj.prop_grid import int_prop as _int_prop
+    def propgrid(self) -> _prop_grid.Category:
 
-        group = wxpg.PropertyCategory('Circuit')
+        group = _prop_grid.Category('Circuit')
 
-        circuit_num_prop = _int_prop.IntPorperty('Circuit Number', 'curcuit_num', self.circuit_num, min_value=0, max_value=99999)
-        description_prop = _long_string_prop.LongStringProperty('Description', 'description', self.description)
+        circuit_num_prop = _prop_grid.IntProperty('Circuit Number', 'curcuit_num', self.circuit_num, min_value=0, max_value=99999)
+        description_prop = _prop_grid.LongStringProperty('Description', 'description', self.description)
 
         notes_prop = self._notes_propgrid
         name_prop = self._name_propgrid
 
-        group.AppendChild(name_prop)
-        group.AppendChild(circuit_num_prop)
-        group.AppendChild(description_prop)
-        group.AppendChild(notes_prop)
+        group.Append(name_prop)
+        group.Append(circuit_num_prop)
+        group.Append(description_prop)
+        group.Append(notes_prop)
 
         return group

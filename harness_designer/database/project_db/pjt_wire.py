@@ -314,12 +314,12 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin,
         housing_prop = self._housing_propgrid
         visible_prop = self._visible3d_propgrid
 
-        group.AppendChild(name_prop)
-        group.AppendChild(notes_prop)
-        group.AppendChild(angle_prop)
-        group.AppendChild(position_prop)
-        group.AppendChild(visible_prop)
-        group.AppendChild(housing_prop)
+        group.Append(name_prop)
+        group.Append(notes_prop)
+        group.Append(angle_prop)
+        group.Append(position_prop)
+        group.Append(visible_prop)
+        group.Append(housing_prop)
 
         part_prop = self._part_propgrid
 

@@ -1,6 +1,6 @@
 from .base import BaseMixin
 
-from wx import propgrid as wxpg
+from ....ui.editor_obj import prop_grid as _prop_grid
 
 
 class WireSizeMixin(BaseMixin):
@@ -54,41 +54,39 @@ class WireSizeMixin(BaseMixin):
         self._table.update(self._db_id, max_size_awg=value)
 
     @property
-    def _wire_size_propgrid(self) -> wxpg.PGProperty:
-        from ....ui.editor_obj.prop_grid import float_prop as _float_prop
-        from ....ui.editor_obj.prop_grid import int_prop as _int_prop
+    def _wire_size_propgrid(self) -> _prop_grid.Property:
 
-        group_prop = wxpg.PGProperty('Wire Sizes', '')
+        group_prop = _prop_grid.Property('Wire Sizes', '')
 
-        min_mm2_prop = _float_prop.FloatProperty(
+        min_mm2_prop = _prop_grid.FloatProperty(
             'Minimum Cross', 'min_size_mm2', self.min_size_mm2, min_value=0.05,
             max_value=55.0, increment=0.01, units='mm²')
 
-        max_mm2_prop = _float_prop.FloatProperty(
+        max_mm2_prop = _prop_grid.FloatProperty(
             'Maximum Cross', 'max_size_mm2', self.max_size_mm2, min_value=0.05,
             max_value=55.0, increment=0.01, units='mm²')
 
-        min_awg_prop = _int_prop.IntProperty(
+        min_awg_prop = _prop_grid.IntProperty(
             'Minimum AWG', 'min_size_awg', self.min_size_awg,
             min_value=30, max_value=0, units='awg')
 
-        max_awg_prop = _int_prop.IntProperty(
+        max_awg_prop = _prop_grid.IntProperty(
             'Maximum AWG', 'max_size_awg', self.max_size_awg,
             min_value=30, max_value=0, units='awg')
 
-        min_dia_prop = _float_prop.FloatProperty(
+        min_dia_prop = _prop_grid.FloatProperty(
             'Minimum Diameter', 'min_dia', self.min_dia,
             min_value=0.26, max_value=8.25, increment=0.01, units='mm')
 
-        max_dia_prop = _float_prop.FloatProperty(
+        max_dia_prop = _prop_grid.FloatProperty(
             'Maximum Diameter', 'max_dia', self.max_dia,
             min_value=0.26, max_value=8.25, increment=0.01, units='mm')
 
-        group_prop.AppendChild(min_mm2_prop)
-        group_prop.AppendChild(max_mm2_prop)
-        group_prop.AppendChild(min_awg_prop)
-        group_prop.AppendChild(max_awg_prop)
-        group_prop.AppendChild(min_dia_prop)
-        group_prop.AppendChild(max_dia_prop)
+        group_prop.Append(min_mm2_prop)
+        group_prop.Append(max_mm2_prop)
+        group_prop.Append(min_awg_prop)
+        group_prop.Append(max_awg_prop)
+        group_prop.Append(min_dia_prop)
+        group_prop.Append(max_dia_prop)
 
         return group_prop

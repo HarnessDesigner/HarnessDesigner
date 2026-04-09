@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
-from wx import propgrid as wxpg
+from ...ui.editor_obj import prop_grid as _prop_grid
 
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from .mixins import NotesMixin
@@ -144,27 +144,33 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
         self._process_callbacks()
 
     @property
-    def propgrid(self) -> wxpg.PGProperty:
-        from ...ui.editor_obj.prop_grid import float_prop as _float_prop
-        from ...ui.editor_obj.prop_grid import int_prop as _int_prop
+    def propgrid(self) -> _prop_grid.Property:
 
-        group = wxpg.PGProperty(f'Layer {self.idx}')
+        group = _prop_grid.Property(f'Layer {self.idx}')
 
         notes_prop = self._notes_propgrid
 
-        num_fillers_prop = _int_prop.IntProperty('Filler Count', 'num_fillders', self.num_fillers, min_value=0, max_value=999)
-        num_wires = _int_prop.IntProperty('Wire Count', 'num_wires', self.num_wires, min_value=0, max_value=999)
-        diameter = _float_prop.FloatProperty('Diameter', 'diameter', self.diameter, min_value=0.0, max_value=999.0, increment=0.1, units='mm')
+        num_fillers_prop = _prop_grid.IntProperty(
+            'Filler Count', 'num_fillders',
+            self.num_fillers, min_value=0, max_value=999)
 
-        wire_prop = wxpg.PGProperty(f'Wires')
+        num_wires = _prop_grid.IntProperty(
+            'Wire Count', 'num_wires',
+            self.num_wires, min_value=0, max_value=999)
+
+        diameter = _prop_grid.FloatProperty(
+            'Diameter', 'diameter', self.diameter,
+            min_value=0.0, max_value=999.0, increment=0.1, units='mm')
+
+        wire_prop = _prop_grid.Property(f'Wires')
 
         for wire in self.wires:
-            wire_prop.AppendChild(wire.propgrid)
+            wire_prop.Append(wire.propgrid)
 
-        group.AppendChild(notes_prop)
-        group.AppendChild(num_fillers_prop)
-        group.AppendChild(num_wires)
-        group.AppendChild(diameter)
-        group.AppendChild(wire_prop)
+        group.Append(notes_prop)
+        group.Append(num_fillers_prop)
+        group.Append(num_wires)
+        group.Append(diameter)
+        group.Append(wire_prop)
 
         return group

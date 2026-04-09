@@ -1,8 +1,8 @@
-
-from wx import propgrid as wxpg
+from ....ui.editor_obj import prop_grid as _prop_grid
 
 from .base import BaseMixin
 from ....geometry import point as _point
+from .. import pjt_point3d as _pjt_point3d
 
 
 class StartStopPosition3DMixin(BaseMixin):
@@ -14,17 +14,22 @@ class StartStopPosition3DMixin(BaseMixin):
         self._table.execute(f'UPDATE pjt_points3d SET x=?, y=?, z=? WHERE id = {point_id};', (x, y, z))
         self._table.commit()
 
+    _stored_start_position3d: _pjt_point3d.PJTPoint3D = None
+
     @property
     def start_position3d(self) -> _point.Point:
-        point_id = self.start_position3d_id
+        if self._stored_start_position3d is None and self._obj is not None:
+            point_id = self.start_position3d_id
 
-        self._table.execute(f'SELECT x, y, z FROM pjt_points3d WHERE id={point_id};')
-        rows = self._table.fetchall()
+            self._stored_start_position3d = self._table.db.pjt_points3d_table[point_id]
+            self._stored_start_position3d.add_object(self._obj)
+            point = self._stored_start_position3d.point
+        elif self._stored_start_position3d is not None:
+            point = self._stored_start_position3d.point
+        else:
+            point = None
 
-        if rows:
-            point = _point.Point(*rows[0], db_id=str(point_id))
-            point.bind(self._update_start_position3d)
-            return point
+        return point
 
     @property
     def start_position3d_id(self) -> int:
@@ -43,24 +48,22 @@ class StartStopPosition3DMixin(BaseMixin):
     def start_position3d_id(self, value: int):
         self._table.update(self._db_id, start_point3d_id=value)
 
-    def _update_stop_position3d(self, point: _point.Point):
-        x, y, z = point.as_float
-        point_id = int(point.db_id)
-
-        self._table.execute(f'UPDATE pjt_points3d SET x=?, y=?, z=? WHERE id = {point_id};', (x, y, z))
-        self._table.commit()
+    _stored_stop_position3d: _pjt_point3d.PJTPoint3D = None
 
     @property
     def stop_position3d(self) -> _point.Point:
-        point_id = self.stop_position3d_id
+        if self._stored_stop_position3d is None and self._obj is not None:
+            point_id = self.stop_position3d_id
 
-        self._table.execute(f'SELECT x, y, z FROM pjt_points3d WHERE id={point_id};')
-        rows = self._table.fetchall()
+            self._stored_stop_position3d = self._table.db.pjt_points3d_table[point_id]
+            self._stored_stop_position3d.add_object(self._obj)
+            point = self._stored_stop_position3d.point
+        elif self._stored_stop_position3d is not None:
+            point = self._stored_stop_position3d.point
+        else:
+            point = None
 
-        if rows:
-            point = _point.Point(*rows[0], db_id=str(point_id))
-            point.bind(self._update_stop_position3d)
-            return point
+        return point
 
     @property
     def stop_position3d_id(self) -> int:
@@ -80,14 +83,22 @@ class StartStopPosition3DMixin(BaseMixin):
         self._table.update(self._db_id, stop_point3d_id=value)
 
     @property
-    def _start_stop_position3d_propgrid(self) -> wxpg.PGProperty:
-        from ....ui.editor_obj.prop_grid import position_prop as _position_prop
+    def _start_stop_position3d_propgrid(self) -> _prop_grid.Property:
 
-        position_prop = wxpg.PGProperty('3D Positions')
-        start_position_prop = _position_prop.Position3DProperty('Start', 'start_position3d', self.start_position3d)
-        stop_position_prop = _position_prop.Position3DProperty('Stop', 'stop_position3d', self.stop_position3d)
+        position_prop = _prop_grid.Property('3D Positions')
 
-        position_prop.AppendChild(start_position_prop)
-        position_prop.AppendChild(stop_position_prop)
+        _ = self.start_position3d
+        _ = self.stop_position3d
+
+        start_prop = self._stored_start_position3d.propgrid
+        stop_prop = self._stored_stop_position3d.propgrid
+
+        start_prop.SetLabel('Start')
+        start_prop.SetName('start_position3d')
+        stop_prop.SetLabel('Stop')
+        stop_prop.SetName('stop_position3d')
+
+        position_prop.Append(start_prop)
+        position_prop.Append(stop_prop)
 
         return position_prop

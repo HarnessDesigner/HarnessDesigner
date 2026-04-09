@@ -1,10 +1,9 @@
 
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
-from wx import propgrid as wxpg
-
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from .mixins import Position3DMixin, PartMixin
+from ...ui.editor_obj import prop_grid as _prop_grid
 
 
 if TYPE_CHECKING:
@@ -152,22 +151,15 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin):
         return self._stored_part
 
     @property
-    def propgrid(self) -> wxpg.PGProperty:
-        group = wxpg.PropertyCategory('Project')
+    def propgrid(self) -> tuple[_prop_grid.Category, _prop_grid.Category]:
+        group = _prop_grid.Category('Project')
 
-        notes_prop = self._notes_propgrid
-        name_prop = self._name_propgrid
-        angle_prop = self._angle3d_propgrid
         position_prop = self._position3d_propgrid
-        housing_prop = self._housing_propgrid
-        visible_prop = self._visible3d_propgrid
+        diameter_prop = _prop_grid.FloatProperty('Diameter', 'diameter', self.diameter,
+                                                 min_value=0.01, max_value=99.99, increment=0.01, units='mm')
 
-        group.AppendChild(name_prop)
-        group.AppendChild(notes_prop)
-        group.AppendChild(angle_prop)
-        group.AppendChild(position_prop)
-        group.AppendChild(visible_prop)
-        group.AppendChild(housing_prop)
+        group.Append(diameter_prop)
+        group.Append(position_prop)
 
         part_prop = self._part_propgrid
 

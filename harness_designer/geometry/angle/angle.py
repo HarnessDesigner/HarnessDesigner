@@ -31,8 +31,11 @@ class AngleMeta(type):
 
         if db_id is not None:
             if db_id in cls._instances:
-                instance = cls._instances[db_id]
+                instance = cls._instances[db_id]()
             else:
+                instance = None
+
+            if instance is None:
                 instance = super().__call__(q, euler_angles, db_id)
                 cls._instances[db_id] = weakref.ref(instance, cls._remove_instance)
         else:

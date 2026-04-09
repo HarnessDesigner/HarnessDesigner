@@ -12,15 +12,15 @@ if TYPE_CHECKING:
 class CPALock(_ObjectBase):
     obj2d: _cpa_lock_2d.CPALock = None
     obj3d: _cpa_lock_3d.CPALock = None
+    db_obj: "_pjt_cpa_lock.PJTCPALock" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_cpa_lock.PJTCPALock"):
 
-        super().__init__(mainframe)
-
-        self.db_obj = db_obj
         db_obj.set_object(self)
+        db_obj.add_object(self)
+
+        super().__init__(mainframe, db_obj)
 
         self.obj2d = _cpa_lock_2d.CPALock(self, db_obj)
         self.obj3d = _cpa_lock_3d.CPALock(self, db_obj)
-

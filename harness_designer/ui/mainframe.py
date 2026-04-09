@@ -413,6 +413,7 @@ class MainFrame(wx.Frame):
         self._selected_obj = obj
         self.editor3d.set_selected(obj)
         self.editor2d.set_selected(obj)
+        self.editor_obj.set_selected(obj)
 
     def set_selected(self, obj: "_objects.ObjectBase"):
         if obj is not None:

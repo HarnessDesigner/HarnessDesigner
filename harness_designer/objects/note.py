@@ -12,16 +12,14 @@ if TYPE_CHECKING:
 class Note(_ObjectBase):
     obj2d: _note_2d.Note = None
     obj3d: _note_3d.Note = None
+    db_obj: "_pjt_note.PJTNote" = None
 
-    def __init__(
-        self, mainframe: "_ui.MainFrame",
-        db_obj: "_pjt_note.PJTNote"
-    ):
-        super().__init__(mainframe)
-
-        self.db_obj = db_obj
+    def __init__(self, mainframe: "_ui.MainFrame",
+                 db_obj: "_pjt_note.PJTNote"):
         db_obj.set_object(self)
+        db_obj.add_object(self)
+
+        super().__init__(mainframe, db_obj)
 
         self.obj2d = _note_2d.Note(self, db_obj)
         self.obj3d = _note_3d.Note(self, db_obj)
-

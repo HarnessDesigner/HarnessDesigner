@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 import uuid
-from wx import propgrid as wxpg
+from ...ui.editor_obj import prop_grid as _prop_grid
 
 from .bases import EntryBase, TableBase
 from ...geometry import point as _point
@@ -292,11 +292,8 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         self._table.update(self._db_id, wire_dia_max=round(value, 6))
 
     @property
-    def propgrid(self):
-        from ...ui.editor_obj.prop_grid import float_prop as _float_prop
-        from ...ui.editor_obj.prop_grid import int_prop as _int_prop
-
-        part_cat = wxpg.PropertyCategory('Part Attributes')
+    def propgrid(self) -> _prop_grid.Category:
+        part_cat = _prop_grid.Category('Part Attributes')
         
         part_number_prop = self._part_number_propgrid
         manufacturer_prop = self._manufacturer_propgrid
@@ -314,37 +311,37 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         compat_terminals_prop = self._compat_terminals_propgrid
         seal_type_prop = self.type.propgrid
 
-        hardness_prop = _int_prop.IntProperty(
+        hardness_prop = _prop_grid.IntProperty(
             'Hardness', 'hardness', self.hardness, min_value=1, max_value=999, units='shore')
 
-        lubricant_prop = wxpg.StringProperty('Lubricant', 'lubricant', self.lubricant)
+        lubricant_prop = _prop_grid.StringProperty('Lubricant', 'lubricant', self.lubricant)
 
-        o_dia_prop = _float_prop.FloatProperty(
+        o_dia_prop = _prop_grid.FloatProperty(
             'Outside Diameter', 'o_dia', self.o_dia, min_value=0.01,
             max_value=99.9, increment=0.01, units='mm')
 
-        i_dia_prop = _float_prop.FloatProperty(
+        i_dia_prop = _prop_grid.FloatProperty(
             'Inside Diameter', 'i_dia', self.i_dia, min_value=0.01,
             max_value=99.9, increment=0.01, units='mm')
 
-        part_cat.AppendChild(part_number_prop)
-        part_cat.AppendChild(manufacturer_prop)
-        part_cat.AppendChild(description_prop)
-        part_cat.AppendChild(family_prop)
-        part_cat.AppendChild(series_prop)
-        part_cat.AppendChild(color_prop)
-        part_cat.AppendChild(temperature_prop)
-        part_cat.AppendChild(dimension_prop)
-        part_cat.AppendChild(weight_prop)
-        part_cat.AppendChild(resource_prop)
-        part_cat.AppendChild(model3d_prop)
-        part_cat.AppendChild(i_dia_prop)
-        part_cat.AppendChild(o_dia_prop)
-        part_cat.AppendChild(wire_size_prop)
-        part_cat.AppendChild(seal_type_prop)
-        part_cat.AppendChild(hardness_prop)
-        part_cat.AppendChild(lubricant_prop)
-        part_cat.AppendChild(compat_housings_prop)
-        part_cat.AppendChild(compat_terminals_prop)
+        part_cat.Append(part_number_prop)
+        part_cat.Append(manufacturer_prop)
+        part_cat.Append(description_prop)
+        part_cat.Append(family_prop)
+        part_cat.Append(series_prop)
+        part_cat.Append(color_prop)
+        part_cat.Append(temperature_prop)
+        part_cat.Append(dimension_prop)
+        part_cat.Append(weight_prop)
+        part_cat.Append(resource_prop)
+        part_cat.Append(model3d_prop)
+        part_cat.Append(i_dia_prop)
+        part_cat.Append(o_dia_prop)
+        part_cat.Append(wire_size_prop)
+        part_cat.Append(seal_type_prop)
+        part_cat.Append(hardness_prop)
+        part_cat.Append(lubricant_prop)
+        part_cat.Append(compat_housings_prop)
+        part_cat.Append(compat_terminals_prop)
 
         return part_cat

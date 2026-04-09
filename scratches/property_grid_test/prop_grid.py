@@ -157,57 +157,55 @@ class Point:
         self.y = y
         self.z = z
 
+
+
 class PropertyGrid(wxpg.PropertyGrid):
 
     def __init__(self, parent):
         wxpg.PropertyGrid.__init__(self, parent, wx.ID_ANY)
 
-        point = Point(10.0, 62.8, 97.1)
-
-        prop = Point3DProperty('Test', 'test', point)
-
+        prop = wxpg.StringProperty('Test', 'test1', 'this is a test')
         self.Append(prop)
 
+        prop = wxpg.FloatProperty('Test', 'test2', 12345.00)
+        self.Append(prop)
 
-        # propgrid.ArrayStringProperty
-        # propgrid.ColourProperty
-        # propgrid.DateProperty
-        # propgrid.DirProperty
-        # propgrid.EditEnumProperty
-        # propgrid.EditorDialogProperty
-        # propgrid.EnumProperty
-        # propgrid.FileProperty
-        # propgrid.FlagsProperty
-        # propgrid.FloatProperty
-        # propgrid.ImageFileProperty
-        # propgrid.IntProperty
-        # propgrid.LongStringProperty
-        # propgrid.MultiChoiceProperty
-        # propgrid.StringProperty
-        # propgrid.UIntProperty
-        #
-        #
-        # PropertyCategory
-        #
-        # PropertyGridManager
-        # PropertyGridPage
-        #
-        # propgrid.PyChoiceEditor
-        # propgrid.PyComboBoxEditor
-        # propgrid.PyArrayStringProperty
-        # propgrid.PyColourProperty
-        # propgrid.PyEditEnumProperty
-        # propgrid.PyEditor
-        # propgrid.PyEditorDialogAdapter
-        # propgrid.PyEnumProperty
-        # propgrid.PyFileProperty
-        # propgrid.PyFlagsProperty
-        # propgrid.PyFloatProperty
-        # propgrid.PyIntProperty
-        # propgrid.PyLongStringProperty
-        # propgrid.PyProperty
-        # propgrid.PyStringProperty
-        # propgrid.PyUIntProperty
+        prop = wxpg.IntProperty('Test', 'test3', 12345)
+        self.Append(prop)
+
+        prop = wxpg.LongStringProperty('Test', 'test4', 'this is a test\nthis is a test\nthis is a test')
+        self.Append(prop)
+
+        prop = wxpg.ArrayStringProperty('Test', 'test5', ['item1', 'item2', 'item3'])
+        self.Append(prop)
+
+        prop = wxpg.ColourProperty('Test', 'test6', wx.Colour(150, 150, 230))
+        self.Append(prop)
+
+        prop = wxpg.MultiChoiceProperty('Test', 'test7')
+        self.Append(prop)
+
+        wxpg.ArrayStringProperty
+        wxpg.BoolProperty
+        wxpg.ColourProperty
+        wxpg.CursorProperty
+        wxpg.DateProperty
+        wxpg.DirProperty
+        wxpg.EditEnumProperty
+        wxpg.EditorDialogProperty
+        wxpg.EnumProperty
+        wxpg.FileProperty
+        wxpg.FlagsProperty
+        wxpg.FloatProperty
+        wxpg.FontProperty
+        wxpg.ImageFileProperty
+        wxpg.IntProperty
+        wxpg.LongStringProperty
+        wxpg.MultiChoiceProperty
+        wxpg.NumericProperty
+        wxpg.StringProperty
+        wxpg.SystemColourProperty
+        wxpg.UIntProperty
 
 
 class Frame(wx.Frame):
@@ -222,11 +220,7 @@ class Frame(wx.Frame):
         vsizer.Add(hsizer, 1, wx.EXPAND)
         self.SetSizer(vsizer)
 
-
-
 app = wx.App()
-
-wxpg.PropertyGrid.RegisterEditorClass(FloatSpinEditor())
 
 
 frame = Frame()

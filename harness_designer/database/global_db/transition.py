@@ -1,6 +1,6 @@
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
-from wx import propgrid as wxpg
+from ...ui.editor_obj import prop_grid as _prop_grid
 
 from .bases import EntryBase, TableBase
 from .mixins import (PartNumberMixin, SeriesMixin, MaterialMixin, FamilyMixin,
@@ -200,10 +200,9 @@ class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyM
         self._table.update(self._db_id, shape_id=value)
 
     @property
-    def propgrid(self):
-        from ...ui.editor_obj.prop_grid import int_prop as _int_prop
+    def propgrid(self) -> _prop_grid.Category:
 
-        part_cat = wxpg.PropertyCategory('Part Attributes')
+        part_cat = _prop_grid.Category('Part Attributes')
         
         part_number_prop = self._part_number_propgrid
         manufacturer_prop = self._manufacturer_propgrid
@@ -220,31 +219,31 @@ class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyM
 
         adhesives_prop = self._adhesives_propgrid
 
-        branch_count_prop = _int_prop.IntProperty(
+        branch_count_prop = _prop_grid.IntProperty(
             'Branch Count', 'branch_count', self.branch_count, min_value=1, max_value=6)
 
-        branches_prop = wxpg.PGProperty('Branches')
+        branches_prop = _prop_grid.Property('Branches')
 
         for branch in self.branches:
             if branch is None:
                 continue
 
-            branches_prop.AppendChild(branch.propgrid)
+            branches_prop.Append(branch.propgrid)
 
-        part_cat.AppendChild(part_number_prop)
-        part_cat.AppendChild(manufacturer_prop)
-        part_cat.AppendChild(description_prop)
-        part_cat.AppendChild(family_prop)
-        part_cat.AppendChild(series_prop)
-        part_cat.AppendChild(color_prop)
-        part_cat.AppendChild(temperature_prop)
-        part_cat.AppendChild(weight_prop)
-        part_cat.AppendChild(resource_prop)
-        part_cat.AppendChild(material_prop)
-        part_cat.AppendChild(shape_prop)
-        part_cat.AppendChild(protection_prop)
-        part_cat.AppendChild(adhesives_prop)
-        part_cat.AppendChild(branch_count_prop)
-        part_cat.AppendChild(branches_prop)
+        part_cat.Append(part_number_prop)
+        part_cat.Append(manufacturer_prop)
+        part_cat.Append(description_prop)
+        part_cat.Append(family_prop)
+        part_cat.Append(series_prop)
+        part_cat.Append(color_prop)
+        part_cat.Append(temperature_prop)
+        part_cat.Append(weight_prop)
+        part_cat.Append(resource_prop)
+        part_cat.Append(material_prop)
+        part_cat.Append(shape_prop)
+        part_cat.Append(protection_prop)
+        part_cat.Append(adhesives_prop)
+        part_cat.Append(branch_count_prop)
+        part_cat.Append(branches_prop)
 
         return part_cat

@@ -1,7 +1,7 @@
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
 import weakref
-from wx import propgrid as wxpg
+from ...ui.editor_obj import prop_grid as _prop_grid
 
 from .pjt_bases import PJTEntryBase, PJTTableBase
 
@@ -177,73 +177,79 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin,
         self._process_callbacks()
 
     @property
-    def propgrid(self) -> wxpg.PGProperty:
-        from ...ui.editor_obj.prop_grid import float_prop as _float_prop
-
+    def propgrid(self) -> tuple[_prop_grid.Category]:
         import build123d
 
-        group = wxpg.PropertyCategory('Project')
+        group = _prop_grid.Category('Project')
 
         notes_prop = self._notes_propgrid
 
-        angle_prop = wxpg.PGProperty('Angle')
+        angle_prop = _prop_grid.Category('Angle')
         angle2d_prop = self._angle2d_propgrid
         angle3d_prop = self._angle3d_propgrid
-        angle_prop.AppendChild(angle2d_prop)
-        angle_prop.AppendChild(angle3d_prop)
+        angle2d_prop.SetLabel('2D')
+        angle3d_prop.SetLabel('3D')
+        angle_prop.Append(angle2d_prop)
+        angle_prop.Append(angle3d_prop)
 
-        position_prop = wxpg.PGProperty('Position')
+        position_prop = _prop_grid.Category('Position')
         position2d_prop = self._position2d_propgrid
         position3d_prop = self._position3d_propgrid
-        position_prop.AppendChild(position2d_prop)
-        position_prop.AppendChild(position3d_prop)
+        position2d_prop.SetLabel('2D')
+        position3d_prop.SetLabel('3D')
+        position_prop.Append(position2d_prop)
+        position_prop.Append(position3d_prop)
 
-        visible_prop = wxpg.PGProperty('Visible')
+        visible_prop = _prop_grid.Category('Visible')
         visible2d_prop = self._visible2d_propgrid
         visible3d_prop = self._visible3d_propgrid
-        visible_prop.AppendChild(visible2d_prop)
-        visible_prop.AppendChild(visible3d_prop)
+        visible_prop.Append(visible2d_prop)
+        visible_prop.Append(visible3d_prop)
 
-        style_prop = wxpg.PGProperty('Style')
-        style2d_prop = wxpg.EnumProperty(
-            'Style 2D', 'style2d', labels=['Normal', 'Bold', 'Italic', 'Bold Italic'],
-            values=[build123d.FontStyle.REGULAR, build123d.FontStyle.BOLD, build123d.FontStyle.ITALIC, build123d.FontStyle.BOLDITALIC],
+        # TODO: Create Enum Property
+
+        style_prop = _prop_grid.Category('Style')
+        style2d_prop = _prop_grid.EnumProperty(
+            '2D', 'style2d', labels=['Normal', 'Bold', 'Italic', 'Bold Italic'],
+            values=[build123d.FontStyle.REGULAR, build123d.FontStyle.BOLD,
+                    build123d.FontStyle.ITALIC, build123d.FontStyle.BOLDITALIC],
             value=self.style2d)
-        style3d_prop = wxpg.EnumProperty(
-            'Style 3D', 'style3d', labels=['Normal', 'Bold', 'Italic', 'Bold Italic'],
-            values=[build123d.FontStyle.REGULAR, build123d.FontStyle.BOLD, build123d.FontStyle.ITALIC, build123d.FontStyle.BOLDITALIC],
+        style3d_prop = _prop_grid.EnumProperty(
+            '3D', 'style3d', labels=['Normal', 'Bold', 'Italic', 'Bold Italic'],
+            values=[build123d.FontStyle.REGULAR, build123d.FontStyle.BOLD,
+                    build123d.FontStyle.ITALIC, build123d.FontStyle.BOLDITALIC],
             value=self.style3d)
-        style_prop.AppendChild(style2d_prop)
-        style_prop.AppendChild(style3d_prop)
+        style_prop.Append(style2d_prop)
+        style_prop.Append(style3d_prop)
 
-        align_prop = wxpg.PGProperty('Align')
-        h_align2d_prop = wxpg.EnumProperty(
-            'Align 2D', 'h_align2d', labels=['Left', 'Center', 'Right'],
+        align_prop = _prop_grid.Category('Align')
+        h_align2d_prop = _prop_grid.EnumProperty(
+            '2D', 'h_align2d', labels=['Left', 'Center', 'Right'],
             values=[build123d.TextAlign.LEFT, build123d.TextAlign.CENTER, build123d.TextAlign.RIGHT],
             value=self.h_align2d)
-        h_align3d_prop = wxpg.EnumProperty(
-            'Align 3D', 'h_align3d', labels=['Left', 'Center', 'Right'],
+        h_align3d_prop = _prop_grid.EnumProperty(
+            '3D', 'h_align3d', labels=['Left', 'Center', 'Right'],
             values=[build123d.TextAlign.LEFT, build123d.TextAlign.CENTER, build123d.TextAlign.RIGHT],
             value=self.h_align3d)
-        align_prop.AppendChild(h_align2d_prop)
-        align_prop.AppendChild(h_align3d_prop)
+        align_prop.Append(h_align2d_prop)
+        align_prop.Append(h_align3d_prop)
 
-        size_prop = wxpg.PGProperty('Size')
-        size2d_prop = _float_prop.FloatProperty(
-            'Size 2D', 'size2d', self.size2d,
+        size_prop = _prop_grid.Category('Size')
+        size2d_prop = _prop_grid.FloatProperty(
+            '2D', 'size2d', self.size2d,
             min_value=0.2, max_value=99.9, increment=0.1, units='mm')
-        size3d_prop = _float_prop.FloatProperty(
-            'Size 3D', 'size3d', self.size3d,
+        size3d_prop = _prop_grid.FloatProperty(
+            '3D', 'size3d', self.size3d,
             min_value=0.2, max_value=99.9, increment=0.1, units='mm')
-        size_prop.AppendChild(size2d_prop)
-        size_prop.AppendChild(size3d_prop)
+        size_prop.Append(size2d_prop)
+        size_prop.Append(size3d_prop)
 
-        group.AppendChild(notes_prop)
-        group.AppendChild(angle_prop)
-        group.AppendChild(position_prop)
-        group.AppendChild(visible_prop)
-        group.AppendChild(style_prop)
-        group.AppendChild(align_prop)
-        group.AppendChild(size_prop)
+        group.Append(notes_prop)
+        group.Append(angle_prop)
+        group.Append(position_prop)
+        group.Append(visible_prop)
+        group.Append(style_prop)
+        group.Append(align_prop)
+        group.Append(size_prop)
 
-        return group
+        return (group,)

@@ -16,16 +16,15 @@ if TYPE_CHECKING:
 class Cavity(_ObjectBase):
     obj2d: _cavity_2d.Cavity = None
     obj3d: _cavity_3d.Cavity = None
+    db_obj: "_pjt_cavity.PJTCavity" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_cavity.PJTCavity"):
 
-        super().__init__(mainframe)
-
-        self.db_obj = db_obj
         db_obj.set_object(self)
+        db_obj.add_object(self)
+
+        super().__init__(mainframe, db_obj)
 
         self.obj2d = _cavity_2d.Cavity(self, db_obj)
         self.obj3d = _cavity_3d.Cavity(self, db_obj)
-
-

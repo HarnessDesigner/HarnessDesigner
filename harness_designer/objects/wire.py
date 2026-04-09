@@ -12,15 +12,15 @@ if TYPE_CHECKING:
 class Wire(_ObjectBase):
     obj2d: _wire_2d.Wire = None
     obj3d: _wire_3d.Wire = None
+    db_obj: "_pjt_wire.PJTWire" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_wire.PJTWire"):
 
-        super().__init__(mainframe)
-
-        self.db_obj = db_obj
         db_obj.set_object(self)
+        db_obj.add_object(self)
+
+        super().__init__(mainframe, db_obj)
 
         self.obj2d = _wire_2d.Wire(self, db_obj)
         self.obj3d = _wire_3d.Wire(self, db_obj)
-

@@ -1,7 +1,7 @@
 from typing import Iterable as _Iterable, TYPE_CHECKING
 import math
 
-from wx import propgrid as wxpg
+from ...ui.editor_obj import prop_grid as _prop_grid
 
 from .bases import EntryBase, TableBase
 
@@ -481,12 +481,9 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         self._table.update(self._db_id, stripe_color_id=value)
 
     @property
-    def propgrid(self):
-        from ...ui.editor_obj.prop_grid import float_prop as _float_prop
-        from ...ui.editor_obj.prop_grid import bool_prop as _bool_prop
-        from ...ui.editor_obj.prop_grid import int_prop as _int_prop
+    def propgrid(self) -> _prop_grid.Category:
 
-        part_cat = wxpg.PropertyCategory('Part Attributes')
+        part_cat = _prop_grid.Category('Part Attributes')
         
         part_number_prop = self._part_number_propgrid
         manufacturer_prop = self._manufacturer_propgrid
@@ -504,68 +501,68 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         material_prop.SetLabel('Jacket Material')
         core_material_prop.SetLabel('Core Material')
 
-        tpi_prop = _float_prop.FloatProperty(
+        tpi_prop = _prop_grid.FloatProperty(
             'Twists per Inch', 'tpi', self.od_mm,
             min_value=0.05, max_value=60.0, increment=0.01, units='tpi')
             
-        conductor_dia_mm_prop = _float_prop.FloatProperty(
+        conductor_dia_mm_prop = _prop_grid.FloatProperty(
             'Conductor Diameter', 'conductor_dia_mm', self.conductor_dia_mm,
             min_value=0.05, max_value=60.0, increment=0.01, units='mm')
             
-        weight_1km_prop = _float_prop.FloatProperty(
+        weight_1km_prop = _prop_grid.FloatProperty(
             'Weight', 'weight_1km', self.weight_1km,
             min_value=0.05, max_value=99999.99, increment=0.01, units='g/km')
 
-        volts_prop = _float_prop.FloatProperty(
+        volts_prop = _prop_grid.FloatProperty(
             'Volts', 'volts', self.volts,
             min_value=0.05, max_value=100000.00, increment=0.01, units='V')
             
-        resistance_1km_prop = _float_prop.FloatProperty(
+        resistance_1km_prop = _prop_grid.FloatProperty(
             'Resistance', 'resistance_1km', self.resistance_1km,
             min_value=0.05, max_value=99999.99, increment=0.01, units='Ω/km')
             
-        od_mm_prop = _float_prop.FloatProperty(
+        od_mm_prop = _prop_grid.FloatProperty(
             'Outside Diameter', 'od_mm', self.od_mm,
             min_value=0.05, max_value=60.0, increment=0.01, units='mm')
             
-        size_mm2_prop = _float_prop.FloatProperty(
+        size_mm2_prop = _prop_grid.FloatProperty(
             'Size', 'size_mm2', self.size_mm2,
             min_value=0.05, max_value=60.0, increment=0.01, units='mm²')
 
-        num_conductors_prop = _int_prop.IntProperty(
+        num_conductors_prop = _prop_grid.IntProperty(
             'Conductor Count', 'num_conductors', self.num_conductors, min_value=0, 
             max_value=10)
             
-        size_awg_prop = _int_prop.IntProperty(
+        size_awg_prop = _prop_grid.IntProperty(
             'Size', 'size_awg', self.size_awg, min_value=30, 
             max_value=0, units='awg')
 
-        shielded_prop = _bool_prop.BoolProperty(
+        shielded_prop = _prop_grid.BoolProperty(
             'Shielded', 'shielded', self.shielded)
 
-        wire_size_prop = wxpg.PGProperty('Wire Size')
-        wire_size_prop.AppendChild(conductor_dia_mm_prop)
-        wire_size_prop.AppendChild(od_mm_prop)
-        wire_size_prop.AppendChild(size_mm2_prop)
-        wire_size_prop.AppendChild(size_awg_prop)
+        wire_size_prop = _prop_grid.Property('Wire Size')
+        wire_size_prop.Append(conductor_dia_mm_prop)
+        wire_size_prop.Append(od_mm_prop)
+        wire_size_prop.Append(size_mm2_prop)
+        wire_size_prop.Append(size_awg_prop)
 
-        part_cat.AppendChild(part_number_prop)
-        part_cat.AppendChild(manufacturer_prop)
-        part_cat.AppendChild(description_prop)
-        part_cat.AppendChild(family_prop)
-        part_cat.AppendChild(series_prop)
-        part_cat.AppendChild(material_prop)
-        part_cat.AppendChild(core_material_prop)
-        part_cat.AppendChild(color_prop)
-        part_cat.AppendChild(stripe_color_prop)
-        part_cat.AppendChild(temperature_prop)
-        part_cat.AppendChild(tpi_prop)
-        part_cat.AppendChild(wire_size_prop)
-        part_cat.AppendChild(weight_1km_prop)
-        part_cat.AppendChild(resource_prop)
-        part_cat.AppendChild(volts_prop)
-        part_cat.AppendChild(resistance_1km_prop)
-        part_cat.AppendChild(num_conductors_prop)
-        part_cat.AppendChild(shielded_prop)
+        part_cat.Append(part_number_prop)
+        part_cat.Append(manufacturer_prop)
+        part_cat.Append(description_prop)
+        part_cat.Append(family_prop)
+        part_cat.Append(series_prop)
+        part_cat.Append(material_prop)
+        part_cat.Append(core_material_prop)
+        part_cat.Append(color_prop)
+        part_cat.Append(stripe_color_prop)
+        part_cat.Append(temperature_prop)
+        part_cat.Append(tpi_prop)
+        part_cat.Append(wire_size_prop)
+        part_cat.Append(weight_1km_prop)
+        part_cat.Append(resource_prop)
+        part_cat.Append(volts_prop)
+        part_cat.Append(resistance_1km_prop)
+        part_cat.Append(num_conductors_prop)
+        part_cat.Append(shielded_prop)
 
         return part_cat

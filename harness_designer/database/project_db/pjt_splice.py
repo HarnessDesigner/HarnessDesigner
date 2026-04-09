@@ -2,7 +2,7 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 import weakref
-from wx import propgrid as wxpg
+from ...ui.editor_obj import prop_grid as _prop_grid
 
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from .mixins import (PartMixin, StartStopPosition3DMixin, Visible3DMixin,
@@ -206,26 +206,51 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
         return self._table.db.global_db.splices_table[part_id]
 
     @property
-    def propgrid(self) -> wxpg.PGProperty:
-        group = wxpg.PropertyCategory('Project')
+    def propgrid(self) -> tuple[_prop_grid.Category, _prop_grid.Category, _prop_grid.Category]:
+
+        # TODO: Rewrite the splices so they accept models and a set number
+        #  of splice points. It also needs to be written so there can be a
+        #  single splice point and the number of connected wires would be
+        #  dictated by the diameter of the splice
+
+        group = _prop_grid.Category('Project')
 
         notes_prop = self._notes_propgrid
         name_prop = self._name_propgrid
 
-        angle_prop = self._angle3d_propgrid
+        angle_group = _prop_grid.Property('Angle')
+        angle2d_prop = self._angle2d_propgrid
+        angle3d_prop = self._angle3d_propgrid
+        angle2d_prop.SetLabel('2D')
+        angle3d_prop.SetLabel('3D')
+        angle_group.Append(angle2d_prop)
+        angle_group.Append(angle3d_prop)
+
+        circuit_prop = self._circuit_propgrid
 
         position_prop = self._start_stop_position3d_propgrid
 
-        housing_prop = self._housing_propgrid
-        visible_prop = self._visible3d_propgrid
+        _ = self.branch_position3d
+        branch_prop = self._stored_branch_position3d.propgrid
+        branch_prop.SetLabel('Branch Position 3D')
+        branch_prop.SetName('branch_position3d')
 
-        group.AppendChild(name_prop)
-        group.AppendChild(notes_prop)
-        group.AppendChild(angle_prop)
-        group.AppendChild(position_prop)
-        group.AppendChild(visible_prop)
-        group.AppendChild(housing_prop)
+        visible_group = _prop_grid.Property('Visible')
+
+        visible2d_prop = self._visible2d_propgrid
+        visible3d_prop = self._visible3d_propgrid
+        visible2d_prop.SetLabel('2D')
+        visible3d_prop.SetLabel('3D')
+        visible_group.Append(visible2d_prop)
+        visible_group.Append(visible3d_prop)
+
+        group.Append(name_prop)
+        group.Append(notes_prop)
+        group.Append(angle_group)
+        group.Append(position_prop)
+        group.Append(branch_prop)
+        group.Append(visible_group)
 
         part_prop = self._part_propgrid
 
-        return group, part_prop
+        return group, part_prop, circuit_prop

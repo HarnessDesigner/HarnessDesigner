@@ -1,6 +1,6 @@
 from typing import Iterable as _Iterable
 
-from wx import propgrid as wxpg
+from ...ui.editor_obj import prop_grid as _prop_grid
 
 from .bases import EntryBase, TableBase
 from .mixins import NameMixin
@@ -86,25 +86,22 @@ class FileType(EntryBase, NameMixin):
         self._table.update(self._db_id, is_model=int(value))
 
     @property
-    def propgrid(self) -> wxpg.PGProperty:
-        from ...ui.editor_obj.prop_grid import combobox_prop as _combobox_prop
-        from ...ui.editor_obj.prop_grid import bool_prop as _bool_prop
-
-        file_type_prop = wxpg.PGProperty('File Type')
+    def propgrid(self) -> _prop_grid.Property:
+        file_type_prop = _prop_grid.Property('File Type')
 
         rows = self.table.select('mimetype')
 
         choices = [item[0] for item in rows]
-        mimetype_prop = _combobox_prop.ComboboxProperty('MimeType', 'mimetype', self.name, choices)
+        mimetype_prop = _prop_grid.ComboBoxProperty('MimeType', 'mimetype', self.name, choices)
         rows = self.table.select('extension')
 
         choices = [item[0] for item in rows]
-        extension_prop = _combobox_prop.ComboboxProperty('Extension', 'extension', self.name, choices)
-        is_model_prop = _bool_prop.BoolProperty('Is Model', 'is_model', self.is_model)
+        extension_prop = _prop_grid.ComboBoxProperty('Extension', 'extension', self.name, choices)
+        is_model_prop = _prop_grid.BoolProperty('Is Model', 'is_model', self.is_model)
 
-        file_type_prop.AppendChild(mimetype_prop)
-        file_type_prop.AppendChild(extension_prop)
-        file_type_prop.AppendChild(is_model_prop)
+        file_type_prop.Append(mimetype_prop)
+        file_type_prop.Append(extension_prop)
+        file_type_prop.Append(is_model_prop)
 
         return file_type_prop
 

@@ -1,6 +1,6 @@
 from typing import Iterable as _Iterable
 
-from wx import propgrid as wxpg
+from ...ui.editor_obj import prop_grid as _prop_grid
 
 from .bases import EntryBase, TableBase
 
@@ -178,8 +178,8 @@ class TPALock(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         self._table.update(self._db_id, lock_type=value)
 
     @property
-    def propgrid(self):
-        part_cat = wxpg.PropertyCategory('Part Attributes')
+    def propgrid(self) -> _prop_grid.Category:
+        part_cat = _prop_grid.Category('Part Attributes')
         
         part_number_prop = self._part_number_propgrid
         manufacturer_prop = self._manufacturer_propgrid
@@ -195,22 +195,22 @@ class TPALock(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
         compat_housings_prop = self._compat_housings_propgrid
 
-        lock_type_prop = wxpg.StringProperty('Type', 'lock_type', self.lock_type)
-        pins_prop = wxpg.StringProperty('Pins', 'pins', self.pins)
+        lock_type_prop = _prop_grid.StringProperty('Type', 'lock_type', self.lock_type)
+        pins_prop = _prop_grid.StringProperty('Pins', 'pins', self.pins)
 
-        part_cat.AppendChild(part_number_prop)
-        part_cat.AppendChild(manufacturer_prop)
-        part_cat.AppendChild(description_prop)
-        part_cat.AppendChild(family_prop)
-        part_cat.AppendChild(series_prop)
-        part_cat.AppendChild(color_prop)
-        part_cat.AppendChild(lock_type_prop)
-        part_cat.AppendChild(temperature_prop)
-        part_cat.AppendChild(dimension_prop)
-        part_cat.AppendChild(weight_prop)
-        part_cat.AppendChild(pins_prop)
-        part_cat.AppendChild(resource_prop)
-        part_cat.AppendChild(model3d_prop)
-        part_cat.AppendChild(compat_housings_prop)
+        part_cat.Append(part_number_prop)
+        part_cat.Append(manufacturer_prop)
+        part_cat.Append(description_prop)
+        part_cat.Append(family_prop)
+        part_cat.Append(series_prop)
+        part_cat.Append(color_prop)
+        part_cat.Append(lock_type_prop)
+        part_cat.Append(temperature_prop)
+        part_cat.Append(dimension_prop)
+        part_cat.Append(weight_prop)
+        part_cat.Append(pins_prop)
+        part_cat.Append(resource_prop)
+        part_cat.Append(model3d_prop)
+        part_cat.Append(compat_housings_prop)
 
         return part_cat

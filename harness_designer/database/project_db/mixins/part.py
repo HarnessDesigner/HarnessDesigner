@@ -1,6 +1,6 @@
 from .base import BaseMixin
 
-from wx import propgrid as wxpg
+from ....ui.editor_obj import prop_grid as _prop_grid
 
 
 class PartMixin(BaseMixin):
@@ -14,5 +14,5 @@ class PartMixin(BaseMixin):
         self._table.update(self._db_id, part_id=value)
 
     @property
-    def _part_propgrid(self) -> wxpg.PGProperty:
+    def _part_propgrid(self) -> _prop_grid.Property:
         return self.part.propgrid  # NOQA

@@ -19,9 +19,7 @@ class Generic(_ObjectBase):
 
     def __init__(self, mainframe: "_ui.MainFrame"):
 
-        super().__init__(mainframe)
-
-        self.db_obj = None
+        super().__init__(mainframe, None)
 
         self.obj2d = None
         self.obj3d = None

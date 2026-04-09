@@ -1,5 +1,5 @@
 import uuid
-from wx import propgrid as wxpg
+from ....ui.editor_obj import prop_grid as _prop_grid
 
 from .base import BaseMixin
 from ....geometry import point as _point
@@ -63,17 +63,24 @@ class DimensionMixin(BaseMixin):
         self._table.update(self._db_id, height=value)
 
     @property
-    def _dimension_propgrid(self) -> wxpg.PGProperty:
-        from ....ui.editor_obj.prop_grid import float_prop as _float_prop
+    def _dimension_propgrid(self) -> _prop_grid.Property:
 
-        group_prop = wxpg.PGProperty('Dimensions', '')
+        group_prop = _prop_grid.Property('Dimensions', '')
 
-        length_prop = _float_prop.FloatProperty('Length', 'length', self.length, min_value=0.01, max_value=999.0, increment=0.01, units='mm')
-        width_prop = _float_prop.FloatProperty('Width', 'width', self.width, min_value=0.01, max_value=999.0, increment=0.01, units='mm')
-        height_prop = _float_prop.FloatProperty('Height', 'height', self.height, min_value=0.01, max_value=999.0, increment=0.01, units='mm')
+        length_prop = _prop_grid.FloatProperty(
+            'Length', 'length', self.length,
+            min_value=0.01, max_value=999.0, increment=0.01, units='mm')
 
-        group_prop.AppendChild(length_prop)
-        group_prop.AppendChild(width_prop)
-        group_prop.AppendChild(height_prop)
+        width_prop = _prop_grid.FloatProperty(
+            'Width', 'width', self.width,
+            min_value=0.01, max_value=999.0, increment=0.01, units='mm')
+
+        height_prop = _prop_grid.FloatProperty(
+            'Height', 'height', self.height,
+            min_value=0.01, max_value=999.0, increment=0.01, units='mm')
+
+        group_prop.Append(length_prop)
+        group_prop.Append(width_prop)
+        group_prop.Append(height_prop)
 
         return group_prop

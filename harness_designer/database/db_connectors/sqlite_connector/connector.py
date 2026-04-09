@@ -39,7 +39,6 @@ _ParamsSequenceOrDictType = _Union[_ParamsDictType, _ParamsSequenceType]
 
 _RowType = tuple[_ToPythonOutputTypes, ...]
 
-
 class SQLConnector(_base.ConnectorBase):
 
     def __init__(self, mainframe):
@@ -69,11 +68,15 @@ class SQLConnector(_base.ConnectorBase):
     def connect(self):
         self._connection = sqlite3.connect(self.db_name, check_same_thread=False)
         self._cursor = self._connection.cursor()
-        self.cred_manager = _update_monitor.Manager()
+
+        import threading
+
+        printlock = threading.Lock()
+        self.cred_manager = _update_monitor.Manager(printlock)
 
         from .. import CONNECTOR_SQLITE
 
-        self.cred_manager.store_credentials(CONNECTOR_SQLITE, database_path=self.db_name)
+        self.cred_manager.store_credentials(printlock, CONNECTOR_SQLITE, database_path=self.db_name)
         self.update_monitor = _update_monitor.Monitor(self.mainframe)
 
         self.update_monitor.start()

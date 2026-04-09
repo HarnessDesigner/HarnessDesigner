@@ -1,6 +1,6 @@
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
-from wx import propgrid as wxpg
+from ...ui.editor_obj import prop_grid as _prop_grid
 import os
 
 from ... import resources as _resources
@@ -107,12 +107,10 @@ class Datasheet(EntryBase):
         self._table.update(self._db_id, file_type_id=value)
 
     @property
-    def propgrid(self) -> wxpg.PGProperty:
-        from ...ui.editor_obj.prop_grid import datasheet_cad_prop as _datasheet_cad_prop
-
+    def propgrid(self) -> _prop_grid.Property:
         file_types = self._table.db.file_types_table.select('mimetype', 'extension', is_model=0)
 
         file_types = {k: v for k, v in file_types}
-        datasheet_prop = _datasheet_cad_prop.DatasheetCADProperty('Datasheet', 'datasheet', self.path, file_types, self.data_path)
+        datasheet_prop = _prop_grid.DatasheetCADProperty('Datasheet', 'datasheet', self.path, file_types, self.data_path)
 
         return datasheet_prop
