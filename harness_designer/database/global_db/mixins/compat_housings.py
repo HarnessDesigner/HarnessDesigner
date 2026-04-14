@@ -13,7 +13,7 @@ class CompatHousingsMixin(BaseMixin):
 
     @property
     def compat_housings(self) -> list["_housing.Housing"]:
-        housings = eval(self._table.select('compat_housings', id=self._db_id)[0][0])
+        housings = self.compat_housings_array
         res = []
         for part_number in housings:
             try:
@@ -24,21 +24,33 @@ class CompatHousingsMixin(BaseMixin):
 
     @compat_housings.setter
     def compat_housings(self, value: list["_housing.Housing"]):
-        mates_to = [housing.part_number for housing in value]
-        self._table.update(self._db_id, compat_housings=str(mates_to))
+        self.compat_housings_array = [housing.part_number for housing in value]
 
     @property
     def compat_housings_array(self) -> list[str]:
-        return eval(self._table.select('compat_housings', id=self._db_id)[0][0])
+        value = self._table.select('compat_housings', id=self._db_id)[0][0]
+        return value[1:-1].split(', ')
 
     @compat_housings_array.setter
     def compat_housings_array(self, value: list[str]):
-        self._table.update(self._db_id, compat_housings=str(value))
+        value = f'[{", ".join(value)}]'
+        self._table.update(self._db_id, compat_housings=value)
 
-    @property
-    def _compat_housings_propgrid(self) -> _prop_grid.Property:
 
-        prop = _prop_grid.ArrayStringProperty(
-            'Compatible Housings', 'compat_housings_array', self.compat_housings_array)
+class CompatHousingsControl(_prop_grid.ArrayStringProperty):
 
-        return prop
+    def __init__(self, parent):
+        self.db_obj: CompatHousingsMixin = None
+        super().__init__(parent, 'Compatible Housings', [])
+
+        self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_compat_housings)
+
+    def set_obj(self, db_obj: CompatHousingsMixin):
+        self.db_obj = db_obj
+
+        self.SetValue(db_obj.compat_housings_array)
+
+    def _on_compat_housings(self, evt: _prop_grid.PropertyEvent):
+        compat_housings = evt.GetValue()
+        self.db_obj.compat_seals_array = compat_housings
+

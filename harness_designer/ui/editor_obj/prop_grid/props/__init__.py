@@ -12,6 +12,10 @@ from . import array_string_prop as _array_string_prop
 from . import bitmap_combobox_prop as _bitmap_combobox_prop
 from . import color_prop as _color_prop
 from . import prop_base as _prop_base
+from . import autocomplete_string_prop as _autocomplete_string_prop
+from . import angle3d_prop as _angle3d_prop
+from . import position2d_prop as _position2d_prop
+from . import position3d_prop as _position3d_prop
 
 
 BoolProperty = _bool_prop.BoolProperty
@@ -28,7 +32,10 @@ ArrayStringProperty = _array_string_prop.ArrayStringProperty
 BitmapComboBoxProperty = _bitmap_combobox_prop.BitmapComboBoxProperty
 ColorProperty = _color_prop.ColorProperty
 Property = _prop_base.Property
-
+AutocompleteStringProperty = _autocomplete_string_prop.AutocompleteStringProperty
+Angle3DProperty = _angle3d_prop.Angle3DProperty
+Position2DProperty = _position2d_prop.Position2DProperty
+Position3DProperty = _position3d_prop.Position3DProperty
 
 del _string_prop
 del _long_string_prop
@@ -44,3 +51,7 @@ del _array_string_prop
 del _bitmap_combobox_prop
 del _color_prop
 del _prop_base
+del _autocomplete_string_prop
+del _angle3d_prop
+del _position2d_prop
+del _position3d_prop

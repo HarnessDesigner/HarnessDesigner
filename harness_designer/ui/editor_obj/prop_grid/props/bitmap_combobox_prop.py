@@ -13,29 +13,35 @@ class BitmapComboBoxProperty(_prop_base.Property):
         _prop_base.Property.__init__(self, label, name, value, units)
 
     def Create(self, parent):
-        vsizer = wx.BoxSizer(wx.VERTICAL)
-        hsizer = wx.BoxSizer(wx.HORIZONTAL)
+        _prop_base.Property.Create(self, parent)
 
-        self._st = wx.StaticText(parent, wx.ID_ANY, label=self._label + ':')
+        hsizer1 = wx.BoxSizer(wx.HORIZONTAL)
+        vsizer = wx.BoxSizer(wx.VERTICAL)
+        hsizer2 = wx.BoxSizer(wx.HORIZONTAL)
+
+        self._st = wx.StaticText(self, wx.ID_ANY, label=self._label + ':')
         self._ctrl = _bitmap_autocomplete_combobox.BitmapAutoCompleteComboBox(
-            parent, wx.ID_ANY, choices=self._choices, style=wx.CB_SORT | wx.CB_DROPDOWN)
+            self, wx.ID_ANY, choices=self._choices, style=wx.CB_SORT | wx.CB_DROPDOWN)
 
         self._ctrl.Bind(wx.EVT_TEXT_ENTER, self._on_change)
         self._ctrl.Bind(wx.EVT_COMBOBOX, self._on_change)
 
-        hsizer.Add(self._st, 1, wx.ALL | wx.ALIGN_CENTER, 5)
-        hsizer.Add(self._ctrl, 1, wx.ALL, 5)
-        vsizer.Add(hsizer, 0)
+        hsizer2.Add(self._st, 0, wx.ALL | wx.ALIGN_CENTER, 5)
+        hsizer2.Add(self._ctrl, 1, wx.ALL, 5)
 
         if self._units is not None:
-            self._units_st = wx.StaticText(parent, wx.ID_ANY, label=self._units)
-            hsizer.Add(self._units_st, 1, wx.ALL, 5)
+            self._units_st = wx.StaticText(self, wx.ID_ANY, label=self._units)
+            hsizer2.Add(self._units_st, 0, wx.ALL, 5)
+
+        vsizer.Add(hsizer2, 0, wx.EXPAND)
 
         if self._tooltip is not None:
             self._ctrl.SetToolTip(self._tooltip)
             self._st.SetToolTip(self._tooltip)
 
-        self.Add(vsizer, 1)
+        hsizer1.Add(vsizer, 1)
+
+        self.SetSizer(hsizer1)
 
     def _on_change(self, _):
         value = self._ctrl.GetValue()

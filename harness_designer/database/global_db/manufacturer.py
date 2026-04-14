@@ -126,6 +126,22 @@ class Manufacturer(EntryBase, NameMixin, DescriptionMixin):
         choices = [item[0] for item in rows]
 
         name_prop = _prop_grid.ComboBoxProperty('Name', 'name', self.name, choices)
+
+        def _on_name_change(evt: _prop_grid.PropertyEvent):
+            name = evt.GetValue()
+            rows = self.table.select('id', 'description', 'address', 'contact_person', 'phone', 'ext', 'email', 'website', name=name)
+            if rows:
+                id, desc, addr, contact, phone, ext, email, website = rows[0]
+                desc_prop.SetValue(desc)
+                address_prop.SetValue(addr)
+                contact_prop.SetValue(contact)
+                phone_prop.SetValue(phone)
+                ext_prop.SetValue(ext)
+                email_prop.SetValue(email)
+                website_prop.SetValue(website)
+
+        name_prop.Bind(_prop_grid.EVT_PROPERTY_CHANGED, _on_name_change)
+
         desc_prop = _prop_grid.LongStringProperty('Description', 'description', self.description)
         address_prop = _prop_grid.LongStringProperty('Address', 'address', self.address)
         contact_prop = _prop_grid.StringProperty('Contact', 'contact_person', self.contact_person)

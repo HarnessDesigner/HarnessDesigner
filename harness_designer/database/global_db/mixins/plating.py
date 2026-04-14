@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
 
+import wx
 from ....ui.editor_obj import prop_grid as _prop_grid
 
 from .base import BaseMixin
@@ -28,8 +29,58 @@ class PlatingMixin(BaseMixin):
     def plating_id(self, value: int):
         self._table.update(self._db_id, plating_id=value)
 
-    @property
-    def _plating_propgrid(self) -> _prop_grid.Property:
-        prop = self.plating.propgrid
 
-        return prop
+class PlatingControl(_prop_grid.Category):
+
+    def __init__(self, parent):
+        super().__init__(parent, 'Plating')
+
+        self.choices: list[str] = []
+        self.db_obj: PlatingMixin = None
+
+        self.symbol_ctrl = _prop_grid.ComboBoxProperty(self, 'Symbol', '', [])
+        self.desc_ctrl = _prop_grid.LongStringProperty(self, 'Description', '')
+
+        self.symbol_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_symbol)
+        self.desc_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_desc)
+
+    def set_obj(self, db_obj: PlatingMixin):
+
+        plating = db_obj.plating
+
+        db_obj.table.execute(f'SELECT symbol FROM platings;')
+
+        rows = db_obj.table.fetchall()
+
+        choices = sorted([row[0] for row in rows])
+
+        self.symbol_ctrl.SetItems(choices)
+        self.symbol_ctrl.SetValue(plating.symbol)
+        self.desc_ctrl.SetValue(plating.description)
+
+    def _on_symbol(self, evt: _prop_grid.PropertyEvent):
+        symbol = evt.GetValue()
+
+        self.db_obj.table.execute(f'SELECT id, description FROM platings WHERE symbol="{symbol}";')
+        rows = self.db_obj.table.fetchall()
+
+        if rows:
+            db_id, desc = rows[0]
+        else:
+            db_obj = self.db_obj.table.db.platings_table.insert(symbol, '')
+            db_id = db_obj.db_id
+            desc = ''
+
+            self.choices.append(symbol)
+            self.choices.sort()
+
+            self.symbol_ctrl.SetItems(self.choices)
+            self.symbol_ctrl.SetValue(symbol)
+
+        self.desc_ctrl.SetValue(desc)
+
+        self.db_obj.plating_id = db_id
+
+    def _on_desc(self, evt: _prop_grid.PropertyEvent):
+        desc = evt.GetValue()
+        self.db_obj.plating.description = desc

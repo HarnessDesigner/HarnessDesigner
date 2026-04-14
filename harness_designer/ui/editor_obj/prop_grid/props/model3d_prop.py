@@ -9,6 +9,19 @@ wxEVT_IMAGE_PATH_CHANGED = wx.NewEventType()
 EVT_IMAGE_PATH_CHANGED = wx.PyEventBinder(wxEVT_IMAGE_PATH_CHANGED, 0)
 
 
+class PathEvent(wx.CommandEvent):
+
+    def __init__(self, evt_type):
+        wx.CommandEvent.__init__(self, evt_type)
+        self._value = None
+
+    def SetValue(self, value):
+        self._value = value
+
+    def GetValue(self):
+        return self._value
+
+
 class PathCtrl(wx.BoxSizer):
 
     def __init__(self, parent, path):
@@ -23,6 +36,13 @@ class PathCtrl(wx.BoxSizer):
 
         self.path_button.Bind(wx.EVT_BUTTON, self.on_open_file)
         self.path_ctrl.Bind(wx.EVT_TEXT_ENTER, self._on_enter)
+
+    def GetValue(self) -> str:
+        return self._path
+
+    def SetValue(self, value: str):
+        self._path = value
+        self.path_ctrl.ChangeValue(value)
 
     def Bind(self, *args, **kwargs):
         self.path_ctrl.Bind(*args, **kwargs)
@@ -58,7 +78,7 @@ class PathCtrl(wx.BoxSizer):
         dlg.Destroy()
 
     def _send_changed_event(self):
-        event = wx.CommandEvent(wxEVT_IMAGE_PATH_CHANGED)
+        event = PathEvent(wxEVT_IMAGE_PATH_CHANGED)
         event.SetValue(self._path)
         event.SetId(self.path_ctrl.GetId())
         event.SetEventObject(self.path_ctrl)
@@ -75,24 +95,24 @@ class PathCtrl(wx.BoxSizer):
 
 class Model3DProperty(_prop_base.Property):
 
-    def __init__(self, label, name, value='', file_types={}, save_path=None):
+    def __init__(self, parent, label, value: str, file_types: dict, save_path=None):
+        _prop_base.Property.__init__(self, parent, label)
+
+        self._value = value
         self._file_types = file_types
         self._save_path = save_path
-        self._image_sizer: wx.BoxSizer = None
 
-        _prop_base.Property.__init__(label, name, value, units=None)
-
-    def Create(self, parent):
-        _prop_base.Property.Create(self, parent)
-        parent = self._parent_window
-
-        self._st = wx.StaticText(parent, wx.ID_ANY, label=self._label + ':')
-
-        self._ctrl = PathCtrl(parent, self._value)
+        self._st = wx.StaticText(self, wx.ID_ANY, label=label + ':')
+        self._ctrl = PathCtrl(self, value)
         self._ctrl.Bind(EVT_IMAGE_PATH_CHANGED, self._on_path_changed)
 
-        self.Add(self._st, 0, wx.ALL, 5)
-        self.Add(self._ctrl, 1, wx.ALL, 5)
+    def Realize(self):
+        hsizer = wx.BoxSizer(wx.HORIZONTAL)
+
+        hsizer.Add(self._st, 0, wx.ALL, 5)
+        hsizer.Add(self._ctrl, 1, wx.ALL, 5)
+
+        self._sizer.Add(hsizer, 0, wx.EXPAND)
 
     def _on_path_changed(self, _):
         path = self._ctrl.GetValue()
@@ -100,10 +120,11 @@ class Model3DProperty(_prop_base.Property):
             return
 
         self._value = path
-        self._send_changed_event(str)
+        self._send_changed_event(str, path)
 
     def GetValue(self) -> str:
         return self._value
 
     def SetValue(self, value: str):
         self._value = value
+        self._ctrl.SetValue(value)

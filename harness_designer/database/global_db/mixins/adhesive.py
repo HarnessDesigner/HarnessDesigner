@@ -31,12 +31,18 @@ class AdhesiveMixin(BaseMixin):
     def adhesive_ids(self, value: list[str]):
         self._table.update(self._db_id, adhesive_ids=str(value))
 
-    @property
-    def _adhesives_propgrid(self) -> _prop_grid.Property:
-        group_prop = _prop_grid.Property('Adhesives')
 
-        for adhesive in self.adhesives:
-            adhesive_prop = adhesive.propgrid
-            group_prop.Append(adhesive_prop)
+class AdhesiveControl(_prop_grid.ArrayStringProperty):
 
-        return group_prop
+    def __init__(self, parent):
+        self.db_obj: AdhesiveMixin = None
+
+        super().__init__(parent, 'Adhesives', [])
+
+    def _on_adhesives(self, evt):
+        value = evt.GetValue()
+        self.db_obj.adhesive_ids = value
+
+    def set_obj(self, db_obj: AdhesiveMixin):
+        self.db_obj = db_obj
+        self.SetValue(db_obj.adhesive_ids)

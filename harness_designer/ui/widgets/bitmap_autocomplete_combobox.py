@@ -52,7 +52,7 @@ class BitmapAutoCompleteComboBox(wx.adv.BitmapComboBox):
     def __init__(
         self, parent, id=wx.ID_ANY, choices: list[str, wx.Bitmap, str] = [], pos=wx.DefaultPosition,
         size=wx.DefaultSize, style=0, validator=wx.DefaultValidator,
-        name=wx.ComboBoxNameStr
+        name=wx.adv.BitmapComboBoxNameStr
     ):
 
         style |= wx.TE_PROCESS_ENTER
@@ -87,15 +87,15 @@ class BitmapAutoCompleteComboBox(wx.adv.BitmapComboBox):
             self.SetToolTip(tooltip)
 
     def Clear(self):
-        wx.ComboBox.Clear(self)
+        wx.adv.BitmapComboBox.Clear(self)
         self._ac.SetChoices([])
 
     def Delete(self, n: int):
-        wx.ComboBox.Delete(self, n)
+        wx.adv.BitmapComboBox.Delete(self, n)
         self._ac.RemoveChoice(n)
 
     def Insert(self, item: str, bitmap: wx.Bitmap, pos: int, clientData=None):
-        wx.ComboBox.Insert(self, item, bitmap, pos, clientData)
+        wx.adv.BitmapComboBox.Insert(self, item, bitmap, pos, clientData)
         self._ac.InsertChoice(item, pos)
 
     def Set(self, items):
@@ -103,10 +103,10 @@ class BitmapAutoCompleteComboBox(wx.adv.BitmapComboBox):
         self._ac.SetChoices(items)
 
     def SetItems(self, items: list[str]):
-        wx.ComboBox.SetItems(self, items)
+        wx.adv.BitmapComboBox.SetItems(self, items)
 
     def Append(self, item, bitmap: wx.Bitmap, clientData=None):
-        res = wx.ComboBox.Append(self, item, bitmap, clientData)
+        res = wx.adv.BitmapComboBox.Append(self, item, bitmap, clientData)
         self._ac.AppendChoices(item)
 
         return res

@@ -1,234 +1,123 @@
 import wx
-from wx.lib import buttons as _buttons
 
 from .. import events as _events
 
 
-class _PropertyPanel(wx.Panel):
-    def __init__(self, parent_window, parent):
-        wx.Panel.__init__(self, parent_window, wx.ID_ANY, style=wx.BORDER_SUNKEN)
-        self.parent = parent
-        self._parent_window = parent_window
+class Property(wx.Panel):
 
-    def GetFQN(self):
-        return self.parent.GetFQN()
+    def __init__(self, parent, label, orientation=None):
 
+        wx.Panel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_NONE)
 
-class Property(wx.BoxSizer):
+        if orientation is None:
+            self._static_box = None
+            self._sizer = wx.BoxSizer(wx.VERTICAL)
+            self.SetSizer(self._sizer)
+        else:
+            self._sizer = wx.StaticBoxSizer(orientation, self, label)
+            self._static_box = self._sizer.GetStaticBox()
 
-    def __init__(self, label, name='', value=None, units=None):
+            if orientation == wx.VERTICAL:
+                sizer = wx.BoxSizer(wx.HORIZONTAL)
+                sizer.Add(self._sizer, 1, wx.ALL, 5)
+
+            else:
+                sizer = wx.BoxSizer(wx.VERTICAL)
+                sizer.Add(self._sizer, 1, wx.ALL | wx.EXPAND, 5)
+
+            self.SetSizer(sizer)
+
         self._label = label
-        self._name = name
-        self._value = value
         self._ctrl = None
-        self._units = units
         self._st: wx.StaticText = None
-        self._units_st: wx.StaticText = None
-        self.__parent = None
-        self.__parent_window = None
-        self._tooltip = None
-        self._expand_button: wx.Button = None
         self._button: wx.Button = None
-        self._panel: _PropertyPanel = None
+        self._units_st: wx.StaticText = None
+        self._parent = parent
 
-        self._expand_label = chr(0x229E)
-        self._collapse_label = chr(0x229F)
+    def SetToolTip(self, text):
+        if self._st is not None:
+            self._st.SetToolTip(text)
+            self._ctrl.SetToolTip(text)
+        else:
+            wx.Panel.SetToolTip(self, text)
 
-        wx.BoxSizer.__init__(self, wx.HORIZONTAL)
-        self._children = []
+    def Realize(self):
+        orientation = self._sizer.GetOrientation()
 
-    def Append(self, child: "Property"):
-        if not isinstance(child, Property):
-            raise ValueError
-
-        self._children.append(child)
-
-    def GetValue(self):
-        return self._value
-
-    def SetValue(self, value):
-        self._value = value
+        if orientation == wx.VERTICAL:
+            for child in self.GetChildren():
+                child.Realize()
+                self._sizer.Add(child, 0, wx.EXPAND)
+        else:
+            for child in self.GetChildren():
+                child.Realize()
+                self._sizer.Add(child, 1)
 
     def GetLabel(self) -> str:
         return self._label
 
     def SetLabel(self, value: str):
+        if self._static_box is not None:
+            self._static_box.SetLabel(value)
+        elif self._st is not None:
+            self._st.SetLabel(value)
+
         self._label = value
 
-    def GetName(self) -> str:
-        return self._name
+    #
+    #
+    # def Create(self, parent):
+    #     self._parent = parent
+    #
+    #     if self._children:
+    #         wx.Panel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_SUNKEN)
+    #
+    #         vsizer = wx.BoxSizer(wx.VERTICAL)
+    #         hsizer = wx.BoxSizer(wx.HORIZONTAL)
+    #
+    #         self._expand_button = _buttons.GenButton(
+    #             self, wx.ID_ANY,  self._expand_label, style=wx.BORDER_NONE, size=(15, 15))
+    #
+    #         self._st = wx.StaticText(self, wx.ID_ANY, label=self._label)
+    #
+    #         self.SetBackgroundColour(wx.Colour(215, 215, 215, 255))
+    #         self._expand_button.SetBackgroundColour(wx.Colour(215, 215, 215, 255))
+    #
+    #         font = self._expand_button.GetFont()
+    #         font.SetPointSize(font.GetPointSize() + 8)
+    #         self._expand_button.SetFont(font)
+    #
+    #         self._expand_button.Bind(wx.EVT_BUTTON, self._on_expand_button)
+    #
+    #         hsizer.Add(self._expand_button, 0, wx.ALL, 5)
+    #         hsizer.AddSpacer(3)
+    #         hsizer.Add(self._st, 1, wx.ALL, 5)
+    #         vsizer.Add(hsizer, 0, wx.EXPAND)
+    #
+    #         for i, child in enumerate(self._children):
+    #             child_sizer = wx.BoxSizer(wx.HORIZONTAL)
+    #             child_sizer.AddSpacer(27)
+    #             child.Create(self)
+    #             child_sizer.Add(child, 1)
+    #             child_sizer.AddSpacer(27)
+    #             vsizer.Add(child_sizer, 0, wx.EXPAND)
+    #
+    #             child.Hide()
+    #
+    #         self.SetSizer(vsizer)
+    #
+    #     else:
+    #         wx.Panel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_NONE)
+    #
+    #     for args, kwargs in self._bind_event:
+    #         wx.Panel.Bind(self, *args, **kwargs)
 
-    def SetName(self, value: str):
-        self._name = value
-
-    def GetFQN(self) -> str:
-        fqn = self._parent.GetFQN()
-
-        if fqn:
-            if self._name:
-                return fqn + '.' + self._name
-
-            return fqn
-
-        return self._name
-
-    @property
-    def _parent_window(self):
-        return self.__parent_window
-
-    @property
-    def _parent(self):
-        return self.__parent
-
-    def GetParent(self):
-        return self._parent
-
-    @_parent.setter
-    def _parent(self, value):
-        self.__parent = value
-
-        while not isinstance(value, wx.Window):
-            value = value.GetParent()
-
-        self.__parent_window = value
-
-    def Hide(self):
-        if self._st is not None:
-            self._st.Hide()
-
-        if self._ctrl is not None:
-            self._ctrl.Hide()
-
-        if self._units_st is not None:
-            self._units_st.Hide()
-
-        if self._button is not None:
-            self._button.Hide()
-
-        if self._expand_button is not None:
-            self._expand_button.Hide()
-
-        if self._panel is not None:
-            self._panel.Hide()
-
-            sizer = self._panel.GetSizer()
-            count = sizer.GetItemCount()
-            for i in range(1, count):
-                sizer.Hide(i)
-
-        # for child in self._children:
-        #     child.Hide()
-
-        # count = self.GetItemCount()
-        # for i in range(count):
-        #     wx.BoxSizer.Hide(self, i)
-
-        self.Layout()
-        self._parent.Layout()
-        self.__parent_window.Layout()
-        self.__parent_window.SendSizeEvent()
-
-    def Show(self):
-        if self._st is not None:
-            self._st.Show()
-
-        if self._ctrl is not None:
-            self._ctrl.Show()
-
-        if self._units_st is not None:
-            self._units_st.Show()
-
-        if self._button is not None:
-            self._button.Show()
-
-        if self._expand_button is not None:
-            self._expand_button.Show()
-
-        if self._panel is not None:
-            self._panel.Show()
-
-            sizer = self._panel.GetSizer()
-            count = sizer.GetItemCount()
-            for i in range(1, count):
-                sizer.Show(i)
-
-            sizer.Layout()
-            self._panel.Layout()
-
-        # for child in self._children:
-        #     child.Show()
-
-        self.Layout()
-        self._parent.Layout()
-        self.__parent_window.Layout()
-        self.__parent_window.SendSizeEvent()
-
-    def Create(self, parent):
-        self._parent = parent
-        parent = self._parent_window
-
-        if self._children:
-            panel = self._panel = _PropertyPanel(parent, self._parent)
-            panel.SetBackgroundColour(wx.Colour(215, 215, 215, 255))
-
-            vsizer = wx.BoxSizer(wx.VERTICAL)
-            hsizer = wx.BoxSizer(wx.HORIZONTAL)
-
-            self._st = wx.StaticText(panel, wx.ID_ANY, label=self._label)
-
-            self._expand_button = _buttons.GenButton(
-                panel, wx.ID_ANY,  self._expand_label, style=wx.BORDER_NONE, size=(15, 15))
-
-            self._expand_button.SetBackgroundColour(wx.Colour(215, 215, 215, 255))
-
-            font = self._expand_button.GetFont()
-            font.SetPointSize(font.GetPointSize() + 8)
-            self._expand_button.SetFont(font)
-
-            self._expand_button.Bind(wx.EVT_BUTTON, self._on_expand_button)
-            hsizer.Add(self._expand_button, 0, wx.ALL, 5)
-            hsizer.AddSpacer(3)
-            hsizer.Add(self._st, 1, wx.ALL, 5)
-            vsizer.Add(hsizer, 0, wx.EXPAND)
-
-            for child in self._children:
-                child.AddSpacer(27)
-                child.Create(panel)
-                vsizer.Add(child, 1, wx.EXPAND)
-                child.Hide()
-
-            panel.SetSizer(vsizer)
-            self.Add(panel, 1)
-
-    def _on_expand_button(self, _):
-        label = self._expand_button.GetLabel()
-        if label == self._expand_label:
-            self._expand_button.SetLabel(self._collapse_label)
-            for child in self._children:
-                child.Show()
-
-        else:
-            self._expand_button.SetLabel(self._expand_label)
-            for child in self._children:
-                child.Hide()
-
-        self._panel.Layout()
-        self.Layout()
-        self._parent_window.SendSizeEvent()
-
-    def _send_changed_event(self, value_type):
+    def _send_changed_event(self, value_type, value):
         event = _events.PropertyEvent(_events.wxEVT_PROPERTY_CHANGED)
-        event.SetValue(self._value)
+        event.SetValue(value)
         event.SetPropertyType(value_type)
         event.SetProperty(self)
-        event.SetName(self.GetFQN())
-        event.SetId(self._parent_window.GetId())
-        event.SetEventObject(self._parent_window)
+        event.SetId(self.GetId())
+        event.SetEventObject(self)
 
-        self._parent_window.GetEventHandler().ProcessEvent(event)
-
-    def SetToolTip(self, text):
-        self._tooltip = text
-
-        if self._ctrl is not None:
-            self._ctrl.SetToolTip(text)
+        self.GetEventHandler().ProcessEvent(event)

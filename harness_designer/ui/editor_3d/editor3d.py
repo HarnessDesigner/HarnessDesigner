@@ -77,37 +77,6 @@ class Editor3D(aui.AuiPaneInfo):
     def set_clone_obj(self, obj):
         self.editor.set_clone_obj(obj)
 
-#
-# class EditorNotebook(aui.AuiNotebook):
-#
-#     def __init__(self, mainframe: "_mainframe.MainFrame"):
-#         aui.AuiNotebook.__init__(self, mainframe, wx.ID_ANY,
-#                                  style=aui.AUI_NB_TAB_SPLIT | aui.AUI_NB_TAB_MOVE | aui.AUI_NB_TOP | aui.AUI_NB_CLOSE_ON_ALL_TABS)
-#
-#         self.mainframe = mainframe
-#         self.editor = Editor3DPanel(self)
-#
-#         self.AddPage(self.editor, 'Editor 3D')
-#
-#         self.Bind(aui.EVT_AUINOTEBOOK_PAGE_CLOSE, self._on_page_close)
-#
-#     @property
-#     def editor3d(self):
-#         return self.mainframe.editor3d
-#
-#     @property
-#     def editor2d(self):
-#         return self.mainframe.editor2d
-#
-#     def _on_page_close(self, evt):
-#         closing_index = evt.GetSelection()
-#         closing_page = self.GetPage(closing_index)
-#
-#         if closing_page == self.editor:
-#             evt.Veto()
-#         else:
-#             evt.Skip()
-
 
 class Editor3DPanel(_canvas3d.Canvas3D):
 

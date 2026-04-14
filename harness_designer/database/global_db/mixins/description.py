@@ -13,9 +13,21 @@ class DescriptionMixin(BaseMixin):
     def description(self, value: str):
         self._table.update(self._db_id, description=value)
 
-    @property
-    def _description_propgrid(self) -> _prop_grid.Property:
 
-        desc_prop = _prop_grid.LongStringProperty('Description', 'description', self.description)
+class DescriptionControl(_prop_grid.LongStringProperty):
 
-        return desc_prop
+    def __init__(self, parent):
+        self.db_obj: DescriptionMixin = None
+
+        super().__init__(parent, 'Description', '')
+
+        self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_desc)
+
+    def set_obj(self, db_obj: DescriptionMixin):
+        self.db_obj = db_obj
+
+        self.SetValue(db_obj.description)
+
+    def _on_desc(self, evt: _prop_grid.PropertyEvent):
+        desc = evt.GetValue()
+        self.db_obj.description = desc

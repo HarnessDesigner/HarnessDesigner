@@ -19,9 +19,15 @@ class DragObject:
         # last object world _point.Point used for incremental moves
         self.last_pos = selected.obj3d.position.copy()
         self.axis_lock = _point.Point(0, 0, 0)
-        self.move_arrows = None
+        self.move_arrows: _move_arrows.MoveArrows = None
 
         self.pick_offset = None
+
+    def delete(self):
+        if self.move_arrows is not None:
+            self.move_arrows.delete()
+
+        self.move_arrows = None
 
     @_debug.logfunc
     def __call__(self, delta):

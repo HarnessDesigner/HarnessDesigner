@@ -183,3 +183,51 @@ class Boot(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, Fami
         part_cat.Append(compat_housings_prop)
 
         return part_cat
+
+    def get_control(self, parent):
+        part_number
+        manufacturer
+        description
+        family
+        series
+        resource
+        weight
+        color
+        min_temp
+        max_temp
+        model3d
+        length
+        width
+        height
+        compat_housings
+        direction
+
+        group = _prop_grid.Property(parent, 'Boot')
+
+        self._table.execute(f'SELECT code, description, accessory_part_nums FROM adhesives WHERE id={self.db_id};')
+        rows = self._table.fetchall()
+
+        code, description, part_nums = rows[0]
+        part_nums = part_nums[1:-1].split(', ')
+
+        code_prop = _prop_grid.StringProperty(group, 'Code', 'code', code)
+        desc_prop = _prop_grid.LongStringProperty(group, 'Description', 'description', description)
+        nums_prop = _prop_grid.ArrayStringProperty(group, 'Accessories', 'accessories', part_nums)
+
+        def _on_code(evt: _prop_grid.PropertyEvent):
+            cde = evt.GetValue()
+            self.code = cde
+
+        def _on_desc(evt: _prop_grid.PropertyEvent):
+            desc = evt.GetValue()
+            self.description = desc
+
+        def _on_nums(evt: _prop_grid.PropertyEvent):
+            nums = evt.GetValue()
+            self.accessory_part_nums = nums
+
+        code_prop.Bind(_prop_grid.EVT_PROPERTY_CHANGED, _on_code)
+        desc_prop.Bind(_prop_grid.EVT_PROPERTY_CHANGED, _on_desc)
+        nums_prop.Bind(_prop_grid.EVT_PROPERTY_CHANGED, _on_nums)
+
+        return group

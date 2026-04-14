@@ -61,13 +61,3 @@ class SealType(EntryBase, NameMixin):
         }
 
         return packet
-
-    @property
-    def propgrid(self) -> _prop_grid.Property:
-
-        rows = self.table.select('name')
-
-        choices = [item[0] for item in rows]
-        name_prop = _prop_grid.ComboBoxProperty('Seal Type', 'name', self.name, choices)
-
-        return name_prop

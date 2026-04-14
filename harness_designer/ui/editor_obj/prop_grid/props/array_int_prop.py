@@ -185,57 +185,47 @@ class ArrayIntDialog(wx.Dialog):
 
 class ArrayIntProperty(_prop_base.Property):
 
-    def __init__(self, label, name='', value=[]):
+    def __init__(self, parent, label, value=[]):
         self._dialog_title = 'Enter Integer Values'
+        _prop_base.Property.__init__(self, parent, label)
 
-        _prop_base.Property.__init__(self, label, name, value, None)
+        self._value = value
+
+        self._st = wx.StaticText(self, wx.ID_ANY, label=self._label + ':')
+
+        value = ', '.join(str(item) for item in self._value)
+        self._ctrl = wx.TextCtrl(self, wx.ID_ANY, value=value, style=wx.TE_LEFT | wx.TE_READONLY)
+        self._button = wx.Button(self, wx.ID_ANY, label='...', size=(20, -1))
+
+        self._button.Bind(wx.EVT_BUTTON, self._on_dialog_button)
+
+    def GetValue(self) -> list[int]:
+        return self._value
+
+    def SetValue(self, value: list[int]):
+        self._value = value
+        value = ', '.join(str(item) for item in value)
+        self._ctrl.ChangeValue(value)
+
+    def Realize(self):
+        hsizer1 = wx.BoxSizer(wx.HORIZONTAL)
+        hsizer1.Add(self._st, 0, wx.ALL | wx.ALIGN_CENTER, 5)
+
+        vsizer = wx.BoxSizer(wx.VERTICAL)
+        hsizer2 = wx.BoxSizer(wx.HORIZONTAL)
+        hsizer2.Add(self._ctrl, 1)
+        hsizer2.Add(self._button, 0)
+
+        vsizer.Add(hsizer2, 0, wx.ALL | wx.EXPAND, 5)
+        hsizer1.Add(vsizer, 1)
+
+        self._sizer.Add(hsizer1, 0, wx.EXPAND)
 
     def SetDialogTitle(self, value: str):
         self._dialog_title = value
 
-    def GetValue(self) -> str:
-        return self._value
-
-    def SetValue(self, value: str):
-        if self._ctrl is not None:
-            self._ctrl.ChangeValue(value)
-            self._value = value
-
-    def Create(self, parent):
-        _prop_base.Property.Create(self, parent)
-
-        parent = self._parent_window
-
-        self._st = wx.StaticText(parent, wx.ID_ANY, label=self._label + ':')
-
-        value = ', '.join(str(item) for item in self._value)
-        self._ctrl = wx.TextCtrl(parent, wx.ID_ANY, value=value, style=wx.TE_LEFT | wx.TE_READONLY)
-        self._button = wx.Button(parent, wx.ID_ANY, label='...', size=(20, -1), style=wx.BORDER_NONE | wx.BU_TOP)
-
-        self.Add(self._st, 0, wx.ALL | wx.ALIGN_CENTER, 5)
-
-        vsizer = wx.BoxSizer(wx.VERTICAL)
-        hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        hsizer.Add(self._ctrl, 1)
-        hsizer.Add(self._button, 0)
-
-        vsizer.Add(hsizer, 0, wx.ALL | wx.EXPAND, 5)
-        self.Add(vsizer, 1)
-
-        if self._units is not None:
-            self._units_st = wx.StaticText(parent, wx.ID_ANY, label=self._units)
-            self.Add(self._units_st, 0, wx.ALL | wx.ALIGN_BOTTOM, 5)
-
-        self._button.Bind(wx.EVT_BUTTON, self._on_dialog_button)
-
-        def _do():
-            h = self._ctrl.GetSize()[-1]
-            self._button.SetSize((h, h))
-
-        wx.CallAfter(_do)
-
     def _on_dialog_button(self, _):
-        dlg = ArrayIntDialog(self._parent_window, self._value, self._dialog_title)
+        dlg = ArrayIntDialog(self, self._value, self._dialog_title)
         dlg.CenterOnParent()
 
         if dlg.ShowModal() == wx.ID_OK:
@@ -244,8 +234,10 @@ class ArrayIntProperty(_prop_base.Property):
                 dlg.Destroy()
                 return
 
+            self._value = value
             value = ', '.join(str(item) for item in value)
             self._ctrl.ChangeValue(value)
-            self._send_changed_event(list)
+
+            self._send_changed_event(list, self._value)
 
         dlg.Destroy()

@@ -9,6 +9,7 @@ from OpenGL import GL
 from OpenGL import GLU
 import math
 import ctypes
+import weakref
 
 from . import headlight as _headlight
 from . import focal_target as _focal_target
@@ -123,6 +124,7 @@ class Canvas(glcanvas.GLCanvas):
         self._last_culled = []
         self._object_refs = []
         self._objects_in_view = []
+        self._object_addr_mapping = {}
 
         self._object_data = [[], [], [], [], [], [], [], [], [], []]
 
@@ -213,8 +215,6 @@ class Canvas(glcanvas.GLCanvas):
                 found_container = container
                 container_len = len(container)
 
-        import weakref
-
         aabb_min, aabb_max = obj.obj3d.aabb
         pos = obj.obj3d.position.as_numpy
         is_opaque = obj.obj3d.is_opaque
@@ -231,24 +231,59 @@ class Canvas(glcanvas.GLCanvas):
         # during the rendering process so no explicit searching over those lists
         # needs to be done. The entire process becomes simpler to manage that way
         # the weakref will get removed from the weakref list as well.
-        obj_ref = weakref.ref(obj)
+        obj_ref = weakref.ref(obj, self.__remove_obj_ref)
         obj_address = id(obj_ref)
 
         # we need to hold a reference to the weakref so it doesn't get GC'd
         # which would cause the memory address for the wekref to be invalid
         self._object_refs.append(obj_ref)
+        self._object_addr_mapping[obj] = obj_address
 
         found_container.append([aabb_min, aabb_max, pos, is_opaque, obj_address])
         self._objects.append(obj)
 
+    def __remove_obj_ref(self, ref):
+        try:
+            self._object_refs.remove(ref)
+        except ValueError:
+            pass
+
     def remove_object(self, obj):
+        print('removing object:', obj)
 
         # we don't need to do any specific cleanup for the data in
         # self._object_data that is handled by the weakref and the render process.
+
         try:
             self._objects.remove(obj)
+            print('removed from objects')
+
         except ValueError:
             pass
+
+        try:
+            self._objects_in_view.remove(obj)
+            print('removed from objects in view')
+
+        except ValueError:
+            pass
+
+        if obj in self._object_addr_mapping:
+            obj_address = self._object_addr_mapping.pop(obj)
+            print('object address:', obj, ':', obj_address)
+
+            for container in self._object_data:
+                for line in container:
+                    if line[-1] == obj_address:
+                        print('removing from container')
+                        container.remove(line)
+                        break
+                else:
+                    continue
+
+                break
+
+        self.Refresh()
 
     def __enter__(self) -> Self:
         self._ref_count += 1
@@ -490,8 +525,13 @@ class Canvas(glcanvas.GLCanvas):
             obj = obj_ref()
 
             if obj is None:
+                try:
+                    self._object_refs.remove(obj_ref)
+                except ValueError:
+                    pass
+
                 removed_objects.append(row)
-                self._object_refs.remove(obj_ref)
+
                 continue
 
             objects_in_view.append(obj)
@@ -508,8 +548,6 @@ class Canvas(glcanvas.GLCanvas):
                     break
                 except ValueError:
                     continue
-            else:
-                raise RuntimeError('This should not occur')
 
     @_debug.logfunc
     def _on_draw(self):

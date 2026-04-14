@@ -14,7 +14,7 @@ class CompatSealsMixin(BaseMixin):
 
     @property
     def compat_seals(self) -> list["_seal.Seal"]:
-        compat_seals = eval(self._table.select('compat_seals', id=self._db_id)[0][0])
+        compat_seals = self.compat_seals_array
         res = []
         for part_number in compat_seals:
             try:
@@ -25,21 +25,32 @@ class CompatSealsMixin(BaseMixin):
 
     @compat_seals.setter
     def compat_seals(self, value: list["_seal.Seal"]):
-        compat_seals = [seal.part_number for seal in value]
-        self._table.update(self._db_id, compat_seals=str(compat_seals))
+        self.compat_seals_array = [seal.part_number for seal in value]
 
     @property
     def compat_seals_array(self) -> list[str]:
-        return eval(self._table.select('compat_seals', id=self._db_id)[0][0])
+        value = self._table.select('compat_seals', id=self._db_id)[0][0]
+        return value[1:-1].split(', ')
 
     @compat_seals_array.setter
     def compat_seals_array(self, value: list[str]):
-        self._table.update(self._db_id, compat_seals=str(value))
+        value = f'[{", ".join(value)}]'
+        self._table.update(self._db_id, compat_seals=value)
 
-    @property
-    def _compat_seals_propgrid(self) -> _prop_grid.Property:
 
-        prop = _prop_grid.ArrayStringProperty(
-            'Compatible Seals', 'compat_seals_array', self.compat_seals_array)
+class CompatSealsControl(_prop_grid.ArrayStringProperty):
 
-        return prop
+    def __init__(self, parent):
+        self.db_obj: CompatSealsMixin = None
+        super().__init__(parent, 'Compatible Seals', [])
+
+        self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_compat_housings)
+
+    def set_obj(self, db_obj: CompatSealsMixin):
+        self.db_obj = db_obj
+
+        self.SetValue(db_obj.compat_seals_array)
+
+    def _on_compat_housings(self, evt: _prop_grid.PropertyEvent):
+        compat_seals = evt.GetValue()
+        self.db_obj.compat_seals_array = compat_seals

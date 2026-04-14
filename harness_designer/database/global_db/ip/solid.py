@@ -25,6 +25,18 @@ class IPSolidsTable(TableBase):
 
         ip_solids.table.update_fields(self)
 
+    def __getitem__(self, item) -> "IPSolid":
+        if isinstance(item, int):
+            if item in self:
+                return IPSolid(self, item)
+            raise IndexError(str(item))
+
+        db_id = self.select('id', name=item)
+        if db_id:
+            return IPSolid(self, db_id[0][0])
+
+        raise KeyError(item)
+
     def __iter__(self) -> _Iterable["IPSolid"]:
         for db_id in TableBase.__iter__(self):
             yield IPSolid(self, db_id)

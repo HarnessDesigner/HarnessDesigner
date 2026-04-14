@@ -18,3 +18,15 @@ class NameMixin(BaseMixin):
         prop = _prop_grid.StringProperty('Name', 'name', self.name)
 
         return prop
+
+    def get_name_control(self, parent):
+        ctrl = _prop_grid.StringProperty(parent, 'Name', self.name)
+
+        def _on_name(evt: _prop_grid.PropertyEvent):
+            name = evt.GetValue()
+            self.name = name
+
+        ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, _on_name)
+
+        return ctrl
+

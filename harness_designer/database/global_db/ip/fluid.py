@@ -25,6 +25,18 @@ class IPFluidsTable(TableBase):
 
         ip_fluids.table.update_fields(self)
 
+    def __getitem__(self, item) -> "IPFluid":
+        if isinstance(item, int):
+            if item in self:
+                return IPFluid(self, item)
+            raise IndexError(str(item))
+
+        db_id = self.select('id', name=item)
+        if db_id:
+            return IPFluid(self, db_id[0][0])
+
+        raise KeyError(item)
+
     def __iter__(self) -> _Iterable["IPFluid"]:
         for db_id in TableBase.__iter__(self):
             yield IPFluid(self, db_id)

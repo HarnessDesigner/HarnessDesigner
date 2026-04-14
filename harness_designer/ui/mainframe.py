@@ -407,6 +407,7 @@ class MainFrame(wx.Frame):
 
     def remove_object(self, obj):
         self.editor2d.remove_object(obj)
+        print('removing object from 3d editor')
         self.editor3d.remove_object(obj)
 
     def _set_selected(self, obj: "_objects.ObjectBase"):

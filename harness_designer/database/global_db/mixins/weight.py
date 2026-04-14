@@ -13,11 +13,21 @@ class WeightMixin(BaseMixin):
     def weight(self, value: float):
         self._table.update(self._db_id, weight=value)
 
-    @property
-    def _weight_propgrid(self) -> _prop_grid.Property:
 
-        prop = _prop_grid.FloatProperty(
-            'Weight', 'weight', self.weight, min_value=0.01,
-            max_value=999.00, increment=0.01, units='g')
+class WeightControl(_prop_grid.FloatProperty):
 
-        return prop
+    def __init__(self, parent):
+        self.db_obj: WeightMixin = None
+
+        super().__init__(parent, 'Weight', 0.01, min_value=0.01, max_value=999.99, increment=0.01, units='g')
+
+        self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_weight)
+
+    def set_obj(self, db_obj: WeightMixin):
+        self.db_obj = db_obj
+
+        self.SetValue(db_obj.weight)
+
+    def _on_weight(self, evt: _prop_grid.PropertyEvent):
+        weight = evt.GetValue()
+        self.db_obj.weight = weight

@@ -25,28 +25,70 @@ from . import compat_seals as _compat_seals
 
 
 ColorMixin = _color.ColorMixin
+ColorControl = _color.ColorControl
+
 ResourceMixin = _resource.ResourceMixin
+ResourcesControl = _resource.ResourcesControl
+
 DescriptionMixin = _description.DescriptionMixin
+DescriptionControl = _description.DescriptionControl
+
 DimensionMixin = _dimension.DimensionMixin
+DimensionControl = _dimension.DimensionControl
+
 DirectionMixin = _direction.DirectionMixin
+DirectionControl = _direction.DirectionControl
+
 FamilyMixin = _family.FamilyMixin
+FamilyControl = _family.FamilyControl
+
 GenderMixin = _gender.GenderMixin
+GenderControl = _gender.GenderControl
+
 ManufacturerMixin = _manufacturer.ManufacturerMixin
+ManufacturerControl = _manufacturer.ManufacturerControl
+
 MaterialMixin = _material.MaterialMixin
+MaterialControl = _material.MaterialControl
+
 NameMixin = _name.NameMixin
+
 PartNumberMixin = _part_number.PartNumberMixin
+PartNumberControl = _part_number.PartNumberControl
+
 SeriesMixin = _series.SeriesMixin
+SeriesControl = _series.SeriesControl
+
 TemperatureMixin = _temperature.TemperatureMixin
+TemperatureControl = _temperature.TemperatureControl
+
 WireSizeMixin = _wire_size.WireSizeMixin
+
 AdhesiveMixin = _adhesive.AdhesiveMixin
+AdhesiveControl = _adhesive.AdhesiveControl
+
 ProtectionMixin = _protection.ProtectionMixin
+ProtectionControl = _protection.ProtectionControl
+
 WeightMixin = _weight.WeightMixin
+WeightControl = _weight.WeightControl
+
 CavityLockMixin = _cavity_lock.CavityLockMixin
+CavityLockControl = _cavity_lock.CavityLockControl
+
 Model3DMixin = _model3d.Model3DMixin
+
 PlatingMixin = _plating.PlatingMixin
+PlatingControl = _plating.PlatingControl
+
 CompatHousingsMixin = _compat_housings.CompatHousingsMixin
+CompatHousingsControl = _compat_housings.CompatHousingsControl
+
 CompatTerminalsMixin = _compat_terminals.CompatTerminalsMixin
+CompatTerminalsControl = _compat_terminals.CompatTerminalsControl
+
 CompatSealsMixin = _compat_seals.CompatSealsMixin
+CompatSealsControl = _compat_seals.CompatSealsControl
 
 
 del _adhesive

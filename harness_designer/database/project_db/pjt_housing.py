@@ -820,27 +820,32 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin,
         name_prop = self._name_propgrid
 
         angle_prop = _prop_grid.Property('Angle')
+
         angle2d_prop = self._angle2d_propgrid
-        angle3d_prop = self._angle3d_propgrid
         angle2d_prop.SetLabel('2D')
-        angle3d_prop.SetLabel('3D')
         angle_prop.Append(angle2d_prop)
+
+        angle3d_prop = self._angle3d_propgrid
+        angle3d_prop.SetLabel('3D')
         angle_prop.Append(angle3d_prop)
 
         position_prop = _prop_grid.Property('Position')
+
         position2d_prop = self._position2d_propgrid
-        position3d_prop = self._position3d_propgrid
         position2d_prop.SetLabel('2D')
-        position3d_prop.SetLabel('3D')
         position_prop.Append(position2d_prop)
+
+        position3d_prop = self._position3d_propgrid
+        position3d_prop.SetLabel('3D')
         position_prop.Append(position3d_prop)
 
         visible_prop = _prop_grid.Property('Visible')
         visible2d_prop = self._visible2d_propgrid
-        visible3d_prop = self._visible3d_propgrid
         visible2d_prop.SetLabel('2D')
-        visible3d_prop.SetLabel('3D')
         visible_prop.Append(visible2d_prop)
+
+        visible3d_prop = self._visible3d_propgrid
+        visible3d_prop.SetLabel('3D')
         visible_prop.Append(visible3d_prop)
 
         cavities_group = _prop_grid.Property('Cavities')
@@ -850,43 +855,42 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin,
 
             cavities_group.Append(cavity.propgrid)
 
+        accessories_group = _prop_grid.Property('Accessories')
+
         _ = self.cover_position3d
-        _ = self.boot_position3d
-        _ = self.cpa_lock_position3d
-        _ = self.tpa_lock_1_position3d
-        _ = self.tpa_lock_2_position3d
-        _ = self.seal_position3d
-
         cover_prop = self._stored_cover_position3d.propgrid
-        boot_prop = self._stored_boot_position3d.propgrid
-        cpa_lock_prop = self._stored_cpa_lock_position3d.propgrid
-        tpa_lock1_prop = self._stored_tpa_lock_1_position3d.propgrid
-        tpa_lock2_prop = self._stored_tpa_lock_2_position3d.propgrid
-        seal_prop = self._stored_seal_position3d.propgrid
-
         cover_prop.SetLabel('Cover 3D')
         cover_prop.SetName('cover_position3d')
+        accessories_group.Append(cover_prop)
+
+        _ = self.boot_position3d
+        boot_prop = self._stored_boot_position3d.propgrid
         boot_prop.SetLabel('Boot 3D')
         boot_prop.SetName('boot_position3d')
+        accessories_group.Append(boot_prop)
 
+        _ = self.cpa_lock_position3d
+        cpa_lock_prop = self._stored_cpa_lock_position3d.propgrid
         cpa_lock_prop.SetLabel('CPA Lock 3D')
         cpa_lock_prop.SetName('cpa_lock_position3d')
+        accessories_group.Append(cpa_lock_prop)
 
+        _ = self.tpa_lock_1_position3d
+        tpa_lock1_prop = self._stored_tpa_lock_1_position3d.propgrid
         tpa_lock1_prop.SetLabel('TPA Lock 1 3D')
         tpa_lock1_prop.SetName('tpa_lock_1_position3d')
+        accessories_group.Append(tpa_lock1_prop)
 
+        _ = self.tpa_lock_2_position3d
+        tpa_lock2_prop = self._stored_tpa_lock_2_position3d.propgrid
         tpa_lock2_prop.SetLabel('TPA Lock 2 3D')
         tpa_lock2_prop.SetName('tpa_lock_2_position3d')
+        accessories_group.Append(tpa_lock2_prop)
 
+        _ = self.seal_position3d
+        seal_prop = self._stored_seal_position3d.propgrid
         seal_prop.SetLabel('Seal 3D')
         seal_prop.SetName('seal_position3d')
-
-        accessories_group = _prop_grid.Property('Accessory Positions')
-        accessories_group.Append(cover_prop)
-        accessories_group.Append(boot_prop)
-        accessories_group.Append(cpa_lock_prop)
-        accessories_group.Append(tpa_lock1_prop)
-        accessories_group.Append(tpa_lock2_prop)
         accessories_group.Append(seal_prop)
 
         group.Append(name_prop)

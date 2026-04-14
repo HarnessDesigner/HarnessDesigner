@@ -36,3 +36,41 @@ class DirectionMixin(BaseMixin):
         return prop
 
 
+class DirectionControl(_prop_grid.ComboBoxProperty):
+
+    def __init__(self, parent):
+
+        self.choices: list[str] = []
+        self.db_obj: DirectionMixin = None
+
+        super().__init__(parent, 'Direction', '', [])
+        self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_direction)
+
+    def set_obj(self, db_obj: DirectionMixin):
+        self.db_obj = db_obj
+
+        db_obj.table.execute('SELECT name FROM directions;')
+        rows = db_obj.table.fetchall()
+
+        self.choices = sorted([row[0] for row in rows])
+        self.SetItems(self.choices)
+        self.SetValue(db_obj.direction.name)
+
+    def _on_direction(self, evt: _prop_grid.PropertyEvent):
+        name = evt.GetValue()
+
+        self.db_obj.table.execute('SELECT id FROM directions WHERE name="{name}";')
+        rows = self.db_obj.table.fetchall()
+        if rows:
+            db_id = rows[0][0]
+        else:
+            db_obj = self.db_obj.table.db.directions_table.insert(name)
+            db_id = db_obj.db_id
+
+            self.choices.append(name)
+            self.choices.sort()
+
+            self.SetItems(self.choices)
+            self.SetValue(name)
+
+        self.db_obj.direction_id = db_id

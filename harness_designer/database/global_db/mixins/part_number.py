@@ -9,8 +9,25 @@ class PartNumberMixin(BaseMixin):
     def part_number(self) -> str:
         return self._table.select('part_number', id=self._db_id)[0][0]
 
-    @property
-    def _part_number_propgrid(self) -> _prop_grid.Property:
-        prop = _prop_grid.StringProperty('Part Number', 'part_number', self.part_number)
+    @part_number.setter
+    def part_number(self, value: str):
+        self._table.update(self._db_id, part_number=value)
 
-        return prop
+
+class PartNumberControl(_prop_grid.StringProperty):
+
+    def __init__(self, parent):
+        self.db_obj: PartNumberMixin = None
+
+        super().__init__(parent, 'Part Number', '')
+
+        self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_part_number)
+
+    def set_obj(self, db_obj: PartNumberMixin):
+        self.db_obj = db_obj
+
+        self.SetValue(db_obj.part_number)
+
+    def _on_part_number(self, evt: _prop_grid.PropertyEvent):
+        part_number = evt.GetValue()
+        self.db_obj.part_number = part_number

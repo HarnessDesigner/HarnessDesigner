@@ -23,6 +23,18 @@ class IPSuppsTable(TableBase):
 
         ip_supps.table.update_fields(self)
 
+    def __getitem__(self, item) -> "IPSupp":
+        if isinstance(item, int):
+            if item in self:
+                return IPSupp(self, item)
+            raise IndexError(str(item))
+
+        db_id = self.select('id', name=item)
+        if db_id:
+            return IPSupp(self, db_id[0][0])
+
+        raise KeyError(item)
+
     def __iter__(self) -> _Iterable["IPSupp"]:
         for db_id in TableBase.__iter__(self):
             yield IPSupp(self, db_id)

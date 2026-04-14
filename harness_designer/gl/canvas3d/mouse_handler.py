@@ -138,7 +138,10 @@ class MouseHandler:
         return new_event.ShouldPropagate()
 
     def on_mouse_capture_lost(self, evt: wx.MouseCaptureLostEvent):
-        self._drag_obj = None
+        if self._drag_obj is not None:
+            self._drag_obj.delete()
+            self._drag_obj = None
+
         self._arcball = None
         self._is_motion = False
         if self.canvas.HasCapture():
@@ -215,6 +218,8 @@ class MouseHandler:
                 refresh = True
 
             if self._drag_obj is not None:
+                print('drag object is not None')
+                self._drag_obj.delete()
                 self._drag_obj = None
 
         self._mouse_pos = None

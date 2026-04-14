@@ -5,24 +5,22 @@ from . import prop_base as _prop_base
 
 class BoolProperty(_prop_base.Property):
 
-    def __init__(self, label, name='', value=False):
-        _prop_base.Property.__init__(self, label, name, value, None)
+    def __init__(self, parent, label, value=False):
+        _prop_base.Property.__init__(self, parent, label)
+        self._value = value
 
-    def Create(self, parent):
-        _prop_base.Property.Create(self, parent)
-        parent = self._parent_window
-
-        self._st = wx.StaticText(parent, wx.ID_ANY, label=self._label + ':')
-        self._ctrl = wx.CheckBox(parent, wx.ID_ANY, label='')
-
-        self.Add(self._st, 0, wx.ALL | wx.ALIGN_CENTER, 5)
-        self.Add(self._ctrl, 0, wx.ALL, 5)
+        self._st = wx.StaticText(self, wx.ID_ANY, label=label + ':')
+        self._ctrl = wx.CheckBox(self, wx.ID_ANY, label='')
 
         self._ctrl.Bind(wx.EVT_CHECKBOX, self._on_change)
 
-        if self._tooltip is not None:
-            self._ctrl.SetToolTip(self._tooltip)
-            self._st.SetToolTip(self._tooltip)
+    def Realize(self):
+        hsizer = wx.BoxSizer(wx.HORIZONTAL)
+
+        hsizer.Add(self._st, 0, wx.ALL | wx.ALIGN_CENTER, 5)
+        hsizer.Add(self._ctrl, 0, wx.ALL, 5)
+
+        self._sizer.Add(hsizer, 0, wx.EXPAND)
 
     def _on_change(self, _):
         value = self._ctrl.GetValue()
@@ -31,7 +29,7 @@ class BoolProperty(_prop_base.Property):
             return
 
         self._value = value
-        self._send_changed_event(str)
+        self._send_changed_event(str, value)
 
     def SetValue(self, value: bool):
         self._ctrl.SetValue(value)

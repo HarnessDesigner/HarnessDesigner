@@ -127,7 +127,7 @@ class Cavity(_base2d.Base2D):
         # Restore transformation matrix
         GL.glPopMatrix()
 
-    def hit_test(self, world_pos: "_point.Point") -> bool
+    def hit_test(self, world_pos: "_point.Point") -> bool:
 
         if self._position is None:
             return False
@@ -146,7 +146,7 @@ class Cavity(_base2d.Base2D):
 
         length = self.db_obj.part.length
         width = self.db_obj.part.width
-        
+
         half_w = width / 2
         half_h = length / 2
         return abs(rotated_x) <= half_w and abs(rotated_y) <= half_h

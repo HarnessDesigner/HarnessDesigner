@@ -13,7 +13,7 @@ class CompatTerminalsMixin(BaseMixin):
 
     @property
     def compat_terminals(self) -> list["_terminal.Terminal"]:
-        compat_terminals = eval(self._table.select('compat_terminals', id=self._db_id)[0][0])
+        compat_terminals = self.compat_terminals_array
         res = []
         for part_number in compat_terminals:
             try:
@@ -24,21 +24,32 @@ class CompatTerminalsMixin(BaseMixin):
 
     @compat_terminals.setter
     def compat_terminals(self, value: list["_terminal.Terminal"]):
-        compat_terminals = [terminal.part_number for terminal in value]
-        self._table.update(self._db_id, compat_terminals=str(compat_terminals))
+        self.compat_terminals_array = [terminal.part_number for terminal in value]
 
     @property
     def compat_terminals_array(self) -> list[str]:
-        return eval(self._table.select('compat_terminals', id=self._db_id)[0][0])
+        value = self._table.select('compat_terminals', id=self._db_id)[0][0]
+        return value[1:-1].split(', ')
 
     @compat_terminals_array.setter
     def compat_terminals_array(self, value: list[str]):
-        self._table.update(self._db_id, compat_terminals=str(value))
+        value = f'[{", ".join(value)}]'
+        self._table.update(self._db_id, compat_terminals=value)
 
-    @property
-    def _compat_terminals_propgrid(self) -> _prop_grid.Property:
 
-        prop = _prop_grid.ArrayStringProperty(
-            'Compatible Terminals', 'compat_terminals_array', self.compat_terminals_array)
+class CompatTerminalsControl(_prop_grid.ArrayStringProperty):
 
-        return prop
+    def __init__(self, parent):
+        self.db_obj: CompatTerminalsMixin = None
+        super().__init__(parent, 'Compatible Terminals', [])
+
+        self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_compat_housings)
+
+    def set_obj(self, db_obj: CompatTerminalsMixin):
+        self.db_obj = db_obj
+
+        self.SetValue(db_obj.compat_terminals_array)
+
+    def _on_compat_housings(self, evt: _prop_grid.PropertyEvent):
+        compat_terminals = evt.GetValue()
+        self.db_obj.compat_terminals_array = compat_terminals

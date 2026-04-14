@@ -3,8 +3,7 @@ from typing import Iterable as _Iterable, TYPE_CHECKING
 import os
 import wx
 import uuid
-from wx import propgrid as wxpg
-
+from ....ui.editor_obj import prop_grid as _prop_grid
 from .... import resources as _resources
 from ...create_database import models3d as _models3d
 
@@ -305,31 +304,59 @@ class Model3D(EntryBase):
         return vertices, faces
 
     @property
-    def propgrid(self) -> wxpg.PGProperty:
-        from ....ui.editor_obj.prop_grid import datasheet_cad_prop as _datasheet_cad_prop
-        from ....ui.editor_obj.prop_grid import position_prop as _position_prop
-        from ....ui.editor_obj.prop_grid import angle_prop as _angle_prop
-        from ....ui.editor_obj.prop_grid import float_prop as _float_prop
-        from ....ui.editor_obj.prop_grid import bool_prop as _bool_prop
-        from ....ui.editor_obj.prop_grid import int_prop as _int_prop
+    def propgrid(self) -> _prop_grid.Property:
+        model3d_prop = _prop_grid.Property('3D Model', 'model3d')
 
-        model3d_prop = wxpg.PGProperty('3D Model')
-
-        uuid_prop = wxpg.StringProperty('UUID', 'uuid', self.uuid)
-        path_prop = wxpg.StringProperty('Path', 'path', self.path)
-        data_path_prop = wxpg.StringProperty('Data Path', 'data_path', self.data_path)
+        uuid_prop = _prop_grid.StringProperty('UUID', 'uuid', self.uuid)
+        path_prop = _prop_grid.StringProperty('Path', 'path', self.path)
+        data_path_prop = _prop_grid.StringProperty('Data Path', 'data_path', self.data_path)
         file_type_prop = self.file_type.propgrid
 
-        position3d_prop = _position_prop.Position3DProperty('Position 3D', 'position3d', self.position3d)
-        angle3d_prop = _angle_prop.Angle3DProperty('Angle 3D', 'angle3d', self.angle3d)
+        position = self.position3d
 
-        reduction_prop = wxpg.PGProperty('Simplify Model')
+        x = _prop_grid.FloatProperty(
+            'X', 'x', position.x, min_value=-9999.99,
+            max_value=9999.99, increment=0.01, units='mm')
 
-        simplify_prop = _bool_prop.BoolProperty('Enable', 'simplify', self.simplify)
-        target_count_prop = _int_prop.IntProperty('Target Vertices Count', 'target_count', self.target_count, min_value=10000, max_value=500000)
-        aggressiveness_prop = _float_prop.FloatProperty('Aggressiveness', 'aggressiveness', self.aggressiveness, min_value=0.1, max_value=11.9, increment=0.1)
-        update_rate_prop = _int_prop.IntProperty('Update Rate', 'update_rate', self.update_rate, min_value=1, max_value=100)
-        iterations_prop = _int_prop.IntProperty('Iterations', 'iterations', self.iterations, min_value=1, max_value=100)
+        y = _prop_grid.FloatProperty(
+            'Y', 'y', position.x, min_value=0.0,
+            max_value=9999.99, increment=0.01, units='mm')
+
+        z = _prop_grid.FloatProperty(
+            'Z', 'z', position.x, min_value=-9999.99,
+            max_value=9999.99, increment=0.01, units='mm')
+
+        position_prop = _prop_grid.Property('3D Position', 'position3d')
+        position_prop.Append(x)
+        position_prop.Append(y)
+        position_prop.Append(z)
+
+        angle = self.angle3d
+
+        x = _prop_grid.FloatProperty(
+            'X', 'x', angle.x, min_value=-180.0,
+            max_value=180.0, increment=0.01, units='°')
+
+        y = _prop_grid.FloatProperty(
+            'Y', 'y', angle.x, min_value=-180.0,
+            max_value=180.0, increment=0.01, units='°')
+
+        z = _prop_grid.FloatProperty(
+            'Z', 'z', angle.x, min_value=-180.0,
+            max_value=180.0, increment=0.01, units='°')
+
+        angle_prop = _prop_grid.Property('3D Angle', 'angle3d')
+        angle_prop.Append(x)
+        angle_prop.Append(y)
+        angle_prop.Append(z)
+
+        reduction_prop = _prop_grid.Property('Simplify Model')
+
+        simplify_prop = _prop_grid.BoolProperty('Enable', 'simplify', self.simplify)
+        target_count_prop = _prop_grid.IntProperty('Target Vertices Count', 'target_count', self.target_count, min_value=10000, max_value=500000)
+        aggressiveness_prop = _prop_grid.FloatProperty('Aggressiveness', 'aggressiveness', self.aggressiveness, min_value=0.1, max_value=11.9, increment=0.1)
+        update_rate_prop = _prop_grid.IntProperty('Update Rate', 'update_rate', self.update_rate, min_value=1, max_value=100)
+        iterations_prop = _prop_grid.IntProperty('Iterations', 'iterations', self.iterations, min_value=1, max_value=100)
 
         reduction_prop.Append(simplify_prop)
         reduction_prop.Append(target_count_prop)
@@ -341,8 +368,8 @@ class Model3D(EntryBase):
         model3d_prop.Append(path_prop)
         model3d_prop.Append(data_path_prop)
         model3d_prop.Append(file_type_prop)
-        model3d_prop.Append(position3d_prop)
-        model3d_prop.Append(angle3d_prop)
+        model3d_prop.Append(position_prop)
+        model3d_prop.Append(angle_prop)
         model3d_prop.Append(reduction_prop)
 
         return model3d_prop

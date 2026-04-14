@@ -18,20 +18,44 @@ wxEVT_IMAGE_PATH_CHANGED = wx.NewEventType()
 EVT_IMAGE_PATH_CHANGED = wx.PyEventBinder(wxEVT_IMAGE_PATH_CHANGED, 0)
 
 
-class PathCtrl(wx.BoxSizer):
+class PathEvent(wx.CommandEvent):
+
+    def __init__(self, evt_type):
+        wx.CommandEvent.__init__(self, evt_type)
+        self._value = None
+
+    def SetValue(self, value):
+        self._value = value
+
+    def GetValue(self):
+        return self._value
+
+
+class PathCtrl(wx.Panel):
 
     def __init__(self, parent, path):
         self._path = path
-        wx.BoxSizer.__init__(self, wx.HORIZONTAL)
+        wx.Panel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_NONE)
+        hsizer = wx.BoxSizer(wx.HORIZONTAL)
+        vsizer = wx.BoxSizer(wx.VERTICAL)
 
-        self.path_ctrl = wx.TextCtrl(parent, wx.ID_ANY, value=path, style=wx.TE_LEFT | wx.TE_PROCESS_ENTER)
-        self.path_button = wx.Button(parent, wx.ID_ANY, '...')
+        self.path_ctrl = wx.TextCtrl(self, wx.ID_ANY, value=path, style=wx.TE_LEFT | wx.TE_PROCESS_ENTER)
+        self.path_button = wx.Button(self, wx.ID_ANY, '...')
 
-        self.Add(self.path_ctrl, 0, wx.ALL, 5)
-        self.Add(self.path_button, 0, wx.ALL, 5)
+        hsizer.Add(self.path_ctrl, 1, wx.ALL, 5)
+        hsizer.Add(self.path_button, 0, wx.ALL, 5)
+        vsizer.Add(hsizer, 0, wx.EXPAND)
+        self.SetSizer(vsizer)
 
         self.path_button.Bind(wx.EVT_BUTTON, self.on_open_file)
         self.path_ctrl.Bind(wx.EVT_TEXT_ENTER, self._on_enter)
+
+    def SetValue(self, value: str):
+        self._path = value
+        self.path_ctrl.ChangeValue(value)
+
+    def GetValue(self):
+        return self._path
 
     def Bind(self, *args, **kwargs):
         self.path_ctrl.Bind(*args, **kwargs)
@@ -67,7 +91,7 @@ class PathCtrl(wx.BoxSizer):
         dlg.Destroy()
 
     def _send_changed_event(self):
-        event = wx.CommandEvent(wxEVT_IMAGE_PATH_CHANGED)
+        event = PathEvent(wxEVT_IMAGE_PATH_CHANGED)
         event.SetValue(self._path)
         event.SetId(self.path_ctrl.GetId())
         event.SetEventObject(self.path_ctrl)
@@ -114,9 +138,12 @@ class ImageCtrl(wx.Panel):
 
         self.SetSizer(vsizer)
 
+    def SetFileTypes(self, file_types):
+        self.file_types = file_types
+
     def get_image(self, path):
         mime_types = self.file_types
-        extensions = {'.' + v: k for k, v in self.file_types}
+        extensions = {'.' + v: k for k, v in self.file_types.items()}
 
         if path.startswith('http'):
             time.sleep(0.01)
@@ -223,51 +250,34 @@ class ImageCtrl(wx.Panel):
 
 class ImageProperty(_prop_base.Property):
 
-    def __init__(self, label, name, value='', file_types={}, save_path=None):
+    def __init__(self, parent, label, value: str, file_types: dict, save_path=None):
+        _prop_base.Property.__init__(self, parent, label)
+
+        self._value = value
         self._file_types = file_types
         self._save_path = save_path
-        self._image_sizer: wx.BoxSizer = None
-        self._image: ImageCtrl = None
 
-        _prop_base.Property.__init__(label, name, value, units=None)
+        self._st = wx.StaticText(self, wx.ID_ANY, label=label + ':')
 
-    def Show(self):
-        self._image.Show()
-        _prop_base.Property.Show(self)
-
-    def Hide(self):
-        self._image.Hide()
-        _prop_base.Property.Hide(self)
-
-    def Create(self, parent):
-        _prop_base.Property.Create(self, parent)
-        parent = self._parent_window
-
-        vsizer = wx.BoxSizer(wx.VERTICAL)
-        hsizer = wx.BoxSizer(wx.HORIZONTAL)
-
-        self._st = wx.StaticText(parent, wx.ID_ANY, label=self._label + ':')
-
-        self._ctrl = PathCtrl(parent, self._value)
-        self._image = ImageCtrl(parent, self._file_types, self._value, self._saved_path)
+        self._ctrl = PathCtrl(self, value)
+        self._image = ImageCtrl(self, file_types, value, save_path)
 
         self._ctrl.Bind(EVT_IMAGE_PATH_CHANGED, self._on_path_changed)
 
-        self._expand_button = wx.BitmapButton(
-            parent, wx.ID_ANY, self._expand_bmp, style=wx.BORDER_NONE, size=(40, 40))
+    def SetFileTypes(self, file_types):
+        self._file_types = file_types
+        self._image.SetFileTypes(file_types)
 
-        self._expand_button.Bind(wx.EVT_BUTTON, self._on_expand_button)
+    def Realize(self):
+        hsizer1 = wx.BoxSizer(wx.HORIZONTAL)
 
-        hsizer.Add(self._st, 1, wx.ALL, 5)
-        hsizer.Add(self._ctrl, 1, wx.ALL, 5)
-        hsizer.Add(self._expand_button, 0, wx.ALL, 5)
-        vsizer.Add(hsizer, 1)
+        hsizer1.Add(self._st, 0, wx.ALL, 5)
+        hsizer1.Add(self._ctrl, 1, wx.ALL, 5)
+        self._sizer.Add(hsizer1, 0, wx.EXPAND)
 
-        hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        hsizer.Add(self._image, 1, wx.EXPAND)
-        vsizer.Add(hsizer, 1, wx.EXPAND)
-        self.Add(vsizer)
-        self._image_sizer = hsizer
+        hsizer2 = wx.BoxSizer(wx.HORIZONTAL)
+        hsizer2.Add(self._image, 1)
+        self._sizer.Add(hsizer2, 0, wx.EXPAND)
 
     def _on_path_changed(self, _):
         path = self._ctrl.GetValue()
@@ -276,22 +286,18 @@ class ImageProperty(_prop_base.Property):
 
         if self._image.SetValue(path):
             self._value = path
-            self._send_changed_event(str)
-
-    def _on_expand_button(self, _):
-        bmp = self._expand_button.GetBitmap()
-        if bmp == self._expand_bmp:
-            self._expand_button.SetBitmap(self._collapse_bmp)
-            self._image_sizer.Show()
-
-        else:
-            self._expand_button.SetBitmap(self._expand_bmp)
-            self._image_sizer.Hide()
-
-        self.Layout()
+            self._send_changed_event(str, path)
 
     def GetValue(self) -> str:
         return self._value
 
-    def SetValue(self, value: str):
-        self._value = value
+    def SetValue(self, value: list[str, str]):
+        self._value = value[0]
+        self._save_path = value[1]
+
+        if value[1] is None:
+            self._image.SetValue(value)
+        else:
+            self._image.SetValue(value[1])
+
+        self._ctrl.SetValue(value[0])

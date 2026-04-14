@@ -7,39 +7,42 @@ from ....widgets import autocomplete_combobox as _autocomplete_combobox
 
 class ColorProperty(_prop_base.Property):
 
-    def __init__(self, label, name='', value=None, choices=[]):
+    def __init__(self, parent, label, value: list[str, wx.Colour], choices=[]):
+        _prop_base.Property.__init__(self, parent, label)
+        self._value = value
         self._choices = choices
         self._button: wx.ColourPickerCtrl = None
-        _prop_base.Property.__init__(self, label, name, value, None)
 
-    def Create(self, parent):
-        vsizer = wx.BoxSizer(wx.VERTICAL)
-        hsizer = wx.BoxSizer(wx.HORIZONTAL)
+        choices = [item[0] for item in self._choices]
 
-        choices = [item[0] for item in self.choices]
-
-        self._st = wx.StaticText(parent, wx.ID_ANY, label=self._label + ':')
+        self._st = wx.StaticText(self, wx.ID_ANY, label=self._label + ':')
         self._ctrl = _autocomplete_combobox.AutoCompleteComboBox(
-            parent, wx.ID_ANY, choices=choices, style=wx.CB_SORT | wx.TE_PROCESS_ENTER | wx.CB_DROPDOWN)
+            self, wx.ID_ANY, choices=choices, style=wx.CB_SORT | wx.TE_PROCESS_ENTER | wx.CB_DROPDOWN)
 
-        self._button = wx.ColourPickerCtrl(parent, wx.ID_ANY)
+        self._ctrl.ChangeValue(value[0])
+
+        self._button = wx.ColourPickerCtrl(self, wx.ID_ANY)
+        self._button.SetColour(value[1])
 
         self._ctrl.Bind(wx.EVT_TEXT_ENTER, self._on_change)
         self._ctrl.Bind(wx.EVT_COMBOBOX, self._on_change)
         self._button.Bind(wx.EVT_COLOURPICKER_CHANGED, self._on_colour)
 
-        self._button.SetColour(self._value)
+        self._button.SetColour(value)
 
-        hsizer.Add(self._st, 1, wx.ALL | wx.ALIGN_CENTER, 5)
-        hsizer.Add(self._ctrl, 1, wx.ALL, 5)
-        hsizer.Add(self._button, 1, wx.ALL, 5)
-        vsizer.Add(hsizer, 1, wx.EXPAND)
+    def Realize(self):
+        hsizer1 = wx.BoxSizer(wx.HORIZONTAL)
+        vsizer = wx.BoxSizer(wx.VERTICAL)
+        hsizer2 = wx.BoxSizer(wx.HORIZONTAL)
 
-        if self._tooltip is not None:
-            self._ctrl.SetToolTip(self._tooltip)
-            self._st.SetToolTip(self._tooltip)
+        hsizer2.Add(self._st, 0, wx.ALL | wx.ALIGN_CENTER, 5)
+        hsizer2.Add(self._ctrl, 1, wx.ALL, 5)
+        hsizer2.Add(self._button, 0, wx.ALL, 5)
+        vsizer.Add(hsizer2, 0, wx.EXPAND)
 
-        self.Add(vsizer, 1)
+        hsizer1.Add(vsizer, 1)
+
+        self._sizer.Add(hsizer1, 0, wx.EXPAND)
 
     def _on_colour(self, _):
         color = self._button.GetColour()
@@ -55,8 +58,12 @@ class ColorProperty(_prop_base.Property):
             index = colors.index(rgba)
             name = self._choices[index][0]
             self._ctrl.SetValue(name)
+            self._value = [name, color]
+        else:
+            name = self._ctrl.GetValue()
+            self._value = [name, color]
 
-            self._send_changed_event(wx.Colour)
+        self._send_changed_event(list, self._value)
 
     def _on_change(self, _):
         value = self._ctrl.GetValue()
@@ -64,7 +71,7 @@ class ColorProperty(_prop_base.Property):
 
         if value in values:
             index = values.index(value)
-            rgba = self._choices[index][2]
+            rgba = self._choices[index][1]
 
             r = (rgba >> 24) & 0xFF
             g = (rgba >> 16) & 0xFF
@@ -74,25 +81,33 @@ class ColorProperty(_prop_base.Property):
             color = wx.Colour(r, g, b, a)
             self._button.SetColour(color)
 
-            self._value = color
-            self._send_changed_event(wx.Colour)
-
-    def SetValue(self, value: str):
-        items = self._ctrl.GetItems()
-        if value in items:
-            self._ctrl.SetStringSelection(value)
+            self._value = [value, color]
         else:
-            self._ctrl.ChangeValue(value)
+            self._value = [value, wx.BLACK]
+            self._button.SetColour(wx.BLACK)
 
-    def GetValue(self) -> wx.Colour:
+        self._send_changed_event(list, self._value)
+
+    def SetValue(self, value: list[str, wx.Colour]):
+        values = [item[0] for item in self._choices]
+
+        if value[0] in values:
+            self._ctrl.SetStringSelection(value[0])
+        else:
+            self._ctrl.ChangeValue(value[0])
+
+        self._button.SetColour(value[1])
+
+    def GetValue(self) -> list[str, wx.Colour]:
         return self._value
 
     def Clear(self):  # NOQA
+        self._choices = []
         self._ctrl.Clear()
 
     def GetItems(self) -> list[list[str, int]]:
         return self._choices
 
-    def SetItems(self, items: list[[str, int]]):
+    def SetItems(self, items: list[list[str, int]]):
         self._choices = items
         self._ctrl.SetItems([item[0] for item in items])

@@ -1,6 +1,8 @@
 from typing import Iterable as _Iterable
 import wx
 
+from ....ui.editor_obj import prop_grid as _prop_grid
+
 from ..bases import EntryBase, TableBase
 
 from . import solid as _solid
@@ -31,6 +33,18 @@ class IPRatingsTable(TableBase):
         for db_id in TableBase.__iter__(self):
             yield IPRating(self, db_id)
 
+    def __getitem__(self, item) -> "IPRating":
+        if isinstance(item, int):
+            if item in self:
+                return IPRating(self, item)
+            raise IndexError(str(item))
+
+        db_id = self.select('id', name=item)
+        if db_id:
+            return IPRating(self, db_id[0][0])
+
+        raise KeyError(item)
+
     def insert(self, name: str, solid_id: int, fluid_id: int, supp_id: int) -> "IPRating":
         db_id = TableBase.insert(self, name=name, solid_id=solid_id, fluid_id=fluid_id, supp_id=supp_id)
         return IPRating(self, db_id)
@@ -55,8 +69,8 @@ class IPRating(EntryBase):
 
     @property
     def ip_solid(self) -> _solid.IPSolid:
-        ip_solid_id = self._table.select('solid_id', id=self._db_id)
-        return _solid.IPSolid(self, ip_solid_id[0][0])
+        ip_solid_id = self.ip_solid_id
+        return self._table.db.ip_solids_table[ip_solid_id]
 
     @ip_solid.setter
     def ip_solid(self, value: _solid.IPSolid):
@@ -72,8 +86,8 @@ class IPRating(EntryBase):
 
     @property
     def ip_fluid(self) -> _fluid.IPFluid:
-        ip_fluid_id = self._table.select('fluid_id', id=self._db_id)
-        return _fluid.IPFluid(self, ip_fluid_id[0][0])
+        ip_fluid_id = self.ip_fluid_id
+        return self._table.db.ip_fluids_table[ip_fluid_id]
 
     @ip_fluid.setter
     def ip_fluid(self, value: _fluid.IPFluid):
@@ -89,12 +103,11 @@ class IPRating(EntryBase):
 
     @property
     def ip_supp(self) -> _supp.IPSupp | None:
-        ip_supp_id = self._table.select('supp_id', id=self._db_id)
-
+        ip_supp_id = self.ip_supp_id
         if ip_supp_id is None:
             return None
 
-        return _supp.IPSupp(self, ip_supp_id[0][0])
+        return self._table.db.ip_supps_table[ip_supp_id]
 
     @ip_supp.setter
     def ip_supp(self, value: _supp.IPSupp | None):
@@ -135,3 +148,13 @@ class IPRating(EntryBase):
         img = simg | fimg
 
         return img.bitmap
+
+    @property
+    def propgrid(self) -> _prop_grid.Property:
+        choices = []
+
+        for ip_rating in self._table:
+            choices.append([ip_rating.name, ip_rating.bitmap, ip_rating.description])
+
+        prop = _prop_grid.BitmapComboBoxProperty('IP Rating', 'ip_rating', self.name, choices)
+        return prop

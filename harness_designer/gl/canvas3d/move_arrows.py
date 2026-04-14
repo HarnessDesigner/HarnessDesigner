@@ -28,7 +28,7 @@ class MoveArrows(_object_base.ObjectBase):
 
     def __init__(self, obj_position: _point.Point, axis: str,
                  mainframe: "_ui.MainFrame", aabb: np.ndarray):
-        _object_base.ObjectBase.__init__(self, mainframe)
+        _object_base.ObjectBase.__init__(self, mainframe, None)
         self.obj2d = Arrows2D(self)
         self.obj3d = Arrows3D(self, obj_position, axis, mainframe, aabb)
         self._treeitem = None
@@ -41,9 +41,11 @@ class MoveArrows(_object_base.ObjectBase):
         return self._treeitem
 
     def __del__(self):
+        print(self, 'has been marked for garbage collection')
         self.delete()
 
     def delete(self):
+        print('deleting object from mainframe')
         self.mainframe.remove_object(self)
 
     def close(self):

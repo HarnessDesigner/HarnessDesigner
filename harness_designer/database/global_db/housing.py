@@ -1,6 +1,7 @@
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
 import uuid
+import wx
 from ...ui.editor_obj import prop_grid as _prop_grid
 
 from .bases import EntryBase, TableBase
@@ -16,10 +17,25 @@ from . import cpa_lock_type as _cpa_lock_type
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 
-from .mixins import (PartNumberMixin, ManufacturerMixin, DescriptionMixin, FamilyMixin,
-                     SeriesMixin, GenderMixin, ResourceMixin, WeightMixin, CavityLockMixin,
-                     TemperatureMixin, DirectionMixin, DimensionMixin, ColorMixin, Model3DMixin,
-                     CompatHousingsMixin, CompatSealsMixin, CompatTerminalsMixin)
+from .mixins import (
+    PartNumberMixin, PartNumberControl,
+    ManufacturerMixin, ManufacturerControl,
+    DescriptionMixin, DescriptionControl,
+    FamilyMixin, FamilyControl,
+    SeriesMixin, SeriesControl,
+    GenderMixin, GenderControl,
+    ResourceMixin, ResourcesControl,
+    WeightMixin, WeightControl,
+    CavityLockMixin, CavityLockControl,
+    TemperatureMixin, TemperatureControl,
+    DirectionMixin, DirectionControl,
+    DimensionMixin, DimensionControl,
+    ColorMixin, ColorControl,
+    Model3DMixin,
+    CompatHousingsMixin, CompatHousingsControl,
+    CompatSealsMixin, CompatSealsControl,
+    CompatTerminalsMixin, CompatTerminalsControl
+)
 
 if TYPE_CHECKING:
     from . import cavity as _cavity
@@ -229,7 +245,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @property
     def compat_covers(self) -> list[_cover.Cover]:
-        compat_covers = eval(self._table.select('compat_covers', id=self._db_id)[0][0])
+        compat_covers = self.compat_covers_array
         res = []
         for part_number in compat_covers:
             try:
@@ -240,15 +256,17 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @property
     def compat_covers_array(self) -> list[str]:
-        return eval(self._table.select('compat_covers', id=self._db_id)[0][0])
+        value = self._table.select('compat_covers', id=self._db_id)[0][0]
+        return value[1:-1].split(', ')
 
     @compat_covers_array.setter
     def compat_covers_array(self, value: list[str]):
-        self._table.update(self._db_id, compat_covers=str(value))
-        
+        value = f'[{", ".join(value)}]'
+        self._table.update(self._db_id, compat_covers=value)
+
     @property
     def compat_boots(self) -> list[_boot.Boot]:
-        compat_boots = eval(self._table.select('compat_boots', id=self._db_id)[0][0])
+        compat_boots = self.compat_boots_array
         res = []
         for part_number in compat_boots:
             try:
@@ -259,15 +277,17 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @property
     def compat_boots_array(self) -> list[str]:
-        return eval(self._table.select('compat_boots', id=self._db_id)[0][0])
+        value = self._table.select('compat_boots', id=self._db_id)[0][0]
+        return value[1:-1].split(', ')
 
     @compat_boots_array.setter
     def compat_boots_array(self, value: list[str]):
-        self._table.update(self._db_id, compat_boots=str(value))
+        value = f'[{", ".join(value)}]'
+        self._table.update(self._db_id, compat_boots=value)
 
     @property
     def compat_cpas(self) -> list[_cpa_lock.CPALock]:
-        compat_cpas = eval(self._table.select('compat_cpas', id=self._db_id)[0][0])
+        compat_cpas = self.compat_cpas_array
         res = []
         for part_number in compat_cpas:
             try:
@@ -278,15 +298,17 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @property
     def compat_cpas_array(self) -> list[str]:
-        return eval(self._table.select('compat_cpas', id=self._db_id)[0][0])
+        value = self._table.select('compat_cpas', id=self._db_id)[0][0]
+        return value[1:-1].split(', ')
 
     @compat_cpas_array.setter
     def compat_cpas_array(self, value: list[str]):
-        self._table.update(self._db_id, compat_cpas=str(value))
+        value = f'[{", ".join(value)}]'
+        self._table.update(self._db_id, compat_cpas=value)
 
     @property
     def compat_tpas(self) -> list[_tpa_lock.TPALock]:
-        compat_tpas = eval(self._table.select('compat_tpas', id=self._db_id)[0][0])
+        compat_tpas = self.compat_tpas_array
         res = []
         for part_number in compat_tpas:
             try:
@@ -297,11 +319,13 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @property
     def compat_tpas_array(self) -> list[str]:
-        return eval(self._table.select('compat_tpas', id=self._db_id)[0][0])
+        value = self._table.select('compat_tpas', id=self._db_id)[0][0]
+        return value[1:-1].split(', ')
 
     @compat_tpas_array.setter
     def compat_tpas_array(self, value: list[str]):
-        self._table.update(self._db_id, compat_tpas=str(value))
+        value = f'[{", ".join(value)}]'
+        self._table.update(self._db_id, compat_tpas=value)
     
     @property
     def ip_rating(self) -> _ip.IPRating:
@@ -408,7 +432,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         res = [None] * self.num_pins
 
         rows = self._table.db.cavities_table.select("id", "idx",
-                                                        housing_id=self._db_id)
+                                                    housing_id=self._db_id)
 
         for db_id, idx in rows:
             res[idx] = self._table.db.cavities_table[db_id]
@@ -544,143 +568,219 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
         return angle
 
-    @property
-    def propgrid(self) -> _prop_grid.Category:
 
-        part_cat = _prop_grid.Category('Part Attributes')
-        
-        part_number_prop = self._part_number_propgrid
-        manufacturer_prop = self._manufacturer_propgrid
-        description_prop = self._description_propgrid
-        family_prop = self._family_propgrid
-        series_prop = self._series_propgrid
-        gender_prop = self._gender_propgrid
-        ip_rating_prop = self.ip_rating.propgrid
-        color_prop = self._color_propgrid
-        direction_prop = self._direction_propgrid
-        temperature_prop = self._temperature_propgrid
-        dimension_prop = self._dimension_propgrid
-        weight_prop = self._weight_propgrid
-        resource_prop = self._resource_propgrid
-        model3d_prop = self._model3d_propgrid
+class HousingControl(wx.Notebook):
 
-        accessory_parts_prop = _prop_grid.Property('Accessory Parts')
+    def set_obj(self, db_obj: Housing):
+        self.manufacturer_page.set_obj(db_obj)
+        self.family_page.set_obj(db_obj)
+        self.series_page.set_obj(db_obj)
+        self.resources_page.set_obj(db_obj)
+        self.dimensions_page.set_obj(db_obj)
+        self.cavity_lock_page.set_obj(db_obj)
+        self.temperature_page.set_obj(db_obj)
 
-        compat_housings_prop = self._compat_housings_propgrid
-        compat_terminals_prop = self._compat_terminals_propgrid
-        compat_seals_prop = self._compat_seals_propgrid
+        self.weight_ctrl.set_obj(db_obj)
+        self.part_number_ctrl.set_obj(db_obj)
+        self.description_ctrl.set_obj(db_obj)
+        self.gender_ctrl.set_obj(db_obj)
+        self.color_ctrl.set_obj(db_obj)
+        self.direction_ctrl.set_obj(db_obj)
+        self.compat_housings_ctrl.set_obj(db_obj)
+        self.compat_terminals_ctrl.set_obj(db_obj)
+        self.compat_seals_ctrl.set_obj(db_obj)
 
-        compat_tpas_prop = _prop_grid.ArrayStringProperty(
-            'Compatible TPA Locks', 'compat_tpas_array', self.compat_tpas_array)
-        compat_cpas_prop = _prop_grid.ArrayStringProperty(
-            'Compatible CPA Locks', 'compat_cpas_array', self.compat_cpas_array)
-        compat_boots_prop = _prop_grid.ArrayStringProperty(
-            'Compatible Boots', 'compat_boots_array', self.compat_boots_array)
-        compat_covers_prop = _prop_grid.ArrayStringProperty(
-            'Compatible Covers', 'compat_covers_array', self.compat_covers_array)
-        
-        cover_position3d_prop = _position_prop.Position3DProperty(
-            'Cover Position', 'cover_position3d', self.cover_position3d)
+        db_obj.table.execute('SELECT name FROM seal_types;')
+        rows = db_obj.table.fetchall()
 
-        seal_position3d_prop = _position_prop.Position3DProperty(
-            'Seal Position', 'seal_position3d', self.seal_position3d)
+        self.seal_type_choices = sorted([item[0] for item in rows])
+        self.seal_type_ctrl.SetItems(self.seal_type_choices)
+        self.seal_type_ctrl.SetValue(db_obj.seal_type.name)
 
-        boot_position3d_prop = _position_prop.Position3DProperty(
-            'Boot Position', 'boot_position3d', self.boot_position3d)
+        self.sealing_ctrl.SetValue(db_obj.sealing)
 
-        tpa_lock_1_position3d_prop = _position_prop.Position3DProperty(
-            'TPA Lock 1 Position', 'tpa_lock_1_position3d', self.tpa_lock_1_position3d)
+        self.compat_tpas_ctrl.SetValue(db_obj.compat_tpas_array)
+        self.compat_cpas_ctrl.SetValue(db_obj.compat_cpas_array)
+        self.compat_boots_ctrl.SetValue(db_obj.compat_boots_array)
+        self.compat_covers_ctrl.SetValue(db_obj.compat_covers_array)
 
-        tpa_lock_2_position3d_prop = _position_prop.Position3DProperty(
-            'TPA Lock 2 Position', 'tpa_lock_2_position3d', self.tpa_lock_2_position3d)
+        self.seal_ctrl.SetValue(db_obj.seal_position3d)
+        self.tpa_lock_1_ctrl.SetValue(db_obj.tpa_lock_1_position3d)
+        self.tpa_lock_2_ctrl.SetValue(db_obj.tpa_lock_2_position3d)
+        self.cpa_lock_ctrl.SetValue(db_obj.cpa_lock_position3d)
+        self.boot_ctrl.SetValue(db_obj.boot_position3d)
+        self.cover_ctrl.SetValue(db_obj.cover_position3d)
 
-        cpa_lock_position3d_prop = _position_prop.Position3DProperty(
-            'CPA Lock Position', 'cpa_lock_position3d', self.cpa_lock_position3d)
+        self.terminal_sizes_ctrl.SetValue(db_obj.terminal_sizes)
+        self.terminal_size_count_ctrl.SetValue(db_obj.terminal_size_counts)
+        self.pitch_ctrl.SetValue(db_obj.centerline)
+        self.rows_ctrl.SetValue(db_obj.rows)
+        self.pin_count_ctrl.SetValue(db_obj.num_pins)
 
-        terminal_sizes_prop = _prop_grid.ArrayFloatProperty(
-            'Terminal Sizes', 'terminal_sizes', self.terminal_sizes)
+        self.angle_ctrl.SetValue(db_obj.angle3d)
 
-        terminal_size_counts_prop = _prop_grid.ArrayIntProperty(
-            'Terminal Size Counts', 'terminal_size_counts', self.terminal_size_counts)
+    def _on_seal_type(self, evt):
+        name = evt.GetValue()
+        self.db_obj.table.execute('SELECT id FROM seal_types WHERE name="{name}";')
+        rows = self.db_obj.table.fetchall()
 
-        centerline_prop = _prop_grid.FloatProperty(
-            'Pitch', 'centerline', self.centerline, min_value=0.01,
+        if rows:
+            db_id = rows[0][0]
+        else:
+            db_obj = self.db_obj.table.db.seal_types_table.insert(name)
+            db_id = db_obj.db_id
+
+            self.seal_type_choices.append(name)
+            self.seal_type_choices.sort()
+
+            self.seal_type_ctrl.SetItems(self.seal_type_choices)
+            self.seal_type_ctrl.SetValue(name)
+
+        self.db_obj.seal_type_id = db_id
+
+    def _on_sealing(self, evt):
+        value = evt.GetValue()
+        self.db_obj.sealing = value
+
+    def _on_compat_tpas(self, evt: _prop_grid.PropertyEvent):
+        compat_tpas = evt.GetValue()
+        self.db_obj.compat_tpas_array = compat_tpas
+
+    def _on_compat_cpas(self, evt: _prop_grid.PropertyEvent):
+        compat_cpas = evt.GetValue()
+        self.db_obj.compat_cpas_array = compat_cpas
+
+    def _on_compat_boots(self, evt: _prop_grid.PropertyEvent):
+        compat_boots = evt.GetValue()
+        self.db_obj.compat_boots_array = compat_boots
+
+    def _on_compat_covers(self, evt: _prop_grid.PropertyEvent):
+        compat_covers = evt.GetValue()
+        self.db_obj.compat_covers_array = compat_covers
+
+    def _on_terminal_sizes(self, evt):
+        self.db_obj.terminal_sizes = evt.GetValue()
+
+    def _on_terminal_size_count(self, evt):
+        self.db_obj.terminal_size_counts = evt.GetValue()
+
+    def _on_pitch(self, evt):
+        self.db_obj.centerline = evt.GetValue()
+
+    def _on_rows(self, evt):
+        self.db_obj.rows = evt.GetValue()
+
+    def _on_pin_count(self, evt):
+        self.db_obj.num_pins = evt.GetValue()
+
+    def __init__(self, parent):
+        self.db_obj: Housing = None
+
+        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+
+        self.manufacturer_page = ManufacturerControl(self)
+        self.family_page = FamilyControl(self)
+        self.series_page = SeriesControl(self)
+        self.resources_page = ResourcesControl(self)
+        self.dimensions_page = DimensionControl(self)
+        self.cavity_lock_page = CavityLockControl(self)
+        self.temperature_page = TemperatureControl(self)
+
+        self.weight_ctrl = WeightControl(self.dimensions_page)
+
+        general_page = _prop_grid.Category(self, 'General')
+        self.part_number_ctrl = PartNumberControl(general_page)
+        self.description_ctrl = DescriptionControl(general_page)
+        self.gender_ctrl = GenderControl(general_page)
+        self.color_ctrl = ColorControl(general_page)
+        self.direction_ctrl = DirectionControl(general_page)
+        self.angle_ctrl = _prop_grid.Angle3DProperty(general_page, '3D Angle')
+
+        housings_page = _prop_grid.Category(self, 'Housings')
+        self.compat_housings_ctrl = CompatHousingsControl(housings_page)
+
+        terminal_page = _prop_grid.Category(self, 'Terminals')
+        self.compat_terminals_ctrl = CompatTerminalsControl(terminal_page)
+
+        self.terminal_sizes_ctrl = _prop_grid.ArrayFloatProperty(
+            terminal_page, 'Terminal Sizes', [])
+        self.terminal_sizes_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_terminal_sizes)
+
+        self.terminal_size_count_ctrl = _prop_grid.ArrayIntProperty(
+            terminal_page, 'Terminal Size Counts', [])
+        self.terminal_size_count_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_terminal_size_count)
+
+        self.pitch_ctrl = _prop_grid.FloatProperty(
+            terminal_page, 'Pitch', 0.01, min_value=0.01,
             max_value=999.9, increment=0.01, units='mm')
+        self.pitch_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_pitch)
 
-        rows_prop = _prop_grid.IntProperty(
-            'Rows', 'rows', self.rows, min_value=1, max_value=999)
+        self.rows_ctrl = _prop_grid.IntProperty(
+            terminal_page, 'Rows', 1, min_value=1, max_value=999)
+        self.rows_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_rows)
 
-        num_pins_prop = _prop_grid.IntProperty(
-            'Pin Count', 'num_pins', self.num_pins, min_value=1, max_value=999)
+        self.pin_count_ctrl = _prop_grid.IntProperty(
+            terminal_page, 'Pin Count', 1, min_value=1, max_value=999)
 
-        cavity_lock_prop = self._cavity_lock_propgrid
+        self.pin_count_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_pin_count)
 
-        terminal_prop = _prop_grid.Property('Terminals')
-        terminal_prop.Append(compat_terminals_prop)
-        terminal_prop.Append(cavity_lock_prop)
-        terminal_prop.Append(terminal_sizes_prop)
-        terminal_prop.Append(terminal_size_counts_prop)
-        terminal_prop.Append(centerline_prop)
-        terminal_prop.Append(rows_prop)
-        terminal_prop.Append(num_pins_prop)
+        seals_page = _prop_grid.Category(self, 'Seals')
 
-        housings_prop = _prop_grid.Property('Housings')
-        housings_prop.Append(compat_housings_prop)
-        accessory_parts_prop.Append(housings_prop)
+        self.compat_seals_ctrl = CompatSealsControl(seals_page)
 
-        sealing_prop = _prop_grid.BoolProperty(
-            'Sealing', 'sealing', self.sealing)
-        seal_type_prop = self.seal_type.propgrid
+        self.sealing_ctrl = _prop_grid.BoolProperty(seals_page, 'Sealing', False)
+        self.sealing_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_sealing)
 
-        seals_prop = _prop_grid.Property('Seals')
-        seals_prop.Append(compat_seals_prop)
-        seals_prop.Append(sealing_prop)
-        seals_prop.Append(seal_type_prop)
-        seals_prop.Append(seal_position3d_prop)
-        accessory_parts_prop.Append(seals_prop)
+        self.seal_type_choices: list[str] = []
+        self.seal_type_ctrl = _prop_grid.ComboBoxProperty(
+            seals_page, 'Seal Type', '', self.seal_type_choices)
+        self.seal_type_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_seal_type)
 
-        tpas_prop = _prop_grid.Property('TPA Locks')
-        tpas_prop.Append(compat_tpas_prop)
-        tpas_prop.Append(tpa_lock_1_position3d_prop)
-        tpas_prop.Append(tpa_lock_2_position3d_prop)
-        accessory_parts_prop.Append(tpas_prop)
+        self.seal_ctrl = _prop_grid.Position3DProperty(seals_page, 'Seal')
 
-        cpa_lock_type_prop = self.cpa_lock_type.propgrid
+        tpas_page = _prop_grid.Category(self, 'TPA Locks')
 
-        cpas_prop = _prop_grid.Property('CPA Locks')
-        cpas_prop.Append(compat_cpas_prop)
-        cpas_prop.Append(cpa_lock_type_prop)
-        cpas_prop.Append(cpa_lock_position3d_prop)
-        accessory_parts_prop.Append(cpas_prop)
+        self.compat_tpas_ctrl = _prop_grid.ArrayStringProperty(tpas_page, 'Compatible TPA Locks', [])
+        self.compat_tpas_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_compat_tpas)
 
-        boots_prop = _prop_grid.Property('Boots')
-        boots_prop.Append(compat_boots_prop)
-        boots_prop.Append(boot_position3d_prop)
-        accessory_parts_prop.Append(boots_prop)
+        self.tpa_lock_1_ctrl = _prop_grid.Position3DProperty(tpas_page, 'TPA Lock 1')
+        self.tpa_lock_2_ctrl = _prop_grid.Position3DProperty(tpas_page, 'TPA Lock 2')
 
-        covers_prop = _prop_grid.Property('Covers')
-        covers_prop.Append(compat_covers_prop)
-        covers_prop.Append(cover_position3d_prop)
-        accessory_parts_prop.Append(covers_prop)
+        cpas_page = _prop_grid.Category(self, 'CPA Locks')
 
-        angle3d_prop = _angle_prop.Angle3DProperty(
-            'Housing Angle', 'angle3d', self.angle3d)
+        self.compat_cpas_ctrl = _prop_grid.ArrayStringProperty(cpas_page, 'Compatible CPA Locks', [])
+        self.compat_cpas_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_compat_cpas)
 
-        part_cat.Append(part_number_prop)
-        part_cat.Append(manufacturer_prop)
-        part_cat.Append(description_prop)
-        part_cat.Append(family_prop)
-        part_cat.Append(series_prop)
-        part_cat.Append(ip_rating_prop)
-        part_cat.Append(gender_prop)
-        part_cat.Append(color_prop)
-        part_cat.Append(direction_prop)
-        part_cat.Append(temperature_prop)
-        part_cat.Append(dimension_prop)
-        part_cat.Append(weight_prop)
-        part_cat.Append(resource_prop)
-        part_cat.Append(model3d_prop)
-        part_cat.Append(accessory_parts_prop)
-        part_cat.Append(angle3d_prop)
+        self.cpa_lock_ctrl = _prop_grid.Position3DProperty(cpas_page, 'CPA Lock')
 
-        return part_cat
+        boots_page = _prop_grid.Category(self, 'Boots')
+
+        self.compat_boots_ctrl = _prop_grid.ArrayStringProperty(boots_page, 'Compatible Boots', [])
+        self.compat_boots_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_compat_boots)
+        self.boot_ctrl = _prop_grid.Position3DProperty(boots_page, 'Boot')
+
+        covers_page = _prop_grid.Category(self, 'Covers')
+
+        self.compat_covers_ctrl = _prop_grid.ArrayStringProperty(covers_page, 'Compatible Covers', [])
+        self.compat_covers_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_compat_covers)
+        self.cover_ctrl = _prop_grid.Position3DProperty(covers_page, 'Cover')
+
+        for page in (
+            general_page,
+            self.manufacturer_page,
+            self.series_page,
+            self.family_page,
+            self.dimensions_page,
+            self.temperature_page,
+            self.cavity_lock_page,
+            self.resources_page,
+            housings_page,
+            terminal_page,
+            seals_page,
+            tpas_page,
+            cpas_page,
+            boots_page,
+            covers_page
+        ):
+
+            self.AddPage(page, page.GetName())

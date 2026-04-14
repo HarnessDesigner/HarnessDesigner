@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
 
+import wx
 from ....ui.editor_obj import prop_grid as _prop_grid
 
 from .base import BaseMixin
@@ -49,17 +50,78 @@ class TemperatureMixin(BaseMixin):
     def max_temp_id(self, value: int):
         self._table.update(self._db_id, max_temp_id=value)
 
-    @property
-    def _temperature_propgrid(self) -> _prop_grid.Property:
 
-        group_prop = _prop_grid.Property('Temperatures', '')
+class TemperatureControl(_prop_grid.Category):
 
-        min_temp_prop = self.min_temp.propgrid
-        max_temp_prop = self.max_temp.propgrid
-        min_temp_prop.SetLabel('Minimum')
-        max_temp_prop.SetLabel('Maximum')
+    def __init__(self, parent):
+        super().__init__(parent, 'Temperatures')
 
-        group_prop.Append(min_temp_prop)
-        group_prop.Append(max_temp_prop)
+        self.choices: list[str] = []
+        self.db_obj: TemperatureMixin = None
 
-        return group_prop
+        self.min_temp_ctrl = _prop_grid.ComboBoxProperty(self, 'Minimum', '', [])
+        self.max_temp_ctrl = _prop_grid.ComboBoxProperty(self, 'Maximum', '', [])
+
+        self.min_temp_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_min_temp)
+        self.max_temp_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_max_temp)
+
+    def set_obj(self, db_obj: TemperatureMixin):
+        min_temp = db_obj.min_temp
+        max_temp = db_obj.max_temp
+
+        db_obj.table.execute(f'SELECT name FROM temperatures;')
+        rows = db_obj.table.fetchall()
+        self.choices = sorted([row[0] for row in rows])
+
+        self.min_temp_ctrl.SetItems(self.choices)
+        self.min_temp_ctrl.SetValue(min_temp.name)
+        self.max_temp_ctrl.SetItems(self.choices)
+        self.max_temp_ctrl.SetValue(max_temp.name)
+
+    def _on_min_temp(self, evt: _prop_grid.PropertyEvent):
+        name = evt.GetValue()
+
+        self.db_obj.table.execute(f'SELECT id FROM temperatures WHERE name="{name}";')
+        rows = self.db_obj.table.fetchall()
+
+        if rows:
+            db_id, desc = rows[0]
+        else:
+            db_obj = self.db_obj.table.db.temperatures_table.insert(name)
+            db_id = db_obj.db_id
+
+            self.choices.append(name)
+            self.choices.sort()
+
+            self.min_temp_ctrl.SetItems(self.choices)
+            self.min_temp_ctrl.SetValue(name)
+
+            value = self.max_temp_ctrl.GetValue()
+            self.max_temp_ctrl.SetItems(self.choices)
+            self.max_temp_ctrl.SetValue(value)
+
+        self.db_obj.min_temp_id = db_id
+
+    def _on_max_temp(self, evt: _prop_grid.PropertyEvent):
+        name = evt.GetValue()
+
+        self.db_obj.table.execute(f'SELECT id FROM temperatures WHERE name="{name}";')
+        rows = self.db_obj.table.fetchall()
+
+        if rows:
+            db_id, desc = rows[0]
+        else:
+            db_obj = self.db_obj.table.db.temperatures_table.insert(name)
+            db_id = db_obj.db_id
+
+            self.choices.append(name)
+            self.choices.sort()
+
+            self.max_temp_ctrl.SetItems(self.choices)
+            self.max_temp_ctrl.SetValue(name)
+
+            value = self.min_temp_ctrl.GetValue()
+            self.min_temp_ctrl.SetItems(self.choices)
+            self.min_temp_ctrl.SetValue(value)
+
+        self.db_obj.max_temp_id = db_id
