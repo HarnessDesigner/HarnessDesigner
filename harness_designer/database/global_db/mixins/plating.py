@@ -1,6 +1,5 @@
 from typing import TYPE_CHECKING
 
-import wx
 from ....ui.editor_obj import prop_grid as _prop_grid
 
 from .base import BaseMixin
@@ -45,18 +44,32 @@ class PlatingControl(_prop_grid.Category):
         self.desc_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_desc)
 
     def set_obj(self, db_obj: PlatingMixin):
+        self.db_obj = db_obj
 
-        plating = db_obj.plating
+        if db_obj is None:
+            self.choices = []
 
-        db_obj.table.execute(f'SELECT symbol FROM platings;')
+            self.symbol_ctrl.SetItems(self.choices)
+            self.symbol_ctrl.SetValue('')
+            self.desc_ctrl.SetValue('')
 
-        rows = db_obj.table.fetchall()
+            self.symbol_ctrl.Enable(False)
+            self.desc_ctrl.Enable(False)
+        else:
+            plating = db_obj.plating
 
-        choices = sorted([row[0] for row in rows])
+            db_obj.table.execute(f'SELECT symbol FROM platings;')
 
-        self.symbol_ctrl.SetItems(choices)
-        self.symbol_ctrl.SetValue(plating.symbol)
-        self.desc_ctrl.SetValue(plating.description)
+            rows = db_obj.table.fetchall()
+
+            self.choices = sorted([row[0] for row in rows])
+
+            self.symbol_ctrl.SetItems(self.choices)
+            self.symbol_ctrl.SetValue(plating.symbol)
+            self.desc_ctrl.SetValue(plating.description)
+
+            self.symbol_ctrl.Enable(True)
+            self.desc_ctrl.Enable(True)
 
     def _on_symbol(self, evt: _prop_grid.PropertyEvent):
         symbol = evt.GetValue()

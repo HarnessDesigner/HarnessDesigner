@@ -44,14 +44,23 @@ class ColorControl(_prop_grid.ColorProperty):
 
     def set_obj(self, db_obj: ColorMixin):
         self.db_obj = db_obj
-        color = db_obj.color
 
-        db_obj.table.execute('SELECT name, rgb from colors;')
-        rows = db_obj.table.fetchall()
-        self.choices = [list(row) for row in rows]
+        if db_obj is None:
+            self.choices = []
 
-        self.SetItems(self.choices)
-        self.SetValue([color.name, color.ui])
+            self.SetItems(self.choices)
+            self.SetValue(['', wx.BLACK])
+            self.Enable(False)
+        else:
+            color = db_obj.color
+
+            db_obj.table.execute('SELECT name, rgb from colors;')
+            rows = db_obj.table.fetchall()
+            self.choices = [list(row) for row in rows]
+
+            self.SetItems(self.choices)
+            self.SetValue([color.name, color.ui])
+            self.Enable(True)
 
     def _on_color(self, evt):
         name, color = evt.GetValue()

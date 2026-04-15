@@ -1,15 +1,32 @@
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
 import uuid
-from ...ui.editor_obj import prop_grid as _prop_grid
+import wx
 
+from ...ui.editor_obj import prop_grid as _prop_grid
 from .bases import EntryBase, TableBase
 from ...geometry import point as _point
 
-from .mixins import (PartNumberMixin, ManufacturerMixin, DescriptionMixin, GenderMixin,
-                     SeriesMixin, FamilyMixin, ResourceMixin, WeightMixin, CavityLockMixin,
-                     Model3DMixin, PlatingMixin, CompatHousingsMixin, CompatSealsMixin,
-                     TemperatureMixin, ColorMixin, WireSizeMixin)
+from .mixins import (
+    PartNumberMixin, PartNumberControl,
+    ManufacturerMixin, ManufacturerControl,
+    DescriptionMixin, DescriptionControl,
+    ColorMixin, ColorControl,
+    FamilyMixin, FamilyControl,
+    SeriesMixin, SeriesControl,
+    ResourceMixin, ResourcesControl,
+    WeightMixin, WeightControl,
+    TemperatureMixin, TemperatureControl,
+    Model3DMixin,
+    WireSizeMixin,
+    CompatSealsMixin, CompatSealsControl,
+    CavityLockMixin, CavityLockControl,
+    GenderMixin, GenderControl,
+    PlatingMixin, PlatingControl,
+    DimensionMixin, DimensionControl,
+    CompatHousingsMixin, CompatHousingsControl,
+)
+
 
 if TYPE_CHECKING:
     from . import seal as _seal
@@ -196,7 +213,7 @@ class TerminalsTable(TableBase):
 
 class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
                GenderMixin, SeriesMixin, FamilyMixin, ResourceMixin, TemperatureMixin,
-               WeightMixin, CavityLockMixin, PlatingMixin, Model3DMixin,
+               WeightMixin, CavityLockMixin, PlatingMixin, Model3DMixin, DimensionMixin,
                CompatHousingsMixin, CompatSealsMixin, ColorMixin, WireSizeMixin):
 
     _table: TerminalsTable = None
@@ -241,7 +258,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         res = []
         for row in rows:
             seal = self._table.db.seals_table[row[0]]
-            if seal.type.lower() not in ('sws', 'single wire seal'):
+            if seal.type.name.lower() not in ('sws', 'single wire seal'):
                 continue
             res.append(seal)
 
@@ -403,96 +420,148 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         scale.bind(self._update_scale)
         return scale
 
-    @property
-    def _dimension_propgrid(self) -> _prop_grid.Property:
 
-        group_prop = _prop_grid.Property('Dimensions', '')
+class TerminalControl(wx.Notebook):
 
-        length_prop = _prop_grid.FloatProperty(
-            'Length', 'length', self.length,
-            min_value=0.01, max_value=999.0, increment=0.01, units='mm')
+    def set_obj(self, db_obj: Terminal):
+        self.db_obj = db_obj
 
-        width_prop = _prop_grid.FloatProperty(
-            'Width', 'width', self.width,
-            min_value=0.01, max_value=999.0, increment=0.01, units='mm')
+        self.mfg_page.set_obj(db_obj)
+        self.family_page.set_obj(db_obj)
+        self.series_page.set_obj(db_obj)
+        self.temperature_page.set_obj(db_obj)
+        self.dimension_page.set_obj(db_obj)
+        self.resources_page.set_obj(db_obj)
+        self.plating_page.set_obj(db_obj)
+        self.part_number_ctrl.set_obj(db_obj)
+        self.description_ctrl.set_obj(db_obj)
+        self.color_ctrl.set_obj(db_obj)
+        self.cavity_lock_ctrl.set_obj(db_obj)
+        self.weight_ctrl.set_obj(db_obj)
+        self.compat_housing_ctrl.set_obj(db_obj)
 
-        height_prop = _prop_grid.FloatProperty(
-            'Height', 'height', self.height,
-            min_value=0.01, max_value=999.0, increment=0.01, units='mm')
+        if db_obj is None:
+            self.sealing_ctrl.SetValue(False)
+            self.blade_size_ctrl.SetValue(0.0)
+            self.resistance_ctrl.SetValue(0.0)
+            self.mating_cycles_ctrl.SetValue(0)
+            self.max_vibration_g_ctrl.SetValue(0)
+            self.max_current_ma_ctrl.SetValue(0)
 
-        group_prop.Append(length_prop)
-        group_prop.Append(width_prop)
-        group_prop.Append(height_prop)
+            self.sealing_ctrl.Enable(False)
+            self.blade_size_ctrl.Enable(False)
+            self.resistance_ctrl.Enable(False)
+            self.mating_cycles_ctrl.Enable(False)
+            self.max_vibration_g_ctrl.Enable(False)
+            self.max_current_ma_ctrl.Enable(False)
+        else:
+            self.sealing_ctrl.SetValue(db_obj.sealing)
+            self.blade_size_ctrl.SetValue(db_obj.blade_size)
+            self.resistance_ctrl.SetValue(db_obj.resistance)
+            self.mating_cycles_ctrl.SetValue(db_obj.mating_cycles)
+            self.max_vibration_g_ctrl.SetValue(db_obj.max_vibration_g)
+            self.max_current_ma_ctrl.SetValue(db_obj.max_current_ma)
 
-        return group_prop
+            self.sealing_ctrl.Enable(True)
+            self.blade_size_ctrl.Enable(True)
+            self.resistance_ctrl.Enable(True)
+            self.mating_cycles_ctrl.Enable(True)
+            self.max_vibration_g_ctrl.Enable(True)
+            self.max_current_ma_ctrl.Enable(True)
 
-    @property
-    def propgrid(self) -> _prop_grid.Category:
-        part_cat = _prop_grid.Category('Part Attributes')
-        
-        part_number_prop = self._part_number_propgrid
-        manufacturer_prop = self._manufacturer_propgrid
-        description_prop = self._description_propgrid
-        family_prop = self._family_propgrid
-        series_prop = self._series_propgrid
-        gender_prop = self._gender_propgrid
-        color_prop = self._color_propgrid
-        temperature_prop = self._temperature_propgrid
-        dimension_prop = self._dimension_propgrid
-        weight_prop = self._weight_propgrid
-        resource_prop = self._resource_propgrid
-        model3d_prop = self._model3d_propgrid
-        wire_size_prop = self._wire_size_propgrid
-        compat_housings_prop = self._compat_housings_propgrid
-        compat_seals_prop = self._compat_seals_propgrid
-        plating_prop = self._plating_propgrid
-        cavity_lock_prop = self._cavity_lock_propgrid
+    def _on_sealing(self, evt):
+        value = evt.GetValue()
+        self.db_obj.sealing = value
 
-        sealing_prop = _prop_grid.BoolProperty(
-            'Sealing', 'sealing', self.sealing)
+    def _on_blade_size(self, evt):
+        value = evt.GetValue()
+        self.db_obj.blade_size = value
 
-        blade_size_prop = _prop_grid.FloatProperty(
-            'Blade Size', 'blade_size', self.blade_size,
-            min_value=0.01, max_value=99.00, increment=0.01, units='mm')
+    def _on_resistance(self, evt):
+        value = evt.GetValue()
+        self.db_obj.resistance = value
 
-        resistance_prop = _prop_grid.FloatProperty(
-            'Resistance', 'resistance', self.resistance,
-            min_value=0.1, max_value=10000000.00, increment=0.1, units='Ω')
+    def _on_mating_cycles(self, evt):
+        value = evt.GetValue()
+        self.db_obj.mating_cycles = value
 
-        mating_cycles_prop = _prop_grid.IntProperty(
-            'Mating Cycles', 'mating_cycles', self.mating_cycles,
-            min_value=1, max_value=100000)
+    def _on_vibration(self, evt):
+        value = evt.GetValue()
+        self.db_obj.max_vibration_g = value
 
-        max_vibration_g_prop = _prop_grid.IntProperty(
-            'Maximum Vibration', 'max_vibration_g', self.max_vibration_g,
+    def _on_current(self, evt):
+        value = evt.GetValue()
+        self.db_obj.max_current_ma = value
+
+    def __init__(self, parent):
+        self.db_obj: Terminal = None
+
+        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+
+        general_page = _prop_grid.Category(self, 'General')
+
+        self.part_number_ctrl = PartNumberControl(general_page)
+        self.description_ctrl = DescriptionControl(general_page)
+        self.color_ctrl = ColorControl(general_page)
+        self.gender_ctrl = GenderControl(general_page)
+        self.cavity_lock_ctrl = CavityLockControl(general_page)
+
+        self.sealing_ctrl = _prop_grid.BoolProperty(
+            general_page, 'Sealing', False)
+
+        self.blade_size_ctrl = _prop_grid.FloatProperty(
+            general_page, 'Blade Size', 0.0,
+            min_value=0.0, max_value=99.00, increment=0.01, units='mm')
+
+        self.resistance_ctrl = _prop_grid.FloatProperty(
+            general_page, 'Resistance', 0.0,
+            min_value=0.0, max_value=10000000.00, increment=0.1, units='Ω')
+
+        self.mating_cycles_ctrl = _prop_grid.IntProperty(
+            general_page, 'Mating Cycles', 0,
+            min_value=0, max_value=100000)
+
+        self.max_vibration_g_ctrl = _prop_grid.IntProperty(
+            general_page, 'Maximum Vibration', 0,
             min_value=0, max_value=100000, units='G')
 
-        max_current_ma_prop = _prop_grid.IntProperty(
-            'Maximum Current', 'max_current_ma', self.max_current_ma,
+        self.max_current_ma_ctrl = _prop_grid.IntProperty(
+            general_page, 'Maximum Current', 0,
             min_value=0, max_value=100000, units='ma')
 
-        part_cat.Append(part_number_prop)
-        part_cat.Append(manufacturer_prop)
-        part_cat.Append(description_prop)
-        part_cat.Append(family_prop)
-        part_cat.Append(series_prop)
-        part_cat.Append(gender_prop)
-        part_cat.Append(color_prop)
-        part_cat.Append(plating_prop)
-        part_cat.Append(max_current_ma_prop)
-        part_cat.Append(resistance_prop)
-        part_cat.Append(blade_size_prop)
-        part_cat.Append(wire_size_prop)
-        part_cat.Append(sealing_prop)
-        part_cat.Append(cavity_lock_prop)
-        part_cat.Append(temperature_prop)
-        part_cat.Append(dimension_prop)
-        part_cat.Append(weight_prop)
-        part_cat.Append(resource_prop)
-        part_cat.Append(model3d_prop)
-        part_cat.Append(max_vibration_g_prop)
-        part_cat.Append(mating_cycles_prop)
-        part_cat.Append(compat_housings_prop)
-        part_cat.Append(compat_seals_prop)
+        self.sealing_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_sealing)
+        self.blade_size_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_blade_size)
+        self.resistance_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_resistance)
+        self.mating_cycles_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_mating_cycles)
+        self.max_vibration_g_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_vibration)
+        self.max_current_ma_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_current)
 
-        return part_cat
+        self.mfg_page = ManufacturerControl(self)
+        self.family_page = FamilyControl(self)
+        self.series_page = SeriesControl(self)
+        self.temperature_page = TemperatureControl(self)
+
+        self.dimension_page = DimensionControl(self)
+        self.weight_ctrl = WeightControl(self.dimension_page)
+
+        self.plating_page = PlatingControl(self)
+
+        self.resources_page = ResourcesControl(self)
+
+        compat_parts_page = _prop_grid.Category(self, 'Compatible Parts')
+        self.compat_housing_ctrl = CompatHousingsControl(compat_parts_page)
+        self.compat_seal_ctrl = CompatSealsControl(compat_parts_page)
+
+        for page in (
+            general_page,
+            self.mfg_page,
+            self.family_page,
+            self.series_page,
+            self.temperature_page,
+            self.dimension_page,
+            self.plating_page,
+            self.resources_page,
+            compat_parts_page
+        ):
+            self.AddPage(page, page.GetLabel())
+            page.Realize()

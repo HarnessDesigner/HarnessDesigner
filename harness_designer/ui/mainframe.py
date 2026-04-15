@@ -168,6 +168,54 @@ class MainFrame(wx.Frame):
         self.system_menu = system_menu.SystemMenu(self)
         self.SetMenuBar(self.system_menu)
 
+        splash.SetText('Starting housing editor...')
+        splash.flush()
+        from ..database.project_db import pjt_housing
+
+        pjt_housing.PJTHousingsTable.start_control(self)
+
+        splash.SetText('Starting boot editor...')
+        splash.flush()
+        from ..database.project_db import pjt_boot
+
+        pjt_boot.PJTBootsTable.start_control(self)
+
+        splash.SetText('Starting cavity editor...')
+        splash.flush()
+        from ..database.project_db import pjt_cavity
+
+        pjt_cavity.PJTCavitiesTable.start_control(self)
+
+        splash.SetText('Starting cover editor...')
+        splash.flush()
+        from ..database.project_db import pjt_cover
+
+        pjt_cover.PJTCoversTable.start_control(self)
+
+        splash.SetText('Starting cpa lock editor...')
+        splash.flush()
+        from ..database.project_db import pjt_cpa_lock
+
+        pjt_cpa_lock.PJTCPALocksTable.start_control(self)
+
+        splash.SetText('Starting seal editor...')
+        splash.flush()
+        from ..database.project_db import pjt_seal
+
+        pjt_seal.PJTSealsTable.start_control(self)
+
+        splash.SetText('Starting terminal editor...')
+        splash.flush()
+        from ..database.project_db import pjt_terminal
+
+        pjt_terminal.PJTTerminalsTable.start_control(self)
+
+        splash.SetText('Starting tpa lock editor...')
+        splash.flush()
+        from ..database.project_db import pjt_tpa_lock
+
+        pjt_tpa_lock.PJTTPALocksTable.start_control(self)
+
         splash.SetText('Loading UI perspective...')
         splash.flush()
 

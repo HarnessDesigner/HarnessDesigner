@@ -13,8 +13,26 @@ class NameMixin(BaseMixin):
     def name(self, value: str):
         self._table.update(self._db_id, name=value)
 
-    @property
-    def _name_propgrid(self) -> _prop_grid.Property:
-        name_prop = _prop_grid.StringProperty('Name', 'name', self.name)
 
-        return name_prop
+class NameControl(_prop_grid.StringProperty):
+
+    def __init__(self, parent):
+        self.db_obj: NameMixin = None
+
+        super().__init__(parent, 'Name', '')
+
+        self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_name)
+
+    def _on_name(self, evt):
+        value = evt.GetValue()
+        self.db_obj.name = value
+
+    def set_obj(self, db_obj: NameMixin):
+        self.db_obj = db_obj
+
+        if db_obj is None:
+            self.SetValue('')
+            self.Enable(False)
+        else:
+            self.SetValue(db_obj.name)
+            self.Enable(True)

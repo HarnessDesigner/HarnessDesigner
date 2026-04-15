@@ -1,12 +1,25 @@
 from typing import Iterable as _Iterable
 
-from ...ui.editor_obj import prop_grid as _prop_grid
+import wx
 
+from ...ui.editor_obj import prop_grid as _prop_grid
 from .bases import EntryBase, TableBase
 
-from .mixins import (PartNumberMixin, ManufacturerMixin, DescriptionMixin, ColorMixin,
-                     FamilyMixin, SeriesMixin, ResourceMixin, WeightMixin, TemperatureMixin,
-                     Model3DMixin, DimensionMixin, CompatHousingsMixin, DirectionMixin)
+from .mixins import (
+    PartNumberMixin, PartNumberControl,
+    ManufacturerMixin, ManufacturerControl,
+    DescriptionMixin, DescriptionControl,
+    ColorMixin, ColorControl,
+    FamilyMixin, FamilyControl,
+    SeriesMixin, SeriesControl,
+    ResourceMixin, ResourcesControl,
+    WeightMixin, WeightControl,
+    TemperatureMixin, TemperatureControl,
+    Model3DMixin,
+    DimensionMixin, DimensionControl,
+    CompatHousingsMixin, CompatHousingsControl,
+    DirectionMixin, DirectionControl
+)
 
 
 class BootsTable(TableBase):
@@ -149,85 +162,60 @@ class Boot(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, Fami
 
         return packet
 
-    @property
-    def propgrid(self) -> _prop_grid.Category:       
-        part_cat = _prop_grid.Category('Part Attributes')
-        
-        part_number_prop = self._part_number_propgrid
-        manufacturer_prop = self._manufacturer_propgrid
-        description_prop = self._description_propgrid
-        family_prop = self._family_propgrid
-        series_prop = self._series_propgrid
-        direction_prop = self._direction_propgrid
-        color_prop = self._color_propgrid
-        temperature_prop = self._temperature_propgrid
-        dimension_prop = self._dimension_propgrid
-        weight_prop = self._weight_propgrid
-        resource_prop = self._resource_propgrid
-        model3d_prop = self._model3d_propgrid
-        
-        compat_housings_prop = self._compat_housings_propgrid
 
-        part_cat.Append(part_number_prop)
-        part_cat.Append(manufacturer_prop)
-        part_cat.Append(description_prop)
-        part_cat.Append(family_prop)
-        part_cat.Append(series_prop)
-        part_cat.Append(color_prop)
-        part_cat.Append(direction_prop)
-        part_cat.Append(temperature_prop)
-        part_cat.Append(dimension_prop)
-        part_cat.Append(weight_prop)
-        part_cat.Append(resource_prop)
-        part_cat.Append(model3d_prop)
-        part_cat.Append(compat_housings_prop)
+class BootControl(wx.Notebook):
 
-        return part_cat
+    def set_obj(self, db_obj: Boot):
+        self.db_obj = db_obj
 
-    def get_control(self, parent):
-        part_number
-        manufacturer
-        description
-        family
-        series
-        resource
-        weight
-        color
-        min_temp
-        max_temp
-        model3d
-        length
-        width
-        height
-        compat_housings
-        direction
+        self.mfg_page.set_obj(db_obj)
+        self.family_page.set_obj(db_obj)
+        self.series_page.set_obj(db_obj)
+        self.temperature_page.set_obj(db_obj)
+        self.dimension_page.set_obj(db_obj)
+        self.resources_page.set_obj(db_obj)
 
-        group = _prop_grid.Property(parent, 'Boot')
+        self.part_number_ctrl.set_obj(db_obj)
+        self.description_ctrl.set_obj(db_obj)
+        self.color_ctrl.set_obj(db_obj)
+        self.direction_ctrl.set_obj(db_obj)
+        self.weight_ctrl.set_obj(db_obj)
+        self.compat_housing_ctrl.set_obj(db_obj)
 
-        self._table.execute(f'SELECT code, description, accessory_part_nums FROM adhesives WHERE id={self.db_id};')
-        rows = self._table.fetchall()
+    def __init__(self, parent):
+        self.db_obj: Boot = None
 
-        code, description, part_nums = rows[0]
-        part_nums = part_nums[1:-1].split(', ')
+        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
 
-        code_prop = _prop_grid.StringProperty(group, 'Code', 'code', code)
-        desc_prop = _prop_grid.LongStringProperty(group, 'Description', 'description', description)
-        nums_prop = _prop_grid.ArrayStringProperty(group, 'Accessories', 'accessories', part_nums)
+        general_page = _prop_grid.Category(self, 'General')
 
-        def _on_code(evt: _prop_grid.PropertyEvent):
-            cde = evt.GetValue()
-            self.code = cde
+        self.part_number_ctrl = PartNumberControl(general_page)
+        self.description_ctrl = DescriptionControl(general_page)
+        self.color_ctrl = ColorControl(general_page)
+        self.direction_ctrl = DirectionControl(general_page)
 
-        def _on_desc(evt: _prop_grid.PropertyEvent):
-            desc = evt.GetValue()
-            self.description = desc
+        self.mfg_page = ManufacturerControl(self)
+        self.family_page = FamilyControl(self)
+        self.series_page = SeriesControl(self)
+        self.temperature_page = TemperatureControl(self)
 
-        def _on_nums(evt: _prop_grid.PropertyEvent):
-            nums = evt.GetValue()
-            self.accessory_part_nums = nums
+        self.dimension_page = DimensionControl(self)
+        self.weight_ctrl = WeightControl(self.dimension_page)
 
-        code_prop.Bind(_prop_grid.EVT_PROPERTY_CHANGED, _on_code)
-        desc_prop.Bind(_prop_grid.EVT_PROPERTY_CHANGED, _on_desc)
-        nums_prop.Bind(_prop_grid.EVT_PROPERTY_CHANGED, _on_nums)
+        self.resources_page = ResourcesControl(self)
 
-        return group
+        compat_parts_page = _prop_grid.Category(self, 'Compatible Parts')
+        self.compat_housing_ctrl = CompatHousingsControl(compat_parts_page)
+
+        for page in (
+            general_page,
+            self.mfg_page,
+            self.family_page,
+            self.series_page,
+            self.temperature_page,
+            self.dimension_page,
+            self.resources_page,
+            compat_parts_page
+        ):
+            self.AddPage(page, page.GetLabel())
+            page.Realize()

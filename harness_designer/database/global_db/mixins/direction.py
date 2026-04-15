@@ -49,12 +49,20 @@ class DirectionControl(_prop_grid.ComboBoxProperty):
     def set_obj(self, db_obj: DirectionMixin):
         self.db_obj = db_obj
 
-        db_obj.table.execute('SELECT name FROM directions;')
-        rows = db_obj.table.fetchall()
+        if db_obj is None:
+            self.choices = []
+            self.SetItems([])
+            self.SetValue('')
+            self.Enable(False)
+        else:
+            db_obj.table.execute('SELECT name FROM directions;')
+            rows = db_obj.table.fetchall()
 
-        self.choices = sorted([row[0] for row in rows])
-        self.SetItems(self.choices)
-        self.SetValue(db_obj.direction.name)
+            self.choices = sorted([row[0] for row in rows])
+            self.SetItems(self.choices)
+            self.SetValue(db_obj.direction.name)
+            self.Enable(True)
+
 
     def _on_direction(self, evt: _prop_grid.PropertyEvent):
         name = evt.GetValue()

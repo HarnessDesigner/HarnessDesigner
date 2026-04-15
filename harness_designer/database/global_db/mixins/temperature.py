@@ -1,8 +1,6 @@
 from typing import TYPE_CHECKING
 
-import wx
 from ....ui.editor_obj import prop_grid as _prop_grid
-
 from .base import BaseMixin
 
 
@@ -66,17 +64,32 @@ class TemperatureControl(_prop_grid.Category):
         self.max_temp_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_max_temp)
 
     def set_obj(self, db_obj: TemperatureMixin):
-        min_temp = db_obj.min_temp
-        max_temp = db_obj.max_temp
+        self.db_obj = db_obj
 
-        db_obj.table.execute(f'SELECT name FROM temperatures;')
-        rows = db_obj.table.fetchall()
-        self.choices = sorted([row[0] for row in rows])
+        if db_obj is None:
+            self.choices = []
 
-        self.min_temp_ctrl.SetItems(self.choices)
-        self.min_temp_ctrl.SetValue(min_temp.name)
-        self.max_temp_ctrl.SetItems(self.choices)
-        self.max_temp_ctrl.SetValue(max_temp.name)
+            self.min_temp_ctrl.SetItems(self.choices)
+            self.min_temp_ctrl.SetValue('')
+            self.max_temp_ctrl.SetItems(self.choices)
+            self.max_temp_ctrl.SetValue('')
+            self.min_temp_ctrl.Enable(False)
+            self.max_temp_ctrl.Enable(False)
+        else:
+            min_temp = db_obj.min_temp
+            max_temp = db_obj.max_temp
+
+            db_obj.table.execute(f'SELECT name FROM temperatures;')
+            rows = db_obj.table.fetchall()
+            self.choices = sorted([row[0] for row in rows])
+
+            self.min_temp_ctrl.SetItems(self.choices)
+            self.min_temp_ctrl.SetValue(min_temp.name)
+            self.max_temp_ctrl.SetItems(self.choices)
+            self.max_temp_ctrl.SetValue(max_temp.name)
+
+            self.min_temp_ctrl.Enable(True)
+            self.max_temp_ctrl.Enable(True)
 
     def _on_min_temp(self, evt: _prop_grid.PropertyEvent):
         name = evt.GetValue()

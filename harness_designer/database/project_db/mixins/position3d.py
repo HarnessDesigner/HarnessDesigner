@@ -15,12 +15,12 @@ class Position3DMixin(BaseMixin):
             point_id = self.position3d_id
 
             self._stored_position3d = self._table.db.pjt_points3d_table[point_id]
-            self._stored_position3d.add_object(self._obj)
+            self._stored_position3d.add_object(self._obj())
             point = self._stored_position3d.point
-        elif self._stored_position3d is not None:
-            point = self._stored_position3d.point
-        else:
+        elif self._stored_position3d is None:
             point = None
+        else:
+            point = self._stored_position3d.point
 
         return point
 
@@ -40,10 +40,18 @@ class Position3DMixin(BaseMixin):
     @position3d_id.setter
     def position3d_id(self, value: int):
         self._table.update(self._db_id, point3d_id=value)
-        
-    @property
-    def _position3d_propgrid(self) -> _prop_grid.Property:
-        _ = self.position3d
 
-        position_prop = self._stored_position3d.propgrid
-        return position_prop
+
+class Position3DControl(_prop_grid.Position3DProperty):
+
+    def __init__(self, parent):
+        self.db_obj: Position3DMixin = None
+
+        super().__init__(parent, '3D Position')
+
+    def set_obj(self, db_obj: Position3DMixin):
+        self.db_obj = db_obj
+        if db_obj is None:
+            self.SetValue(None)
+        else:
+            self.SetValue(db_obj.position3d)

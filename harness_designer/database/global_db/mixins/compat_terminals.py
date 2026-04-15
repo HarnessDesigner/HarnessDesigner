@@ -48,7 +48,12 @@ class CompatTerminalsControl(_prop_grid.ArrayStringProperty):
     def set_obj(self, db_obj: CompatTerminalsMixin):
         self.db_obj = db_obj
 
-        self.SetValue(db_obj.compat_terminals_array)
+        if db_obj is None:
+            self.SetValue([])
+            self.Enable(False)
+        else:
+            self.SetValue(db_obj.compat_terminals_array)
+            self.Enable(True)
 
     def _on_compat_housings(self, evt: _prop_grid.PropertyEvent):
         compat_terminals = evt.GetValue()

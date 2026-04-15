@@ -89,9 +89,20 @@ class DimensionControl(_prop_grid.Category):
     def set_obj(self, db_obj: DimensionMixin):
         self.db_obj = db_obj
 
-        self.length_ctrl.SetValue(db_obj.length)
-        self.width_ctrl.SetValue(db_obj.width)
-        self.height_ctrl.SetValue(db_obj.height)
+        if db_obj is None:
+            self.length_ctrl.SetValue(0.0)
+            self.width_ctrl.SetValue(0.0)
+            self.height_ctrl.SetValue(0.0)
+            self.length_ctrl.Enable(False)
+            self.width_ctrl.Enable(False)
+            self.height_ctrl.Enable(False)
+        else:
+            self.length_ctrl.SetValue(db_obj.length)
+            self.width_ctrl.SetValue(db_obj.width)
+            self.height_ctrl.SetValue(db_obj.height)
+            self.length_ctrl.Enable(True)
+            self.width_ctrl.Enable(True)
+            self.height_ctrl.Enable(True)
 
     def _on_length(self, evt: _prop_grid.PropertyEvent):
         self.db_obj.length = evt.GetValue()
@@ -101,4 +112,3 @@ class DimensionControl(_prop_grid.Category):
 
     def _on_height(self, evt: _prop_grid.PropertyEvent):
         self.db_obj.height = evt.GetValue()
-

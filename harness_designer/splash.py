@@ -112,7 +112,7 @@ class Splash(wx.Frame):
             self.Refresh(False)
 
     def flush(self):
-        pass
+        wx.Yield()
 
     def draw(self, text):
         with self._draw_lock:

@@ -1,12 +1,25 @@
 from typing import Iterable as _Iterable
 
-from ...ui.editor_obj import prop_grid as _prop_grid
+import wx
 
+from ...ui.editor_obj import prop_grid as _prop_grid
 from .bases import EntryBase, TableBase
 
-from .mixins import (PartNumberMixin, ManufacturerMixin, DescriptionMixin, FamilyMixin,
-                     SeriesMixin, ResourceMixin, TemperatureMixin, Model3DMixin,
-                     ColorMixin, DimensionMixin, WeightMixin, CompatHousingsMixin)
+
+from .mixins import (
+    PartNumberMixin, PartNumberControl,
+    ManufacturerMixin, ManufacturerControl,
+    DescriptionMixin, DescriptionControl,
+    ColorMixin, ColorControl,
+    FamilyMixin, FamilyControl,
+    SeriesMixin, SeriesControl,
+    ResourceMixin, ResourcesControl,
+    WeightMixin, WeightControl,
+    TemperatureMixin, TemperatureControl,
+    Model3DMixin,
+    DimensionMixin, DimensionControl,
+    CompatHousingsMixin, CompatHousingsControl
+)
 
 
 class TPALocksTable(TableBase):
@@ -154,7 +167,7 @@ class TPALock(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
             'datasheets': [self.datasheet_id],
             'cads': [self.cad_id],
             'images': [self.image_id],
-            'models3d':[self.model3d_id]
+            'models3d': [self.model3d_id]
         }
 
         self.merge_packet_data(mfg.build_monitor_packet(), packet)
@@ -177,40 +190,60 @@ class TPALock(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     def lock_type(self, value: str):
         self._table.update(self._db_id, lock_type=value)
 
-    @property
-    def propgrid(self) -> _prop_grid.Category:
-        part_cat = _prop_grid.Category('Part Attributes')
-        
-        part_number_prop = self._part_number_propgrid
-        manufacturer_prop = self._manufacturer_propgrid
-        description_prop = self._description_propgrid
-        family_prop = self._family_propgrid
-        series_prop = self._series_propgrid
-        color_prop = self._color_propgrid
-        temperature_prop = self._temperature_propgrid
-        dimension_prop = self._dimension_propgrid
-        weight_prop = self._weight_propgrid
-        resource_prop = self._resource_propgrid
-        model3d_prop = self._model3d_propgrid
 
-        compat_housings_prop = self._compat_housings_propgrid
+class TPALockControl(wx.Notebook):
 
-        lock_type_prop = _prop_grid.StringProperty('Type', 'lock_type', self.lock_type)
-        pins_prop = _prop_grid.StringProperty('Pins', 'pins', self.pins)
+    # TODO: Add lock type and pins
 
-        part_cat.Append(part_number_prop)
-        part_cat.Append(manufacturer_prop)
-        part_cat.Append(description_prop)
-        part_cat.Append(family_prop)
-        part_cat.Append(series_prop)
-        part_cat.Append(color_prop)
-        part_cat.Append(lock_type_prop)
-        part_cat.Append(temperature_prop)
-        part_cat.Append(dimension_prop)
-        part_cat.Append(weight_prop)
-        part_cat.Append(pins_prop)
-        part_cat.Append(resource_prop)
-        part_cat.Append(model3d_prop)
-        part_cat.Append(compat_housings_prop)
+    def set_obj(self, db_obj: TPALock):
+        self.db_obj = db_obj
 
-        return part_cat
+        self.mfg_page.set_obj(db_obj)
+        self.family_page.set_obj(db_obj)
+        self.series_page.set_obj(db_obj)
+        self.temperature_page.set_obj(db_obj)
+        self.dimension_page.set_obj(db_obj)
+        self.resources_page.set_obj(db_obj)
+
+        self.part_number_ctrl.set_obj(db_obj)
+        self.description_ctrl.set_obj(db_obj)
+        self.color_ctrl.set_obj(db_obj)
+        self.weight_ctrl.set_obj(db_obj)
+        self.compat_housing_ctrl.set_obj(db_obj)
+
+    def __init__(self, parent):
+        self.db_obj: TPALock = None
+
+        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+
+        general_page = _prop_grid.Category(self, 'General')
+
+        self.part_number_ctrl = PartNumberControl(general_page)
+        self.description_ctrl = DescriptionControl(general_page)
+        self.color_ctrl = ColorControl(general_page)
+
+        self.mfg_page = ManufacturerControl(self)
+        self.family_page = FamilyControl(self)
+        self.series_page = SeriesControl(self)
+        self.temperature_page = TemperatureControl(self)
+
+        self.dimension_page = DimensionControl(self)
+        self.weight_ctrl = WeightControl(self.dimension_page)
+
+        self.resources_page = ResourcesControl(self)
+
+        compat_parts_page = _prop_grid.Category(self, 'Compatible Parts')
+        self.compat_housing_ctrl = CompatHousingsControl(compat_parts_page)
+
+        for page in (
+            general_page,
+            self.mfg_page,
+            self.family_page,
+            self.series_page,
+            self.temperature_page,
+            self.dimension_page,
+            self.resources_page,
+            compat_parts_page
+        ):
+            self.AddPage(page, page.GetLabel())
+            page.Realize()

@@ -23,7 +23,7 @@ class Property(wx.Panel):
 
             else:
                 sizer = wx.BoxSizer(wx.VERTICAL)
-                sizer.Add(self._sizer, 1, wx.ALL | wx.EXPAND, 5)
+                sizer.Add(self._sizer, 0, wx.ALL | wx.EXPAND, 5)
 
             self.SetSizer(sizer)
 
@@ -42,16 +42,32 @@ class Property(wx.Panel):
             wx.Panel.SetToolTip(self, text)
 
     def Realize(self):
-        orientation = self._sizer.GetOrientation()
+        if self._static_box is not None:
+            orientation = self._sizer.GetOrientation()
 
-        if orientation == wx.VERTICAL:
-            for child in self.GetChildren():
-                child.Realize()
-                self._sizer.Add(child, 0, wx.EXPAND)
+            if orientation == wx.VERTICAL:
+                for child in self.GetChildren():
+                    if child == self._static_box:
+                        continue
+
+                    child.Reparent(self._static_box)
+                    child.Realize()
+                    self._sizer.Add(child, 0, wx.EXPAND)
+            else:
+                for child in self.GetChildren():
+                    if child == self._static_box:
+                        continue
+
+                    child.Reparent(self._static_box)
+                    child.Realize()
+                    self._sizer.Add(child, 1)
         else:
             for child in self.GetChildren():
                 child.Realize()
-                self._sizer.Add(child, 1)
+                self._sizer.Add(child, 0, wx.EXPAND)
+
+        self.Layout()
+        self.Refresh(False)
 
     def GetLabel(self) -> str:
         return self._label
@@ -63,6 +79,10 @@ class Property(wx.Panel):
             self._st.SetLabel(value)
 
         self._label = value
+
+    def Enable(self, flag=True):
+        for child in self.GetChildren():
+            child.Enable(flag)
 
     #
     #

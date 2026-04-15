@@ -1,13 +1,11 @@
 import uuid
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
-import numpy as np
+import wx
+
 from ...ui.editor_obj import prop_grid as _prop_grid
-
-
 from .bases import EntryBase, TableBase
-from .mixins import NameMixin
-
+from .mixins import NameMixin, DimensionMixin, DimensionControl
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 
@@ -52,7 +50,7 @@ class CavitiesTable(TableBase):
         return Cavity(self, db_id)
 
 
-class Cavity(EntryBase, NameMixin):
+class Cavity(EntryBase, NameMixin, DimensionMixin):
     _table: CavitiesTable = None
 
     def build_monitor_packet(self):
@@ -82,7 +80,7 @@ class Cavity(EntryBase, NameMixin):
     @idx.setter
     def idx(self, value: int):
         self._table.update(self._db_id, idx=value)
-    
+
     @property
     def terminal_sizes(self) -> list[float]:
         return eval(self._table.select('terminal_sizes', id=self._db_id)[0][0])
@@ -309,3 +307,81 @@ class Cavity(EntryBase, NameMixin):
                         res.append(terminal)
 
         return res
+
+
+class CavityControl(wx.Notebook):
+
+    def set_obj(self, db_obj: Cavity):
+        self.db_obj = db_obj
+
+        self.dimension_page.set_obj(db_obj)
+
+        if db_obj is None:
+            self.index_ctrl.SetValue(0)
+            self.terminal_sizes_ctrl.SetValue([])
+            self.round_terminal_ctrl.SetValue(False)
+
+            self.position3d_ctrl.SetValue(None)
+            self.position2d_ctrl.SetValue(None)
+            self.angle3d_ctrl.SetValue(None)
+
+            self.index_ctrl.Enable(False)
+            self.terminal_sizes_ctrl.Enable(False)
+            self.round_terminal_ctrl.Enable(False)
+        else:
+            self.index_ctrl.SetValue(db_obj.idx)
+            self.terminal_sizes_ctrl.SetValue(db_obj.terminal_sizes)
+            self.round_terminal_ctrl.SetValue(db_obj.round_terminal)
+
+            self.position3d_ctrl.SetValue(db_obj.position3d)
+            self.position2d_ctrl.SetValue(db_obj.position2d)
+            self.angle3d_ctrl.SetValue(db_obj.angle3d)
+
+            self.index_ctrl.Enable(True)
+            self.terminal_sizes_ctrl.Enable(True)
+            self.round_terminal_ctrl.Enable(True)
+
+    def _on_round_terminal(self, evt):
+        value = evt.GetValue()
+        self.db_obj.round_terminal = value
+
+    def _on_terminal_sizes(self, evt):
+        value = evt.GetValue()
+        self.db_obj.terminal_sizes = value
+
+    def _on_index(self, evt):
+        value = evt.GetValue()
+        self.db_obj.idx = value
+
+    def __init__(self, parent):
+        self.db_obj: Cavity = None
+
+        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+
+        general_page = _prop_grid.Category(self, 'General')
+
+        self.index_ctrl = _prop_grid.IntProperty(general_page, 'Index', 0, min_value=0, max_value=999)
+        self.round_terminal_ctrl = _prop_grid.BoolProperty(general_page, 'Is Round', False)
+        self.terminal_sizes_ctrl = _prop_grid.ArrayFloatProperty(general_page, 'Terminal sizes', [])
+
+        self.dimension_page = DimensionControl(self)
+
+        position_page = _prop_grid.Category(self, 'Position')
+        self.position2d_ctrl = _prop_grid.Position2DProperty(position_page, '2D Position')
+        self.position3d_ctrl = _prop_grid.Position3DProperty(position_page, '3D Position')
+
+        angle_page = _prop_grid.Category(self, 'Angle')
+        self.angle3d_ctrl = _prop_grid.Angle3DProperty(angle_page, '3D Angle')
+
+        self.round_terminal_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_round_terminal)
+        self.index_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_index)
+        self.terminal_sizes_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_terminal_sizes)
+
+        for page in (
+            general_page,
+            self.dimension_page,
+            position_page,
+            angle_page
+        ):
+            self.AddPage(page, page.GetLabel())
+            page.Realize()

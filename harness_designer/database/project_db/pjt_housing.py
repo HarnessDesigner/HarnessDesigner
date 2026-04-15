@@ -1,27 +1,39 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
+import wx
 import numpy as np
-import uuid
 import weakref
-from ...ui.editor_obj import prop_grid as _prop_grid
 
+from ...ui.editor_obj import prop_grid as _prop_grid
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 
-from .mixins import NameMixin, PartMixin, Visible3DMixin, Visible2DMixin, NotesMixin
+from . import pjt_cover as _pjt_cover
+from . import pjt_tpa_lock as _pjt_tpa_lock
+from . import pjt_cpa_lock as _pjt_cpa_lock
+from . import pjt_seal as _pjt_seal
+from . import pjt_boot as _pjt_boot
+
+from ..global_db import housing as _housing
+
+from .mixins import (
+    NameMixin, NameControl,
+    PartMixin,
+    Visible3DMixin, Visible3DControl,
+    Visible2DMixin, Visible2DControl,
+    NotesMixin, NotesControl,
+    Position2DMixin, Position2DControl,
+    Position3DMixin, Position3DControl,
+    Angle2DMixin, Angle2DControl,
+    Angle3DMixin, Angle3DControl
+)
 
 
 if TYPE_CHECKING:
     from . import pjt_cavity as _pjt_cavity
-    from . import pjt_cover as _pjt_cover
-    from . import pjt_tpa_lock as _pjt_tpa_lock
-    from . import pjt_cpa_lock as _pjt_cpa_lock
-    from . import pjt_seal as _pjt_seal
-    from . import pjt_boot as _pjt_boot
     from . import pjt_accessory as _pjt_accessory
     from . import pjt_point3d as _pjt_point3d
-    from . import pjt_point2d as _pjt_point2d
 
     from ..global_db import housing as _housing
 
@@ -30,6 +42,20 @@ if TYPE_CHECKING:
 
 class PJTHousingsTable(PJTTableBase):
     __table_name__ = 'pjt_housings'
+
+    _control: "PJTHousingControl" = None
+
+    @property
+    def control(self) -> "PJTHousingControl":
+        if self._control is None:
+            raise RuntimeError('sanity check')
+
+        return self._control
+
+    @classmethod
+    def start_control(cls, mainframe):
+        cls._control = PJTHousingControl(mainframe)
+        cls._control.Show(False)
 
     def _table_needs_update(self) -> bool:
         from ..create_database import housings
@@ -116,8 +142,8 @@ class PJTHousingsTable(PJTTableBase):
         return db_obj
 
 
-class PJTHousing(PJTEntryBase, NameMixin, PartMixin,
-                 Visible3DMixin, Visible2DMixin, NotesMixin):
+class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3DMixin,
+                 Visible3DMixin, Visible2DMixin, NotesMixin, Angle2DMixin, Angle3DMixin):
 
     _table: PJTHousingsTable = None
 
@@ -452,20 +478,20 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin,
 
             return boot
 
-    @property
-    def accessories(self) -> list["_pjt_accessory.PJTAccessory"]:
-        res = []
-        db_ids = self._table.db.pjt_accessories_table.select('id',
-                                                             housing_id=self.db_id)
-
-        for db_id in db_ids:
-            try:
-                accessory = self._table.db.pjt_accessories_table[db_id]
-            except IndexError:
-                continue
-
-            res.append(accessory)
-        return res
+    # @property
+    # def accessories(self) -> list["_pjt_accessory.PJTAccessory"]:
+    #     res = []
+    #     db_ids = self._table.db.pjt_accessories_table.select('id',
+    #                                                          housing_id=self.db_id)
+    #
+    #     for db_id in db_ids:
+    #         try:
+    #             accessory = self._table.db.pjt_accessories_table[db_id]
+    #         except IndexError:
+    #             continue
+    #
+    #         res.append(accessory)
+    #     return res
 
     _stored_part: "_housing.Housing" = None
 
@@ -522,13 +548,11 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin,
         pos = self.cpa_lock_position3d
         pos += delta
 
-    _stored_position3d: "_pjt_point3d.PJTPoint3D" = None
     _o_position3d: "_point.Point" = None
 
     @property
     def position3d(self) -> "_point.Point":
         if self._stored_position3d is None and self._obj is not None:
-
             point_id = self.position3d_id
 
             self._stored_position3d = self._table.db.pjt_points3d_table[point_id]
@@ -545,24 +569,6 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin,
 
         return point
 
-    @property
-    def position3d_id(self) -> int:
-        point_id = self._table.select('point3d_id', id=self._db_id)[0][0]
-        if point_id is None:
-            self._table.execute(
-                f'INSERT INTO pjt_points3d (project_id, x, y, z) VALUES (?, ?, ?, ?);',
-                (self._table.project_id, 0.0, 0.0, 0.0))
-
-            self._table.commit()
-            point_id = self._table.lastrowid
-            self.position3d_id = point_id
-
-        return point_id
-
-    @position3d_id.setter
-    def position3d_id(self, value: int):
-        self._table.update(self._db_id, point3d_id=value)
-
     def _update_position2d(self, point: _point.Point):
         delta = point - self._o_position2d
         self._o_position2d = point.copy()
@@ -574,7 +580,6 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin,
             c_position = cavity.position2d
             c_position += delta
 
-    _stored_position2d: "_pjt_point2d.PJTPoint2D" = None
     _o_position2d: "_point.Point" = None
 
     @property
@@ -593,33 +598,12 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin,
         elif self._stored_position2d is None:
             print('This should not be happening')
             point = None
-
         else:
             point = self._stored_position2d.point
 
         return point
 
-    @property
-    def position2d_id(self) -> int:
-        point_id = self._table.select('point2d_id', id=self._db_id)[0][0]
-        if point_id is None:
-            self._table.execute(
-                f'INSERT INTO pjt_points2d (project_id, x, y) VALUES (?, ?, ?);',
-                (self._table.project_id, 0.0, 0.0))
-
-            self._table.commit()
-            point_id = self._table.lastrowid
-            self.position2d_id = point_id
-
-        return point_id
-
-    @position2d_id.setter
-    def position2d_id(self, value: int):
-        self._table.update(self._db_id, point2d_id=value)
-
-    _angle3d_db_id: str = None
-
-    def __update_angle3d(self, angle: _angle.Angle):
+    def _update_angle3d(self, angle: _angle.Angle):
         quat = eval(self._table.select('quat3d',
                                        id=self._db_id)[0][0])
 
@@ -728,179 +712,118 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin,
             pos_delta = new_pos - pos
             pos += pos_delta
 
-    @property
-    def angle3d(self) -> _angle.Angle:
-        quat = eval(self._table.select('quat3d',
-                                       id=self._db_id)[0][0])
-
-        euler_angle = eval(self._table.select('angle3d',
-                                              id=self._db_id)[0][0])
-
-        if self._angle3d_db_id is None:
-            self._angle3d_db_id = str(uuid.uuid4())
-
-        angle = _angle.Angle.from_quat(quat, euler_angle,
-                                       db_id=self._angle3d_db_id)
-
-        angle.bind(self.__update_angle3d)
-
-        return angle
-
-    _angle2d_db_id: str = None
-
-    def __update_angle2d(self, angle: _angle.Angle):
+    def _update_angle2d(self, angle: _angle.Angle):
         quat = list(angle.as_quat_float)
         euler_angle = list(angle.as_euler_float)
 
         self._table.update(self._db_id, quat2d=str(quat))
         self._table.update(self._db_id, angle2d=str(euler_angle))
 
-    @property
-    def angle2d(self) -> _angle.Angle:
-        quat = eval(self._table.select('quat2d',
-                                       id=self._db_id)[0][0])
 
-        euler_angle = eval(self._table.select('angle2d',
-                                              id=self._db_id)[0][0])
+class PJTHousingControl(wx.Notebook):
 
-        if self._angle2d_db_id is None:
-            self._angle2d_db_id = str(uuid.uuid4())
+    def set_obj(self, db_obj: PJTHousing):
+        self.db_obj = db_obj
 
-        angle = _angle.Angle.from_quat(quat, euler_angle, db_id=self._angle2d_db_id)
-        angle.bind(self.__update_angle2d)
+        self.name_ctrl.set_obj(db_obj)
+        self.note_ctrl.set_obj(db_obj)
 
-        return angle
+        self.visible3d_ctrl.set_obj(db_obj)
+        self.visible2d_ctrl.set_obj(db_obj)
 
-    @property
-    def _angle2d_propgrid(self) -> _prop_grid.Property:
-        angle = self.angle2d
+        self.angle2d_ctrl.set_obj(db_obj)
+        self.angle3d_ctrl.set_obj(db_obj)
 
-        angle_prop = _prop_grid.FloatProperty('Angle 2D', 'angle2d.z', angle.z,
-                                              min_value=-180.0, max_value=180.0, increment=0.01, units='°')
-        return angle_prop
+        self.position2d_ctrl.set_obj(db_obj)
+        self.position3d_ctrl.set_obj(db_obj)
 
-    @property
-    def _angle3d_propgrid(self) -> _prop_grid.Property:
-        angle = self.angle3d
+        self.cover_ctrl.set_obj(db_obj.cover)
+        self.boot_ctrl.set_obj(db_obj.boot)
+        self.cpa_lock_ctrl.set_obj(db_obj.cpa_lock)
+        self.tpa_lock1_ctrl.set_obj(db_obj.tpa_lock1)
+        self.tpa_lock2_ctrl.set_obj(db_obj.tpa_lock2)
+        self.seal_ctrl.set_obj(db_obj.seal)
+        self.part_ctrl.set_obj(db_obj.part)
 
-        group = _prop_grid.Property('Angle 3D', 'angle3d')
-        x = _prop_grid.FloatProperty(
-            'X', 'x', angle.x, min_value=-180.0,
-            max_value=180.0, increment=0.01, units='°')
+        for i in range(self.cavities_notebook.GetPageCount()):
+            self.cavities_notebook.RemovePage(i)
 
-        y = _prop_grid.FloatProperty(
-            'Y', 'y', angle.y,  min_value=-180.0,
-            max_value=180.0, increment=0.01, units='°')
+        for page in self.cavity_pages:
+            page.Reparent(db_obj.table.db.mainframe)
+            page.Show(False)
 
-        z = _prop_grid.FloatProperty(
-            'Z', 'z', angle.z, min_value=-180.0,
-            max_value=180.0, increment=0.01, units='°')
+        self.cavity_pages = []
 
-        group.Append(x)
-        group.Append(y)
-        group.Append(z)
-
-        return group
-
-    @property
-    def _position2d_propgrid(self) -> _prop_grid.Property:
-        _ = self.position2d
-        return self._stored_position2d.propgrid
-
-    @property
-    def _position3d_propgrid(self) -> _prop_grid.Property:
-        _ = self.position3d
-        return self._stored_position3d.propgrid
-
-    @property
-    def propgrid(self) -> tuple[_prop_grid.Category, _prop_grid.Category]:
-        group = _prop_grid.Category('Project')
-
-        notes_prop = self._notes_propgrid
-        name_prop = self._name_propgrid
-
-        angle_prop = _prop_grid.Property('Angle')
-
-        angle2d_prop = self._angle2d_propgrid
-        angle2d_prop.SetLabel('2D')
-        angle_prop.Append(angle2d_prop)
-
-        angle3d_prop = self._angle3d_propgrid
-        angle3d_prop.SetLabel('3D')
-        angle_prop.Append(angle3d_prop)
-
-        position_prop = _prop_grid.Property('Position')
-
-        position2d_prop = self._position2d_propgrid
-        position2d_prop.SetLabel('2D')
-        position_prop.Append(position2d_prop)
-
-        position3d_prop = self._position3d_propgrid
-        position3d_prop.SetLabel('3D')
-        position_prop.Append(position3d_prop)
-
-        visible_prop = _prop_grid.Property('Visible')
-        visible2d_prop = self._visible2d_propgrid
-        visible2d_prop.SetLabel('2D')
-        visible_prop.Append(visible2d_prop)
-
-        visible3d_prop = self._visible3d_propgrid
-        visible3d_prop.SetLabel('3D')
-        visible_prop.Append(visible3d_prop)
-
-        cavities_group = _prop_grid.Property('Cavities')
-        for cavity in self.cavities:
+        for i, cavity in enumerate(db_obj.cavities):
             if cavity is None:
                 continue
 
-            cavities_group.Append(cavity.propgrid)
+            ctrl = db_obj.table.db.pjt_cavities_table.get_control(i)
+            ctrl.Reparent(self.cavities_notebook)
+            self.cavities_notebook.AddPage(ctrl, ctrl.GetLabel())
+            ctrl.set_obj(cavity)
+            self.cavity_pages.append(ctrl)
 
-        accessories_group = _prop_grid.Property('Accessories')
+    def __init__(self, parent):
+        self.db_obj: PJTHousing = None
 
-        _ = self.cover_position3d
-        cover_prop = self._stored_cover_position3d.propgrid
-        cover_prop.SetLabel('Cover 3D')
-        cover_prop.SetName('cover_position3d')
-        accessories_group.Append(cover_prop)
+        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
 
-        _ = self.boot_position3d
-        boot_prop = self._stored_boot_position3d.propgrid
-        boot_prop.SetLabel('Boot 3D')
-        boot_prop.SetName('boot_position3d')
-        accessories_group.Append(boot_prop)
+        general_page = _prop_grid.Category(self, 'General')
 
-        _ = self.cpa_lock_position3d
-        cpa_lock_prop = self._stored_cpa_lock_position3d.propgrid
-        cpa_lock_prop.SetLabel('CPA Lock 3D')
-        cpa_lock_prop.SetName('cpa_lock_position3d')
-        accessories_group.Append(cpa_lock_prop)
+        self.name_ctrl = NameControl(general_page)
+        self.note_ctrl = NotesControl(general_page)
 
-        _ = self.tpa_lock_1_position3d
-        tpa_lock1_prop = self._stored_tpa_lock_1_position3d.propgrid
-        tpa_lock1_prop.SetLabel('TPA Lock 1 3D')
-        tpa_lock1_prop.SetName('tpa_lock_1_position3d')
-        accessories_group.Append(tpa_lock1_prop)
+        visible_page = _prop_grid.Category(self, 'Visible')
+        self.visible2d_ctrl = Visible2DControl(visible_page)
+        self.visible3d_ctrl = Visible3DControl(visible_page)
 
-        _ = self.tpa_lock_2_position3d
-        tpa_lock2_prop = self._stored_tpa_lock_2_position3d.propgrid
-        tpa_lock2_prop.SetLabel('TPA Lock 2 3D')
-        tpa_lock2_prop.SetName('tpa_lock_2_position3d')
-        accessories_group.Append(tpa_lock2_prop)
+        angle_page = _prop_grid.Category(self, 'Angle')
+        self.angle2d_ctrl = Angle2DControl(angle_page)
+        self.angle3d_ctrl = Angle3DControl(angle_page)
 
-        _ = self.seal_position3d
-        seal_prop = self._stored_seal_position3d.propgrid
-        seal_prop.SetLabel('Seal 3D')
-        seal_prop.SetName('seal_position3d')
-        accessories_group.Append(seal_prop)
+        position_page = _prop_grid.Category(self, 'Position')
+        self.position2d_ctrl = Position2DControl(position_page)
+        self.position3d_ctrl = Position3DControl(position_page)
 
-        group.Append(name_prop)
-        group.Append(notes_prop)
-        group.Append(angle_prop)
-        group.Append(position_prop)
-        group.Append(visible_prop)
-        group.Append(accessories_group)
-        group.Append(cavities_group)
+        cavities_page = _prop_grid.Category(self, 'Cavities')
+        self.cavities_notebook = wx.Notebook(cavities_page, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+        self.cavity_pages = []
 
-        part_prop = self._part_propgrid
+        cover_page = _prop_grid.Category(self, 'Cover')
+        self.cover_ctrl = _pjt_cover.PJTCoverControl(cover_page)
 
-        return group, part_prop
+        boot_page = _prop_grid.Category(self, 'Boot')
+        self.boot_ctrl = _pjt_boot.PJTBootControl(boot_page)
+
+        cpa_lock_page = _prop_grid.Category(self, 'CPA Lock')
+        self.cpa_lock_ctrl = _pjt_cpa_lock.PJTCPALockControl(cpa_lock_page)
+
+        tpa_lock1_page = _prop_grid.Category(self, 'TPA Lock 1')
+        self.tpa_lock1_ctrl = _pjt_tpa_lock.PJTTPALockControl(tpa_lock1_page)
+
+        tpa_lock2_page = _prop_grid.Category(self, 'TPA Lock 2')
+        self.tpa_lock2_ctrl = _pjt_tpa_lock.PJTTPALockControl(tpa_lock2_page)
+
+        seal_page = _prop_grid.Category(self, 'Seal')
+        self.seal_ctrl = _pjt_seal.PJTSealControl(seal_page)
+
+        part_page = _prop_grid.Category(self, 'Part')
+        self.part_ctrl = _housing.HousingControl(part_page)
+
+        for page in (
+            general_page,
+            angle_page,
+            position_page,
+            visible_page,
+            cover_page,
+            boot_page,
+            cpa_lock_page,
+            tpa_lock1_page,
+            tpa_lock2_page,
+            seal_page,
+            cavities_page,
+            part_page
+        ):
+            self.AddPage(page, page.GetLabel())
+            page.Realize()

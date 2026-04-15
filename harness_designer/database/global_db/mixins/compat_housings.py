@@ -47,10 +47,13 @@ class CompatHousingsControl(_prop_grid.ArrayStringProperty):
 
     def set_obj(self, db_obj: CompatHousingsMixin):
         self.db_obj = db_obj
-
-        self.SetValue(db_obj.compat_housings_array)
+        if db_obj is None:
+            self.SetValue([])
+            self.Enable(False)
+        else:
+            self.SetValue(db_obj.compat_housings_array)
+            self.Enable(True)
 
     def _on_compat_housings(self, evt: _prop_grid.PropertyEvent):
         compat_housings = evt.GetValue()
         self.db_obj.compat_seals_array = compat_housings
-

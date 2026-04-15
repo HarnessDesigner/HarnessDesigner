@@ -1,5 +1,7 @@
 from ....ui.editor_obj import prop_grid as _prop_grid
 
+import wx
+
 from .base import BaseMixin
 from ....geometry import point as _point
 from .. import pjt_point3d as _pjt_point3d
@@ -82,23 +84,25 @@ class StartStopPosition3DMixin(BaseMixin):
     def stop_position3d_id(self, value: int):
         self._table.update(self._db_id, stop_point3d_id=value)
 
-    @property
-    def _start_stop_position3d_propgrid(self) -> _prop_grid.Property:
 
-        position_prop = _prop_grid.Property('3D Positions')
+class StartStopPositionControl(_prop_grid.Property):
 
-        _ = self.start_position3d
-        _ = self.stop_position3d
+    def __init__(self, parent):
+        self.db_obj: StartStopPosition3DMixin = None
 
-        start_prop = self._stored_start_position3d.propgrid
-        stop_prop = self._stored_stop_position3d.propgrid
+        super().__init__(parent, '3D Positions', orientation=wx.VERTICAL)
 
-        start_prop.SetLabel('Start')
-        start_prop.SetName('start_position3d')
-        stop_prop.SetLabel('Stop')
-        stop_prop.SetName('stop_position3d')
+        self.start_ctrl = _prop_grid.Position3DProperty(self, 'Start')
+        self.stop_ctrl = _prop_grid.Position3DProperty(self, 'Stop')
 
-        position_prop.Append(start_prop)
-        position_prop.Append(stop_prop)
+    def set_obj(self, db_obj: StartStopPosition3DMixin):
+        self.db_obj = db_obj
 
-        return position_prop
+        if db_obj is None:
+            self.start_ctrl.SetValue(None)
+            self.stop_ctrl.SetValue(None)
+        else:
+
+            self.start_ctrl.SetValue(db_obj.start_position3d)
+            self.stop_ctrl.SetValue(db_obj.stop_position3d)
+

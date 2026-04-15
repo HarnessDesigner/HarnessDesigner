@@ -44,6 +44,18 @@ if TYPE_CHECKING:
 class HousingsTable(TableBase):
     __table_name__ = 'housings'
 
+    _prop_editor: "HousingControl" = None
+
+    @property
+    def prop_editor(self):
+        if self._prop_editor is None:
+
+            self._prop_editor = HousingControl(self.db.mainframe)
+            self._prop_editor.Show(False)
+            self._prop_editor.Realize()
+
+        return self._prop_editor
+
     def _load_database(self, splash):
         from ..create_database import housings
 
@@ -783,4 +795,5 @@ class HousingControl(wx.Notebook):
             covers_page
         ):
 
-            self.AddPage(page, page.GetName())
+            self.AddPage(page, page.GetLabel())
+            page.Realize()

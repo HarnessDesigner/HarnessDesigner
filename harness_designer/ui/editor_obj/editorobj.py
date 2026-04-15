@@ -52,23 +52,39 @@ class EditorObjPanel(wx.Panel):
     def __init__(self, parent: "_mainframe.MainFrame"):
         wx.Panel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_NONE)
         self.mainframe = parent
-
-        self.prop_grid = _prop_grid.PropertyGrid(self)
+        self.control = None
 
         vsizer = wx.BoxSizer(wx.VERTICAL)
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        hsizer.Add(self.prop_grid, 1, wx.EXPAND | wx.ALL, 10)
+
         vsizer.Add(hsizer, 1, wx.EXPAND)
+
+        self.sizer = hsizer
         self.SetSizer(vsizer)
         self._selected = None
 
     def set_selected(self, obj):
-        self.prop_grid.Clear()
+        if obj is None:
+            if self.control is not None:
+                self.control.Show(False)
+                self.sizer.Detach(self.control)
+                self.control.Reparent(self.mainframe)
+                self.control = None
+        else:
+            control = obj.db_obj.table.control
+            control.set_obj(obj.db_obj)
+            control.Reparent(self)
 
-        if obj is not None:
-            groups = obj.propgrid
+            if self.control is not None:
+                self.control.Show(False)
+                self.sizer.Detach(self.control)
+                self.control.Reparent(self.mainframe)
 
-            for group in groups:
-                self.prop_grid.Append(group)
+            self.sizer.Add(control, 1, wx.EXPAND | wx.ALL, 10)
+            self.control = control
+            control.Show()
+
+        self.Layout()
+        self.Refresh(False)
 
         self._selected = obj

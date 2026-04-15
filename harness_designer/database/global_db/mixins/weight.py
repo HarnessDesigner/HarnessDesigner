@@ -25,8 +25,12 @@ class WeightControl(_prop_grid.FloatProperty):
 
     def set_obj(self, db_obj: WeightMixin):
         self.db_obj = db_obj
-
-        self.SetValue(db_obj.weight)
+        if db_obj is None:
+            self.SetValue(0.0)
+            self.Enable(False)
+        else:
+            self.SetValue(db_obj.weight)
+            self.Enable(True)
 
     def _on_weight(self, evt: _prop_grid.PropertyEvent):
         weight = evt.GetValue()

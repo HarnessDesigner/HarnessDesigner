@@ -1,7 +1,8 @@
 from typing import TYPE_CHECKING
 
-from ....ui.editor_obj import prop_grid as _prop_grid
+import wx
 
+from ....ui.editor_obj import prop_grid as _prop_grid
 from .base import BaseMixin
 
 
@@ -47,20 +48,35 @@ class FamilyControl(_prop_grid.Category):
         self.desc_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_desc)
 
     def set_obj(self, db_obj: FamilyMixin):
+        self.db_obj = db_obj
 
-        family = db_obj.family
-        mfg_id = family.manufacturer.db_id
+        if db_obj is None:
+            self.choices = []
 
-        db_obj.table.execute(f'SELECT name FROM families WHERE mfg_id={mfg_id};')
+            self.name_ctrl.SetItems([])
+            self.name_ctrl.SetValue('')
+            self.mfg_ctrl.SetValue('')
+            self.desc_ctrl.SetValue('')
+            self.name_ctrl.Enable(False)
+            self.mfg_ctrl.Enable(False)
+            self.desc_ctrl.Enable(False)
+        else:
+            family = db_obj.family
+            mfg_id = family.manufacturer.db_id
 
-        rows = db_obj.table.fetchall()
+            db_obj.table.execute(f'SELECT name FROM families WHERE mfg_id={mfg_id};')
 
-        choices = sorted([row[0] for row in rows])
+            rows = db_obj.table.fetchall()
 
-        self.name_ctrl.SetItems(choices)
-        self.name_ctrl.SetValue(family.name)
-        self.mfg_ctrl.SetValue(family.manufacturer.name)
-        self.desc_ctrl.SetValue(family.description)
+            self.choices = sorted([row[0] for row in rows])
+
+            self.name_ctrl.SetItems(self.choices)
+            self.name_ctrl.SetValue(family.name)
+            self.mfg_ctrl.SetValue(family.manufacturer.name)
+            self.desc_ctrl.SetValue(family.description)
+            self.name_ctrl.Enable(True)
+            self.mfg_ctrl.Enable(True)
+            self.desc_ctrl.Enable(True)
 
     def _on_name(self, evt: _prop_grid.PropertyEvent):
         name = evt.GetValue()

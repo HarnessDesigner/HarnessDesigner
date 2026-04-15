@@ -11,20 +11,17 @@ class Position2DMixin(BaseMixin):
 
     @property
     def position2d(self) -> _point.Point:
-
-        print(self._stored_position2d, self._obj, self.position2d_id)
-
         if self._stored_position2d is None and self._obj is not None:
             point_id = self.position2d_id
 
-            self._stored_position2d = self._table.db.pjt_points2d_table[
-                point_id]
-            self._stored_position2d.add_object(self._obj)
+            self._stored_position2d = self._table.db.pjt_points2d_table[point_id]
+            self._stored_position2d.add_object(self._obj())
+
             point = self._stored_position2d.point
-        elif self._stored_position2d is not None:
-            point = self._stored_position2d.point
-        else:
+        elif self._stored_position2d is None:
             point = None
+        else:
+            point = self._stored_position2d.point
 
         return point
 
@@ -44,10 +41,18 @@ class Position2DMixin(BaseMixin):
     @position2d_id.setter
     def position2d_id(self, value: int):
         self._table.update(self._db_id, point2d_id=value)
-        
-    @property
-    def _position2d_propgrid(self) -> _prop_grid.Property:
-        _ = self.position2d
 
-        position_prop = self._stored_position2d.propgrid
-        return position_prop
+
+class Position2DControl(_prop_grid.Position2DProperty):
+
+    def __init__(self, parent):
+        self.db_obj: Position2DMixin = None
+
+        super().__init__(parent, '2D Position')
+
+    def set_obj(self, db_obj: Position2DMixin):
+        self.db_obj = db_obj
+        if db_obj is None:
+            self.SetValue(None)
+        else:
+            self.SetValue(db_obj.position2d)

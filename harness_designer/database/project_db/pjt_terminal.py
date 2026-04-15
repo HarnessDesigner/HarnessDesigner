@@ -1,13 +1,25 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 import weakref
+import wx
+
 from ...ui.editor_obj import prop_grid as _prop_grid
 
 from .pjt_bases import PJTEntryBase, PJTTableBase
 
-from .mixins import (Angle3DMixin, Angle2DMixin, Position3DMixin, Position2DMixin,
-                     PartMixin, Visible3DMixin, Visible2DMixin, NameMixin, NotesMixin,
-                     HousingMixin)
+from .mixins import (
+    Angle3DMixin, Angle3DControl,
+    Angle2DMixin, Angle2DControl,
+    Position3DMixin, Position3DControl,
+    Position2DMixin, Position2DControl,
+    PartMixin,
+    Visible3DMixin, Visible3DControl,
+    Visible2DMixin, Visible2DControl,
+    NameMixin, NameControl,
+    NotesMixin, NotesControl,
+    HousingMixin
+)
+
 
 from ... import logger as _logger
 
@@ -23,6 +35,20 @@ if TYPE_CHECKING:
 
 class PJTTerminalsTable(PJTTableBase):
     __table_name__ = 'pjt_terminals'
+
+    _control: "PJTTerminalControl" = None
+
+    @property
+    def control(self) -> "PJTTerminalControl":
+        if self._control is None:
+            raise RuntimeError('sanity check')
+
+        return self._control
+
+    @classmethod
+    def start_control(cls, mainframe):
+        cls._control = PJTTerminalControl(mainframe)
+        cls._control.Show(False)
 
     def _table_needs_update(self) -> bool:
         from ..create_database import terminals
@@ -267,24 +293,109 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin, Not
 
         return self._stored_part
 
-    @property
-    def propgrid(self) -> tuple[_prop_grid.Category, _prop_grid.Category]:
-        group = _prop_grid.Category('Project')
 
-        notes_prop = self._notes_propgrid
-        name_prop = self._name_propgrid
-        angle_prop = self._angle3d_propgrid
-        position_prop = self._position3d_propgrid
-        housing_prop = self._housing_propgrid
-        visible_prop = self._visible3d_propgrid
+class PJTTerminalControl(wx.Notebook):
 
-        group.Append(name_prop)
-        group.Append(notes_prop)
-        group.Append(angle_prop)
-        group.Append(position_prop)
-        group.Append(visible_prop)
-        group.Append(housing_prop)
+    def set_obj(self, db_obj: PJTTerminal):
+        self.db_obj = db_obj
 
-        part_prop = self._part_propgrid
+        self.name_ctrl.set_obj(db_obj)
+        self.note_ctrl.set_obj(db_obj)
 
-        return group, part_prop
+        self.angle2d_ctrl.set_obj(db_obj)
+        self.angle3d_ctrl.set_obj(db_obj)
+
+        self.position2d_ctrl.set_obj(db_obj)
+        self.position3d_ctrl.set_obj(db_obj)
+
+        self.visible2d_ctrl.set_obj(db_obj)
+        self.visible3d_ctrl.set_obj(db_obj)
+
+        if db_obj is None:
+            self.is_start_ctrl.SetValue(False)
+            self.voltage_drop_ctrl.SetValue(0.0)
+            self.volts_ctrl.SetValue(0.0)
+            self.load_ctrl.SetValue(0.0)
+
+            self.is_start_ctrl.Enable(False)
+            self.voltage_drop_ctrl.Enable(False)
+            self.volts_ctrl.Enable(False)
+            self.load_ctrl.Enable(False)
+
+            self.seal_ctrl.set_obj(None)
+            self.terminal_ctrl.set_obj(None)
+
+        else:
+
+            is_start = db_obj.is_start
+
+            self.is_start_ctrl.SetValue(is_start)
+
+            if is_start:
+                self.voltage_drop_ctrl.Enable(True)
+                self.volts_ctrl.Enable(True)
+                self.voltage_drop_ctrl.SetValue(db_obj.voltage_drop)
+                self.volts_ctrl.SetValue(db_obj.volts)
+
+                self.load_ctrl.Enable(False)
+                self.load_ctrl.SetValue(0.0)
+            else:
+                self.voltage_drop_ctrl.Enable(False)
+                self.volts_ctrl.Enable(False)
+                self.voltage_drop_ctrl.SetValue(0.0)
+                self.volts_ctrl.SetValue(0.0)
+
+                self.load_ctrl.Enable(True)
+                self.load_ctrl.SetValue(db_obj.load)
+
+            self.seal_ctrl.set_obj(db_obj.seal)
+            self.terminal_ctrl.set_obj(db_obj.part)
+
+    def __init__(self, parent):
+        self.db_obj: PJTTerminal = None
+
+        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+
+        general_page = _prop_grid.Category(self, 'General')
+        self.name_ctrl = NameControl(general_page)
+        self.note_ctrl = NotesControl(general_page)
+
+        self.is_start_ctrl = _prop_grid.BoolProperty(general_page, 'Is Start', False)
+        self.voltage_drop_ctrl = _prop_grid.FloatProperty(general_page, 'Allowed Voltage Drop', 0.0, min_value=0.0, max_value=9999.99, increment=0.01, units='VDC/VAC')
+        self.volts_ctrl = _prop_grid.FloatProperty(general_page, 'Volts', 0.0, min_value=0.0, max_value=44000.00, increment=0.01, units='VDC/VAC')
+        self.load_ctrl = _prop_grid.FloatProperty(general_page, 'Load', 0.0, min_value=0.0, max_value=9999.99, increment=0.01, units='A')
+
+        angle_page = _prop_grid.Category(self, 'Angle')
+        self.angle2d_ctrl = Angle2DControl(angle_page)
+        self.angle3d_ctrl = Angle3DControl(angle_page)
+
+        position_page = _prop_grid.Category(self, 'Position')
+        self.position2d_ctrl = Position2DControl(position_page)
+        self.position3d_ctrl = Position3DControl(position_page)
+
+        visible_page = _prop_grid.Category(self, 'Visible')
+        self.visible2d_ctrl = Visible2DControl(visible_page)
+        self.visible3d_ctrl = Visible3DControl(visible_page)
+
+        seal_page = _prop_grid.Category(self, 'Seal')
+
+        from . import pjt_seal as _pjt_seal
+
+        self.seal_ctrl = _pjt_seal.PJTSealControl(seal_page)
+
+        part_page = _prop_grid.Category(self, 'Part')
+
+        from ..global_db import terminal as _terminal  # NOQA
+
+        self.terminal_ctrl = _terminal.TerminalControl(part_page)
+
+        for page in (
+            general_page,
+            angle_page,
+            position_page,
+            visible_page,
+            seal_page,
+            part_page
+        ):
+            self.AddPage(page, page.GetLabel())
+            page.Realize()

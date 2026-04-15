@@ -331,7 +331,7 @@ class DatasheetCADProperty(_prop_base.Property):
         self._save_path = value[1]
 
         if value[1] is None:
-            self._image.SetValue(value)
+            self._image.SetValue(value[0])
         else:
             self._image.SetValue(value[1])
 

@@ -1,7 +1,5 @@
 from .base import BaseMixin
 
-from ....ui.editor_obj import prop_grid as _prop_grid
-
 
 class ImageMixin(BaseMixin):
 

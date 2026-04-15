@@ -28,8 +28,6 @@ class ColorProperty(_prop_base.Property):
         self._ctrl.Bind(wx.EVT_COMBOBOX, self._on_change)
         self._button.Bind(wx.EVT_COLOURPICKER_CHANGED, self._on_colour)
 
-        self._button.SetColour(value)
-
     def Realize(self):
         hsizer1 = wx.BoxSizer(wx.HORIZONTAL)
         vsizer = wx.BoxSizer(wx.VERTICAL)

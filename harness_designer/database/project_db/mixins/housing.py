@@ -1,6 +1,5 @@
 from typing import TYPE_CHECKING
 
-from ....ui.editor_obj import prop_grid as _prop_grid
 
 from .base import BaseMixin
 
@@ -26,8 +25,3 @@ class HousingMixin(BaseMixin):
     @housing_id.setter
     def housing_id(self, value: int):
         self._table.update(self._db_id, housing_id=value)
-
-    @property
-    def _housing_propgrid(self) -> _prop_grid.Property:
-        prop = _prop_grid.StringProperty('Housing', 'housing', self.housing.part.part_number)
-        return prop

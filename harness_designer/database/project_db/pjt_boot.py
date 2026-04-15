@@ -1,11 +1,20 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 import weakref
+import wx
+
 from ...ui.editor_obj import prop_grid as _prop_grid
 
 from .pjt_bases import PJTEntryBase, PJTTableBase
-from .mixins import (Angle3DMixin, Position3DMixin, PartMixin, HousingMixin,
-                     Visible3DMixin, NameMixin, NotesMixin)
+from .mixins import (
+    Angle3DMixin, Angle3DControl,
+    Position3DMixin, Position3DControl,
+    PartMixin,
+    HousingMixin,
+    Visible3DMixin, Visible3DControl,
+    NameMixin, NameControl,
+    NotesMixin, NotesControl
+)
 
 
 if TYPE_CHECKING:
@@ -15,6 +24,20 @@ if TYPE_CHECKING:
 
 class PJTBootsTable(PJTTableBase):
     __table_name__ = 'pjt_boots'
+
+    _control: "PJTBootControl" = None
+
+    @property
+    def control(self) -> "PJTBootControl":
+        if self._control is None:
+            raise RuntimeError('sanity check')
+
+        return self._control
+
+    @classmethod
+    def start_control(cls, mainframe):
+        cls._control = PJTBootControl(mainframe)
+        cls._control.Show(False)
 
     def get_from_position3d_id(self, position3d_id) -> "PJTBoot":
         rows = self.select('id', position3d_id=position3d_id)
@@ -105,24 +128,53 @@ class PJTBoot(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin,
 
         return self._stored_part
 
-    @property
-    def propgrid(self) -> tuple[_prop_grid.Category, _prop_grid.Category]:
-        group = _prop_grid.Category('Project')
 
-        notes_prop = self._notes_propgrid
-        name_prop = self._name_propgrid
-        angle_prop = self._angle3d_propgrid
-        position_prop = self._position3d_propgrid
-        housing_prop = self._housing_propgrid
-        visible_prop = self._visible3d_propgrid
+class PJTBootControl(wx.Notebook):
 
-        group.Append(name_prop)
-        group.Append(notes_prop)
-        group.Append(angle_prop)
-        group.Append(position_prop)
-        group.Append(visible_prop)
-        group.Append(housing_prop)
+    def set_obj(self, db_obj: PJTBoot):
+        self.db_obj = db_obj
 
-        part_prop = self._part_propgrid
+        self.name_ctrl.set_obj(db_obj)
+        self.note_ctrl.set_obj(db_obj)
+        self.angle3d_ctrl.set_obj(db_obj)
+        self.position3d_ctrl.set_obj(db_obj)
+        self.visible3d_ctrl.set_obj(db_obj)
 
-        return group, part_prop
+        if db_obj is None:
+            self.boot_ctrl.set_obj(None)
+        else:
+            self.boot_ctrl.set_obj(db_obj.part)
+
+    def __init__(self, parent):
+        self.db_obj: PJTBoot = None
+
+        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+
+        general_page = _prop_grid.Category(self, 'General')
+        self.name_ctrl = NameControl(general_page)
+        self.note_ctrl = NotesControl(general_page)
+
+        angle_page = _prop_grid.Category(self, 'Angle')
+        self.angle3d_ctrl = Angle3DControl(angle_page)
+
+        position_page = _prop_grid.Category(self, 'Position')
+        self.position3d_ctrl = Position3DControl(position_page)
+
+        visible_page = _prop_grid.Category(self, 'Visible')
+        self.visible3d_ctrl = Visible3DControl(visible_page)
+
+        part_page = _prop_grid.Category(self, 'Part')
+
+        from ..global_db import boot as _boot  # NOQA
+
+        self.boot_ctrl = _boot.BootControl(part_page)
+
+        for page in (
+            general_page,
+            angle_page,
+            position_page,
+            visible_page,
+            part_page
+        ):
+            self.AddPage(page, page.GetLabel())
+            page.Realize()

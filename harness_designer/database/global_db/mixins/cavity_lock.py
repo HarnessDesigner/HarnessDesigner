@@ -47,14 +47,23 @@ class CavityLockControl(_prop_grid.Property):
     def set_obj(self, db_obj: CavityLockMixin):
         self.db_obj = db_obj
 
-        cavity_lock = db_obj.cavity_lock
-        db_obj.table.execute(f'SELECT name FROM cavity_locks;')
+        if db_obj is None:
+            self.choices = []
+            self.name_ctrl.SetItems(self.choices)
+            self.name_ctrl.SetValue('')
+            self.desc_ctrl.SetValue('')
+            self.name_ctrl.Enable(False)
+            self.desc_ctrl.Enable(False)
+        else:
+            db_obj.table.execute(f'SELECT name FROM cavity_locks;')
+            rows = db_obj.table.fetchall()
 
-        rows = db_obj.table.fetchall()
-
-        choices = sorted([row[0] for row in rows])
-        self.name_ctrl.SetItems(choices)
-        self.name_ctrl.SetValue(cavity_lock.name)
+            self.choices = sorted([row[0] for row in rows])
+            self.name_ctrl.SetItems(self.choices)
+            self.name_ctrl.SetValue(db_obj.cavity_lock.name)
+            self.desc_ctrl.SetValue(db_obj.cavity_lock.description)
+            self.name_ctrl.Enable(True)
+            self.desc_ctrl.Enable(True)
 
     def _on_name(self, evt: _prop_grid.PropertyEvent):
         name = evt.GetValue()

@@ -8,7 +8,7 @@ from ....geometry import angle as _angle
 class Angle2DMixin(BaseMixin):
     _angle2d_db_id: str = None
 
-    def __update_angle2d(self, angle: _angle.Angle):
+    def _update_angle2d(self, angle: _angle.Angle):
         quat = list(angle.as_quat_float)
         euler_angle = list(angle.as_euler_float)
 
@@ -24,17 +24,28 @@ class Angle2DMixin(BaseMixin):
             self._angle2d_db_id = str(uuid.uuid4())
 
         angle = _angle.Angle.from_quat(quat, euler_angle, db_id=self._angle2d_db_id)
-        angle.bind(self.__update_angle2d)
+        angle.bind(self._update_angle2d)
 
         return angle
 
-    @property
-    def _angle2d_propgrid(self) -> _prop_grid.Property:
-        angle = self.angle2d
 
-        angle_prop = _prop_grid.FloatProperty(
-            'Angle 2D', 'angle2d.z', angle.z,
-            min_value=-180.0, max_value=180.0, increment=0.01, units='°')
-        
-        return angle_prop
+class Angle2DControl(_prop_grid.FloatProperty):
 
+    def __init__(self, parent):
+        self.db_obj: Angle2DMixin = None
+
+        super().__init__(parent, '2D Angle', 0.0, min_value=-180.0, max_value=180.0, increment=0.01, units='°')
+
+        self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_angle)
+
+    def _on_angle(self, evt):
+        self.db_obj.angle2d.z = evt.GetValue()
+
+    def set_obj(self, db_obj: Angle2DMixin):
+        self.db_obj = db_obj
+        if db_obj is None:
+            self.SetValue(0.0)
+            self.Enable(False)
+        else:
+            self.SetValue(db_obj.angle2d.z)
+            self.Enable(True)

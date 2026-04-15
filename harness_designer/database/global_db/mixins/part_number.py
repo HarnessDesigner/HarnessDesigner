@@ -26,7 +26,12 @@ class PartNumberControl(_prop_grid.StringProperty):
     def set_obj(self, db_obj: PartNumberMixin):
         self.db_obj = db_obj
 
-        self.SetValue(db_obj.part_number)
+        if db_obj is None:
+            self.SetValue('')
+            self.Enable(False)
+        else:
+            self.SetValue(db_obj.part_number)
+            self.Enable(True)
 
     def _on_part_number(self, evt: _prop_grid.PropertyEvent):
         part_number = evt.GetValue()

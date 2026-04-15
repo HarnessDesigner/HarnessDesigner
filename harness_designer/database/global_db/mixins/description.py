@@ -26,7 +26,12 @@ class DescriptionControl(_prop_grid.LongStringProperty):
     def set_obj(self, db_obj: DescriptionMixin):
         self.db_obj = db_obj
 
-        self.SetValue(db_obj.description)
+        if db_obj is None:
+            self.SetValue('')
+            self.Enable(False)
+        else:
+            self.SetValue(db_obj.description)
+            self.Enable(True)
 
     def _on_desc(self, evt: _prop_grid.PropertyEvent):
         desc = evt.GetValue()

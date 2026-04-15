@@ -26,11 +26,6 @@ class ResourceMixin(BaseMixin):
         if cad.data_path is not None:
             return cad.file_type.extension
 
-    cad
-    image
-    datasheet
-
-
     @property
     def cad_id(self) -> int:
         return self._table.select('cad_id', id=self._db_id)[0][0]
@@ -114,38 +109,52 @@ class ResourcesControl(_prop_grid.Category):
     def set_obj(self, db_obj: ResourceMixin):
         self.db_obj = db_obj
 
-        db_obj.table.execute('SELECT mimetype, extension FROM file_types WHERE is_model=0;')
-        rows = db_obj.table.fetchall()
-
-        self.file_types = {k: v for k, v in rows}
-
-        self.image_ctrl.SetFileTypes(self.file_types)
-        self.datasheet_ctrl.SetFileTypes(self.file_types)
-        self.cad_ctrl.SetFileTypes(self.file_types)
-
-        db_id = db_obj.image_id
-        if db_id is None:
+        if db_obj is None:
             self.image_ctrl.SetValue(['', None])
-        else:
-            image = db_obj.table.db.images_table[db_id]
-
-            self.image_ctrl.SetValue([image.path, image.data_path])
-
-        db_id = db_obj.cad_id
-        if db_id is None:
-            self.cad_ctrl.SetValue(['', None])
-        else:
-            image = db_obj.table.db.cads_table[db_id]
-
-            self.cad_ctrl.SetValue([image.path, image.data_path])
-
-        db_id = db_obj.datasheet_id
-        if db_id is None:
             self.datasheet_ctrl.SetValue(['', None])
-        else:
-            image = db_obj.table.db.datasheets_table[db_id]
+            self.cad_ctrl.SetValue(['', None])
 
-            self.datasheet_ctrl.SetValue([image.path, image.data_path])
+            self.image_ctrl.Enable(False)
+            self.datasheet_ctrl.Enable(False)
+            self.cad_ctrl.Enable(False)
+
+        else:
+            db_obj.table.execute('SELECT mimetype, extension FROM file_types WHERE is_model=0;')
+            rows = db_obj.table.fetchall()
+
+            self.file_types = {k: v for k, v in rows}
+
+            self.image_ctrl.SetFileTypes(self.file_types)
+            self.datasheet_ctrl.SetFileTypes(self.file_types)
+            self.cad_ctrl.SetFileTypes(self.file_types)
+
+            db_id = db_obj.image_id
+            if db_id is None:
+                self.image_ctrl.SetValue(['', None])
+            else:
+                image = db_obj.table.db.images_table[db_id]
+
+                self.image_ctrl.SetValue([image.path, image.data_path])
+
+            db_id = db_obj.cad_id
+            if db_id is None:
+                self.cad_ctrl.SetValue(['', None])
+            else:
+                image = db_obj.table.db.cads_table[db_id]
+
+                self.cad_ctrl.SetValue([image.path, image.data_path])
+
+            db_id = db_obj.datasheet_id
+            if db_id is None:
+                self.datasheet_ctrl.SetValue(['', None])
+            else:
+                image = db_obj.table.db.datasheets_table[db_id]
+
+                self.datasheet_ctrl.SetValue([image.path, image.data_path])
+
+            self.image_ctrl.Enable(True)
+            self.datasheet_ctrl.Enable(True)
+            self.cad_ctrl.Enable(True)
 
     def _on_image(self, evt):
         path = evt.GetValue()

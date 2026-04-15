@@ -60,34 +60,67 @@ class ManufacturerControl(_prop_grid.Category):
     def set_obj(self, db_obj: ManufacturerMixin):
         self.db_obj = db_obj
 
-        mfg = self.db_obj.manufacturer
+        if db_obj is None:
+            self.choices = []
 
-        self.db_obj.table.execute(f'SELECT name, description, address, contact_person, phone, ext, email, website FROM manufacturers WHERE id={mfg.db_id};')
-        rows = self.db_obj.table.fetchall()
-        name, desc, addr, contact, phone, ext, email, website = rows[0]
+            self.name_ctrl.SetItems(self.choices)
+            self.name_ctrl.SetValue('')
 
-        self.db_obj.table.execute(f'SELECT name FROM manufacturers;')
-        rows = self.db_obj.table.fetchall()
+            self.desc_ctrl.SetValue('')
+            self.address_ctrl.SetValue('')
+            self.contact_ctrl.SetValue('')
+            self.phone_ctrl.SetValue('')
+            self.ext_ctrl.SetValue('')
+            self.email_ctrl.SetValue('')
+            self.website_ctrl.SetValue('')
 
-        self.choices = sorted([row[0] for row in rows])
+            self.name_ctrl.Enable(False)
+            self.desc_ctrl.Enable(False)
+            self.address_ctrl.Enable(False)
+            self.contact_ctrl.Enable(False)
+            self.phone_ctrl.Enable(False)
+            self.ext_ctrl.Enable(False)
+            self.email_ctrl.Enable(False)
+            self.website_ctrl.Enable(False)
 
-        self.name_ctrl.SetItems(self.choices)
-        self.name_ctrl.SetValue(name)
+        else:
+            mfg = db_obj.manufacturer
 
-        self.desc_ctrl.SetValue(desc)
-        self.address_ctrl.SetValue(addr)
-        self.contact_ctrl.SetValue(contact)
-        self.phone_ctrl.SetValue(phone)
-        self.ext_ctrl.SetValue(ext)
-        self.email_ctrl.SetValue(email)
-        self.website_ctrl.SetValue(website)
+            self.db_obj.table.execute(f'SELECT name, description, address, contact_person, phone, ext, email, website FROM manufacturers WHERE id={mfg.db_id};')
+            rows = db_obj.table.fetchall()
+            name, desc, addr, contact, phone, ext, email, website = rows[0]
+
+            db_obj.table.execute(f'SELECT name FROM manufacturers;')
+            rows = db_obj.table.fetchall()
+
+            self.choices = sorted([row[0] for row in rows])
+
+            self.name_ctrl.SetItems(self.choices)
+            self.name_ctrl.SetValue(name)
+
+            self.desc_ctrl.SetValue(desc)
+            self.address_ctrl.SetValue(addr)
+            self.contact_ctrl.SetValue(contact)
+            self.phone_ctrl.SetValue(phone)
+            self.ext_ctrl.SetValue(ext)
+            self.email_ctrl.SetValue(email)
+            self.website_ctrl.SetValue(website)
+
+            self.name_ctrl.Enable(True)
+            self.desc_ctrl.Enable(True)
+            self.address_ctrl.Enable(True)
+            self.contact_ctrl.Enable(True)
+            self.phone_ctrl.Enable(True)
+            self.ext_ctrl.Enable(True)
+            self.email_ctrl.Enable(True)
+            self.website_ctrl.Enable(True)
 
     def _on_name_change(self, evt: _prop_grid.PropertyEvent):
         name = evt.GetValue()
         rows = self.db_obj.table.execute(f'SELECT id, description, address, contact_person, phone, ext, email, website FROM manufacturers WHERE name="{name}";')
         if rows:
-            id, desc, addr, contact, phone, ext, email, website = rows[0]
-            self.db_obj.mfg_id = id
+            db_id, desc, addr, contact, phone, ext, email, website = rows[0]
+            self.db_obj.mfg_id = db_id
         else:
             mfg = self.db_obj.table.db.manufacturers_table.insert(name, '', '', '', '', '', '', '')
             self.db_obj.mfg_id = mfg.db_id

@@ -22,9 +22,22 @@ class Angle3DProperty(_prop_base.Property):
     def SetValue(self, angle):
         self._angle = angle
 
-        self.x_ctrl.SetValue(angle.x)
-        self.y_ctrl.SetValue(angle.y)
-        self.z_ctrl.SetValue(angle.z)
+        if angle is None:
+            self.x_ctrl.SetValue(0.0)
+            self.y_ctrl.SetValue(0.0)
+            self.z_ctrl.SetValue(0.0)
+
+            self.x_ctrl.Enable(False)
+            self.y_ctrl.Enable(False)
+            self.z_ctrl.Enable(False)
+        else:
+            self.x_ctrl.SetValue(angle.x)
+            self.y_ctrl.SetValue(angle.y)
+            self.z_ctrl.SetValue(angle.z)
+
+            self.x_ctrl.Enable(True)
+            self.y_ctrl.Enable(True)
+            self.z_ctrl.Enable(True)
 
     def _on_x(self, evt):
         self._angle.x = evt.GetValue()

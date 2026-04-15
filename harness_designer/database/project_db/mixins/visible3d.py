@@ -13,8 +13,26 @@ class Visible3DMixin(BaseMixin):
     def is_visible3d(self, value: bool):
         self._table.update(self._db_id, is_visible3d=int(value))
 
-    @property
-    def _visible3d_propgrid(self) -> _prop_grid.Property:
-        visible_prop = _prop_grid.BoolProperty('Visible 3D', 'is_visible3d', self.is_visible3d)
 
-        return visible_prop
+class Visible3DControl(_prop_grid.BoolProperty):
+
+    def __init__(self, parent):
+        self.db_obj: Visible3DMixin = None
+
+        super().__init__(parent, 'Is Visible 3D', False)
+
+        self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_visible3d)
+
+    def _on_visible3d(self, evt):
+        value = evt.GetValue()
+        self.db_obj.is_visible3d = value
+
+    def set_obj(self, db_obj: Visible3DMixin):
+        self.db_obj = db_obj
+
+        if db_obj is None:
+            self.SetValue(False)
+            self.Enable(False)
+        else:
+            self.SetValue(db_obj.is_visible3d)
+            self.Enable(True)

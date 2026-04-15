@@ -1,14 +1,29 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 import uuid
-from ...ui.editor_obj import prop_grid as _prop_grid
+import wx
 
+from ...ui.editor_obj import prop_grid as _prop_grid
 from .bases import EntryBase, TableBase
 from ...geometry import point as _point
 
-from .mixins import (PartNumberMixin, ManufacturerMixin, DescriptionMixin, SeriesMixin,
-                     ColorMixin, TemperatureMixin, ResourceMixin, WeightMixin, Model3DMixin,
-                     DimensionMixin, FamilyMixin, WireSizeMixin, CompatHousingsMixin, CompatTerminalsMixin)
+from .mixins import (
+    PartNumberMixin, PartNumberControl,
+    ManufacturerMixin, ManufacturerControl,
+    DescriptionMixin, DescriptionControl,
+    ColorMixin, ColorControl,
+    FamilyMixin, FamilyControl,
+    SeriesMixin, SeriesControl,
+    ResourceMixin, ResourcesControl,
+    WeightMixin, WeightControl,
+    TemperatureMixin, TemperatureControl,
+    Model3DMixin,
+    WireSizeMixin,
+    DimensionMixin, DimensionControl,
+    CompatHousingsMixin, CompatHousingsControl,
+    CompatTerminalsMixin, CompatTerminalsControl
+
+)
 
 if TYPE_CHECKING:
     from . import seal_type as _seal_type
@@ -291,57 +306,117 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     def wire_dia_max(self, value: float):
         self._table.update(self._db_id, wire_dia_max=round(value, 6))
 
-    @property
-    def propgrid(self) -> _prop_grid.Category:
-        part_cat = _prop_grid.Category('Part Attributes')
-        
-        part_number_prop = self._part_number_propgrid
-        manufacturer_prop = self._manufacturer_propgrid
-        description_prop = self._description_propgrid
-        family_prop = self._family_propgrid
-        series_prop = self._series_propgrid
-        color_prop = self._color_propgrid
-        temperature_prop = self._temperature_propgrid
-        dimension_prop = self._dimension_propgrid
-        weight_prop = self._weight_propgrid
-        resource_prop = self._resource_propgrid
-        model3d_prop = self._model3d_propgrid
-        wire_size_prop = self._wire_size_propgrid
-        compat_housings_prop = self._compat_housings_propgrid
-        compat_terminals_prop = self._compat_terminals_propgrid
-        seal_type_prop = self.type.propgrid
 
-        hardness_prop = _prop_grid.IntProperty(
-            'Hardness', 'hardness', self.hardness, min_value=1, max_value=999, units='shore')
+class SealControl(wx.Notebook):
 
-        lubricant_prop = _prop_grid.StringProperty('Lubricant', 'lubricant', self.lubricant)
+    # TODO: Add seal type and wire sizes
 
-        o_dia_prop = _prop_grid.FloatProperty(
-            'Outside Diameter', 'o_dia', self.o_dia, min_value=0.01,
+    def set_obj(self, db_obj: Seal):
+        self.db_obj = db_obj
+
+        self.mfg_page.set_obj(db_obj)
+        self.family_page.set_obj(db_obj)
+        self.series_page.set_obj(db_obj)
+        self.temperature_page.set_obj(db_obj)
+        self.dimension_page.set_obj(db_obj)
+        self.resources_page.set_obj(db_obj)
+
+        self.part_number_ctrl.set_obj(db_obj)
+        self.description_ctrl.set_obj(db_obj)
+        self.color_ctrl.set_obj(db_obj)
+        self.weight_ctrl.set_obj(db_obj)
+        self.compat_housing_ctrl.set_obj(db_obj)
+        self.compat_terminals_ctrl.set_obj(db_obj)
+
+        if db_obj is None:
+            self.hardness_ctrl.SetValue(0)
+            self.lubricant_ctrl.SetValue('')
+            self.o_dia_ctrl.SetValue(0.0)
+            self.i_dia_ctrl.SetValue(0.0)
+
+            self.hardness_ctrl.Enable(False)
+            self.lubricant_ctrl.Enable(False)
+            self.o_dia_ctrl.Enable(False)
+            self.i_dia_ctrl.Enable(False)
+        else:
+            self.hardness_ctrl.SetValue(db_obj.hardness)
+            self.lubricant_ctrl.SetValue(db_obj.lubricant)
+            self.o_dia_ctrl.SetValue(db_obj.o_dia)
+            self.i_dia_ctrl.SetValue(db_obj.i_dia)
+
+            self.hardness_ctrl.Enable(True)
+            self.lubricant_ctrl.Enable(True)
+            self.o_dia_ctrl.Enable(True)
+            self.i_dia_ctrl.Enable(True)
+
+    def _on_hardness(self, evt):
+        value = evt.GetValue()
+        self.db_obj.hardness = value
+
+    def _on_lubricant(self, evt):
+        value = evt.GetValue()
+        self.db_obj.lubricant = value
+
+    def _on_o_dia(self, evt):
+        value = evt.GetValue()
+        self.db_obj.o_dia = value
+
+    def _on_i_dia(self, evt):
+        value = evt.GetValue()
+        self.db_obj.i_dia = value
+
+    def __init__(self, parent):
+        self.db_obj: Seal = None
+
+        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+
+        general_page = _prop_grid.Category(self, 'General')
+
+        self.part_number_ctrl = PartNumberControl(general_page)
+        self.description_ctrl = DescriptionControl(general_page)
+        self.color_ctrl = ColorControl(general_page)
+
+        self.hardness_ctrl = _prop_grid.IntProperty(
+            general_page, 'Hardness', -1, min_value=-1, max_value=999, units='shore')
+
+        self.lubricant_ctrl = _prop_grid.StringProperty(general_page, 'Lubricant', '')
+
+        self.o_dia_ctrl = _prop_grid.FloatProperty(
+            general_page, 'Outside Diameter', 0.0, min_value=0.0,
             max_value=99.9, increment=0.01, units='mm')
 
-        i_dia_prop = _prop_grid.FloatProperty(
-            'Inside Diameter', 'i_dia', self.i_dia, min_value=0.01,
+        self.i_dia_ctrl = _prop_grid.FloatProperty(
+            general_page, 'Inside Diameter', 0.0, min_value=0.00,
             max_value=99.9, increment=0.01, units='mm')
 
-        part_cat.Append(part_number_prop)
-        part_cat.Append(manufacturer_prop)
-        part_cat.Append(description_prop)
-        part_cat.Append(family_prop)
-        part_cat.Append(series_prop)
-        part_cat.Append(color_prop)
-        part_cat.Append(temperature_prop)
-        part_cat.Append(dimension_prop)
-        part_cat.Append(weight_prop)
-        part_cat.Append(resource_prop)
-        part_cat.Append(model3d_prop)
-        part_cat.Append(i_dia_prop)
-        part_cat.Append(o_dia_prop)
-        part_cat.Append(wire_size_prop)
-        part_cat.Append(seal_type_prop)
-        part_cat.Append(hardness_prop)
-        part_cat.Append(lubricant_prop)
-        part_cat.Append(compat_housings_prop)
-        part_cat.Append(compat_terminals_prop)
+        self.hardness_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_hardness)
+        self.lubricant_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_lubricant)
+        self.o_dia_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_o_dia)
+        self.i_dia_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_i_dia)
 
-        return part_cat
+        self.mfg_page = ManufacturerControl(self)
+        self.family_page = FamilyControl(self)
+        self.series_page = SeriesControl(self)
+        self.temperature_page = TemperatureControl(self)
+
+        self.dimension_page = DimensionControl(self)
+        self.weight_ctrl = WeightControl(self.dimension_page)
+
+        self.resources_page = ResourcesControl(self)
+
+        compat_parts_page = _prop_grid.Category(self, 'Compatible Parts')
+        self.compat_housing_ctrl = CompatHousingsControl(compat_parts_page)
+        self.compat_terminals_ctrl = CompatTerminalsControl(compat_parts_page)
+
+        for page in (
+            general_page,
+            self.mfg_page,
+            self.family_page,
+            self.series_page,
+            self.temperature_page,
+            self.dimension_page,
+            self.resources_page,
+            compat_parts_page
+        ):
+            self.AddPage(page, page.GetLabel())
+            page.Realize()

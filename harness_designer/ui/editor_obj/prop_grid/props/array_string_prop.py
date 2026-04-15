@@ -212,7 +212,7 @@ class ArrayStringProperty(_prop_base.Property):
         self._dialog_title = value
 
     def _on_dialog_button(self, _):
-        dlg = ArrayIntDialog(self, self._value, self._dialog_title)
+        dlg = ArrayStringDialog(self, self._value, self._dialog_title)
         dlg.CenterOnParent()
 
         if dlg.ShowModal() == wx.ID_OK:

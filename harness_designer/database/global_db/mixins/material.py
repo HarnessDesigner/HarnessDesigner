@@ -42,12 +42,19 @@ class MaterialControl(_prop_grid.ComboBoxProperty):
     def set_obj(self, db_obj: MaterialMixin):
         self.db_obj = db_obj
 
-        db_obj.table.execute('SELECT name FROM materials;')
-        rows = db_obj.table.fetchall()
+        if db_obj is None:
+            self.choices = []
+            self.SetItems(self.choices)
+            self.SetValue('')
+            self.Enable(False)
+        else:
+            db_obj.table.execute('SELECT name FROM materials;')
+            rows = db_obj.table.fetchall()
 
-        self.choices = sorted([row[0] for row in rows])
-        self.SetItems(self.choices)
-        self.SetValue(db_obj.material.name)
+            self.choices = sorted([row[0] for row in rows])
+            self.SetItems(self.choices)
+            self.SetValue(db_obj.material.name)
+            self.Enable(True)
 
     def _on_material(self, evt: _prop_grid.PropertyEvent):
         name = evt.GetValue()

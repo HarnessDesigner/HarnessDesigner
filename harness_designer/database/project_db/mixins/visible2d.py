@@ -13,9 +13,26 @@ class Visible2DMixin(BaseMixin):
     def is_visible2d(self, value: bool):
         self._table.update(self._db_id, is_visible2d=int(value))
 
-    @property
-    def _visible2d_propgrid(self) -> _prop_grid.Property:
 
-        visible_prop = _prop_grid.BoolProperty('Visible 2D', 'is_visible2d', self.is_visible2d)
+class Visible2DControl(_prop_grid.BoolProperty):
 
-        return visible_prop
+    def __init__(self, parent):
+        self.db_obj: Visible2DMixin = None
+
+        super().__init__(parent, 'Is Visible 2D', False)
+
+        self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_visible2d)
+
+    def _on_visible2d(self, evt):
+        value = evt.GetValue()
+        self.db_obj.is_visible2d = value
+
+    def set_obj(self, db_obj: Visible2DMixin):
+        self.db_obj = db_obj
+
+        if db_obj is None:
+            self.SetValue(False)
+            self.Enable(False)
+        else:
+            self.SetValue(db_obj.is_visible2d)
+            self.Enable(True)

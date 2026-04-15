@@ -1,7 +1,5 @@
 from typing import TYPE_CHECKING
 
-import wx
-
 from ....ui.editor_obj import prop_grid as _prop_grid
 
 from .base import BaseMixin
@@ -39,13 +37,23 @@ class ProtectionControl(_prop_grid.AutocompleteStringProperty):
     def set_obj(self, db_obj: ProtectionMixin):
         self.db_obj = db_obj
 
-        db_obj.table.execute('SELECT name FROM protections;')
-        rows = db_obj.table.fetchall()
+        if db_obj is None:
+            self.choices = []
 
-        self.choices = [row[0] for row in rows]
+            self.SetItems(self.choices)
+            self.SetValue('')
 
-        self.SetItems(self.choices)
-        self.SetValue(db_obj.protections.name)
+            self.Enable(False)
+        else:
+            db_obj.table.execute('SELECT name FROM protections;')
+            rows = db_obj.table.fetchall()
+
+            self.choices = [row[0] for row in rows]
+
+            self.SetItems(self.choices)
+            self.SetValue(db_obj.protections.name)
+
+            self.Enable(True)
 
     def _on_protection(self, evt: _prop_grid.PropertyEvent):
         protection = evt.GetValue()

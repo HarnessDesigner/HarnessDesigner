@@ -21,9 +21,22 @@ class Position3DProperty(_prop_base.Property):
 
     def SetValue(self, position):
         self._position = position
-        self.x_ctrl.SetValue(position.x)
-        self.y_ctrl.SetValue(position.y)
-        self.z_ctrl.SetValue(position.z)
+        if position is None:
+            self.x_ctrl.SetValue(0.0)
+            self.y_ctrl.SetValue(0.0)
+            self.z_ctrl.SetValue(0.0)
+
+            self.x_ctrl.Enable(False)
+            self.y_ctrl.Enable(False)
+            self.z_ctrl.Enable(False)
+        else:
+            self.x_ctrl.SetValue(position.x)
+            self.y_ctrl.SetValue(position.y)
+            self.z_ctrl.SetValue(position.z)
+
+            self.x_ctrl.Enable(True)
+            self.y_ctrl.Enable(True)
+            self.z_ctrl.Enable(True)
 
     def _on_x(self, evt):
         self._position.x = evt.GetValue()

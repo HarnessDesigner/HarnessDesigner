@@ -1,8 +1,8 @@
 from typing import TYPE_CHECKING
 
 import wx
-from ....ui.editor_obj import prop_grid as _prop_grid
 
+from ....ui.editor_obj import prop_grid as _prop_grid
 from .base import BaseMixin
 
 
@@ -48,20 +48,36 @@ class SeriesControl(_prop_grid.Category):
         self.desc_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_desc)
 
     def set_obj(self, db_obj: SeriesMixin):
+        self.db_obj = db_obj
 
-        series = db_obj.series
-        mfg_id = series.manufacturer.db_id
+        if db_obj is None:
+            self.choices = []
 
-        db_obj.table.execute(f'SELECT name FROM series WHERE mfg_id={mfg_id};')
+            self.name_ctrl.SetItems([])
+            self.name_ctrl.SetValue('')
+            self.mfg_ctrl.SetValue('')
+            self.desc_ctrl.SetValue('')
+            self.name_ctrl.Enable(False)
+            self.mfg_ctrl.Enable(False)
+            self.desc_ctrl.Enable(False)
+        else:
+            series = db_obj.series
+            mfg_id = series.manufacturer.db_id
 
-        rows = db_obj.table.fetchall()
+            db_obj.table.execute(f'SELECT name FROM series WHERE mfg_id={mfg_id};')
 
-        choices = sorted([row[0] for row in rows])
+            rows = db_obj.table.fetchall()
 
-        self.name_ctrl.SetItems(choices)
-        self.name_ctrl.SetValue(series.name)
-        self.mfg_ctrl.SetValue(series.manufacturer.name)
-        self.desc_ctrl.SetValue(series.description)
+            self.choices = sorted([row[0] for row in rows])
+
+            self.name_ctrl.SetItems(self.choices)
+            self.name_ctrl.SetValue(series.name)
+            self.mfg_ctrl.SetValue(series.manufacturer.name)
+            self.desc_ctrl.SetValue(series.description)
+
+            self.name_ctrl.Enable(True)
+            self.mfg_ctrl.Enable(True)
+            self.desc_ctrl.Enable(True)
 
     def _on_name(self, evt: _prop_grid.PropertyEvent):
         name = evt.GetValue()

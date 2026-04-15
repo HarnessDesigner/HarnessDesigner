@@ -12,16 +12,34 @@ from . import notes as _notes
 
 
 Angle3DMixin = _angle3d.Angle3DMixin
+Angle3DControl = _angle3d.Angle3DControl
+
 Angle2DMixin = _angle2d.Angle2DMixin
+Angle2DControl = _angle2d.Angle2DControl
+
 Position2DMixin = _position2d.Position2DMixin
+Position2DControl = _position2d.Position2DControl
+
 Position3DMixin = _position3d.Position3DMixin
+Position3DControl = _position3d.Position3DControl
+
 PartMixin = _part.PartMixin
 HousingMixin = _housing.HousingMixin
+
 NameMixin = _name.NameMixin
+NameControl = _name.NameControl
+
 StartStopPosition3DMixin = _start_stop_position3d.StartStopPosition3DMixin
+StartStopPositionControl = _start_stop_position3d.StartStopPositionControl
+
 Visible2DMixin = _visible2d.Visible2DMixin
+Visible2DControl = _visible2d.Visible2DControl
+
 Visible3DMixin = _visible3d.Visible3DMixin
+Visible3DControl = _visible3d.Visible3DControl
+
 NotesMixin = _notes.NotesMixin
+NotesControl = _notes.NotesControl
 
 
 del _angle3d
