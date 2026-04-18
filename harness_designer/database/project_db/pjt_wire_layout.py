@@ -2,10 +2,17 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 import weakref
-from wx import propgrid as wxpg
+import wx
+
+from ...ui.editor_obj import prop_grid as _prop_grid
 
 from .pjt_bases import PJTEntryBase, PJTTableBase
-from .mixins import Position3DMixin, Position2DMixin, Visible3DMixin, Visible2DMixin
+from .mixins import (
+    Position3DMixin, Position3DControl,
+    Position2DMixin, Position2DControl,
+    Visible3DMixin, Visible2DControl,
+    Visible2DMixin, Visible3DControl
+)
 
 
 if TYPE_CHECKING:
@@ -16,6 +23,20 @@ if TYPE_CHECKING:
 
 class PJTWireLayoutsTable(PJTTableBase):
     __table_name__ = 'pjt_wire_layouts'
+
+    _control: "PJTWireLayoutControl" = None
+
+    @property
+    def control(self) -> "PJTWireLayoutControl":
+        if self._control is None:
+            raise RuntimeError('sanity check')
+
+        return self._control
+
+    @classmethod
+    def start_control(cls, mainframe):
+        cls._control = PJTWireLayoutControl(mainframe)
+        cls._control.Show(False)
 
     def _table_needs_update(self) -> bool:
         from ..create_database import wire_layouts
@@ -99,25 +120,33 @@ class PJTWireLayout(PJTEntryBase, Position3DMixin, Position2DMixin,
     def table(self) -> PJTWireLayoutsTable:
         return self._table
 
-    @property
-    def propgrid(self) -> wxpg.PGProperty:
-        group = wxpg.PropertyCategory('Project')
 
-        notes_prop = self._notes_propgrid
-        name_prop = self._name_propgrid
-        angle_prop = self._angle3d_propgrid
-        position_prop = self._position3d_propgrid
-        housing_prop = self._housing_propgrid
-        visible_prop = self._visible3d_propgrid
+class PJTWireLayoutControl(wx.Notebook):
 
-        group.Append(name_prop)
-        group.Append(notes_prop)
-        group.Append(angle_prop)
-        group.Append(position_prop)
-        group.Append(visible_prop)
-        group.Append(housing_prop)
+    def set_obj(self, db_obj: PJTWireLayout):
+        self.db_obj = db_obj
 
-        part_prop = self._part_propgrid
+        self.position2d_ctrl.set_obj(db_obj)
+        self.position3d_ctrl.set_obj(db_obj)
+        self.visible2d_ctrl.set_obj(db_obj)
+        self.visible3d_ctrl.set_obj(db_obj)
 
-        return group, part_prop
+    def __init__(self, parent):
+        self.db_obj: PJTWireLayout = None
 
+        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+
+        position_page = _prop_grid.Category(self, 'Position')
+        self.position2d_ctrl = Position2DControl(position_page)
+        self.position3d_ctrl = Position3DControl(position_page)
+
+        visible_page = _prop_grid.Category(self, 'Visible')
+        self.visible2d_ctrl = Visible2DControl(visible_page)
+        self.visible3d_ctrl = Visible3DControl(visible_page)
+
+        for page in (
+            position_page,
+            visible_page,
+        ):
+            self.AddPage(page, page.GetLabel())
+            page.Realize()

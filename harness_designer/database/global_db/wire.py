@@ -1,12 +1,23 @@
 from typing import Iterable as _Iterable, TYPE_CHECKING
-import math
 
+import wx
+
+from ... import utils as _utils
 from ...ui.editor_obj import prop_grid as _prop_grid
-
 from .bases import EntryBase, TableBase
 
-from .mixins import (PartNumberMixin, ManufacturerMixin, DescriptionMixin, SeriesMixin,
-                     ResourceMixin, ColorMixin, FamilyMixin, MaterialMixin, TemperatureMixin)
+from .mixins import (
+    PartNumberMixin, PartNumberControl,
+    ManufacturerMixin, ManufacturerControl,
+    DescriptionMixin, DescriptionControl,
+    SeriesMixin, SeriesControl,
+    ResourceMixin, ResourcesControl,
+    ColorMixin, ColorControl,
+    FamilyMixin, FamilyControl,
+    MaterialMixin, MaterialControl,
+    TemperatureMixin, TemperatureControl,
+    PlatingControl
+)
 
 
 if TYPE_CHECKING:
@@ -220,6 +231,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     @resistance_1km.setter
     def resistance_1km(self, value: float):
         self._table.update(self._db_id, resistance_1km=value)
+        self._populate('resistance_1km')
 
     @property
     def resistance_1kft(self) -> float:
@@ -257,6 +269,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     @weight_1km.setter
     def weight_1km(self, value: float):
         self._table.update(self._db_id, weight_1km=value)
+        self._populate('weight_1km')
 
     @property
     def weight_1kft(self) -> float:
@@ -303,6 +316,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     @volts.setter
     def volts(self, value: float):
         self._table.update(self._db_id, volts=value)
+        self._populate('volts')
 
     @property
     def od_mm(self) -> float:
@@ -311,6 +325,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     @od_mm.setter
     def od_mm(self, value: float):
         self._table.update(self._db_id, od_mm=value)
+        self._populate('od_mm')
 
     @property
     def shielded(self) -> bool:
@@ -319,6 +334,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     @shielded.setter
     def shielded(self, value: bool):
         self._table.update(self._db_id, shielded=int(value))
+        self._populate('shielded')
 
     @property
     def tpi(self) -> int:
@@ -327,6 +343,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     @tpi.setter
     def tpi(self, value: int):
         self._table.update(self._db_id, tpi=value)
+        self._populate('tpi')
 
     @property
     def num_conductors(self) -> int:
@@ -335,15 +352,12 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     @num_conductors.setter
     def num_conductors(self, value: int):
         self._table.update(self._db_id, num_conductors=value)
+        self._populate('num_conductors')
 
     @property
     def core_material(self) -> "_plating.Plating":
         db_id = self.core_material_id
         return self._table.db.platings_table[db_id]
-
-    @core_material.setter
-    def core_material(self, value: "_plating.Plating"):
-        self.core_material_id = value.db_id
 
     @property
     def core_material_id(self) -> int:
@@ -352,24 +366,25 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     @core_material_id.setter
     def core_material_id(self, value: int):
         self._table.update(self._db_id, core_material_id=value)
+        self._populate('core_material_id')
 
     @property
     def conductor_dia_mm(self) -> float:
-        d_mm = self._table.select('conductor_dia_mm', id=self._db_id)[0][0]
+        mm = self._table.select('conductor_dia_mm', id=self._db_id)[0][0]
 
-        if d_mm is None:
-            d_mm = round(self.conductor_dia_in * 25.4, 4)
+        if mm is None:
+            _utils.d_in_to_d_mm(self.conductor_dia_in)
 
-        return d_mm
+        return mm
 
     @conductor_dia_mm.setter
     def conductor_dia_mm(self, value: float):
         self._table.update(self._db_id, conductor_dia_mm=value)
+        self._populate('conductor_dia_mm')
 
     @property
     def conductor_dia_in(self) -> float:
-        d_in = 0.005 * (92 ** ((36 - self.size_awg) / 39))
-        return round(float(d_in), 4)
+        return _utils.awg_to_d_in(self.size_awg)
 
     @conductor_dia_in.setter
     def conductor_dia_in(self, value: float):
@@ -383,20 +398,21 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
             awg = self.size_awg
 
             if awg is None:
-                d_mm = self.conductor_dia_mm
+                mm = self.conductor_dia_mm
 
-                if d_mm is None:
+                if mm is None:
                     raise RuntimeError('sanity check')
 
-                return self.__mm_to_mm2(d_mm)
+                return _utils.d_mm_to_mm2(mm)
 
-            return self.__awg_to_mm2(awg)
+            return _utils.awg_to_mm2(awg)
 
         return mm2
 
     @size_mm2.setter
     def size_mm2(self, value: float):
         self._table.update(self._db_id, size_mm2=value)
+        self._populate('size_mm2')
 
     @property
     def size_awg(self) -> int:
@@ -406,54 +422,29 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
             mm2 = self.size_mm2
 
             if mm2 is None:
-                dia_mm = self.conductor_dia_mm
+                mm = self.conductor_dia_mm
 
-                if dia_mm is None:
+                if mm is None:
                     raise RuntimeError('sanity check')
 
-                return self.__mm_to_awg(dia_mm)
+                return _utils.d_mm_to_awg(mm)
 
-            return self.__mm2_to_awg(mm2)
+            return _utils.mm2_to_awg(mm2)
 
         return awg
 
     @size_awg.setter
     def size_awg(self, value: int):
         self._table.update(self._db_id, size_awg=value)
-
-    @staticmethod
-    def __awg_to_mm2(awg: int) -> float:
-        d_in = 0.005 * (92 ** ((36 - awg) / 39))
-        d_mm = d_in * 25.4
-        area_mm2 = (math.pi / 4) * (d_mm ** 2)
-        return round(area_mm2, 4)
-
-    @staticmethod
-    def __mm_to_mm2(d_mm: float) -> float:
-        area_mm2 = (math.pi / 4) * (d_mm ** 2)
-        return float(round(area_mm2, 4))
-
-    @classmethod
-    def __mm_to_awg(cls, d_mm: float) -> int:
-        area_mm2 = (math.pi / 4) * (d_mm ** 2)
-        return cls.__mm2_to_awg(area_mm2)
-
-    @staticmethod
-    def __mm2_to_awg(mm2: float) -> int:
-        d_mm = 2 * math.sqrt(mm2 / math.pi)
-        d_in = d_mm / 25.4
-        awg = 36 - 39 * math.log(d_in / 0.005, 92)
-        return int(round(awg))
+        self._populate('size_awg')
 
     @property
     def size_in2(self) -> float:
-        area_mm2 = self.size_mm2
-        area_in2 = area_mm2 / 25.4 / 25.4
-        return round(float(area_in2), 4)
+        return _utils.mm2_to_in2(self.size_mm2)
 
     @size_in2.setter
     def size_in2(self, value: float):
-        self.size_mm2 = value * 25.4 * 25.4
+        self.size_mm2 = _utils.in2_to_mm2(value)
 
     @property
     def in2_symbol(self) -> str:
@@ -468,10 +459,6 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         db_id = self.stripe_color_id
         return self._table.db.colors_table[db_id]
 
-    @stripe_color.setter
-    def stripe_color(self, value: "_color.Color"):
-        self._table.update(self._db_id, stripe_color_id=value.db_id)
-
     @property
     def stripe_color_id(self) -> int | None:
         return self._table.select('stripe_color_id', id=self._db_id)[0][0]
@@ -479,90 +466,206 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     @stripe_color_id.setter
     def stripe_color_id(self, value: int | None):
         self._table.update(self._db_id, stripe_color_id=value)
+        self._populate('stripe_color_id')
 
-    @property
-    def propgrid(self) -> _prop_grid.Category:
 
-        part_cat = _prop_grid.Category('Part Attributes')
-        
-        part_number_prop = self._part_number_propgrid
-        manufacturer_prop = self._manufacturer_propgrid
-        description_prop = self._description_propgrid
-        family_prop = self._family_propgrid
-        series_prop = self._series_propgrid
-        color_prop = self._color_propgrid
-        temperature_prop = self._temperature_propgrid
-        resource_prop = self._resource_propgrid
-        material_prop = self._material_propgrid
-        stripe_color_prop = self.stripe_color.propgrid
-        core_material_prop = self.core_material.propgrid
+class WireControl(wx.Notebook):
 
-        stripe_color_prop.SetLabel('Stripe Color')
-        material_prop.SetLabel('Jacket Material')
-        core_material_prop.SetLabel('Core Material')
+    def set_obj(self, db_obj: Wire):
+        self.db_obj = db_obj
 
-        tpi_prop = _prop_grid.FloatProperty(
-            'Twists per Inch', 'tpi', self.od_mm,
-            min_value=0.05, max_value=60.0, increment=0.01, units='tpi')
-            
-        conductor_dia_mm_prop = _prop_grid.FloatProperty(
-            'Conductor Diameter', 'conductor_dia_mm', self.conductor_dia_mm,
+        self.mfg_page.set_obj(db_obj)
+        self.family_page.set_obj(db_obj)
+        self.series_page.set_obj(db_obj)
+        self.temperature_page.set_obj(db_obj)
+        self.resources_page.set_obj(db_obj)
+        self.part_number_ctrl.set_obj(db_obj)
+        self.description_ctrl.set_obj(db_obj)
+        self.color_ctrl.set_obj(db_obj)
+        self.stripe_color_ctrl.set_obj(db_obj)
+        self.material_ctrl.set_obj(db_obj)
+        self.core_material_ctrl.set_obj(db_obj)
+
+        if db_obj is None:
+            self.tpi_ctrl.SetValue(0.0)
+            self.weight_1km_ctrl.SetValue(0.0)
+            self.volts_ctrl.SetValue(0.0)
+            self.resistance_1km_ctrl.SetValue(0.0)
+            self.num_conductors_ctrl.SetValue(1)
+            self.shielded_ctrl.SetValue(False)
+            self.conductor_dia_mm_ctrl.SetValue(0.05)
+            self.size_mm2_ctrl.SetValue(0.05)
+            self.size_awg_ctrl.SetValue(30.0)
+            self.od_mm_ctrl.SetValue(0.05)
+
+            self.tpi_ctrl.Enable(False)
+            self.weight_1km_ctrl.Enable(False)
+            self.volts_ctrl.Enable(False)
+            self.resistance_1km_ctrl.Enable(False)
+            self.num_conductors_ctrl.Enable(False)
+            self.shielded_ctrl.Enable(False)
+            self.conductor_dia_mm_ctrl.Enable(False)
+            self.size_mm2_ctrl.Enable(False)
+            self.size_awg_ctrl.Enable(False)
+            self.od_mm_ctrl.Enable(False)
+
+        else:
+            self.tpi_ctrl.SetValue(db_obj.tpi)
+            self.weight_1km_ctrl.SetValue(db_obj.weight_1km)
+            self.volts_ctrl.SetValue(db_obj.volts)
+            self.resistance_1km_ctrl.SetValue(db_obj.resistance_1km)
+            self.num_conductors_ctrl.SetValue(db_obj.num_conductors)
+            self.shielded_ctrl.SetValue(db_obj.shielded)
+            self.conductor_dia_mm_ctrl.SetValue(db_obj.conductor_dia_mm)
+            self.size_mm2_ctrl.SetValue(db_obj.size_mm2)
+            self.size_awg_ctrl.SetValue(db_obj.size_awg)
+            self.od_mm_ctrl.SetValue(db_obj.od_mm)
+
+            self.tpi_ctrl.Enable(True)
+            self.weight_1km_ctrl.Enable(True)
+            self.volts_ctrl.Enable(True)
+            self.resistance_1km_ctrl.Enable(True)
+            self.num_conductors_ctrl.Enable(True)
+            self.shielded_ctrl.Enable(True)
+            self.conductor_dia_mm_ctrl.Enable(True)
+            self.size_mm2_ctrl.Enable(True)
+            self.size_awg_ctrl.Enable(True)
+            self.od_mm_ctrl.Enable(True)
+
+    def _on_tpi(self, evt):
+        value = evt.GetValue()
+        self.db_obj.tpi = value
+
+    def _on_weight_1km(self, evt):
+        value = evt.GetValue()
+        self.db_obj.weight_1km = value
+
+    def _on_volts(self, evt):
+        value = evt.GetValue()
+        self.db_obj.volts = value
+
+    def _on_resistance_1km(self, evt):
+        value = evt.GetValue()
+        self.db_obj.resistance_1km = value
+
+    def _on_num_conductors(self, evt):
+        value = evt.GetValue()
+        self.db_obj.num_conductors = value
+
+    def _on_shielded(self, evt):
+        value = evt.GetValue()
+        self.db_obj.shielded = value
+
+    def _on_conductor_dia_mm(self, evt):
+        value = evt.GetValue()
+        self.db_obj.conductor_dia_mm = value
+
+    def _on_size_mm2(self, evt):
+        value = evt.GetValue()
+        self.db_obj.size_mm2 = value
+
+    def _on_size_awg(self, evt):
+        value = evt.GetValue()
+        self.db_obj.size_awg = value
+
+    def _on_od_mm(self, evt):
+        value = evt.GetValue()
+        self.db_obj.od_mm = value
+
+    def __init__(self, parent):
+        self.db_obj: Wire = None
+
+        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+
+        general_page = _prop_grid.Category(self, 'General')
+
+        self.part_number_ctrl = PartNumberControl(general_page)
+        self.description_ctrl = DescriptionControl(general_page)
+
+        self.tpi_ctrl = _prop_grid.FloatProperty(
+            general_page, 'Twists per Inch', 0.0,
+            min_value=0.00, max_value=5.0, increment=0.5, units='tpi')
+
+        self.weight_1km_ctrl = _prop_grid.FloatProperty(
+            general_page, 'Weight', 0.0,
+            min_value=0.0, max_value=500.0, increment=0.01, units='g/km')
+
+        self.volts_ctrl = _prop_grid.FloatProperty(
+            general_page, 'Volts', 0.0,
+            min_value=0.00, max_value=44000.00, increment=0.1, units='V')
+
+        self.resistance_1km_ctrl = _prop_grid.FloatProperty(
+            general_page, 'Resistance', 0.0,
+            min_value=0.0, max_value=99999.99, increment=0.01, units='Ω/km')
+
+        self.num_conductors_ctrl = _prop_grid.IntProperty(
+            general_page, 'Conductor Count', 1, min_value=1, max_value=10)
+
+        self.shielded_ctrl = _prop_grid.BoolProperty(
+            general_page, 'Shielded', False)
+
+        color_page = _prop_grid.Category(self, 'Color')
+        self.color_ctrl = ColorControl(color_page)
+        self.color_ctrl.SetLabel('Primary')
+
+        self.stripe_color_ctrl = ColorControl(color_page)
+        self.stripe_color_ctrl.SetLabel('Stripe')
+        self.stripe_color_ctrl.SetAttributeName('stripe_color')
+
+        self.mfg_page = ManufacturerControl(self)
+        self.family_page = FamilyControl(self)
+        self.series_page = SeriesControl(self)
+        self.temperature_page = TemperatureControl(self)
+
+        self.resources_page = ResourcesControl(self)
+
+        materials_page = _prop_grid.Category(self, 'Materials')
+        self.material_ctrl = MaterialControl(materials_page)
+        self.material_ctrl.SetLabel('Jacket')
+
+        self.core_material_ctrl = PlatingControl(materials_page)
+        self.core_material_ctrl.SetLabel('Core')
+        self.core_material_ctrl.SetAttributeName('core_material')
+
+        size_page = _prop_grid.Category(self, 'Size')
+
+        self.conductor_dia_mm_ctrl = _prop_grid.FloatProperty(
+            general_page, 'Conductor Diameter', 0.05,
             min_value=0.05, max_value=60.0, increment=0.01, units='mm')
-            
-        weight_1km_prop = _prop_grid.FloatProperty(
-            'Weight', 'weight_1km', self.weight_1km,
-            min_value=0.05, max_value=99999.99, increment=0.01, units='g/km')
 
-        volts_prop = _prop_grid.FloatProperty(
-            'Volts', 'volts', self.volts,
-            min_value=0.05, max_value=100000.00, increment=0.01, units='V')
-            
-        resistance_1km_prop = _prop_grid.FloatProperty(
-            'Resistance', 'resistance_1km', self.resistance_1km,
-            min_value=0.05, max_value=99999.99, increment=0.01, units='Ω/km')
-            
-        od_mm_prop = _prop_grid.FloatProperty(
-            'Outside Diameter', 'od_mm', self.od_mm,
-            min_value=0.05, max_value=60.0, increment=0.01, units='mm')
-            
-        size_mm2_prop = _prop_grid.FloatProperty(
-            'Size', 'size_mm2', self.size_mm2,
-            min_value=0.05, max_value=60.0, increment=0.01, units='mm²')
+        self.size_mm2_ctrl = _prop_grid.FloatProperty(
+            size_page, 'Cross Section', 0.0,
+            min_value=0.00, max_value=99.9999, increment=0.0001, units='mm²')
 
-        num_conductors_prop = _prop_grid.IntProperty(
-            'Conductor Count', 'num_conductors', self.num_conductors, min_value=0, 
-            max_value=10)
-            
-        size_awg_prop = _prop_grid.IntProperty(
-            'Size', 'size_awg', self.size_awg, min_value=30, 
-            max_value=0, units='awg')
+        self.size_awg_ctrl = _prop_grid.IntProperty(
+            size_page, 'Size', 30, min_value=0,
+            max_value=30, units='awg')
 
-        shielded_prop = _prop_grid.BoolProperty(
-            'Shielded', 'shielded', self.shielded)
+        self.od_mm_ctrl = _prop_grid.FloatProperty(
+            size_page, 'Outside Diameter', 0.0,
+            min_value=0.0, max_value=99.9999, increment=0.0001, units='mm')
 
-        wire_size_prop = _prop_grid.Property('Wire Size')
-        wire_size_prop.Append(conductor_dia_mm_prop)
-        wire_size_prop.Append(od_mm_prop)
-        wire_size_prop.Append(size_mm2_prop)
-        wire_size_prop.Append(size_awg_prop)
+        self.tpi_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_tpi)
+        self.weight_1km_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_weight_1km)
+        self.volts_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_volts)
+        self.resistance_1km_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_resistance_1km)
+        self.num_conductors_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_num_conductors)
+        self.shielded_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_shielded)
+        self.conductor_dia_mm_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_conductor_dia_mm)
+        self.size_mm2_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_size_mm2)
+        self.size_awg_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_size_awg)
+        self.od_mm_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_od_mm)
 
-        part_cat.Append(part_number_prop)
-        part_cat.Append(manufacturer_prop)
-        part_cat.Append(description_prop)
-        part_cat.Append(family_prop)
-        part_cat.Append(series_prop)
-        part_cat.Append(material_prop)
-        part_cat.Append(core_material_prop)
-        part_cat.Append(color_prop)
-        part_cat.Append(stripe_color_prop)
-        part_cat.Append(temperature_prop)
-        part_cat.Append(tpi_prop)
-        part_cat.Append(wire_size_prop)
-        part_cat.Append(weight_1km_prop)
-        part_cat.Append(resource_prop)
-        part_cat.Append(volts_prop)
-        part_cat.Append(resistance_1km_prop)
-        part_cat.Append(num_conductors_prop)
-        part_cat.Append(shielded_prop)
-
-        return part_cat
+        for page in (
+            general_page,
+            self.mfg_page,
+            self.family_page,
+            self.series_page,
+            self.temperature_page,
+            self.resources_page,
+            size_page,
+            color_page,
+            materials_page
+        ):
+            self.AddPage(page, page.GetLabel())
+            page.Realize()

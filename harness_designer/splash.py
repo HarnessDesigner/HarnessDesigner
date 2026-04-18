@@ -8,8 +8,6 @@ from PIL import Image
 if TYPE_CHECKING:
     from . import logger as _logger
 
-import time
-
 
 class Splash(wx.Frame):
 

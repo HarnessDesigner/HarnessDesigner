@@ -33,6 +33,7 @@ class ResourceMixin(BaseMixin):
     @cad_id.setter
     def cad_id(self, value: int):
         self._table.update(self._db_id, cad_id=value)
+        self._populate('cad_id')
 
     @property
     def image(self) -> str | None:
@@ -61,6 +62,7 @@ class ResourceMixin(BaseMixin):
     @image_id.setter
     def image_id(self, value: int):
         self._table.update(self._db_id, image_id=value)
+        self._populate('image_id')
 
     @property
     def datasheet(self) -> str | None:
@@ -89,6 +91,7 @@ class ResourceMixin(BaseMixin):
     @datasheet_id.setter
     def datasheet_id(self, value: int):
         self._table.update(self._db_id, datasheet_id=value)
+        self._populate('datasheet_id')
 
 
 class ResourcesControl(_prop_grid.Category):

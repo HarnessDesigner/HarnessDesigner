@@ -40,6 +40,7 @@ class Position3DMixin(BaseMixin):
     @position3d_id.setter
     def position3d_id(self, value: int):
         self._table.update(self._db_id, point3d_id=value)
+        self._populate('position3d_id')
 
 
 class Position3DControl(_prop_grid.Position3DProperty):

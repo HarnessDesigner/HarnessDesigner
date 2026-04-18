@@ -17,8 +17,8 @@ from .mixins import (
     ResourceMixin, ResourcesControl,
     WeightMixin, WeightControl,
     TemperatureMixin, TemperatureControl,
-    Model3DMixin,
-    WireSizeMixin,
+    Model3DMixin, Model3DControl,
+    WireSizeMixin, WireSizeControl,
     DimensionMixin, DimensionControl,
     CompatHousingsMixin, CompatHousingsControl,
     CompatTerminalsMixin, CompatTerminalsControl
@@ -252,6 +252,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     @o_dia.setter
     def o_dia(self, value: float):
         self._table.update(self._db_id, o_dia=round(value, 6))
+        self._populate('o_dia')
 
     @property
     def i_dia(self) -> float:
@@ -260,6 +261,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     @i_dia.setter
     def i_dia(self, value: float):
         self._table.update(self._db_id, i_dia=round(value, 6))
+        self._populate('i_dia')
 
     @property
     def type(self) -> "_seal_type.SealType":
@@ -273,6 +275,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     @type_id.setter
     def type_id(self, value: int):
         self._table.update(self._db_id, type_id=value)
+        self._populate('type_id')
 
     @property
     def hardness(self) -> int:
@@ -281,6 +284,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     @hardness.setter
     def hardness(self, value: int):
         self._table.update(self.hardness, i_dia=value)
+        self._populate('hardness')
 
     @property
     def lubricant(self) -> str:
@@ -289,6 +293,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     @lubricant.setter
     def lubricant(self, value: str):
         self._table.update(self._db_id, lubricant=value)
+        self._populate('lubricant')
 
     @property
     def wire_dia_min(self) -> float:
@@ -297,6 +302,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     @wire_dia_min.setter
     def wire_dia_min(self, value: float):
         self._table.update(self._db_id, wire_dia_min=round(value, 6))
+        self._populate('wire_dia_min')
 
     @property
     def wire_dia_max(self) -> float:
@@ -305,11 +311,12 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     @wire_dia_max.setter
     def wire_dia_max(self, value: float):
         self._table.update(self._db_id, wire_dia_max=round(value, 6))
+        self._populate('wire_dia_max')
 
 
 class SealControl(wx.Notebook):
 
-    # TODO: Add seal type and wire sizes
+    # TODO: Add seal type
 
     def set_obj(self, db_obj: Seal):
         self.db_obj = db_obj
@@ -320,6 +327,8 @@ class SealControl(wx.Notebook):
         self.temperature_page.set_obj(db_obj)
         self.dimension_page.set_obj(db_obj)
         self.resources_page.set_obj(db_obj)
+        self.model3d_page.set_obj(db_obj)
+        self.wire_size_page.set_obj(db_obj)
 
         self.part_number_ctrl.set_obj(db_obj)
         self.description_ctrl.set_obj(db_obj)
@@ -408,6 +417,9 @@ class SealControl(wx.Notebook):
         self.compat_housing_ctrl = CompatHousingsControl(compat_parts_page)
         self.compat_terminals_ctrl = CompatTerminalsControl(compat_parts_page)
 
+        self.model3d_page = Model3DControl(self)
+        self.wire_size_page = WireSizeControl(self)
+
         for page in (
             general_page,
             self.mfg_page,
@@ -415,8 +427,10 @@ class SealControl(wx.Notebook):
             self.series_page,
             self.temperature_page,
             self.dimension_page,
+            self.wire_size_page,
             self.resources_page,
-            compat_parts_page
+            compat_parts_page,
+            self.model3d_page
         ):
             self.AddPage(page, page.GetLabel())
             page.Realize()

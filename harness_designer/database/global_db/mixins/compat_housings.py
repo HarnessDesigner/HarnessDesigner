@@ -22,10 +22,6 @@ class CompatHousingsMixin(BaseMixin):
                 pass
         return res
 
-    @compat_housings.setter
-    def compat_housings(self, value: list["_housing.Housing"]):
-        self.compat_housings_array = [housing.part_number for housing in value]
-
     @property
     def compat_housings_array(self) -> list[str]:
         value = self._table.select('compat_housings', id=self._db_id)[0][0]
@@ -35,6 +31,7 @@ class CompatHousingsMixin(BaseMixin):
     def compat_housings_array(self, value: list[str]):
         value = f'[{", ".join(value)}]'
         self._table.update(self._db_id, compat_housings=value)
+        self._populate('compat_housings_array')
 
 
 class CompatHousingsControl(_prop_grid.ArrayStringProperty):

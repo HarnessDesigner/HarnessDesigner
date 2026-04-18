@@ -5,6 +5,7 @@ from . import position3d as _position3d
 from . import part as _part
 from . import housing as _housing
 from . import name as _name
+from . import start_stop_position2d as _start_stop_position2d
 from . import start_stop_position3d as _start_stop_position3d
 from . import visible2d as _visible2d
 from . import visible3d as _visible3d
@@ -29,8 +30,11 @@ HousingMixin = _housing.HousingMixin
 NameMixin = _name.NameMixin
 NameControl = _name.NameControl
 
+StartStopPosition2DMixin = _start_stop_position2d.StartStopPosition2DMixin
+StartStopPosition2DControl = _start_stop_position2d.StartStopPosition2DControl
+
 StartStopPosition3DMixin = _start_stop_position3d.StartStopPosition3DMixin
-StartStopPositionControl = _start_stop_position3d.StartStopPositionControl
+StartStopPosition3DControl = _start_stop_position3d.StartStopPosition3DControl
 
 Visible2DMixin = _visible2d.Visible2DMixin
 Visible2DControl = _visible2d.Visible2DControl
@@ -49,6 +53,7 @@ del _position2d
 del _part
 del _housing
 del _name
+del _start_stop_position2d
 del _start_stop_position3d
 del _visible3d
 del _visible2d

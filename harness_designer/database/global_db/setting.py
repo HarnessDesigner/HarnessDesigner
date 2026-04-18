@@ -1,4 +1,3 @@
-
 from .bases import TableBase
 from ... import utils as _utils
 

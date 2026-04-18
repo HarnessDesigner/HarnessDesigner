@@ -31,7 +31,7 @@ from .mixins import (
     DirectionMixin, DirectionControl,
     DimensionMixin, DimensionControl,
     ColorMixin, ColorControl,
-    Model3DMixin,
+    Model3DMixin, Model3DControl,
     CompatHousingsMixin, CompatHousingsControl,
     CompatSealsMixin, CompatSealsControl,
     CompatTerminalsMixin, CompatTerminalsControl
@@ -43,18 +43,6 @@ if TYPE_CHECKING:
 
 class HousingsTable(TableBase):
     __table_name__ = 'housings'
-
-    _prop_editor: "HousingControl" = None
-
-    @property
-    def prop_editor(self):
-        if self._prop_editor is None:
-
-            self._prop_editor = HousingControl(self.db.mainframe)
-            self._prop_editor.Show(False)
-            self._prop_editor.Realize()
-
-        return self._prop_editor
 
     def _load_database(self, splash):
         from ..create_database import housings
@@ -275,6 +263,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     def compat_covers_array(self, value: list[str]):
         value = f'[{", ".join(value)}]'
         self._table.update(self._db_id, compat_covers=value)
+        self._populate('compat_covers_array')
 
     @property
     def compat_boots(self) -> list[_boot.Boot]:
@@ -296,6 +285,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     def compat_boots_array(self, value: list[str]):
         value = f'[{", ".join(value)}]'
         self._table.update(self._db_id, compat_boots=value)
+        self._populate('compat_boots_array')
 
     @property
     def compat_cpas(self) -> list[_cpa_lock.CPALock]:
@@ -317,6 +307,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     def compat_cpas_array(self, value: list[str]):
         value = f'[{", ".join(value)}]'
         self._table.update(self._db_id, compat_cpas=value)
+        self._populate('compat_cpas_array')
 
     @property
     def compat_tpas(self) -> list[_tpa_lock.TPALock]:
@@ -338,7 +329,8 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     def compat_tpas_array(self, value: list[str]):
         value = f'[{", ".join(value)}]'
         self._table.update(self._db_id, compat_tpas=value)
-    
+        self._populate('compat_tpas_array')
+
     @property
     def ip_rating(self) -> _ip.IPRating:
         ip_rating_id = self._table.select('ip_rating_id', id=self._db_id)
@@ -351,6 +343,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     @ip_rating_id.setter
     def ip_rating_id(self, value):
         self._table.update(self._db_id, ip_rating_id=value)
+        self._populate('ip_rating_id')
 
     @property
     def cavity_lock(self) -> _cavity_lock.CavityLock:
@@ -364,6 +357,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     @cavity_lock_id.setter
     def cavity_lock_id(self, value):
         self._table.update(self._db_id, cavity_lock_id=value)
+        self._populate('cavity_lock_id')
 
     @property
     def seal_type(self) -> _seal_type.SealType:
@@ -377,6 +371,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     @seal_type_id.setter
     def seal_type_id(self, value):
         self._table.update(self._db_id, seal_type_id=value)
+        self._populate('seal_type_id')
 
     @property
     def cpa_lock_type(self) -> _cpa_lock_type.CPALockType:
@@ -390,6 +385,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     @cpa_lock_type_id.setter
     def cpa_lock_type_id(self, value):
         self._table.update(self._db_id, cpa_lock_type_id=value)
+        self._populate('cpa_lock_type_id')
 
     @property
     def terminal_sizes(self) -> list[float]:
@@ -398,6 +394,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     @terminal_sizes.setter
     def terminal_sizes(self, value: list[float]):
         self._table.update(self._db_id, terminal_sizes=str(value))
+        self._populate('terminal_sizes')
 
     @property
     def terminal_size_counts(self) -> list[int]:
@@ -406,6 +403,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     @terminal_size_counts.setter
     def terminal_size_counts(self, value: list[int]):
         self._table.update(self._db_id, terminal_size_counts=str(value))
+        self._populate('terminal_size_counts')
 
     @property
     def sealing(self) -> bool:
@@ -414,6 +412,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     @sealing.setter
     def sealing(self, value: bool):
         self._table.update(self._db_id, sealing=int(value))
+        self._populate('sealing')
 
     @property
     def centerline(self) -> float:
@@ -422,6 +421,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     @centerline.setter
     def centerline(self, value: float):
         self._table.update(self._db_id, centerline=value)
+        self._populate('centerline')
 
     @property
     def rows(self) -> int:
@@ -430,6 +430,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     @rows.setter
     def rows(self, value: int):
         self._table.update(self._db_id, rows=value)
+        self._populate('rows')
 
     @property
     def num_pins(self) -> int:
@@ -438,6 +439,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     @num_pins.setter
     def num_pins(self, value: int):
         self._table.update(self._db_id, num_pins=value)
+        self._populate('num_pins')
 
     @property
     def cavities(self) -> list["_cavity.Cavity"]:
@@ -454,7 +456,8 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     
     def __update_cover_position3d(self, point: _point.Point):
         self._table.update(self._db_id, cover_point3d=str(list(point.as_float)))
-            
+        self._populate('cover_position3d')
+
     @property
     def cover_position3d(self) -> "_point.Point":
         position_coords = eval(self._table.select('cover_point3d', id=self._db_id)[0][0])
@@ -472,7 +475,8 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     
     def __update_seal_position3d(self, point: _point.Point):
         self._table.update(self._db_id, seal_point3d=str(list(point.as_float)))
-            
+        self._populate('seal_position3d')
+
     @property
     def seal_position3d(self) -> "_point.Point":
         position_coords = eval(self._table.select('seal_point3d', id=self._db_id)[0][0])
@@ -490,7 +494,8 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     def __update_boot_position3d(self, point: _point.Point):
         self._table.update(self._db_id, boot_point3d=str(list(point.as_float)))
-            
+        self._populate('boot_position3d')
+
     @property
     def boot_position3d(self) -> "_point.Point":
         position_coords = eval(self._table.select('boot_point3d', id=self._db_id)[0][0])
@@ -508,7 +513,8 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     
     def __update_tpa_lock_1_position3d(self, point: _point.Point):
         self._table.update(self._db_id, tpa_lock_1_point3d=str(list(point.as_float)))
-            
+        self._populate('tpa_lock_1_position3d')
+
     @property
     def tpa_lock_1_position3d(self) -> "_point.Point":
         position_coords = eval(self._table.select('tpa_lock_1_point3d', id=self._db_id)[0][0])
@@ -526,6 +532,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     
     def __update_tpa_lock_2_position3d(self, point: _point.Point):
         self._table.update(self._db_id, tpa_lock_2_point3d=str(list(point.as_float)))
+        self._populate('tpa_lock_2_position3d')
 
     @property
     def tpa_lock_2_position3d(self) -> "_point.Point":
@@ -544,7 +551,8 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     
     def __update_cpa_lock_position3d(self, point: _point.Point):
         self._table.update(self._db_id, cpa_lock_point3d=str(list(point.as_float)))
-            
+        self._populate('cpa_lock_position3d')
+
     @property
     def cpa_lock_position3d(self) -> "_point.Point":
         position_coords = eval(self._table.select('cpa_lock_point3d', id=self._db_id)[0][0])
@@ -566,6 +574,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
         self._table.update(self._db_id, quat3d=str(quat))
         self._table.update(self._db_id, angle3d=str(euler_angle))
+        self._populate('angle3d')
 
     @property
     def angle3d(self) -> _angle.Angle:
@@ -591,6 +600,7 @@ class HousingControl(wx.Notebook):
         self.dimensions_page.set_obj(db_obj)
         self.cavity_lock_page.set_obj(db_obj)
         self.temperature_page.set_obj(db_obj)
+        self.model3d_page.set_obj(db_obj)
 
         self.weight_ctrl.set_obj(db_obj)
         self.part_number_ctrl.set_obj(db_obj)
@@ -630,6 +640,25 @@ class HousingControl(wx.Notebook):
         self.pin_count_ctrl.SetValue(db_obj.num_pins)
 
         self.angle_ctrl.SetValue(db_obj.angle3d)
+
+        for i in range(self.cavities_notebook.GetPageCount()):
+            self.cavities_notebook.RemovePage(i)
+
+        for page in self.cavity_pages:
+            page.Reparent(db_obj.table.db.mainframe)
+            page.Show(False)
+
+        self.cavity_pages = []
+
+        for i, cavity in enumerate(db_obj.cavities):
+            if cavity is None:
+                continue
+
+            ctrl = db_obj.table.db.cavities_table.get_control(i)
+            ctrl.Reparent(self.cavities_notebook)
+            self.cavities_notebook.AddPage(ctrl, ctrl.GetLabel())
+            ctrl.set_obj(cavity)
+            self.cavity_pages.append(ctrl)
 
     def _on_seal_type(self, evt):
         name = evt.GetValue()
@@ -777,6 +806,12 @@ class HousingControl(wx.Notebook):
         self.compat_covers_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_compat_covers)
         self.cover_ctrl = _prop_grid.Position3DProperty(covers_page, 'Cover')
 
+        cavities_page = _prop_grid.Category(self, 'Cavities')
+        self.cavities_notebook = wx.Notebook(cavities_page, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+        self.cavity_pages = []
+
+        self.model3d_page = Model3DControl(self)
+
         for page in (
             general_page,
             self.manufacturer_page,
@@ -792,7 +827,9 @@ class HousingControl(wx.Notebook):
             tpas_page,
             cpas_page,
             boots_page,
-            covers_page
+            covers_page,
+            cavities_page,
+            self.model3d_page
         ):
 
             self.AddPage(page, page.GetLabel())

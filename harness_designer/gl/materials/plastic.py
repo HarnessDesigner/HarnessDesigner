@@ -8,11 +8,22 @@ class PlasticMaterial(_material.GLMaterial):
     _specular = (0.898039, 0.898039, 0.898039)
     _shine = 110.0
 
+    _cl_ambient = 0.0
+    _cl_diffuse = 0.0
+    _cl_specular = 0.898039
+    _cl_shininess = 110.0
+    _cl_metallic = 0.0
+    _cl_roughness = 0.1
+
     def __init__(self, color: _color.Color):
         scalar = color.rgb_scalar
 
         self._ambient = scalar
         self._diffuse = scalar
+
+        self._cl_diffuse = sum(self._diffuse) / len(self._diffuse)
+        self._cl_ambient = sum(self._ambient) / len(self._ambient)
+
         super().__init__(color)
 
 

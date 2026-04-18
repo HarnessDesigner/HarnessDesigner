@@ -17,6 +17,7 @@ class ProtectionMixin(BaseMixin):
     @protection_id.setter
     def protection_id(self, value: int):
         self._table.update(self._db_id, protection_id=value)
+        self._populate('protection_id')
 
     @property
     def protections(self) -> "_protection.Protection":

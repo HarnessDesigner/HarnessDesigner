@@ -11,7 +11,6 @@ def run(hd_path):
     pyx_path = os.path.join(hd_path, 'gl/canvas3d/culling.pyx')
     import numpy
 
-
     with open(pyx_path, 'r') as f:
 
         data = f.read()
@@ -23,8 +22,11 @@ def run(hd_path):
     with open(pyx_path, 'w') as f:
         f.write(data)
 
+    files = [os.path.join(hd_path, 'ray_tracing/bvh.pyx'), pyx_path]
+
     from Cython.Build import Cythonize
 
-    Cythonize.main(['-3', '--build', f'--parallel={os.cpu_count()}', '--inplace', pyx_path])
+    for file in files:
+        Cythonize.main(['-3', '--build', f'--parallel={os.cpu_count()}', '--inplace', file])
 
     # utils_.cleanup_after_compile(hd_path)

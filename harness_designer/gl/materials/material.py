@@ -23,6 +23,15 @@ class GLMaterial:
     # really low shine. plastics are in between
     _shine = 32.0  # 0.0 to 128.0
 
+    _cl_ambient = 0.2
+    _cl_diffuse = 0.8
+    _cl_specular = 0.5
+    _cl_shininess = 32.0
+    _cl_metallic = 0.0
+    _cl_roughness = 0.5
+    _cl_reflectivity = 0.5
+    _cl_ior = 0.5
+
     def __init__(self, color: _color.Color):
         self._color = color
 
@@ -34,6 +43,15 @@ class GLMaterial:
         self.specular = np.array(self._specular + (a,), dtype=np.float32)
         self.shininess = self._shine
         self.emissive = np.array(self._emissive, dtype=np.float32)
+
+    @property
+    def cl_array(self):
+        r, g, b, a = self._color.rgba_scalar
+
+        return np.array(
+            [r, g, b, self._cl_ambient, self._cl_diffuse, self._cl_specular,
+             self._cl_shininess, self._cl_metallic, self._cl_roughness,
+             self._cl_reflectivity, a, self._cl_ior], dtype=np.float32)
 
     @property
     def color_scalar(self):

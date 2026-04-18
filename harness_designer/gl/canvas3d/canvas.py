@@ -594,3 +594,26 @@ class Canvas(glcanvas.GLCanvas):
         self.SwapBuffers()
 
         self.context.release()
+
+    def take_snapshot(self):
+        self.SetCurrent(self.context)
+
+        # Get viewport size
+        size = self.GetClientSize()
+        width, height = size.width, size.height
+
+        # Read pixels from OpenGL
+        GL.glPixelStorei(GL.GL_PACK_ALIGNMENT, 1)
+        data = GL.glReadPixels(0, 0, width, height, GL.GL_RGB, GL.GL_UNSIGNED_BYTE)
+
+        # Convert to numpy array and flip vertically (OpenGL origin is bottom-left)
+        image_array = np.frombuffer(data, dtype=np.uint8)
+        image_array = image_array.reshape((height, width, 3))
+        image_array = np.flipud(image_array)
+
+        # Create wx.Image from array
+        image = wx.Image(width, height)
+        image.SetData(image_array.tobytes())
+
+        return wx.Bitmap(image)
+

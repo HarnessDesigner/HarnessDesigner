@@ -241,6 +241,59 @@ class Camera:
         self._focal_position.bind(self._update_camera)
 
     @property
+    def field_of_view(self) -> float:
+        if self._projection is None:
+            self._is_dirty = True
+            self._update_views()
+
+        # The projection matrix element [1,1] contains: cot(fov_y / 2)
+        # where fov_y is the vertical field of view
+        cot_half_fov = self._projection[1, 1]
+
+        if cot_half_fov == 0.0:
+            return 0.0
+
+        # tan(fov/2) = 1 / cot(fov/2)
+        tan_half_fov = 1.0 / cot_half_fov
+
+        # fov/2 = atan(tan(fov/2))
+        half_fov_radians = math.atan(tan_half_fov)
+
+        # Convert to full FOV in degrees
+        fov_degrees = math.degrees(half_fov_radians * 2.0)
+
+        return fov_degrees
+    #
+    # @property
+    # def horizontal_field_of_view(self) -> float:
+    #     if self._projection is None:
+    #         return 0.0
+    #
+    #     # The projection matrix element [0,0] contains: cot(fov_x / 2) / aspect_ratio
+    #     # For horizontal FOV, we need to account for the aspect ratio
+    #     cot_half_fov = self._projection[0, 0]
+    #
+    #     if cot_half_fov == 0.0:
+    #         return 0.0
+    #
+    #     tan_half_fov = 1.0 / cot_half_fov
+    #     half_fov_radians = math.atan(tan_half_fov)
+    #     fov_degrees = math.degrees(half_fov_radians * 2.0)
+    #
+    #     return fov_degrees
+
+    @property
+    def aspect_ratio(self) -> float:
+        if self._viewport is None or self._viewport[3] == 0:
+            return 1.0
+
+        return float(self._viewport[2]) / float(self._viewport[3])
+
+    @property
+    def up(self):
+        return self._up
+
+    @property
     def position(self):
         return self._position
 

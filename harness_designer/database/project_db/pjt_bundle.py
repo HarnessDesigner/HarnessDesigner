@@ -1,10 +1,19 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable, Union
 
 import weakref
+
+import wx
+
 from ...ui.editor_obj import prop_grid as _prop_grid
 
 from .pjt_bases import PJTEntryBase, PJTTableBase
-from .mixins import PartMixin, StartStopPosition3DMixin, Visible3DMixin, NameMixin, NotesMixin
+from .mixins import (
+    PartMixin,
+    StartStopPosition3DMixin, StartStopPosition3DControl,
+    Visible3DMixin, Visible3DControl,
+    NameMixin, NameControl,
+    NotesMixin, NotesControl
+)
 
 
 if TYPE_CHECKING:
@@ -19,6 +28,20 @@ if TYPE_CHECKING:
 
 class PJTBundlesTable(PJTTableBase):
     __table_name__ = 'pjt_bundles'
+
+    _control: "PJTBundleControl" = None
+
+    @property
+    def control(self) -> "PJTBundleControl":
+        if self._control is None:
+            raise RuntimeError('sanity check')
+
+        return self._control
+
+    @classmethod
+    def start_control(cls, mainframe):
+        cls._control = PJTBundleControl(mainframe)
+        cls._control.Show(False)
 
     def _table_needs_update(self) -> bool:
         from ..create_database import bundle_covers
@@ -127,22 +150,41 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
 
         return self._table.db.global_db.bundle_covers_table[part_id]
 
-    @property
-    def propgrid(self) -> tuple[_prop_grid.Category, _prop_grid.Category, _prop_grid.Category]:
-        group = _prop_grid.Category('Project')
 
-        notes_prop = self._notes_propgrid
-        name_prop = self._name_propgrid
-        position_prop = self._start_stop_position3d_propgrid
-        visible_prop = self._visible3d_propgrid
+class PJTBundleControl(wx.Notebook):
 
-        concentric_prop = self.concentric.propgrid
+    def set_obj(self, db_obj: PJTBundle):
+        self.db_obj = db_obj
 
-        group.Append(name_prop)
-        group.Append(notes_prop)
-        group.Append(position_prop)
-        group.Append(visible_prop)
+        self.name_ctrl.set_obj(db_obj)
+        self.notes_ctrl.set_obj(db_obj)
+        self.visible_ctrl.set_obj(db_obj)
+        self.start_stop_ctrl.set_obj(db_obj)
+        self.part_ctrl.set_obj(db_obj)
 
-        part_prop = self._part_propgrid
+    def __init__(self, parent):
+        self.db_obj: PJTBundle = None
+        super().__init__(parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
 
-        return group, part_prop, concentric_prop
+        general_page = _prop_grid.Category(self, 'General')
+
+        self.name_ctrl = NameControl(general_page)
+        self.notes_ctrl = NotesControl(general_page)
+
+        visible_page = _prop_grid.Category(self, 'Visible')
+        self.visible_ctrl = Visible3DControl(visible_page)
+
+        position_page = _prop_grid.Category(self, 'Position')
+        self.start_stop_ctrl = StartStopPosition3DControl(position_page)
+
+        part_page = _prop_grid.Category(self, 'Part')
+        self.part_ctrl = _bundle_cover.BundleCoverControl(part_page)
+
+        for page in (
+            general_page,
+            visible_page,
+            position_page,
+            part_page
+        ):
+            self.AddPage(page, page.GetLabel())
+            page.Realize()

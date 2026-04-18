@@ -10,6 +10,13 @@ class MetallicMaterial(_material.GLMaterial):
     _specular = (0.0, 0.0, 0.0)
     _shine = 51.2
 
+    _cl_ambient = 0.0
+    _cl_diffuse = 0.0
+    _cl_specular = 0.0
+    _cl_shininess = 51.2
+    _cl_metallic = 0.8
+    _cl_roughness = 0.5
+
     def __init__(self, color: _color.Color):
         r, g, b = color.rgb_scalar
 
@@ -37,4 +44,9 @@ class MetallicMaterial(_material.GLMaterial):
         self._ambient = (ar, ag, ab)
         self._diffuse = (dr, dg, db)
         self._specular = (sr, sg, sb)
+
+        self._cl_specular = sum(self._specular) / len(self._specular)
+        self._cl_diffuse = sum(self._diffuse) / len(self._diffuse)
+        self._cl_ambient = sum(self._ambient) / len(self._ambient)
+
         super().__init__(color)

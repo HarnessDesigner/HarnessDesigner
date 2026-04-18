@@ -16,10 +16,6 @@ class MaterialMixin(BaseMixin):
         material_id = self._table.select('material_id', id=self._db_id)
         return self._table.db.materials_table[material_id[0][0]]
 
-    @material.setter
-    def material(self, value: "_material.Material"):
-        self.material_id = value.db_id
-
     @property
     def material_id(self) -> int:
         return self._table.select('material_id', id=self._db_id)[0][0]
@@ -27,12 +23,12 @@ class MaterialMixin(BaseMixin):
     @material_id.setter
     def material_id(self, value: int):
         self._table.update(self._db_id, material_id=value)
+        self._populate('material_id')
 
 
 class MaterialControl(_prop_grid.ComboBoxProperty):
 
     def __init__(self, parent):
-
         self.db_obj: MaterialMixin = None
         self.choices: list[str] = []
 

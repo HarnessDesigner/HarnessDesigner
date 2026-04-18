@@ -4,6 +4,7 @@ import weakref
 from ...ui.editor_obj import prop_grid as _prop_grid
 
 from ... import logger as _logger
+from ..common_db import callback as _callback
 
 if TYPE_CHECKING:
     from ... import ui as _ui
@@ -44,18 +45,17 @@ class _PJTEntrySingleton(type):
         return instance
 
 
-class PJTEntryBase(metaclass=_PJTEntrySingleton):
+class PJTEntryBase(_callback.CallbackMixin, metaclass=_PJTEntrySingleton):
 
     def __init__(self, table: "PJTTableBase", db_id: int, project_id: int | None):
         self._table = table
         self._db_id = db_id
         self.project_id = project_id
-        self.__callbacks = []
-        self.__stop_callbacks = 0
 
         self._obj = None
         self._objects = []
         self._treeitem = None
+        _callback.CallbackMixin.__init__(self)
 
     def update_objects(self):
         for ref in self._objects:
@@ -80,20 +80,6 @@ class PJTEntryBase(metaclass=_PJTEntrySingleton):
     def set_object(self, obj):
         raise NotImplementedError
 
-    def __enter__(self):
-        self.__stop_callbacks += 1
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.__stop_callbacks -= 1
-        self._process_callbacks()
-
-    def __remove_callback_ref(self, ref):
-        try:
-            self.__callbacks.remove(ref)
-        except ValueError:
-            pass
-
     _selected: bool = False
 
     @property
@@ -103,7 +89,6 @@ class PJTEntryBase(metaclass=_PJTEntrySingleton):
     @selected.setter
     def selected(self, flag: bool):
         self._selected = flag
-        self._process_callbacks()
 
     @staticmethod
     def merge_packet_data(src: dict, dst: dict):
@@ -113,48 +98,6 @@ class PJTEntryBase(metaclass=_PJTEntrySingleton):
                 dst[key].extend(values)
             else:
                 dst[key] = values[:]
-
-    def Bind(self, callback):
-        for ref in self.__callbacks[:]:
-            cb = ref()
-            if cb is None:
-                try:
-                    self.__callbacks.remove(ref)
-                except ValueError:
-                    pass
-
-            elif cb == callback:
-                return
-        else:
-            self.__callbacks.append(weakref.ref(callback, self.__remove_callback_ref))
-
-    def Unbind(self, callback):
-        for ref in self.__callbacks[:]:
-            cb = ref()
-            if cb is None:
-                try:
-                    self.__callbacks.remove(ref)
-                except ValueError:
-                    pass
-            elif cb == callback:
-                self.__callbacks.remove(ref)
-                return
-
-    def _process_callbacks(self):
-        if self.__stop_callbacks > 0:
-            return
-
-        for ref in self.__callbacks[:]:
-            cb = ref()
-            if cb is None:
-                try:
-                    self.__callbacks.remove(ref)
-                except ValueError:
-                    pass
-
-                continue
-
-            cb(self)
 
     @property
     def db_id(self) -> int:
@@ -168,12 +111,6 @@ class PJTEntryBase(metaclass=_PJTEntrySingleton):
         self._table.delete(self.db_id)
 
         del self.__class__._instances[self.db_id]  # NOQA
-
-        self._process_callbacks()
-
-    @property
-    def propgrid(self) -> tuple[_prop_grid.Category]:
-        raise NotImplementedError
 
 
 class PJTTableBase:

@@ -308,6 +308,40 @@ MOUSE_SWAP_AXIS = 0x10000000
 
 class Config(metaclass=ConfigDB):
 
+    class ray_trace(metaclass=ConfigDB):
+
+        enable_reflections = True
+        enable_depth_of_field = True
+
+        class background:
+            color1 = [0.18, 0.20, 0.22]
+            color2 = [0.18, 0.20, 0.22]
+
+            enable_gradient = True
+
+        class environment_map(metaclass=ConfigDB):
+            enable = True
+            generate = True
+
+        class shadows(metaclass=ConfigDB):
+            enable = True
+            softness = 1.0
+
+        class ambient_occlusion(metaclass=ConfigDB):
+            enable = False
+            samples = 8.0
+            radius = 0.5
+
+        class lighting(metaclass=ConfigDB):
+            ambient_intensity = 0.2
+            lights = [
+                {
+                    'position': [0.0, 0.0, 0.0],
+                    'intensity': 1.0,
+                    'color': [1.0, 1.0, 1.0],
+                }
+            ]
+
     class editor2d(metaclass=ConfigDB):
 
         class virtual_canvas(metaclass=ConfigDB):

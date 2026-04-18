@@ -12,6 +12,7 @@ class Visible2DMixin(BaseMixin):
     @is_visible2d.setter
     def is_visible2d(self, value: bool):
         self._table.update(self._db_id, is_visible2d=int(value))
+        self._populate('is_visible2d')
 
 
 class Visible2DControl(_prop_grid.BoolProperty):

@@ -17,8 +17,8 @@ from .mixins import (
     ResourceMixin, ResourcesControl,
     WeightMixin, WeightControl,
     TemperatureMixin, TemperatureControl,
-    Model3DMixin,
-    WireSizeMixin,
+    Model3DMixin, Model3DControl,
+    WireSizeMixin, WireSizeControl,
     CompatSealsMixin, CompatSealsControl,
     CavityLockMixin, CavityLockControl,
     GenderMixin, GenderControl,
@@ -271,6 +271,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     @sealing.setter
     def sealing(self, value: bool):
         self._table.update(self._db_id, size=int(value))
+        self._populate('sealing')
 
     @property
     def blade_size(self) -> float:
@@ -279,6 +280,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     @blade_size.setter
     def blade_size(self, value: float):
         self._table.update(self._db_id, blade_size=value)
+        self._populate('blade_size')
 
     @property
     def resistance(self) -> float:
@@ -287,6 +289,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     @resistance.setter
     def resistance(self, value: float):
         self._table.update(self._db_id, resistance=value)
+        self._populate('resistance')
 
     @property
     def mating_cycles(self) -> int:
@@ -295,6 +298,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     @mating_cycles.setter
     def mating_cycles(self, value: int):
         self._table.update(self._db_id, mating_cycles=value)
+        self._populate('mating_cycles')
 
     @property
     def max_vibration_g(self) -> int:
@@ -303,6 +307,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     @max_vibration_g.setter
     def max_vibration_g(self, value: int):
         self._table.update(self._db_id, max_vibration_g=value)
+        self._populate('max_vibration_g')
 
     @property
     def max_current_ma(self) -> int:
@@ -311,6 +316,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     @max_current_ma.setter
     def max_current_ma(self, value: int):
         self._table.update(self._db_id, max_current_ma=value)
+        self._populate('max_current_ma')
 
     @property
     def round_terminal(self) -> bool:
@@ -319,6 +325,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     @round_terminal.setter
     def round_terminal(self, value: bool):
         self._table.update(self._db_id, round_terminal=int(value))
+        self._populate('round_terminal')
 
     @property
     def length(self) -> float:
@@ -327,6 +334,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     @length.setter
     def length(self, value: float):
         self._table.update(self._db_id, length=round(value, 6))
+        self._populate('length')
 
     @property
     def width(self) -> float:
@@ -346,6 +354,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
             self._table.update(self._db_id, width=round(value, 6), height=round(value, 6))
         else:
             self._table.update(self._db_id, width=round(value, 6))
+        self._populate('width')
 
     @property
     def height(self) -> float:
@@ -366,6 +375,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
             self._table.update(self._db_id, width=round(value, 6), height=round(value, 6))
         else:
             self._table.update(self._db_id, height=round(value, 6))
+        self._populate('height')
 
     _scale_id: str = None
 
@@ -432,7 +442,10 @@ class TerminalControl(wx.Notebook):
         self.temperature_page.set_obj(db_obj)
         self.dimension_page.set_obj(db_obj)
         self.resources_page.set_obj(db_obj)
+        self.model3d_page.set_obj(db_obj)
         self.plating_page.set_obj(db_obj)
+        self.wire_size_page.set_obj(db_obj)
+
         self.part_number_ctrl.set_obj(db_obj)
         self.description_ctrl.set_obj(db_obj)
         self.color_ctrl.set_obj(db_obj)
@@ -552,6 +565,10 @@ class TerminalControl(wx.Notebook):
         self.compat_housing_ctrl = CompatHousingsControl(compat_parts_page)
         self.compat_seal_ctrl = CompatSealsControl(compat_parts_page)
 
+        self.model3d_page = Model3DControl(self)
+
+        self.wire_size_page = WireSizeControl(self)
+
         for page in (
             general_page,
             self.mfg_page,
@@ -559,9 +576,11 @@ class TerminalControl(wx.Notebook):
             self.series_page,
             self.temperature_page,
             self.dimension_page,
+            self.wire_size_page,
             self.plating_page,
             self.resources_page,
-            compat_parts_page
+            compat_parts_page,
+            self.model3d_page
         ):
             self.AddPage(page, page.GetLabel())
             page.Realize()

@@ -1,7 +1,6 @@
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
 import os
-from ...ui.editor_obj import prop_grid as _prop_grid
 
 from ... import resources as _resources
 from ..create_database import images as _images
@@ -105,13 +104,4 @@ class Image(EntryBase):
     @file_type_id.setter
     def file_type_id(self, value: int):
         self._table.update(self._db_id, file_type_id=value)
-
-    @property
-    def propgrid(self) -> _prop_grid.Property:
-
-        file_types = self._table.db.file_types_table.select('mimetype', 'extension', is_model=0)
-
-        file_types = {k: v for k, v in file_types}
-        image_prop = _prop_grid.ImageProperty('Image', 'image', self.path, file_types, self.data_path)
-
-        return image_prop
+        self._populate('file_type_id')

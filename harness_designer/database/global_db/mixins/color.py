@@ -19,10 +19,6 @@ class ColorMixin(BaseMixin):
         color = self._table.db.colors_table[color_id[0][0]]
         return color
 
-    @color.setter
-    def color(self, value: "_color.Color") -> None:
-        self.color_id = value.db_id
-
     @property
     def color_id(self) -> int:
         return self._table.select('color_id', id=self._db_id)[0][0]
@@ -30,6 +26,7 @@ class ColorMixin(BaseMixin):
     @color_id.setter
     def color_id(self, value: int):
         self._table.update(self._db_id, color_id=value)
+        self._populate('color_id')
 
 
 class ColorControl(_prop_grid.ColorProperty):
@@ -37,10 +34,14 @@ class ColorControl(_prop_grid.ColorProperty):
     def __init__(self, parent):
         self.choices: list[list[str, int]] = None
         self.db_obj: ColorMixin = None
+        self.attribute_name = 'color'
 
         super().__init__(parent, 'Color', ['None', wx.BLACK], [])
 
         self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_color)
+
+    def SetAttributeName(self, name):
+        self.attribute_name = name
 
     def set_obj(self, db_obj: ColorMixin):
         self.db_obj = db_obj
@@ -52,7 +53,7 @@ class ColorControl(_prop_grid.ColorProperty):
             self.SetValue(['', wx.BLACK])
             self.Enable(False)
         else:
-            color = db_obj.color
+            color = getattr(db_obj, self.attribute_name)
 
             db_obj.table.execute('SELECT name, rgb from colors;')
             rows = db_obj.table.fetchall()
@@ -79,8 +80,8 @@ class ColorControl(_prop_grid.ColorProperty):
             db_id, stored_rgba = rows[0]
 
             if rgba != stored_rgba:
-                self.db_obj.color_id = db_id
-                self.db_obj.color.rgb = rgba
+                setattr(self.db_obj, self.attribute_name + '_id', db_id)
+                getattr(self.db_obj, self.attribute_name).rgb = rgba
         else:
             db_obj = self.db_obj.table.db.colors_table.insert(name, rgba)
             db_id = db_obj.db_id
@@ -89,4 +90,4 @@ class ColorControl(_prop_grid.ColorProperty):
             self.SetItems(self.choices)
             self.SetValue([name, color])
 
-        self.db_obj.color_id = db_id
+        setattr(self.db_obj, self.attribute_name + '_id', db_id)

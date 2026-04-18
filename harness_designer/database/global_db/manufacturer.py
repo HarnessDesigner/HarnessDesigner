@@ -1,7 +1,5 @@
-
 from typing import Iterable as _Iterable
 
-from ...ui.editor_obj import prop_grid as _prop_grid
 
 from .bases import EntryBase, TableBase
 from .mixins import NameMixin, DescriptionMixin
@@ -76,6 +74,7 @@ class Manufacturer(EntryBase, NameMixin, DescriptionMixin):
     @address.setter
     def address(self, value: str):
         self._table.update(self._db_id, address=value)
+        self._populate('address')
 
     @property
     def contact_person(self) -> str:
@@ -84,6 +83,7 @@ class Manufacturer(EntryBase, NameMixin, DescriptionMixin):
     @contact_person.setter
     def contact_person(self, value: str):
         self._table.update(self._db_id, contact_person=value)
+        self._populate('contact_person')
 
     @property
     def phone(self) -> str:
@@ -92,6 +92,7 @@ class Manufacturer(EntryBase, NameMixin, DescriptionMixin):
     @phone.setter
     def phone(self, value: str):
         self._table.update(self._db_id, phone=value)
+        self._populate('phone')
 
     @property
     def ext(self) -> str:
@@ -100,6 +101,7 @@ class Manufacturer(EntryBase, NameMixin, DescriptionMixin):
     @ext.setter
     def ext(self, value: str):
         self._table.update(self._db_id, ext=value)
+        self._populate('ext')
 
     @property
     def email(self) -> str:
@@ -108,6 +110,7 @@ class Manufacturer(EntryBase, NameMixin, DescriptionMixin):
     @email.setter
     def email(self, value: str):
         self._table.update(self._db_id, email=value)
+        self._populate('email')
 
     @property
     def website(self) -> str:
@@ -116,47 +119,4 @@ class Manufacturer(EntryBase, NameMixin, DescriptionMixin):
     @website.setter
     def website(self, value: str):
         self._table.update(self._db_id, website=value)
-
-    @property
-    def propgrid(self) -> _prop_grid.Property:
-        group_prop = _prop_grid.Property('Manufacturer', 'manufacturer')
-
-        rows = self.table.select('name', 'description', 'address', 'contact_person', 'phone', 'ext', 'email', 'website')
-
-        choices = [item[0] for item in rows]
-
-        name_prop = _prop_grid.ComboBoxProperty('Name', 'name', self.name, choices)
-
-        def _on_name_change(evt: _prop_grid.PropertyEvent):
-            name = evt.GetValue()
-            rows = self.table.select('id', 'description', 'address', 'contact_person', 'phone', 'ext', 'email', 'website', name=name)
-            if rows:
-                id, desc, addr, contact, phone, ext, email, website = rows[0]
-                desc_prop.SetValue(desc)
-                address_prop.SetValue(addr)
-                contact_prop.SetValue(contact)
-                phone_prop.SetValue(phone)
-                ext_prop.SetValue(ext)
-                email_prop.SetValue(email)
-                website_prop.SetValue(website)
-
-        name_prop.Bind(_prop_grid.EVT_PROPERTY_CHANGED, _on_name_change)
-
-        desc_prop = _prop_grid.LongStringProperty('Description', 'description', self.description)
-        address_prop = _prop_grid.LongStringProperty('Address', 'address', self.address)
-        contact_prop = _prop_grid.StringProperty('Contact', 'contact_person', self.contact_person)
-        phone_prop = _prop_grid.StringProperty('Phon', 'phone', self.phone)
-        ext_prop = _prop_grid.StringProperty('Ext', 'ext', self.ext)
-        email_prop = _prop_grid.StringProperty('Email', 'email', self.email)
-        website_prop = _prop_grid.StringProperty('Website', 'website', self.website)
-
-        group_prop.Append(name_prop)
-        group_prop.Append(desc_prop)
-        group_prop.Append(address_prop)
-        group_prop.Append(contact_prop)
-        group_prop.Append(phone_prop)
-        group_prop.Append(ext_prop)
-        group_prop.Append(email_prop)
-        group_prop.Append(website_prop)
-
-        return group_prop
+        self._populate('website')

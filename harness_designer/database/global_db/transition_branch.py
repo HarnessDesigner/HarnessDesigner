@@ -1,9 +1,10 @@
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
-from ...ui.editor_obj import prop_grid as _prop_grid
+import wx
 
+from ...ui.editor_obj import prop_grid as _prop_grid
 from .bases import EntryBase, TableBase
-from .mixins import NameMixin
+from .mixins import NameMixin, NameControl
 
 from ...geometry import point as _point
 
@@ -86,6 +87,7 @@ class TransitionBranch(EntryBase, NameMixin):
     @idx.setter
     def idx(self, value: int):
         self._table.update(self._db_id, idx=value)
+        self._populate('idx')
 
     @property
     def bulb_offset(self) -> _point.Point:
@@ -100,6 +102,7 @@ class TransitionBranch(EntryBase, NameMixin):
     @bulb_offset.setter
     def bulb_offset(self, value: _point.Point):
         self._table.update(self._db_id, bulb_offset=str(list(value.as_float)))
+        self._populate('bulb_offset')
 
     @property
     def bulb_length(self) -> float:
@@ -113,6 +116,7 @@ class TransitionBranch(EntryBase, NameMixin):
     @bulb_length.setter
     def bulb_length(self, value: float):
         self._table.update(self._db_id, bulb_length=value)
+        self._populate('bulb_length')
 
     @property
     def compat_bundle_covers(self) -> list["_bundle_cover.BundleCover"]:
@@ -122,7 +126,7 @@ class TransitionBranch(EntryBase, NameMixin):
         res = []
 
         for bundle_cover in self._table.db.bundle_covers_table:
-            if bundle_cover.min_size < max_dia and bundle_cover.max_size > min_dia:
+            if bundle_cover.min_dia < max_dia and bundle_cover.max_dia > min_dia:
                 res.append(bundle_cover)
 
         return res
@@ -135,6 +139,7 @@ class TransitionBranch(EntryBase, NameMixin):
     @min_dia.setter
     def min_dia(self, value: float):
         self._table.update(self._db_id, min_dia=value)
+        self._populate('min_dia')
 
     @property
     def max_dia(self) -> float:
@@ -144,6 +149,7 @@ class TransitionBranch(EntryBase, NameMixin):
     @max_dia.setter
     def max_dia(self, value: float):
         self._table.update(self._db_id, max_dia=value)
+        self._populate('max_dia')
 
     @property
     def length(self) -> float:
@@ -153,6 +159,7 @@ class TransitionBranch(EntryBase, NameMixin):
     @length.setter
     def length(self, value: float):
         self._table.update(self._db_id, length=value)
+        self._populate('length')
 
     @property
     def angle(self) -> float:
@@ -162,6 +169,7 @@ class TransitionBranch(EntryBase, NameMixin):
     @angle.setter
     def angle(self, value: float):
         self._table.update(self._db_id, angle=float(value))
+        self._populate('angle')
 
     @property
     def offset(self) -> _point.Point:
@@ -176,6 +184,7 @@ class TransitionBranch(EntryBase, NameMixin):
     @offset.setter
     def offset(self, value: _point.Point):
         self._table.update(self._db_id, offset=str(list(value.as_float)))
+        self._populate('offset')
 
     @property
     def flange_height(self) -> float:
@@ -185,6 +194,7 @@ class TransitionBranch(EntryBase, NameMixin):
     @flange_height.setter
     def flange_height(self, value: float):
         self._table.update(self._db_id, flange_height=value)
+        self._populate('flange_height')
 
     @property
     def flange_width(self) -> float:
@@ -194,89 +204,135 @@ class TransitionBranch(EntryBase, NameMixin):
     @flange_width.setter
     def flange_width(self, value: float):
         self._table.update(self._db_id, flange_width=value)
+        self._populate('flange_width')
 
-    @property
-    def propgrid(self) -> _prop_grid.Property:
 
-        branch_prop = _prop_grid.Property(f'Branch {self.idx}')
+class TransitionBranchControl(_prop_grid.Category):
 
-        bulb_prop = _prop_grid.Property(f'Bulb')
+    def set_obj(self, db_obj: TransitionBranch):
+        self.db_obj = db_obj
 
-        bulb_offset = self.bulb_offset
+        self.name_ctrl.set_obj(db_obj)
 
-        bulb_offset_prop = _prop_grid.Property('Offset', 'bulb_offset')
+        if db_obj is None:
+            self.length_ctrl.SetValue(0.01)
+            self.angle_ctrl.SetValue(0.0)
+            self.offset_ctrl.SetValue(None)
+            self.bulb_offset_ctrl.SetValue(None)
+            self.bulb_length_ctrl.SetValue(0.0)
+            self.min_dia_ctrl.SetValue(0.01)
+            self.max_dia_ctrl.SetValue(0.01)
+            self.flange_height_ctrl.SetValue(0.0)
+            self.flange_width_ctrl.SetValue(0.0)
 
-        x = _prop_grid.FloatProperty(
-            'X', 'x', bulb_offset.x,
-            min_value=-999.9, max_value=999.9, increment=0.01, units='mm')
+            self.length_ctrl.Enable(False)
+            self.angle_ctrl.Enable(False)
+            self.offset_ctrl.Enable(False)
+            self.bulb_offset_ctrl.Enable(False)
+            self.bulb_length_ctrl.Enable(False)
+            self.min_dia_ctrl.Enable(False)
+            self.max_dia_ctrl.Enable(False)
+            self.flange_height_ctrl.Enable(False)
+            self.flange_width_ctrl.Enable(False)
+        else:
+            self.length_ctrl.SetValue(db_obj.length)
+            self.angle_ctrl.SetValue(db_obj.angle)
+            self.offset_ctrl.SetValue(db_obj.offset)
+            self.bulb_offset_ctrl.SetValue(db_obj.bulb_offset)
+            self.bulb_length_ctrl.SetValue(db_obj.bulb_length)
+            self.min_dia_ctrl.SetValue(db_obj.min_dia)
+            self.max_dia_ctrl.SetValue(db_obj.max_dia)
+            self.flange_height_ctrl.SetValue(db_obj.flange_height)
+            self.flange_width_ctrl.SetValue(db_obj.flange_width)
 
-        y = _prop_grid.FloatProperty(
-            'Y', 'y', bulb_offset.y,
-            min_value=-999.9, max_value=999.9, increment=0.01, units='mm')
+            self.length_ctrl.Enable(True)
+            self.angle_ctrl.Enable(True)
+            self.offset_ctrl.Enable(True)
+            self.bulb_offset_ctrl.Enable(True)
+            self.bulb_length_ctrl.Enable(True)
+            self.min_dia_ctrl.Enable(True)
+            self.max_dia_ctrl.Enable(True)
+            self.flange_height_ctrl.Enable(True)
+            self.flange_width_ctrl.Enable(True)
 
-        bulb_offset_prop.Append(x)
-        bulb_offset_prop.Append(y)
+    def _on_length(self, evt):
+        value = evt.GetValue()
+        self.db_obj.length = value
 
-        bulb_length_prop = _prop_grid.FloatProperty(
-            'Length', 'bulb_length', self.bulb_length,
-            min_value=0.00, max_value=999.9, increment=0.01, units='mm')
+    def _on_angle(self, evt):
+        value = evt.GetValue()
+        self.db_obj.angle = value
 
-        bulb_prop.Append(bulb_offset_prop)
-        bulb_prop.Append(bulb_length_prop)
+    def _on_bulb_length(self, evt):
+        value = evt.GetValue()
+        self.db_obj.bulb_length = value
 
-        size_prop = _prop_grid.Property(f'Size (diameter)')
+    def _on_min_dia(self, evt):
+        value = evt.GetValue()
+        self.db_obj.min_dia = value
 
-        min_dia_prop = _prop_grid.FloatProperty(
-            'Minimum', 'min_dia', self.min_dia,
+    def _on_max_dia(self, evt):
+        value = evt.GetValue()
+        self.db_obj.max_dia = value
+
+    def _on_flange_height(self, evt):
+        value = evt.GetValue()
+        self.db_obj.flange_height = value
+
+    def _on_flange_width(self, evt):
+        value = evt.GetValue()
+        self.db_obj.flange_width = value
+
+    def SetIndex(self, index):
+        self.SetLabel(f'Branch {index}')
+
+    def __init__(self, parent):
+        self.db_obj: TransitionBranch = None
+        super().__init__(parent, 'Branch')
+
+        self.name_ctrl = NameControl(self)
+
+        self.length_ctrl = _prop_grid.FloatProperty(
+            self, 'Length', 0.01,
             min_value=0.01, max_value=999.9, increment=0.01, units='mm')
 
-        max_dia_prop = _prop_grid.FloatProperty(
-            'Maximum', 'max_dia', self.max_dia,
-            min_value=0.01, max_value=999.9, increment=0.01, units='mm')
-
-        size_prop.Append(min_dia_prop)
-        size_prop.Append(max_dia_prop)
-
-        length_prop = _prop_grid.FloatProperty(
-            'Length', 'length', self.length,
-            min_value=0.01, max_value=999.9, increment=0.01, units='mm')
-
-        angle_prop = _prop_grid.FloatProperty(
-            'Angle', 'angle', self.angle, min_value=-180.0,
+        self.angle_ctrl = _prop_grid.FloatProperty(
+            self, 'Angle', 0.0, min_value=-180.0,
             max_value=180.0, increment=0.1, units='°')
 
-        flange_prop = _prop_grid.Property(f'Flange')
+        self.offset_ctrl = _prop_grid.Position2DProperty(self, 'Offset')
 
-        flange_height_prop = _prop_grid.FloatProperty(
-            'Flange Height', 'flange_height', self.flange_height,
+        bulb_group = _prop_grid.Property(self, f'Bulb', orientation=wx.VERTICAL)
+
+        self.bulb_offset_ctrl = _prop_grid.Position2DProperty(bulb_group, 'Offset')
+        self.bulb_length_ctrl = _prop_grid.FloatProperty(
+            bulb_group, 'Length', 0.0,
             min_value=0.00, max_value=999.9, increment=0.01, units='mm')
 
-        flange_width_prop = _prop_grid.FloatProperty(
-            'Flange Width', 'flange_width', self.flange_width,
+        size_group = _prop_grid.Property(bulb_group, 'Diameter', orientation=wx.VERTICAL)
+
+        self.min_dia_ctrl = _prop_grid.FloatProperty(
+            size_group, 'Minimum', 0.01,
+            min_value=0.01, max_value=999.9, increment=0.01, units='mm')
+
+        self.max_dia_ctrl = _prop_grid.FloatProperty(
+            size_group, 'Maximum', 0.01,
+            min_value=0.01, max_value=999.9, increment=0.01, units='mm')
+
+        flange_group = _prop_grid.Property(self, 'Flange', orientation=wx.VERTICAL)
+
+        self.flange_height_ctrl = _prop_grid.FloatProperty(
+            flange_group, 'Height', 0.0,
             min_value=0.00, max_value=999.9, increment=0.01, units='mm')
 
-        flange_prop.Append(flange_height_prop)
-        flange_prop.Append(flange_width_prop)
-        offset = self.offset
+        self.flange_width_ctrl = _prop_grid.FloatProperty(
+            flange_group, 'Width', 0.0,
+            min_value=0.00, max_value=999.9, increment=0.01, units='mm')
 
-        offset_prop = _prop_grid.Property('Offset', 'offset')
-
-        x = _prop_grid.FloatProperty(
-            'X', 'x', offset.x,
-            min_value=-999.9, max_value=999.9, increment=0.01, units='mm')
-
-        y = _prop_grid.FloatProperty(
-            'Y', 'y', offset.y,
-            min_value=-999.9, max_value=999.9, increment=0.01, units='mm')
-
-        offset_prop.Append(x)
-        offset_prop.Append(y)
-
-        branch_prop.Append(offset_prop)
-        branch_prop.Append(length_prop)
-        branch_prop.Append(size_prop)
-        branch_prop.Append(angle_prop)
-        branch_prop.Append(bulb_prop)
-        branch_prop.Append(flange_prop)
-
-        return branch_prop
+        self.length_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_length)
+        self.angle_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_angle)
+        self.bulb_length_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_bulb_length)
+        self.min_dia_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_min_dia)
+        self.max_dia_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_max_dia)
+        self.flange_height_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_flange_height)
+        self.flange_width_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_flange_width)

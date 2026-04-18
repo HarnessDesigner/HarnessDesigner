@@ -12,6 +12,7 @@ class NameMixin(BaseMixin):
     @name.setter
     def name(self, value: str):
         self._table.update(self._db_id, name=value)
+        self._populate('name')
 
 
 class NameControl(_prop_grid.StringProperty):

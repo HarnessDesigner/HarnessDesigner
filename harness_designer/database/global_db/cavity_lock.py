@@ -1,7 +1,4 @@
-
 from typing import Iterable as _Iterable
-
-from ...ui.editor_obj import prop_grid as _prop_grid
 
 from .bases import EntryBase, TableBase
 from .mixins import NameMixin, DescriptionMixin
@@ -61,19 +58,3 @@ class CavityLock(EntryBase, NameMixin, DescriptionMixin):
         }
 
         return packet
-
-    @property
-    def propgrid(self) -> _prop_grid.Property:
-        group_prop = _prop_grid.Property('Cavity Lock', 'cavity_lock')
-
-        rows = self.table.select('name', 'description')
-
-        choices = [item[0] for item in rows]
-        name_prop = _prop_grid.ComboBoxProperty('Name', 'name', self.name, choices)
-        desc_prop = _prop_grid.LongStringProperty('Description', 'description', self.description)
-
-        group_prop.Append(name_prop)
-        group_prop.Append(desc_prop)
-
-        return group_prop
-

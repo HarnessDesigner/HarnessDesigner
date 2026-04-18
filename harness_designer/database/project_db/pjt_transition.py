@@ -1,23 +1,42 @@
-
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 import weakref
+import wx
+
 from ...ui.editor_obj import prop_grid as _prop_grid
-
+from ..global_db import transition as _transition
 from .pjt_bases import PJTEntryBase, PJTTableBase
-
 from ...geometry import angle as _angle
-from .mixins import Angle3DMixin, Position3DMixin, PartMixin, NameMixin, Visible3DMixin
+from .mixins import (
+    Angle3DMixin, Angle3DControl,
+    Position3DMixin, Position3DControl,
+    PartMixin,
+    NameMixin, NameControl,
+    NotesMixin, NotesControl,
+    Visible3DMixin, Visible3DControl
+)
 
 if TYPE_CHECKING:
     from . import pjt_transition_branch as _pjt_transition_branch
-    from ..global_db import transition as _transition
-
     from ...objects import transition as _transition_obj
 
 
 class PJTTransitionsTable(PJTTableBase):
     __table_name__ = 'pjt_transitions'
+
+    _control: "PJTTransitionControl" = None
+
+    @property
+    def control(self) -> "PJTTransitionControl":
+        if self._control is None:
+            raise RuntimeError('sanity check')
+
+        return self._control
+
+    @classmethod
+    def start_control(cls, mainframe):
+        cls._control = PJTTransitionControl(mainframe)
+        cls._control.Show(False)
 
     def _table_needs_update(self) -> bool:
         from ..create_database import transitions
@@ -49,13 +68,13 @@ class PJTTransitionsTable(PJTTableBase):
     def insert(self, part_id: int, center_id: int, angle: _angle.Angle, name: str) -> "PJTTransition":
 
         db_id = PJTTableBase.insert(self, part_id=part_id, center_id=center_id,
-                                    angle=str(list(angle.as_float)), name=name)
+                                    angle=str(list(angle.as_euler_float)), name=name)
 
         return PJTTransition(self, db_id, self.project_id)
 
 
 class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin,
-                    NameMixin, Visible3DMixin):
+                    NameMixin, Visible3DMixin, NotesMixin):
 
     _table: PJTTransitionsTable = None
 
@@ -171,30 +190,56 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin,
 
             if part_id is None:
                 return None
-        
+
             self._stored_part = self._table.db.global_db.transitions_table[part_id]
             self._stored_part.add_object(self._obj())
 
         return self._stored_part
 
-    @property
-    def propgrid(self) -> tuple[_prop_grid.Category, _prop_grid.Category]:
-        group = _prop_grid.Category('Project')
 
-        notes_prop = self._notes_propgrid
-        name_prop = self._name_propgrid
-        angle_prop = self._angle3d_propgrid
-        position_prop = self._position3d_propgrid
-        housing_prop = self._housing_propgrid
-        visible_prop = self._visible3d_propgrid
+class PJTTransitionControl(wx.Notebook):
 
-        group.Append(name_prop)
-        group.Append(notes_prop)
-        group.Append(angle_prop)
-        group.Append(position_prop)
-        group.Append(visible_prop)
-        group.Append(housing_prop)
+    def set_obj(self, db_obj: PJTTransition):
+        self.db_obj = db_obj
 
-        part_prop = self._part_propgrid
+        self.name_ctrl.set_obj(db_obj)
+        self.note_ctrl.set_obj(db_obj)
+        self.angle3d_ctrl.set_obj(db_obj)
+        self.position3d_ctrl.set_obj(db_obj)
+        self.visible3d_ctrl.set_obj(db_obj)
 
-        return group, part_prop
+        if db_obj is None:
+            self.transition_ctrl.set_obj(None)
+        else:
+            self.transition_ctrl.set_obj(db_obj.part)
+
+    def __init__(self, parent):
+        self.db_obj: PJTTransition = None
+
+        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+
+        general_page = _prop_grid.Category(self, 'General')
+        self.name_ctrl = NameControl(general_page)
+        self.note_ctrl = NotesControl(general_page)
+
+        angle_page = _prop_grid.Category(self, 'Angle')
+        self.angle3d_ctrl = Angle3DControl(angle_page)
+
+        position_page = _prop_grid.Category(self, 'Position')
+        self.position3d_ctrl = Position3DControl(position_page)
+
+        visible_page = _prop_grid.Category(self, 'Visible')
+        self.visible3d_ctrl = Visible3DControl(visible_page)
+
+        part_page = _prop_grid.Category(self, 'Part')
+        self.transition_ctrl = _transition.TransitionControl(part_page)
+
+        for page in (
+            general_page,
+            angle_page,
+            position_page,
+            visible_page,
+            part_page
+        ):
+            self.AddPage(page, page.GetLabel())
+            page.Realize()

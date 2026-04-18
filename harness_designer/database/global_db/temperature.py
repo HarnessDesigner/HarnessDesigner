@@ -1,7 +1,5 @@
 from typing import Iterable as _Iterable
 
-from ...ui.editor_obj import prop_grid as _prop_grid
-
 from .bases import EntryBase, TableBase
 from .mixins import NameMixin
 
@@ -18,7 +16,8 @@ class TemperaturesTable(TableBase):
         from ..create_database import temperatures
 
         temperatures.table.add_to_db(self)
-        temperatures.add_records(self._con, splash)
+        data_path = self._con.db_data.open(splash)
+        temperatures.add_records(self._con, splash, data_path)
 
     def _update_table_in_db(self):
         from ..create_database import temperatures
@@ -59,13 +58,3 @@ class Temperature(EntryBase, NameMixin):
         }
 
         return packet
-
-    @property
-    def propgrid(self) -> _prop_grid.Property:
-
-        rows = self.table.select('name')
-
-        choices = [item[0] for item in rows]
-        name_prop = _prop_grid.ComboBoxProperty('Name', 'name', self.name, choices)
-
-        return name_prop

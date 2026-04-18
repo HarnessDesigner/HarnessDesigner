@@ -1,4 +1,4 @@
-from ..bases import TableBase
+from ..bases import TableBase, EntryBase
 
 
 class BaseMixin:
@@ -8,3 +8,6 @@ class BaseMixin:
     @property
     def table(self):
         return self._table
+
+    def _populate(self, tag):
+        EntryBase._populate(self, tag)  # NOQA

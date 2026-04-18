@@ -9,13 +9,6 @@ from .. import pjt_point3d as _pjt_point3d
 
 class StartStopPosition3DMixin(BaseMixin):
 
-    def _update_start_position3d(self, point: _point.Point):
-        x, y, z = point.as_float
-        point_id = int(point.db_id)
-
-        self._table.execute(f'UPDATE pjt_points3d SET x=?, y=?, z=? WHERE id = {point_id};', (x, y, z))
-        self._table.commit()
-
     _stored_start_position3d: _pjt_point3d.PJTPoint3D = None
 
     @property
@@ -49,6 +42,7 @@ class StartStopPosition3DMixin(BaseMixin):
     @start_position3d_id.setter
     def start_position3d_id(self, value: int):
         self._table.update(self._db_id, start_point3d_id=value)
+        self._populate('start_position3d_id')
 
     _stored_stop_position3d: _pjt_point3d.PJTPoint3D = None
 
@@ -83,9 +77,10 @@ class StartStopPosition3DMixin(BaseMixin):
     @stop_position3d_id.setter
     def stop_position3d_id(self, value: int):
         self._table.update(self._db_id, stop_point3d_id=value)
+        self._populate('stop_position3d_id')
 
 
-class StartStopPositionControl(_prop_grid.Property):
+class StartStopPosition3DControl(_prop_grid.Property):
 
     def __init__(self, parent):
         self.db_obj: StartStopPosition3DMixin = None

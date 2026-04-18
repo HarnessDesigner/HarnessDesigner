@@ -12,6 +12,7 @@ class NotesMixin(BaseMixin):
     @notes.setter
     def notes(self, value: str):
         self._table.update(self._db_id, notes=value)
+        self._populate('notes')
 
 
 class NotesControl(_prop_grid.LongStringProperty):

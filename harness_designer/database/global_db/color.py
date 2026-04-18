@@ -1,7 +1,5 @@
 from typing import Iterable as _Iterable
 
-from ...ui.editor_obj import prop_grid as _prop_grid
-
 from .bases import EntryBase, TableBase
 from .mixins import NameMixin
 import uuid
@@ -89,9 +87,4 @@ class Color(EntryBase, NameMixin):
         rgba = r << 24 | b << 16 | b << 8 | a
 
         self._table.update(self._db_id, rgb=rgba)
-
-    @property
-    def propgrid(self) -> _prop_grid.Property:
-        color_prop = _prop_grid.ColorProperty('Color', 'color', self.ui)
-
-        return color_prop
+        self._populate('rgb')

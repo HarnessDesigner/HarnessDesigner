@@ -1,11 +1,15 @@
 from typing import Iterable as _Iterable, Union as _Union, TYPE_CHECKING
 
 import weakref
-
-from .pjt_bases import PJTEntryBase, PJTTableBase
-from .mixins import NameMixin, NotesMixin
+import wx
 
 from ...ui.editor_obj import prop_grid as _prop_grid
+from .pjt_bases import PJTEntryBase, PJTTableBase
+from .mixins import (
+    NameMixin,
+    NotesMixin, NotesControl
+)
+
 
 from . import pjt_wire as _pjt_wire
 from . import pjt_splice as _pjt_splice
@@ -14,6 +18,7 @@ from . import pjt_housing as _pjt_housing
 from . import pjt_wire_service_loop as _pjt_wire_service_loop
 
 from ...geometry import point as _point
+from ...geometry.decimal import Decimal as _d
 from ... import logger as _logger
 
 
@@ -124,10 +129,45 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
             self._obj = obj
 
     @property
+    def volts(self) -> float:
+        terminal = self.start_terminal
+        if terminal is None:
+            return 0.0
+
+        return terminal.volts
+
+    @property
+    def resistance(self) -> float:
+        resistance = _d(0)
+
+        for terminal in self.terminals:
+            resistance += _d(terminal.resistance)
+
+        for splice in self.splices:
+            resistance += _d(splice.resistance)
+
+        for wire in self.wires:
+            resistance += _d(wire.resistance)
+
+        for loop in self.wire_service_loops:
+            resistance += _d(loop.resistance)
+
+        return float(resistance)
+
+    @property
     def start_terminal(self) -> _pjt_terminal.PJTTerminal:
         db_ids = self._table.db.pjt_terminals_table.select('db_id', is_start=1, circuit_id=self.db_id)
         if db_ids:
             return self._table.db.pjt_terminals_table[db_ids[0][0]]
+
+    @property
+    def voltage_drop(self) -> float:
+        drop = 0.0
+
+        for terminal in self.load_terminals:
+            drop = max(terminal.voltage_drop, drop)
+
+        return drop
 
     @property
     def load_terminals(self) -> list[_pjt_terminal.PJTTerminal]:
@@ -373,7 +413,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
     @circuit_num.setter
     def circuit_num(self, value: int):
         self._table.update(self._db_id, circuit_num=value)
-        self._process_callbacks()
+        self._populate('circuit_num')
 
     @property
     def description(self) -> str:
@@ -382,7 +422,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
     @description.setter
     def description(self, value: str):
         self._table.update(self._db_id, description=value)
-        self._process_callbacks()
+        self._populate('description')
 
     @property
     def total_circuit_load(self) -> float:
@@ -486,20 +526,188 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
 
         return res
 
-    @property
-    def propgrid(self) -> _prop_grid.Category:
 
-        group = _prop_grid.Category('Circuit')
+class PJTCircuitControl(wx.Notebook):
 
-        circuit_num_prop = _prop_grid.IntProperty('Circuit Number', 'curcuit_num', self.circuit_num, min_value=0, max_value=99999)
-        description_prop = _prop_grid.LongStringProperty('Description', 'description', self.description)
+    def _on_circuit_num(self, evt):
+        num = evt.GetValue()
 
-        notes_prop = self._notes_propgrid
-        name_prop = self._name_propgrid
+        try:
+            num = int(num)
+        except ValueError:
+            self.circuit_num_ctrl.SetValue('')
+            return
 
-        group.Append(name_prop)
-        group.Append(circuit_num_prop)
-        group.Append(description_prop)
-        group.Append(notes_prop)
+        self.db_obj.table.execute(f'SELECT id FROM pjt_circuits WHERE circuit_num={num} AND project_id={self.db_obj.project_id};')
+        rows = self.db_obj.table.fetchall()
 
-        return group
+        if rows:
+            db_id = rows[0]
+
+        else:
+            db_obj = self.db_obj.table.insert(num)
+            name = self.name_ctrl.GetValue()
+            db_id = db_obj.db_id
+
+            if name not in self.name_choices:
+                self.name_choices.append(name)
+                self.name_choices.sort()
+
+                self.name_ctrl.SetItems(self.name_choices)
+                self.name_ctrl.SetValue(name)
+            else:
+                name = ''
+
+            self.name_ctrl.SetValue('')
+
+            db_obj.description = self.description_ctrl.GetValue()
+
+            self.circuit_choices.append(str(num))
+            self.circuit_num_ctrl.SetItems(self.circuit_choices)
+            self.circuit_num_ctrl.SetValue(str(num))
+
+            self.name_choices.append(name)
+
+        self._parent.set_circuit(db_id)
+
+    def _on_description(self, evt):
+        value = evt.GetValue()
+        self.db_obj.description = value
+
+    def _on_name(self, evt):
+        name = evt.GetValue()
+
+        self.db_obj.table.execute(f'SELECT id FROM pjt_circuits WHERE name="{name}" AND project_id={self.db_obj.project_id};')
+        rows = self.db_obj.table.fetchall()
+
+        if rows:
+            db_id = rows[0]
+
+        else:
+            self.db_obj.table.execute(f'SELECT circuit_num FROM pjt_circuits WHERE  project_id={self.db_obj.project_id};')
+            rows = self.db_obj.table.fetchall()
+            if rows:
+                circuit_num = max([row[0] for row in rows])
+            else:
+                circuit_num = -1
+
+            circuit_num += 1
+
+            db_obj = self.db_obj.table.insert(circuit_num)
+            db_obj.name = name
+            db_id = db_obj.db_id
+            db_obj.name = name
+            db_obj.description = self.description_ctrl.GetValue()
+
+            self.name_choices.append(name)
+            self.name_choices.sort()
+
+            self.name_ctrl.SetItems(self.name_choices)
+            self.name_ctrl.SetValue(name)
+
+            self.circuit_choices.append(str(circuit_num))
+            value = self.circuit_num_ctrl.GetValue()
+            self.circuit_num_ctrl.SetItems(self.circuit_choices)
+            self.circuit_num_ctrl.SetValue(value)
+
+        self._parent.set_circuit(db_id)
+
+    def set_obj(self, db_obj: PJTCircuit):
+        self.db_obj = db_obj
+
+        self.notes_ctrl.set_obj(db_obj)
+
+        if db_obj is None:
+            self.name_choices = []
+            self.name_ctrl.SetItems([])
+            self.name_ctrl.SetValue('')
+
+            self.circuit_choices = []
+            self.circuit_num_ctrl.SetItems([])
+            self.circuit_num_ctrl.SetValue('')
+
+            self.description_ctrl.SetValue('')
+            self.voltage_drop_ctrl.SetValue('')
+            self.voltage_ctrl.SetValue('')
+            self.total_circuit_resistance_ctrl.SetValue('')
+            self.total_circuit_load_ctrl.SetValue('')
+            self.total_circuit_weight_g_ctrl.SetValue('')
+            self.total_circuit_weight_lb_ctrl.SetValue('')
+            self.wire_length_mm_ctrl.SetValue('')
+            self.wire_length_m_ctrl.SetValue('')
+            self.wire_length_ft_ctrl.SetValue('')
+            self.wire_weight_g_ctrl.SetValue('')
+            self.wire_weight_lb_ctrl.SetValue('')
+            self.terminal_weight_g_ctrl.SetValue('')
+            self.terminal_weight_lb_ctrl.SetValue('')
+            self.splice_weight_g_ctrl.SetValue('')
+            self.splice_weight_lb_ctrl.SetValue('')
+
+        else:
+            self.name_ctrl.SetValue(db_obj.name)
+            self.circuit_num_ctrl.SetValue(str(db_obj.circuit_num))
+            self.description_ctrl.SetValue(db_obj.description)
+            self.voltage_drop_ctrl.SetValue(str(db_obj.voltage_drop))
+            self.voltage_ctrl.SetValue(str(db_obj.volts))
+            self.total_circuit_resistance_ctrl.SetValue(str(db_obj.resistance))
+            self.total_circuit_load_ctrl.SetValue(str(db_obj.total_circuit_load))
+            self.total_circuit_weight_g_ctrl.SetValue(str(db_obj.total_circuit_weight_g))
+            self.total_circuit_weight_lb_ctrl.SetValue(str(db_obj.total_circuit_weight_lb))
+            self.wire_length_mm_ctrl.SetValue(str(db_obj.wire_length_mm))
+            self.wire_length_m_ctrl.SetValue(str(db_obj.wire_length_m))
+            self.wire_length_ft_ctrl.SetValue(str(db_obj.wire_length_ft))
+            self.wire_weight_g_ctrl.SetValue(str(db_obj.wire_weight_g))
+            self.wire_weight_lb_ctrl.SetValue(str(db_obj.wire_weight_lb))
+            self.terminal_weight_g_ctrl.SetValue(str(db_obj.terminal_weight_g))
+            self.terminal_weight_lb_ctrl.SetValue(str(db_obj.terminal_weight_lb))
+            self.splice_weight_g_ctrl.SetValue(str(db_obj.splice_weight_g))
+            self.splice_weight_lb_ctrl.SetValue(str(db_obj.splice_weight_lb))
+
+    def __init__(self, parent):
+        self._parent = parent
+        self.db_obj: PJTCircuit = None
+        self.name_choices: list[str] = []
+        self.circuit_choices: list[str] = []
+
+        wx.Notebook.__init__(parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+
+        general_page = _prop_grid.Category(self, 'General')
+
+        self.name_ctrl = _prop_grid.ComboBoxProperty(general_page, 'Name', '', [])
+        self.circuit_num_ctrl = _prop_grid.ComboBoxProperty(general_page, 'Circuit Number', '', [])
+        self.description_ctrl = _prop_grid.LongStringProperty(general_page, 'Description', '')
+        self.notes_ctrl = NotesControl(general_page)
+
+        self.name_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_name)
+        self.circuit_num_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_circuit_num)
+        self.description_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_description)
+
+        info_page = _prop_grid.Category(self, 'Info')
+
+        electrical_group = _prop_grid.Property(info_page, 'Electrical', orientation=wx.VERTICAL)
+        self.voltage_ctrl = _prop_grid.StringProperty(electrical_group, 'Voltage', '', units='V', style=wx.TE_READONLY)
+        self.voltage_drop_ctrl = _prop_grid.StringProperty(electrical_group, 'Voltage', '', units='V', style=wx.TE_READONLY)
+        self.total_circuit_load_ctrl = _prop_grid.StringProperty(electrical_group, 'Total Circuit Load', '', units='ma', style=wx.TE_READONLY)
+        self.total_circuit_resistance_ctrl = _prop_grid.StringProperty(electrical_group, 'Total Circuit Resistance', '', units='Ω', style=wx.TE_READONLY)
+
+        total_weight_group = _prop_grid.Property(info_page, 'Total Circuit Weight', orientation=wx.VERTICAL)
+        self.total_circuit_weight_g_ctrl = _prop_grid.StringProperty(total_weight_group, 'Grams', '', style=wx.TE_READONLY)
+        self.total_circuit_weight_lb_ctrl = _prop_grid.StringProperty(total_weight_group, 'Pounds', '', style=wx.TE_READONLY)
+
+        wire_length_group = _prop_grid.Property(info_page, 'Total Wire Length', orientation=wx.VERTICAL)
+        self.wire_length_mm_ctrl = _prop_grid.StringProperty(wire_length_group, 'Millimeters', '', style=wx.TE_READONLY)
+        self.wire_length_m_ctrl = _prop_grid.StringProperty(wire_length_group, 'Meters', '', style=wx.TE_READONLY)
+        self.wire_length_ft_ctrl = _prop_grid.StringProperty(wire_length_group, 'Feet', '', style=wx.TE_READONLY)
+
+        wire_weight_group = _prop_grid.Property(info_page, 'Total Wire Weight', orientation=wx.VERTICAL)
+        self.wire_weight_g_ctrl = _prop_grid.StringProperty(wire_weight_group, 'Grams', '', style=wx.TE_READONLY)
+        self.wire_weight_lb_ctrl = _prop_grid.StringProperty(wire_weight_group, 'Pounds', '', style=wx.TE_READONLY)
+
+        terminal_weight_group = _prop_grid.Property(info_page, 'Total Terminal Weight', orientation=wx.VERTICAL)
+
+        self.terminal_weight_g_ctrl = _prop_grid.StringProperty(terminal_weight_group, 'Grams', '', style=wx.TE_READONLY)
+        self.terminal_weight_lb_ctrl = _prop_grid.StringProperty(terminal_weight_group, 'Pounds', '', style=wx.TE_READONLY)
+
+        splice_weight_group = _prop_grid.Property(info_page, 'Total Splice Weight', orientation=wx.VERTICAL)
+        self.splice_weight_g_ctrl = _prop_grid.StringProperty(splice_weight_group, 'Grams', '', style=wx.TE_READONLY)
+        self.splice_weight_lb_ctrl = _prop_grid.StringProperty(splice_weight_group, 'Pounds', '', style=wx.TE_READONLY)

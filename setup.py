@@ -140,6 +140,7 @@ def main():
             "pyinstaller==6.19.0",
             "numpy==2.2.6",
             "keyring==25.7.0",
+            "pyopencl==2026.1.2",
             "pyassimp"  # @ file:///" + os.path.join(base_path, 'libs/assimp/port/PyAssimp')
         ]
     )

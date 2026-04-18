@@ -23,10 +23,6 @@ class CompatSealsMixin(BaseMixin):
                 pass
         return res
 
-    @compat_seals.setter
-    def compat_seals(self, value: list["_seal.Seal"]):
-        self.compat_seals_array = [seal.part_number for seal in value]
-
     @property
     def compat_seals_array(self) -> list[str]:
         value = self._table.select('compat_seals', id=self._db_id)[0][0]
@@ -36,6 +32,7 @@ class CompatSealsMixin(BaseMixin):
     def compat_seals_array(self, value: list[str]):
         value = f'[{", ".join(value)}]'
         self._table.update(self._db_id, compat_seals=value)
+        self._populate('compat_seals_array')
 
 
 class CompatSealsControl(_prop_grid.ArrayStringProperty):

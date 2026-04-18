@@ -161,7 +161,7 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin,
     @terminal_id.setter
     def terminal_id(self, value: int):
         self._table.update(self._db_id, terminal_id=value)
-        self._process_callbacks()
+        self._populate('terminal_id')
 
     _stored_cavity: "_pjt_cavity.PJTCavity" = None
 
@@ -185,7 +185,7 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin,
     @cavity_id.setter
     def cavity_id(self, value: int):
         self._table.update(self._db_id, cavity_id=value)
-        self._process_callbacks()
+        self._populate('cavity_id')
 
 
 class PJTSealControl(wx.Notebook):

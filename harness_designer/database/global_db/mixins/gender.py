@@ -18,10 +18,6 @@ class GenderMixin(BaseMixin):
         gender_id = self._table.select('gender_id', id=self._db_id)
         return _gender.Gender(self._table.db.genders_table, gender_id[0][0])
 
-    @gender.setter
-    def gender(self, value: "_gender.Gender"):
-        self._table.update(self._db_id, gender_id=value.db_id)
-
     @property
     def gender_id(self) -> int:
         return self._table.select('gender_id', id=self._db_id)[0][0]
@@ -29,6 +25,7 @@ class GenderMixin(BaseMixin):
     @gender_id.setter
     def gender_id(self, value: int):
         self._table.update(self._db_id, gender_id=value)
+        self._populate('gender_id')
 
 
 class GenderControl(_prop_grid.ComboBoxProperty):

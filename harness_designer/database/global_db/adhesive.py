@@ -65,6 +65,7 @@ class Adhesive(EntryBase, DescriptionMixin):
     @code.setter
     def code(self, value: str):
         self._table.update(self._db_id, code=value)
+        self._populate('code')
 
     @property
     def accessory_part_nums(self) -> list[str]:
@@ -76,6 +77,7 @@ class Adhesive(EntryBase, DescriptionMixin):
     def accessory_part_nums(self, value: list[str]):
         value = f'[{", ".join(value)}]'
         self._table.update(self._db_id, accessory_part_nums=value)
+        self._populate('accessory_part_nums')
 
     @property
     def accessories(self) -> list["_accessory.Accessory"]:
@@ -89,59 +91,6 @@ class Adhesive(EntryBase, DescriptionMixin):
                 pass
 
         return res
-
-    @accessories.setter
-    def accessories(self, value: list["_accessory.Accessory"] | list[str]):
-        part_numbers = [accessory if isinstance(accessory, str)
-                        else accessory.part_number for accessory in value]
-
-        self._table.update(self._db_id, accessory_part_nums=str(part_numbers))
-
-    @property
-    def propgrid(self) -> _prop_grid.Property:
-        group_prop = _prop_grid.Property('Adhesive', 'adhesive')
-
-        rows = self.table.select('code, description')
-
-        choices = [item[0] for item in rows]
-        name_prop = _prop_grid.ComboBoxProperty('Code', 'code', self.code, choices)
-        desc_prop = _prop_grid.LongStringProperty('Description', 'description', self.description)
-
-        group_prop.Append(name_prop)
-        group_prop.Append(desc_prop)
-
-        return group_prop
-
-    def get_control(self, parent):
-        group = _prop_grid.Property(parent, 'Adhesive', 'adhesive')
-
-        self._table.execute(f'SELECT code, description, accessory_part_nums FROM adhesives WHERE id={self.db_id};')
-        rows = self._table.fetchall()
-
-        code, description, part_nums = rows[0]
-        part_nums = part_nums[1:-1].split(', ')
-
-        code_prop = _prop_grid.StringProperty(group, 'Code', 'code', code)
-        desc_prop = _prop_grid.LongStringProperty(group, 'Description', 'description', description)
-        nums_prop = _prop_grid.ArrayStringProperty(group, 'Accessories', 'accessories', part_nums)
-
-        def _on_code(evt: _prop_grid.PropertyEvent):
-            cde = evt.GetValue()
-            self.code = cde
-
-        def _on_desc(evt: _prop_grid.PropertyEvent):
-            desc = evt.GetValue()
-            self.description = desc
-
-        def _on_nums(evt: _prop_grid.PropertyEvent):
-            nums = evt.GetValue()
-            self.accessory_part_nums = nums
-
-        code_prop.Bind(_prop_grid.EVT_PROPERTY_CHANGED, _on_code)
-        desc_prop.Bind(_prop_grid.EVT_PROPERTY_CHANGED, _on_desc)
-        nums_prop.Bind(_prop_grid.EVT_PROPERTY_CHANGED, _on_nums)
-
-        return group
 
 
 from . import accessory as _accessory  # NOQA

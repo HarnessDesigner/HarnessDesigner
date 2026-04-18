@@ -1,0 +1,10 @@
+from . import header_600x80 as _header_600x80
+from . import header_1200x80 as _header_1200x80
+
+
+Header600x80 = _header_600x80.Header600x80
+Header1200x80 = _header_1200x80.Header1200x80
+
+
+del _header_600x80
+del _header_1200x80

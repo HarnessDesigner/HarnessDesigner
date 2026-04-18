@@ -32,7 +32,7 @@ from .mixins import (
 
 if TYPE_CHECKING:
     from . import pjt_cavity as _pjt_cavity
-    from . import pjt_accessory as _pjt_accessory
+    # from . import pjt_accessory as _pjt_accessory
     from . import pjt_point3d as _pjt_point3d
 
     from ..global_db import housing as _housing
@@ -224,6 +224,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     @cover_position3d_id.setter
     def cover_position3d_id(self, value: int):
         self._table.update(self._db_id, cover_point3d_id=value)
+        self._populate('cover_position3d_id')
 
     _stored_seal_position3d: "_pjt_point3d.PJTPoint3D" = None
 
@@ -254,6 +255,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     @seal_position3d_id.setter
     def seal_position3d_id(self, value: int):
         self._table.update(self._db_id, seal_point3d_id=value)
+        self._populate('seal_position3d_id')
 
     _stored_boot_position3d: "_pjt_point3d.PJTPoint3D" = None
 
@@ -284,6 +286,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     @boot_position3d_id.setter
     def boot_position3d_id(self, value: int):
         self._table.update(self._db_id, boot_point3d_id=value)
+        self._populate('boot_position3d_id')
 
     _stored_tpa_lock_1_position3d: "_pjt_point3d.PJTPoint3D" = None
 
@@ -314,6 +317,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     @tpa_lock_1_position3d_id.setter
     def tpa_lock_1_position3d_id(self, value: int):
         self._table.update(self._db_id, tpa_lock_1_point3d_id=value)
+        self._populate('tpa_lock_1_position3d_id')
 
     _stored_tpa_lock_2_position3d: "_pjt_point3d.PJTPoint3D" = None
 
@@ -344,6 +348,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     @tpa_lock_2_position3d_id.setter
     def tpa_lock_2_position3d_id(self, value: int):
         self._table.update(self._db_id, tpa_lock_2_point3d_id=value)
+        self._populate('tpa_lock_2_position3d_id')
 
     _stored_cpa_lock_position3d: "_pjt_point3d.PJTPoint3D" = None
 
@@ -374,6 +379,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     @cpa_lock_position3d_id.setter
     def cpa_lock_position3d_id(self, value: int):
         self._table.update(self._db_id, cpa_lock_point3d_id=value)
+        self._populate('cpa_lock_position3d_id')
 
     def add_cavity(self, index, name):
         cavities = self.cavities
@@ -390,7 +396,6 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
         cavity.name = name
 
-        self._process_callbacks()
         return cavity
 
     @property
@@ -711,6 +716,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
             pos_delta = new_pos - pos
             pos += pos_delta
+        self._populate('angle3d')
 
     def _update_angle2d(self, angle: _angle.Angle):
         quat = list(angle.as_quat_float)
@@ -718,6 +724,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
         self._table.update(self._db_id, quat2d=str(quat))
         self._table.update(self._db_id, angle2d=str(euler_angle))
+        self._populate('angle2d')
 
 
 class PJTHousingControl(wx.Notebook):

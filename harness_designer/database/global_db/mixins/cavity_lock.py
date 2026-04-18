@@ -19,10 +19,6 @@ class CavityLockMixin(BaseMixin):
 
         return CavityLock(self._table.db.cavity_locks_table, lock_id)
 
-    @cavity_lock.setter
-    def cavity_lock(self, value: "_cavity_lock.CavityLock"):
-        self._table.update(self._db_id, cavity_lock_id=value.db_id)
-
     @property
     def cavity_lock_id(self) -> int:
         return self._table.select('cavity_lock_id', id=self._db_id)[0][0]
@@ -30,6 +26,7 @@ class CavityLockMixin(BaseMixin):
     @cavity_lock_id.setter
     def cavity_lock_id(self, value: int):
         self._table.update(self._db_id, cavity_lock_id=value)
+        self._populate('cavity_lock_id')
 
 
 class CavityLockControl(_prop_grid.Property):

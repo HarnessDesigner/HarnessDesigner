@@ -45,6 +45,7 @@ class DimensionMixin(BaseMixin):
     @length.setter
     def length(self, value: float):
         self._table.update(self._db_id, length=value)
+        self._populate('length')
 
     @property
     def width(self) -> float:
@@ -53,6 +54,7 @@ class DimensionMixin(BaseMixin):
     @width.setter
     def width(self, value: float):
         self._table.update(self._db_id, width=value)
+        self._populate('width')
 
     @property
     def height(self) -> float:
@@ -61,6 +63,7 @@ class DimensionMixin(BaseMixin):
     @height.setter
     def height(self, value: float):
         self._table.update(self._db_id, height=value)
+        self._populate('height')
 
 
 class DimensionControl(_prop_grid.Category):

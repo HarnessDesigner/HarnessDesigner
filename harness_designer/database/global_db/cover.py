@@ -15,7 +15,7 @@ from .mixins import (
     ResourceMixin, ResourcesControl,
     WeightMixin, WeightControl,
     TemperatureMixin, TemperatureControl,
-    Model3DMixin,
+    Model3DMixin, Model3DControl,
     DimensionMixin, DimensionControl,
     CompatHousingsMixin, CompatHousingsControl,
     DirectionMixin, DirectionControl
@@ -27,7 +27,9 @@ class CoversTable(TableBase):
 
     def _load_database(self, splash):
         from ..create_database import covers
-        covers.add_records(self._con, splash)
+        data_path = self._con.db_data.open(splash)
+
+        covers.add_records(self._con, splash, data_path)
 
     def _table_needs_update(self) -> bool:
         from ..create_database import covers
@@ -183,6 +185,7 @@ class Cover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, Dir
     @pins.setter
     def pins(self, value: str):
         self._table.update(self._db_id, pins=value)
+        self._populate('pins')
 
 
 class CoverControl(wx.Notebook):
@@ -196,6 +199,8 @@ class CoverControl(wx.Notebook):
         self.temperature_page.set_obj(db_obj)
         self.dimension_page.set_obj(db_obj)
         self.resources_page.set_obj(db_obj)
+        self.model3d_page.set_obj(db_obj)
+
 
         self.part_number_ctrl.set_obj(db_obj)
         self.description_ctrl.set_obj(db_obj)
@@ -229,6 +234,8 @@ class CoverControl(wx.Notebook):
         compat_parts_page = _prop_grid.Category(self, 'Compatible Parts')
         self.compat_housing_ctrl = CompatHousingsControl(compat_parts_page)
 
+        self.model3d_page = Model3DControl(self)
+
         for page in (
             general_page,
             self.mfg_page,
@@ -237,7 +244,8 @@ class CoverControl(wx.Notebook):
             self.temperature_page,
             self.dimension_page,
             self.resources_page,
-            compat_parts_page
+            compat_parts_page,
+            self.model3d_page
         ):
             self.AddPage(page, page.GetLabel())
             page.Realize()

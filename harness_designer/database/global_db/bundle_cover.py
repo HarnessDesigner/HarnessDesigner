@@ -1,12 +1,24 @@
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
-from ...ui.editor_obj import prop_grid as _prop_grid
+import wx
 
+from ...ui.editor_obj import prop_grid as _prop_grid
 from .bases import EntryBase, TableBase
-from .mixins import (PartNumberMixin, ManufacturerMixin, DescriptionMixin,
-                     ResourceMixin, TemperatureMixin, ColorMixin, SeriesMixin,
-                     MaterialMixin, ProtectionMixin, AdhesiveMixin, WeightMixin,
-                     FamilyMixin)
+
+from .mixins import (
+    PartNumberMixin, PartNumberControl,
+    ManufacturerMixin, ManufacturerControl,
+    DescriptionMixin, DescriptionControl,
+    ResourceMixin, ResourcesControl,
+    TemperatureMixin, TemperatureControl,
+    ColorMixin, ColorControl,
+    SeriesMixin, SeriesControl,
+    MaterialMixin, MaterialControl,
+    ProtectionMixin, ProtectionControl,
+    AdhesiveMixin, AdhesiveControl,
+    WeightMixin, WeightControl,
+    FamilyMixin, FamilyControl
+)
 
 
 if TYPE_CHECKING:
@@ -197,6 +209,7 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
     @rigidity.setter
     def rigidity(self, value: str):
         self._table.update(self._db_id, rigidity=value)
+        self._populate('rigidity')
 
     @property
     def shrink_temp(self) -> "_temperature.Temperature":
@@ -212,6 +225,7 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
     @shrink_temp_id.setter
     def shrink_temp_id(self, value: int):
         self._table.update(self._db_id, shrink_temp_id=value)
+        self._populate('shrink_temp_id')
 
     @property
     def shrink_ratio(self) -> str:
@@ -220,6 +234,7 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
     @shrink_ratio.setter
     def shrink_ratio(self, value: str):
         self._table.update(self._db_id, shrink_ratio=value)
+        self._populate('shrink_ratio')
 
     @property
     def wall(self) -> str:
@@ -228,7 +243,8 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
     @wall.setter
     def wall(self, value: str):
         self._table.update(self._db_id, wall=value)
-    
+        self._populate('wall')
+
     @property
     def min_dia(self) -> float:
         return self._table.select('min_dia', id=self._db_id)[0][0]
@@ -236,7 +252,8 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
     @min_dia.setter
     def min_dia(self, value: float):
         self._table.update(self._db_id, min_dia=round(value, 6))
-        
+        self._populate('min_dia')
+
     @property
     def max_dia(self) -> float:
         return self._table.select('max_dia', id=self._db_id)[0][0]
@@ -244,58 +261,162 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
     @max_dia.setter
     def max_dia(self, value: float):
         self._table.update(self._db_id, max_dia=round(value, 6))
+        self._populate('max_dia')
 
-    @property
-    def propgrid(self) -> _prop_grid.Category:
-        part_cat = _prop_grid.Category('Part Attributes')
-        
-        part_number_prop = self._part_number_propgrid
-        manufacturer_prop = self._manufacturer_propgrid
-        description_prop = self._description_propgrid
-        family_prop = self._family_propgrid
-        series_prop = self._series_propgrid
-        material_prop = self._material_propgrid
-        color_prop = self._color_propgrid
-        temperature_prop = self._temperature_propgrid
-        weight_prop = self._weight_propgrid
-        resource_prop = self._resource_propgrid
-        adhesives_prop = self._adhesives_propgrid
-        shrink_temp_prop = self.shrink_temp.propgrid
 
-        shrink_temp_prop.SetLabel('Shrink Temperature')
+class BundleCoverControl(wx.Notebook):
 
-        rigidity_prop = _prop_grid.StringProperty('Rigidity', 'rigidity', self.rigidity)
-        shrink_ratio_prop = _prop_grid.StringProperty('Shrink Ratio', 'shrink_ratio', self.shrink_ratio)
-        wall_prop = _prop_grid.StringProperty('Wall', 'wall', self.wall)
+    def set_obj(self, db_obj: BundleCover):
+        self.db_obj = db_obj
 
-        diameter_prop = _prop_grid.Property('Diameter')
+        self.mfg_page.set_obj(db_obj)
+        self.family_page.set_obj(db_obj)
+        self.series_page.set_obj(db_obj)
+        self.temperature_page.set_obj(db_obj)
+        self.resources_page.set_obj(db_obj)
 
-        min_dia_prop = _prop_grid.FloatProperty(
-            'Minimum', 'min_dia', self.min_dia, min_value=0.01,
+        self.part_number_ctrl.set_obj(db_obj)
+        self.description_ctrl.set_obj(db_obj)
+        self.color_ctrl.set_obj(db_obj)
+        self.material_ctrl.set_obj(db_obj)
+        self.weight_ctrl.set_obj(db_obj)
+        self.adhesive_ctrl.set_obj(db_obj)
+        self.protection_ctrl.set_obj(db_obj)
+
+        if db_obj is None:
+            self.shrink_temp_choices = []
+
+            self.shrink_temp_ctrl.SetItems(self.shrink_temp_choices)
+            self.shrink_temp_ctrl.SetValue('')
+            self.rigidity_ctrl.SetValue('')
+            self.shrink_ratio_ctrl.SetValue('')
+            self.wall_ctrl.SetValue('')
+            self.min_dia_ctrl.SetValue(0.0)
+            self.max_dia_ctrl.SetValue(0.0)
+
+            self.shrink_temp_ctrl.Enable(False)
+            self.rigidity_ctrl.Enable(False)
+            self.shrink_ratio_ctrl.Enable(False)
+            self.wall_ctrl.Enable(False)
+            self.min_dia_ctrl.Enable(False)
+            self.max_dia_ctrl.Enable(False)
+        else:
+            db_obj.table.execute(f'SELECT name FROM temperatures;')
+            rows = db_obj.table.fetchall()
+            self.shrink_temp_choices = sorted([row[0] for row in rows])
+
+            self.shrink_temp_ctrl.SetItems(self.shrink_temp_choices)
+            self.shrink_temp_ctrl.SetValue(db_obj.min_temp.name)
+
+            self.rigidity_ctrl.SetValue(db_obj.rigidity)
+            self.shrink_ratio_ctrl.SetValue(db_obj.shrink_ratio)
+            self.wall_ctrl.SetValue(db_obj.wall)
+            self.min_dia_ctrl.SetValue(db_obj.min_dia)
+            self.max_dia_ctrl.SetValue(db_obj.max_dia)
+
+            self.shrink_temp_ctrl.Enable(True)
+            self.rigidity_ctrl.Enable(True)
+            self.shrink_ratio_ctrl.Enable(True)
+            self.wall_ctrl.Enable(True)
+            self.min_dia_ctrl.Enable(True)
+            self.max_dia_ctrl.Enable(True)
+
+    def _on_rigidity(self, evt):
+        value = evt.GetValue()
+        self.db_obj.rigidity = value
+
+    def _on_shrink_ratio(self, evt):
+        value = evt.GetValue()
+        self.db_obj.shrink_ratio = value
+
+    def _on_wall(self, evt):
+        value = evt.GetValue()
+        self.db_obj.wall = value
+
+    def _on_min_dia(self, evt):
+        value = evt.GetValue()
+        self.db_obj.min_dia = value
+
+    def _on_max_dia(self, evt):
+        value = evt.GetValue()
+        self.db_obj.max_dia = value
+
+    def _on_shrink_temp(self, evt):
+        value = evt.GetValue()
+        self.db_obj.rigidity = value
+
+        name = evt.GetValue()
+
+        self.db_obj.table.execute(f'SELECT id FROM temperatures WHERE name="{name}";')
+        rows = self.db_obj.table.fetchall()
+
+        if rows:
+            db_id, desc = rows[0]
+        else:
+            db_obj = self.db_obj.table.db.temperatures_table.insert(name)
+            db_id = db_obj.db_id
+
+            self.shrink_temp_choices.append(name)
+            self.shrink_temp_choices.sort()
+
+            self.shrink_temp_ctrl.SetItems(self.shrink_temp_choices)
+            self.shrink_temp_ctrl.SetValue(name)
+
+        self.db_obj.shrink_temp_id = db_id
+
+    def __init__(self, parent):
+        self.db_obj: BundleCover = None
+
+        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+
+        general_page = _prop_grid.Category(self, 'General')
+
+        self.part_number_ctrl = PartNumberControl(general_page)
+        self.description_ctrl = DescriptionControl(general_page)
+        self.color_ctrl = ColorControl(general_page)
+        self.material_ctrl = MaterialControl(general_page)
+        self.adhesive_ctrl = AdhesiveControl(general_page)
+        self.weight_ctrl = WeightControl(general_page)
+        self.protection_ctrl = ProtectionControl(general_page)
+
+        self.rigidity_ctrl = _prop_grid.StringProperty(general_page, 'Rigidity', '')
+        self.shrink_ratio_ctrl = _prop_grid.StringProperty(general_page, 'Shrink Ratio', '')
+        self.wall_ctrl = _prop_grid.StringProperty(general_page, 'Wall', '')
+
+        self.rigidity_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_rigidity)
+        self.shrink_ratio_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_shrink_ratio)
+        self.wall_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_wall)
+
+        self.diameter_page = _prop_grid.Property(self, 'Diameter')
+
+        self.min_dia_ctrl = _prop_grid.FloatProperty(
+            self.diameter_page, 'Minimum', 0.0, min_value=0.00,
             max_value=999.9, increment=0.01, units='mm')
 
-        max_dia_prop = _prop_grid.FloatProperty(
-            'Maximum', 'max_dia', self.max_dia, min_value=0.01,
+        self.max_dia_ctrl = _prop_grid.FloatProperty(
+            self.diameter_page, 'Maximum', 0.0, min_value=0.00,
             max_value=999.9, increment=0.01, units='mm')
 
-        diameter_prop.Append(min_dia_prop)
-        diameter_prop.Append(max_dia_prop)
+        self.min_dia_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_min_dia)
+        self.max_dia_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_max_dia)
 
-        part_cat.Append(part_number_prop)
-        part_cat.Append(manufacturer_prop)
-        part_cat.Append(description_prop)
-        part_cat.Append(family_prop)
-        part_cat.Append(series_prop)
-        part_cat.Append(diameter_prop)
-        part_cat.Append(shrink_ratio_prop)
-        part_cat.Append(shrink_temp_prop)
-        part_cat.Append(color_prop)
-        part_cat.Append(wall_prop)
-        part_cat.Append(temperature_prop)
-        part_cat.Append(rigidity_prop)
-        part_cat.Append(weight_prop)
-        part_cat.Append(resource_prop)
-        part_cat.Append(material_prop)
-        part_cat.Append(adhesives_prop)
+        self.mfg_page = ManufacturerControl(self)
+        self.family_page = FamilyControl(self)
+        self.series_page = SeriesControl(self)
+        self.temperature_page = TemperatureControl(self)
+        self.resources_page = ResourcesControl(self)
 
-        return part_cat
+        self.shrink_temp_choices: list[str] = []
+        self.shrink_temp_ctrl = _prop_grid.ComboBoxProperty(self.temperature_page, 'Shrink Temperature', '', [])
+        self.shrink_temp_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_shrink_temp)
+
+        for page in (
+            general_page,
+            self.mfg_page,
+            self.family_page,
+            self.series_page,
+            self.temperature_page,
+            self.resources_page,
+        ):
+            self.AddPage(page, page.GetLabel())
+            page.Realize()

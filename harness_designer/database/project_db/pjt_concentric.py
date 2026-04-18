@@ -121,7 +121,7 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
     @bundle_id.setter
     def bundle_id(self, value: int):
         self._table.update(self._db_id, bundle_id=value)
-        self._process_callbacks()
+        self._populate('bundle_id')
 
     @property
     def transition_branch(self) -> "_pjt_transition_branches.PJTTransitionBranch":
@@ -138,7 +138,7 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
     @transition_branch_id.setter
     def transition_branch_id(self, value: int):
         self._table.update(self._db_id, transition_branch_id=value)
-        self._process_callbacks()
+        self._populate('transition_branch_id')
 
     @property
     def propgrid(self) -> _prop_grid.Category:

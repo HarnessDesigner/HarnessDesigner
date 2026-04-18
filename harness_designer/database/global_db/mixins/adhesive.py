@@ -30,6 +30,7 @@ class AdhesiveMixin(BaseMixin):
     @adhesive_ids.setter
     def adhesive_ids(self, value: list[str]):
         self._table.update(self._db_id, adhesive_ids=str(value))
+        self._populate('adhesive_ids')
 
 
 class AdhesiveControl(_prop_grid.ArrayStringProperty):

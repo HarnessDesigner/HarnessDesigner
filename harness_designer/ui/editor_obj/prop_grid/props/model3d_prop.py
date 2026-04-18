@@ -114,6 +114,10 @@ class Model3DProperty(_prop_base.Property):
 
         self._sizer.Add(hsizer, 0, wx.EXPAND)
 
+    def SetFileTypes(self, file_types):
+        self._file_types = file_types
+        self._image.SetFileTypes(file_types)
+
     def _on_path_changed(self, _):
         path = self._ctrl.GetValue()
         if path == self._value:

@@ -12,6 +12,7 @@ class WeightMixin(BaseMixin):
     @weight.setter
     def weight(self, value: float):
         self._table.update(self._db_id, weight=value)
+        self._populate('weight')
 
 
 class WeightControl(_prop_grid.FloatProperty):

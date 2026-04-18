@@ -3,11 +3,19 @@ from typing import TYPE_CHECKING, Iterable as _Iterable
 import math
 import numpy as np
 import weakref
+import wx
+
 from ...ui.editor_obj import prop_grid as _prop_grid
-
 from .pjt_bases import PJTEntryBase, PJTTableBase
-
-from .mixins import Angle3DMixin, StartStopPosition3DMixin, PartMixin, Visible3DMixin, Visible2DMixin, NameMixin
+from ..global_db import wire as _wire
+from .mixins import (
+    Angle3DMixin, Angle3DControl,
+    StartStopPosition3DMixin, StartStopPosition3DControl,
+    PartMixin,
+    Visible3DMixin, Visible3DControl,
+    NameMixin, NameControl,
+    NotesMixin,  NotesControl
+)
 
 
 if TYPE_CHECKING:
@@ -15,13 +23,25 @@ if TYPE_CHECKING:
     from . import pjt_terminal as _pjt_terminal
     from . import pjt_wire as _pjt_wire
 
-    from ..global_db import wire as _wire
-
     from ...objects import wire_service_loop as _wire_service_loop_obj
 
 
 class PJTWireServiceLoopsTable(PJTTableBase):
     __table_name__ = 'pjt_wire_service_loops'
+
+    _control: "PJTWireServiceLoopControl" = None
+
+    @property
+    def control(self) -> "PJTWireServiceLoopControl":
+        if self._control is None:
+            raise RuntimeError('sanity check')
+
+        return self._control
+
+    @classmethod
+    def start_control(cls, mainframe):
+        cls._control = PJTWireServiceLoopControl(mainframe)
+        cls._control.Show(False)
 
     def _table_needs_update(self) -> bool:
         from ..create_database import wire_service_loops
@@ -63,7 +83,7 @@ class PJTWireServiceLoopsTable(PJTTableBase):
 
 
 class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
-                         PartMixin, Visible3DMixin, Visible2DMixin, NameMixin):
+                         PartMixin, Visible3DMixin, NotesMixin, NameMixin):
 
     _table: PJTWireServiceLoopsTable = None
 
@@ -102,8 +122,11 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
         start_position_id = self.start_position3d_id
         stop_position_id = self.stop_position3d_id
 
-        start_position_ids = self.table.db.pjt_terminals_table.select('id', wire_point3d_id=start_position_id)[0][0]
-        stop_position_ids = self.table.db.pjt_terminals_table.select('id', wire_point3d_id=stop_position_id)[0][0]
+        start_position_ids = self.table.db.pjt_terminals_table.select(
+            'id', wire_point3d_id=start_position_id)[0][0]
+
+        stop_position_ids = self.table.db.pjt_terminals_table.select(
+            'id', wire_point3d_id=stop_position_id)[0][0]
 
         if start_position_ids:
             return self.table.db.pjt_terminals_table[start_position_ids[0][0]]
@@ -116,8 +139,11 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
         start_position_id = self.start_position3d_id
         stop_position_id = self.stop_position3d_id
 
-        start_position_ids = self.table.db.pjt_wires_table.select('id', wire_point3d_id=start_position_id)[0][0]
-        stop_position_ids = self.table.db.pjt_wires_table.select('id', wire_point3d_id=stop_position_id)[0][0]
+        start_position_ids = self.table.db.pjt_wires_table.select(
+            'id', wire_point3d_id=start_position_id)[0][0]
+
+        stop_position_ids = self.table.db.pjt_wires_table.select(
+            'id', wire_point3d_id=stop_position_id)[0][0]
 
         if start_position_ids:
             return self.table.db.pjt_wires_table[start_position_ids[0][0]]
@@ -131,7 +157,9 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
         pitch = diameter + diameter * 0.15
         height = diameter + diameter * 0.15
 
-        length = (height / pitch) * math.sqrt(math.pow(math.pi * diameter, 2.0) + math.pow(pitch, 2.0))
+        length = ((height / pitch) *
+                  math.sqrt(math.pow(math.pi * diameter, 2.0) +
+                            math.pow(pitch, 2.0)))
         length += diameter
 
         return length
@@ -190,7 +218,7 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
             self._stored_circuit = None
 
         self._table.update(self._db_id, circuit_id=value)
-        self._process_callbacks()
+        self._populate('circuit_id')
 
     @property
     def is_visible(self) -> bool:
@@ -199,7 +227,7 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
     @is_visible.setter
     def is_visible(self, value: bool):
         self._table.update(self._db_id, is_visible=int(value))
-        self._process_callbacks()
+        self._populate('is_visible')
 
     _stored_part: "_wire.Wire" = None
 
@@ -217,24 +245,58 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
 
         return self._stored_part
 
-    @property
-    def propgrid(self) -> tuple[_prop_grid.Category, _prop_grid.Category]:
-        group = _prop_grid.Category('Project')
 
-        notes_prop = self._notes_propgrid
-        name_prop = self._name_propgrid
-        angle_prop = self._angle3d_propgrid
-        position_prop = self._position3d_propgrid
-        housing_prop = self._housing_propgrid
-        visible_prop = self._visible3d_propgrid
+class PJTWireServiceLoopControl(wx.Notebook):
 
-        group.Append(name_prop)
-        group.Append(notes_prop)
-        group.Append(angle_prop)
-        group.Append(position_prop)
-        group.Append(visible_prop)
-        group.Append(housing_prop)
+    def set_obj(self, db_obj: PJTWireServiceLoop):
+        self.db_obj = db_obj
 
-        part_prop = self._part_propgrid
+        self.name_ctrl.set_obj(db_obj)
+        self.note_ctrl.set_obj(db_obj)
+        self.angle3d_ctrl.set_obj(db_obj)
+        self.position3d_ctrl.set_obj(db_obj)
+        self.visible3d_ctrl.set_obj(db_obj)
 
-        return group, part_prop
+        if db_obj is None:
+            self.wire_ctrl.set_obj(None)
+            self.circuit_ctrl.set_obj(None)
+
+        else:
+            self.wire_ctrl.set_obj(db_obj.part)
+            self.circuit_ctrl.set_obj(db_obj.circuit)
+
+
+    def __init__(self, parent):
+        self.db_obj: PJTWireServiceLoop = None
+
+        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+
+        general_page = _prop_grid.Category(self, 'General')
+        self.name_ctrl = NameControl(general_page)
+        self.note_ctrl = NotesControl(general_page)
+
+        angle_page = _prop_grid.Category(self, 'Angle')
+        self.angle3d_ctrl = Angle3DControl(angle_page)
+
+        position_page = _prop_grid.Category(self, 'Position')
+        self.position3d_ctrl = StartStopPosition3DControl(position_page)
+
+        visible_page = _prop_grid.Category(self, 'Visible')
+        self.visible3d_ctrl = Visible3DControl(visible_page)
+
+        circuit_page = _prop_grid.Category(self, 'Circuit')
+        self.circuit_ctrl = _pjt_circuit.PJTCircuitControl(circuit_page)
+
+        part_page = _prop_grid.Category(self, 'Part')
+        self.wire_ctrl = _wire.WireControl(part_page)
+
+        for page in (
+            general_page,
+            angle_page,
+            position_page,
+            visible_page,
+            circuit_page,
+            part_page
+        ):
+            self.AddPage(page, page.GetLabel())
+            page.Realize()

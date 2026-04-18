@@ -15,7 +15,7 @@ from .mixins import (
     ResourceMixin, ResourcesControl,
     WeightMixin, WeightControl,
     TemperatureMixin, TemperatureControl,
-    Model3DMixin,
+    Model3DMixin, Model3DControl,
     DimensionMixin, DimensionControl,
     CompatHousingsMixin, CompatHousingsControl
 )
@@ -191,22 +191,7 @@ class CPALock(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     @type_id.setter
     def type_id(self, value: int):
         self._table.update(self._db_id, type_id=value)
-
-    @property
-    def pins(self) -> str:
-        return self._table.select('pins', id=self._db_id)[0][0]
-
-    @pins.setter
-    def pins(self, value: str):
-        self._table.update(self._db_id, pins=value)
-
-    @property
-    def terminal_size(self) -> float:
-        return self._table.select('terminal_size', id=self._db_id)[0][0]
-
-    @terminal_size.setter
-    def terminal_size(self, value: float):
-        self._table.update(self._db_id, terminal_size=value)
+        self._populate('type_id')
 
 
 class CPALockControl(wx.Notebook):
@@ -220,6 +205,7 @@ class CPALockControl(wx.Notebook):
         self.temperature_page.set_obj(db_obj)
         self.dimension_page.set_obj(db_obj)
         self.resources_page.set_obj(db_obj)
+        self.model3d_page.set_obj(db_obj)
 
         self.part_number_ctrl.set_obj(db_obj)
         self.description_ctrl.set_obj(db_obj)
@@ -251,6 +237,8 @@ class CPALockControl(wx.Notebook):
         compat_parts_page = _prop_grid.Category(self, 'Compatible Parts')
         self.compat_housing_ctrl = CompatHousingsControl(compat_parts_page)
 
+        self.model3d_page = Model3DControl(self)
+
         for page in (
             general_page,
             self.mfg_page,
@@ -259,7 +247,8 @@ class CPALockControl(wx.Notebook):
             self.temperature_page,
             self.dimension_page,
             self.resources_page,
-            compat_parts_page
+            compat_parts_page,
+            self.model3d_page
         ):
             self.AddPage(page, page.GetLabel())
             page.Realize()

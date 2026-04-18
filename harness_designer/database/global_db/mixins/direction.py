@@ -18,10 +18,6 @@ class DirectionMixin(BaseMixin):
         direction_id = self._table.select('direction_id', id=self._db_id)
         return _direction.Direction(self._table.db.directions_table, direction_id[0][0])
 
-    @direction.setter
-    def direction(self, value: "_direction.Direction"):
-        self._table.update(self._db_id, direction_id=value.db_id)
-
     @property
     def direction_id(self) -> int:
         return self._table.select('direction_id', id=self._db_id)[0][0]
@@ -29,11 +25,7 @@ class DirectionMixin(BaseMixin):
     @direction_id.setter
     def direction_id(self, value: int):
         self._table.update(self._db_id, direction_id=value)
-
-    @property
-    def _direction_propgrid(self) -> _prop_grid.Property:
-        prop = self.direction.propgrid
-        return prop
+        self._populate('direction_id')
 
 
 class DirectionControl(_prop_grid.ComboBoxProperty):

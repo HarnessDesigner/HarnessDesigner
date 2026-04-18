@@ -15,7 +15,7 @@ from .mixins import (
     ResourceMixin, ResourcesControl,
     WeightMixin, WeightControl,
     TemperatureMixin, TemperatureControl,
-    Model3DMixin,
+    Model3DMixin, Model3DControl,
     DimensionMixin, DimensionControl,
     CompatHousingsMixin, CompatHousingsControl,
     DirectionMixin, DirectionControl
@@ -174,6 +174,7 @@ class BootControl(wx.Notebook):
         self.temperature_page.set_obj(db_obj)
         self.dimension_page.set_obj(db_obj)
         self.resources_page.set_obj(db_obj)
+        self.model3d_page.set_obj(db_obj)
 
         self.part_number_ctrl.set_obj(db_obj)
         self.description_ctrl.set_obj(db_obj)
@@ -207,6 +208,8 @@ class BootControl(wx.Notebook):
         compat_parts_page = _prop_grid.Category(self, 'Compatible Parts')
         self.compat_housing_ctrl = CompatHousingsControl(compat_parts_page)
 
+        self.model3d_page = Model3DControl(self)
+
         for page in (
             general_page,
             self.mfg_page,
@@ -215,7 +218,8 @@ class BootControl(wx.Notebook):
             self.temperature_page,
             self.dimension_page,
             self.resources_page,
-            compat_parts_page
+            compat_parts_page,
+            self.model3d_page
         ):
             self.AddPage(page, page.GetLabel())
             page.Realize()

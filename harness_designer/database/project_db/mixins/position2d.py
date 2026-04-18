@@ -41,6 +41,7 @@ class Position2DMixin(BaseMixin):
     @position2d_id.setter
     def position2d_id(self, value: int):
         self._table.update(self._db_id, point2d_id=value)
+        self._populate('position2d_id')
 
 
 class Position2DControl(_prop_grid.Position2DProperty):

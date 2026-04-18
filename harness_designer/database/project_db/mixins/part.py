@@ -10,3 +10,4 @@ class PartMixin(BaseMixin):
     @part_id.setter
     def part_id(self, value: int):
         self._table.update(self._db_id, part_id=value)
+        self._populate('part_id')

@@ -116,7 +116,7 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin):
     @transition_id.setter
     def transition_id(self, value: int):
         self._table.update(self._db_id, transition_id=value)
-        self._process_callbacks()
+        self._populate('transition_id')
 
     @property
     def branch_id(self) -> int:
@@ -125,7 +125,7 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin):
     @branch_id.setter
     def branch_id(self, value: int):
         self._table.update(self._db_id, branch_id=value)
-        self._process_callbacks()
+        self._populate('branch_id')
 
     @property
     def diameter(self) -> float:
@@ -134,7 +134,7 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin):
     @diameter.setter
     def diameter(self, value: float):
         self._table.update(self._db_id, diameter=value)
-        self._process_callbacks()
+        self._populate('diameter')
 
     _stored_part: "_transition_branch.TransitionBranch" = None
 

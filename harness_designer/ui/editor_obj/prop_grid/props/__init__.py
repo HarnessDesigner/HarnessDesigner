@@ -16,6 +16,8 @@ from . import autocomplete_string_prop as _autocomplete_string_prop
 from . import angle3d_prop as _angle3d_prop
 from . import position2d_prop as _position2d_prop
 from . import position3d_prop as _position3d_prop
+from . import path_prop as _path_prop
+from . import enum_prop as _enum_prop
 
 
 BoolProperty = _bool_prop.BoolProperty
@@ -36,6 +38,9 @@ AutocompleteStringProperty = _autocomplete_string_prop.AutocompleteStringPropert
 Angle3DProperty = _angle3d_prop.Angle3DProperty
 Position2DProperty = _position2d_prop.Position2DProperty
 Position3DProperty = _position3d_prop.Position3DProperty
+PathProperty = _path_prop.PathProperty
+EnumProperty = _enum_prop.EnumProperty
+
 
 del _string_prop
 del _long_string_prop
@@ -55,3 +60,5 @@ del _autocomplete_string_prop
 del _angle3d_prop
 del _position2d_prop
 del _position3d_prop
+del _path_prop
+del _enum_prop

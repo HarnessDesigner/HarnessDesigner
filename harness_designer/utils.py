@@ -13,39 +13,65 @@ from .geometry import point as _point
 from .geometry.decimal import Decimal as _d
 
 
-def mm2_to_awg(mm2: float | int | _d) -> int:
+def mm2_to_awg(mm2: float | _d) -> int:
     d_mm = _d(2.0) * _d(math.sqrt(_d(mm2) / _d(math.pi)))
     d_in = d_mm / _d(25.4)
     awg = _d(36) - _d(39) * _d(math.log(float(d_in / _d(0.005)), 92))
     return int(round(awg))
 
 
-def mm2_to_d_mm(mm2: float | int | _d) -> float:
+def mm2_to_d_mm(mm2: float | _d) -> float:
     d_mm = _d(2.0) * _d(math.sqrt(_d(mm2) / _d(math.pi)))
     return float(round(d_mm, 4))
 
 
-def d_mm_to_mm2(d_mm: float | int | _d) -> float:
+def d_mm_to_mm2(d_mm: float | _d) -> float:
     mm2 = _d(d_mm) / _d(2.0)
     mm2 *= mm2
     mm2 *= _d(math.pi)
     return float(round(mm2, 4))
 
 
-def mm2_to_in2(mm2: float | int | _d) -> float:
+def mm2_to_in2(mm2: float | _d) -> float:
     in2 = _d(mm2) / _d(25.4)
     return float(round(in2, 4))
 
 
-def in2_to_mm2(in2: float | int | _d) -> float:
+def in2_to_mm2(in2: float | _d) -> float:
     mm2 = _d(in2) * _d(25.4)
     return float(round(mm2, 4))
 
 
-def mm2_to_d_in(mm2: float | int | _d) -> float:
+def mm2_to_d_in(mm2: float | _d) -> float:
     d_mm = mm2_to_d_mm(mm2)
     d_in = _d(d_mm) / _d(25.4)
     return float(round(d_in, 4))
+
+
+def awg_to_d_mm(awg: int | _d) -> float:
+    return mm2_to_d_mm(awg_to_mm2(awg))
+
+
+def awg_to_mm2(awg: int | _d) -> float:
+    d_in = _d(0.005) * (_d(92) ** ((_d(36) - _d(awg)) / _d(39)))
+    d_mm = d_in * _d(25.4)
+    area_mm2 = (_d(math.pi) / _d(4)) * (d_mm ** _d(2))
+    return float(round(area_mm2, 4))
+
+
+def d_mm_to_awg(d_mm: float | _d) -> int:
+    area_mm2 = (_d(math.pi) / _d(4)) * (_d(d_mm) ** _d(2))
+    return mm2_to_awg(area_mm2)
+
+
+def awg_to_d_in(awg: int | _d) -> float:
+    d_in = _d(0.005) * (_d(92) ** ((_d(36) - _d(awg)) / _d(39)))
+    return float(round(d_in, 4))
+
+
+def d_in_to_d_mm(d_in: float | _d) -> float:
+    d_mm = _d(d_in) * _d(25.4)
+    return float(round(d_mm, 4))
 
 
 def get_appdata():

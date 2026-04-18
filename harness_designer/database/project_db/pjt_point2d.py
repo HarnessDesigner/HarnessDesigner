@@ -1,7 +1,5 @@
 from typing import Iterable as _Iterable
 
-from ...ui.editor_obj import prop_grid as _prop_grid
-
 from .pjt_bases import PJTEntryBase, PJTTableBase
 
 from ...geometry import point as _point
@@ -65,7 +63,6 @@ class PJTPoint2D(PJTEntryBase):
     @x.setter
     def x(self, value: float):
         self._table.update(self._db_id, x=value)
-        self._process_callbacks()
 
     @property
     def y(self) -> float:
@@ -74,7 +71,6 @@ class PJTPoint2D(PJTEntryBase):
     @y.setter
     def y(self, value: float):
         self._table.update(self._db_id, y=value)
-        self._process_callbacks()
 
     _stored_point2d: _point.Point = None
 
@@ -82,23 +78,10 @@ class PJTPoint2D(PJTEntryBase):
     def point(self) -> _point.Point:
         if self._stored_point2d is None:
             self._stored_point2d = _point.Point(self.x, self.y, db_id=str(self.db_id) + '2d')
-            self._stored_point2d.bind(self.__update_point)
+            self._stored_point2d.bind(self._update_point)
 
         return self._stored_point2d
 
-    def __update_point(self, point: _point.Point):
-        x, y, z = point.as_float
+    def _update_point(self, point: _point.Point):
+        x, y = point.as_float[:-1]
         self._table.update(self._db_id, x=x, y=y)
-        self._process_callbacks()
-
-    @property
-    def propgrid(self) -> _prop_grid.Property:
-        group = _prop_grid.Property('2D Position', 'position2d')
-        x = _prop_grid.FloatProperty('X', 'x', self.x, min_value=-99999.9, max_value=99999.99, increment=0.1)
-        y = _prop_grid.FloatProperty('Y', 'y', self.y, min_value=-99999.9, max_value=99999.99, increment=0.1)
-
-        group.Append(x)
-        group.Append(y)
-
-        return group
-

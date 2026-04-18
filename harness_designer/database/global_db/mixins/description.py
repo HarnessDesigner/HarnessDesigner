@@ -12,6 +12,7 @@ class DescriptionMixin(BaseMixin):
     @description.setter
     def description(self, value: str):
         self._table.update(self._db_id, description=value)
+        self._populate('description')
 
 
 class DescriptionControl(_prop_grid.LongStringProperty):

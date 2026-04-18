@@ -1,11 +1,23 @@
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
-from ...ui.editor_obj import prop_grid as _prop_grid
+import wx
 
+from ...ui.editor_obj import prop_grid as _prop_grid
 from .bases import EntryBase, TableBase
-from .mixins import (PartNumberMixin, SeriesMixin, MaterialMixin, FamilyMixin,
-                     ManufacturerMixin, DescriptionMixin, ColorMixin, ProtectionMixin,
-                     AdhesiveMixin, ResourceMixin, TemperatureMixin, WeightMixin)
+from .mixins import (
+    PartNumberMixin, PartNumberControl,
+    SeriesMixin, SeriesControl,
+    MaterialMixin, MaterialControl,
+    FamilyMixin, FamilyControl,
+    ManufacturerMixin, ManufacturerControl,
+    DescriptionMixin, DescriptionControl,
+    ColorMixin, ColorControl,
+    ProtectionMixin, ProtectionControl,
+    AdhesiveMixin, AdhesiveControl,
+    ResourceMixin, ResourcesControl,
+    TemperatureMixin, TemperatureControl,
+    WeightMixin, WeightControl
+)
 
 
 if TYPE_CHECKING:
@@ -167,6 +179,7 @@ class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyM
     @branch_count.setter
     def branch_count(self, value: int):
         self._table.update(self._db_id, branch_count=value)
+        self._populate('branch_count')
 
     @property
     def branches(self) -> list["_transition_branch.TransitionBranch"]:
@@ -187,10 +200,6 @@ class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyM
 
         return Shape(self._table.db.shapes_table, shape_id)
 
-    @shape.setter
-    def shape(self, value: "_shape.Shape"):
-        self._table.update(self._db_id, shape_id=value.db_id)
-
     @property
     def shape_id(self) -> int:
         return self._table.select('shape_id', id=self._db_id)[0][0]
@@ -198,52 +207,124 @@ class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyM
     @shape_id.setter
     def shape_id(self, value: int):
         self._table.update(self._db_id, shape_id=value)
+        self._populate('shape_id')
 
-    @property
-    def propgrid(self) -> _prop_grid.Category:
 
-        part_cat = _prop_grid.Category('Part Attributes')
-        
-        part_number_prop = self._part_number_propgrid
-        manufacturer_prop = self._manufacturer_propgrid
-        description_prop = self._description_propgrid
-        family_prop = self._family_propgrid
-        series_prop = self._series_propgrid
-        color_prop = self._color_propgrid
-        temperature_prop = self._temperature_propgrid
-        resource_prop = self._resource_propgrid
-        material_prop = self._material_propgrid
-        shape_prop = self.shape.propgrid
-        protection_prop = self._protections_propgrid
-        weight_prop = self._weight_propgrid
+class TransitionControl(wx.Notebook):
 
-        adhesives_prop = self._adhesives_propgrid
+    def set_obj(self, db_obj: Transition):
+        if self.db_obj is not None:
+            for i in range(self.branch_count_ctrl.GetValue()):
+                self.branch_page.RemovePage(i)
 
-        branch_count_prop = _prop_grid.IntProperty(
-            'Branch Count', 'branch_count', self.branch_count, min_value=1, max_value=6)
+                branch = self.branches[i]
+                branch.Show(False)
+                branch.Reparent(self.db_obj.table.db.mainframe)
 
-        branches_prop = _prop_grid.Property('Branches')
+            self.branches = []
 
-        for branch in self.branches:
-            if branch is None:
-                continue
+        self.db_obj = db_obj
 
-            branches_prop.Append(branch.propgrid)
+        self.mfg_page.set_obj(db_obj)
+        self.family_page.set_obj(db_obj)
+        self.series_page.set_obj(db_obj)
+        self.temperature_page.set_obj(db_obj)
+        self.resources_page.set_obj(db_obj)
+        self.part_number_ctrl.set_obj(db_obj)
+        self.description_ctrl.set_obj(db_obj)
+        self.color_ctrl.set_obj(db_obj)
+        self.weight_ctrl.set_obj(db_obj)
 
-        part_cat.Append(part_number_prop)
-        part_cat.Append(manufacturer_prop)
-        part_cat.Append(description_prop)
-        part_cat.Append(family_prop)
-        part_cat.Append(series_prop)
-        part_cat.Append(color_prop)
-        part_cat.Append(temperature_prop)
-        part_cat.Append(weight_prop)
-        part_cat.Append(resource_prop)
-        part_cat.Append(material_prop)
-        part_cat.Append(shape_prop)
-        part_cat.Append(protection_prop)
-        part_cat.Append(adhesives_prop)
-        part_cat.Append(branch_count_prop)
-        part_cat.Append(branches_prop)
+        self.material_ctrl.set_obj(db_obj)
+        self.protection_ctrl.set_obj(db_obj)
+        self.adhesive_ctrl.set_obj(db_obj)
 
-        return part_cat
+        if db_obj is None:
+            self.branch_count_ctrl.SetValue(1)
+            self.branch_count_ctrl.Enable(False)
+        else:
+            self.branch_count_ctrl.SetValue(db_obj.branch_count)
+            self.branch_count_ctrl.Enable(True)
+
+            for i, branch in enumerate(db_obj.branches):
+                branch_ctrl = db_obj.table.db.transition_branches_table.get_control(i)
+                branch_ctrl.set_obj(branch)
+                branch_ctrl.Reparent(self.branch_page)
+                self.branch_page.AddPage(branch_ctrl, branch_ctrl.GetLabel())
+                branch_ctrl.Realize()
+                self.branches.append(branch_ctrl)
+
+    def _on_branch_count(self, evt):
+        new_value = evt.GetValue()
+        old_value = self.db_obj.branch_count
+
+        if new_value > old_value:
+            self.db_obj.table.execute(f'SELECT id FROM transition_branches WHERE idx={new_value} AND transition_id={self.db_obj.db_id};')
+            rows = self.db_obj.table.fetchall()
+
+            if rows:
+                db_id = rows[0][0]
+                branch = self.db_obj.table.db.transition_branches_table[db_id]
+            else:
+                branch = self.db_obj.table.db.transition_branches_table.insert(
+                    transition_id=self.db_obj.db_id, idx=new_value, name='',
+                    bulb_offset=None, bulb_length=None,min_dia=0.01, max_dia=0.01,
+                    length=0.01, angle=0.0, offset=None, flange_height=None, flange_width=None)
+
+            branch_ctrl = self.db_obj.table.db.transition_branches_table.get_control(new_value - 1)
+            branch_ctrl.set_obj(branch)
+            branch_ctrl.Reparent(self.branch_page)
+            self.branch_page.AddPage(branch_ctrl, branch_ctrl.GetLabel())
+            branch_ctrl.Realize()
+            self.branches.append(branch_ctrl)
+        else:
+            branch_ctrl = self.branches.pop(-1)
+            self.branch_page.RemovePage(new_value + 1)
+            branch_ctrl.Reparent(self.db_obj.table.db.mainframe)
+            branch_ctrl.Show(False)
+
+        self.db_obj.branch_count = new_value
+
+    def __init__(self, parent):
+        self.db_obj: Transition = None
+        self.branches = []
+
+        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+
+        general_page = _prop_grid.Category(self, 'General')
+
+        self.part_number_ctrl = PartNumberControl(general_page)
+        self.description_ctrl = DescriptionControl(general_page)
+        self.color_ctrl = ColorControl(general_page)
+        self.weight_ctrl = WeightControl(general_page)
+        self.material_ctrl = MaterialControl(general_page)
+        self.protection_ctrl = ProtectionControl(general_page)
+        self.adhesive_ctrl = AdhesiveControl(general_page)
+
+        branch_page = _prop_grid.Category(self, 'Branches')
+
+        self.branch_count_ctrl = _prop_grid.IntProperty(
+            branch_page, 'Branch Count', 1, min_value=1, max_value=6)
+
+        self.branch_page = wx.Notebook(branch_page, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+
+        self.branch_count_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_branch_count)
+
+        self.mfg_page = ManufacturerControl(self)
+        self.family_page = FamilyControl(self)
+        self.series_page = SeriesControl(self)
+        self.temperature_page = TemperatureControl(self)
+
+        self.resources_page = ResourcesControl(self)
+
+        for page in (
+            general_page,
+            self.mfg_page,
+            self.family_page,
+            self.series_page,
+            self.temperature_page,
+            self.resources_page,
+            branch_page
+        ):
+            self.AddPage(page, page.GetLabel())
+            page.Realize()

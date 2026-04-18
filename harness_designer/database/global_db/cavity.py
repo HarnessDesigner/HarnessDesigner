@@ -17,6 +17,40 @@ if TYPE_CHECKING:
 class CavitiesTable(TableBase):
     __table_name__ = 'cavities'
 
+    _control: "CavityControl" = None
+
+    @property
+    def control(self) -> "CavityControl":
+        if self._control is None:
+            raise RuntimeError('sanity check')
+
+        return self._control
+
+    @classmethod
+    def start_control(cls, mainframe):
+        cls._control = CavityControl(mainframe)
+        cls._control.Show(False)
+
+        for i in range(20):
+            control = CavityControl(mainframe)
+            control.Show(False)
+            control.SetIndex(i + 1)
+            cls._controls.append(control)
+
+    _controls: list["CavityControl"] = []
+
+    def get_control(self, index):
+        controls_len = len(self._controls)
+
+        if controls_len - 1 < index:
+            for i in range(controls_len - 1, index):
+                ctrl = CavityControl(self.db.mainframe)
+                ctrl.SetName(i + 1)
+                ctrl.Show(False)
+                self._controls.append(ctrl)
+
+        return self._controls[index]
+
     def _table_needs_update(self) -> bool:
         from ..create_database import cavities
 
@@ -80,6 +114,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     @idx.setter
     def idx(self, value: int):
         self._table.update(self._db_id, idx=value)
+        self._populate('idx')
 
     @property
     def terminal_sizes(self) -> list[float]:
@@ -91,6 +126,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
             value[i] = round(item, 6)
 
         self._table.update(self._db_id, terminal_sizes=str(value))
+        self._populate('terminal_sizes')
 
     _position3d_id: str = None
 
@@ -184,6 +220,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     @round_terminal.setter
     def round_terminal(self, value: bool):
         self._table.update(self._db_id, round_terminal=int(value))
+        self._populate('round_terminal')
 
     @property
     def length(self) -> float:
@@ -192,6 +229,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     @length.setter
     def length(self, value: float):
         self._table.update(self._db_id, length=round(value, 6))
+        self._populate('length')
 
     @property
     def width(self) -> float:
@@ -212,6 +250,8 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         else:
             self._table.update(self._db_id, width=round(value, 6))
 
+        self._populate('width')
+
     @property
     def height(self) -> float:
         if self.round_terminal:
@@ -231,6 +271,8 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
             self._table.update(self._db_id, width=round(value, 6), height=round(value, 6))
         else:
             self._table.update(self._db_id, height=round(value, 6))
+
+        self._populate('height')
 
     _scale_id: str = None
 
@@ -309,7 +351,10 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         return res
 
 
-class CavityControl(wx.Notebook):
+class CavityControl(_prop_grid.Category):
+
+    def SetIndex(self, index):
+        self.SetLabel(f'Cavity {index}')
 
     def set_obj(self, db_obj: Cavity):
         self.db_obj = db_obj
@@ -356,21 +401,23 @@ class CavityControl(wx.Notebook):
     def __init__(self, parent):
         self.db_obj: Cavity = None
 
-        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+        super().__init__(parent, 'Cavity')
 
-        general_page = _prop_grid.Category(self, 'General')
+        self.nb = wx.Notebook(self, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+
+        general_page = _prop_grid.Category(self.nb, 'General')
 
         self.index_ctrl = _prop_grid.IntProperty(general_page, 'Index', 0, min_value=0, max_value=999)
         self.round_terminal_ctrl = _prop_grid.BoolProperty(general_page, 'Is Round', False)
         self.terminal_sizes_ctrl = _prop_grid.ArrayFloatProperty(general_page, 'Terminal sizes', [])
 
-        self.dimension_page = DimensionControl(self)
+        self.dimension_page = DimensionControl(self.nb)
 
-        position_page = _prop_grid.Category(self, 'Position')
+        position_page = _prop_grid.Category(self.nb, 'Position')
         self.position2d_ctrl = _prop_grid.Position2DProperty(position_page, '2D Position')
         self.position3d_ctrl = _prop_grid.Position3DProperty(position_page, '3D Position')
 
-        angle_page = _prop_grid.Category(self, 'Angle')
+        angle_page = _prop_grid.Category(self.nb, 'Angle')
         self.angle3d_ctrl = _prop_grid.Angle3DProperty(angle_page, '3D Angle')
 
         self.round_terminal_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_round_terminal)
@@ -383,5 +430,5 @@ class CavityControl(wx.Notebook):
             position_page,
             angle_page
         ):
-            self.AddPage(page, page.GetLabel())
+            self.nb.AddPage(page, page.GetLabel())
             page.Realize()

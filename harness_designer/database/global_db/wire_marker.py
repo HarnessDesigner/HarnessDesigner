@@ -1,11 +1,21 @@
 from typing import Iterable as _Iterable
 
-from ...ui.editor_obj import prop_grid as _prop_grid
+import wx
 
+from ...ui.editor_obj import prop_grid as _prop_grid
 from .bases import EntryBase, TableBase
 
-from .mixins import (PartNumberMixin, ManufacturerMixin, DescriptionMixin, FamilyMixin,
-                     SeriesMixin, ColorMixin, TemperatureMixin, ResourceMixin, WeightMixin)
+from .mixins import (
+    PartNumberMixin, PartNumberControl,
+    ManufacturerMixin, ManufacturerControl,
+    DescriptionMixin, DescriptionControl,
+    FamilyMixin, FamilyControl,
+    SeriesMixin, SeriesControl,
+    ColorMixin, ColorControl,
+    TemperatureMixin, TemperatureControl,
+    ResourceMixin, ResourcesControl,
+    WeightMixin, WeightControl
+)
 
 
 class WireMarkersTable(TableBase):
@@ -148,6 +158,7 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
     @weight.setter
     def weight(self, value: float):
         self._table.update(self._db_id, weight=value)
+        self._populate('weight')
 
     @property
     def has_label(self) -> bool:
@@ -156,6 +167,7 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
     @has_label.setter
     def has_label(self, value: bool):
         self._table.update(self._db_id, has_label=int(value))
+        self._populate('has_label')
 
     @property
     def min_diameter(self) -> float:
@@ -164,6 +176,7 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
     @min_diameter.setter
     def min_diameter(self, value: float):
         self._table.update(self._db_id, min_diameter=value)
+        self._populate('min_diameter')
 
     @property
     def max_diameter(self) -> float:
@@ -172,6 +185,7 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
     @max_diameter.setter
     def max_diameter(self, value: float):
         self._table.update(self._db_id, max_diameter=value)
+        self._populate('max_diameter')
 
     @property
     def min_awg(self) -> int:
@@ -180,6 +194,7 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
     @min_awg.setter
     def min_awg(self, value: int):
         self._table.update(self._db_id, min_awg=value)
+        self._populate('min_awg')
 
     @property
     def max_awg(self) -> int:
@@ -188,6 +203,7 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
     @max_awg.setter
     def max_awg(self, value: int):
         self._table.update(self._db_id, max_awg=value)
+        self._populate('max_awg')
 
     @property
     def length(self) -> float:
@@ -196,69 +212,142 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
     @length.setter
     def length(self, value: float):
         self._table.update(self._db_id, length=value)
+        self._populate('length')
 
-    @property
-    def propgrid(self) -> _prop_grid.Category:
 
-        part_cat = _prop_grid.Category('Part Attributes')
-        
-        part_number_prop = self._part_number_propgrid
-        manufacturer_prop = self._manufacturer_propgrid
-        description_prop = self._description_propgrid
+class WireMarkerControl(wx.Notebook):
 
-        family_prop = self._family_propgrid
-        series_prop = self._series_propgrid
-        color_prop = self._color_propgrid
-        temperature_prop = self._temperature_propgrid
+    def set_obj(self, db_obj: WireMarker):
+        self.db_obj = db_obj
 
-        diameter_prop = _prop_grid.Property('Diameter')
+        self.mfg_page.set_obj(db_obj)
+        self.family_page.set_obj(db_obj)
+        self.series_page.set_obj(db_obj)
+        self.temperature_page.set_obj(db_obj)
+        self.resources_page.set_obj(db_obj)
 
-        min_diameter_prop = _prop_grid.FloatProperty(
-            'Minimum', 'min_diameter', self.min_diameter, min_value=0.05,
-            max_value=60.0, increment=0.01, units='mm')
-            
-        max_diameter_prop = _prop_grid.FloatProperty(
-            'Maximum', 'max_diameter', self.max_diameter, min_value=0.05,
-            max_value=60.0, increment=0.01, units='mm')
+        self.part_number_ctrl.set_obj(db_obj)
+        self.description_ctrl.set_obj(db_obj)
+        self.color_ctrl.set_obj(db_obj)
+        self.weight_ctrl.set_obj(db_obj)
 
-        diameter_prop.Append(min_diameter_prop)
-        diameter_prop.Append(max_diameter_prop)
+        if db_obj is None:
+            self.length_ctrl.SetValue(0.05)
+            self.min_diameter_ctrl.SetValue(0.05)
+            self.max_diameter_ctrl.SetValue(0.05)
+            self.min_awg_ctrl.SetValue(0)
+            self.max_awg_ctrl.SetValue(0)
+            self.label_ctrl.SetValue(False)
 
-        wire_size_prop = _prop_grid.Property('Wire Size')
+            self.length_ctrl.Enable(False)
+            self.min_diameter_ctrl.Enable(False)
+            self.max_diameter_ctrl.Enable(False)
+            self.min_awg_ctrl.Enable(False)
+            self.max_awg_ctrl.Enable(False)
+            self.label_ctrl.Enable(False)
+        else:
+            self.length_ctrl.SetValue(db_obj.length)
+            self.min_diameter_ctrl.SetValue(db_obj.min_diameter)
+            self.max_diameter_ctrl.SetValue(db_obj.max_diameter)
+            self.min_awg_ctrl.SetValue(db_obj.min_awg)
+            self.max_awg_ctrl.SetValue(db_obj.max_awg)
+            self.label_ctrl.SetValue(db_obj.has_label)
 
-        min_awg_prop = _prop_grid.IntProperty(
-            'Minimum', 'min_awg', self.min_awg, min_value=30,
-            max_value=0, units='awg')
-            
-        max_awg_prop = _prop_grid.IntProperty(
-            'Maximum', 'max_awg', self.max_awg, min_value=30,
-            max_value=0, units='awg')
+            self.length_ctrl.Enable(True)
+            self.min_diameter_ctrl.Enable(True)
+            self.max_diameter_ctrl.Enable(True)
+            self.min_awg_ctrl.Enable(True)
+            self.max_awg_ctrl.Enable(True)
+            self.label_ctrl.Enable(True)
 
-        wire_size_prop.Append(min_awg_prop)
-        wire_size_prop.Append(max_awg_prop)
+    def _on_min_diameter(self, evt):
+        value = evt.GetValue()
+        self.db_obj.min_diameter = value
 
-        length_prop = _prop_grid.FloatProperty(
-            'Length', 'length', self.length, min_value=0.01,
+    def _on_max_diameter(self, evt):
+        value = evt.GetValue()
+        self.db_obj.max_diameter = value
+
+    def _on_min_awg(self, evt):
+        value = evt.GetValue()
+        self.db_obj.min_awg = value
+
+    def _on_max_awg(self, evt):
+        value = evt.GetValue()
+        self.db_obj.max_awg = value
+
+    def _on_length(self, evt):
+        value = evt.GetValue()
+        self.db_obj.length = value
+
+    def _on_label(self, evt):
+        value = evt.GetValue()
+        self.db_obj.has_label = value
+
+    def __init__(self, parent):
+        self.db_obj: WireMarker = None
+
+        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+
+        general_page = _prop_grid.Category(self, 'General')
+
+        self.part_number_ctrl = PartNumberControl(general_page)
+        self.description_ctrl = DescriptionControl(general_page)
+
+        self.color_ctrl = ColorControl(general_page)
+        self.weight_ctrl = WeightControl(general_page)
+
+        self.length_ctrl = _prop_grid.FloatProperty(
+            general_page, 'Length', 0.01, min_value=0.01,
             max_value=99.99, increment=0.01, units='mm')
 
-        label_prop = _prop_grid.BoolProperty(
-            'Has Label', 'has_label', self.has_label)
+        self.label_ctrl = _prop_grid.BoolProperty(
+            general_page, 'Has Label', False)
 
-        weight_prop = self._weight_propgrid
-        resource_prop = self._resource_propgrid
+        self.mfg_page = ManufacturerControl(self)
+        self.family_page = FamilyControl(self)
+        self.series_page = SeriesControl(self)
+        self.temperature_page = TemperatureControl(self)
 
-        part_cat.Append(part_number_prop)
-        part_cat.Append(manufacturer_prop)
-        part_cat.Append(description_prop)
-        part_cat.Append(family_prop)
-        part_cat.Append(series_prop)
-        part_cat.Append(color_prop)
-        part_cat.Append(temperature_prop)
-        part_cat.Append(label_prop)
-        part_cat.Append(length_prop)
-        part_cat.Append(weight_prop)
-        part_cat.Append(resource_prop)
-        part_cat.Append(wire_size_prop)
-        part_cat.Append(diameter_prop)
+        self.resources_page = ResourcesControl(self)
 
-        return part_cat
+        diameter_page = _prop_grid.Category(self, 'Diameter')
+
+        self.min_diameter_ctrl = _prop_grid.FloatProperty(
+            diameter_page, 'Minimum', 0.05, min_value=0.05,
+            max_value=60.0, increment=0.01, units='mm')
+
+        self.max_diameter_ctrl = _prop_grid.FloatProperty(
+            diameter_page, 'Maximum', 0.05, min_value=0.05,
+            max_value=60.0, increment=0.01, units='mm')
+
+        wire_size_page = _prop_grid.Category(self, 'Wire Size')
+
+        self.min_awg_ctrl = _prop_grid.IntProperty(
+            wire_size_page, 'Minimum', 0, min_value=0,
+            max_value=30, units='awg')
+
+        self.max_awg_ctrl = _prop_grid.IntProperty(
+            wire_size_page, 'Maximum', 0, min_value=0,
+            max_value=30, units='awg')
+
+        self.min_diameter_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_min_diameter)
+        self.max_diameter_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_max_diameter)
+        self.min_awg_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_min_awg)
+        self.max_awg_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_max_awg)
+
+        self.length_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_length)
+        self.label_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_label)
+
+        for page in (
+            general_page,
+            self.mfg_page,
+            self.family_page,
+            self.series_page,
+            self.temperature_page,
+            self.resources_page,
+            diameter_page,
+            wire_size_page
+        ):
+            self.AddPage(page, page.GetLabel())
+            page.Realize()

@@ -105,7 +105,7 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
     @concentric_id.setter
     def concentric_id(self, value: int):
         self._table.update(self._db_id, concentric_id=value)
-        self._process_callbacks()
+        self._populate('concentric_id')
 
     @property
     def idx(self) -> int:
@@ -114,7 +114,7 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
     @idx.setter
     def idx(self, value: int):
         self._table.update(self._db_id, idx=value)
-        self._process_callbacks()
+        self._populate('idx')
 
     @property
     def num_wires(self) -> int:
@@ -123,7 +123,7 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
     @num_wires.setter
     def num_wires(self, value: int):
         self._table.update(self._db_id, num_wires=value)
-        self._process_callbacks()
+        self._populate('num_wires')
 
     @property
     def num_fillers(self) -> int:
@@ -132,7 +132,7 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
     @num_fillers.setter
     def num_fillers(self, value: int):
         self._table.update(self._db_id, num_fillers=value)
-        self._process_callbacks()
+        self._populate('num_fillers')
 
     @property
     def diameter(self) -> float:
@@ -141,7 +141,7 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
     @diameter.setter
     def diameter(self, value: float):
         self._table.update(self._db_id, diameter=value)
-        self._process_callbacks()
+        self._populate('diameter')
 
     @property
     def propgrid(self) -> _prop_grid.Property:

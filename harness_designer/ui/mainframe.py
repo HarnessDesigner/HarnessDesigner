@@ -168,17 +168,23 @@ class MainFrame(wx.Frame):
         self.system_menu = system_menu.SystemMenu(self)
         self.SetMenuBar(self.system_menu)
 
-        splash.SetText('Starting housing editor...')
-        splash.flush()
-        from ..database.project_db import pjt_housing
-
-        pjt_housing.PJTHousingsTable.start_control(self)
-
         splash.SetText('Starting boot editor...')
         splash.flush()
         from ..database.project_db import pjt_boot
 
         pjt_boot.PJTBootsTable.start_control(self)
+
+        splash.SetText('Starting bundle cover editor...')
+        splash.flush()
+        from ..database.project_db import pjt_bundle
+
+        pjt_bundle.PJTBundlesTable.start_control(self)
+
+        splash.SetText('Starting bundle layout editor...')
+        splash.flush()
+        from ..database.project_db import pjt_bundle_layout
+
+        pjt_bundle_layout.PJTBundleLayoutsTable.start_control(self)
 
         splash.SetText('Starting cavity editor...')
         splash.flush()
@@ -198,11 +204,29 @@ class MainFrame(wx.Frame):
 
         pjt_cpa_lock.PJTCPALocksTable.start_control(self)
 
+        splash.SetText('Starting housing editor...')
+        splash.flush()
+        from ..database.project_db import pjt_housing
+
+        pjt_housing.PJTHousingsTable.start_control(self)
+
+        splash.SetText('Starting note editor...')
+        splash.flush()
+        from ..database.project_db import pjt_note
+
+        pjt_note.PJTNotesTable.start_control(self)
+
         splash.SetText('Starting seal editor...')
         splash.flush()
         from ..database.project_db import pjt_seal
 
         pjt_seal.PJTSealsTable.start_control(self)
+
+        splash.SetText('Starting splice editor...')
+        splash.flush()
+        from ..database.project_db import pjt_splice
+
+        pjt_splice.PJTSplicesTable.start_control(self)
 
         splash.SetText('Starting terminal editor...')
         splash.flush()
@@ -215,6 +239,36 @@ class MainFrame(wx.Frame):
         from ..database.project_db import pjt_tpa_lock
 
         pjt_tpa_lock.PJTTPALocksTable.start_control(self)
+
+        splash.SetText('Starting transition editor...')
+        splash.flush()
+        from ..database.project_db import pjt_transition
+
+        pjt_transition.PJTTransitionsTable.start_control(self)
+
+        splash.SetText('Starting wire editor...')
+        splash.flush()
+        from ..database.project_db import pjt_wire
+
+        pjt_wire.PJTWiresTable.start_control(self)
+
+        splash.SetText('Starting wire layout editor...')
+        splash.flush()
+        from ..database.project_db import pjt_wire_layout
+
+        pjt_wire_layout.PJTWireLayoutsTable.start_control(self)
+
+        splash.SetText('Starting wire marker editor...')
+        splash.flush()
+        from ..database.project_db import pjt_wire_marker
+
+        pjt_wire_marker.PJTWireMarkersTable.start_control(self)
+
+        splash.SetText('Starting wire service loop editor...')
+        splash.flush()
+        from ..database.project_db import pjt_wire_service_loop
+
+        pjt_wire_service_loop.PJTWireServiceLoopsTable.start_control(self)
 
         splash.SetText('Loading UI perspective...')
         splash.flush()

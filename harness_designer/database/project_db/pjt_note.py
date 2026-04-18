@@ -1,12 +1,20 @@
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
 import weakref
+import wx
+import build123d
+
 from ...ui.editor_obj import prop_grid as _prop_grid
-
 from .pjt_bases import PJTEntryBase, PJTTableBase
-
-from .mixins import (Angle3DMixin, Angle2DMixin, Position3DMixin, Position2DMixin,
-                     Visible3DMixin, Visible2DMixin, NotesMixin)
+from .mixins import (
+    Angle3DMixin, Angle3DControl,
+    Angle2DMixin, Angle2DControl,
+    Position3DMixin, Position3DControl,
+    Position2DMixin, Position2DControl,
+    Visible3DMixin, Visible3DControl,
+    Visible2DMixin, Visible2DControl,
+    NotesMixin, NotesControl
+)
 
 
 if TYPE_CHECKING:
@@ -15,6 +23,20 @@ if TYPE_CHECKING:
 
 class PJTNotesTable(PJTTableBase):
     __table_name__ = 'pjt_notes'
+
+    _control: "PJTNoteControl" = None
+
+    @property
+    def control(self) -> "PJTNoteControl":
+        if self._control is None:
+            raise RuntimeError('sanity check')
+
+        return self._control
+
+    @classmethod
+    def start_control(cls, mainframe):
+        cls._control = PJTNoteControl(mainframe)
+        cls._control.Show(False)
 
     def _table_needs_update(self) -> bool:
         from ..create_database import notes
@@ -93,7 +115,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin,
     @size2d.setter
     def size2d(self, value: int):
         self._table.update(self._db_id, size2d=value)
-        self._process_callbacks()
+        self._populate('size2d')
 
     @property
     def h_align2d(self) -> int:
@@ -102,7 +124,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin,
     @h_align2d.setter
     def h_align2d(self, value: int):
         self._table.update(self._db_id, h_align2d=value)
-        self._process_callbacks()
+        self._populate('h_align2d')
 
     @property
     def v_align2d(self) -> int:
@@ -111,7 +133,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin,
     @v_align2d.setter
     def v_align2d(self, value: int):
         self._table.update(self._db_id, v_align2d=value)
-        self._process_callbacks()
+        self._populate('v_align2d')
 
     @property
     def style2d(self) -> int:
@@ -120,7 +142,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin,
     @style2d.setter
     def style2d(self, value: int):
         self._table.update(self._db_id, style2d=value)
-        self._process_callbacks()
+        self._populate('style2d')
 
     @property
     def is_visible2d(self) -> bool:
@@ -129,7 +151,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin,
     @is_visible2d.setter
     def is_visible2d(self, value: bool):
         self._table.update(self._db_id, is_visible2d=int(value))
-        self._process_callbacks()
+        self._populate('is_visible2d')
 
     @property
     def size3d(self) -> float:
@@ -138,7 +160,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin,
     @size3d.setter
     def size3d(self, value: float):
         self._table.update(self._db_id, size3d=value)
-        self._process_callbacks()
+        self._populate('size3d')
 
     @property
     def h_align3d(self) -> int:
@@ -147,7 +169,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin,
     @h_align3d.setter
     def h_align3d(self, value: int):
         self._table.update(self._db_id, h_align3d=value)
-        self._process_callbacks()
+        self._populate('h_align3d')
 
     @property
     def v_align3d(self) -> int:
@@ -156,7 +178,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin,
     @v_align3d.setter
     def v_align3d(self, value: int):
         self._table.update(self._db_id, v_align3d=value)
-        self._process_callbacks()
+        self._populate('v_align3d')
 
     @property
     def style3d(self) -> int:
@@ -165,7 +187,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin,
     @style3d.setter
     def style3d(self, value: int):
         self._table.update(self._db_id, style3d=value)
-        self._process_callbacks()
+        self._populate('style3d')
 
     @property
     def is_visible3d(self) -> bool:
@@ -174,82 +196,137 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin,
     @is_visible3d.setter
     def is_visible3d(self, value: bool):
         self._table.update(self._db_id, is_visible3d=int(value))
-        self._process_callbacks()
+        self._populate('is_visible3d')
 
-    @property
-    def propgrid(self) -> tuple[_prop_grid.Category]:
-        import build123d
 
-        group = _prop_grid.Category('Project')
+class PJTNoteControl(wx.Notebook):
 
-        notes_prop = self._notes_propgrid
+    def set_obj(self, db_obj: PJTNote):
+        if self.db_obj is not None:
+            if self.db_obj.is_visible2d:
+                self.align_2d_ctrl.SetValue(build123d.TextAlign.LEFT)
+                self.style_2d_ctrl.SetValue(build123d.FontStyle.REGULAR)
 
-        angle_prop = _prop_grid.Category('Angle')
-        angle2d_prop = self._angle2d_propgrid
-        angle3d_prop = self._angle3d_propgrid
-        angle2d_prop.SetLabel('2D')
-        angle3d_prop.SetLabel('3D')
-        angle_prop.Append(angle2d_prop)
-        angle_prop.Append(angle3d_prop)
+            if self.db_obj.is_visible3d:
+                self.align_3d_ctrl.SetValue(build123d.TextAlign.LEFT)
+                self.style_3d_ctrl.SetValue(build123d.FontStyle.REGULAR)
 
-        position_prop = _prop_grid.Category('Position')
-        position2d_prop = self._position2d_propgrid
-        position3d_prop = self._position3d_propgrid
-        position2d_prop.SetLabel('2D')
-        position3d_prop.SetLabel('3D')
-        position_prop.Append(position2d_prop)
-        position_prop.Append(position3d_prop)
+        self.db_obj = db_obj
 
-        visible_prop = _prop_grid.Category('Visible')
-        visible2d_prop = self._visible2d_propgrid
-        visible3d_prop = self._visible3d_propgrid
-        visible_prop.Append(visible2d_prop)
-        visible_prop.Append(visible3d_prop)
+        self.note_ctrl.set_obj(db_obj)
 
-        # TODO: Create Enum Property
+        self.angle2d_ctrl.set_obj(db_obj)
+        self.angle3d_ctrl.set_obj(db_obj)
 
-        style_prop = _prop_grid.Category('Style')
-        style2d_prop = _prop_grid.EnumProperty(
-            '2D', 'style2d', labels=['Normal', 'Bold', 'Italic', 'Bold Italic'],
-            values=[build123d.FontStyle.REGULAR, build123d.FontStyle.BOLD,
-                    build123d.FontStyle.ITALIC, build123d.FontStyle.BOLDITALIC],
-            value=self.style2d)
-        style3d_prop = _prop_grid.EnumProperty(
-            '3D', 'style3d', labels=['Normal', 'Bold', 'Italic', 'Bold Italic'],
-            values=[build123d.FontStyle.REGULAR, build123d.FontStyle.BOLD,
-                    build123d.FontStyle.ITALIC, build123d.FontStyle.BOLDITALIC],
-            value=self.style3d)
-        style_prop.Append(style2d_prop)
-        style_prop.Append(style3d_prop)
+        self.position2d_ctrl.set_obj(db_obj)
+        self.position3d_ctrl.set_obj(db_obj)
 
-        align_prop = _prop_grid.Category('Align')
-        h_align2d_prop = _prop_grid.EnumProperty(
-            '2D', 'h_align2d', labels=['Left', 'Center', 'Right'],
-            values=[build123d.TextAlign.LEFT, build123d.TextAlign.CENTER, build123d.TextAlign.RIGHT],
-            value=self.h_align2d)
-        h_align3d_prop = _prop_grid.EnumProperty(
-            '3D', 'h_align3d', labels=['Left', 'Center', 'Right'],
-            values=[build123d.TextAlign.LEFT, build123d.TextAlign.CENTER, build123d.TextAlign.RIGHT],
-            value=self.h_align3d)
-        align_prop.Append(h_align2d_prop)
-        align_prop.Append(h_align3d_prop)
+        self.visible2d_ctrl.set_obj(db_obj)
+        self.visible3d_ctrl.set_obj(db_obj)
 
-        size_prop = _prop_grid.Category('Size')
-        size2d_prop = _prop_grid.FloatProperty(
-            '2D', 'size2d', self.size2d,
-            min_value=0.2, max_value=99.9, increment=0.1, units='mm')
-        size3d_prop = _prop_grid.FloatProperty(
-            '3D', 'size3d', self.size3d,
-            min_value=0.2, max_value=99.9, increment=0.1, units='mm')
-        size_prop.Append(size2d_prop)
-        size_prop.Append(size3d_prop)
+        if db_obj is None:
+            self.align_2d_ctrl.Enable(False)
+            self.style_2d_ctrl.Enable(False)
+            self.align_3d_ctrl.Enable(False)
+            self.style_3d_ctrl.Enable(False)
+        else:
+            if db_obj.is_visible2d:
+                self.align_2d_ctrl.SetLabels(['Left', 'Center', 'Right'])
+                self.align_2d_ctrl.SetItems(
+                    [build123d.TextAlign.LEFT, build123d.TextAlign.CENTER,
+                     build123d.TextAlign.RIGHT])
 
-        group.Append(notes_prop)
-        group.Append(angle_prop)
-        group.Append(position_prop)
-        group.Append(visible_prop)
-        group.Append(style_prop)
-        group.Append(align_prop)
-        group.Append(size_prop)
+                self.align_2d_ctrl.Show(True)
+                self.align_2d_ctrl.SetValue(db_obj.h_align2d)
 
-        return (group,)
+                self.style_2d_ctrl.SetLabels(['Normal', 'Bold', 'Italic', 'Bold Italic'])
+                self.style_2d_ctrl.SetItems(
+                    [build123d.FontStyle.REGULAR, build123d.FontStyle.BOLD,
+                     build123d.FontStyle.ITALIC, build123d.FontStyle.BOLDITALIC])
+
+                self.style_2d_ctrl.Show(True)
+                self.style_2d_ctrl.SetValue(db_obj.h_align3d)
+            else:
+                self.align_2d_ctrl.Hide()
+                self.style_2d_ctrl.Hide()
+
+            if db_obj.is_visible3d:
+                self.align_3d_ctrl.SetLabels(['Left', 'Center', 'Right'])
+                self.align_3d_ctrl.SetItems(
+                    [build123d.TextAlign.LEFT, build123d.TextAlign.CENTER,
+                     build123d.TextAlign.RIGHT])
+
+                self.align_3d_ctrl.Show(True)
+                self.align_3d_ctrl.SetValue(db_obj.h_align3d)
+
+                self.style_3d_ctrl.SetLabels(['Normal', 'Bold', 'Italic', 'Bold Italic'])
+                self.style_3d_ctrl.SetItems(
+                    [build123d.FontStyle.REGULAR, build123d.FontStyle.BOLD,
+                     build123d.FontStyle.ITALIC, build123d.FontStyle.BOLDITALIC])
+
+                self.style_3d_ctrl.Show(True)
+                self.style_3d_ctrl.SetValue(db_obj.h_align3d)
+            else:
+                self.align_3d_ctrl.Hide()
+                self.style_3d_ctrl.Hide()
+
+    def _on_align2d(self, evt):
+        value = evt.GetValue()
+        self.db_obj.h_align2d = value
+
+    def _on_align3d(self, evt):
+        value = evt.GetValue()
+        self.db_obj.h_align3d = value
+
+    def _on_style2d(self, evt):
+        value = evt.GetValue()
+        self.db_obj.style2d = value
+
+    def _on_style3d(self, evt):
+        value = evt.GetValue()
+        self.db_obj.style3d = value
+
+    def __init__(self, parent):
+        self.db_obj: PJTNote = None
+
+        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+
+        general_page = _prop_grid.Category(self, 'General')
+        self.note_ctrl = NotesControl(general_page)
+
+        style_page = _prop_grid.Category(self, 'Style')
+        self.style_2d_ctrl = _prop_grid.EnumProperty(style_page, '2D Style')
+        self.style_3d_ctrl = _prop_grid.EnumProperty(style_page, '3D Style')
+
+        align_page = _prop_grid.Category(self, 'Align')
+        self.align_2d_ctrl = _prop_grid.EnumProperty(align_page, '2D Align')
+        self.align_3d_ctrl = _prop_grid.EnumProperty(align_page, '3D Align')
+
+        self.style_2d_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_style2d)
+        self.style_3d_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_style3d)
+
+        self.align_2d_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_align2d)
+        self.align_3d_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_align3d)
+
+        angle_page = _prop_grid.Category(self, 'Angle')
+        self.angle2d_ctrl = Angle2DControl(angle_page)
+        self.angle3d_ctrl = Angle3DControl(angle_page)
+
+        position_page = _prop_grid.Category(self, 'Position')
+        self.position2d_ctrl = Position2DControl(position_page)
+        self.position3d_ctrl = Position3DControl(position_page)
+
+        visible_page = _prop_grid.Category(self, 'Visible')
+        self.visible2d_ctrl = Visible2DControl(visible_page)
+        self.visible3d_ctrl = Visible3DControl(visible_page)
+
+        for page in (
+            general_page,
+            angle_page,
+            position_page,
+            visible_page,
+            style_page,
+            align_page
+        ):
+            self.AddPage(page, page.GetLabel())
+            page.Realize()

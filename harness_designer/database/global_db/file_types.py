@@ -1,7 +1,5 @@
 from typing import Iterable as _Iterable
 
-from ...ui.editor_obj import prop_grid as _prop_grid
-
 from .bases import EntryBase, TableBase
 from .mixins import NameMixin
 
@@ -68,6 +66,7 @@ class FileType(EntryBase, NameMixin):
     @extension.setter
     def extension(self, value: str):
         self._table.update(self._db_id, extension=value)
+        self._populate('extension')
 
     @property
     def mimetype(self) -> str:
@@ -76,6 +75,7 @@ class FileType(EntryBase, NameMixin):
     @mimetype.setter
     def mimetype(self, value: str):
         self._table.update(self._db_id, mimetype=value)
+        self._populate('mimetype')
 
     @property
     def is_model(self) -> bool:
@@ -84,24 +84,4 @@ class FileType(EntryBase, NameMixin):
     @is_model.setter
     def is_model(self, value: bool):
         self._table.update(self._db_id, is_model=int(value))
-
-    @property
-    def propgrid(self) -> _prop_grid.Property:
-        file_type_prop = _prop_grid.Property('File Type')
-
-        rows = self.table.select('mimetype')
-
-        choices = [item[0] for item in rows]
-        mimetype_prop = _prop_grid.ComboBoxProperty('MimeType', 'mimetype', self.name, choices)
-        rows = self.table.select('extension')
-
-        choices = [item[0] for item in rows]
-        extension_prop = _prop_grid.ComboBoxProperty('Extension', 'extension', self.name, choices)
-        is_model_prop = _prop_grid.BoolProperty('Is Model', 'is_model', self.is_model)
-
-        file_type_prop.Append(mimetype_prop)
-        file_type_prop.Append(extension_prop)
-        file_type_prop.Append(is_model_prop)
-
-        return file_type_prop
-
+        self._populate('is_model')

@@ -9,6 +9,13 @@ class PolishedMaterial(_material.GLMaterial):
     _specular = (0.0, 0.0, 0.0)
     _shine = 0.0
 
+    _cl_ambient = 0.0
+    _cl_diffuse = 0.0
+    _cl_specular = 0.0
+    _cl_shininess = 0.0
+    _cl_metallic = 0.0
+    _cl_roughness = 0.0
+
     def __init__(self, color: _color.Color):
         r, g, b = color.rgb_scalar
 
@@ -39,4 +46,9 @@ class PolishedMaterial(_material.GLMaterial):
 
         self._shine = _utils.remap(r + g + b, 1.843137,
                                    2.25882, 83.2, 89.6)
+
+        self._cl_specular = sum(self._specular) / len(self._specular)
+        self._cl_diffuse = sum(self._diffuse) / len(self._diffuse)
+        self._cl_ambient = sum(self._ambient) / len(self._ambient)
+        self._cl_shininess = self._shine
         super().__init__(color)

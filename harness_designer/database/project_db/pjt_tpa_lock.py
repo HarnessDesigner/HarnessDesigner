@@ -6,7 +6,7 @@ import wx
 from ...ui.editor_obj import prop_grid as _prop_grid
 
 from .pjt_bases import PJTEntryBase, PJTTableBase
-
+from ..global_db import tpa_lock as _tpa_lock
 from .mixins import (
     Angle3DMixin, Angle3DControl,
     Position3DMixin, Position3DControl,
@@ -19,8 +19,6 @@ from .mixins import (
 
 
 if TYPE_CHECKING:
-    from ..global_db import tpa_lock as _tpa_lock
-
     from ...objects import tpa_lock as _tpa_lock_obj
 
 
@@ -113,6 +111,7 @@ class PJTTPALock(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin,
     @idx.setter
     def idx(self, value: int):
         self._table.update(self._db_id, idx=value)
+        self._populate('idx')
 
     @property
     def table(self) -> PJTTPALocksTable:
@@ -169,9 +168,6 @@ class PJTTPALockControl(wx.Notebook):
         self.visible3d_ctrl = Visible3DControl(visible_page)
 
         part_page = _prop_grid.Category(self, 'Part')
-
-        from ..global_db import tpa_lock as _tpa_lock  # NOQA
-
         self.tpa_lock_ctrl = _tpa_lock.TPALockControl(part_page)
 
         for page in (

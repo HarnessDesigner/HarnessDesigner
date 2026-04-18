@@ -16,10 +16,6 @@ class PlatingMixin(BaseMixin):
         plating_id = self.plating_id
         return self._table.db.platings_table[plating_id]
 
-    @plating.setter
-    def plating(self, value: "_plating.Plating"):
-        self.plating_id = value.db_id
-
     @property
     def plating_id(self) -> int:
         return self._table.select('plating_id', id=self._db_id)[0][0]
@@ -27,12 +23,15 @@ class PlatingMixin(BaseMixin):
     @plating_id.setter
     def plating_id(self, value: int):
         self._table.update(self._db_id, plating_id=value)
+        self._populate('plating_id')
 
 
 class PlatingControl(_prop_grid.Category):
 
     def __init__(self, parent):
         super().__init__(parent, 'Plating')
+
+        self.attribute_name = 'plating'
 
         self.choices: list[str] = []
         self.db_obj: PlatingMixin = None
@@ -56,7 +55,7 @@ class PlatingControl(_prop_grid.Category):
             self.symbol_ctrl.Enable(False)
             self.desc_ctrl.Enable(False)
         else:
-            plating = db_obj.plating
+            plating = getattr(db_obj, self.attribute_name)
 
             db_obj.table.execute(f'SELECT symbol FROM platings;')
 
@@ -92,8 +91,11 @@ class PlatingControl(_prop_grid.Category):
 
         self.desc_ctrl.SetValue(desc)
 
-        self.db_obj.plating_id = db_id
+        setattr(self.db_obj, self.attribute_name + '_id', db_id)
+
+    def SetAttributeName(self, name):
+        self.attribute_name = name
 
     def _on_desc(self, evt: _prop_grid.PropertyEvent):
         desc = evt.GetValue()
-        self.db_obj.plating.description = desc
+        getattr(self.db_obj, self.attribute_name).description = desc

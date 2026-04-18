@@ -22,10 +22,6 @@ class CompatTerminalsMixin(BaseMixin):
                 pass
         return res
 
-    @compat_terminals.setter
-    def compat_terminals(self, value: list["_terminal.Terminal"]):
-        self.compat_terminals_array = [terminal.part_number for terminal in value]
-
     @property
     def compat_terminals_array(self) -> list[str]:
         value = self._table.select('compat_terminals', id=self._db_id)[0][0]
@@ -35,6 +31,7 @@ class CompatTerminalsMixin(BaseMixin):
     def compat_terminals_array(self, value: list[str]):
         value = f'[{", ".join(value)}]'
         self._table.update(self._db_id, compat_terminals=value)
+        self._populate('compat_terminals_array')
 
 
 class CompatTerminalsControl(_prop_grid.ArrayStringProperty):

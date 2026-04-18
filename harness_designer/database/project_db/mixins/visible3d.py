@@ -12,6 +12,7 @@ class Visible3DMixin(BaseMixin):
     @is_visible3d.setter
     def is_visible3d(self, value: bool):
         self._table.update(self._db_id, is_visible3d=int(value))
+        self._populate('is_visible3d')
 
 
 class Visible3DControl(_prop_grid.BoolProperty):

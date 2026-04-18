@@ -12,6 +12,7 @@ class PartNumberMixin(BaseMixin):
     @part_number.setter
     def part_number(self, value: str):
         self._table.update(self._db_id, part_number=value)
+        self._populate('part_number')
 
 
 class PartNumberControl(_prop_grid.StringProperty):

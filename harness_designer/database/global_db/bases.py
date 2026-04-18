@@ -4,6 +4,7 @@ import weakref
 import json
 
 from ... import logger as _logger
+from ..common_db import callback as _callback
 
 
 if TYPE_CHECKING:
@@ -43,13 +44,13 @@ class _EntrySingleton(type):
         return instance
 
 
-class EntryBase(metaclass=_EntrySingleton):
+class EntryBase(_callback.CallbackMixin, metaclass=_EntrySingleton):
 
     def __init__(self, table: "TableBase", db_id: int):
         self._table = table
         self._db_id = db_id
-
         self._objects = []
+        _callback.CallbackMixin.__init__(self)
 
     def update_objects(self):
         for ref in self._objects:

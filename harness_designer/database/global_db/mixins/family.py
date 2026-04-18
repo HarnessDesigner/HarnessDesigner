@@ -19,10 +19,6 @@ class FamilyMixin(BaseMixin):
         family_id = self._table.select('family_id', id=self._db_id)
         return _family.Family(self._table.db.families_table, family_id[0][0])
 
-    @family.setter
-    def family(self, value: "_family.Family"):
-        self._table.update(self._db_id, family_id=value.db_id)
-
     @property
     def family_id(self) -> int:
         return self._table.select('family_id', id=self._db_id)[0][0]
@@ -30,6 +26,7 @@ class FamilyMixin(BaseMixin):
     @family_id.setter
     def family_id(self, value: int):
         self._table.update(self._db_id, family_id=value)
+        self._populate('family_id')
 
 
 class FamilyControl(_prop_grid.Category):

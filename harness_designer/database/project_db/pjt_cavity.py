@@ -52,6 +52,12 @@ class PJTCavitiesTable(PJTTableBase):
         cls._control = PJTCavityControl(mainframe)
         cls._control.Show(False)
 
+        for i in range(20):
+            control = PJTCavityControl(mainframe)
+            control.Show(False)
+            control.SetIndex(i + 1)
+            cls._controls.append(control)
+
     _controls: list["PJTCavityControl"] = []
 
     def get_control(self, index):
@@ -61,7 +67,7 @@ class PJTCavitiesTable(PJTTableBase):
         if controls_len - 1 < index:
             for i in range(controls_len - 1, index):
                 ctrl = PJTCavityControl(self.db.mainframe)
-                ctrl.SetName(i + 1)
+                ctrl.SetIndex(i + 1)
                 ctrl.Show(False)
                 self._controls.append(ctrl)
 
@@ -218,6 +224,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
     @terminal_position3d_id.setter
     def terminal_position3d_id(self, value: int):
         self._table.update(self._db_id, terminal_point3d_id=value)
+        self._populate('terminal_position3d_id')
 
     @property
     def terminal_position2d(self) -> "_point.Point":
@@ -230,6 +237,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
     @terminal_position2d_id.setter
     def terminal_position2d_id(self, value: int):
         self.position2d_id = value
+        self._populate('terminal_position2d_id')
 
     @property
     def seal(self) -> "_pjt_seal.PJTSeal":
@@ -274,6 +282,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
 
         self._table.update(self._db_id, quat2d=str(quat))
         self._table.update(self._db_id, angle2d=str(euler_angle))
+        self._populate('angle2d')
 
     def _update_angle3d(self, angle: _angle.Angle):
         quat = eval(self._table.select('quat3d', id=self._db_id)[0][0])
@@ -298,6 +307,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
 
         self._table.update(self._db_id, quat3d=str(quat))
         self._table.update(self._db_id, angle3d=str(euler_angle))
+        self._populate('angle3d')
 
     @property
     def angle3d(self) -> _angle.Angle:
@@ -313,50 +323,47 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
         return angle
 
 
-class PJTCavityControl(wx.Notebook):
+class PJTCavityControl(_prop_grid.Category):
 
-    def SetName(self, index):
-        self.tab_name = f'Cavity {index}'
-
-    def GetName(self):
-        return self.tab_name
+    def SetIndex(self, index):
+        self.SetLabel(f'Cavity {index}')
 
     def __init__(self, parent):
-        self.tab_name = ''
-
         self.db_obj: PJTCavity = None
 
-        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+        super().__init__(parent, 'Cavity')
 
-        general_page = _prop_grid.Category(self, 'General')
+        self.nb = wx.Notebook(self, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+
+        general_page = _prop_grid.Category(self.nb, 'General')
         self.name_ctrl = NameControl(general_page)
         self.notes_ctrl = NotesControl(general_page)
 
-        angle_page = _prop_grid.Category(self, 'Angle')
+        angle_page = _prop_grid.Category(self.nb, 'Angle')
         self.angle2d_ctrl = Angle2DControl(angle_page)
         self.angle3d_ctrl = Angle3DControl(angle_page)
 
-        position_page = _prop_grid.Category(self, 'Position')
+        position_page = _prop_grid.Category(self.nb, 'Position')
         self.position2d_ctrl = Position2DControl(position_page)
         self.position3d_ctrl = Position3DControl(position_page)
 
-        visible_page = _prop_grid.Category(self, 'Visible')
+        visible_page = _prop_grid.Category(self.nb, 'Visible')
         self.visible2d_ctrl = Visible2DControl(visible_page)
         self.visible3d_ctrl = Visible3DControl(visible_page)
 
-        terminal_page = _prop_grid.Category(self, 'Terminal')
+        terminal_page = _prop_grid.Category(self.nb, 'Terminal')
 
         from . import pjt_terminal as _pjt_terminal  # NOQA
 
         self.terminal_ctrl = _pjt_terminal.PJTTerminalControl(terminal_page)
 
-        seal_page = _prop_grid.Category(self, 'Seal')
+        seal_page = _prop_grid.Category(self.nb, 'Seal')
 
         from . import pjt_seal as _pjt_seal  # NOQA
 
         self.seal_ctrl = _pjt_seal.PJTSealControl(seal_page)
 
-        part_page = _prop_grid.Category(self, 'Part')
+        part_page = _prop_grid.Category(self.nb, 'Part')
         from ..global_db import cavity as _cavity  # NOQA
 
         self.part_ctrl = _cavity.CavityControl(part_page)
@@ -370,7 +377,7 @@ class PJTCavityControl(wx.Notebook):
             seal_page,
             part_page
         ):
-            self.AddPage(page, page.GetLabel())
+            self.nb.AddPage(page, page.GetLabel())
             page.Realize()
 
     def set_obj(self, db_obj: PJTCavity):

@@ -107,7 +107,7 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
     @layer_id.setter
     def layer_id(self, value: int):
         self._table.update(self._db_id, layer_id=value)
-        self._process_callbacks()
+        self._populate('layer_id')
 
     @property
     def idx(self) -> int:
@@ -116,7 +116,7 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
     @idx.setter
     def idx(self, value: int):
         self._table.update(self._db_id, idx=value)
-        self._process_callbacks()
+        self._populate('idx')
 
     @property
     def is_filler(self) -> bool:
@@ -125,7 +125,7 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
     @is_filler.setter
     def is_filler(self, value: bool):
         self._table.update(self._db_id, is_filler=int(value))
-        self._process_callbacks()
+        self._populate('is_filler')
 
     @property
     def wire(self) -> "_pjt_wire.PJTWire":
@@ -139,7 +139,7 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
     @wire_id.setter
     def wire_id(self, value: int):
         self._table.update(self._db_id, wire_id=value)
-        self._process_callbacks()
+        self._populate('wire_id')
 
     @property
     def propgrid(self) -> _prop_grid.Property:

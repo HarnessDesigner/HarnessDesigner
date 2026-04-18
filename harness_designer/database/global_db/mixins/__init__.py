@@ -52,6 +52,7 @@ MaterialMixin = _material.MaterialMixin
 MaterialControl = _material.MaterialControl
 
 NameMixin = _name.NameMixin
+NameControl = _name.NameControl
 
 PartNumberMixin = _part_number.PartNumberMixin
 PartNumberControl = _part_number.PartNumberControl
@@ -63,6 +64,7 @@ TemperatureMixin = _temperature.TemperatureMixin
 TemperatureControl = _temperature.TemperatureControl
 
 WireSizeMixin = _wire_size.WireSizeMixin
+WireSizeControl = _wire_size.WireSizeControl
 
 AdhesiveMixin = _adhesive.AdhesiveMixin
 AdhesiveControl = _adhesive.AdhesiveControl
@@ -77,6 +79,7 @@ CavityLockMixin = _cavity_lock.CavityLockMixin
 CavityLockControl = _cavity_lock.CavityLockControl
 
 Model3DMixin = _model3d.Model3DMixin
+Model3DControl = _model3d.Model3DControl
 
 PlatingMixin = _plating.PlatingMixin
 PlatingControl = _plating.PlatingControl

@@ -1,8 +1,5 @@
 from typing import Iterable as _Iterable
 
-from ...ui.editor_obj import prop_grid as _prop_grid
-import weakref
-
 from .pjt_bases import PJTEntryBase, PJTTableBase
 
 from ...geometry import point as _point
@@ -28,8 +25,8 @@ class PJTPoints3DTable(PJTTableBase):
 
     def __iter__(self) -> _Iterable["PJTPoint3D"]:
         for db_id in PJTTableBase.__iter__(self):
-                point = PJTPoint3D(self, db_id, self.project_id)
-                yield point
+            point = PJTPoint3D(self, db_id, self.project_id)
+            yield point
 
     def __getitem__(self, item) -> "PJTPoint3D":
         if isinstance(item, int):
@@ -65,7 +62,6 @@ class PJTPoint3D(PJTEntryBase):
     @x.setter
     def x(self, value: float):
         self._table.update(self._db_id, x=value)
-        self._process_callbacks()
 
     @property
     def y(self) -> float:
@@ -74,7 +70,6 @@ class PJTPoint3D(PJTEntryBase):
     @y.setter
     def y(self, value: float):
         self._table.update(self._db_id, y=value)
-        self._process_callbacks()
 
     @property
     def z(self) -> float:
@@ -83,13 +78,11 @@ class PJTPoint3D(PJTEntryBase):
     @z.setter
     def z(self, value: float):
         self._table.update(self._db_id, z=value)
-        self._process_callbacks()
 
-    def __update_point(self, point: _point.Point):
+    def _update_point(self, point: _point.Point):
         x, y, z = point.as_float
 
         self._table.update(self._db_id, x=x, y=y, z=z)
-        self._process_callbacks()
 
     _stored_point3d: _point.Point = None
 
@@ -97,19 +90,6 @@ class PJTPoint3D(PJTEntryBase):
     def point(self) -> _point.Point:
         if self._stored_point3d is None:
             self._stored_point3d = _point.Point(self.x, self.y, self.z, db_id=str(self.db_id) + '3d')
-            self._stored_point3d.bind(self.__update_point)
+            self._stored_point3d.bind(self._update_point)
 
         return self._stored_point3d
-
-    @property
-    def propgrid(self) -> _prop_grid.Property:
-        group = _prop_grid.Property('3D Position', 'position3d')
-        x = _prop_grid.FloatProperty('X', 'x', self.x, min_value=-9999.99, max_value=9999.99, increment=0.01, units='mm')
-        y = _prop_grid.FloatProperty('Y', 'y', self.y, min_value=0.0, max_value=9999.99, increment=0.01, units='mm')
-        z = _prop_grid.FloatProperty('Z', 'z', self.z, min_value=-9999.99, max_value=9999.99, increment=0.01, units='mm')
-
-        group.Append(x)
-        group.Append(y)
-        group.Append(z)
-
-        return group

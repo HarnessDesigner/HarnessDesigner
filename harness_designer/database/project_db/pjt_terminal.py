@@ -6,7 +6,8 @@ import wx
 from ...ui.editor_obj import prop_grid as _prop_grid
 
 from .pjt_bases import PJTEntryBase, PJTTableBase
-
+from . import pjt_seal as _pjt_seal
+from ..global_db import terminal as _terminal
 from .mixins import (
     Angle3DMixin, Angle3DControl,
     Angle2DMixin, Angle2DControl,
@@ -26,9 +27,6 @@ from ... import logger as _logger
 if TYPE_CHECKING:
     from . import pjt_cavity as _pjt_cavity
     from . import pjt_circuit as _pjt_circuit
-    from . import pjt_seal as _pjt_seal
-
-    from ..global_db import terminal as _terminal
 
     from ...objects import terminal as _terminal_obj
 
@@ -147,7 +145,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin, Not
             self.__check_for_other_starts()
 
         self._table.update(self._db_id, is_start=int(value))
-        self._process_callbacks()
+        self._populate('is_start')
 
     def __check_for_other_starts(self):
         db_ids = self._table.select('db_id', circuit_id=self.circuit_id, is_start=1)
@@ -172,7 +170,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin, Not
                                'to the end terminal of a circuit')
 
         self._table.update(self._db_id, voltage_drop=value)
-        self._process_callbacks()
+        self._populate('voltage_drop')
 
     @property
     def resistance(self) -> float:
@@ -192,7 +190,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin, Not
                                'not the end terminals of a circuit')
 
         self._table.update(self._db_id, volts=value)
-        self._process_callbacks()
+        self._populate('volts')
 
     @property
     def load(self) -> float:
@@ -208,7 +206,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin, Not
                                'not the start terminals of a circuit')
 
         self._table.update(self._db_id, load=value)
-        self._process_callbacks()
+        self._populate('load')
 
     @property
     def table(self) -> PJTTerminalsTable:
@@ -238,7 +236,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin, Not
         self._stored_cavity = None
 
         self._table.update(self._db_id, cavity_id=value)
-        self._process_callbacks()
+        self._populate('cavity_id')
 
     _stored_circuit: "_pjt_circuit.PJTCircuit" = None
 
@@ -264,7 +262,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin, Not
         self._stored_circuit = None
 
         self._table.update(self._db_id, circuit_id=value)
-        self._process_callbacks()
+        self._populate('circuit_id')
 
     @property
     def seal(self) -> "_pjt_seal.PJTSeal":
@@ -324,6 +322,7 @@ class PJTTerminalControl(wx.Notebook):
 
             self.seal_ctrl.set_obj(None)
             self.terminal_ctrl.set_obj(None)
+            self.circuit_ctrl.set_obj(None)
 
         else:
 
@@ -350,6 +349,7 @@ class PJTTerminalControl(wx.Notebook):
 
             self.seal_ctrl.set_obj(db_obj.seal)
             self.terminal_ctrl.set_obj(db_obj.part)
+            self.circuit_ctrl.set_obj(db_obj.circuit)
 
     def __init__(self, parent):
         self.db_obj: PJTTerminal = None
@@ -378,15 +378,12 @@ class PJTTerminalControl(wx.Notebook):
         self.visible3d_ctrl = Visible3DControl(visible_page)
 
         seal_page = _prop_grid.Category(self, 'Seal')
-
-        from . import pjt_seal as _pjt_seal
-
         self.seal_ctrl = _pjt_seal.PJTSealControl(seal_page)
 
+        circuit_page = _prop_grid.Category(self, 'Circuit')
+        self.circuit_ctrl = _pjt_circuit.PJTCircuitControl(circuit_page)
+
         part_page = _prop_grid.Category(self, 'Part')
-
-        from ..global_db import terminal as _terminal  # NOQA
-
         self.terminal_ctrl = _terminal.TerminalControl(part_page)
 
         for page in (
@@ -395,6 +392,7 @@ class PJTTerminalControl(wx.Notebook):
             position_page,
             visible_page,
             seal_page,
+            circuit_page,
             part_page
         ):
             self.AddPage(page, page.GetLabel())

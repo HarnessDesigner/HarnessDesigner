@@ -1,7 +1,5 @@
 from typing import Iterable as _Iterable
 
-from ...ui.editor_obj import prop_grid as _prop_grid
-
 from .bases import EntryBase, TableBase
 from .mixins import NameMixin
 
@@ -61,13 +59,3 @@ class SpliceType(EntryBase, NameMixin):
         }
 
         return packet
-
-    @property
-    def propgrid(self) -> _prop_grid.Property:
-
-        rows = self.table.select('name')
-
-        choices = [item[0] for item in rows]
-        name_prop = _prop_grid.ComboBoxProperty('Splice Type', 'name', self.name, choices)
-
-        return name_prop

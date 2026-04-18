@@ -1,28 +1,54 @@
 
+# TODO: Rewrite the splices so they accept models and a set number
+#       of splice points. It also needs to be written so there can be a
+#       single splice point and the number of connected wires would be
+#       dictated by the diameter of the splice
+
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 import weakref
-from ...ui.editor_obj import prop_grid as _prop_grid
+import wx
 
+from ...ui.editor_obj import prop_grid as _prop_grid
+from ..global_db import splice as _splice
+from . import pjt_circuit as _pjt_circuit
 from .pjt_bases import PJTEntryBase, PJTTableBase
-from .mixins import (PartMixin, StartStopPosition3DMixin, Visible3DMixin,
-                     Visible2DMixin, NameMixin, NotesMixin)
 from ...geometry import point as _point
+
+from .mixins import (
+    PartMixin,
+    Position2DMixin, Position2DControl,
+    StartStopPosition3DMixin, StartStopPosition3DControl,
+    Visible3DMixin, Visible3DControl,
+    Visible2DMixin, Visible2DControl,
+    NameMixin, NameControl,
+    NotesMixin, NotesControl
+)
 
 
 if TYPE_CHECKING:
     from . import pjt_point3d as _pjt_point3d
-    from . import pjt_point2d as _pjt_point2d
-    from . import pjt_circuit as _pjt_circuit
     from . import pjt_wire as _pjt_wire
-
-    from ..global_db import splice as _splice
 
     from ...objects import splice as _splice_obj
 
 
 class PJTSplicesTable(PJTTableBase):
     __table_name__ = 'pjt_splices'
+
+    _control: "PJTSpliceControl" = None
+
+    @property
+    def control(self) -> "PJTSpliceControl":
+        if self._control is None:
+            raise RuntimeError('sanity check')
+
+        return self._control
+
+    @classmethod
+    def start_control(cls, mainframe):
+        cls._control = PJTSpliceControl(mainframe)
+        cls._control.Show(False)
 
     def _table_needs_update(self) -> bool:
         from ..create_database import splices
@@ -61,7 +87,7 @@ class PJTSplicesTable(PJTTableBase):
         return PJTSplice(self, db_id, self.project_id)
 
 
-class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
+class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMixin,
                 Visible3DMixin, Visible2DMixin, NameMixin, NotesMixin):
 
     _table: PJTSplicesTable = None
@@ -72,7 +98,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
             'pjt_cavities': [self.db_id],
             'cavities': [self.part_id],
             'pjt_points3d': [self.start_position3d_id, self.stop_position3d_id, self.branch_position3d_id],
-            'pjt_points2d': [self.start_position2d_id, self._stop_position2d_id],
+            'pjt_points2d': [self.position2d_id],
         }
 
         self.merge_packet_data(self.part.build_monitor_packet(), packet)
@@ -145,8 +171,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
         if point_id is None:
             self._table.execute(
                 f'INSERT INTO pjt_points3d (project_id, x, y, z) VALUES (?, ?, ?, ?);',
-                (self._table.project_id, 0.0, 0.0, 0.0)
-                )
+                (self._table.project_id, 0.0, 0.0, 0.0))
 
             self._table.commit()
             point_id = self._table.lastrowid
@@ -157,27 +182,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
     @branch_position3d_id.setter
     def branch_position3d_id(self, value: int):
         self._table.update(self._db_id, branch_point3d_id=value)
-
-    _stored_position2d: "_pjt_point2d.PJTPoint2D" = None
-
-    @property
-    def position2d(self) -> "_point.Point":
-        if self._stored_position2d is None and self._obj is not None:
-
-            point_id = self.position2d_id
-
-            self._stored_position2d = self._table.db.pjt_points2d_table[point_id]
-            self._stored_position2d.add_object(self._obj())
-        return self._stored_position2d.point
-
-    @property
-    def position2d_id(self) -> int:
-        return self._table.select('point2d_id', id=self._db_id)[0][0]
-
-    @position2d_id.setter
-    def position2d_id(self, value: int):
-        self._table.update(self._db_id, point2d_id=value)
-        self._process_callbacks()
+        self._populate('branch_position3d_id')
 
     @property
     def circuit(self) -> "_pjt_circuit.PJTCircuit":
@@ -191,7 +196,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
     @circuit_id.setter
     def circuit_id(self, value: int):
         self._table.update(self._db_id, circuit_id=value)
-        self._process_callbacks()
+        self._populate('circuit_id')
 
     @property
     def resistance(self) -> float:
@@ -205,52 +210,59 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
 
         return self._table.db.global_db.splices_table[part_id]
 
-    @property
-    def propgrid(self) -> tuple[_prop_grid.Category, _prop_grid.Category, _prop_grid.Category]:
 
-        # TODO: Rewrite the splices so they accept models and a set number
-        #  of splice points. It also needs to be written so there can be a
-        #  single splice point and the number of connected wires would be
-        #  dictated by the diameter of the splice
+class PJTSpliceControl(wx.Notebook):
 
-        group = _prop_grid.Category('Project')
+    def set_obj(self, db_obj: PJTSplice):
+        self.db_obj = db_obj
 
-        notes_prop = self._notes_propgrid
-        name_prop = self._name_propgrid
+        self.name_ctrl.set_obj(db_obj)
+        self.note_ctrl.set_obj(db_obj)
+        self.position2d_ctrl.set_obj(db_obj)
+        self.position3d_ctrl.set_obj(db_obj)
+        self.visible2d_ctrl.set_obj(db_obj)
+        self.visible3d_ctrl.set_obj(db_obj)
 
-        angle_group = _prop_grid.Property('Angle')
-        angle2d_prop = self._angle2d_propgrid
-        angle3d_prop = self._angle3d_propgrid
-        angle2d_prop.SetLabel('2D')
-        angle3d_prop.SetLabel('3D')
-        angle_group.Append(angle2d_prop)
-        angle_group.Append(angle3d_prop)
+        if db_obj is None:
+            self.splice_ctrl.set_obj(None)
+            self.branch_position3d_ctrl.SetValue(None)
+            self.circuit_ctrl.set_obj(None)
+        else:
+            self.splice_ctrl.set_obj(db_obj.part)
+            self.branch_position3d_ctrl.SetValue(db_obj.branch_position3d)
+            self.circuit_ctrl.set_obj(db_obj.circuit)
 
-        circuit_prop = self._circuit_propgrid
+    def __init__(self, parent):
+        self.db_obj: PJTSplice = None
 
-        position_prop = self._start_stop_position3d_propgrid
+        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
 
-        _ = self.branch_position3d
-        branch_prop = self._stored_branch_position3d.propgrid
-        branch_prop.SetLabel('Branch Position 3D')
-        branch_prop.SetName('branch_position3d')
+        general_page = _prop_grid.Category(self, 'General')
+        self.name_ctrl = NameControl(general_page)
+        self.note_ctrl = NotesControl(general_page)
 
-        visible_group = _prop_grid.Property('Visible')
+        position_page = _prop_grid.Category(self, 'Position')
 
-        visible2d_prop = self._visible2d_propgrid
-        visible3d_prop = self._visible3d_propgrid
-        visible2d_prop.SetLabel('2D')
-        visible3d_prop.SetLabel('3D')
-        visible_group.Append(visible2d_prop)
-        visible_group.Append(visible3d_prop)
+        self.position2d_ctrl = Position2DControl(position_page)
+        self.branch_position3d_ctrl = _prop_grid.Position3DProperty(position_page, '3D Branch Position')
+        self.position3d_ctrl = StartStopPosition3DControl(position_page)
 
-        group.Append(name_prop)
-        group.Append(notes_prop)
-        group.Append(angle_group)
-        group.Append(position_prop)
-        group.Append(branch_prop)
-        group.Append(visible_group)
+        visible_page = _prop_grid.Category(self, 'Visible')
+        self.visible2d_ctrl = Visible2DControl(visible_page)
+        self.visible3d_ctrl = Visible3DControl(visible_page)
 
-        part_prop = self._part_propgrid
+        circuit_page = _prop_grid.Category(self, 'Circuit')
+        self.circuit_ctrl = _pjt_circuit.PJTCircuitControl(circuit_page)
 
-        return group, part_prop, circuit_prop
+        part_page = _prop_grid.Category(self, 'Part')
+        self.splice_ctrl = _splice.SpliceControl(part_page)
+
+        for page in (
+            general_page,
+            position_page,
+            visible_page,
+            circuit_page,
+            part_page
+        ):
+            self.AddPage(page, page.GetLabel())
+            page.Realize()

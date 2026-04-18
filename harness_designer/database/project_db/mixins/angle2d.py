@@ -14,6 +14,7 @@ class Angle2DMixin(BaseMixin):
 
         self._table.update(self._db_id, quat2d=str(quat))
         self._table.update(self._db_id, angle2d=str(euler_angle))
+        self._populate('angle2d')
 
     @property
     def angle2d(self) -> _angle.Angle:

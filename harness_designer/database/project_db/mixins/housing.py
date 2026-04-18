@@ -25,3 +25,4 @@ class HousingMixin(BaseMixin):
     @housing_id.setter
     def housing_id(self, value: int):
         self._table.update(self._db_id, housing_id=value)
+        self._populate('housing_id')

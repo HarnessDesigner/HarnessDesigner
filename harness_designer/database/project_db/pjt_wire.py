@@ -2,19 +2,29 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 import weakref
-from wx import propgrid as wxpg
+import wx
 
+from ...ui.editor_obj import prop_grid as _prop_grid
+from ..global_db import wire as _wire
+from . import pjt_circuit as _pjt_circuit
 from .pjt_bases import PJTEntryBase, PJTTableBase
-from .mixins import StartStopPosition3DMixin, PartMixin, Visible3DMixin, Visible2DMixin, NameMixin
+from .mixins import (
+    StartStopPosition3DMixin, StartStopPosition3DControl,
+    StartStopPosition2DMixin, StartStopPosition2DControl,
+    PartMixin,
+    Visible3DMixin, Visible3DControl,
+    Visible2DMixin, Visible2DControl,
+    NameMixin, NameControl,
+    NotesMixin, NotesControl
+)
+
 from ...geometry import line as _line
 
 
 if TYPE_CHECKING:
     from . import pjt_point2d as _pjt_point2d
     from . import pjt_terminal as _pjt_terminal
-    from . import pjt_circuit as _pjt_circuit
     from . import pjt_wire_marker as _pjt_wire_marker
-    from ..global_db import wire as _wire
     from ...geometry import point as _point
 
     from ...objects import wire as _wire_obj
@@ -22,6 +32,20 @@ if TYPE_CHECKING:
 
 class PJTWiresTable(PJTTableBase):
     __table_name__ = 'pjt_wires'
+
+    _control: "PJTWireControl" = None
+
+    @property
+    def control(self) -> "PJTWireControl":
+        if self._control is None:
+            raise RuntimeError('sanity check')
+
+        return self._control
+
+    @classmethod
+    def start_control(cls, mainframe):
+        cls._control = PJTWireControl(mainframe)
+        cls._control.Show(False)
 
     def _table_needs_update(self) -> bool:
         from ..create_database import wires
@@ -63,8 +87,8 @@ class PJTWiresTable(PJTTableBase):
         return PJTWire(self, db_id, self.project_id)
 
 
-class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin,
-              Visible3DMixin, Visible2DMixin, NameMixin):
+class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPosition2DMixin,
+              Visible3DMixin, Visible2DMixin, NameMixin, NotesMixin):
 
     _table: PJTWiresTable = None
 
@@ -144,7 +168,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin,
 
     @property
     def layer_view_position(self) -> "_point.Point":
-        if self._stored_layer_view_point is None and self._obj is not None:
+        if self._stored_layer_view_position is None and self._obj is not None:
             point_id = self.layer_view_position_id
 
             if point_id is None:
@@ -164,7 +188,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin,
         self._stored_layer_view_position = None
 
         self._table.update(self._db_id, layer_view_point_id=value)
-        self._process_callbacks()
+        self._populate('layer_view_position_id')
 
     @property
     def layer_id(self) -> int | None:
@@ -173,7 +197,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin,
     @layer_id.setter
     def layer_id(self, value: int | None):
         self._table.update(self._db_id, layer_id=value)
-        self._process_callbacks()
+        self._populate('layer_id')
 
     @property
     def is_filler_wire(self) -> bool:
@@ -182,7 +206,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin,
     @is_filler_wire.setter
     def is_filler_wire(self, value: bool):
         self._table.update(self._db_id, is_filler_wire=int(value))
-        self._process_callbacks()
+        self._populate('is_filler_wire')
 
     @property
     def length_mm(self) -> float:
@@ -216,55 +240,6 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin,
     def table(self) -> PJTWiresTable:
         return self._table
 
-    _stored_start_position2d: "_pjt_point2d.PJTPoint2D" = None
-
-    @property
-    def start_position2d(self) -> "_point.Point":
-        if self._stored_start_position2d is None and self._obj is not None:
-            point_id = self.start_position2d_id
-
-            if point_id is None:
-                return None
-
-            self._stored_start_position2d = self._table.db.pjt_points2d_table[point_id]
-            self._stored_start_position2d.add_object(self._obj())
-
-        return self._stored_start_position2d.point
-
-    @property
-    def start_position2d_id(self) -> int:
-        return self._table.select('start_point2d_id', id=self._db_id)[0][0]
-
-    @start_position2d_id.setter
-    def start_position2d_id(self, value: int):
-        self._stored_start_position2d = None
-        self._table.update(self._db_id, start_point2d_id=value)
-        self._process_callbacks()
-
-    _stored_stop_position2d: "_pjt_point2d.PJTPoint2D" = None
-
-    @property
-    def stop_position2d(self) -> "_point.Point":
-        if self._stored_stop_position2d is None and self._obj is not None:
-            point_id = self.stop_position2d_id
-
-            if point_id is None:
-                return None
-
-            self._stored_stop_position2d = self._table.db.pjt_points2d_table[point_id]
-            self._stored_stop_position2d.add_object(self._obj())
-
-        return self._stored_stop_position2d.point
-
-    @property
-    def stop_position2d_id(self) -> int:
-        return self._table.select('stop_point2d_id', id=self._db_id)[0][0]
-
-    @stop_position2d_id.setter
-    def stop_position2d_id(self, value: int):
-        self._table.update(self._db_id, stop_point2d_id=value)
-        self._process_callbacks()
-        
     @property
     def circuit(self) -> "_pjt_circuit.PJTCircuit":
         circuit_id = self.circuit_id
@@ -277,16 +252,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin,
     @circuit_id.setter
     def circuit_id(self, value: int):
         self._table.update(self._db_id, circuit_id=value)
-        self._process_callbacks()
-
-    @property
-    def is_visible(self) -> bool:
-        return bool(self._table.select('is_visible', id=self._db_id)[0][0])
-
-    @is_visible.setter
-    def is_visible(self, value: bool):
-        self._table.update(self._db_id, is_visible=int(value))
-        self._process_callbacks()
+        self._populate('circuit_id')
 
     _stored_part: "_wire.Wire" = None
 
@@ -303,24 +269,110 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin,
 
         return self._stored_part
 
-    @property
-    def propgrid(self) -> wxpg.PGProperty:
-        group = wxpg.PropertyCategory('Project')
 
-        notes_prop = self._notes_propgrid
-        name_prop = self._name_propgrid
-        angle_prop = self._angle3d_propgrid
-        position_prop = self._position3d_propgrid
-        housing_prop = self._housing_propgrid
-        visible_prop = self._visible3d_propgrid
+class PJTWireControl(wx.Notebook):
 
-        group.Append(name_prop)
-        group.Append(notes_prop)
-        group.Append(angle_prop)
-        group.Append(position_prop)
-        group.Append(visible_prop)
-        group.Append(housing_prop)
+    def _update_position3d(self, _):
+        self.length_mm_ctrl.SetValue(str(self.db_obj.length_mm))
+        self.length_m_ctrl.SetValue(str(self.db_obj.length_m))
+        self.length_ft_ctrl.SetValue(str(self.db_obj.length_ft))
+        self.weight_g_ctrl.SetValue(str(self.db_obj.weight_g))
+        self.weight_lb_ctrl.SetValue(str(self.db_obj.weight_lb))
+        self.resistance_ctrl.SetValue(str(self.db_obj.resistance))
 
-        part_prop = self._part_propgrid
+    def set_obj(self, db_obj: PJTWire):
+        if self.db_obj is not None:
+            self.db_obj.start_position3d.unbind(self._update_position3d)
+            self.db_obj.stop_position3d.unbind(self._update_position3d)
 
-        return group, part_prop
+        self.db_obj = db_obj
+
+        self.name_ctrl.set_obj(db_obj)
+        self.note_ctrl.set_obj(db_obj)
+        self.position2d_ctrl.set_obj(db_obj)
+        self.position3d_ctrl.set_obj(db_obj)
+        self.visible2d_ctrl.set_obj(db_obj)
+        self.visible3d_ctrl.set_obj(db_obj)
+
+        if db_obj is None:
+            self.wire_ctrl.set_obj(None)
+            self.circuit_ctrl.set_obj(None)
+
+            self.is_filler_wire_ctrl.SetValue(False)
+            self.is_filler_wire_ctrl.Enable(False)
+
+            self.length_mm_ctrl.SetValue('')
+            self.length_m_ctrl.SetValue('')
+            self.length_ft_ctrl.SetValue('')
+            self.weight_g_ctrl.SetValue('')
+            self.weight_lb_ctrl.SetValue('')
+            self.resistance_ctrl.SetValue('')
+
+        else:
+            self.wire_ctrl.set_obj(db_obj.part)
+            self.circuit_ctrl.set_obj(db_obj.circuit)
+            self.is_filler_wire_ctrl.SetValue(db_obj.is_filler_wire)
+            self.is_filler_wire_ctrl.Enable(True)
+            self.length_mm_ctrl.SetValue(str(db_obj.length_mm))
+            self.length_m_ctrl.SetValue(str(db_obj.length_m))
+            self.length_ft_ctrl.SetValue(str(db_obj.length_ft))
+            self.weight_g_ctrl.SetValue(str(db_obj.weight_g))
+            self.weight_lb_ctrl.SetValue(str(db_obj.weight_lb))
+            self.resistance_ctrl.SetValue(str(db_obj.resistance))
+
+            self.db_obj.start_position3d.bind(self._update_position3d)
+            self.db_obj.stop_position3d.bind(self._update_position3d)
+
+    def __init__(self, parent):
+        self.db_obj: PJTWire = None
+
+        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+
+        general_page = _prop_grid.Category(self, 'General')
+        self.name_ctrl = NameControl(general_page)
+        self.note_ctrl = NotesControl(general_page)
+
+        self.is_filler_wire_ctrl = _prop_grid.BoolProperty(general_page, 'Is Filler Wire', False)
+
+        position_page = _prop_grid.Category(self, 'Position')
+
+        self.position2d_ctrl = StartStopPosition2DControl(position_page)
+        self.position3d_ctrl = StartStopPosition3DControl(position_page)
+
+        visible_page = _prop_grid.Category(self, 'Visible')
+        self.visible2d_ctrl = Visible2DControl(visible_page)
+        self.visible3d_ctrl = Visible3DControl(visible_page)
+
+        info_page = _prop_grid.Category(self, 'Info')
+
+        length_group = _prop_grid.Property(info_page, 'Length', orientation=wx.VERTICAL)
+
+        self.length_mm_ctrl = _prop_grid.StringProperty(length_group, 'Millimeter', '', style=wx.TE_READONLY)
+        self.length_m_ctrl = _prop_grid.StringProperty(length_group, 'Meter', '', style=wx.TE_READONLY)
+        self.length_ft_ctrl = _prop_grid.StringProperty(length_group, 'Foot', '', style=wx.TE_READONLY)
+
+        weight_group = _prop_grid.Property(info_page, 'Weight', orientation=wx.VERTICAL)
+
+        self.weight_g_ctrl = _prop_grid.StringProperty(weight_group, 'Gram', '', style=wx.TE_READONLY)
+        self.weight_lb_ctrl = _prop_grid.StringProperty(weight_group, 'Pound', '', style=wx.TE_READONLY)
+
+        electrical_group = _prop_grid.Property(info_page, 'Electrical', orientation=wx.VERTICAL)
+
+        self.resistance_ctrl = _prop_grid.StringProperty(electrical_group, 'Resistance', '', units='Ω', style=wx.TE_READONLY)
+
+        circuit_page = _prop_grid.Category(self, 'Circuit')
+        self.circuit_ctrl = _pjt_circuit.PJTCircuitControl(circuit_page)
+
+        part_page = _prop_grid.Category(self, 'Part')
+        self.wire_ctrl = _wire.WireControl(part_page)
+
+        for page in (
+            general_page,
+            info_page,
+            position_page,
+            visible_page,
+            circuit_page,
+            part_page
+        ):
+            self.AddPage(page, page.GetLabel())
+            page.Realize()

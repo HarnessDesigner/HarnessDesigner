@@ -1,11 +1,25 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
+import wx
+
 from ...ui.editor_obj import prop_grid as _prop_grid
 
 from .bases import EntryBase, TableBase
-from .mixins import (PartNumberMixin, DescriptionMixin, ManufacturerMixin, FamilyMixin,
-                     SeriesMixin, MaterialMixin, ColorMixin, PlatingMixin, ResourceMixin,
-                     Model3DMixin, WeightMixin, TemperatureMixin)
+from .mixins import (
+    PartNumberMixin, PartNumberControl,
+    DescriptionMixin, DescriptionControl,
+    ManufacturerMixin, ManufacturerControl,
+    FamilyMixin, FamilyControl,
+    SeriesMixin, SeriesControl,
+    MaterialMixin, MaterialControl,
+    ColorMixin, ColorControl,
+    PlatingMixin, PlatingControl,
+    ResourceMixin, ResourcesControl,
+    Model3DMixin, Model3DControl,
+    WeightMixin, WeightControl,
+    TemperatureMixin, TemperatureControl,
+    DimensionMixin, DimensionControl
+)
 
 
 if TYPE_CHECKING:
@@ -148,7 +162,8 @@ class SplicesTable(TableBase):
 
 class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
              FamilyMixin, SeriesMixin, MaterialMixin, ColorMixin, PlatingMixin,
-             ResourceMixin, Model3DMixin, WeightMixin, TemperatureMixin):
+             ResourceMixin, Model3DMixin, WeightMixin, TemperatureMixin,
+             DimensionMixin):
 
     _table: SplicesTable = None
 
@@ -177,10 +192,6 @@ class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
         db_id = self.type_id
         return self._table.db.splice_types_table[db_id]
 
-    @type.setter
-    def type(self, value: "_splice_types.SpliceType"):
-        self.type_id = value.db_id
-
     @property
     def type_id(self) -> int:
         return self._table.select('type_id', id=self._db_id)[0][0]
@@ -188,6 +199,7 @@ class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
     @type_id.setter
     def type_id(self, value: int):
         self._table.update(self._db_id, type_id=value)
+        self._populate('type_id')
 
     @property
     def resistance(self) -> float:
@@ -196,6 +208,7 @@ class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
     @resistance.setter
     def resistance(self, value: float):
         self._table.update(self._db_id, resistance=value)
+        self._populate('resistance')
 
     @property
     def min_dia(self) -> float:
@@ -204,6 +217,7 @@ class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
     @min_dia.setter
     def min_dia(self, value: float):
         self._table.update(self._db_id, min_dia=value)
+        self._populate('min_dia')
 
     @property
     def max_dia(self) -> float:
@@ -212,66 +226,152 @@ class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
     @max_dia.setter
     def max_dia(self, value: float):
         self._table.update(self._db_id, min_dia=value)
+        self._populate('max_dia')
 
-    @property
-    def length(self) -> float:
-        return self._table.select('length', id=self._db_id)[0][0]
 
-    @length.setter
-    def length(self, value: float):
-        self._table.update(self._db_id, length=value)
+class SpliceControl(wx.Notebook):
 
-    @property
-    def propgrid(self) -> _prop_grid.Category:
-        part_cat = _prop_grid.Category('Part Attributes')
-        
-        part_number_prop = self._part_number_propgrid
-        manufacturer_prop = self._manufacturer_propgrid
-        description_prop = self._description_propgrid
-        family_prop = self._family_propgrid
-        series_prop = self._series_propgrid
-        color_prop = self._color_propgrid
-        temperature_prop = self._temperature_propgrid
-        weight_prop = self._weight_propgrid
-        resource_prop = self._resource_propgrid
-        model3d_prop = self._model3d_propgrid
-        material_prop = self._material_propgrid
-        plating_prop = self._plating_propgrid
-        type_prop = self.type.propgrid
+    # TODO: Add splice types
 
-        min_dia_prop = _prop_grid.FloatProperty(
-            'Minimum Diameter', 'min_dia', self.min_dia,
-            min_value=0.26, max_value=8.25, increment=0.01, units='mm')
+    def set_obj(self, db_obj: Splice):
+        self.db_obj = db_obj
 
-        max_dia_prop = _prop_grid.FloatProperty(
-            'Maximum Diameter', 'max_dia', self.max_dia,
-            min_value=0.26, max_value=8.25, increment=0.01, units='mm')
+        self.mfg_page.set_obj(db_obj)
+        self.family_page.set_obj(db_obj)
+        self.series_page.set_obj(db_obj)
+        self.temperature_page.set_obj(db_obj)
+        self.dimension_page.set_obj(db_obj)
+        self.resources_page.set_obj(db_obj)
+        self.plating_page.set_obj(db_obj)
+        self.model3d_page.set_obj(db_obj)
 
-        resistance_prop = _prop_grid.FloatProperty(
-            'Resistance', 'resistance', self.resistance,
-            min_value=0.1, max_value=10000000.00, increment=0.1, units='Ω')
+        self.material_ctrl.set_obj(db_obj)
+        self.part_number_ctrl.set_obj(db_obj)
+        self.description_ctrl.set_obj(db_obj)
+        self.color_ctrl.set_obj(db_obj)
+        self.weight_ctrl.set_obj(db_obj)
 
-        length_prop = _prop_grid.FloatProperty(
-            'Length', 'length', self.length,
-            min_value=0.01, max_value=999.0, increment=0.01, units='mm')
+        if db_obj is None:
+            self.splice_type_choices = []
+            self.splice_type_ctrl.SetItems([])
+            self.splice_type_ctrl.SetValue('')
+            self.resistance_ctrl.SetValue(0.0)
+            self.min_dia_ctrl.SetValue(0.0)
+            self.max_dia_ctrl.SetValue(0.0)
 
-        part_cat.Append(part_number_prop)
-        part_cat.Append(manufacturer_prop)
-        part_cat.Append(description_prop)
-        part_cat.Append(family_prop)
-        part_cat.Append(series_prop)
-        part_cat.Append(length_prop)
-        part_cat.Append(weight_prop)
-        part_cat.Append(material_prop)
-        part_cat.Append(color_prop)
-        part_cat.Append(plating_prop)
-        part_cat.Append(resistance_prop)
-        part_cat.Append(temperature_prop)
-        part_cat.Append(min_dia_prop)
-        part_cat.Append(max_dia_prop)
-        part_cat.Append(type_prop)
-        part_cat.Append(weight_prop)
-        part_cat.Append(resource_prop)
-        part_cat.Append(model3d_prop)
+            self.splice_type_ctrl.Enable(False)
+            self.resistance_ctrl.Enable(False)
+            self.min_dia_ctrl.Enable(False)
+            self.max_dia_ctrl.Enable(False)
+        else:
+            self.db_obj.table.execute(f'SELECT name FROM splice_types;')
+            rows = self.db_obj.table.fetchall()
 
-        return part_cat
+            self.splice_type_choices = sorted([row[0] for row in rows])
+
+            self.splice_type_ctrl.SetItems(self.splice_type_choices)
+            self.splice_type_ctrl.SetValue(db_obj.type.name)
+
+            self.resistance_ctrl.SetValue(db_obj.resistance)
+            self.min_dia_ctrl.SetValue(db_obj.min_dia)
+            self.max_dia_ctrl.SetValue(db_obj.max_dia)
+
+            self.splice_type_ctrl.Enable(True)
+            self.resistance_ctrl.Enable(True)
+            self.min_dia_ctrl.Enable(True)
+            self.max_dia_ctrl.Enable(True)
+
+    def _on_resistance(self, evt):
+        value = evt.GetValue()
+        self.db_obj.resistance = value
+
+    def _on_max_dia(self, evt):
+        value = evt.GetValue()
+        self.db_obj.max_dia = value
+
+    def _on_min_dia(self, evt):
+        value = evt.GetValue()
+        self.db_obj.min_dia = value
+
+    def _on_splice_type(self, evt):
+        name = evt.GetValue()
+
+        self.db_obj.table.execute(f'SELECT id FROM splice_types WHERE name="{name}";')
+        rows = self.db_obj.table.fetchall()
+
+        if rows:
+            db_id = rows[0][0]
+
+        else:
+            db_obj = self.db_obj.table.db.splice_types_table.insert(name)
+            db_id = db_obj.db_id
+
+            self.splice_type_choices.append(name)
+            self.splice_type_choices.sort()
+            self.splice_type_ctrl.SetItems(self.splice_type_choices)
+            self.splice_type_ctrl.SetValue(name)
+
+        self.db_obj.type_id = db_id
+
+    def __init__(self, parent):
+        self.db_obj: Splice = None
+
+        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+
+        general_page = _prop_grid.Category(self, 'General')
+
+        self.part_number_ctrl = PartNumberControl(general_page)
+        self.description_ctrl = DescriptionControl(general_page)
+        self.color_ctrl = ColorControl(general_page)
+
+        self.resistance_ctrl = _prop_grid.FloatProperty(
+            general_page, 'Resistance', 0.0, min_value=0.0,
+            max_value=100000, increment=0.01, units='Ω')
+
+        self.material_ctrl = MaterialControl(general_page)
+
+        self.splice_type_choices: list[str] = []
+        self.splice_type_ctrl = _prop_grid.ComboBoxProperty(general_page, 'Type', '', [])
+
+        self.plating_page = PlatingControl(self)
+
+        diameter_page = _prop_grid.Category(self, 'Diameter')
+        self.min_dia_ctrl = _prop_grid.FloatProperty(
+            diameter_page, 'Minimum', 0.0, min_value=0.0,
+            max_value=99.9, increment=0.01, units='mm')
+
+        self.max_dia_ctrl = _prop_grid.FloatProperty(
+            general_page, 'Maximum', 0.0, min_value=0.00,
+            max_value=99.9, increment=0.01, units='mm')
+
+        self.splice_type_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_splice_type)
+        self.resistance_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_resistance)
+        self.min_dia_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_min_dia)
+        self.max_dia_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_max_dia)
+
+        self.mfg_page = ManufacturerControl(self)
+        self.family_page = FamilyControl(self)
+        self.series_page = SeriesControl(self)
+        self.temperature_page = TemperatureControl(self)
+
+        self.dimension_page = DimensionControl(self)
+        self.weight_ctrl = WeightControl(self.dimension_page)
+
+        self.resources_page = ResourcesControl(self)
+
+        self.model3d_page = Model3DControl(self)
+
+        for page in (
+            general_page,
+            self.mfg_page,
+            self.family_page,
+            self.series_page,
+            self.temperature_page,
+            self.dimension_page,
+            self.resources_page,
+            diameter_page,
+            self.plating_page,
+            self.model3d_page
+        ):
+            self.AddPage(page, page.GetLabel())
+            page.Realize()

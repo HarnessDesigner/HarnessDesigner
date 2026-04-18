@@ -20,6 +20,8 @@ LongStringProperty = _props.LongStringProperty
 Property = _props.Property
 StringProperty = _props.StringProperty
 AutocompleteStringProperty = _props.AutocompleteStringProperty
+PathProperty = _props.PathProperty
+EnumProperty = _props.EnumProperty
 
 Position2DProperty = _props.Position2DProperty
 Position3DProperty = _props.Position3DProperty
