@@ -1,136 +1,55 @@
 import pynvml
 
-pynvml.nvmlInit()
-
-pynvml.NVML_SUCCESS
-pynvml.NVML_ERROR_DRIVER_NOT_LOADED
-pynvml.NVML_ERROR_NO_PERMISSION
-pynvml.NVML_ERROR_UNKNOWN
+from . import gpu_base as _gpu_base
 
 
-pynvml.nvmlShutdown()
+def collect():
+    GPU = _gpu_base.GPU
 
-cudaDriverVersion: int = pynvml.nvmlSystemGetCudaDriverVersion()
-cudaDriverVersion: int = pynvml.nvmlSystemGetCudaDriverVersion_v2()
+    pynvml.nvmlInit()
 
+    device = pynvml.nvmlDeviceGetHandleByIndex(0)
 
-nvmlSystemDriverBranchInfo: pynvml.c_nvmlSystemDriverBranchInfo_v1_t = pynvml.nvmlSystemGetDriverBranch()
-nvmlSystemDriverBranchInfo.version
-nvmlSystemDriverBranchInfo.branch
+    GPU.pcie_speed.value = pynvml.nvmlDeviceGetPcieSpeed(device)
+    GPU.gpu_cores.value = pynvml.nvmlDeviceGetNumGpuCores(device)
 
-version: str = pynvml.nvmlSystemGetDriverVersion()
+    res = pynvml.nvmlDeviceGetUtilizationRates(device)
+    GPU.gpu_engine.value = res.gpu
+    GPU.memory_engine.value = res.memory
 
+    res = pynvml.nvmlDeviceGetMemoryInfo(device)
+    GPU.vram_size.value = res.total  # NOQA
+    GPU.vram_use.value = res.used  # NOQA
 
+    GPU.vram_width.value = pynvml.nvmlDeviceGetMemoryBusWidth(device)
+    GPU.gpu_temp.value = pynvml.nvmlDeviceGetTemperatureV(device, 0)
+    GPU.fan_speed_rpm.value = pynvml.nvmlDeviceGetFanSpeedRPM(device)
+    GPU.fan_speed.value = pynvml.nvmlDeviceGetFanSpeed(device)
+    GPU.soc_clock.value = pynvml.nvmlDeviceGetClockInfo(device, pynvml.NVML_CLOCK_GRAPHICS)
+    GPU.memory_clock.value = pynvml.nvmlDeviceGetClockInfo(device, pynvml.NVML_CLOCK_MEM)
+    GPU.gpu_serial.value = pynvml.nvmlDeviceGetSerial(device)
 
-hics: list[pynvml.c_nvmlHwbcEntry_t] = pynvml.nvmlSystemGetHicVersion()
-hics[index].firmwareVersion
+    brand = pynvml.nvmlDeviceGetBrand
 
+    brand_maping = {
+        pynvml.NVML_BRAND_UNKNOWN: 'Unknown',
+        pynvml.NVML_BRAND_QUADRO: 'Quadro',
+        pynvml.NVML_BRAND_TESLA: 'Tesla',
+        pynvml.NVML_BRAND_NVS: 'NVS',
+        pynvml.NVML_BRAND_GEFORCE: 'GeForce',
+        pynvml.NVML_BRAND_TITAN: 'Titan',
+        pynvml.NVML_BRAND_NVIDIA_VAPPS: 'Virtual Applications',
+        pynvml.NVML_BRAND_NVIDIA_VPC: 'Virtual PC',
+        pynvml.NVML_BRAND_NVIDIA_VCS: 'vGPU for Compute',
+        pynvml.NVML_BRAND_NVIDIA_VWS: 'RTX Virtual Workstation',
+        pynvml.NVML_BRAND_NVIDIA_CLOUD_GAMING: 'Gaming',
+        pynvml.NVML_BRAND_QUADRO_RTX: 'Quadro RTX',
+        pynvml.NVML_BRAND_NVIDIA_RTX: 'RTX',
+        pynvml.NVML_BRAND_NVIDIA: 'NVidia'
+    }
 
-version: str = pynvml.nvmlSystemGetNVMLVersion()
-name: str = pynvml.nvmlSystemGetProcessName(pid)
-nvmlDevices: list[pynvml.c_nvmlDevice_t] = pynvml.nvmlSystemGetTopologyGpuSet(cpuNumber)
+    GPU.gpu_model.value = brand_maping.get(brand, 'Unknown') + ' ' + pynvml.nvmlDeviceGetBoardPartNumber(device)
+    GPU.gpu_name.value = pynvml.nvmlDeviceGetName(device)
+    GPU.driver_version.value = pynvml.nvmlSystemGetDriverVersion(device)
 
-
-
-
-nvmlDeviceArchitecture_t
-nvmlDeviceAttributes_t
-nvmlBAR1Memory_t
-nvmlClockType_t
-nvmlConfComputeMemSizeInfo_t
-nvmlMemory_t
-nvmlCoolerInfo_t
-nvmlDeviceCurrentClockFreqs_t
-nvmlEnableState_t
-nvmlGpuDynamicPstatesInfo_t
-nvmlMarginTemperature_t
-nvmlClockType_t
-
-
-
-nvmlDeviceGetCount_v2
-
-
-nvmlDeviceGetBoardPartNumber
-nvmlDeviceGetBrand
-nvmlDeviceGetBridgeChipInfo
-nvmlDeviceGetBusType
-
-nvmlDeviceGetClock
-nvmlDeviceGetClockInfo
-
-nvmlDeviceGetConfComputeMemSizeInfo
-nvmlDeviceGetConfComputeProtectedMemoryUsage
-
-nvmlDeviceGetCoolerInfo
-
-nvmlDeviceGetCurrPcieLinkWidth
-nvmlDeviceGetCurrentClockFreqs
-
-
-nvmlDeviceGetDisplayMode
-
-nvmlDeviceGetDynamicPstatesInfo
-
-nvmlDeviceGetFanSpeed
-nvmlDeviceGetFanSpeedRPM
-nvmlDeviceGetFanSpeed_v2
-
-
-
-nvmlDeviceGetHandleByIndex_v2
-
-nvmlDeviceGetMarginTemperature
-
-nvmlDeviceGetMaxClockInfo
-nvmlDeviceGetMaxCustomerBoostClock
-nvmlDeviceGetMaxPcieLinkWidth
-nvmlDeviceGetMemoryBusWidth
-
-nvmlDeviceGetMemoryInfo
-nvmlDeviceGetMemoryInfo_v2
-
-
-nvmlDeviceGetMinMaxFanSpeed
-nvmlDeviceGetMultiGpuBoard
-nvmlDeviceGetName
-
-
-nvmlDeviceGetNumFans
-nvmlDeviceGetNumGpuCores
-
-nvmlDeviceGetPcieLinkMaxSpeed
-nvmlDeviceGetPcieSpeed
-nvmlDeviceGetPcieThroughput
-nvmlDeviceGetPowerUsage
-nvmlDeviceGetSerial
-
-
-nvmlDeviceGetTargetFanSpeed
-
-nvmlDeviceGetTemperature
-nvmlDeviceGetTemperatureThreshold
-nvmlDeviceGetTemperatureV
-nvmlDeviceGetThermalSettings
-
-
-nvmlDeviceGetTotalEnergyConsumption
-
-nvmlDeviceGetUtilizationRates
-
-nvmlDeviceGetVbiosVersion
-
-
-
-try:
-
-
-    gpus = GPUtil.getGPUs()
-    if gpus:
-        gpu = gpus[0]
-        self.total_vram = gpu.memoryTotal / 1024
-        self.free_vram = gpu.memoryFree / 1024
-        print(f"✓ NVIDIA VRAM via GPUtil: {self.free_vram:.1f}GB free")
-        return
-except:
-    pass
+    pynvml.nvmlShutdown()

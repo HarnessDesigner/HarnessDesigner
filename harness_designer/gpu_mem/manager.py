@@ -1,118 +1,80 @@
+from . import gpu_vendor as _gpu_vendor
+from .gpu_base import GPU
+
+from .. import logger as _logger
+
+
 class GPUMemoryManager:
-    """Smart VRAM detection based on OpenGL vendor info"""
 
-    def __init__(self, vendor, opencl_device=None):
+    def __init__(self, opencl_device=None):
         self.device = opencl_device
-        self.vendor = vendor
 
-        self.total_vram = None
-        self.free_vram = None
-        self._detect()
+    def detect(self):
+        vendor = _gpu_vendor.get()
 
-    def _detect(self):
-        """Detect GPU vendor via OpenGL, then use appropriate method"""
+        if vendor == _gpu_vendor.GPU_NVIDIA:
+            self._nvidia()
+        elif vendor == _gpu_vendor.GPU_AMD:
+            self._amd()
+        elif vendor == _gpu_vendor.GPU_APPLE:
+            self._apple()
+        elif vendor == _gpu_vendor.GPU_INTEL:
+            self._intel()
+        else:
+            # _gpu_vendor.GPU_UNKNOWN
+            self._fallback()
 
-        # Get vendor from OpenGL
-        try:
-            vendor_str = glGetString(GL_VENDOR).decode('utf-8').lower()
-            renderer = glGetString(GL_RENDERER).decode('utf-8')
+    def _nvidia(self):
+        from . import nvidia
+        nvidia.collect()
 
-            if 'nvidia' in vendor_str:
-                self.vendor = 'NVIDIA'
-                self._detect_nvidia()
-            elif 'amd' in vendor_str or 'ati' in vendor_str:
-                self.vendor = 'AMD'
-                self._detect_amd()
-            elif 'intel' in vendor_str:
-                self.vendor = 'Intel'
-                self._detect_intel()
-            elif 'apple' in vendor_str or 'metal' in renderer.lower():
-                self.vendor = 'Apple'
-                self._detect_apple()
-            else:
-                self.vendor = 'Unknown'
-                self._detect_fallback()
+        if not GPU.is_ok():
+            self._opencl_estimate(multiplier=0.5)
 
-            print(f"Detected GPU: {self.vendor} - {renderer}")
-            print(f"Available VRAM: {self.free_vram:.1f} GB")
+    def _amd(self):
+        from . import amd
 
-        except Exception as e:
-            print(f"OpenGL detection failed: {e}")
-            self._detect_fallback()
+        amd.collect()
 
-    def _detect_nvidia(self):
-        """NVIDIA-specific detection"""
+        if not GPU.is_ok():
+            self._opencl_estimate(multiplier=0.5)
 
+    def _intel(self):
+        from . import intel
 
-        # Fallback to OpenCL estimate
-        self._detect_opencl_estimate(multiplier=0.6)
+        intel.collect()
 
-    def _detect_amd(self):
-        """AMD-specific detection"""
-        try:
-            import pyamdgpuinfo
+        if not GPU.is_ok():
+            self._opencl_estimate(multiplier=0.4)
 
-            gpu = pyamdgpuinfo.get_gpu(0)
-            self.total_vram = gpu.memory_info['vram_size'] / (1024 ** 3)
-            self.free_vram = (gpu.memory_info['vram_size'] -
-                              gpu.memory_info['vram_used']) / (1024 ** 3)
-            print(f"✓ AMD VRAM via pyamdgpuinfo: {self.free_vram:.1f}GB free")
+    def _apple(self):
+        from . import apple
+
+        apple.collect()
+
+        if not GPU.is_ok():
+            self._opencl_estimate(multiplier=0.4)
+
+    def _opencl_estimate(self, multiplier):
+        if self.device:
+            total = self.device.global_mem_size / (1024 ** 3)
+            GPU.vram_size.value = total
+            GPU.vram_use.value = total - total * multiplier
             return
-        except:
-            pass
 
-        # Fallback to OpenCL estimate
-        self._detect_opencl_estimate(multiplier=0.5)
+        self._fallback()
 
-    def _detect_intel(self):
-        """Intel integrated graphics (shared memory)"""
-        # Intel typically shares system RAM, be conservative
-        self._detect_opencl_estimate(multiplier=0.3)
-        print(f"⚠ Intel GPU uses shared memory, being conservative")
+    def _fallback(self):  # NOQA
+        GPU.vram_size.value = 4294967296
+        GPU.vram_use.value = 2147483648
 
-    def _detect_apple(self):
-        """Apple Silicon unified memory"""
-        # Apple Silicon shares memory with CPU, be conservative
-        self._detect_opencl_estimate(multiplier=0.4)
-        print(f"⚠ Apple GPU uses unified memory, being conservative")
+    def get_chunk_size(self, width, height, target_usage=0.4):  # NOQA
+        free_mem = GPU.vram_size - GPU.vram_use
 
-    def _detect_opencl_estimate(self, multiplier=0.6):
-        """Estimate available VRAM from OpenCL total memory"""
-        try:
-            if self.device:
-                total = self.device.global_mem_size / (1024 ** 3)
-                self.total_vram = total
-                self.free_vram = total * multiplier
-                print(
-                    f"⚠ Estimated VRAM: {self.free_vram:.1f}GB ({int(multiplier * 100)}% of {total:.1f}GB)"
-                    )
-                return
-        except:
-            pass
-
-        self._detect_fallback()
-
-    def _detect_fallback(self):
-        """Ultra-conservative fallback"""
-        self.total_vram = 4.0
-        self.free_vram = 2.0
-        print(f"⚠ Using fallback: {self.free_vram:.1f}GB (conservative)")
-
-    def get_optimal_chunk_size(self, width, height, target_usage=0.4):
-        """
-        Calculate optimal chunk size based on available VRAM
-
-        Args:
-            width: Image width
-            height: Image height
-            target_usage: Fraction of free VRAM to use per chunk (0.0-1.0)
-
-        Returns:
-            Optimal chunk size in rows
-        """
-        target_vram_gb = self.free_vram * target_usage
+        target_vram = free_mem * target_usage
         bytes_per_pixel = 3 * 4  # RGB float32
-        target_pixels = (target_vram_gb * 1024 ** 3) / bytes_per_pixel
+        target_pixels = target_vram / bytes_per_pixel
+
         chunk_size = int(target_pixels / width)
 
         # Ensure reasonable bounds
@@ -121,35 +83,9 @@ class GPUMemoryManager:
         num_chunks = (height + chunk_size - 1) // chunk_size
         vram_per_chunk = (width * chunk_size * bytes_per_pixel) / (1024 ** 3)
 
-        print(f"\nChunk strategy for {width}x{height}:")
-        print(f"  Chunk size: {chunk_size} rows")
-        print(f"  Num chunks: {num_chunks}")
-        print(f"  VRAM/chunk: {vram_per_chunk:.2f}GB")
-        print(f"  Est. GPU usage: {'100%' if num_chunks > 1 else '~90%'}")
+        _logger.logger.info(f"RENDERER: Chunk strategy for {width}x{height}:")
+        _logger.logger.info(f"RENDERER:   Chunk size: {chunk_size} rows")
+        _logger.logger.info(f"RENDERER:   Num chunks: {num_chunks}")
+        _logger.logger.info(f"RENDERER:   VRAM/chunk: {vram_per_chunk:.2f}GB")
 
         return chunk_size
-
-    def recommend_strategy(self, width, height):
-        """Recommend rendering strategy"""
-        total_pixels = width * height
-        needed_vram = (total_pixels * 3 * 4) / (1024 ** 3)
-
-        if needed_vram < self.free_vram * 0.8:
-            # Can render in one go
-            return {
-                'strategy': 'single_pass',
-                'chunk_size': height,
-                'expected_time_multiplier': 1.0,
-                'gpu_usage': '85-95%',
-                'reason': f'Image fits in VRAM ({needed_vram:.1f}GB < {self.free_vram * 0.8:.1f}GB)'
-            }
-        else:
-            # Need chunking
-            optimal_chunks = max(2, int(needed_vram / (self.free_vram * 0.4)))
-            return {
-                'strategy': 'chunked',
-                'chunk_size': height // optimal_chunks,
-                'expected_time_multiplier': 1.5,
-                'gpu_usage': '95-100%',
-                'reason': f'Image too large ({needed_vram:.1f}GB), using {optimal_chunks} chunks'
-            }
