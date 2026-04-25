@@ -25,7 +25,7 @@ class EditorObj(aui.AuiPaneInfo):
         self.MinimizeButton()
         self.MaximizeButton()
         self.Dockable()
-        self.CloseButton(False)
+        self.CloseButton(True)
         self.PaneBorder()
         self.Caption('Object Editor')
         self.DestroyOnClose(False)
@@ -34,7 +34,28 @@ class EditorObj(aui.AuiPaneInfo):
         self.Window(self.editor)
 
         self.manager.AddPane(self.editor, self)
-        self.Show()
+        aui.AuiPaneInfo.Show(self)
+        self.manager.Update()
+
+        self.manager.Bind(aui.EVT_AUI_PANE_CLOSE, self._on_pane_close)
+
+    def _on_pane_close(self, evt: aui.AuiManagerEvent):
+        pane = evt.GetPane()
+
+        print(pane)
+
+        if pane == self:
+            self.Show(False)
+        else:
+            evt.Skip()
+
+    def Show(self, show=True):
+        if show:
+            self.set_selected(self.mainframe.get_selected())
+        else:
+            self.set_selected(None)
+
+        aui.AuiPaneInfo.Show(self, show)
         self.manager.Update()
 
     def Refresh(self, *args, **kwargs):
@@ -44,7 +65,8 @@ class EditorObj(aui.AuiPaneInfo):
         self.editor.Destroy()
 
     def set_selected(self, obj):
-        self.editor.set_selected(obj)
+        if self.IsShown():
+            self.editor.set_selected(obj)
 
 
 class EditorObjPanel(wx.Panel):

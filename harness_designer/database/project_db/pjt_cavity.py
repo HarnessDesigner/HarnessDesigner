@@ -52,11 +52,11 @@ class PJTCavitiesTable(PJTTableBase):
         cls._control = PJTCavityControl(mainframe)
         cls._control.Show(False)
 
-        for i in range(20):
-            control = PJTCavityControl(mainframe)
-            control.Show(False)
-            control.SetIndex(i + 1)
-            cls._controls.append(control)
+        # for i in range(20):
+        #     control = PJTCavityControl(mainframe)
+        #     control.Show(False)
+        #     control.SetIndex(i + 1)
+        #     cls._controls.append(control)
 
     _controls: list["PJTCavityControl"] = []
 

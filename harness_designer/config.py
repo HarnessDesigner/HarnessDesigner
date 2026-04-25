@@ -312,6 +312,51 @@ class Config(metaclass=ConfigDB):
 
         enable_reflections = True
         enable_depth_of_field = True
+        resolutions = [
+            {'label': '640x360 (360p LD) (16:9)', 'width': 640, 'height': 360},
+            {'label': '480x360 (360p LD) (4:3)', 'width': 480, 'height': 360},
+            {'label': '720x480 (480p SD) (16:9)', 'width': 720, 'height': 480},
+            {'label': '640x480 (480p SD) (4:3)', 'width': 640, 'height': 480},
+            {'label': '1280x544 (UW 720p HD) (21:9)', 'width': 1280, 'height': 544},
+            {'label': '1280x720 (720p HD) (16:9)', 'width': 1280, 'height': 720},
+            {'label': '960x720 (720p HD) (4:3)', 'width': 960, 'height': 720},
+            {'label': '1920x816 (UW 1080p) (FHD 21:9)', 'width': 1920, 'height': 816},
+            {'label': '1920x1080 (1080p) (FHD 16:9)', 'width': 1920, 'height': 1080},
+            {'label': '1440x1080 (1080i) (FHD  4:3)', 'width': 1440, 'height': 1080},
+            {'label': '2048x870 (UW 2K) (21:9)', 'width': 2048, 'height': 870},
+            {'label': '2048x1152 (2K) (16:9)', 'width': 2048, 'height': 1152},
+            {'label': '1536x1152 (2K) (4:3)', 'width': 1536, 'height': 1152},
+            {'label': '2880x1226 (UW 3K UHD) (21:9)', 'width': 2880, 'height': 1226},
+            {'label': '2880x1620 (3K UHD) (16:9)', 'width': 2880, 'height': 1620},
+            {'label': '2160x1620 (3K UHD) (4:3)', 'width': 2160, 'height': 1620},
+            {'label': '3072x1306 (UW 3K) (21:9)', 'width': 3072, 'height': 1306},
+            {'label': '3072x1728 (3K) (16:9)', 'width': 3072, 'height': 1728},
+            {'label': '2304x1728 (3K) (4:3)', 'width': 2304, 'height': 1728},
+            {'label': '3840x1634 (UW 4K UHD) (21:9)', 'width': 3840, 'height': 1634},
+            {'label': '3840x2160 (4K UHD) (16:9)', 'width': 3840, 'height': 2160},
+            {'label': '2880x2160 (4K UHD) (4:3)', 'width': 2880, 'height': 2160},
+            {'label': '4096x1742 (UW 4K) (21:9)', 'width': 4096, 'height': 1742},
+            {'label': '4096x2304 (4K) (16:9)', 'width': 4096, 'height': 2304},
+            {'label': '3072x2304 (4K) (4:3)', 'width': 3072, 'height': 2304},
+            {'label': '5120x2178 (UW 5K) (21:9)', 'width': 5120, 'height': 2178},
+            {'label': '5120x2880 (5K) (16:9)', 'width': 5120, 'height': 2880},
+            {'label': '3840x2880 (5K) (4:3)', 'width': 3840, 'height': 2880},
+            {'label': '6144x2614 (UW 6K) (21:9)', 'width': 6144, 'height': 2614},
+            {'label': '6144x3456 (6K) (16:9)', 'width': 6144, 'height': 3456},
+            {'label': '4608x3456 (6K) (4:3)', 'width': 4608, 'height': 3456},
+            {'label': '7680x3268 (UW 8K UHD) (21:9)', 'width': 7680, 'height': 3268},
+            {'label': '7680x4320 (8K UHD) (16:9)', 'width': 7680, 'height': 4320},
+            {'label': '5760x3456 (8K UHD) (4:3)', 'width': 5760, 'height': 3456},
+            {'label': '8192x3486 (UW 8K) (21:9)', 'width': 8192, 'height': 3486},
+            {'label': '8192x4608 (8K) (16:9)', 'width': 8192, 'height': 4608},
+            {'label': '6144x4608 (8K) (4:3)', 'width': 6144, 'height': 4608},
+            {'label': '15360x6480 (UW 16K) (21:9)', 'width': 15360, 'height': 6480},
+            {'label': '15360x8640 (16K) (16:9)', 'width': 15360, 'height': 8640},
+            {'label': '32768x13824 (UW 32K) (21:9)', 'width': 32768, 'height': 13824},
+            {'label': '30720x17280 (32K) (16:9)', 'width': 30720, 'height': 17280}
+        ]
+
+        default_resolution = '7680x3268 (UW 8K UHD) (21:9)'
 
         class background:
             color1 = [0.18, 0.20, 0.22]
@@ -322,6 +367,7 @@ class Config(metaclass=ConfigDB):
         class environment_map(metaclass=ConfigDB):
             enable = True
             generate = True
+            path = ''
 
         class shadows(metaclass=ConfigDB):
             enable = True
@@ -584,7 +630,7 @@ class Config(metaclass=ConfigDB):
         # )
 
     class project(metaclass=ConfigDB):
-        recent_projects = []
+        last_project = None
         model_dir = _utils.get_documents()
 
 

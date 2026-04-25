@@ -3,17 +3,12 @@ import wx
 from ... import image as _image
 
 
-class Header600x80(wx.Panel):
+class Header(wx.Panel):
 
     def __init__(self, parent, label):
-        self.bitmap = wx.Bitmap(_image.images.header_1200x80.bitmap)
+        self.bitmap = wx.Bitmap(_image.images.header.bitmap)
 
-        wx.Panel.__init__(self, parent, wx.ID_ANY, size=(600, 80), style=wx.BORDER_SUNKEN)
-        self.SetMinClientSize((600, 80))
-        self.SetMinSize((600, 80))
-
-        self.SetMaxClientSize((600, 80))
-        self.SetMaxSize((600, 80))
+        wx.Panel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_SUNKEN)
 
         font = self.GetFont()
         t_width, t_height = self.GetTextExtent(label)
@@ -48,6 +43,3 @@ class Header600x80(wx.Panel):
         del dc
 
         self.sb = wx.StaticBitmap(self, wx.ID_ANY, bitmap=self.bitmap, pos=(0, 0), size=self.bitmap.GetSize())
-
-    def DoGetBestClientSize(self):
-        return wx.Size(600, 80)

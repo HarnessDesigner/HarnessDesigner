@@ -146,7 +146,7 @@ class PJTBundleLayoutControl(wx.Notebook):
 
         general_page = _prop_grid.Category(self, 'General')
         self.notes_ctrl = NotesControl(general_page)
-        self.diameter_ctrl = _prop_grid.StringProperty(general_page, 'Diameter', '', style=wx.TE_READONLY)
+        self.diameter_ctrl = _prop_grid.StringProperty(general_page, 'Diameter', style=wx.TE_READONLY)
 
         position_page = _prop_grid.Category(self, 'Position')
         self.position_ctrl = Position3DControl(position_page)

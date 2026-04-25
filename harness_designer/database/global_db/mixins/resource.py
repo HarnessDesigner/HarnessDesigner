@@ -101,9 +101,9 @@ class ResourcesControl(_prop_grid.Category):
         self.db_obj: ResourceMixin = None
         self.file_types: dict = None
 
-        self.image_ctrl = _prop_grid.ImageProperty(self, 'Image', '', {})
-        self.datasheet_ctrl = _prop_grid.DatasheetCADProperty(self, 'Datasheet', '', {})
-        self.cad_ctrl = _prop_grid.DatasheetCADProperty(self, 'CAD', '', {})
+        self.image_ctrl = _prop_grid.ImageProperty(self, 'Image')
+        self.datasheet_ctrl = _prop_grid.DatasheetCADProperty(self, 'Datasheet')
+        self.cad_ctrl = _prop_grid.DatasheetCADProperty(self, 'CAD')
 
         self.image_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_image)
         self.datasheet_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_datasheet)

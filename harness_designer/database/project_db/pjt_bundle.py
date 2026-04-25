@@ -5,7 +5,7 @@ import weakref
 import wx
 
 from ...ui.editor_obj import prop_grid as _prop_grid
-
+from ..global_db import bundle_cover as _bundle_cover
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from .mixins import (
     PartMixin,
@@ -20,8 +20,6 @@ if TYPE_CHECKING:
     from . import pjt_concentric as _pjt_concentric
     from . import pjt_bundle_layout as _pjt_bundle_layout
     from . import pjt_wire as _pjt_wire
-
-    from ..global_db import bundle_cover as _bundle_cover
 
     from ...objects import bundle as _bundle_obj
 

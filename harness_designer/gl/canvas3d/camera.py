@@ -209,7 +209,6 @@ class Camera:
         self.canvas = canvas
         self._context = canvas.context
         self._camera_moved_since_last_cull = True
-        self._cached_visible = []
 
         self._is_dirty = True
         self._projection = None
@@ -281,6 +280,10 @@ class Camera:
     #     fov_degrees = math.degrees(half_fov_radians * 2.0)
     #
     #     return fov_degrees
+
+    @property
+    def objects_in_view(self):
+        return self.canvas.objects_in_view
 
     @property
     def aspect_ratio(self) -> float:

@@ -3,9 +3,10 @@ import os
 import pyopencl as cl
 import numpy as np
 import warnings
+import threading
 
 from .. import config as _config
-
+from .. import gpu_mem as _gpu_mem
 
 # Suppress OpenCL compiler warnings
 warnings.filterwarnings('ignore', category=cl.CompilerWarning)
@@ -18,7 +19,7 @@ class Renderer:
     def __init__(self, scene, callback):
         self.scene = scene
         self.callback = callback
-        self.ctx, self.queue = self.init_cl()
+        self.ctx, self.queue, self.chunk_size = self.init_cl()
         self.program, self.kernel = self.compile_kernel()
 
     def init_cl(self):  # NOQA
@@ -50,7 +51,11 @@ class Renderer:
         ctx = cl.Context([device])
         queue = cl.CommandQueue(ctx)
 
-        return ctx, queue
+        mem_manager = _gpu_mem.GPUMemoryManager(device)
+        mem_manager.detect()
+        chunk_size = mem_manager.get_chunk_size(self.scene.width, self.scene.height)
+
+        return ctx, queue, chunk_size
 
     def compile_kernel(self):
         kernel_path = os.path.join(os.path.dirname(__file__), 'bvh_kernel.cl')
@@ -63,6 +68,11 @@ class Renderer:
         return program, kernel
 
     def start(self):
+        thread = threading.Thread(target=self._start)
+        thread.daemon = True
+        thread.start()
+
+    def _start(self):
         (
             vertices, faces, bvh_bounds, bvh_structure,
             bvh_indices, object_ids, materials, lights
@@ -101,12 +111,12 @@ class Renderer:
         fov_rad = np.radians(self.scene.fov)
         scale = np.tan(fov_rad / 2)
 
-        full_image = np.zeros((self.scene.height, self.scene.width, 3), dtype=np.float32)
-        num_chunks = (self.scene.height + chunk_size - 1) // chunk_size
+        # full_image = np.zeros((self.scene.height, self.scene.width, 3), dtype=np.float32)
+        num_chunks = (self.scene.height + self.chunk_size - 1) // self.chunk_size
 
         for chunk_idx in range(num_chunks):
-            start_y = chunk_idx * chunk_size
-            end_y = min(start_y + chunk_size, self.scene.height)
+            start_y = chunk_idx * self.chunk_size
+            end_y = min(start_y + self.chunk_size, self.scene.height)
             chunk_height = end_y - start_y
 
             chunk_image = np.zeros((chunk_height, self.scene.width, 3), dtype=np.float32)
@@ -178,11 +188,11 @@ class Renderer:
 
             # Copy result back to CPU
             cl.enqueue_copy(self.queue, chunk_image, chunk_buf).wait()
-            full_image[start_y:end_y] = chunk_image
+            # full_image[start_y:end_y] = chunk_image
 
             # Call progress callback
             progress = ((chunk_idx + 1) / num_chunks) * 100
-            if not self.callback((full_image * 255).astype(np.uint8), progress):
+            if not self.callback(start_y, end_y, (chunk_image * 255).astype(np.uint8), progress):
                 break
 
-        return (full_image * 255).astype(np.uint8)
+        # return (full_image * 255).astype(np.uint8)

@@ -8,9 +8,9 @@ from ....widgets import bitmap_autocomplete_combobox as _bitmap_autocomplete_com
 
 class BitmapComboBoxProperty(_prop_base.Property):
 
-    def __init__(self, label, name='', value='', choices=[], units=None):
-        self._choices = choices
-        _prop_base.Property.__init__(self, label, name, value, units)
+    def __init__(self, parent, label):
+        self._choices = []
+        _prop_base.Property.__init__(self, parent, label)
 
     def Create(self, parent):
         _prop_base.Property.Create(self, parent)

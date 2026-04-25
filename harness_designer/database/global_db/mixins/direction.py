@@ -35,7 +35,7 @@ class DirectionControl(_prop_grid.ComboBoxProperty):
         self.choices: list[str] = []
         self.db_obj: DirectionMixin = None
 
-        super().__init__(parent, 'Direction', '', [])
+        super().__init__(parent, 'Direction')
         self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_direction)
 
     def set_obj(self, db_obj: DirectionMixin):

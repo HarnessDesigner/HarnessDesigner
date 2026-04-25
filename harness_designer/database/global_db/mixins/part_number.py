@@ -20,7 +20,7 @@ class PartNumberControl(_prop_grid.StringProperty):
     def __init__(self, parent):
         self.db_obj: PartNumberMixin = None
 
-        super().__init__(parent, 'Part Number', '')
+        super().__init__(parent, 'Part Number')
 
         self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_part_number)
 

@@ -359,11 +359,13 @@ class Log(object):
                     for line in arg.split('\n'):
                         log_entry = build_message(ERROR, line)
                         self.log_handler.write(log_entry)
+                        self.log_handler.flush()
                     args.remove(arg)
 
             if args:
                 log_entry = build_message(ERROR, args)
                 self.log_handler.write(log_entry)
+                self.log_handler.flush()
 
     def traceback(self, exception, msg=None):
         if msg:
@@ -374,8 +376,9 @@ class Log(object):
 
             for line in lines:
                 line = line.rstrip()
-                log_entry = build_message(TRACEBACK, line)
+                log_entry = build_message(TRACEBACK, [line])
                 self.log_handler.write(log_entry)
+                self.log_handler.flush()
 
     def database(self, *args):
         if Config.log_database:
@@ -386,8 +389,11 @@ class Log(object):
                     for line in arg.split('\n'):
                         log_entry = build_message(DATABASE, line)
                         self.log_handler.write(log_entry)
+                        self.log_handler.flush()
+
                     args.remove(arg)
 
             if args:
                 log_entry = build_message(DATABASE, args)
                 self.log_handler.write(log_entry)
+                self.log_handler.flush()

@@ -20,7 +20,7 @@ class Visible2DControl(_prop_grid.BoolProperty):
     def __init__(self, parent):
         self.db_obj: Visible2DMixin = None
 
-        super().__init__(parent, 'Is Visible 2D', False)
+        super().__init__(parent, 'Is Visible 2D')
 
         self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_visible2d)
 

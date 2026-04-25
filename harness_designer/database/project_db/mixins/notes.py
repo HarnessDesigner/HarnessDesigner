@@ -20,7 +20,7 @@ class NotesControl(_prop_grid.LongStringProperty):
     def __init__(self, parent):
         self.db_obj: NotesMixin = None
 
-        super().__init__(parent, 'Notes', '')
+        super().__init__(parent, 'Notes')
 
         self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_notes)
 

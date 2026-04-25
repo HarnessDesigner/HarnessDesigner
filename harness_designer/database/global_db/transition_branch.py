@@ -293,11 +293,11 @@ class TransitionBranchControl(_prop_grid.Category):
         self.name_ctrl = NameControl(self)
 
         self.length_ctrl = _prop_grid.FloatProperty(
-            self, 'Length', 0.01,
+            self, 'Length',
             min_value=0.01, max_value=999.9, increment=0.01, units='mm')
 
         self.angle_ctrl = _prop_grid.FloatProperty(
-            self, 'Angle', 0.0, min_value=-180.0,
+            self, 'Angle', min_value=-180.0,
             max_value=180.0, increment=0.1, units='°')
 
         self.offset_ctrl = _prop_grid.Position2DProperty(self, 'Offset')
@@ -306,27 +306,27 @@ class TransitionBranchControl(_prop_grid.Category):
 
         self.bulb_offset_ctrl = _prop_grid.Position2DProperty(bulb_group, 'Offset')
         self.bulb_length_ctrl = _prop_grid.FloatProperty(
-            bulb_group, 'Length', 0.0,
+            bulb_group, 'Length',
             min_value=0.00, max_value=999.9, increment=0.01, units='mm')
 
         size_group = _prop_grid.Property(bulb_group, 'Diameter', orientation=wx.VERTICAL)
 
         self.min_dia_ctrl = _prop_grid.FloatProperty(
-            size_group, 'Minimum', 0.01,
+            size_group, 'Minimum',
             min_value=0.01, max_value=999.9, increment=0.01, units='mm')
 
         self.max_dia_ctrl = _prop_grid.FloatProperty(
-            size_group, 'Maximum', 0.01,
+            size_group, 'Maximum',
             min_value=0.01, max_value=999.9, increment=0.01, units='mm')
 
         flange_group = _prop_grid.Property(self, 'Flange', orientation=wx.VERTICAL)
 
         self.flange_height_ctrl = _prop_grid.FloatProperty(
-            flange_group, 'Height', 0.0,
+            flange_group, 'Height',
             min_value=0.00, max_value=999.9, increment=0.01, units='mm')
 
         self.flange_width_ctrl = _prop_grid.FloatProperty(
-            flange_group, 'Width', 0.0,
+            flange_group, 'Width',
             min_value=0.00, max_value=999.9, increment=0.01, units='mm')
 
         self.length_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_length)

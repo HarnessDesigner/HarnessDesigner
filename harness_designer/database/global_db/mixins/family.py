@@ -37,9 +37,9 @@ class FamilyControl(_prop_grid.Category):
         self.choices: list[str] = []
         self.db_obj: FamilyMixin = None
 
-        self.name_ctrl = _prop_grid.ComboBoxProperty(self, 'Name', '', [])
-        self.desc_ctrl = _prop_grid.LongStringProperty(self, 'Description', '')
-        self.mfg_ctrl = _prop_grid.StringProperty(self, 'Manufacturer', '', style=wx.TE_READONLY)
+        self.name_ctrl = _prop_grid.ComboBoxProperty(self, 'Name')
+        self.desc_ctrl = _prop_grid.LongStringProperty(self, 'Description')
+        self.mfg_ctrl = _prop_grid.StringProperty(self, 'Manufacturer', style=wx.TE_READONLY)
 
         self.name_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_name)
         self.desc_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_desc)

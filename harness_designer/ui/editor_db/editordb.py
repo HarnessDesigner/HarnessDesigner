@@ -34,21 +34,26 @@ class EditorDB(aui.AuiPaneInfo):
         aui.AuiPaneInfo.__init__(self)
 
         self.Name('editor_db')
-        self.CaptionVisible()
-        self.Floatable()
-        self.MinimizeButton()
-        self.MaximizeButton()
-        self.Dockable()
-        self.CloseButton(False)
-        self.PaneBorder()
+        self.CaptionVisible(True)
+        self.Floatable(True)
+        self.MinimizeButton(True)
+        self.MaximizeButton(True)
+        self.Dockable(True)
+        self.CloseButton(True)
+        self.PaneBorder(True)
         self.Caption('Database Editor')
         self.DestroyOnClose(False)
-        self.Gripper()
-        self.Resizable()
+        self.Gripper(True)
+        self.Bottom()
+        self.Resizable(True)
         self.Window(self.editor)
 
         self.manager.AddPane(self.editor, self)
-        self.Show()
+        aui.AuiPaneInfo.Show(self)
+        self.manager.Update()
+
+    def Show(self, show=True):
+        aui.AuiPaneInfo.Show(self, show)
         self.manager.Update()
 
     def Refresh(self, *args, **kwargs):

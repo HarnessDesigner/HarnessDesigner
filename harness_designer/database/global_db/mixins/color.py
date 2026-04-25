@@ -36,7 +36,7 @@ class ColorControl(_prop_grid.ColorProperty):
         self.db_obj: ColorMixin = None
         self.attribute_name = 'color'
 
-        super().__init__(parent, 'Color', ['None', wx.BLACK], [])
+        super().__init__(parent, 'Color')
 
         self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_color)
 

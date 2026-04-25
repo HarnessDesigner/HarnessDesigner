@@ -744,24 +744,24 @@ class HousingControl(wx.Notebook):
         self.compat_terminals_ctrl = CompatTerminalsControl(terminal_page)
 
         self.terminal_sizes_ctrl = _prop_grid.ArrayFloatProperty(
-            terminal_page, 'Terminal Sizes', [])
+            terminal_page, 'Terminal Sizes')
         self.terminal_sizes_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_terminal_sizes)
 
         self.terminal_size_count_ctrl = _prop_grid.ArrayIntProperty(
-            terminal_page, 'Terminal Size Counts', [])
+            terminal_page, 'Terminal Size Counts')
         self.terminal_size_count_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_terminal_size_count)
 
         self.pitch_ctrl = _prop_grid.FloatProperty(
-            terminal_page, 'Pitch', 0.01, min_value=0.01,
+            terminal_page, 'Pitch', min_value=0.01,
             max_value=999.9, increment=0.01, units='mm')
         self.pitch_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_pitch)
 
         self.rows_ctrl = _prop_grid.IntProperty(
-            terminal_page, 'Rows', 1, min_value=1, max_value=999)
+            terminal_page, 'Rows', min_value=1, max_value=999)
         self.rows_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_rows)
 
         self.pin_count_ctrl = _prop_grid.IntProperty(
-            terminal_page, 'Pin Count', 1, min_value=1, max_value=999)
+            terminal_page, 'Pin Count', min_value=1, max_value=999)
 
         self.pin_count_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_pin_count)
 
@@ -769,19 +769,19 @@ class HousingControl(wx.Notebook):
 
         self.compat_seals_ctrl = CompatSealsControl(seals_page)
 
-        self.sealing_ctrl = _prop_grid.BoolProperty(seals_page, 'Sealing', False)
+        self.sealing_ctrl = _prop_grid.BoolProperty(seals_page, 'Sealing')
         self.sealing_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_sealing)
 
         self.seal_type_choices: list[str] = []
         self.seal_type_ctrl = _prop_grid.ComboBoxProperty(
-            seals_page, 'Seal Type', '', self.seal_type_choices)
+            seals_page, 'Seal Type')
         self.seal_type_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_seal_type)
 
         self.seal_ctrl = _prop_grid.Position3DProperty(seals_page, 'Seal')
 
         tpas_page = _prop_grid.Category(self, 'TPA Locks')
 
-        self.compat_tpas_ctrl = _prop_grid.ArrayStringProperty(tpas_page, 'Compatible TPA Locks', [])
+        self.compat_tpas_ctrl = _prop_grid.ArrayStringProperty(tpas_page, 'Compatible TPA Locks')
         self.compat_tpas_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_compat_tpas)
 
         self.tpa_lock_1_ctrl = _prop_grid.Position3DProperty(tpas_page, 'TPA Lock 1')
@@ -789,20 +789,20 @@ class HousingControl(wx.Notebook):
 
         cpas_page = _prop_grid.Category(self, 'CPA Locks')
 
-        self.compat_cpas_ctrl = _prop_grid.ArrayStringProperty(cpas_page, 'Compatible CPA Locks', [])
+        self.compat_cpas_ctrl = _prop_grid.ArrayStringProperty(cpas_page, 'Compatible CPA Locks')
         self.compat_cpas_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_compat_cpas)
 
         self.cpa_lock_ctrl = _prop_grid.Position3DProperty(cpas_page, 'CPA Lock')
 
         boots_page = _prop_grid.Category(self, 'Boots')
 
-        self.compat_boots_ctrl = _prop_grid.ArrayStringProperty(boots_page, 'Compatible Boots', [])
+        self.compat_boots_ctrl = _prop_grid.ArrayStringProperty(boots_page, 'Compatible Boots')
         self.compat_boots_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_compat_boots)
         self.boot_ctrl = _prop_grid.Position3DProperty(boots_page, 'Boot')
 
         covers_page = _prop_grid.Category(self, 'Covers')
 
-        self.compat_covers_ctrl = _prop_grid.ArrayStringProperty(covers_page, 'Compatible Covers', [])
+        self.compat_covers_ctrl = _prop_grid.ArrayStringProperty(covers_page, 'Compatible Covers')
         self.compat_covers_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_compat_covers)
         self.cover_ctrl = _prop_grid.Position3DProperty(covers_page, 'Cover')
 

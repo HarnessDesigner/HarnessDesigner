@@ -7,6 +7,7 @@ import wx
 
 from ...ui.editor_obj import prop_grid as _prop_grid
 from .pjt_bases import PJTEntryBase, PJTTableBase
+from . import pjt_circuit as _pjt_circuit
 from ..global_db import wire as _wire
 from .mixins import (
     Angle3DMixin, Angle3DControl,
@@ -19,7 +20,6 @@ from .mixins import (
 
 
 if TYPE_CHECKING:
-    from . import pjt_circuit as _pjt_circuit
     from . import pjt_terminal as _pjt_terminal
     from . import pjt_wire as _pjt_wire
 
@@ -264,7 +264,6 @@ class PJTWireServiceLoopControl(wx.Notebook):
         else:
             self.wire_ctrl.set_obj(db_obj.part)
             self.circuit_ctrl.set_obj(db_obj.circuit)
-
 
     def __init__(self, parent):
         self.db_obj: PJTWireServiceLoop = None

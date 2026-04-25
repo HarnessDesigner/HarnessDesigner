@@ -59,7 +59,7 @@ class MainFrame(wx.Frame):
 
             x = w // 2
             y = h // 2
-            Config.position = (x, y)
+            Config.position = (x - 7, y)
 
         wx.Frame.__init__(self, None, wx.ID_ANY, title='Harness Designer',
                           size=Config.size, pos=Config.position,
@@ -84,8 +84,7 @@ class MainFrame(wx.Frame):
                                       aui.AUI_MGR_ALLOW_ACTIVE_PANE |
                                       aui.AUI_MGR_TRANSPARENT_DRAG |
                                       aui.AUI_MGR_TRANSPARENT_HINT |
-                                      aui.AUI_MGR_HINT_FADE |
-                                      aui.AUI_MGR_LIVE_RESIZE)
+                                      aui.AUI_MGR_HINT_FADE)
         self.manager.SetManagedWindow(self)
 
         self.manager.Bind(aui.EVT_AUI_PANE_ACTIVATED, self._on_pane_activated)
@@ -580,8 +579,11 @@ class MainFrame(wx.Frame):
         evt.Skip()
 
     def on_move(self, evt):
-        x, y = evt.GetPosition()
-        Config.position = (x, y)
+        def _do():
+            x, y = self.GetPosition()
+            Config.position = (x, y)
+
+        wx.CallAfter(_do)
         evt.Skip()
 
     def unload(self):
@@ -603,6 +605,7 @@ class MainFrame(wx.Frame):
         wx.Frame.Show(self, flag)
 
         def _do():
+
             from ..objects import project as _proj
 
             self.editor_db.load_db(self.global_db)
@@ -620,43 +623,43 @@ class MainFrame(wx.Frame):
             self.add_housing(position3d=evt.GetWorldPosition())
         elif mode == _toolbar.ID_TERMINAL:
             evt.StopPropagation()
-            self.add_terminal(evt.GetWorldPosition())
+            self.add_terminal(position3d=evt.GetWorldPosition())
         elif mode == _toolbar.ID_WIRE:
             evt.StopPropagation()
-            self.add_wire(evt.GetWorldPosition())
+            self.add_wire(position3d=evt.GetWorldPosition())
         elif mode == _toolbar.ID_WIRE_SERVICE_LOOP:
             evt.StopPropagation()
-            self.add_wire_service_loop(evt.GetWorldPosition())
+            self.add_wire_service_loop(position3d=evt.GetWorldPosition())
         elif mode == _toolbar.ID_SPLICE:
             evt.StopPropagation()
-            self.add_splice(evt.GetWorldPosition())
+            self.add_splice(position3d=evt.GetWorldPosition())
         elif mode == _toolbar.ID_NOTE:
             evt.StopPropagation()
-            self.add_note(evt.GetWorldPosition())
+            self.add_note(position3d=evt.GetWorldPosition())
         elif mode == _toolbar.ID_CIRCLE:
             evt.StopPropagation()
-            self.add_circle(evt.GetWorldPosition())
+            self.add_circle(position3d=evt.GetWorldPosition())
         elif mode == _toolbar.ID_SQUARE:
             evt.StopPropagation()
-            self.add_square(evt.GetWorldPosition())
+            self.add_square(position3d=evt.GetWorldPosition())
         elif mode == _toolbar.ID_TRANSITION:
             evt.StopPropagation()
-            self.add_transition(evt.GetWorldPosition())
+            self.add_transition(position3d=evt.GetWorldPosition())
         elif mode == _toolbar.ID_SEAL:
             evt.StopPropagation()
-            self.add_seal(evt.GetWorldPosition())
+            self.add_seal(position3d=evt.GetWorldPosition())
         elif mode == _toolbar.ID_BUNDLE_COVER:
             evt.StopPropagation()
-            self.add_bundle(evt.GetWorldPosition())
+            self.add_bundle(position3d=evt.GetWorldPosition())
         elif mode == _toolbar.ID_TPA_LOCK:
             evt.StopPropagation()
-            self.add_tpa_lock(evt.GetWorldPosition())
+            self.add_tpa_lock(position3d=evt.GetWorldPosition())
         elif mode == _toolbar.ID_CPA_LOCK:
             evt.StopPropagation()
-            self.add_cpa_lock(evt.GetWorldPosition())
+            self.add_cpa_lock(position3d=evt.GetWorldPosition())
         elif mode == _toolbar.ID_COVER:
             evt.StopPropagation()
-            self.add_cover(evt.GetWorldPosition())
+            self.add_cover(position3d=evt.GetWorldPosition())
         elif mode == _toolbar.ID_ZOOM_IN:
             evt.StopPropagation()
             self.editor3d.editor.Zoom(1.0)

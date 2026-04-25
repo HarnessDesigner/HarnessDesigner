@@ -583,26 +583,26 @@ class WireControl(wx.Notebook):
         self.description_ctrl = DescriptionControl(general_page)
 
         self.tpi_ctrl = _prop_grid.FloatProperty(
-            general_page, 'Twists per Inch', 0.0,
+            general_page, 'Twists per Inch',
             min_value=0.00, max_value=5.0, increment=0.5, units='tpi')
 
         self.weight_1km_ctrl = _prop_grid.FloatProperty(
-            general_page, 'Weight', 0.0,
+            general_page, 'Weight',
             min_value=0.0, max_value=500.0, increment=0.01, units='g/km')
 
         self.volts_ctrl = _prop_grid.FloatProperty(
-            general_page, 'Volts', 0.0,
+            general_page, 'Volts',
             min_value=0.00, max_value=44000.00, increment=0.1, units='V')
 
         self.resistance_1km_ctrl = _prop_grid.FloatProperty(
-            general_page, 'Resistance', 0.0,
+            general_page, 'Resistance',
             min_value=0.0, max_value=99999.99, increment=0.01, units='Ω/km')
 
         self.num_conductors_ctrl = _prop_grid.IntProperty(
-            general_page, 'Conductor Count', 1, min_value=1, max_value=10)
+            general_page, 'Conductor Count', min_value=1, max_value=10)
 
         self.shielded_ctrl = _prop_grid.BoolProperty(
-            general_page, 'Shielded', False)
+            general_page, 'Shielded')
 
         color_page = _prop_grid.Category(self, 'Color')
         self.color_ctrl = ColorControl(color_page)
@@ -630,19 +630,19 @@ class WireControl(wx.Notebook):
         size_page = _prop_grid.Category(self, 'Size')
 
         self.conductor_dia_mm_ctrl = _prop_grid.FloatProperty(
-            general_page, 'Conductor Diameter', 0.05,
+            general_page, 'Conductor Diameter',
             min_value=0.05, max_value=60.0, increment=0.01, units='mm')
 
         self.size_mm2_ctrl = _prop_grid.FloatProperty(
-            size_page, 'Cross Section', 0.0,
+            size_page, 'Cross Section',
             min_value=0.00, max_value=99.9999, increment=0.0001, units='mm²')
 
         self.size_awg_ctrl = _prop_grid.IntProperty(
-            size_page, 'Size', 30, min_value=0,
+            size_page, 'Size', min_value=0,
             max_value=30, units='awg')
 
         self.od_mm_ctrl = _prop_grid.FloatProperty(
-            size_page, 'Outside Diameter', 0.0,
+            size_page, 'Outside Diameter',
             min_value=0.0, max_value=99.9999, increment=0.0001, units='mm')
 
         self.tpi_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_tpi)

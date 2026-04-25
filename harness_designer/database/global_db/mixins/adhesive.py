@@ -38,7 +38,7 @@ class AdhesiveControl(_prop_grid.ArrayStringProperty):
     def __init__(self, parent):
         self.db_obj: AdhesiveMixin = None
 
-        super().__init__(parent, 'Adhesives', [])
+        super().__init__(parent, 'Adhesives')
 
     def _on_adhesives(self, evt):
         value = evt.GetValue()

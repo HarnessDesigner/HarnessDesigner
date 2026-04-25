@@ -36,17 +36,17 @@ class LongStringDialog(wx.Dialog):
 
 class LongStringProperty(_prop_base.Property):
 
-    def __init__(self, parent, label, value: str, style=0, units=None):
+    def __init__(self, parent, label, style=0, units=None):
         _prop_base.Property.__init__(self, parent, label)
 
         self._style = style
         self._dialog_title = 'Enter Text'
-        self._value = value
+        self._value = ''
 
         style |= wx.TE_LEFT | wx.TE_READONLY
 
         self._st = wx.StaticText(self, wx.ID_ANY, label=label + ':')
-        self._ctrl = wx.TextCtrl(self, wx.ID_ANY, value=value, style=style)
+        self._ctrl = wx.TextCtrl(self, wx.ID_ANY, value='', style=style)
         self._button = wx.Button(self, wx.ID_ANY, label='...', size=(20, -1))
 
         if units is not None:

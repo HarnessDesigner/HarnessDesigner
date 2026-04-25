@@ -136,9 +136,9 @@ def _load_iges(file):
 
 @_debug.logfunc
 def load(file: str) -> tuple[np.ndarray, np.ndarray]:
-    if file.endswith('.vrml'):
+    if file.endswith('.vrml') or file.endswith('wrl'):
         return _load_vrml(file)
-    elif file.endswith('.iges'):
+    elif file.endswith('.iges') or file.endswith('.igs'):
         return _load_iges(file)
     elif file.endswith('.step') or file.endswith('stp'):
         return _load_step(file)

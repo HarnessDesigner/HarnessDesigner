@@ -36,14 +36,14 @@ class ManufacturerControl(_prop_grid.Category):
         
         super().__init__(parent, 'Manufacturer')
 
-        self.name_ctrl = _prop_grid.ComboBoxProperty(self, 'Name', '', [])
-        self.desc_ctrl = _prop_grid.LongStringProperty(self, 'Description', '')
-        self.address_ctrl = _prop_grid.LongStringProperty(self, 'Address', '')
-        self.contact_ctrl = _prop_grid.StringProperty(self, 'Contact', '')
-        self.phone_ctrl = _prop_grid.StringProperty(self, 'Phone', '')
-        self.ext_ctrl = _prop_grid.StringProperty(self, 'Ext', '')
-        self.email_ctrl = _prop_grid.StringProperty(self, 'Email', '')
-        self.website_ctrl = _prop_grid.StringProperty(self, 'Website', '')
+        self.name_ctrl = _prop_grid.ComboBoxProperty(self, 'Name')
+        self.desc_ctrl = _prop_grid.LongStringProperty(self, 'Description')
+        self.address_ctrl = _prop_grid.LongStringProperty(self, 'Address')
+        self.contact_ctrl = _prop_grid.StringProperty(self, 'Contact')
+        self.phone_ctrl = _prop_grid.StringProperty(self, 'Phone')
+        self.ext_ctrl = _prop_grid.StringProperty(self, 'Ext')
+        self.email_ctrl = _prop_grid.StringProperty(self, 'Email')
+        self.website_ctrl = _prop_grid.StringProperty(self, 'Website')
 
         self.website_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_website_change)
         self.email_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_email_change)

@@ -32,7 +32,7 @@ class MaterialControl(_prop_grid.ComboBoxProperty):
         self.db_obj: MaterialMixin = None
         self.choices: list[str] = []
 
-        super().__init__(parent, 'Material', '', [])
+        super().__init__(parent, 'Material')
         self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_material)
 
     def set_obj(self, db_obj: MaterialMixin):

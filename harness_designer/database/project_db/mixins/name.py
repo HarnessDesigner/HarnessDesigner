@@ -20,7 +20,7 @@ class NameControl(_prop_grid.StringProperty):
     def __init__(self, parent):
         self.db_obj: NameMixin = None
 
-        super().__init__(parent, 'Name', '')
+        super().__init__(parent, 'Name')
 
         self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_name)
 

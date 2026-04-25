@@ -7,22 +7,20 @@ from ....widgets import autocomplete_combobox as _autocomplete_combobox
 
 class ColorProperty(_prop_base.Property):
 
-    def __init__(self, parent, label, value: list[str, wx.Colour], choices=[]):
+    def __init__(self, parent, label):
         _prop_base.Property.__init__(self, parent, label)
-        self._value = value
-        self._choices = choices
+        self._value = ['None', wx.BLACK]
+        self._choices = []
         self._button: wx.ColourPickerCtrl = None
-
-        choices = [item[0] for item in self._choices]
 
         self._st = wx.StaticText(self, wx.ID_ANY, label=self._label + ':')
         self._ctrl = _autocomplete_combobox.AutoCompleteComboBox(
-            self, wx.ID_ANY, choices=choices, style=wx.CB_SORT | wx.TE_PROCESS_ENTER | wx.CB_DROPDOWN)
+            self, wx.ID_ANY, choices=[], style=wx.CB_SORT | wx.TE_PROCESS_ENTER | wx.CB_DROPDOWN)
 
-        self._ctrl.ChangeValue(value[0])
+        self._ctrl.ChangeValue('None')
 
         self._button = wx.ColourPickerCtrl(self, wx.ID_ANY)
-        self._button.SetColour(value[1])
+        self._button.SetColour(wx.BLACK)
 
         self._ctrl.Bind(wx.EVT_TEXT_ENTER, self._on_change)
         self._ctrl.Bind(wx.EVT_COMBOBOX, self._on_change)

@@ -4,10 +4,10 @@ import wx
 import wx.lib.filebrowsebutton as filebrowse
 import mysql.connector.constants
 
-from harness_designer import Config
+from .... import config as _config
 
-DBConfig = Config.database
-Config = Config.database.mysql
+DBConfig = _config.Config.database
+Config = _config.Config.database.mysql
 
 
 class BoxedGroup(wx.StaticBox):

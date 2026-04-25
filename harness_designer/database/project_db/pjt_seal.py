@@ -4,7 +4,7 @@ import weakref
 import wx
 
 from ...ui.editor_obj import prop_grid as _prop_grid
-
+from ..global_db import seal as _seal
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from .mixins import (
     Angle3DMixin, Angle3DControl,
@@ -20,8 +20,6 @@ from .mixins import (
 if TYPE_CHECKING:
     from . import pjt_cavity as _pjt_cavity
     from . import pjt_terminal as _pjt_terminal
-    from ..global_db import seal as _seal
-
     from ...objects import seal as _seal_obj
 
 

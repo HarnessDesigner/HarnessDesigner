@@ -265,7 +265,7 @@ class Project:
         for name in connector.fetchall():
             project_names.append(name[0])
 
-        dlg = OpenProjectDialog(mainframe, Config.recent_projects, project_names)
+        dlg = OpenProjectDialog(mainframe, Config.last_project, project_names)
 
         try:
             if dlg.ShowModal() != wx.ID_CANCEL:
@@ -296,6 +296,8 @@ class Project:
                 return cls.select_project(mainframe)
 
         db_obj = mainframe.project_db.projects_table[project_id]
+
+        Config.last_project = project_name
 
         return cls(mainframe, db_obj, project_name, project_id)
 

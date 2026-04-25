@@ -4,7 +4,6 @@ import weakref
 import wx
 
 from ...ui.editor_obj import prop_grid as _prop_grid
-
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from ..global_db import tpa_lock as _tpa_lock
 from .mixins import (

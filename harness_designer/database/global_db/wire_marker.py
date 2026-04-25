@@ -298,11 +298,11 @@ class WireMarkerControl(wx.Notebook):
         self.weight_ctrl = WeightControl(general_page)
 
         self.length_ctrl = _prop_grid.FloatProperty(
-            general_page, 'Length', 0.01, min_value=0.01,
+            general_page, 'Length', min_value=0.01,
             max_value=99.99, increment=0.01, units='mm')
 
         self.label_ctrl = _prop_grid.BoolProperty(
-            general_page, 'Has Label', False)
+            general_page, 'Has Label')
 
         self.mfg_page = ManufacturerControl(self)
         self.family_page = FamilyControl(self)
@@ -314,21 +314,21 @@ class WireMarkerControl(wx.Notebook):
         diameter_page = _prop_grid.Category(self, 'Diameter')
 
         self.min_diameter_ctrl = _prop_grid.FloatProperty(
-            diameter_page, 'Minimum', 0.05, min_value=0.05,
+            diameter_page, 'Minimum', min_value=0.05,
             max_value=60.0, increment=0.01, units='mm')
 
         self.max_diameter_ctrl = _prop_grid.FloatProperty(
-            diameter_page, 'Maximum', 0.05, min_value=0.05,
+            diameter_page, 'Maximum', min_value=0.05,
             max_value=60.0, increment=0.01, units='mm')
 
         wire_size_page = _prop_grid.Category(self, 'Wire Size')
 
         self.min_awg_ctrl = _prop_grid.IntProperty(
-            wire_size_page, 'Minimum', 0, min_value=0,
+            wire_size_page, 'Minimum', min_value=0,
             max_value=30, units='awg')
 
         self.max_awg_ctrl = _prop_grid.IntProperty(
-            wire_size_page, 'Maximum', 0, min_value=0,
+            wire_size_page, 'Maximum', min_value=0,
             max_value=30, units='awg')
 
         self.min_diameter_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_min_diameter)

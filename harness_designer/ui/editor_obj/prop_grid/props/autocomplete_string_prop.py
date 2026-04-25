@@ -6,19 +6,17 @@ from ....widgets import autocomplete_textctrl as _autocomplete_textctrl
 
 class AutocompleteStringProperty(_prop_base.Property):
 
-    def __init__(self, parent, label, value='', style=0, choices=[], units=None):
+    def __init__(self, parent, label, style=0, units=None):
         style |= wx.TE_LEFT | wx.TE_PROCESS_ENTER
-        self._choices = choices
-        self._value = value
+        self._choices = []
+        self._value = []
 
         _prop_base.Property.__init__(self, parent, label)
 
         self._st = wx.StaticText(self, wx.ID_ANY, label=self._label + ':')
 
         self._ctrl = _autocomplete_textctrl.AutoCompleteTextCtrl(
-            self, wx.ID_ANY, style=style, choices=self._choices)
-
-        self._ctrl.SetValue(value)
+            self, wx.ID_ANY, style=style, choices=[])
 
         if units is not None:
             self._units_st = wx.StaticText(self, wx.ID_ANY, label=units)

@@ -332,7 +332,7 @@ class PJTWireControl(wx.Notebook):
         self.name_ctrl = NameControl(general_page)
         self.note_ctrl = NotesControl(general_page)
 
-        self.is_filler_wire_ctrl = _prop_grid.BoolProperty(general_page, 'Is Filler Wire', False)
+        self.is_filler_wire_ctrl = _prop_grid.BoolProperty(general_page, 'Is Filler Wire')
 
         position_page = _prop_grid.Category(self, 'Position')
 
@@ -347,18 +347,18 @@ class PJTWireControl(wx.Notebook):
 
         length_group = _prop_grid.Property(info_page, 'Length', orientation=wx.VERTICAL)
 
-        self.length_mm_ctrl = _prop_grid.StringProperty(length_group, 'Millimeter', '', style=wx.TE_READONLY)
-        self.length_m_ctrl = _prop_grid.StringProperty(length_group, 'Meter', '', style=wx.TE_READONLY)
-        self.length_ft_ctrl = _prop_grid.StringProperty(length_group, 'Foot', '', style=wx.TE_READONLY)
+        self.length_mm_ctrl = _prop_grid.StringProperty(length_group, 'Millimeter', style=wx.TE_READONLY)
+        self.length_m_ctrl = _prop_grid.StringProperty(length_group, 'Meter', style=wx.TE_READONLY)
+        self.length_ft_ctrl = _prop_grid.StringProperty(length_group, 'Foot', style=wx.TE_READONLY)
 
         weight_group = _prop_grid.Property(info_page, 'Weight', orientation=wx.VERTICAL)
 
-        self.weight_g_ctrl = _prop_grid.StringProperty(weight_group, 'Gram', '', style=wx.TE_READONLY)
-        self.weight_lb_ctrl = _prop_grid.StringProperty(weight_group, 'Pound', '', style=wx.TE_READONLY)
+        self.weight_g_ctrl = _prop_grid.StringProperty(weight_group, 'Gram', style=wx.TE_READONLY)
+        self.weight_lb_ctrl = _prop_grid.StringProperty(weight_group, 'Pound', style=wx.TE_READONLY)
 
         electrical_group = _prop_grid.Property(info_page, 'Electrical', orientation=wx.VERTICAL)
 
-        self.resistance_ctrl = _prop_grid.StringProperty(electrical_group, 'Resistance', '', units='Ω', style=wx.TE_READONLY)
+        self.resistance_ctrl = _prop_grid.StringProperty(electrical_group, 'Resistance', units='Ω', style=wx.TE_READONLY)
 
         circuit_page = _prop_grid.Category(self, 'Circuit')
         self.circuit_ctrl = _pjt_circuit.PJTCircuitControl(circuit_page)

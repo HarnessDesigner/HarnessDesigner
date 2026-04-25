@@ -2,10 +2,11 @@ from typing import TYPE_CHECKING
 
 from wx import aui
 import wx
+import build123d
 
-from ...gl import canvas3d as _canvas3d
 from ... import gl as _gl
 from ... import image as _image
+from ...objects import note as _note
 
 
 if TYPE_CHECKING:
@@ -299,6 +300,7 @@ class NoteToolbar(aui.AuiPaneInfo):
         self.toolbar = aui.AuiToolBar(mainframe, style=aui.AUI_TB_GRIPPER)
         self.mainframe = mainframe
         self.manager = mainframe.manager
+        self.selected = True
 
         aui.AuiPaneInfo.__init__(self)
 
@@ -322,39 +324,114 @@ class NoteToolbar(aui.AuiPaneInfo):
         align_horizontal_center = _image.icons.align_horizontal_center.resize(32, 32)
         align_left_edge = _image.icons.align_left_edge.resize(32, 32)
         align_right_edge = _image.icons.align_right_edge.resize(32, 32)
-        align_vertical_center = _image.icons.align_vertical_center.resize(32, 32)
-        align_top_edge = _image.icons.align_top_edge.resize(32, 32)
-        align_bottom_edge = _image.icons.align_bottom_edge.resize(32, 32)
 
-        self.toolbar.AddTool(toolId=self.ID_ALIGN_HORIZ_CENTER, label='Align Horizontal Center', bitmap=align_horizontal_center.bitmap,
-                             short_help_string='Align Horizontal Center', kind=wx.ITEM_RADIO)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_tools, id=self.ID_ALIGN_HORIZ_CENTER)
-
-        self.toolbar.AddTool(toolId=self.ID_ALIGN_HORIZ_LEFT, label='Align Horizontal Left', bitmap=align_left_edge.bitmap,
-                             short_help_string='Align Horizontal Left', kind=wx.ITEM_RADIO)
+        self.align_left = self.toolbar.AddTool(
+            toolId=self.ID_ALIGN_HORIZ_LEFT, label='Align Left',
+            bitmap=align_left_edge.bitmap, short_help_string='Align Left',
+            kind=wx.ITEM_RADIO)
         self.mainframe.Bind(wx.EVT_MENU, self.on_tools, id=self.ID_ALIGN_HORIZ_LEFT)
-        
-        self.toolbar.AddTool(toolId=self.ID_ALIGN_HORIZ_RIGHT, label='Align Horizontal Right', bitmap=align_right_edge.bitmap,
-                             short_help_string='Align Horizontal Right', kind=wx.ITEM_RADIO)
+        self.align_left.SetState(aui.AUI_BUTTON_STATE_DISABLED)
+
+        self.align_center = self.toolbar.AddTool(
+            toolId=self.ID_ALIGN_HORIZ_CENTER, label='Align Center',
+            bitmap=align_horizontal_center.bitmap, short_help_string='Align Center',
+            kind=wx.ITEM_RADIO)
+        self.mainframe.Bind(wx.EVT_MENU, self.on_tools, id=self.ID_ALIGN_HORIZ_CENTER)
+        self.align_center.SetState(aui.AUI_BUTTON_STATE_DISABLED)
+
+        self.align_right = self.toolbar.AddTool(
+            toolId=self.ID_ALIGN_HORIZ_RIGHT, label='Align Right',
+            bitmap=align_right_edge.bitmap, short_help_string='Align Right',
+            kind=wx.ITEM_RADIO)
         self.mainframe.Bind(wx.EVT_MENU, self.on_tools, id=self.ID_ALIGN_HORIZ_RIGHT)
+        self.align_right.SetState(aui.AUI_BUTTON_STATE_DISABLED)
 
-        self.toolbar.AddTool(toolId=self.ID_ALIGN_VERT_CENTER, label='Align Vertical Center', bitmap=align_vertical_center.bitmap,
-                             short_help_string='Align Vertical Center', kind=wx.ITEM_RADIO)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_tools, id=self.ID_ALIGN_VERT_CENTER)
+        mainframe.editor2d.Bind(_gl.EVT_GL_OBJECT_SELECTED, self.on_obj2d_selected)
+        mainframe.editor2d.Bind(_gl.EVT_GL_OBJECT_UNSELECTED, self.on_obj2d_unselected)
+        mainframe.editor3d.Bind(_gl.EVT_GL_OBJECT_SELECTED, self.on_obj3d_selected)
+        mainframe.editor3d.Bind(_gl.EVT_GL_OBJECT_UNSELECTED, self.on_obj3d_unselected)
 
-        self.toolbar.AddTool(toolId=self.ID_ALIGN_VERT_TOP, label='Align Vertical Top', bitmap=align_top_edge.bitmap,
-                             short_help_string='Align Vertical Top', kind=wx.ITEM_RADIO)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_tools, id=self.ID_ALIGN_VERT_TOP)
-
-        self.toolbar.AddTool(toolId=self.ID_ALIGN_VERT_BOTTOM, label='Align Vertical Bottom', bitmap=align_bottom_edge.bitmap,
-                             short_help_string='Align Vertical Bottom', kind=wx.ITEM_RADIO)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_tools, id=self.ID_ALIGN_VERT_BOTTOM)
+        mainframe.manager.Bind(aui.EVT_AUI_PANE_ACTIVATED, self.on_pane_activated)
 
         self.toolbar.Realize()
         self.manager.AddPane(self.toolbar, self)
 
         self.Show()
         self.manager.Update()
+
+    def set_buttons(self, align):
+        if align == -1:
+            self.align_left.SetState(aui.AUI_BUTTON_STATE_DISABLED)
+            self.align_center.SetState(aui.AUI_BUTTON_STATE_DISABLED)
+            self.align_right.SetState(aui.AUI_BUTTON_STATE_DISABLED)
+        else:
+            self.align_left.SetState(aui.AUI_BUTTON_STATE_NORMAL)
+            self.align_center.SetState(aui.AUI_BUTTON_STATE_NORMAL)
+            self.align_right.SetState(aui.AUI_BUTTON_STATE_NORMAL)
+
+            if align == build123d.TextAlign.LEFT:
+                self.align_left.SetState(aui.AUI_BUTTON_STATE_PRESSED)
+            elif align == build123d.TextAlign.CENTER:
+                self.align_center.SetState(aui.AUI_BUTTON_STATE_PRESSED)
+            elif align == build123d.TextAlign.RIGHT:
+                self.align_right.SetState(aui.AUI_BUTTON_STATE_PRESSED)
+            else:
+                raise RuntimeError('sanity check')
+
+    def on_pane_activated(self, evt: aui.AuiManagerEvent):
+        evt.Skip()
+        pane = evt.GetPane()
+
+        if pane == self.mainframe.editor2d:
+            obj = self.mainframe.get_selected()
+            if isinstance(obj, _note.Note):
+                self.set_buttons(obj.db_obj.h_align2d)
+        elif pane == self.mainframe.editor3d:
+            obj = self.mainframe.get_selected()
+            if isinstance(obj, _note.Note):
+                self.set_buttons(obj.db_obj.h_align3d)
+        else:
+            self.set_buttons(-1)
+
+    def on_obj2d_selected(self, evt: _gl.GLObjectEvent):
+        evt.Skip()
+        obj = evt.GetGLObject()
+
+        # aui.AUI_BUTTON_STATE_NORMAL
+        # aui.AUI_BUTTON_STATE_HOVER
+        # aui.AUI_BUTTON_STATE_PRESSED
+        # aui.AUI_BUTTON_STATE_DISABLED
+        # aui.AUI_BUTTON_STATE_HIDDEN
+        # aui.AUI_BUTTON_STATE_CHECKED
+
+        if isinstance(obj, _note.Note):
+            self.set_buttons(obj.db_obj.h_align2d)
+        else:
+            self.set_buttons(-1)
+
+    def on_obj2d_unselected(self, evt: _gl.GLObjectEvent):
+        evt.Skip()
+        self.set_buttons(-1)
+
+    def on_obj3d_selected(self, evt: _gl.GLObjectEvent):
+        evt.Skip()
+        obj = evt.GetGLObject()
+
+        # aui.AUI_BUTTON_STATE_NORMAL
+        # aui.AUI_BUTTON_STATE_HOVER
+        # aui.AUI_BUTTON_STATE_PRESSED
+        # aui.AUI_BUTTON_STATE_DISABLED
+        # aui.AUI_BUTTON_STATE_HIDDEN
+        # aui.AUI_BUTTON_STATE_CHECKED
+
+        if isinstance(obj, _note.Note):
+            self.set_buttons(obj.db_obj.h_align3d)
+        else:
+            self.set_buttons(-1)
+
+    def on_obj3d_unselected(self, evt: _gl.GLObjectEvent):
+        evt.Skip()
+        self.set_buttons(-1)
 
     def on_tools(self, evt):
         evt.Skip()
@@ -468,9 +545,11 @@ class EditorObjectToolbar(aui.AuiPaneInfo):
 
 class Setting3DToolbar(aui.AuiPaneInfo):
 
-    ID_SPOTLIGHT = wx.NewIdRef()
-    ID_NORMALS = wx.NewIdRef()
+    ID_SHOW_SPOTLIGHT = wx.NewIdRef()
+    ID_SHOW_NORMALS = wx.NewIdRef()
     ID_SHOW_WIREFRAME = wx.NewIdRef()
+    ID_SHOW_VERTICES = wx.NewIdRef()
+    ID_SHOW_REFLECTIONS = wx.NewIdRef()
 
     def __init__(self, mainframe: "_mainframe.MainFrame"):
         self.toolbar = aui.AuiToolBar(mainframe, style=aui.AUI_TB_GRIPPER)
@@ -496,47 +575,46 @@ class Setting3DToolbar(aui.AuiPaneInfo):
 
         self.toolbar.SetToolBitmapSize((32, 32))
 
-        show_wireframe = (_image.icons.show_wireframe + _image.icons.checkbox).resize(32, 32)
-        self._show_wireframe = show_wireframe.bitmap
-        self._show_wireframe_disabled = show_wireframe.disabled_bitmap
+        wireframe = _image.icons.show_wireframe.resize(32, 32).bitmap
+        normals = _image.icons.normals.resize(32, 32).bitmap
+        spotlight = _image.icons.spot_light.resize(32, 32).bitmap
+        vertices = _image.icons.vertices.resize(32, 32).bitmap
+        reflections = _image.icons.reflections.resize(32, 32).bitmap
 
-        dont_show_wireframe = (_image.icons.show_wireframe + _image.icons.uncheckbox).resize(32, 32)
-        self._dont_show_wireframe = dont_show_wireframe.bitmap
-        self._dont_show_wireframe_disabled = dont_show_wireframe.disabled_bitmap
+        self._wireframe = self.toolbar.AddTool(
+            toolId=self.ID_SHOW_WIREFRAME, label='Show Wireframe',
+            bitmap=wireframe, short_help_string='Show Wireframe',
+            kind=wx.ITEM_CHECK)
 
-        show_shadows = (_image.icons.normals + _image.icons.checkbox).resize(32, 32)
-        self._show_shadows = show_shadows.bitmap
-        self._show_shadows_disabled = show_shadows.disabled_bitmap
-
-        dont_show_shadows = (_image.icons.normals + _image.icons.uncheckbox).resize(32, 32)
-        self._dont_show_shadows = dont_show_shadows.bitmap
-        self._dont_show_shadows_disabled = dont_show_shadows.disabled_bitmap
-
-        show_spotlight = (_image.icons.spot_light + _image.icons.checkbox).resize(32, 32)
-        self._show_spotlight = show_spotlight.bitmap
-        self._show_spotlight_disabled = show_spotlight.disabled_bitmap
-
-        dont_show_spotlight = (_image.icons.spot_light + _image.icons.uncheckbox).resize(32, 32)
-        self._dont_show_spotlight = dont_show_spotlight.bitmap
-        self._dont_show_spotlight_disabled = dont_show_spotlight.disabled_bitmap
-
-        self._wireframe_state = False
-        self._wireframe = self.toolbar.AddTool(self.ID_SHOW_WIREFRAME, 'Show Wireframe',
-                                               self._dont_show_wireframe, self._dont_show_wireframe_disabled,
-                                               wx.ITEM_NORMAL, 'Show Wireframe', '', None)
         self.mainframe.Bind(wx.EVT_MENU, self.on_show_wireframe, id=self.ID_SHOW_WIREFRAME)
 
-        self._shadows_state = False
-        self._shadows = self.toolbar.AddTool(self.ID_NORMALS, 'Show Shadows',
-                                             self._dont_show_shadows, self._dont_show_shadows_disabled,
-                                             wx.ITEM_NORMAL, 'Show Shadows', '', None)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_show_shadows, id=self.ID_NORMALS)
+        self._reflections = self.toolbar.AddTool(
+            toolId=self.ID_SHOW_REFLECTIONS, label='Show Reflections',
+            bitmap=reflections, short_help_string='Show Reflections',
+            kind=wx.ITEM_CHECK
+        )
+        self.mainframe.Bind(wx.EVT_MENU, self.on_show_reflections, id=self.ID_SHOW_REFLECTIONS)
 
-        self._spotlight_state = False
-        self._spotlight = self.toolbar.AddTool(self.ID_SPOTLIGHT, 'Show Spotlight',
-                                               self._dont_show_spotlight, self._dont_show_spotlight_disabled,
-                                               wx.ITEM_NORMAL, 'Show Spotlight', '', None)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_show_spotlight, id=self.ID_SPOTLIGHT)
+        self._spotlight = self.toolbar.AddTool(
+            toolId=self.ID_SHOW_SPOTLIGHT, label='Show Spotlight',
+            bitmap=spotlight, short_help_string='Show Spotlight',
+            kind=wx.ITEM_CHECK
+        )
+        self.mainframe.Bind(wx.EVT_MENU, self.on_show_spotlight, id=self.ID_SHOW_SPOTLIGHT)
+
+        self._normals = self.toolbar.AddTool(
+            toolId=self.ID_SHOW_NORMALS, label='Show Normals',
+            bitmap=normals, short_help_string='Show Normals',
+            kind=wx.ITEM_CHECK
+        )
+        self.mainframe.Bind(wx.EVT_MENU, self.on_show_normals, id=self.ID_SHOW_NORMALS)
+
+        self._vertices = self.toolbar.AddTool(
+            toolId=self.ID_SHOW_VERTICES, label='Show Vertices',
+            bitmap=vertices, short_help_string='Show Vertices',
+            kind=wx.ITEM_CHECK
+        )
+        self.mainframe.Bind(wx.EVT_MENU, self.on_show_vertices, id=self.ID_SHOW_VERTICES)
 
         self.toolbar.Realize()
         self.manager.AddPane(self.toolbar, self)
@@ -544,40 +622,19 @@ class Setting3DToolbar(aui.AuiPaneInfo):
         self.Show()
         self.manager.Update()
 
-    def on_show_wireframe(self, evt: wx.MenuEvent):
-        if not self._wireframe_state:
-            self._wireframe_state = True
-            self._wireframe.SetBitmap(self._show_wireframe)
-            self._wireframe.SetDisabledBitmap(self._show_wireframe_disabled)
-        else:
-            self._wireframe_state = False
-            self._wireframe.SetBitmap(self._dont_show_wireframe)
-            self._wireframe.SetDisabledBitmap(self._dont_show_wireframe_disabled)
-
+    def on_show_wireframe(self, evt):
         evt.Skip()
-        
-    def on_show_shadows(self, evt):
-        if not self._shadows_state:
-            self._shadows_state = True
-            self._wireframe.SetBitmap(self._show_shadows)
-            self._wireframe.SetDisabledBitmap(self._show_shadows_disabled)
-        else:
-            self._shadows_state = False
-            self._wireframe.SetBitmap(self._dont_show_shadows)
-            self._wireframe.SetDisabledBitmap(self._dont_show_shadows_disabled)
 
+    def on_show_reflections(self, evt):
         evt.Skip()
-        
+
     def on_show_spotlight(self, evt):
-        if not self._spotlight_state:
-            self._spotlight_state = True
-            self._wireframe.SetBitmap(self._show_spotlight)
-            self._wireframe.SetDisabledBitmap(self._show_spotlight_disabled)
-        else:
-            self._spotlight_state = False
-            self._wireframe.SetBitmap(self._dont_show_wireframe)
-            self._wireframe.SetDisabledBitmap(self._dont_show_spotlight_disabled)
+        evt.Skip()
 
+    def on_show_vertices(self, evt):
+        evt.Skip()
+
+    def on_show_normals(self, evt):
         evt.Skip()
 
     def Refresh(self, *args, **kwargs):

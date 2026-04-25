@@ -51,8 +51,8 @@ class TemperatureControl(_prop_grid.Category):
         self.choices: list[str] = []
         self.db_obj: TemperatureMixin = None
 
-        self.min_temp_ctrl = _prop_grid.ComboBoxProperty(self, 'Minimum', '', [])
-        self.max_temp_ctrl = _prop_grid.ComboBoxProperty(self, 'Maximum', '', [])
+        self.min_temp_ctrl = _prop_grid.ComboBoxProperty(self, 'Minimum')
+        self.max_temp_ctrl = _prop_grid.ComboBoxProperty(self, 'Maximum')
 
         self.min_temp_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_min_temp)
         self.max_temp_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_max_temp)

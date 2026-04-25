@@ -379,9 +379,9 @@ class BundleCoverControl(wx.Notebook):
         self.weight_ctrl = WeightControl(general_page)
         self.protection_ctrl = ProtectionControl(general_page)
 
-        self.rigidity_ctrl = _prop_grid.StringProperty(general_page, 'Rigidity', '')
-        self.shrink_ratio_ctrl = _prop_grid.StringProperty(general_page, 'Shrink Ratio', '')
-        self.wall_ctrl = _prop_grid.StringProperty(general_page, 'Wall', '')
+        self.rigidity_ctrl = _prop_grid.StringProperty(general_page, 'Rigidity')
+        self.shrink_ratio_ctrl = _prop_grid.StringProperty(general_page, 'Shrink Ratio')
+        self.wall_ctrl = _prop_grid.StringProperty(general_page, 'Wall')
 
         self.rigidity_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_rigidity)
         self.shrink_ratio_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_shrink_ratio)
@@ -390,11 +390,11 @@ class BundleCoverControl(wx.Notebook):
         self.diameter_page = _prop_grid.Property(self, 'Diameter')
 
         self.min_dia_ctrl = _prop_grid.FloatProperty(
-            self.diameter_page, 'Minimum', 0.0, min_value=0.00,
+            self.diameter_page, 'Minimum', min_value=0.00,
             max_value=999.9, increment=0.01, units='mm')
 
         self.max_dia_ctrl = _prop_grid.FloatProperty(
-            self.diameter_page, 'Maximum', 0.0, min_value=0.00,
+            self.diameter_page, 'Maximum', min_value=0.00,
             max_value=999.9, increment=0.01, units='mm')
 
         self.min_dia_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_min_dia)
@@ -407,7 +407,7 @@ class BundleCoverControl(wx.Notebook):
         self.resources_page = ResourcesControl(self)
 
         self.shrink_temp_choices: list[str] = []
-        self.shrink_temp_ctrl = _prop_grid.ComboBoxProperty(self.temperature_page, 'Shrink Temperature', '', [])
+        self.shrink_temp_ctrl = _prop_grid.ComboBoxProperty(self.temperature_page, 'Shrink Temperature')
         self.shrink_temp_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_shrink_temp)
 
         for page in (

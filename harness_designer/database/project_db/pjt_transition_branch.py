@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Iterable as _Iterable
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from .mixins import Position3DMixin, PartMixin
 from ...ui.editor_obj import prop_grid as _prop_grid
+from ..global_db import transition_branch as _transition_branch
 
 
 if TYPE_CHECKING:
@@ -11,7 +12,6 @@ if TYPE_CHECKING:
     from . import pjt_wire as _pjt_wire
     from . import pjt_concentric as _pjt_concentric
     from . import pjt_bundle as _pjt_bundle
-    from ..global_db import transition_branch as _transition_branch
 
 
 class PJTTransitionBranchesTable(PJTTableBase):

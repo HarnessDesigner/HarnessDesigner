@@ -163,28 +163,22 @@ class WireSizeControl(_prop_grid.Category):
         super().__init__(parent, 'Wire Sizes')
 
         self.min_mm2_ctrl = _prop_grid.FloatProperty(
-            self, 'Minimum Cross', 0.05, min_value=0.05,
-            max_value=55.0, increment=0.01, units='mm²')
+            self, 'Minimum Cross', min_value=0.05, max_value=55.0, increment=0.01, units='mm²')
 
         self.max_mm2_ctrl = _prop_grid.FloatProperty(
-            self, 'Maximum Cross', 0.05, min_value=0.05,
-            max_value=55.0, increment=0.01, units='mm²')
+            self, 'Maximum Cross', min_value=0.05, max_value=55.0, increment=0.01, units='mm²')
 
         self.min_awg_ctrl = _prop_grid.IntProperty(
-            self, 'Minimum AWG', 30,
-            min_value=0, max_value=30, units='awg')
+            self, 'Minimum AWG', min_value=0, max_value=30, units='awg')
 
         self.max_awg_ctrl = _prop_grid.IntProperty(
-            self, 'Maximum AWG', 30,
-            min_value=0, max_value=30, units='awg')
+            self, 'Maximum AWG', min_value=0, max_value=30, units='awg')
 
         self.min_dia_ctrl = _prop_grid.FloatProperty(
-            self, 'Minimum Diameter', 0.26,
-            min_value=0.26, max_value=8.25, increment=0.01, units='mm')
+            self, 'Minimum Diameter', min_value=0.26, max_value=8.25, increment=0.01, units='mm')
 
         self.max_dia_ctrl = _prop_grid.FloatProperty(
-            self, 'Maximum Diameter', 0.26,
-            min_value=0.26, max_value=8.25, increment=0.01, units='mm')
+            self, 'Maximum Diameter', min_value=0.26, max_value=8.25, increment=0.01, units='mm')
 
         self.min_mm2_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_min_mm2)
         self.max_mm2_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_max_mm2)

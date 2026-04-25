@@ -52,6 +52,46 @@ class Canvas3D(wx.Panel):
 
         self._canvas.Move(x, y)
 
+        def _do():
+            x1, y1 = self.GetScreenPosition()
+            w, h = self.GetSize()
+
+            x2 = x1 + w
+            y2 = y1 + h
+
+            print('canvas:', (x1, y1), (x2, y2))
+
+            axis_overlay = self._canvas.axis_overlay
+
+            if axis_overlay is not None:
+                ax1, ay1 = axis_overlay.GetScreenPosition()
+                aw, ah = axis_overlay.GetSize()
+
+                ax2 = ax1 + aw
+                ay2 = ay1 + ah
+
+                print('axis:', (ax1, ay1), (ax2, ay2))
+
+                if ax1 < x1:
+                    x = x1
+                elif ax2 > x2:
+                    x = x2 - aw
+                else:
+                    x = 0
+
+                if ay1 < y1:
+                    y = y1
+                elif ay2 > y2:
+                    y = y2 - ah
+                else:
+                    y = 0
+
+                if x or y:
+                    axis_overlay.SetPosition(axis_overlay.ScreenToClient((x, y)))
+                    axis_overlay.Refresh(False)
+
+        wx.CallAfter(_do)
+
     def set_selected(self, obj):
         self._canvas.set_selected(obj)
 

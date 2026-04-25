@@ -36,8 +36,8 @@ class CavityLockControl(_prop_grid.Property):
         self.db_obj: CavityLockMixin = None
         self.choices: list[str] = []
 
-        self.name_ctrl = _prop_grid.ComboBoxProperty(self, 'Name', '', choices=[])
-        self.desc_ctrl = _prop_grid.StringProperty(self, 'Description', '')
+        self.name_ctrl = _prop_grid.ComboBoxProperty(self, 'Name')
+        self.desc_ctrl = _prop_grid.StringProperty(self, 'Description')
         self.name_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_name)
         self.desc_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_desc)
 

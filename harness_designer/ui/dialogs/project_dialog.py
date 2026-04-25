@@ -6,17 +6,16 @@ from . import dialog_base as _dialog_base
 
 class OpenProjectDialog(_dialog_base.BaseDialog):
 
-    def __init__(self, parent, recent_projects, project_names):
-        _dialog_base.BaseDialog.__init__(self, parent, 'Open Project', 'Open Project')
-        self.recent_projects = recent_projects
+    def __init__(self, parent, last_project, project_names):
+        _dialog_base.BaseDialog.__init__(self, parent, 'Open Project', size=(600, 200))
+        self.last_project = last_project
         self.project_names = project_names
 
-        if recent_projects:
-            value = recent_projects[0]
-        else:
-            value = wx.EmptyString
+        self.project_ctrl = _combobox_ctrl.ComboBoxCtrl(
+            self.panel, 'Project:', project_names, True)
 
-        self.project_ctrl = _combobox_ctrl.ComboBoxCtrl(self.panel, 'Project:', project_names)
+        if last_project is not None and last_project in project_names:
+            self.project_ctrl.SetValue(last_project)
 
         h_sizer = wx.BoxSizer(wx.HORIZONTAL)
         h_sizer.Add(self.project_ctrl, 1, wx.LEFT | wx.RIGHT, 100)

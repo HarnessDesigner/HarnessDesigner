@@ -157,6 +157,14 @@ class Canvas(glcanvas.GLCanvas):
         font.SetPointSize(15)
         self.SetFont(font)
 
+    @property
+    def axis_overlay(self):
+        return self._axis_overlay
+
+    @property
+    def objects_in_view(self):
+        return self._objects_in_view
+
     def set_mode(self, mode: int) -> None:
         self._mode = mode
 

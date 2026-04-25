@@ -74,16 +74,13 @@ class DimensionControl(_prop_grid.Category):
         super().__init__(parent, 'Dimensions')
 
         self.length_ctrl = _prop_grid.FloatProperty(
-            self, 'Length', 0.01,
-            min_value=0.01, max_value=999.0, increment=0.01, units='mm')
+            self, 'Length', min_value=0.01, max_value=999.0, increment=0.01, units='mm')
 
         self.width_ctrl = _prop_grid.FloatProperty(
-            self, 'Width', 0.01,
-            min_value=0.01, max_value=999.0, increment=0.01, units='mm')
+            self, 'Width', min_value=0.01, max_value=999.0, increment=0.01, units='mm')
 
         self.height_ctrl = _prop_grid.FloatProperty(
-            self, 'Height', 0.01,
-            min_value=0.01, max_value=999.0, increment=0.01, units='mm')
+            self, 'Height', min_value=0.01, max_value=999.0, increment=0.01, units='mm')
 
         self.length_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_length)
         self.width_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_width)

@@ -8,16 +8,14 @@ from ....widgets import autocomplete_combobox as _autocomplete_combobox
 
 class ComboBoxProperty(_prop_base.Property):
 
-    def __init__(self, parent, label, value, choices=[], units=None):
+    def __init__(self, parent, label, units=None):
         _prop_base.Property.__init__(self, parent, label)
-        self._choices = choices
-        self._value = value
+        self._choices = []
+        self._value = ''
 
-        self._st = wx.StaticText(self, wx.ID_ANY, label=self._label + ':')
+        self._st = wx.StaticText(self, wx.ID_ANY, label=label + ':')
         self._ctrl = _autocomplete_combobox.AutoCompleteComboBox(
-            self, wx.ID_ANY, choices=self._choices, style=wx.CB_SORT | wx.TE_PROCESS_ENTER | wx.CB_DROPDOWN)
-
-        self._ctrl.SetValue(value)
+            self, wx.ID_ANY, choices=[], style=wx.CB_SORT | wx.TE_PROCESS_ENTER | wx.CB_DROPDOWN)
 
         self._ctrl.Bind(wx.EVT_TEXT_ENTER, self._on_change)
         self._ctrl.Bind(wx.EVT_COMBOBOX, self._on_change)

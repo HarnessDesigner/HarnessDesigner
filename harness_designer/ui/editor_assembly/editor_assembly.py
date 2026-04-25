@@ -24,7 +24,7 @@ class EditorAssembly(aui.AuiPaneInfo):
         self.MinimizeButton()
         self.MaximizeButton()
         self.Dockable()
-        self.CloseButton(False)
+        self.CloseButton(True)
         self.PaneBorder()
         self.Caption('Assembly Editor')
         self.DestroyOnClose(False)
@@ -33,7 +33,11 @@ class EditorAssembly(aui.AuiPaneInfo):
         self.Window(self.editor)
 
         self.manager.AddPane(self.editor, self)
-        self.Show()
+        aui.AuiPaneInfo.Show(self)
+        self.manager.Update()
+
+    def Show(self, show=True):
+        aui.AuiPaneInfo.Show(self, show)
         self.manager.Update()
 
     def Refresh(self, *args, **kwargs):

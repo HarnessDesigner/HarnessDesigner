@@ -5,13 +5,13 @@ from . import prop_base as _prop_base
 
 class IntProperty(_prop_base.Property):
 
-    def __init__(self, parent, label, value: int, min_value: int, max_value: int, units=None):
+    def __init__(self, parent, label, min_value: int, max_value: int, units=None):
 
         _prop_base.Property.__init__(self, parent, label)
 
         self._min_val = min_value
         self._max_val = max_value
-        self._value = value
+        self._value = min_value
 
         self._st = wx.StaticText(self, wx.ID_ANY, label=self._label + ':')
         self._ctrl = wx.SpinCtrl(self, wx.ID_ANY, value=str(self._value),

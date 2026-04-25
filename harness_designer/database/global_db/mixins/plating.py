@@ -36,8 +36,8 @@ class PlatingControl(_prop_grid.Category):
         self.choices: list[str] = []
         self.db_obj: PlatingMixin = None
 
-        self.symbol_ctrl = _prop_grid.ComboBoxProperty(self, 'Symbol', '', [])
-        self.desc_ctrl = _prop_grid.LongStringProperty(self, 'Description', '')
+        self.symbol_ctrl = _prop_grid.ComboBoxProperty(self, 'Symbol')
+        self.desc_ctrl = _prop_grid.LongStringProperty(self, 'Description')
 
         self.symbol_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_symbol)
         self.desc_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_desc)

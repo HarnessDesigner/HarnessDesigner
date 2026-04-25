@@ -185,16 +185,15 @@ class ArrayFloatDialog(wx.Dialog):
 
 class ArrayFloatProperty(_prop_base.Property):
 
-    def __init__(self, parent, label, value=[]):
+    def __init__(self, parent, label):
         self._dialog_title = 'Enter Decimal Values'
         _prop_base.Property.__init__(self, parent, label)
 
-        self._value = value
+        self._value = []
 
         self._st = wx.StaticText(self, wx.ID_ANY, label=self._label + ':')
 
-        value = ', '.join(str(item) for item in self._value)
-        self._ctrl = wx.TextCtrl(self, wx.ID_ANY, value=value, style=wx.TE_LEFT | wx.TE_READONLY)
+        self._ctrl = wx.TextCtrl(self, wx.ID_ANY, value='', style=wx.TE_LEFT | wx.TE_READONLY)
         self._button = wx.Button(self, wx.ID_ANY, label='...', size=(20, -1))
 
         self._button.Bind(wx.EVT_BUTTON, self._on_dialog_button)

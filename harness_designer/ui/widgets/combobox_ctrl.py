@@ -18,7 +18,7 @@ class ComboBoxCtrl(wx.BoxSizer):
     when keying in an item that doesn't exist in the list of items.
     """
 
-    def __init__(self, parent, label, choices):
+    def __init__(self, parent, label, choices, process_enter=False):
         wx.BoxSizer.__init__(self, wx.HORIZONTAL)
         vsizer = wx.BoxSizer(wx.VERTICAL)
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -35,12 +35,17 @@ class ComboBoxCtrl(wx.BoxSizer):
 
         self.Add(vsizer, 1)
 
-    def _on_enter(self, _):
+        self.process_enter = process_enter
+
+    def _on_enter(self, evt):
         event = wx.CommandEvent(wx.wxEVT_COMBOBOX)
         event.SetString(self.ctrl.GetValue())
         event.SetEventObject(self.ctrl)
         event.SetId(self.ctrl.GetId())
         self.ctrl.GetEventHandler().ProcessEvent(event)
+
+        if self.process_enter:
+            evt.Skip()
 
     def Enable(self, flag=True):
         self.ctrl.Enable(flag)

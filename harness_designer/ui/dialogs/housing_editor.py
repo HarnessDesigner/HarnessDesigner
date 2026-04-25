@@ -148,7 +148,7 @@ class Cavity(_objects.ObjectBase):
     obj3d: "Cavity3D" = None
 
     def __init__(self, parent: "HousingEditorDialog", cavity: "_cavity.Cavity"):
-        super().__init__(parent)
+        super().__init__(parent, cavity)
         self.dialog = parent
         self.obj3d = Cavity3D(self, cavity)
         self.obj2d = None
@@ -177,6 +177,7 @@ class Cavity3D(_base3d.Base3D):
         self._selected_material = _materials.Plastic(_color.Color(0.3, 1.0, 0.3, 1.0))
 
         self._is_visible = True
+        self.autoplace = False
         self.editor3d.Refresh(False)
 
     def set_selected(self, flag: bool):
@@ -265,12 +266,8 @@ class Cavity3D(_base3d.Base3D):
             vertices, faces = _cylinder.create(radius, self.length, resolution=90, split=1)
             p1, p2 = _utils.compute_aabb(vertices)
 
-            position = p2 - p1
-            position.z = p1.z
-
-            position -= self._position
-
-            vertices += position
+            position = (p2 - p1) / 2.0
+            vertices -= position
             vertices @= self._angle
             vertices += self._position
 
@@ -279,12 +276,9 @@ class Cavity3D(_base3d.Base3D):
             vertices, faces = _box.create(self.width, self.height, self.length)
             p1, p2 = _utils.compute_aabb(vertices)
 
-            position = p2 - p1
-            position.z = p1.z
-
-            position -= self._position
-
-            vertices += position
+            # position = (p2 - p1) / 2.0
+            #
+            # vertices -= position
             vertices @= self._angle
             vertices += self._position
 
@@ -297,7 +291,7 @@ class HousingAccessory(_objects.ObjectBase):
     obj3d: "HousingAccessory3D" = None
 
     def __init__(self, parent: "HousingEditorDialog", position: _point.Point):
-        super().__init__(parent)
+        super().__init__(parent, None)
         self.dialog = parent
         self.obj3d = HousingAccessory3D(self, position)
         self.obj2d = None
@@ -334,7 +328,7 @@ class Housing(_objects.ObjectBase):
     obj3d: "Housing3D" = None
 
     def __init__(self, parent: "HousingEditorDialog", housing: "_housing.Housing"):
-        super().__init__(parent)
+        super().__init__(parent, housing)
         self.dialog = parent
         self.obj3d = Housing3D(self, housing)
         self.obj2d = None
@@ -447,19 +441,29 @@ class CavityPanel(scrolledpanel.ScrolledPanel):
 
         left_size_sizer.Add(self.cavity_type, 0, wx.ALL, 5)
 
+        self.cavity_autoplace = _checkbox_ctrl.CheckboxCtrl(cavity_sb, 'Use in Autoplace:')
+        self.cavity_autoplace.Bind(wx.EVT_CHECKBOX, self.on_cavity_autoplace)
+        self.cavity_autoplace.Enable(False)
+
+        left_size_sizer.Add(self.cavity_type, 0, wx.ALL, 5)
+
         self.cavity_terminal_sizes = _combobox_ctrl.ComboBoxCtrl(cavity_sb, 'Terminal Sizes', [])
         self.cavity_terminal_sizes.Bind(wx.EVT_COMBOBOX, self.on_cavity_terminal_sizes)
         self.cavity_terminal_sizes.Enable(False)
 
         left_size_sizer.Add(self.cavity_terminal_sizes, 0, wx.EXPAND | wx.ALL, 5)
 
-        self.remove_cavity = wx.Button(cavity_sb, wx.ID_ANY, label='Remove Cavity')
+        self.auto_place = wx.Button(cavity_sb, wx.ID_ANY, label='Auto Place Cavities')
+        self.auto_place.Bind(wx.EVT_BUTTON, self.on_auto_place)
+        self.auto_place.Enable(False)
 
+        self.remove_cavity = wx.Button(cavity_sb, wx.ID_ANY, label='Remove Cavity')
         self.remove_cavity.Bind(wx.EVT_BUTTON, self.on_remove_cavity)
         self.remove_cavity.Enable(False)
 
         button_sizer = wx.BoxSizer(wx.HORIZONTAL)
         button_sizer.AddStretchSpacer(3)
+        button_sizer.Add(self.auto_place, 1, wx.ALL, 5)
         button_sizer.Add(self.remove_cavity, 1, wx.ALL, 5)
 
         left_size_sizer.Add(button_sizer, 0, wx.EXPAND | wx.ALL, 10)
@@ -549,6 +553,30 @@ class CavityPanel(scrolledpanel.ScrolledPanel):
         if not self.cavities:
             self.dialog.housing_panel.enable_housing_rotation(True)
 
+
+    def on_cavity_autoplace(self, _):
+        value = self.cavity_autoplace.GetValue()
+        self.cavity.autoplace = value
+
+        count = 0
+        for cavity in self.cavities:
+            if cavity.autoplace:
+                count += 1
+
+        if count == 3:
+            self.auto_place.Enable(True)
+        else:
+            self.auto_place.Enable(False)
+
+    def on_auto_place(self, _):
+        positions = []
+
+        for cavity in self.cavities:
+            if cavity.autoplace:
+                positions.append(cavity.position)
+
+        pos1, pos2, pos3 = positions
+
     def on_cavity_terminal_sizes(self, evt):
         evt.Skip()
 
@@ -595,6 +623,12 @@ class CavityPanel(scrolledpanel.ScrolledPanel):
             cavity.db_obj.idx = i + 1
 
         self.set_cavity(None)
+
+
+        for cavity in self.cavities:
+            cavity.position
+
+
         evt.Skip()
 
     def on_cavity_name(self, evt):
@@ -1291,30 +1325,23 @@ class HousingPanel(scrolledpanel.ScrolledPanel):
         evt.Skip()
 
 
-class HousingEditorDialog(wx.Dialog):
+from . import dialog_base as _dialog_base
+
+class HousingEditorDialog(_dialog_base.BaseDialog):
 
     def __init__(self, parent, db_obj):
         self.db_obj = db_obj
 
-        style = wx.CAPTION | wx.CLOSE_BOX | wx.STAY_ON_TOP
-
-        wx.Dialog.__init__(self, parent, wx.ID_ANY, title='', size=(1200, 700),
-                           style=style)
-
-        self.header = HeaderPanel(self, 'Edit Housing')
-
-        button_sizer = self.CreateStdDialogButtonSizer(wx.OK)
-        self.button_sizer = self.CreateSeparatedSizer(button_sizer)
+        _dialog_base.BaseDialog.__init__(self, parent, 'Edit Housing', size=(1200, 900))
 
         vsizer = wx.BoxSizer(wx.VERTICAL)
-        vsizer.Add(self.header, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 5)
 
-        self.canvas = _canvas3d.Canvas3D(self, Config.editor3d, size=(750, 300))
+        self.canvas = _canvas3d.Canvas3D(self.panel, Config.editor3d, size=(750, 500))
 
         self.housing = Housing(self, db_obj)
 
-        self.housing_panel = HousingPanel(self, self.housing.obj3d)
-        self.cavity_panel = CavityPanel(self, self.housing.obj3d)
+        self.housing_panel = HousingPanel(self.panel, self.housing.obj3d)
+        self.cavity_panel = CavityPanel(self.panel, self.housing.obj3d)
 
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
         hsizer.Add(self.canvas, 2, wx.ALL | wx.EXPAND, 5)
@@ -1322,9 +1349,7 @@ class HousingEditorDialog(wx.Dialog):
 
         vsizer.Add(hsizer, 1, wx.EXPAND)
         vsizer.Add(self.cavity_panel, 1, wx.ALL | wx.EXPAND, 5)
-
-        vsizer.Add(self.button_sizer, 0, wx.EXPAND | wx.ALL, 10)
-        self.SetSizer(vsizer)
+        self.panel.SetSizer(vsizer)
         self.CenterOnParent()
 
     @property
@@ -1355,3 +1380,184 @@ class HousingEditorDialog(wx.Dialog):
     @property
     def config(self):
         return Config.editor3d
+
+import math
+
+from . import dialog_base as _dialog_base
+
+
+'''
+class PinCalculatorDialog():
+
+
+
+class Block:
+
+    def __init__(self, x: float, y: float, z: float = 0):
+        self.x = x
+        self.y = y
+        self.z = z
+
+    def distance_to(self, other: 'Block') -> float:
+        """Calculate 2D distance to another block (ignoring Z)"""
+        return math.sqrt((self.x - other.x) ** 2 + (self.y - other.y) ** 2)
+
+
+def calculate_spacing(blocks: List[Block], direction: str = 'right') -> Dict:
+    """
+    Calculate X and Y spacing from 3 reference blocks.
+
+    Args:
+        blocks: List of exactly 3 Block objects
+        direction: 'right', 'left', 'up', or 'down' for population direction
+
+    Returns:
+        Dictionary with:
+        - x_spacing: Distance between blocks in the same row
+        - y_spacing: Distance between row centerlines
+        - row1_blocks: List of blocks in first row (2 blocks)
+        - row2_blocks: List of blocks in second row (1 block)
+        - row1_y: Y coordinate centerline of the row with 2 blocks
+        - row2_y: Y coordinate of the row with 1 block
+    """
+    if len(blocks) != 3:
+        raise ValueError("Exactly 3 blocks are required")
+
+    # Sort blocks by Y coordinate
+    sorted_by_y = sorted(blocks, key=lambda b: b.y)
+
+    # Calculate Y distances between consecutive blocks
+    y_diff_01 = abs(sorted_by_y[1].y - sorted_by_y[0].y)
+    y_diff_12 = abs(sorted_by_y[2].y - sorted_by_y[1].y)
+
+    # Determine which blocks are in the same row (smallest Y difference)
+    if y_diff_01 < y_diff_12:
+        # Blocks 0 and 1 are in the same row
+        row1_blocks = [sorted_by_y[0], sorted_by_y[1]]
+        row2_blocks = [sorted_by_y[2]]
+    else:
+        # Blocks 1 and 2 are in the same row
+        row1_blocks = [sorted_by_y[1], sorted_by_y[2]]
+        row2_blocks = [sorted_by_y[0]]
+
+    # Calculate average Y position for the row with 2 blocks (centerline)
+    row1_y_average = (row1_blocks[0].y + row1_blocks[1].y) / 2
+
+    # Now recalculate Y spacing using the centerline of row1 and the single block in row2
+    y_spacing = abs(row2_blocks[0].y - row1_y_average)
+
+    # Sort row1_blocks by X to get left-to-right order
+    row1_blocks.sort(key=lambda b: b.x)
+
+    # Calculate X spacing from the row with 2 blocks
+    x_spacing = abs(row1_blocks[1].x - row1_blocks[0].x)
+
+    return {
+        'x_spacing': x_spacing,
+        'y_spacing': y_spacing,
+        'row1_blocks': row1_blocks,  # Row with 2 blocks
+        'row2_blocks': row2_blocks,  # Row with 1 block
+        'row1_y': row1_y_average,  # Centerline of row with 2 blocks
+        'row2_y': row2_blocks[0].y,  # Y position of single block
+        'row1_is_bottom': row1_y_average < row2_blocks[0].y
+    }
+
+
+def populate_blocks(
+    reference_blocks: List[Block],
+    row1_count: int,
+    row2_count: int,
+    direction: str = 'right'
+) -> List[Block]:
+    """
+    Generate all blocks based on reference blocks and counts.
+
+    Args:
+        reference_blocks: The 3 reference blocks
+        row1_count: Number of blocks needed in row with 2 reference blocks
+        row2_count: Number of blocks needed in row with 1 reference block
+        direction: 'right' or 'left' for X direction
+
+    Returns:
+        List of all blocks including reference blocks
+    """
+    spacing = calculate_spacing(reference_blocks, direction)
+
+    all_blocks = []
+
+    # Determine starting positions and direction multiplier
+    x_multiplier = 1 if direction == 'right' else -1
+
+    # Populate row1 (the row with 2 reference blocks)
+    # Use the leftmost block's X position as starting point
+    start_x_row1 = spacing['row1_blocks'][0].x
+    for i in range(row1_count):
+        all_blocks.append(
+            Block(
+                start_x_row1 + (i * spacing['x_spacing'] * x_multiplier),
+                spacing['row1_y']  # Use centerline Y
+            )
+        )
+
+    # Populate row2 (the row with 1 reference block)
+    start_x_row2 = spacing['row2_blocks'][0].x
+    for i in range(row2_count):
+        all_blocks.append(
+            Block(
+                start_x_row2 + (i * spacing['x_spacing'] * x_multiplier),
+                spacing['row2_y']
+            )
+        )
+
+    return all_blocks
+
+
+# Example usage
+if __name__ == "__main__":
+    # Example 1: 2 blocks on bottom, 1 on top (with slight Y variation)
+    print("Example 1: 2 on bottom (with slight Y variation), 1 on top")
+    blocks1 = [
+        Block(0, 0),  # Bottom left
+        Block(5, 0.5),  # Bottom right (slightly higher)
+        Block(2, 10)  # Top center
+    ]
+
+    result1 = calculate_spacing(blocks1)
+    print(f"  X Spacing: {result1['x_spacing']}")
+    print(f"  Y Spacing: {result1['y_spacing']}")
+    print(f"  Row1 centerline Y: {result1['row1_y']}")
+    print(f"  Row2 Y: {result1['row2_y']}")
+    print(f"  Row with 2 blocks is bottom: {result1['row1_is_bottom']}")
+    print()
+
+    # Generate 5 blocks in bottom row, 3 in top row
+    all_blocks1 = populate_blocks(blocks1, 5, 3, 'right')
+    print("  Generated blocks:")
+    for i, block in enumerate(all_blocks1):
+        print(f"    Block {i}: ({block.x:.1f}, {block.y:.1f})")
+    print()
+
+    # Example 2: 1 block on bottom, 2 on top (with Y variation)
+    print("Example 2: 1 on bottom, 2 on top (with Y variation)")
+    blocks2 = [
+        Block(0, 0),  # Bottom left
+        Block(3, 7.8),  # Top left (slightly lower)
+        Block(9, 8.2)  # Top right (slightly higher)
+    ]
+
+    result2 = calculate_spacing(blocks2)
+    print(f"  X Spacing: {result2['x_spacing']}")
+    print(f"  Y Spacing: {result2['y_spacing']}")
+    print(f"  Row1 centerline Y: {result2['row1_y']}")
+    print(f"  Row2 Y: {result2['row2_y']}")
+    print(f"  Row with 2 blocks is bottom: {result2['row1_is_bottom']}")
+    print()
+
+    # Generate 3 blocks in bottom row, 6 in top row
+    all_blocks2 = populate_blocks(blocks2, 3, 6, 'right')
+    print("  Generated blocks:")
+    for i, block in enumerate(all_blocks2):
+        print(f"    Block {i}: ({block.x:.1f}, {block.y:.1f})")
+
+
+    '''

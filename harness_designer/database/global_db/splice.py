@@ -325,23 +325,23 @@ class SpliceControl(wx.Notebook):
         self.color_ctrl = ColorControl(general_page)
 
         self.resistance_ctrl = _prop_grid.FloatProperty(
-            general_page, 'Resistance', 0.0, min_value=0.0,
+            general_page, 'Resistance', min_value=0.0,
             max_value=100000, increment=0.01, units='Ω')
 
         self.material_ctrl = MaterialControl(general_page)
 
         self.splice_type_choices: list[str] = []
-        self.splice_type_ctrl = _prop_grid.ComboBoxProperty(general_page, 'Type', '', [])
+        self.splice_type_ctrl = _prop_grid.ComboBoxProperty(general_page, 'Type')
 
         self.plating_page = PlatingControl(self)
 
         diameter_page = _prop_grid.Category(self, 'Diameter')
         self.min_dia_ctrl = _prop_grid.FloatProperty(
-            diameter_page, 'Minimum', 0.0, min_value=0.0,
+            diameter_page, 'Minimum', min_value=0.0,
             max_value=99.9, increment=0.01, units='mm')
 
         self.max_dia_ctrl = _prop_grid.FloatProperty(
-            general_page, 'Maximum', 0.0, min_value=0.00,
+            general_page, 'Maximum', min_value=0.00,
             max_value=99.9, increment=0.01, units='mm')
 
         self.splice_type_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_splice_type)

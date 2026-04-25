@@ -5,9 +5,9 @@ from . import prop_base as _prop_base
 
 class BoolProperty(_prop_base.Property):
 
-    def __init__(self, parent, label, value=False):
+    def __init__(self, parent, label):
         _prop_base.Property.__init__(self, parent, label)
-        self._value = value
+        self._value = False
 
         self._st = wx.StaticText(self, wx.ID_ANY, label=label + ':')
         self._ctrl = wx.CheckBox(self, wx.ID_ANY, label='')

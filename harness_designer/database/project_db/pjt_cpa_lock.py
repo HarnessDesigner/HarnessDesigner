@@ -4,7 +4,7 @@ import weakref
 import wx
 
 from ...ui.editor_obj import prop_grid as _prop_grid
-
+from ..global_db import cpa_lock as _cpa_lock
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from .mixins import (
     Angle3DMixin, Angle3DControl,
@@ -18,8 +18,6 @@ from .mixins import (
 
 
 if TYPE_CHECKING:
-    from ..global_db import cpa_lock as _cpa_lock
-
     from ...objects import cpa_lock as _cpa_lock_obj
 
 

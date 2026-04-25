@@ -35,7 +35,7 @@ class GenderControl(_prop_grid.ComboBoxProperty):
         self.choices: list[str] = []
         self.db_obj: GenderMixin = None
 
-        super().__init__(parent, 'Gender', '', [])
+        super().__init__(parent, 'Gender')
         self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_gender)
 
     def set_obj(self, db_obj: GenderMixin):

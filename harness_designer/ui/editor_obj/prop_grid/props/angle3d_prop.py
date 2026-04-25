@@ -11,9 +11,9 @@ class Angle3DProperty(_prop_base.Property):
         _prop_base.Property.__init__(self, parent, label, orientation=wx.VERTICAL)
 
         self._angle = None
-        self.x_ctrl = _float_prop.FloatProperty(self, 'X', 0.0, min_value=-180.0, max_value=180.0, increment=0.01, units='°')
-        self.y_ctrl = _float_prop.FloatProperty(self, 'Y', 0.0, min_value=-180.0, max_value=180.0, increment=0.01, units='°')
-        self.z_ctrl = _float_prop.FloatProperty(self, 'Z', 0.0, min_value=-180.0, max_value=180.0, increment=0.01, units='°')
+        self.x_ctrl = _float_prop.FloatProperty(self, 'X', min_value=-180.0, max_value=180.0, increment=0.01, units='°')
+        self.y_ctrl = _float_prop.FloatProperty(self, 'Y', min_value=-180.0, max_value=180.0, increment=0.01, units='°')
+        self.z_ctrl = _float_prop.FloatProperty(self, 'Z', min_value=-180.0, max_value=180.0, increment=0.01, units='°')
 
         self.x_ctrl.Bind(_events.EVT_PROPERTY_CHANGED, self._on_x)
         self.y_ctrl.Bind(_events.EVT_PROPERTY_CHANGED, self._on_y)

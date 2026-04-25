@@ -31,7 +31,7 @@ class ProtectionControl(_prop_grid.AutocompleteStringProperty):
         self.db_obj: ProtectionMixin = None
         self.choices: list[str] = []
 
-        super().__init__(parent, 'Protections', '', choices=[])
+        super().__init__(parent, 'Protections')
 
         self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_protection)
 

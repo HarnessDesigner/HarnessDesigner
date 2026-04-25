@@ -38,7 +38,7 @@ class CompatTerminalsControl(_prop_grid.ArrayStringProperty):
 
     def __init__(self, parent):
         self.db_obj: CompatTerminalsMixin = None
-        super().__init__(parent, 'Compatible Terminals', [])
+        super().__init__(parent, 'Compatible Terminals')
 
         self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_compat_housings)
 

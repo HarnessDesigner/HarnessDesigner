@@ -31,11 +31,11 @@ class CavitiesTable(TableBase):
         cls._control = CavityControl(mainframe)
         cls._control.Show(False)
 
-        for i in range(20):
-            control = CavityControl(mainframe)
-            control.Show(False)
-            control.SetIndex(i + 1)
-            cls._controls.append(control)
+        # for i in range(20):
+        #     control = CavityControl(mainframe)
+        #     control.Show(False)
+        #     control.SetIndex(i + 1)
+        #     cls._controls.append(control)
 
     _controls: list["CavityControl"] = []
 
@@ -45,7 +45,7 @@ class CavitiesTable(TableBase):
         if controls_len - 1 < index:
             for i in range(controls_len - 1, index):
                 ctrl = CavityControl(self.db.mainframe)
-                ctrl.SetName(i + 1)
+                ctrl.SetIndex(i + 1)
                 ctrl.Show(False)
                 self._controls.append(ctrl)
 
@@ -407,9 +407,9 @@ class CavityControl(_prop_grid.Category):
 
         general_page = _prop_grid.Category(self.nb, 'General')
 
-        self.index_ctrl = _prop_grid.IntProperty(general_page, 'Index', 0, min_value=0, max_value=999)
-        self.round_terminal_ctrl = _prop_grid.BoolProperty(general_page, 'Is Round', False)
-        self.terminal_sizes_ctrl = _prop_grid.ArrayFloatProperty(general_page, 'Terminal sizes', [])
+        self.index_ctrl = _prop_grid.IntProperty(general_page, 'Index', min_value=0, max_value=999)
+        self.round_terminal_ctrl = _prop_grid.BoolProperty(general_page, 'Is Round')
+        self.terminal_sizes_ctrl = _prop_grid.ArrayFloatProperty(general_page, 'Terminal sizes')
 
         self.dimension_page = DimensionControl(self.nb)
 

@@ -519,27 +519,26 @@ class TerminalControl(wx.Notebook):
         self.gender_ctrl = GenderControl(general_page)
         self.cavity_lock_ctrl = CavityLockControl(general_page)
 
-        self.sealing_ctrl = _prop_grid.BoolProperty(
-            general_page, 'Sealing', False)
+        self.sealing_ctrl = _prop_grid.BoolProperty(general_page, 'Sealing')
 
         self.blade_size_ctrl = _prop_grid.FloatProperty(
-            general_page, 'Blade Size', 0.0,
+            general_page, 'Blade Size',
             min_value=0.0, max_value=99.00, increment=0.01, units='mm')
 
         self.resistance_ctrl = _prop_grid.FloatProperty(
-            general_page, 'Resistance', 0.0,
+            general_page, 'Resistance',
             min_value=0.0, max_value=10000000.00, increment=0.1, units='Ω')
 
         self.mating_cycles_ctrl = _prop_grid.IntProperty(
-            general_page, 'Mating Cycles', 0,
+            general_page, 'Mating Cycles',
             min_value=0, max_value=100000)
 
         self.max_vibration_g_ctrl = _prop_grid.IntProperty(
-            general_page, 'Maximum Vibration', 0,
+            general_page, 'Maximum Vibration',
             min_value=0, max_value=100000, units='G')
 
         self.max_current_ma_ctrl = _prop_grid.IntProperty(
-            general_page, 'Maximum Current', 0,
+            general_page, 'Maximum Current',
             min_value=0, max_value=100000, units='ma')
 
         self.sealing_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_sealing)

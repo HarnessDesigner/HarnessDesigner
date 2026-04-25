@@ -38,7 +38,7 @@ class CompatHousingsControl(_prop_grid.ArrayStringProperty):
 
     def __init__(self, parent):
         self.db_obj: CompatHousingsMixin = None
-        super().__init__(parent, 'Compatible Housings', [])
+        super().__init__(parent, 'Compatible Housings')
 
         self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_compat_housings)
 

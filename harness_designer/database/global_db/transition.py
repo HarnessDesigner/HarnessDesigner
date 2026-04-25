@@ -304,7 +304,7 @@ class TransitionControl(wx.Notebook):
         branch_page = _prop_grid.Category(self, 'Branches')
 
         self.branch_count_ctrl = _prop_grid.IntProperty(
-            branch_page, 'Branch Count', 1, min_value=1, max_value=6)
+            branch_page, 'Branch Count', min_value=1, max_value=6)
 
         self.branch_page = wx.Notebook(branch_page, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
 

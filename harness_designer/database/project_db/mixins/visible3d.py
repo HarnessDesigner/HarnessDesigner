@@ -20,7 +20,7 @@ class Visible3DControl(_prop_grid.BoolProperty):
     def __init__(self, parent):
         self.db_obj: Visible3DMixin = None
 
-        super().__init__(parent, 'Is Visible 3D', False)
+        super().__init__(parent, 'Is Visible 3D')
 
         self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_visible3d)
 

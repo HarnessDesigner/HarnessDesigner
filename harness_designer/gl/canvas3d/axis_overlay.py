@@ -26,13 +26,6 @@ class Overlay(wx.Panel):
         self.gl_overlay = GLOverlay(self, size=config.size)
 
         self.config = config
-
-        vsizer = wx.BoxSizer(wx.VERTICAL)
-        hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        hsizer.Add(self.gl_overlay, 1, wx.EXPAND)
-        vsizer.Add(hsizer, 1, wx.EXPAND)
-        self.SetSizer(vsizer)
-
         # self.Bind(wx.EVT_LEFT_UP, self.on_left_up)
         # self.Bind(wx.EVT_LEFT_DOWN, self.on_left_down)
         #
@@ -59,13 +52,21 @@ class Overlay(wx.Panel):
         wx.Panel.Show(self, flag)
 
     def on_size(self, evt):
-        w, h = evt.GetSize()
-        self.config.size = (w, h)
+        def _do():
+            w, h = self.GetSize()
+            self.config.size = (w, h)
+
+            self.gl_overlay.SetSize(w, h)
+
+        wx.CallAfter(_do)
         evt.Skip()
 
     def on_move(self, evt):
-        x, y = evt.GetPosition()
-        self.config.position = (x, y)
+        def _do():
+            x, y = self.GetPosition()
+            self.config.position = (x, y)
+
+        wx.CallAfter(_do)
         evt.Skip()
 
     def set_angle(self, point: _point.Point):
@@ -95,13 +96,8 @@ class GLOverlay(glcanvas.GLCanvas):
         self.grab_location = 0
         self._default_cursor = self.GetCursor()
 
-        self.camera_pos = _point.Point(0.0,
-                                       1.0,
-                                       0.0)
-
-        self.camera_eye = _point.Point(0.0,
-                                       0.5,
-                                       10.0)
+        self.camera_pos = _point.Point(0.0, 1.0, 0.0)
+        self.camera_eye = _point.Point(0.0, 0.5, 10.0)
 
         self.distance = 10.0
 
@@ -143,26 +139,26 @@ class GLOverlay(glcanvas.GLCanvas):
         #     # bottom
         #     self.grab_location = 4
         if (
-            (0 <= x <= 5 and 0 <= y <= 10) or
-            (0 <= x <= 10 and 0 <= y <= 5)
+            (0 <= x <= 10 and 0 <= y <= 10) or
+            (0 <= x <= 10 and 0 <= y <= 10)
         ):
             # top left
             self.grab_location = 5
         elif (
-            (w - 10 <= x <= w and h - 5 <= y <= h) or
-            (w - 5 <= x <= w and h - 10 <= y <= h)
+            (w - 10 <= x <= w and h - 10 <= y <= h) or
+            (w - 10 <= x <= w and h - 10 <= y <= h)
         ):
             # bottom right
             self.grab_location = 6
         elif (
-            (w - 10 <= x <= w and 0 <= y <= 5) or
-            (w <= x <= w - 5 and 0 <= y <= 10)
+            (w - 10 <= x <= w and 0 <= y <= 10) or
+            (w <= x <= w - 10 and 0 <= y <= 10)
         ):
             # top right
             self.grab_location = 7
         elif (
-            (0 <= x <= 5 and h - 10 <= y <= h) or
-            (0 <= x <= 10 and h - 5 <= y <= h)
+            (0 <= x <= 10 and h - 10 <= y <= h) or
+            (0 <= x <= 10 and h - 10 <= y <= h)
         ):
             # bottom left
             self.grab_location = 8
@@ -199,78 +195,108 @@ class GLOverlay(glcanvas.GLCanvas):
         if self.mouse_pos is None:
             self.mouse_pos = mouse_pos
 
-        delta = mouse_pos - self.mouse_pos
+        mouse_delta = mouse_pos - self.mouse_pos
         self.mouse_pos = mouse_pos
+
+        delta_x = int(mouse_delta.x)
+        delta_y = int(mouse_delta.y)
 
         if self.grab_location:
             if self.grab_location == 1:
-                w -= int(delta.x)
+                w -= delta_x
                 self.parent.SetSize((w, h))
 
                 x, y = self.parent.GetPosition()
-                x += int(delta.x)
+                x += delta_x
                 self.parent.Move((x, y))
 
             elif self.grab_location == 2:
-                w += int(delta.x)
+                w += delta_x
                 self.parent.SetSize((w, h))
 
             elif self.grab_location == 3:
-                h -= int(delta.y)
+                h -= delta_y
                 self.parent.SetSize((w, h))
 
                 x, y = self.parent.GetPosition()
-                y += int(delta.y)
+                y += delta_y
                 self.parent.Move((x, y))
 
             elif self.grab_location == 4:
-                h += int(delta.y)
+                h += delta_y
                 self.parent.SetSize((w, h))
 
             elif self.grab_location == 5:
-                w -= int(delta.x)
-                h -= int(delta.y)
+                # top left
+
+                delta = max(delta_x, delta_y)
+
+                w -= delta
+                h -= delta
 
                 x, y = self.parent.GetPosition()
-                x += int(delta.x)
-                y += int(delta.y)
+                x += delta
+                y += delta
 
-                self.parent.Move((x, y))
                 self.parent.SetSize((w, h))
+                self.parent.Move((x, y))
 
             elif self.grab_location == 6:
-                w += int(delta.x)
-                h += int(delta.y)
+                # bottom right
+                delta = min(delta_x, delta_y)
+
+                w += delta
+                h += delta
                 self.parent.SetSize((w, h))
 
             elif self.grab_location == 7:
-                w += int(delta.x)
-                h -= int(delta.y)
-                self.parent.SetSize((w, h))
+                # top right
 
+                delta = max(abs(delta_x), abs(delta_y))
                 x, y = self.parent.GetPosition()
-                y += int(delta.y)
+
+                if delta_x < 0:
+                    w += delta
+                    h -= delta
+
+                    y += delta
+                else:
+                    w += delta
+                    h += delta
+
+                    y -= delta
+
+                self.parent.SetSize((w, h))
                 self.parent.Move((x, y))
 
             elif self.grab_location == 8:
-                w -= int(delta.x)
-                h += int(delta.y)
-                self.parent.SetSize((w, h))
-
+                # bottom left
                 x, y = self.parent.GetPosition()
-                x += int(delta.x)
+
+                delta = max(abs(delta_x), abs(delta_y))
+                if delta_x < 0:
+                    w += delta
+                    h += delta
+                    x -= delta
+                else:
+                    w -= delta_x
+                    h -= delta_y
+                    x += delta
+
+                self.parent.SetSize((w, h))
                 self.parent.Move((x, y))
 
             elif self.grab_location == 9:
                 x, y = self.parent.GetPosition()
-                x += int(delta.x)
-                y += int(delta.y)
+                x += delta_x
+                y += delta_y
                 self.parent.Move((x, y))
 
             if self.grab_location != 9:
                 self.build_model(min(w, h))
 
-            self.parent.Refresh(False)
+            self.GetParent().GetParent().Refresh(False)
+            self.GetParent().Refresh(False)
 
         # elif (
         #     (0 <= x <= 5 and 10 <= y <= h - 10) or
@@ -491,7 +517,7 @@ class GLOverlay(glcanvas.GLCanvas):
         self.SwapBuffers()
 
     def on_paint(self, _):
-        _ = wx.PaintDC(self)
+        _ = wx.BufferedPaintDC(self)
         self.SetCurrent(self.context)
 
         if not self.init:
@@ -510,6 +536,7 @@ class GLOverlay(glcanvas.GLCanvas):
         GL.glViewport(0, 0, width, height)
 
         # wx.CallAfter(self.DoSetViewport, event.GetSize())
+        self.Refresh(False)
         event.Skip()
 
     def DoSetViewport(self, size):

@@ -11,8 +11,8 @@ class Position2DProperty(_prop_base.Property):
         _prop_base.Property.__init__(self, parent, label, orientation=wx.VERTICAL)
 
         self._position = None
-        self.x_ctrl = _float_prop.FloatProperty(self, 'X', 0.0, min_value=-9999.0, max_value=9999.0, increment=0.01)
-        self.y_ctrl = _float_prop.FloatProperty(self, 'Y', 0.0, min_value=-9999.0, max_value=9999.0, increment=0.01)
+        self.x_ctrl = _float_prop.FloatProperty(self, 'X', min_value=-9999.0, max_value=9999.0, increment=0.01)
+        self.y_ctrl = _float_prop.FloatProperty(self, 'Y', min_value=-9999.0, max_value=9999.0, increment=0.01)
 
         self.x_ctrl.Bind(_events.EVT_PROPERTY_CHANGED, self._on_x)
         self.y_ctrl.Bind(_events.EVT_PROPERTY_CHANGED, self._on_y)

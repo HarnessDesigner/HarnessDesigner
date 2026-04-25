@@ -5,16 +5,16 @@ from . import prop_base as _prop_base
 
 class StringProperty(_prop_base.Property):
 
-    def __init__(self, parent, label, value: str, style=0, units=None):
+    def __init__(self, parent, label, style=0, units=None):
 
         _prop_base.Property.__init__(self, parent, label)
 
-        self._value = value
+        self._value = ''
 
         style |= wx.TE_LEFT | wx.TE_PROCESS_ENTER
 
         self._st = wx.StaticText(self, wx.ID_ANY, label=label + ':')
-        self._ctrl = wx.TextCtrl(self, wx.ID_ANY, value=value, style=style)
+        self._ctrl = wx.TextCtrl(self, wx.ID_ANY, value='', style=style)
 
         if units is not None:
             self._units_st = wx.StaticText(self, wx.ID_ANY, label=units)

@@ -74,13 +74,13 @@ class Model3DControl(_prop_grid.Category):
         else:
             model3d = db_obj.model3d
 
-            self.angle3d_page.SetValue(model3d)
-            self.position3d_page.SetValue(model3d)
-
             self.path_ctrl.Enable(True)
             self.path_ctrl.SetWildcards(_utils.MODEL_FILE_WILDCARDS)
 
             if model3d is None:
+                self.angle3d_page.SetValue(None)
+                self.position3d_page.SetValue(None)
+
                 self.path_ctrl.SetValue('')
                 self.data_path_ctrl.SetValue('')
                 self.uuid_ctrl.SetValue('')
@@ -110,6 +110,9 @@ class Model3DControl(_prop_grid.Category):
                 self.set_preview_model()
             else:
                 self.set_preview_model()
+
+                self.angle3d_page.SetValue(model3d.angle3d)
+                self.position3d_page.SetValue(model3d.position3d)
 
                 self.path_ctrl.SetValue(model3d.path)
                 self.data_path_ctrl.SetValue(model3d.data_path)
@@ -193,17 +196,17 @@ class Model3DControl(_prop_grid.Category):
 
         general_page = _prop_grid.Category(self.nb, 'General')
         self.path_ctrl = _prop_grid.PathProperty(general_page, 'Model Location')
-        self.data_path_ctrl = _prop_grid.StringProperty(general_page, 'DB Path', '', style=wx.TE_READONLY)
-        self.uuid_ctrl = _prop_grid.StringProperty(general_page, 'DB Path', '', style=wx.TE_READONLY)
+        self.data_path_ctrl = _prop_grid.StringProperty(general_page, 'DB Path', style=wx.TE_READONLY)
+        self.uuid_ctrl = _prop_grid.StringProperty(general_page, 'DB Path', style=wx.TE_READONLY)
 
         self.path_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_path)
 
         simplify_page = _prop_grid.Category(self.nb, 'Simplify')
-        self.simplify_ctrl = _prop_grid.StringProperty(general_page, 'Enable', False)
-        self.target_count_ctrl = _prop_grid.IntProperty(simplify_page, 'Target Vertices Count', 10000, min_value=10000, max_value=500000)
-        self.update_rate_ctrl = _prop_grid.IntProperty(simplify_page, 'Update Rate', 1, min_value=1, max_value=100)
-        self.iterations_ctrl = _prop_grid.IntProperty(simplify_page, 'Iterations', 1, min_value=1, max_value=100)
-        self.aggressiveness_ctrl = _prop_grid.FloatProperty(simplify_page, 'Aggressiveness', 1.0, min_value=1.0, max_value=100.0, increment=0.1)
+        self.simplify_ctrl = _prop_grid.BoolProperty(general_page, 'Enable')
+        self.target_count_ctrl = _prop_grid.IntProperty(simplify_page, 'Target Vertices Count', min_value=10000, max_value=500000)
+        self.update_rate_ctrl = _prop_grid.IntProperty(simplify_page, 'Update Rate', min_value=1, max_value=100)
+        self.iterations_ctrl = _prop_grid.IntProperty(simplify_page, 'Iterations', min_value=1, max_value=100)
+        self.aggressiveness_ctrl = _prop_grid.FloatProperty(simplify_page, 'Aggressiveness', min_value=1.0, max_value=100.0, increment=0.1)
 
         self.simplify_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_simplify)
         self.target_count_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_target_count)
@@ -212,9 +215,9 @@ class Model3DControl(_prop_grid.Category):
         self.aggressiveness_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_aggressiveness)
 
         file_type_page = _prop_grid.Category(self.nb, 'File Type')
-        self.name_ctrl = _prop_grid.StringProperty(file_type_page, 'Name', '', style=wx.TE_READONLY)
-        self.extension_ctrl = _prop_grid.StringProperty(file_type_page, 'File Extension', '', style=wx.TE_READONLY)
-        self.mimetype_ctrl = _prop_grid.StringProperty(file_type_page, 'Minetype', '', style=wx.TE_READONLY)
+        self.name_ctrl = _prop_grid.StringProperty(file_type_page, 'Name', style=wx.TE_READONLY)
+        self.extension_ctrl = _prop_grid.StringProperty(file_type_page, 'File Extension', style=wx.TE_READONLY)
+        self.mimetype_ctrl = _prop_grid.StringProperty(file_type_page, 'Minetype', style=wx.TE_READONLY)
 
         self.angle3d_page = _prop_grid.Angle3DProperty(self.nb, '3D Angle')
         self.position3d_page = _prop_grid.Angle3DProperty(self.nb, '3D Position')

@@ -250,17 +250,17 @@ class ImageCtrl(wx.Panel):
 
 class ImageProperty(_prop_base.Property):
 
-    def __init__(self, parent, label, value: str, file_types: dict, save_path=None):
+    def __init__(self, parent, label):
         _prop_base.Property.__init__(self, parent, label)
 
-        self._value = value
-        self._file_types = file_types
-        self._save_path = save_path
+        self._value = ''
+        self._file_types = {}
+        self._save_path = None
 
         self._st = wx.StaticText(self, wx.ID_ANY, label=label + ':')
 
-        self._ctrl = PathCtrl(self, value)
-        self._image = ImageCtrl(self, file_types, value, save_path)
+        self._ctrl = PathCtrl(self, '')
+        self._image = ImageCtrl(self, {}, '', None)
 
         self._ctrl.Bind(EVT_IMAGE_PATH_CHANGED, self._on_path_changed)
 

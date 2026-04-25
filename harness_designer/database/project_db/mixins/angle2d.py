@@ -35,7 +35,7 @@ class Angle2DControl(_prop_grid.FloatProperty):
     def __init__(self, parent):
         self.db_obj: Angle2DMixin = None
 
-        super().__init__(parent, '2D Angle', 0.0, min_value=-180.0, max_value=180.0, increment=0.01, units='°')
+        super().__init__(parent, '2D Angle', min_value=-180.0, max_value=180.0, increment=0.01, units='°')
 
         self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_angle)
 

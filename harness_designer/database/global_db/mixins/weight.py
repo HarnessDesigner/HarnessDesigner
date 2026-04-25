@@ -20,7 +20,7 @@ class WeightControl(_prop_grid.FloatProperty):
     def __init__(self, parent):
         self.db_obj: WeightMixin = None
 
-        super().__init__(parent, 'Weight', 0.01, min_value=0.01, max_value=999.99, increment=0.01, units='g')
+        super().__init__(parent, 'Weight', min_value=0.01, max_value=999.99, increment=0.01, units='g')
 
         self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_weight)
 

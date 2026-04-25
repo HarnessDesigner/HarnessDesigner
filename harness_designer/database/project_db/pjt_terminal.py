@@ -7,6 +7,7 @@ from ...ui.editor_obj import prop_grid as _prop_grid
 
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from . import pjt_seal as _pjt_seal
+from . import pjt_circuit as _pjt_circuit
 from ..global_db import terminal as _terminal
 from .mixins import (
     Angle3DMixin, Angle3DControl,
@@ -26,7 +27,6 @@ from ... import logger as _logger
 
 if TYPE_CHECKING:
     from . import pjt_cavity as _pjt_cavity
-    from . import pjt_circuit as _pjt_circuit
 
     from ...objects import terminal as _terminal_obj
 
@@ -360,10 +360,10 @@ class PJTTerminalControl(wx.Notebook):
         self.name_ctrl = NameControl(general_page)
         self.note_ctrl = NotesControl(general_page)
 
-        self.is_start_ctrl = _prop_grid.BoolProperty(general_page, 'Is Start', False)
-        self.voltage_drop_ctrl = _prop_grid.FloatProperty(general_page, 'Allowed Voltage Drop', 0.0, min_value=0.0, max_value=9999.99, increment=0.01, units='VDC/VAC')
-        self.volts_ctrl = _prop_grid.FloatProperty(general_page, 'Volts', 0.0, min_value=0.0, max_value=44000.00, increment=0.01, units='VDC/VAC')
-        self.load_ctrl = _prop_grid.FloatProperty(general_page, 'Load', 0.0, min_value=0.0, max_value=9999.99, increment=0.01, units='A')
+        self.is_start_ctrl = _prop_grid.BoolProperty(general_page, 'Is Start')
+        self.voltage_drop_ctrl = _prop_grid.FloatProperty(general_page, 'Allowed Voltage Drop', min_value=0.0, max_value=9999.99, increment=0.01, units='VDC/VAC')
+        self.volts_ctrl = _prop_grid.FloatProperty(general_page, 'Volts', min_value=0.0, max_value=44000.00, increment=0.01, units='VDC/VAC')
+        self.load_ctrl = _prop_grid.FloatProperty(general_page, 'Load', min_value=0.0, max_value=9999.99, increment=0.01, units='A')
 
         angle_page = _prop_grid.Category(self, 'Angle')
         self.angle2d_ctrl = Angle2DControl(angle_page)

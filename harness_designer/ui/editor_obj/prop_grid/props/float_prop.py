@@ -8,13 +8,13 @@ from .....geometry.decimal import Decimal as _d
 
 class FloatProperty(_prop_base.Property):
 
-    def __init__(self, parent, label, value: float, min_value: float, max_value: float, increment: float, units=None):
+    def __init__(self, parent, label, min_value: float, max_value: float, increment: float, units=None):
 
         _prop_base.Property.__init__(self, parent, label)
 
         self._min_val = min_value
         self._max_val = max_value
-        self._value = value
+        self._value = min_value
         self._inc = increment
 
         precision = 0

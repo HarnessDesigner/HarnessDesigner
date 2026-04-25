@@ -386,16 +386,16 @@ class SealControl(wx.Notebook):
         self.color_ctrl = ColorControl(general_page)
 
         self.hardness_ctrl = _prop_grid.IntProperty(
-            general_page, 'Hardness', -1, min_value=-1, max_value=999, units='shore')
+            general_page, 'Hardness', min_value=-1, max_value=999, units='shore')
 
-        self.lubricant_ctrl = _prop_grid.StringProperty(general_page, 'Lubricant', '')
+        self.lubricant_ctrl = _prop_grid.StringProperty(general_page, 'Lubricant')
 
         self.o_dia_ctrl = _prop_grid.FloatProperty(
-            general_page, 'Outside Diameter', 0.0, min_value=0.0,
+            general_page, 'Outside Diameter', min_value=0.0,
             max_value=99.9, increment=0.01, units='mm')
 
         self.i_dia_ctrl = _prop_grid.FloatProperty(
-            general_page, 'Inside Diameter', 0.0, min_value=0.00,
+            general_page, 'Inside Diameter', min_value=0.00,
             max_value=99.9, increment=0.01, units='mm')
 
         self.hardness_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_hardness)

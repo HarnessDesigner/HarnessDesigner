@@ -10,13 +10,6 @@ from .mixins import (
     NotesMixin, NotesControl
 )
 
-
-from . import pjt_wire as _pjt_wire
-from . import pjt_splice as _pjt_splice
-from . import pjt_terminal as _pjt_terminal
-from . import pjt_housing as _pjt_housing
-from . import pjt_wire_service_loop as _pjt_wire_service_loop
-
 from ...geometry import point as _point
 from ...geometry.decimal import Decimal as _d
 from ... import logger as _logger
@@ -155,7 +148,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return float(resistance)
 
     @property
-    def start_terminal(self) -> _pjt_terminal.PJTTerminal:
+    def start_terminal(self) -> "_pjt_terminal.PJTTerminal":
         db_ids = self._table.db.pjt_terminals_table.select('db_id', is_start=1, circuit_id=self.db_id)
         if db_ids:
             return self._table.db.pjt_terminals_table[db_ids[0][0]]
@@ -170,7 +163,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return drop
 
     @property
-    def load_terminals(self) -> list[_pjt_terminal.PJTTerminal]:
+    def load_terminals(self) -> list["_pjt_terminal.PJTTerminal"]:
         res = []
         db_ids = self._table.db.pjt_terminals_table.select('db_id', is_start=0, circuit_id=self.db_id)
         for db_id in db_ids:
@@ -334,8 +327,8 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return iter_objs(t, t.position3d)
 
     def get_circuit_end_terminals(
-        self, target: _Union[_pjt_terminal.PJTTerminal, _pjt_wire.PJTWire, _pjt_splice.PJTSplice,
-                             _pjt_wire_service_loop.PJTWireServiceLoop]) -> list[_pjt_terminal.PJTTerminal]:
+        self, target: _Union["_pjt_terminal.PJTTerminal", "_pjt_wire.PJTWire", "_pjt_splice.PJTSplice",
+                             "_pjt_wire_service_loop.PJTWireServiceLoop"]) -> list["_pjt_terminal.PJTTerminal"]:
 
         circuit_map = self.circuit_map
 
@@ -376,8 +369,8 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         terminals = _iter_list(f_objs)
         return terminals
 
-    def get_circuit(self, target: _Union[_pjt_terminal.PJTTerminal, _pjt_wire.PJTWire, _pjt_splice.PJTSplice,
-                                         _pjt_wire_service_loop.PJTWireServiceLoop]) -> list:
+    def get_circuit(self, target: _Union["_pjt_terminal.PJTTerminal", "_pjt_wire.PJTWire", "_pjt_splice.PJTSplice",
+                                         "_pjt_wire_service_loop.PJTWireServiceLoop"]) -> list:
 
         circuit_map = self.circuit_map
 
@@ -487,7 +480,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return weight_g * 0.00220462
 
     @property
-    def wires(self) -> list[_pjt_wire.PJTWire]:
+    def wires(self) -> list["_pjt_wire.PJTWire"]:
         res = []
         for wire_id in self._table.db.pjt_wires_table.select('id', circuit_id=self._db_id):
             res.append(self._table.db.pjt_wires_table[wire_id[0]])
@@ -495,7 +488,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return res
 
     @property
-    def wire_service_loops(self) -> list[_pjt_wire_service_loop.PJTWireServiceLoop]:
+    def wire_service_loops(self) -> list["_pjt_wire_service_loop.PJTWireServiceLoop"]:
         res = []
         for wire_id in self._table.db.pjt_wire_service_loops_table.select('id', circuit_id=self._db_id):
             res.append(self._table.db.pjt_wire_service_loops_table[wire_id[0]])
@@ -503,7 +496,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return res
 
     @property
-    def splices(self) -> list[_pjt_splice.PJTSplice]:
+    def splices(self) -> list["_pjt_splice.PJTSplice"]:
         res = []
         for wire_id in self._table.db.pjt_splices_table.select('id', circuit_id=self._db_id):
             res.append(self._table.db.pjt_splices_table[wire_id[0]])
@@ -511,7 +504,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return res
 
     @property
-    def terminals(self) -> list[_pjt_terminal.PJTTerminal]:
+    def terminals(self) -> list["_pjt_terminal.PJTTerminal"]:
         res = []
         for wire_id in self._table.db.pjt_terminals_table.select('id', circuit_id=self._db_id):
             res.append(self._table.db.pjt_terminals_table[wire_id[0]])
@@ -519,7 +512,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return res
 
     @property
-    def housings(self) -> list[_pjt_housing.PJTHousing]:
+    def housings(self) -> list["_pjt_housing.PJTHousing"]:
         res = []
         for wire_id in self._table.db.pjt_housings_table.select('id', circuit_id=self._db_id):
             res.append(self._table.db.pjt_housings_table[wire_id[0]])
@@ -669,13 +662,13 @@ class PJTCircuitControl(wx.Notebook):
         self.name_choices: list[str] = []
         self.circuit_choices: list[str] = []
 
-        wx.Notebook.__init__(parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
 
         general_page = _prop_grid.Category(self, 'General')
 
-        self.name_ctrl = _prop_grid.ComboBoxProperty(general_page, 'Name', '', [])
-        self.circuit_num_ctrl = _prop_grid.ComboBoxProperty(general_page, 'Circuit Number', '', [])
-        self.description_ctrl = _prop_grid.LongStringProperty(general_page, 'Description', '')
+        self.name_ctrl = _prop_grid.ComboBoxProperty(general_page, 'Name')
+        self.circuit_num_ctrl = _prop_grid.ComboBoxProperty(general_page, 'Circuit Number')
+        self.description_ctrl = _prop_grid.LongStringProperty(general_page, 'Description')
         self.notes_ctrl = NotesControl(general_page)
 
         self.name_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_name)
@@ -685,29 +678,36 @@ class PJTCircuitControl(wx.Notebook):
         info_page = _prop_grid.Category(self, 'Info')
 
         electrical_group = _prop_grid.Property(info_page, 'Electrical', orientation=wx.VERTICAL)
-        self.voltage_ctrl = _prop_grid.StringProperty(electrical_group, 'Voltage', '', units='V', style=wx.TE_READONLY)
-        self.voltage_drop_ctrl = _prop_grid.StringProperty(electrical_group, 'Voltage', '', units='V', style=wx.TE_READONLY)
-        self.total_circuit_load_ctrl = _prop_grid.StringProperty(electrical_group, 'Total Circuit Load', '', units='ma', style=wx.TE_READONLY)
-        self.total_circuit_resistance_ctrl = _prop_grid.StringProperty(electrical_group, 'Total Circuit Resistance', '', units='Ω', style=wx.TE_READONLY)
+        self.voltage_ctrl = _prop_grid.StringProperty(electrical_group, 'Voltage', units='V', style=wx.TE_READONLY)
+        self.voltage_drop_ctrl = _prop_grid.StringProperty(electrical_group, 'Voltage', units='V', style=wx.TE_READONLY)
+        self.total_circuit_load_ctrl = _prop_grid.StringProperty(electrical_group, 'Total Circuit Load', units='ma', style=wx.TE_READONLY)
+        self.total_circuit_resistance_ctrl = _prop_grid.StringProperty(electrical_group, 'Total Circuit Resistance', units='Ω', style=wx.TE_READONLY)
 
         total_weight_group = _prop_grid.Property(info_page, 'Total Circuit Weight', orientation=wx.VERTICAL)
-        self.total_circuit_weight_g_ctrl = _prop_grid.StringProperty(total_weight_group, 'Grams', '', style=wx.TE_READONLY)
-        self.total_circuit_weight_lb_ctrl = _prop_grid.StringProperty(total_weight_group, 'Pounds', '', style=wx.TE_READONLY)
+        self.total_circuit_weight_g_ctrl = _prop_grid.StringProperty(total_weight_group, 'Grams', style=wx.TE_READONLY)
+        self.total_circuit_weight_lb_ctrl = _prop_grid.StringProperty(total_weight_group, 'Pounds', style=wx.TE_READONLY)
 
         wire_length_group = _prop_grid.Property(info_page, 'Total Wire Length', orientation=wx.VERTICAL)
-        self.wire_length_mm_ctrl = _prop_grid.StringProperty(wire_length_group, 'Millimeters', '', style=wx.TE_READONLY)
-        self.wire_length_m_ctrl = _prop_grid.StringProperty(wire_length_group, 'Meters', '', style=wx.TE_READONLY)
-        self.wire_length_ft_ctrl = _prop_grid.StringProperty(wire_length_group, 'Feet', '', style=wx.TE_READONLY)
+        self.wire_length_mm_ctrl = _prop_grid.StringProperty(wire_length_group, 'Millimeters', style=wx.TE_READONLY)
+        self.wire_length_m_ctrl = _prop_grid.StringProperty(wire_length_group, 'Meters', style=wx.TE_READONLY)
+        self.wire_length_ft_ctrl = _prop_grid.StringProperty(wire_length_group, 'Feet', style=wx.TE_READONLY)
 
         wire_weight_group = _prop_grid.Property(info_page, 'Total Wire Weight', orientation=wx.VERTICAL)
-        self.wire_weight_g_ctrl = _prop_grid.StringProperty(wire_weight_group, 'Grams', '', style=wx.TE_READONLY)
-        self.wire_weight_lb_ctrl = _prop_grid.StringProperty(wire_weight_group, 'Pounds', '', style=wx.TE_READONLY)
+        self.wire_weight_g_ctrl = _prop_grid.StringProperty(wire_weight_group, 'Grams', style=wx.TE_READONLY)
+        self.wire_weight_lb_ctrl = _prop_grid.StringProperty(wire_weight_group, 'Pounds', style=wx.TE_READONLY)
 
         terminal_weight_group = _prop_grid.Property(info_page, 'Total Terminal Weight', orientation=wx.VERTICAL)
 
-        self.terminal_weight_g_ctrl = _prop_grid.StringProperty(terminal_weight_group, 'Grams', '', style=wx.TE_READONLY)
-        self.terminal_weight_lb_ctrl = _prop_grid.StringProperty(terminal_weight_group, 'Pounds', '', style=wx.TE_READONLY)
+        self.terminal_weight_g_ctrl = _prop_grid.StringProperty(terminal_weight_group, 'Grams', style=wx.TE_READONLY)
+        self.terminal_weight_lb_ctrl = _prop_grid.StringProperty(terminal_weight_group, 'Pounds', style=wx.TE_READONLY)
 
         splice_weight_group = _prop_grid.Property(info_page, 'Total Splice Weight', orientation=wx.VERTICAL)
-        self.splice_weight_g_ctrl = _prop_grid.StringProperty(splice_weight_group, 'Grams', '', style=wx.TE_READONLY)
-        self.splice_weight_lb_ctrl = _prop_grid.StringProperty(splice_weight_group, 'Pounds', '', style=wx.TE_READONLY)
+        self.splice_weight_g_ctrl = _prop_grid.StringProperty(splice_weight_group, 'Grams', style=wx.TE_READONLY)
+        self.splice_weight_lb_ctrl = _prop_grid.StringProperty(splice_weight_group, 'Pounds', style=wx.TE_READONLY)
+
+
+from . import pjt_wire as _pjt_wire  # NOQA
+from . import pjt_splice as _pjt_splice  # NOQA
+from . import pjt_terminal as _pjt_terminal  # NOQA
+from . import pjt_housing as _pjt_housing  # NOQA
+from . import pjt_wire_service_loop as _pjt_wire_service_loop  # NOQA

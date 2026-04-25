@@ -20,7 +20,7 @@ class DescriptionControl(_prop_grid.LongStringProperty):
     def __init__(self, parent):
         self.db_obj: DescriptionMixin = None
 
-        super().__init__(parent, 'Description', '')
+        super().__init__(parent, 'Description')
 
         self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_desc)
 

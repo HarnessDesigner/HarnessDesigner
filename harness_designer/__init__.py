@@ -58,103 +58,7 @@ class App(wx.App):
             self.frame.Destroy()
             return False
 
-        return True
-
-    def OnEventLoopEnter(self, loop):
-        global _mainframe
         global splash
-
-        def _thread_loop():
-            self.splash.wait()
-
-            event = threading.Event()
-            error = [False]
-
-            def _do():
-                global _mainframe
-
-                try:
-                    from .ui import mainframe
-                except Exception as err:  # NOQA
-                    self.logger.traceback(err)
-
-                    from . import critical_error_dialog
-                    dlg = critical_error_dialog.CriticalErrorDialog(self.splash, err)
-                    dlg.ShowModal()
-                    dlg.Destroy()
-
-                    self.splash.Show(False)
-                    self.splash.Destroy()
-
-                    self.ExitMainLoop()
-                    error[0] = True
-                    event.set()
-                    return
-
-                self.splash.SetText('Starting Mainframe')
-
-                try:
-                    mainframe._mainframe = mainframe.MainFrame(self.splash, self.logger)
-                except Exception as err:  # NOQA
-                    self.logger.traceback(err)
-                    from . import critical_error_dialog
-
-                    dlg = critical_error_dialog.CriticalErrorDialog(self.splash, err)
-
-                    dlg.ShowModal()
-                    dlg.Destroy()
-
-                    self.splash.Show(False)
-                    self.splash.Destroy()
-                    self.ExitMainLoop()
-
-                    error[0] = True
-                    event.set()
-                    return
-
-                _mainframe = mainframe._mainframe  # NOQA
-
-                event.set()
-
-            wx.CallAfter(_do)
-            event.wait()
-            if error[0]:
-                return
-
-            try:
-                _mainframe.open_database(self.splash)  # NOQA
-            except Exception as err:  # NOQA
-                def _do(e):
-                    self.logger.traceback(e)
-                    from . import critical_error_dialog
-
-                    dlg = critical_error_dialog.CriticalErrorDialog(self.splash, e)
-
-                    dlg.ShowModal()
-                    dlg.Destroy()
-
-                    self.splash.Show(False)
-                    self.splash.Destroy()
-                    self.ExitMainLoop()
-
-                    event.set()
-                    return
-
-                wx.CallAfter(_do, err)
-                event.wait()
-                return
-
-            self.splash.SetText('DONE!')
-            time.sleep(0.50)
-
-            def _do():
-                self.splash.Show(False)
-                _mainframe.Show()  # NOQA
-                self.splash.Destroy()
-                event.set()
-
-            wx.CallAfter(_do)
-            event.wait()
 
         if _mainframe is None and self.frame is not None:
             try:
@@ -168,14 +72,119 @@ class App(wx.App):
                 dlg = _critical_error_dialog.CriticalErrorDialog(self.frame, err)
                 dlg.ShowModal()
                 dlg.Destroy()
+
                 self.frame.Destroy()
+                return False
+
+        return True
+
+    def _thread_loop(self):
+        global _mainframe
+        self.splash.wait()
+
+        event = threading.Event()
+        error = [False]
+
+        def _do():
+            global _mainframe
+
+            try:
+                from .ui import mainframe
+            except Exception as e:  # NOQA
+                self.logger.traceback(e)
+
+                from . import critical_error_dialog
+
+                err_dlg = (
+                    critical_error_dialog.CriticalErrorDialog(self.splash, e))
+
+                err_dlg.ShowModal()
+                err_dlg.Destroy()
+
+                self.splash.Show(False)
+                self.splash.Destroy()
+
                 self.ExitMainLoop()
+                error[0] = True
+                event.set()
                 return
 
+            self.splash.SetText('Starting Mainframe')
+
+            try:
+                mainframe._mainframe = mainframe.MainFrame(
+                    self.splash, self.logger
+                )
+
+            except Exception as e:  # NOQA
+                self.logger.traceback(e)
+                from . import critical_error_dialog
+
+                err_dlg = (
+                    critical_error_dialog.CriticalErrorDialog(self.splash, e))
+
+                err_dlg.ShowModal()
+                err_dlg.Destroy()
+
+                self.splash.Show(False)
+                self.splash.Destroy()
+                self.ExitMainLoop()
+
+                error[0] = True
+                event.set()
+                return
+
+            _mainframe = mainframe._mainframe  # NOQA
+
+            event.set()
+
+        wx.CallAfter(_do)
+        event.wait()
+
+        if error[0]:
+            return
+
+        try:
+            _mainframe.open_database(self.splash)  # NOQA
+        except Exception as err:  # NOQA
+            def _do(e):
+                self.logger.traceback(e)
+                from . import critical_error_dialog
+
+                err_dlg = (
+                    critical_error_dialog.CriticalErrorDialog(self.splash, e))
+                err_dlg.ShowModal()
+                err_dlg.Destroy()
+
+                self.splash.Show(False)
+                self.splash.Destroy()
+                self.ExitMainLoop()
+
+                event.set()
+                return
+
+            wx.CallAfter(_do, err)
+            event.wait()
+            return
+
+        self.splash.SetText('DONE!')
+        time.sleep(0.50)
+
+        def _do():
+            _mainframe.Show(True)  # NOQA
+            self.splash.Show(False)
+            self.splash.Destroy()
+            event.set()
+
+        wx.CallAfter(_do)
+        event.wait()
+
+    def OnEventLoopEnter(self, loop):
+        if _mainframe is None and self.frame is not None:
             self.frame.Destroy()
             self.frame = None
 
-            t = threading.Thread(target=_thread_loop)
+            t = threading.Thread(target=self._thread_loop)
             t.daemon = True
             t.start()
 

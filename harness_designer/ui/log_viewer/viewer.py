@@ -30,21 +30,26 @@ class LogViewer(aui.AuiPaneInfo):
         aui.AuiPaneInfo.__init__(self)
 
         self.Name('log_viewer')
-        self.CaptionVisible()
-        self.Floatable()
-        self.MinimizeButton()
-        self.MaximizeButton()
-        self.Dockable()
+        self.CaptionVisible(True)
+        self.Floatable(True)
+        self.MinimizeButton(True)
+        self.MaximizeButton(True)
+        self.Dockable(True)
         self.CloseButton(True)
-        self.PaneBorder()
+        self.PaneBorder(True)
         self.Caption('Log Viewer')
         self.DestroyOnClose(False)
-        self.Gripper()
+        self.Gripper(True)
         self.Left()
-        self.Resizable()
+        self.Resizable(True)
         self.Window(self.viewer)
 
         self.manager.AddPane(self.viewer, self)
+        aui.AuiPaneInfo.Show(self)
+        self.manager.Update()
+
+    def Show(self, show=True):
+        aui.AuiPaneInfo.Show(self, show)
         self.manager.Update()
 
     def Refresh(self, *args, **kwargs):
