@@ -4,7 +4,7 @@ import weakref
 import wx
 
 
-from ...ui.editor_obj import prop_grid as _prop_grid
+from ...ui import prop_ctrls as _prop_ctrls
 
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from .mixins import (
@@ -144,14 +144,14 @@ class PJTBundleLayoutControl(wx.Notebook):
         self.db_obj: PJTBundleLayout = None
         super().__init__(parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
 
-        general_page = _prop_grid.Category(self, 'General')
+        general_page = _prop_ctrls.Category(self, 'General')
         self.notes_ctrl = NotesControl(general_page)
-        self.diameter_ctrl = _prop_grid.StringProperty(general_page, 'Diameter', style=wx.TE_READONLY)
+        self.diameter_ctrl = _prop_ctrls.StringProperty(general_page, 'Diameter', style=wx.TE_READONLY)
 
-        position_page = _prop_grid.Category(self, 'Position')
+        position_page = _prop_ctrls.Category(self, 'Position')
         self.position_ctrl = Position3DControl(position_page)
 
-        visible_page = _prop_grid.Category(self, 'Visible')
+        visible_page = _prop_ctrls.Category(self, 'Visible')
         self.visible_ctrl = Visible3DControl(visible_page)
 
         for page in (

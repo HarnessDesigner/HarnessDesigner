@@ -61,11 +61,16 @@ class Housing(_base3d.Base3D):
                     verts, nrmls, faces, count = _utils.compute_vbo_vertex_normals(vertices, faces)
 
                 vbo = _vbo.VBOHandler(uuid, verts, nrmls, faces, count)
+
         else:
             vbo = _box.create_vbo()
             scale = self._part.scale
 
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, db_obj.position3d, scale, material)
+
+    @property
+    def seal_position(self) -> _point.Point:
+        return self.db_obj.seal_position3d
 
     def get_context_menu(self):
         return HousingMenu(self.mainframe, self)

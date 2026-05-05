@@ -9,6 +9,7 @@ class DBData:
 
     def __init__(self):
         self._data_dir = None
+        self._alt_path = r'C:\Users\drsch\PycharmProjects\harness_designer_database'
 
     def close(self):
         if self._data_dir is not None:
@@ -16,6 +17,9 @@ class DBData:
                 shutil.rmtree(self._data_dir)
 
     def open(self, splash):
+        if self._alt_path is not None:
+            return self._alt_path
+
         if self._data_dir is None:
             response = requests.get('https://github.com/HarnessDesigner/database/archive/refs/heads/main.zip', stream=True)
             block_size = 1048576

@@ -1,3 +1,5 @@
+from typing import TYPE_CHECKING
+
 import numpy as np
 import wx
 import sys
@@ -13,65 +15,175 @@ from .geometry import point as _point
 from .geometry.decimal import Decimal as _d
 
 
-def mm2_to_awg(mm2: float | _d) -> int:
-    d_mm = _d(2.0) * _d(math.sqrt(_d(mm2) / _d(math.pi)))
-    d_in = d_mm / _d(25.4)
-    awg = _d(36) - _d(39) * _d(math.log(float(d_in / _d(0.005)), 92))
+if TYPE_CHECKING:
+    from .gl.canvas3d import camera as _camera
+    from .objects import wire as _wire
+
+
+# ---------------------------------------------------------------------------
+# Unit conversion constant
+# ---------------------------------------------------------------------------
+
+MM2_PER_IN2 = 645.16
+
+
+# ---------------------------------------------------------------------------
+# Stranding tables
+# ---------------------------------------------------------------------------
+
+# Generic strand counts by AWG used when strands=0 (stranded but count unknown)
+_AWG_STRAND_COUNT = {
+    -4: 2109,
+    -3: 1665,
+    -2: 1330,
+    0: 1045,
+    1: 817,
+    2: 665,
+    4: 133,
+    6: 133,
+    8: 133,
+    10: 37,
+    12: 19,
+    14: 19,
+    16: 19,
+    18: 19,
+    20: 19,
+    22: 19,
+    24: 19,
+    26: 19,
+    28: 7,
+    30: 7,
+}
+
+# Packing factors by strand count
+_PACKING_FACTOR = {
+    1: 1.000,
+    7: 0.750,
+    19: 0.780,
+    37: 0.800,
+    133: 0.830,
+    665: 0.850,
+    817: 0.850,
+    1045: 0.850,
+    1330: 0.850,
+    1665: 0.850,
+    2109: 0.850,
+}
+
+
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
+# The functions below have a "strand" parameter. This parameter is
+# defaulted to 1 which means a single strcand or a solid wire.
+# If this parameter is set to zero that means the wire is a stranded wire
+# but the strand count is not known. When that occurs a default value for the
+# number of strands is used based on the size of the wire. This is not going
+# to produce an exact size for the wire but it will produce a closer estimate
+# than calculating it as a solid wire. The calculations are doing using a
+# concentric twist for the strands and once again depending on the twist there
+# could be a deviation from what the actual diameter of the wire is.
+# These functions are a calculated best and not perfect.
+
+
+def _get_strand_count(awg: int | _d, strands: int | _d) -> int:
+    strands = int(strands)
+    if strands == 1:
+        return 1
+    if strands == 0:
+        return _AWG_STRAND_COUNT.get(int(awg), 19)
+    return strands
+
+
+def _get_packing_factor(strand_count: int | _d) -> float:
+    if strand_count in _PACKING_FACTOR:
+        return _PACKING_FACTOR[strand_count]
+    known = sorted(_PACKING_FACTOR.keys())
+    for i, k in enumerate(known):
+        if strand_count < k:
+            if i == 0:
+                return _PACKING_FACTOR[k]
+            lo, hi = known[i - 1], k
+            t = (strand_count - lo) / (hi - lo)
+            return _PACKING_FACTOR[lo] + t * (_PACKING_FACTOR[hi] - _PACKING_FACTOR[lo])
+    return _PACKING_FACTOR[known[-1]]
+
+
+def _solid_to_bundle(solid_d_mm: float | _d, strand_count: int | _d) -> float:
+    if strand_count == 1:
+        return solid_d_mm
+    return solid_d_mm / math.sqrt(_get_packing_factor(strand_count))
+
+
+def _bundle_to_solid(bundle_d_mm: float | _d, strand_count: int | _d) -> float:
+    if strand_count == 1:
+        return bundle_d_mm
+    return bundle_d_mm * math.sqrt(_get_packing_factor(strand_count))
+
+
+# ---------------------------------------------------------------------------
+# Public conversion functions
+# ---------------------------------------------------------------------------
+
+def mm2_to_awg(mm2: float | _d, strands: int | _d = 1) -> int:
+    d_in = mm2_to_d_in(mm2, strands)
+    awg = 36 - 39 * math.log(float(d_in / 0.005), 92)
     return int(round(awg))
 
 
-def mm2_to_d_mm(mm2: float | _d) -> float:
-    d_mm = _d(2.0) * _d(math.sqrt(_d(mm2) / _d(math.pi)))
-    return float(round(d_mm, 4))
+def awg_to_mm2(awg: int | _d, strands: int | _d = 1) -> float:  # NOQA
+    # mm² is always the electrical equivalent cross-section — stranding doesn't change it
+    d_in = float(round(0.005 * 92 ** ((36 - int(awg)) / 39), 6))
+    d_mm = d_in * 25.4
+    return float(round(math.pi / 4 * d_mm ** 2, 4))
 
 
-def d_mm_to_mm2(d_mm: float | _d) -> float:
-    mm2 = _d(d_mm) / _d(2.0)
-    mm2 *= mm2
-    mm2 *= _d(math.pi)
-    return float(round(mm2, 4))
+def awg_to_d_in(awg: int | _d, strands: int | _d = 1) -> float:
+    d_in = float(round(0.005 * 92 ** ((36 - int(awg)) / 39), 6))
+    strand_count = _get_strand_count(awg, strands)
+    d_mm = _solid_to_bundle(d_in * 25.4, strand_count)
+    return float(round(d_mm / 25.4, 4))
 
 
-def mm2_to_in2(mm2: float | _d) -> float:
-    in2 = _d(mm2) / _d(25.4)
-    return float(round(in2, 4))
+def awg_to_d_mm(awg: int | _d, strands: int | _d = 1) -> float:
+    d_in = float(round(0.005 * 92 ** ((36 - int(awg)) / 39), 6))
+    strand_count = _get_strand_count(awg, strands)
+    return float(round(_solid_to_bundle(d_in * 25.4, strand_count), 4))
 
 
-def in2_to_mm2(in2: float | _d) -> float:
-    mm2 = _d(in2) * _d(25.4)
-    return float(round(mm2, 4))
+def d_in_to_d_mm(d_in: float | _d, strands: int | _d = 1) -> float:  # NOQA
+    return float(round(float(d_in) * 25.4, 4))
 
 
-def mm2_to_d_in(mm2: float | _d) -> float:
-    d_mm = mm2_to_d_mm(mm2)
-    d_in = _d(d_mm) / _d(25.4)
-    return float(round(d_in, 4))
+def d_mm_to_mm2(d_mm: float | _d, strands: int | _d = 1) -> float:  # NOQA
+    return float(round(math.pi / 4 * float(d_mm) ** 2, 4))
 
 
-def awg_to_d_mm(awg: int | _d) -> float:
-    return mm2_to_d_mm(awg_to_mm2(awg))
+def mm2_to_d_mm(mm2: float | _d, strands: int | _d = 1) -> float:
+    solid_d_mm = 2 * math.sqrt(float(mm2 / math.pi))
+    strand_count = _get_strand_count(mm2_to_awg(mm2, strands=1), strands)
+    return float(round(_solid_to_bundle(solid_d_mm, strand_count), 4))
 
 
-def awg_to_mm2(awg: int | _d) -> float:
-    d_in = _d(0.005) * (_d(92) ** ((_d(36) - _d(awg)) / _d(39)))
-    d_mm = d_in * _d(25.4)
-    area_mm2 = (_d(math.pi) / _d(4)) * (d_mm ** _d(2))
-    return float(round(area_mm2, 4))
+def mm2_to_d_in(mm2: float | _d, strands: int | _d = 1) -> float:
+    return float(round(mm2_to_d_mm(mm2, strands) / 25.4, 4))
 
 
-def d_mm_to_awg(d_mm: float | _d) -> int:
-    area_mm2 = (_d(math.pi) / _d(4)) * (_d(d_mm) ** _d(2))
-    return mm2_to_awg(area_mm2)
+def d_mm_to_awg(d_mm: float | _d, strands: int | _d = 1) -> int:
+    # Convert bundle diameter back to solid equivalent, then derive AWG
+    approx_awg = mm2_to_awg(d_mm_to_mm2(float(d_mm), strands), strands=1)
+    strand_count = _get_strand_count(approx_awg, strands)
+    solid_d_mm = _bundle_to_solid(float(d_mm), strand_count)
+    return mm2_to_awg(d_mm_to_mm2(solid_d_mm, strands), strands=1)
 
 
-def awg_to_d_in(awg: int | _d) -> float:
-    d_in = _d(0.005) * (_d(92) ** ((_d(36) - _d(awg)) / _d(39)))
-    return float(round(d_in, 4))
+def mm2_to_in2(mm2: float | _d, strands: int | _d = 1) -> float:  # NOQA
+    return float(round(mm2 / MM2_PER_IN2, 4))
 
 
-def d_in_to_d_mm(d_in: float | _d) -> float:
-    d_mm = _d(d_in) * _d(25.4)
-    return float(round(d_mm, 4))
+def in2_to_mm2(in2: float | _d, strands: int | _d = 1) -> float:  # NOQA
+    return float(round(in2 * MM2_PER_IN2, 4))
 
 
 def get_appdata():
@@ -107,10 +219,13 @@ def HSizer(parent, label, ctrl) -> wx.BoxSizer:
     return sizer
 
 
-def remap(value: int | float | _d,
-          old_min: int | float | _d, old_max: int | float | _d,
-          new_min: int | float | _d, new_max: int | float | _d,
-          type=_d) -> int | float | _d:  # NOQA
+def remap(
+    value: int | float | _d,
+    old_min: int | float | _d, old_max: int | float | _d,
+    new_min: int | float | _d, new_max: int | float | _d,
+    type_=_d
+) -> int | float | _d:
+
     """
     Remaps/Reranges a value from one range to another range.
 
@@ -125,7 +240,7 @@ def remap(value: int | float | _d,
     :param old_max: input values maximum
     :param new_min: new minimum
     :param new_max: new maximum
-    :param type: what type to return the value as; `int`, `float` or `Decimal`
+    :param type_: what type to return the value as; `int`, `float` or `Decimal`
     :return: The new value mapped to the new range
     """
     value = _d(value)
@@ -138,7 +253,7 @@ def remap(value: int | float | _d,
     new_range = new_max - new_min
     new_value = (((value - old_min) * new_range) / old_range) + new_min
 
-    return type(new_value)
+    return type_(new_value)
 
 
 def compute_edges(faces: np.ndarray) -> np.ndarray:
@@ -179,7 +294,11 @@ def compute_edges(faces: np.ndarray) -> np.ndarray:
     return edges
 
 
-def compute_smoothed_vertex_normals(vertices: np.ndarray, faces: np.ndarray) -> list[np.ndarray, np.ndarray, int]:
+def compute_smoothed_vertex_normals(
+    vertices: np.ndarray,
+    faces: np.ndarray
+) -> list[np.ndarray, np.ndarray, int]:
+
     """
     Compute smoothed vertex normals by averaging face normals at each vertex.
     Works for both triangles and quads.
@@ -254,7 +373,11 @@ def compute_smoothed_vertex_normals(vertices: np.ndarray, faces: np.ndarray) -> 
     return [verts, normals, len(expanded_verts) * verts_per_face]
 
 
-def compute_vertex_normals(vertices: np.ndarray, faces: np.ndarray) -> list[np.ndarray, np.ndarray, int]:
+def compute_vertex_normals(
+    vertices: np.ndarray,
+    faces: np.ndarray
+) -> list[np.ndarray, np.ndarray, int]:
+
     """
     Compute face normals duplicated per vertex for triangles or quads.
 
@@ -492,6 +615,246 @@ def compute_vbo_vertex_normals(
     indices_array = np.arange(num_triangles * 3, dtype=np.uint32)
 
     return [vertices_array, normals_array, indices_array, len(indices_array) * 3]
+
+
+def unproject_from_ndc(ndc, inv_mvp):
+    """
+    ndc: (x,y,z) in [-1,1]
+    inv_mvp: inverse of P*MV (row-major)
+    """
+    clip = np.array([ndc[0], ndc[1], ndc[2], 1.0], dtype=np.float64)
+
+    world = inv_mvp.dot(clip)
+    if np.isclose(world[3], 0.0):
+        return None
+
+    world /= world[3]
+    return world[:3]
+
+
+def get_position_on_focal_plane(
+    mouse_pos: _point.Point,
+    camera: "_camera.Camera"
+):
+
+    """
+    Get the intersection point where the mouse ray hits a plane
+    passing through the camera's focal_position.
+
+    The plane is perpendicular to the view direction (camera forward vector).
+    """
+
+    # Build ray from mouse position
+    pj = camera.projection
+    mv = camera.modelview
+    viewport = camera.viewport
+
+    mvp = pj.dot(mv)
+    inv_mvp = np.linalg.inv(mvp)
+    vx, vy, vw, vh = viewport
+
+    wx_ = mouse_pos.x
+    wy_ = (vh - mouse_pos.y)
+
+    ndc_x = (2.0 * (wx_ - vx) / vw) - 1.0
+    ndc_y = (2.0 * (wy_ - vy) / vh) - 1.0
+
+    # Unproject to get ray
+    near_world = unproject_from_ndc((ndc_x, ndc_y, -1.0), inv_mvp)
+    far_world = unproject_from_ndc((ndc_x, ndc_y, 1.0), inv_mvp)
+
+    if near_world is None or far_world is None:
+        return None
+
+    origin = np.array(near_world, dtype=np.float64)
+    direction = np.array(far_world, dtype=np.float64) - origin
+    direction /= np.linalg.norm(direction)
+
+    # Define plane through focal_position, perpendicular to view direction
+    plane_point = camera.focal_position.as_numpy
+
+    # Plane normal is the view direction (from camera to focal point)
+    plane_normal = camera.focal_position.as_numpy - camera.position.as_numpy
+    plane_normal /= np.linalg.norm(plane_normal)
+
+    # Ray-plane intersection
+    # Formula: t = dot(plane_point - origin, plane_normal) / dot(direction, plane_normal)
+    denom = np.dot(direction, plane_normal)
+
+    if abs(denom) < 1e-6:
+        # Ray is nearly parallel to plane - shouldn't happen in practice
+        # Fall back to placing at focal position
+        return camera.focal_position.copy()
+
+    t = np.dot(plane_point - origin, plane_normal) / denom
+
+    if t < 0:
+        # Intersection is behind the camera - shouldn't happen
+        return camera.focal_position.copy()
+
+    # Calculate intersection point
+    intersection = origin + t * direction
+
+    return _point.Point(*intersection)
+
+
+def closest_point_on_segment_to_ray(seg_p1, seg_p2, ray_origin, ray_dir):
+    """
+    Find the closest point on line segment (seg_p1, seg_p2) to a ray.
+
+    Uses the parametric formula for closest points between two 3D lines,
+    then clamps the result to the line segment.
+    """
+    # Wire segment direction
+    w = seg_p2 - seg_p1
+    w_len = np.linalg.norm(w)
+
+    if w_len < 1e-6:
+        return seg_p1
+
+    w = w / w_len
+
+    # Vector from ray origin to segment start
+    u = seg_p1 - ray_origin
+
+    # Calculate parameters for closest points
+    a = np.dot(w, w)  # Should be 1 (normalized)
+    b = np.dot(w, ray_dir)
+    c = np.dot(ray_dir, ray_dir)  # Should be 1 (normalized)
+    d = np.dot(w, u)
+    e = np.dot(ray_dir, u)
+
+    denom = a * c - b * b
+
+    if abs(denom) < 1e-6:
+        # Lines are parallel, use perpendicular projection
+        t = np.dot(u, w)
+    else:
+        t = (b * e - c * d) / denom
+
+    # Clamp t to [0, wire_length]
+    t = np.clip(t, 0.0, w_len)
+
+    # Calculate closest point on segment
+    closest = seg_p1 + t * w
+
+    return closest
+
+
+def _point_on_wire(mouse_pos: _point.Point, p1, p2, camera):
+
+    # Build ray from mouse position
+    pj = camera.projection
+    mv = camera.modelview
+    viewport = camera.viewport
+
+    mvp = pj.dot(mv)
+    inv_mvp = np.linalg.inv(mvp)
+    vx, vy, vw, vh = viewport
+
+    x = mouse_pos.x
+    y = (vh - mouse_pos.y)
+
+    ndc_x = (2.0 * (x - vx) / vw) - 1.0
+    ndc_y = (2.0 * (y - vy) / vh) - 1.0
+
+    # Unproject to get ray
+    near_world = unproject_from_ndc((ndc_x, ndc_y, -1.0), inv_mvp)
+    far_world = unproject_from_ndc((ndc_x, ndc_y, 1.0), inv_mvp)
+
+    if near_world is None or far_world is None:
+        return None, None
+
+    ray_origin = np.array(near_world, dtype=np.float64)
+    ray_direction = np.array(far_world, dtype=np.float64) - ray_origin
+    ray_direction /= np.linalg.norm(ray_direction)
+
+    # Find closest point on wire line segment to the ray
+    # This uses the formula for closest point between two 3D line segments
+    closest_point = closest_point_on_segment_to_ray(
+        p1, p2, ray_origin, ray_direction)
+
+    if closest_point is None:
+        # Fallback to wire midpoint
+        closest_point = (p1 + p2) / 2.0
+
+    return closest_point
+
+
+def get_closest_point_on_wire(
+    mouse_pos: _point.Point,
+    camera: "_camera.Camera",
+    wire: "_wire.Wire"
+):
+
+    """
+    Find the closest point on a wire to where the user clicked.
+
+    This computes:
+    1. Ray from mouse position
+    2. Closest point on wire line segment to that ray
+    3. Wire direction at that point
+
+    Returns:
+        tuple: (closest_point, wire_angle) or (None, None)
+    """
+    # Get wire endpoints
+    p1 = wire.obj3d.start_position.as_numpy
+    p2 = wire.obj3d.stop_position.as_numpy
+
+    closest_point = _point_on_wire(mouse_pos, p1, p2, camera)
+
+    # Calculate wire direction (from p1 to p2)
+    wire_direction = p2 - p1
+    wire_length = np.linalg.norm(wire_direction)
+
+    if wire_length < 0.001:
+        return None, None
+
+    wire_direction /= wire_length
+
+    from . geometry import angle as _angle
+
+    # Convert to angle
+    wire_angle = _angle.Angle.from_direction(wire_direction)
+
+    return _point.Point(*closest_point), wire_angle
+
+
+def get_closest_point_on_wire_endpoint(
+    mouse_pos: _point.Point,
+    camera: "_camera.Camera",
+    wire: "_wire.Wire",
+    endpoint_tolerance=5.0
+):
+
+    # Get wire endpoints
+    p1 = wire.obj3d.start_position.as_numpy
+    p2 = wire.obj3d.stop_position.as_numpy
+
+    closest_point = _point_on_wire(mouse_pos, p1, p2, camera)
+
+    # Check if closest point is near an existing endpoint
+    dist_to_p1 = np.linalg.norm(closest_point - p1)
+    dist_to_p2 = np.linalg.norm(closest_point - p2)
+
+    # Use wire diameter as tolerance for endpoint detection
+    wire_diameter = wire.db_obj.part.od_mm
+    tolerance = max(wire_diameter, endpoint_tolerance)
+
+    if dist_to_p1 < tolerance:
+        # Placing at start endpoint - return the ACTUAL Point instance
+        # This ensures the layout will bind to the same Point callbacks
+        return p1, True, 'start'
+    elif dist_to_p2 < tolerance:
+        # Placing at end endpoint - return the ACTUAL Point instance
+        return p2, True, 'stop'
+    else:
+        # Placing in middle - return coordinates for NEW Point creation
+        # The project will create a new Point and share it between layout and wires
+        position = _point.Point(*closest_point)
+
+        return position, False, None
 
 
 IMAGE_FILE_WILDCARDS = (

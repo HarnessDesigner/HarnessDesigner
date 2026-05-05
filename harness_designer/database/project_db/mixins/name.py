@@ -1,6 +1,6 @@
 from .base import BaseMixin
 
-from ....ui.editor_obj import prop_grid as _prop_grid
+from ....ui import prop_ctrls as _prop_ctrls
 
 
 class NameMixin(BaseMixin):
@@ -15,14 +15,14 @@ class NameMixin(BaseMixin):
         self._populate('name')
 
 
-class NameControl(_prop_grid.StringProperty):
+class NameControl(_prop_ctrls.StringProperty):
 
     def __init__(self, parent):
         self.db_obj: NameMixin = None
 
         super().__init__(parent, 'Name')
 
-        self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_name)
+        self.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_name)
 
     def _on_name(self, evt):
         value = evt.GetValue()

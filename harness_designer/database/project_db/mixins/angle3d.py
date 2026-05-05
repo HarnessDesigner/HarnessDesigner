@@ -1,5 +1,5 @@
 import uuid
-from ....ui.editor_obj import prop_grid as _prop_grid
+from ....ui import prop_ctrls as _prop_ctrls
 
 from .base import BaseMixin
 from ....geometry import angle as _angle
@@ -30,7 +30,7 @@ class Angle3DMixin(BaseMixin):
         return angle
 
 
-class Angle3DControl(_prop_grid.Angle3DProperty):
+class Angle3DControl(_prop_ctrls.Angle3DProperty):
 
     def __init__(self, parent):
         self.db_obj: Angle3DMixin = None

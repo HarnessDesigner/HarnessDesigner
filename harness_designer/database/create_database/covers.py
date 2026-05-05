@@ -26,16 +26,10 @@ def add_covers(con, data: tuple[dict] | list[dict]):
 
 
 def add_records(con, splash, data_path):
-    con.execute('SELECT id FROM covers WHERE id=0;')
+    con.execute('SELECT id FROM covers WHERE id=1;')
 
     if con.fetchall():
         return
-
-    splash.SetText(f'Adding cover to db [1 | 1]...')
-    splash.flush()
-
-    con.execute('INSERT INTO covers (id, part_number, description) VALUES(0, "N/A", "Internal Use DO NOT DELETE");')
-    con.commit()
 
     dirs = []
     for file in os.listdir(data_path):
@@ -67,19 +61,20 @@ def add_records(con, splash, data_path):
             splash.flush()
 
             for i, item in enumerate(data):
-                splash.SetText(f'Adding covers to db [{i + 1} | {data_len}]...')
-                pn = item['part_number']
+                if not i % 100:
+                    splash.SetText(f'Adding covers to db [{i + 1} | {data_len}]...')
 
-                con.execute(f'SELECT id FROM covers WHERE part_number="{pn}";')
-                rows = con.fetchall()
-                if not rows:
-                    if 'shared_cad' in item:
-                        del item['shared_cad']
+                if 'shared_cad' in item:
+                    del item['shared_cad']
 
-                    if 'shared_model3d' in item:
-                        del item['shared_model3d']
+                if 'shared_model3d' in item:
+                    del item['shared_model3d']
 
+                try:
                     add_cover(con, **item)
+                except Exception as err:
+                    _logger.logger.traceback(err)
+
 
         con.commit()
 
@@ -123,6 +118,8 @@ def add_cover(con, part_number, description, mfg=None, family=None, series=None,
 
         description += ' Cover'
 
+    compat_housings = ', '.join(compat_housings)
+
     _logger.logger.database(f'adding cover {part_number}: {description}')
 
     con.execute('INSERT INTO covers (part_number, description, mfg_id, family_id, '
@@ -132,12 +129,7 @@ def add_cover(con, part_number, description, mfg=None, family=None, series=None,
                 'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
                 (part_number, description, mfg_id, family_id, series_id, color_id,
                  direction_id, image_id, datasheet_id, cad_id, min_temp_id, max_temp_id,
-                 model3d_id, length, width, height, weight, pins, str(compat_housings)))
-
-    con.commit()
-    db_id = con.lastrowid
-
-    _logger.logger.database(f'cover added "{part_number}" = {db_id}')
+                 model3d_id, length, width, height, weight, pins, compat_housings))
 
 
 id_field = _con.PrimaryKeyField('id')
@@ -197,7 +189,7 @@ table = _con.SQLTable(
     _con.FloatField('height', default='"0.0"', no_null=True),
     _con.FloatField('weight', default='"0.0"', no_null=True),
     _con.IntField('pins', default='0', no_null=True),
-    _con.TextField('compat_housings', default='"[]"', no_null=True)
+    _con.TextField('compat_housings', default='""', no_null=True)
 )
 
 pjt_id_field = _con.PrimaryKeyField('id')

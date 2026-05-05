@@ -1,4 +1,4 @@
-from ....ui.editor_obj import prop_grid as _prop_grid
+from ....ui import prop_ctrls as _prop_ctrls
 
 from .base import BaseMixin
 from ....geometry import point as _point
@@ -44,7 +44,7 @@ class Position2DMixin(BaseMixin):
         self._populate('position2d_id')
 
 
-class Position2DControl(_prop_grid.Position2DProperty):
+class Position2DControl(_prop_ctrls.Position2DProperty):
 
     def __init__(self, parent):
         self.db_obj: Position2DMixin = None

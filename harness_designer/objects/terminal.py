@@ -3,6 +3,8 @@ from typing import TYPE_CHECKING
 from . import ObjectBase as _ObjectBase
 from .objects2d import terminal as _terminal_2d
 from .objects3d import terminal as _terminal_3d
+from ..geometry import point as _point
+
 
 if TYPE_CHECKING:
     from .. import ui as _ui
@@ -24,3 +26,7 @@ class Terminal(_ObjectBase):
 
         self.obj2d = _terminal_2d.Terminal(self, db_obj)
         self.obj3d = _terminal_3d.Terminal(self, db_obj)
+
+    @property
+    def wire_position(self) -> _point.Point:
+        return self.db_obj.wire_position3d

@@ -1,8 +1,6 @@
 from typing import Iterable as _Iterable
 import wx
 
-from ....ui.editor_obj import prop_grid as _prop_grid
-
 from ..bases import EntryBase, TableBase
 
 from . import solid as _solid
@@ -148,13 +146,3 @@ class IPRating(EntryBase):
         img = simg | fimg
 
         return img.bitmap
-
-    @property
-    def propgrid(self) -> _prop_grid.Property:
-        choices = []
-
-        for ip_rating in self._table:
-            choices.append([ip_rating.name, ip_rating.bitmap, ip_rating.description])
-
-        prop = _prop_grid.BitmapComboBoxProperty('IP Rating', 'ip_rating', self.name, choices)
-        return prop

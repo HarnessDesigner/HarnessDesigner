@@ -1,6 +1,6 @@
 from .base import BaseMixin
 
-from ....ui.editor_obj import prop_grid as _prop_grid
+from ....ui import prop_ctrls as _prop_ctrls
 
 
 class ResourceMixin(BaseMixin):
@@ -94,20 +94,20 @@ class ResourceMixin(BaseMixin):
         self._populate('datasheet_id')
 
 
-class ResourcesControl(_prop_grid.Category):
+class ResourcesControl(_prop_ctrls.Category):
 
     def __init__(self, parent):
         super().__init__(parent, 'Resources')
         self.db_obj: ResourceMixin = None
         self.file_types: dict = None
 
-        self.image_ctrl = _prop_grid.ImageProperty(self, 'Image')
-        self.datasheet_ctrl = _prop_grid.DatasheetCADProperty(self, 'Datasheet')
-        self.cad_ctrl = _prop_grid.DatasheetCADProperty(self, 'CAD')
+        self.image_ctrl = _prop_ctrls.ImageProperty(self, 'Image')
+        self.datasheet_ctrl = _prop_ctrls.DatasheetCADProperty(self, 'Datasheet')
+        self.cad_ctrl = _prop_ctrls.DatasheetCADProperty(self, 'CAD')
 
-        self.image_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_image)
-        self.datasheet_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_datasheet)
-        self.cad_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_cad)
+        self.image_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_image)
+        self.datasheet_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_datasheet)
+        self.cad_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_cad)
 
     def set_obj(self, db_obj: ResourceMixin):
         self.db_obj = db_obj

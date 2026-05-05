@@ -70,6 +70,7 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MOVE, self.on_move)
         self.Bind(wx.EVT_SIZE, self.on_size)
         self.Bind(wx.EVT_CLOSE, self.on_close)
+        self.Bind(wx.EVT_IDLE, self._on_idle)
         self.Bind(wx.EVT_ERASE_BACKGROUND, self.on_erase_background)
 
         self.db_connector = None
@@ -278,7 +279,7 @@ class MainFrame(wx.Frame):
 
         if Config.position:
             def _do():
-                self.Move(Config.position)
+                self.SetPosition(Config.position)
 
             wx.CallAfter(_do)
         else:
@@ -508,7 +509,6 @@ class MainFrame(wx.Frame):
 
     def remove_object(self, obj):
         self.editor2d.remove_object(obj)
-        print('removing object from 3d editor')
         self.editor3d.remove_object(obj)
 
     def _set_selected(self, obj: "_objects.ObjectBase"):
@@ -543,8 +543,37 @@ class MainFrame(wx.Frame):
         self.status_bar.SetStatusText(f'Y: {round(float(y), 4)}', 1)
         self.status_bar.SetStatusText(f'Z: {round(float(z), 4)}', 2)
 
+    def _on_idle(self, event: wx.IdleEvent):
+        """
+        Called by wxPython whenever the event queue is empty.
+
+        Delegates one chunk of orphan-point cleanup to the project's
+        ProjectCleanup instance.  Returns immediately if no project is open.
+
+        event.RequestMore() is called only when there is remaining work in
+        the current pass, which keeps idle events flowing until the pass
+        completes.  Once the pass is done RequestMore() is not called, so
+        wxPython stops firing idle events until the next user interaction —
+        zero CPU cost while the application is genuinely idle.
+        """
+        if self.project is None:
+            return
+
+        if self.project.cleanup.process_chunk():
+            event.RequestMore()
+
     def on_close(self, _):
         self.logger.info('Harness Designer shutting down')
+
+        if self.project is not None:
+            self.logger.info('Cleaning up orphaned points...')
+            from ..database.project_db.cleanup import cleanup_orphaned_points
+
+            deleted_3d, deleted_2d = cleanup_orphaned_points(self.project.ptables)
+            self.logger.info(
+                f'Point cleanup complete: {deleted_3d} orphaned 3D points, '
+                f'{deleted_2d} orphaned 2D points removed.'
+            )
 
         self.logger.info('Saving UI layout...')
         Config.ui_perspective = self.manager.SavePerspective()

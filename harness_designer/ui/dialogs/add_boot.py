@@ -17,7 +17,7 @@ class AddBootDialog(_dialog_base.BaseDialog):
 
         self._table = table
         self._housing = housing
-        _dialog_base.BaseDialog.__init__(self, parent, 'Object Search', label='Add Boot')
+        _dialog_base.BaseDialog.__init__(self, parent, 'Add Boot')
 
         compat_boots = housing.part.compat_boots
 

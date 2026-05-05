@@ -1,130 +1,53 @@
 from typing import TYPE_CHECKING
 
 import wx
-import wx.dataview as dv
-
-from .controls import choice as _choice
-from .controls import model_base as _model_base
-from .controls import dataviewctrl as _dataviewctrl
-
+from . import base as _base
 
 if TYPE_CHECKING:
     from ...database.global_db import accessory as _accessory
 
 
-class AccessoriesModel(_model_base.ModelBase):
+class AccessoriesPage(_base.EditorList):
     __table_name__ = 'accessories'
+    __query__ = f'''\
+    SELECT * FROM (
+        SELECT
+            Row_Number() OVER (ORDER BY {{sort_column}} {{sort_direction}}) AS RowNum,
+            t.id AS id,
+            t.part_number AS part_number,
+            t.description AS description,
+            mfg.name AS mfg_name,
+            family.name AS family_name,
+            series.name AS series_name,
+            color.name AS color_name,
+            material.name AS material_name,
+            t.length AS length,
+            t.width AS width,
+            t.height AS height,
+            t.weight AS weight,
+            t.image_id AS image_id
+        FROM {__table_name__} AS t
+        LEFT JOIN manufacturers AS mfg ON mfg.id = t.mfg_id
+        LEFT JOIN families AS family ON family.id = t.family_id
+        LEFT JOIN series AS series ON series.id = t.series_id
+        LEFT JOIN colors AS color ON color.id = t.color_id
+        LEFT JOIN materials AS material ON material.id = t.material_id
+    ) t2 WHERE RowNum = {{row}};
+    '''
+
     column_mapping = {
-        0: 'id',
-        1: 'part_number',
-        2: 'description',
-        3: 'mfg_id',
-        4: 'family_id',
-        5: 'series_id',
-        6: 'color_id',
-        7: 'material_id'
+        0: ('DB ID', 'id'),
+        1: ('Part Number', 'part_number'),
+        2: ('Description', 'description'),
+        3: ('Manufacturer', 'mfg_name'),
+        4: ('Family', 'family_name'),
+        5: ('Series', 'series_name'),
+        6: ('Color', 'color_name'),
+        7: ('Material', 'material_name'),
+        8: ('Length (mm)', 'length'),
+        9: ('Width (mm)', 'width'),
+        10: ('Height (mm)', 'height'),
+        11: ('Weight (g)', 'weight'),
     }
+
     table: "_accessory.AccessoriesTable" = None
-
-    def Compare(self, item1, item2, col, ascending):
-        if not ascending:
-            item2, item1 = item1, item2
-
-        row1 = self.GetRow(item1)
-        row2 = self.GetRow(item2)
-
-        a = self.GetValueByRow(row1, col)
-        b = self.GetValueByRow(row2, col)
-
-        if col == 0:
-            a = int(a)
-            b = int(b)
-        elif col == 3:
-            a = self.table.db.manufacturers_table[a].name
-            b = self.table.db.manufacturers_table[b].name
-        elif col == 4:
-            a = self.table.db.families_table[a].name
-            b = self.table.db.families_table[b].name
-        elif col == 5:
-            a = self.table.db.series_table[a].name
-            b = self.table.db.series_table[b].name
-        elif col == 6:
-            a = self.table.db.colors_table[a].name
-            b = self.table.db.colors_table[b].name
-        elif col == 7:
-            a = self.table.db.materials_table[a].name
-            b = self.table.db.materials_table[b].name
-
-        if a < b:
-            return -1
-
-        if a > b:
-            return 1
-
-        return 0
-
-
-class AccessoriesPanel(wx.Panel):
-    def __init__(self, parent, table: "_accessory.AccessoriesTable"):
-        wx.Panel.__init__(self, parent, -1)
-
-        self.table = table
-
-        # Create a dataview control
-        self.dvc = _dataviewctrl.DataViewCtrl(self, style=wx.BORDER_THEME | dv.DV_ROW_LINES | dv.DV_MULTIPLE)
-
-        self.model = AccessoriesModel(table)
-        self.dvc.AssociateModel(self.model)
-
-        # Now we create some columns.
-        col = self.dvc.AppendTextColumn("DB_ID", 0)
-        col.SetAlignment(wx.ALIGN_LEFT)
-
-        col = self.dvc.AppendTextColumn("Part Number", 1, mode=dv.DATAVIEW_CELL_EDITABLE)
-        col.SetAlignment(wx.ALIGN_LEFT)
-
-        col = self.dvc.AppendTextColumn("Description", 2, mode=dv.DATAVIEW_CELL_EDITABLE)
-        col.SetAlignment(wx.ALIGN_LEFT)
-
-        table.execute('SELECT id, name FROM manufacturers ORDER BY id ASC;')
-        choices = table.fetchall()
-        renderer = _choice.ManufacturerRenderer(choices, mode=dv.DATAVIEW_CELL_EDITABLE)
-        col = _dataviewctrl.DataViewColumn("Manufacturer", renderer, 3)
-        col.SetAlignment(wx.ALIGN_LEFT)
-        self.dvc.AppendColumn(col)
-
-        table.execute('SELECT id, name FROM families ORDER BY id ASC;')
-        choices = table.fetchall()
-        renderer = _choice.FamilyRenderer(choices, mode=dv.DATAVIEW_CELL_EDITABLE)
-        col = _dataviewctrl.DataViewColumn("Family", renderer, 4)
-        col.SetAlignment(wx.ALIGN_LEFT)
-        self.dvc.AppendColumn(col)
-
-        table.execute('SELECT id, name FROM series ORDER BY id ASC;')
-        choices = table.fetchall()
-        renderer = _choice.SeriesRenderer(choices, mode=dv.DATAVIEW_CELL_EDITABLE)
-        col = _dataviewctrl.DataViewColumn("Series", renderer, 5)
-        col.SetAlignment(wx.ALIGN_LEFT)
-        self.dvc.AppendColumn(col)
-
-        table.execute('SELECT id, name FROM colors ORDER BY id ASC;')
-        choices = table.fetchall()
-        renderer = _choice.ColorRenderer(choices, mode=dv.DATAVIEW_CELL_EDITABLE)
-        col = _dataviewctrl.DataViewColumn("Color", renderer, 6)
-        col.SetAlignment(wx.ALIGN_LEFT)
-        self.dvc.AppendColumn(col)
-
-        table.execute('SELECT id, name FROM materials ORDER BY id ASC;')
-        choices = table.fetchall()
-        renderer = _choice.MaterialRenderer(choices, mode=dv.DATAVIEW_CELL_EDITABLE)
-        col = _dataviewctrl.DataViewColumn("Material", renderer, 7)
-        col.SetAlignment(wx.ALIGN_LEFT)
-        self.dvc.AppendColumn(col)
-
-        self.Sizer = wx.BoxSizer(wx.VERTICAL)
-        self.Sizer.Add(self.dvc, 1, wx.EXPAND)
-
-    def GetSelection(self):
-        selection = self.dvc.GetSelection()
-        if selection.IsOk():
-            return int(self.model.GetValue(selection, 0))

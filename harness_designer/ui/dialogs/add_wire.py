@@ -14,7 +14,7 @@ class AddWireDialog(_dialog_base.BaseDialog):
     def __init__(self, parent, table: "_wire.WiresTable"):
 
         self._table = table
-        _dialog_base.BaseDialog.__init__(self, parent, 'Object Search', label='Add Wire')
+        _dialog_base.BaseDialog.__init__(self, parent, label='Add Wire')
 
         self.search = _search_db.SearchPanel(self.panel, table)
         vsizer = wx.BoxSizer(wx.VERTICAL)

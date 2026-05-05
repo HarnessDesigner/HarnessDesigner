@@ -64,6 +64,16 @@ class Wire(_base3d.Base3D):
 
         self._update_position(None)
 
+    @property
+    def start_position(self):
+        """Wire start position (Point instance)"""
+        return self._p1
+
+    @property
+    def stop_position(self):
+        """Wire stop position (Point instance)"""
+        return self._p2
+
     def _update_angle(self, angle: _angle.Angle):
         self._update_position(None)
 

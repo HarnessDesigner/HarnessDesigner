@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Iterable as _Iterable
 import uuid
 import wx
 
-from ...ui.editor_obj import prop_grid as _prop_grid
+from ...ui import prop_ctrls as _prop_ctrls
 from .bases import EntryBase, TableBase
 from ...geometry import point as _point
 
@@ -31,6 +31,15 @@ if TYPE_CHECKING:
 
 class SealsTable(TableBase):
     __table_name__ = 'seals'
+
+    _control: "SealControl" = None
+
+    @property
+    def control(self) -> "SealControl":
+        if self._control is None:
+            self._control = SealControl(self.db.mainframe)
+            self._control.Show(False)
+        return self._control
 
     def _load_database(self, splash):
         from ..create_database import seals
@@ -71,6 +80,31 @@ class SealsTable(TableBase):
             return Seal(self, db_id[0][0])
 
         raise KeyError(item)
+
+    def get_compat(self, terminal: str = None, housing: str = None):
+
+        res = []
+
+        if terminal is not None:
+            part_number = terminal
+            field_name = 'compat_terminals'
+        elif housing is not None:
+            part_number = housing
+            field_name = 'compat_housings'
+        else:
+            return []
+
+        self.execute(f'SELECT id, {field_name} FROM seals WHERE {field_name} LIKE "%{part_number}%;')
+        rows = self.fetchall()
+        for db_id, compat in rows:
+            compat = compat[1:-1].split(', ')
+
+            if part_number not in compat:
+                continue
+
+            res.append(db_id)
+
+        return res
 
     def insert(self, part_number: str, mfg_id: int, description: str, series_id: int, type: str, hardness: int,  # NOQA
                color_id: int, lubricant: str, min_temp_id: int, max_temp_id: int, length: float, o_dia: float,
@@ -379,29 +413,29 @@ class SealControl(wx.Notebook):
 
         wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
 
-        general_page = _prop_grid.Category(self, 'General')
+        general_page = _prop_ctrls.Category(self, 'General')
 
         self.part_number_ctrl = PartNumberControl(general_page)
         self.description_ctrl = DescriptionControl(general_page)
         self.color_ctrl = ColorControl(general_page)
 
-        self.hardness_ctrl = _prop_grid.IntProperty(
+        self.hardness_ctrl = _prop_ctrls.IntProperty(
             general_page, 'Hardness', min_value=-1, max_value=999, units='shore')
 
-        self.lubricant_ctrl = _prop_grid.StringProperty(general_page, 'Lubricant')
+        self.lubricant_ctrl = _prop_ctrls.StringProperty(general_page, 'Lubricant')
 
-        self.o_dia_ctrl = _prop_grid.FloatProperty(
+        self.o_dia_ctrl = _prop_ctrls.FloatProperty(
             general_page, 'Outside Diameter', min_value=0.0,
             max_value=99.9, increment=0.01, units='mm')
 
-        self.i_dia_ctrl = _prop_grid.FloatProperty(
+        self.i_dia_ctrl = _prop_ctrls.FloatProperty(
             general_page, 'Inside Diameter', min_value=0.00,
             max_value=99.9, increment=0.01, units='mm')
 
-        self.hardness_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_hardness)
-        self.lubricant_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_lubricant)
-        self.o_dia_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_o_dia)
-        self.i_dia_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_i_dia)
+        self.hardness_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_hardness)
+        self.lubricant_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_lubricant)
+        self.o_dia_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_o_dia)
+        self.i_dia_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_i_dia)
 
         self.mfg_page = ManufacturerControl(self)
         self.family_page = FamilyControl(self)
@@ -413,7 +447,7 @@ class SealControl(wx.Notebook):
 
         self.resources_page = ResourcesControl(self)
 
-        compat_parts_page = _prop_grid.Category(self, 'Compatible Parts')
+        compat_parts_page = _prop_ctrls.Category(self, 'Compatible Parts')
         self.compat_housing_ctrl = CompatHousingsControl(compat_parts_page)
         self.compat_terminals_ctrl = CompatTerminalsControl(compat_parts_page)
 

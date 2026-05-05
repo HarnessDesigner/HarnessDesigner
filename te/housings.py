@@ -1,641 +1,554 @@
-'''
 
-HOUSINGS
-----------------------------------------
-{
-    "features": [
-        "Connector & Housing Type",
-        "Performance Category",
-        "Bus Bar Mount Orientation",
-        "Operating Temperature (Max)",
-        "Termination Method to PCB",
-        "RF Connector Style",
-        "Data Rate",
-        "Nominal Voltage Architecture",
-        "RF Connector Center Contact Material",
-        "Conductor Combination 2",
-        "Quick Disconnect Terminal Type",
-        "Compatible Conductor Material",
-        "Operating Temperature Range",
-        "Mating Alignment Type",
-        "Connector Contact Density",
-        "Primary Locking Feature",
-        "Bus Bar Connector Mounting Retention",
-        "Card Edge Type",
-        "Centerline (Pitch)",
-        "Compatible With Agency/Standards Products",
-        "EMI Containment Feature Type",
-        "Shroud Style",
-        "Internal I/O Connector Type",
-        "Connector & Keying Code",
-        "Data Transmission Mode",
-        "PCB Connector Seating",
-        "Connector Mounting Type",
-        "Polarization Code",
-        "PCB Thickness (Recommended)",
-        "Piercing Blade Base Material",
-        "RF Connector Mated Outer Diameter (Approximate)",
-        "Bulkhead Style",
-        "RF Contact Captivation Method",
-        "Screw Flange",
-        "Circular Connector Contact Type",
-        "Contact Options",
-        "Connector Contact Load Condition",
-        "Palm Hole Diameter",
-        "Lighting Connector Style",
-        "Shielded",
-        "Shell Material",
-        "Multiple Port Configuration",
-        "Number of Coaxial Contacts",
-        "Mating Pin Diameter",
-        "IP Rating",
-        "Contact Mating Area Plating Material",
-        "Mating & Unmating Configuration",
-        "Rack & Panel Connector Shell Size",
-        "Backplane Architecture",
-        "Body Material Finish",
-        "Fluid Resistance",
-        "Detent",
-        "Port Matrix Configuration",
-        "Data Bus Connector Style",
-        "Contacts Preloaded",
-        "Mating Alignment",
-        "Fiber Optic Mode",
-        "Crimp Type",
-        "Contact Base Material",
-        "Alignment Keyed",
-        "FPC Actuator Type",
-        "Lighting Product Type",
-        "Assembly Process Feature",
-        "Number of Positions",
-        "Number of Ports",
-        "Impedance",
-        "Circular DIN Connector Type",
-        "PCB Mount Location",
-        "Bus Bar Contact Plating Material",
-        "Shell Type",
-        "Number of Dual Positions",
-        "Compatible Conductor Range - Main",
-        "Modular Jack Latch Orientation",
-        "PCB Connector Type",
-        "Lighting Connector Type",
-        "Panel Mount Feature",
-        "USB Version",
-        "Shield Plating Material",
-        "Body Material",
-        "PCB Mount Alignment",
-        "Modular Connector Style",
-        "Solar Connector Style",
-        "T-Branch Style",
-        "PCB Mount Orientation",
-        "Assembly Length",
-        "Number of Power Positions",
-        "Contact Type",
-        "Field Serviceable",
-        "Sealable",
-        "Connector Position Assurance Capable",
-        "Contact Protection",
-        "Connection Under Load (90A Max)",
-        "Size Group",
-        "Pluggable I/O Product Type",
-        "Termination Method to Wire & Cable",
-        "Contact Current Rating (Max)",
-        "Contact Mating Retention",
-        "Body Orientation",
-        "Number of Columns",
-        "FFC Connector Product Type",
-        "PCB Mount Retention Type",
-        "Number of Rows",
-        "Product Installation Type",
-        "Circular Connector Shell Size",
-        "Body Plating Material",
-        "Barrel Type",
-        "Shell Plating Material",
-        "Stackable",
-        "Guide Location",
-        "Connector Profile",
-        "Industry Standard",
-        "Header Type",
-        "Insulation Option",
-        "Packaging Method",
-        "Grounding Options",
-        "Contact Retention Within Housing",
-        "Installation Technology",
-        "Cable Type",
-        "Row-to-Row Spacing",
-        "Mating Retention",
-        "Connector Height",
-        "Connector Product Type",
-        "Product Height",
-        "Housing Color",
-        "PCB Contact Termination Area Plating Material",
-        "Insertion Force Type",
-        "Compatible With Wire & Cable Type",
-        "FFC Cable Entry",
-        "Mating Conductor Thickness",
-        "Port Configuration",
-        "Number of Signal Positions",
-        "RF Connector Coupling Mechanism",
-        "Mating Cycles (Max)",
-        "Compatible Conductor Range",
-        "Dielectric Material",
-        "Performance Level",
-        "Reverse Gender",
-        "Insertion Force",
-        "Lighting Connector Features Included",
-        "Mating Tab Width",
-        "Mating Tab Thickness",
-        "Bus Bar Mount Retention Type",
-        "Terminal Orientation",
-        "Soldering Temperature (Max)",
-        "Terminal Plating Material",
-        "Cable Exit Angle",
-        "Compatible Cable Diameter Range",
-        "Connector System",
-        "Connector Mates With",
-        "Form Factor",
-        "Pigtail Length",
-        "Circular Connector Shell Type",
-        "Included Lightpipe",
-        "Compatible Conductor Cross-Section Range - Tap",
-        "Contact Length",
-        "Operating Frequency Range",
-        "Wire Size",
-        "Circular Connector Type",
-        "Compatible Conductor Cross-Section Range - Main",
-        "Power Component Application Type",
-        "Compatible With RF Cable Type",
-        "Power Contact Centerline",
-        "Circuit Application",
-        "Operating Voltage",
-        "Mating Entry Location",
-        "Number of Loaded Positions",
-        "Number of Holes",
-        "Connector Shape",
-        "UL Flammability Rating",
-        "Contact Mating Location",
-        "Terminal Type",
-        "Stud Size",
-        "Conductor Combination 1",
-        "Shell Base Material",
-        "EMI Finger Location",
-        "Modular Jack & Plug Interface Type",
-        "PCB Mount Retention",
-        "RF Connector Center Contact Plating Material",
-        "Data Rate (Max)",
-        "Product Availability",
-        "Voltage Class",
-        "Termination Post & Tail Length",
-        "Connector & Contact Terminates To",
-        "RF Interface",
-        "Solar Connector Type",
-        "Panel Mount Feature Type",
-        "Circular Connector Insulation Material Type",
-        "Compression Connector Product Type",
-        "Docking Connector Style",
-        "Contact Mating Area Plating Material Thickness",
-        "Modular Jacks & Plugs Products",
-        "Connector Shell Size",
-        "Primary Product Material",
-        "Bus Bar Contact Style",
-        "Hermetically Sealed",
-        "Glow Wire Rating",
-        "Housing Material",
-        "Number of Utility Contacts",
-        "Data Bus Connector Type",
-        "Rows Loaded",
-        "Primary Product Color",
-        "USB Type",
-        "Packaging Quantity",
-        "Contact Layout Arrangement",
-        "Compatible Conductor Cross-Section Range",
-        "Palm Terminal Material",
-        "Keying Type",
-        "Mating Retention Type"
-    ],
-    "feature_groups": {
-        "Product Type Features": [
-            "Connector & Housing Type",
-            "RF Connector Style",
-            "Conductor Combination 2",
-            "Card Edge Type",
-            "Primary Locking Feature",
-            "Integral Locking Latch",
-            "Insulating Connector Product Type",
-            "Shroud Style",
-            "Internal I/O Connector Type",
-            "Data Transmission Mode",
-            "Compatible with PCB Type",
-            "Piercing Blade Base Material",
-            "Connector Seal & Plug Type",
-            "Lighting Connector Style",
-            "Terminal Features",
-            "Prewired",
-            "Rack & Panel Connector Shell Size",
-            "Data Bus Connector Style",
-            "Fiber Optic Mode",
-            "Cage Type",
-            "FPC Actuator Type",
-            "Lighting Product Type",
-            "Circular DIN Connector Type",
-            "Shell Type",
-            "PCB Connector Type",
-            "Shell Material Configuration",
-            "Signal Arrangement",
-            "Eurocard Connector Configuration Type",
-            "Lighting Connector Type",
-            "USB Version",
-            "Modular Connector Style",
-            "Solar Connector Style",
-            "Ground Feature Type",
-            "Sealable",
-            "Make First / Break Last Contacts Loaded",
-            "Size Group",
-            "Pluggable I/O Product Type",
-            "FFC Connector Product Type",
-            "Connector Mating Latch & Lock Type",
-            "Fiber Optic Product Type",
-            "Header Type",
-            "Ribbon Cable Connector Type",
-            "Installation Technology",
-            "Grounding Options",
-            "Connector Product Type",
-            "Insertion Force Type",
-            "Performance Level",
-            "Applied Pressure",
-            "Insertion Force",
-            "Thermal Accessory Type Included",
-            "Ribbon Cable Connector Header Type",
-            "Backplane Interface Type",
-            "Fiber Optic Cable Type",
-            "Backplane Module Type",
-            "Connector System",
-            "Connector Mates With",
-            "Form Factor",
-            "Compatible With Discrete Wire Type",
-            "Circular Connector Shell Type",
-            "Mixed & Hybrid Header",
-            "Assembly Requirement",
-            "Circular Connector Type",
-            "Compatible With RF Cable Type",
-            "Power Component Options",
-            "Connector Shape",
-            "Assembly Type",
-            "Stud Size",
-            "Conductor Combination 1",
-            "Modular Jack & Plug Interface Type",
-            "Mixed & Hybrid Connector",
-            "Connector & Contact Terminates To",
-            "RF Interface",
-            "Solar Connector Type",
-            "Docking Connector Style",
-            "Modular Jacks & Plugs Products",
-            "Connector Shell Size",
-            "Receptacle Configuration",
-            "Data Bus Connector Type",
-            "Product Line",
-            "USB Type"
-        ],
-        "Configuration Features": [
-            "Number of Bolts",
-            "Lightpipe Style",
-            "Connector Modification",
-            "Number of Positions by Circuit Application",
-            "Number of Positions",
-            "Keying & Polarized Position Locations",
-            "Number of Ports",
-            "Connector Seal Code",
-            "Number of Bays",
-            "Number of Loaded Positions",
-            "Number of Holes",
-            "Number of Insulation Displacement Slots",
-            "Number of Fins",
-            "Number of Dual Positions",
-            "Connector Contact Density",
-            "Card Slot Centerline",
-            "Factory Installed Backshell",
-            "EMI Finger Location",
-            "Endface Geometry",
-            "Compatible With Wire & Cable Type",
-            "Visual Inspection",
-            "Port Configuration",
-            "Reverse Numbering",
-            "Stacking Configuration",
-            "Number of Standoffs",
-            "Number of PCB Ground Tabs",
-            "Number of Signal Positions",
-            "Wire Entry Location",
-            "Board-to-Board Configuration",
-            "Number of Ground Positions",
-            "T-Branch Style",
-            "Number of Panel Ground Tabs",
-            "Number of Pairs",
-            "PCB Mount Orientation",
-            "Insertion Force",
-            "Number of Inserts",
-            "Release Style",
-            "Keying & Polarized Rib Location",
-            "Number of Power Positions",
-            "Connector Contact Load Condition",
-            "Lighting Connector Features Included",
-            "Number of Mounting Legs",
-            "Panel Ground Location",
-            "Card Entry Style",
-            "Number of Coax Positions",
-            "Fuse Protection Level",
-            "Number of Rear EONs per Port Column",
-            "Multiple Port Configuration",
-            "Number of Coaxial Contacts",
-            "Power/Signal/Coax Combination",
-            "Number of Power or Coaxial Positions",
-            "Number of Sections",
-            "PCB Retention Location",
-            "Blank Cavity Position",
-            "Keying Arrangement",
-            "Mating & Unmating Configuration",
-            "Rows Loaded",
-            "Backplane Architecture",
-            "Number of Columns",
-            "Number of Cavities",
-            "Number of Rows",
-            "Pairs per Column",
-            "Port Matrix Configuration",
-            "Connection Capacity",
-            "Contacts Preloaded",
-            "Snap-Lock",
-            "Stackable",
-            "Keying Type",
-            "Guide Location"
-        ],
-        "Contact Features": [
-            "Contact Underplating Material Thickness",
-            "Contact Quantity (Size 12)",
-            "Feedthrough Post Length",
-            "Contact Arrangement Code (Module E)",
-            "RF Connector Center Contact Material",
-            "Quick Disconnect Terminal Type",
-            "Contact Type (Module C)",
-            "Ferrule Material",
-            "Contact Arrangement Code",
-            "Contact Quantity (Size 12 Databus)",
-            "Contact Mating Area Length",
-            "Contact Arrangement Code (Module C)",
-            "Cavity 3 Blade Length",
-            "Multiple Contact Types",
-            "Circular Connector Contact Type",
-            "Contact Options",
-            "Contact Plating Material",
-            "Contact Arrangement Code (Module A)",
-            "Mating Pin Diameter",
-            "Cavity 1 Blade Length",
-            "Center Contact",
-            "Contact Mating Area Plating Material",
-            "Power Contact Base Material",
-            "Contact Arrangement Code (Module D)",
-            "Crimp Type",
-            "Contact Base Material",
-            "Wire Contact Termination Area Plating Material Finish",
-            "Signal Contact Material",
-            "Contact Shape & Form",
-            "Contact Quantity (Size 12 Coax)",
-            "Contact Fabrication",
-            "Wire Contact Termination Area Plating Material",
-            "Contact Type (Module D)",
-            "Contact Type",
-            "Rack & Panel Connector Contact Style",
-            "Contact Size",
-            "CompactPCI Designation",
-            "Contact Protection",
-            "Contact Quantity (Size 16)",
-            "Mating Square Post Dimension",
-            "Contact Quantity (Size 22D)",
-            "Contact Current Rating (Max)",
-            "Contact Mating Retention",
-            "RF Connector Center Contact Underplating Material",
-            "Barrel Type",
-            "PCB Contact Termination Area Plating Material Finish",
-            "Contact Protection Type",
-            "Tail Plating Material",
-            "Contact Retention Within Housing",
-            "PCB Contact Termination Area Plating Material",
-            "PCB Contact Termination Area Plating Material Thickness",
-            "Wire Contact Termination Area Plating Thickness",
-            "Contact Underplating Material",
-            "Reverse Gender",
-            "Contact Type (Module B)",
-            "Mating Tab Width",
-            "Mating Tab Thickness",
-            "Terminal Orientation",
-            "Terminal Plating Material",
-            "RF Connector Contact Configuration",
-            "Contact Length",
-            "Contact Type (Module A)",
-            "Contact Mating Area Plating Material Finish",
-            "Contact Quantity (Size 20)",
-            "Contact Quantity (Size 12 Shielded)",
-            "Terminal Type",
-            "Contact Mating Location",
-            "PCB Termination Area Plating Finish",
-            "Cavity 4 Blade Length",
-            "RF Connector Center Contact Plating Thickness",
-            "RF Connector Center Contact Plating Material",
-            "Outer Contact Plating Material",
-            "Contact Arrangement Code (Module B)",
-            "Contact Arrangement Code (Module F)",
-            "Contact Layout",
-            "Power Contact Plating Material",
-            "Contact Quantity (Size 8 Databus)",
-            "Contact Mating Area Plating Material Thickness",
-            "Ferrule Plating Material",
-            "Bus Bar Contact Style",
-            "Number of Utility Contacts",
-            "Contact Layout Arrangement",
-            "Cavity 2 Blade Length",
-            "Signal Contact Plating Material"
-        ],
-        "Mechanical Attachment": [
-            "Detent Type",
-            "Contact Retention Type Within Housing",
-            "Mounting Feature Material",
-            "Bus Bar Mount Orientation",
-            "Connector Hardware Type",
-            "PCB Mount Location",
-            "Mating Retention",
-            "Mating Alignment Type",
-            "Mounting Holes",
-            "Bus Bar Connector Mounting Retention",
-            "Mechanical Reinforcement",
-            "Terminal Position Assurance",
-            "PCB Mount Retention",
-            "Panel Mount Feature",
-            "PCB Connector Seating",
-            "Connector Mounting Type",
-            "Extraction Force",
-            "PCB Mounting Style",
-            "Clinch Nut Quantity",
-            "Polarization Code",
-            "RF Connector Coupling Mechanism",
-            "PCB Mount Alignment",
-            "RF Contact Captivation Method",
-            "Strain Relief",
-            "Thread Size",
-            "Panel Mount Feature Type",
-            "Locking Feature",
-            "Screw Flange",
-            "Clinch Nut Size",
-            "Guide Hardware",
-            "Bus Bar Mount Retention Type",
-            "Mounting Feature Plating Material",
-            "PCB Mount Alignment Type",
-            "Locking Lance Height",
-            "Panel Attachment Style",
-            "Shear Head Breaking Torque",
-            "Mounting Hole Diameter",
-            "PCB Mount Retention Type",
-            "Detent",
-            "Front Mating Level",
-            "Assembly Process Feature Plating Material",
-            "Mating Retention Feature Plating Material",
-            "Mounting Hardware",
-            "Mating Alignment",
-            "Mounting Alignment Feature Length",
-            "Locking Latch Between Cavity Number",
-            "Mating Retention Type",
-            "Wire Insulation Support"
-        ],
-        "Housing Features": [
-            "Housing Color",
-            "Centerline (Pitch)",
-            "Housing Material",
-        ],
-        "Dimensions": [
-            "Connector Length",
-            "Product Length",
-            "Connector Height",
-            "Product Height",
-            "Connector Width",
-            "Cable Diameter Range",
-            "Assembly Length",
-            "Compatible Cable Diameter Range",
-            "Product Width",
-        ],
-        "Usage Conditions": [
-            "Mating Cycles (Max)",
-            "Operating Temperature Range"
-        ],
-        "Operation/Application": [
-            "Shielded",
-        ],
-        "Electrical Characteristics": [
-            "Voltage Rating",
-            "Current Rating",
-        ],
-        "Body Features": [
-            "Body Material",
-            "Product Weight",
-            "Cable Exit Angle",
-            "Primary Product Material",
-            "Primary Product Color",
-        ],
-        "Industry Standards": [
-            "IP Rating"
-        ],
-        "Other": [
-            "Connector Position Assurance Capable",
-            "Number of High Speed Data Positions",
-        ],
-    },
-    "base_categories": [
-        "Energy & Power",
-        "Automotive Parts",
-        "Fiber Optics",
-        "Cable Assemblies",
-        "Terminals & Splices",
-        "Connectors"
-    ],
-    "parent_categories": [
-        "Industrial Mini I/O Connectors",
-        "Data Connectivity Headers",
-        "RJ45 Connectors",
-        "RJ22 Connectors",
-        "PC/104 Connectors",
-        "Ballast Connectors",
-        "Street Lighting Receptacles",
-        "Backplane Connector Housings",
-        "Insulation Piercing Connectors",
-        "RJ11 Connectors",
-        "SC Connectors",
-        "Compression Connectors",
-        "Plug & Socket Lighting Connectors",
-        "Board-In Connectors",
-        "MC801 Fiber Connectors",
-        "Poke-In Connectors",
-        "Card Edge Power Connectors",
-        "Data Connectivity Housings",
-        "Solar Connectors",
-        "PCB Headers & Receptacles",
-        "Crimp Terminal Housings",
-        "DIN Connectors",
-        "Coax Connectors",
-        "Docking Connectors",
-        "Ribbon Cable Connectors",
-        "RJ14 Connectors",
-        "Expanded Beam Fiber Housings",
-        "USB Connectors",
-        "Two-Piece Edge Connectors",
-        "High Speed Backplane Connectors",
-        "Grounding/Earthing Connectors",
-        "LC Connectors",
-        "HSSDC2 Connectors",
-        "Eurocard Connectors",
-        "Card Edge Connector Housings",
-        "RJ25 Connectors",
-        "Busbar Connectors",
-        "DisplayPort Connectors",
-        "High Speed Pluggable IO Connectors & Cages",
-        "Quick Disconnects",
-        "Standard Rectangular Connectors",
-        "RJ Point Five Connectors",
-        "IEEE 1394 Connectors",
-        "FFC Connectors",
-        "Automotive Headers",
-        "Hard Metric Backplane Connectors",
-        "Wedge Connectors",
-        "Rack & Panel Connectors",
-        "DC Jack Connectors",
-        "Street Lighting Connectors",
-        "D-Shaped Connectors",
-        "Standard Edge Connectors",
-        "Automotive Housings",
-        "Circular Power Connectors",
-        "HDMI Connectors",
-        "Internal I/O Connectors",
-        "SDL Connectors",
-        "FPC Connectors",
-        "Backplane Power Connectors",
-        "Data Bus Connectors",
-        "Insulating Connectors",
-        "Standard Circular Connectors"
-    ],
-    "brands": [
-        "TE Connectivity",
-        "POLAMCO",
-        "AMP",
-        "Transpower",
-        "Nanonics",
-        "Raychem",
-        "ERNI",
-        "Crompton Instruments",
-        "Microdot",
-        "DEUTSCH",
-        "Schrack",
-        "Buchanan",
-        "Elcon",
-        "Greenpar",
-        "HTS",
-        "Simel"
-    ]
-}
+import json
+from decimal import Decimal
+import math
+
+in_path = 'separated/housings.json'
+out_path = 'output/housings.json'
+model3d_count = 0
+te_url = 'https://api.te.com/'
+out_data = []
 
 
-'''
+with open(in_path, 'r') as f:
+    in_data = json.loads(f.read())
+
+
+with open('separated/addl_housings.json', 'r') as f:
+    in_data.extend(json.loads(f.read()))
+
+
+def get_temperatures(val):
+    if not val:
+        return None, None
+
+    val = val.split(' – ')
+    if len(val) == 1:
+        min_val, max_val = val[0]
+    else:
+        min_val, max_val = val
+
+    return int(min_val), int(max_val)
+
+
+def _d(v):
+    return Decimal(str(v))
+
+
+def awg_to_mm2(awg: int) -> float:
+    d_in = _d(0.005) * (_d(92) ** ((_d(36) - _d(awg)) / _d(39)))
+    d_mm = d_in * _d(25.4)
+    area_mm2 = (_d(math.pi) / _d(4)) * (d_mm ** _d(2))
+    return float(round(area_mm2, 4))
+
+
+def get_terminal_size(val):
+
+    if 'Size' in val:
+        val = int(val.replace('Size', '').strip())
+        return awg_to_mm2(val)
+
+    if 'K' in val:
+        return None
+
+    output = ''
+    for char in val:
+        if char in '123456789.0':
+            output += char
+
+    if output.startswith('.'):
+        output = '0' + output
+
+    return float(_d(output))
+
+
+for product in in_data:
+    part_number = product.get('marketingPartNumNormalized', None)
+    description = product.get('friendlyDescription', '')
+    mfg = product.get('brand', None)
+    family = None  # *
+    series = None  # *
+    color = None  # *
+    image = None  # *
+    datasheet = None  # *
+    cad = None  # *
+    min_temp = None  # *
+    max_temp = None  # *
+    model3d = None  # *
+    direction = None  # *
+    gender = None  # *
+    cavity_lock = None  # *
+    ip_rating = 'IP00'  # *
+    seal_type = None
+    cpa_lock_type = None  # *
+    sealing = 0  # *
+    rows = 0  # *
+    shape = None  # *
+    num_pins = 0  # *
+    terminal_sizes = []  # *
+    terminal_size_counts = []
+    centerline = 0.0  # *
+    compat_cpas = None
+    compat_tpas = None
+    compat_covers = None
+    compat_terminals = None
+    compat_seals = None
+    compat_housings = None
+    compat_boots = None
+    length = 0.0  # *
+    width = 0.0  # *
+    height = 0.0  # *
+    weight = 0.0  # *
+    cover_point3d = None
+    seal_point3d = None
+    boot_point3d = None
+    tpa_lock_1_point3d = None
+    tpa_lock_2_point3d = None
+    cpa_lock_point3d = None
+
+    if part_number is None:
+        part_number = product.get('tcpn', None)
+
+    if part_number is None:
+        continue
+
+    if mfg is None:
+        continue
+
+    for doc in product.get('documents', []):
+        doc_type = doc.get('type', '')
+
+        if (
+            doc_type == 'Customer View Model' and
+            '3d_' in doc.get('format', '') and
+            model3d is None
+        ):
+            model3d = doc.get('url', None)
+        elif doc_type == 'Customer Drawing' and cad is None:
+            cad = doc.get('url', None)
+
+        elif doc_type == 'Specification Or Standard' and datasheet is None:
+            datasheet = doc.get('url', None)
+
+    images = product.get('images', [])
+
+    if images:
+        image = te_url + images[0].get('imageUrl', '')
+    else:
+        images = product.get('primaryImages', [])
+
+        if images:
+            image = te_url + images[0]['path'] + images[0]['imageName']
+
+    features = product.get('primaryFeatures', [])
+
+    skip = False
+
+    for feature in features:
+        label = feature.get('label', '')
+
+        if label == 'Number of Positions':
+            if num_pins:
+                continue
+
+            values = feature.get('primaryValues', [])
+            if values:
+                num_pins = int(values[0].get('value', '0'))
+
+        if label == 'Number of Coaxial Contacts':
+            if num_pins:
+                continue
+
+            values = feature.get('primaryValues', [])
+            if values:
+                num_pins = int(values[0].get('value', '0'))
+
+        if label == 'Number of Rows':
+            if rows:
+                continue
+
+            values = feature.get('primaryValues', [])
+            if values:
+                rows = int(values[0].get('value', '0'))
+
+        if label == 'Sealable':
+
+            values = feature.get('primaryValues', [])
+            if values:
+                sealing = int(values[0].get('value', '') == 'Yes')
+
+        # if label == 'Contact Current Rating (Max)':
+        #     if current:
+        #         continue
+        #
+        #     values = feature.get('primaryValues', [])
+        #     if values:
+        #         current = float(values[0].get('value', ''))
+
+        if label == 'Operating Temperature Range':
+            if min_temp and max_temp:
+                continue
+
+            values = feature.get('primaryValues', [])
+            if values:
+                min_temp, max_temp = get_temperatures(values[0].get('value', ''))
+
+        if label == 'Connector Product Type':
+            values = feature.get('primaryValues', [])
+            if values:
+                p_type = values[0].get('value', '')
+                if p_type not in (
+                    'Housing',
+                    'Connector Assembly',
+                    'Housing Kit',
+                    'Connector Kit',
+                    'Housing Assembly'
+                ):
+                    skip = True
+
+        if label == 'Centerline (Pitch)':
+            if centerline:
+                continue
+
+            values = feature.get('primaryValues', [])
+            if values:
+                centerline = float(values[0].get('value', '0.0'))
+
+        if label == 'Circular Connector Type':
+            if gender:
+                continue
+
+            values = feature.get('primaryValues', [])
+            if values:
+                value = values[0].get('value', '')
+                if value == 'Circular Connector Receptacle':
+                    gender = 'Female'
+                elif value == 'Circular Connector Plug':
+                    gender = 'Male'
+                else:
+                    raise RuntimeError
+
+        if label == 'Data Bus Connector Type':
+            if gender:
+                continue
+
+            values = feature.get('primaryValues', [])
+            if values:
+                value = values[0].get('value', '')
+                if value == 'Jack':
+                    gender = 'Female'
+                elif value == 'Plug':
+                    gender = 'Male'
+                else:
+                    raise RuntimeError
+
+        if label == 'RF Connector Style':
+            if gender:
+                continue
+
+            values = feature.get('primaryValues', [])
+            if values:
+                value = values[0].get('value', '')
+                if value == 'Jack':
+                    gender = 'Female'
+                elif value == 'Plug':
+                    gender = 'Male'
+                else:
+                    raise RuntimeError
+
+        if label == 'Docking Connector Style':
+            if gender:
+                continue
+
+            values = feature.get('primaryValues', [])
+            if values:
+                value = values[0].get('value', '')
+                if value == 'Receptacle':
+                    gender = 'Female'
+                elif value == 'Plug':
+                    gender = 'Male'
+                else:
+                    raise RuntimeError
+
+        if label == 'Solar Connector Style':
+            if gender:
+                continue
+
+            values = feature.get('primaryValues', [])
+            if values:
+                value = values[0].get('value', '')
+                if value in ('Socket', 'Plug-Socket'):
+                    gender = 'Female'
+                elif value in ('Plug', 'Piercing'):
+                    gender = 'Male'
+                else:
+                    raise RuntimeError
+
+        if label == 'Connector Height':
+            if height:
+                continue
+
+            values = feature.get('primaryValues', [])
+            if values:
+                height = float(values[0].get('value', '0.0'))
+
+        if label == 'Product Height':
+            if height:
+                continue
+
+            values = feature.get('primaryValues', [])
+            if values:
+                height = float(values[0].get('value', '0.0'))
+
+        if label == 'Housing Color':
+            if color:
+                continue
+
+            values = feature.get('primaryValues', [])
+            if values:
+                color = values[0].get('value', None)
+
+        if label == 'Assembly Length':
+            if length:
+                continue
+
+            values = feature.get('primaryValues', [])
+            if values:
+                length = float(values[0].get('value', '0.0'))
+
+        if label == 'Primary Product Color':
+            if color:
+                continue
+
+            values = feature.get('primaryValues', [])
+            if values:
+                color = values[0].get('value', None)
+
+        if label == 'IP Rating':
+            values = feature.get('primaryValues', [])
+            if values:
+                ip_rating = values[0].get('value', 'IP00')
+
+        if label == 'Connector Shape':
+            if shape:
+                continue
+
+            values = feature.get('primaryValues', [])
+            if values:
+                shape = values[0].get('value', None)
+
+    for fg in product.get('featureGroups', []):
+        label = fg.get('label', '')
+
+        if label == 'Mechanical Attachment':
+            for feature in fg.get('features', []):
+                label2 = feature.get('label', '')
+
+                if label2 == 'Mating Retention Type':
+                    if cpa_lock_type:
+                        continue
+
+                    values = feature.get('primaryValues', [])
+                    if values:
+                        cpa_lock_type = values[0].get('value', None)
+
+        if label == 'Contact Features':
+            for feature in fg.get('features', []):
+                label2 = feature.get('label', '')
+
+                if label2 == 'Contact Size':
+                    for value in feature.get('primaryValues', []):
+                        value = get_terminal_size(value['value'])
+                        if value is None:
+                            continue
+
+                        terminal_sizes.append(value)
+
+        if label == 'Body Features':
+            for feature in fg.get('features', []):
+                label2 = feature.get('label', '')
+
+                if label2 == 'Product Weight':
+                    if weight:
+                        continue
+
+                    values = feature.get('primaryValues', [])
+                    if values:
+                        weight = float(values[0].get('value', '0.0'))
+
+                if label2 == 'Seal Type':
+                    if seal_type:
+                        continue
+
+                    values = feature.get('primaryValues', [])
+                    if values:
+                        seal_type = values[0].get('value', None)
+
+        if label == 'Product Type Fetures':
+
+            for feature in fg.get('features', []):
+                label2 = feature.get('label', '')
+
+                if label2 == 'Connector Seal & Plug Type':
+                    if seal_type:
+                        continue
+
+                    values = feature.get('primaryValues', [])
+                    if values:
+                        seal_type = values[0].get('value', None)
+
+        if label == 'Dimensions':
+            for feature in fg.get('features', []):
+                label2 = feature.get('label', '')
+
+                if label2 == 'Connector Length':
+                    if length:
+                        continue
+
+                    values = feature.get('primaryValues', [])
+                    if values:
+                        length = float(values[0].get('value', '0.0'))
+
+                if label2 == 'Connector Height':
+                    if height:
+                        continue
+
+                    values = feature.get('primaryValues', [])
+                    if values:
+                        height = float(values[0].get('value', '0.0'))
+
+                if label2 == 'Connector Width':
+                    if width:
+                        continue
+
+                    values = feature.get('primaryValues', [])
+                    if values:
+                        width = float(values[0].get('value', '0.0'))
+
+                if label2 == 'Assembly Length':
+                    if length:
+                        continue
+
+                    values = feature.get('primaryValues', [])
+                    if values:
+                        length = float(values[0].get('value', '0.0'))
+
+                if label2 == 'Product Width':
+                    if width:
+                        continue
+
+                    values = feature.get('primaryValues', [])
+                    if values:
+                        width = float(values[0].get('value', '0.0'))
+
+                if label2 == 'Product Length':
+                    if length:
+                        continue
+
+                    values = feature.get('primaryValues', [])
+                    if values:
+                        length = float(values[0].get('value', '0.0'))
+
+                if label2 == 'Product Height':
+                    if height:
+                        continue
+
+                    values = feature.get('primaryValues', [])
+                    if values:
+                        height = float(values[0].get('value', '0.0'))
+
+                if label2 == 'Product Diameter':
+                    values = feature.get('primaryValues', [])
+                    if values:
+                        width = height = float(values[0].get('value', '0.0'))
+
+    if skip:
+        continue
+
+    productFamily = product.get('productFamily', None)
+    if productFamily is not None:
+        for crumb in productFamily.get('crumbTrailItems', []):
+            if family:
+                break
+
+            family = crumb.get('name', None)
+
+    seriesTrail = product.get('seriesTrail', None)
+    if seriesTrail is not None:
+        for crumb in seriesTrail.get('crumbTrailItems', []):
+            if series:
+                break
+
+            series = crumb.get('name', None)
+
+    if family is None and 'TE' not in mfg:
+        family = mfg
+        mfg = 'TE Connectivity'
+
+    if family is not None and family.lower() == mfg.lower():
+        family = mfg
+        mfg = 'TE Connectivity'
+
+    if direction is None:
+        direction = 'Straight'
+
+    if gender is None:
+        gender = 'Unknown'
+
+    if color is None:
+        color = 'Gray'
+
+    out_data.append(dict(
+        part_number=part_number,
+        description=description,
+        mfg=mfg,
+        family=family,
+        series=series,
+        color=color,
+        image=image,
+        datasheet=datasheet,
+        cad=cad,
+        min_temp=min_temp,
+        max_temp=max_temp,
+        model3d=model3d,
+        direction=direction,
+        gender=gender,
+        cavity_lock=cavity_lock,
+        ip_rating=ip_rating,
+        seal_type=seal_type,
+        cpa_lock_type=cpa_lock_type,
+        sealing=sealing,
+        rows=rows,
+        num_pins=num_pins,
+        terminal_sizes=terminal_sizes,
+        terminal_size_counts=terminal_size_counts,
+        centerline=centerline,
+        compat_cpas=compat_cpas,
+        compat_tpas=compat_tpas,
+        compat_covers=compat_covers,
+        compat_terminals=compat_terminals,
+        compat_seals=compat_seals,
+        compat_housings=compat_housings,
+        compat_boots=compat_boots,
+        length=length,
+        width=width,
+        height=height,
+        weight=weight,
+        cover_point3d=None,
+        seal_point3d=None,
+        boot_point3d=None,
+        tpa_lock_1_point3d=None,
+        tpa_lock_2_point3d=None,
+        cpa_lock_point3d=None
+    ))
+
+    if model3d is not None:
+        model3d_count += 1
+
+with open(out_path, 'w') as f:
+    f.write(json.dumps(out_data, indent=4))
+
+
+print(len(out_data))
+print(model3d_count)
+

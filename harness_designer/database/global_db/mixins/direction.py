@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from ....ui.editor_obj import prop_grid as _prop_grid
+from ....ui import prop_ctrls as _prop_ctrls
 
 from .base import BaseMixin
 
@@ -28,7 +28,7 @@ class DirectionMixin(BaseMixin):
         self._populate('direction_id')
 
 
-class DirectionControl(_prop_grid.ComboBoxProperty):
+class DirectionControl(_prop_ctrls.ComboBoxProperty):
 
     def __init__(self, parent):
 
@@ -36,7 +36,7 @@ class DirectionControl(_prop_grid.ComboBoxProperty):
         self.db_obj: DirectionMixin = None
 
         super().__init__(parent, 'Direction')
-        self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_direction)
+        self.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_direction)
 
     def set_obj(self, db_obj: DirectionMixin):
         self.db_obj = db_obj
@@ -56,7 +56,7 @@ class DirectionControl(_prop_grid.ComboBoxProperty):
             self.Enable(True)
 
 
-    def _on_direction(self, evt: _prop_grid.PropertyEvent):
+    def _on_direction(self, evt: _prop_ctrls.PropertyEvent):
         name = evt.GetValue()
 
         self.db_obj.table.execute('SELECT id FROM directions WHERE name="{name}";')

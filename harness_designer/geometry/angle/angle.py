@@ -522,6 +522,29 @@ class Angle(metaclass=AngleMeta):
         return f'X: {x}, Y: {y}, Z: {z}'
 
     @classmethod
+    def from_direction(cls, direction: np.ndarray) -> "Angle":
+        """Create quaternion to rotate +Z axis to align with direction"""
+        # Unit cylinder points along +Z, rotate it to point along 'direction'
+
+        z_axis = np.array([0.0, 0.0, 1.0], dtype=np.float32)
+
+        # Handle special case: direction already aligned with Z
+        dot = np.dot(z_axis, direction)
+        if abs(dot - 1.0) < 0.0001:
+            return cls.from_quat([1.0, 0.0, 0.0, 0.0])  # Identity
+        if abs(dot + 1.0) < 0.0001:
+            # 180 degree rotation around X axis
+            return cls.from_quat([0.0, 1.0, 0.0, 0.0])
+
+        # Calculate rotation axis and angle
+        axis = np.cross(z_axis, direction)
+        axis = axis / np.linalg.norm(axis)
+
+        angle = math.acos(np.clip(dot, -1.0, 1.0))
+
+        return cls.from_axis_angle(axis, angle)
+
+    @classmethod
     def from_euler(cls, x: float, y: float, z: float, db_id: str | None = None) -> "Angle":
         q = _quaternion.Quaternion.from_euler(x, y, z)  # NOQA
         ret = cls(q, [x, y, z], db_id)

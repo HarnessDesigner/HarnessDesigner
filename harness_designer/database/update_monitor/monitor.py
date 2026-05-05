@@ -28,6 +28,9 @@ class BaseConnector:
     def fetchall(self):
         return self._cursor.fetchall()
 
+    def commit(self):
+        self._connection.commit()
+
     def close(self):
         try:
             self._cursor.close()
@@ -218,6 +221,70 @@ def process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.Q
     connector.close()
 
 
+def image_process_worker(in_queue: multiprocessing.Queue,
+                         exit_event: multiprocessing.Event,
+                         print_lock: multiprocessing.Lock,
+                         sleep_event: multiprocessing.Event):
+
+    while in_queue.empty():
+        pass
+
+    ppid = in_queue.get_nowait()
+
+    # Regenerate service ID from inherited stealth environment variables
+    cred_manager = _manager.Manager(print_lock, pid=ppid)
+
+    credentials = cred_manager.retrieve_credentials(print_lock)
+    if credentials is None:
+        with print_lock:
+            print('IMAGE DOWNLOADER: error collecting credentials')
+
+        return
+
+    connector = connect_to_database(credentials)
+
+    if connector is None:
+        with print_lock:
+            print('IMAGE DOWNLOADER: unknown database type')
+        return
+
+    from ... import resources as _resources
+
+    wait_event = threading.Event()
+
+    while not exit_event.is_set():
+        sleep_event.wait()
+        sleep_event.clear()
+
+        while not in_queue.empty():
+            image_id = in_queue.get_nowait()
+
+            connector.execute(f'SELECT uuid, path FROM images WHERE id={image_id};')
+            image = connector.fetchall()
+
+            if not image:
+                continue
+
+            uuid, path = image[0]
+
+            if uuid is not None or not path:
+                continue
+
+            values = _resources.collect_resource(connector, _resources.IMAGE_TYPE_IMAGE, path)
+
+            if values is None:
+                continue
+
+            file_id, file_type_id = values
+
+            connector.execute(f'UPDATE images SET file_type_id={file_type_id}, uuid="{file_id}" WHERE id={image_id};')
+            connector.commit()
+
+            sleep_event.wait(2.0)
+
+    connector.close()
+
+
 class Monitor(threading.Thread):
 
     def __init__(self, mainframe: "_ui.MainFrame"):
@@ -242,11 +309,25 @@ class Monitor(threading.Thread):
             target=process_worker, args=(self.out_queue, self.in_queue, self.process_exit_event,
                                          self.print_lock, self.sleep_event))
 
+        self.image_out_queue = multiprocessing.Queue()
+        self.image_sleep_event = multiprocessing.Event()
+        self.image_exit_event = multiprocessing.Event()
+
+        self.image_out_queue.put(os.getpid())
+
+        self.image_process = multiprocessing.Process(
+            target=image_process_worker, args=(self.image_out_queue, self.image_exit_event, self.print_lock, self.image_sleep_event))
+
         self.process.daemon = True
 
     def start(self):
         self.process.start()
+        self.image_process.start()
         threading.Thread.start(self)
+
+    def get_image(self, image_id):
+        self.image_out_queue.put(image_id)
+        self.image_sleep_event.set()
 
     def run(self):
         while not self.exit_event.is_set():
@@ -280,7 +361,6 @@ class Monitor(threading.Thread):
         self.send(type='reset_storage')
 
     def send(self, **kwargs):
-        print(kwargs)
         message = json.dumps(kwargs)
         with self.queue_lock:
             self.queue.append(message)
@@ -288,6 +368,9 @@ class Monitor(threading.Thread):
         self.wait_event.set()
 
     def stop(self):
+        self.image_exit_event.set()
+        self.image_sleep_event.set()
+
         self.process_exit_event.set()
         self.sleep_event.set()
 

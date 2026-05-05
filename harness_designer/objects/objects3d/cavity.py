@@ -58,6 +58,10 @@ class Cavity(_base3d.Base3D):
 
         _base3d.Base3D._update_angle(self, angle)
 
+    @property
+    def seal_position(self) -> _point.Point:
+        return self.db_obj.position3d
+
 
 class CavityMenu(wx.Menu):
     def __init__(self, editor, obj):

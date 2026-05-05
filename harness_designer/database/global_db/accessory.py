@@ -10,6 +10,15 @@ from .mixins import (PartNumberMixin, DescriptionMixin, ManufacturerMixin,
 class AccessoriesTable(TableBase):
     __table_name__ = 'accessories'
 
+    _control: "AccessoryControl" = None
+
+    @property
+    def control(self) -> "AccessoryControl":
+        if self._control is None:
+            self._conrol = AccessoryControl(self.db.mainframe)
+
+        return self._control
+
     def _table_needs_update(self) -> bool:
         from ..create_database import accessories
 

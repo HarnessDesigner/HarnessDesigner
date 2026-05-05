@@ -1,6 +1,6 @@
 from .base import BaseMixin
 
-from ....ui.editor_obj import prop_grid as _prop_grid
+from ....ui import prop_ctrls as _prop_ctrls
 
 
 class DescriptionMixin(BaseMixin):
@@ -15,14 +15,14 @@ class DescriptionMixin(BaseMixin):
         self._populate('description')
 
 
-class DescriptionControl(_prop_grid.LongStringProperty):
+class DescriptionControl(_prop_ctrls.LongStringProperty):
 
     def __init__(self, parent):
         self.db_obj: DescriptionMixin = None
 
         super().__init__(parent, 'Description')
 
-        self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_desc)
+        self.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_desc)
 
     def set_obj(self, db_obj: DescriptionMixin):
         self.db_obj = db_obj
@@ -34,6 +34,6 @@ class DescriptionControl(_prop_grid.LongStringProperty):
             self.SetValue(db_obj.description)
             self.Enable(True)
 
-    def _on_desc(self, evt: _prop_grid.PropertyEvent):
+    def _on_desc(self, evt: _prop_ctrls.PropertyEvent):
         desc = evt.GetValue()
         self.db_obj.description = desc

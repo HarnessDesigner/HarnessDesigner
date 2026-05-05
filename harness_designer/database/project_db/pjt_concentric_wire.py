@@ -1,7 +1,7 @@
 
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
-from ...ui.editor_obj import prop_grid as _prop_grid
+from ...ui import prop_ctrls as _prop_ctrls
 
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from .mixins import NotesMixin, Position2DMixin
@@ -142,13 +142,13 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
         self._populate('wire_id')
 
     @property
-    def propgrid(self) -> _prop_grid.Property:
-        group = _prop_grid.Property(f'Wire {self.idx}')
+    def propgrid(self) -> _prop_ctrls.Property:
+        group = _prop_ctrls.Property(f'Wire {self.idx}')
 
         notes_prop = self._notes_propgrid
         position_prop = self._position2d_propgrid
 
-        is_filler_prop = _prop_grid.BoolProperty('Is Filler Wire', 'is_filler', self.is_filler)
+        is_filler_prop = _prop_ctrls.BoolProperty('Is Filler Wire', 'is_filler', self.is_filler)
 
         group.Append(notes_prop)
         group.Append(is_filler_prop)

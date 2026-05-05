@@ -5,7 +5,6 @@ from . import manufacturers as _manufacturers
 from . import series as _series
 from . import families as _families
 from . import temperatures as _temperatures
-from . import transition_series as _transition_series
 from . import colors as _colors
 from . import materials as _materials
 from . import shapes as _shapes
@@ -43,19 +42,15 @@ def add_transition(con, part_number, description, mfg=None, family=None, series=
     cad_id = _cads.get_cad_id(con, cad)
     datasheet_id = _datasheets.get_datasheet_id(con, datasheet)
 
-    try:
-        con.execute('INSERT INTO transitions (part_number, description, mfg_id, '
-                    'family_id, series_id, color_id, image_id, datasheet_id, cad_id, '
-                    'min_temp_id, max_temp_id, material_id, shape_id, protection_id, '
-                    'branch_count, adhesive_ids, weight) '
-                    'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                    (part_number, description, mfg_id, family_id, series_id, color_id,
-                     image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, material_id,
-                     shape_id, protection_id, branch_count,
-                     str(adhesive_ids), weight))
-    except:  # NOQA
-        _logger.logger.error(part_number)
-        raise
+    con.execute('INSERT INTO transitions (part_number, description, mfg_id, '
+                'family_id, series_id, color_id, image_id, datasheet_id, cad_id, '
+                'min_temp_id, max_temp_id, material_id, shape_id, protection_id, '
+                'branch_count, adhesive_ids, weight) '
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                (part_number, description, mfg_id, family_id, series_id, color_id,
+                 image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, material_id,
+                 shape_id, protection_id, branch_count,
+                 str(adhesive_ids), weight))
 
     con.commit()
 
@@ -64,9 +59,8 @@ def add_transition(con, part_number, description, mfg=None, family=None, series=
     for i, branch in enumerate(branches):
         try:
             _transition_branches.add_transition_branch(con, i, transition_id, **branch)
-        except:  # NOQA
-            _logger.logger.error('BRANCH ERROR:', part_number)
-            continue
+        except Exception as err:
+            _logger.logger.traceback(err)
 
 
 def add_pjt_transition(con, project_id, part_id, point3d_id=None, name='', notes='',
@@ -92,20 +86,9 @@ def add_transitions(con, data: tuple[dict] | list[dict]):
 
 
 def add_records(con, splash, data_path):
-    con.execute('SELECT id FROM transitions WHERE id=0;')
+    con.execute('SELECT id FROM transitions WHERE id=1;')
     if con.fetchall():
         return
-
-    splash.SetText(f'Adding transition to db [1 | 1]...')
-    splash.flush()
-
-    con.execute('INSERT INTO transitions (id, part_number, description, mfg_id, family_id, '
-                'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
-                'max_temp_id, material_id, transition_series_id, shape_id, protection_id, '
-                'branch_count, adhesive_ids, weight) VALUES '
-                '(0, "N/A", "Internal Use DO NOT DELETE", 0, 0, 0, 999999, '
-                'NULL, NULL, NULL, 0, 0, 0, 0, 0, 0, 0, "[]", 0.0);')
-    con.commit()
 
     json_path = os.path.join(data_path, 'transitions.json')
     if os.path.exists(json_path):
@@ -121,20 +104,19 @@ def add_records(con, splash, data_path):
         splash.flush()
 
         for i, item in enumerate(data):
-            splash.SetText(f'Adding transitions to db [{i + 1} | {data_len}]...')
+            if not i % 100:
+                splash.SetText(f'Adding transitions to db [{i + 1} | {data_len}]...')
 
-            pn = item['part_number']
-            con.execute(f'SELECT id FROM transitions WHERE part_number="{pn}";')
-            rows = con.fetchall()
-            if not rows:
+            item['protection'] = '\n'.join(item['protection'])
 
-                item['protection'] = '\n'.join(item['protection'])
+            item['image'] = None
+            item['datasheet'] = None
+            item['cad'] = None
 
-                item['image'] = None
-                item['datasheet'] = None
-                item['cad'] = None
-
+            try:
                 add_transition(con, **item)
+            except Exception as err:
+                _logger.logger.traceback(err)
 
         con.commit()
 

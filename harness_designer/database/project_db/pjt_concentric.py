@@ -1,7 +1,7 @@
 
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
-from ...ui.editor_obj import prop_grid as _prop_grid
+from ...ui import prop_ctrls as _prop_ctrls
 
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from .mixins import NotesMixin
@@ -141,22 +141,22 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
         self._populate('transition_branch_id')
 
     @property
-    def propgrid(self) -> _prop_grid.Category:
-        group = _prop_grid.Category('Concentric')
+    def propgrid(self) -> _prop_ctrls.Category:
+        group = _prop_ctrls.Category('Concentric')
 
         notes_prop = self._notes_propgrid
 
         group.Append(notes_prop)
-        layers_group = _prop_grid.Property('Layers')
+        layers_group = _prop_ctrls.Property('Layers')
 
         for layer in self.layers:
             layers_group.Append(layer.propgrid)
 
         if self.transition_branch is not None:
             t_group, t_part_prop = self.transition_branch.propgrid
-            attach_group = _prop_grid.Property('Transition Branch')
-            project_group = _prop_grid.Property('Project')
-            part_group = _prop_grid.Property('Part')
+            attach_group = _prop_ctrls.Property('Transition Branch')
+            project_group = _prop_ctrls.Property('Project')
+            part_group = _prop_ctrls.Property('Part')
 
             for child in t_group._children:
                 project_group.Append(child)
@@ -171,9 +171,9 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
 
         if self.bundle is not None:
             b_group, b_part_prop = self.bundle.propgrid
-            attach_group = _prop_grid.Property('Bundle')
-            project_group = _prop_grid.Property('Project')
-            part_group = _prop_grid.Property('Part')
+            attach_group = _prop_ctrls.Property('Bundle')
+            project_group = _prop_ctrls.Property('Project')
+            part_group = _prop_ctrls.Property('Part')
 
             for child in b_group._children:
                 project_group.Append(child)

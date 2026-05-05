@@ -58,9 +58,6 @@ class Canvas3D(wx.Panel):
 
             x2 = x1 + w
             y2 = y1 + h
-
-            print('canvas:', (x1, y1), (x2, y2))
-
             axis_overlay = self._canvas.axis_overlay
 
             if axis_overlay is not None:
@@ -69,9 +66,6 @@ class Canvas3D(wx.Panel):
 
                 ax2 = ax1 + aw
                 ay2 = ay1 + ah
-
-                print('axis:', (ax1, ay1), (ax2, ay2))
-
                 if ax1 < x1:
                     x = x1
                 elif ax2 > x2:

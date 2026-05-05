@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Iterable as _Iterable
 
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from .mixins import Position3DMixin, PartMixin
-from ...ui.editor_obj import prop_grid as _prop_grid
+from ...ui import prop_ctrls as _prop_ctrls
 from ..global_db import transition_branch as _transition_branch
 
 
@@ -151,11 +151,11 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin):
         return self._stored_part
 
     @property
-    def propgrid(self) -> tuple[_prop_grid.Category, _prop_grid.Category]:
-        group = _prop_grid.Category('Project')
+    def propgrid(self) -> tuple[_prop_ctrls.Category, _prop_ctrls.Category]:
+        group = _prop_ctrls.Category('Project')
 
         position_prop = self._position3d_propgrid
-        diameter_prop = _prop_grid.FloatProperty('Diameter', 'diameter', self.diameter,
+        diameter_prop = _prop_ctrls.FloatProperty('Diameter', 'diameter', self.diameter,
                                                  min_value=0.01, max_value=99.99, increment=0.01, units='mm')
 
         group.Append(diameter_prop)

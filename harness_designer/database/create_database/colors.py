@@ -57,7 +57,9 @@ def get_color_id(con, name):
         res = con.fetchall()
 
     if not res:
-        raise RuntimeError(name)
+        print('MISSING COLOR:', name)
+        return 1019
+        # raise RuntimeError(name)
 
     return res[0][0]
 

@@ -4,7 +4,7 @@ import wx
 import numpy as np
 import weakref
 
-from ...ui.editor_obj import prop_grid as _prop_grid
+from ...ui import prop_ctrls as _prop_ctrls
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from ...geometry import point as _point
 from ...geometry import angle as _angle
@@ -776,46 +776,46 @@ class PJTHousingControl(wx.Notebook):
 
         wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
 
-        general_page = _prop_grid.Category(self, 'General')
+        general_page = _prop_ctrls.Category(self, 'General')
 
         self.name_ctrl = NameControl(general_page)
         self.note_ctrl = NotesControl(general_page)
 
-        visible_page = _prop_grid.Category(self, 'Visible')
+        visible_page = _prop_ctrls.Category(self, 'Visible')
         self.visible2d_ctrl = Visible2DControl(visible_page)
         self.visible3d_ctrl = Visible3DControl(visible_page)
 
-        angle_page = _prop_grid.Category(self, 'Angle')
+        angle_page = _prop_ctrls.Category(self, 'Angle')
         self.angle2d_ctrl = Angle2DControl(angle_page)
         self.angle3d_ctrl = Angle3DControl(angle_page)
 
-        position_page = _prop_grid.Category(self, 'Position')
+        position_page = _prop_ctrls.Category(self, 'Position')
         self.position2d_ctrl = Position2DControl(position_page)
         self.position3d_ctrl = Position3DControl(position_page)
 
-        cavities_page = _prop_grid.Category(self, 'Cavities')
+        cavities_page = _prop_ctrls.Category(self, 'Cavities')
         self.cavities_notebook = wx.Notebook(cavities_page, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
         self.cavity_pages = []
 
-        cover_page = _prop_grid.Category(self, 'Cover')
+        cover_page = _prop_ctrls.Category(self, 'Cover')
         self.cover_ctrl = _pjt_cover.PJTCoverControl(cover_page)
 
-        boot_page = _prop_grid.Category(self, 'Boot')
+        boot_page = _prop_ctrls.Category(self, 'Boot')
         self.boot_ctrl = _pjt_boot.PJTBootControl(boot_page)
 
-        cpa_lock_page = _prop_grid.Category(self, 'CPA Lock')
+        cpa_lock_page = _prop_ctrls.Category(self, 'CPA Lock')
         self.cpa_lock_ctrl = _pjt_cpa_lock.PJTCPALockControl(cpa_lock_page)
 
-        tpa_lock1_page = _prop_grid.Category(self, 'TPA Lock 1')
+        tpa_lock1_page = _prop_ctrls.Category(self, 'TPA Lock 1')
         self.tpa_lock1_ctrl = _pjt_tpa_lock.PJTTPALockControl(tpa_lock1_page)
 
-        tpa_lock2_page = _prop_grid.Category(self, 'TPA Lock 2')
+        tpa_lock2_page = _prop_ctrls.Category(self, 'TPA Lock 2')
         self.tpa_lock2_ctrl = _pjt_tpa_lock.PJTTPALockControl(tpa_lock2_page)
 
-        seal_page = _prop_grid.Category(self, 'Seal')
+        seal_page = _prop_ctrls.Category(self, 'Seal')
         self.seal_ctrl = _pjt_seal.PJTSealControl(seal_page)
 
-        part_page = _prop_grid.Category(self, 'Part')
+        part_page = _prop_ctrls.Category(self, 'Part')
         self.part_ctrl = _housing.HousingControl(part_page)
 
         for page in (

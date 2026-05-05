@@ -1,5 +1,5 @@
 import uuid
-from ....ui.editor_obj import prop_grid as _prop_grid
+from ....ui import prop_ctrls as _prop_ctrls
 
 from .base import BaseMixin
 from ....geometry import point as _point
@@ -66,25 +66,25 @@ class DimensionMixin(BaseMixin):
         self._populate('height')
 
 
-class DimensionControl(_prop_grid.Category):
+class DimensionControl(_prop_ctrls.Category):
 
     def __init__(self, parent):
         self.db_obj: DimensionMixin = None
 
         super().__init__(parent, 'Dimensions')
 
-        self.length_ctrl = _prop_grid.FloatProperty(
+        self.length_ctrl = _prop_ctrls.FloatProperty(
             self, 'Length', min_value=0.01, max_value=999.0, increment=0.01, units='mm')
 
-        self.width_ctrl = _prop_grid.FloatProperty(
+        self.width_ctrl = _prop_ctrls.FloatProperty(
             self, 'Width', min_value=0.01, max_value=999.0, increment=0.01, units='mm')
 
-        self.height_ctrl = _prop_grid.FloatProperty(
+        self.height_ctrl = _prop_ctrls.FloatProperty(
             self, 'Height', min_value=0.01, max_value=999.0, increment=0.01, units='mm')
 
-        self.length_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_length)
-        self.width_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_width)
-        self.height_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_height)
+        self.length_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_length)
+        self.width_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_width)
+        self.height_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_height)
 
     def set_obj(self, db_obj: DimensionMixin):
         self.db_obj = db_obj
@@ -104,11 +104,11 @@ class DimensionControl(_prop_grid.Category):
             self.width_ctrl.Enable(True)
             self.height_ctrl.Enable(True)
 
-    def _on_length(self, evt: _prop_grid.PropertyEvent):
+    def _on_length(self, evt: _prop_ctrls.PropertyEvent):
         self.db_obj.length = evt.GetValue()
 
-    def _on_width(self, evt: _prop_grid.PropertyEvent):
+    def _on_width(self, evt: _prop_ctrls.PropertyEvent):
         self.db_obj.width = evt.GetValue()
 
-    def _on_height(self, evt: _prop_grid.PropertyEvent):
+    def _on_height(self, evt: _prop_ctrls.PropertyEvent):
         self.db_obj.height = evt.GetValue()

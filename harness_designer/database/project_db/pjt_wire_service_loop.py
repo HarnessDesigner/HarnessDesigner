@@ -5,7 +5,7 @@ import numpy as np
 import weakref
 import wx
 
-from ...ui.editor_obj import prop_grid as _prop_grid
+from ...ui import prop_ctrls as _prop_ctrls
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from . import pjt_circuit as _pjt_circuit
 from ..global_db import wire as _wire
@@ -270,23 +270,23 @@ class PJTWireServiceLoopControl(wx.Notebook):
 
         wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
 
-        general_page = _prop_grid.Category(self, 'General')
+        general_page = _prop_ctrls.Category(self, 'General')
         self.name_ctrl = NameControl(general_page)
         self.note_ctrl = NotesControl(general_page)
 
-        angle_page = _prop_grid.Category(self, 'Angle')
+        angle_page = _prop_ctrls.Category(self, 'Angle')
         self.angle3d_ctrl = Angle3DControl(angle_page)
 
-        position_page = _prop_grid.Category(self, 'Position')
+        position_page = _prop_ctrls.Category(self, 'Position')
         self.position3d_ctrl = StartStopPosition3DControl(position_page)
 
-        visible_page = _prop_grid.Category(self, 'Visible')
+        visible_page = _prop_ctrls.Category(self, 'Visible')
         self.visible3d_ctrl = Visible3DControl(visible_page)
 
-        circuit_page = _prop_grid.Category(self, 'Circuit')
+        circuit_page = _prop_ctrls.Category(self, 'Circuit')
         self.circuit_ctrl = _pjt_circuit.PJTCircuitControl(circuit_page)
 
-        part_page = _prop_grid.Category(self, 'Part')
+        part_page = _prop_ctrls.Category(self, 'Part')
         self.wire_ctrl = _wire.WireControl(part_page)
 
         for page in (

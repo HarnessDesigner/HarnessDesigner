@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Iterable as _Iterable
 import weakref
 import wx
 
-from ...ui.editor_obj import prop_grid as _prop_grid
+from ...ui import prop_ctrls as _prop_ctrls
 
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from .mixins import (
@@ -136,11 +136,11 @@ class PJTWireLayoutControl(wx.Notebook):
 
         wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
 
-        position_page = _prop_grid.Category(self, 'Position')
+        position_page = _prop_ctrls.Category(self, 'Position')
         self.position2d_ctrl = Position2DControl(position_page)
         self.position3d_ctrl = Position3DControl(position_page)
 
-        visible_page = _prop_grid.Category(self, 'Visible')
+        visible_page = _prop_ctrls.Category(self, 'Visible')
         self.visible2d_ctrl = Visible2DControl(visible_page)
         self.visible3d_ctrl = Visible3DControl(visible_page)
 

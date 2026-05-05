@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Iterable as _Iterable
 import weakref
 import wx
 
-from ...ui.editor_obj import prop_grid as _prop_grid
+from ...ui import prop_ctrls as _prop_ctrls
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from ..global_db import tpa_lock as _tpa_lock
 from .mixins import (
@@ -65,7 +65,13 @@ class PJTTPALocksTable(PJTTableBase):
 
         raise KeyError(item)
 
-    def insert(self, part_id: int, position3d_id: int, housing_id: int | None) -> "PJTTPALock":
+    def insert(self, part_id: int, position3d_id: int, housing_id: int = None) -> "PJTTPALock":
+        if housing_id is None:
+            self.execute(f'SELECT id FROM pjt_housings WHERE tpa_lock_1_point3d_id={position3d_id} OR tpa_lock_2_point3d_id={position3d_id};')
+            rows = self.fetchall()
+
+            housing_id = rows[0][0]
+
         db_id = PJTTableBase.insert(
             self, part_id=part_id, position3d_id=position3d_id, housing_id=housing_id)
 
@@ -153,20 +159,20 @@ class PJTTPALockControl(wx.Notebook):
 
         wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
 
-        general_page = _prop_grid.Category(self, 'General')
+        general_page = _prop_ctrls.Category(self, 'General')
         self.name_ctrl = NameControl(general_page)
         self.note_ctrl = NotesControl(general_page)
 
-        angle_page = _prop_grid.Category(self, 'Angle')
+        angle_page = _prop_ctrls.Category(self, 'Angle')
         self.angle3d_ctrl = Angle3DControl(angle_page)
 
-        position_page = _prop_grid.Category(self, 'Position')
+        position_page = _prop_ctrls.Category(self, 'Position')
         self.position3d_ctrl = Position3DControl(position_page)
 
-        visible_page = _prop_grid.Category(self, 'Visible')
+        visible_page = _prop_ctrls.Category(self, 'Visible')
         self.visible3d_ctrl = Visible3DControl(visible_page)
 
-        part_page = _prop_grid.Category(self, 'Part')
+        part_page = _prop_ctrls.Category(self, 'Part')
         self.tpa_lock_ctrl = _tpa_lock.TPALockControl(part_page)
 
         for page in (

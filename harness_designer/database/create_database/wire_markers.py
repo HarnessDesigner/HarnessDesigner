@@ -27,21 +27,9 @@ def add_wire_markers(con, data: tuple[dict] | list[dict]):
 
 
 def add_records(con, splash, data_path):
-    con.execute('SELECT id FROM wire_markers WHERE id=0;')
+    con.execute('SELECT id FROM wire_markers WHERE id=1;')
     if con.fetchall():
         return
-
-    splash.SetText(f'Adding wire marker to db [1 | 1]...')
-    splash.flush()
-
-    con.execute('INSERT INTO wire_markers (id, part_number, description, mfg_id, '
-                'family_id, series_id, color_id, image_id, datasheet_id, cad_id, '
-                'min_temp_id, max_temp_id, min_diameter, max_diameter, min_awg, '
-                'max_awg, length, weight, has_label) '
-                'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (0, 'N/A', 'Internal Use DO NOT DELETE', 0, 0, 0, 999999, None, None,
-                 None, 0, 0, 0.0, 0.0, -1, -1, 0.0, 0.0, 0))
-    con.commit()
 
     json_path = os.path.join(data_path, 'wire_markers.json')
 
@@ -63,16 +51,23 @@ def add_records(con, splash, data_path):
         splash.flush()
 
         for i, item in enumerate(data):
-            splash.SetText(f'Adding wire marker to db [{i + 1} | {data_len}]...')
-            add_wire_marker(con, **item)
+            if not i % 100:
+                splash.SetText(f'Adding wire marker to db [{i + 1} | {data_len}]...')
+
+            try:
+                add_wire_marker(con, **item)
+            except Exception as err:
+                _logger.logger.traceback(err)
 
     con.commit()
 
 
 def add_wire_marker(con, part_number, description, mfg=None, family=None, series=None,
                     color=None, image=None, datasheet=None, cad=None, min_temp=None,
-                    max_temp=None, min_diameter=0.0, max_diameter=0.0, min_awg=-1,
-                    max_awg=-1, length=0.0, weight=0.0, has_label=0):
+                    max_temp=None, min_diameter=0.0, max_diameter=0.0, wire_size_awg_min=None,
+                    wire_size_awg_max=None, wire_size_dia_min=None, wire_size_dia_max=None,
+                    wire_size_cross_min=None, wire_size_cross_max=None, length=0.0,
+                    weight=0.0, has_label=0):
 
     mfg_id = _manufacturers.get_mfg_id(con, mfg)
     series_id = _series.get_series_id(con, series, mfg_id)
@@ -86,14 +81,15 @@ def add_wire_marker(con, part_number, description, mfg=None, family=None, series
 
     con.execute('INSERT INTO wire_markers (part_number, description, mfg_id, family_id, '
                 'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
-                'max_temp_id, min_diameter, max_diameter, min_awg, max_awg, length, '
-                'weight, has_label) '
-                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                'max_temp_id, min_diameter, max_diameter, wire_size_awg_min, wire_size_awg_max, '
+                'wire_size_dia_min, wire_size_dia_max, wire_size_cross_min, wire_size_cross_max, '
+                'length, weight, has_label) '
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
                 (part_number, description, mfg_id, family_id, series_id, color_id,
                  image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, min_diameter,
-                 max_diameter, min_awg, max_awg, length, weight, has_label))
-
-    con.commit()
+                 max_diameter, wire_size_awg_min, wire_size_awg_max, wire_size_dia_min,
+                 wire_size_dia_max, wire_size_cross_min, wire_size_cross_max, length,
+                 weight, has_label))
 
 
 def add_pjt_wire_marker(con, project_id, part_id, point3d_id=None, point2d_id=None,
@@ -154,8 +150,12 @@ table = _con.SQLTable(
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.FloatField('min_diameter', default='"0.0"', no_null=True),
     _con.FloatField('max_diameter', default='"0.0"', no_null=True),
-    _con.IntField('min_awg', default='NULL'),
-    _con.IntField('max_awg', default='NULL'),
+    _con.IntField('wire_size_awg_min', default='NULL'),
+    _con.IntField('wire_size_awg_max', default='NULL'),
+    _con.FloatField('wire_size_dia_min', default='NULL'),
+    _con.FloatField('wire_size_dia_max', default='NULL'),
+    _con.FloatField('wire_size_cross_min', default='NULL'),
+    _con.FloatField('wire_size_cross_max', default='NULL'),
     _con.FloatField('length', default='"0.0"', no_null=True),
     _con.FloatField('weight', default='"0.0"', no_null=True),
     _con.IntField('has_label', default='0', no_null=True)

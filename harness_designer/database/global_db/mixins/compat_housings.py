@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 
 from .base import BaseMixin
 
-from ....ui.editor_obj import prop_grid as _prop_grid
+from ....ui import prop_ctrls as _prop_ctrls
 
 
 if TYPE_CHECKING:
@@ -34,13 +34,13 @@ class CompatHousingsMixin(BaseMixin):
         self._populate('compat_housings_array')
 
 
-class CompatHousingsControl(_prop_grid.ArrayStringProperty):
+class CompatHousingsControl(_prop_ctrls.ArrayStringProperty):
 
     def __init__(self, parent):
         self.db_obj: CompatHousingsMixin = None
         super().__init__(parent, 'Compatible Housings')
 
-        self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_compat_housings)
+        self.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_compat_housings)
 
     def set_obj(self, db_obj: CompatHousingsMixin):
         self.db_obj = db_obj
@@ -51,6 +51,6 @@ class CompatHousingsControl(_prop_grid.ArrayStringProperty):
             self.SetValue(db_obj.compat_housings_array)
             self.Enable(True)
 
-    def _on_compat_housings(self, evt: _prop_grid.PropertyEvent):
+    def _on_compat_housings(self, evt: _prop_ctrls.PropertyEvent):
         compat_housings = evt.GetValue()
         self.db_obj.compat_seals_array = compat_housings

@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from ....ui.editor_obj import prop_grid as _prop_grid
+from ....ui import prop_ctrls as _prop_ctrls
 from .base import BaseMixin
 
 
@@ -33,7 +33,7 @@ class AdhesiveMixin(BaseMixin):
         self._populate('adhesive_ids')
 
 
-class AdhesiveControl(_prop_grid.ArrayStringProperty):
+class AdhesiveControl(_prop_ctrls.ArrayStringProperty):
 
     def __init__(self, parent):
         self.db_obj: AdhesiveMixin = None

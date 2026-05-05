@@ -12,6 +12,7 @@ from . import temperatures as _temperatures
 from . import images as _images
 from . import datasheets as _datasheets
 from . import cads as _cads
+from . import protections as _protections
 
 from . import projects as _projects
 from . import points3d as _points3d
@@ -29,7 +30,8 @@ def add_boots(con, data: tuple[dict] | list[dict]):
 def add_boot(con, part_number, description, mfg=None, family=None, series=None,
              color=None, material=None, direction=None, image=None, datasheet=None,
              cad=None, min_temp=None, max_temp=None, model3d=None, length=0.0,
-             width=0.0, height=0.0, weight=0.0, compat_housings=None):
+             width=0.0, height=0.0, weight=0.0, compat_housings=None, min_dia=0.0,
+             max_dia=0.0, protection=None):
 
     if compat_housings is None:
         compat_housings = []
@@ -47,30 +49,25 @@ def add_boot(con, part_number, description, mfg=None, family=None, series=None,
     max_temp_id = _temperatures.get_temperature_id(con, max_temp)
     model3d_id = _models3d.get_model3d_id(con, model3d)
 
+    protection_id = _protections.get_protection_id(con, protection)
+
+    compat_housings = '[' + (', '.join(compat_housings)) + ']'
+
     con.execute('INSERT INTO boots (part_number, description, mfg_id, family_id, '
                 'series_id, color_id, material_id, direction_id, image_id, '
                 'datasheet_id, cad_id, min_temp_id, max_temp_id, model3d_id, length, '
-                'width, height, weight, compat_housings) '
-                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                'width, height, weight, compat_housings, min_dia, max_dia, protection_id) '
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
                 (part_number, description, mfg_id, family_id, series_id, color_id,
                  material_id, direction_id, image_id, datasheet_id, cad_id, min_temp_id,
                  max_temp_id, model3d_id, length, width, height, weight,
-                 str(compat_housings)))
-
-    con.commit()
+                 compat_housings, min_dia, max_dia, protection_id))
 
 
 def add_records(con, splash, data_path):
-    con.execute('SELECT id FROM boots WHERE id=0;')
-
+    con.execute('SELECT id FROM boots WHERE id=1;')
     if con.fetchall():
         return
-
-    splash.SetText(f'Adding boot to db [1 | 1]...')
-    splash.flush()
-
-    con.execute('INSERT INTO boots (id, part_number, description) VALUES(0, "N/A", "Internal Use DO NOT DELETE");')
-    con.commit()
 
     dirs = []
     for file in os.listdir(data_path):
@@ -101,19 +98,19 @@ def add_records(con, splash, data_path):
             splash.flush()
 
             for i, item in enumerate(data):
-                splash.SetText(f'Adding boots to db [{i + 1} | {data_len}]...')
+                if not i % 100:
+                    splash.SetText(f'Adding boots to db [{i + 1} | {data_len}]...')
 
-                pn = item['part_number']
-                con.execute(f'SELECT id FROM boots WHERE part_number="{pn}";')
-                rows = con.fetchall()
-                if not rows:
-                    if 'shared_cad' in item:
-                        del item['shared_cad']
+                if 'shared_cad' in item:
+                    del item['shared_cad']
 
-                    if 'shared_model3d' in item:
-                        del item['shared_model3d']
+                if 'shared_model3d' in item:
+                    del item['shared_model3d']
 
+                try:
                     add_boot(con, **item)
+                except Exception as err:
+                    _logger.logger.traceback(err)
 
             con.commit()
 
@@ -176,11 +173,18 @@ table = _con.SQLTable(
                   references=_con.SQLFieldReference(_models3d.table,
                                                     _models3d.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('protection_id', default='NULL',
+                  references=_con.SQLFieldReference(_protections.table,
+                                                    _protections.id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+
     _con.FloatField('length', default='"0.0"', no_null=True),
     _con.FloatField('width', default='"0.0"', no_null=True),
     _con.FloatField('height', default='"0.0"', no_null=True),
     _con.FloatField('weight', default='"0.0"', no_null=True),
-    _con.TextField('compat_housings', default='"[]"', no_null=True)
+    _con.TextField('compat_housings', default='""', no_null=True),
+    _con.FloatField('min_dia', default='"0.0"', no_null=True),
+    _con.FloatField('max_dia', default='"0.0"', no_null=True),
 )
 
 

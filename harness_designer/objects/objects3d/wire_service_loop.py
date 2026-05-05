@@ -51,8 +51,21 @@ class WireServiceLoop(_base3d.Base3D):
 
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
 
+        self._p1 = position
+        self._p2 = position2
+
     def get_context_menu(self):
         return WireServiceLoopMenu(self.mainframe.editor3d.editor, self)
+
+    @property
+    def start_position(self):
+        """Wire start position (Point instance)"""
+        return self._p1
+
+    @property
+    def stop_position(self):
+        """Wire stop position (Point instance)"""
+        return self._p2
 
 
 class WireServiceLoopMenu(wx.Menu):

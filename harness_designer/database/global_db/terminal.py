@@ -3,7 +3,7 @@ from typing import Iterable as _Iterable, TYPE_CHECKING
 import uuid
 import wx
 
-from ...ui.editor_obj import prop_grid as _prop_grid
+from ...ui import prop_ctrls as _prop_ctrls
 from .bases import EntryBase, TableBase
 from ...geometry import point as _point
 
@@ -34,6 +34,15 @@ if TYPE_CHECKING:
 
 class TerminalsTable(TableBase):
     __table_name__: str = 'terminals'
+
+    _control: "TerminalControl" = None
+
+    @property
+    def control(self) -> "TerminalControl":
+        if self._control is None:
+            self._control = TerminalControl(self.db.mainframe)
+            self._control.Show(False)
+        return self._control
 
     def _load_database(self, splash):
         from ..create_database import terminals
@@ -74,6 +83,31 @@ class TerminalsTable(TableBase):
             return Terminal(self, db_id[0][0])
 
         raise KeyError(item)
+
+    def get_compat(self, seal: str = None, housing: str = None):
+
+        res = []
+
+        if seal is not None:
+            part_number = seal
+            field_name = 'compat_seals'
+        elif housing is not None:
+            part_number = housing
+            field_name = 'compat_housings'
+        else:
+            return []
+
+        self.execute(f'SELECT id, {field_name} FROM terminals WHERE {field_name} LIKE "%{part_number}%;')
+        rows = self.fetchall()
+        for db_id, compat in rows:
+            compat = compat[1:-1].split(', ')
+
+            if part_number not in compat:
+                continue
+
+            res.append(db_id)
+
+        return res
 
     def insert(self, part_number: str, mfg_id: int, description: str, gender_id: int,
                series_id: int, family_id: int, sealing: bool, cavity_lock_id: int,
@@ -511,7 +545,7 @@ class TerminalControl(wx.Notebook):
 
         wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
 
-        general_page = _prop_grid.Category(self, 'General')
+        general_page = _prop_ctrls.Category(self, 'General')
 
         self.part_number_ctrl = PartNumberControl(general_page)
         self.description_ctrl = DescriptionControl(general_page)
@@ -519,34 +553,34 @@ class TerminalControl(wx.Notebook):
         self.gender_ctrl = GenderControl(general_page)
         self.cavity_lock_ctrl = CavityLockControl(general_page)
 
-        self.sealing_ctrl = _prop_grid.BoolProperty(general_page, 'Sealing')
+        self.sealing_ctrl = _prop_ctrls.BoolProperty(general_page, 'Sealing')
 
-        self.blade_size_ctrl = _prop_grid.FloatProperty(
+        self.blade_size_ctrl = _prop_ctrls.FloatProperty(
             general_page, 'Blade Size',
             min_value=0.0, max_value=99.00, increment=0.01, units='mm')
 
-        self.resistance_ctrl = _prop_grid.FloatProperty(
+        self.resistance_ctrl = _prop_ctrls.FloatProperty(
             general_page, 'Resistance',
             min_value=0.0, max_value=10000000.00, increment=0.1, units='Ω')
 
-        self.mating_cycles_ctrl = _prop_grid.IntProperty(
+        self.mating_cycles_ctrl = _prop_ctrls.IntProperty(
             general_page, 'Mating Cycles',
             min_value=0, max_value=100000)
 
-        self.max_vibration_g_ctrl = _prop_grid.IntProperty(
+        self.max_vibration_g_ctrl = _prop_ctrls.IntProperty(
             general_page, 'Maximum Vibration',
             min_value=0, max_value=100000, units='G')
 
-        self.max_current_ma_ctrl = _prop_grid.IntProperty(
+        self.max_current_ma_ctrl = _prop_ctrls.IntProperty(
             general_page, 'Maximum Current',
             min_value=0, max_value=100000, units='ma')
 
-        self.sealing_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_sealing)
-        self.blade_size_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_blade_size)
-        self.resistance_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_resistance)
-        self.mating_cycles_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_mating_cycles)
-        self.max_vibration_g_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_vibration)
-        self.max_current_ma_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_current)
+        self.sealing_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_sealing)
+        self.blade_size_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_blade_size)
+        self.resistance_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_resistance)
+        self.mating_cycles_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_mating_cycles)
+        self.max_vibration_g_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_vibration)
+        self.max_current_ma_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_current)
 
         self.mfg_page = ManufacturerControl(self)
         self.family_page = FamilyControl(self)
@@ -560,7 +594,7 @@ class TerminalControl(wx.Notebook):
 
         self.resources_page = ResourcesControl(self)
 
-        compat_parts_page = _prop_grid.Category(self, 'Compatible Parts')
+        compat_parts_page = _prop_ctrls.Category(self, 'Compatible Parts')
         self.compat_housing_ctrl = CompatHousingsControl(compat_parts_page)
         self.compat_seal_ctrl = CompatSealsControl(compat_parts_page)
 

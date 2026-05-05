@@ -1,5 +1,5 @@
 import uuid
-from ....ui.editor_obj import prop_grid as _prop_grid
+from ....ui import prop_ctrls as _prop_ctrls
 
 from .base import BaseMixin
 from ....geometry import angle as _angle
@@ -30,14 +30,14 @@ class Angle2DMixin(BaseMixin):
         return angle
 
 
-class Angle2DControl(_prop_grid.FloatProperty):
+class Angle2DControl(_prop_ctrls.FloatProperty):
 
     def __init__(self, parent):
         self.db_obj: Angle2DMixin = None
 
         super().__init__(parent, '2D Angle', min_value=-180.0, max_value=180.0, increment=0.01, units='°')
 
-        self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_angle)
+        self.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_angle)
 
     def _on_angle(self, evt):
         self.db_obj.angle2d.z = evt.GetValue()

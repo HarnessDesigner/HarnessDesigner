@@ -5,7 +5,8 @@ import os
 import io
 import shutil
 import zipfile
-from PIL import Image
+from PIL import Image, ImageFilter
+import numpy as np
 
 from . import logger as _logger
 
@@ -124,6 +125,34 @@ def _download_model(con, url, model_path):
         f.write(data)
 
     return model_path
+
+
+def _reformat_image(img: Image.Image):
+    img = img.convert('RGBA')
+    o_w, o_h = img.size
+
+    if o_w > o_h:
+        aspect_ratio = o_w / o_h
+
+        w = 250
+        h = int(w / aspect_ratio)
+    else:
+        aspect_ratio = o_h / o_w
+
+        h = 250
+        w = int(h / aspect_ratio)
+
+    img = img.resize((w, h), Image.Resampling.LANCZOS)
+
+    r, g, b, a = img.getpixel((0, 0))
+
+    new_img = Image.new('RGBA', (256, 256), (r, g, b, a))
+
+    offset_x = int((256 - w) / 2)
+    offset_y = int((256 - h) / 2)
+
+    new_img.paste(img, (offset_x, offset_y))
+    return new_img
 
 
 def _download_image(con, url, image_path):
@@ -255,30 +284,10 @@ def collect_resource(con, image_type, in_path):
         except:  # NOQA
             return None
 
-        w, h = img.size
-
-        if w > h:
-            aspect_ratio = h / w
-
-            w = 256
-            h = int(w * aspect_ratio)
-        else:
-            aspect_ratio = w / h
-
-            h = 256
-            w = int(h * aspect_ratio)
-
-        img = img.resize((w, h), Image.Resampling.LANCZOS)
-
-        new_img = Image.new('RGBA', (256, 256), (0, 0, 0, 0))
-
-        offset_x = 256 - w
-        offset_y = 256 - h
+        img = _reformat_image(img)
 
         new_image_path = os.path.splitext(image_path)[0] + '.png'
-
-        new_img.paste(img, (offset_x, offset_y))
-        new_img.save(new_image_path)
+        img.save(new_image_path)
 
         if image_path != new_image_path:
             os.remove(image_path)

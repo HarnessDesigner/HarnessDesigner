@@ -1,184 +1,73 @@
 from typing import TYPE_CHECKING
 
 import wx
-import wx.dataview as dv
-
-from .controls import choice as _choice
-from .controls import float_spin as _float_spin
-from .controls import model_base as _model_base
-from .controls import dataviewctrl as _dataviewctrl
+from . import base as _base
 
 
 if TYPE_CHECKING:
     from ...database.global_db import boot as _boot
 
 
-class BootsModel(_model_base.ModelBase):
+class BootsPage(_base.EditorList):
     __table_name__ = 'boots'
+    __query__ = f'''\
+        SELECT * FROM (
+            SELECT
+                Row_Number() OVER (ORDER BY {{sort_column}} {{sort_direction}}) AS RowNum,
+                t.id AS id,
+                t.part_number AS part_number,
+                t.description AS description,
+                mfg.name AS mfg_name,
+                family.name AS family_name,
+                series.name AS series_name,
+                color.name AS color_name,
+                material.name AS material_name,
+                direction.name AS direction_name,
+                min_temp.name AS min_temp_name,
+                max_temp.name AS max_temp_name,
+                protection.name AS protection_name,
+                t.min_dia AS min_dia,
+                t.max_dia AS max_dia,
+                t.length AS length,
+                t.width AS width,
+                t.height AS height,
+                t.weight AS weight,
+                t.compat_housings AS compat_housings,
+                t.model3d_id AS model3d_id,
+                t.image_id AS image_id
+            FROM {__table_name__} AS t
+            LEFT JOIN manufacturers AS mfg ON mfg.id = t.mfg_id
+            LEFT JOIN families AS family ON family.id = t.family_id
+            LEFT JOIN series AS series ON series.id = t.series_id
+            LEFT JOIN colors AS color ON color.id = t.color_id
+            LEFT JOIN materials AS material ON material.id = t.material_id
+            LEFT JOIN directions AS direction ON direction.id = t.direction_id
+            LEFT JOIN temperatures AS min_temp ON min_temp.id = t.min_temp_id
+            LEFT JOIN temperatures AS max_temp ON max_temp.id = t.max_temp_id
+            LEFT JOIN protections AS protection ON protection.id = t.protection_id
+        ) t2 WHERE RowNum = {{row}};
+        '''
+
     column_mapping = {
-        0: 'id',
-        1: 'part_number',
-        2: 'description',
-        3: 'mfg_id',
-        4: 'family_id',
-        5: 'series_id',
-        6: 'color_id',
-        7: 'material_id',
-        8: 'direction_id',
-        9: 'min_temp_id',
-        10: 'max_temp_id',
-        11: 'weight'
+        0: ('DB ID', 'id'),
+        1: ('Part Number', 'part_number'),
+        2: ('Description', 'description'),
+        3: ('Manufacturer', 'mfg_name'),
+        4: ('Family', 'family_name'),
+        5: ('Series', 'series_name'),
+        6: ('Color', 'color_name'),
+        7: ('Material', 'material_name'),
+        8: ('Direction', 'firection_name'),
+        9: ('Temperature (min)', 'min_temp_name'),
+        10: ('Temperature (max)', 'max_temp_name'),
+        11: ('Protections', 'protection_name'),
+        12: ('Diameter (mm)(min)', 'min_dia'),
+        13: ('Diameter (mm)(max)', 'max_dia'),
+        14: ('Length (mm)', 'length'),
+        15: ('Width (mm)', 'width'),
+        16: ('Height (mm)', 'height'),
+        17: ('Weight (g)', 'weight'),
+        18: ('Compat Housings', 'compat_housings')
     }
+
     table: "_boot.BootsTable" = None
-
-    def Compare(self, item1, item2, col, ascending):
-        if not ascending:
-            item2, item1 = item1, item2
-
-        row1 = self.GetRow(item1)
-        row2 = self.GetRow(item2)
-
-        a = self.GetValueByRow(row1, col)
-        b = self.GetValueByRow(row2, col)
-
-        if col == 0:
-            a = int(a)
-            b = int(b)
-        elif col == 3:
-            a = self.table.db.manufacturers_table[a].name
-            b = self.table.db.manufacturers_table[b].name
-        elif col == 4:
-            a = self.table.db.families_table[a].name
-            b = self.table.db.families_table[b].name
-        elif col == 5:
-            a = self.table.db.series_table[a].name
-            b = self.table.db.series_table[b].name
-        elif col == 6:
-            a = self.table.db.colors_table[a].name
-            b = self.table.db.colors_table[b].name
-        elif col == 7:
-            a = self.table.db.materials_table[a].name
-            b = self.table.db.materials_table[b].name
-        elif col == 8:
-            a = self.table.db.directions_table[a].name
-            b = self.table.db.directions_table[b].name
-        elif col == 9:
-            a = self.table.db.temperatures_table[a].name
-            b = self.table.db.temperatures_table[b].name
-        elif col == 10:
-            a = self.table.db.temperatures_table[a].name
-            b = self.table.db.temperatures_table[b].name
-        elif col == 11:
-            a = float(a)
-            b = float(b)
-
-        if a < b:
-            return -1
-
-        if a > b:
-            return 1
-
-        return 0
-
-    def AddRow(self, value):
-        value = list(value)
-
-        value.insert(9, 0)
-        value.insert(10, 0)
-        value.insert(11, 0)
-        value.append(None)
-
-        self.table.insert(*value)
-        self.RowAppended()
-
-
-class BootsPanel(wx.Panel):
-    def __init__(self, parent, table: "_boot.BootsTable"):
-        wx.Panel.__init__(self, parent, -1)
-
-        self.table = table
-
-        # Create a dataview control
-        self.dvc = _dataviewctrl.DataViewCtrl(self, style=wx.BORDER_THEME | dv.DV_ROW_LINES | dv.DV_MULTIPLE)
-
-        self.model = BootsModel(table)
-        self.dvc.AssociateModel(self.model)
-
-        # Now we create some columns.
-        col = self.dvc.AppendTextColumn("DB_ID", 0)
-        col.SetAlignment(wx.ALIGN_LEFT)
-
-        col = self.dvc.AppendTextColumn("Part Number", 1, mode=dv.DATAVIEW_CELL_EDITABLE)
-        col.SetAlignment(wx.ALIGN_LEFT)
-
-        col = self.dvc.AppendTextColumn("Description", 2, mode=dv.DATAVIEW_CELL_EDITABLE)
-        col.SetAlignment(wx.ALIGN_LEFT)
-
-        table.execute('SELECT id, name FROM manufacturers ORDER BY id ASC;')
-        choices = table.fetchall()
-        renderer = _choice.ManufacturerRenderer(choices, mode=dv.DATAVIEW_CELL_EDITABLE)
-        col = _dataviewctrl.DataViewColumn("Manufacturer", renderer, 3)
-        col.SetAlignment(wx.ALIGN_LEFT)
-        self.dvc.AppendColumn(col)
-
-        table.execute('SELECT id, name FROM families ORDER BY id ASC;')
-        choices = table.fetchall()
-        renderer = _choice.FamilyRenderer(choices, mode=dv.DATAVIEW_CELL_EDITABLE)
-        col = _dataviewctrl.DataViewColumn("Family", renderer, 4)
-        col.SetAlignment(wx.ALIGN_LEFT)
-        self.dvc.AppendColumn(col)
-
-        table.execute('SELECT id, name FROM series ORDER BY id ASC;')
-        choices = table.fetchall()
-        renderer = _choice.SeriesRenderer(choices, mode=dv.DATAVIEW_CELL_EDITABLE)
-        col = _dataviewctrl.DataViewColumn("Series", renderer, 5)
-        col.SetAlignment(wx.ALIGN_LEFT)
-        self.dvc.AppendColumn(col)
-
-        table.execute('SELECT id, name FROM colors ORDER BY id ASC;')
-        choices = table.fetchall()
-        renderer = _choice.ColorRenderer(choices, mode=dv.DATAVIEW_CELL_EDITABLE)
-        col = _dataviewctrl.DataViewColumn("Color", renderer, 6)
-        col.SetAlignment(wx.ALIGN_LEFT)
-        self.dvc.AppendColumn(col)
-
-        table.execute('SELECT id, name FROM materials ORDER BY id ASC;')
-        choices = table.fetchall()
-        renderer = _choice.MaterialRenderer(choices, mode=dv.DATAVIEW_CELL_EDITABLE)
-        col = _dataviewctrl.DataViewColumn("Material", renderer, 7)
-        col.SetAlignment(wx.ALIGN_LEFT)
-        self.dvc.AppendColumn(col)
-
-        table.execute('SELECT id, name FROM directions ORDER BY id ASC;')
-        choices = table.fetchall()
-        renderer = _choice.DirectionRenderer(choices, mode=dv.DATAVIEW_CELL_EDITABLE)
-        col = _dataviewctrl.DataViewColumn("Direction", renderer, 8)
-        col.SetAlignment(wx.ALIGN_LEFT)
-        self.dvc.AppendColumn(col)
-
-        table.execute('SELECT id, name FROM temperatures ORDER BY id ASC;')
-        choices = table.fetchall()
-        renderer = _choice.TemperatureRenderer(choices, mode=dv.DATAVIEW_CELL_EDITABLE)
-        col = _dataviewctrl.DataViewColumn("Temperature (Min)", renderer, 9)
-        col.SetAlignment(wx.ALIGN_LEFT)
-        self.dvc.AppendColumn(col)
-
-        table.execute('SELECT id, name FROM temperatures ORDER BY id ASC;')
-        choices = table.fetchall()
-        renderer = _choice.TemperatureRenderer(choices, mode=dv.DATAVIEW_CELL_EDITABLE)
-        col = _dataviewctrl.DataViewColumn("Temperature (Max)", renderer, 10)
-        col.SetAlignment(wx.ALIGN_LEFT)
-        self.dvc.AppendColumn(col)
-
-        renderer = _float_spin.FloatSpinRenderer(min_val=0.0, max_val=999.0, increment=0.1, mode=dv.DATAVIEW_CELL_EDITABLE)
-        col = _dataviewctrl.DataViewColumn("Weight(g)", renderer, 11)
-        col.SetAlignment(wx.ALIGN_LEFT)
-        self.dvc.AppendColumn(col)
-
-        self.Sizer = wx.BoxSizer(wx.VERTICAL)
-        self.Sizer.Add(self.dvc, 1, wx.EXPAND)
-
-    def GetSelection(self):
-        selection = self.dvc.GetSelection()
-        if selection.IsOk():
-            return int(self.model.GetValue(selection, 0))

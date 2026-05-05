@@ -3,9 +3,6 @@ from typing import TYPE_CHECKING
 import wx
 from wx import aui
 
-from . import prop_grid as _prop_grid
-
-
 if TYPE_CHECKING:
     from .. import mainframe as _mainframe
 
@@ -41,9 +38,6 @@ class EditorObj(aui.AuiPaneInfo):
 
     def _on_pane_close(self, evt: aui.AuiManagerEvent):
         pane = evt.GetPane()
-
-        print(pane)
-
         if pane == self:
             self.Show(False)
         else:

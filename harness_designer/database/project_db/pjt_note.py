@@ -4,7 +4,7 @@ import weakref
 import wx
 import build123d
 
-from ...ui.editor_obj import prop_grid as _prop_grid
+from ...ui import prop_ctrls as _prop_ctrls
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from .mixins import (
     Angle3DMixin, Angle3DControl,
@@ -291,32 +291,32 @@ class PJTNoteControl(wx.Notebook):
 
         wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
 
-        general_page = _prop_grid.Category(self, 'General')
+        general_page = _prop_ctrls.Category(self, 'General')
         self.note_ctrl = NotesControl(general_page)
 
-        style_page = _prop_grid.Category(self, 'Style')
-        self.style_2d_ctrl = _prop_grid.EnumProperty(style_page, '2D Style')
-        self.style_3d_ctrl = _prop_grid.EnumProperty(style_page, '3D Style')
+        style_page = _prop_ctrls.Category(self, 'Style')
+        self.style_2d_ctrl = _prop_ctrls.EnumProperty(style_page, '2D Style')
+        self.style_3d_ctrl = _prop_ctrls.EnumProperty(style_page, '3D Style')
 
-        align_page = _prop_grid.Category(self, 'Align')
-        self.align_2d_ctrl = _prop_grid.EnumProperty(align_page, '2D Align')
-        self.align_3d_ctrl = _prop_grid.EnumProperty(align_page, '3D Align')
+        align_page = _prop_ctrls.Category(self, 'Align')
+        self.align_2d_ctrl = _prop_ctrls.EnumProperty(align_page, '2D Align')
+        self.align_3d_ctrl = _prop_ctrls.EnumProperty(align_page, '3D Align')
 
-        self.style_2d_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_style2d)
-        self.style_3d_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_style3d)
+        self.style_2d_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_style2d)
+        self.style_3d_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_style3d)
 
-        self.align_2d_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_align2d)
-        self.align_3d_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_align3d)
+        self.align_2d_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_align2d)
+        self.align_3d_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_align3d)
 
-        angle_page = _prop_grid.Category(self, 'Angle')
+        angle_page = _prop_ctrls.Category(self, 'Angle')
         self.angle2d_ctrl = Angle2DControl(angle_page)
         self.angle3d_ctrl = Angle3DControl(angle_page)
 
-        position_page = _prop_grid.Category(self, 'Position')
+        position_page = _prop_ctrls.Category(self, 'Position')
         self.position2d_ctrl = Position2DControl(position_page)
         self.position3d_ctrl = Position3DControl(position_page)
 
-        visible_page = _prop_grid.Category(self, 'Visible')
+        visible_page = _prop_ctrls.Category(self, 'Visible')
         self.visible2d_ctrl = Visible2DControl(visible_page)
         self.visible3d_ctrl = Visible3DControl(visible_page)
 

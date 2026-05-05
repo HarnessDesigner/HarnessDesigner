@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Iterable as _Iterable
 
 import wx
 
-from ...ui.editor_obj import prop_grid as _prop_grid
+from ...ui import prop_ctrls as _prop_ctrls
 
 from .bases import EntryBase, TableBase
 from .mixins import (
@@ -17,6 +17,7 @@ from .mixins import (
     ResourceMixin, ResourcesControl,
     Model3DMixin, Model3DControl,
     WeightMixin, WeightControl,
+    WireSizeMixin, WireSizeControl,
     TemperatureMixin, TemperatureControl,
     DimensionMixin, DimensionControl
 )
@@ -28,6 +29,15 @@ if TYPE_CHECKING:
 
 class SplicesTable(TableBase):
     __table_name__ = 'splices'
+
+    _control: "SpliceControl" = None
+
+    @property
+    def control(self) -> "SpliceControl":
+        if self._control is None:
+            self._control = SpliceControl(self.db.mainframe)
+            self._control.Show(False)
+        return self._control
 
     def _load_database(self, splash):
         from ..create_database import splices
@@ -163,7 +173,7 @@ class SplicesTable(TableBase):
 class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
              FamilyMixin, SeriesMixin, MaterialMixin, ColorMixin, PlatingMixin,
              ResourceMixin, Model3DMixin, WeightMixin, TemperatureMixin,
-             DimensionMixin):
+             DimensionMixin, WireSizeMixin):
 
     _table: SplicesTable = None
 
@@ -250,6 +260,7 @@ class SpliceControl(wx.Notebook):
         self.description_ctrl.set_obj(db_obj)
         self.color_ctrl.set_obj(db_obj)
         self.weight_ctrl.set_obj(db_obj)
+        self.wire_size_page.set_obj(db_obj)
 
         if db_obj is None:
             self.splice_type_choices = []
@@ -318,36 +329,36 @@ class SpliceControl(wx.Notebook):
 
         wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
 
-        general_page = _prop_grid.Category(self, 'General')
+        general_page = _prop_ctrls.Category(self, 'General')
 
         self.part_number_ctrl = PartNumberControl(general_page)
         self.description_ctrl = DescriptionControl(general_page)
         self.color_ctrl = ColorControl(general_page)
 
-        self.resistance_ctrl = _prop_grid.FloatProperty(
+        self.resistance_ctrl = _prop_ctrls.FloatProperty(
             general_page, 'Resistance', min_value=0.0,
             max_value=100000, increment=0.01, units='Ω')
 
         self.material_ctrl = MaterialControl(general_page)
 
         self.splice_type_choices: list[str] = []
-        self.splice_type_ctrl = _prop_grid.ComboBoxProperty(general_page, 'Type')
+        self.splice_type_ctrl = _prop_ctrls.ComboBoxProperty(general_page, 'Type')
 
         self.plating_page = PlatingControl(self)
 
-        diameter_page = _prop_grid.Category(self, 'Diameter')
-        self.min_dia_ctrl = _prop_grid.FloatProperty(
+        diameter_page = _prop_ctrls.Category(self, 'Diameter')
+        self.min_dia_ctrl = _prop_ctrls.FloatProperty(
             diameter_page, 'Minimum', min_value=0.0,
             max_value=99.9, increment=0.01, units='mm')
 
-        self.max_dia_ctrl = _prop_grid.FloatProperty(
+        self.max_dia_ctrl = _prop_ctrls.FloatProperty(
             general_page, 'Maximum', min_value=0.00,
             max_value=99.9, increment=0.01, units='mm')
 
-        self.splice_type_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_splice_type)
-        self.resistance_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_resistance)
-        self.min_dia_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_min_dia)
-        self.max_dia_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_max_dia)
+        self.splice_type_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_splice_type)
+        self.resistance_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_resistance)
+        self.min_dia_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_min_dia)
+        self.max_dia_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_max_dia)
 
         self.mfg_page = ManufacturerControl(self)
         self.family_page = FamilyControl(self)
@@ -361,6 +372,8 @@ class SpliceControl(wx.Notebook):
 
         self.model3d_page = Model3DControl(self)
 
+        self.wire_size_page = WireSizeControl(self)
+
         for page in (
             general_page,
             self.mfg_page,
@@ -371,7 +384,8 @@ class SpliceControl(wx.Notebook):
             self.resources_page,
             diameter_page,
             self.plating_page,
-            self.model3d_page
+            self.model3d_page,
+            self.wire_size_page
         ):
             self.AddPage(page, page.GetLabel())
             page.Realize()

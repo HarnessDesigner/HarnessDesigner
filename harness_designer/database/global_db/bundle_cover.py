@@ -2,7 +2,8 @@ from typing import Iterable as _Iterable, TYPE_CHECKING
 
 import wx
 
-from ...ui.editor_obj import prop_grid as _prop_grid
+from ...ui import prop_ctrls as _prop_ctrls
+
 from .bases import EntryBase, TableBase
 
 from .mixins import (
@@ -27,6 +28,15 @@ if TYPE_CHECKING:
 
 class BundleCoversTable(TableBase):
     __table_name__ = 'bundle_covers'
+
+    _control: "BundleCoverControl" = None
+
+    @property
+    def control(self) -> "BundleCoverControl":
+        if self._control is None:
+            self._control = BundleCoverControl(self.db.mainframe)
+            self._control.Show(False)
+        return self._control
 
     def _load_database(self, splash):
         from ..create_database import bundle_covers
@@ -369,7 +379,7 @@ class BundleCoverControl(wx.Notebook):
 
         wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
 
-        general_page = _prop_grid.Category(self, 'General')
+        general_page = _prop_ctrls.Category(self, 'General')
 
         self.part_number_ctrl = PartNumberControl(general_page)
         self.description_ctrl = DescriptionControl(general_page)
@@ -379,26 +389,26 @@ class BundleCoverControl(wx.Notebook):
         self.weight_ctrl = WeightControl(general_page)
         self.protection_ctrl = ProtectionControl(general_page)
 
-        self.rigidity_ctrl = _prop_grid.StringProperty(general_page, 'Rigidity')
-        self.shrink_ratio_ctrl = _prop_grid.StringProperty(general_page, 'Shrink Ratio')
-        self.wall_ctrl = _prop_grid.StringProperty(general_page, 'Wall')
+        self.rigidity_ctrl = _prop_ctrls.StringProperty(general_page, 'Rigidity')
+        self.shrink_ratio_ctrl = _prop_ctrls.StringProperty(general_page, 'Shrink Ratio')
+        self.wall_ctrl = _prop_ctrls.StringProperty(general_page, 'Wall')
 
-        self.rigidity_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_rigidity)
-        self.shrink_ratio_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_shrink_ratio)
-        self.wall_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_wall)
+        self.rigidity_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_rigidity)
+        self.shrink_ratio_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_shrink_ratio)
+        self.wall_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_wall)
 
-        self.diameter_page = _prop_grid.Property(self, 'Diameter')
+        self.diameter_page = _prop_ctrls.Property(self, 'Diameter')
 
-        self.min_dia_ctrl = _prop_grid.FloatProperty(
+        self.min_dia_ctrl = _prop_ctrls.FloatProperty(
             self.diameter_page, 'Minimum', min_value=0.00,
             max_value=999.9, increment=0.01, units='mm')
 
-        self.max_dia_ctrl = _prop_grid.FloatProperty(
+        self.max_dia_ctrl = _prop_ctrls.FloatProperty(
             self.diameter_page, 'Maximum', min_value=0.00,
             max_value=999.9, increment=0.01, units='mm')
 
-        self.min_dia_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_min_dia)
-        self.max_dia_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_max_dia)
+        self.min_dia_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_min_dia)
+        self.max_dia_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_max_dia)
 
         self.mfg_page = ManufacturerControl(self)
         self.family_page = FamilyControl(self)
@@ -407,8 +417,8 @@ class BundleCoverControl(wx.Notebook):
         self.resources_page = ResourcesControl(self)
 
         self.shrink_temp_choices: list[str] = []
-        self.shrink_temp_ctrl = _prop_grid.ComboBoxProperty(self.temperature_page, 'Shrink Temperature')
-        self.shrink_temp_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_shrink_temp)
+        self.shrink_temp_ctrl = _prop_ctrls.ComboBoxProperty(self.temperature_page, 'Shrink Temperature')
+        self.shrink_temp_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_shrink_temp)
 
         for page in (
             general_page,

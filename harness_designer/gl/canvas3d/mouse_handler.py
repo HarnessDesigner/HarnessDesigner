@@ -218,7 +218,6 @@ class MouseHandler:
                 refresh = True
 
             if self._drag_obj is not None:
-                print('drag object is not None')
                 self._drag_obj.delete()
                 self._drag_obj = None
 

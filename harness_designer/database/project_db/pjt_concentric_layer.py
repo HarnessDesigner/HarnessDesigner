@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
-from ...ui.editor_obj import prop_grid as _prop_grid
+from ...ui import prop_ctrls as _prop_ctrls
 
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from .mixins import NotesMixin
@@ -144,25 +144,25 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
         self._populate('diameter')
 
     @property
-    def propgrid(self) -> _prop_grid.Property:
+    def propgrid(self) -> _prop_ctrls.Property:
 
-        group = _prop_grid.Property(f'Layer {self.idx}')
+        group = _prop_ctrls.Property(f'Layer {self.idx}')
 
         notes_prop = self._notes_propgrid
 
-        num_fillers_prop = _prop_grid.IntProperty(
+        num_fillers_prop = _prop_ctrls.IntProperty(
             'Filler Count', 'num_fillders',
             self.num_fillers, min_value=0, max_value=999)
 
-        num_wires = _prop_grid.IntProperty(
+        num_wires = _prop_ctrls.IntProperty(
             'Wire Count', 'num_wires',
             self.num_wires, min_value=0, max_value=999)
 
-        diameter = _prop_grid.FloatProperty(
+        diameter = _prop_ctrls.FloatProperty(
             'Diameter', 'diameter', self.diameter,
             min_value=0.0, max_value=999.0, increment=0.1, units='mm')
 
-        wire_prop = _prop_grid.Property(f'Wires')
+        wire_prop = _prop_ctrls.Property(f'Wires')
 
         for wire in self.wires:
             wire_prop.Append(wire.propgrid)

@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Iterable as _Iterable
 import weakref
 import wx
 
-from ...ui.editor_obj import prop_grid as _prop_grid
+from ...ui import prop_ctrls as _prop_ctrls
 
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from . import pjt_seal as _pjt_seal
@@ -356,34 +356,34 @@ class PJTTerminalControl(wx.Notebook):
 
         wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
 
-        general_page = _prop_grid.Category(self, 'General')
+        general_page = _prop_ctrls.Category(self, 'General')
         self.name_ctrl = NameControl(general_page)
         self.note_ctrl = NotesControl(general_page)
 
-        self.is_start_ctrl = _prop_grid.BoolProperty(general_page, 'Is Start')
-        self.voltage_drop_ctrl = _prop_grid.FloatProperty(general_page, 'Allowed Voltage Drop', min_value=0.0, max_value=9999.99, increment=0.01, units='VDC/VAC')
-        self.volts_ctrl = _prop_grid.FloatProperty(general_page, 'Volts', min_value=0.0, max_value=44000.00, increment=0.01, units='VDC/VAC')
-        self.load_ctrl = _prop_grid.FloatProperty(general_page, 'Load', min_value=0.0, max_value=9999.99, increment=0.01, units='A')
+        self.is_start_ctrl = _prop_ctrls.BoolProperty(general_page, 'Is Start')
+        self.voltage_drop_ctrl = _prop_ctrls.FloatProperty(general_page, 'Allowed Voltage Drop', min_value=0.0, max_value=9999.99, increment=0.01, units='VDC/VAC')
+        self.volts_ctrl = _prop_ctrls.FloatProperty(general_page, 'Volts', min_value=0.0, max_value=44000.00, increment=0.01, units='VDC/VAC')
+        self.load_ctrl = _prop_ctrls.FloatProperty(general_page, 'Load', min_value=0.0, max_value=9999.99, increment=0.01, units='A')
 
-        angle_page = _prop_grid.Category(self, 'Angle')
+        angle_page = _prop_ctrls.Category(self, 'Angle')
         self.angle2d_ctrl = Angle2DControl(angle_page)
         self.angle3d_ctrl = Angle3DControl(angle_page)
 
-        position_page = _prop_grid.Category(self, 'Position')
+        position_page = _prop_ctrls.Category(self, 'Position')
         self.position2d_ctrl = Position2DControl(position_page)
         self.position3d_ctrl = Position3DControl(position_page)
 
-        visible_page = _prop_grid.Category(self, 'Visible')
+        visible_page = _prop_ctrls.Category(self, 'Visible')
         self.visible2d_ctrl = Visible2DControl(visible_page)
         self.visible3d_ctrl = Visible3DControl(visible_page)
 
-        seal_page = _prop_grid.Category(self, 'Seal')
+        seal_page = _prop_ctrls.Category(self, 'Seal')
         self.seal_ctrl = _pjt_seal.PJTSealControl(seal_page)
 
-        circuit_page = _prop_grid.Category(self, 'Circuit')
+        circuit_page = _prop_ctrls.Category(self, 'Circuit')
         self.circuit_ctrl = _pjt_circuit.PJTCircuitControl(circuit_page)
 
-        part_page = _prop_grid.Category(self, 'Part')
+        part_page = _prop_ctrls.Category(self, 'Part')
         self.terminal_ctrl = _terminal.TerminalControl(part_page)
 
         for page in (

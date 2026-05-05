@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 
 import wx
 
-from ....ui.editor_obj import prop_grid as _prop_grid
+from ....ui import prop_ctrls as _prop_ctrls
 
 from .base import BaseMixin
 
@@ -29,7 +29,7 @@ class ColorMixin(BaseMixin):
         self._populate('color_id')
 
 
-class ColorControl(_prop_grid.ColorProperty):
+class ColorControl(_prop_ctrls.ColorProperty):
 
     def __init__(self, parent):
         self.choices: list[list[str, int]] = None
@@ -38,7 +38,7 @@ class ColorControl(_prop_grid.ColorProperty):
 
         super().__init__(parent, 'Color')
 
-        self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_color)
+        self.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_color)
 
     def SetAttributeName(self, name):
         self.attribute_name = name

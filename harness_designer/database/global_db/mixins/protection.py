@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from ....ui.editor_obj import prop_grid as _prop_grid
+from ....ui import prop_ctrls as _prop_ctrls
 
 from .base import BaseMixin
 
@@ -25,7 +25,7 @@ class ProtectionMixin(BaseMixin):
         return self.table.db.protections_table[protection_id]
 
 
-class ProtectionControl(_prop_grid.AutocompleteStringProperty):
+class ProtectionControl(_prop_ctrls.AutocompleteStringProperty):
 
     def __init__(self, parent):
         self.db_obj: ProtectionMixin = None
@@ -33,7 +33,7 @@ class ProtectionControl(_prop_grid.AutocompleteStringProperty):
 
         super().__init__(parent, 'Protections')
 
-        self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_protection)
+        self.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_protection)
 
     def set_obj(self, db_obj: ProtectionMixin):
         self.db_obj = db_obj
@@ -56,7 +56,7 @@ class ProtectionControl(_prop_grid.AutocompleteStringProperty):
 
             self.Enable(True)
 
-    def _on_protection(self, evt: _prop_grid.PropertyEvent):
+    def _on_protection(self, evt: _prop_ctrls.PropertyEvent):
         protection = evt.GetValue()
 
         self.db_obj.table.execute(f'SELECT id FROM protections WHERE name="{protection}";')

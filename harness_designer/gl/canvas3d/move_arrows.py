@@ -41,7 +41,6 @@ class MoveArrows(_object_base.ObjectBase):
         return self._treeitem
 
     def __del__(self):
-        print(self, 'has been marked for garbage collection')
         self.delete()
 
     def delete(self):

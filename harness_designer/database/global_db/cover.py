@@ -2,7 +2,7 @@ from typing import Iterable as _Iterable
 
 import wx
 
-from ...ui.editor_obj import prop_grid as _prop_grid
+from ...ui import prop_ctrls as _prop_ctrls
 from .bases import EntryBase, TableBase
 
 from .mixins import (
@@ -24,6 +24,15 @@ from .mixins import (
 
 class CoversTable(TableBase):
     __table_name__ = 'covers'
+
+    _control: "CoverControl" = None
+
+    @property
+    def control(self) -> "CoverControl":
+        if self._control is None:
+            self._control = CoverControl(self.db.mainframe)
+            self._control.Show(False)
+        return self._control
 
     def _load_database(self, splash):
         from ..create_database import covers
@@ -64,6 +73,28 @@ class CoversTable(TableBase):
             return Cover(self, db_id[0][0])
 
         raise KeyError(item)
+
+    def get_compat(self, housing: str = None):
+
+        res = []
+
+        if housing is not None:
+            part_number = housing
+            field_name = 'compat_housings'
+        else:
+            return []
+
+        self.execute(f'SELECT id, {field_name} FROM covers WHERE {field_name} LIKE "%{part_number}%;')
+        rows = self.fetchall()
+        for db_id, compat in rows:
+            compat = compat[1:-1].split(', ')
+
+            if part_number not in compat:
+                continue
+
+            res.append(db_id)
+
+        return res
 
     def insert(self, part_number: str, mfg_id: int, description: str, family_id: int,
                series_id: int, image_id: int, datasheet_id: int, cad_id: int,
@@ -201,7 +232,6 @@ class CoverControl(wx.Notebook):
         self.resources_page.set_obj(db_obj)
         self.model3d_page.set_obj(db_obj)
 
-
         self.part_number_ctrl.set_obj(db_obj)
         self.description_ctrl.set_obj(db_obj)
         self.color_ctrl.set_obj(db_obj)
@@ -214,7 +244,7 @@ class CoverControl(wx.Notebook):
 
         wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
 
-        general_page = _prop_grid.Category(self, 'General')
+        general_page = _prop_ctrls.Category(self, 'General')
 
         self.part_number_ctrl = PartNumberControl(general_page)
         self.description_ctrl = DescriptionControl(general_page)
@@ -231,7 +261,7 @@ class CoverControl(wx.Notebook):
 
         self.resources_page = ResourcesControl(self)
 
-        compat_parts_page = _prop_grid.Category(self, 'Compatible Parts')
+        compat_parts_page = _prop_ctrls.Category(self, 'Compatible Parts')
         self.compat_housing_ctrl = CompatHousingsControl(compat_parts_page)
 
         self.model3d_page = Model3DControl(self)

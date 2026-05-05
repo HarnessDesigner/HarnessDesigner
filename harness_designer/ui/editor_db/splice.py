@@ -1,194 +1,81 @@
 from typing import TYPE_CHECKING
 
 import wx
-import wx.dataview as dv
-
-from .controls import choice as _choice
-from .controls import float_spin as _float_spin
-from .controls import model_base as _model_base
-from .controls import dataviewctrl as _dataviewctrl
-
+from . import base as _base
 
 if TYPE_CHECKING:
     from ...database.global_db import splice as _splice
 
 
-class SplicesModel(_model_base.ModelBase):
+class SplicesPage(_base.EditorList):
     __table_name__ = 'splices'
+    __query__ = f'''\
+        SELECT * FROM (
+            SELECT
+                Row_Number() OVER (ORDER BY {{sort_column}} {{sort_direction}}) AS RowNum,
+                t.id,
+                t.part_number,
+                t.description,
+                mfg.name AS mfg_name,
+                family.name AS family_name,
+                series.name AS series_name,
+                color.name AS color_name,
+                min_temp.name AS min_temp_name,
+                max_temp.name AS max_temp_name,
+                material.name AS material_name,
+                plating.description AS plating_description,
+                type.name AS type_name,
+                t.min_dia,
+                t.max_dia,
+                t.resistance,
+                t.length,
+                t.weight,
+                t.wire_size_awg_min,
+                t.wire_size_awg_max,
+                t.wire_size_dia_min,
+                t.wire_size_dia_max,
+                t.wire_size_cross_min,
+                t.wire_size_cross_max,
+                t.num_wires,
+                t.model3d_id,
+                t.image_id
+            FROM {__table_name__} AS t
+            LEFT JOIN manufacturers AS mfg ON mfg.id = t.mfg_id
+            LEFT JOIN families AS family ON family.id = t.family_id
+            LEFT JOIN series AS series ON series.id = t.series_id
+            LEFT JOIN colors AS color ON color.id = t.color_id
+            LEFT JOIN temperatures AS min_temp ON min_temp.id = t.min_temp_id
+            LEFT JOIN temperatures AS max_temp ON max_temp.id = t.max_temp_id
+            LEFT JOIN materials AS material ON material.id = t.material_id
+            LEFT JOIN platings AS plating ON plating.id = t.plating_id
+            LEFT JOIN splice_types AS type ON type.id = t.type_id
+        ) t2 WHERE RowNum = {{row}};
+        '''
+
     column_mapping = {
-        0: 'id',
-        1: 'part_number',
-        2: 'description',
-        3: 'mfg_id',
-        4: 'family_id',
-        5: 'series_id',
-        6: 'material_id',
-        7: 'color_id',
-        8: 'plating_id',
-        9: 'type_id',
-        10: 'min_dia',
-        11: 'max_dia',
-        12: 'length',
-        13: 'weight'
+        0: 'DB ID',
+        1: 'Part Number',
+        2: 'Description',
+        3: 'Manufacturer',
+        4: 'Family',
+        5: 'Series',
+        6: 'Color',
+        7: 'Temperature (min)',
+        8: 'Temperature (max)',
+        9: 'Material',
+        10: 'Plating',
+        11: 'Type',
+        12: 'Diameter (mm)(min)',
+        13: 'Diameter (mm)(max)',
+        14: 'Resistance (Ω)',
+        15: 'Length (mm)',
+        16: 'Weight (g)',
+        17: 'Wire AWG (min)',
+        18: 'Wire AWG (max)',
+        19: 'Wire Dia (mm)(min)',
+        20: 'Wire Dia (mm)(max)',
+        21: 'Wire Cross (mm²)(min)',
+        22: 'Wire Cross (mm²)(max)',
+        23: 'Wire Count'
     }
     table: "_splice.SplicesTable" = None
-
-    def Compare(self, item1, item2, col, ascending):
-        if not ascending:
-            item2, item1 = item1, item2
-
-        row1 = self.GetRow(item1)
-        row2 = self.GetRow(item2)
-
-        a = self.GetValueByRow(row1, col)
-        b = self.GetValueByRow(row2, col)
-
-        if col == 0:
-            a = int(a)
-            b = int(b)
-        elif col == 3:
-            a = self.table.db.manufacturers_table[a].name
-            b = self.table.db.manufacturers_table[b].name
-        elif col == 4:
-            a = self.table.db.families_table[a].name
-            b = self.table.db.families_table[b].name
-        elif col == 5:
-            a = self.table.db.series_table[a].name
-            b = self.table.db.series_table[b].name
-        elif col == 6:
-            a = self.table.db.materials_table[a].name
-            b = self.table.db.materials_table[b].name
-        elif col == 7:
-            a = self.table.db.colors_table[a].name
-            b = self.table.db.colors_table[b].name
-        elif col == 8:
-            a = self.table.db.platings_table[a].description
-            b = self.table.db.platings_table[b].description
-        elif col == 9:
-            a = self.table.db.splice_types_table[a].name
-            b = self.table.db.splice_types_table[b].name
-        elif col == 10:
-            a = float(a)
-            b = float(b)
-        elif col == 11:
-            a = float(a)
-            b = float(b)
-        elif col == 12:
-            a = float(a)
-            b = float(b)
-        elif col == 13:
-            a = float(a)
-            b = float(b)
-
-        if a < b:
-            return -1
-
-        if a > b:
-            return 1
-
-        return 0
-
-    def AddRow(self, value):
-        value = list(value)
-        self.table.insert(*value)
-        self.RowAppended()
-
-
-class SplicesPanel(wx.Panel):
-    def __init__(self, parent, table: "_splice.SplicesTable"):
-        wx.Panel.__init__(self, parent, -1)
-
-        self.table = table
-
-        # Create a dataview control
-        self.dvc = _dataviewctrl.DataViewCtrl(self, style=wx.BORDER_THEME | dv.DV_ROW_LINES | dv.DV_MULTIPLE)
-
-        self.model = SplicesModel(table)
-        self.dvc.AssociateModel(self.model)
-
-        # Now we create some columns.
-        col = self.dvc.AppendTextColumn("DB_ID", 0)
-        col.SetAlignment(wx.ALIGN_LEFT)
-
-        col = self.dvc.AppendTextColumn("Part Number", 1, mode=dv.DATAVIEW_CELL_EDITABLE)
-        col.SetAlignment(wx.ALIGN_LEFT)
-
-        col = self.dvc.AppendTextColumn("Description", 2, mode=dv.DATAVIEW_CELL_EDITABLE)
-        col.SetAlignment(wx.ALIGN_LEFT)
-
-        table.execute('SELECT id, name FROM manufacturers ORDER BY id ASC;')
-        choices = table.fetchall()
-        renderer = _choice.ManufacturerRenderer(choices, mode=dv.DATAVIEW_CELL_EDITABLE)
-        col = _dataviewctrl.DataViewColumn("Manufacturer", renderer, 3)
-        col.SetAlignment(wx.ALIGN_LEFT)
-        self.dvc.AppendColumn(col)
-
-        table.execute('SELECT id, name FROM families ORDER BY id ASC;')
-        choices = table.fetchall()
-        renderer = _choice.FamilyRenderer(choices, mode=dv.DATAVIEW_CELL_EDITABLE)
-        col = _dataviewctrl.DataViewColumn("Family", renderer, 4)
-        col.SetAlignment(wx.ALIGN_LEFT)
-        self.dvc.AppendColumn(col)
-
-        table.execute('SELECT id, name FROM series ORDER BY id ASC;')
-        choices = table.fetchall()
-        renderer = _choice.SeriesRenderer(choices, mode=dv.DATAVIEW_CELL_EDITABLE)
-        col = _dataviewctrl.DataViewColumn("Series", renderer, 5)
-        col.SetAlignment(wx.ALIGN_LEFT)
-        self.dvc.AppendColumn(col)
-
-        table.execute('SELECT id, name FROM materials ORDER BY id ASC;')
-        choices = table.fetchall()
-        renderer = _choice.MaterialRenderer(choices, mode=dv.DATAVIEW_CELL_EDITABLE)
-        col = _dataviewctrl.DataViewColumn("Material", renderer, 6)
-        col.SetAlignment(wx.ALIGN_LEFT)
-        self.dvc.AppendColumn(col)
-
-        table.execute('SELECT id, name FROM colors ORDER BY id ASC;')
-        choices = table.fetchall()
-        renderer = _choice.ColorRenderer(choices, mode=dv.DATAVIEW_CELL_EDITABLE)
-        col = _dataviewctrl.DataViewColumn("Color", renderer, 7)
-        col.SetAlignment(wx.ALIGN_LEFT)
-        self.dvc.AppendColumn(col)
-
-        table.execute('SELECT id, description FROM platings ORDER BY id ASC;')
-        choices = table.fetchall()
-        renderer = _choice.PlatingRenderer(choices, mode=dv.DATAVIEW_CELL_EDITABLE)
-        col = _dataviewctrl.DataViewColumn("Plating", renderer, 8)
-        col.SetAlignment(wx.ALIGN_LEFT)
-        self.dvc.AppendColumn(col)
-
-        table.execute('SELECT id, name FROM splice_types ORDER BY id ASC;')
-        choices = table.fetchall()
-        renderer = _choice.SpliceTypeRenderer(choices, mode=dv.DATAVIEW_CELL_EDITABLE)
-        col = _dataviewctrl.DataViewColumn("Type", renderer, 9)
-        col.SetAlignment(wx.ALIGN_LEFT)
-        self.dvc.AppendColumn(col)
-
-        renderer = _float_spin.FloatSpinRenderer(min_val=0.0, max_val=255.0, increment=0.1, mode=dv.DATAVIEW_CELL_EDITABLE)
-        col = _dataviewctrl.DataViewColumn("Diameter (Min, mm)", renderer, 10)
-        col.SetAlignment(wx.ALIGN_LEFT)
-        self.dvc.AppendColumn(col)
-
-        renderer = _float_spin.FloatSpinRenderer(min_val=0.0, max_val=255.0, increment=0.1, mode=dv.DATAVIEW_CELL_EDITABLE)
-        col = _dataviewctrl.DataViewColumn("Diameter (Max, mm)", renderer, 11)
-        col.SetAlignment(wx.ALIGN_LEFT)
-        self.dvc.AppendColumn(col)
-
-        renderer = _float_spin.FloatSpinRenderer(min_val=0.0, max_val=255.0, increment=0.1, mode=dv.DATAVIEW_CELL_EDITABLE)
-        col = _dataviewctrl.DataViewColumn("Length (mm)", renderer, 12)
-        col.SetAlignment(wx.ALIGN_LEFT)
-        self.dvc.AppendColumn(col)
-
-        renderer = _float_spin.FloatSpinRenderer(min_val=0.0, max_val=99.0, increment=0.1, mode=dv.DATAVIEW_CELL_EDITABLE)
-        col = _dataviewctrl.DataViewColumn("Weight (g)", renderer, 13)
-        col.SetAlignment(wx.ALIGN_LEFT)
-        self.dvc.AppendColumn(col)
-
-        self.Sizer = wx.BoxSizer(wx.VERTICAL)
-        self.Sizer.Add(self.dvc, 1, wx.EXPAND)
-
-    def GetSelection(self):
-        selection = self.dvc.GetSelection()
-        if selection.IsOk():
-            return int(self.model.GetValue(selection, 0))

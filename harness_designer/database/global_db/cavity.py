@@ -3,7 +3,7 @@ from typing import Iterable as _Iterable, TYPE_CHECKING
 
 import wx
 
-from ...ui.editor_obj import prop_grid as _prop_grid
+from ...ui import prop_ctrls as _prop_ctrls
 from .bases import EntryBase, TableBase
 from .mixins import NameMixin, DimensionMixin, DimensionControl
 from ...geometry import point as _point
@@ -351,7 +351,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         return res
 
 
-class CavityControl(_prop_grid.Category):
+class CavityControl(_prop_ctrls.Category):
 
     def SetIndex(self, index):
         self.SetLabel(f'Cavity {index}')
@@ -405,24 +405,24 @@ class CavityControl(_prop_grid.Category):
 
         self.nb = wx.Notebook(self, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
 
-        general_page = _prop_grid.Category(self.nb, 'General')
+        general_page = _prop_ctrls.Category(self.nb, 'General')
 
-        self.index_ctrl = _prop_grid.IntProperty(general_page, 'Index', min_value=0, max_value=999)
-        self.round_terminal_ctrl = _prop_grid.BoolProperty(general_page, 'Is Round')
-        self.terminal_sizes_ctrl = _prop_grid.ArrayFloatProperty(general_page, 'Terminal sizes')
+        self.index_ctrl = _prop_ctrls.IntProperty(general_page, 'Index', min_value=0, max_value=999)
+        self.round_terminal_ctrl = _prop_ctrls.BoolProperty(general_page, 'Is Round')
+        self.terminal_sizes_ctrl = _prop_ctrls.ArrayFloatProperty(general_page, 'Terminal sizes')
 
         self.dimension_page = DimensionControl(self.nb)
 
-        position_page = _prop_grid.Category(self.nb, 'Position')
-        self.position2d_ctrl = _prop_grid.Position2DProperty(position_page, '2D Position')
-        self.position3d_ctrl = _prop_grid.Position3DProperty(position_page, '3D Position')
+        position_page = _prop_ctrls.Category(self.nb, 'Position')
+        self.position2d_ctrl = _prop_ctrls.Position2DProperty(position_page, '2D Position')
+        self.position3d_ctrl = _prop_ctrls.Position3DProperty(position_page, '3D Position')
 
-        angle_page = _prop_grid.Category(self.nb, 'Angle')
-        self.angle3d_ctrl = _prop_grid.Angle3DProperty(angle_page, '3D Angle')
+        angle_page = _prop_ctrls.Category(self.nb, 'Angle')
+        self.angle3d_ctrl = _prop_ctrls.Angle3DProperty(angle_page, '3D Angle')
 
-        self.round_terminal_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_round_terminal)
-        self.index_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_index)
-        self.terminal_sizes_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_terminal_sizes)
+        self.round_terminal_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_round_terminal)
+        self.index_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_index)
+        self.terminal_sizes_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_terminal_sizes)
 
         for page in (
             general_page,

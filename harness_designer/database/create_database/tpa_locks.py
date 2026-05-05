@@ -52,6 +52,8 @@ def add_tpa_lock(con, part_number, description, mfg=None, family=None, series=No
 
         description += ' TPA Lock'
 
+    compat_housings = ', '.join(compat_housings)
+
     _logger.logger.database(f'adding tpa lock {part_number}, {description}')
 
     con.execute('INSERT INTO tpa_locks (part_number, description, mfg_id, family_id, '
@@ -62,12 +64,7 @@ def add_tpa_lock(con, part_number, description, mfg=None, family=None, series=No
                 (part_number, description, mfg_id, family_id, series_id, color_id,
                  image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, model3d_id,
                  lock_type, length, width, height, weight, pins, terminal_size,
-                 str(compat_housings)))
-
-    con.commit()
-    db_id = con.lastrowid
-
-    _logger.logger.database(f'tpa lock added "{part_number}" = {db_id}')
+                 compat_housings))
 
 
 def add_pjt_tpa_lock(con, project_id, part_id, point3d_id=None, housing_id=None,
@@ -95,19 +92,9 @@ def add_tpa_locks(con, data: tuple[dict] | list[dict]):
 
 
 def add_records(con, splash, data_path):
-    con.execute('SELECT id FROM tpa_locks WHERE id=0;')
+    con.execute('SELECT id FROM tpa_locks WHERE id=1;')
     if con.fetchall():
         return
-
-    splash.SetText(f'Adding TPA lock to db [1 | 1]...')
-    splash.flush()
-
-    con.execute('INSERT INTO tpa_locks (id, part_number, description, mfg_id, family_id, '
-                'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
-                'max_temp_id, model3d_id, lock_type, length, width, height, weight, '
-                'pins, terminal_size, compat_housings) VALUES '
-                '(0, "N/A", "No TPA Lock", 0, 0, 0, 999999, NULL, NULL, NULL, '
-                '0, 0, NULL, 0, 0.0, 0.0, 0.0, 0.0, 0, 0.0, "[]");')
 
     dirs = []
     for file in os.listdir(data_path):
@@ -125,8 +112,6 @@ def add_records(con, splash, data_path):
             splash.SetText(f'Loading TPA locks file...')
             splash.flush()
 
-            _logger.logger.database(json_path)
-
             with open(json_path, 'r') as f:
                 data = json.loads(f.read())
 
@@ -139,19 +124,19 @@ def add_records(con, splash, data_path):
             splash.flush()
 
             for i, item in enumerate(data):
-                splash.SetText(f'Adding TPA locks to db [{i + 1} | {data_len}]...')
+                if not i % 100:
+                    splash.SetText(f'Adding TPA locks to db [{i + 1} | {data_len}]...')
 
-                pn = item['part_number']
-                con.execute(f'SELECT id FROM tpa_locks WHERE part_number="{pn}";')
-                rows = con.fetchall()
-                if not rows:
-                    if 'shared_cad' in item:
-                        del item['shared_cad']
+                if 'shared_cad' in item:
+                    del item['shared_cad']
 
-                    if 'shared_model3d' in item:
-                        del item['shared_model3d']
+                if 'shared_model3d' in item:
+                    del item['shared_model3d']
 
+                try:
                     add_tpa_lock(con, **item)
+                except Exception as err:
+                    _logger.logger.traceback(err)
 
         con.commit()
     os.chdir(cwd)
@@ -212,7 +197,7 @@ table = _con.SQLTable(
     _con.FloatField('weight', default='"0.0"', no_null=True),
     _con.TextField('pins', default='""', no_null=True),
     _con.FloatField('terminal_size', default='"0.0"', no_null=True),
-    _con.TextField('compat_housings', default='"[]"', no_null=True)
+    _con.TextField('compat_housings', default='""', no_null=True)
 )
 
 

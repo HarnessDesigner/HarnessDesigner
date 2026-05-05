@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Iterable as _Iterable
 import weakref
 import wx
 
-from ...ui.editor_obj import prop_grid as _prop_grid
+from ...ui import prop_ctrls as _prop_ctrls
 from ..global_db import cover as _cover
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from .mixins import (
@@ -144,20 +144,20 @@ class PJTCoverControl(wx.Notebook):
 
         wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
 
-        general_page = _prop_grid.Category(self, 'General')
+        general_page = _prop_ctrls.Category(self, 'General')
         self.name_ctrl = NameControl(general_page)
         self.note_ctrl = NotesControl(general_page)
 
-        angle_page = _prop_grid.Category(self, 'Angle')
+        angle_page = _prop_ctrls.Category(self, 'Angle')
         self.angle3d_ctrl = Angle3DControl(angle_page)
 
-        position_page = _prop_grid.Category(self, 'Position')
+        position_page = _prop_ctrls.Category(self, 'Position')
         self.position3d_ctrl = Position3DControl(position_page)
 
-        visible_page = _prop_grid.Category(self, 'Visible')
+        visible_page = _prop_ctrls.Category(self, 'Visible')
         self.visible3d_ctrl = Visible3DControl(visible_page)
 
-        part_page = _prop_grid.Category(self, 'Part')
+        part_page = _prop_ctrls.Category(self, 'Part')
 
         from ..global_db import cover as _cover  # NOQA
 

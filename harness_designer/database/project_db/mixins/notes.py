@@ -1,6 +1,6 @@
 from .base import BaseMixin
 
-from ....ui.editor_obj import prop_grid as _prop_grid
+from ....ui import prop_ctrls as _prop_ctrls
 
 
 class NotesMixin(BaseMixin):
@@ -15,14 +15,14 @@ class NotesMixin(BaseMixin):
         self._populate('notes')
 
 
-class NotesControl(_prop_grid.LongStringProperty):
+class NotesControl(_prop_ctrls.LongStringProperty):
 
     def __init__(self, parent):
         self.db_obj: NotesMixin = None
 
         super().__init__(parent, 'Notes')
 
-        self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_notes)
+        self.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_notes)
 
     def _on_notes(self, evt):
         value = evt.GetValue()

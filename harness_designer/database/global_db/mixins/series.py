@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 
 import wx
 
-from ....ui.editor_obj import prop_grid as _prop_grid
+from ....ui import prop_ctrls as _prop_ctrls
 from .base import BaseMixin
 
 
@@ -29,7 +29,7 @@ class SeriesMixin(BaseMixin):
         self._populate('series_id')
 
 
-class SeriesControl(_prop_grid.Category):
+class SeriesControl(_prop_ctrls.Category):
 
     def __init__(self, parent):
         super().__init__(parent, 'Series')
@@ -37,12 +37,12 @@ class SeriesControl(_prop_grid.Category):
         self.choices: list[str] = []
         self.db_obj: SeriesMixin = None
 
-        self.name_ctrl = _prop_grid.ComboBoxProperty(self, 'Name')
-        self.desc_ctrl = _prop_grid.LongStringProperty(self, 'Description')
-        self.mfg_ctrl = _prop_grid.StringProperty(self, 'Manufacturer', style=wx.TE_READONLY)
+        self.name_ctrl = _prop_ctrls.ComboBoxProperty(self, 'Name')
+        self.desc_ctrl = _prop_ctrls.LongStringProperty(self, 'Description')
+        self.mfg_ctrl = _prop_ctrls.StringProperty(self, 'Manufacturer', style=wx.TE_READONLY)
 
-        self.name_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_name)
-        self.desc_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_desc)
+        self.name_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_name)
+        self.desc_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_desc)
 
     def set_obj(self, db_obj: SeriesMixin):
         self.db_obj = db_obj
@@ -76,7 +76,7 @@ class SeriesControl(_prop_grid.Category):
             self.mfg_ctrl.Enable(True)
             self.desc_ctrl.Enable(True)
 
-    def _on_name(self, evt: _prop_grid.PropertyEvent):
+    def _on_name(self, evt: _prop_ctrls.PropertyEvent):
         name = evt.GetValue()
         mfg_id = self.db_obj.series.mfg_id
 
@@ -100,6 +100,6 @@ class SeriesControl(_prop_grid.Category):
 
         self.db_obj.series_id = db_id
 
-    def _on_desc(self, evt: _prop_grid.PropertyEvent):
+    def _on_desc(self, evt: _prop_ctrls.PropertyEvent):
         desc = evt.GetValue()
         self.db_obj.series.description = desc

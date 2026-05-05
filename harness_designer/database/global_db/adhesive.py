@@ -1,6 +1,6 @@
 from typing import Iterable as _Iterable
 
-from ...ui.editor_obj import prop_grid as _prop_grid
+from ...ui import prop_ctrls as _prop_ctrls
 
 from .bases import EntryBase, TableBase
 from .mixins import DescriptionMixin

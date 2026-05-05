@@ -30,11 +30,15 @@ def add_wires(con, data: tuple[dict] | list[dict]):
 
 
 def add_records(con, splash, data_path):
-    con.execute('SELECT id FROM wires WHERE id=0;')
+    con.execute('SELECT id FROM wires WHERE id=1;')
     if con.fetchall():
         return
 
     json_path = os.path.join(data_path, 'wires.json')
+
+
+
+
 
     if os.path.exists(json_path):
         splash.SetText(f'Loading Wire file...')
@@ -54,8 +58,13 @@ def add_records(con, splash, data_path):
         splash.flush()
 
         for i, item in enumerate(data):
-            splash.SetText(f'Adding wire to db [{i + 1} | {data_len}]...')
-            add_wire(con, **item)
+            if not i % 100:
+                splash.SetText(f'Adding wire to db [{i + 1} | {data_len}]...')
+
+            try:
+                add_wire(con, **item)
+            except Exception as err:
+                _logger.logger.traceback(err)
 
     con.commit()
 
@@ -63,8 +72,8 @@ def add_records(con, splash, data_path):
 def add_wire(con, part_number, description, mfg=None, family=None, series=None,
              color=None, image=None, datasheet=None, cad=None, min_temp=None,
              max_temp=None, material=None, stripe_color=None, core_material=None,
-             num_conductors=1, shielded=0, tpi=0.0, conductor_dia_mm=0.0, size_mm2=0.0,
-             size_awg=-1, od_mm=0.0, weight_1km=0.0, resistance_1km=0.0, volts=0.0):
+             num_conductors=1, shielded=0, tpi=0.0, wire_size_dia=None, wire_size_cross=None,
+             wire_size_awg=None, od_mm=0.0, weight_1km=0.0, resistance_1km=0.0, volts=0.0, strands=1):
 
     mfg_id = _manufacturers.get_mfg_id(con, mfg)
     core_material_id = _platings.get_plating_id(con, core_material)
@@ -82,15 +91,14 @@ def add_wire(con, part_number, description, mfg=None, family=None, series=None,
     con.execute('INSERT INTO wires (part_number, description, mfg_id, family_id, '
                 'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
                 'max_temp_id, material_id, stripe_color_id, core_material_id, '
-                'num_conductors, shielded, tpi, conductor_dia_mm, size_mm2, size_awg, '
-                'od_mm, weight_1km, resistance_1km, volts) '
-                'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                'num_conductors, shielded, tpi, wire_size_dia, wire_size_cross, wire_size_awg, '
+                'od_mm, weight_1km, resistance_1km, volts, strands) '
+                'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
                 (part_number, description, mfg_id, family_id, series_id, color_id,
                  image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, material_id,
                  stripe_color_id, core_material_id, num_conductors, shielded, tpi,
-                 conductor_dia_mm, size_mm2, size_awg, od_mm, weight_1km, resistance_1km,
-                 volts))
-    con.commit()
+                 wire_size_dia, wire_size_cross, wire_size_awg, od_mm, weight_1km, resistance_1km,
+                 volts, strands))
 
 
 id_field = _con.PrimaryKeyField('id')
@@ -151,14 +159,16 @@ table = _con.SQLTable(
     _con.IntField('num_conductors', default='1', no_null=True),
     _con.IntField('shielded', default='0', no_null=True),
     _con.FloatField('tpi', default='"0.0"', no_null=True),
-    _con.FloatField('conductor_dia_mm', default='NULL'),
-    _con.FloatField('size_mm2', default='NULL'),
-    _con.IntField('size_awg', default='NULL'),
+    _con.FloatField('wire_size_dia', default='NULL'),
+    _con.FloatField('wire_size_cross', default='NULL'),
+    _con.IntField('wire_size_awg', default='NULL'),
     _con.FloatField('od_mm', no_null=True),
     _con.FloatField('weight_1km', default='"0.0"', no_null=True),
     _con.FloatField('resistance_1km', default='"0.0"', no_null=True),
-    _con.FloatField('volts', default='"0.0"', no_null=True)
+    _con.FloatField('volts', default='"0.0"', no_null=True),
+    _con.IntField('strands', default='1'),
 )
+
 
 pjt_id_field = _con.PrimaryKeyField('id')
 

@@ -15,7 +15,7 @@ def add_records(con, splash, _=None):
     splash.flush()
 
     data = (
-        (0, '0', 'No Protection', 'No protection against ingress of water.', None),
+        (0, '0', 'No Protection', 'No protection against ingress of water.'),
         (1, '1', 'Dripping water',
          'Dripping water (vertically falling drops)\n'
          'shall have no unsafe effect on the specimen\n'

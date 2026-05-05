@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from ....ui.editor_obj import prop_grid as _prop_grid
+from ....ui import prop_ctrls as _prop_ctrls
 
 from .base import BaseMixin
 
@@ -26,7 +26,7 @@ class PlatingMixin(BaseMixin):
         self._populate('plating_id')
 
 
-class PlatingControl(_prop_grid.Category):
+class PlatingControl(_prop_ctrls.Category):
 
     def __init__(self, parent):
         super().__init__(parent, 'Plating')
@@ -36,11 +36,11 @@ class PlatingControl(_prop_grid.Category):
         self.choices: list[str] = []
         self.db_obj: PlatingMixin = None
 
-        self.symbol_ctrl = _prop_grid.ComboBoxProperty(self, 'Symbol')
-        self.desc_ctrl = _prop_grid.LongStringProperty(self, 'Description')
+        self.symbol_ctrl = _prop_ctrls.ComboBoxProperty(self, 'Symbol')
+        self.desc_ctrl = _prop_ctrls.LongStringProperty(self, 'Description')
 
-        self.symbol_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_symbol)
-        self.desc_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_desc)
+        self.symbol_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_symbol)
+        self.desc_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_desc)
 
     def set_obj(self, db_obj: PlatingMixin):
         self.db_obj = db_obj
@@ -70,7 +70,7 @@ class PlatingControl(_prop_grid.Category):
             self.symbol_ctrl.Enable(True)
             self.desc_ctrl.Enable(True)
 
-    def _on_symbol(self, evt: _prop_grid.PropertyEvent):
+    def _on_symbol(self, evt: _prop_ctrls.PropertyEvent):
         symbol = evt.GetValue()
 
         self.db_obj.table.execute(f'SELECT id, description FROM platings WHERE symbol="{symbol}";')
@@ -96,6 +96,6 @@ class PlatingControl(_prop_grid.Category):
     def SetAttributeName(self, name):
         self.attribute_name = name
 
-    def _on_desc(self, evt: _prop_grid.PropertyEvent):
+    def _on_desc(self, evt: _prop_ctrls.PropertyEvent):
         desc = evt.GetValue()
         getattr(self.db_obj, self.attribute_name).description = desc

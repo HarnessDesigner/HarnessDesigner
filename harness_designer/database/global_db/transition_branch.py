@@ -2,7 +2,7 @@ from typing import Iterable as _Iterable, TYPE_CHECKING
 
 import wx
 
-from ...ui.editor_obj import prop_grid as _prop_grid
+from ...ui import prop_ctrls as _prop_ctrls
 from .bases import EntryBase, TableBase
 from .mixins import NameMixin, NameControl
 
@@ -207,7 +207,7 @@ class TransitionBranch(EntryBase, NameMixin):
         self._populate('flange_width')
 
 
-class TransitionBranchControl(_prop_grid.Category):
+class TransitionBranchControl(_prop_ctrls.Category):
 
     def set_obj(self, db_obj: TransitionBranch):
         self.db_obj = db_obj
@@ -292,47 +292,47 @@ class TransitionBranchControl(_prop_grid.Category):
 
         self.name_ctrl = NameControl(self)
 
-        self.length_ctrl = _prop_grid.FloatProperty(
+        self.length_ctrl = _prop_ctrls.FloatProperty(
             self, 'Length',
             min_value=0.01, max_value=999.9, increment=0.01, units='mm')
 
-        self.angle_ctrl = _prop_grid.FloatProperty(
+        self.angle_ctrl = _prop_ctrls.FloatProperty(
             self, 'Angle', min_value=-180.0,
             max_value=180.0, increment=0.1, units='°')
 
-        self.offset_ctrl = _prop_grid.Position2DProperty(self, 'Offset')
+        self.offset_ctrl = _prop_ctrls.Position2DProperty(self, 'Offset')
 
-        bulb_group = _prop_grid.Property(self, f'Bulb', orientation=wx.VERTICAL)
+        bulb_group = _prop_ctrls.Property(self, f'Bulb', orientation=wx.VERTICAL)
 
-        self.bulb_offset_ctrl = _prop_grid.Position2DProperty(bulb_group, 'Offset')
-        self.bulb_length_ctrl = _prop_grid.FloatProperty(
+        self.bulb_offset_ctrl = _prop_ctrls.Position2DProperty(bulb_group, 'Offset')
+        self.bulb_length_ctrl = _prop_ctrls.FloatProperty(
             bulb_group, 'Length',
             min_value=0.00, max_value=999.9, increment=0.01, units='mm')
 
-        size_group = _prop_grid.Property(bulb_group, 'Diameter', orientation=wx.VERTICAL)
+        size_group = _prop_ctrls.Property(bulb_group, 'Diameter', orientation=wx.VERTICAL)
 
-        self.min_dia_ctrl = _prop_grid.FloatProperty(
+        self.min_dia_ctrl = _prop_ctrls.FloatProperty(
             size_group, 'Minimum',
             min_value=0.01, max_value=999.9, increment=0.01, units='mm')
 
-        self.max_dia_ctrl = _prop_grid.FloatProperty(
+        self.max_dia_ctrl = _prop_ctrls.FloatProperty(
             size_group, 'Maximum',
             min_value=0.01, max_value=999.9, increment=0.01, units='mm')
 
-        flange_group = _prop_grid.Property(self, 'Flange', orientation=wx.VERTICAL)
+        flange_group = _prop_ctrls.Property(self, 'Flange', orientation=wx.VERTICAL)
 
-        self.flange_height_ctrl = _prop_grid.FloatProperty(
+        self.flange_height_ctrl = _prop_ctrls.FloatProperty(
             flange_group, 'Height',
             min_value=0.00, max_value=999.9, increment=0.01, units='mm')
 
-        self.flange_width_ctrl = _prop_grid.FloatProperty(
+        self.flange_width_ctrl = _prop_ctrls.FloatProperty(
             flange_group, 'Width',
             min_value=0.00, max_value=999.9, increment=0.01, units='mm')
 
-        self.length_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_length)
-        self.angle_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_angle)
-        self.bulb_length_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_bulb_length)
-        self.min_dia_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_min_dia)
-        self.max_dia_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_max_dia)
-        self.flange_height_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_flange_height)
-        self.flange_width_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_flange_width)
+        self.length_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_length)
+        self.angle_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_angle)
+        self.bulb_length_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_bulb_length)
+        self.min_dia_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_min_dia)
+        self.max_dia_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_max_dia)
+        self.flange_height_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_flange_height)
+        self.flange_width_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_flange_width)

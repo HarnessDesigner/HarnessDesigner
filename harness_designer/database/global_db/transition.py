@@ -2,7 +2,7 @@ from typing import Iterable as _Iterable, TYPE_CHECKING
 
 import wx
 
-from ...ui.editor_obj import prop_grid as _prop_grid
+from ...ui import prop_ctrls as _prop_ctrls
 from .bases import EntryBase, TableBase
 from .mixins import (
     PartNumberMixin, PartNumberControl,
@@ -27,6 +27,15 @@ if TYPE_CHECKING:
 
 class TransitionsTable(TableBase):
     __table_name__ = 'transitions'
+
+    _control: "TransitionControl" = None
+
+    @property
+    def control(self) -> "TransitionControl":
+        if self._control is None:
+            self._control = TransitionControl(self.db.mainframe)
+            self._control.Show(False)
+        return self._control
 
     def _table_needs_update(self) -> bool:
         from ..create_database import transitions
@@ -291,7 +300,7 @@ class TransitionControl(wx.Notebook):
 
         wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
 
-        general_page = _prop_grid.Category(self, 'General')
+        general_page = _prop_ctrls.Category(self, 'General')
 
         self.part_number_ctrl = PartNumberControl(general_page)
         self.description_ctrl = DescriptionControl(general_page)
@@ -301,14 +310,14 @@ class TransitionControl(wx.Notebook):
         self.protection_ctrl = ProtectionControl(general_page)
         self.adhesive_ctrl = AdhesiveControl(general_page)
 
-        branch_page = _prop_grid.Category(self, 'Branches')
+        branch_page = _prop_ctrls.Category(self, 'Branches')
 
-        self.branch_count_ctrl = _prop_grid.IntProperty(
+        self.branch_count_ctrl = _prop_ctrls.IntProperty(
             branch_page, 'Branch Count', min_value=1, max_value=6)
 
         self.branch_page = wx.Notebook(branch_page, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
 
-        self.branch_count_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_branch_count)
+        self.branch_count_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_branch_count)
 
         self.mfg_page = ManufacturerControl(self)
         self.family_page = FamilyControl(self)

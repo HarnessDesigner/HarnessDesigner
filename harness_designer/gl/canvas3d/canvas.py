@@ -257,33 +257,25 @@ class Canvas(glcanvas.GLCanvas):
             pass
 
     def remove_object(self, obj):
-        print('removing object:', obj)
-
         # we don't need to do any specific cleanup for the data in
         # self._object_data that is handled by the weakref and the render process.
 
         try:
             self._objects.remove(obj)
-            print('removed from objects')
-
         except ValueError:
             pass
 
         try:
             self._objects_in_view.remove(obj)
-            print('removed from objects in view')
-
         except ValueError:
             pass
 
         if obj in self._object_addr_mapping:
             obj_address = self._object_addr_mapping.pop(obj)
-            print('object address:', obj, ':', obj_address)
 
             for container in self._object_data:
                 for line in container:
                     if line[-1] == obj_address:
-                        print('removing from container')
                         container.remove(line)
                         break
                 else:

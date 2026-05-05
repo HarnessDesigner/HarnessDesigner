@@ -3,7 +3,7 @@ from typing import Iterable as _Iterable, TYPE_CHECKING
 import wx
 
 from ... import utils as _utils
-from ...ui.editor_obj import prop_grid as _prop_grid
+from ...ui import prop_ctrls as _prop_ctrls
 from .bases import EntryBase, TableBase
 
 from .mixins import (
@@ -27,6 +27,15 @@ if TYPE_CHECKING:
 
 class WiresTable(TableBase):
     __table_name__: str = 'wires'
+
+    _control: "WireControl" = None
+
+    @property
+    def control(self) -> "WireControl":
+        if self._control is None:
+            self._control = WireControl(self.db.mainframe)
+            self._control.Show(False)
+        return self._control
 
     def _load_database(self, splash):
         from ..create_database import wires
@@ -337,6 +346,15 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         self._populate('shielded')
 
     @property
+    def strands(self) -> int:
+        return self._table.select('strands', id=self._db_id)[0][0]
+
+    @strands.setter
+    def strands(self, value: int):
+        self._table.update(self._db_id, strands=value)
+        self._populate('strands')
+
+    @property
     def tpi(self) -> int:
         return self._table.select('tpi', id=self._db_id)[0][0]
 
@@ -370,21 +388,24 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @property
     def conductor_dia_mm(self) -> float:
-        mm = self._table.select('conductor_dia_mm', id=self._db_id)[0][0]
+        mm = self._table.select('wire_size_dia', id=self._db_id)[0][0]
 
         if mm is None:
-            _utils.d_in_to_d_mm(self.conductor_dia_in)
+            _utils.d_in_to_d_mm(self.conductor_dia_in, self.strands)
 
         return mm
 
     @conductor_dia_mm.setter
     def conductor_dia_mm(self, value: float):
-        self._table.update(self._db_id, conductor_dia_mm=value)
+        self._table.update(self._db_id, wire_size_dia=value)
+        self._table.update(self._db_id, wire_size_awg=_utils.d_mm_to_awg(value, self.strands))
+        self._table.update(self._db_id, wire_size_cross=_utils.d_mm_to_mm2(value, self.strands))
+
         self._populate('conductor_dia_mm')
 
     @property
     def conductor_dia_in(self) -> float:
-        return _utils.awg_to_d_in(self.size_awg)
+        return _utils.awg_to_d_in(self.size_awg, self.strands)
 
     @conductor_dia_in.setter
     def conductor_dia_in(self, value: float):
@@ -392,7 +413,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @property
     def size_mm2(self) -> float:
-        mm2 = self._table.select('size_mm2', id=self._db_id)[0][0]
+        mm2 = self._table.select('wire_size_cross', id=self._db_id)[0][0]
 
         if mm2 is None:
             awg = self.size_awg
@@ -403,20 +424,22 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
                 if mm is None:
                     raise RuntimeError('sanity check')
 
-                return _utils.d_mm_to_mm2(mm)
+                return _utils.d_mm_to_mm2(mm, self.strands)
 
-            return _utils.awg_to_mm2(awg)
+            return _utils.awg_to_mm2(awg, self.strands)
 
         return mm2
 
     @size_mm2.setter
     def size_mm2(self, value: float):
-        self._table.update(self._db_id, size_mm2=value)
+        self._table.update(self._db_id, wire_size_cross=value)
+        self._table.update(self._db_id, wire_size_awg=_utils.mm2_to_awg(value, self.strands))
+        self._table.update(self._db_id, wire_size_dia=_utils.mm2_to_d_mm(value, self.strands))
         self._populate('size_mm2')
 
     @property
     def size_awg(self) -> int:
-        awg = self._table.select('size_awg', id=self._db_id)[0][0]
+        awg = self._table.select('wire_size_awg', id=self._db_id)[0][0]
 
         if awg is None:
             mm2 = self.size_mm2
@@ -427,24 +450,26 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
                 if mm is None:
                     raise RuntimeError('sanity check')
 
-                return _utils.d_mm_to_awg(mm)
+                return _utils.d_mm_to_awg(mm, self.strands)
 
-            return _utils.mm2_to_awg(mm2)
+            return _utils.mm2_to_awg(mm2, self.strands)
 
         return awg
 
     @size_awg.setter
     def size_awg(self, value: int):
-        self._table.update(self._db_id, size_awg=value)
+        self._table.update(self._db_id, wire_size_awg=value)
+        self._table.update(self._db_id, wire_size_dia=_utils.awg_to_d_mm(value, self.strands))
+        self._table.update(self._db_id, wire_size_cross=_utils.awg_to_mm2(value, self.strands))
         self._populate('size_awg')
 
     @property
     def size_in2(self) -> float:
-        return _utils.mm2_to_in2(self.size_mm2)
+        return _utils.mm2_to_in2(self.size_mm2, self.strands)
 
     @size_in2.setter
     def size_in2(self, value: float):
-        self.size_mm2 = _utils.in2_to_mm2(value)
+        self.size_mm2 = _utils.in2_to_mm2(value, self.strands)
 
     @property
     def in2_symbol(self) -> str:
@@ -552,6 +577,15 @@ class WireControl(wx.Notebook):
         value = evt.GetValue()
         self.db_obj.num_conductors = value
 
+    def _on_strands(self, evt):
+        value = evt.GetValue()
+        awg = self.size_awg_ctrl.GetValue()
+        self.db_obj.strands = value
+        self.db_obj.size_awg = awg
+
+        self.size_mm2_ctrl.SetValue(self.db_obj.size_mm2)
+        self.conductor_dia_mm_ctrl.SetValue(self.db_obj.conductor_dia_mm)
+
     def _on_shielded(self, evt):
         value = evt.GetValue()
         self.db_obj.shielded = value
@@ -559,14 +593,21 @@ class WireControl(wx.Notebook):
     def _on_conductor_dia_mm(self, evt):
         value = evt.GetValue()
         self.db_obj.conductor_dia_mm = value
+        self.size_mm2_ctrl.SetValue(self.db_obj.size_mm2)
+        self.size_awg_ctrl.SetValue(self.db_obj.size_awg)
 
     def _on_size_mm2(self, evt):
         value = evt.GetValue()
         self.db_obj.size_mm2 = value
 
+        self.conductor_dia_mm_ctrl.SetValue(self.db_obj.conductor_dia_mm)
+        self.size_awg_ctrl.SetValue(self.db_obj.size_awg)
+
     def _on_size_awg(self, evt):
         value = evt.GetValue()
         self.db_obj.size_awg = value
+        self.conductor_dia_mm_ctrl.SetValue(self.db_obj.conductor_dia_mm)
+        self.size_mm2_ctrl.SetValue(self.db_obj.size_mm2)
 
     def _on_od_mm(self, evt):
         value = evt.GetValue()
@@ -577,34 +618,37 @@ class WireControl(wx.Notebook):
 
         wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
 
-        general_page = _prop_grid.Category(self, 'General')
+        general_page = _prop_ctrls.Category(self, 'General')
 
         self.part_number_ctrl = PartNumberControl(general_page)
         self.description_ctrl = DescriptionControl(general_page)
 
-        self.tpi_ctrl = _prop_grid.FloatProperty(
+        self.tpi_ctrl = _prop_ctrls.FloatProperty(
             general_page, 'Twists per Inch',
             min_value=0.00, max_value=5.0, increment=0.5, units='tpi')
 
-        self.weight_1km_ctrl = _prop_grid.FloatProperty(
+        self.weight_1km_ctrl = _prop_ctrls.FloatProperty(
             general_page, 'Weight',
             min_value=0.0, max_value=500.0, increment=0.01, units='g/km')
 
-        self.volts_ctrl = _prop_grid.FloatProperty(
+        self.volts_ctrl = _prop_ctrls.FloatProperty(
             general_page, 'Volts',
             min_value=0.00, max_value=44000.00, increment=0.1, units='V')
 
-        self.resistance_1km_ctrl = _prop_grid.FloatProperty(
+        self.resistance_1km_ctrl = _prop_ctrls.FloatProperty(
             general_page, 'Resistance',
             min_value=0.0, max_value=99999.99, increment=0.01, units='Ω/km')
 
-        self.num_conductors_ctrl = _prop_grid.IntProperty(
+        self.num_conductors_ctrl = _prop_ctrls.IntProperty(
             general_page, 'Conductor Count', min_value=1, max_value=10)
 
-        self.shielded_ctrl = _prop_grid.BoolProperty(
+        self.strands_ctrl = _prop_ctrls.IntProperty(
+            general_page, 'Strand Count', min_value=0, max_value=5000)
+
+        self.shielded_ctrl = _prop_ctrls.BoolProperty(
             general_page, 'Shielded')
 
-        color_page = _prop_grid.Category(self, 'Color')
+        color_page = _prop_ctrls.Category(self, 'Color')
         self.color_ctrl = ColorControl(color_page)
         self.color_ctrl.SetLabel('Primary')
 
@@ -619,7 +663,7 @@ class WireControl(wx.Notebook):
 
         self.resources_page = ResourcesControl(self)
 
-        materials_page = _prop_grid.Category(self, 'Materials')
+        materials_page = _prop_ctrls.Category(self, 'Materials')
         self.material_ctrl = MaterialControl(materials_page)
         self.material_ctrl.SetLabel('Jacket')
 
@@ -627,34 +671,35 @@ class WireControl(wx.Notebook):
         self.core_material_ctrl.SetLabel('Core')
         self.core_material_ctrl.SetAttributeName('core_material')
 
-        size_page = _prop_grid.Category(self, 'Size')
+        size_page = _prop_ctrls.Category(self, 'Size')
 
-        self.conductor_dia_mm_ctrl = _prop_grid.FloatProperty(
+        self.conductor_dia_mm_ctrl = _prop_ctrls.FloatProperty(
             general_page, 'Conductor Diameter',
             min_value=0.05, max_value=60.0, increment=0.01, units='mm')
 
-        self.size_mm2_ctrl = _prop_grid.FloatProperty(
-            size_page, 'Cross Section',
+        self.size_mm2_ctrl = _prop_ctrls.FloatProperty(
+            size_page, 'Conductor Cross Section',
             min_value=0.00, max_value=99.9999, increment=0.0001, units='mm²')
 
-        self.size_awg_ctrl = _prop_grid.IntProperty(
-            size_page, 'Size', min_value=0,
+        self.size_awg_ctrl = _prop_ctrls.IntProperty(
+            size_page, 'Conductor Size', min_value=-4,
             max_value=30, units='awg')
 
-        self.od_mm_ctrl = _prop_grid.FloatProperty(
+        self.od_mm_ctrl = _prop_ctrls.FloatProperty(
             size_page, 'Outside Diameter',
             min_value=0.0, max_value=99.9999, increment=0.0001, units='mm')
 
-        self.tpi_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_tpi)
-        self.weight_1km_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_weight_1km)
-        self.volts_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_volts)
-        self.resistance_1km_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_resistance_1km)
-        self.num_conductors_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_num_conductors)
-        self.shielded_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_shielded)
-        self.conductor_dia_mm_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_conductor_dia_mm)
-        self.size_mm2_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_size_mm2)
-        self.size_awg_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_size_awg)
-        self.od_mm_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_od_mm)
+        self.tpi_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_tpi)
+        self.weight_1km_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_weight_1km)
+        self.volts_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_volts)
+        self.resistance_1km_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_resistance_1km)
+        self.num_conductors_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_num_conductors)
+        self.strands_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_strands)
+        self.shielded_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_shielded)
+        self.conductor_dia_mm_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_conductor_dia_mm)
+        self.size_mm2_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_size_mm2)
+        self.size_awg_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_size_awg)
+        self.od_mm_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_od_mm)
 
         for page in (
             general_page,

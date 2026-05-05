@@ -1,7 +1,6 @@
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
 import weakref
-from ...ui.editor_obj import prop_grid as _prop_grid
 
 from ... import logger as _logger
 from ..common_db import callback as _callback
@@ -265,6 +264,111 @@ class PJTTableBase:
         self._con.execute(f'UPDATE {self.__table_name__} SET {fields} WHERE id = {db_id};', values)
         self._con.commit()
 
+    @property
+    def has_points3d(self):
+        return any([name for name in self.field_names if name.endswith('_point3d_id')])
+
+    @property
+    def has_points2d(self):
+        return any([name for name in self.field_names if name.endswith('_point2d_id')])
+
+    def find_unreferenced_point3d_ids(self, candidate_ids: list[int]) -> list[int]:
+        return self._find_unreferenced_point_ids(candidate_ids, '_point3d_id')
+
+    def find_unreferenced_point2d_ids(self, candidate_ids: list[int]) -> list[int]:
+        return self._find_unreferenced_point_ids(candidate_ids, '_point2d_id')
+
+    def _find_unreferenced_point_ids(self, candidate_ids: list[int], suffix: str) -> list[int]:
+        """
+        Given a set of candidate point IDs, return only those NOT referenced
+        by any column in this table that ends with *suffix*.
+
+        Uses a CTE to define the candidates, LEFT JOINs against a UNION of
+        every matching column, and returns the rows where the join found
+        nothing — the IDs not present in this table.
+
+        The returned set is passed to the next table in the chain.  Each
+        table call can only reduce or maintain the set, never grow it, so
+        the set monotonically shrinks toward the confirmed orphan set.
+
+        A ``project_id`` filter is applied to every SELECT in the UNION so
+        that only rows belonging to the currently open project are considered.
+        This prevents a cleanup pass on one seat from treating another
+        project's mid-operation points as orphaned when multiple users share
+        the same database with different projects open.
+
+        Query structure::
+
+            WITH candidates(id) AS (VALUES (?), (?), ...)
+            SELECT candidates.id
+            FROM candidates
+            LEFT JOIN (
+                SELECT col1 AS point_id FROM table
+                    WHERE project_id = ? AND col1 IN (?, ?, ...)
+                UNION
+                SELECT col2 FROM table
+                    WHERE project_id = ? AND col2 IN (?, ?, ...)
+            ) AS referenced ON candidates.id = referenced.point_id
+            WHERE referenced.point_id IS NULL;
+
+        Parameters
+        ----------
+        candidate_ids : set[int]
+            IDs still unconfirmed as referenced.  Passed in from the
+            previous table call (or the full batch on the first call).
+        suffix : str
+            Column suffix to match, e.g. ``'_point3d_id'``.
+
+        Returns
+        -------
+        set[int]
+            The subset of *candidate_ids* not found in this table for the
+            current project.  If this table has no columns matching *suffix*,
+            the full input set is returned unchanged so the chain continues.
+        """
+        if not candidate_ids:
+            return set()
+
+        point_cols = [col for col in self.field_names if col.endswith(suffix)]
+
+        if not point_cols:
+            # This table has no relevant columns — pass the set through unchanged
+            return candidate_ids
+
+        params = candidate_ids[:]
+        placeholders = ','.join('?' * len(params))
+
+        # CTE rows: candidate IDs inlined as literals
+        cte_rows = ','.join(f'({p})' for p in params)
+
+        # Each SELECT in the UNION filters by project_id so we only
+        # consider rows belonging to the currently open project
+        union_parts = [
+            f'SELECT {col} AS point_id '
+            f'FROM {self.__table_name__} '
+            f'WHERE project_id = ? AND {col} IN ({placeholders})'
+            for col in point_cols
+        ]
+        union_sql = ' UNION '.join(union_parts)
+
+        query = (f'WITH candidates(id) AS (VALUES {cte_rows}) '
+                 f'SELECT candidates.id '
+                 f'FROM candidates '
+                 f'LEFT JOIN ({union_sql}) AS referenced '
+                 f'ON candidates.id = referenced.point_id '
+                 f'WHERE referenced.point_id IS NULL;')
+
+        # One project_id + one copy of params per column in the UNION
+        all_params = []
+        for _ in point_cols:
+            all_params.append(self.project_id)
+            all_params.extend(params)
+
+        self._con.execute(query, all_params)
+
+        ret = {row[0] for row in self._con.fetchall() if row[0] is not None}
+        return list(ret)
+
     def execute(self, cmd, params=None):
         if params is None:
             return self._con.execute(cmd)
@@ -353,6 +457,11 @@ class PJTTables:
 
         self._current_count = 0
 
+    @property
+    def tables(self) -> list[PJTTableBase]:
+        return [getattr(self, name) for name in sorted(list(dir(self)), reverse=True)
+                if name.endswith('_table') and not name.startswith('_')]
+
     def load(self, project_id):
         self.mainframe.unload()
         tables = self.connector.get_tables()
@@ -429,7 +538,7 @@ class PJTTables:
         return self._pjt_wires_table
 
     @property
-    def pjt_wire3d_layouts_table(self) -> PJTWireLayoutsTable:
+    def pjt_wire_layouts_table(self) -> PJTWireLayoutsTable:
         return self._pjt_wire_layouts_table
 
     @property

@@ -1,4 +1,4 @@
-from ....ui.editor_obj import prop_grid as _prop_grid
+from ....ui import prop_ctrls as _prop_ctrls
 
 import wx
 
@@ -80,15 +80,15 @@ class StartStopPosition3DMixin(BaseMixin):
         self._populate('stop_position3d_id')
 
 
-class StartStopPosition3DControl(_prop_grid.Property):
+class StartStopPosition3DControl(_prop_ctrls.Property):
 
     def __init__(self, parent):
         self.db_obj: StartStopPosition3DMixin = None
 
         super().__init__(parent, '3D Positions', orientation=wx.VERTICAL)
 
-        self.start_ctrl = _prop_grid.Position3DProperty(self, 'Start')
-        self.stop_ctrl = _prop_grid.Position3DProperty(self, 'Stop')
+        self.start_ctrl = _prop_ctrls.Position3DProperty(self, 'Start')
+        self.stop_ctrl = _prop_ctrls.Position3DProperty(self, 'Stop')
 
     def set_obj(self, db_obj: StartStopPosition3DMixin):
         self.db_obj = db_obj

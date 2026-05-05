@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from ....ui.editor_obj import prop_grid as _prop_grid
+from ....ui import prop_ctrls as _prop_ctrls
 
 from .base import BaseMixin
 
@@ -28,7 +28,7 @@ class ManufacturerMixin(BaseMixin):
         self._populate('mfg_id')
 
 
-class ManufacturerControl(_prop_grid.Category):
+class ManufacturerControl(_prop_ctrls.Category):
     
     def __init__(self, parent):
         self.db_obj: ManufacturerMixin = None
@@ -36,23 +36,23 @@ class ManufacturerControl(_prop_grid.Category):
         
         super().__init__(parent, 'Manufacturer')
 
-        self.name_ctrl = _prop_grid.ComboBoxProperty(self, 'Name')
-        self.desc_ctrl = _prop_grid.LongStringProperty(self, 'Description')
-        self.address_ctrl = _prop_grid.LongStringProperty(self, 'Address')
-        self.contact_ctrl = _prop_grid.StringProperty(self, 'Contact')
-        self.phone_ctrl = _prop_grid.StringProperty(self, 'Phone')
-        self.ext_ctrl = _prop_grid.StringProperty(self, 'Ext')
-        self.email_ctrl = _prop_grid.StringProperty(self, 'Email')
-        self.website_ctrl = _prop_grid.StringProperty(self, 'Website')
+        self.name_ctrl = _prop_ctrls.ComboBoxProperty(self, 'Name')
+        self.desc_ctrl = _prop_ctrls.LongStringProperty(self, 'Description')
+        self.address_ctrl = _prop_ctrls.LongStringProperty(self, 'Address')
+        self.contact_ctrl = _prop_ctrls.StringProperty(self, 'Contact')
+        self.phone_ctrl = _prop_ctrls.StringProperty(self, 'Phone')
+        self.ext_ctrl = _prop_ctrls.StringProperty(self, 'Ext')
+        self.email_ctrl = _prop_ctrls.StringProperty(self, 'Email')
+        self.website_ctrl = _prop_ctrls.StringProperty(self, 'Website')
 
-        self.website_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_website_change)
-        self.email_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_email_change)
-        self.ext_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_ext_change)
-        self.phone_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_phone_change)
-        self.contact_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_contact_change)
-        self.address_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_addr_change)
-        self.desc_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_desc_change)
-        self.name_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_name_change)
+        self.website_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_website_change)
+        self.email_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_email_change)
+        self.ext_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_ext_change)
+        self.phone_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_phone_change)
+        self.contact_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_contact_change)
+        self.address_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_addr_change)
+        self.desc_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_desc_change)
+        self.name_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_name_change)
 
     def set_obj(self, db_obj: ManufacturerMixin):
         self.db_obj = db_obj
@@ -112,7 +112,7 @@ class ManufacturerControl(_prop_grid.Category):
             self.email_ctrl.Enable(True)
             self.website_ctrl.Enable(True)
 
-    def _on_name_change(self, evt: _prop_grid.PropertyEvent):
+    def _on_name_change(self, evt: _prop_ctrls.PropertyEvent):
         name = evt.GetValue()
         rows = self.db_obj.table.execute(f'SELECT id, description, address, contact_person, phone, ext, email, website FROM manufacturers WHERE name="{name}";')
         if rows:

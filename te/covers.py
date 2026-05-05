@@ -1,225 +1,229 @@
-'''
 
-COVERS
-----------------------------------------
-{
-    "features": [
-        "Recovered Inside Diameter (Max)",
-        "Number of Positions",
-        "Insulator Type",
-        "Cable Entry Location",
-        "Connector Cover Type",
-        "Operating Temperature (Max)",
-        "Compatible With Connector Style",
-        "Protection & Strain Relief Accessory Type",
-        "Termination Device Type",
-        "Adhesive Requirement",
-        "Wall Type",
-        "Packaging Method",
-        "Compatible With Connector Shell Size",
-        "Operating Temperature Range",
-        "UL Flammability Rating",
-        "Expanded Inside Diameter (Min)",
-        "Material Code",
-        "Product Availability",
-        "Voltage Class",
-        "Connector Backshell Product Type",
-        "Compatible Cable Cross-Section Range",
-        "Strain Relief",
-        "Adhesive Code",
-        "Primary Product Plating Material",
-        "TE Connector Interface Code",
-        "Compatible Cable Diameter - Body (Min)",
-        "Sealable",
-        "Material Systems Code",
-        "Connector Backshell Product Style",
-        "Cable Exit Angle",
-        "Primary Product Material",
-        "Hood & Base Locking Device Type",
-        "Entry Size Code",
-        "Body Orientation",
-        "Primary Product Color",
-        "Flexibility",
-        "Recovered Overall Length",
-        "Cable Entry Diameter",
-        "Hood & Base Connector Product Type",
-        "Adhesive Coating",
-        "Compatible With Connector Shape"
-    ],
-    "feature_groups": {
-        "Product Type Features": [
-            "Insulator Type",
-            "Ground Feature Type",
-            "Sealable",
-            "Connector Accessory Options",
-            "Connector Cover Type",
-            "Coating Style",
-            "Protection & Strain Relief Accessory Type",
-            "Product Profile",
-            "Connector Backshell Product Style",
-            "Connector Backshell Product Type",
-            "Termination Device Type",
-            "Termination Device Included",
-            "Wall Type",
-            "Installation Technology",
-            "Hood & Base Connector Product Type",
-            "Adhesive Coating"
-        ],
-        "Body Features": [
-            "Shrink Ratio",
-            "Lining Type",
-            "Cable Entry Location",
-            "Material Systems Code",
-            "Primary Product Color",
-            "Flexibility",
-            "Material Code",
-            "Seal Material",
-            "Cable Exit Angle",
-            "Insulator Material",
-            "Primary Product Material",
-            "Sealant Type",
-            "Connector Cover Side",
-            "Primary Product Plating Material"
-        ],
-        "Operation/Application": [
-            "UV-Stabilized",
-            "Power Component Application Type",
-            "Assembly Process Feature",
-            "Circuit Application",
-            "Shielded",
-            "Compatible Equipment",
-            "Mechanical Resistance",
-            "Compatible With Connector Shell Size"
-        ],
-        "Mechanical Attachment": [
-            "Product Plating Finish",
-            "Locking Device Location",
-            "PCB Mount Retention",
-            "Mounting Options",
-            "Mating Retention Type",
-            "Mating Alignment",
-            "Hood & Base Locking Device Type",
-            "Mating Alignment Type",
-            "Component Retention Feature",
-            "Strain Relief",
-            "Thread Size"
-        ],
-        "Housing Features": [
-            "Body Orientation",
-            "Centerline (Pitch)",
-            "Housing Material",
-            "Compatible With Connector Shape"
-        ],
-        "Dimensions": [
-            "Wall Thickness",
-            "Recovered Inside Diameter (Max)",
-            "Insulator Outside Skirt Diameter Range",
-            "Compatible Cable Diameter - Body (Max)",
-            "Product Length",
-            "Compatible Cable Bundle Diameter Range",
-            "Product Height",
-            "Row-to-Row Spacing",
-            "Recovered Wall Thickness (Nominal)",
-            "Expanded Inside Diameter (Min)",
-            "Insulator Core Diameter Range",
-            "Compatible Cable Cross-Section Range",
-            "Compatible Conductor Range",
-            "Product Diameter",
-            "Compatible Cable Diameter - Body (Min)",
-            "Insulation Coverage",
-            "Compatible Cable Diameter Range",
-            "Compatible Conductor Diameter Range",
-            "Recovered Overall Length",
-            "Cable Entry Diameter",
-            "Product Width",
-            "Compatible Conductor Cross-Section Range",
-            "Compatible Insulation Diameter Range",
-            "Wire Size"
-        ],
-        "Packaging Features": [
-            "Packaging Method",
-            "Packaging Quantity"
-        ],
-        "Configuration Features": [
-            "Modification",
-            "Number of Positions",
-            "Number of Rows",
-            "Braid Type",
-            "Adhesive Requirement",
-            "Compatible With Connector Code"
-        ],
-        "Usage Conditions": [
-            "Rated Wind Speed",
-            "Environmental Resistance",
-            "Compatible With IDC Installation Type Connector",
-            "Resistance Protection",
-            "Operating Temperature (Max)",
-            "Compatible With Connector Style",
-            "Resistance Properties",
-            "Fluid Resistance Type",
-            "Salt Spray Resistance",
-            "Corrosion Protected",
-            "Operating Temperature Range",
-            "Flammability Performance"
-        ],
-        "Industry Standards": [
-            "Compatible With Agency/Standards Products",
-            "Compatible With Approved Standards Products",
-            "UL Rating",
-            "Connector Detail Specification Number",
-            "UL Flammability Rating",
-            "IP Rating"
-        ],
-        "Other": [
-            "TE Connector Interface Code",
-            "Size Code",
-            "Molded Part Shape Code",
-            "Serviceable",
-            "Entry Size Code",
-            "Adhesive Code"
-        ],
-        "Contact Features": [
-            "Primary Product Underplating Material"
-        ],
-        "Electrical Characteristics": [
-            "Voltage Class"
-        ],
-        "Identification Marking": [
-            "Marked"
-        ],
-        "Product Availability": [
-            "Product Availability"
-        ]
-    },
-    "base_categories": [
-        "Automotive Parts",
-        "Energy & Power",
-        "Fiber Optics",
-        "Connectors",
-        "Wire Protection & Management"
-    ],
-    "parent_categories": [
-        "Automotive Connector Caps & Covers",
-        "Power Cable End Caps",
-        "Rectangular Connector Hoods & Bases",
-        "Fiber Connector Covers & Caps",
-        "Connector Backshells",
-        "Wildlife Protection Covers",
-        "Connector Caps & Covers",
-        "Heat Shrink Caps"
-    ],
-    "brands": [
-        "TE Connectivity",
-        "POLAMCO",
-        "AMP",
-        "Simel",
-        "Raychem",
-        "DEUTSCH",
-        "Hellstern",
-        "Elcon",
-        "Greenpar"
-    ]
-}
+import json
+
+in_path = 'separated/covers.json'
+out_path = 'output/covers.json'
+
+te_url = 'https://api.te.com/'
+
+with open(in_path, 'r') as f:
+    in_data = json.loads(f.read())
+
+out_data = []
+
+covers = []
+boots = []
+housings = []
+transitions = []
 
 
-'''
+def get_temperatures(val):
+    if not val:
+        return None, None
+
+    val = val.split(' – ')
+    if len(val) == 1:
+        min_val, max_val = val[0]
+    else:
+        min_val, max_val = val
+
+    return int(min_val), int(max_val)
+
+
+for product in in_data:
+    part_number = product.get('marketingPartNumNormalized', None)
+    description = product.get('friendlyDescription', '')
+    mfg = product.get('brand', None)
+    family = None  # *
+    series = None  # *
+    color = None  # *
+    image = None  # *
+    datasheet = None  # *
+    cad = None  # *
+    min_temp = None  # *
+    max_temp = None  # *
+    model3d = None  # *
+    length = 0.0
+    width = 0.0
+    height = 0.0
+    weight = 0.0
+    pins = 0
+    compat_housings = None
+    direction = None
+
+    if product.get('baseCategory', '') == 'Wire Protection & Management':
+        transitions.append(product)
+        continue
+
+    features = product.get('primaryFeatures', [])
+    is_housing = False
+
+    for feature in features:
+        label = feature['label']
+        if label == 'Hood & Base Connector Product Type':
+            values = feature.get('primaryValues', [])
+            if (
+                values and
+                values[0]['value'] in (
+                    'Base Housing', 'Hood & Base Housing Assembly With Inserts')
+            ):
+                housings.append(product)
+                is_housing = True
+                break
+
+    if is_housing:
+        continue
+
+    if 'Base Housing' in description:
+        raise RuntimeError(part_number)
+
+    if part_number is None:
+        part_number = product.get('tcpn', None)
+
+    if part_number is None:
+        continue
+
+    if mfg is None:
+        continue
+
+    for doc in product.get('documents', []):
+        doc_type = doc.get('type', '')
+
+        if (
+            doc_type == 'Customer View Model' and
+            '3d_' in doc.get('format', '') and
+            model3d is None
+        ):
+            model3d = doc.get('url', None)
+        elif doc_type == 'Customer Drawing' and cad is None:
+            cad = doc.get('url', None)
+
+        elif doc_type == 'Specification Or Standard' and datasheet is None:
+            datasheet = doc.get('url', None)
+
+    images = product.get('images', [])
+
+    if images:
+        image = te_url + images[0].get('imageUrl', '')
+    else:
+        images = product.get('primaryImages', [])
+
+        if images:
+            image = te_url + images[0]['path'] + images[0]['imageName']
+
+    features = product.get('primaryFeatures', [])
+
+    for feature in features:
+        label = feature.get('label', '')
+
+        if label == 'Number of Positions':
+            if pins:
+                continue
+
+            values = feature.get('primaryValues', [])
+            if values:
+                pins = int(values[0].get('value', ''))
+
+        if label == 'Cable Entry Location':
+            if direction:
+                continue
+
+            values = feature.get('primaryValues', [])
+            if values:
+                direction = values[0].get('value', None)
+
+        if label == 'Operating Temperature Range':
+            if min_temp and max_temp:
+                continue
+
+            values = feature.get('primaryValues', [])
+            if values:
+                min_temp, max_temp = get_temperatures(values[0].get('value', ''))
+
+        if label == 'Primary Product Color':
+            if color:
+                continue
+
+            values = feature.get('primaryValues', [])
+            if values:
+                color = values[0].get('value', '')
+
+    productFamily = product.get('productFamily', None)
+    if productFamily is not None:
+        for crumb in productFamily.get('crumbTrailItems', []):
+            if family:
+                break
+
+            family = crumb.get('name', None)
+
+    seriesTrail = product.get('seriesTrail', None)
+    if seriesTrail is not None:
+        for crumb in seriesTrail.get('crumbTrailItems', []):
+            if series:
+                break
+
+            series = crumb.get('name', None)
+
+    for fg in product.get('featureGroups', []):
+        label = fg['label']
+        if label == 'Dimensions':
+            for feature in fg.get('features', []):
+                label2 = feature['label']
+
+                values = feature.get('primaryValues', [])
+                if values:
+                    if label2 == 'Product Height':
+                        if not height:
+                            height = float(values[0]['value'])
+
+                    elif label2 == 'Product Length':
+                        if not length:
+                            length = float(values[0]['value'])
+
+                    elif label2 == 'Product Width':
+                        if not width:
+                            width = float(values[0]['value'])
+    covers.append(product)
+
+    if direction is None:
+        direction = 'Straight'
+
+    out_data.append(dict(
+        part_number=part_number,
+        description=description,
+        mfg=mfg,
+        family=family,
+        series=series,
+        color=color,
+        image=image,
+        datasheet=datasheet,
+        cad=cad,
+        min_temp=min_temp,
+        max_temp=max_temp,
+        model3d=model3d,
+        length=length,
+        width=width,
+        height=height,
+        weight=weight,
+        pins=pins,
+        direction=direction,
+        compat_housings=compat_housings,
+    ))
+
+with open('separated/new_covers.json', 'w') as f:
+    f.write(json.dumps(covers, indent=4))
+
+with open(out_path, 'w') as f:
+    f.write(json.dumps(out_data, indent=4))
+
+
+with open('separated/addl_housings.json', 'w') as f:
+    f.write(json.dumps(housings, indent=4))
+
+
+with open('separated/addl_transitions.json', 'w') as f:
+    f.write(json.dumps(transitions, indent=4))
+
+print(len(housings))
+print(len(transitions))
+print(len(out_data))

@@ -1,4 +1,4 @@
-from ....ui.editor_obj import prop_grid as _prop_grid
+from ....ui import prop_ctrls as _prop_ctrls
 
 from .base import BaseMixin
 from ....geometry import point as _point
@@ -43,7 +43,7 @@ class Position3DMixin(BaseMixin):
         self._populate('position3d_id')
 
 
-class Position3DControl(_prop_grid.Position3DProperty):
+class Position3DControl(_prop_ctrls.Position3DProperty):
 
     def __init__(self, parent):
         self.db_obj: Position3DMixin = None

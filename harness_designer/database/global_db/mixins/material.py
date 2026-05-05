@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from ....ui.editor_obj import prop_grid as _prop_grid
+from ....ui import prop_ctrls as _prop_ctrls
 
 from .base import BaseMixin
 
@@ -26,14 +26,14 @@ class MaterialMixin(BaseMixin):
         self._populate('material_id')
 
 
-class MaterialControl(_prop_grid.ComboBoxProperty):
+class MaterialControl(_prop_ctrls.ComboBoxProperty):
 
     def __init__(self, parent):
         self.db_obj: MaterialMixin = None
         self.choices: list[str] = []
 
         super().__init__(parent, 'Material')
-        self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_material)
+        self.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_material)
 
     def set_obj(self, db_obj: MaterialMixin):
         self.db_obj = db_obj
@@ -52,7 +52,7 @@ class MaterialControl(_prop_grid.ComboBoxProperty):
             self.SetValue(db_obj.material.name)
             self.Enable(True)
 
-    def _on_material(self, evt: _prop_grid.PropertyEvent):
+    def _on_material(self, evt: _prop_ctrls.PropertyEvent):
         name = evt.GetValue()
 
         self.db_obj.table.execute('SELECT id FROM materials WHERE name="{name}";')

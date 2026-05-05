@@ -125,6 +125,9 @@ class Base3D:
             for j in range(3):
                 self._aabb[i][j] = aabb[i][j]
 
+    def identify(self, color: list[float] | None):
+        pass
+
     def _update_position(self, position: _point.Point):
         self._compute_obb()
         self._compute_aabb()

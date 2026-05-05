@@ -1,7 +1,7 @@
 
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
-from ...ui.editor_obj import prop_grid as _prop_grid
+from ...ui import prop_ctrls as _prop_ctrls
 
 import uuid
 import weakref
@@ -323,7 +323,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
         return angle
 
 
-class PJTCavityControl(_prop_grid.Category):
+class PJTCavityControl(_prop_ctrls.Category):
 
     def SetIndex(self, index):
         self.SetLabel(f'Cavity {index}')
@@ -335,35 +335,35 @@ class PJTCavityControl(_prop_grid.Category):
 
         self.nb = wx.Notebook(self, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
 
-        general_page = _prop_grid.Category(self.nb, 'General')
+        general_page = _prop_ctrls.Category(self.nb, 'General')
         self.name_ctrl = NameControl(general_page)
         self.notes_ctrl = NotesControl(general_page)
 
-        angle_page = _prop_grid.Category(self.nb, 'Angle')
+        angle_page = _prop_ctrls.Category(self.nb, 'Angle')
         self.angle2d_ctrl = Angle2DControl(angle_page)
         self.angle3d_ctrl = Angle3DControl(angle_page)
 
-        position_page = _prop_grid.Category(self.nb, 'Position')
+        position_page = _prop_ctrls.Category(self.nb, 'Position')
         self.position2d_ctrl = Position2DControl(position_page)
         self.position3d_ctrl = Position3DControl(position_page)
 
-        visible_page = _prop_grid.Category(self.nb, 'Visible')
+        visible_page = _prop_ctrls.Category(self.nb, 'Visible')
         self.visible2d_ctrl = Visible2DControl(visible_page)
         self.visible3d_ctrl = Visible3DControl(visible_page)
 
-        terminal_page = _prop_grid.Category(self.nb, 'Terminal')
+        terminal_page = _prop_ctrls.Category(self.nb, 'Terminal')
 
         from . import pjt_terminal as _pjt_terminal  # NOQA
 
         self.terminal_ctrl = _pjt_terminal.PJTTerminalControl(terminal_page)
 
-        seal_page = _prop_grid.Category(self.nb, 'Seal')
+        seal_page = _prop_ctrls.Category(self.nb, 'Seal')
 
         from . import pjt_seal as _pjt_seal  # NOQA
 
         self.seal_ctrl = _pjt_seal.PJTSealControl(seal_page)
 
-        part_page = _prop_grid.Category(self.nb, 'Part')
+        part_page = _prop_ctrls.Category(self.nb, 'Part')
         from ..global_db import cavity as _cavity  # NOQA
 
         self.part_ctrl = _cavity.CavityControl(part_page)

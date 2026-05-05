@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 
 from .base import BaseMixin
 
-from ....ui.editor_obj import prop_grid as _prop_grid
+from ....ui import prop_ctrls as _prop_ctrls
 
 
 if TYPE_CHECKING:
@@ -34,13 +34,13 @@ class CompatTerminalsMixin(BaseMixin):
         self._populate('compat_terminals_array')
 
 
-class CompatTerminalsControl(_prop_grid.ArrayStringProperty):
+class CompatTerminalsControl(_prop_ctrls.ArrayStringProperty):
 
     def __init__(self, parent):
         self.db_obj: CompatTerminalsMixin = None
         super().__init__(parent, 'Compatible Terminals')
 
-        self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_compat_housings)
+        self.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_compat_housings)
 
     def set_obj(self, db_obj: CompatTerminalsMixin):
         self.db_obj = db_obj
@@ -52,6 +52,6 @@ class CompatTerminalsControl(_prop_grid.ArrayStringProperty):
             self.SetValue(db_obj.compat_terminals_array)
             self.Enable(True)
 
-    def _on_compat_housings(self, evt: _prop_grid.PropertyEvent):
+    def _on_compat_housings(self, evt: _prop_ctrls.PropertyEvent):
         compat_terminals = evt.GetValue()
         self.db_obj.compat_terminals_array = compat_terminals

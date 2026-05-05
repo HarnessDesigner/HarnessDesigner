@@ -21,6 +21,13 @@ class ObjectBase:
         self._treeitem = None
         self.db_obj = db_obj
 
+    def identify(self, color: list[float] | None):
+        if self.obj2d is not None:
+            self.obj2d.identify(color)
+
+        if self.obj3d is not None:
+            self.obj3d.identify(color)
+
     def set_treeitem(self, treeitem):
         self._treeitem = treeitem
 

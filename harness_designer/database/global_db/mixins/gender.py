@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from ....ui.editor_obj import prop_grid as _prop_grid
+from ....ui import prop_ctrls as _prop_ctrls
 
 from .base import BaseMixin
 
@@ -28,7 +28,7 @@ class GenderMixin(BaseMixin):
         self._populate('gender_id')
 
 
-class GenderControl(_prop_grid.ComboBoxProperty):
+class GenderControl(_prop_ctrls.ComboBoxProperty):
 
     def __init__(self, parent):
 
@@ -36,7 +36,7 @@ class GenderControl(_prop_grid.ComboBoxProperty):
         self.db_obj: GenderMixin = None
 
         super().__init__(parent, 'Gender')
-        self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_gender)
+        self.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_gender)
 
     def set_obj(self, db_obj: GenderMixin):
         self.db_obj = db_obj
@@ -55,7 +55,7 @@ class GenderControl(_prop_grid.ComboBoxProperty):
             self.SetValue(db_obj.gender.name)
             self.Enable(True)
 
-    def _on_gender(self, evt: _prop_grid.PropertyEvent):
+    def _on_gender(self, evt: _prop_ctrls.PropertyEvent):
         name = evt.GetValue()
 
         self.db_obj.table.execute('SELECT id FROM genders WHERE name="{name}";')

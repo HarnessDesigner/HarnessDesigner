@@ -36,6 +36,12 @@ def add_housing(con, part_number, description, mfg=None, family=None, series=Non
                 boot_point3d=None, tpa_lock_1_point3d=None, tpa_lock_2_point3d=None,
                 cpa_lock_point3d=None):
 
+    if terminal_size_counts is None:
+        terminal_size_counts = []
+
+    if terminal_sizes is None:
+        terminal_sizes = []
+
     if compat_cpas is None:
         compat_cpas = []
 
@@ -110,11 +116,18 @@ def add_housing(con, part_number, description, mfg=None, family=None, series=Non
             description += f' {gender}'
 
         if terminal_sizes:
-            t_sizes = eval(terminal_sizes)
-            for t_size in t_sizes:
+            for t_size in terminal_sizes:
                 description += f' {t_size}mm'
 
         description += ' Housing'
+
+    compat_cpas = ', '.join(compat_cpas)
+    compat_tpas = ', '.join(compat_tpas)
+    compat_covers = ', '.join(compat_covers)
+    compat_terminals = ', '.join(compat_terminals)
+    compat_seals = ', '.join(compat_seals)
+    compat_housings = ', '.join(compat_housings)
+    compat_boots = ', '.join(compat_boots)
 
     con.execute('INSERT INTO housings (part_number, description, mfg_id, family_id, '
                 'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
@@ -131,13 +144,11 @@ def add_housing(con, part_number, description, mfg=None, family=None, series=Non
                  image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, model3d_id,
                  direction_id, gender_id, cavity_lock_id, ip_rating_id, seal_type_id,
                  cpa_lock_type_id, sealing, rows, num_pins, str(terminal_sizes),
-                 str(terminal_size_counts), centerline, str(compat_cpas), str(compat_tpas),
-                 str(compat_covers), str(compat_terminals), str(compat_seals),
-                 str(compat_housings), str(compat_boots), length, width, height,
+                 str(terminal_size_counts), centerline, compat_cpas, compat_tpas,
+                 compat_covers, compat_terminals, compat_seals,
+                 compat_housings, compat_boots, length, width, height,
                  weight, str(cover_point3d), str(seal_point3d), str(boot_point3d),
                  str(tpa_lock_1_point3d), str(tpa_lock_2_point3d), str(cpa_lock_point3d)))
-
-    con.commit()
 
 
 def add_housings(con, data: tuple[dict] | list[dict]):
@@ -147,16 +158,10 @@ def add_housings(con, data: tuple[dict] | list[dict]):
 
 
 def add_records(con, splash, data_path):
-    con.execute('SELECT id FROM housings WHERE id=0;')
+    con.execute('SELECT id FROM housings WHERE id=1;')
 
     if con.fetchall():
         return
-
-    splash.SetText(f'Adding housing to db [1 | 1]...')
-    splash.flush()
-
-    con.execute('INSERT INTO housings (id, part_number, description) VALUES(0, "N/A", "Internal Use DO NOT DELETE");')
-    con.commit()
 
     dirs = []
     for file in os.listdir(data_path):
@@ -171,7 +176,7 @@ def add_records(con, splash, data_path):
         json_path = os.path.join(path, 'housings.json')
 
         if os.path.exists(json_path):
-            splash.SetText(f'Loading housings file...')
+            splash.SetText(f'Loading {os.path.split(path)[1]} housings file...')
             splash.flush()
 
             _logger.logger.database(json_path)
@@ -188,21 +193,21 @@ def add_records(con, splash, data_path):
             splash.flush()
 
             for i, item in enumerate(data):
-                splash.SetText(f'Adding housings to db [{i + 1} | {data_len}]')
+                if not i % 100:
+                    splash.SetText(f'Adding housings to db [{i + 1} | {data_len}]')
 
-                pn = item['part_number']
-                con.execute(f'SELECT id FROM housings WHERE part_number="{pn}";')
-                rows = con.fetchall()
-                if not rows:
-                    if 'shared_cad' in item:
-                        del item['shared_cad']
+                if 'shared_cad' in item:
+                    del item['shared_cad']
 
-                    if 'shared_model3d' in item:
-                        del item['shared_model3d']
+                if 'shared_model3d' in item:
+                    del item['shared_model3d']
 
+                try:
                     add_housing(con, **item)
+                except Exception as err:
+                    _logger.logger.traceback(err)
 
-        con.commit()
+            con.commit()
     os.chdir(cwd)
 
 
@@ -283,13 +288,13 @@ table = _con.SQLTable(
     _con.TextField('terminal_sizes', default='"[]"', no_null=True),
     _con.TextField('terminal_size_counts', default='"[]"', no_null=True),
     _con.FloatField('centerline', default='"0.0"', no_null=True),
-    _con.TextField('compat_cpas', default='"[]"', no_null=True),
-    _con.TextField('compat_tpas', default='"[]"', no_null=True),
-    _con.TextField('compat_covers', default='"[]"', no_null=True),
-    _con.TextField('compat_terminals', default='"[]"', no_null=True),
-    _con.TextField('compat_seals', default='"[]"', no_null=True),
-    _con.TextField('compat_housings', default='"[]"', no_null=True),
-    _con.TextField('compat_boots', default='"[]"', no_null=True),
+    _con.TextField('compat_cpas', default='""', no_null=True),
+    _con.TextField('compat_tpas', default='""', no_null=True),
+    _con.TextField('compat_covers', default='""', no_null=True),
+    _con.TextField('compat_terminals', default='""', no_null=True),
+    _con.TextField('compat_seals', default='""', no_null=True),
+    _con.TextField('compat_housings', default='""', no_null=True),
+    _con.TextField('compat_boots', default='""', no_null=True),
     _con.FloatField('length', default='"0.0"', no_null=True),
     _con.FloatField('width', default='"0.0"', no_null=True),
     _con.FloatField('height', default='"0.0"', no_null=True),

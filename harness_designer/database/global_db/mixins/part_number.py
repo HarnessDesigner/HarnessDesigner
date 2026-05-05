@@ -1,6 +1,6 @@
 from .base import BaseMixin
 
-from ....ui.editor_obj import prop_grid as _prop_grid
+from ....ui import prop_ctrls as _prop_ctrls
 
 
 class PartNumberMixin(BaseMixin):
@@ -15,14 +15,14 @@ class PartNumberMixin(BaseMixin):
         self._populate('part_number')
 
 
-class PartNumberControl(_prop_grid.StringProperty):
+class PartNumberControl(_prop_ctrls.StringProperty):
 
     def __init__(self, parent):
         self.db_obj: PartNumberMixin = None
 
         super().__init__(parent, 'Part Number')
 
-        self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_part_number)
+        self.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_part_number)
 
     def set_obj(self, db_obj: PartNumberMixin):
         self.db_obj = db_obj
@@ -34,6 +34,6 @@ class PartNumberControl(_prop_grid.StringProperty):
             self.SetValue(db_obj.part_number)
             self.Enable(True)
 
-    def _on_part_number(self, evt: _prop_grid.PropertyEvent):
+    def _on_part_number(self, evt: _prop_ctrls.PropertyEvent):
         part_number = evt.GetValue()
         self.db_obj.part_number = part_number

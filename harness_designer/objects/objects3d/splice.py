@@ -119,6 +119,25 @@ class Splice(_base3d.Base3D):
     def get_context_menu(self):
         return SpliceMenu(self.mainframe.editor3d.editor, self)
 
+    @property
+    def start_position(self):
+        """Wire start position (Point instance)"""
+        return self._p1
+
+    @property
+    def wire_position(self) -> _point.Point:
+        return self.branch_position
+
+    @property
+    def branch_position(self):
+        """Wire branch position (Point instance)"""
+        return self._p3
+
+    @property
+    def stop_position(self):
+        """Wire stop position (Point instance)"""
+        return self._p2
+
 
 class SpliceMenu(wx.Menu):
 

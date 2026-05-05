@@ -48,8 +48,6 @@ class BVHWorkerThread(threading.Thread):
 
     def run(self):
         """Main thread loop"""
-        print(f"[Thread {self.thread_id}] Started")
-
         while self.running:
             try:
                 # Get work from queue (blocks until available)
@@ -82,7 +80,6 @@ class BVHWorkerThread(threading.Thread):
                 # No work available, loop continues
                 continue
             except Exception as e:
-                print(f"[Thread {self.thread_id}] Error processing object: {e}")
                 import traceback
                 traceback.print_exc()
                 self.work_queue.task_done()
@@ -161,7 +158,6 @@ class ThreadedBVHProcessor:
     def start(self):
         """Start worker threads"""
         if self.running:
-            print("Warning: Threads already running")
             return
 
         print(f"Starting {self.num_threads} worker threads...")
@@ -180,7 +176,6 @@ class ThreadedBVHProcessor:
 
         self.running = True
         elapsed = (time.time() - start_time) * 1000
-        print(f"Threads started in {elapsed:.1f}ms")
 
     def process_objects(self, objects: List[ObjectData]) -> List[ProcessedObject]:
         """
@@ -196,15 +191,11 @@ class ThreadedBVHProcessor:
             raise RuntimeError("Threads not started! Call start() first.")
 
         num_objects = len(objects)
-        print(f"\nProcessing {num_objects} objects across {self.num_threads} threads...")
-
         start_time = time.time()
 
         # 1. Submit all work to queue
         for obj in objects:
             self.work_queue.put(obj)
-
-        print(f"  ✓ Submitted {num_objects} objects to queue")
 
         # 2. Wait for all work to complete
         self.work_queue.join()
@@ -247,14 +238,11 @@ class ThreadedBVHProcessor:
         # Wait for all threads to finish
         for thread in self.threads:
             thread.join(timeout=5.0)
-            if thread.is_alive():
-                print(f"Warning: Thread {thread.thread_id} did not exit cleanly")
 
         self.running = False
         self.threads = []
 
         elapsed = (time.time() - start_time) * 1000
-        print(f"Threads shut down in {elapsed:.1f}ms")
 
     def __enter__(self):
         """Context manager support"""

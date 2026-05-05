@@ -28,8 +28,8 @@ def add_terminal(con, part_number, description, mfg=None, family=None, series=No
                  color=None, image=None, datasheet=None, cad=None, min_temp=None,
                  max_temp=None, model3d=None, plating=None, gender=None, cavity_lock=None,
                  sealing=0, blade_size=0.0, resistance=0.0, mating_cycles=0, max_vibration_g=0,
-                 max_current_ma=0, wire_size_min_awg=-1, wire_size_max_awg=-1, wire_dia_min=0.0,
-                 wire_dia_max=0.0, min_wire_cross=0.0, max_wire_cross=0.0, length=0.0,
+                 max_current_ma=0, wire_size_awg_min=None, wire_size_awg_max=None, wire_size_dia_min=None,
+                 wire_size_dia_max=None, wire_size_cross_min=None, wire_size_cross_max=None, length=0.0,
                  width=0.0, height=0.0, weight=0.0, compat_housings=None, compat_seals=None):
 
     if compat_housings is None:
@@ -72,16 +72,19 @@ def add_terminal(con, part_number, description, mfg=None, family=None, series=No
         if plating:
             description += f' {plating}'
 
-        if min_wire_cross:
-            description += f' {min_wire_cross}mm²'
+        if wire_size_cross_min:
+            description += f' {wire_size_cross_min}mm²'
 
-        if max_wire_cross:
-            if min_wire_cross:
+        if wire_size_cross_max:
+            if wire_size_cross_min:
                 description += f' -'
 
-            description += f' {max_wire_cross}mm²'
+            description += f' {wire_size_cross_max}mm²'
 
         description += ' Terminal'
+
+    compat_housings = ', '.join(compat_housings)
+    compat_seals = ', '.join(compat_seals)
 
     _logger.logger.database(f'adding terminal {part_number}, {description}')
 
@@ -89,23 +92,18 @@ def add_terminal(con, part_number, description, mfg=None, family=None, series=No
                 'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
                 'max_temp_id, model3d_id, plating_id, gender_id, cavity_lock_id, '
                 'sealing, blade_size, resistance, mating_cycles, max_vibration_g, '
-                'max_current_ma, wire_size_min_awg, wire_size_max_awg, wire_dia_min, '
-                'wire_dia_max, min_wire_cross, max_wire_cross, length, width, height, '
+                'max_current_ma, wire_size_awg_min, wire_size_awg_max, wire_size_dia_min, '
+                'wire_size_dia_max, wire_size_cross_min, wire_size_cross_max, length, width, height, '
                 'weight, compat_housings, compat_seals) '
                 'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '
                 '?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
                 (part_number, description, mfg_id, family_id, series_id, color_id,
                  image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, model3d_id,
                  plating_id, gender_id, cavity_lock_id, sealing, blade_size, resistance,
-                 mating_cycles, max_vibration_g, max_current_ma, wire_size_min_awg,
-                 wire_size_max_awg, wire_dia_min, wire_dia_max, min_wire_cross,
-                 max_wire_cross, length, width, height, weight, str(compat_housings),
-                 str(compat_seals)))
-
-    con.commit()
-    db_id = con.lastrowid
-
-    _logger.logger.database(f'terminal added "{part_number}" = {db_id}')
+                 mating_cycles, max_vibration_g, max_current_ma, wire_size_awg_min,
+                 wire_size_awg_max, wire_size_dia_min, wire_size_dia_max, wire_size_cross_min,
+                 wire_size_cross_max, length, width, height, weight, compat_housings,
+                 compat_seals))
 
 
 def add_pjt_terminal(con, project_id, part_id, cavity_id=None, circuit_id=None,
@@ -146,15 +144,9 @@ def add_terminals(con, data: tuple[dict] | list[dict]):
 
 
 def add_records(con, splash, data_path):
-    con.execute('SELECT id FROM terminals WHERE id=0;')
+    con.execute('SELECT id FROM terminals WHERE id=1;')
     if con.fetchall():
         return
-
-    splash.SetText(f'Adding terminal to db [1 | 1]...')
-    splash.flush()
-
-    con.execute('INSERT INTO terminals (id, part_number, description) VALUES(0, "N/A", "Internal Use DO NOT DELETE");')
-    con.commit()
 
     dirs = []
     for file in os.listdir(data_path):
@@ -186,19 +178,19 @@ def add_records(con, splash, data_path):
             splash.flush()
 
             for i, item in enumerate(data):
-                splash.SetText(f'Adding terminals to db [{i + 1} | {data_len}]...')
+                if not i % 100:
+                    splash.SetText(f'Adding terminals to db [{i + 1} | {data_len}]...')
 
-                pn = item['part_number']
-                con.execute(f'SELECT id FROM terminals WHERE part_number="{pn}";')
-                rows = con.fetchall()
-                if not rows:
-                    if 'shared_cad' in item:
-                        del item['shared_cad']
+                if 'shared_cad' in item:
+                    del item['shared_cad']
 
-                    if 'shared_model3d' in item:
-                        del item['shared_model3d']
+                if 'shared_model3d' in item:
+                    del item['shared_model3d']
 
+                try:
                     add_terminal(con, **item)
+                except Exception as err:
+                    _logger.logger.traceback(err)
 
             con.commit()
     os.chdir(cwd)
@@ -269,18 +261,18 @@ table = _con.SQLTable(
     _con.IntField('mating_cycles', default='0', no_null=True),
     _con.IntField('max_vibration_g', default='0', no_null=True),
     _con.IntField('max_current_ma', default='0', no_null=True),
-    _con.IntField('min_size_awg', default='-1', no_null=True),
-    _con.IntField('max_size_awg', default='-1', no_null=True),
-    _con.FloatField('min_dia', default='"0.0"', no_null=True),
-    _con.FloatField('max_dia', default='"0.0"', no_null=True),
-    _con.FloatField('min_size_mm2', default='"0.0"', no_null=True),
-    _con.FloatField('max_size_mm2', default='"0.0"', no_null=True),
+    _con.IntField('wire_size_awg_min', default='NULL'),
+    _con.IntField('wire_size_awg_max', default='NULL'),
+    _con.FloatField('wire_size_dia_min', default='NULL'),
+    _con.FloatField('wire_size_dia_max', default='NULL'),
+    _con.FloatField('wire_size_cross_min', default='NULL'),
+    _con.FloatField('wire_size_cross_max', default='NULL'),
     _con.FloatField('length', default='"0.0"', no_null=True),
     _con.FloatField('width', default='"0.0"', no_null=True),
     _con.FloatField('height', default='"0.0"', no_null=True),
     _con.FloatField('weight', default='"0.0"', no_null=True),
-    _con.TextField('compat_housings', default='"[]"', no_null=True),
-    _con.TextField('compat_seals', default='"[]"', no_null=True)
+    _con.TextField('compat_housings', default='""', no_null=True),
+    _con.TextField('compat_seals', default='""', no_null=True)
 )
 
 

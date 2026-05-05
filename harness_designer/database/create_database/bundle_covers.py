@@ -26,16 +26,9 @@ def add_bundle_covers(con, data: tuple[dict] | list[dict]):
 
 
 def add_records(con, splash, data_path):
-    con.execute('SELECT id FROM bundle_covers WHERE id=0;')
-
+    con.execute('SELECT id FROM bundle_covers WHERE id=1;')
     if con.fetchall():
         return
-
-    splash.SetText(f'Adding bundle cover to db [1 | 1]...')
-    splash.flush()
-
-    con.execute('INSERT INTO bundle_covers (id, part_number, description) VALUES(0, "N/A", "Internal Use DO NOT DELETE");')
-    con.commit()
 
     dirs = []
     for file in os.listdir(data_path):
@@ -66,12 +59,13 @@ def add_records(con, splash, data_path):
             splash.flush()
 
             for i, item in enumerate(data):
-                splash.SetText(f'Adding bundle covers to db [{i + 1} | {data_len}]')
-                pn = item['part_number']
-                con.execute(f'SELECT id FROM bundle_covers WHERE part_number="{pn}";')
-                rows = con.fetchall()
-                if not rows:
+                if not i % 100:
+                    splash.SetText(f'Adding bundle covers to db [{i + 1} | {data_len}]')
+
+                try:
                     add_bundle_cover(con, **item)
+                except Exception as err:
+                    _logger.logger.traceback(err)
 
         con.commit()
 
@@ -173,7 +167,7 @@ table = _con.SQLTable(
     _con.IntField('wall', default='""', no_null=True),
     _con.FloatField('min_dia', default='"0.0"', no_null=True),
     _con.FloatField('max_dia', default='"0.0"', no_null=True),
-    _con.IntField('adhesive_ids', default='"[]"', no_null=True),
+    _con.IntField('adhesive_ids', default='""', no_null=True),
     _con.FloatField('weight', default='"0.0"', no_null=True)
 )
 

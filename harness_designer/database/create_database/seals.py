@@ -26,7 +26,9 @@ def add_seal(con, part_number, description, mfg=None, family=None, series=None,
              color=None, image=None, datasheet=None, cad=None, min_temp=None,
              max_temp=None, model3d=None, type=None, hardness=-1, lubricant='',  # NOQA
              length=0.0, width=0.0, height=0.0, weight=0.0, o_dia=0.0, i_dia=0.0,
-             wire_dia_min=0.0, wire_dia_max=0.0, compat_housings=None, compat_terminals=None):
+             wire_size_dia_min=None, wire_size_dia_max=None, wire_size_cross_min=None,
+             wire_size_cross_max=None, wire_size_awg_min=None, wire_size_awg_max=None,
+             compat_housings=None, compat_terminals=None):
 
     if compat_housings is None:
         compat_housings = []
@@ -57,37 +59,37 @@ def add_seal(con, part_number, description, mfg=None, family=None, series=None,
         if color:
             description += f' {color}'
 
-        if wire_dia_min:
-            description += f' {wire_dia_min}mm'
+        if wire_size_dia_min:
+            description += f' {wire_size_dia_min}mm'
 
-        if wire_dia_max:
-            if wire_dia_min:
+        if wire_size_dia_max:
+            if wire_size_dia_min:
                 description += f' -'
 
-            description += f' {wire_dia_max}mm'
+            description += f' {wire_size_dia_max}mm'
 
         if type:
             description += f' {type}'
 
         description += ' Seal'
 
+    compat_housings = ', '.join(compat_housings)
+    compat_terminals = ', '.join(compat_terminals)
+
     _logger.logger.database(f'adding seal {part_number}, {description}')
     con.execute('INSERT INTO seals (part_number, description, mfg_id, family_id, '
                 'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
                 'max_temp_id, model3d_id, type_id, hardness, lubricant, length, '
-                'width, height, weight, o_dia, i_dia, wire_dia_min, wire_dia_max, '
+                'width, height, weight, o_dia, i_dia, wire_size_dia_min, wire_size_dia_max, '
+                'wire_size_cross_min, wire_size_cross_max, wire_size_awg_min, wire_size_awg_max, '
                 'compat_housings, compat_terminals) '
                 'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '
-                '?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                '?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
                 (part_number, description, mfg_id, family_id, series_id, color_id,
                  image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, model3d_id,
                  type_id, hardness, lubricant, length, width, height, weight, o_dia,
-                 i_dia, wire_dia_min, wire_dia_max, str(compat_housings), str(compat_terminals)))
-
-    con.commit()
-    db_id = con.lastrowid
-
-    _logger.logger.database(f'seal added "{part_number}" = {db_id}')
+                 i_dia, wire_size_dia_min, wire_size_dia_max, wire_size_cross_min, wire_size_cross_max,
+                 wire_size_awg_min, wire_size_awg_max, compat_housings, compat_terminals))
 
 
 def add_pjt_seal(con, project_id, part_id, point3d_id=None, housing_id=None,
@@ -115,15 +117,9 @@ def add_seals(con, data: tuple[dict] | list[dict]):
 
 
 def add_records(con, splash, data_path):
-    con.execute('SELECT id FROM seals WHERE id=0;')
+    con.execute('SELECT id FROM seals WHERE id=1;')
     if con.fetchall():
         return
-
-    splash.SetText(f'Adding seal to db [1 | 1]...')
-    splash.flush()
-
-    con.execute('INSERT INTO seals (id, part_number, description) VALUES(0, "N/A", "Internal Use DO NOT DELETE");')
-    con.commit()
 
     dirs = []
     for file in os.listdir(data_path):
@@ -154,19 +150,19 @@ def add_records(con, splash, data_path):
             splash.flush()
 
             for i, item in enumerate(data):
-                splash.SetText(f'Adding seals to db [{i + 1} | {data_len}]...')
+                if not i % 100:
+                    splash.SetText(f'Adding seals to db [{i + 1} | {data_len}]...')
 
-                pn = item['part_number']
-                con.execute(f'SELECT id FROM seals WHERE part_number="{pn}";')
-                rows = con.fetchall()
-                if not rows:
-                    if 'shared_cad' in item:
-                        del item['shared_cad']
+                if 'shared_cad' in item:
+                    del item['shared_cad']
 
-                    if 'shared_model3d' in item:
-                        del item['shared_model3d']
+                if 'shared_model3d' in item:
+                    del item['shared_model3d']
 
+                try:
                     add_seal(con, **item)
+                except Exception as err:
+                    _logger.logger.traceback(err)
 
         con.commit()
     os.chdir(cwd)
@@ -231,14 +227,14 @@ table = _con.SQLTable(
     _con.FloatField('weight', default='"0.0"', no_null=True),
     _con.FloatField('o_dia', default='"0.0"', no_null=True),
     _con.FloatField('i_dia', default='"0.0"', no_null=True),
-    _con.FloatField('min_dia', default='"0.0"', no_null=True),
-    _con.FloatField('max_dia', default='"0.0"', no_null=True),
-    _con.FloatField('min_size_mm2', default='"0.0"', no_null=True),
-    _con.FloatField('max_size_mm2', default='"0.0"', no_null=True),
-    _con.FloatField('min_size_awg', default='"0.0"', no_null=True),
-    _con.FloatField('max_size_awg', default='"0.0"', no_null=True),
-    _con.TextField('compat_housings', default='"[]"', no_null=True),
-    _con.TextField('compat_terminals', default='"[]"', no_null=True)
+    _con.FloatField('wire_size_dia_min', default='NULL'),
+    _con.FloatField('wire_size_dia_max', default='NULL'),
+    _con.FloatField('wire_size_cross_min', default='NULL'),
+    _con.FloatField('wire_size_cross_max', default='NULL'),
+    _con.FloatField('wire_size_awg_min', default='NULL'),
+    _con.FloatField('wire_size_awg_max', default='NULL'),
+    _con.TextField('compat_housings', default='""', no_null=True),
+    _con.TextField('compat_terminals', default='""', no_null=True)
 )
 
 

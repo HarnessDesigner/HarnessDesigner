@@ -197,6 +197,16 @@ class Bundle(_base3d.Base3D):
     def get_context_menu(self):
         return BundleMenu(self.mainframe.editor3d.editor, self)
 
+    @property
+    def start_position(self):
+        """Wire start position (Point instance)"""
+        return self._p1
+
+    @property
+    def stop_position(self):
+        """Wire stop position (Point instance)"""
+        return self._p2
+
 
 class BundleMenu(wx.Menu):
 

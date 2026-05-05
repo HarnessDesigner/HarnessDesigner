@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 import wx
-from ....ui.editor_obj import prop_grid as _prop_grid
+from ....ui import prop_ctrls as _prop_ctrls
 
 from .base import BaseMixin
 
@@ -29,17 +29,17 @@ class CavityLockMixin(BaseMixin):
         self._populate('cavity_lock_id')
 
 
-class CavityLockControl(_prop_grid.Property):
+class CavityLockControl(_prop_ctrls.Property):
 
     def __init__(self, parent):
         super().__init__(parent, 'Cavity Lock', orientation=wx.VERTICAL)
         self.db_obj: CavityLockMixin = None
         self.choices: list[str] = []
 
-        self.name_ctrl = _prop_grid.ComboBoxProperty(self, 'Name')
-        self.desc_ctrl = _prop_grid.StringProperty(self, 'Description')
-        self.name_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_name)
-        self.desc_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_desc)
+        self.name_ctrl = _prop_ctrls.ComboBoxProperty(self, 'Name')
+        self.desc_ctrl = _prop_ctrls.StringProperty(self, 'Description')
+        self.name_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_name)
+        self.desc_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_desc)
 
     def set_obj(self, db_obj: CavityLockMixin):
         self.db_obj = db_obj
@@ -62,7 +62,7 @@ class CavityLockControl(_prop_grid.Property):
             self.name_ctrl.Enable(True)
             self.desc_ctrl.Enable(True)
 
-    def _on_name(self, evt: _prop_grid.PropertyEvent):
+    def _on_name(self, evt: _prop_ctrls.PropertyEvent):
         name = evt.GetValue()
 
         self.db_obj.table.execute(f'SELECT id, description FROM cavity_locks WHERE name="{name}";')
@@ -84,6 +84,6 @@ class CavityLockControl(_prop_grid.Property):
         self.db_obj.cavity_lock_id = db_id
         self.desc_ctrl.SetValue(desc)
 
-    def _on_desc(self, evt: _prop_grid.PropertyEvent):
+    def _on_desc(self, evt: _prop_ctrls.PropertyEvent):
         desc = evt.GetValue()
         self.db_obj.cavity_lock.description = desc

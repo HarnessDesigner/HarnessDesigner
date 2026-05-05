@@ -40,6 +40,9 @@ class Base2D:
         self._position.bind(self._on_position)
         self._angle.bind(self._on_angle)
 
+    def identify(self, color: list[float] | None):
+        pass
+
     def _on_position(self, position: _point.Point) -> None:
         """Called when housing position changes"""
         self._o_position = position.copy()

@@ -42,6 +42,10 @@ class WireLayout(_base3d.Base3D):
 
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
 
+    @property
+    def wire_position(self) -> _point.Point:
+        return self.position
+
     def _sync_from_bundle_layout_point(self, point: _point.Point):
         """Callback to sync wire layout point position from bundle layout point.
 

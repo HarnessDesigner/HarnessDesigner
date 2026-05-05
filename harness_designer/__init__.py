@@ -1,5 +1,7 @@
 from typing import TYPE_CHECKING
 
+from . import monkey_patch
+
 import wx
 import sys
 import time

@@ -66,10 +66,14 @@ class Splash(wx.Frame):
         if wx.Platform == "__WXMAC__":
             wx.SafeYield(self, True)
 
+        wx.BeginBusyCursor()
+
     def wait(self):
         self._init_event.wait()
 
     def Destroy(self):
+        wx.EndBusyCursor()
+
         with self._draw_lock:
             self._dc.Destroy()
             self._dc = None

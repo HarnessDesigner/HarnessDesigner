@@ -129,58 +129,58 @@ class EditorDBPanel(aui.AuiNotebook):
 
         self.mainframe = parent
 
-        self.accessories: _accessory.AccessoriesPanel = None
-        self.boots: _boot.BootsPanel = None
-        self.bundle_covers: _bundle_cover.BundleCoversPanel = None
-        self.covers: _cover.CoversPanel = None
-        self.cpa_locks: _cpa_lock.CPALocksPanel = None
-        self.housings: _housing.HousingsPanel = None
-        self.seals: _seal.SealsPanel = None
-        self.splices: _splice.SplicesPanel = None
-        self.terminals: _terminal.TerminalsPanel = None
-        self.tpa_locks: _tpa_lock.TPALocksPanel = None
-        self.transitions: _transition.TransitionsPanel = None
-        self.wires: _wire.WiresPanel = None
-        self.wire_markers: _wire_marker.WireMarkerPanel = None
+        self.accessories: _accessory.AccessoriesPage = None
+        self.boots: _boot.BootsPage = None
+        self.bundle_covers: _bundle_cover.BundleCoversPage = None
+        self.covers: _cover.CoversPage = None
+        self.cpa_locks: _cpa_lock.CPALocksPage = None
+        self.housings: _housing.HousingsPage = None
+        self.seals: _seal.SealsPage = None
+        self.splices: _splice.SplicesPage = None
+        self.terminals: _terminal.TerminalsPage = None
+        self.tpa_locks: _tpa_lock.TPALocksPage = None
+        self.transitions: _transition.TransitionsPage = None
+        self.wires: _wire.WiresPage = None
+        self.wire_markers: _wire_marker.WireMarkersPage = None
 
     def load_db(self, g_db: "_global_db.GLBTables"):
         self.g_db = g_db
 
-        self.accessories = _accessory.AccessoriesPanel(self, g_db.accessories_table)
+        self.accessories = _accessory.AccessoriesPage(self, self.mainframe, 'Accessory', g_db.accessories_table)
         self.AddPage(self.accessories, 'Accessories')
 
-        self.boots = _boot.BootsPanel(self, g_db.boots_table)
+        self.boots = _boot.BootsPage(self, self.mainframe, 'Boots', g_db.boots_table)
         self.AddPage(self.boots, 'Boots')
 
-        self.bundle_covers = _bundle_cover.BundleCoversPanel(self, g_db.bundle_covers_table)
+        self.bundle_covers = _bundle_cover.BundleCoversPage(self, self.mainframe, 'Bundle Cover', g_db.bundle_covers_table)
         self.AddPage(self.bundle_covers, 'Bundle Covers')
 
-        self.covers = _cover.CoversPanel(self, g_db.covers_table)
+        self.covers = _cover.CoversPage(self, self.mainframe, 'Cover', g_db.covers_table)
         self.AddPage(self.covers, 'Covers')
 
-        self.cpa_locks = _cpa_lock.CPALocksPanel(self, g_db.cpa_locks_table)
+        self.cpa_locks = _cpa_lock.CPALocksPage(self, self.mainframe, 'CPA Lock', g_db.cpa_locks_table)
         self.AddPage(self.cpa_locks, 'CPA Locks')
 
-        self.housings = _housing.HousingsPanel(self, g_db.housings_table)
+        self.housings = _housing.HousingsPage(self, self.mainframe, 'Housing', g_db.housings_table)
         self.AddPage(self.housings, 'Housings')
 
-        self.seals = _seal.SealsPanel(self, g_db.seals_table)
+        self.seals = _seal.SealsPage(self, self.mainframe, 'Seal', g_db.seals_table)
         self.AddPage(self.seals, 'Seals')
 
-        self.splices = _splice.SplicesPanel(self, g_db.splices_table)
+        self.splices = _splice.SplicesPage(self, self.mainframe, 'Splice', g_db.splices_table)
         self.AddPage(self.splices, 'Splices')
 
-        self.terminals = _terminal.TerminalsPanel(self, g_db.terminals_table)
+        self.terminals = _terminal.TerminalsPage(self, self.mainframe, 'Terminal', g_db.terminals_table)
         self.AddPage(self.terminals, 'Terminals')
 
-        self.tpa_locks = _tpa_lock.TPALocksPanel(self, g_db.tpa_locks_table)
+        self.tpa_locks = _tpa_lock.TPALocksPage(self, self.mainframe, 'TPA Lock', g_db.tpa_locks_table)
         self.AddPage(self.tpa_locks, 'TPA Locks')
 
-        self.transitions = _transition.TransitionsPanel(self, g_db.transitions_table)
+        self.transitions = _transition.TransitionsPage(self, self.mainframe, 'Transition', g_db.transitions_table)
         self.AddPage(self.transitions, 'Transitions')
 
-        self.wires = _wire.WiresPanel(self, g_db.wires_table)
+        self.wires = _wire.WiresPage(self, self.mainframe, 'Wire', g_db.wires_table)
         self.AddPage(self.wires, 'Wires')
 
-        self.wire_markers = _wire_marker.WireMarkerPanel(self, g_db.wire_markers_table)
+        self.wire_markers = _wire_marker.WireMarkersPage(self, self.mainframe, 'Wire Marker', g_db.wire_markers_table)
         self.AddPage(self.wire_markers, 'Wire Markers')

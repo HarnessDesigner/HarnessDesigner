@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Iterable as _Iterable
 import weakref
 import wx
 
-from ...ui.editor_obj import prop_grid as _prop_grid
+from ...ui import prop_ctrls as _prop_ctrls
 from ..global_db import splice as _splice
 from . import pjt_circuit as _pjt_circuit
 from .pjt_bases import PJTEntryBase, PJTTableBase
@@ -77,8 +77,8 @@ class PJTSplicesTable(PJTTableBase):
 
         raise KeyError(item)
 
-    def insert(self, part_id: int, circuit_id: int, start_point3d_id: int, stop_point3d_id: int,
-               branch_point3d_id: int, point2d_id: int) -> "PJTSplice":
+    def insert(self, part_id: int, start_point3d_id: int, stop_point3d_id: int,
+               branch_point3d_id: int, point2d_id: int, circuit_id: int) -> "PJTSplice":
 
         db_id = PJTTableBase.insert(self, part_id=part_id, circuit_id=circuit_id,
                                     start_point3d_id=start_point3d_id, stop_point3d_id=stop_point3d_id,
@@ -237,24 +237,24 @@ class PJTSpliceControl(wx.Notebook):
 
         wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
 
-        general_page = _prop_grid.Category(self, 'General')
+        general_page = _prop_ctrls.Category(self, 'General')
         self.name_ctrl = NameControl(general_page)
         self.note_ctrl = NotesControl(general_page)
 
-        position_page = _prop_grid.Category(self, 'Position')
+        position_page = _prop_ctrls.Category(self, 'Position')
 
         self.position2d_ctrl = Position2DControl(position_page)
-        self.branch_position3d_ctrl = _prop_grid.Position3DProperty(position_page, '3D Branch Position')
+        self.branch_position3d_ctrl = _prop_ctrls.Position3DProperty(position_page, '3D Branch Position')
         self.position3d_ctrl = StartStopPosition3DControl(position_page)
 
-        visible_page = _prop_grid.Category(self, 'Visible')
+        visible_page = _prop_ctrls.Category(self, 'Visible')
         self.visible2d_ctrl = Visible2DControl(visible_page)
         self.visible3d_ctrl = Visible3DControl(visible_page)
 
-        circuit_page = _prop_grid.Category(self, 'Circuit')
+        circuit_page = _prop_ctrls.Category(self, 'Circuit')
         self.circuit_ctrl = _pjt_circuit.PJTCircuitControl(circuit_page)
 
-        part_page = _prop_grid.Category(self, 'Part')
+        part_page = _prop_ctrls.Category(self, 'Part')
         self.splice_ctrl = _splice.SpliceControl(part_page)
 
         for page in (

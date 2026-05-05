@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from ....ui.editor_obj import prop_grid as _prop_grid
+from ....ui import prop_ctrls as _prop_ctrls
 from .base import BaseMixin
 
 
@@ -43,7 +43,7 @@ class TemperatureMixin(BaseMixin):
         self._populate('max_temp_id')
 
 
-class TemperatureControl(_prop_grid.Category):
+class TemperatureControl(_prop_ctrls.Category):
 
     def __init__(self, parent):
         super().__init__(parent, 'Temperatures')
@@ -51,11 +51,11 @@ class TemperatureControl(_prop_grid.Category):
         self.choices: list[str] = []
         self.db_obj: TemperatureMixin = None
 
-        self.min_temp_ctrl = _prop_grid.ComboBoxProperty(self, 'Minimum')
-        self.max_temp_ctrl = _prop_grid.ComboBoxProperty(self, 'Maximum')
+        self.min_temp_ctrl = _prop_ctrls.ComboBoxProperty(self, 'Minimum')
+        self.max_temp_ctrl = _prop_ctrls.ComboBoxProperty(self, 'Maximum')
 
-        self.min_temp_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_min_temp)
-        self.max_temp_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_max_temp)
+        self.min_temp_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_min_temp)
+        self.max_temp_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_max_temp)
 
     def set_obj(self, db_obj: TemperatureMixin):
         self.db_obj = db_obj
@@ -85,7 +85,7 @@ class TemperatureControl(_prop_grid.Category):
             self.min_temp_ctrl.Enable(True)
             self.max_temp_ctrl.Enable(True)
 
-    def _on_min_temp(self, evt: _prop_grid.PropertyEvent):
+    def _on_min_temp(self, evt: _prop_ctrls.PropertyEvent):
         name = evt.GetValue()
 
         self.db_obj.table.execute(f'SELECT id FROM temperatures WHERE name="{name}";')
@@ -109,7 +109,7 @@ class TemperatureControl(_prop_grid.Category):
 
         self.db_obj.min_temp_id = db_id
 
-    def _on_max_temp(self, evt: _prop_grid.PropertyEvent):
+    def _on_max_temp(self, evt: _prop_ctrls.PropertyEvent):
         name = evt.GetValue()
 
         self.db_obj.table.execute(f'SELECT id FROM temperatures WHERE name="{name}";')

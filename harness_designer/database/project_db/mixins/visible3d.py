@@ -1,4 +1,4 @@
-from ....ui.editor_obj import prop_grid as _prop_grid
+from ....ui import prop_ctrls as _prop_ctrls
 
 from .base import BaseMixin
 
@@ -15,14 +15,14 @@ class Visible3DMixin(BaseMixin):
         self._populate('is_visible3d')
 
 
-class Visible3DControl(_prop_grid.BoolProperty):
+class Visible3DControl(_prop_ctrls.BoolProperty):
 
     def __init__(self, parent):
         self.db_obj: Visible3DMixin = None
 
         super().__init__(parent, 'Is Visible 3D')
 
-        self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_visible3d)
+        self.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_visible3d)
 
     def _on_visible3d(self, evt):
         value = evt.GetValue()

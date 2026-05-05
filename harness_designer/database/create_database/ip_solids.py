@@ -16,7 +16,7 @@ def add_records(con, splash, _=None):
 
     data = (
         (0, '0', 'No Protection',
-         'No protection against contact and ingress of objects.', None),
+         'No protection against contact and ingress of objects.'),
 
         (1, '1', '>= 50.00mm sized objects',
          '>= 50.00mm sized objects\n'

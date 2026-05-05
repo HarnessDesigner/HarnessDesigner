@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Iterable as _Iterable
 import weakref
 import wx
 
-from ...ui.editor_obj import prop_grid as _prop_grid
+from ...ui import prop_ctrls as _prop_ctrls
 from ..global_db import wire as _wire
 from . import pjt_circuit as _pjt_circuit
 from .pjt_bases import PJTEntryBase, PJTTableBase
@@ -75,14 +75,15 @@ class PJTWiresTable(PJTTableBase):
         raise KeyError(item)
 
     def insert(self, part_id: int, circuit_id: int, start_point3d_id: int | None, stop_point3d_id: int | None,
-               start_point2d_id: int | None, stop_point2d_id: int | None, is_visible: bool,
+               start_point2d_id: int | None, stop_point2d_id: int | None, is_visible3d: bool, is_visible2d: bool,
                layer_view_point_id: int | None, layer_id: int | None, is_filler_wire: bool) -> "PJTWire":
 
         db_id = PJTTableBase.insert(self, part_id=part_id, circuit_id=circuit_id,
                                     start_point3d_id=start_point3d_id, stop_point3d_id=stop_point3d_id,
                                     start_point2d_id=start_point2d_id, stop_point2d_id=stop_point2d_id,
-                                    is_visible=int(is_visible), layer_view_point_id=layer_view_point_id,
-                                    layer_id=layer_id, is_filler_wire=int(is_filler_wire))
+                                    is_visible3d=int(is_visible3d), is_visible2d=int(is_visible2d),
+                                    layer_view_point_id=layer_view_point_id, layer_id=layer_id,
+                                    is_filler_wire=int(is_filler_wire))
 
         return PJTWire(self, db_id, self.project_id)
 
@@ -328,42 +329,42 @@ class PJTWireControl(wx.Notebook):
 
         wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
 
-        general_page = _prop_grid.Category(self, 'General')
+        general_page = _prop_ctrls.Category(self, 'General')
         self.name_ctrl = NameControl(general_page)
         self.note_ctrl = NotesControl(general_page)
 
-        self.is_filler_wire_ctrl = _prop_grid.BoolProperty(general_page, 'Is Filler Wire')
+        self.is_filler_wire_ctrl = _prop_ctrls.BoolProperty(general_page, 'Is Filler Wire')
 
-        position_page = _prop_grid.Category(self, 'Position')
+        position_page = _prop_ctrls.Category(self, 'Position')
 
         self.position2d_ctrl = StartStopPosition2DControl(position_page)
         self.position3d_ctrl = StartStopPosition3DControl(position_page)
 
-        visible_page = _prop_grid.Category(self, 'Visible')
+        visible_page = _prop_ctrls.Category(self, 'Visible')
         self.visible2d_ctrl = Visible2DControl(visible_page)
         self.visible3d_ctrl = Visible3DControl(visible_page)
 
-        info_page = _prop_grid.Category(self, 'Info')
+        info_page = _prop_ctrls.Category(self, 'Info')
 
-        length_group = _prop_grid.Property(info_page, 'Length', orientation=wx.VERTICAL)
+        length_group = _prop_ctrls.Property(info_page, 'Length', orientation=wx.VERTICAL)
 
-        self.length_mm_ctrl = _prop_grid.StringProperty(length_group, 'Millimeter', style=wx.TE_READONLY)
-        self.length_m_ctrl = _prop_grid.StringProperty(length_group, 'Meter', style=wx.TE_READONLY)
-        self.length_ft_ctrl = _prop_grid.StringProperty(length_group, 'Foot', style=wx.TE_READONLY)
+        self.length_mm_ctrl = _prop_ctrls.StringProperty(length_group, 'Millimeter', style=wx.TE_READONLY)
+        self.length_m_ctrl = _prop_ctrls.StringProperty(length_group, 'Meter', style=wx.TE_READONLY)
+        self.length_ft_ctrl = _prop_ctrls.StringProperty(length_group, 'Foot', style=wx.TE_READONLY)
 
-        weight_group = _prop_grid.Property(info_page, 'Weight', orientation=wx.VERTICAL)
+        weight_group = _prop_ctrls.Property(info_page, 'Weight', orientation=wx.VERTICAL)
 
-        self.weight_g_ctrl = _prop_grid.StringProperty(weight_group, 'Gram', style=wx.TE_READONLY)
-        self.weight_lb_ctrl = _prop_grid.StringProperty(weight_group, 'Pound', style=wx.TE_READONLY)
+        self.weight_g_ctrl = _prop_ctrls.StringProperty(weight_group, 'Gram', style=wx.TE_READONLY)
+        self.weight_lb_ctrl = _prop_ctrls.StringProperty(weight_group, 'Pound', style=wx.TE_READONLY)
 
-        electrical_group = _prop_grid.Property(info_page, 'Electrical', orientation=wx.VERTICAL)
+        electrical_group = _prop_ctrls.Property(info_page, 'Electrical', orientation=wx.VERTICAL)
 
-        self.resistance_ctrl = _prop_grid.StringProperty(electrical_group, 'Resistance', units='Ω', style=wx.TE_READONLY)
+        self.resistance_ctrl = _prop_ctrls.StringProperty(electrical_group, 'Resistance', units='Ω', style=wx.TE_READONLY)
 
-        circuit_page = _prop_grid.Category(self, 'Circuit')
+        circuit_page = _prop_ctrls.Category(self, 'Circuit')
         self.circuit_ctrl = _pjt_circuit.PJTCircuitControl(circuit_page)
 
-        part_page = _prop_grid.Category(self, 'Part')
+        part_page = _prop_ctrls.Category(self, 'Part')
         self.wire_ctrl = _wire.WireControl(part_page)
 
         for page in (

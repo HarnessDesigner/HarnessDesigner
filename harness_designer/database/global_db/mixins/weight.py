@@ -1,6 +1,6 @@
 from .base import BaseMixin
 
-from ....ui.editor_obj import prop_grid as _prop_grid
+from ....ui import prop_ctrls as _prop_ctrls
 
 
 class WeightMixin(BaseMixin):
@@ -15,14 +15,14 @@ class WeightMixin(BaseMixin):
         self._populate('weight')
 
 
-class WeightControl(_prop_grid.FloatProperty):
+class WeightControl(_prop_ctrls.FloatProperty):
 
     def __init__(self, parent):
         self.db_obj: WeightMixin = None
 
         super().__init__(parent, 'Weight', min_value=0.01, max_value=999.99, increment=0.01, units='g')
 
-        self.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_weight)
+        self.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_weight)
 
     def set_obj(self, db_obj: WeightMixin):
         self.db_obj = db_obj
@@ -33,6 +33,6 @@ class WeightControl(_prop_grid.FloatProperty):
             self.SetValue(db_obj.weight)
             self.Enable(True)
 
-    def _on_weight(self, evt: _prop_grid.PropertyEvent):
+    def _on_weight(self, evt: _prop_ctrls.PropertyEvent):
         weight = evt.GetValue()
         self.db_obj.weight = weight

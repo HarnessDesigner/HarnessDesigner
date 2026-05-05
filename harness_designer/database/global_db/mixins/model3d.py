@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 import wx
 
 from .... import utils as _utils
-from ....ui.editor_obj import prop_grid as _prop_grid
+from ....ui import prop_ctrls as _prop_ctrls
 from ....gl import model_preview as _model_preview
 
 from .base import BaseMixin
@@ -32,7 +32,7 @@ class Model3DMixin(BaseMixin):
         self._populate('model3d_id')
 
 
-class Model3DControl(_prop_grid.Category):
+class Model3DControl(_prop_ctrls.Category):
 
     def set_obj(self, db_obj: Model3DMixin):
         self.db_obj = db_obj
@@ -143,17 +143,18 @@ class Model3DControl(_prop_grid.Category):
                 self.mimetype_ctrl.Enable(True)
 
     def set_preview_model(self):
-        if self.db_obj is None:
-            self.model_preview.set_model(None, None, None)
-        else:
-            model3d = self.db_obj.model3d
-
-            if model3d is None:
-                self.model_preview.set_model(None, None, None)
-            else:
-                vertices, faces = model3d.load()
-                color = self.db_obj.color  # NOQA
-                self.model_preview.set_model(color.ui, vertices, faces)
+        # if self.db_obj is None:
+        #     self.model_preview.set_model(None, None, None)
+        # else:
+        #     model3d = self.db_obj.model3d
+        #
+        #     if model3d is None:
+        #         self.model_preview.set_model(None, None, None)
+        #     else:
+        #         vertices, faces = model3d.load()
+        #         color = self.db_obj.color  # NOQA
+        #         self.model_preview.set_model(color.ui, vertices, faces)
+        pass
 
     def _on_path(self, evt):
         value = evt.GetValue()
@@ -194,36 +195,36 @@ class Model3DControl(_prop_grid.Category):
 
         self.nb = wx.Notebook(self, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
 
-        general_page = _prop_grid.Category(self.nb, 'General')
-        self.path_ctrl = _prop_grid.PathProperty(general_page, 'Model Location')
-        self.data_path_ctrl = _prop_grid.StringProperty(general_page, 'DB Path', style=wx.TE_READONLY)
-        self.uuid_ctrl = _prop_grid.StringProperty(general_page, 'DB Path', style=wx.TE_READONLY)
+        general_page = _prop_ctrls.Category(self.nb, 'General')
+        self.path_ctrl = _prop_ctrls.PathProperty(general_page, 'Model Location')
+        self.data_path_ctrl = _prop_ctrls.StringProperty(general_page, 'DB Path', style=wx.TE_READONLY)
+        self.uuid_ctrl = _prop_ctrls.StringProperty(general_page, 'DB Path', style=wx.TE_READONLY)
 
-        self.path_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_path)
+        self.path_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_path)
 
-        simplify_page = _prop_grid.Category(self.nb, 'Simplify')
-        self.simplify_ctrl = _prop_grid.BoolProperty(general_page, 'Enable')
-        self.target_count_ctrl = _prop_grid.IntProperty(simplify_page, 'Target Vertices Count', min_value=10000, max_value=500000)
-        self.update_rate_ctrl = _prop_grid.IntProperty(simplify_page, 'Update Rate', min_value=1, max_value=100)
-        self.iterations_ctrl = _prop_grid.IntProperty(simplify_page, 'Iterations', min_value=1, max_value=100)
-        self.aggressiveness_ctrl = _prop_grid.FloatProperty(simplify_page, 'Aggressiveness', min_value=1.0, max_value=100.0, increment=0.1)
+        simplify_page = _prop_ctrls.Category(self.nb, 'Simplify')
+        self.simplify_ctrl = _prop_ctrls.BoolProperty(general_page, 'Enable')
+        self.target_count_ctrl = _prop_ctrls.IntProperty(simplify_page, 'Target Vertices Count', min_value=10000, max_value=500000)
+        self.update_rate_ctrl = _prop_ctrls.IntProperty(simplify_page, 'Update Rate', min_value=1, max_value=100)
+        self.iterations_ctrl = _prop_ctrls.IntProperty(simplify_page, 'Iterations', min_value=1, max_value=100)
+        self.aggressiveness_ctrl = _prop_ctrls.FloatProperty(simplify_page, 'Aggressiveness', min_value=1.0, max_value=100.0, increment=0.1)
 
-        self.simplify_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_simplify)
-        self.target_count_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_target_count)
-        self.update_rate_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_update_rate)
-        self.iterations_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_iterations)
-        self.aggressiveness_ctrl.Bind(_prop_grid.EVT_PROPERTY_CHANGED, self._on_aggressiveness)
+        self.simplify_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_simplify)
+        self.target_count_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_target_count)
+        self.update_rate_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_update_rate)
+        self.iterations_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_iterations)
+        self.aggressiveness_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_aggressiveness)
 
-        file_type_page = _prop_grid.Category(self.nb, 'File Type')
-        self.name_ctrl = _prop_grid.StringProperty(file_type_page, 'Name', style=wx.TE_READONLY)
-        self.extension_ctrl = _prop_grid.StringProperty(file_type_page, 'File Extension', style=wx.TE_READONLY)
-        self.mimetype_ctrl = _prop_grid.StringProperty(file_type_page, 'Minetype', style=wx.TE_READONLY)
+        file_type_page = _prop_ctrls.Category(self.nb, 'File Type')
+        self.name_ctrl = _prop_ctrls.StringProperty(file_type_page, 'Name', style=wx.TE_READONLY)
+        self.extension_ctrl = _prop_ctrls.StringProperty(file_type_page, 'File Extension', style=wx.TE_READONLY)
+        self.mimetype_ctrl = _prop_ctrls.StringProperty(file_type_page, 'Minetype', style=wx.TE_READONLY)
 
-        self.angle3d_page = _prop_grid.Angle3DProperty(self.nb, '3D Angle')
-        self.position3d_page = _prop_grid.Angle3DProperty(self.nb, '3D Position')
+        self.angle3d_page = _prop_ctrls.Angle3DProperty(self.nb, '3D Angle')
+        self.position3d_page = _prop_ctrls.Angle3DProperty(self.nb, '3D Position')
 
-        preview_page = _prop_grid.Category(self.nb, 'Model Preview')
-        self.model_preview = _model_preview.PreviewCanvas(preview_page)
+        preview_page = _prop_ctrls.Category(self.nb, 'Model Preview')
+        # self.model_preview = _model_preview.PreviewCanvas(preview_page)
 
         for page in (
             general_page,

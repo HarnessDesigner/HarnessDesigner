@@ -4,7 +4,7 @@ import weakref
 
 import wx
 
-from ...ui.editor_obj import prop_grid as _prop_grid
+from ...ui import prop_ctrls as _prop_ctrls
 from ..global_db import bundle_cover as _bundle_cover
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from .mixins import (
@@ -164,18 +164,18 @@ class PJTBundleControl(wx.Notebook):
         self.db_obj: PJTBundle = None
         super().__init__(parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
 
-        general_page = _prop_grid.Category(self, 'General')
+        general_page = _prop_ctrls.Category(self, 'General')
 
         self.name_ctrl = NameControl(general_page)
         self.notes_ctrl = NotesControl(general_page)
 
-        visible_page = _prop_grid.Category(self, 'Visible')
+        visible_page = _prop_ctrls.Category(self, 'Visible')
         self.visible_ctrl = Visible3DControl(visible_page)
 
-        position_page = _prop_grid.Category(self, 'Position')
+        position_page = _prop_ctrls.Category(self, 'Position')
         self.start_stop_ctrl = StartStopPosition3DControl(position_page)
 
-        part_page = _prop_grid.Category(self, 'Part')
+        part_page = _prop_ctrls.Category(self, 'Part')
         self.part_ctrl = _bundle_cover.BundleCoverControl(part_page)
 
         for page in (

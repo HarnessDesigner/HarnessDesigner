@@ -105,6 +105,3 @@ class GPU(metaclass=GPUMeta):
             f'{cls.memory_engine}',
         ]
         return '\n'.join(ret)
-
-
-print(GPU)

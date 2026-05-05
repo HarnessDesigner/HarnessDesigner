@@ -570,6 +570,9 @@ class Config(metaclass=ConfigDB):
         connector = CONNECTOR_SQLITE
         monitor_duration = 60
 
+        class maintenance(metaclass=ConfigDB):
+            point_batch_size = 50
+
         class sqlite(metaclass=ConfigDB):
             database_path = os.path.join(_utils.get_appdata(), 'harness_designer.db')
 
