@@ -9,7 +9,7 @@ class DBData:
 
     def __init__(self):
         self._data_dir = None
-        self._alt_path = r'C:\Users\drsch\PycharmProjects\harness_designer_database'
+        self._alt_path = None
 
     def close(self):
         if self._data_dir is not None:
