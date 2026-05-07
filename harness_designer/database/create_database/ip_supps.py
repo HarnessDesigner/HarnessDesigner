@@ -19,7 +19,7 @@ def add_records(con, splash, _=None):
         ('W', 'Weather conditions')
     )
 
-    splash.SetText(f'Adding IP suppliments to db [{len(data)} | {len(data)}]...')
+    splash.SetText(f'Adding IP suppliments to db [{len(data)} | {len(data)}]...', log=False)
     splash.flush()
 
     con.executemany('INSERT INTO ip_supps (name, description) VALUES (?, ?);', data)

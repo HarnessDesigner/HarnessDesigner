@@ -11,8 +11,9 @@ class CPALocksPage(_base.EditorList):
     __table_name__ = 'cpa_locks'
     __query__ = f'''\
         SELECT * FROM (
+        SELECT Row_Number() OVER (ORDER BY {{sort_column}} {{sort_direction}}) AS RowNum, *
+        FROM (
             SELECT
-                Row_Number() OVER (ORDER BY {{sort_column}} {{sort_direction}}) AS RowNum,
                 t.id AS id,
                 t.part_number AS part_number,
                 t.description AS description,
@@ -38,7 +39,8 @@ class CPALocksPage(_base.EditorList):
             LEFT JOIN temperatures AS min_temp ON min_temp.id = t.min_temp_id
             LEFT JOIN temperatures AS max_temp ON max_temp.id = t.max_temp_id
             LEFT JOIN cpa_lock_types AS type ON type.id = t.type_id
-        ) t2 WHERE RowNum = {{row}};
+            )
+        ) WHERE RowNum BETWEEN {{start_row}} AND {{end_row}};
         '''
 
     column_mapping = {
@@ -56,6 +58,7 @@ class CPALocksPage(_base.EditorList):
         11: ('Width (mm)', 'width'),
         12: ('Height (mm)', 'height'),
         13: ('Weight (g)', 'weight'),
-        14: ('Compat Housings', 'compat_housings')
+        14: ('Compat Housings', 'compat_housings'),
+        15: ('3D Model', 'model3d_id'),
     }
     table: "_cpa_lock.CPALocksTable" = None

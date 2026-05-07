@@ -4,11 +4,12 @@ from . import projects as _projects
 from . import points3d as _points3d
 
 from .. import db_connectors as _con
+from ... import logger as _logger
 
 
 def add_transition_branch(con, idx, transition_id, bulb_offset=None, bulb_length=None,
                           min_dia=0.0, max_dia=0.0, length=0.0, offset=None, angle=None,
-                          flange_height=None, flange_width=None):
+                          flange_height=None, flange_width=None, commit=True):
 
     if offset is not None:
         offset = str(offset)
@@ -22,7 +23,11 @@ def add_transition_branch(con, idx, transition_id, bulb_offset=None, bulb_length
                 (transition_id, idx, bulb_offset, bulb_length, min_dia, max_dia,
                  length, offset, angle, flange_height, flange_width))
 
-    con.commit()
+    _logger.logger.database(f'transition branch added {idx} - {transition_id}')
+
+    if commit:
+        con.commit()
+        return con.lastrowid
 
 
 def add_pjt_transition_branch(con, project_id, part_id, transition_id,

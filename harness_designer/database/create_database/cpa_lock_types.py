@@ -28,7 +28,7 @@ def add_records(con, splash, _):
         (14, 'Groove')
     )
 
-    splash.SetText(f'Adding cpa lock types to db [{len(data)} | {len(data)}]...')
+    splash.SetText(f'Adding cpa lock types to db [{len(data)} | {len(data)}]...', log=False)
     splash.flush()
 
     con.executemany('INSERT INTO cpa_lock_types (id, name) VALUES (?, ?);', data)

@@ -31,10 +31,12 @@ def add_boot(con, part_number, description, mfg=None, family=None, series=None,
              color=None, material=None, direction=None, image=None, datasheet=None,
              cad=None, min_temp=None, max_temp=None, model3d=None, length=0.0,
              width=0.0, height=0.0, weight=0.0, compat_housings=None, min_dia=0.0,
-             max_dia=0.0, protection=None):
+             max_dia=0.0, protection=None, commit=True):
 
     if compat_housings is None:
         compat_housings = []
+
+    mfg, family, series = _manufacturers.inspect_mfg_fam_series(mfg, family, series)
 
     mfg_id = _manufacturers.get_mfg_id(con, mfg)
     family_id = _families.get_family_id(con, family, mfg_id)
@@ -51,7 +53,7 @@ def add_boot(con, part_number, description, mfg=None, family=None, series=None,
 
     protection_id = _protections.get_protection_id(con, protection)
 
-    compat_housings = '[' + (', '.join(compat_housings)) + ']'
+    compat_housings = (', '.join(compat_housings))
 
     con.execute('INSERT INTO boots (part_number, description, mfg_id, family_id, '
                 'series_id, color_id, material_id, direction_id, image_id, '
@@ -63,26 +65,33 @@ def add_boot(con, part_number, description, mfg=None, family=None, series=None,
                  max_temp_id, model3d_id, length, width, height, weight,
                  compat_housings, min_dia, max_dia, protection_id))
 
+    _logger.logger.database(f'boot added "{part_number}"')
+
+    if commit:
+        con.commit()
+        return con.lastrowid
+
 
 def add_records(con, splash, data_path):
     con.execute('SELECT id FROM boots WHERE id=1;')
     if con.fetchall():
         return
 
-    dirs = []
-    for file in os.listdir(data_path):
-        file = os.path.join(data_path, file)
+    dirs = [('', data_path)]
+
+    for file_name in os.listdir(data_path):
+        file = os.path.join(data_path, file_name)
         if os.path.isdir(file):
-            dirs.append(file)
+            dirs.append((file_name + ' ', file))
 
     cwd = os.getcwd()
-    for path in dirs:
+    for name, path in dirs:
         os.chdir(path)
 
         json_path = os.path.join(path, 'boots.json')
 
         if os.path.exists(json_path):
-            splash.SetText(f'Loading boots file...')
+            splash.SetText(f'Loading {name}boots file...')
             splash.flush()
 
             _logger.logger.database(json_path)
@@ -94,12 +103,11 @@ def add_records(con, splash, data_path):
                 data = [value for value in data.values()]
 
             data_len = len(data)
-            splash.SetText(f'Adding boots to db [0 | {data_len}]...')
+            splash.SetText(f'Adding {name}boot to db [0 | {data_len}]...', log=False)
             splash.flush()
 
             for i, item in enumerate(data):
-                if not i % 100:
-                    splash.SetText(f'Adding boots to db [{i + 1} | {data_len}]...')
+                splash.SetText(f'Adding {name}boot to db [{i + 1} | {data_len}]...', log=False)
 
                 if 'shared_cad' in item:
                     del item['shared_cad']
@@ -108,7 +116,7 @@ def add_records(con, splash, data_path):
                     del item['shared_model3d']
 
                 try:
-                    add_boot(con, **item)
+                    add_boot(con, commit=False, **item)
                 except Exception as err:
                     _logger.logger.traceback(err)
 

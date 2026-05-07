@@ -31,20 +31,21 @@ def add_records(con, splash, data_path):
     if con.fetchall():
         return
 
-    dirs = []
-    for file in os.listdir(data_path):
-        file = os.path.join(data_path, file)
+    dirs = [('', data_path)]
+
+    for file_name in os.listdir(data_path):
+        file = os.path.join(data_path, file_name)
         if os.path.isdir(file):
-            dirs.append(file)
+            dirs.append((file_name + ' ', file))
 
     cwd = os.getcwd()
-    for path in dirs:
+    for name, path in dirs:
         os.chdir(path)
 
         json_path = os.path.join(path, 'covers.json')
 
         if os.path.exists(json_path):
-            splash.SetText(f'Loading covers file...')
+            splash.SetText(f'Loading {name}covers file...')
             splash.flush()
 
             _logger.logger.database(json_path)
@@ -57,12 +58,11 @@ def add_records(con, splash, data_path):
 
             data_len = len(data)
 
-            splash.SetText(f'Adding covers to db [0 | {data_len}]...')
+            splash.SetText(f'Adding {name}cover to db [0 | {data_len}]...', log=False)
             splash.flush()
 
             for i, item in enumerate(data):
-                if not i % 100:
-                    splash.SetText(f'Adding covers to db [{i + 1} | {data_len}]...')
+                splash.SetText(f'Adding {name}cover to db [{i + 1} | {data_len}]...', log=False)
 
                 if 'shared_cad' in item:
                     del item['shared_cad']
@@ -71,7 +71,7 @@ def add_records(con, splash, data_path):
                     del item['shared_model3d']
 
                 try:
-                    add_cover(con, **item)
+                    add_cover(con, commit=False, **item)
                 except Exception as err:
                     _logger.logger.traceback(err)
 
@@ -84,10 +84,12 @@ def add_records(con, splash, data_path):
 def add_cover(con, part_number, description, mfg=None, family=None, series=None,
               color=None, direction=None, image=None, datasheet=None, cad=None,
               min_temp=None, max_temp=None, model3d=None, length=0.0, width=0.0,
-              height=0.0, weight=0.0, pins=0, compat_housings=None):
+              height=0.0, weight=0.0, pins=0, compat_housings=None, commit=True):
 
     if compat_housings is None:
         compat_housings = []
+
+    mfg, family, series = _manufacturers.inspect_mfg_fam_series(mfg, family, series)
 
     mfg_id = _manufacturers.get_mfg_id(con, mfg)
     series_id = _series.get_series_id(con, series, mfg_id)
@@ -130,6 +132,12 @@ def add_cover(con, part_number, description, mfg=None, family=None, series=None,
                 (part_number, description, mfg_id, family_id, series_id, color_id,
                  direction_id, image_id, datasheet_id, cad_id, min_temp_id, max_temp_id,
                  model3d_id, length, width, height, weight, pins, compat_housings))
+
+    _logger.logger.database(f'cover added "{part_number}"')
+
+    if commit:
+        con.commit()
+        return con.lastrowid
 
 
 id_field = _con.PrimaryKeyField('id')

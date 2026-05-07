@@ -94,8 +94,10 @@ class Splash(wx.Frame):
 
         self.SetShape(reg)
 
-    def SetText(self, text: str) -> None:
-        self.logger.info(text)
+    def SetText(self, text: str, log=True) -> None:
+        if log:
+            self.logger.info(text)
+
         self.draw(text)
 
         if threading.main_thread() != threading.current_thread():

@@ -12,8 +12,9 @@ class BootsPage(_base.EditorList):
     __table_name__ = 'boots'
     __query__ = f'''\
         SELECT * FROM (
+        SELECT Row_Number() OVER (ORDER BY {{sort_column}} {{sort_direction}}) AS RowNum, *
+        FROM (
             SELECT
-                Row_Number() OVER (ORDER BY {{sort_column}} {{sort_direction}}) AS RowNum,
                 t.id AS id,
                 t.part_number AS part_number,
                 t.description AS description,
@@ -45,8 +46,9 @@ class BootsPage(_base.EditorList):
             LEFT JOIN temperatures AS min_temp ON min_temp.id = t.min_temp_id
             LEFT JOIN temperatures AS max_temp ON max_temp.id = t.max_temp_id
             LEFT JOIN protections AS protection ON protection.id = t.protection_id
-        ) t2 WHERE RowNum = {{row}};
-        '''
+            )
+        ) WHERE RowNum BETWEEN {{start_row}} AND {{end_row}};
+    '''
 
     column_mapping = {
         0: ('DB ID', 'id'),
@@ -67,7 +69,8 @@ class BootsPage(_base.EditorList):
         15: ('Width (mm)', 'width'),
         16: ('Height (mm)', 'height'),
         17: ('Weight (g)', 'weight'),
-        18: ('Compat Housings', 'compat_housings')
+        18: ('Compat Housings', 'compat_housings'),
+        19: ('3D Model', 'model3d_id'),
     }
 
     table: "_boot.BootsTable" = None

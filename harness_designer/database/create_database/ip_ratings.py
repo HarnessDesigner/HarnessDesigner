@@ -61,7 +61,7 @@ def add_records(con, splash, _=None):
 
     data = [(i,) + item for i, item in enumerate(data)]
 
-    splash.SetText(f'Adding IP ratings to db [{len(data)} | {len(data)}]...')
+    splash.SetText(f'Adding IP ratings to db [{len(data)} | {len(data)}]...', log=False)
     splash.flush()
 
     con.executemany('INSERT INTO ip_ratings (id, name, solid_id, fluid_id) VALUES (?, ?, ?, ?);', data)

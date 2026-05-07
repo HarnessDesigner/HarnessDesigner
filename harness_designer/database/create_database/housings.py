@@ -34,7 +34,9 @@ def add_housing(con, part_number, description, mfg=None, family=None, series=Non
                 compat_seals=None, compat_housings=None, compat_boots=None, length=0.0,
                 width=0.0, height=0.0, weight=0.0, cover_point3d=None, seal_point3d=None,
                 boot_point3d=None, tpa_lock_1_point3d=None, tpa_lock_2_point3d=None,
-                cpa_lock_point3d=None):
+                cpa_lock_point3d=None, commit=True):
+
+    mfg, family, series = _manufacturers.inspect_mfg_fam_series(mfg, family, series)
 
     if terminal_size_counts is None:
         terminal_size_counts = []
@@ -150,6 +152,12 @@ def add_housing(con, part_number, description, mfg=None, family=None, series=Non
                  weight, str(cover_point3d), str(seal_point3d), str(boot_point3d),
                  str(tpa_lock_1_point3d), str(tpa_lock_2_point3d), str(cpa_lock_point3d)))
 
+    _logger.logger.database(f'boot added "{part_number}"')
+
+    if commit:
+        con.commit()
+        return con.lastrowid
+
 
 def add_housings(con, data: tuple[dict] | list[dict]):
 
@@ -163,20 +171,21 @@ def add_records(con, splash, data_path):
     if con.fetchall():
         return
 
-    dirs = []
-    for file in os.listdir(data_path):
-        file = os.path.join(data_path, file)
+    dirs = [('', data_path)]
+
+    for file_name in os.listdir(data_path):
+        file = os.path.join(data_path, file_name)
         if os.path.isdir(file):
-            dirs.append(file)
+            dirs.append((file_name + ' ', file))
 
     cwd = os.getcwd()
-    for path in dirs:
+    for name, path in dirs:
         os.chdir(path)
 
         json_path = os.path.join(path, 'housings.json')
 
         if os.path.exists(json_path):
-            splash.SetText(f'Loading {os.path.split(path)[1]} housings file...')
+            splash.SetText(f'Loading {name}housings file...')
             splash.flush()
 
             _logger.logger.database(json_path)
@@ -189,12 +198,11 @@ def add_records(con, splash, data_path):
 
             data_len = len(data)
 
-            splash.SetText(f'Adding housings to db [0 | {data_len}]')
+            splash.SetText(f'Adding {name}housing to db [0 | {data_len}]', log=False)
             splash.flush()
 
             for i, item in enumerate(data):
-                if not i % 100:
-                    splash.SetText(f'Adding housings to db [{i + 1} | {data_len}]')
+                splash.SetText(f'Adding {name}housing to db [{i + 1} | {data_len}]', log=False)
 
                 if 'shared_cad' in item:
                     del item['shared_cad']
@@ -203,7 +211,7 @@ def add_records(con, splash, data_path):
                     del item['shared_model3d']
 
                 try:
-                    add_housing(con, **item)
+                    add_housing(con, commit=False, **item)
                 except Exception as err:
                     _logger.logger.traceback(err)
 

@@ -34,46 +34,58 @@ def add_records(con, splash, data_path):
     if con.fetchall():
         return
 
-    json_path = os.path.join(data_path, 'wires.json')
+    dirs = [('', data_path)]
 
+    for file_name in os.listdir(data_path):
+        file = os.path.join(data_path, file_name)
+        if os.path.isdir(file):
+            dirs.append((file_name + ' ', file))
 
+    cwd = os.getcwd()
+    for name, path in dirs:
+        os.chdir(path)
 
+        json_path = os.path.join(path, 'wires.json')
 
+        if os.path.exists(json_path):
 
-    if os.path.exists(json_path):
-        splash.SetText(f'Loading Wire file...')
-        splash.flush()
+            splash.SetText(f'Loading {name}wires file...')
+            splash.flush()
 
-        _logger.logger.database(json_path)
+            _logger.logger.database(json_path)
 
-        with open(json_path, 'r') as f:
-            data = json.loads(f.read())
+            with open(json_path, 'r') as f:
+                data = json.loads(f.read())
 
-        if isinstance(data, dict):
-            data = [value for value in data.values()]
+            if isinstance(data, dict):
+                data = [value for value in data.values()]
 
-        data_len = len(data)
+            data_len = len(data)
 
-        splash.SetText(f'Adding wire to db [0 | {data_len}]...')
-        splash.flush()
+            splash.SetText(f'Adding {name}wire to db [0 | {data_len}]...', log=False)
+            splash.flush()
 
-        for i, item in enumerate(data):
-            if not i % 100:
-                splash.SetText(f'Adding wire to db [{i + 1} | {data_len}]...')
+            for i, item in enumerate(data):
+                splash.SetText(f'Adding {name}wire to db [{i + 1} | {data_len}]...', log=False)
 
-            try:
-                add_wire(con, **item)
-            except Exception as err:
-                _logger.logger.traceback(err)
+                try:
+                    add_wire(con, commit=False, **item)
+                except Exception as err:
+                    _logger.logger.traceback(err)
 
-    con.commit()
+            con.commit()
+
+    os.chdir(cwd)
 
 
 def add_wire(con, part_number, description, mfg=None, family=None, series=None,
              color=None, image=None, datasheet=None, cad=None, min_temp=None,
              max_temp=None, material=None, stripe_color=None, core_material=None,
              num_conductors=1, shielded=0, tpi=0.0, wire_size_dia=None, wire_size_cross=None,
-             wire_size_awg=None, od_mm=0.0, weight_1km=0.0, resistance_1km=0.0, volts=0.0, strands=1):
+             wire_size_awg=None, od_mm=0.0, weight_1km=0.0, resistance_1km=0.0, volts=0.0,
+             strands=1, commit=True):
+
+    mfg, family, series = _manufacturers.inspect_mfg_fam_series(mfg, family, series)
 
     mfg_id = _manufacturers.get_mfg_id(con, mfg)
     core_material_id = _platings.get_plating_id(con, core_material)
@@ -99,6 +111,12 @@ def add_wire(con, part_number, description, mfg=None, family=None, series=None,
                  stripe_color_id, core_material_id, num_conductors, shielded, tpi,
                  wire_size_dia, wire_size_cross, wire_size_awg, od_mm, weight_1km, resistance_1km,
                  volts, strands))
+
+    _logger.logger.database(f'wire added "{part_number}"')
+
+    if commit:
+        con.commit()
+        return con.lastrowid
 
 
 id_field = _con.PrimaryKeyField('id')

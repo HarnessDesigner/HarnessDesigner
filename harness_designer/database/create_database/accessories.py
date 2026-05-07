@@ -34,7 +34,7 @@ def add_records(con, splash, _):
         (9, 'S1125-KIT-8', 'Dual Pack, 1 Packaging Quantity, 150 °C Temperature (Max), Epoxy Adhesives', 1),
         (10, 'S1125-APPLICATOR', 'Epoxy Adhesives Dispensing Gun', 1)
     )
-    splash.SetText(f'Adding accessories to db [{len(data)} | {len(data)}]...')
+    splash.SetText(f'Adding accessories to db [{len(data)} | {len(data)}]...', log=False)
     splash.flush()
 
     con.executemany('INSERT INTO accessories (id, part_number, description, mfg_id) VALUES(?, ?, ?, ?);', data)
@@ -44,10 +44,12 @@ def add_records(con, splash, _):
 def add_accessory(con, part_number, mfg, description=None, series=None,
                   family=None, color=None, material=None, image=None,
                   datasheet=None, cad=None, model3d=None, length=0.0,
-                  width=0.0, height=0.0, weight=0.0):
+                  width=0.0, height=0.0, weight=0.0, commit=True):
 
     if color is None:
         color = 'Dark Gray'
+
+    mfg, family, series = _manufacturers.inspect_mfg_fam_series(mfg, family, series)
 
     mfg_id = _manufacturers.get_mfg_id(con, mfg)
     series_id = _series.get_series_id(con, series, mfg_id)
@@ -84,10 +86,11 @@ def add_accessory(con, part_number, mfg, description=None, series=None,
                  material_id, image_id, datasheet_id, cad_id, model3d_id, length,
                  width, height, weight))
 
-    con.commit()
-    db_id = con.lastrowid
+    _logger.logger.database(f'accessory added "{part_number}"')
 
-    _logger.logger.database(f'accessory added "{part_number}" = {db_id}')
+    if commit:
+        con.commit()
+        return con.lastrowid
 
 
 id_field = _con.PrimaryKeyField('id')

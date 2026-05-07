@@ -11,8 +11,9 @@ class HousingsPage(_base.EditorList):
     __table_name__ = 'housings'
     __query__ = f'''\
         SELECT * FROM (
+        SELECT Row_Number() OVER (ORDER BY {{sort_column}} {{sort_direction}}) AS RowNum, *
+        FROM (
             SELECT
-                Row_Number() OVER (ORDER BY {{sort_column}} {{sort_direction}}) AS RowNum,
                 t.id AS id,
                 t.part_number AS part_number,
                 t.description AS description,
@@ -60,7 +61,8 @@ class HousingsPage(_base.EditorList):
             LEFT JOIN ip_ratings AS ip_rating ON ip_rating.id = t.ip_rating_id
             LEFT JOIN seal_types AS seal_type ON seal_type.id = t.seal_type_id
             LEFT JOIN cpa_lock_types AS cpa_lock_type ON cpa_lock_type.id = t.cpa_lock_type_id
-        ) t2 WHERE RowNum = {{row}};
+            )
+        ) WHERE RowNum BETWEEN {{start_row}} AND {{end_row}};
         '''
 
     column_mapping = {
@@ -71,30 +73,31 @@ class HousingsPage(_base.EditorList):
         4: ('Family', 'family_name'),
         5: ('Series', 'series_name'),
         6: ('Color', 'color_name'),
-        9: ('Temperature (min)', 'min_temp_name'),
-        10: ('Temperature (max)', 'max_temp_name'),
-        11: ('Gender', 'gender_name'),
-        12: ('Direction', 'direction_name'),
-        13: ('Cavity Lock', 'cavity_lock_name'),
-        14: ('IP Rating', 'ip_rating_name'),
-        15: ('Seal Type', 'seal_type_name'),
-        16: ('CPA Lock Type', 'cpa_lock_type_name'),
-        17: ('Sealing', 'sealing'),
-        18: ('Rows', 'rows'),
-        19: ('Pin Count', 'num_pins'),
-        20: ('Terminal Sizes', 'terminal_sizes'),
-        21: ('Terminal Size Counts', 'terminal_size_counts'),
-        22: ('Pitch (mm)', 'centerline'),
-        23: ('Compat CPA Locks', 'compat_cpas'),
-        24: ('Compat TPA Locks', 'compat_tpas'),
-        25: ('Compat Covers', 'compat_covers'),
-        26: ('Compat Terminals', 'compat_terminals'),
-        27: ('Compat Seals', 'compat_seals'),
-        28: ('Compat Housings', 'compat_housings'),
-        29: ('Compat Boots', 'compat_boots'),
-        30: ('Length (mm)', 'length'),
-        31: ('Width (mm)', 'width'),
-        32: ('Height (mm)', 'height'),
-        33: ('Weight (g)', 'weight'),
+        7: ('Temperature (min)', 'min_temp_name'),
+        8: ('Temperature (max)', 'max_temp_name'),
+        9: ('Gender', 'gender_name'),
+        10: ('Direction', 'direction_name'),
+        11: ('Cavity Lock', 'cavity_lock_name'),
+        12: ('IP Rating', 'ip_rating_name'),
+        13: ('Seal Type', 'seal_type_name'),
+        14: ('CPA Lock Type', 'cpa_lock_type_name'),
+        15: ('Sealing', 'sealing'),
+        16: ('Rows', 'rows'),
+        17: ('Pin Count', 'num_pins'),
+        18: ('Terminal Sizes', 'terminal_sizes'),
+        19: ('Terminal Size Counts', 'terminal_size_counts'),
+        20: ('Pitch (mm)', 'centerline'),
+        21: ('Compat CPA Locks', 'compat_cpas'),
+        22: ('Compat TPA Locks', 'compat_tpas'),
+        23: ('Compat Covers', 'compat_covers'),
+        24: ('Compat Terminals', 'compat_terminals'),
+        25: ('Compat Seals', 'compat_seals'),
+        26: ('Compat Housings', 'compat_housings'),
+        27: ('Compat Boots', 'compat_boots'),
+        28: ('Length (mm)', 'length'),
+        29: ('Width (mm)', 'width'),
+        30: ('Height (mm)', 'height'),
+        31: ('Weight (g)', 'weight'),
+        32: ('3D Model', 'model3d_id')
     }
     table: "_housing.HousingsTable" = None

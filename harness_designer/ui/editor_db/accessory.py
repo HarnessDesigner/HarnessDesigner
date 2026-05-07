@@ -8,11 +8,14 @@ if TYPE_CHECKING:
 
 
 class AccessoriesPage(_base.EditorList):
+    _has_model_3d = False
+
     __table_name__ = 'accessories'
     __query__ = f'''\
     SELECT * FROM (
+    SELECT Row_Number() OVER (ORDER BY {{sort_column}} {{sort_direction}}) AS RowNum, *
+    FROM (
         SELECT
-            Row_Number() OVER (ORDER BY {{sort_column}} {{sort_direction}}) AS RowNum,
             t.id AS id,
             t.part_number AS part_number,
             t.description AS description,
@@ -32,7 +35,8 @@ class AccessoriesPage(_base.EditorList):
         LEFT JOIN series AS series ON series.id = t.series_id
         LEFT JOIN colors AS color ON color.id = t.color_id
         LEFT JOIN materials AS material ON material.id = t.material_id
-    ) t2 WHERE RowNum = {{row}};
+        )
+    ) WHERE RowNum BETWEEN {{start_row}} AND {{end_row}};
     '''
 
     column_mapping = {

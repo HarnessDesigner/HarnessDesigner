@@ -72,7 +72,12 @@ class _ConfigTable:
                     cur = self._con.cursor()
                     DEBUG('__setitem__.INSERT:', self.name, key, value)
 
-                    cur.execute(f'INSERT INTO {self.name} (key, value) VALUES(?, ?);', (key, value))
+                    try:
+                        cur.execute(f'INSERT INTO {self.name} (key, value) VALUES(?, ?);', (key, value))
+                    except sqlite3.IntegrityError:
+                        DEBUG('__setitem__.UPDATE:', self.name, key, value)
+                        cur.execute(f'UPDATE {self.name} SET value = "{value}" WHERE key = "{key}";')
+
                     self._con.commit()
                     cur.close()
         else:
@@ -538,7 +543,7 @@ class Config(metaclass=ConfigDB):
         max_logfile_size = 10485760
         log_notice = True
         log_warning = True
-        log_debug = True
+        log_debug = False
         log_traceback = True
         log_error = True
         log_wx_error = True
@@ -548,7 +553,7 @@ class Config(metaclass=ConfigDB):
     class debug:
         class functions(metaclass=ConfigDB):
             log_args = False
-            log_duration = True
+            log_duration = False
 
         class rendering3d(metaclass=ConfigDB):
             draw_obb = False
@@ -612,25 +617,26 @@ class Config(metaclass=ConfigDB):
         position = ()
         size = ()
 
-        ui_perspective = None  # (
-        #     'layout2|'
-        #     'name=editor_3d;caption=3D Editor;state=2816;dir=5;layer=0;row=0;pos=0;prop=100000;bestw=20;besth=20;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=-1;floaty=-1;floatw=-1;floath=-1|'
-        #     'name=editor_2d;caption=Schematic Editor;state=12587004;dir=4;layer=0;row=0;pos=0;prop=100000;bestw=20;besth=20;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=-1;floaty=-1;floatw=-1;floath=-1|'
-        #     'name=editor_db;caption=Database Editor;state=12587004;dir=3;layer=0;row=1;pos=0;prop=100000;bestw=20;besth=20;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=763;floaty=870;floatw=45;floath=59|'
-        #     'name=editor_obj;caption=Object Editor;state=12587004;dir=2;layer=0;row=2;pos=0;prop=100000;bestw=20;besth=20;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=1845;floaty=372;floatw=45;floath=59|'
-        #     'name=editor_assembly;caption=Assembly Editor;state=12603388;dir=2;layer=0;row=2;pos=1;prop=100000;bestw=20;besth=20;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=1648;floaty=270;floatw=45;floath=59|'
-        #     'name=general_toolbar;caption=;state=2106108;dir=2;layer=10;row=0;pos=273;prop=100000;bestw=45;besth=228;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=1828;floaty=402;floatw=-1;floath=-1|'
-        #     'name=editor_toolbar;caption=;state=2106108;dir=1;layer=10;row=0;pos=0;prop=100000;bestw=658;besth=45;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=187;floaty=63;floatw=674;floath=84|'
-        #     'name=note_toolbar;caption=;state=2106108;dir=2;layer=10;row=0;pos=0;prop=100000;bestw=45;besth=271;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=1877;floaty=124;floatw=-1;floath=-1|'
-        #     'name=object_toolbar;caption=;state=2106108;dir=1;layer=10;row=0;pos=660;prop=100000;bestw=400;besth=45;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=857;floaty=128;floatw=-1;floath=-1|'
-        #     'name=settings3d_toolbar;caption=;state=2106108;dir=2;layer=10;row=0;pos=503;prop=100000;bestw=45;besth=142;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=1832;floaty=639;floatw=-1;floath=-1|'
-        #     'dock_size(5,0,0)=22|'
-        #     'dock_size(4,0,0)=565|'
-        #     'dock_size(2,10,0)=47|'
-        #     'dock_size(1,10,0)=47|'
-        #     'dock_size(2,0,2)=247|'
-        #     'dock_size(3,0,1)=258|'
-        # )
+        ui_perspective = (
+            'layout2'
+            '|name=editor_3d;caption=3D Editor;state=2816;dir=5;layer=0;row=0;pos=0;prop=100000;bestw=20;besth=20;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=-1;floaty=-1;floatw=-1;floath=-1'
+            '|name=editor_2d;caption=Schematic Editor;state=14684156;dir=2;layer=0;row=2;pos=0;prop=100000;bestw=20;besth=20;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=803;floaty=323;floatw=45;floath=59'
+            '|name=editor_db;caption=Database Editor;state=14700540;dir=3;layer=0;row=0;pos=0;prop=100000;bestw=20;besth=20;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=-1;floaty=-1;floatw=-1;floath=-1'
+            '|name=editor_obj;caption=Object Editor;state=14684156;dir=4;layer=0;row=0;pos=0;prop=100000;bestw=20;besth=20;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=-1;floaty=-1;floatw=-1;floath=-1'
+            '|name=editor_assembly;caption=Assembly Editor;state=14684156;dir=3;layer=0;row=0;pos=1;prop=100000;bestw=20;besth=20;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=1786;floaty=727;floatw=45;floath=59'
+            '|name=object_browser;caption=Object Browser;state=14684156;dir=2;layer=0;row=0;pos=0;prop=100000;bestw=20;besth=20;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=1811;floaty=226;floatw=45;floath=59'
+            '|name=log_viewer;caption=Log Viewer;state=14684158;dir=3;layer=0;row=0;pos=2;prop=100000;bestw=20;besth=20;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=1760;floaty=764;floatw=45;floath=59'
+            '|name=general_toolbar;caption=;state=2106108;dir=1;layer=10;row=0;pos=0;prop=100000;bestw=228;besth=45;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=-1;floaty=-1;floatw=-1;floath=-1'
+            '|name=editor_toolbar;caption=;state=2106108;dir=1;layer=10;row=0;pos=1006;prop=100000;bestw=658;besth=45;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=-1;floaty=-1;floatw=-1;floath=-1'
+            '|name=note_toolbar;caption=;state=2106108;dir=1;layer=10;row=0;pos=862;prop=100000;bestw=142;besth=45;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=-1;floaty=-1;floatw=-1;floath=-1'
+            '|name=object_toolbar;caption=;state=2106108;dir=1;layer=10;row=0;pos=460;prop=100000;bestw=400;besth=45;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=-1;floaty=-1;floatw=-1;floath=-1'
+            '|name=settings3d_toolbar;caption=;state=2106108;dir=1;layer=10;row=0;pos=230;prop=100000;bestw=228;besth=45;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=-1;floaty=-1;floatw=-1;floath=-1'
+            '|dock_size(5,0,0)=22'
+            '|dock_size(2,0,0)=198'
+            '|dock_size(3,0,0)=283'
+            '|dock_size(4,0,0)=271'
+            '|dock_size(1,10,0)=47'
+            '|dock_size(2,0,2)=662|')
 
     class project(metaclass=ConfigDB):
         last_project = None

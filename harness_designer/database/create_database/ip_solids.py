@@ -49,7 +49,7 @@ def add_records(con, splash, _=None):
          'rating about this criterion.')
     )
 
-    splash.SetText(f'Adding IP solids to db [{len(data)} | {len(data)}]...')
+    splash.SetText(f'Adding IP solids to db [{len(data)} | {len(data)}]...', log=False)
     splash.flush()
 
     con.executemany('INSERT INTO ip_solids (id, name, short_desc, description) VALUES (?, ?, ?, ?);', data)

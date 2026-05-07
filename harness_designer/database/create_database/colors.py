@@ -23,18 +23,18 @@ def add_records(con, splash, data_path):
         data = [value for value in data.values()]
 
     data_len = len(data)
-    splash.SetText(f'Adding color to db [0 | {data_len}]...')
+    splash.SetText(f'Adding color to db [0 | {data_len}]...', log=False)
     splash.flush()
 
     for i, item in enumerate(data):
-        splash.SetText(f'Adding color to db [{i + 1} | {data_len}]...')
+        splash.SetText(f'Adding color to db [{i + 1} | {data_len}]...', log=False)
 
-        add_color(con, **item)
+        add_color(con, commit=False, **item)
 
     con.commit()
 
 
-def add_color(con, name, rgb, id=None): # NOQA
+def add_color(con, name, rgb, id=None, commit=True): # NOQA
     if id is None:
         con.execute('INSERT INTO colors (name, rgb) '
                     'VALUES (?, ?);', (name, rgb))
@@ -42,7 +42,11 @@ def add_color(con, name, rgb, id=None): # NOQA
         con.execute('INSERT INTO colors (id, name, rgb) '
                     'VALUES (?, ?, ?);', (id, name, rgb))
 
-    con.commit()
+    _logger.logger.database(f'color added "{name}"')
+
+    if commit:
+        con.commit()
+        return con.lastrowid
 
 
 def get_color_id(con, name):

@@ -31,12 +31,12 @@ def add_records(con, splash, data_path):
 
         for i, item in enumerate(data):
             splash.SetText(f'Adding seal type to db [{i + 1} | {data_len}]...')
-            add_seal_type(con, **item)
+            add_seal_type(con, commit=False, **item)
 
     con.commit()
 
 
-def add_seal_type(con, name, id=None):  # NOQA
+def add_seal_type(con, name, id=None, commit=True):  # NOQA
 
     if id is None:
         con.execute(
@@ -49,7 +49,11 @@ def add_seal_type(con, name, id=None):  # NOQA
             'VALUES (?, ?);', (id, name)
             )
 
-    con.commit()
+    _logger.logger.database(f'seal type added "{name}"')
+
+    if commit:
+        con.commit()
+        return con.lastrowid
 
 
 def get_seal_type_id(con, name):

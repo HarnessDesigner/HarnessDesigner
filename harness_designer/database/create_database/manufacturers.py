@@ -5,6 +5,41 @@ from .. import db_connectors as _con
 from ... import logger as _logger
 
 
+def inspect_mfg_fam_series(mfg_name, family_name, series_name):
+    if family_name is None:
+        family_name = ''
+    if series_name is None:
+        series_name = ''
+
+    if family_name.lower().startswith(mfg_name.lower()):
+        family_name = family_name[len(mfg_name):]
+
+    if series_name.lower().startswith(family_name.lower()):
+        series_name = series_name[len(family_name):]
+
+    if mfg_name in ('RAYCHEM', 'Raychem'):
+        if not family_name.strip():
+            family_name = 'Raychem'
+        elif not series_name.strip():
+            series_name = family_name.strip()
+            family_name = 'Raychem'
+        else:
+            family_name = 'Raychem ' + family_name.strip()
+
+        mfg_name = 'TE Connectivity'
+
+    mfg_name = mfg_name.strip()
+    family_name = family_name.strip()
+    series_name = series_name.strip()
+
+    if not family_name:
+        family_name = None
+
+    if not series_name:
+        series_name = None
+
+    return mfg_name, family_name, series_name
+
 def add_records(con, splash, data_path):
     con.execute('SELECT id FROM manufacturers WHERE id=0;')
     if con.fetchall():
@@ -26,18 +61,18 @@ def add_records(con, splash, data_path):
 
         data_len = len(data)
 
-        splash.SetText(f'Adding manufacturer to db [0 | {data_len}]...')
+        splash.SetText(f'Adding manufacturer to db [0 | {data_len}]...', log=False)
         splash.flush()
 
         for i, item in enumerate(data):
-            splash.SetText(f'Adding manufacturer to db [{i + 1} | {data_len}]...')
-            add_manufacturer(con, **item)
+            splash.SetText(f'Adding manufacturer to db [{i + 1} | {data_len}]...', log=False)
+            add_manufacturer(con, commit=False, **item)
 
     con.commit()
 
 
 def add_manufacturer(con, name, description='', address='', contact_person='', phone='',
-                     ext='', email='', website='', id=None):  # NOQA
+                     ext='', email='', website='', id=None, commit=True):  # NOQA
 
     if id is None:
         con.execute(
@@ -52,7 +87,11 @@ def add_manufacturer(con, name, description='', address='', contact_person='', p
             (id, name, description, address, contact_person, phone, ext, email, website)
             )
 
-    con.commit()
+    _logger.logger.database(f'manufacturer added "{name}"')
+
+    if commit:
+        con.commit()
+        return con.lastrowid
 
 
 def get_mfg_id(con, name):

@@ -15,8 +15,9 @@ class BundleCoversPage(_base.EditorList):
     __table_name__ = 'bundle_covers'
     __query__ = f'''\
         SELECT * FROM (
+        SELECT Row_Number() OVER (ORDER BY {{sort_column}} {{sort_direction}}) AS RowNum, *
+        FROM (
             SELECT
-                Row_Number() OVER (ORDER BY {{sort_column}} {{sort_direction}}) AS RowNum,
                 t.id AS id,
                 t.part_number AS part_number,
                 t.description AS description,
@@ -46,7 +47,8 @@ class BundleCoversPage(_base.EditorList):
             LEFT JOIN temperatures AS min_temp ON min_temp.id = t.min_temp_id
             LEFT JOIN temperatures AS max_temp ON max_temp.id = t.max_temp_id
             LEFT JOIN protections AS protection ON protection.id = t.protection_id
-        ) t2 WHERE RowNum = {{row}};
+            )
+        ) WHERE RowNum BETWEEN {{start_row}} AND {{end_row}};
         '''
 
     column_mapping = {

@@ -26,17 +26,17 @@ def add_records(con, splash, data_path):
 
         data_len = len(data)
 
-        splash.SetText(f'Adding temperature to db [0 | {data_len}]...')
+        splash.SetText(f'Adding temperature to db [0 | {data_len}]...', log=False)
         splash.flush()
 
         for i, item in enumerate(data):
-            splash.SetText(f'Adding temperature to db [{i + 1} | {data_len}]...')
-            add_temperature(con, **item)
+            splash.SetText(f'Adding temperature to db [{i + 1} | {data_len}]...', log=False)
+            add_temperature(con, commit=False, **item)
 
     con.commit()
 
 
-def add_temperature(con, name, id=None):  # NOQA
+def add_temperature(con, name, id=None, commit=True):  # NOQA
 
     if id is None:
         con.execute(
@@ -49,7 +49,11 @@ def add_temperature(con, name, id=None):  # NOQA
             'VALUES (?, ?);', (id, name)
             )
 
-    con.commit()
+    _logger.logger.database(f'temperature added "{name}"')
+
+    if commit:
+        con.commit()
+        return con.lastrowid
 
 
 def get_temperature_id(con, name):

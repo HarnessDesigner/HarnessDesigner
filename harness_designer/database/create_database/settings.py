@@ -58,12 +58,16 @@ def add_records(con, splash, appdata):
     con.commit()
 
 
-def add_setting(con, key, value):
+def add_setting(con, key, value, commit=True):
 
     con.execute(f'INSERT INTO pjt_transition_branches (name, value) VALUES (?, ?);',
                 (key, value))
 
-    con.commit()
+    _logger.logger.database(f'setting added "{key}"')
+
+    if commit:
+        con.commit()
+        return con.lastrowid
 
 
 id_field = _con.PrimaryKeyField('id')

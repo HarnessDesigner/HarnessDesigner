@@ -28,7 +28,7 @@ def add_seal(con, part_number, description, mfg=None, family=None, series=None,
              length=0.0, width=0.0, height=0.0, weight=0.0, o_dia=0.0, i_dia=0.0,
              wire_size_dia_min=None, wire_size_dia_max=None, wire_size_cross_min=None,
              wire_size_cross_max=None, wire_size_awg_min=None, wire_size_awg_max=None,
-             compat_housings=None, compat_terminals=None):
+             compat_housings=None, compat_terminals=None, commit=True):
 
     if compat_housings is None:
         compat_housings = []
@@ -38,6 +38,8 @@ def add_seal(con, part_number, description, mfg=None, family=None, series=None,
 
     if color is None:
         color = 'Dark Gray'
+
+    mfg, family, series = _manufacturers.inspect_mfg_fam_series(mfg, family, series)
 
     mfg_id = _manufacturers.get_mfg_id(con, mfg)
     series_id = _series.get_series_id(con, series, mfg_id)
@@ -91,6 +93,12 @@ def add_seal(con, part_number, description, mfg=None, family=None, series=None,
                  i_dia, wire_size_dia_min, wire_size_dia_max, wire_size_cross_min, wire_size_cross_max,
                  wire_size_awg_min, wire_size_awg_max, compat_housings, compat_terminals))
 
+    _logger.logger.database(f'seal added "{part_number}"')
+
+    if commit:
+        con.commit()
+        return con.lastrowid
+
 
 def add_pjt_seal(con, project_id, part_id, point3d_id=None, housing_id=None,
                  terminal_id=None, name='', notes='', quat3d=None, angle3d=None,
@@ -121,19 +129,20 @@ def add_records(con, splash, data_path):
     if con.fetchall():
         return
 
-    dirs = []
-    for file in os.listdir(data_path):
-        file = os.path.join(data_path, file)
+    dirs = [('', data_path)]
+
+    for file_name in os.listdir(data_path):
+        file = os.path.join(data_path, file_name)
         if os.path.isdir(file):
-            dirs.append(file)
+            dirs.append((file_name + ' ', file))
 
     cwd = os.getcwd()
-    for path in dirs:
+    for name, path in dirs:
         os.chdir(path)
 
         json_path = os.path.join(path, 'seals.json')
         if os.path.exists(json_path):
-            splash.SetText(f'Loading seals file...')
+            splash.SetText(f'Loading {name}seals file...')
             splash.flush()
 
             _logger.logger.database(json_path)
@@ -146,12 +155,11 @@ def add_records(con, splash, data_path):
 
             data_len = len(data)
 
-            splash.SetText(f'Adding seals to db [0 | {data_len}]...')
+            splash.SetText(f'Adding {name}seal to db [0 | {data_len}]...', log=False)
             splash.flush()
 
             for i, item in enumerate(data):
-                if not i % 100:
-                    splash.SetText(f'Adding seals to db [{i + 1} | {data_len}]...')
+                splash.SetText(f'Adding {name}seal to db [{i + 1} | {data_len}]...', log=False)
 
                 if 'shared_cad' in item:
                     del item['shared_cad']
@@ -160,7 +168,7 @@ def add_records(con, splash, data_path):
                     del item['shared_model3d']
 
                 try:
-                    add_seal(con, **item)
+                    add_seal(con, commit=False, **item)
                 except Exception as err:
                     _logger.logger.traceback(err)
 

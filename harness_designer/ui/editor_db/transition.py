@@ -14,11 +14,12 @@ class TransitionsPage(_base.EditorList):
     __table_name__ = 'transitions'
     __query__ = f'''\
         SELECT * FROM (
+        SELECT Row_Number() OVER (ORDER BY {{sort_column}} {{sort_direction}}) AS RowNum, *
+        FROM (
             SELECT
-                Row_Number() OVER (ORDER BY {{sort_column}} {{sort_direction}}) AS RowNum,
-                t.id,
-                t.part_number,
-                t.description,
+                t.id AS id,
+                t.part_number AS part_number,
+                t.description AS description,
                 mfg.name AS mfg_name,
                 family.name AS family_name,
                 series.name AS series_name,
@@ -26,25 +27,10 @@ class TransitionsPage(_base.EditorList):
                 material.name AS material_name,
                 shape.name AS shape_name,
                 protection.name AS protection_name,
-                t.branch_count,
-                t.adhesive_ids,
-                t.weight,
-                t.image_id,
-                (SELECT json_group_array(json_object(
-                    'id', tb.id,
-                    'idx', tb.idx,
-                    'bulb_offset', tb.bulb_offset,
-                    'bulb_length', tb.bulb_length,
-                    'min_dia', tb.min_dia,
-                    'max_dia', tb.max_dia,
-                    'length', tb.length,
-                    'offset', tb.offset,
-                    'angle', tb.angle,
-                    'flange_height', tb.flange_height,
-                    'flange_width', tb.flange_width
-                ))
-                FROM transition_branches AS tb
-                WHERE tb.transition_id = t.id) AS branches
+                t.branch_count AS branch_count,
+                t.adhesive_ids AS adhesive_ids,
+                t.weight AS weight,
+                t.image_id AS image_id
             FROM {__table_name__} AS t
             LEFT JOIN manufacturers AS mfg ON mfg.id = t.mfg_id
             LEFT JOIN families AS family ON family.id = t.family_id
@@ -55,23 +41,23 @@ class TransitionsPage(_base.EditorList):
             LEFT JOIN materials AS material ON material.id = t.material_id
             LEFT JOIN shapes AS shape ON shape.id = t.shape_id
             LEFT JOIN protections AS protection ON protection.id = t.protection_id
-        ) t2 WHERE RowNum = {{row}};
+            )
+        ) WHERE RowNum BETWEEN {{start_row}} AND {{end_row}};
         '''
     column_mapping = {
-        0: 'DB ID',
-        1: 'Part Number',
-        2: 'Description',
-        3: 'Manufacturer',
-        4: 'Family',
-        5: 'Series',
-        6: 'Color',
-        7: 'Temperature (min)',
-        8: 'Temperature (max)',
-        9: 'Material',
-        10: 'Shape',
-        11: 'Protections',
-        12: 'Branch Count',
-        13: 'Adhesive Codes',
-        14: 'Weight (g)'
+        0: ('DB ID', 'id'),
+        1: ('Part Number', 'part_number'),
+        2: ('Description', 'description'),
+        3: ('Manufacturer', 'mfg_name'),
+        4: ('Family', 'family_name'),
+        5: ('Series', 'series_name'),
+        6: ('Color', 'color_name'),
+        7: ('Material', 'material_name'),
+        8: ('Shape', 'shape_name'),
+        9: ('Protections', 'protection_name'),
+        10: ('Branch Count', 'branch_count'),
+        11: ('Adhesive Codes', 'adhesive_ids'),
+        12: ('Weight (g)', 'weight')
     }
+
     table: "_transition.TransitionsTable" = None

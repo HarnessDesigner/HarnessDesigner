@@ -30,20 +30,21 @@ def add_records(con, splash, data_path):
     if con.fetchall():
         return
 
-    dirs = []
-    for file in os.listdir(data_path):
-        file = os.path.join(data_path, file)
+    dirs = [('', data_path)]
+
+    for file_name in os.listdir(data_path):
+        file = os.path.join(data_path, file_name)
         if os.path.isdir(file):
-            dirs.append(file)
+            dirs.append((file_name + ' ', file))
 
     cwd = os.getcwd()
-    for path in dirs:
+    for name, path in dirs:
         os.chdir(path)
 
-        json_path = os.path.join(path, 'bundle_covers.json')
+        json_path = os.path.join(path, 'bundles.json')
 
         if os.path.exists(json_path):
-            splash.SetText(f'Loading bundle covers file...')
+            splash.SetText(f'Loading {name}bundle covers file...')
             splash.flush()
 
             _logger.logger.database(json_path)
@@ -55,19 +56,18 @@ def add_records(con, splash, data_path):
                 data = [value for value in data.values()]
 
             data_len = len(data)
-            splash.SetText(f'Adding bundle covers to db [0 | {data_len}]')
+            splash.SetText(f'Adding {name}bundle cover to db [0 | {data_len}]', log=False)
             splash.flush()
 
             for i, item in enumerate(data):
-                if not i % 100:
-                    splash.SetText(f'Adding bundle covers to db [{i + 1} | {data_len}]')
+                splash.SetText(f'Adding {name}bundle cover to db [{i + 1} | {data_len}]', log=False)
 
                 try:
-                    add_bundle_cover(con, **item)
+                    add_bundle_cover(con, commit=False, **item)
                 except Exception as err:
                     _logger.logger.traceback(err)
 
-        con.commit()
+            con.commit()
 
     os.chdir(cwd)
 
@@ -76,10 +76,12 @@ def add_bundle_cover(con, part_number, description, mfg=None, family=None, serie
                      color=None, material=None, image=None, datasheet=None, cad=None,
                      shrink_temp=None, min_temp=None, max_temp=None, protection=None,
                      rigidity='', shrink_ratio='', wall='', min_dia=0.0, max_dia=0.0,
-                     adhesive_ids=None, weight=0.0):
+                     adhesive_ids=None, weight=0.0, commit=True):
 
     if adhesive_ids is None:
         adhesive_ids = []
+
+    mfg, family, series = _manufacturers.inspect_mfg_fam_series(mfg, family, series)
 
     mfg_id = _manufacturers.get_mfg_id(con, mfg)
     family_id = _families.get_family_id(con, family, mfg_id)
@@ -94,6 +96,8 @@ def add_bundle_cover(con, part_number, description, mfg=None, family=None, serie
     max_temp_id = _temperatures.get_temperature_id(con, max_temp)
     protection_id = _protections.get_protection_id(con, protection)
 
+    adhesive_ids = ', '.join(adhesive_ids)
+
     con.execute('INSERT INTO bundle_covers (part_number, description, mfg_id, family_id, '
                 'series_id, color_id, material_id, image_id, datasheet_id, cad_id, '
                 'shrink_temp_id, min_temp_id, max_temp_id, protection_id, rigidity, '
@@ -101,9 +105,14 @@ def add_bundle_cover(con, part_number, description, mfg=None, family=None, serie
                 'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
                 (part_number, description, mfg_id, family_id, series_id, color_id, material_id,
                  image_id, datasheet_id, cad_id, shrink_temp_id, min_temp_id, max_temp_id,
-                 protection_id, rigidity, shrink_ratio, wall, min_dia, max_dia, str(adhesive_ids),
+                 protection_id, rigidity, shrink_ratio, wall, min_dia, max_dia, adhesive_ids,
                  weight))
-    con.commit()
+
+    _logger.logger.database(f'bundle cover added "{part_number}"')
+
+    if commit:
+        con.commit()
+        return con.lastrowid
 
 
 id_field = _con.PrimaryKeyField('id')

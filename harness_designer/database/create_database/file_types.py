@@ -15,8 +15,6 @@ def add_records(con, splash, data_path):
     splash.SetText(f'Loading file types file...')
     splash.flush()
 
-    _logger.logger.database(json_path)
-
     with open(json_path, 'r') as f:
         data = json.loads(f.read())
 
@@ -24,22 +22,26 @@ def add_records(con, splash, data_path):
         data = [value for value in data.values()]
 
     data_len = len(data)
-    splash.SetText(f'Adding file type to db [0 | {data_len}]...')
+    splash.SetText(f'Adding file type to db [0 | {data_len}]...', log=False)
     splash.flush()
 
     for i, item in enumerate(data):
-        splash.SetText(f'Adding file type to db [{i + 1} | {data_len}]...')
+        splash.SetText(f'Adding file type to db [{i + 1} | {data_len}]...', log=False)
 
-        add_file_type(con, **item)
+        add_file_type(con, commit=False, **item)
 
     con.commit()
 
 
-def add_file_type(con, name, extension, is_model, mimetype=''):
+def add_file_type(con, name, extension, is_model, mimetype='', commit=True):
     con.execute('INSERT INTO file_types (mimetype, extension, name, is_model) '
                 'VALUES (?, ?, ?, ?);', (mimetype, extension, name, is_model))
 
-    con.commit()
+    _logger.logger.database(f'file type added "{extension}"')
+
+    if commit:
+        con.commit()
+        return con.lastrowid
 
 
 def get_file_type(con, extension=None, mimetype=None):

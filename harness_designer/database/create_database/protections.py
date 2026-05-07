@@ -14,10 +14,10 @@ def add_records(con, splash, _):
 
     for item in data:
         splash.SetText(f'Adding protections to db [1 | {len(data)}]...')
-        add_protection(con, **item)
+        add_protection(con, commit=False, **item)
 
 
-def add_protection(con, name, id=None):  # NOQA
+def add_protection(con, name, id=None, commit=True):  # NOQA
 
     if id is None:
         con.execute(
@@ -30,7 +30,11 @@ def add_protection(con, name, id=None):  # NOQA
             'VALUES (?, ?);', (id, name)
             )
 
-    con.commit()
+    _logger.logger.database(f'protection added "{repr(name)}"')
+
+    if commit:
+        con.commit()
+        return con.lastrowid
 
 
 def get_protection_id(con, name):

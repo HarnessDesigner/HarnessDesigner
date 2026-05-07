@@ -26,17 +26,17 @@ def add_records(con, splash, data_path):
 
         data_len = len(data)
 
-        splash.SetText(f'Adding splice type to db [0 | {data_len}]...')
+        splash.SetText(f'Adding splice type to db [0 | {data_len}]...', log=False)
         splash.flush()
 
         for i, item in enumerate(data):
-            splash.SetText(f'Adding splice type to db [{i + 1} | {data_len}]...')
-            add_splice_type(con, **item)
+            splash.SetText(f'Adding splice type to db [{i + 1} | {data_len}]...', log=False)
+            add_splice_type(con, commit=False, **item)
 
     con.commit()
 
 
-def add_splice_type(con, name, id=None):  # NOQA
+def add_splice_type(con, name, id=None, commit=True):  # NOQA
 
     if id is None:
         con.execute(
@@ -49,7 +49,11 @@ def add_splice_type(con, name, id=None):  # NOQA
             'VALUES (?, ?);', (id, name)
             )
 
-    con.commit()
+    _logger.logger.database(f'splice type added "{name}"')
+
+    if commit:
+        con.commit()
+        return con.lastrowid
 
 
 def get_splice_type_id(con, name):

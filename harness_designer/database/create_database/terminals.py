@@ -30,13 +30,16 @@ def add_terminal(con, part_number, description, mfg=None, family=None, series=No
                  sealing=0, blade_size=0.0, resistance=0.0, mating_cycles=0, max_vibration_g=0,
                  max_current_ma=0, wire_size_awg_min=None, wire_size_awg_max=None, wire_size_dia_min=None,
                  wire_size_dia_max=None, wire_size_cross_min=None, wire_size_cross_max=None, length=0.0,
-                 width=0.0, height=0.0, weight=0.0, compat_housings=None, compat_seals=None):
+                 width=0.0, height=0.0, weight=0.0, compat_housings=None, compat_seals=None,
+                 commit=True):
 
     if compat_housings is None:
         compat_housings = []
 
     if compat_seals is None:
         compat_seals = []
+
+    mfg, family, series = _manufacturers.inspect_mfg_fam_series(mfg, family, series)
 
     mfg_id = _manufacturers.get_mfg_id(con, mfg)
     series_id = _series.get_series_id(con, series, mfg_id)
@@ -105,6 +108,12 @@ def add_terminal(con, part_number, description, mfg=None, family=None, series=No
                  wire_size_cross_max, length, width, height, weight, compat_housings,
                  compat_seals))
 
+    _logger.logger.database(f'terminal added "{part_number}"')
+
+    if commit:
+        con.commit()
+        return con.lastrowid
+
 
 def add_pjt_terminal(con, project_id, part_id, cavity_id=None, circuit_id=None,
                      wire_point3d_id=None, point3d_id=None, point2d_id=None,
@@ -148,20 +157,21 @@ def add_records(con, splash, data_path):
     if con.fetchall():
         return
 
-    dirs = []
-    for file in os.listdir(data_path):
-        file = os.path.join(data_path, file)
+    dirs = [('', data_path)]
+
+    for file_name in os.listdir(data_path):
+        file = os.path.join(data_path, file_name)
         if os.path.isdir(file):
-            dirs.append(file)
+            dirs.append((file_name + ' ', file))
 
     cwd = os.getcwd()
-    for path in dirs:
+    for name, path in dirs:
         os.chdir(path)
 
         json_path = os.path.join(path, 'terminals.json')
 
         if os.path.exists(json_path):
-            splash.SetText(f'Loading terminals file...')
+            splash.SetText(f'Loading {name}terminals file...')
             splash.flush()
 
             _logger.logger.database(json_path)
@@ -174,12 +184,11 @@ def add_records(con, splash, data_path):
 
             data_len = len(data)
 
-            splash.SetText(f'Adding terminals to db [0 | {data_len}]...')
+            splash.SetText(f'Adding {name}terminal to db [0 | {data_len}]...', log=False)
             splash.flush()
 
             for i, item in enumerate(data):
-                if not i % 100:
-                    splash.SetText(f'Adding terminals to db [{i + 1} | {data_len}]...')
+                splash.SetText(f'Adding {name}terminal to db [{i + 1} | {data_len}]...', log=False)
 
                 if 'shared_cad' in item:
                     del item['shared_cad']
@@ -188,7 +197,7 @@ def add_records(con, splash, data_path):
                     del item['shared_model3d']
 
                 try:
-                    add_terminal(con, **item)
+                    add_terminal(con, commit=False, **item)
                 except Exception as err:
                     _logger.logger.traceback(err)
 

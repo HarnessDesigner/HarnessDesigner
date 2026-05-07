@@ -24,10 +24,13 @@ from ... import logger as _logger
 def add_transition(con, part_number, description, mfg=None, family=None, series=None,
                    color=None, image=None, datasheet=None, cad=None, min_temp=None,
                    max_temp=None, material=None, shape=None, protection=None,
-                   branch_count=0, adhesive_ids=None, weight=0.0, branches=[]):
+                   branch_count=0, adhesive_ids=None, weight=0.0, branches=[],
+                   commit=True):
     
     if adhesive_ids is None:
         adhesive_ids = []
+
+    mfg, family, series = _manufacturers.inspect_mfg_fam_series(mfg, family, series)
 
     mfg_id = _manufacturers.get_mfg_id(con, mfg)
     series_id = _series.get_series_id(con, series, mfg_id)
@@ -53,12 +56,13 @@ def add_transition(con, part_number, description, mfg=None, family=None, series=
                  str(adhesive_ids), weight))
 
     con.commit()
+    _logger.logger.database(f'transition added "{part_number}"')
 
     transition_id = con.lastrowid
 
     for i, branch in enumerate(branches):
         try:
-            _transition_branches.add_transition_branch(con, i, transition_id, **branch)
+            _transition_branches.add_transition_branch(con, i, transition_id, commit=commit, **branch)
         except Exception as err:
             _logger.logger.traceback(err)
 
@@ -90,35 +94,48 @@ def add_records(con, splash, data_path):
     if con.fetchall():
         return
 
-    json_path = os.path.join(data_path, 'transitions.json')
-    if os.path.exists(json_path):
-        splash.SetText(f'Loading trasitions file...')
-        splash.flush()
+    dirs = [('', data_path)]
 
-        with open(json_path, 'r') as f:
-            data = json.loads(f.read())
+    for file_name in os.listdir(data_path):
+        file = os.path.join(data_path, file_name)
+        if os.path.isdir(file):
+            dirs.append((file_name + ' ', file))
 
-        data_len = len(data)
+    cwd = os.getcwd()
+    for name, path in dirs:
+        os.chdir(path)
 
-        splash.SetText(f'Adding transitions to db [0 | {data_len}]...')
-        splash.flush()
+        json_path = os.path.join(path, 'transitions.json')
 
-        for i, item in enumerate(data):
-            if not i % 100:
-                splash.SetText(f'Adding transitions to db [{i + 1} | {data_len}]...')
+        if os.path.exists(json_path):
+            splash.SetText(f'Loading {name}trasitions file...')
+            splash.flush()
 
-            item['protection'] = '\n'.join(item['protection'])
+            with open(json_path, 'r') as f:
+                data = json.loads(f.read())
 
-            item['image'] = None
-            item['datasheet'] = None
-            item['cad'] = None
+            data_len = len(data)
 
-            try:
-                add_transition(con, **item)
-            except Exception as err:
-                _logger.logger.traceback(err)
+            splash.SetText(f'Adding {name}transition to db [0 | {data_len}]...', log=False)
+            splash.flush()
 
-        con.commit()
+            for i, item in enumerate(data):
+                splash.SetText(f'Adding {name}transition to db [{i + 1} | {data_len}]...', log=False)
+
+                item['protection'] = '\n'.join(item['protection'])
+
+                item['image'] = None
+                item['datasheet'] = None
+                item['cad'] = None
+
+                try:
+                    add_transition(con, commit=False, **item)
+                except Exception as err:
+                    _logger.logger.traceback(err)
+
+            con.commit()
+
+    os.chdir(cwd)
 
 
 id_field = _con.PrimaryKeyField('id')

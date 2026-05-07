@@ -28,20 +28,21 @@ def add_records(con, splash, data_path):
     if con.fetchall():
         return
 
-    dirs = []
-    for file in os.listdir(data_path):
-        file = os.path.join(data_path, file)
+    dirs = [('', data_path)]
+
+    for file_name in os.listdir(data_path):
+        file = os.path.join(data_path, file_name)
         if os.path.isdir(file):
-            dirs.append(file)
+            dirs.append((file_name + ' ', file))
 
     cwd = os.getcwd()
-    for path in dirs:
+    for name, path in dirs:
         os.chdir(path)
 
         json_path = os.path.join(path, 'splices.json')
 
         if os.path.exists(json_path):
-            splash.SetText(f'Loading splices file...')
+            splash.SetText(f'Loading {name}splices file...')
             splash.flush()
 
             _logger.logger.database(json_path)
@@ -54,15 +55,14 @@ def add_records(con, splash, data_path):
 
             data_len = len(data)
 
-            splash.SetText(f'Adding splices to db [0 | {data_len}]')
+            splash.SetText(f'Adding {name}splice to db [0 | {data_len}]', log=False)
             splash.flush()
 
             for i, item in enumerate(data):
-                if not i % 100:
-                    splash.SetText(f'Adding splices to db [{i + 1} | {data_len}]')
+                splash.SetText(f'Adding {name}splice to db [{i + 1} | {data_len}]', log=False)
 
                 try:
-                    add_splice(con, **item)
+                    add_splice(con, commit=False, **item)
                 except Exception as err:
                     _logger.logger.traceback(err)
 
@@ -82,7 +82,9 @@ def add_splice(con, part_number, description, mfg=None, family=None, series=None
                min_dia=0.0, max_dia=0.0, resistance=0.0, length=0.0, weight=0.0,
                wire_size_awg_min=None, wire_size_awg_max=None, wire_size_dia_min=None,
                wire_size_dia_max=None, wire_size_cross_min=None, wire_size_cross_max=None,
-               num_wires=None):
+               num_wires=None, commit=True):
+
+    mfg, family, series = _manufacturers.inspect_mfg_fam_series(mfg, family, series)
 
     mfg_id = _manufacturers.get_mfg_id(con, mfg)
     family_id = _families.get_family_id(con, family, mfg_id)
@@ -111,6 +113,12 @@ def add_splice(con, part_number, description, mfg=None, family=None, series=None
                  material_id, plating_id, type_id, min_dia, max_dia, resistance,
                  length, weight, wire_size_awg_min, wire_size_awg_max, wire_size_dia_min,
                  wire_size_dia_max, wire_size_cross_min, wire_size_cross_max, num_wires))
+
+    _logger.logger.database(f'splice added "{part_number}"')
+
+    if commit:
+        con.commit()
+        return con.lastrowid
 
 
 def add_pjt_splice(con, project_id, part_id, start_point3d_id=None, stop_point3d_id=None,

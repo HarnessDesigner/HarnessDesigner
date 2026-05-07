@@ -69,7 +69,7 @@ def add_records(con, splash, _=None):
          'protection rating about this criterion.')
     )
 
-    splash.SetText(f'Adding IP fluids to db [{len(data)} | {len(data)}]...')
+    splash.SetText(f'Adding IP fluids to db [{len(data)} | {len(data)}]...', log=False)
     splash.flush()
 
     con.executemany('INSERT INTO ip_fluids (id, name, short_desc, description) VALUES (?, ?, ?, ?);', data)

@@ -1,7 +1,53 @@
 import wx
-
+import time
 
 from . import edit_dialog as _edit_dialog
+from ... import config as _config
+
+
+class EditorDBConfig(metaclass=_config.ConfigDB):
+    pass
+
+
+# This class is used to time how fast a suer is scrolling.
+# The porpose of this is to set the number of rows to collect when scrilling.
+# The number os records that get collected is determine by the number that
+# is able to be displayed and the scrolling speed. The faster the scrolling
+# speed the more rows that get collected at a time. The row data is cached
+# and later pruned down to what the last collected size was. The pruning occurs
+# when the UI is idle and it will only occur a single time after a scrolling
+# event has finished. This allows any change that might be made at a different
+# seat to prropgate out to other clients. There is a small studder when
+# scrolling that does occur when viewing the housings and this studder is
+# occuring simply because of the complexity of the query that is being made to
+# collect the data. The queries are quite involved in order to provide the ability
+# to sort the data by column. This is done by clicking on the arrow in the
+# column header.
+class ScrollTracker:
+    min_buffer = 10
+    max_buffer = 200
+
+    def __init__(self):
+        self.last_row = 0
+        self.last_time = time.monotonic_ns()
+
+    def get_buffer_size(self, current_row):
+        now = time.monotonic_ns()
+        elapsed = (now - self.last_time) * 1e-9
+
+        if elapsed:
+            velocity = abs(current_row - self.last_row) / elapsed
+        else:
+            velocity = 0
+
+        self.last_row = current_row
+        self.last_time = now
+
+        # scale buffer between MIN and MAX based on velocity
+        # tune the divisor to taste based on your expected scroll speeds
+        buffer = int(min(self.max_buffer, max(self.min_buffer, velocity * 1.5)))
+
+        return buffer
 
 
 class EditorList(wx.ListCtrl):
@@ -10,6 +56,7 @@ class EditorList(wx.ListCtrl):
     __table_name__ = ''
     __query__ = ''
     column_mapping = {}
+    resize_registered = False
 
     @property
     def record_count(self):
@@ -23,10 +70,25 @@ class EditorList(wx.ListCtrl):
             return rows[0][0]
 
     def get_row(self, row):
-        self.table.execute(self.__query__.format(sort_column=self.sort_column, sort_direction=self.sort_direction, row=row + 1))
+        if row not in self.rows:
+            self.buffer_size = self.scroll_tracker.get_buffer_size(row)
+            start_row = max(1, row - self.buffer_size // 2)
+            end_row = start_row + self.buffer_size
+            self.get_rows(start_row, end_row)
+            self.current_row = row
+            self.needs_pruning = True
+
+        return self.rows.get(row, None)
+
+    def get_rows(self, start, stop):
+        self.table.execute(self.__query__.format(
+            sort_column=self.sort_column, sort_direction=self.sort_direction,
+            start_row=start, end_row=stop))
+
         rows = self.table.fetchall()
         if rows:
-            return rows[0]
+            rows = {i + start: rows[i] for i in range(len(rows))}
+            self.rows.update(rows)
 
     def GetLabel(self):
         return self._label
@@ -35,7 +97,10 @@ class EditorList(wx.ListCtrl):
         self._label = label
         self.table_name = table.__table_name__
         self.table = table
+        self.visible_row = 0
+        self.scroll_tracker = ScrollTracker()
         self.bitmap_indexes = {}
+        self.set_buffer_size = True
         self.rows = {}
         self.selected = None
         self.mainframe = mainframe
@@ -43,11 +108,18 @@ class EditorList(wx.ListCtrl):
         self.sort_column = 'id'
         self.sort_direction = 'ASC'  # DESC
 
+        # if not hasattr(EditorDBConfig, self.__table_name__):
+        #     cls = _config.ConfigDB(self.__table_name__, (), {})
+        #     setattr(EditorDBConfig, self.__table_name__, cls)
+        #
+        # self.config = getattr(EditorDBConfig, self.__table_name__)
+        self.needs_pruning = False
+        self.current_row = 0
+
         wx.ListCtrl.__init__(self, parent, wx.ID_ANY,
                              style=wx.LC_REPORT | wx.LC_VIRTUAL | wx.LC_HRULES | wx.LC_VRULES | wx.LC_SINGLE_SEL)
 
         self.images = wx.ImageList(64, 64)
-
         self.blank_bitmap = wx.Bitmap(64, 64, 32)
         dc = wx.MemoryDC(self.blank_bitmap)
         dc.SetBackground(wx.Brush((0, 0, 0, 0)))
@@ -57,40 +129,44 @@ class EditorList(wx.ListCtrl):
         self.blank_id = self.images.Add(self.blank_bitmap)
         self.blank_bitmap.SetMaskColour((0, 0, 0))
         self.SetImageList(self.images, wx.IMAGE_LIST_SMALL)
+        self.column_lookup = {}
 
         for i in sorted(list(self.column_mapping.keys())):
-            label = self.column_mapping[i]
+            label, column_name = self.column_mapping[i]
             if i == 0:
-                self.InsertColumn(i, '')
+                self.AppendColumn('')
                 self.SetColumnWidth(i, 72)
 
             i += 1
+            if column_name == 'model3d_id':
+                align = wx.LIST_FORMAT_CENTER
+            else:
+                align = wx.LIST_FORMAT_LEFT
 
-            if self._has_model_3d:
-                if i == 1:
-                    self.InsertColumn(i, '3D Model')
-                    self.SetColumnWidth(i, self.GetTextExtent('3D Model')[0] + 15)
-                i += 1
+            self.AppendColumn(label, format=align)
+            self.column_lookup[i] = column_name
 
             if label == 'DB ID':
-                label += ' ▼'
-
-            self.InsertColumn(i, label)
+                # ascending indicator is backwards
+                self.ShowSortIndicator(i, ascending=False)
 
             if label == 'Description':
                 offset = 100
             else:
                 offset = 25
 
-            self.SetColumnWidth(i, self.GetTextExtent(label)[0] + offset)
+            self.max_column_count = i
+
+            # if not hasattr(self.config, column_name):
+            #     width = self.GetTextExtent(label)[0] + offset
+            #     setattr(self.config, column_name, width)
+            #
+            # getattr(self.config, column_name)
+
+            width = self.GetTextExtent(label)[0] + offset
+            self.SetColumnWidth(i, width)
 
         self.SetItemCount(self.record_count)
-
-        self.attr1 = wx.ItemAttr()
-        self.attr1.SetBackgroundColour("yellow")
-
-        self.attr2 = wx.ItemAttr()
-        self.attr2.SetBackgroundColour("light blue")
 
         self.Bind(wx.EVT_LIST_ITEM_SELECTED, self.on_item_selected)
         self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.on_item_activated)
@@ -100,43 +176,73 @@ class EditorList(wx.ListCtrl):
 
         self.Bind(wx.EVT_LIST_COL_CLICK, self.on_column_click)
 
+        self.Bind(wx.EVT_IDLE, self.on_idle)
+        # self.Bind(wx.EVT_WINDOW_DESTROY, self.on_destroy)
+        # self.Bind(wx.EVT_CLOSE, self.on_close)
+
+        if not EditorList.resize_registered:
+            self.Bind(wx.EVT_SIZE, self.on_size)
+            EditorList.resize_registered = True
+
+        self.buffer_size = self.GetCountPerPage()
+
+    def _save_column_widths(self):
+        for i in range(1, self.GetColumnCount(), 1):
+            width = self.GetColumnWidth(i)
+            column_name = self.column_lookup[i]
+
+            setattr(self.config, column_name, width)
+
+    def on_close(self, evt):
+        evt.Skip()
+        self._save_column_widths()
+
+    def on_destroy(self, evt):
+        evt.Skip()
+        self._save_column_widths()
+
+    def on_size(self, evt):
+        evt.Skip()
+
+        def _do():
+            count = self.GetCountPerPage()
+
+            if count > 0:
+                ScrollTracker.min_buffer = (count + 1) * 2
+                ScrollTracker.max_buffer = (count + 1) * 2 * 20
+
+            print(ScrollTracker.min_buffer, ScrollTracker.max_buffer)
+
+        wx.CallAfter(_do)
+
     def on_column_click(self, evt):
         col = evt.GetColumn()
         evt.Skip()
 
-        if col < 1:
+        if col not in self.column_lookup:
             return
 
-        col_item = self.GetColumn(col)
+        sort_column = self.column_lookup[col]
 
-        label = col_item.GetText()
-        if label.endswith('▼'):
-            label = label.replace('▼', '▲')
-            self.sort_direction = 'DESC'
-        elif label.endswith('▲'):
-            label = label[:-2]
+        if sort_column == self.sort_column:
+            if self.sort_direction == 'ASC':
+                self.sort_direction = 'DESC'
+
+                # ascending indicator is backwards
+                self.ShowSortIndicator(col, ascending=True)
+            else:
+                self.sort_direction = 'ASC'
+
+                # ascending indicator is backwards
+                self.ShowSortIndicator(col, ascending=False)
+
         else:
-            label += ' ▼'
             self.sort_direction = 'ASC'
 
-        id_col = None
+            # ascending indicator is backwards
+            self.ShowSortIndicator(col, ascending=False)
 
-        for col_id in self.GetColumnCount():
-            col_itm = self.GetColumn(col_id)
-            text = col_itm.GetText()
-            text = text.replace(' ▼', '').replace(' ▲', '')
-            col_itm.SetText(text)
-            if text == 'DB ID':
-                id_col = col_itm
-
-        col_item.SetText(label)
-
-        if not label.endswith('▼') and not label.endswith('▲'):
-            text = id_col.GetText()
-            text += ' ▼'
-            id_col.SetText(text)
-            self.sort_column = 'id'
-            self.sort_direction = 'ASC'  # DESC
+        self.sort_column = sort_column
 
         self.rows.clear()
         self.selected = None
@@ -148,6 +254,17 @@ class EditorList(wx.ListCtrl):
     def on_item_selected(self, evt):
         self.selected = evt.Index
         evt.Skip()
+
+    def prune_cache(self, current_row, buffer_size):
+        keep_range = buffer_size * 2
+        min_row = current_row - keep_range
+        max_row = current_row + keep_range
+        self.rows = {k: v for k, v in self.rows.items() if min_row <= k <= max_row}
+
+    def on_idle(self, _):
+        if self.needs_pruning:
+            self.prune_cache(self.current_row, self.buffer_size)
+            self.needs_pruning = False
 
     def on_item_activated(self, evt):
         self.selected = evt.Index
@@ -168,25 +285,29 @@ class EditorList(wx.ListCtrl):
         if col_id == 0:
             return ''
 
-        if row_id not in self.rows:
-            row = self.get_row(row_id)
-            self.rows[row_id] = row
+        if row_id <= 0:
+            return ''
 
-        row = self.rows[row_id]
+        row = self.get_row(row_id)
 
         if row is None:
             # self.SetItemCount(self.record_count)
             return ''
 
         if self._has_model_3d:
-            if col_id == 1:
-                return str(row[-2] is not None)
+            col = self.column_lookup.get(col_id, '')
+            if col == 'model3d_id':
+                if row[-2] is not None:
+                    return '✔'
+                else:
+                    return ''  # '✘'
 
-            return str(row[col_id - 2])
-        else:
-            return str(row[col_id - 1])
+        return str(row[col_id - 1])
 
     def OnGetItemImage(self, row_id):
+        if row_id <= 0:
+            return -1
+
         row = self.get_row(row_id)
 
         if row is None:

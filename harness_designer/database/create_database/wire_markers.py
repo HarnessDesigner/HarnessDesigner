@@ -31,35 +31,47 @@ def add_records(con, splash, data_path):
     if con.fetchall():
         return
 
-    json_path = os.path.join(data_path, 'wire_markers.json')
+    dirs = [('', data_path)]
 
-    if os.path.exists(json_path):
-        splash.SetText(f'Loading Wire Markers file...')
-        splash.flush()
+    for file_name in os.listdir(data_path):
+        file = os.path.join(data_path, file_name)
+        if os.path.isdir(file):
+            dirs.append((file_name + ' ', file))
 
-        _logger.logger.database(json_path)
+    cwd = os.getcwd()
+    for name, path in dirs:
+        os.chdir(path)
 
-        with open(json_path, 'r') as f:
-            data = json.loads(f.read())
+        json_path = os.path.join(path, 'wire_markers.json')
 
-        if isinstance(data, dict):
-            data = [value for value in data.values()]
+        if os.path.exists(json_path):
+            splash.SetText(f'Loading {name}wire markers file...')
+            splash.flush()
 
-        data_len = len(data)
+            _logger.logger.database(json_path)
 
-        splash.SetText(f'Adding wire marker to db [0 | {data_len}]...')
-        splash.flush()
+            with open(json_path, 'r') as f:
+                data = json.loads(f.read())
 
-        for i, item in enumerate(data):
-            if not i % 100:
-                splash.SetText(f'Adding wire marker to db [{i + 1} | {data_len}]...')
+            if isinstance(data, dict):
+                data = [value for value in data.values()]
 
-            try:
-                add_wire_marker(con, **item)
-            except Exception as err:
-                _logger.logger.traceback(err)
+            data_len = len(data)
 
-    con.commit()
+            splash.SetText(f'Adding {name}wire marker to db [0 | {data_len}]...', log=False)
+            splash.flush()
+
+            for i, item in enumerate(data):
+                splash.SetText(f'Adding {name}wire marker to db [{i + 1} | {data_len}]...', log=False)
+
+                try:
+                    add_wire_marker(con, commit=False, **item)
+                except Exception as err:
+                    _logger.logger.traceback(err)
+
+            con.commit()
+
+    os.chdir(cwd)
 
 
 def add_wire_marker(con, part_number, description, mfg=None, family=None, series=None,
@@ -67,7 +79,9 @@ def add_wire_marker(con, part_number, description, mfg=None, family=None, series
                     max_temp=None, min_diameter=0.0, max_diameter=0.0, wire_size_awg_min=None,
                     wire_size_awg_max=None, wire_size_dia_min=None, wire_size_dia_max=None,
                     wire_size_cross_min=None, wire_size_cross_max=None, length=0.0,
-                    weight=0.0, has_label=0):
+                    weight=0.0, has_label=0, commit=True):
+
+    mfg, family, series = _manufacturers.inspect_mfg_fam_series(mfg, family, series)
 
     mfg_id = _manufacturers.get_mfg_id(con, mfg)
     series_id = _series.get_series_id(con, series, mfg_id)
@@ -90,6 +104,12 @@ def add_wire_marker(con, part_number, description, mfg=None, family=None, series
                  max_diameter, wire_size_awg_min, wire_size_awg_max, wire_size_dia_min,
                  wire_size_dia_max, wire_size_cross_min, wire_size_cross_max, length,
                  weight, has_label))
+
+    _logger.logger.database(f'wire marker added "{part_number}"')
+
+    if commit:
+        con.commit()
+        return con.lastrowid
 
 
 def add_pjt_wire_marker(con, project_id, part_id, point3d_id=None, point2d_id=None,
