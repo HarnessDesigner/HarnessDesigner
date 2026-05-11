@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 import weakref
-import wx
+from PySide6.QtWidgets import QTabWidget
 
 from ...ui import prop_ctrls as _prop_ctrls
 from .pjt_bases import PJTEntryBase, PJTTableBase
@@ -35,7 +35,7 @@ class PJTWireLayoutsTable(PJTTableBase):
     @classmethod
     def start_control(cls, mainframe):
         cls._control = PJTWireLayoutControl(mainframe)
-        cls._control.Show(False)
+        cls._control.hide()
 
     def _table_needs_update(self) -> bool:
         from ..create_database import wire_layouts
@@ -120,7 +120,7 @@ class PJTWireLayout(PJTEntryBase, Position3DMixin, Position2DMixin,
         return self._table
 
 
-class PJTWireLayoutControl(wx.Notebook):
+class PJTWireLayoutControl(QTabWidget):
 
     def set_obj(self, db_obj: PJTWireLayout):
         self.db_obj = db_obj
@@ -133,7 +133,9 @@ class PJTWireLayoutControl(wx.Notebook):
     def __init__(self, parent):
         self.db_obj: PJTWireLayout = None
 
-        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+        QTabWidget.__init__(self, parent)
+        self.setTabPosition(QTabWidget.TabPosition.North)
+        self.setUsesScrollButtons(True)
 
         position_page = _prop_ctrls.Category(self, 'Position')
         self.position2d_ctrl = Position2DControl(position_page)
@@ -147,5 +149,5 @@ class PJTWireLayoutControl(wx.Notebook):
             position_page,
             visible_page,
         ):
-            self.AddPage(page, page.GetLabel())
+            self.addTab(page, page.GetLabel())
             page.Realize()

@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 import weakref
-import wx
+from PySide6.QtWidgets import QTabWidget
 
 from ...ui import prop_ctrls as _prop_ctrls
 from .pjt_bases import PJTEntryBase, PJTTableBase
@@ -39,7 +39,7 @@ class PJTWireMarkersTable(PJTTableBase):
     @classmethod
     def start_control(cls, mainframe):
         cls._control = PJTWireMarkerControl(mainframe)
-        cls._control.Show(False)
+        cls._control.hide()
 
     def _table_needs_update(self) -> bool:
         from ..create_database import wire_markers
@@ -157,7 +157,7 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PartMixin,
         self._populate('label')
 
 
-class PJTWireMarkerControl(wx.Notebook):
+class PJTWireMarkerControl(QTabWidget):
 
     def set_obj(self, db_obj: PJTWireMarker):
         self.db_obj = db_obj
@@ -177,7 +177,9 @@ class PJTWireMarkerControl(wx.Notebook):
     def __init__(self, parent):
         self.db_obj: PJTWireMarker = None
 
-        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+        QTabWidget.__init__(self, parent)
+        self.setTabPosition(QTabWidget.TabPosition.North)
+        self.setUsesScrollButtons(True)
 
         general_page = _prop_ctrls.Category(self, 'General')
         self.name_ctrl = NameControl(general_page)
@@ -200,5 +202,5 @@ class PJTWireMarkerControl(wx.Notebook):
             visible_page,
             part_page
         ):
-            self.AddPage(page, page.GetLabel())
+            self.addTab(page, page.GetLabel())
             page.Realize()

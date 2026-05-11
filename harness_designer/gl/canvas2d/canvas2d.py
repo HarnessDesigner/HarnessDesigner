@@ -2,7 +2,8 @@
 
 from typing import TYPE_CHECKING
 
-import wx
+from PySide6.QtWidgets import QWidget, QVBoxLayout
+from PySide6.QtCore import QEvent, Qt
 
 from . import canvas as _canvas
 
@@ -12,28 +13,30 @@ if TYPE_CHECKING:
     from ... import config as _config
 
 
-class Canvas2D(wx.Panel):
+class Canvas2D(QWidget):
 
-    def __init__(self, parent: "_ui.MainFrame", config: "_config.Config.editor2d", size=wx.DefaultSize):
+    def __init__(self, parent: "_ui.MainFrame", config: "_config.Config.editor2d", size=None):
 
-        wx.Panel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_NONE)
+        QWidget.__init__(self, parent)
+        self.setAttribute(Qt.WA_OpaquePaintEvent)
         self._ref_count = 0
 
-        self._panel = wx.Panel(self, wx.ID_ANY, pos=(0, 0))
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
 
-        self._canvas = _canvas.Canvas(self._panel, config, size=size, pos=(0, 0))
+        self._canvas = _canvas.Canvas(self, config)
+        layout.addWidget(self._canvas)
 
-        self.Bind(wx.EVT_ERASE_BACKGROUND, self._on_erase_background)
-        self.Bind(wx.EVT_SIZE, self._on_size)
+        if size is not None:
+            self._canvas.resize(size)
+
         self.config = config
 
-        self.Bind(wx.EVT_MOUSE_CAPTURE_LOST, self.on_mouse_capture_lost)
-
-    def on_mouse_capture_lost(self, evt: wx.MouseCaptureLostEvent):
-        if self.canvas.HasCapture():
-            self.canvas.ReleaseMouse()
-
-        evt.Skip()
+    def event(self, event):
+        if event.type() == QEvent.MouseCaptureLost:
+            pass  # canvas handles its own mouse capture release
+        return QWidget.event(self, event)
 
     @property
     def context(self):
@@ -42,16 +45,6 @@ class Canvas2D(wx.Panel):
     @property
     def camera(self):
         return self._canvas.camera
-
-    def _on_size(self, evt):
-        w, h = evt.GetSize()
-        self._panel.SetSize((w, h))
-        cw, ch = self._canvas.GetSize()
-
-        x = (w - cw) // 2
-        y = (h - ch) // 2
-
-        self._canvas.Move(x, y)
 
     def set_selected(self, obj):
         self._canvas.set_selected(obj)
@@ -76,7 +69,4 @@ class Canvas2D(wx.Panel):
         if self._ref_count:
             return
 
-        self._canvas.Refresh(*args, **kwargs)
-
-    def _on_erase_background(self, _):
-        pass
+        self._canvas.update()

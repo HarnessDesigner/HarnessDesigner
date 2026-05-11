@@ -1,6 +1,5 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-import wx
 
 from ....ui import prop_ctrls as _prop_ctrls
 from .base import BaseMixin
@@ -86,7 +85,7 @@ class StartStopPosition2DControl(_prop_ctrls.Property):
     def __init__(self, parent):
         self.db_obj: StartStopPosition2DMixin = None
 
-        super().__init__(parent, '2D Positions', orientation=wx.VERTICAL)
+        super().__init__(parent, '2D Positions', orientation='vertical')
 
         self.start_ctrl = _prop_ctrls.Position2DProperty(self, 'Start')
         self.stop_ctrl = _prop_ctrls.Position2DProperty(self, 'Stop')

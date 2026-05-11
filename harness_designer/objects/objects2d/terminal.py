@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-import wx
+from PySide6.QtWidgets import QMenu
 from OpenGL import GL
 import math
 
@@ -58,12 +58,12 @@ class Terminal(_base2d.Base2D):
     def _on_position_changed(self, *args):
         """Called when terminal position changes"""
         if self.editor2d and hasattr(self.editor2d, 'editor') and hasattr(self.editor2d.editor, 'canvas'):
-            self.editor2d.editor.canvas.Refresh()
+            self.editor2d.editor.canvas.update()
 
     def _on_angle_changed(self, *args):
         """Called when terminal angle changes"""
         if self.editor2d and hasattr(self.editor2d, 'editor') and hasattr(self.editor2d.editor, 'canvas'):
-            self.editor2d.editor.canvas.Refresh()
+            self.editor2d.editor.canvas.update()
 
     def render_gl(self):
         """Render terminal using OpenGL with rotation - straight line with circle for wire attachment"""
@@ -109,7 +109,7 @@ class Terminal(_base2d.Base2D):
         x = self._position.x
         y = self._position.y
 
-        # Draw selection ring (rotation doesn't affect circular selection)
+        # Draw selection ring (rotation does not affect circular selection)
         GL.glPushMatrix()
         GL.glTranslatef(x, y, 0.0)
 
@@ -139,7 +139,7 @@ class Terminal(_base2d.Base2D):
         """
         Test if point is inside terminal
 
-        For circular terminals, rotation doesn't affect hit testing
+        For circular terminals, rotation does not affect hit testing
         """
         if self._position is None:
             return False
@@ -168,69 +168,68 @@ class Terminal(_base2d.Base2D):
             self._position.y = world_y
 
 
-class TerminalMenu(wx.Menu):
+class TerminalMenu(QMenu):
 
     def __init__(self, canvas, selected):
-        wx.Menu.__init__(self)
+        QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
 
-        item = self.Append(wx.ID_ANY, 'Add Wire')
-        canvas.Bind(wx.EVT_MENU, self.on_add_wire, id=item.GetId())
+        action = self.addAction('Add Wire')
+        action.triggered.connect(self.on_add_wire)
 
-        item = self.Append(wx.ID_ANY, 'Add Wire Service Loop')
-        canvas.Bind(wx.EVT_MENU, self.on_add_wire_service_loop, id=item.GetId())
+        action = self.addAction('Add Wire Service Loop')
+        action.triggered.connect(self.on_add_wire_service_loop)
 
-        item = self.Append(wx.ID_ANY, 'Add Seal')
-        canvas.Bind(wx.EVT_MENU, self.on_add_seal, id=item.GetId())
+        action = self.addAction('Add Seal')
+        action.triggered.connect(self.on_add_seal)
 
-        self.AppendSeparator()
+        self.addSeparator()
 
         rotate_menu = _context_menus.Rotate2DMenu(canvas, selected)
-
-        self.AppendSubMenu(rotate_menu, 'Rotate')
+        self.addMenu(rotate_menu)
 
         mirror_menu = _context_menus.Mirror2DMenu(canvas, selected)
-        self.AppendSubMenu(mirror_menu, 'Mirror')
+        self.addMenu(mirror_menu)
 
-        self.AppendSeparator()
-        item = self.Append(wx.ID_ANY, 'Trace Circuit')
-        canvas.Bind(wx.EVT_MENU, self.on_trace_circuit, id=item.GetId())
+        self.addSeparator()
+        action = self.addAction('Trace Circuit')
+        action.triggered.connect(self.on_trace_circuit)
 
-        item = self.Append(wx.ID_ANY, 'Select')
-        canvas.Bind(wx.EVT_MENU, self.on_select, id=item.GetId())
+        action = self.addAction('Select')
+        action.triggered.connect(self.on_select)
 
-        item = self.Append(wx.ID_ANY, 'Clone')
-        canvas.Bind(wx.EVT_MENU, self.on_clone, id=item.GetId())
+        action = self.addAction('Clone')
+        action.triggered.connect(self.on_clone)
 
-        self.AppendSeparator()
-        item = self.Append(wx.ID_ANY, 'Delete')
-        canvas.Bind(wx.EVT_MENU, self.on_delete, id=item.GetId())
+        self.addSeparator()
+        action = self.addAction('Delete')
+        action.triggered.connect(self.on_delete)
 
-        self.AppendSeparator()
-        item = self.Append(wx.ID_ANY, 'Properties')
-        canvas.Bind(wx.EVT_MENU, self.on_properties, id=item.GetId())
+        self.addSeparator()
+        action = self.addAction('Properties')
+        action.triggered.connect(self.on_properties)
 
-    def on_add_wire(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_add_wire(self):
+        pass
 
-    def on_add_wire_service_loop(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_add_wire_service_loop(self):
+        pass
 
-    def on_add_seal(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_add_seal(self):
+        pass
 
-    def on_trace_circuit(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_trace_circuit(self):
+        pass
 
-    def on_select(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_select(self):
+        pass
 
-    def on_clone(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_clone(self):
+        pass
 
-    def on_delete(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_delete(self):
+        pass
 
-    def on_properties(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_properties(self):
+        pass

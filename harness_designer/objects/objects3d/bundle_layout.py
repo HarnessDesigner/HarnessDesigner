@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-import wx
+from PySide6.QtWidgets import QMenu
 
 from ...geometry import point as _point
 from ...geometry import angle as _angle
@@ -61,22 +61,22 @@ class BundleLayout(_base3d.Base3D):
         return BundleLayoutMenu(self.mainframe.editor3d.editor, self)
 
 
-class BundleLayoutMenu(wx.Menu):
+class BundleLayoutMenu(QMenu):
 
     def __init__(self, canvas, selected):
-        wx.Menu.__init__(self)
+        QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
 
-        item = self.Append(wx.ID_ANY, 'Add Transition')
-        canvas.Bind(wx.EVT_MENU, self.on_add_transition, id=item.GetId())
+        action = self.addAction('Add Transition')
+        action.triggered.connect(self.on_add_transition)
 
-        self.AppendSeparator()
-        item = self.Append(wx.ID_ANY, 'Delete')
-        canvas.Bind(wx.EVT_MENU, self.on_delete, id=item.GetId())
+        self.addSeparator()
+        action = self.addAction('Delete')
+        action.triggered.connect(self.on_delete)
 
-    def on_add_transition(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_add_transition(self):
+        pass
 
-    def on_delete(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_delete(self):
+        pass

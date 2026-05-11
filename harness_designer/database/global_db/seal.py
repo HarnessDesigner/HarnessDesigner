@@ -1,9 +1,9 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from PySide6.QtWidgets import QTabWidget
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 import uuid
-import wx
 
 from ...ui import prop_ctrls as _prop_ctrls
 from .bases import EntryBase, TableBase
@@ -39,7 +39,7 @@ class SealsTable(TableBase):
     def control(self) -> "SealControl":
         if self._control is None:
             self._control = SealControl(self.db.mainframe)
-            self._control.Show(False)
+            self._control.hide()
         return self._control
 
     def _load_database(self, splash):
@@ -349,7 +349,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         self._populate('wire_dia_max')
 
 
-class SealControl(wx.Notebook):
+class SealControl(QTabWidget):
 
     # TODO: Add seal type
 
@@ -412,7 +412,9 @@ class SealControl(wx.Notebook):
     def __init__(self, parent):
         self.db_obj: Seal = None
 
-        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+        QTabWidget.__init__(self, parent)
+        self.setTabPosition(QTabWidget.TabPosition.North)
+        self.setUsesScrollButtons(True)
 
         general_page = _prop_ctrls.Category(self, 'General')
 
@@ -467,5 +469,5 @@ class SealControl(wx.Notebook):
             compat_parts_page,
             self.model3d_page
         ):
-            self.AddPage(page, page.GetLabel())
+            self.addTab(page, page.GetLabel())
             page.Realize()

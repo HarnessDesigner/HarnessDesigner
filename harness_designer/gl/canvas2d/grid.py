@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-import wx
+from PySide6.QtCore import QTimer
 from OpenGL import GL
 import numpy as np
 import ctypes
@@ -88,7 +88,7 @@ class Grid:
             self.canvas.Refresh(False)
             event.set()
 
-        wx.CallAfter(_do)
+        QTimer.singleShot(0, _do)
 
         event.wait()
 
@@ -114,7 +114,7 @@ class Grid:
                     self.thread.daemon = True
                     self.thread.start()
 
-        wx.CallAfter(_do, flag)
+        QTimer.singleShot(0, lambda: _do(flag))
 
     def render(self, zoom):
         """Render the precomputed grid using the VBO."""
@@ -168,4 +168,3 @@ class Grid:
         GL.glColor4f(0.25, 0.25, 0.25, 1.0)  # Dark gray for contrast
         GL.glPointSize(2.5)
         _draw_vbo(*self.vbos[major])
-

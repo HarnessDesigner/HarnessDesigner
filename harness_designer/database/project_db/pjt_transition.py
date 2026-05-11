@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 import weakref
-import wx
+from PySide6.QtWidgets import QTabWidget
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..global_db import transition as _transition
@@ -39,7 +39,7 @@ class PJTTransitionsTable(PJTTableBase):
     @classmethod
     def start_control(cls, mainframe):
         cls._control = PJTTransitionControl(mainframe)
-        cls._control.Show(False)
+        cls._control.hide()
 
     def _table_needs_update(self) -> bool:
         from ..create_database import transitions
@@ -200,7 +200,7 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin,
         return self._stored_part
 
 
-class PJTTransitionControl(wx.Notebook):
+class PJTTransitionControl(QTabWidget):
 
     def set_obj(self, db_obj: PJTTransition):
         self.db_obj = db_obj
@@ -219,7 +219,9 @@ class PJTTransitionControl(wx.Notebook):
     def __init__(self, parent):
         self.db_obj: PJTTransition = None
 
-        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+        QTabWidget.__init__(self, parent)
+        self.setTabPosition(QTabWidget.TabPosition.North)
+        self.setUsesScrollButtons(True)
 
         general_page = _prop_ctrls.Category(self, 'General')
         self.name_ctrl = NameControl(general_page)
@@ -244,5 +246,5 @@ class PJTTransitionControl(wx.Notebook):
             visible_page,
             part_page
         ):
-            self.AddPage(page, page.GetLabel())
+            self.addTab(page, page.GetLabel())
             page.Realize()

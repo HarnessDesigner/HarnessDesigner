@@ -1,8 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from PySide6.QtWidgets import QTabWidget
 from typing import Iterable as _Iterable
 
-import wx
 
 from ...ui import prop_ctrls as _prop_ctrls
 from .bases import EntryBase, TableBase
@@ -29,7 +29,7 @@ class WireMarkersTable(TableBase):
     def control(self) -> "WireMarkerControl":
         if self._control is None:
             self._control = WireMarkerControl(self.db.mainframe)
-            self._control.Show(False)
+            self._control.hide()
         return self._control
 
     def _table_needs_update(self) -> bool:
@@ -208,7 +208,7 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
         self._populate('length')
 
 
-class WireMarkerControl(wx.Notebook):
+class WireMarkerControl(QTabWidget):
 
     def set_obj(self, db_obj: WireMarker):
         self.db_obj = db_obj
@@ -265,7 +265,9 @@ class WireMarkerControl(wx.Notebook):
     def __init__(self, parent):
         self.db_obj: WireMarker = None
 
-        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+        QTabWidget.__init__(self, parent)
+        self.setTabPosition(QTabWidget.TabPosition.North)
+        self.setUsesScrollButtons(True)
 
         general_page = _prop_ctrls.Category(self, 'General')
 
@@ -317,5 +319,5 @@ class WireMarkerControl(wx.Notebook):
             self.wire_size_page,
             diameter_page
         ):
-            self.AddPage(page, page.GetLabel())
+            self.addTab(page, page.GetLabel())
             page.Realize()

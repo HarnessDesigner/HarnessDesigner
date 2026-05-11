@@ -1,8 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from PySide6.QtWidgets import QTabWidget
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
-import wx
 import uuid
 
 from ...ui import prop_ctrls as _prop_ctrls
@@ -32,11 +32,11 @@ class CavitiesTable(TableBase):
     @classmethod
     def start_control(cls, mainframe):
         cls._control = CavityControl(mainframe)
-        cls._control.Show(False)
+        cls._control.hide()
 
         # for i in range(20):
         #     control = CavityControl(mainframe)
-        #     control.Show(False)
+        #     control.hide()
         #     control.SetIndex(i + 1)
         #     cls._controls.append(control)
 
@@ -49,7 +49,7 @@ class CavitiesTable(TableBase):
             for i in range(controls_len - 1, index):
                 ctrl = CavityControl(self.db.mainframe)
                 ctrl.SetIndex(i + 1)
-                ctrl.Show(False)
+                ctrl.hide()
                 self._controls.append(ctrl)
 
         return self._controls[index]
@@ -406,7 +406,9 @@ class CavityControl(_prop_ctrls.Category):
 
         super().__init__(parent, 'Cavity')
 
-        self.nb = wx.Notebook(self, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+        self.nb = QTabWidget(self)
+        self.nb.setTabPosition(QTabWidget.TabPosition.North)
+        self.nb.setUsesScrollButtons(True)
 
         general_page = _prop_ctrls.Category(self.nb, 'General')
 
@@ -433,5 +435,5 @@ class CavityControl(_prop_ctrls.Category):
             position_page,
             angle_page
         ):
-            self.nb.AddPage(page, page.GetLabel())
+            self.nb.addTab(page, page.GetLabel())
             page.Realize()

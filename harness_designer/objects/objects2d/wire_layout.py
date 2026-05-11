@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-import wx
+from PySide6.QtWidgets import QMenu
 from OpenGL import GL
 
 from . import base2d as _base2d
@@ -39,7 +39,7 @@ class WireLayout(_base2d.Base2D):
     def _on_position_changed(self, *args):
         """Called when wire layout position changes"""
         if self.editor2d and hasattr(self.editor2d, 'editor') and hasattr(self.editor2d.editor, 'canvas'):
-            self.editor2d.editor.canvas.Refresh()
+            self.editor2d.editor.canvas.update()
 
     def render_gl(self):
         """Render wire layout using OpenGL"""
@@ -131,36 +131,35 @@ class WireLayout(_base2d.Base2D):
             self._position.y = world_y
 
 
-
-class WireLayoutMenu(wx.Menu):
+class WireLayoutMenu(QMenu):
 
     def __init__(self, canvas, selected):
-        wx.Menu.__init__(self)
+        QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
 
-        item = self.Append(wx.ID_ANY, 'Add Splice')
-        canvas.Bind(wx.EVT_MENU, self.on_add_splice, id=item.GetId())
+        action = self.addAction('Add Splice')
+        action.triggered.connect(self.on_add_splice)
 
-        self.AppendSeparator()
-        item = self.Append(wx.ID_ANY, 'Trace Circuit')
-        canvas.Bind(wx.EVT_MENU, self.on_trace_circuit, id=item.GetId())
+        self.addSeparator()
+        action = self.addAction('Trace Circuit')
+        action.triggered.connect(self.on_trace_circuit)
 
-        item = self.Append(wx.ID_ANY, 'Select')
-        canvas.Bind(wx.EVT_MENU, self.on_select, id=item.GetId())
+        action = self.addAction('Select')
+        action.triggered.connect(self.on_select)
 
-        self.AppendSeparator()
-        item = self.Append(wx.ID_ANY, 'Delete')
-        canvas.Bind(wx.EVT_MENU, self.on_delete, id=item.GetId())
+        self.addSeparator()
+        action = self.addAction('Delete')
+        action.triggered.connect(self.on_delete)
 
-    def on_add_splice(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_add_splice(self):
+        pass
 
-    def on_trace_circuit(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_trace_circuit(self):
+        pass
 
-    def on_select(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_select(self):
+        pass
 
-    def on_delete(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_delete(self):
+        pass

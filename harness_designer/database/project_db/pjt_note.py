@@ -3,7 +3,7 @@
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
 import weakref
-import wx
+from PySide6.QtWidgets import QTabWidget
 import build123d
 
 from ...ui import prop_ctrls as _prop_ctrls
@@ -38,7 +38,7 @@ class PJTNotesTable(PJTTableBase):
     @classmethod
     def start_control(cls, mainframe):
         cls._control = PJTNoteControl(mainframe)
-        cls._control.Show(False)
+        cls._control.hide()
 
     def _table_needs_update(self) -> bool:
         from ..create_database import notes
@@ -201,7 +201,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin,
         self._populate('is_visible3d')
 
 
-class PJTNoteControl(wx.Notebook):
+class PJTNoteControl(QTabWidget):
 
     def set_obj(self, db_obj: PJTNote):
         if self.db_obj is not None:
@@ -238,7 +238,7 @@ class PJTNoteControl(wx.Notebook):
                     [build123d.TextAlign.LEFT, build123d.TextAlign.CENTER,
                      build123d.TextAlign.RIGHT])
 
-                self.align_2d_ctrl.Show(True)
+                self.align_2d_ctrl.show()
                 self.align_2d_ctrl.SetValue(db_obj.h_align2d)
 
                 self.style_2d_ctrl.SetLabels(['Normal', 'Bold', 'Italic', 'Bold Italic'])
@@ -246,11 +246,11 @@ class PJTNoteControl(wx.Notebook):
                     [build123d.FontStyle.REGULAR, build123d.FontStyle.BOLD,
                      build123d.FontStyle.ITALIC, build123d.FontStyle.BOLDITALIC])
 
-                self.style_2d_ctrl.Show(True)
+                self.style_2d_ctrl.show()
                 self.style_2d_ctrl.SetValue(db_obj.h_align3d)
             else:
-                self.align_2d_ctrl.Hide()
-                self.style_2d_ctrl.Hide()
+                self.align_2d_ctrl.hide()
+                self.style_2d_ctrl.hide()
 
             if db_obj.is_visible3d:
                 self.align_3d_ctrl.SetLabels(['Left', 'Center', 'Right'])
@@ -258,7 +258,7 @@ class PJTNoteControl(wx.Notebook):
                     [build123d.TextAlign.LEFT, build123d.TextAlign.CENTER,
                      build123d.TextAlign.RIGHT])
 
-                self.align_3d_ctrl.Show(True)
+                self.align_3d_ctrl.show()
                 self.align_3d_ctrl.SetValue(db_obj.h_align3d)
 
                 self.style_3d_ctrl.SetLabels(['Normal', 'Bold', 'Italic', 'Bold Italic'])
@@ -266,11 +266,11 @@ class PJTNoteControl(wx.Notebook):
                     [build123d.FontStyle.REGULAR, build123d.FontStyle.BOLD,
                      build123d.FontStyle.ITALIC, build123d.FontStyle.BOLDITALIC])
 
-                self.style_3d_ctrl.Show(True)
+                self.style_3d_ctrl.show()
                 self.style_3d_ctrl.SetValue(db_obj.h_align3d)
             else:
-                self.align_3d_ctrl.Hide()
-                self.style_3d_ctrl.Hide()
+                self.align_3d_ctrl.hide()
+                self.style_3d_ctrl.hide()
 
     def _on_align2d(self, evt):
         value = evt.GetValue()
@@ -291,7 +291,9 @@ class PJTNoteControl(wx.Notebook):
     def __init__(self, parent):
         self.db_obj: PJTNote = None
 
-        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+        QTabWidget.__init__(self, parent)
+        self.setTabPosition(QTabWidget.TabPosition.North)
+        self.setUsesScrollButtons(True)
 
         general_page = _prop_ctrls.Category(self, 'General')
         self.note_ctrl = NotesControl(general_page)
@@ -330,5 +332,5 @@ class PJTNoteControl(wx.Notebook):
             style_page,
             align_page
         ):
-            self.AddPage(page, page.GetLabel())
+            self.addTab(page, page.GetLabel())
             page.Realize()

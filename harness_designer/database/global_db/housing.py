@@ -1,9 +1,9 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from PySide6.QtWidgets import QTabWidget
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
 import uuid
-import wx
 
 from ...ui import prop_ctrls as _prop_ctrls
 from .bases import EntryBase, TableBase
@@ -52,7 +52,7 @@ class HousingsTable(TableBase):
     def control(self) -> "HousingControl":
         if self._control is None:
             self._control = HousingControl(self.db.mainframe)
-            self._control.Show(False)
+            self._control.hide()
         return self._control
 
     def _load_database(self, splash):
@@ -641,7 +641,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         return angle
 
 
-class HousingControl(wx.Notebook):
+class HousingControl(QTabWidget):
 
     def set_obj(self, db_obj: Housing):
         self.manufacturer_page.set_obj(db_obj)
@@ -692,12 +692,12 @@ class HousingControl(wx.Notebook):
 
         self.angle_ctrl.SetValue(db_obj.angle3d)
 
-        for i in range(self.cavities_notebook.GetPageCount()):
-            self.cavities_notebook.RemovePage(i)
+        for i in range(self.cavities_notebook.count()):
+            self.cavities_notebook.removeTab(i)
 
         for page in self.cavity_pages:
-            page.Reparent(db_obj.table.db.mainframe)
-            page.Show(False)
+            page.setParent(db_obj.table.db.mainframe)
+            page.hide()
 
         self.cavity_pages = []
 
@@ -706,8 +706,8 @@ class HousingControl(wx.Notebook):
                 continue
 
             ctrl = db_obj.table.db.cavities_table.get_control(i)
-            ctrl.Reparent(self.cavities_notebook)
-            self.cavities_notebook.AddPage(ctrl, ctrl.GetLabel())
+            ctrl.setParent(self.cavities_notebook)
+            self.cavities_notebook.addTab(ctrl, ctrl.GetLabel())
             ctrl.set_obj(cavity)
             self.cavity_pages.append(ctrl)
 
@@ -768,7 +768,9 @@ class HousingControl(wx.Notebook):
     def __init__(self, parent):
         self.db_obj: Housing = None
 
-        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+        QTabWidget.__init__(self, parent)
+        self.setTabPosition(QTabWidget.TabPosition.North)
+        self.setUsesScrollButtons(True)
 
         self.manufacturer_page = ManufacturerControl(self)
         self.family_page = FamilyControl(self)
@@ -858,7 +860,9 @@ class HousingControl(wx.Notebook):
         self.cover_ctrl = _prop_ctrls.Position3DProperty(covers_page, 'Cover')
 
         cavities_page = _prop_ctrls.Category(self, 'Cavities')
-        self.cavities_notebook = wx.Notebook(cavities_page, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+        self.cavities_notebook = QTabWidget(cavities_page)
+        self.cavities_notebook.setTabPosition(QTabWidget.TabPosition.North)
+        self.cavities_notebook.setUsesScrollButtons(True)
         self.cavity_pages = []
 
         self.model3d_page = Model3DControl(self)
@@ -883,5 +887,5 @@ class HousingControl(wx.Notebook):
             self.model3d_page
         ):
 
-            self.AddPage(page, page.GetLabel())
+            self.addTab(page, page.GetLabel())
             page.Realize()

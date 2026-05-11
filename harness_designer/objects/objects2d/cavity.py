@@ -2,7 +2,6 @@
 
 from typing import TYPE_CHECKING
 
-import wx
 from OpenGL import GL
 import math
 

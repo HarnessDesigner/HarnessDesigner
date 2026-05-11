@@ -2,7 +2,6 @@
 
 from typing import TYPE_CHECKING
 
-import wx
 
 from ..config import Config as _Config
 from . import boot as _boot
@@ -86,7 +85,7 @@ class Project:
         pdlg.SetRange(self._obj_count)
         pdlg.Update(0, '')
         pdlg.Show()
-        wx.Yield()
+        QApplication.processEvents()
 
         db_ids = {}
         count = 0
@@ -95,7 +94,7 @@ class Project:
             for wire_service_loop in ptables.pjt_wire_service_loops_table:
                 count += 1
                 pdlg.Update(count, 'Loading Wire Service Loop...')
-                wx.Yield()
+                QApplication.processEvents()
 
                 obj = _wire_service_loop.WireServiceLoop(mainframe, wire_service_loop)
                 wire_service_loop.merge_packet_data(wire_service_loop.build_monitor_packet(), db_ids)
@@ -106,7 +105,7 @@ class Project:
             for wire_marker in ptables.pjt_wire_markers_table:
                 count += 1
                 pdlg.Update(count, 'Loading Wire Marker...')
-                wx.Yield()
+                QApplication.processEvents()
 
                 obj = _wire_marker.WireMarker(mainframe, wire_marker)
                 wire_marker.merge_packet_data(wire_marker.build_monitor_packet(), db_ids)
@@ -117,7 +116,7 @@ class Project:
             for note in ptables.pjt_notes_table:
                 count += 1
                 pdlg.Update(count, 'Loading Note...')
-                wx.Yield()
+                QApplication.processEvents()
 
                 obj = _note.Note(mainframe, note)
                 note.merge_packet_data(note.build_monitor_packet(), db_ids)
@@ -128,7 +127,7 @@ class Project:
             for circuit in ptables.pjt_circuits_table:
                 count += 1
                 pdlg.Update(count, 'Loading Circuit...')
-                wx.Yield()
+                QApplication.processEvents()
 
                 obj = _circuit.Circuit(mainframe, circuit)
                 circuit.merge_packet_data(circuit.build_monitor_packet(), db_ids)
@@ -139,7 +138,7 @@ class Project:
             for boot in ptables.pjt_boots_table:
                 count += 1
                 pdlg.Update(count, 'Loading Boot...')
-                wx.Yield()
+                QApplication.processEvents()
 
                 obj = _boot.Boot(mainframe, boot)
                 boot.merge_packet_data(boot.build_monitor_packet(), db_ids)
@@ -150,7 +149,7 @@ class Project:
             for cover in ptables.pjt_covers_table:
                 count += 1
                 pdlg.Update(count, 'Loading Cover...')
-                wx.Yield()
+                QApplication.processEvents()
 
                 obj = _cover.Cover(mainframe, cover)
                 cover.merge_packet_data(cover.build_monitor_packet(), db_ids)
@@ -161,7 +160,7 @@ class Project:
             for cpa_lock in ptables.pjt_cpa_locks_table:
                 count += 1
                 pdlg.Update(count, 'Loading CPA Lock...')
-                wx.Yield()
+                QApplication.processEvents()
 
                 obj = _cpa_lock.CPALock(mainframe, cpa_lock)
                 cpa_lock.merge_packet_data(cpa_lock.build_monitor_packet(), db_ids)
@@ -172,7 +171,7 @@ class Project:
             for tpa_lock in ptables.pjt_tpa_locks_table:
                 count += 1
                 pdlg.Update(count, 'Loading TPA Lock...')
-                wx.Yield()
+                QApplication.processEvents()
 
                 obj = _tpa_lock.TPALock(mainframe, tpa_lock)
                 tpa_lock.merge_packet_data(tpa_lock.build_monitor_packet(), db_ids)
@@ -183,7 +182,7 @@ class Project:
             for seal in ptables.pjt_seals_table:
                 count += 1
                 pdlg.Update(count, 'Loading Seal...')
-                wx.Yield()
+                QApplication.processEvents()
 
                 obj = _seal.Seal(mainframe, seal)
                 seal.merge_packet_data(seal.build_monitor_packet(), db_ids)
@@ -194,7 +193,7 @@ class Project:
             for terminal in ptables.pjt_terminals_table:
                 count += 1
                 pdlg.Update(count, 'Loading Terminal...')
-                wx.Yield()
+                QApplication.processEvents()
 
                 obj = _terminal.Terminal(mainframe, terminal)
                 terminal.merge_packet_data(terminal.build_monitor_packet(), db_ids)
@@ -205,7 +204,7 @@ class Project:
             for transition in ptables.pjt_transitions_table:
                 count += 1
                 pdlg.Update(count, 'Loading Transition...')
-                wx.Yield()
+                QApplication.processEvents()
 
                 obj = _transition.Transition(mainframe, transition)
                 transition.merge_packet_data(transition.build_monitor_packet(), db_ids)
@@ -216,7 +215,7 @@ class Project:
             for housing in ptables.pjt_housings_table:
                 count += 1
                 pdlg.Update(count, 'Loading Housing...')
-                wx.Yield()
+                QApplication.processEvents()
 
                 obj = _housing.Housing(mainframe, housing)
                 housing.merge_packet_data(housing.build_monitor_packet(), db_ids)
@@ -227,7 +226,7 @@ class Project:
             for cavity in ptables.pjt_cavities_table:
                 count += 1
                 pdlg.Update(count, 'Loading Cavity...')
-                wx.Yield()
+                QApplication.processEvents()
 
                 obj = _cavity.Cavity(mainframe, cavity)
                 housing.merge_packet_data(cavity.build_monitor_packet(), db_ids)
@@ -238,7 +237,7 @@ class Project:
             for splice in ptables.pjt_splices_table:
                 count += 1
                 pdlg.Update(count, 'Loading Splice...')
-                wx.Yield()
+                QApplication.processEvents()
 
                 obj = _splice.Splice(mainframe, splice)
                 splice.merge_packet_data(splice.build_monitor_packet(), db_ids)
@@ -249,7 +248,7 @@ class Project:
             for wire in ptables.pjt_wires_table:
                 count += 1
                 pdlg.Update(count, 'Loading Wire...')
-                wx.Yield()
+                QApplication.processEvents()
 
                 obj = _wire.Wire(mainframe, wire)
                 wire.merge_packet_data(wire.build_monitor_packet(), db_ids)
@@ -260,7 +259,7 @@ class Project:
             for layout in ptables.pjt_wire_layouts_table:
                 count += 1
                 pdlg.Update(count, 'Loading Wire Layout...')
-                wx.Yield()
+                QApplication.processEvents()
 
                 obj = _wire_layout.WireLayout(mainframe, layout)
                 layout.merge_packet_data(layout.build_monitor_packet(), db_ids)
@@ -269,7 +268,7 @@ class Project:
             for bundle in ptables.pjt_bundles_table:
                 count += 1
                 pdlg.Update(count, 'Loading Bundle...')
-                wx.Yield()
+                QApplication.processEvents()
 
                 obj = _bundle.Bundle(mainframe, bundle)
                 bundle.merge_packet_data(bundle.build_monitor_packet(), db_ids)
@@ -280,7 +279,7 @@ class Project:
             for layout in ptables.pjt_bundle_layouts_table:
                 count += 1
                 pdlg.Update(count, 'Loading Bundle Layout...')
-                wx.Yield()
+                QApplication.processEvents()
 
                 obj = _bundle_layout.BundleLayout(mainframe, layout)
                 layout.merge_packet_data(layout.build_monitor_packet(), db_ids)
@@ -321,7 +320,7 @@ class Project:
         dlg = OpenProjectDialog(mainframe, Config.last_project, project_names)
 
         try:
-            if dlg.ShowModal() != wx.ID_CANCEL:
+            if dlg.exec() != QDialog.DialogCode.Rejected:
                 project_name = dlg.GetValue()
             else:
                 return
@@ -337,7 +336,7 @@ class Project:
             from ..ui.dialogs import add_project as _add_project
 
             dlg = _add_project.AddProjectDialog(mainframe, project_name, mainframe.project_db.projects_table)
-            if dlg.ShowModal() == wx.ID_OK:
+            if dlg.exec() == QDialog.DialogCode.Accepted:
 
                 project_name, creator, description, model_path = dlg.GetValue()
 

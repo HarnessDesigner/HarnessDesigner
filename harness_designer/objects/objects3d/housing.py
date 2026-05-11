@@ -2,19 +2,14 @@
 
 from typing import TYPE_CHECKING
 
-import wx
+from PySide6.QtWidgets import QMenu, QDialog
+from PySide6.QtCore import QTimer, Qt
 
 from ...ui.widgets import context_menus as _context_menus
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ...geometry.decimal import Decimal as _d
 from ...ui.dialogs import housing_editor as _housing_editor
-from ...ui.dialogs import pjt_add_seal as _pjt_add_seal
-from ...ui.dialogs import pjt_add_terminal as _pjt_add_terminal
-from ...ui.dialogs import pjt_add_cpa_lock as _pjt_add_cpa_lock
-from ...ui.dialogs import pjt_add_tpa_lock as _pjt_add_tpa_lock
-from ...ui.dialogs import pjt_add_cover as _pjt_add_cover
-from ...ui.dialogs import pjt_add_boot as _pjt_add_boot
 from . import base3d as _base3d
 from ...shapes import box as _box
 from ...gl import vbo as _vbo
@@ -77,74 +72,69 @@ class Housing(_base3d.Base3D):
         return HousingMenu(self.mainframe, self)
 
 
-class HousingMenu(wx.Menu):
+class HousingMenu(QMenu):
 
     def __init__(self, mainframe: "_ui.MainFrame", obj: Housing):
-        wx.Menu.__init__(self)
+        QMenu.__init__(self)
         self.mainframe = mainframe
         self.canvas = mainframe.editor3d.editor
         self.obj = obj
 
-        item = self.Append(wx.ID_ANY, 'Add Seal')
-        self.canvas.Bind(wx.EVT_MENU, self.on_add_seal, id=item.GetId())
+        action = self.addAction('Add Seal')
+        action.triggered.connect(self.on_add_seal)
 
-        item = self.Append(wx.ID_ANY, 'Add Terminal')
-        self.canvas.Bind(wx.EVT_MENU, self.on_add_terminal, id=item.GetId())
+        action = self.addAction('Add Terminal')
+        action.triggered.connect(self.on_add_terminal)
 
-        item = self.Append(wx.ID_ANY, 'Add CPA Lock')
-        self.canvas.Bind(wx.EVT_MENU, self.on_add_cpa_lock, id=item.GetId())
+        action = self.addAction('Add CPA Lock')
+        action.triggered.connect(self.on_add_cpa_lock)
 
-        item = self.Append(wx.ID_ANY, 'Add TPA Lock')
-        self.canvas.Bind(wx.EVT_MENU, self.on_add_tpa_lock, id=item.GetId())
+        action = self.addAction('Add TPA Lock')
+        action.triggered.connect(self.on_add_tpa_lock)
 
-        item = self.Append(wx.ID_ANY, 'Add Cover')
-        self.canvas.Bind(wx.EVT_MENU, self.on_add_cover, id=item.GetId())
+        action = self.addAction('Add Cover')
+        action.triggered.connect(self.on_add_cover)
 
-        item = self.Append(wx.ID_ANY, 'Add Boot')
-        self.canvas.Bind(wx.EVT_MENU, self.on_add_boot, id=item.GetId())
+        action = self.addAction('Add Boot')
+        action.triggered.connect(self.on_add_boot)
 
-        self.AppendSeparator()
+        self.addSeparator()
 
         rotate_menu = _context_menus.Rotate3DMenu(self.canvas, obj)
-        self.AppendSubMenu(rotate_menu, 'Rotate')
+        self.addMenu(rotate_menu)
 
         mirror_menu = _context_menus.Mirror3DMenu(self.canvas, obj)
-        self.AppendSubMenu(mirror_menu, 'Mirror')
+        self.addMenu(mirror_menu)
 
-        self.AppendSeparator()
-        item = self.Append(wx.ID_ANY, 'Select')
-        self.canvas.Bind(wx.EVT_MENU, self.on_select, id=item.GetId())
+        self.addSeparator()
+        action = self.addAction('Select')
+        action.triggered.connect(self.on_select)
 
-        item = self.Append(wx.ID_ANY, 'Clone')
-        self.canvas.Bind(wx.EVT_MENU, self.on_clone, id=item.GetId())
+        action = self.addAction('Clone')
+        action.triggered.connect(self.on_clone)
 
-        self.AppendSeparator()
-        item = self.Append(wx.ID_ANY, 'Delete')
-        self.canvas.Bind(wx.EVT_MENU, self.on_delete, id=item.GetId())
+        self.addSeparator()
+        action = self.addAction('Delete')
+        action.triggered.connect(self.on_delete)
 
-        self.AppendSeparator()
-        item = self.Append(wx.ID_ANY, 'Properties')
-        self.canvas.Bind(wx.EVT_MENU, self.on_properties, id=item.GetId())
+        self.addSeparator()
+        action = self.addAction('Properties')
+        action.triggered.connect(self.on_properties)
 
-        item = self.Append(wx.ID_ANY, 'Housing Editor')
-        self.canvas.Bind(wx.EVT_MENU, self.on_housing_editor, id=item.GetId())
+        action = self.addAction('Housing Editor')
+        action.triggered.connect(self.on_housing_editor)
 
-    def on_housing_editor(self, evt: wx.MenuEvent):
-
+    def on_housing_editor(self):
         def _do(housing):
             dlg = _housing_editor.HousingEditorDialog(self.mainframe, housing)
-            dlg.ShowModal()
-            dlg.Destroy()
+            dlg.exec()
 
-        wx.CallAfter(_do, self.selected.db_obj.part)
+        QTimer.singleShot(0, lambda: _do(self.obj.db_obj.part))
 
-        evt.Skip()
-
-    def on_add_seal(self, evt: wx.MenuEvent):
-
+    def on_add_seal(self):
         def _do(housing: "_pjt_housing.PJTHousing"):
             dlg = _pjt_add_seal.AddSealDialog(self.mainframe, housing)
-            if dlg.ShowModal() == wx.ID_OK:
+            if dlg.exec() == QDialog.Accepted:
                 part_id, db_id = dlg.GetValue()
                 obj_type = dlg.GetObjectType()
 
@@ -157,78 +147,59 @@ class HousingMenu(wx.Menu):
                 else:
                     raise RuntimeError('sanity check')
 
-            dlg.Destroy()
+        QTimer.singleShot(0, lambda: _do(self.obj.db_obj))
 
-        wx.CallAfter(_do, self.obj.db_obj)
-        evt.Skip()
-
-    def on_add_terminal(self, evt: wx.MenuEvent):
+    def on_add_terminal(self):
         def _do(housing: "_pjt_housing.PJTHousing"):
             dlg = _pjt_add_terminal.AddTerminalDialog(self.mainframe, housing)
 
-            if dlg.ShowModal() == wx.ID_OK:
+            if dlg.exec() == QDialog.Accepted:
                 part_id, db_id = dlg.GetValue()
                 self.mainframe.project.add_terminal(part_id, cavity_id=db_id)
 
-            dlg.Destroy()
+        QTimer.singleShot(0, lambda: _do(self.obj.db_obj))
 
-        wx.CallAfter(_do, self.obj.db_obj)
-        evt.Skip()
-
-    def on_add_cpa_lock(self, evt: wx.MenuEvent):
-
+    def on_add_cpa_lock(self):
         def _do(housing: "_pjt_housing.PJTHousing"):
             dlg = _pjt_add_cpa_lock.AddCPALockDialog(self.mainframe, housing)
 
-            if dlg.ShowModal() == wx.ID_OK:
+            if dlg.exec() == QDialog.Accepted:
                 part_id = dlg.GetValue()
                 self.mainframe.project.add_cpa_lock(part_id, housing_id=housing.db_id)
 
-            dlg.Destroy()
+        QTimer.singleShot(0, lambda: _do(self.obj.db_obj))
 
-        wx.CallAfter(_do, self.obj.db_obj)
-        evt.Skip()
-
-    def on_add_tpa_lock(self, evt: wx.MenuEvent):
+    def on_add_tpa_lock(self):
         def _do(housing: "_pjt_housing.PJTHousing"):
             dlg = _pjt_add_tpa_lock.AddTPALockDialog(self.mainframe, housing)
 
-            if dlg.ShowModal() == wx.ID_OK:
+            if dlg.exec() == QDialog.Accepted:
                 part_id, idx = dlg.GetValue()
                 self.mainframe.project.add_tpa_lock(part_id, idx=idx, housing_id=housing.db_id)
 
-            dlg.Destroy()
+        QTimer.singleShot(0, lambda: _do(self.obj.db_obj))
 
-        wx.CallAfter(_do, self.obj.db_obj)
-        evt.Skip()
-
-    def on_add_cover(self, evt: wx.MenuEvent):
+    def on_add_cover(self):
         def _do(housing: "_pjt_housing.PJTHousing"):
             dlg = _pjt_add_cover.AddCoverDialog(self.mainframe, housing)
 
-            if dlg.ShowModal() == wx.ID_OK:
+            if dlg.exec() == QDialog.Accepted:
                 part_id = dlg.GetValue()
                 self.mainframe.project.add_cover(part_id, housing_id=housing.db_id)
 
-            dlg.Destroy()
+        QTimer.singleShot(0, lambda: _do(self.obj.db_obj))
 
-        wx.CallAfter(_do, self.obj.db_obj)
-        evt.Skip()
-
-    def on_add_boot(self, evt: wx.MenuEvent):
+    def on_add_boot(self):
         def _do(housing: "_pjt_housing.PJTHousing"):
             dlg = _pjt_add_boot.AddBootDialog(self.mainframe, housing)
 
-            if dlg.ShowModal() == wx.ID_OK:
+            if dlg.exec() == QDialog.Accepted:
                 part_id = dlg.GetValue()
                 self.mainframe.project.add_boot(part_id, housing_id=housing.db_id)
 
-            dlg.Destroy()
+        QTimer.singleShot(0, lambda: _do(self.obj.db_obj))
 
-        wx.CallAfter(_do, self.obj.db_obj)
-        evt.Skip()
-
-    def on_select(self, evt: wx.MenuEvent):
+    def on_select(self):
         selected = self.mainframe.get_selected()
 
         if selected is not None:
@@ -236,18 +207,12 @@ class HousingMenu(wx.Menu):
 
         self.obj.set_selected(True)
 
-        evt.Skip()
-
-    def on_clone(self, evt: wx.MenuEvent):
-        self.mainframe.editor3d.SetCursor(wx.CURSOR_BULLSEYE)
+    def on_clone(self):
+        self.mainframe.editor3d.setCursor(Qt.CursorShape.CrossCursor)
         self.mainframe.set_clone_obj(self.obj.parent)
 
-        evt.Skip()
-
-    def on_delete(self, evt: wx.MenuEvent):
+    def on_delete(self):
         self.obj.delete()
 
-        evt.Skip()
-
-    def on_properties(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_properties(self):
+        pass

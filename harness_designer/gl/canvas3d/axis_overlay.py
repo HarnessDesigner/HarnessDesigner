@@ -1,10 +1,13 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-import wx
-from wx import glcanvas
 import numpy as np
 from OpenGL import GL
 from OpenGL import GLU
+
+from PySide6.QtWidgets import QWidget, QVBoxLayout
+from PySide6.QtOpenGLWidgets import QOpenGLWidget
+from PySide6.QtCore import QEvent, Qt, QTimer
+from PySide6.QtGui import QCursor
 
 from ...geometry import angle as _angle
 from ...geometry import point as _point
@@ -16,178 +19,153 @@ from ...gl import materials as _materials
 from ... import config as _config
 
 
-class Overlay(wx.Panel):
+class Overlay(QWidget):
     def __init__(self, parent, config: _config.Config.editor3d.axis_overlay):
 
-        wx.Panel.__init__(self, parent, wx.ID_ANY, size=config.size,
-                          pos=config.position, style=wx.BORDER_DOUBLE)
+        QWidget.__init__(self, parent)
+        self.setFixedSize(*config.size)
+        self.move(*config.position)
+        self.setStyleSheet("border: 2px solid gray;")
 
         self.gl_overlay = GLOverlay(self, size=config.size)
 
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.gl_overlay)
+
         self.config = config
-        # self.Bind(wx.EVT_LEFT_UP, self.on_left_up)
-        # self.Bind(wx.EVT_LEFT_DOWN, self.on_left_down)
-        #
-        # self.Bind(wx.EVT_RIGHT_UP, self.on_right_up)
-        # self.Bind(wx.EVT_RIGHT_DOWN, self.on_right_down)
-        #
-        # self.Bind(wx.EVT_MOTION, self.on_mouse_motion)
 
-        self.Bind(wx.EVT_SIZE, self.on_size)
-        self.Bind(wx.EVT_MOVE, self.on_move)
+        self.setVisible(config.is_visible)
 
-        self.Bind(wx.EVT_ERASE_BACKGROUND, self.on_erase_background)
+        QTimer.singleShot(0, lambda: (
+            self.move(*self.config.position),
+            self.gl_overlay.update()
+        ))
 
-        self.Show(config.is_visible)
-
-        def _do():
-            self.Move(self.config.position)
-            self.SendSizeEvent()
-
-        wx.CallAfter(_do)
-
-    def Show(self, flag=True):
+    def setVisible(self, flag=True):
         self.config.is_visible = flag
-        wx.Panel.Show(self, flag)
+        QWidget.setVisible(self, flag)
 
-    def on_size(self, evt):
+    def resizeEvent(self, event):
         def _do():
-            w, h = self.GetSize()
+            w = self.width()
+            h = self.height()
             self.config.size = (w, h)
+            self.gl_overlay.setFixedSize(w, h)
 
-            self.gl_overlay.SetSize(w, h)
+        QTimer.singleShot(0, _do)
+        QWidget.resizeEvent(self, event)
 
-        wx.CallAfter(_do)
-        evt.Skip()
-
-    def on_move(self, evt):
+    def moveEvent(self, event):
         def _do():
-            x, y = self.GetPosition()
-            self.config.position = (x, y)
+            pos = self.pos()
+            self.config.position = (pos.x(), pos.y())
 
-        wx.CallAfter(_do)
-        evt.Skip()
+        QTimer.singleShot(0, _do)
+        QWidget.moveEvent(self, event)
 
     def set_angle(self, point: _point.Point):
         self.gl_overlay.set_angle(point)
 
-    def on_erase_background(self, _):
-        pass
-
     def SetSize(self, size):
         w, h = size
         w = h = min(w, h)
+        self.setFixedSize(w, h)
+        self.gl_overlay.setFixedSize(w, h)
 
-        wx.Panel.SetSize(self, (w, h))
-        self.gl_overlay.SetSize((w, h))
 
-
-class GLOverlay(glcanvas.GLCanvas):
+class GLOverlay(QOpenGLWidget):
 
     def __init__(self, parent: Overlay, size=(-1, -1)):
-        glcanvas.GLCanvas.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_NONE)
-        self.parent = parent
-        self.init = False
-        self.context = glcanvas.GLContext(self)
+        QOpenGLWidget.__init__(self, parent)
+        self.parent_overlay = parent
+        self._init = False
         self.size = None
 
         self.mouse_pos = None
         self.grab_location = 0
-        self._default_cursor = self.GetCursor()
 
         self.camera_pos = _point.Point(0.0, 1.0, 0.0)
         self.camera_eye = _point.Point(0.0, 0.5, 10.0)
 
         self.distance = 10.0
 
-        self.Bind(wx.EVT_SIZE, self.on_size)
-        self.Bind(wx.EVT_PAINT, self.on_paint)
-
-        self.Bind(wx.EVT_LEFT_DOWN, self.on_left_down)
-        self.Bind(wx.EVT_LEFT_UP, self.on_left_up)
-
-        self.Bind(wx.EVT_RIGHT_DOWN, self.on_right_down)
-        self.Bind(wx.EVT_RIGHT_UP, self.on_right_up)
-
-        self.Bind(wx.EVT_MOTION, self.on_mouse_motion)
-
-        self.Bind(wx.EVT_ERASE_BACKGROUND, self.on_erase_background)
-
         self._triangles = []
 
         w, h = size
-        self.build_model(min(w, h))
+        if w > 0 and h > 0:
+            self.build_model(min(w, h))
 
-    def on_left_down(self, evt: wx.MouseEvent):
-        x, y = evt.GetPosition()
-        w, h = self.GetSize()
+        self.setMouseTracking(True)
 
-        sx, sy = self.ClientToScreen((x, y))
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self._on_left_down(event)
+        elif event.button() == Qt.RightButton:
+            self._on_right_down(event)
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self._on_left_up(event)
+        elif event.button() == Qt.RightButton:
+            self._on_right_up(event)
+
+    def mouseMoveEvent(self, event):
+        self._on_mouse_motion(event)
+
+    def _on_left_down(self, event):
+        x = event.position().x()
+        y = event.position().y()
+        w = self.width()
+        h = self.height()
+
+        sx = event.globalPosition().x()
+        sy = event.globalPosition().y()
         self.mouse_pos = _point.Point(sx, sy)
 
-        # if 0 <= x <= 5 and 10 <= y <= h - 10:
-        #     # left
-        #     self.grab_location = 1
-        # elif w - 5 <= x <= w and 10 <= y <= h - 10:
-        #     # right
-        #     self.grab_location = 2
-        # elif 10 <= x <= w - 10 and 0 <= y <= 5:
-        #     # top
-        #     self.grab_location = 3
-        # elif 10 <= x <= w - 10 and h - 5 <= y <= h:
-        #     # bottom
-        #     self.grab_location = 4
         if (
             (0 <= x <= 10 and 0 <= y <= 10) or
             (0 <= x <= 10 and 0 <= y <= 10)
         ):
-            # top left
             self.grab_location = 5
         elif (
             (w - 10 <= x <= w and h - 10 <= y <= h) or
             (w - 10 <= x <= w and h - 10 <= y <= h)
         ):
-            # bottom right
             self.grab_location = 6
         elif (
             (w - 10 <= x <= w and 0 <= y <= 10) or
             (w <= x <= w - 10 and 0 <= y <= 10)
         ):
-            # top right
             self.grab_location = 7
         elif (
             (0 <= x <= 10 and h - 10 <= y <= h) or
             (0 <= x <= 10 and h - 10 <= y <= h)
         ):
-            # bottom left
             self.grab_location = 8
         else:
             self.grab_location = 9
 
-        if not self.HasCapture():
-            self.CaptureMouse()
+        self.grabMouse()
 
-        evt.Skip()
-
-    def on_left_up(self, evt: wx.MouseEvent):
-        if self.HasCapture():
-            self.ReleaseMouse()
-
+    def _on_left_up(self, event):
+        self.releaseMouse()
         self.grab_location = 0
 
-        evt.Skip()
+    def _on_right_up(self, event):
+        pass
 
-    def on_right_up(self, evt: wx.MouseEvent):  # NOQA
-        evt.Skip()
+    def _on_right_down(self, event):
+        pass
 
-    def on_right_down(self, evt: wx.MouseEvent):  # NOQA
-        evt.Skip()
+    def _on_mouse_motion(self, event):
+        x = event.position().x()
+        y = event.position().y()
+        w = self.parent_overlay.width()
+        h = self.parent_overlay.height()
 
-    def on_mouse_motion(self, evt: wx.MouseEvent):
-        x, y = evt.GetPosition()
-        w, h = self.parent.GetSize()
-
-        sx, sy = self.ClientToScreen((x, y))
+        sx = event.globalPosition().x()
+        sy = event.globalPosition().y()
 
         mouse_pos = _point.Point(sx, sy)
 
@@ -203,128 +181,94 @@ class GLOverlay(glcanvas.GLCanvas):
         if self.grab_location:
             if self.grab_location == 1:
                 w -= delta_x
-                self.parent.SetSize((w, h))
-
-                x, y = self.parent.GetPosition()
-                x += delta_x
-                self.parent.Move((x, y))
+                self.parent_overlay.setFixedSize(w, h)
+                pos = self.parent_overlay.pos()
+                self.parent_overlay.move(pos.x() + delta_x, pos.y())
 
             elif self.grab_location == 2:
                 w += delta_x
-                self.parent.SetSize((w, h))
+                self.parent_overlay.setFixedSize(w, h)
 
             elif self.grab_location == 3:
                 h -= delta_y
-                self.parent.SetSize((w, h))
-
-                x, y = self.parent.GetPosition()
-                y += delta_y
-                self.parent.Move((x, y))
+                self.parent_overlay.setFixedSize(w, h)
+                pos = self.parent_overlay.pos()
+                self.parent_overlay.move(pos.x(), pos.y() + delta_y)
 
             elif self.grab_location == 4:
                 h += delta_y
-                self.parent.SetSize((w, h))
+                self.parent_overlay.setFixedSize(w, h)
 
             elif self.grab_location == 5:
-                # top left
-
                 delta = max(delta_x, delta_y)
-
                 w -= delta
                 h -= delta
-
-                x, y = self.parent.GetPosition()
-                x += delta
-                y += delta
-
-                self.parent.SetSize((w, h))
-                self.parent.Move((x, y))
+                pos = self.parent_overlay.pos()
+                self.parent_overlay.setFixedSize(w, h)
+                self.parent_overlay.move(pos.x() + delta, pos.y() + delta)
 
             elif self.grab_location == 6:
-                # bottom right
                 delta = min(delta_x, delta_y)
-
                 w += delta
                 h += delta
-                self.parent.SetSize((w, h))
+                self.parent_overlay.setFixedSize(w, h)
 
             elif self.grab_location == 7:
-                # top right
-
                 delta = max(abs(delta_x), abs(delta_y))
-                x, y = self.parent.GetPosition()
-
+                pos = self.parent_overlay.pos()
                 if delta_x < 0:
                     w += delta
                     h -= delta
-
-                    y += delta
+                    self.parent_overlay.setFixedSize(w, h)
+                    self.parent_overlay.move(pos.x(), pos.y() + delta)
                 else:
                     w += delta
                     h += delta
-
-                    y -= delta
-
-                self.parent.SetSize((w, h))
-                self.parent.Move((x, y))
+                    self.parent_overlay.setFixedSize(w, h)
+                    self.parent_overlay.move(pos.x(), pos.y() - delta)
 
             elif self.grab_location == 8:
-                # bottom left
-                x, y = self.parent.GetPosition()
-
+                pos = self.parent_overlay.pos()
                 delta = max(abs(delta_x), abs(delta_y))
                 if delta_x < 0:
                     w += delta
                     h += delta
-                    x -= delta
+                    self.parent_overlay.setFixedSize(w, h)
+                    self.parent_overlay.move(pos.x() - delta, pos.y())
                 else:
                     w -= delta_x
                     h -= delta_y
-                    x += delta
-
-                self.parent.SetSize((w, h))
-                self.parent.Move((x, y))
+                    self.parent_overlay.setFixedSize(w, h)
+                    self.parent_overlay.move(pos.x() + delta, pos.y())
 
             elif self.grab_location == 9:
-                x, y = self.parent.GetPosition()
-                x += delta_x
-                y += delta_y
-                self.parent.Move((x, y))
+                pos = self.parent_overlay.pos()
+                self.parent_overlay.move(pos.x() + delta_x, pos.y() + delta_y)
 
             if self.grab_location != 9:
                 self.build_model(min(w, h))
 
-            self.GetParent().GetParent().Refresh(False)
-            self.GetParent().Refresh(False)
+            parent = self.parent_overlay.parent()
+            if parent is not None:
+                parent.update()
+            self.parent_overlay.update()
 
-        # elif (
-        #     (0 <= x <= 5 and 10 <= y <= h - 10) or
-        #     (w - 5 <= x <= w and 10 <= y <= h - 10)
-        # ):
-        #     self.SetCursor(wx.Cursor(wx.CURSOR_SIZEWE))
-        # elif (
-        #     (10 <= x <= w - 10 and 0 <= y <= 5) or
-        #     (10 <= x <= w - 10 and h - 5 <= y <= h)
-        # ):
-        #     self.SetCursor(wx.Cursor(wx.CURSOR_SIZENS))
         elif (
             (0 <= x <= 5 and 0 <= y <= 10) or
             (0 <= x <= 10 and 0 <= y <= 5) or
             (w - 10 <= x <= w and h - 5 <= y <= h) or
             (w - 5 <= x <= w and h - 10 <= y <= h)
         ):
-            self.SetCursor(wx.Cursor(wx.CURSOR_SIZENWSE))
+            self.setCursor(QCursor(Qt.SizeFDiagCursor))
         elif (
             (w - 10 <= x <= w and 0 <= y <= 5) or
             (w <= x <= w - 5 and 0 <= y <= 10) or
             (0 <= x <= 5 and h - 10 <= y <= h) or
             (0 <= x <= 10 and h - 5 <= y <= h)
         ):
-            self.SetCursor(wx.Cursor(wx.CURSOR_SIZENESW))
+            self.setCursor(QCursor(Qt.SizeBDiagCursor))
         else:
-            self.SetCursor(wx.Cursor(wx.CURSOR_SIZING))
-
-        evt.Skip()
+            self.setCursor(QCursor(Qt.SizeAllCursor))
 
     def build_model(self, size):
         self.distance = size / 14.0
@@ -401,31 +345,27 @@ class GLOverlay(glcanvas.GLCanvas):
 
         self.camera_eye = nce
 
-        self.Refresh(False)
+        self.update()
 
-    def InitGL(self):
-        w, h = self.GetSize()
+    def initializeGL(self):
+        w = self.width()
+        h = self.height()
         GL.glClearColor(0.1, 0.1, 0.1, 1.0)
         GL.glViewport(0, 0, w, h)
 
         GL.glEnable(GL.GL_DEPTH_TEST)
         GL.glEnable(GL.GL_LIGHTING)
-        # glEnable(GL_ALPHA_TEST)
         GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
         GL.glEnable(GL.GL_BLEND)
 
         GL.glEnable(GL.GL_DITHER)
         GL.glEnable(GL.GL_MULTISAMPLE)
-        # glEnable(GL_FOG)
         GL.glDepthMask(GL.GL_TRUE)
-        # glShadeModel(GL_FLAT)
 
         GL.glShadeModel(GL.GL_SMOOTH)
         GL.glColorMaterial(GL.GL_FRONT, GL.GL_AMBIENT_AND_DIFFUSE)
         GL.glEnable(GL.GL_COLOR_MATERIAL)
-        # glEnable(GL_NORMALIZE)
         GL.glEnable(GL.GL_RESCALE_NORMAL)
-        # glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE)
 
         GL.glLightfv(GL.GL_LIGHT0, GL.GL_AMBIENT, [0.5, 0.5, 0.5, 1.0])
         GL.glLightfv(GL.GL_LIGHT0, GL.GL_DIFFUSE, [0.3, 0.3, 0.3, 1.0])
@@ -446,7 +386,13 @@ class GLOverlay(glcanvas.GLCanvas):
         camera = self.camera_eye.as_float + self.camera_pos.as_float + (0.0, 1.0, 0.0)
         GLU.gluLookAt(*camera)
 
-    def OnDraw(self):
+        self._init = True
+
+    def resizeGL(self, width, height):
+        self.size = (width, height)
+        GL.glViewport(0, 0, width, height)
+
+    def paintGL(self):
         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
         GL.glMatrixMode(GL.GL_MODELVIEW)
         GL.glLoadIdentity()
@@ -512,38 +458,4 @@ class GLOverlay(glcanvas.GLCanvas):
         GL.glDisableClientState(GL.GL_NORMAL_ARRAY)
 
         GL.glPopMatrix()
-
-        self.SwapBuffers()
-
-    def on_paint(self, _):
-        _ = wx.BufferedPaintDC(self)
-        self.SetCurrent(self.context)
-
-        if not self.init:
-            self.InitGL()
-            self.init = True
-
-        self.OnDraw()
-
-    def on_size(self, event):
-        size = event.GetSize()
-
-        self.SetCurrent(self.context)
-
-        width, height = self.size = size
-        #  fix up the viewport to maintain aspect ratio
-        GL.glViewport(0, 0, width, height)
-
-        # wx.CallAfter(self.DoSetViewport, event.GetSize())
-        self.Refresh(False)
-        event.Skip()
-
-    def DoSetViewport(self, size):
-        self.SetCurrent(self.context)
-
-        width, height = self.size = size
-        #  fix up the viewport to maintain aspect ratio
-        GL.glViewport(0, 0, width, height)
-
-    def on_erase_background(self, _):
-        pass
+        # Qt handles SwapBuffers automatically.

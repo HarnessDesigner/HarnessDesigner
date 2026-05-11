@@ -2,8 +2,8 @@
 
 from typing import TYPE_CHECKING
 
-import wx
 
+from PySide6.QtGui import QColor
 from ....ui import prop_ctrls as _prop_ctrls
 
 from .base import BaseMixin
@@ -52,7 +52,7 @@ class ColorControl(_prop_ctrls.ColorProperty):
             self.choices = []
 
             self.SetItems(self.choices)
-            self.SetValue(['', wx.BLACK])
+            self.SetValue(['', QColor(0, 0, 0)])
             self.Enable(False)
         else:
             color = getattr(db_obj, self.attribute_name)

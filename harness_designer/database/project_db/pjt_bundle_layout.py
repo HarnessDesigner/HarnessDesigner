@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 import weakref
-import wx
+from PySide6.QtWidgets import QTabWidget
 
 from ...ui import prop_ctrls as _prop_ctrls
 from .pjt_bases import PJTEntryBase, PJTTableBase
@@ -35,7 +35,7 @@ class PJTBundleLayoutsTable(PJTTableBase):
     @classmethod
     def start_control(cls, mainframe):
         cls._control = PJTBundleLayoutControl(mainframe)
-        cls._control.Show(False)
+        cls._control.hide()
 
     def get_from_position3d_id(self, position3d_id) -> "PJTBundleLayout":
         rows = self.select('id', position3d_id=position3d_id)
@@ -126,7 +126,7 @@ class PJTBundleLayout(PJTEntryBase, Position3DMixin, Visible3DMixin, NotesMixin)
         self._populate('diameter')
 
 
-class PJTBundleLayoutControl(wx.Notebook):
+class PJTBundleLayoutControl(QTabWidget):
 
     def set_obj(self, db_obj: PJTBundleLayout):
         self.db_obj = db_obj
@@ -142,11 +142,13 @@ class PJTBundleLayoutControl(wx.Notebook):
 
     def __init__(self, parent):
         self.db_obj: PJTBundleLayout = None
-        super().__init__(parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+        super().__init__(parent)
+        self.setTabPosition(QTabWidget.TabPosition.North)
+        self.setUsesScrollButtons(True)
 
         general_page = _prop_ctrls.Category(self, 'General')
         self.notes_ctrl = NotesControl(general_page)
-        self.diameter_ctrl = _prop_ctrls.StringProperty(general_page, 'Diameter', style=wx.TE_READONLY)
+        self.diameter_ctrl = _prop_ctrls.StringProperty(general_page, 'Diameter', read_only=True)
 
         position_page = _prop_ctrls.Category(self, 'Position')
         self.position_ctrl = Position3DControl(position_page)
@@ -159,5 +161,5 @@ class PJTBundleLayoutControl(wx.Notebook):
             visible_page,
             position_page
         ):
-            self.AddPage(page, page.GetLabel())
+            self.addTab(page, page.GetLabel())
             page.Realize()

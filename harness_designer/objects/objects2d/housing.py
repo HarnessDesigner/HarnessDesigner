@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-import wx
+from PySide6.QtWidgets import QMenu
 from OpenGL import GL
 import math
 import numpy as np
@@ -217,80 +217,80 @@ class Housing(_base2d.Base2D):
                         cavity_pos.y += dy
 
 
-class HousingMenu(wx.Menu):
+class HousingMenu(QMenu):
 
     def __init__(self, canvas, selected):
-        wx.Menu.__init__(self)
+        QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
 
-        item = self.Append(wx.ID_ANY, 'Add Seal')
-        canvas.Bind(wx.EVT_MENU, self.on_add_seal, id=item.GetId())
+        action = self.addAction('Add Seal')
+        action.triggered.connect(self.on_add_seal)
 
-        item = self.Append(wx.ID_ANY, 'Add Terminal')
-        canvas.Bind(wx.EVT_MENU, self.on_add_terminal, id=item.GetId())
+        action = self.addAction('Add Terminal')
+        action.triggered.connect(self.on_add_terminal)
 
-        item = self.Append(wx.ID_ANY, 'Add CPA Lock')
-        canvas.Bind(wx.EVT_MENU, self.on_add_cpa_lock, id=item.GetId())
+        action = self.addAction('Add CPA Lock')
+        action.triggered.connect(self.on_add_cpa_lock)
 
-        item = self.Append(wx.ID_ANY, 'Add TPA Lock')
-        canvas.Bind(wx.EVT_MENU, self.on_add_tpa_lock, id=item.GetId())
+        action = self.addAction('Add TPA Lock')
+        action.triggered.connect(self.on_add_tpa_lock)
 
-        item = self.Append(wx.ID_ANY, 'Add Cover')
-        canvas.Bind(wx.EVT_MENU, self.on_add_cover, id=item.GetId())
+        action = self.addAction('Add Cover')
+        action.triggered.connect(self.on_add_cover)
 
-        item = self.Append(wx.ID_ANY, 'Add Boot')
-        canvas.Bind(wx.EVT_MENU, self.on_add_boot, id=item.GetId())
+        action = self.addAction('Add Boot')
+        action.triggered.connect(self.on_add_boot)
 
-        self.AppendSeparator()
+        self.addSeparator()
 
         rotate_menu = _context_menus.Rotate2DMenu(canvas, selected)
-        self.AppendSubMenu(rotate_menu, 'Rotate')
+        self.addMenu(rotate_menu)
 
         mirror_menu = _context_menus.Mirror2DMenu(canvas, selected)
-        self.AppendSubMenu(mirror_menu, 'Mirror')
+        self.addMenu(mirror_menu)
 
-        self.AppendSeparator()
-        item = self.Append(wx.ID_ANY, 'Select')
-        canvas.Bind(wx.EVT_MENU, self.on_select, id=item.GetId())
+        self.addSeparator()
+        action = self.addAction('Select')
+        action.triggered.connect(self.on_select)
 
-        item = self.Append(wx.ID_ANY, 'Clone')
-        canvas.Bind(wx.EVT_MENU, self.on_clone, id=item.GetId())
+        action = self.addAction('Clone')
+        action.triggered.connect(self.on_clone)
 
-        self.AppendSeparator()
-        item = self.Append(wx.ID_ANY, 'Delete')
-        canvas.Bind(wx.EVT_MENU, self.on_delete, id=item.GetId())
+        self.addSeparator()
+        action = self.addAction('Delete')
+        action.triggered.connect(self.on_delete)
 
-        self.AppendSeparator()
-        item = self.Append(wx.ID_ANY, 'Properties')
-        canvas.Bind(wx.EVT_MENU, self.on_properties, id=item.GetId())
+        self.addSeparator()
+        action = self.addAction('Properties')
+        action.triggered.connect(self.on_properties)
 
-    def on_add_seal(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_add_seal(self):
+        pass
 
-    def on_add_terminal(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_add_terminal(self):
+        pass
 
-    def on_add_cpa_lock(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_add_cpa_lock(self):
+        pass
 
-    def on_add_tpa_lock(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_add_tpa_lock(self):
+        pass
 
-    def on_add_cover(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_add_cover(self):
+        pass
 
-    def on_add_boot(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_add_boot(self):
+        pass
 
-    def on_select(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_select(self):
+        pass
 
-    def on_clone(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_clone(self):
+        pass
 
-    def on_delete(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_delete(self):
+        pass
 
-    def on_properties(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_properties(self):
+        pass

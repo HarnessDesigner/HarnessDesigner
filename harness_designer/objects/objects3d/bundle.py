@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING
 
 import weakref
-import wx
+from PySide6.QtWidgets import QMenu
 import math
 import numpy as np
 
@@ -137,12 +137,12 @@ class Bundle(_base3d.Base3D):
                 if layout.obj3d.position.db_id == self._p1.db_id:
                     layout.obj3d.set_diameter(self, value)
                     break
-    
+
     def add_wire(self, wire):
         # Store weak reference to the wire
         wire_ref = weakref.ref(wire, self._on_wire_deleted)
         self._wires.append(wire_ref)
-        
+
         # Hide the wire when it's bundled
         if wire.is_visible:
             wire.is_visible = False
@@ -173,7 +173,7 @@ class Bundle(_base3d.Base3D):
                 self._wires.remove(ref)
             else:
                 yield wire
-    
+
     @property
     def wire_count(self) -> int:
         """Return the number of wires in this bundle."""
@@ -211,43 +211,42 @@ class Bundle(_base3d.Base3D):
         return self._p2
 
 
-class BundleMenu(wx.Menu):
+class BundleMenu(QMenu):
 
     def __init__(self, canvas, selected):
-        wx.Menu.__init__(self)
+        QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
 
-        item = self.Append(wx.ID_ANY, 'Add Handle')
-        canvas.Bind(wx.EVT_MENU, self.on_add_handle, id=item.GetId())
+        action = self.addAction('Add Handle')
+        action.triggered.connect(self.on_add_handle)
 
-        item = self.Append(wx.ID_ANY, 'Add Transition')
-        canvas.Bind(wx.EVT_MENU, self.on_add_transition, id=item.GetId())
+        action = self.addAction('Add Transition')
+        action.triggered.connect(self.on_add_transition)
 
-        self.AppendSeparator()
-        item = self.Append(wx.ID_ANY, 'Select')
-        canvas.Bind(wx.EVT_MENU, self.on_select, id=item.GetId())
+        self.addSeparator()
+        action = self.addAction('Select')
+        action.triggered.connect(self.on_select)
 
-        self.AppendSeparator()
-        item = self.Append(wx.ID_ANY, 'Delete')
-        canvas.Bind(wx.EVT_MENU, self.on_delete, id=item.GetId())
+        self.addSeparator()
+        action = self.addAction('Delete')
+        action.triggered.connect(self.on_delete)
 
-        self.AppendSeparator()
-        item = self.Append(wx.ID_ANY, 'Properties')
-        canvas.Bind(wx.EVT_MENU, self.on_properties, id=item.GetId())
+        self.addSeparator()
+        action = self.addAction('Properties')
+        action.triggered.connect(self.on_properties)
 
-    def on_add_handle(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_add_handle(self):
+        pass
 
-    def on_add_transition(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_add_transition(self):
+        pass
 
-    def on_select(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_select(self):
+        pass
 
-    def on_delete(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_delete(self):
+        pass
 
-    def on_properties(self, evt: wx.MenuEvent):
-        evt.Skip()
-
+    def on_properties(self):
+        pass

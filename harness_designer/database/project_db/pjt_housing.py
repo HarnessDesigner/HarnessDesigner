@@ -2,9 +2,9 @@
 
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
-import wx
 import numpy as np
 import weakref
+from PySide6.QtWidgets import QTabWidget
 
 from ...ui import prop_ctrls as _prop_ctrls
 from .pjt_bases import PJTEntryBase, PJTTableBase
@@ -52,7 +52,7 @@ class PJTHousingsTable(PJTTableBase):
     @classmethod
     def start_control(cls, mainframe):
         cls._control = PJTHousingControl(mainframe)
-        cls._control.Show(False)
+        cls._control.hide()
 
     def _table_needs_update(self) -> bool:
         from ..create_database import housings
@@ -724,7 +724,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         self._populate('angle2d')
 
 
-class PJTHousingControl(wx.Notebook):
+class PJTHousingControl(QTabWidget):
 
     def set_obj(self, db_obj: PJTHousing):
         self.db_obj = db_obj
@@ -749,12 +749,12 @@ class PJTHousingControl(wx.Notebook):
         self.seal_ctrl.set_obj(db_obj.seal)
         self.part_ctrl.set_obj(db_obj.part)
 
-        for i in range(self.cavities_notebook.GetPageCount()):
-            self.cavities_notebook.RemovePage(i)
+        while self.cavities_notebook.count():
+            self.cavities_notebook.removeTab(0)
 
         for page in self.cavity_pages:
-            page.Reparent(db_obj.table.db.mainframe)
-            page.Show(False)
+            page.setParent(db_obj.table.db.mainframe)
+            page.hide()
 
         self.cavity_pages = []
 
@@ -763,15 +763,17 @@ class PJTHousingControl(wx.Notebook):
                 continue
 
             ctrl = db_obj.table.db.pjt_cavities_table.get_control(i)
-            ctrl.Reparent(self.cavities_notebook)
-            self.cavities_notebook.AddPage(ctrl, ctrl.GetLabel())
+            ctrl.setParent(self.cavities_notebook)
+            self.cavities_notebook.addTab(ctrl, ctrl.GetLabel())
             ctrl.set_obj(cavity)
             self.cavity_pages.append(ctrl)
 
     def __init__(self, parent):
         self.db_obj: PJTHousing = None
 
-        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+        QTabWidget.__init__(self, parent)
+        self.setTabPosition(QTabWidget.TabPosition.North)
+        self.setUsesScrollButtons(True)
 
         general_page = _prop_ctrls.Category(self, 'General')
 
@@ -791,7 +793,9 @@ class PJTHousingControl(wx.Notebook):
         self.position3d_ctrl = Position3DControl(position_page)
 
         cavities_page = _prop_ctrls.Category(self, 'Cavities')
-        self.cavities_notebook = wx.Notebook(cavities_page, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+        self.cavities_notebook = QTabWidget(cavities_page)
+        self.cavities_notebook.setTabPosition(QTabWidget.TabPosition.North)
+        self.cavities_notebook.setUsesScrollButtons(True)
         self.cavity_pages = []
 
         cover_page = _prop_ctrls.Category(self, 'Cover')
@@ -829,5 +833,5 @@ class PJTHousingControl(wx.Notebook):
             cavities_page,
             part_page
         ):
-            self.AddPage(page, page.GetLabel())
+            self.addTab(page, page.GetLabel())
             page.Realize()

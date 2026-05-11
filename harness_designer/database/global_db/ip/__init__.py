@@ -1,8 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from typing import Iterable as _Iterable
-import wx
 
+from PySide6.QtGui import QPixmap
 from ..bases import EntryBase, TableBase
 
 from . import solid as _solid
@@ -141,10 +141,10 @@ class IPRating(EntryBase):
         return f'{self.ip_solid.description}\n\n{self.ip_fluid.description}\n\n{supp.description}'
 
     @property
-    def bitmap(self) -> wx.Bitmap:
+    def pixmap(self) -> QPixmap:
         simg = self.ip_solid.icon
         fimg = self.ip_fluid.icon
 
         img = simg | fimg
 
-        return img.bitmap
+        return img.pixmap

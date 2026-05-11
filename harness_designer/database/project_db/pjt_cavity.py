@@ -4,7 +4,7 @@ from typing import Iterable as _Iterable, TYPE_CHECKING
 
 import uuid
 import weakref
-import wx
+from PySide6.QtWidgets import QTabWidget
 
 from ...ui import prop_ctrls as _prop_ctrls
 from .pjt_bases import PJTEntryBase, PJTTableBase
@@ -47,7 +47,7 @@ class PJTCavitiesTable(PJTTableBase):
     @classmethod
     def start_control(cls, mainframe):
         cls._control = PJTCavityControl(mainframe)
-        cls._control.Show(False)
+        cls._control.hide()
 
         # for i in range(20):
         #     control = PJTCavityControl(mainframe)
@@ -65,7 +65,7 @@ class PJTCavitiesTable(PJTTableBase):
             for i in range(controls_len - 1, index):
                 ctrl = PJTCavityControl(self.db.mainframe)
                 ctrl.SetIndex(i + 1)
-                ctrl.Show(False)
+                ctrl.hide()
                 self._controls.append(ctrl)
 
         return self._controls[index]
@@ -330,7 +330,9 @@ class PJTCavityControl(_prop_ctrls.Category):
 
         super().__init__(parent, 'Cavity')
 
-        self.nb = wx.Notebook(self, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+        self.nb = QTabWidget(self)
+        self.nb.setTabPosition(QTabWidget.TabPosition.North)
+        self.nb.setUsesScrollButtons(True)
 
         general_page = _prop_ctrls.Category(self.nb, 'General')
         self.name_ctrl = NameControl(general_page)
@@ -374,7 +376,7 @@ class PJTCavityControl(_prop_ctrls.Category):
             seal_page,
             part_page
         ):
-            self.nb.AddPage(page, page.GetLabel())
+            self.nb.addTab(page, page.GetLabel())
             page.Realize()
 
     def set_obj(self, db_obj: PJTCavity):

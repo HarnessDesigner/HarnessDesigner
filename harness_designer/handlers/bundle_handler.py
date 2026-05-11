@@ -1,8 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from PySide6.QtWidgets import QDialog
 from typing import TYPE_CHECKING
 
-import wx
 
 from . import handler_base as _handler_base
 from ..geometry import point as _point
@@ -49,7 +49,7 @@ class AddBundleHandler(_handler_base.HandlerBase):
                 title='Add Bundle Cover',
                 table=mainframe.global_db.bundle_covers_table)
 
-            if dlg.ShowModal() == wx.ID_OK:
+            if dlg.exec() == QDialog.DialogCode.Accepted:
                 part_id = dlg.GetValue()
 
         super().__init__(mainframe, part_id)

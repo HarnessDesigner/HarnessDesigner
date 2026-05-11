@@ -1,8 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from PySide6.QtWidgets import QDialog
 from typing import TYPE_CHECKING
 
-import wx
 
 from . import handler_base as _handler_base
 from ..geometry import point as _point
@@ -48,7 +48,7 @@ class AddCPALockHandler(_handler_base.HandlerBase):
                 mainframe, _editor_db.CPALocksPage, title='Add CPA Lock',
                 table=mainframe.global_db.cpa_locks_table)
 
-            if dlg.ShowModal() == wx.ID_OK:
+            if dlg.exec() == QDialog.DialogCode.Accepted:
                 part_id = dlg.GetValue()
 
             dlg.Destroy()

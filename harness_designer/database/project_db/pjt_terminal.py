@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 import weakref
-import wx
+from PySide6.QtWidgets import QTabWidget
 
 from ...ui import prop_ctrls as _prop_ctrls
 from .pjt_bases import PJTEntryBase, PJTTableBase
@@ -45,7 +45,7 @@ class PJTTerminalsTable(PJTTableBase):
     @classmethod
     def start_control(cls, mainframe):
         cls._control = PJTTerminalControl(mainframe)
-        cls._control.Show(False)
+        cls._control.hide()
 
     def _table_needs_update(self) -> bool:
         from ..create_database import terminals
@@ -291,7 +291,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin, Not
         return self._stored_part
 
 
-class PJTTerminalControl(wx.Notebook):
+class PJTTerminalControl(QTabWidget):
 
     def set_obj(self, db_obj: PJTTerminal):
         self.db_obj = db_obj
@@ -353,7 +353,9 @@ class PJTTerminalControl(wx.Notebook):
     def __init__(self, parent):
         self.db_obj: PJTTerminal = None
 
-        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+        QTabWidget.__init__(self, parent)
+        self.setTabPosition(QTabWidget.TabPosition.North)
+        self.setUsesScrollButtons(True)
 
         general_page = _prop_ctrls.Category(self, 'General')
         self.name_ctrl = NameControl(general_page)
@@ -394,5 +396,5 @@ class PJTTerminalControl(wx.Notebook):
             circuit_page,
             part_page
         ):
-            self.AddPage(page, page.GetLabel())
+            self.addTab(page, page.GetLabel())
             page.Realize()

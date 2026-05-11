@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 import weakref
-import wx
+from PySide6.QtWidgets import QTabWidget
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..global_db import wire as _wire
@@ -44,7 +44,7 @@ class PJTWiresTable(PJTTableBase):
     @classmethod
     def start_control(cls, mainframe):
         cls._control = PJTWireControl(mainframe)
-        cls._control.Show(False)
+        cls._control.hide()
 
     def _table_needs_update(self) -> bool:
         from ..create_database import wires
@@ -270,7 +270,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         return self._stored_part
 
 
-class PJTWireControl(wx.Notebook):
+class PJTWireControl(QTabWidget):
 
     def _update_position3d(self, _):
         self.length_mm_ctrl.SetValue(str(self.db_obj.length_mm))
@@ -326,7 +326,9 @@ class PJTWireControl(wx.Notebook):
     def __init__(self, parent):
         self.db_obj: PJTWire = None
 
-        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+        QTabWidget.__init__(self, parent)
+        self.setTabPosition(QTabWidget.TabPosition.North)
+        self.setUsesScrollButtons(True)
 
         general_page = _prop_ctrls.Category(self, 'General')
         self.name_ctrl = NameControl(general_page)
@@ -345,20 +347,20 @@ class PJTWireControl(wx.Notebook):
 
         info_page = _prop_ctrls.Category(self, 'Info')
 
-        length_group = _prop_ctrls.Property(info_page, 'Length', orientation=wx.VERTICAL)
+        length_group = _prop_ctrls.Property(info_page, 'Length', orientation='vertical')
 
-        self.length_mm_ctrl = _prop_ctrls.StringProperty(length_group, 'Millimeter', style=wx.TE_READONLY)
-        self.length_m_ctrl = _prop_ctrls.StringProperty(length_group, 'Meter', style=wx.TE_READONLY)
-        self.length_ft_ctrl = _prop_ctrls.StringProperty(length_group, 'Foot', style=wx.TE_READONLY)
+        self.length_mm_ctrl = _prop_ctrls.StringProperty(length_group, 'Millimeter', read_only=True)
+        self.length_m_ctrl = _prop_ctrls.StringProperty(length_group, 'Meter', read_only=True)
+        self.length_ft_ctrl = _prop_ctrls.StringProperty(length_group, 'Foot', read_only=True)
 
-        weight_group = _prop_ctrls.Property(info_page, 'Weight', orientation=wx.VERTICAL)
+        weight_group = _prop_ctrls.Property(info_page, 'Weight', orientation='vertical')
 
-        self.weight_g_ctrl = _prop_ctrls.StringProperty(weight_group, 'Gram', style=wx.TE_READONLY)
-        self.weight_lb_ctrl = _prop_ctrls.StringProperty(weight_group, 'Pound', style=wx.TE_READONLY)
+        self.weight_g_ctrl = _prop_ctrls.StringProperty(weight_group, 'Gram', read_only=True)
+        self.weight_lb_ctrl = _prop_ctrls.StringProperty(weight_group, 'Pound', read_only=True)
 
-        electrical_group = _prop_ctrls.Property(info_page, 'Electrical', orientation=wx.VERTICAL)
+        electrical_group = _prop_ctrls.Property(info_page, 'Electrical', orientation='vertical')
 
-        self.resistance_ctrl = _prop_ctrls.StringProperty(electrical_group, 'Resistance', units='Ω', style=wx.TE_READONLY)
+        self.resistance_ctrl = _prop_ctrls.StringProperty(electrical_group, 'Resistance', units='Ω', read_only=True)
 
         circuit_page = _prop_ctrls.Category(self, 'Circuit')
         self.circuit_ctrl = _pjt_circuit.PJTCircuitControl(circuit_page)
@@ -374,5 +376,5 @@ class PJTWireControl(wx.Notebook):
             circuit_page,
             part_page
         ):
-            self.AddPage(page, page.GetLabel())
+            self.addTab(page, page.GetLabel())
             page.Realize()

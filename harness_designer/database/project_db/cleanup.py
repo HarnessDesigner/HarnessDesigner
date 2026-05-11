@@ -68,16 +68,21 @@ class ProjectCleanup:
     Discarded automatically when the project closes.
 
     The idle handler calls ``process_chunk()`` which processes BATCH_SIZE
-    point IDs per call.  Returns True while work remains (call
-    ``event.RequestMore()``), False when the full pass is complete.
+    point IDs per call.  Returns True while work remains, False when the
+    full pass is complete.
 
-    Example idle handler::
+    Example usage with a zero-interval QTimer::
 
-        def _on_idle(self, event: wx.IdleEvent):
+        self._idle_timer = QTimer(self)
+        self._idle_timer.setInterval(0)
+        self._idle_timer.timeout.connect(self._on_idle)
+        self._idle_timer.start()
+
+        def _on_idle(self):
             if self.project is None:
                 return
-            if self.project.cleanup.process_chunk():
-                event.RequestMore()
+            if not self.project.cleanup.process_chunk():
+                self._idle_timer.stop()
     """
 
     def __init__(self, project: "_project.Project"):

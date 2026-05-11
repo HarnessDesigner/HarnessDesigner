@@ -2,7 +2,6 @@
 
 from typing import TYPE_CHECKING
 
-import wx
 
 from ....ui import prop_ctrls as _prop_ctrls
 from .base import BaseMixin
@@ -41,7 +40,7 @@ class FamilyControl(_prop_ctrls.Category):
 
         self.name_ctrl = _prop_ctrls.ComboBoxProperty(self, 'Name')
         self.desc_ctrl = _prop_ctrls.LongStringProperty(self, 'Description')
-        self.mfg_ctrl = _prop_ctrls.StringProperty(self, 'Manufacturer', style=wx.TE_READONLY)
+        self.mfg_ctrl = _prop_ctrls.StringProperty(self, 'Manufacturer', read_only=True)
 
         self.name_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_name)
         self.desc_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_desc)

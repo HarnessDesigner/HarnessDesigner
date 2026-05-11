@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable, Union
 
 import weakref
-import wx
+from PySide6.QtWidgets import QTabWidget
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..global_db import bundle_cover as _bundle_cover
@@ -40,7 +40,7 @@ class PJTBundlesTable(PJTTableBase):
     @classmethod
     def start_control(cls, mainframe):
         cls._control = PJTBundleControl(mainframe)
-        cls._control.Show(False)
+        cls._control.hide()
 
     def _table_needs_update(self) -> bool:
         from ..create_database import bundle_covers
@@ -150,7 +150,7 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
         return self._table.db.global_db.bundle_covers_table[part_id]
 
 
-class PJTBundleControl(wx.Notebook):
+class PJTBundleControl(QTabWidget):
 
     def set_obj(self, db_obj: PJTBundle):
         self.db_obj = db_obj
@@ -163,7 +163,9 @@ class PJTBundleControl(wx.Notebook):
 
     def __init__(self, parent):
         self.db_obj: PJTBundle = None
-        super().__init__(parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+        super().__init__(parent)
+        self.setTabPosition(QTabWidget.TabPosition.North)
+        self.setUsesScrollButtons(True)
 
         general_page = _prop_ctrls.Category(self, 'General')
 
@@ -185,5 +187,5 @@ class PJTBundleControl(wx.Notebook):
             position_page,
             part_page
         ):
-            self.AddPage(page, page.GetLabel())
+            self.addTab(page, page.GetLabel())
             page.Realize()

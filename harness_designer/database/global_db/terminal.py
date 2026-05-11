@@ -1,9 +1,9 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from PySide6.QtWidgets import QTabWidget
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
 import uuid
-import wx
 
 from ...ui import prop_ctrls as _prop_ctrls
 from .bases import EntryBase, TableBase
@@ -42,7 +42,7 @@ class TerminalsTable(TableBase):
     def control(self) -> "TerminalControl":
         if self._control is None:
             self._control = TerminalControl(self.db.mainframe)
-            self._control.Show(False)
+            self._control.hide()
         return self._control
 
     def _load_database(self, splash):
@@ -466,7 +466,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return scale
 
 
-class TerminalControl(wx.Notebook):
+class TerminalControl(QTabWidget):
 
     def set_obj(self, db_obj: Terminal):
         self.db_obj = db_obj
@@ -544,7 +544,9 @@ class TerminalControl(wx.Notebook):
     def __init__(self, parent):
         self.db_obj: Terminal = None
 
-        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+        QTabWidget.__init__(self, parent)
+        self.setTabPosition(QTabWidget.TabPosition.North)
+        self.setUsesScrollButtons(True)
 
         general_page = _prop_ctrls.Category(self, 'General')
 
@@ -616,5 +618,5 @@ class TerminalControl(wx.Notebook):
             compat_parts_page,
             self.model3d_page
         ):
-            self.AddPage(page, page.GetLabel())
+            self.addTab(page, page.GetLabel())
             page.Realize()

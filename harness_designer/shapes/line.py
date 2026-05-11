@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-import wx
+from PySide6.QtGui import QPixmap, QPainter, QColor, QPen, QBrush, Qt
 
 from ..geometry import point as _point
 from ..geometry import line as _line
@@ -23,9 +23,7 @@ class Line:
         self._width = width
         self._color = color
         self._stripe_color = stripe_color
-        self._bmp = wx.NullBitmap
-        self._dc = wx.MemoryDC()
-        self._dc.SelectObject(wx.NullBitmap)
+        self._pixmap: QPixmap | None = None
         self.artist = None
 
         p1.Bind(self._update_artist)
@@ -38,7 +36,7 @@ class Line:
     @width.setter
     def width(self, value: _decimal):
         self._width = value
-        self._bmp.Destroy()
+        self._pixmap = None
         self._update_artist()
 
     @property
@@ -48,7 +46,7 @@ class Line:
     @color.setter
     def color(self, value: _color.Color):
         self._color = value
-        self._bmp.Destroy()
+        self._pixmap = None
         self._update_artist()
 
     @property
@@ -58,7 +56,7 @@ class Line:
     @stripe_color.setter
     def stripe_color(self, value: _color.Color):
         self._stripe_color = value
-        self._bmp.Destroy()
+        self._pixmap = None
         self._update_artist()
 
     @property
@@ -71,7 +69,7 @@ class Line:
         value.Bind(self._update_artist)
         self._p1 = value
 
-        self._bmp.Destroy()
+        self._pixmap = None
         self._update_artist()
 
     @property
@@ -84,11 +82,16 @@ class Line:
         value.Bind(self._update_artist)
         self._p2 = value
 
-        self._bmp.Destroy()
+        self._pixmap = None
         self._update_artist()
 
-    def _get_bmp(self):
-        if not self._bmp.IsOk():
+    @staticmethod
+    def _make_qcolor(c: _color.Color) -> QColor:
+        r, g, b, a = c
+        return QColor(int(r * 255), int(g * 255), int(b * 255), int(a * 255))
+
+    def _get_pixmap(self):
+        if self._pixmap is None:
             p2 = self._p2 - self._p1
             p2 = p2.as_int[:-1]
 
@@ -98,20 +101,20 @@ class Line:
             p2[1] += 5
             p1 = [5, 5]
 
-            buf = bytearray([0] * (int(width) * int(height) * 4))
-            bmp = wx.Bitmap.FromBufferRGBA(width, height, buf)
-            self._dc.SelectObject(bmp)
-            gcdc = wx.GCDC(self._dc)
-            gc = gcdc.GetGraphicsContext()
+            pixmap = QPixmap(int(width), int(height))
+            pixmap.fill(Qt.transparent)
 
-            gc.SetPen(wx.Pen)
-            gc.SetBrush(wx.TRANSPARENT_BRUSH)
+            painter = QPainter(pixmap)
+            painter.setRenderHint(QPainter.Antialiasing)
+            painter.setBrush(QBrush(Qt.NoBrush))
 
             line = _line.Line(self._p1, self._p2)
             line_angle = line.get_z_angle()
 
-            stripe_line = _line.Line(_point.Point(_decimal(68), _decimal(0), _decimal(0)),
-                                     _point.Point(_decimal(68 - 32), _decimal(24), _decimal(0)))
+            stripe_line = _line.Line(
+                _point.Point(_decimal(68), _decimal(0), _decimal(0)),
+                _point.Point(_decimal(68 - 32), _decimal(24), _decimal(0))
+            )
 
             stripe_angle = line_angle + stripe_line.get_z_angle()
             line_len = line.length()
@@ -119,35 +122,40 @@ class Line:
 
             wire_size = self._width
 
-            pen = wx.Pen(self._color, self._width)
-            pen.SetCap(wx.CAP_BUTT)
+            pen = QPen(self._make_qcolor(self._color), float(self._width))
+            pen.setCapStyle(Qt.FlatCap)
+            painter.setPen(pen)
 
-            gc.SetPen(pen)
-            gc.SetBrush(wx.TRANSPARENT_BRUSH)
-            gc.StrokeLine(*(line.p1.as_float[:-1] + line.p2.as_float[:-1]))
+            p1f = line.p1.as_float[:-1]
+            p2f = line.p2.as_float[:-1]
+            painter.drawLine(int(p1f[0]), int(p1f[1]), int(p2f[0]), int(p2f[1]))
 
             if self._stripe_color is not None:
                 curr_dist = 3
 
-                gc.SetPen(wx.Pen(self._stripe_color, 3))
+                stripe_pen = QPen(self._make_qcolor(self._stripe_color), 3)
+                stripe_pen.setCapStyle(Qt.FlatCap)
+                painter.setPen(stripe_pen)
 
                 while curr_dist < line_len - step - 10:
                     curr_dist += step
 
                     p = line.point_from_start(curr_dist)
-                    s1 = _line.Line(p, None, max(wire_size - 2, 1), _decimal(0.0), _decimal(0.0), stripe_angle)
-                    s2 = _line.Line(p, None, max(wire_size - 2, 1), _decimal(0.0), _decimal(0.0), stripe_angle + _decimal(180.0))
+                    s1 = _line.Line(p, None, max(wire_size - 2, 1), _decimal(0.0),
+                                    _decimal(0.0), stripe_angle)
+                    s2 = _line.Line(p, None, max(wire_size - 2, 1), _decimal(0.0),
+                                    _decimal(0.0), stripe_angle + _decimal(180.0))
 
-                    gc.StrokeLine(*(s1.p2.as_float[:-1] + s2.p2.as_float[:-1]))
+                    s1f = s1.p2.as_float[:-1]
+                    s2f = s2.p2.as_float[:-1]
+                    painter.drawLine(int(s1f[0]), int(s1f[1]),
+                                     int(s2f[0]), int(s2f[1]))
 
-            self._dc.SelectObject(wx.NullBitmap)
+            painter.end()
 
-            gcdc.Destroy()
-            del gcdc
+            self._pixmap = pixmap
 
-            self._bmp = bmp
-
-        return self._bmp
+        return self._pixmap
 
     @property
     def is_added(self):
@@ -158,10 +166,10 @@ class Line:
             return
 
         if p is not None:
-            self._bmp.Destroy()
+            self._pixmap = None
 
-        bmp = self._get_bmp()
-        self.artist.update((5, 5), bmp)
+        pixmap = self._get_pixmap()
+        self.artist.update((5, 5), pixmap)
 
     def add_to_plot(self, axes: "Editor2D") -> None:
         self.artist = axes.add_line(self)

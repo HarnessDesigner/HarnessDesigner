@@ -3,7 +3,7 @@
 from typing import Iterable as _Iterable, Union as _Union, TYPE_CHECKING
 
 import weakref
-import wx
+from PySide6.QtWidgets import QTabWidget
 
 from ...ui import prop_ctrls as _prop_ctrls
 from .pjt_bases import PJTEntryBase, PJTTableBase
@@ -521,7 +521,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return res
 
 
-class PJTCircuitControl(wx.Notebook):
+class PJTCircuitControl(QTabWidget):
 
     def _on_circuit_num(self, evt):
         num = evt.GetValue()
@@ -663,7 +663,9 @@ class PJTCircuitControl(wx.Notebook):
         self.name_choices: list[str] = []
         self.circuit_choices: list[str] = []
 
-        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+        QTabWidget.__init__(self, parent)
+        self.setTabPosition(QTabWidget.TabPosition.North)
+        self.setUsesScrollButtons(True)
 
         general_page = _prop_ctrls.Category(self, 'General')
 
@@ -678,33 +680,33 @@ class PJTCircuitControl(wx.Notebook):
 
         info_page = _prop_ctrls.Category(self, 'Info')
 
-        electrical_group = _prop_ctrls.Property(info_page, 'Electrical', orientation=wx.VERTICAL)
-        self.voltage_ctrl = _prop_ctrls.StringProperty(electrical_group, 'Voltage', units='V', style=wx.TE_READONLY)
-        self.voltage_drop_ctrl = _prop_ctrls.StringProperty(electrical_group, 'Voltage', units='V', style=wx.TE_READONLY)
-        self.total_circuit_load_ctrl = _prop_ctrls.StringProperty(electrical_group, 'Total Circuit Load', units='ma', style=wx.TE_READONLY)
-        self.total_circuit_resistance_ctrl = _prop_ctrls.StringProperty(electrical_group, 'Total Circuit Resistance', units='Ω', style=wx.TE_READONLY)
+        electrical_group = _prop_ctrls.Property(info_page, 'Electrical', orientation='vertical')
+        self.voltage_ctrl = _prop_ctrls.StringProperty(electrical_group, 'Voltage', units='V', read_only=True)
+        self.voltage_drop_ctrl = _prop_ctrls.StringProperty(electrical_group, 'Voltage', units='V', read_only=True)
+        self.total_circuit_load_ctrl = _prop_ctrls.StringProperty(electrical_group, 'Total Circuit Load', units='ma', read_only=True)
+        self.total_circuit_resistance_ctrl = _prop_ctrls.StringProperty(electrical_group, 'Total Circuit Resistance', units='Ω', read_only=True)
 
-        total_weight_group = _prop_ctrls.Property(info_page, 'Total Circuit Weight', orientation=wx.VERTICAL)
-        self.total_circuit_weight_g_ctrl = _prop_ctrls.StringProperty(total_weight_group, 'Grams', style=wx.TE_READONLY)
-        self.total_circuit_weight_lb_ctrl = _prop_ctrls.StringProperty(total_weight_group, 'Pounds', style=wx.TE_READONLY)
+        total_weight_group = _prop_ctrls.Property(info_page, 'Total Circuit Weight', orientation='vertical')
+        self.total_circuit_weight_g_ctrl = _prop_ctrls.StringProperty(total_weight_group, 'Grams', read_only=True)
+        self.total_circuit_weight_lb_ctrl = _prop_ctrls.StringProperty(total_weight_group, 'Pounds', read_only=True)
 
-        wire_length_group = _prop_ctrls.Property(info_page, 'Total Wire Length', orientation=wx.VERTICAL)
-        self.wire_length_mm_ctrl = _prop_ctrls.StringProperty(wire_length_group, 'Millimeters', style=wx.TE_READONLY)
-        self.wire_length_m_ctrl = _prop_ctrls.StringProperty(wire_length_group, 'Meters', style=wx.TE_READONLY)
-        self.wire_length_ft_ctrl = _prop_ctrls.StringProperty(wire_length_group, 'Feet', style=wx.TE_READONLY)
+        wire_length_group = _prop_ctrls.Property(info_page, 'Total Wire Length', orientation='vertical')
+        self.wire_length_mm_ctrl = _prop_ctrls.StringProperty(wire_length_group, 'Millimeters', read_only=True)
+        self.wire_length_m_ctrl = _prop_ctrls.StringProperty(wire_length_group, 'Meters', read_only=True)
+        self.wire_length_ft_ctrl = _prop_ctrls.StringProperty(wire_length_group, 'Feet', read_only=True)
 
-        wire_weight_group = _prop_ctrls.Property(info_page, 'Total Wire Weight', orientation=wx.VERTICAL)
-        self.wire_weight_g_ctrl = _prop_ctrls.StringProperty(wire_weight_group, 'Grams', style=wx.TE_READONLY)
-        self.wire_weight_lb_ctrl = _prop_ctrls.StringProperty(wire_weight_group, 'Pounds', style=wx.TE_READONLY)
+        wire_weight_group = _prop_ctrls.Property(info_page, 'Total Wire Weight', orientation='vertical')
+        self.wire_weight_g_ctrl = _prop_ctrls.StringProperty(wire_weight_group, 'Grams', read_only=True)
+        self.wire_weight_lb_ctrl = _prop_ctrls.StringProperty(wire_weight_group, 'Pounds', read_only=True)
 
-        terminal_weight_group = _prop_ctrls.Property(info_page, 'Total Terminal Weight', orientation=wx.VERTICAL)
+        terminal_weight_group = _prop_ctrls.Property(info_page, 'Total Terminal Weight', orientation='vertical')
 
-        self.terminal_weight_g_ctrl = _prop_ctrls.StringProperty(terminal_weight_group, 'Grams', style=wx.TE_READONLY)
-        self.terminal_weight_lb_ctrl = _prop_ctrls.StringProperty(terminal_weight_group, 'Pounds', style=wx.TE_READONLY)
+        self.terminal_weight_g_ctrl = _prop_ctrls.StringProperty(terminal_weight_group, 'Grams', read_only=True)
+        self.terminal_weight_lb_ctrl = _prop_ctrls.StringProperty(terminal_weight_group, 'Pounds', read_only=True)
 
-        splice_weight_group = _prop_ctrls.Property(info_page, 'Total Splice Weight', orientation=wx.VERTICAL)
-        self.splice_weight_g_ctrl = _prop_ctrls.StringProperty(splice_weight_group, 'Grams', style=wx.TE_READONLY)
-        self.splice_weight_lb_ctrl = _prop_ctrls.StringProperty(splice_weight_group, 'Pounds', style=wx.TE_READONLY)
+        splice_weight_group = _prop_ctrls.Property(info_page, 'Total Splice Weight', orientation='vertical')
+        self.splice_weight_g_ctrl = _prop_ctrls.StringProperty(splice_weight_group, 'Grams', read_only=True)
+        self.splice_weight_lb_ctrl = _prop_ctrls.StringProperty(splice_weight_group, 'Pounds', read_only=True)
 
 
 from . import pjt_wire as _pjt_wire  # NOQA

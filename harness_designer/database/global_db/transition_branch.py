@@ -2,7 +2,6 @@
 
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
-import wx
 
 from ...ui import prop_ctrls as _prop_ctrls
 from .bases import EntryBase, TableBase
@@ -304,14 +303,14 @@ class TransitionBranchControl(_prop_ctrls.Category):
 
         self.offset_ctrl = _prop_ctrls.Position2DProperty(self, 'Offset')
 
-        bulb_group = _prop_ctrls.Property(self, f'Bulb', orientation=wx.VERTICAL)
+        bulb_group = _prop_ctrls.Property(self, f'Bulb', orientation='vertical')
 
         self.bulb_offset_ctrl = _prop_ctrls.Position2DProperty(bulb_group, 'Offset')
         self.bulb_length_ctrl = _prop_ctrls.FloatProperty(
             bulb_group, 'Length',
             min_value=0.00, max_value=999.9, increment=0.01, units='mm')
 
-        size_group = _prop_ctrls.Property(bulb_group, 'Diameter', orientation=wx.VERTICAL)
+        size_group = _prop_ctrls.Property(bulb_group, 'Diameter', orientation='vertical')
 
         self.min_dia_ctrl = _prop_ctrls.FloatProperty(
             size_group, 'Minimum',
@@ -321,7 +320,7 @@ class TransitionBranchControl(_prop_ctrls.Category):
             size_group, 'Maximum',
             min_value=0.01, max_value=999.9, increment=0.01, units='mm')
 
-        flange_group = _prop_ctrls.Property(self, 'Flange', orientation=wx.VERTICAL)
+        flange_group = _prop_ctrls.Property(self, 'Flange', orientation='vertical')
 
         self.flange_height_ctrl = _prop_ctrls.FloatProperty(
             flange_group, 'Height',

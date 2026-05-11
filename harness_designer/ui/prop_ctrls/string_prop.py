@@ -8,12 +8,17 @@ from . import prop_base as _prop_base
 
 class StringProperty(_prop_base.Property):
 
-    def __init__(self, parent, label, style=0, units=None):
+    def __init__(self, parent, label, style=0, units=None, read_only=False):
         _prop_base.Property.__init__(self, parent, label)
         self._value = ''
 
         self._st = QLabel(label + ':', self)
         self._ctrl = QLineEdit(self)
+
+        # Apply read-only state: either via explicit read_only=True or legacy
+        # style=wx.TE_READONLY (integer 16) passed from unconverted call sites.
+        if read_only or style == 16:
+            self._ctrl.setReadOnly(True)
 
         self._units_st = None
         if units is not None:

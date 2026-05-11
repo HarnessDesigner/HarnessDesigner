@@ -2,7 +2,6 @@
 
 from typing import TYPE_CHECKING
 
-import wx
 from ....ui import prop_ctrls as _prop_ctrls
 
 from .base import BaseMixin
@@ -34,7 +33,7 @@ class CavityLockMixin(BaseMixin):
 class CavityLockControl(_prop_ctrls.Property):
 
     def __init__(self, parent):
-        super().__init__(parent, 'Cavity Lock', orientation=wx.VERTICAL)
+        super().__init__(parent, 'Cavity Lock', orientation='vertical')
         self.db_obj: CavityLockMixin = None
         self.choices: list[str] = []
 

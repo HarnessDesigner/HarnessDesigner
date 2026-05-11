@@ -1,8 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from PySide6.QtWidgets import QTabWidget
 from typing import Iterable as _Iterable
 
-import wx
 
 from ...ui import prop_ctrls as _prop_ctrls
 from .bases import EntryBase, TableBase
@@ -31,7 +31,7 @@ class TPALocksTable(TableBase):
     def control(self) -> "TPALockControl":
         if self._control is None:
             self._control = TPALockControl(self.db.mainframe)
-            self._control.Show(False)
+            self._control.hide()
         return self._control
 
     def _load_database(self, splash):
@@ -224,7 +224,7 @@ class TPALock(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         self._populate('lock_type')
 
 
-class TPALockControl(wx.Notebook):
+class TPALockControl(QTabWidget):
 
     # TODO: Add lock type and pins
 
@@ -248,7 +248,9 @@ class TPALockControl(wx.Notebook):
     def __init__(self, parent):
         self.db_obj: TPALock = None
 
-        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+        QTabWidget.__init__(self, parent)
+        self.setTabPosition(QTabWidget.TabPosition.North)
+        self.setUsesScrollButtons(True)
 
         general_page = _prop_ctrls.Category(self, 'General')
 
@@ -282,5 +284,5 @@ class TPALockControl(wx.Notebook):
             compat_parts_page,
             self.model3d_page
         ):
-            self.AddPage(page, page.GetLabel())
+            self.addTab(page, page.GetLabel())
             page.Realize()

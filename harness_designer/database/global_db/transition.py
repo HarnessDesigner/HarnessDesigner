@@ -1,8 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from PySide6.QtWidgets import QTabWidget
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
-import wx
 
 from ...ui import prop_ctrls as _prop_ctrls
 from .bases import EntryBase, TableBase
@@ -36,7 +36,7 @@ class TransitionsTable(TableBase):
     def control(self) -> "TransitionControl":
         if self._control is None:
             self._control = TransitionControl(self.db.mainframe)
-            self._control.Show(False)
+            self._control.hide()
         return self._control
 
     def _table_needs_update(self) -> bool:
@@ -221,16 +221,16 @@ class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyM
         self._populate('shape_id')
 
 
-class TransitionControl(wx.Notebook):
+class TransitionControl(QTabWidget):
 
     def set_obj(self, db_obj: Transition):
         if self.db_obj is not None:
             for i in range(self.branch_count_ctrl.GetValue()):
-                self.branch_page.RemovePage(i)
+                self.branch_page.removeTab(i)
 
                 branch = self.branches[i]
-                branch.Show(False)
-                branch.Reparent(self.db_obj.table.db.mainframe)
+                branch.hide()
+                branch.setParent(self.db_obj.table.db.mainframe)
 
             self.branches = []
 
@@ -260,8 +260,8 @@ class TransitionControl(wx.Notebook):
             for i, branch in enumerate(db_obj.branches):
                 branch_ctrl = db_obj.table.db.transition_branches_table.get_control(i)
                 branch_ctrl.set_obj(branch)
-                branch_ctrl.Reparent(self.branch_page)
-                self.branch_page.AddPage(branch_ctrl, branch_ctrl.GetLabel())
+                branch_ctrl.setParent(self.branch_page)
+                self.branch_page.addTab(branch_ctrl, branch_ctrl.GetLabel())
                 branch_ctrl.Realize()
                 self.branches.append(branch_ctrl)
 
@@ -284,15 +284,15 @@ class TransitionControl(wx.Notebook):
 
             branch_ctrl = self.db_obj.table.db.transition_branches_table.get_control(new_value - 1)
             branch_ctrl.set_obj(branch)
-            branch_ctrl.Reparent(self.branch_page)
-            self.branch_page.AddPage(branch_ctrl, branch_ctrl.GetLabel())
+            branch_ctrl.setParent(self.branch_page)
+            self.branch_page.addTab(branch_ctrl, branch_ctrl.GetLabel())
             branch_ctrl.Realize()
             self.branches.append(branch_ctrl)
         else:
             branch_ctrl = self.branches.pop(-1)
-            self.branch_page.RemovePage(new_value + 1)
-            branch_ctrl.Reparent(self.db_obj.table.db.mainframe)
-            branch_ctrl.Show(False)
+            self.branch_page.removeTab(new_value + 1)
+            branch_ctrl.setParent(self.db_obj.table.db.mainframe)
+            branch_ctrl.hide()
 
         self.db_obj.branch_count = new_value
 
@@ -300,7 +300,9 @@ class TransitionControl(wx.Notebook):
         self.db_obj: Transition = None
         self.branches = []
 
-        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+        QTabWidget.__init__(self, parent)
+        self.setTabPosition(QTabWidget.TabPosition.North)
+        self.setUsesScrollButtons(True)
 
         general_page = _prop_ctrls.Category(self, 'General')
 
@@ -317,7 +319,9 @@ class TransitionControl(wx.Notebook):
         self.branch_count_ctrl = _prop_ctrls.IntProperty(
             branch_page, 'Branch Count', min_value=1, max_value=6)
 
-        self.branch_page = wx.Notebook(branch_page, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+        self.branch_page = QTabWidget(branch_page)
+        self.branch_page.setTabPosition(QTabWidget.TabPosition.North)
+        self.branch_page.setUsesScrollButtons(True)
 
         self.branch_count_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_branch_count)
 
@@ -337,5 +341,5 @@ class TransitionControl(wx.Notebook):
             self.resources_page,
             branch_page
         ):
-            self.AddPage(page, page.GetLabel())
+            self.addTab(page, page.GetLabel())
             page.Realize()

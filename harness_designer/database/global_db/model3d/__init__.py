@@ -3,7 +3,7 @@
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
 import os
-import wx
+from PySide6.QtWidgets import QDialog
 import uuid
 
 from .... import resources as _resources
@@ -217,7 +217,7 @@ class Model3D(EntryBase):
         dialog = _positioning.PositioningDialog(
             self._table.db.mainframe, vertices, faces, self)
 
-        if dialog.ShowModal() == wx.OK:
+        if dialog.exec() == QDialog.Accepted:
             (
                 simplify,
                 target_count,

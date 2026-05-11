@@ -17,6 +17,7 @@ then call get() (no argument) to retrieve cached info.
 """
 
 from OpenGL import GL
+from PySide6.QtGui import QOffscreenSurface, QOpenGLContext, QSurfaceFormat
 
 
 def _safe_gl_get_string(param) -> str:
@@ -60,16 +61,10 @@ def get(parent=None):
     """
     global _info
 
-    if parent is None:
-        if _info is None:
-            raise RuntimeError(
-                "GL info has not been collected yet.  "
-                "Call gl.info.get(parent) during startup first."
-            )
+    if _info is not None:
         return _info
 
     # --- collect via offscreen surface (replaces temporary GLCanvas) ---
-    from PySide6.QtGui import QOffscreenSurface, QOpenGLContext, QSurfaceFormat
 
     fmt = QSurfaceFormat()
     fmt.setDepthBufferSize(24)

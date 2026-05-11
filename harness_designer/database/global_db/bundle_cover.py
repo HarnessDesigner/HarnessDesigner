@@ -1,8 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from PySide6.QtWidgets import QTabWidget
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
-import wx
 
 from ...ui import prop_ctrls as _prop_ctrls
 from .bases import EntryBase, TableBase
@@ -35,7 +35,7 @@ class BundleCoversTable(TableBase):
     def control(self) -> "BundleCoverControl":
         if self._control is None:
             self._control = BundleCoverControl(self.db.mainframe)
-            self._control.Show(False)
+            self._control.hide()
         return self._control
 
     def _load_database(self, splash):
@@ -274,7 +274,7 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
         self._populate('max_dia')
 
 
-class BundleCoverControl(wx.Notebook):
+class BundleCoverControl(QTabWidget):
 
     def set_obj(self, db_obj: BundleCover):
         self.db_obj = db_obj
@@ -377,7 +377,9 @@ class BundleCoverControl(wx.Notebook):
     def __init__(self, parent):
         self.db_obj: BundleCover = None
 
-        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+        QTabWidget.__init__(self, parent)
+        self.setTabPosition(QTabWidget.TabPosition.North)
+        self.setUsesScrollButtons(True)
 
         general_page = _prop_ctrls.Category(self, 'General')
 
@@ -428,5 +430,5 @@ class BundleCoverControl(wx.Notebook):
             self.temperature_page,
             self.resources_page,
         ):
-            self.AddPage(page, page.GetLabel())
+            self.addTab(page, page.GetLabel())
             page.Realize()

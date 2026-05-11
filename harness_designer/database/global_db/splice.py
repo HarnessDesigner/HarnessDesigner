@@ -1,8 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from PySide6.QtWidgets import QTabWidget
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
-import wx
 
 from ...ui import prop_ctrls as _prop_ctrls
 from .bases import EntryBase, TableBase
@@ -37,7 +37,7 @@ class SplicesTable(TableBase):
     def control(self) -> "SpliceControl":
         if self._control is None:
             self._control = SpliceControl(self.db.mainframe)
-            self._control.Show(False)
+            self._control.hide()
         return self._control
 
     def _load_database(self, splash):
@@ -240,7 +240,7 @@ class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
         self._populate('max_dia')
 
 
-class SpliceControl(wx.Notebook):
+class SpliceControl(QTabWidget):
 
     # TODO: Add splice types
 
@@ -328,7 +328,9 @@ class SpliceControl(wx.Notebook):
     def __init__(self, parent):
         self.db_obj: Splice = None
 
-        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+        QTabWidget.__init__(self, parent)
+        self.setTabPosition(QTabWidget.TabPosition.North)
+        self.setUsesScrollButtons(True)
 
         general_page = _prop_ctrls.Category(self, 'General')
 
@@ -388,5 +390,5 @@ class SpliceControl(wx.Notebook):
             self.model3d_page,
             self.wire_size_page
         ):
-            self.AddPage(page, page.GetLabel())
+            self.addTab(page, page.GetLabel())
             page.Realize()

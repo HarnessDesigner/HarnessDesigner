@@ -185,7 +185,7 @@ understand what is happening with the camera.
 
 from typing import TYPE_CHECKING
 
-import wx
+from PySide6.QtCore import QTimer
 import math
 from OpenGL import GL
 from OpenGL import GLU
@@ -331,7 +331,7 @@ class Camera:
         if self._context.is_locked:
             self._is_dirty = True
         else:
-            wx.CallAfter(self.canvas.Refresh, False)
+            QTimer.singleShot(0, self.canvas.update)
 
     @property
     def orthonormalized_axes(self):  # NOQA

@@ -2,9 +2,9 @@
 
 from typing import TYPE_CHECKING
 
-import wx
 
 from .... import utils as _utils
+from PySide6.QtWidgets import QTabWidget
 from ....ui import prop_ctrls as _prop_ctrls
 from ....gl import model_preview as _model_preview
 
@@ -195,12 +195,14 @@ class Model3DControl(_prop_ctrls.Category):
 
         super().__init__(parent, '3D Model')
 
-        self.nb = wx.Notebook(self, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+        self.nb = QTabWidget(self)
+        self.nb.setTabPosition(QTabWidget.TabPosition.North)
+        self.nb.setUsesScrollButtons(True)
 
         general_page = _prop_ctrls.Category(self.nb, 'General')
         self.path_ctrl = _prop_ctrls.PathProperty(general_page, 'Model Location')
-        self.data_path_ctrl = _prop_ctrls.StringProperty(general_page, 'DB Path', style=wx.TE_READONLY)
-        self.uuid_ctrl = _prop_ctrls.StringProperty(general_page, 'DB Path', style=wx.TE_READONLY)
+        self.data_path_ctrl = _prop_ctrls.StringProperty(general_page, 'DB Path', read_only=True)
+        self.uuid_ctrl = _prop_ctrls.StringProperty(general_page, 'DB Path', read_only=True)
 
         self.path_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_path)
 
@@ -218,9 +220,9 @@ class Model3DControl(_prop_ctrls.Category):
         self.aggressiveness_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_aggressiveness)
 
         file_type_page = _prop_ctrls.Category(self.nb, 'File Type')
-        self.name_ctrl = _prop_ctrls.StringProperty(file_type_page, 'Name', style=wx.TE_READONLY)
-        self.extension_ctrl = _prop_ctrls.StringProperty(file_type_page, 'File Extension', style=wx.TE_READONLY)
-        self.mimetype_ctrl = _prop_ctrls.StringProperty(file_type_page, 'Minetype', style=wx.TE_READONLY)
+        self.name_ctrl = _prop_ctrls.StringProperty(file_type_page, 'Name', read_only=True)
+        self.extension_ctrl = _prop_ctrls.StringProperty(file_type_page, 'File Extension', read_only=True)
+        self.mimetype_ctrl = _prop_ctrls.StringProperty(file_type_page, 'Minetype', read_only=True)
 
         self.angle3d_page = _prop_ctrls.Angle3DProperty(self.nb, '3D Angle')
         self.position3d_page = _prop_ctrls.Angle3DProperty(self.nb, '3D Position')
@@ -236,5 +238,5 @@ class Model3DControl(_prop_ctrls.Category):
             self.position3d_page,
             preview_page
         ):
-            self.nb.AddPage(page, page.GetLabel())
+            self.nb.addTab(page, page.GetLabel())
             page.Realize()

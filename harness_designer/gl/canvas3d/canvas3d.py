@@ -2,7 +2,8 @@
 
 from typing import TYPE_CHECKING
 
-import wx
+from PySide6.QtWidgets import QWidget, QVBoxLayout
+from PySide6.QtCore import QEvent, Qt, QTimer
 
 from . import canvas as _canvas
 
@@ -12,29 +13,78 @@ if TYPE_CHECKING:
     from ... import config as _config
 
 
-class Canvas3D(wx.Panel):
+class Canvas3D(QWidget):
 
     def __init__(self, parent: "_ui.MainFrame", config: "_config.Config.editor3d",
-                 size=wx.DefaultSize, axis_overlay=False):
+                 size=None, axis_overlay=False):
 
-        wx.Panel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_NONE)
+        QWidget.__init__(self, parent)
+        self.setAttribute(Qt.WA_OpaquePaintEvent)
         self._ref_count = 0
 
-        self._panel = wx.Panel(self, wx.ID_ANY, pos=(0, 0))
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
 
         self._canvas = _canvas.Canvas(
-            self._panel, config, size=size, pos=(0, 0), axis_overlay=axis_overlay)
+            self, config, axis_overlay=axis_overlay)
+        layout.addWidget(self._canvas)
 
-        self.Bind(wx.EVT_ERASE_BACKGROUND, self._on_erase_background)
-        self.Bind(wx.EVT_SIZE, self._on_size)
+        if size is not None:
+            self._canvas.resize(size)
+
         self.config = config
-        self.Bind(wx.EVT_MOUSE_CAPTURE_LOST, self.on_mouse_capture_lost)
 
-    def on_mouse_capture_lost(self, evt: wx.MouseCaptureLostEvent):
-        if self.canvas.HasCapture():
-            self.canvas.ReleaseMouse()
+    def event(self, event):
+        if event.type() == QEvent.MouseCaptureLost:
+            pass  # canvas handles its own mouse capture release
+        return QWidget.event(self, event)
 
-        evt.Skip()
+    def resizeEvent(self, event):
+        QWidget.resizeEvent(self, event)
+
+        def _do():
+            x1 = self.mapToGlobal(self.rect().topLeft()).x()
+            y1 = self.mapToGlobal(self.rect().topLeft()).y()
+            w = self.width()
+            h = self.height()
+
+            x2 = x1 + w
+            y2 = y1 + h
+            axis_overlay = self._canvas.axis_overlay
+
+            if axis_overlay is not None:
+                ao_global = axis_overlay.mapToGlobal(axis_overlay.rect().topLeft())
+                ax1 = ao_global.x()
+                ay1 = ao_global.y()
+                aw = axis_overlay.width()
+                ah = axis_overlay.height()
+
+                ax2 = ax1 + aw
+                ay2 = ay1 + ah
+
+                x = 0
+                y = 0
+
+                if ax1 < x1:
+                    x = x1
+                elif ax2 > x2:
+                    x = x2 - aw
+
+                if ay1 < y1:
+                    y = y1
+                elif ay2 > y2:
+                    y = y2 - ah
+
+                if x or y:
+                    new_local = axis_overlay.mapFromGlobal(
+                        axis_overlay.mapToGlobal(axis_overlay.rect().topLeft())
+                        .__class__(x, y)
+                    )
+                    axis_overlay.move(new_local)
+                    axis_overlay.update()
+
+        QTimer.singleShot(0, _do)
 
     @property
     def context(self):
@@ -43,50 +93,6 @@ class Canvas3D(wx.Panel):
     @property
     def camera(self):
         return self._canvas.camera
-
-    def _on_size(self, evt):
-        w, h = evt.GetSize()
-        self._panel.SetSize((w, h))
-        cw, ch = self._canvas.GetSize()
-
-        x = (w - cw) // 2
-        y = (h - ch) // 2
-
-        self._canvas.Move(x, y)
-
-        def _do():
-            x1, y1 = self.GetScreenPosition()
-            w, h = self.GetSize()
-
-            x2 = x1 + w
-            y2 = y1 + h
-            axis_overlay = self._canvas.axis_overlay
-
-            if axis_overlay is not None:
-                ax1, ay1 = axis_overlay.GetScreenPosition()
-                aw, ah = axis_overlay.GetSize()
-
-                ax2 = ax1 + aw
-                ay2 = ay1 + ah
-                if ax1 < x1:
-                    x = x1
-                elif ax2 > x2:
-                    x = x2 - aw
-                else:
-                    x = 0
-
-                if ay1 < y1:
-                    y = y1
-                elif ay2 > y2:
-                    y = y2 - ah
-                else:
-                    y = 0
-
-                if x or y:
-                    axis_overlay.SetPosition(axis_overlay.ScreenToClient((x, y)))
-                    axis_overlay.Refresh(False)
-
-        wx.CallAfter(_do)
 
     def set_selected(self, obj):
         self._canvas.set_selected(obj)
@@ -111,7 +117,7 @@ class Canvas3D(wx.Panel):
         if self._ref_count:
             return
 
-        self._canvas.Refresh(*args, **kwargs)
+        self._canvas.update()
 
     def Truck(self, delta) -> None:
         self._canvas.TruckPedestal(delta, 0.0)
@@ -142,6 +148,3 @@ class Canvas3D(wx.Panel):
 
     def PanTilt(self, pan_delta, tilt_delta):
         self._canvas.PanTilt(pan_delta, tilt_delta)
-
-    def _on_erase_background(self, _):
-        pass

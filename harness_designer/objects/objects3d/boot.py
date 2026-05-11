@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-import wx
+from PySide6.QtWidgets import QMenu
 
 from ...ui.widgets import context_menus as _context_menus
 from ...geometry import point as _point
@@ -63,43 +63,42 @@ class Boot(_base3d.Base3D):
         return BootMenu(self.mainframe.editor3d.editor, self)
 
 
-class BootMenu(wx.Menu):
+class BootMenu(QMenu):
 
     def __init__(self, canvas, selected):
-        wx.Menu.__init__(self)
+        QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
 
         rotate_menu = _context_menus.Rotate3DMenu(canvas, selected)
-
-        self.AppendSubMenu(rotate_menu, 'Rotate')
+        self.addMenu(rotate_menu)
 
         mirror_menu = _context_menus.Mirror3DMenu(canvas, selected)
-        self.AppendSubMenu(mirror_menu, 'Mirror')
+        self.addMenu(mirror_menu)
 
-        self.AppendSeparator()
-        item = self.Append(wx.ID_ANY, 'Select')
-        canvas.Bind(wx.EVT_MENU, self.on_select, id=item.GetId())
+        self.addSeparator()
+        action = self.addAction('Select')
+        action.triggered.connect(self.on_select)
 
-        item = self.Append(wx.ID_ANY, 'Clone')
-        canvas.Bind(wx.EVT_MENU, self.on_clone, id=item.GetId())
+        action = self.addAction('Clone')
+        action.triggered.connect(self.on_clone)
 
-        self.AppendSeparator()
-        item = self.Append(wx.ID_ANY, 'Delete')
-        canvas.Bind(wx.EVT_MENU, self.on_delete, id=item.GetId())
+        self.addSeparator()
+        action = self.addAction('Delete')
+        action.triggered.connect(self.on_delete)
 
-        self.AppendSeparator()
-        item = self.Append(wx.ID_ANY, 'Properties')
-        canvas.Bind(wx.EVT_MENU, self.on_properties, id=item.GetId())
+        self.addSeparator()
+        action = self.addAction('Properties')
+        action.triggered.connect(self.on_properties)
 
-    def on_select(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_select(self):
+        pass
 
-    def on_clone(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_clone(self):
+        pass
 
-    def on_delete(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_delete(self):
+        pass
 
-    def on_properties(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_properties(self):
+        pass

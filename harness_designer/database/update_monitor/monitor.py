@@ -1,11 +1,11 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from PySide6.QtCore import QTimer
 from typing import TYPE_CHECKING
 
 import multiprocessing
 import threading
 import os
-import wx
 import json
 
 from . import manager as _manager
@@ -343,13 +343,13 @@ class Monitor(threading.Thread):
                     table_name = message['type'].replace('update_', '')
                     db_id = message['data']
 
-                    wx.CallAfter(self.mainframe.project.update_objects, table_name, db_id)
+                    QTimer.singleShot(0, lambda tn=table_name, di=db_id: self.mainframe.project.update_objects(tn, di))
 
                 elif message['type'].startswith('remove_'):
                     table_name = message['type'].replace('remove_', '')
                     db_id = message['data']
 
-                    wx.CallAfter(self.mainframe.project.update_objects, table_name, db_id)
+                    QTimer.singleShot(0, lambda tn=table_name, di=db_id: self.mainframe.project.update_objects(tn, di))
 
             with self.queue_lock:
                 messages = self.queue[:]

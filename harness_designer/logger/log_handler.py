@@ -1,6 +1,5 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-import wx
 import platform
 from .. import config as _config
 import datetime
@@ -248,30 +247,6 @@ class Log(object):
             f'[{platform.python_compiler()}]'
         )
         self.info('\n', '----------------------------------------', '\n')
-
-        # redirect all wxPython error messages to our log
-        class MyLog(wx.Log):
-
-            def DoLog(self, level, msg, _):  # NOQA
-
-                if level >= 6:
-                    return
-
-                if Config.log_wx_error:
-                    msg = msg.split('\n')
-
-                    log_entry = build_message(
-                        WX_ERROR, (f'({level})  {msg[0]}',))
-
-                    _stderr.write_log(log_entry)
-
-                    for line in msg[1:]:
-                        log_entry = build_message(
-                            WX_ERROR, (f'     {line}',))
-
-                        _stderr.write_log(log_entry)
-
-        wx.Log.SetActiveTarget(MyLog())  # NOQA
 
         from ..import logger as _logger
         _logger.logger = self

@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 import weakref
-import wx
+from PySide6.QtWidgets import QTabWidget
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..global_db import boot as _boot
@@ -38,7 +38,7 @@ class PJTBootsTable(PJTTableBase):
     @classmethod
     def start_control(cls, mainframe):
         cls._control = PJTBootControl(mainframe)
-        cls._control.Show(False)
+        cls._control.hide()
 
     def get_from_position3d_id(self, position3d_id) -> "PJTBoot":
         rows = self.select('id', position3d_id=position3d_id)
@@ -130,7 +130,7 @@ class PJTBoot(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin,
         return self._stored_part
 
 
-class PJTBootControl(wx.Notebook):
+class PJTBootControl(QTabWidget):
 
     def set_obj(self, db_obj: PJTBoot):
         self.db_obj = db_obj
@@ -149,7 +149,9 @@ class PJTBootControl(wx.Notebook):
     def __init__(self, parent):
         self.db_obj: PJTBoot = None
 
-        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_MULTILINE)
+        QTabWidget.__init__(self, parent)
+        self.setTabPosition(QTabWidget.TabPosition.North)
+        self.setUsesScrollButtons(True)
 
         general_page = _prop_ctrls.Category(self, 'General')
         self.name_ctrl = NameControl(general_page)
@@ -177,5 +179,5 @@ class PJTBootControl(wx.Notebook):
             visible_page,
             part_page
         ):
-            self.AddPage(page, page.GetLabel())
+            self.addTab(page, page.GetLabel())
             page.Realize()
