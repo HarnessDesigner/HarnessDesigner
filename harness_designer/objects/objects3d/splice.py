@@ -1,3 +1,4 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from typing import TYPE_CHECKING
 
@@ -15,6 +16,7 @@ from ...gl import vbo as _vbo
 from ...gl import materials as _materials
 from ... import config as _config
 from ... import utils as _utils
+
 
 if TYPE_CHECKING:
     from ...database.project_db import pjt_splice as _pjt_splice

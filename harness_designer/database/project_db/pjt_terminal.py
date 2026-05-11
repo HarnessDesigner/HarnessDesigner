@@ -1,14 +1,16 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 import weakref
 import wx
 
 from ...ui import prop_ctrls as _prop_ctrls
-
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from . import pjt_seal as _pjt_seal
 from . import pjt_circuit as _pjt_circuit
 from ..global_db import terminal as _terminal
+from ... import logger as _logger
 from .mixins import (
     Angle3DMixin, Angle3DControl,
     Angle2DMixin, Angle2DControl,
@@ -23,11 +25,8 @@ from .mixins import (
 )
 
 
-from ... import logger as _logger
-
 if TYPE_CHECKING:
     from . import pjt_cavity as _pjt_cavity
-
     from ...objects import terminal as _terminal_obj
 
 

@@ -1,14 +1,15 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 import wx
 import sqlite3
 import weakref
 import threading
-
 import os
+
 from . import utils as _utils
 
-CONNECTOR_SQLITE = 0
 
+CONNECTOR_SQLITE = 0
 
 _lock = threading.RLock()
 
@@ -570,6 +571,20 @@ class Config(metaclass=ConfigDB):
 
     class colors(metaclass=ConfigDB):
         custom_colors = ''
+
+        class add_object(metaclass=ConfigDB):
+            preview_color = [0.5, 0.85, 1.0, 0.45]
+
+            terminal_highlight = [1.0, 0.8, 0.0, 0.6]
+            housing_highlight = [1.0, 0.0, 0.8, 0.6]
+
+            transition_highlight = [0.8, 1.0, 0.0, 0.6]
+            bundle_highlight = [0.8, 0.0, 1.0, 0.6]
+
+            wire_highlight = [0.0, 1.0, 0.8, 0.6]
+            cavity_highlight = [0.0, 0.8, 1.0, 0.6]
+
+            splice_highlight = [0.0, 0.8, 1.0, 0.6]
 
     class database(metaclass=ConfigDB):
         connector = CONNECTOR_SQLITE

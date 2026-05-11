@@ -1,4 +1,6 @@
-import wx
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
+from PySide6.QtWidgets import QCheckBox, QLabel, QHBoxLayout
 
 from . import prop_base as _prop_base
 
@@ -9,30 +11,30 @@ class BoolProperty(_prop_base.Property):
         _prop_base.Property.__init__(self, parent, label)
         self._value = False
 
-        self._st = wx.StaticText(self, wx.ID_ANY, label=label + ':')
-        self._ctrl = wx.CheckBox(self, wx.ID_ANY, label='')
+        row = QHBoxLayout()
+        row.setContentsMargins(5, 2, 5, 2)
+        self._st = QLabel(label + ':', self)
+        self._ctrl = QCheckBox('', self)
 
-        self._ctrl.Bind(wx.EVT_CHECKBOX, self._on_change)
+        row.addWidget(self._st)
+        row.addWidget(self._ctrl)
+        row.addStretch(1)
+        self._sizer.addLayout(row)
 
-    def Realize(self):
-        hsizer = wx.BoxSizer(wx.HORIZONTAL)
-
-        hsizer.Add(self._st, 0, wx.ALL | wx.ALIGN_CENTER, 5)
-        hsizer.Add(self._ctrl, 0, wx.ALL, 5)
-
-        self._sizer.Add(hsizer, 0, wx.EXPAND)
+        self._ctrl.checkStateChanged.connect(self._on_change)
 
     def _on_change(self, _):
-        value = self._ctrl.GetValue()
-
+        value = self._ctrl.isChecked()
         if value == self._value:
             return
-
         self._value = value
-        self._send_changed_event(str, value)
+        self._send_changed_event(bool, value)
 
     def SetValue(self, value: bool):
-        self._ctrl.SetValue(value)
+        self._value = value
+        self._ctrl.blockSignals(True)
+        self._ctrl.setChecked(value)
+        self._ctrl.blockSignals(False)
 
     def GetValue(self) -> bool:
-        return self._ctrl.GetValue()
+        return self._ctrl.isChecked()

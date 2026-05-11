@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -5,7 +7,6 @@ import wx
 import sys
 import os
 import math
-
 from OCP.TopAbs import TopAbs_REVERSED
 from OCP.BRep import BRep_Tool
 from OCP.BRepMesh import BRepMesh_IncrementalMesh

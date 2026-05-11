@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
 from . import ObjectBase as _ObjectBase
@@ -10,6 +12,7 @@ from . import cpa_lock as _cpa_lock
 from . import seal as _seal
 from . import cover as _cover
 from . import boot as _boot
+
 
 if TYPE_CHECKING:
     from .. import ui as _ui

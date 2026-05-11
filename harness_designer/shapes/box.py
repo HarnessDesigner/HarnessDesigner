@@ -1,10 +1,10 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-import math
 import numpy as np
 
 from .. import utils as _utils
-
 from ..gl import vbo as _vbo_handler
+
 
 _vbo: _vbo_handler.VBOHandler = None
 

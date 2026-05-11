@@ -1,70 +1,67 @@
-import wx
-import io
-import os
-import uuid
-import tempfile
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from wx.lib.pdfviewer import pdfViewer, pdfButtonPanel
+import os
+
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QSizePolicy
+from PySide6.QtCore import Qt, QPoint, QTimer
+from PySide6.QtGui import QPixmap, QPainter, QTransform, QCursor
 
 from ... import image as _image
 
 
-class ImageViewer(wx.Panel):
+class ImageViewer(QWidget):
 
     def __init__(self, parent, img):
-        wx.Panel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_NONE)
+        QWidget.__init__(self, parent)
 
-        self.bmp = wx.Bitmap(img)
+        self.pixmap = QPixmap(img)
         self.filename = None
 
         self.scale = 1.0
 
-        self.Bind(wx.EVT_MOUSEWHEEL, self.on_mouse_wheel)
-        self.Bind(wx.EVT_CLOSE, self.on_close)
-
         self.hand_cursor = _image.cursors.hand.cursor
         self.grab_cursor = _image.cursors.grab.cursor
 
-        self.SetCursor(self.hand_cursor)
+        self.setCursor(self.hand_cursor)
 
-        self.Bind(wx.EVT_LEFT_DOWN, self.on_left_down)
-        self.Bind(wx.EVT_LEFT_UP, self.on_left_up)
-        self.Bind(wx.EVT_MOTION, self.on_motion)
-        self.coords = [0, 0]
+        self.coords = QPoint(0, 0)
         self.offset_x = 0
         self.offset_y = 0
 
-        self.Bind(wx.EVT_ERASE_BACKGROUND, self.on_erase_background)
+        self.setMouseTracking(True)
+        self._dragging = False
 
-    def on_left_down(self, evt):
-        if not self.HasCapture():
-            self.CaptureMouse()
-            self.SetCursor(self.grab_cursor)
-            x, y = evt.GetPosition()
-            self.coords = [x, y]
+    def mousePressEvent(self, evt):
+        if evt.button() == Qt.LeftButton and not self._dragging:
+            self._dragging = True
+            self.grabMouse()
+            self.setCursor(self.grab_cursor)
+            self.coords = evt.position().toPoint()
 
-    def on_left_up(self, evt):
-        if self.HasCapture():
-            self.SetCursor(self.hand_cursor)
-            self.ReleaseMouse()
-            self.coords = [0, 0]
+    def mouseReleaseEvent(self, evt):
+        if evt.button() == Qt.LeftButton and self._dragging:
+            self._dragging = False
+            self.releaseMouse()
+            self.setCursor(self.hand_cursor)
+            self.coords = QPoint(0, 0)
 
-        evt.Skip()
+    def mouseMoveEvent(self, evt):
+        if self._dragging:
+            pos = evt.position().toPoint()
+            x1, y1 = pos.x(), pos.y()
+            x2, y2 = self.coords.x(), self.coords.y()
 
-    def on_motion(self, evt):
-        if self.HasCapture():
-            x1, y1 = evt.GetPosition()
-            x2, y2 = self.coords
-
-            self.coords = [x1, y1]
+            self.coords = pos
 
             diff_x = x2 - x1
             diff_y = y2 - y1
             self.offset_x += diff_x
             self.offset_y += diff_y
 
-            w, h = self.bmp.GetSize()
-            cw, ch = self.GetClientSize()
+            w = self.pixmap.width()
+            h = self.pixmap.height()
+            cw = self.width()
+            ch = self.height()
 
             if self.offset_x > 0:
                 self.offset_x = 0
@@ -76,100 +73,144 @@ class ImageViewer(wx.Panel):
             elif self.offset_y < ch - h:
                 self.offset_y = ch - h
 
-            def _do():
-                self.Update()
-                self.Refresh()
+            QTimer.singleShot(0, self.update)
 
-            wx.CallAfter(_do)
-        evt.Skip()
+    def wheelEvent(self, evt):
+        self.scale += evt.angleDelta().y() / 8000.0
+        QTimer.singleShot(0, self.update)
 
-    def on_mouse_wheel(self, evt: wx.MouseEvent):
-        self.scale += evt.GetWheelDelta() / 8000.0
+    def paintEvent(self, evt):
+        painter = QPainter(self)
+        painter.fillRect(self.rect(), Qt.black)
 
-        def _do():
-            self.Update()
-            self.Refresh()
+        cw = self.width()
+        ch = self.height()
+        w = self.pixmap.width()
+        h = self.pixmap.height()
 
-        wx.CallAfter(_do)
+        x = 0 if w >= cw else int((cw - w) / 2)
+        y = 0 if h >= ch else int((ch - h) / 2)
 
-        evt.Skip()
+        painter.setTransform(QTransform().scale(self.scale, self.scale))
+        painter.drawPixmap(x + self.offset_x, y + self.offset_y, self.pixmap)
+        painter.end()
 
-    def on_erase_background(self, _):
-        pass
-
-    def on_paint(self, evt):
-        dc = wx.BufferedPaintDC(self)
-        dc.Clear()
-
-        gcdc = wx.GCDC(dc)
-
-        cw, ch = self.GetClientSize()
-        w, h = self.bmp.GetSize()
-
-        if w >= cw:
-            x = 0
-        else:
-            x = int((cw - w) / 2)
-
-        if h >= ch:
-            y = 0
-
-        else:
-            y = int((ch - h) / 2)
-
-        gcdc.SetUserScale(self.scale, self.scale)
-
-        gcdc.DrawBitmap(self.bmp, x + self.offset_x, y + self.offset_y)
-        gcdc.Destroy()
-        del gcdc
-
-        evt.Skip()
-
-    def on_close(self, evt):
-        self.bmp.Destroy()
-
+    def closeEvent(self, evt):
         if self.filename is not None:
             os.remove(self.filename)
+        evt.accept()
 
-        evt.Skip()
 
-
-class PDFViewer(wx.Panel):
+class PDFViewer(QWidget):
 
     def __init__(self, parent, pdf_file):
+        QWidget.__init__(self, parent)
 
-        wx.Panel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_NONE)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(5, 5, 5, 5)
 
-        vsizer = wx.BoxSizer(wx.VERTICAL)
+        # Try native QPdfView first (Qt 6.4+), fall back to pymupdf rendering
+        try:
+            from PySide6.QtPdf import QPdfDocument
+            from PySide6.QtPdfWidgets import QPdfView
 
-        self.buttonpanel = pdfButtonPanel(self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, 0)
-        vsizer.Add(self.buttonpanel, 0, wx.GROW | wx.LEFT | wx.RIGHT | wx.TOP, 5)
+            self._doc = QPdfDocument(self)
+            self._doc.load(pdf_file)
 
-        self.viewer = pdfViewer(self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.HSCROLL | wx.VSCROLL | wx.SUNKEN_BORDER)
-        vsizer.Add(self.viewer, 1, wx.GROW | wx.LEFT | wx.RIGHT | wx.BOTTOM, 5)
-        self.SetSizer(vsizer)
+            self._view = QPdfView(self)
+            self._view.setDocument(self._doc)
+            self._view.setPageMode(QPdfView.PageMode.MultiPage)
+            self._view.setZoomMode(QPdfView.ZoomMode.FitInView)
 
-        self.buttonpanel.viewer = self.viewer
-        self.viewer.buttonpanel = self.buttonpanel
+            # Navigation toolbar using standard Qt actions
+            from PySide6.QtWidgets import QToolBar, QAction, QSpinBox, QLabel
+            toolbar = QToolBar(self)
+            toolbar.setMovable(False)
 
-        wx.BeginBusyCursor()
-        self.viewer.LoadFile(pdf_file)
-        wx.EndBusyCursor()
+            self._page_spin = QSpinBox(self)
+            self._page_spin.setMinimum(1)
+            self._page_spin.setMaximum(max(1, self._doc.pageCount()))
+            self._page_spin.valueChanged.connect(self._go_to_page)
+
+            toolbar.addWidget(QLabel("Page:", self))
+            toolbar.addWidget(self._page_spin)
+            toolbar.addWidget(QLabel(f"of {self._doc.pageCount()}", self))
+
+            act_zoom_in = QAction("Zoom In", self)
+            act_zoom_in.triggered.connect(lambda: self._zoom(1.25))
+            act_zoom_out = QAction("Zoom Out", self)
+            act_zoom_out.triggered.connect(lambda: self._zoom(0.8))
+            toolbar.addAction(act_zoom_in)
+            toolbar.addAction(act_zoom_out)
+
+            layout.addWidget(toolbar)
+            layout.addWidget(self._view, 1)
+            self._zoom_factor = 1.0
+
+        except ImportError:
+            # Fall back to pymupdf page rendering into a scrollable label
+            self._load_with_pymupdf(pdf_file, layout)
+
+    def _go_to_page(self, page_number):
+        # QPdfView.PageNavigator is available via navigator()
+        try:
+            self._view.pageNavigator().jump(page_number - 1, QPoint())
+        except Exception:
+            pass
+
+    def _zoom(self, factor):
+        self._zoom_factor *= factor
+        try:
+            self._view.setZoomFactor(self._zoom_factor)
+        except Exception:
+            pass
+
+    def _load_with_pymupdf(self, pdf_file, layout):
+        try:
+            import fitz  # pymupdf
+            from PySide6.QtWidgets import QScrollArea
+            from PySide6.QtGui import QImage
+
+            doc = fitz.open(pdf_file)
+            scroll = QScrollArea(self)
+            scroll.setWidgetResizable(True)
+            container = QWidget()
+            vbox = QVBoxLayout(container)
+            vbox.setSpacing(4)
+
+            for page in doc:
+                mat = fitz.Matrix(1.5, 1.5)
+                pix = page.get_pixmap(matrix=mat)
+                img = QImage(pix.samples, pix.width, pix.height,
+                             pix.stride, QImage.Format.Format_RGB888)
+                lbl = QLabel()
+                lbl.setPixmap(QPixmap.fromImage(img))
+                lbl.setAlignment(Qt.AlignCenter)
+                vbox.addWidget(lbl)
+
+            scroll.setWidget(container)
+            layout.addWidget(scroll, 1)
+
+        except ImportError:
+            # Last resort: plain label
+            lbl = QLabel(f"PDF viewer unavailable.\nInstall PySide6-QtPdf or pymupdf to view:\n{pdf_file}", self)
+            lbl.setAlignment(Qt.AlignCenter)
+            lbl.setWordWrap(True)
+            layout.addWidget(lbl, 1)
 
 
-class DatasheetViewer(wx.Panel):
+class DatasheetViewer(QWidget):
     def __init__(self, parent, datasheet):
-        wx.Panel.__init__(self, parent, wx.ID_ANY)
+        QWidget.__init__(self, parent)
 
-        sizer = wx.BoxSizer(wx.VERTICAL)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(10, 10, 10, 10)
 
-        format_type = os.path.splitext(datasheet)[-1][1:]
+        format_type = os.path.splitext(datasheet)[-1][1:].lower()
 
         if format_type == 'pdf':
             ctrl = PDFViewer(self, datasheet)
         else:
             ctrl = ImageViewer(self, datasheet)
 
-        sizer.Add(ctrl, 0, wx.ALL, 10)
-
-        self.SetSizer(sizer)
+        layout.addWidget(ctrl, 1)

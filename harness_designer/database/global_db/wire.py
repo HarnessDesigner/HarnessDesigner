@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
 import wx
@@ -5,7 +7,6 @@ import wx
 from ... import utils as _utils
 from ...ui import prop_ctrls as _prop_ctrls
 from .bases import EntryBase, TableBase
-
 from .mixins import (
     PartNumberMixin, PartNumberControl,
     ManufacturerMixin, ManufacturerControl,

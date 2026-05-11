@@ -1,3 +1,4 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from typing import TYPE_CHECKING
 
@@ -7,7 +8,6 @@ from ...geometry import point as _point
 from ...geometry import angle as _angle
 from . import base2d as _base2d
 from ...ui.widgets import context_menus as _context_menus
-
 
 
 if TYPE_CHECKING:

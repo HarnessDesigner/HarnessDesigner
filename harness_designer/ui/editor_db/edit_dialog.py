@@ -1,7 +1,11 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
-import wx
+from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QDialogButtonBox
+
 from ..dialogs import dialog_base as _dialog_base
+
 
 if TYPE_CHECKING:
     from ... import ui as _ui
@@ -10,16 +14,17 @@ if TYPE_CHECKING:
 class EditDialog(_dialog_base.BaseDialog):
 
     def __init__(self, parent: "_ui.MainFrame", title, db_obj):
-        super().__init__(parent, title=title, button_ids=wx.OK)
+        super().__init__(parent, title=title, button_ids=QDialogButtonBox.Ok)
 
         control = db_obj.table.control
-        control.Reparent(self.panel)
-        hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        vsizer = wx.BoxSizer(wx.VERTICAL)
-        hsizer.Add(control, 1, wx.EXPAND)
-        vsizer.Add(hsizer, 1, wx.EXPAND)
+        control.setParent(self.panel)
 
-        self.panel.SetSizer(vsizer)
+        hsizer = QHBoxLayout()
+        vsizer = QVBoxLayout()
+        hsizer.addWidget(control, 1)
+        vsizer.addLayout(hsizer, 1)
+
+        self.panel.setLayout(vsizer)
 
         control.set_obj(db_obj)
         self.control = control
@@ -28,7 +33,6 @@ class EditDialog(_dialog_base.BaseDialog):
 
     def Destroy(self):
         self.control.set_obj(None)
-        self.control.Reparent(self.mainframe)
-        self.control.Show(False)
-
-        super().Destroy()
+        self.control.setParent(self.mainframe)
+        self.control.hide()
+        super().deleteLater()

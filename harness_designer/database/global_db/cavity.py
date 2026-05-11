@@ -1,13 +1,16 @@
-import uuid
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
 import wx
+import uuid
 
 from ...ui import prop_ctrls as _prop_ctrls
 from .bases import EntryBase, TableBase
 from .mixins import NameMixin, DimensionMixin, DimensionControl
 from ...geometry import point as _point
 from ...geometry import angle as _angle
+
 
 if TYPE_CHECKING:
     from . import housing as _housing

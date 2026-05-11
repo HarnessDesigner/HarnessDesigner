@@ -1,17 +1,23 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
 from . import handler_base as _handler_base
-
 from ..geometry import point as _point
 from ..gl.canvas3d import object_picker as _object_picker
 from ..objects import bundle_layout as _bundle_layout
 from ..objects import bundle as _bundle
-
 from .. import utils as _utils
+from ..gl import materials as _materials
+from .. import config as _config
+
 
 if TYPE_CHECKING:
     from ..gl.canvas3d import camera as _camera
     from .. import ui as _ui
+
+
+Config = _config.Config.colors
 
 
 def _create_bundle_layout_at_endpoint(
@@ -127,29 +133,18 @@ def _get_bundle_at_mouse(mouse_pos: _point.Point, camera: "_camera.Camera"):
     return None
 
 
-class BundleLayoutPlacementHandler(_handler_base.HandlerBase):
-    """
-    Manages interactive bundle layout (handle) placement on bundles.
-
-    Key Behaviors:
-    1. At bundle endpoint: Creates layout using existing Point (no bundle split)
-    2. Mid-bundle: Creates NEW Point shared by layout and split bundle segments
-    3. Point sharing enables automatic updates via callback system
-    4. Visual properties (color, diameter) match attached bundle
-
-    The Point callback chain:
-    - User drags BundleLayout
-    - BundleLayout._position updates (it's a Point instance)
-    - Point triggers callbacks to all bound objects
-    - Connected bundle endpoints receive update
-    - Bundles recalculate their geometry automatically
-    """
-
+class AddBundleLayoutHandler(_handler_base.HandlerBase):
     obj: _bundle_layout.BundleLayout = None
 
     def __init__(self, mainframe: "_ui.MainFrame"):
         super().__init__(mainframe, None)
+        self._preview_material = _materials.Plastic(Config.add_object.preview_color)
+        self._highlight_material = _materials.Plastic(Config.add_object.bundle_highlight)
+
         self.bundle: _bundle.Bundle = None
+
+    def release_capture(self) -> None:
+        raise NotImplementedError
 
     def hover(self, mouse_pos: _point.Point):
         bundle = _get_bundle_at_mouse(mouse_pos, self.camera)

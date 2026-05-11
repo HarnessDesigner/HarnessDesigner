@@ -1,6 +1,1 @@
-from . import add_housing as _add_housing
-
-
-AddHousingDialog = _add_housing.AddHousingDialog
-
-del _add_housing
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>

@@ -6,6 +6,8 @@
 # cython: initializedcheck=False
 # cython: nonecheck=False
 
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 """
 Fast BVH (Bounding Volume Hierarchy) builder for ray tracing
 Optimized with Cython for maximum performance

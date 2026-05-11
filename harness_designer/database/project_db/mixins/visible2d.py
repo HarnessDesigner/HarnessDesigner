@@ -1,3 +1,4 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from ....ui import prop_ctrls as _prop_ctrls
 from .base import BaseMixin

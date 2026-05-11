@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -6,12 +8,12 @@ from OpenGL import GL
 from ...shapes import arrow as _arrow
 from ...objects.objects3d import base3d as _base3d
 from ...objects.objects2d import base2d as _base2d
-
 from ...objects import object_base as _object_base
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ...gl import materials as _materials
 from ... import color as _color
+
 
 if TYPE_CHECKING:
     from ... import ui as _ui

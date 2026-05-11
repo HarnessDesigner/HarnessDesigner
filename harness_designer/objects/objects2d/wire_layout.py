@@ -1,3 +1,4 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from typing import TYPE_CHECKING
 
@@ -5,6 +6,7 @@ import wx
 from OpenGL import GL
 
 from . import base2d as _base2d
+
 
 if TYPE_CHECKING:
     from ...database.project_db import pjt_wire_layout as _pjt_wire_layout

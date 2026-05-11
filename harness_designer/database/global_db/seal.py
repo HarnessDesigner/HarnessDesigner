@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 import uuid
@@ -6,7 +8,6 @@ import wx
 from ...ui import prop_ctrls as _prop_ctrls
 from .bases import EntryBase, TableBase
 from ...geometry import point as _point
-
 from .mixins import (
     PartNumberMixin, PartNumberControl,
     ManufacturerMixin, ManufacturerControl,
@@ -22,8 +23,8 @@ from .mixins import (
     DimensionMixin, DimensionControl,
     CompatHousingsMixin, CompatHousingsControl,
     CompatTerminalsMixin, CompatTerminalsControl
-
 )
+
 
 if TYPE_CHECKING:
     from . import seal_type as _seal_type

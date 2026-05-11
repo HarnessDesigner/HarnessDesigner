@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from ... import utils as _utils
 from ... import color as _color
 from . import material as _material

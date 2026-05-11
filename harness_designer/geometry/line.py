@@ -1,10 +1,13 @@
-from typing import Iterable as _Iterable
-import math
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import Iterable as _Iterable
+
+import math
 import numpy as np
 
 from . import point as _point
 from . import angle as _angle
+
 
 ZERO_5 = 0.5
 

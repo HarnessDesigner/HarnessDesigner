@@ -1,8 +1,10 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 import build123d
-from .. import utils as _utils
 
+from .. import utils as _utils
 from ..gl import vbo as _vbo_handler
+
 
 _vbo: _vbo_handler.VBOHandler = None
 

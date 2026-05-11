@@ -1,6 +1,9 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
-import wx
+from PySide6.QtWidgets import QMenuBar
+
 from . import file as _file
 from . import edit as _edit
 from . import database as _database
@@ -14,29 +17,29 @@ if TYPE_CHECKING:
     from ... import ui as _ui
 
 
-class SystemMenu(wx.MenuBar):
+class SystemMenu(QMenuBar):
 
     def __init__(self, mainframe: "_ui.MainFrame"):
+        super().__init__(mainframe)
         self.mainframe = mainframe
-        wx.MenuBar.__init__(self)
 
-        self.file = _file.FileMenu(self.mainframe)
-        self.file_menu = self.Append(self.file, "File")
+        self.file = _file.FileMenu(mainframe)
+        self.addMenu(self.file)
 
-        self.edit = _edit.EditMenu(self.mainframe)
-        self.edit_menu = self.Append(self.edit, "Edit")
+        self.edit = _edit.EditMenu(mainframe)
+        self.addMenu(self.edit)
 
-        self.view = _view.ViewMenu(self.mainframe)
-        self.view_menu = self.Append(self.view, "View")
+        self.view = _view.ViewMenu(mainframe)
+        self.addMenu(self.view)
 
-        self.database = _database.DatabaseMenu(self.mainframe)
-        self.database_menu = self.Append(self.database, "Database")
+        self.database = _database.DatabaseMenu(mainframe)
+        self.addMenu(self.database)
 
-        self.settings = _settings.SettingsMenu(self.mainframe)
-        self.settings_menu = self.Append(self.settings, "Settings")
+        self.settings = _settings.SettingsMenu(mainframe)
+        self.addMenu(self.settings)
 
-        self.window = _window.WindowMenu(self.mainframe)
-        self.window_menu = self.Append(self.window, "Window")
+        self.window = _window.WindowMenu(mainframe)
+        self.addMenu(self.window)
 
-        self.help = _help.HelpMenu(self.mainframe)
-        self.help_menu = self.Append(self.help, "Help")
+        self.help = _help.HelpMenu(mainframe)
+        self.addMenu(self.help)

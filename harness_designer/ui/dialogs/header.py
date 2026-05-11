@@ -1,45 +1,50 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-import wx
+from PySide6.QtWidgets import QWidget, QLabel, QSizePolicy
+from PySide6.QtGui import QPixmap, QPainter, QFont, QColor, QFontMetrics
+from PySide6.QtCore import Qt
+
 from ... import image as _image
 
 
-class Header(wx.Panel):
+class Header(QWidget):
 
     def __init__(self, parent, label):
-        self.bitmap = wx.Bitmap(_image.images.header.bitmap)
+        super().__init__(parent)
+        self.setFrameShape = lambda *a: None  # compat stub
 
-        wx.Panel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_SUNKEN)
+        # Load the header pixmap from the image module.
+        # _image.images.header is expected to expose .pixmap (a QPixmap)
+        # as converted in the image module. Fall back gracefully if not yet
+        # converted.
+        src = _image.images.header
+        if hasattr(src, 'pixmap'):
+            base_pixmap = QPixmap(src.pixmap)
+        else:
+            # image module not yet converted - create a solid-colour stand-in
+            base_pixmap = QPixmap(300, 40)
+            base_pixmap.fill(QColor(220, 230, 240))
 
-        font = self.GetFont()
-        t_width, t_height = self.GetTextExtent(label)
-        while t_width < 273 and t_height < 25:
-            psize = font.GetPointSize()
-            font.SetPointSize(psize + 1)
-            self.SetFont(font)
-            t_width, t_height = self.GetTextExtent(label)
+        # Find the best font size so the label fits in roughly 273x25 px.
+        font = QFont(self.font())
+        font.setItalic(True)
+        for size in range(6, 32):
+            font.setPointSize(size)
+            fm = QFontMetrics(font)
+            r = fm.boundingRect(label)
+            if r.width() > 273 or r.height() > 25:
+                font.setPointSize(max(6, size - 1))
+                break
 
-        while t_width > 273 or t_height > 25:
-            psize = font.GetPointSize()
-            font.SetPointSize(psize - 1)
-            self.SetFont(font)
-            t_width, t_height = self.GetTextExtent(label)
+        # Composite the label text onto a copy of the base pixmap.
+        pixmap = QPixmap(base_pixmap)
+        painter = QPainter(pixmap)
+        painter.setFont(font)
+        painter.setPen(QColor(0, 0, 0))
+        painter.drawText(12, 6 + QFontMetrics(font).ascent(), label)
+        painter.end()
 
-        font.MakeItalic()
-
-        dc = wx.MemoryDC()
-        dc.SelectObject(self.bitmap)
-
-        gcdc = wx.GCDC(dc)
-        gc = gcdc.GetGraphicsContext()
-
-        gc.SetFont(font, wx.Colour(0, 0, 0, 255))
-        gc.DrawText(label, 12.0, 6.0)
-
-        dc.SelectObject(wx.NullBitmap)
-        gcdc.Destroy()
-        del gcdc
-
-        dc.Destroy()
-        del dc
-
-        self.sb = wx.StaticBitmap(self, wx.ID_ANY, bitmap=self.bitmap, pos=(0, 0), size=self.bitmap.GetSize())
+        lbl = QLabel(self)
+        lbl.setPixmap(pixmap)
+        lbl.setFixedSize(pixmap.size())
+        self.setFixedSize(pixmap.size())

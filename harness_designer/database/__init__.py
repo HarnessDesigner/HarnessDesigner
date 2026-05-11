@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 """
 The database system is several layers which consists of a "config" database,
 "global" database and "project" database.

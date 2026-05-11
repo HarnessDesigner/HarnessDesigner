@@ -1,95 +1,75 @@
-import wx
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QSizePolicy
+)
+from PySide6.QtCore import Signal
 
 from . import events as _events
 
 
-class Property(wx.Panel):
+class Property(QWidget):
+
+    property_changed = Signal(object)
 
     def __init__(self, parent, label, orientation=None):
-
-        wx.Panel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_NONE)
-
-        if orientation is None:
-            self._static_box = None
-            self._sizer = wx.BoxSizer(wx.VERTICAL)
-            self.SetSizer(self._sizer)
-        else:
-            self._sizer = wx.StaticBoxSizer(orientation, self, label)
-            self._static_box = self._sizer.GetStaticBox()
-
-            if orientation == wx.VERTICAL:
-                sizer = wx.BoxSizer(wx.HORIZONTAL)
-                sizer.Add(self._sizer, 1, wx.ALL, 5)
-
-            else:
-                sizer = wx.BoxSizer(wx.VERTICAL)
-                sizer.Add(self._sizer, 0, wx.ALL | wx.EXPAND, 5)
-
-            self.SetSizer(sizer)
+        QWidget.__init__(self, parent)
 
         self._label = label
         self._ctrl = None
-        self._st: wx.StaticText = None
-        self._button: wx.Button = None
-        self._units_st: wx.StaticText = None
+        self._st = None
+        self._button = None
+        self._units_st = None
         self._parent = parent
+        self._static_box = None
+        self._orientation = orientation
+
+        if orientation is None:
+            self._sizer = QVBoxLayout()
+            self._sizer.setContentsMargins(0, 0, 0, 0)
+            self.setLayout(self._sizer)
+        else:
+            self._static_box = QGroupBox(label, self)
+            inner = QVBoxLayout() if orientation == 'vertical' else QHBoxLayout()
+            inner.setContentsMargins(4, 4, 4, 4)
+            self._static_box.setLayout(inner)
+            self._sizer = inner
+
+            outer = QHBoxLayout() if orientation == 'vertical' else QVBoxLayout()
+            outer.setContentsMargins(5, 5, 5, 5)
+            outer.addWidget(self._static_box)
+            self.setLayout(outer)
 
     def SetToolTip(self, text):
         if self._st is not None:
-            self._st.SetToolTip(text)
-            self._ctrl.SetToolTip(text)
+            self._st.setToolTip(text)
+        if self._ctrl is not None:
+            self._ctrl.setToolTip(text)
         else:
-            wx.Panel.SetToolTip(self, text)
+            QWidget.setToolTip(self, text)
 
     def Realize(self):
-        if self._static_box is not None:
-            orientation = self._sizer.GetOrientation()
-
-            if orientation == wx.VERTICAL:
-                for child in self.GetChildren():
-                    if child == self._static_box:
-                        continue
-
-                    child.Reparent(self._static_box)
-                    child.Realize()
-                    self._sizer.Add(child, 0, wx.EXPAND)
-            else:
-                for child in self.GetChildren():
-                    if child == self._static_box:
-                        continue
-
-                    child.Reparent(self._static_box)
-                    child.Realize()
-                    self._sizer.Add(child, 1)
-        else:
-            for child in self.GetChildren():
-                child.Realize()
-                self._sizer.Add(child, 0, wx.EXPAND)
-
-        self.Layout()
-        self.Refresh(False)
+        # In Qt the children are already parented and the layout is set during
+        # __init__; Realize() is a no-op hook kept for call-site compatibility.
+        self.update()
 
     def GetLabel(self) -> str:
         return self._label
 
     def SetLabel(self, value: str):
-        if self._static_box is not None:
-            self._static_box.SetLabel(value)
-        elif self._st is not None:
-            self._st.SetLabel(value)
-
         self._label = value
+        if self._static_box is not None:
+            self._static_box.setTitle(value)
+        elif self._st is not None:
+            self._st.setText(value + ':')
 
     def Enable(self, flag=True):
-        for child in self.GetChildren():
-            child.Enable(flag)
+        for child in self.findChildren(QWidget):
+            child.setEnabled(flag)
 
     def _send_changed_event(self, value_type, value):
-        event = _events.PropertyEvent(_events.wxEVT_PROPERTY_CHANGED)
-        event.SetValue(value)
-        event.SetPropertyType(value_type)
-        event.SetProperty(self)
-        event.SetId(self.GetId())
-        event.SetEventObject(self)
-
-        self.GetEventHandler().ProcessEvent(event)
+        evt = _events.PropertyEvent()
+        evt.SetValue(value)
+        evt.SetPropertyType(value_type)
+        evt.SetProperty(self)
+        self.property_changed.emit(evt)

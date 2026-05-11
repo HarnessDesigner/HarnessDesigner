@@ -1,11 +1,13 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
 import os
 
 from ... import resources as _resources
 from ..create_database import images as _images
-
 from .bases import EntryBase, TableBase
+
 
 if TYPE_CHECKING:
     from . import file_types as _file_types

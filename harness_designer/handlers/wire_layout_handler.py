@@ -1,17 +1,23 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
 from . import handler_base as _handler_base
-
 from ..geometry import point as _point
 from ..gl.canvas3d import object_picker as _object_picker
 from ..objects import wire_layout as _wire_layout
 from ..objects import wire as _wire
-
 from .. import utils as _utils
+from ..gl import materials as _materials
+from .. import config as _config
+
 
 if TYPE_CHECKING:
     from ..gl.canvas3d import camera as _camera
     from .. import ui as _ui
+
+
+Config = _config.Config.colors
 
 
 def _create_wire_layout_at_endpoint(
@@ -130,29 +136,18 @@ def _get_wire_at_mouse(mouse_pos: _point.Point, camera: "_camera.Camera"):
     return None
 
 
-class WireLayoutPlacementHandler(_handler_base.HandlerBase):
-    """
-    Manages interactive wire layout (handle) placement on wires.
-
-    Key Behaviors:
-    1. At wire endpoint: Creates layout using existing Point (no wire split)
-    2. Mid-wire: Creates NEW Point shared by layout and split wire segments
-    3. Point sharing enables automatic updates via callback system
-    4. Visual properties (color, diameter) match attached wire
-
-    The Point callback chain:
-    - User drags WireLayout
-    - WireLayout._position updates (it's a Point instance)
-    - Point triggers callbacks to all bound objects
-    - Connected wire endpoints receive update
-    - Wires recalculate their geometry automatically
-    """
-
+class AddWireLayoutHandler(_handler_base.HandlerBase):
     obj: _wire_layout.WireLayout = None
 
     def __init__(self, mainframe: "_ui.MainFrame"):
         super().__init__(mainframe, None)
         self.wire: _wire.Wire = None
+
+        self._preview_material = _materials.Plastic(Config.add_object.preview_color)
+        self._highlight_material = _materials.Plastic(Config.add_object.wire_highlight)
+
+    def release_capture(self) -> None:
+        raise NotImplementedError
 
     def hover(self, mouse_pos: _point.Point):
         wire = _get_wire_at_mouse(mouse_pos, self.camera)

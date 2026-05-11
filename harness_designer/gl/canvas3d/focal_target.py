@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
 import math
@@ -9,8 +11,8 @@ from ...gl import materials as _materials
 from ...geometry import angle as _angle
 from ...geometry import point as _point
 from ... import color as _color
-
 from ... import config as _config
+
 
 if TYPE_CHECKING:
     from . import canvas as _canvas

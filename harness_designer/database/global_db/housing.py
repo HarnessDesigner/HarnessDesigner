@@ -1,9 +1,11 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
 import uuid
 import wx
-from ...ui import prop_ctrls as _prop_ctrls
 
+from ...ui import prop_ctrls as _prop_ctrls
 from .bases import EntryBase, TableBase
 from . import cpa_lock as _cpa_lock
 from . import tpa_lock as _tpa_lock

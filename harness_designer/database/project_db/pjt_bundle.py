@@ -1,7 +1,8 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING, Iterable as _Iterable, Union
 
 import weakref
-
 import wx
 
 from ...ui import prop_ctrls as _prop_ctrls

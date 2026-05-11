@@ -1,8 +1,8 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 from ...ui import prop_ctrls as _prop_ctrls
-
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from .mixins import NotesMixin
 
@@ -10,9 +10,7 @@ from .mixins import NotesMixin
 if TYPE_CHECKING:
     from . import pjt_transition_branch as _pjt_transition_branches
     from . import pjt_concentric_layer as _pjt_concentric_layer
-
     from . import pjt_bundle as _pjt_bundle
-
     from ...objects import boot as _boot_obj
 
 

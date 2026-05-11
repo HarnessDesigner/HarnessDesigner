@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -6,12 +8,12 @@ from OpenGL import GL
 from ... import color as _color
 from ...geometry import point as _point
 from ...geometry import angle as _angle
-
 from ...geometry.decimal import Decimal as _d
 from ... import config as _config
 from ...gl import materials as _materials
 from ... import utils as _utils
 from ...gl import vbo as _vbo
+
 
 if TYPE_CHECKING:
     from ...database import project_db as _project_db

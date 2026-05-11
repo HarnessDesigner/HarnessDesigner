@@ -1,9 +1,11 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
 from . import ObjectBase as _ObjectBase
-
 from .objects3d import generic as _generic3d
 from .objects2d import generic as _generic2d
+
 
 if TYPE_CHECKING:
     from .. import ui as _ui

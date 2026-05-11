@@ -1,31 +1,26 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
-import wx
+from PySide6.QtWidgets import QMenu
 
 from ..dialogs import debug_settings as _debug_settings
+
 
 if TYPE_CHECKING:
     from ... import ui as _ui
 
 
-class SettingsMenu(wx.Menu):
+class SettingsMenu(QMenu):
 
     def __init__(self, mainframe: "_ui.MainFrame"):
+        super().__init__('Settings', mainframe)
         self.mainframe = mainframe
-        wx.Menu.__init__(self)
 
-        item = self.Append(wx.ID_ANY, 'Debug Settings')
-        mainframe.Bind(wx.EVT_MENU, self.on_debug_settings, id=item.GetId())
+        self.addAction('Debug Settings').triggered.connect(self.on_debug_settings)
 
-    def on_debug_settings(self, evt):
+    def on_debug_settings(self):
         dlg = _debug_settings.DebugSettingsDialog(self.mainframe)
-
-        if dlg.ShowModal() == wx.ID_OK:
+        if dlg.exec() == dlg.Accepted:
             dlg.SetValues()
-            self.mainframe.Refresh(False)
-
-        dlg.Destroy()
-
-        evt.Skip()
-
-
+            self.mainframe.update()   # QWidget.update() ≈ wx.Refresh(False)

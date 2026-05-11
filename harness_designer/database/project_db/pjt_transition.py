@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 import weakref
@@ -15,6 +17,7 @@ from .mixins import (
     NotesMixin, NotesControl,
     Visible3DMixin, Visible3DControl
 )
+
 
 if TYPE_CHECKING:
     from . import pjt_transition_branch as _pjt_transition_branch

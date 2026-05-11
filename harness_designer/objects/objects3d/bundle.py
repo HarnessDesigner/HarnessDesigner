@@ -1,6 +1,8 @@
-from typing import TYPE_CHECKING
-import weakref
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
+
+import weakref
 import wx
 import math
 import numpy as np
@@ -12,6 +14,7 @@ from . import base3d as _base3d
 from ...shapes import cylinder as _cylinder
 from ... import config as _config
 from ...gl import materials as _materials
+
 
 if TYPE_CHECKING:
     from ...database.project_db import pjt_bundle as _pjt_bundle

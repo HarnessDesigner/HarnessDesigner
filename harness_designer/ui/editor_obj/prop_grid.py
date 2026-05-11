@@ -1,15 +1,18 @@
-import wx
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
+from PySide6.QtWidgets import QTabWidget
 
 
-class PropertyGrid(wx.Notebook):
+class PropertyGrid(QTabWidget):
 
     def __init__(self, parent):
-        wx.Notebook.__init__(self, parent, wx.ID_ANY, style=wx.NB_TOP | wx.NB_FIXEDWIDTH)
+        QTabWidget.__init__(self, parent)
+        self.setTabPosition(QTabWidget.North)
+        self.setUsesScrollButtons(True)
 
     def Clear(self):
-        self.DeleteAllPages()
+        self.clear()
 
     def Append(self, item):
         item.Realize()
-        self.AddPage(item, item.GetName())
-
+        self.addTab(item, item.GetLabel())

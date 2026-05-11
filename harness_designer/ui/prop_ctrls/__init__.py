@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from . import string_prop as _string_prop
 from . import long_string_prop as _long_string_prop
 from . import int_prop as _int_prop

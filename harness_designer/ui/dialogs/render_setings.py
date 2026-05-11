@@ -1,5 +1,12 @@
-import wx
-from wx.lib import scrolledpanel
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
+from PySide6.QtWidgets import (
+    QVBoxLayout, QHBoxLayout, QGroupBox, QLabel, QCheckBox,
+    QComboBox, QPushButton, QSpinBox, QDoubleSpinBox, QScrollArea,
+    QWidget, QFrame, QFileDialog, QSizePolicy
+)
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor
 
 from . import dialog_base as _dialog_base
 from ... import config as _config
@@ -8,356 +15,319 @@ Config = _config.Config.ray_trace
 
 
 class RenderSettingsDialog(_dialog_base.BaseDialog):
-    """Dialog for configuring render settings"""
 
     def __init__(self, parent):
-        super().__init__(parent, title='Render Settings', label='Render Settings', size=(-1, 600))
+        super().__init__(parent, title='Render Settings', size=(-1, 600))
 
         panel = self.panel
-        main_sizer = wx.BoxSizer(wx.VERTICAL)
+        main_sizer = QVBoxLayout(panel)
 
+        # Resolution
+        res_row = QHBoxLayout()
+        res_row.addWidget(QLabel('Resolution:', panel))
+        self.resolution = QComboBox(panel)
         choices = [res['label'] for res in Config.resolutions]
-        resolution_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        st = wx.StaticText(panel, wx.ID_ANY, label='Resolution:')
-        resolution_sizer.Add(st, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
-        self.resolution = wx.Choice(panel, wx.ID_ANY, choices=choices)
-        self.resolution.SetStringSelection(Config.default_resolution)
-        resolution_sizer.Add(self.gradient_check, 0, wx.EXPAND)
-        main_sizer.Add(resolution_sizer, 0, wx.EXPAND | wx.ALL, 5)
+        self.resolution.addItems(choices)
+        idx = self.resolution.findText(Config.default_resolution)
+        if idx >= 0:
+            self.resolution.setCurrentIndex(idx)
+        res_row.addWidget(self.resolution)
+        main_sizer.addLayout(res_row)
 
-        # background -----------------------------------------------------------
-        bg_sizer = wx.StaticBoxSizer(wx.VERTICAL, panel, "Background")
-        bg_box = bg_sizer.GetStaticBox()
+        # Background group
+        bg_box = QGroupBox("Background", panel)
+        bg_lay = QVBoxLayout(bg_box)
 
-        gradient_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        st = wx.StaticText(bg_box, wx.ID_ANY, label='Use Gradient Background:')
-        gradient_sizer.Add(st, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
-        self.gradient_check = wx.CheckBox(bg_box, label='')
-        gradient_sizer.Add(self.gradient_check, 0, wx.EXPAND)
-        bg_sizer.Add(gradient_sizer, 0, wx.EXPAND | wx.ALL, 5)
+        grad_row = QHBoxLayout()
+        grad_row.addWidget(QLabel('Use Gradient Background:', bg_box))
+        self.gradient_check = QCheckBox(bg_box)
+        self.gradient_check.setChecked(Config.background.enable_gradient)
+        grad_row.addWidget(self.gradient_check)
+        bg_lay.addLayout(grad_row)
 
-        self.gradient_check.SetValue(self.settings.enable_gradient)
+        env_row = QHBoxLayout()
+        env_row.addWidget(QLabel('Use Environment Map:', bg_box))
+        self.envmap_check = QCheckBox(bg_box)
+        self.envmap_check.setChecked(Config.environment_map.enable)
+        env_row.addWidget(self.envmap_check)
+        bg_lay.addLayout(env_row)
 
-        envmap_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        st = wx.StaticText(bg_box, wx.ID_ANY, label='Use Environment Map:')
-        envmap_sizer.Add(st, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
-        self.envmap_check = wx.CheckBox(bg_box, label='')
-        envmap_sizer.Add(self.envmap_check, 0, wx.EXPAND)
-        bg_sizer.Add(envmap_sizer, 0, wx.EXPAND | wx.ALL, 5)
+        gen_row = QHBoxLayout()
+        gen_row.addWidget(QLabel('Generate Environment Map:', bg_box))
+        self.gen_check = QCheckBox(bg_box)
+        self.gen_check.setChecked(getattr(Config.environment_map, 'generate', False))
+        gen_row.addWidget(self.gen_check)
+        bg_lay.addLayout(gen_row)
 
-        gen_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        st = wx.StaticText(bg_box, wx.ID_ANY, label='Generate Environment Map:')
-        gen_sizer.Add(st, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
-        self.gen_check = wx.CheckBox(bg_box, label='')
-        gen_sizer.Add(self.gen_check, 0, wx.EXPAND)
-        bg_sizer.Add(gen_sizer, 0, wx.EXPAND | wx.ALL, 5)
+        load_env_btn = QPushButton("Load Environment Map...", bg_box)
+        load_env_btn.clicked.connect(self.on_load_envmap)
+        bg_lay.addWidget(load_env_btn)
 
-        self.envmap_check.SetValue(self.settings.enable_environment_map)
-        self.envmap_check.Enable(scene.environment_map is not None)
+        main_sizer.addWidget(bg_box)
 
-        load_env_btn = wx.Button(bg_box, label="Load Environment Map...")
-        load_env_btn.Bind(wx.EVT_BUTTON, self.on_load_envmap)
-        bg_sizer.Add(load_env_btn, 0, wx.ALL, 5)
+        # Effects group
+        effects_box = QGroupBox("Effects", panel)
+        effects_lay = QVBoxLayout(effects_box)
 
-        main_sizer.Add(bg_box, 0, wx.EXPAND | wx.ALL, 10)
+        refl_row = QHBoxLayout()
+        refl_row.addWidget(QLabel('Enable Reflections:', effects_box))
+        self.reflections_check = QCheckBox(effects_box)
+        self.reflections_check.setChecked(Config.enable_reflections)
+        refl_row.addWidget(self.reflections_check)
+        effects_lay.addLayout(refl_row)
 
-        # effects --------------------------------------------------------------
-        effects_sizer = wx.StaticBoxSizer(wx.VERTICAL, panel, "Effects")
-        effects_box = effects_sizer.GetStaticBox()
+        shad_row = QHBoxLayout()
+        shad_row.addWidget(QLabel('Enable Shadows:', effects_box))
+        self.shadows_check = QCheckBox(effects_box)
+        self.shadows_check.setChecked(Config.shadows.enable)
+        shad_row.addWidget(self.shadows_check)
+        effects_lay.addLayout(shad_row)
 
-        reflections_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        st = wx.StaticText(bg_box, wx.ID_ANY, label='Enable Reflections:')
-        reflections_sizer.Add(st, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
-        self.reflections_check = wx.CheckBox(effects_box, label="")
-        reflections_sizer.Add(self.reflections_check, 0, wx.EXPAND)
-        effects_sizer.Add(reflections_sizer, 0, wx.EXPAND | wx.ALL, 5)
+        main_sizer.addWidget(effects_box)
 
-        self.reflections_check.SetValue(self.settings.enable_reflections)
+        # Ambient Occlusion group
+        ao_box = QGroupBox("Ambient Occlusion", panel)
+        ao_lay = QVBoxLayout(ao_box)
 
-        shadows_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        st = wx.StaticText(bg_box, wx.ID_ANY, label='Enable Shadows:')
-        shadows_sizer.Add(st, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
-        self.shadows_check = wx.CheckBox(effects_box, label="")
-        shadows_sizer.Add(self.shadows_check, 0, wx.EXPAND)
-        effects_sizer.Add(shadows_sizer, 0, wx.EXPAND | wx.ALL, 5)
+        ao_en_row = QHBoxLayout()
+        ao_en_row.addWidget(QLabel('Enable', ao_box))
+        self.ao_check = QCheckBox(ao_box)
+        self.ao_check.setChecked(Config.ambient_occlusion.enable)
+        ao_en_row.addWidget(self.ao_check)
+        ao_lay.addLayout(ao_en_row)
 
-        self.shadows_check.SetValue(self.settings.enable_shadows)
+        ao_samp_row = QHBoxLayout()
+        ao_samp_row.addWidget(QLabel('Samples:', ao_box))
+        self.ao_samples_spin = QSpinBox(ao_box)
+        self.ao_samples_spin.setRange(4, 64)
+        self.ao_samples_spin.setValue(int(Config.ambient_occlusion.samples))
+        ao_samp_row.addWidget(self.ao_samples_spin)
+        ao_lay.addLayout(ao_samp_row)
 
-        main_sizer.Add(effects_sizer, 0, wx.EXPAND | wx.ALL, 10)
+        ao_rad_row = QHBoxLayout()
+        ao_rad_row.addWidget(QLabel('Radius:', ao_box))
+        self.ao_radius_spin = QDoubleSpinBox(ao_box)
+        self.ao_radius_spin.setRange(0.1, 5.0)
+        self.ao_radius_spin.setSingleStep(0.1)
+        self.ao_radius_spin.setValue(Config.ambient_occlusion.radius)
+        ao_rad_row.addWidget(self.ao_radius_spin)
+        ao_lay.addLayout(ao_rad_row)
 
-        # ambient occlusion ----------------------------------------------------
-        ao_sizer = wx.StaticBoxSizer(wx.VERTICAL, panel, "Ambient Occlusion")
-        ao_box = ao_sizer.GetStaticBox()
+        main_sizer.addWidget(ao_box)
 
-        ao_enable_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        st = wx.StaticText(ao_box, wx.ID_ANY, label='Enable')
-        ao_enable_sizer.Add(st, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
-        self.ao_check = wx.CheckBox(ao_box, label='')
-        self.ao_check.SetValue(self.settings.enable_ambient_occlusion)
-        ao_enable_sizer.Add(self.ao_check, 0, wx.EXPAND)
-        ao_sizer.Add(ao_enable_sizer, 0, wx.EXPAND | wx.ALL, 5)
+        # Lighting group
+        lighting_box = QGroupBox("Lighting", panel)
+        lighting_lay = QVBoxLayout(lighting_box)
 
-        ao_samples_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        st = wx.StaticText(ao_box, label="Samples:")
-        ao_samples_sizer.Add(st, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
-        self.ao_samples_spin = wx.SpinCtrl(
-            ao_box, value=str(int(self.settings.ao_samples)),
-            min=4, max=64, initial=int(self.settings.ao_samples))
-        ao_samples_sizer.Add(self.ao_samples_spin, 0, wx.EXPAND)
-        ao_sizer.Add(ao_samples_sizer, 0, wx.EXPAND | wx.ALL, 5)
+        amb_row = QHBoxLayout()
+        amb_row.addWidget(QLabel('Ambient Intensity:', lighting_box))
+        self.ambient_spin = QDoubleSpinBox(lighting_box)
+        self.ambient_spin.setRange(0.0, 1.0)
+        self.ambient_spin.setSingleStep(0.05)
+        self.ambient_spin.setValue(Config.lighting.intensity)
+        amb_row.addWidget(self.ambient_spin)
+        lighting_lay.addLayout(amb_row)
 
-        # AO radius
-        ao_radius_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        st = wx.StaticText(ao_box, label="Radius:")
-        ao_radius_sizer.Add(st, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
-        self.ao_radius_spin = wx.SpinCtrlDouble(
-            ao_box, value=str(self.settings.ao_radius),
-            min=0.1, max=5.0, initial=self.settings.ao_radius, inc=0.1)
-        ao_radius_sizer.Add(self.ao_radius_spin, 0, wx.EXPAND)
-        ao_sizer.Add(ao_radius_sizer, 0, wx.EXPAND | wx.ALL, 5)
-
-        main_sizer.Add(ao_sizer, 0, wx.EXPAND | wx.ALL, 10)
-
-        # lighting settings ----------------------------------------------------
-        lighting_sizer = wx.StaticBoxSizer(wx.VERTICAL, panel, "Lighting")
-        lighting_box = lighting_sizer.GetStaticBox()
-
-        ambient_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        st = wx.StaticText(lighting_box, label="Ambient Intensity:")
-        ambient_sizer.Add(st, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
-        self.ambient_spin = wx.SpinCtrlDouble(
-            lighting_box, value=str(scene.ambient_intensity),
-            min=0.0, max=1.0, initial=scene.ambient_intensity, inc=0.05)
-        ambient_sizer.Add(self.ambient_spin, 0, wx.EXPAND)
-        lighting_sizer.Add(ambient_sizer, 0, wx.EXPAND | wx.ALL, 5)
-
-        lights_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        st = wx.StaticText(lighting_box, label="Lights")
-        lights_sizer.AddSpacer(1)
-        lights_sizer.Add(st, 0, wx.ALL, 5)
-        lights_sizer.AddSpacer(1)
-
-        lighting_sizer.Add(lights_sizer, 0, wx.EXPAND)
-
-        lights_sizer = wx.BoxSizer(wx.HORIZONTAL)
         self.lights = LightingPanel(lighting_box)
-        lights_sizer.Add(self.lights, 0, wx.ALL, 5)
-        lighting_sizer.Add(lights_sizer, 0, wx.EXPAND)
+        lighting_lay.addWidget(self.lights)
 
-        main_sizer.Add(lighting_sizer, 0, wx.EXPAND | wx.ALL, 10)
+        main_sizer.addWidget(lighting_box)
 
-        panel.SetSizer(main_sizer)
+        # Connect OK to on_apply
+        self.button_box.accepted.disconnect()
+        self.button_box.accepted.connect(self.on_apply)
 
-    def on_load_envmap(self, event):
-        with wx.FileDialog(
+    def on_load_envmap(self):
+        path, _ = QFileDialog.getOpenFileName(
             self,
             "Load Environment Map",
-            wildcard="Image files (*.jpg;*.png;*.hdr;*.bmp)|*.jpg;*.png;*.hdr;*.bmp",
-            style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST
-        ) as fileDialog:
+            "",
+            "Image files (*.jpg *.png *.hdr *.bmp)"
+        )
+        if path:
+            Config.environment_map.path = path
+            self.gen_check.setChecked(False)
+            self.envmap_check.setChecked(True)
 
-            if fileDialog.ShowModal() == wx.ID_OK:
-                path = fileDialog.GetPath()
-                Config.environment_map.path = path
-                self.gen_check.SetValue(False)
-                self.envmap_check.SetValue(True)
-
-    def on_apply(self, event):
-        # Update settings
-        Config.background.enable_gradient = self.gradient_check.GetValue()
-
-        Config.environment_map.enable = self.envmap_check.GetValue()
-        Config.enable_reflections = self.reflections_check.GetValue()
-        Config.shadows.enable = self.shadows_check.GetValue()
-        Config.ambient_occlusion.enable = self.ao_check.GetValue()
-        Config.ambient_occlusion.samples = float(self.ao_samples_spin.GetValue())
-        Config.ambient_occlusion.radius = self.ao_radius_spin.GetValue()
-        Config.lighting.intensity = self.ambient_spin.GetValue()
-        Config.environment_map.generate = self.gen_check.GetValue()
-        Config.default_resolution = self.resolution.GetStringSelection()
+    def on_apply(self):
+        Config.background.enable_gradient = self.gradient_check.isChecked()
+        Config.environment_map.enable = self.envmap_check.isChecked()
+        Config.enable_reflections = self.reflections_check.isChecked()
+        Config.shadows.enable = self.shadows_check.isChecked()
+        Config.ambient_occlusion.enable = self.ao_check.isChecked()
+        Config.ambient_occlusion.samples = float(self.ao_samples_spin.value())
+        Config.ambient_occlusion.radius = self.ao_radius_spin.value()
+        Config.lighting.intensity = self.ambient_spin.value()
+        Config.environment_map.generate = self.gen_check.isChecked()
+        Config.default_resolution = self.resolution.currentText()
         Config.lighting.lights = self.lights.GetValue()
+        self.accept()
 
-        self.EndModal(wx.ID_OK)
 
-
-class LightingPanel(wx.Panel):
+class LightingPanel(QWidget):
 
     def __init__(self, parent):
-        wx.Panel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_NONE)
+        super().__init__(parent)
 
         self.lights_panel = LightsPanel(self, Config.lighting.lights)
 
-        self.add_btn = wx.Button(self, wx.ID_ANY, label='Add Light')
-        self.remove_btn = wx.Button(self, wx.ID_ANY, label='Remove Light')
+        self.add_btn = QPushButton('Add Light', self)
+        self.remove_btn = QPushButton('Remove Light', self)
 
-        self.add_btn.Bind(wx.EVT_BUTTON, self.on_add)
-        self.remove_btn.Bind(wx.EVT_BUTTON, self.on_remove)
+        self.add_btn.clicked.connect(self.on_add)
+        self.remove_btn.clicked.connect(self.on_remove)
 
-        vsizer = wx.BoxSizer(wx.VERTICAL)
+        inner = QHBoxLayout()
+        inner.addWidget(self.lights_panel, 1)
 
-        hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        hsizer.Add(self.lights_panel, 1, wx.ALL, 10)
-        vsizer.Add(hsizer, 0, wx.EXPAND)
+        btn_row = QHBoxLayout()
+        btn_row.addStretch(1)
+        btn_row.addWidget(self.add_btn)
+        btn_row.addWidget(self.remove_btn)
 
-        hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        hsizer.AddStretchSpacer(1)
-        hsizer.Add(self.add_btn, 0, wx.ALL, 10)
-        hsizer.Add(self.remove_btn, 0, wx.ALL, 10)
-        vsizer.Add(hsizer, 0, wx.EXPAND)
+        lay = QVBoxLayout(self)
+        lay.addLayout(inner)
+        lay.addLayout(btn_row)
 
-        self.SetSizer(vsizer)
+    def on_add(self):
+        self.lights_panel.add_light()
+
+    def on_remove(self):
+        self.lights_panel.remove_item()
 
     def GetValue(self):
         return self.lights_panel.GetValue()
 
 
-class LightsPanel(scrolledpanel.ScrolledPanel):
+class LightsPanel(QScrollArea):
 
     def __init__(self, parent, lights):
-        scrolledpanel.ScrolledPanel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_SUNKEN)
+        super().__init__(parent)
+        self.setWidgetResizable(True)
+        self.setFrameShape(QFrame.Box)
 
-        self.lights = lights
+        self._container = QWidget()
+        self.main_sizer = QVBoxLayout(self._container)
+        self.setWidget(self._container)
+
+        self.lights_data = lights
         self.items = []
         self.selected = None
 
-        self.main_sizer = wx.BoxSizer(wx.VERTICAL)
-
         for light in lights:
-            light = LightItem(self, **light)
-            self.items.append(light)
-
-            hsizer = wx.BoxSizer(wx.HORIZONTAL)
-            hsizer.Add(light, 0)
-            self.main_sizer.Add(hsizer, 0, wx.EXPAND)
-
-        self.SetSizer(self.main_sizer)
-        self.SetupScrolling()
+            item = LightItem(self._container, **light)
+            item.clicked_signal.connect(lambda i=item: self._set_selected(i))
+            self.items.append(item)
+            self.main_sizer.addWidget(item)
 
     def GetValue(self):
-        res = [light.GetValue() for light in self.items]
-        return res
+        return [light.GetValue() for light in self.items]
 
     def add_light(self):
-        position = [0.0, 0.0, 0.0]
-        color = 0.0, 0.0, 0.0
-        intensity = 1.0
-
-        light = LightItem(self, position, intensity, color)
+        light = LightItem(self._container,
+                          position=[0.0, 0.0, 0.0],
+                          intensity=1.0,
+                          color=[0.0, 0.0, 0.0])
+        light.clicked_signal.connect(lambda i=light: self._set_selected(i))
         self.items.append(light)
-        self.lights.append(light.GetValue())
-
-        hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        hsizer.Add(light, 0)
-        self.main_sizer.Add(hsizer, 0, wx.EXPAND)
-
-        self.Layout()
-        self.Refresh(False)
+        self.main_sizer.addWidget(light)
 
     def remove_item(self):
         if self.selected is None:
             return
 
         index = self.items.index(self.selected)
-        self.lights.pop(index)
         self.items.pop(index)
-
-        self.selected.Show(False)
-        self.selected.Destroy()
-
+        self.selected.setParent(None)
+        self.selected.deleteLater()
         self.selected = None
-        self.Layout()
-        self.Refresh(False)
 
-    def set_selected(self, light):
+    def _set_selected(self, light):
         if self.selected is not None:
             self.selected.unselect()
-
         self.selected = light
+        light.select()
 
 
-
-def get_item_sizer(st, ctrl):
-
-    sizer = wx.BoxSizer(wx.HORIZONTAL)
-    sizer.Add(st, 0, wx.ALL | wx.ALIGN_CENTER, 5)
-    sizer.Add(ctrl, 1, wx.ALL, 5)
-
-    return sizer
+def _item_row(parent, label_text, ctrl):
+    row = QHBoxLayout()
+    row.addWidget(QLabel(label_text, parent))
+    row.addWidget(ctrl, 1)
+    return row
 
 
-class LightItem(wx.Panel):
+class LightItem(QWidget):
+    from PySide6.QtCore import Signal
+    clicked_signal = __import__('PySide6').QtCore.Signal()
 
     def __init__(self, parent, position, intensity, color):
-        self._parent = parent
-        wx.Panel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_NONE)
-        self.unselected_color = self.GetBackgroundColour()
-        self.selected_color = wx.SystemColour.GetColour(wx.SYS_COLOUR_HIGHLIGHT)  # NOQA
+        super().__init__(parent)
+        self._unselected_bg = self.palette().color(self.backgroundRole())
 
         x, y, z = position
 
-        vsizer = wx.BoxSizer(wx.VERTICAL)
+        self.x_ctrl = QDoubleSpinBox(self)
+        self.x_ctrl.setRange(-99999.0, 99999.0)
+        self.x_ctrl.setSingleStep(0.5)
+        self.x_ctrl.setValue(float(x))
 
-        hsizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.y_ctrl = QDoubleSpinBox(self)
+        self.y_ctrl.setRange(-99999.0, 99999.0)
+        self.y_ctrl.setSingleStep(0.5)
+        self.y_ctrl.setValue(float(y))
 
-        st = wx.StaticText(self, wx.ID_ANY, label='X:')
-        self.x_ctrl = wx.SpinCtrlDouble(self, wx.ID_ANY, value=x, initial=str(x), min=-99999.0, max=99999.0, inc=0.5)
+        self.z_ctrl = QDoubleSpinBox(self)
+        self.z_ctrl.setRange(-99999.0, 99999.0)
+        self.z_ctrl.setSingleStep(0.5)
+        self.z_ctrl.setValue(float(z))
 
-        x_sizer = get_item_sizer(st, self.x_ctrl)
-        hsizer.Add(x_sizer, 1)
+        self.intensity_ctrl = QDoubleSpinBox(self)
+        self.intensity_ctrl.setRange(0.001, 1.0)
+        self.intensity_ctrl.setSingleStep(0.001)
+        self.intensity_ctrl.setValue(float(intensity))
 
-        st = wx.StaticText(self, wx.ID_ANY, label='Y:')
-        self.y_ctrl = wx.SpinCtrlDouble(self, wx.ID_ANY, value=y, initial=str(y), min=-99999.0, max=99999.0, inc=0.5)
-        y_sizer = get_item_sizer(st, self.y_ctrl)
-        hsizer.Add(y_sizer, 1)
+        # Color as a button that opens a color dialog
+        from PySide6.QtWidgets import QPushButton, QColorDialog
+        self._color = color
+        self.color_btn = QPushButton(self)
+        r, g, b = (int(c * 255) for c in color)
+        self.color_btn.setStyleSheet(
+            f'background-color: rgb({r},{g},{b}); min-width:40px;')
+        self.color_btn.clicked.connect(self._pick_color)
 
+        row = QHBoxLayout(self)
+        row.addLayout(_item_row(self, 'X:', self.x_ctrl))
+        row.addLayout(_item_row(self, 'Y:', self.y_ctrl))
+        row.addLayout(_item_row(self, 'Z:', self.z_ctrl))
+        row.addLayout(_item_row(self, 'Intensity:', self.intensity_ctrl))
+        row.addWidget(self.color_btn)
 
-        st = wx.StaticText(self, wx.ID_ANY, label='Z:')
-        self.z_ctrl = wx.SpinCtrlDouble(self, wx.ID_ANY, value=z, initial=str(z), min=-99999.0, max=99999.0, inc=0.5)
-        z_sizer = get_item_sizer(st, self.z_ctrl)
-        hsizer.Add(z_sizer, 1)
-
-
-        st = wx.StaticText(self, wx.ID_ANY, label='Intensity:')
-        self.intensity_ctrl = wx.SpinCtrlDouble(self, wx.ID_ANY, value=intensity, initial=str(intensity), min=0.001, max=1.0, inc=0.001)
-        intensity_sizer = get_item_sizer(st, self.intensity_ctrl)
-        hsizer.Add(intensity_sizer, 1)
-
-        self.color_ctrl = wx.ColourPickerCtrl(self, wx.ID_ANY, colour=color)
-        hsizer.Add(self.color_ctrl, 0, wx.ALL, 5)
-
-        vsizer.Add(hsizer, 0, wx.EXPAND)
-
-        self.SetSizer(vsizer)
-
-        self.Bind(wx.EVT_LEFT_UP, self.on_left_up)
+    def _pick_color(self):
+        from PySide6.QtWidgets import QColorDialog
+        r, g, b = (int(c * 255) for c in self._color)
+        chosen = QColorDialog.getColor(QColor(r, g, b), self, "Light colour")
+        if chosen.isValid():
+            self._color = [chosen.red() / 255.0,
+                           chosen.green() / 255.0,
+                           chosen.blue() / 255.0]
+            self.color_btn.setStyleSheet(
+                f'background-color: {chosen.name()}; min-width:40px;')
 
     def GetValue(self):
-        x = self.x_ctrl.GetValue()
-        y = self.y_ctrl.GetValue()
-        z = self.z_ctrl.GetValue()
-        position = [x, y, z]
-
-        intensity = self.intensity_ctrl.GetValue()
-
-        color = self.color_ctrl.GetColour()
-
-        r = color.GetRed() / 255.0
-        g = color.GetFreen() / 255.0
-        b = color.GetBlue() / 255.0
-        color = [r, g, b]
-
         return dict(
-            position=position,
-            intensity=intensity,
-            color=color
+            position=[self.x_ctrl.value(),
+                      self.y_ctrl.value(),
+                      self.z_ctrl.value()],
+            intensity=self.intensity_ctrl.value(),
+            color=list(self._color)
         )
 
+    def select(self):
+        self.setStyleSheet('background-color: palette(highlight);')
 
     def unselect(self):
-        self.SetBackgroundColour(self.unselected_color)
+        self.setStyleSheet('')
 
-    def on_left_up(self, evt):
-        self._parent.set_selected(self)
-        self.SetBackgroundColour(self.selected_color)
-
-        evt.Skip()
+    def mousePressEvent(self, event):
+        self.clicked_signal.emit()
+        super().mousePressEvent(event)

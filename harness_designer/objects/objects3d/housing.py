@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
 import wx
@@ -13,7 +15,6 @@ from ...ui.dialogs import pjt_add_cpa_lock as _pjt_add_cpa_lock
 from ...ui.dialogs import pjt_add_tpa_lock as _pjt_add_tpa_lock
 from ...ui.dialogs import pjt_add_cover as _pjt_add_cover
 from ...ui.dialogs import pjt_add_boot as _pjt_add_boot
-
 from . import base3d as _base3d
 from ...shapes import box as _box
 from ...gl import vbo as _vbo

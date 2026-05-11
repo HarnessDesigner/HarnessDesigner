@@ -1,3 +1,4 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 import wx
 from wx import glcanvas
@@ -8,11 +9,9 @@ from OpenGL import GLU
 from ...geometry import angle as _angle
 from ...geometry import point as _point
 from ... import color as _color
-
 from ... import utils as _utils
 from ...shapes import cylinder as _cylinder
 from ...shapes import sphere as _sphere
-
 from ...gl import materials as _materials
 from ... import config as _config
 

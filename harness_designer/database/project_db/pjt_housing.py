@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 import wx
@@ -8,15 +10,12 @@ from ...ui import prop_ctrls as _prop_ctrls
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from ...geometry import point as _point
 from ...geometry import angle as _angle
-
 from . import pjt_cover as _pjt_cover
 from . import pjt_tpa_lock as _pjt_tpa_lock
 from . import pjt_cpa_lock as _pjt_cpa_lock
 from . import pjt_seal as _pjt_seal
 from . import pjt_boot as _pjt_boot
-
 from ..global_db import housing as _housing
-
 from .mixins import (
     NameMixin, NameControl,
     PartMixin,
@@ -34,9 +33,7 @@ if TYPE_CHECKING:
     from . import pjt_cavity as _pjt_cavity
     # from . import pjt_accessory as _pjt_accessory
     from . import pjt_point3d as _pjt_point3d
-
     from ..global_db import housing as _housing
-
     from ...objects import housing as _housing_obj
 
 

@@ -1,13 +1,15 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
 import wx
-
 from wx import aui
 
 from .. import config as _config
 from . import dialogs as _dialogs
 from . import toolbar as _toolbar
 from .. import gl as _gl
+from .. import handlers as _handlers
 
 
 if TYPE_CHECKING:
@@ -40,6 +42,7 @@ class MainFrame(wx.Frame):
 
         self.logger = logger
         self._clone_obj = None
+        self._add_handler: _handlers.HandlerBase = None
 
         if not Config.size:
             w, h = wx.GetDisplaySize()
@@ -67,9 +70,9 @@ class MainFrame(wx.Frame):
                                  wx.RESIZE_BORDER | wx.MAXIMIZE_BOX | wx.SYSTEM_MENU |
                                  wx.CAPTION))
 
-        self.Bind(wx.EVT_MOVE, self.on_move)
-        self.Bind(wx.EVT_SIZE, self.on_size)
-        self.Bind(wx.EVT_CLOSE, self.on_close)
+        self.Bind(wx.EVT_MOVE, self._on_move)
+        self.Bind(wx.EVT_SIZE, self._on_size)
+        self.Bind(wx.EVT_CLOSE, self._on_close)
         self.Bind(wx.EVT_IDLE, self._on_idle)
         self.Bind(wx.EVT_ERASE_BACKGROUND, self.on_erase_background)
 
@@ -77,6 +80,7 @@ class MainFrame(wx.Frame):
         self.global_db = None
         self.project = None
         self._selected_obj: "_objects.ObjectBase" = None
+        self._obj_handler: _handlers.HandlerBase = None
 
         splash.SetText('Starting UI manager...')
         splash.flush()
@@ -287,23 +291,319 @@ class MainFrame(wx.Frame):
 
         self.manager.Update()
 
+        self.editor3d.Bind(_gl.EVT_GL_OBJECT_SELECTED, self._on_obj_selected_3d)
+        self.editor3d.Bind(_gl.EVT_GL_OBJECT_UNSELECTED, self._on_obj_unselected_3d)
+        self.editor3d.Bind(_gl.EVT_GL_OBJECT_ACTIVATED, self._on_obj_activated_3d)
         self.editor3d.Bind(_gl.EVT_GL_OBJECT_RIGHT_CLICK, self._on_obj_right_click_3d)
-
+        self.editor3d.Bind(_gl.EVT_GL_OBJECT_RIGHT_DCLICK, self._on_obj_right_dclick_3d)
+        self.editor3d.Bind(_gl.EVT_GL_OBJECT_MIDDLE_CLICK, self._on_obj_middle_click_3d)
+        self.editor3d.Bind(_gl.EVT_GL_OBJECT_MIDDLE_DCLICK, self._on_obj_middle_dclick_3d)
+        self.editor3d.Bind(_gl.EVT_GL_OBJECT_AUX1_CLICK, self._on_obj_aux1_click_3d)
+        self.editor3d.Bind(_gl.EVT_GL_OBJECT_AUX1_DCLICK, self._on_obj_aux1_dclick_3d)
+        self.editor3d.Bind(_gl.EVT_GL_OBJECT_AUX2_CLICK, self._on_obj_aux2_click_3d)
+        self.editor3d.Bind(_gl.EVT_GL_OBJECT_AUX2_DCLICK, self._on_obj_aux2_dclick_3d)
+        self.editor3d.Bind(_gl.EVT_GL_OBJECT_DRAG, self._on_obj_drag_3d)
+        self.editor3d.Bind(_gl.EVT_GL_KEY_DOWN, self._on_key_down_3d)
+        self.editor3d.Bind(_gl.EVT_GL_KEY_UP, self._on_key_up_3d)
+        self.editor3d.Bind(_gl.EVT_GL_MOUSE_MOVE, self._on_mouse_move_3d)
+        self.editor3d.Bind(_gl.EVT_GL_CAPTURE_LOST, self._on_capture_lost_3d)
+        self.editor3d.Bind(_gl.EVT_GL_LEFT_DOWN, self._on_left_down_3d)
         self.editor3d.Bind(_gl.EVT_GL_LEFT_UP, self._on_left_up_3d)
-        # self.editor3d.Bind(_gl.EVT_GL_LEFT_UP, self._on_left_up_3d)
-        #
-        # self.editor3d.Bind(_gl.EVT_GL_OBJECT_SELECTED, self._on_object_selected_3d)
-        # self.editor3d.Bind(_gl.EVT_GL_OBJECT_UNSELECTED, self._on_object_unselected_3d)
-        #
-        # self.editor3d.Bind(_gl.EVT_GL_OBJECT_DRAG, self._on_object_drag_3d)
-        #
-        # self.editor3d.Bind(_gl.EVT_GL_OBJECT_ACTIVATED, self._on_object_activated_3d)
+        self.editor3d.Bind(_gl.EVT_GL_LEFT_DCLICK, self._on_left_dclick_3d)
+        self.editor3d.Bind(_gl.EVT_GL_RIGHT_DOWN, self._on_right_down_3d)
+        self.editor3d.Bind(_gl.EVT_GL_RIGHT_UP, self._on_right_up_3d)
+        self.editor3d.Bind(_gl.EVT_GL_RIGHT_DCLICK, self._on_right_dclick_3d)
+        self.editor3d.Bind(_gl.EVT_GL_MIDDLE_DOWN, self._on_middle_down_3d)
+        self.editor3d.Bind(_gl.EVT_GL_MIDDLE_UP, self._on_middle_up_3d)
+        self.editor3d.Bind(_gl.EVT_GL_MIDDLE_DCLICK, self._on_middle_dclick_3d)
+        self.editor3d.Bind(_gl.EVT_GL_AUX1_DOWN, self._on_aux1_down_3d)
+        self.editor3d.Bind(_gl.EVT_GL_AUX1_UP, self._on_aux1_up_3d)
+        self.editor3d.Bind(_gl.EVT_GL_AUX1_DCLICK, self._on_aux1_dclick_3d)
+        self.editor3d.Bind(_gl.EVT_GL_AUX2_DOWN, self._on_aux2_down_3d)
+        self.editor3d.Bind(_gl.EVT_GL_AUX2_UP, self._on_aux2_up_3d)
+        self.editor3d.Bind(_gl.EVT_GL_AUX2_DCLICK, self._on_aux2_dclick_3d)
 
-        # from ..menus import menubar as _menubar
-        #
-        # self.menubar = _menubar.Menubar
-        #
-        # self.SetMenuBar(self.menubar)
+    def _on_obj_selected_3d(self, evt: _gl.GLObjectEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_obj_unselected_3d(self, evt: _gl.GLObjectEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_obj_activated_3d(self, evt: _gl.GLObjectEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_obj_right_click_3d(self, evt: _gl.GLObjectEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+            obj = evt.GetGLObject()
+
+            context_menu = obj.obj3d.get_context_menu()
+            if context_menu is not None:
+                x, y, _ = evt.GetPosition().as_int
+                self.editor3d.editor.PopupMenu(context_menu, x, y)
+
+    def _on_obj_right_dclick_3d(self, evt: _gl.GLObjectEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_obj_middle_click_3d(self, evt: _gl.GLObjectEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_obj_middle_dclick_3d(self, evt: _gl.GLObjectEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_obj_aux1_click_3d(self, evt: _gl.GLObjectEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_obj_aux1_dclick_3d(self, evt: _gl.GLObjectEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_obj_aux2_click_3d(self, evt: _gl.GLObjectEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_obj_aux2_dclick_3d(self, evt: _gl.GLObjectEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_obj_drag_3d(self, evt: _gl.GLObjectEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_key_down_3d(self, evt: _gl.GLKeyEvent) -> None:
+        if self._obj_handler is not None:
+            keycode = evt.GetKeyCode()
+            if keycode == wx.WXK_ESCAPE:
+                mouse_event = evt.GetMouseEvent()
+
+                if (
+                    mouse_event.Aux1IsDown() or
+                    mouse_event.Aux2IsDown() or
+                    mouse_event.RightIsDown() or
+                    mouse_event.MiddleIsDown() or
+                    mouse_event.LeftIsDown()
+                ):
+                    self._obj_handler.ignore_next_input()
+                else:
+                    self._obj_handler.cancel()
+                    self._obj_handler = None
+
+                evt.StopPropagation()
+                return
+
+        evt.Skip()
+
+    def _on_key_up_3d(self, evt: _gl.GLKeyEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_mouse_move_3d(self, evt: _gl.GLEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+        mouse_pos = evt.GetPosition()
+
+        if self._add_handler is not None:
+            self._add_handler.hover(mouse_pos)
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_capture_lost_3d(self, evt: _gl.GLCaptureLostEvent) -> None:
+        if self._obj_handler is not None:
+            self._obj_handler.veto_position()
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_left_down_3d(self, evt: _gl.GLEvent) -> None:
+        if self._obj_handler is not None:
+            position = evt.GetPosition()
+            self._obj_handler.capture_position(position)
+            self.editor3d.CaptureMouse()
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_left_up_3d(self, evt: _gl.GLEvent) -> None:
+        if self._obj_handler is not None:
+            position = evt.GetPosition
+            self._obj_handler.release_capture(position)
+
+            if self._obj_handler.is_finalized:
+                self._obj_handler = None
+
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+        mode = self.editor_toolbar.get_mode()
+
+        if mode == _toolbar.ID_SELECT:
+            return
+        elif mode == _toolbar.ID_CONNECTOR:
+            evt.StopPropagation()
+            self.add_housing(position3d=evt.GetWorldPosition())
+        elif mode == _toolbar.ID_TERMINAL:
+            evt.StopPropagation()
+            self.add_terminal(position3d=evt.GetWorldPosition())
+        elif mode == _toolbar.ID_WIRE:
+            evt.StopPropagation()
+            self.add_wire(position3d=evt.GetWorldPosition())
+        elif mode == _toolbar.ID_WIRE_SERVICE_LOOP:
+            evt.StopPropagation()
+            self.add_wire_service_loop(position3d=evt.GetWorldPosition())
+        elif mode == _toolbar.ID_SPLICE:
+            evt.StopPropagation()
+            self.add_splice(position3d=evt.GetWorldPosition())
+        elif mode == _toolbar.ID_NOTE:
+            evt.StopPropagation()
+            self.add_note(position3d=evt.GetWorldPosition())
+        elif mode == _toolbar.ID_CIRCLE:
+            evt.StopPropagation()
+            self.add_circle(position3d=evt.GetWorldPosition())
+        elif mode == _toolbar.ID_SQUARE:
+            evt.StopPropagation()
+            self.add_square(position3d=evt.GetWorldPosition())
+        elif mode == _toolbar.ID_TRANSITION:
+            evt.StopPropagation()
+            self.add_transition(position3d=evt.GetWorldPosition())
+        elif mode == _toolbar.ID_SEAL:
+            evt.StopPropagation()
+            self.add_seal(position3d=evt.GetWorldPosition())
+        elif mode == _toolbar.ID_BUNDLE_COVER:
+            evt.StopPropagation()
+            self.add_bundle(position3d=evt.GetWorldPosition())
+        elif mode == _toolbar.ID_TPA_LOCK:
+            evt.StopPropagation()
+            self.add_tpa_lock(position3d=evt.GetWorldPosition())
+        elif mode == _toolbar.ID_CPA_LOCK:
+            evt.StopPropagation()
+            self.add_cpa_lock(position3d=evt.GetWorldPosition())
+        elif mode == _toolbar.ID_COVER:
+            evt.StopPropagation()
+            self.add_cover(position3d=evt.GetWorldPosition())
+        elif mode == _toolbar.ID_ZOOM_IN:
+            evt.StopPropagation()
+            self.editor3d.editor.Zoom(1.0)
+        elif mode == _toolbar.ID_ZOOM_OUT:
+            evt.StopPropagation()
+            self.editor3d.editor.Zoom(-1.0)
+
+        evt.Skip()
+
+    def _on_left_dclick_3d(self, evt: _gl.GLEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_right_down_3d(self, evt: _gl.GLEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_right_up_3d(self, evt: _gl.GLEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_right_dclick_3d(self, evt: _gl.GLEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_middle_down_3d(self, evt: _gl.GLEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_middle_up_3d(self, evt: _gl.GLEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_middle_dclick_3d(self, evt: _gl.GLEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_aux1_down_3d(self, evt: _gl.GLEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_aux1_up_3d(self, evt: _gl.GLEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_aux1_dclick_3d(self, evt: _gl.GLEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_aux2_down_3d(self, evt: _gl.GLEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_aux2_up_3d(self, evt: _gl.GLEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_aux2_dclick_3d(self, evt: _gl.GLEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
 
     def set_clone_obj(self, obj):
         self._clone_obj = obj
@@ -562,18 +862,8 @@ class MainFrame(wx.Frame):
         if self.project.cleanup.process_chunk():
             event.RequestMore()
 
-    def on_close(self, _):
+    def _on_close(self, _):
         self.logger.info('Harness Designer shutting down')
-
-        if self.project is not None:
-            self.logger.info('Cleaning up orphaned points...')
-            from ..database.project_db.cleanup import cleanup_orphaned_points
-
-            deleted_3d, deleted_2d = cleanup_orphaned_points(self.project.ptables)
-            self.logger.info(
-                f'Point cleanup complete: {deleted_3d} orphaned 3D points, '
-                f'{deleted_2d} orphaned 2D points removed.'
-            )
 
         self.logger.info('Saving UI layout...')
         Config.ui_perspective = self.manager.SavePerspective()
@@ -602,12 +892,15 @@ class MainFrame(wx.Frame):
         self.logger.info('Closing UI')
         self.Destroy()
 
-    def on_size(self, evt: wx.SizeEvent):
-        w, h = evt.GetSize()
-        Config.size = (w, h)
+    def _on_size(self, evt: wx.SizeEvent):
+        def _do():
+            w, h = self.GetSize()
+            Config.size = (w, h)
+
+        wx.CallAfter(_do)
         evt.Skip()
 
-    def on_move(self, evt):
+    def _on_move(self, evt):
         def _do():
             x, y = self.GetPosition()
             Config.position = (x, y)
@@ -642,66 +935,3 @@ class MainFrame(wx.Frame):
 
         wx.CallAfter(_do)
 
-    def _on_left_up_3d(self, evt: _gl.GLEvent):
-        mode = self.editor_toolbar.get_mode()
-
-        if mode == _toolbar.ID_SELECT:
-            return
-        elif mode == _toolbar.ID_CONNECTOR:
-            evt.StopPropagation()
-            self.add_housing(position3d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_TERMINAL:
-            evt.StopPropagation()
-            self.add_terminal(position3d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_WIRE:
-            evt.StopPropagation()
-            self.add_wire(position3d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_WIRE_SERVICE_LOOP:
-            evt.StopPropagation()
-            self.add_wire_service_loop(position3d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_SPLICE:
-            evt.StopPropagation()
-            self.add_splice(position3d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_NOTE:
-            evt.StopPropagation()
-            self.add_note(position3d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_CIRCLE:
-            evt.StopPropagation()
-            self.add_circle(position3d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_SQUARE:
-            evt.StopPropagation()
-            self.add_square(position3d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_TRANSITION:
-            evt.StopPropagation()
-            self.add_transition(position3d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_SEAL:
-            evt.StopPropagation()
-            self.add_seal(position3d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_BUNDLE_COVER:
-            evt.StopPropagation()
-            self.add_bundle(position3d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_TPA_LOCK:
-            evt.StopPropagation()
-            self.add_tpa_lock(position3d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_CPA_LOCK:
-            evt.StopPropagation()
-            self.add_cpa_lock(position3d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_COVER:
-            evt.StopPropagation()
-            self.add_cover(position3d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_ZOOM_IN:
-            evt.StopPropagation()
-            self.editor3d.editor.Zoom(1.0)
-        elif mode == _toolbar.ID_ZOOM_OUT:
-            evt.StopPropagation()
-            self.editor3d.editor.Zoom(-1.0)
-
-        evt.Skip()
-
-    def _on_obj_right_click_3d(self, evt: _gl.GLObjectEvent):
-        obj = evt.GetGLObject()
-
-        context_menu = obj.obj3d.get_context_menu()
-        if context_menu is not None:
-            x, y, _ = evt.GetPosition().as_int
-            self.editor3d.editor.PopupMenu(context_menu, x, y)

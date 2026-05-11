@@ -1,13 +1,24 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
-import wx
+from PySide6.QtWidgets import (
+    QVBoxLayout, QHBoxLayout, QGroupBox, QLabel
+)
+from PySide6.QtGui import QColor
+from PySide6.QtCore import Qt
 
 from . import dialog_base as _dialog_base
 from ..widgets import checkbox_ctrl as _checkbox_ctrl
 from ..widgets import float_ctrl as _float_ctrl
 from ... import color as _color
-
 from ... import config as _config
+
+# PySide6 colour picker — uses QColorDialog indirectly via a thin wrapper.
+# We provide a small ColourPickerCtrl shim below that matches the wx API
+# used in this file (GetColour / SetColour).
+from PySide6.QtWidgets import QPushButton, QColorDialog
+
 
 if TYPE_CHECKING:
     from ... import ui as _ui
@@ -16,181 +27,191 @@ if TYPE_CHECKING:
 Config = _config.Config
 
 
+class _ColourPickerCtrl(QPushButton):
+    """Minimal wx.ColourPickerCtrl replacement."""
+
+    def __init__(self, parent, colour: "_color.Color"):
+        super().__init__(parent)
+        self._color = colour
+        self._apply_color(colour)
+        self.clicked.connect(self._pick)
+
+    def _apply_color(self, c):
+        self._color = c
+        qc = c.to_qcolor() if hasattr(c, 'to_qcolor') else QColor(c.GetRed(), c.GetGreen(), c.GetBlue())
+        self.setStyleSheet(
+            f'background-color: {qc.name()}; min-width: 40px; min-height: 20px;')
+
+    def _pick(self):
+        c = self._color
+        qc = c.to_qcolor() if hasattr(c, 'to_qcolor') else QColor(c.GetRed(), c.GetGreen(), c.GetBlue())
+        chosen = QColorDialog.getColor(qc, self, "Choose colour")
+        if chosen.isValid():
+            new_c = _color.Color(chosen.red(), chosen.green(), chosen.blue(), 255)
+            self._apply_color(new_c)
+
+    def GetColour(self):
+        return self._color
+
+
 class DebugSettingsDialog(_dialog_base.BaseDialog):
 
     def __init__(self, parent: "_ui.MainFrame"):
-
         self.mainframe = parent
-        _dialog_base.BaseDialog.__init__(self, parent, 'Settings', label='Debug Settings', size=(-1, 675))
+        _dialog_base.BaseDialog.__init__(
+            self, parent, 'Debug Settings', size=(-1, 675))
 
         panel = self.panel
-        vsizer = wx.BoxSizer(wx.VERTICAL)
-        panel.SetSizer(vsizer)
+        vsizer = QVBoxLayout(panel)
 
         rendering3d = Config.debug.rendering3d
 
-        visual_sz = wx.StaticBoxSizer(wx.VERTICAL, panel, "Visual Settings")
-        visual_sb = visual_sz.GetStaticBox()
+        # Visual Settings group
+        visual_box = QGroupBox("Visual Settings", panel)
+        visual_lay = QVBoxLayout(visual_box)
 
-        self.faces = _checkbox_ctrl.CheckboxCtrl(visual_sb, 'Render Faces:')
+        self.faces = _checkbox_ctrl.CheckboxCtrl(visual_box, 'Render Faces:')
         self.faces.SetValue(rendering3d.draw_faces)
+        visual_lay.addWidget(self.faces)
 
-        visual_sz.Add(self.faces, 0, wx.ALL, 5)
+        # Edges sub-group
+        edges_box = QGroupBox("Edges", visual_box)
+        edges_lay = QVBoxLayout(edges_box)
 
-        edges_sz = wx.StaticBoxSizer(wx.VERTICAL, visual_sb, "Edges")
-        edges_sb = edges_sz.GetStaticBox()
-
-        self.edges = _checkbox_ctrl.CheckboxCtrl(edges_sb, 'Render Edges:')
+        self.edges = _checkbox_ctrl.CheckboxCtrl(edges_box, 'Render Edges:')
         self.edges.SetValue(rendering3d.draw_edges)
 
-        hsizer = wx.BoxSizer(wx.HORIZONTAL)
-
-        hsizer.Add(self.edges, 1, wx.TOP | wx.LEFT | wx.RIGHT | wx.ALIGN_CENTER_VERTICAL, 5)
-
         r, g, b = rendering3d.edge_color_dark
-        edge_dark_color = _color.Color(r, g, b, 1.0)
-        self.edge_color_dark = wx.ColourPickerCtrl(edges_sb, wx.ID_ANY, colour=edge_dark_color)
-        st = wx.StaticText(edges_sb, wx.ID_ANY, label='Color Dark:')
-        sizer = wx.BoxSizer(wx.HORIZONTAL)
-        sizer.Add(st, 0, wx.RIGHT | wx.ALIGN_CENTER_VERTICAL, 5)
-        sizer.Add(self.edge_color_dark, 1, wx.LEFT, 5)
-
-        hsizer.Add(sizer, 0, wx.TOP | wx.LEFT | wx.RIGHT, 5)
+        edge_dark_color = _color.Color(r, g, b, 255)
+        self.edge_color_dark = _ColourPickerCtrl(edges_box, edge_dark_color)
 
         r, g, b = rendering3d.edge_color_light
-        edge_light_color = _color.Color(r, g, b, 1.0)
-        self.edge_color_light = wx.ColourPickerCtrl(edges_sb, wx.ID_ANY, colour=edge_light_color)
-        st = wx.StaticText(edges_sb, wx.ID_ANY, label='Color Light:')
-        sizer = wx.BoxSizer(wx.HORIZONTAL)
-        sizer.Add(st, 0, wx.RIGHT | wx.ALIGN_CENTER_VERTICAL, 5)
-        sizer.Add(self.edge_color_light, 1, wx.LEFT, 5)
+        edge_light_color = _color.Color(r, g, b, 255)
+        self.edge_color_light = _ColourPickerCtrl(edges_box, edge_light_color)
 
-        hsizer.Add(sizer, 0, wx.TOP | wx.LEFT | wx.RIGHT, 5)
-        edges_sz.Add(hsizer, 1, wx.EXPAND)
+        edges_row = QHBoxLayout()
+        edges_row.addWidget(self.edges, 1)
+        dark_row = QHBoxLayout()
+        dark_row.addWidget(QLabel('Color Dark:', edges_box))
+        dark_row.addWidget(self.edge_color_dark)
+        light_row = QHBoxLayout()
+        light_row.addWidget(QLabel('Color Light:', edges_box))
+        light_row.addWidget(self.edge_color_light)
+        edges_row.addLayout(dark_row)
+        edges_row.addLayout(light_row)
+        edges_lay.addLayout(edges_row)
 
         self.edge_threshold = _float_ctrl.FloatCtrl(
-            edges_sb, 'Color Threshold:', min_val=0.10, max_val=0.90, inc=0.01, slider=True)
+            edges_box, 'Color Threshold:', min_val=0.10,
+            max_val=0.90, inc=0.01, slider=True)
         self.edge_threshold.SetValue(rendering3d.edge_luminance_threshold)
+        edges_lay.addWidget(self.edge_threshold)
 
-        edges_sz.Add(self.edge_threshold, 0, wx.EXPAND | wx.ALL, 5)
+        visual_lay.addWidget(edges_box)
 
-        visual_sz.Add(edges_sz, 0, wx.ALL | wx.EXPAND, 5)
+        # Bounding Boxes sub-group
+        bb_box = QGroupBox("Bounding Boxes", visual_box)
+        bb_lay = QHBoxLayout(bb_box)
 
-        bounding_box_sz = wx.StaticBoxSizer(wx.VERTICAL, visual_sb, "Bounding Boxes")
-        bound_box_sb = bounding_box_sz.GetStaticBox()
-
-        hsizer = wx.BoxSizer(wx.HORIZONTAL)
-
-        self.aabb = _checkbox_ctrl.CheckboxCtrl(bound_box_sb, 'Axis Aligned Bounding Box (AABB):')
+        self.aabb = _checkbox_ctrl.CheckboxCtrl(
+            bb_box, 'Axis Aligned Bounding Box (AABB):')
         self.aabb.SetValue(rendering3d.draw_aabb)
+        bb_lay.addWidget(self.aabb, 1)
 
-        hsizer.Add(self.aabb, 1, wx.ALL, 5)
-
-        self.obb = _checkbox_ctrl.CheckboxCtrl(bound_box_sb, 'Oriented Bounding Box (OBB):')
+        self.obb = _checkbox_ctrl.CheckboxCtrl(
+            bb_box, 'Oriented Bounding Box (OBB):')
         self.obb.SetValue(rendering3d.draw_obb)
+        bb_lay.addWidget(self.obb, 1)
 
-        hsizer.Add(self.obb, 1, wx.ALL, 5)
+        visual_lay.addWidget(bb_box)
 
-        bounding_box_sz.Add(hsizer, 1, wx.EXPAND)
+        # Normals sub-group
+        normals_box = QGroupBox("Normals", visual_box)
+        normals_lay = QVBoxLayout(normals_box)
 
-        visual_sz.Add(bounding_box_sz, 0, wx.ALL | wx.EXPAND, 5)
-
-        normals_sz = wx.StaticBoxSizer(wx.VERTICAL, visual_sb, "Normals")
-        normals_sb = normals_sz.GetStaticBox()
-
-        hsizer = wx.BoxSizer(wx.HORIZONTAL)
-
-        self.normals = _checkbox_ctrl.CheckboxCtrl(normals_sb, 'Render Normals:')
+        self.normals = _checkbox_ctrl.CheckboxCtrl(normals_box, 'Render Normals:')
         self.normals.SetValue(rendering3d.draw_normals)
 
-        hsizer.Add(self.normals, 1, wx.ALL, 5)
-
         r, g, b = rendering3d.normals_color
-        normals_color = _color.Color(r, g, b, 1.0)
-        self.normals_color = wx.ColourPickerCtrl(normals_sb, wx.ID_ANY, colour=normals_color)
-        st = wx.StaticText(normals_sb, wx.ID_ANY, label='Color:')
-        sizer = wx.BoxSizer(wx.HORIZONTAL)
-        sizer.Add(st, 1, wx.RIGHT, 5)
-        sizer.Add(self.normals_color, 1, wx.LEFT, 5)
+        normals_color = _color.Color(r, g, b, 255)
+        self.normals_color = _ColourPickerCtrl(normals_box, normals_color)
 
-        hsizer.Add(sizer, 1, wx.ALL, 5)
+        normals_row = QHBoxLayout()
+        normals_row.addWidget(self.normals, 1)
+        nc_row = QHBoxLayout()
+        nc_row.addWidget(QLabel('Color:', normals_box))
+        nc_row.addWidget(self.normals_color)
+        normals_row.addLayout(nc_row)
+        normals_lay.addLayout(normals_row)
 
-        normals_sz.Add(hsizer, 1, wx.EXPAND)
+        visual_lay.addWidget(normals_box)
 
-        visual_sz.Add(normals_sz, 0, wx.ALL | wx.EXPAND, 5)
+        # Vertices sub-group
+        vertices_box = QGroupBox("Vertices", visual_box)
+        vertices_lay = QVBoxLayout(vertices_box)
 
-        vertices_sz = wx.StaticBoxSizer(wx.VERTICAL, visual_sb, "Vertices")
-        vertices_sb = vertices_sz.GetStaticBox()
-
-        hsizer = wx.BoxSizer(wx.HORIZONTAL)
-
-        self.vertices = _checkbox_ctrl.CheckboxCtrl(vertices_sb, 'Render Vertices:')
+        self.vertices = _checkbox_ctrl.CheckboxCtrl(vertices_box, 'Render Vertices:')
         self.vertices.SetValue(rendering3d.draw_vertices)
 
-        hsizer.Add(self.vertices, 1, wx.ALL, 5)
-
         r, g, b = rendering3d.vertices_color
-        vertices_color = _color.Color(r, g, b, 1.0)
-        self.vertices_color = wx.ColourPickerCtrl(vertices_sb, wx.ID_ANY, colour=vertices_color)
-        st = wx.StaticText(vertices_sb, wx.ID_ANY, label='Color:')
-        sizer = wx.BoxSizer(wx.HORIZONTAL)
-        sizer.Add(st, 1, wx.RIGHT, 5)
-        sizer.Add(self.vertices_color, 1, wx.LEFT, 5)
+        vertices_color = _color.Color(r, g, b, 255)
+        self.vertices_color = _ColourPickerCtrl(vertices_box, vertices_color)
 
-        hsizer.Add(sizer, 1, wx.ALL, 5)
+        vertices_row = QHBoxLayout()
+        vertices_row.addWidget(self.vertices, 1)
+        vc_row = QHBoxLayout()
+        vc_row.addWidget(QLabel('Color:', vertices_box))
+        vc_row.addWidget(self.vertices_color)
+        vertices_row.addLayout(vc_row)
+        vertices_lay.addLayout(vertices_row)
 
-        vertices_sz.Add(hsizer, 1, wx.EXPAND)
+        visual_lay.addWidget(vertices_box)
 
-        visual_sz.Add(vertices_sz, 0, wx.ALL | wx.EXPAND, 5)
+        vsizer.addWidget(visual_box)
 
-        vsizer.Add(visual_sz, 0, wx.EXPAND | wx.ALL, 10)
-
+        # Function Settings group
         functions = Config.debug.functions
-
-        functions_sz = wx.StaticBoxSizer(wx.VERTICAL, panel, "Function Settings")
-        functions_sb = functions_sz.GetStaticBox()
-
-        hsizer = wx.BoxSizer(wx.HORIZONTAL)
+        functions_box = QGroupBox("Function Settings", panel)
+        functions_lay = QVBoxLayout(functions_box)
 
         if not functions.log_args and not functions.log_duration:
-            st = wx.StaticText(functions_sb, wx.ID_ANY, label='Application restart will be needed if these are changed.')
-            st.SetForegroundColour(wx.RED)
-            functions_sz.Add(st, 0, wx.ALL, 5)
+            restart_lbl = QLabel(
+                'Application restart will be needed if these are changed.',
+                functions_box)
+            restart_lbl.setStyleSheet('color: red;')
+            functions_lay.addWidget(restart_lbl)
 
-        self.log_args = _checkbox_ctrl.CheckboxCtrl(functions_sb, 'Log Function Parameters:')
+        self.log_args = _checkbox_ctrl.CheckboxCtrl(
+            functions_box, 'Log Function Parameters:')
         self.log_args.SetValue(functions.log_args)
 
-        hsizer.Add(self.log_args, 1, wx.ALL, 5)
-
-        self.log_duration = _checkbox_ctrl.CheckboxCtrl(functions_sb, 'Log Function Duration:')
+        self.log_duration = _checkbox_ctrl.CheckboxCtrl(
+            functions_box, 'Log Function Duration:')
         self.log_duration.SetValue(functions.log_duration)
 
-        hsizer.Add(self.log_duration, 1, wx.ALL, 5)
+        fn_row = QHBoxLayout()
+        fn_row.addWidget(self.log_args, 1)
+        fn_row.addWidget(self.log_duration, 1)
+        functions_lay.addLayout(fn_row)
 
-        functions_sz.Add(hsizer, 0, wx.EXPAND)
-        vsizer.Add(functions_sz, 0, wx.EXPAND | wx.ALL, 10)
+        vsizer.addWidget(functions_box)
 
     def SetValues(self):
-
-        def _get_color(color):
-            r = color.GetRed()
-            g = color.GetGreen()
-            b = color.GetBlue()
-
-            color = _color.Color(r, g, b, 255)
+        def _get_color(picker):
+            c = picker.GetColour()
+            color = _color.Color(c.GetRed(), c.GetGreen(), c.GetBlue(), 255)
             return color.rgba_scalar[:-1]
 
         Config.debug.rendering3d.draw_faces = self.faces.GetValue()
         Config.debug.rendering3d.draw_edges = self.edges.GetValue()
-        Config.debug.rendering3d.edge_color_dark = _get_color(self.edge_color_dark.GetColour())
-        Config.debug.rendering3d.edge_color_light = _get_color(self.edge_color_light.GetColour())
+        Config.debug.rendering3d.edge_color_dark = _get_color(self.edge_color_dark)
+        Config.debug.rendering3d.edge_color_light = _get_color(self.edge_color_light)
         Config.debug.rendering3d.edge_luminance_threshold = self.edge_threshold.GetValue()
         Config.debug.rendering3d.draw_aabb = self.aabb.GetValue()
         Config.debug.rendering3d.draw_obb = self.obb.GetValue()
         Config.debug.rendering3d.draw_normals = self.normals.GetValue()
-        Config.debug.rendering3d.normals_color = _get_color(self.normals_color.GetColour())
+        Config.debug.rendering3d.normals_color = _get_color(self.normals_color)
         Config.debug.rendering3d.draw_vertices = self.vertices.GetValue()
-        Config.debug.rendering3d.vertices_color = _get_color(self.vertices_color.GetColour())
-
+        Config.debug.rendering3d.vertices_color = _get_color(self.vertices_color)
         Config.debug.functions.log_args = self.log_args.GetValue()
         Config.debug.functions.log_duration = self.log_duration.GetValue()

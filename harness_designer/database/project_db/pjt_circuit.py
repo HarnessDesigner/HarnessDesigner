@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import Iterable as _Iterable, Union as _Union, TYPE_CHECKING
 
 import weakref
@@ -5,14 +7,13 @@ import wx
 
 from ...ui import prop_ctrls as _prop_ctrls
 from .pjt_bases import PJTEntryBase, PJTTableBase
+from ...geometry import point as _point
+from ...geometry.decimal import Decimal as _d
+from ... import logger as _logger
 from .mixins import (
     NameMixin,
     NotesMixin, NotesControl
 )
-
-from ...geometry import point as _point
-from ...geometry.decimal import Decimal as _d
-from ... import logger as _logger
 
 
 if TYPE_CHECKING:

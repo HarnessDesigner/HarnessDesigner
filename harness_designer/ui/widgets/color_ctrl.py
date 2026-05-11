@@ -1,117 +1,119 @@
+from PySide6.QtWidgets import QWidget, QHBoxLayout, QPushButton, QColorDialog
+from PySide6.QtGui import QColor
+from PySide6.QtCore import Signal
 
-import wx
-
-from . import combobox_ctrl as _combobox_ctrl
+from .combobox_ctrl import ComboBoxCtrl
 from ... import color as _color
 
 
-class ColorCtrl(wx.BoxSizer):
+class ColorCtrl(QWidget):
+    """Label + combobox + colour-picker-button composite widget.
 
-    def __init__(self, parent, label, table):
+    Emits colour_changed(Color) whenever the selection or the picker changes.
+    Call sites should connect to this signal instead of binding
+    EVT_COLOURPICKER_CHANGED on the old sizer-based widget.
+    """
 
-        wx.BoxSizer.__init__(self, wx.HORIZONTAL)
+    colour_changed = Signal(object)  # emits a _color.Color
+
+    def __init__(self, parent=None, label: str = '', table=None):
+        super().__init__(parent)
 
         table.execute('SELECT id, name, rgb FROM colors;')
         rows = table.fetchall()
+        self._choices = sorted(rows, key=lambda x: x[1])
 
-        self._choices = sorted([row for row in rows], key=lambda x: x[1])
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
 
-        self.ctrl = _combobox_ctrl.ComboBoxCtrl(parent, label, [item[1] for item in self._choices])
-        self.button = wx.ColourPickerCtrl(parent, wx.ID_ANY)
+        self.ctrl = ComboBoxCtrl(self, label, [item[1] for item in self._choices])
+        self.button = QPushButton(self)
+        self.button.setFixedWidth(32)
+        self._current_qcolor = QColor(255, 255, 255, 255)
+        self._update_button_colour(self._current_qcolor)
 
-        self.ctrl.Bind(wx.EVT_COMBOBOX, self._on_combobox)
-        self.button.Bind(wx.EVT_COLOURPICKER_CHANGED, self._on_colour)
-        self.Add(self.ctrl, 2, wx.EXPAND)
-        self.Add(self.Button, 1, wx.ALL | wx.EXPAND, 5)
+        layout.addWidget(self.ctrl, 2)
+        layout.addWidget(self.button, 0)
 
-    def _on_colour(self, _):
-        color = self.button.GetColour()
-        r = color.GetRed()
-        g = color.GetGreen()
-        b = color.GetBlue()
+        self.ctrl.currentTextChanged.connect(self._on_combobox)
+        self.button.clicked.connect(self._on_colour_button)
 
-        rgba = r << 24 | g << 16 | b << 8 | 0xFF
+    # ------------------------------------------------------------------
+    # Internal
+    # ------------------------------------------------------------------
+    def _update_button_colour(self, qc: QColor):
+        self._current_qcolor = qc
+        r, g, b = qc.red(), qc.green(), qc.blue()
+        self.button.setStyleSheet(
+            f'QPushButton {{ background-color: rgb({r},{g},{b}); border: 1px solid #666; }}'
+        )
 
+    def _rgba_from_qcolor(self, name: str, qc: QColor) -> int:
+        r, g, b = qc.red(), qc.green(), qc.blue()
+        return r << 24 | g << 16 | b << 8 | 0xFF
+
+    def _on_colour_button(self):
+        qc = QColorDialog.getColor(self._current_qcolor, self, 'Select Colour')
+        if not qc.isValid():
+            return
+        self._update_button_colour(qc)
+
+        # Try to match a named colour and update the combobox
+        rgba = self._rgba_from_qcolor('', qc)
         colors = [item[2] for item in self._choices]
-
         if rgba in colors:
             index = colors.index(rgba)
             name = self._choices[index][1]
+            self.ctrl.blockSignals(True)
             self.ctrl.SetValue(name)
+            self.ctrl.blockSignals(False)
 
-        event = wx.ColourPickerEvent(wx.wxEVT_COLOURPICKER_CHANGED)
-        event.SetColour(color)
-        event.SetEventObject(self.ctrl)
-        event.SetId(self.ctrl.GetId())
-        self.ctrl.GetEventHandler().ProcessEvent(event)
+        self.colour_changed.emit(self.GetColour())
 
-    def _on_combobox(self, evt):
-        value = self.ctrl.GetValue()
+    def _on_combobox(self, value: str):
         values = [item[1] for item in self._choices]
-
         if value in values:
             index = values.index(value)
             rgba = self._choices[index][2]
-
             r = (rgba >> 24) & 0xFF
             g = (rgba >> 16) & 0xFF
             b = (rgba >> 8) & 0xFF
             a = rgba & 0xFF
+            qc = QColor(r, g, b, a)
+            self._update_button_colour(qc)
 
-            color = wx.Colour(r, g, b, a)
-            self.button.SetColour(color)
+        self.colour_changed.emit(self.GetColour())
 
-            event = wx.ColourPickerEvent(wx.wxEVT_COLOURPICKER_CHANGED)
-            event.SetColour(color)
-            event.SetEventObject(self.ctrl)
-            event.SetId(self.ctrl.GetId())
-            self.ctrl.GetEventHandler().ProcessEvent(event)
+    # ------------------------------------------------------------------
+    # wx-compatible public API
+    # ------------------------------------------------------------------
+    def Enable(self, flag: bool = True):
+        self.ctrl.setEnabled(flag)
+        self.button.setEnabled(flag)
 
-        evt.Skip()
+    def SetToolTip(self, text: str):
+        self.ctrl.setToolTip(text)
+        self.button.setToolTip(text)
 
-    def Enable(self, flag=True):
-        self.ctrl.Enable(flag)
-        self.button.Enable(flag)
+    SetToolTipString = SetToolTip
 
-    def SetToolTip(self, text):
-        self.ctrl.SetToolTip(text)
-        self.button.SetToolTip(text)
-
-    def SetToolTipString(self, text):
-        self.ctrl.SetToolTip(text)
-        self.button.SetToolTip(text)
-
-    def Bind(self, event, handler):
-        self.ctrl.Bind(event, handler)
-
-    def GetColour(self) -> _color.Color:
-
-        color = self.button.GetColour()
+    def GetColour(self) -> '_color.Color':
+        qc = self._current_qcolor
         name = self.GetValue()
-        if name in ('None', 'Transparent'):
-            a = 0
-        else:
-            a = 255
+        a = 0 if name in ('None', 'Transparent') else 255
+        return _color.Color(qc.red(), qc.green(), qc.blue(), a)
 
-        return _color.Color(color.GetRed(), color.GetGreen(), color.GetBlue(), a)
-
-    def GetValue(self):
+    def GetValue(self) -> str:
         return self.ctrl.GetValue()
 
-    def SetValue(self, value):
+    def SetValue(self, value: str):
         values = [item[1] for item in self._choices]
-
         if value in values:
             index = values.index(value)
             rgba = self._choices[index][2]
-
             r = (rgba >> 24) & 0xFF
             g = (rgba >> 16) & 0xFF
             b = (rgba >> 8) & 0xFF
             a = rgba & 0xFF
-
-            color = wx.Colour(r, g, b, a)
-            self.button.SetColour(color)
-
+            self._update_button_colour(QColor(r, g, b, a))
         self.ctrl.SetValue(value)
-

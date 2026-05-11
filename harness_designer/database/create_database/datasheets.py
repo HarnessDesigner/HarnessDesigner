@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from .. import db_connectors as _con
 from . import file_types as _file_types
 from ... import resources as _resources

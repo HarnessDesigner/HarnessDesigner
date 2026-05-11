@@ -1,4 +1,7 @@
-import wx
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
+from PySide6.QtWidgets import QLabel, QHBoxLayout, QVBoxLayout
+from PySide6.QtCore import Qt
 
 from . import prop_base as _prop_base
 from ..widgets import autocomplete_textctrl as _autocomplete_textctrl
@@ -7,66 +10,57 @@ from ..widgets import autocomplete_textctrl as _autocomplete_textctrl
 class AutocompleteStringProperty(_prop_base.Property):
 
     def __init__(self, parent, label, style=0, units=None):
-        style |= wx.TE_LEFT | wx.TE_PROCESS_ENTER
         self._choices = []
-        self._value = []
+        self._value = ''
+        self._units_st = None
 
         _prop_base.Property.__init__(self, parent, label)
 
-        self._st = wx.StaticText(self, wx.ID_ANY, label=self._label + ':')
-
-        self._ctrl = _autocomplete_textctrl.AutoCompleteTextCtrl(
-            self, wx.ID_ANY, style=style, choices=[])
+        self._st = QLabel(label + ':', self)
+        self._ctrl = _autocomplete_textctrl.AutoCompleteTextCtrl(self, choices=[])
 
         if units is not None:
-            self._units_st = wx.StaticText(self, wx.ID_ANY, label=units)
+            self._units_st = QLabel(units, self)
 
-        self._ctrl.Bind(wx.EVT_TEXT_ENTER, self._on_enter)
+        row = QHBoxLayout()
+        row.setContentsMargins(5, 2, 5, 2)
+        row.addWidget(self._st)
 
-    def Realize(self):
-        hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        hsizer.Add(self._st, 0, wx.ALL | wx.ALIGN_CENTER, 5)
+        col = QVBoxLayout()
+        col.setContentsMargins(0, 0, 0, 0)
+        col.addWidget(self._ctrl)
+        row.addLayout(col, stretch=1)
 
-        vsizer = wx.BoxSizer(wx.VERTICAL)
-        vsizer.Add(self._ctrl, 0, wx.ALL | wx.EXPAND, 5)
-        hsizer.Add(vsizer, 1)
+        if self._units_st:
+            row.addWidget(self._units_st, alignment=Qt.AlignBottom)
 
-        if self._units_st is not None:
-            hsizer.Add(self._units_st, 0, wx.ALL | wx.ALIGN_BOTTOM, 5)
-
-        self._sizer.Add(hsizer, 0, wx.EXPAND)
+        self._sizer.addLayout(row)
+        self._ctrl.returnPressed.connect(self._on_enter)
 
     def GetValue(self) -> str:
         return self._value
 
     def SetValue(self, value: str):
         self._value = value
-        self._ctrl.ChangeValue(value)
+        self._ctrl.blockSignals(True)
+        self._ctrl.setText(value)
+        self._ctrl.blockSignals(False)
 
-    def SetItems(self, items: list[str]) -> None:
+    def SetItems(self, items: list) -> None:
+        self._choices = items
         if self._ctrl is not None:
             self._ctrl.SetItems(items)
 
-        self._choices = items
-
-    def _on_enter(self, _):
-        index = self._ctrl.GetInsertionPoint()
-        start_text = self._ctrl.GetRange(0, index)
-        all_text = self._ctrl.GetValue()
-        all_text = all_text.replace(start_text, '')
-        all_text = f'{start_text}\n{all_text}'
-
-        self._ctrl.ChangeValue(all_text)
-        self._ctrl.SetInsertionPoint(index + 1)
-
-        if all_text.endswith('\n\n') and self._value.endswith('\n'):
-            self._value = all_text.rstrip()
-
+    def _on_enter(self):
+        # Reproduce the original double-enter-to-commit multiline logic.
+        text = self._ctrl.text()
+        if text.endswith('\n\n') and self._value.endswith('\n'):
+            self._value = text.rstrip()
             self._choices.append(self._value)
             self._ctrl.SetItems(self._choices)
-            self._ctrl.ChangeValue(self._value)
-            self._ctrl.SetInsertionPoint(self._ctrl.GetLastPosition())
-
+            self._ctrl.blockSignals(True)
+            self._ctrl.setText(self._value)
+            self._ctrl.blockSignals(False)
             self._send_changed_event(str, self._value)
         else:
-            self._value = all_text
+            self._value = text

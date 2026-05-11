@@ -1,9 +1,12 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
 import weakref
 
 from ... import logger as _logger
 from ..common_db import callback as _callback
+
 
 if TYPE_CHECKING:
     from ... import ui as _ui

@@ -1,6 +1,7 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
-import math
 import os
 
 from .. import utils as _utils

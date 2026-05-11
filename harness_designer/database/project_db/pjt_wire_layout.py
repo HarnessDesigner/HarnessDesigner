@@ -1,3 +1,4 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
@@ -5,7 +6,6 @@ import weakref
 import wx
 
 from ...ui import prop_ctrls as _prop_ctrls
-
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from .mixins import (
     Position3DMixin, Position3DControl,
@@ -17,7 +17,6 @@ from .mixins import (
 
 if TYPE_CHECKING:
     from . import pjt_wire as _pjt_wire
-
     from ...objects import wire_layout as _wire_layout_obj
 
 

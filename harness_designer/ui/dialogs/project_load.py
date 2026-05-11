@@ -1,22 +1,28 @@
-import wx
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-# wx.PD_REMAINING_TIME
-# wx.PD_ESTIMATED_TIME
-# wx.PD_ELAPSED_TIME
-# wx.PD_CAN_SKIP
-# wx.PD_CAN_ABORT
-# wx.PD_AUTO_HIDE
-# wx.PD_APP_MODAL
+from PySide6.QtWidgets import QProgressDialog
+from PySide6.QtCore import Qt
 
 
-class ProjectLoadDialog(wx.ProgressDialog):
+class ProjectLoadDialog(QProgressDialog):
 
     def __init__(self, parent):
-        wx.ProgressDialog.__init__(self, 'Project Loading...', '', parent=parent, style=wx.PD_SMOOTH)
-        self.CenterOnParent()
+        super().__init__('', None, 0, 100, parent,
+                         Qt.Dialog | Qt.WindowStaysOnTopHint)
+        self.setWindowTitle('Project Loading...')
+        self.setMinimumDuration(0)
+        self.setAutoClose(False)
+        self.setAutoReset(False)
+        self.setValue(0)
+
+        if parent is not None:
+            self.move(
+                parent.mapToGlobal(parent.rect().center()) -
+                self.rect().center()
+            )
 
     def Update(self, value, newmsg=''):
-        max_val = self.GetRange()
-
+        max_val = self.maximum()
         msg = f'{newmsg}     {value}[{max_val}]'
-        wx.ProgressDialog.Update(self, value, msg)
+        self.setLabelText(msg)
+        self.setValue(value)

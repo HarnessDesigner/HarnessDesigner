@@ -1,4 +1,7 @@
-import wx
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
+from PySide6.QtWidgets import QLineEdit, QLabel, QHBoxLayout, QVBoxLayout
+from PySide6.QtCore import Qt
 
 from . import prop_base as _prop_base
 
@@ -6,46 +9,43 @@ from . import prop_base as _prop_base
 class StringProperty(_prop_base.Property):
 
     def __init__(self, parent, label, style=0, units=None):
-
         _prop_base.Property.__init__(self, parent, label)
-
         self._value = ''
 
-        style |= wx.TE_LEFT | wx.TE_PROCESS_ENTER
+        self._st = QLabel(label + ':', self)
+        self._ctrl = QLineEdit(self)
 
-        self._st = wx.StaticText(self, wx.ID_ANY, label=label + ':')
-        self._ctrl = wx.TextCtrl(self, wx.ID_ANY, value='', style=style)
-
+        self._units_st = None
         if units is not None:
-            self._units_st = wx.StaticText(self, wx.ID_ANY, label=units)
+            self._units_st = QLabel(units, self)
 
-        self._ctrl.Bind(wx.EVT_TEXT_ENTER, self._on_enter)
+        row = QHBoxLayout()
+        row.setContentsMargins(5, 2, 5, 2)
+        row.addWidget(self._st)
+
+        inner = QVBoxLayout()
+        inner.setContentsMargins(0, 0, 0, 0)
+        inner.addWidget(self._ctrl)
+        row.addLayout(inner, stretch=1)
+
+        if self._units_st:
+            row.addWidget(self._units_st, alignment=Qt.AlignBottom)
+
+        self._sizer.addLayout(row)
+        self._ctrl.returnPressed.connect(self._on_enter)
 
     def GetValue(self) -> str:
         return self._value
 
     def SetValue(self, value: str):
-        self._ctrl.ChangeValue(value)
         self._value = value
+        self._ctrl.blockSignals(True)
+        self._ctrl.setText(value)
+        self._ctrl.blockSignals(False)
 
-    def Realize(self):
-        hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        hsizer.Add(self._st, 0, wx.ALL | wx.ALIGN_CENTER, 5)
-        vsizer = wx.BoxSizer(wx.VERTICAL)
-
-        vsizer.Add(self._ctrl, 0, wx.ALL | wx.EXPAND, 5)
-        hsizer.Add(vsizer, 1)
-
-        if self._units_st is not None:
-            hsizer.Add(self._units_st, 0, wx.ALL | wx.ALIGN_BOTTOM, 5)
-
-        self._sizer.Add(hsizer, 0, wx.EXPAND)
-
-    def _on_enter(self, _):
-        value = self._ctrl.GetValue()
-
+    def _on_enter(self):
+        value = self._ctrl.text()
         if value == self._value:
             return
-
         self._value = value
         self._send_changed_event(str, value)

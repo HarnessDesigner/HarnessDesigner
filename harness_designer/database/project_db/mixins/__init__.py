@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from . import angle3d as _angle3d
 from . import angle2d as _angle2d
 from . import position2d as _position2d

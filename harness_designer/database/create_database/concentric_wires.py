@@ -1,3 +1,4 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from . import projects as _projects
 from . import concentric_layers as _concentric_layers

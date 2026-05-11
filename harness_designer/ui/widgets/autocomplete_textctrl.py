@@ -1,81 +1,65 @@
-
-import wx
-
-
-class AutoCompleter(wx.TextCompleter):
-    def __init__(self, choices):
-        wx.TextCompleter.__init__(self)
-
-        self.choices = choices
-        self._last_returned = wx.NOT_FOUND
-        self._prefix = ''
-
-    def Start(self, prefix):
-        self._prefix = prefix.lower()
-        self._last_returned = wx.NOT_FOUND
-
-        for item in self.choices:
-            if item.lower().startswith(self._prefix):
-                return True
-
-        return False
-
-    def AppendChoices(self, choices):
-        self.choices.extend(choices[:])
-
-    def SetChoices(self, choices):
-        self.choices = choices[:]
-        self._last_returned = wx.NOT_FOUND
-        self._prefix = ''
-
-    def GetChoices(self):
-        return self.choices[:]
-
-    def InsertChoice(self, item: str, pos: int):
-        self.choices.insert(pos, item)
-
-    def RemoveChoice(self, pos: int):
-        self.choices.pop(pos)
-
-    def GetNext(self):
-        for i in range(self._last_returned + 1, len(self.choices)):
-            if self.choices[i].lower().startswith(self._prefix):
-                self._last_returned = i
-                return self.choices[i]
-
-        return ''
+from PySide6.QtWidgets import QLineEdit, QCompleter
+from PySide6.QtCore import Qt, QStringListModel
 
 
-class AutoCompleteTextCtrl(wx.TextCtrl):
+class AutoCompleteTextCtrl(QLineEdit):
+    """QLineEdit with inline autocomplete (replaces wx AutoCompleteTextCtrl).
 
-    def __init__(
-        self, parent, id=wx.ID_ANY, choices=[], pos=wx.DefaultPosition,
-        size=wx.DefaultSize, style=0, validator=wx.DefaultValidator,
-        name=wx.TextCtrlNameStr
-    ):
-        wx.TextCtrl.__init__(self, parent, id, value='', pos=pos, size=size,
-                             style=style, validator=validator, name=name)
+    Choice-management API is identical to the original so all call sites work
+    without modification.
+    """
 
-        self._ac = AutoCompleter(choices[:])
-        self.AutoComplete(self._ac)
+    def __init__(self, parent=None, choices=None):
+        super().__init__(parent)
+        self._choices = list(choices or [])
+        self._completer = QCompleter(self._choices, self)
+        self._completer.setCaseSensitivity(Qt.CaseInsensitive)
+        self._completer.setCompletionMode(QCompleter.InlineCompletion)
+        self.setCompleter(self._completer)
 
-    def SetValue(self, value: str) -> None:
-        self.ChangeValue(value)
+    # ------------------------------------------------------------------
+    # Internal helper
+    # ------------------------------------------------------------------
+    def _rebuild_completer(self):
+        self._completer.setModel(QStringListModel(self._choices, self._completer))
 
-    def Clear(self) -> None:
-        self._ac.SetChoices([])
+    # ------------------------------------------------------------------
+    # wx-compatible choice management
+    # ------------------------------------------------------------------
+    def Clear(self):
+        self._choices.clear()
+        self._rebuild_completer()
 
-    def Delete(self, n: int) -> None:
-        self._ac.RemoveChoice(n)
+    def Delete(self, n: int):
+        self._choices.pop(n)
+        self._rebuild_completer()
 
-    def Insert(self, item: str, pos: int) -> None:
-        self._ac.InsertChoice(item, pos)
+    def Insert(self, item: str, pos: int):
+        self._choices.insert(pos, item)
+        self._rebuild_completer()
 
-    def Set(self, items) -> None:
-        self._ac.SetChoices(items)
+    def Set(self, items):
+        self._choices = list(items)
+        self._rebuild_completer()
 
-    def SetItems(self, items: list[str]) -> None:
-        self._ac.SetChoices(items)
+    def SetItems(self, items):
+        self.Set(items)
 
-    def Append(self, item) -> None:
-        self._ac.AppendChoices(item)
+    def Append(self, item):
+        if isinstance(item, list):
+            self._choices.extend(item)
+        else:
+            self._choices.append(item)
+        self._rebuild_completer()
+
+    # ------------------------------------------------------------------
+    # Value access (QLineEdit already provides text()/setText())
+    # ------------------------------------------------------------------
+    def SetValue(self, value: str):
+        # ChangeValue equivalent: set without triggering textEdited
+        self.blockSignals(True)
+        self.setText(value)
+        self.blockSignals(False)
+
+    def GetValue(self) -> str:
+        return self.text()

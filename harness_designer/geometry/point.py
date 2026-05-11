@@ -1,4 +1,7 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import Self, Iterable, Union
+
 import weakref
 import numpy as np
 

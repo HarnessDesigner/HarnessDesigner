@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 import time
 import sys
@@ -5,6 +7,7 @@ import functools
 import inspect
 
 from . import config as _config
+
 
 if TYPE_CHECKING:
     from . import logger as _logger

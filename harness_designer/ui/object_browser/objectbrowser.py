@@ -1,11 +1,10 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
 import wx
-
 from wx import aui
-
 import weakref
-
 
 from ...objects import (
     boot as _boot,
@@ -25,6 +24,7 @@ from ...objects import (
     wire_marker as _wire_marker,
     wire_service_loop as _wire_service_loop
 )
+
 
 if TYPE_CHECKING:
     from .. import mainframe as _mainframe

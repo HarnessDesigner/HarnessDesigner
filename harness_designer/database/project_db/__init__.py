@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from . import pjt_bases as _pjt_bases
 
 PJTEntryBase = _pjt_bases.PJTEntryBase

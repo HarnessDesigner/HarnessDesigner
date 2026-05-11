@@ -1,3 +1,4 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from . import canvas2d as _canvas2d
 from . import mouse_handler as _mouse_handler

@@ -1,5 +1,6 @@
-from OpenGL import GL
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from OpenGL import GL
 import numpy as np
 
 from ... import color as _color

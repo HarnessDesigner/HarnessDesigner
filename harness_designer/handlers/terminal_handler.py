@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
 from . import handler_base as _handler_base
@@ -8,10 +10,16 @@ from ..gl.canvas3d import object_picker as _object_picker
 from ..objects import terminal as _terminal
 from ..objects import cavity as _cavity
 from ..objects import housing as _housing
+from ..gl import materials as _materials
+from .. import config as _config
+
 
 if TYPE_CHECKING:
     from ..gl.canvas3d import camera as _camera
     from .. import ui as _ui
+
+
+Config = _config.Config.colors
 
 
 def _get_compat_object_at_mouse(
@@ -28,12 +36,17 @@ def _get_compat_object_at_mouse(
 
 
 class AddTerminalHandler(_handler_base.HandlerBase):
+    obj: _terminal.Terminal = None
 
     def __init__(self, mainframe: "_ui.MainFrame", part_id: int):
         super().__init__(mainframe, part_id)
 
         self.part = mainframe.project.gtables.terminals_table[part_id]
         part_number = self.part.part_number
+
+        self._preview_material = _materials.Plastic(Config.add_object.preview_color)
+        self._wire_highlight_material = _materials.Plastic(Config.add_object.wire_highlight)
+        self._cavity_highlight_material = _materials.Plastic(Config.add_object.cavity_highlight)
 
         compat_housings = mainframe.project.gtables.housings_table.get_compat(terminal=part_number)
         compat_housings.extend(self.part.compat_housings)
@@ -47,6 +60,9 @@ class AddTerminalHandler(_handler_base.HandlerBase):
 
         for cavity in mainframe.project.cavities:
             cavity.identify([0.3, 1.0, 0.3, 1.0])
+
+    def release_capture(self) -> None:
+        raise NotImplementedError
 
     def finalize(self, mouse_pos: _point.Point):
         for housing in self.mainframe.project.housings:

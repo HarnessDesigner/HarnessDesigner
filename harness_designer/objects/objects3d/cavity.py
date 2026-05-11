@@ -1,3 +1,4 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from typing import TYPE_CHECKING
 
@@ -11,6 +12,7 @@ from ...gl import materials as _materials
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ... import color as _color
+
 
 if TYPE_CHECKING:
     from ...database.project_db import pjt_cavity as _pjt_cavity

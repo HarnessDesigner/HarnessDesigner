@@ -1,181 +1,160 @@
-import wx
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QDoubleSpinBox, QSlider
+)
+from PySide6.QtCore import Qt, Signal
 
 try:
     from ... import utils as _utils
     from ...geometry.decimal import Decimal as _d
 except ImportError:
-    pass
+    from decimal import Decimal as _d
+    class _utils:
+        @staticmethod
+        def remap(value, in_min, in_max, out_min, out_max):
+            span_in = in_max - in_min
+            span_out = out_max - out_min
+            if span_in == 0:
+                return out_min
+            return out_min + (value - in_min) * span_out / span_in
 
 
-class FloatCtrl(wx.BoxSizer):
+class FloatCtrl(QWidget):
+    """Label + QDoubleSpinBox + optional QSlider composite widget.
 
-    def __init__(self, parent, label, min_val, max_val, inc, slider=True):
-        wx.BoxSizer.__init__(self, wx.HORIZONTAL)
-        vsizer = wx.BoxSizer(wx.VERTICAL)
-        hsizer = wx.BoxSizer(wx.HORIZONTAL)
+    Replaces the wx.BoxSizer-based FloatCtrl.  Emits value_changed(float)
+    whenever the spin or slider changes; call sites should connect to that
+    signal instead of binding EVT_SPINCTRLDOUBLE.
+    """
 
-        self.st = wx.StaticText(parent, wx.ID_ANY, label=label)
-        self.ctrl = wx.SpinCtrlDouble(parent, wx.ID_ANY, value=str(max_val),
-                                      initial=max_val, min=min_val, max=max_val, inc=inc)
+    value_changed = Signal(float)
+
+    def __init__(self, parent=None, label: str = '',
+                 min_val: float = 0.0, max_val: float = 100.0,
+                 inc: float = 1.0, slider: bool = True):
+        super().__init__(parent)
 
         self.__min_val = min_val
         self.__max_val = max_val
         self.__increment = inc
 
+        # Determine decimal precision from increment
         precision = 0
-        inc = _d(self.__increment)
-
-        while inc < 1:
+        d_inc = _d(str(inc))
+        while d_inc < 1:
             precision += 1
-            inc *= _d(10.0)
-
+            d_inc *= _d('10')
         self.__precision = precision
 
-        value_range = _d(max_val) - _d(min_val)
-        middle_value = (value_range / _d(2.0)) + _d(min_val)
-
-        inc = _d(self.__increment)
-
-        remaining = middle_value % inc
-
+        # Compute a sensible initial value (midpoint snapped to increment)
+        value_range = _d(str(max_val)) - _d(str(min_val))
+        middle = (value_range / _d('2')) + _d(str(min_val))
+        d_inc = _d(str(inc))
+        remaining = middle % d_inc
         if remaining:
-            middle_value += inc - remaining
+            middle += d_inc - remaining
+        initial = float(middle)
 
-        self.ctrl.SetValue(float(middle_value))
+        # Slider scale
+        if slider:
+            s_inc = _d('10') * _d(str(precision))
+            self.__s_max = int(_d('100') * s_inc)
+        else:
+            self.__s_max = 0
 
-        hsizer.Add(self.st, 1, wx.RIGHT, 5)
-        hsizer.Add(self.ctrl, 1, wx.LEFT, 5)
-        vsizer.Add(hsizer, 1, wx.EXPAND)
+        # --- Build UI ---
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+
+        top = QHBoxLayout()
+        self.st = QLabel(label, self)
+        self.ctrl = QDoubleSpinBox(self)
+        self.ctrl.setDecimals(precision)
+        self.ctrl.setSingleStep(inc)
+        self.ctrl.setRange(min_val, max_val)
+        self.ctrl.setValue(initial)
+
+        top.addWidget(self.st, 1)
+        top.addWidget(self.ctrl, 1)
+        outer.addLayout(top)
 
         if slider:
-            s_inc = _d(10) * _d(self.__precision)
-            slider_max = _d(100) * s_inc
+            slider_val = _utils.remap(middle, min_val, max_val, 0, self.__s_max)
+            self.slider = QSlider(Qt.Horizontal, self)
+            self.slider.setRange(0, self.__s_max)
+            self.slider.setValue(int(slider_val))
 
-            self.__s_max = int(slider_max)
-            slider_value = _utils.remap(middle_value, self.__min_val, self.__max_val, 0, self.__s_max)
+            bottom = QHBoxLayout()
+            bottom.addWidget(self.slider)
+            outer.addLayout(bottom)
 
-            hsizer = wx.BoxSizer(wx.HORIZONTAL)
-            self.slider = wx.Slider(parent, wx.ID_ANY, value=int(slider_value), minValue=0,
-                                    maxValue=int(slider_max), style=wx.SL_HORIZONTAL)
-
-            hsizer.Add(self.slider, 1)
-            vsizer.Add(hsizer, 1, wx.EXPAND)
-
-            self.slider.Bind(wx.EVT_SLIDER, self._on_slider_scroll)
-            self.ctrl.Bind(wx.EVT_SPINCTRLDOUBLE, self._on_spin_changed)
-
+            self.slider.valueChanged.connect(self._on_slider)
+            self.ctrl.valueChanged.connect(self._on_spin)
         else:
-            self.slider: wx.Slider = None
+            self.slider = None
+            self.ctrl.valueChanged.connect(self._on_spin)
 
-        self.Add(vsizer, 1)
-
-    def _on_slider_scroll(self, evt):
-        slider_value = self.slider.GetValue()
-        spin_value = _utils.remap(slider_value, 0, self.__s_max,
+    # ------------------------------------------------------------------
+    # Internal
+    # ------------------------------------------------------------------
+    def _on_slider(self, slider_val: int):
+        spin_value = _utils.remap(slider_val, 0, self.__s_max,
                                   self.__min_val, self.__max_val)
-
-        inc = _d(self.__increment)
-        remaining = spin_value % inc
-
+        d = _d(str(spin_value))
+        d_inc = _d(str(self.__increment))
+        remaining = d % d_inc
         if remaining:
-            spin_value += inc - remaining
+            d += d_inc - remaining
 
-        self.ctrl.SetValue(float(spin_value))
+        self.ctrl.blockSignals(True)
+        self.ctrl.setValue(float(d))
+        self.ctrl.blockSignals(False)
+        self.value_changed.emit(float(d))
 
-        event = wx.SpinDoubleEvent(wx.wxEVT_SPINCTRLDOUBLE)
-        event.SetValue(float(spin_value))
-        event.SetEventObject(self.ctrl)
-        event.SetId(self.ctrl.GetId())
-        self.ctrl.GetEventHandler().ProcessEvent(event)
-
-        evt.Skip()
-
-    def _on_spin_changed(self, evt: wx.SpinDoubleEvent):
+    def _on_spin(self, spin_value: float):
         if self.slider is not None:
-            spin_value = self.ctrl.GetValue()
-            slider_value = _utils.remap(spin_value, self.__min_val, self.__max_val,
-                                        0, self.__s_max)
+            sv = _utils.remap(spin_value, self.__min_val, self.__max_val,
+                              0, self.__s_max)
+            self.slider.blockSignals(True)
+            self.slider.setValue(int(sv))
+            self.slider.blockSignals(False)
+        self.value_changed.emit(spin_value)
 
-            self.slider.SetValue(int(slider_value))
-
-        evt.Skip()
-
-    def Enable(self, flag=True):
-        self.ctrl.Enable(flag)
-        self.st.Enable(flag)
+    # ------------------------------------------------------------------
+    # wx-compatible public API
+    # ------------------------------------------------------------------
+    def Enable(self, flag: bool = True):
+        self.ctrl.setEnabled(flag)
+        self.st.setEnabled(flag)
         if self.slider is not None:
-            self.slider.Enable(flag)
+            self.slider.setEnabled(flag)
 
-    def SetToolTip(self, text):
-        self.ctrl.SetToolTip(text)
-        self.st.SetToolTip(text)
-
+    def SetToolTip(self, text: str):
+        self.ctrl.setToolTip(text)
+        self.st.setToolTip(text)
         if self.slider is not None:
-            self.slider.SetToolTip(text)
+            self.slider.setToolTip(text)
 
-    def SetToolTipString(self, text):
-        self.ctrl.SetToolTip(text)
-        self.st.SetToolTip(text)
-
-        if self.slider is not None:
-            self.slider.SetToolTip(text)
-
-    def Bind(self, event, handler):
-        self.ctrl.Bind(event, handler)
+    SetToolTipString = SetToolTip
 
     def SetValue(self, value: float):
         value = round(value, self.__precision)
-        value = _d(value)
-        inc = _d(self.__increment)
-
-        remaining = value % inc
-
+        d = _d(str(value))
+        d_inc = _d(str(self.__increment))
+        remaining = d % d_inc
         if remaining:
-            value += inc - remaining
+            d += d_inc - remaining
+        d = max(_d(str(self.__min_val)), min(_d(str(self.__max_val)), d))
 
-        if value > self.__max_val:
-            value = self.__max_val
-        if value < self.__min_val:
-            value = self.__min_val
-
-        self.ctrl.SetValue(float(value))
+        self.ctrl.blockSignals(True)
+        self.ctrl.setValue(float(d))
+        self.ctrl.blockSignals(False)
 
         if self.slider is not None:
-            slider_value = _utils.remap(value, self.__min_val, self.__max_val,
-                                        0, self.__s_max)
-
-            self.slider.SetValue(int(slider_value))
+            sv = _utils.remap(float(d), self.__min_val, self.__max_val,
+                              0, self.__s_max)
+            self.slider.blockSignals(True)
+            self.slider.setValue(int(sv))
+            self.slider.blockSignals(False)
 
     def GetValue(self) -> float:
-        return self.ctrl.GetValue()
-
-
-if __name__ == '__main__':
-    app = wx.App()
-
-    frame = wx.Frame(None, wx.ID_ANY, size=(600, 300))
-    panel = wx.Panel(frame, wx.ID_ANY, style=wx.BORDER_NONE)
-    hsizer = wx.BoxSizer(wx.HORIZONTAL)
-    hsizer.Add(panel, 1, wx.EXPAND)
-
-    vsizer = wx.BoxSizer(wx.VERTICAL)
-    vsizer.Add(hsizer, 1, wx.EXPAND)
-
-    frame.SetSizer(vsizer)
-
-    sz = wx.StaticBoxSizer(wx.VERTICAL, panel, "Static Box")
-    sb = sz.GetStaticBox()
-
-    ctrl = FloatCtrl(sb, 'This is a test:', min_val=0.0, max_val=99999.09, inc=0.01)
-
-    sz.Add(ctrl, 1, wx.ALL, 5)
-
-    sizer = wx.BoxSizer(wx.VERTICAL)
-
-    sizer.Add(sz, 1, wx.EXPAND | wx.ALL, 10)
-
-    panel.SetSizer(sizer)
-
-    frame.Show()
-
-    app.MainLoop()
+        return self.ctrl.value()

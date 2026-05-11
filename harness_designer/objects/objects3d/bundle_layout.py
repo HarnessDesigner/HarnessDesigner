@@ -1,3 +1,4 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from typing import TYPE_CHECKING
 
@@ -5,7 +6,6 @@ import wx
 
 from ...geometry import point as _point
 from ...geometry import angle as _angle
-
 from ...gl import materials as _materials
 from . import base3d as _base3d
 from ...shapes import sphere as _sphere

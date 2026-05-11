@@ -1,6 +1,8 @@
-import weakref
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
+import weakref
 import numpy as np
 import wx
 import build123d
@@ -17,6 +19,7 @@ from ...gl import materials as _materials
 from ... import config as _config
 from ... import utils as _utils
 from ... import color as _color
+
 
 if TYPE_CHECKING:
     from ...database.global_db import transition as _g_transition

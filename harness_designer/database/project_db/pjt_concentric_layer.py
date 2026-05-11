@@ -1,9 +1,11 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 from ...ui import prop_ctrls as _prop_ctrls
-
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from .mixins import NotesMixin
+
 
 if TYPE_CHECKING:
     from . import pjt_concentric as _pjt_concentric

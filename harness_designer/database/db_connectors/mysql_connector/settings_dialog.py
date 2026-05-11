@@ -1,584 +1,470 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 import sys
 
-import wx
-import wx.lib.filebrowsebutton as filebrowse
 import mysql.connector.constants
+
+from PySide6.QtWidgets import (
+    QDialog, QVBoxLayout, QHBoxLayout, QGroupBox, QLabel, QLineEdit,
+    QCheckBox, QSpinBox, QGridLayout, QDialogButtonBox, QFileDialog,
+    QPushButton, QComboBox, QScrollArea, QWidget, QSizePolicy,
+    QToolTip
+)
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QCursor
 
 from .... import config as _config
 
 DBConfig = _config.Config.database
 Config = _config.Config.database.mysql
 
-
-class BoxedGroup(wx.StaticBox):
-    def __init__(self, parent, label=""):
-        wx.StaticBox.__init__(self, parent, wx.ID_ANY, label)
-        self.sizer = wx.BoxSizer(wx.VERTICAL)
-        self.items = []
-        topBorder, otherBorder = self.GetBordersForSizer()
-        self.sizer.AddSpacer(topBorder)
-
-        self.SetSizer(self.sizer)
-
-        self.Add = self.sizer.Add
-
-    def AppendItems(self, *items):
-        line_sizer = wx.BoxSizer(wx.HORIZONTAL)
-
-        ret = []
-
-        for item in items:
-            if isinstance(item, str):
-                label_ctrl = wx.StaticText(self, label=item)
-                line_sizer.Add(label_ctrl, 0,
-                               wx.LEFT | wx.ALIGN_CENTER_VERTICAL, 5)
-                self.items.append([label_ctrl])
-                ret.append(label_ctrl)
-
-            elif isinstance(item, (list, tuple)):
-                line_items = []
-                for subitem in item:
-                    if isinstance(subitem, str):
-                        subitem = wx.StaticText(self, label=subitem)
-                        line_sizer.Add(subitem, 0,
-                                       wx.LEFT | wx.ALIGN_CENTER_VERTICAL, 5)
-                        ret.append(subitem)
-                    else:
-                        line_sizer.Add(subitem, 1, wx.ALL | wx.EXPAND, 5)
-                    line_items.append(subitem)
-
-                self.items.append(line_items)
-
-            else:
-                line_sizer.Add(item, 1, wx.ALL | wx.EXPAND, 5)
-                self.items.append([item])
-
-            self.sizer.Add(line_sizer, 0, wx.EXPAND)
-
-        return ret
-
-
 MODE_TOOLTIPS = {
-    'ALLOW_INVALID_DATES': (
-        'Do not perform full checking of dates.'
-    ),
+    'ALLOW_INVALID_DATES': 'Do not perform full checking of dates.',
     'ANSI_QUOTES': (
-        'Treat " as an identifier quote character (like the ` quote character)\n'
-        'and not as a string quote character.'
-    ),
+        'Treat " as an identifier quote character (like the ` quote character) '
+        'and not as a string quote character.'),
     'ERROR_FOR_DIVISION_BY_ZERO': (
-        'Affects handling of division by zero, which includes MOD(N,0).'
-    ),
+        'Affects handling of division by zero, which includes MOD(N,0).'),
     'HIGH_NOT_PRECEDENCE': (
-        'The precedence of the NOT operator is such that expressions such\n'
-        'as NOT a BETWEEN b AND c are parsed as NOT (a BETWEEN b AND c).'
-    ),
-    'IGNORE_SPACE': (
-        'Permit spaces between a function name and the "(" character.'
-    ),
-    'NO_AUTO_VALUE_ON_ZERO': (
-        'Affects handling of AUTO_INCREMENT columns.'
-    ),
+        'The precedence of the NOT operator is such that expressions such '
+        'as NOT a BETWEEN b AND c are parsed as NOT (a BETWEEN b AND c).'),
+    'IGNORE_SPACE': 'Permit spaces between a function name and the "(" character.',
+    'NO_AUTO_VALUE_ON_ZERO': 'Affects handling of AUTO_INCREMENT columns.',
     'NO_BACKSLASH_ESCAPES': (
-        'Disables the use of the backslash character (\\) as an escape\n'
-        'character within strings and identifiers.'
-    ),
+        'Disables the use of the backslash character as an escape character '
+        'within strings and identifiers.'),
     'NO_DIR_IN_CREATE': (
-        'When creating a table, ignore all INDEX DIRECTORY and\n'
-        'DATA DIRECTORY directives.'
-    ),
+        'When creating a table, ignore all INDEX DIRECTORY and DATA DIRECTORY directives.'),
     'NO_ENGINE_SUBSTITUTION': (
-        'Control automatic substitution of the default storage engine when a\n'
-        'statement such as CREATE TABLE or ALTER TABLE specifies a storage\n'
-        'engine that is disabled or not compiled in.'
-    ),
+        'Control automatic substitution of the default storage engine.'),
     'NO_UNSIGNED_SUBTRACTION': (
-        'Subtraction between integer values, where one is of type UNSIGNED,\n'
-        'produces an unsigned result by default.'
-    ),
-    'NO_ZERO_DATE': (
-        'Whether the server permits "0000-00-00" as a valid date.'
-    ),
+        'Subtraction between integer values, where one is UNSIGNED, produces unsigned results.'),
+    'NO_ZERO_DATE': 'Whether the server permits "0000-00-00" as a valid date.',
     'NO_ZERO_IN_DATE': (
-        'Whether the server permits dates in which the year part is nonzero\n'
-        'but the month or day part is 0.'
-    ),
+        'Whether the server permits dates in which the year part is nonzero '
+        'but the month or day part is 0.'),
     'ONLY_FULL_GROUP_BY': (
-        'Reject queries for which the select list, HAVING condition, or\n'
-        'ORDER BY list refer to nonaggregated columns that are neither\n'
-        'named in the GROUP BY clause nor are functionally dependent on\n'
-        '(uniquely determined by) GROUP BY columns.'
-    ),
+        'Reject queries for which the select list, HAVING condition, or ORDER BY list '
+        'refer to nonaggregated columns not named in the GROUP BY clause.'),
     'PAD_CHAR_TO_FULL_LENGTH': (
-        'Trimming does not occur and retrieved CHAR values\n'
-        'are padded to their full length.'
-    ),
+        'Trimming does not occur and retrieved CHAR values are padded to their full length.'),
     'PIPES_AS_CONCAT': (
-        'Treat "||" as a string concatenation operator\n'
-        '(same as CONCAT()) rather than as a synonym for OR.'
-    ),
-    'REAL_AS_FLOAT': (
-        'Treat REAL as a synonym for FLOAT. By default,\n'
-        'MySQL treats REAL as a synonym for DOUBLE.'
-    ),
-    'STRICT_ALL_TABLES': (
-        'Enable strict SQL mode for all storage engines.'
-    ),
+        'Treat "||" as a string concatenation operator rather than as a synonym for OR.'),
+    'REAL_AS_FLOAT': 'Treat REAL as a synonym for FLOAT.',
+    'STRICT_ALL_TABLES': 'Enable strict SQL mode for all storage engines.',
     'STRICT_TRANS_TABLES': (
-        'Enable strict SQL mode for transactional storage engines,\n'
-        'and when possible for nontransactional storage engines.'
-    ),
+        'Enable strict SQL mode for transactional storage engines.'),
     'TIME_TRUNCATE_FRACTIONAL': (
-        'Control whether rounding or truncation occurs when\n'
-        'inserting a TIME, DATE, or TIMESTAMP value.'
-    ),
-    'ANSI': (
-        'Equivalent to REAL_AS_FLOAT, PIPES_AS_CONCAT,\n'
-        'ANSI_QUOTES, IGNORE_SPACE, and ONLY_FULL_GROUP_BY.'
-    ),
+        'Control whether rounding or truncation occurs when inserting a TIME, DATE, or TIMESTAMP.'),
+    'ANSI': 'Equivalent to REAL_AS_FLOAT, PIPES_AS_CONCAT, ANSI_QUOTES, IGNORE_SPACE, ONLY_FULL_GROUP_BY.',
     'TRADITIONAL': (
-        'Equivalent to STRICT_TRANS_TABLES, STRICT_ALL_TABLES,\n'
-        'NO_ZERO_IN_DATE, NO_ZERO_DATE, ERROR_FOR_DIVISION_BY_ZERO,\n'
-        'and NO_ENGINE_SUBSTITUTION.'
-    )
+        'Equivalent to STRICT_TRANS_TABLES, STRICT_ALL_TABLES, NO_ZERO_IN_DATE, '
+        'NO_ZERO_DATE, ERROR_FOR_DIVISION_BY_ZERO, and NO_ENGINE_SUBSTITUTION.'),
 }
 
 
-class SQLOptionsDialog(wx.Dialog):
+def _file_browse_button(parent, label, initial_value=''):
+    """Return (row_widget, line_edit) for a file-browse row."""
+    widget = QWidget(parent)
+    row = QHBoxLayout(widget)
+    row.setContentsMargins(0, 0, 0, 0)
+    lbl = QLabel(label, widget)
+    row.addWidget(lbl)
+    edit = QLineEdit(widget)
+    edit.setText(initial_value or '')
+    row.addWidget(edit, 1)
+    btn = QPushButton('...', widget)
+    btn.setFixedWidth(28)
+
+    def _browse():
+        path, _ = QFileDialog.getOpenFileName(widget, f'Select {label}')
+        if path:
+            edit.setText(path)
+
+    btn.clicked.connect(_browse)
+    row.addWidget(btn)
+    return widget, edit
+
+
+class SQLOptionsDialog(QDialog):
 
     def __init__(self, parent):
-        wx.Dialog.__init__(self, parent, wx.ID_ANY, size=Config.settings_dialog.size,
-                           title='MySQL Options', pos=Config.settings_dialog.pos,
-                           style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER | wx.STAY_ON_TOP)
-
-        self.Bind(wx.EVT_SIZE, self.on_size)
-        self.Bind(wx.EVT_MOVE, self.on_move)
-
-        con_group = BoxedGroup(self, 'Connection Settings')
-        misc_group = BoxedGroup(self, 'Misc Settings')
-
-        host_ctrl = wx.TextCtrl(con_group, wx.ID_ANY, value=Config.host)
-        con_group.AppendItems(('Host:', host_ctrl))
-
-        port_ctrl = wx.SpinCtrl(
-            con_group, wx.ID_ANY, value=str(Config.port),
-            initial=Config.port, min=1, max=65535)
-
-        con_group.AppendItems(('Port:', port_ctrl))
-
-        force_ipv6_ctrl = wx.CheckBox(con_group, wx.ID_ANY, label='')
-        force_ipv6_ctrl.SetValue(Config.force_ipv6)
-        con_group.AppendItems(('Force IPV6:', force_ipv6_ctrl))
-
-        compress_ctrl = wx.CheckBox(con_group, wx.ID_ANY, label='')
-        compress_ctrl.SetValue(Config.compress)
-        con_group.AppendItems(('Compress Protocol:', compress_ctrl))
-
-        buffer_ctrl = wx.CheckBox(misc_group, wx.ID_ANY, label='')
-        buffer_ctrl.SetValue(Config.buffered)
-        misc_group.AppendItems(('Buffer responses:', buffer_ctrl))
-
-        if Config.write_timeout is None:
-            write_timeout = 0
+        super().__init__(parent,
+                         Qt.Dialog | Qt.WindowStaysOnTopHint | Qt.WindowCloseButtonHint)
+        self.setWindowTitle('MySQL Options')
+        size = getattr(Config, 'settings_dialog', None)
+        if size and hasattr(size, 'size'):
+            w, h = size.size
+            self.resize(w, h)
         else:
-            write_timeout = Config.write_timeout
+            self.resize(900, 700)
 
-        write_timeout_ctrl = wx.SpinCtrl(
-            misc_group, wx.ID_ANY, value=str(write_timeout),
-            initial=write_timeout, min=0, max=60)
+        pos = getattr(Config, 'settings_dialog', None)
+        if pos and hasattr(pos, 'pos') and pos.pos:
+            self.move(*pos.pos)
 
-        misc_group.AppendItems(('Write Timeout (sec):', write_timeout_ctrl))
+        self.resizeEvent = self._on_size
+        self.moveEvent = self._on_move
 
-        if Config.read_timeout is None:
-            read_timeout = 0
-        else:
-            read_timeout = Config.read_timeout
+        outer = QVBoxLayout(self)
 
-        read_timeout_ctrl = wx.SpinCtrl(
-            misc_group, wx.ID_ANY, value=str(read_timeout),
-            initial=read_timeout, min=0, max=60)
+        top_row = QHBoxLayout()
 
-        misc_group.AppendItems(('Read Timeout (sec):', read_timeout_ctrl))
+        # Connection Settings
+        con_group = QGroupBox('Connection Settings', self)
+        con_lay = QVBoxLayout(con_group)
 
-        if Config.connection_timeout is None:
-            connection_timeout = 0
-        else:
-            connection_timeout = Config.connection_timeout
+        con_lay.addWidget(QLabel('Host:', con_group))
+        self.host_ctrl = QLineEdit(Config.host, con_group)
+        con_lay.addWidget(self.host_ctrl)
 
-        connection_timeout_ctrl = wx.SpinCtrl(
-            misc_group, wx.ID_ANY, value=str(connection_timeout),
-            initial=connection_timeout, min=0, max=60)
+        con_lay.addWidget(QLabel('Port:', con_group))
+        self.port_ctrl = QSpinBox(con_group)
+        self.port_ctrl.setRange(1, 65535)
+        self.port_ctrl.setValue(Config.port)
+        con_lay.addWidget(self.port_ctrl)
 
-        misc_group.AppendItems(('Connection Timeout (sec):', connection_timeout_ctrl))
+        ipv6_row = QHBoxLayout()
+        ipv6_row.addWidget(QLabel('Force IPV6:', con_group))
+        self.force_ipv6_ctrl = QCheckBox(con_group)
+        self.force_ipv6_ctrl.setChecked(Config.force_ipv6)
+        ipv6_row.addWidget(self.force_ipv6_ctrl)
+        con_lay.addLayout(ipv6_row)
 
-        auth_group = BoxedGroup(self, 'Authentication Settings')
+        comp_row = QHBoxLayout()
+        comp_row.addWidget(QLabel('Compress Protocol:', con_group))
+        self.compress_ctrl = QCheckBox(con_group)
+        self.compress_ctrl.setChecked(Config.compress)
+        comp_row.addWidget(self.compress_ctrl)
+        con_lay.addLayout(comp_row)
 
-        auth_plugin_ctrl = wx.TextCtrl(
-            auth_group, wx.ID_ANY, value=Config.auth_plugin)
-        auth_group.AppendItems(('Auth plugin:', auth_plugin_ctrl))
+        top_row.addWidget(con_group)
 
-        auth_plugin_ctrl.Bind(wx.EVT_CHAR, self.on_auth_plugin)
+        # Misc Settings
+        misc_group = QGroupBox('Misc Settings', self)
+        misc_lay = QVBoxLayout(misc_group)
 
-        oci_group = BoxedGroup(auth_group, 'OCI Settings')
-        auth_group.Add(oci_group, 1, wx.EXPAND | wx.ALL, 10)
+        buf_row = QHBoxLayout()
+        buf_row.addWidget(QLabel('Buffer responses:', misc_group))
+        self.buffer_ctrl = QCheckBox(misc_group)
+        self.buffer_ctrl.setChecked(Config.buffered)
+        buf_row.addWidget(self.buffer_ctrl)
+        misc_lay.addLayout(buf_row)
 
-        oci_file_ctrl = filebrowse.FileBrowseButton(
-            oci_group, wx.ID_ANY, labelText='File:')
-        oci_config_profile_ctrl = wx.TextCtrl(
-            oci_group, wx.ID_ANY, value=Config.oci_config_profile)
+        def _timeout_spin(parent, label, value):
+            r = QHBoxLayout()
+            r.addWidget(QLabel(label, parent))
+            sp = QSpinBox(parent)
+            sp.setRange(0, 60)
+            sp.setValue(value or 0)
+            r.addWidget(sp)
+            misc_lay.addLayout(r)
+            return sp
 
-        oci_group.AppendItems(oci_file_ctrl)
-        self.oci_config_profile_label = oci_group.AppendItems(
-            ('Config Profile:', oci_config_profile_ctrl))[0]
+        self.write_timeout_ctrl = _timeout_spin(
+            misc_group, 'Write Timeout (sec):', Config.write_timeout)
+        self.read_timeout_ctrl = _timeout_spin(
+            misc_group, 'Read Timeout (sec):', Config.read_timeout)
+        self.connection_timeout_ctrl = _timeout_spin(
+            misc_group, 'Connection Timeout (sec):', Config.connection_timeout)
 
-        if Config.oci_config_file:
-            oci_file_ctrl.SetValue(Config.oci_config_file)
-        else:
-            oci_config_profile_ctrl.Enable(False)
-            self.oci_config_profile_label.Enable(False)
+        top_row.addWidget(misc_group)
+        outer.addLayout(top_row)
 
-        oci_file_ctrl.Bind(wx.EVT_FILECTRL_SELECTIONCHANGED, self.on_oci_file)
+        mid_row = QHBoxLayout()
 
-        openid_group = BoxedGroup(auth_group, 'Open ID Settings')
-        auth_group.Add(openid_group, 1, wx.EXPAND | wx.ALL, 10)
+        # Auth Settings
+        auth_group = QGroupBox('Authentication Settings', self)
+        auth_lay = QVBoxLayout(auth_group)
 
-        openid_token_file_ctrl = filebrowse.FileBrowseButton(
-            openid_group, wx.ID_ANY, labelText='Token File:')
+        auth_lay.addWidget(QLabel('Auth plugin:', auth_group))
+        self.auth_plugin_ctrl = QLineEdit(Config.auth_plugin, auth_group)
+        self.auth_plugin_ctrl.textChanged.connect(self._on_auth_plugin)
+        auth_lay.addWidget(self.auth_plugin_ctrl)
 
-        if Config.openid_token_file:
-            openid_token_file_ctrl.SetValue(Config.openid_token_file)
+        # OCI
+        oci_group = QGroupBox('OCI Settings', auth_group)
+        oci_lay = QVBoxLayout(oci_group)
+        oci_file_widget, self.oci_file_ctrl = _file_browse_button(
+            oci_group, 'File:', Config.oci_config_file or '')
+        self.oci_file_ctrl.textChanged.connect(self._on_oci_file)
+        oci_lay.addWidget(oci_file_widget)
+        oci_profile_row = QHBoxLayout()
+        self.oci_config_profile_label = QLabel('Config Profile:', oci_group)
+        oci_profile_row.addWidget(self.oci_config_profile_label)
+        self.oci_config_profile_ctrl = QLineEdit(Config.oci_config_profile or '', oci_group)
+        oci_profile_row.addWidget(self.oci_config_profile_ctrl)
+        oci_lay.addLayout(oci_profile_row)
+        if not Config.oci_config_file:
+            self.oci_config_profile_ctrl.setEnabled(False)
+            self.oci_config_profile_label.setEnabled(False)
+        auth_lay.addWidget(oci_group)
 
+        # Open ID
+        openid_group = QGroupBox('Open ID Settings', auth_group)
+        openid_lay = QVBoxLayout(openid_group)
+        openid_widget, self.openid_token_file_ctrl = _file_browse_button(
+            openid_group, 'Token File:', Config.openid_token_file or '')
         if Config.auth_plugin != 'authentication_openid_connect_client':
-            openid_token_file_ctrl.Enable(False)
+            openid_widget.setEnabled(False)
+        openid_lay.addWidget(openid_widget)
+        auth_lay.addWidget(openid_group)
 
-        openid_group.AppendItems(openid_token_file_ctrl)
-
+        # Kerberos (Windows only)
         if sys.platform.startswith('win'):
-            kerberos_group = BoxedGroup(auth_group, 'Kerberos Settings')
-            auth_group.Add(kerberos_group, 1, wx.EXPAND | wx.ALL, 10)
+            kerb_group = QGroupBox('Kerberos Settings', auth_group)
+            kerb_lay = QVBoxLayout(kerb_group)
+            kerb_row = QHBoxLayout()
+            self.kerberos_auth_mode_label = QLabel('Auth Mode:', kerb_group)
+            kerb_row.addWidget(self.kerberos_auth_mode_label)
+            self.kerberos_auth_mode_ctrl = QComboBox(kerb_group)
+            self.kerberos_auth_mode_ctrl.addItems(['SSPI', 'GSSAPI'])
+            idx = self.kerberos_auth_mode_ctrl.findText(
+                getattr(Config, 'kerberos_auth_mode', 'SSPI'))
+            self.kerberos_auth_mode_ctrl.setCurrentIndex(max(0, idx))
+            kerb_row.addWidget(self.kerberos_auth_mode_ctrl)
+            kerb_lay.addLayout(kerb_row)
+            enabled = Config.auth_plugin == 'authentication_kerberos_client'
+            self.kerberos_auth_mode_label.setEnabled(enabled)
+            self.kerberos_auth_mode_ctrl.setEnabled(enabled)
+            auth_lay.addWidget(kerb_group)
 
-            kerberos_auth_mode_ctrl = wx.Choice(
-                kerberos_group, wx.ID_ANY, choices=['SSPI', 'GSSAPI'])
-            kerberos_auth_mode_ctrl.SetStringSelection(Config.kerberos_auth_mode)
+        # SSL
+        ssl_group = QGroupBox('SSL', auth_group)
+        ssl_lay = QVBoxLayout(ssl_group)
 
-            self.kerberos_auth_mode_label = kerberos_group.AppendItems(
-                ('Auth Mode:', kerberos_auth_mode_ctrl))[0]
-            self.kerberos_auth_mode_ctrl = kerberos_auth_mode_ctrl
+        ssl_top = QHBoxLayout()
+        ssl_en_lbl = QLabel('Enable:', ssl_group)
+        ssl_top.addWidget(ssl_en_lbl)
+        self.ssl_enabled_ctrl = QCheckBox(ssl_group)
+        self.ssl_enabled_ctrl.setChecked(not Config.ssl_disabled)
+        self.ssl_enabled_ctrl.stateChanged.connect(self._on_ssl_enabled)
+        ssl_top.addWidget(self.ssl_enabled_ctrl)
 
-            self.kerberos_auth_mode_label.Enable(
-                Config.auth_plugin == 'authentication_kerberos_client')
-            kerberos_auth_mode_ctrl.Enable(
-                Config.auth_plugin == 'authentication_kerberos_client')
+        self.tls_12_label = QLabel('Use TLS 1.2:', ssl_group)
+        ssl_top.addWidget(self.tls_12_label)
+        self.tls_12_ctrl = QCheckBox(ssl_group)
+        self.tls_12_ctrl.setChecked('TLSv1.2' in Config.tls_versions)
+        ssl_top.addWidget(self.tls_12_ctrl)
 
-        ssl_group = BoxedGroup(auth_group, 'SSL')
-        auth_group.Add(ssl_group, 1, wx.EXPAND | wx.ALL, 10)
+        self.tls_13_label = QLabel('Use TLS 1.3:', ssl_group)
+        ssl_top.addWidget(self.tls_13_label)
+        self.tls_13_ctrl = QCheckBox(ssl_group)
+        self.tls_13_ctrl.setChecked('TLSv1.3' in Config.tls_versions)
+        ssl_top.addWidget(self.tls_13_ctrl)
+        ssl_lay.addLayout(ssl_top)
 
-        h_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        ssl_key_widget, self.ssl_key_file_ctrl = _file_browse_button(
+            ssl_group, 'Key File:', Config.ssl_key or '')
+        ssl_lay.addWidget(ssl_key_widget)
 
-        ssl_enabled_label = wx.StaticText(ssl_group, wx.ID_ANY, label='Enable:')
-        ssl_enabled_ctrl = wx.CheckBox(ssl_group, wx.ID_ANY, label='')
-        ssl_enabled_ctrl.SetValue(not Config.ssl_disabled)
+        ssl_cert_widget, self.ssl_cert_file_ctrl = _file_browse_button(
+            ssl_group, 'Certificate File:', Config.ssl_cert or '')
+        ssl_lay.addWidget(ssl_cert_widget)
 
-        h_sizer.Add(ssl_enabled_label, 0, wx.EXPAND | wx.LEFT | wx.TOP | wx.BOTTOM, 10)
-        h_sizer.Add(ssl_enabled_ctrl, 0, wx.EXPAND | wx.ALL, 10)
+        vc_row = QHBoxLayout()
+        self.ssl_verify_cert_label = QLabel('Verify Certificate:', ssl_group)
+        vc_row.addWidget(self.ssl_verify_cert_label)
+        self.ssl_verify_cert_ctrl = QCheckBox(ssl_group)
+        self.ssl_verify_cert_ctrl.setChecked(Config.ssl_verify_cert)
+        vc_row.addWidget(self.ssl_verify_cert_ctrl)
+        ssl_lay.addLayout(vc_row)
 
-        ssl_enabled_ctrl.Bind(wx.EVT_CHECKBOX, self.on_ssl_enabled)
+        ssl_ca_widget, self.ssl_ca_file_ctrl = _file_browse_button(
+            ssl_group, 'CA File:', Config.ssl_ca or '')
+        ssl_lay.addWidget(ssl_ca_widget)
 
-        tls_12_label = wx.StaticText(ssl_group, wx.ID_ANY, label='Use TLS 1.2:')
-        tls_12_ctrl = wx.CheckBox(ssl_group, wx.ID_ANY, label='')
-        tls_12_ctrl.SetValue('TLSv1.2' in Config.tls_versions)
-        h_sizer.Add(tls_12_label, 0, wx.EXPAND | wx.LEFT | wx.TOP | wx.BOTTOM, 10)
-        h_sizer.Add(tls_12_ctrl, 0, wx.EXPAND | wx.ALL, 10)
+        vi_row = QHBoxLayout()
+        self.ssl_verify_identity_label = QLabel('Verify Identity:', ssl_group)
+        vi_row.addWidget(self.ssl_verify_identity_label)
+        self.ssl_verify_identity_ctrl = QCheckBox(ssl_group)
+        self.ssl_verify_identity_ctrl.setChecked(Config.ssl_verify_identity)
+        vi_row.addWidget(self.ssl_verify_identity_ctrl)
+        ssl_lay.addLayout(vi_row)
 
-        tls_13_label = wx.StaticText(ssl_group, wx.ID_ANY, label='Use TLS 1.3:')
-        tls_13_ctrl = wx.CheckBox(ssl_group, wx.ID_ANY, label='')
-        tls_13_ctrl.SetValue('TLSv1.2' in Config.tls_versions)
-        h_sizer.Add(tls_13_label, 0, wx.EXPAND | wx.LEFT | wx.TOP | wx.BOTTOM, 10)
-        h_sizer.Add(tls_13_ctrl, 0, wx.EXPAND | wx.ALL, 10)
+        ssl_enabled = not Config.ssl_disabled
+        for w in (self.tls_12_ctrl, self.tls_13_ctrl, ssl_key_widget,
+                  ssl_cert_widget, self.ssl_verify_cert_ctrl,
+                  ssl_ca_widget, self.ssl_verify_identity_ctrl):
+            w.setEnabled(ssl_enabled)
 
-        ssl_group.Add(h_sizer, 1, wx.EXPAND)
+        auth_lay.addWidget(ssl_group)
+        mid_row.addWidget(auth_group)
 
-        self.tls_12_label = tls_12_label
-        self.tls_13_label = tls_13_label
+        # Database Settings
+        db_group = QGroupBox('Database Settings', self)
+        db_lay = QVBoxLayout(db_group)
 
-        ssl_key_file_ctrl = filebrowse.FileBrowseButton(
-            ssl_group, wx.ID_ANY, labelText='Key File:')
+        db_name_row = QHBoxLayout()
+        db_name_row.addWidget(QLabel('Database Name:', db_group))
+        self.database_name_ctrl = QLineEdit(Config.database_name or '', db_group)
+        db_name_row.addWidget(self.database_name_ctrl)
+        db_lay.addLayout(db_name_row)
 
-        if Config.ssl_key:
-            ssl_key_file_ctrl.SetValue(Config.ssl_key)
-
-        ssl_group.AppendItems(ssl_key_file_ctrl)
-
-        ssl_cert_file_ctrl = filebrowse.FileBrowseButton(
-            ssl_group, wx.ID_ANY, labelText='Certificate File:')
-
-        if Config.ssl_cert:
-            ssl_cert_file_ctrl.SetValue(Config.ssl_cert)
-
-        ssl_group.AppendItems(ssl_cert_file_ctrl)
-
-        ssl_verify_cert_ctrl = wx.CheckBox(ssl_group, wx.ID_ANY, label='')
-        ssl_verify_cert_ctrl.SetValue(Config.ssl_verify_cert)
-
-        self.ssl_verify_cert_label = ssl_group.AppendItems(
-            ('Verify Certificate:', ssl_verify_cert_ctrl))[0]
-
-        ssl_ca_file_ctrl = filebrowse.FileBrowseButton(
-            ssl_group, wx.ID_ANY, labelText='CA File:')
-
-        if Config.ssl_ca:
-            ssl_ca_file_ctrl.SetValue(Config.ssl_ca)
-
-        ssl_group.AppendItems(ssl_ca_file_ctrl)
-
-        ssl_verify_identity_ctrl = wx.CheckBox(ssl_group, wx.ID_ANY, label='')
-        ssl_verify_identity_ctrl.SetValue(Config.ssl_verify_identity)
-
-        self.ssl_verify_identity_label = ssl_group.AppendItems(
-            ('Verify Identity:', ssl_verify_identity_ctrl))[0]
-
-        tls_12_ctrl.Enable(not Config.ssl_disabled)
-        tls_13_ctrl.Enable(not Config.ssl_disabled)
-        ssl_key_file_ctrl.Enable(not Config.ssl_disabled)
-        ssl_cert_file_ctrl.Enable(not Config.ssl_disabled)
-        ssl_verify_cert_ctrl.Enable(not Config.ssl_disabled)
-        ssl_ca_file_ctrl.Enable(not Config.ssl_disabled)
-        ssl_verify_identity_ctrl.Enable(not Config.ssl_disabled)
-
-        database_group = BoxedGroup(self, 'Database Settings')
-        sql_modes_group = BoxedGroup(database_group, 'SQL Modes')
-
-        database_name_ctrl = wx.TextCtrl(
-            database_group, wx.ID_ANY, value=Config.database_name)
-
-        database_group.AppendItems(
-            ('Database Name:', database_name_ctrl))
+        # SQL Modes
+        sql_modes_group = QGroupBox('SQL Modes', db_group)
+        sql_modes_lay = QVBoxLayout(sql_modes_group)
+        modes_scroll = QScrollArea(sql_modes_group)
+        modes_scroll.setWidgetResizable(True)
+        modes_container = QWidget()
+        gbs = QGridLayout(modes_container)
 
         current_modes = Config.sql_mode
         modes = mysql.connector.constants.SQLMode.get_full_info()
-
-        gbs = wx.GridBagSizer(vgap=0, hgap=5)
-
-        available_modes = {}
+        self.available_modes = {}
         row_count = -1
 
         for i, name in enumerate(modes):
             is_set = name in current_modes
-
-            label = wx.StaticText(
-                sql_modes_group, wx.ID_ANY, label=name + ': ')
-
-            ctrl = wx.CheckBox(sql_modes_group, wx.ID_ANY, label='')
-            ctrl.SetValue(is_set)
-
+            label = QLabel(name + ': ', modes_container)
+            ctrl = QCheckBox(modes_container)
+            ctrl.setChecked(is_set)
+            if name in MODE_TOOLTIPS:
+                label.setToolTip(MODE_TOOLTIPS[name])
+                ctrl.setToolTip(MODE_TOOLTIPS[name])
             if not i % 2:
                 row_count += 1
-                gbs.Add(label, (row_count, 0), (0, 0), wx.EXPAND | wx.LEFT, 10)
-                gbs.Add(ctrl, (row_count, 1), (0, 0), wx.EXPAND | wx.RIGHT, 10)
+                gbs.addWidget(label, row_count, 0)
+                gbs.addWidget(ctrl, row_count, 1)
             else:
-                gbs.Add(label, (row_count, 2), (0, 0), wx.EXPAND | wx.LEFT, 10)
-                gbs.Add(ctrl, (row_count, 3), (0, 0), wx.EXPAND | wx.RIGHT, 10)
+                gbs.addWidget(label, row_count, 2)
+                gbs.addWidget(ctrl, row_count, 3)
+            self.available_modes[name] = ctrl
 
-            if name in MODE_TOOLTIPS:
-                label.SetToolTip(MODE_TOOLTIPS[name])
-                ctrl.SetToolTip(MODE_TOOLTIPS[name])
+        modes_scroll.setWidget(modes_container)
+        sql_modes_lay.addWidget(modes_scroll)
+        db_lay.addWidget(sql_modes_group)
 
-            available_modes[name] = ctrl
-
-        sql_modes_group.Add(gbs, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 30)
-        database_group.Add(sql_modes_group, 1, wx.EXPAND | wx.ALL, 10)
-
-        client_flags_group = BoxedGroup(database_group, 'Client Flags')
-
-        gbs = wx.GridBagSizer(vgap=0, hgap=5)
+        # Client Flags
+        client_flags_group = QGroupBox('Client Flags', db_group)
+        cf_lay = QVBoxLayout(client_flags_group)
+        cf_scroll = QScrollArea(client_flags_group)
+        cf_scroll.setWidgetResizable(True)
+        cf_container = QWidget()
+        cf_gbs = QGridLayout(cf_container)
 
         available_client_flags = {}
-        row_count = -1
-
         for line in mysql.connector.constants.ClientFlag.get_full_info():
             name, description = line.split(' : ')
             value = getattr(mysql.connector.constants.ClientFlag, name)
-
             available_client_flags[name] = dict(description=description, value=value)
 
+        row_count = -1
         for i, (name, flag_data) in enumerate(list(available_client_flags.items())):
             is_set = bool(Config.client_flags & flag_data['value'])
-
-            label = wx.StaticText(
-                client_flags_group, wx.ID_ANY, label=name + ': ')
-
-            ctrl = wx.CheckBox(client_flags_group, wx.ID_ANY, label='')
-            ctrl.SetValue(is_set)
-
+            label = QLabel(name + ': ', cf_container)
+            ctrl = QCheckBox(cf_container)
+            ctrl.setChecked(is_set)
+            label.setToolTip(flag_data['description'])
+            ctrl.setToolTip(flag_data['description'])
             if not i % 2:
                 row_count += 1
-                gbs.Add(label, (row_count, 0), (0, 0), wx.EXPAND | wx.LEFT, 10)
-                gbs.Add(ctrl, (row_count, 1), (0, 0), wx.EXPAND | wx.RIGHT, 10)
+                cf_gbs.addWidget(label, row_count, 0)
+                cf_gbs.addWidget(ctrl, row_count, 1)
             else:
-                gbs.Add(label, (row_count, 2), (0, 0), wx.EXPAND | wx.LEFT, 10)
-                gbs.Add(ctrl, (row_count, 3), (0, 0), wx.EXPAND | wx.RIGHT, 10)
-
-            label.SetToolTip(flag_data['description'])
-            ctrl.SetToolTip(flag_data['description'])
-
+                cf_gbs.addWidget(label, row_count, 2)
+                cf_gbs.addWidget(ctrl, row_count, 3)
             flag_data['ctrl'] = ctrl
 
-        client_flags_group.Add(gbs, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 30)
-        database_group.Add(client_flags_group, 1, wx.EXPAND | wx.ALL, 10)
+        cf_scroll.setWidget(cf_container)
+        cf_lay.addWidget(cf_scroll)
+        db_lay.addWidget(client_flags_group)
 
-        button_sizer = self.CreateSeparatedButtonSizer(wx.OK | wx.CANCEL)
-
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        h_sizer = wx.BoxSizer(wx.HORIZONTAL)
-
-        h_sizer.Add(con_group, 1, wx.EXPAND | wx.ALL, 5)
-        h_sizer.Add(misc_group, 1, wx.EXPAND | wx.ALL, 5)
-        sizer.Add(h_sizer, 1, wx.EXPAND | wx.ALL, 5)
-
-        h_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        h_sizer.Add(auth_group, 1, wx.EXPAND | wx.ALL, 5)
-        h_sizer.Add(database_group, 1, wx.EXPAND | wx.ALL, 5)
-        sizer.Add(h_sizer, 1, wx.EXPAND | wx.ALL, 5)
-        sizer.Add(button_sizer, 0, wx.EXPAND | wx.ALL, 10)
-
-        self.SetSizer(sizer)
-
-        self.host_ctrl = host_ctrl
-        self.port_ctrl = port_ctrl
-        self.force_ipv6_ctrl = force_ipv6_ctrl
-        self.compress_ctrl = compress_ctrl
-        self.oci_file_ctrl = oci_file_ctrl
-        self.oci_config_profile_ctrl = oci_config_profile_ctrl
-        self.buffer_ctrl = buffer_ctrl
-        self.write_timeout_ctrl = write_timeout_ctrl
-        self.read_timeout_ctrl = read_timeout_ctrl
-        self.connection_timeout_ctrl = connection_timeout_ctrl
-        self.auth_plugin_ctrl = auth_plugin_ctrl
-        self.openid_token_file_ctrl = openid_token_file_ctrl
-        self.database_name_ctrl = database_name_ctrl
-        self.ssl_verify_identity_ctrl = ssl_verify_identity_ctrl
-        self.ssl_verify_cert_ctrl = ssl_verify_cert_ctrl
-        self.ssl_enabled_ctrl = ssl_enabled_ctrl
-        self.ssl_key_file_ctrl = ssl_key_file_ctrl
-        self.ssl_cert_file_ctrl = ssl_cert_file_ctrl
-        self.ssl_ca_file_ctrl = ssl_ca_file_ctrl
-        self.tls_12_ctrl = tls_12_ctrl
-        self.tls_13_ctrl = tls_13_ctrl
-
-        self.available_modes = available_modes
         self.available_client_flags = available_client_flags
+        mid_row.addWidget(db_group)
+        outer.addLayout(mid_row)
 
-        self.CenterOnParent()
+        btn_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+        btn_box.accepted.connect(self.accept)
+        btn_box.rejected.connect(self.reject)
+        outer.addWidget(btn_box)
 
     def GetValue(self):
         tls_versions = []
-        if self.tls_12_ctrl.GetValue():
+        if self.tls_12_ctrl.isChecked():
             tls_versions.append('TLSv1.2')
-        if self.tls_13_ctrl.GetValue():
+        if self.tls_13_ctrl.isChecked():
             tls_versions.append('TLSv1.3')
 
-        wt = self.connection_timeout_ctrl.GetValue()
-        if wt == 0:
-            wt = None
+        def _timeout(ctrl):
+            v = ctrl.value()
+            return None if v == 0 else v
 
-        rt = self.connection_timeout_ctrl.GetValue()
-        if rt == 0:
-            rt = None
-
-        ct = self.connection_timeout_ctrl.GetValue()
-        if ct == 0:
-            ct = None
-
-        sql_mode = []
-        for name, ctrl in self.available_modes.items():
-            if ctrl.GetValue():
-                sql_mode.append(name)
+        sql_mode = [name for name, ctrl in self.available_modes.items()
+                    if ctrl.isChecked()]
 
         client_flags = 0
-
         for value in self.available_client_flags.values():
-            if value['ctrl'].GetValue():
+            if value['ctrl'].isChecked():
                 client_flags |= value['value']
 
         res = dict(
-            host=self.host_ctrl.GetValue(),
-            port=self.port_ctrl.GetValue(),
-            compress=self.compress_ctrl.GetValue(),
-            oci_config_file=self.oci_file_ctrl.GetValue(),
-            oci_config_profile=self.oci_config_profile_ctrl.GetValue(),
-            force_ipv6=self.force_ipv6_ctrl.GetValue(),
-            ssl_verify_identity=self.ssl_verify_identity_ctrl.GetValue(),
-            ssl_verify_cert=self.ssl_verify_cert_ctrl.GetValue(),
-            ssl_key=self.ssl_key_file_ctrl.GetValue(),
-            ssl_disabled=not self.ssl_enabled_ctrl.GetValue(),
-            ssl_cert=self.ssl_cert_file_ctrl.GetValue(),
-            ssl_ca=self.ssl_ca_file_ctrl.GetValue(),
+            host=self.host_ctrl.text(),
+            port=self.port_ctrl.value(),
+            compress=self.compress_ctrl.isChecked(),
+            oci_config_file=self.oci_file_ctrl.text(),
+            oci_config_profile=self.oci_config_profile_ctrl.text(),
+            force_ipv6=self.force_ipv6_ctrl.isChecked(),
+            ssl_verify_identity=self.ssl_verify_identity_ctrl.isChecked(),
+            ssl_verify_cert=self.ssl_verify_cert_ctrl.isChecked(),
+            ssl_key=self.ssl_key_file_ctrl.text(),
+            ssl_disabled=not self.ssl_enabled_ctrl.isChecked(),
+            ssl_cert=self.ssl_cert_file_ctrl.text(),
+            ssl_ca=self.ssl_ca_file_ctrl.text(),
             tls_versions=tls_versions,
-            buffered=self.buffer_ctrl.GetValue(),
-            write_timeout=wt,
-            read_timeout=rt,
-            connection_timeout=ct,
+            buffered=self.buffer_ctrl.isChecked(),
+            write_timeout=_timeout(self.write_timeout_ctrl),
+            read_timeout=_timeout(self.read_timeout_ctrl),
+            connection_timeout=_timeout(self.connection_timeout_ctrl),
             client_flags=client_flags,
             sql_mode=sql_mode,
-            auth_plugin=self.auth_plugin_ctrl.GetValue(),
-            openid_token_file=self.openid_token_file_ctrl.GetValue(),
-            database_name=self.database_name_ctrl.GetValue(),
+            auth_plugin=self.auth_plugin_ctrl.text(),
+            openid_token_file=self.openid_token_file_ctrl.text(),
+            database_name=self.database_name_ctrl.text(),
         )
 
         if sys.platform.startswith('win'):
-            res['kerberos_auth_mode'] = self.kerberos_auth_mode_ctrl.GetStringSelection()
+            res['kerberos_auth_mode'] = self.kerberos_auth_mode_ctrl.currentText()
 
         return res
 
-    def on_oci_file(self, evt):
+    def _on_oci_file(self, value):
         import os
+        has_file = bool(value) and os.path.exists(value)
+        self.oci_config_profile_ctrl.setEnabled(has_file)
+        self.oci_config_profile_label.setEnabled(has_file)
 
-        value = self.oci_file_ctrl.GetValue()
-        if value and os.path.exists(value):
-            self.oci_config_profile_ctrl.Enable(True)
-            self.oci_config_profile_label.Enable(True)
-        else:
-            self.oci_config_profile_ctrl.Enable(False)
-            self.oci_config_profile_label.Enable(False)
+    def _on_size(self, evt):
+        s = evt.size()
+        if hasattr(Config, 'settings_dialog') and Config.settings_dialog:
+            Config.settings_dialog.size = (s.width(), s.height())
+        super().resizeEvent(evt)
 
-        evt.Skip()
+    def _on_move(self, evt):
+        p = evt.pos()
+        if hasattr(Config, 'settings_dialog') and Config.settings_dialog:
+            Config.settings_dialog.pos = (p.x(), p.y())
+        super().moveEvent(evt)
 
-    def on_size(self, evt):  # NOQA
-        Config.size = evt.GetSize()[:2]
-        evt.Skip()
+    def _on_ssl_enabled(self, state):
+        value = bool(state)
+        for w in (self.tls_12_ctrl, self.tls_13_ctrl,
+                  self.ssl_key_file_ctrl, self.ssl_cert_file_ctrl,
+                  self.ssl_verify_cert_ctrl, self.ssl_ca_file_ctrl,
+                  self.ssl_verify_identity_ctrl,
+                  self.ssl_verify_identity_label, self.ssl_verify_cert_label,
+                  self.tls_12_label, self.tls_13_label):
+            w.setEnabled(value)
 
-    def on_move(self, evt):  # NOQA
-        Config.pos = evt.GetPosition()[:2]
-        evt.Skip()
-
-    def on_ssl_enabled(self, evt):
-        value = self.ssl_enabled_ctrl.GetValue()
-        self.tls_12_ctrl.Enable(value)
-        self.tls_13_ctrl.Enable(value)
-        self.ssl_key_file_ctrl.Enable(value)
-        self.ssl_cert_file_ctrl.Enable(value)
-        self.ssl_verify_cert_ctrl.Enable(value)
-        self.ssl_ca_file_ctrl.Enable(value)
-        self.ssl_verify_identity_ctrl.Enable(value)
-        self.ssl_verify_identity_label.Enable(value)
-        self.ssl_verify_cert_label.Enable(value)
-        self.tls_12_label.Enable(value)
-        self.tls_13_label.Enable(value)
-        evt.Skip()
-
-    def on_auth_plugin(self, evt):
-
+    def _on_auth_plugin(self):
         def _do():
-            value = self.auth_plugin_ctrl.GetValue()
-            self.openid_token_file_ctrl.Enable(
+            value = self.auth_plugin_ctrl.text()
+            self.openid_token_file_ctrl.setEnabled(
                 value == 'authentication_openid_connect_client')
 
             if sys.platform.startswith('win'):
-                self.kerberos_auth_mode_label.Enable(
-                    value == 'authentication_kerberos_client')
+                is_kerb = value == 'authentication_kerberos_client'
+                self.kerberos_auth_mode_label.setEnabled(is_kerb)
+                self.kerberos_auth_mode_ctrl.setEnabled(is_kerb)
 
-                self.kerberos_auth_mode_ctrl.Enable(
-                    value == 'authentication_kerberos_client')
-
-        wx.CallAfter(_do)
-        evt.Skip()
+        QTimer.singleShot(0, _do)

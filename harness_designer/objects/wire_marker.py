@@ -1,8 +1,11 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
 from . import ObjectBase as _ObjectBase
 from .objects3d import wire_marker as _wire_marker_3d
 from .objects2d import wire_marker as _wire_marker_2d
+
 
 if TYPE_CHECKING:
     from ..database.project_db import pjt_wire_marker as _wire_marker

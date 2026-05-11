@@ -1,54 +1,46 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
-import wx
-
-from wx import aui
+from PySide6.QtWidgets import QWidget
+from PySide6.QtCore import Qt
 
 
 if TYPE_CHECKING:
     from .. import mainframe as _mainframe
 
 
-class EditorAssembly(aui.AuiPaneInfo):
+class EditorAssembly:
 
     def __init__(self, mainframe: "_mainframe.MainFrame"):
         self.editor = EditorAssemblyPanel(mainframe)
         self.mainframe = mainframe
-        self.manager = mainframe.manager
 
-        aui.AuiPaneInfo.__init__(self)
-
-        self.Name('editor_assembly')
-        self.CaptionVisible()
-        self.Floatable()
-        self.MinimizeButton()
-        self.MaximizeButton()
-        self.Dockable()
-        self.CloseButton(True)
-        self.PaneBorder()
-        self.Caption('Assembly Editor')
-        self.DestroyOnClose(False)
-        self.Gripper()
-        self.Resizable()
-        self.Window(self.editor)
-
-        self.manager.AddPane(self.editor, self)
-        aui.AuiPaneInfo.Show(self)
-        self.manager.Update()
+        dock = mainframe._make_dock(
+            title='Assembly Editor',
+            name='editor_assembly',
+            widget=self.editor,
+            area=Qt.RightDockWidgetArea,
+        )
+        self._dock = dock
+        dock.show()
 
     def Show(self, show=True):
-        aui.AuiPaneInfo.Show(self, show)
-        self.manager.Update()
+        if show:
+            self._dock.show()
+            self._dock.raise_()
+        else:
+            self._dock.hide()
 
     def Refresh(self, *args, **kwargs):
-        self.editor.Refresh(*args, **kwargs)
+        self.editor.update()
 
     def Destroy(self):
-        self.editor.Destroy()
+        self.editor.deleteLater()
 
 
-class EditorAssemblyPanel(wx.Panel):
+class EditorAssemblyPanel(QWidget):
 
     def __init__(self, parent: "_mainframe.MainFrame"):
-        wx.Panel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_NONE)
+        QWidget.__init__(self, parent)
         self.mainframe = parent

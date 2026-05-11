@@ -1,13 +1,15 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from typing import Iterable as _Iterable, TYPE_CHECKING
-
-from ...ui import prop_ctrls as _prop_ctrls
 
 import uuid
 import weakref
 import wx
 
+from ...ui import prop_ctrls as _prop_ctrls
 from .pjt_bases import PJTEntryBase, PJTTableBase
+from ...geometry import angle as _angle
+from ...geometry import point as _point
 from .mixins import (
     Position3DMixin, Position3DControl,
     Position2DMixin, Position2DControl,
@@ -21,17 +23,12 @@ from .mixins import (
     Angle3DMixin, Angle3DControl
 )
 
-from ...geometry import angle as _angle
-from ...geometry import point as _point
-
 
 if TYPE_CHECKING:
     from . import pjt_seal as _pjt_seal
     from . import pjt_terminal as _pjt_terminal
     from . import pjt_point3d as _pjt_point3d
-
     from ..global_db import cavity as _cavity
-
     from ...objects import cavity as _cavity_obj
 
 

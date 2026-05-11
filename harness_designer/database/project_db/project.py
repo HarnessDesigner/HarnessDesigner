@@ -1,3 +1,4 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
@@ -5,7 +6,6 @@ from .pjt_bases import PJTEntryBase, PJTTableBase
 
 
 if TYPE_CHECKING:
-
     from ...objects import project as _project_obj
 
 

@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
 from . import handler_base as _handler_base
@@ -9,11 +11,16 @@ from ..gl import materials as _materials
 from ..objects import wire as _wire
 from ..objects import splice as _splice
 from .. import utils as _utils
+from ..gl import materials as _materials
+from .. import config as _config
 
 
 if TYPE_CHECKING:
     from ..gl.canvas3d import camera as _camera
     from .. import ui as _ui
+
+
+Config = _config.Config.colors
 
 
 def _get_wire_at_mouse(
@@ -36,34 +43,17 @@ def _get_wire_at_mouse(
 
 
 class AddSpliceHandler(_handler_base.HandlerBase):
-    """
-    Manages interactive splice placement on wires.
-
-    Splices can ONLY be placed on wires and automatically:
-    - Align with the wire's direction
-    - Split the wire at the placement point
-    - Inherit the wire's circuit
-
-    Workflow:
-    - Hover over a wire: wire highlights cyan, a semi-transparent preview
-      splice tracks along the wire showing exact size and orientation
-    - Click to place: wire is broken at the splice position, splice start
-      and stop points share the resulting wire endpoint Points so the
-      callback system keeps everything connected when the wire is moved
-    """
-
     obj: _splice.Splice = None
-
-    # Cyan wire highlight — distinct from the green used for compatibility
-    WIRE_HIGHLIGHT = [0.0, 0.8, 1.0, 0.6]
-
-    # Warm amber preview — reads clearly against the cyan wire highlight
-    PREVIEW_COLOR = [1.0, 0.75, 0.2, 0.45]
 
     def __init__(self, mainframe: "_ui.MainFrame", part_id: int):
         super().__init__(mainframe, part_id)
         self.wire = None
-        self._preview_material = _materials.Rubber(self.PREVIEW_COLOR)
+
+        self._preview_material = _materials.Plastic(Config.add_object.preview_color)
+        self._highlight_material = _materials.Plastic(Config.add_object.wire_highlight)
+
+    def release_capture(self) -> None:
+        raise NotImplementedError
 
     def _get_splice_length(self) -> float:
         part = self.mainframe.project.gtables.splices_table[self.part_id]

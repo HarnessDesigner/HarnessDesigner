@@ -1,7 +1,8 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import Iterable as _Iterable
 
 from .pjt_bases import PJTEntryBase, PJTTableBase
-
 from ...geometry import point as _point
 
 

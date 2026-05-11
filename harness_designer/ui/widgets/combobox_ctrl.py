@@ -1,91 +1,84 @@
+from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel
+from PySide6.QtCore import Qt
 
-import wx
-
-try:
-    from . import autocomplete_combobox as _autocomplete_combobox
-except ImportError:
-    import autocomplete_combobox as _autocomplete_combobox
+from .autocomplete_combobox import AutoCompleteComboBox
 
 
-class ComboBoxCtrl(wx.BoxSizer):
-    """
-    Combo box control with autocomplete and a label
+class ComboBoxCtrl(QWidget):
+    """Label + autocomplete combobox composite widget.
 
-    Bind the EVT_COMBOBOX event to get updates.
-
-    In order to enter a new item using the text ctrlpressing the enter key after
-    entering the item will cause the EVT_COMBOBOX even to occur. Enter MUST be used
-    when keying in an item that doesn't exist in the list of items.
+    Replaces the wx.BoxSizer-based ComboBoxCtrl.  The widget emits
+    currentTextChanged from the inner AutoCompleteComboBox for all selection
+    and enter-key commits; call sites should connect to that signal instead of
+    binding EVT_COMBOBOX.
     """
 
-    def __init__(self, parent, label, choices, process_enter=False):
-        wx.BoxSizer.__init__(self, wx.HORIZONTAL)
-        vsizer = wx.BoxSizer(wx.VERTICAL)
-        hsizer = wx.BoxSizer(wx.HORIZONTAL)
-
-        self.st = wx.StaticText(parent, wx.ID_ANY, label=label)
-        self.ctrl = _autocomplete_combobox.AutoCompleteComboBox(
-            parent, wx.ID_ANY, choices=choices, style=wx.CB_SORT | wx.TE_PROCESS_ENTER | wx.CB_DROPDOWN)
-
-        self.ctrl.Bind(wx.EVT_TEXT_ENTER, self._on_enter)
-
-        hsizer.Add(self.st, 0, wx.ALL | wx.ALIGN_CENTER, 5)
-        hsizer.Add(self.ctrl, 1, wx.ALL | wx.EXPAND, 5)
-        vsizer.Add(hsizer, 1, wx.EXPAND)
-
-        self.Add(vsizer, 1)
-
+    def __init__(self, parent=None, label: str = '', choices=None,
+                 process_enter: bool = False):
+        super().__init__(parent)
         self.process_enter = process_enter
 
-    def _on_enter(self, evt):
-        event = wx.CommandEvent(wx.wxEVT_COMBOBOX)
-        event.SetString(self.ctrl.GetValue())
-        event.SetEventObject(self.ctrl)
-        event.SetId(self.ctrl.GetId())
-        self.ctrl.GetEventHandler().ProcessEvent(event)
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
 
-        if self.process_enter:
-            evt.Skip()
+        self.st = QLabel(label, self)
+        self.ctrl = AutoCompleteComboBox(self, choices=choices or [])
 
-    def Enable(self, flag=True):
-        self.ctrl.Enable(flag)
-        self.st.Enable(flag)
+        layout.addWidget(self.st, 0)
+        layout.addWidget(self.ctrl, 1)
 
-    def SetToolTip(self, text):
-        self.ctrl.SetToolTip(text)
-        self.st.SetToolTip(text)
+        # Enter key in the line edit commits the value by firing currentTextChanged
+        self.ctrl.lineEdit().returnPressed.connect(self._on_enter)
 
-    def SetToolTipString(self, text):
-        self.ctrl.SetToolTip(text)
-        self.st.SetToolTip(text)
+    # ------------------------------------------------------------------
+    # Internal
+    # ------------------------------------------------------------------
+    def _on_enter(self):
+        # Normalise: if the typed text matches an item, select it so
+        # currentIndex is consistent.
+        text = self.ctrl.currentText()
+        idx = self.ctrl.findText(text, Qt.MatchFixedString)
+        if idx >= 0:
+            self.ctrl.blockSignals(True)
+            self.ctrl.setCurrentIndex(idx)
+            self.ctrl.blockSignals(False)
+        # Emit the signal so downstream handlers fire on Enter just as they
+        # did with EVT_COMBOBOX in the original.
+        self.ctrl.currentTextChanged.emit(text)
 
-    def Bind(self, event, handler):
-        self.ctrl.Bind(event, handler)
+    # ------------------------------------------------------------------
+    # wx-compatible API
+    # ------------------------------------------------------------------
+    def Enable(self, flag: bool = True):
+        self.ctrl.setEnabled(flag)
+        self.st.setEnabled(flag)
+
+    def SetToolTip(self, text: str):
+        self.ctrl.setToolTip(text)
+        self.st.setToolTip(text)
+
+    SetToolTipString = SetToolTip
 
     def SetValue(self, value: str):
-        items = self.ctrl.GetItems()
-        if value in items:
-            self.ctrl.SetStringSelection(value)
-        else:
-            self.ctrl.ChangeValue(value)
+        self.ctrl.SetValue(value)
 
     def GetValue(self) -> str:
         return self.ctrl.GetValue()
 
-    def Clear(self):  # NOQA
+    def Clear(self):
         self.ctrl.Clear()
 
     def Delete(self, n: int):
         self.ctrl.Delete(n)
 
-    def Insert(self, item: str, pos: int, clientData):  # NOQA
+    def Insert(self, item: str, pos: int, clientData=None):
         self.ctrl.Insert(item, pos, clientData)
 
     def Set(self, items):
-        self.ctrl.set(items)
+        self.ctrl.Set(items)
 
     def GetItems(self) -> list[str]:
-        return list(self.ctrl.GetItems())[:]
+        return self.ctrl.GetItems()
 
     def SetItems(self, items: list[str]):
         self.ctrl.SetItems(items)
@@ -96,33 +89,8 @@ class ComboBoxCtrl(wx.BoxSizer):
     def Append(self, item):
         return self.ctrl.Append(item)
 
-
-if __name__ == '__main__':
-    app = wx.App()
-
-    frame = wx.Frame(None, wx.ID_ANY, size=(600, 300))
-    panel = wx.Panel(frame, wx.ID_ANY, style=wx.BORDER_NONE)
-    hsizer = wx.BoxSizer(wx.HORIZONTAL)
-    hsizer.Add(panel, 1, wx.EXPAND)
-
-    vsizer = wx.BoxSizer(wx.VERTICAL)
-    vsizer.Add(hsizer, 1, wx.EXPAND)
-
-    frame.SetSizer(vsizer)
-
-    sz = wx.StaticBoxSizer(wx.VERTICAL, panel, "Static Box")
-    sb = sz.GetStaticBox()
-
-    ctrl = ComboBoxCtrl(sb, 'This is a test:', ['choice 1', 'choice 2'])
-
-    sz.Add(ctrl, 1, wx.ALL, 5)
-
-    sizer = wx.BoxSizer(wx.VERTICAL)
-
-    sizer.Add(sz, 1, wx.EXPAND | wx.ALL, 10)
-
-    panel.SetSizer(sizer)
-
-    frame.Show()
-
-    app.MainLoop()
+    # Convenience: expose the inner combobox signal so callers can do
+    # combobox_ctrl.currentTextChanged.connect(handler)
+    @property
+    def currentTextChanged(self):
+        return self.ctrl.currentTextChanged

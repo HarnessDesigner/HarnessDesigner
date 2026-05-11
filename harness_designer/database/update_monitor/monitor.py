@@ -1,3 +1,4 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from typing import TYPE_CHECKING
 
@@ -10,8 +11,10 @@ import json
 from . import manager as _manager
 from ... import config as _config
 
+
 if TYPE_CHECKING:
     from ... import ui as _ui
+
 
 Config = _config.Config.database
 

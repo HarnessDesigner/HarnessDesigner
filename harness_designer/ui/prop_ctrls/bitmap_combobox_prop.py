@@ -1,7 +1,9 @@
-import wx
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
+from PySide6.QtWidgets import QLabel, QHBoxLayout, QVBoxLayout
+from PySide6.QtCore import Qt
 
 from . import prop_base as _prop_base
-
 from ..widgets import bitmap_autocomplete_combobox as _bitmap_autocomplete_combobox
 
 
@@ -9,63 +11,63 @@ class BitmapComboBoxProperty(_prop_base.Property):
 
     def __init__(self, parent, label):
         self._choices = []
+        self._value = ''
+        self._units = None
+        self._units_st = None
+        self._tooltip = None
+
         _prop_base.Property.__init__(self, parent, label)
 
-    def Create(self, parent):
-        _prop_base.Property.Create(self, parent)
+        self._st = QLabel(label + ':', self)
+        self._ctrl = _bitmap_autocomplete_combobox.BitmapAutoCompleteComboBox(self)
 
-        hsizer1 = wx.BoxSizer(wx.HORIZONTAL)
-        vsizer = wx.BoxSizer(wx.VERTICAL)
-        hsizer2 = wx.BoxSizer(wx.HORIZONTAL)
+        row = QHBoxLayout()
+        row.setContentsMargins(5, 2, 5, 2)
+        row.addWidget(self._st)
+        row.addWidget(self._ctrl, stretch=1)
 
-        self._st = wx.StaticText(self, wx.ID_ANY, label=self._label + ':')
-        self._ctrl = _bitmap_autocomplete_combobox.BitmapAutoCompleteComboBox(
-            self, wx.ID_ANY, choices=self._choices, style=wx.CB_SORT | wx.CB_DROPDOWN)
+        if self._units_st:
+            row.addWidget(self._units_st)
 
-        self._ctrl.Bind(wx.EVT_TEXT_ENTER, self._on_change)
-        self._ctrl.Bind(wx.EVT_COMBOBOX, self._on_change)
+        self._sizer.addLayout(row)
 
-        hsizer2.Add(self._st, 0, wx.ALL | wx.ALIGN_CENTER, 5)
-        hsizer2.Add(self._ctrl, 1, wx.ALL, 5)
-
-        if self._units is not None:
-            self._units_st = wx.StaticText(self, wx.ID_ANY, label=self._units)
-            hsizer2.Add(self._units_st, 0, wx.ALL, 5)
-
-        vsizer.Add(hsizer2, 0, wx.EXPAND)
+        self._ctrl.currentTextChanged.connect(self._on_change)
+        self._ctrl.lineEdit().returnPressed.connect(
+            lambda: self._on_change(self._ctrl.currentText()))
 
         if self._tooltip is not None:
-            self._ctrl.SetToolTip(self._tooltip)
-            self._st.SetToolTip(self._tooltip)
+            self._ctrl.setToolTip(self._tooltip)
+            self._st.setToolTip(self._tooltip)
 
-        hsizer1.Add(vsizer, 1)
-
-        self.SetSizer(hsizer1)
-
-    def _on_change(self, _):
-        value = self._ctrl.GetValue()
-
+    def _on_change(self, value=None):
+        if value is None:
+            value = self._ctrl.currentText()
         if value == self._value:
             return
-
         self._value = value
-        self._send_changed_event(str)
+        self._send_changed_event(str, value)
 
     def SetValue(self, value: str):
-        items = [item[0] for item in self.choices]
+        self._value = value
+        self._ctrl.blockSignals(True)
+        items = [self._ctrl.itemText(i) for i in range(self._ctrl.count())]
         if value in items:
-            self.ctrl.SetStringSelection(value)
+            self._ctrl.setCurrentText(value)
         else:
-            self.ctrl.ChangeValue(value)
+            self._ctrl.lineEdit().setText(value)
+        self._ctrl.blockSignals(False)
 
     def GetValue(self) -> str:
-        return self._ctrl.GetValue()
+        return self._ctrl.currentText()
 
     def Clear(self):  # NOQA
-        self._ctrl.Clear()
+        self._ctrl.clear()
 
-    def GetItems(self) -> list[str]:
-        return list(self.ctrl.GetItems())[:]
+    def GetItems(self) -> list:
+        return [self._ctrl.itemText(i) for i in range(self._ctrl.count())]
 
-    def SetItems(self, items: list[str]):
-        self.ctrl.SetItems(items)
+    def SetItems(self, items: list):
+        self._ctrl.blockSignals(True)
+        self._ctrl.clear()
+        self._ctrl.addItems(items)
+        self._ctrl.blockSignals(False)

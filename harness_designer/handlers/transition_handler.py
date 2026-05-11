@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
 from . import handler_base as _handler_base
@@ -10,13 +12,17 @@ from ..objects import bundle as _bundle
 from ..objects import wire as _wire
 from ..objects import wire_layout as _wire_layout
 from .. import utils as _utils
+from ..gl import materials as _materials
+from .. import config as _config
+
 
 if TYPE_CHECKING:
     from ..gl.canvas3d import camera as _camera
     from .. import ui as _ui
 
 
-_HOVER_HIGHLIGHT = [0.0, 0.8, 1.0, 0.6]
+Config = _config.Config.colors
+
 _BRANCH_FIT = [0.3, 1.0, 0.3, 1.0]
 _BRANCH_NO_FIT = [1.0, 0.4, 0.0, 1.0]
 
@@ -196,17 +202,18 @@ def _walk_bundle_chain(bundle_db_obj, ptables):
 # ══════════════════════════════════════════════════════════════════════════════
 
 class AddTransitionHandler(_handler_base.HandlerBase):
-    """
-    Drop a new transition onto an existing wire or bundle.
-
-    The wire/bundle is broken at the click point.  The two new segments
-    use the transition's branch position Points as their boundary
-    endpoints so moving the transition moves the segments automatically.
-    """
+    obj: _transition.Transition = None
 
     def __init__(self, mainframe: '_ui.MainFrame', part_id: int):
         super().__init__(mainframe, part_id)
         self.target = None
+
+        self._preview_material = _materials.Plastic(Config.add_object.preview_color)
+        self._wire_highlight_material = _materials.Plastic(Config.add_object.wire_highlight)
+        self._bundle_highlight_material = _materials.Plastic(Config.add_object.bundle_highlight)
+
+    def release_capture(self) -> None:
+        raise NotImplementedError
 
     def hover(self, mouse_pos: _point.Point):
         target = _get_wire_or_bundle(mouse_pos, self.camera)

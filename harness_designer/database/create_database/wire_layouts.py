@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from . import projects as _projects
 from . import points3d as _points3d
 from . import points2d as _points2d

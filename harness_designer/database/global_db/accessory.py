@@ -1,6 +1,6 @@
-from typing import Iterable as _Iterable
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-import json
+from typing import Iterable as _Iterable
 
 from .bases import EntryBase, TableBase
 from .mixins import (PartNumberMixin, DescriptionMixin, ManufacturerMixin,

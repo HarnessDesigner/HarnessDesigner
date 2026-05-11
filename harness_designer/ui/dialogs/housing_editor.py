@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
 import wx
@@ -18,12 +20,10 @@ from ...geometry.decimal import Decimal as _d
 from ... import utils as _utils
 from ... import color as _color
 from ... import image as _image
-
 from ...gl import canvas3d as _canvas3d
 from ...gl import materials as _materials
-
-
 from ... import config as _config
+
 
 if TYPE_CHECKING:
     from ... import ui as _ui
@@ -99,7 +99,9 @@ class HeaderPanel(wx.Panel):
     def __init__(self, parent, label):
         self.bitmap = wx.Bitmap(_image.images.header_1200x80.bitmap)
 
-        wx.Panel.__init__(self, parent, wx.ID_ANY, size=(1200, 80), style=wx.BORDER_SUNKEN)
+        wx.Panel.__init__(
+            self, parent, wx.ID_ANY, size=(1200, 80), style=wx.BORDER_SUNKEN)
+
         self.SetMinClientSize((1200, 80))
         self.SetMinSize((1200, 80))
 
@@ -138,7 +140,9 @@ class HeaderPanel(wx.Panel):
         dc.Destroy()
         del dc
 
-        self.sb = wx.StaticBitmap(self, wx.ID_ANY, bitmap=self.bitmap, pos=(0, 0), size=self.bitmap.GetSize())
+        self.sb = wx.StaticBitmap(
+            self, wx.ID_ANY, bitmap=self.bitmap,
+            pos=(0, 0), size=self.bitmap.GetSize())
 
     def DoGetBestClientSize(self):
         return wx.Size(600, 80)
@@ -172,9 +176,12 @@ class Cavity3D(_base3d.Base3D):
         self.db_obj = db_obj
         data = self.build()
 
-        _base3d.Base3D.__init__(self, parent, db_obj, None, self._angle, self._position, scale, material, data=data)
+        _base3d.Base3D.__init__(self, parent, db_obj, None,
+                                self._angle, self._position, scale,
+                                material, data=data)
 
-        self._selected_material = _materials.Plastic(_color.Color(0.3, 1.0, 0.3, 1.0))
+        self._selected_material = _materials.Plastic(
+            _color.Color(0.3, 1.0, 0.3, 1.0))
 
         self._is_visible = True
         self.autoplace = False
@@ -263,7 +270,10 @@ class Cavity3D(_base3d.Base3D):
     def build(self):
         if self.is_round:
             radius = float(_d(self.width) / _d(2.0))
-            vertices, faces = _cylinder.create(radius, self.length, resolution=90, split=1)
+
+            vertices, faces = _cylinder.create(radius, self.length,
+                                               resolution=90, split=1)
+
             p1, p2 = _utils.compute_aabb(vertices)
 
             position = (p2 - p1) / 2.0
@@ -271,7 +281,8 @@ class Cavity3D(_base3d.Base3D):
             vertices @= self._angle
             vertices += self._position
 
-            verts, nrmls, count = _utils.compute_smoothed_vertex_normals(vertices, faces)
+            verts, nrmls, count = (
+                _utils.compute_smoothed_vertex_normals(vertices, faces))
         else:
             vertices, faces = _box.create(self.width, self.height, self.length)
             p1, p2 = _utils.compute_aabb(vertices)
@@ -317,9 +328,13 @@ class HousingAccessory3D(_base3d.Base3D):
         material_color = _color.Color(0.8, 0.2, 0.8, 0.99)
         material = _materials.Plastic(material_color)
 
-        _base3d.Base3D.__init__(self, parent, None, None, angle, self._position, scale, material, data=data)
+        _base3d.Base3D.__init__(self, parent, None, None,
+                                angle, self._position, scale,
+                                material, data=data)
 
-        self._selected_material = _materials.Plastic(_color.Color(0.8, 0.8, 0.2, 0.99))
+        self._selected_material = _materials.Plastic(
+            _color.Color(0.8, 0.8, 0.2, 0.99))
+
         self._is_visible = True
         self.editor3d.Refresh(False)
 
@@ -327,7 +342,9 @@ class HousingAccessory3D(_base3d.Base3D):
 class Housing(_objects.ObjectBase):
     obj3d: "Housing3D" = None
 
-    def __init__(self, parent: "HousingEditorDialog", housing: "_housing.Housing"):
+    def __init__(self, parent: "HousingEditorDialog",
+                 housing: "_housing.Housing"):
+
         super().__init__(parent, housing)
         self.dialog = parent
         self.obj3d = Housing3D(self, housing)
@@ -348,7 +365,8 @@ class Housing3D(_base3d.Base3D):
         if model is not None:
             vertices, faces = model.load()
         else:
-            vertices, faces = _box.create(db_obj.width, db_obj.height, db_obj.length)
+            vertices, faces = _box.create(
+                db_obj.width, db_obj.height, db_obj.length)
 
         angle = db_obj.angle3d
         vertices @= angle
@@ -361,7 +379,10 @@ class Housing3D(_base3d.Base3D):
         material_color = _color.Color(0.4, 0.4, 0.8, 0.35)
         material = _materials.Glowing(material_color)
 
-        _base3d.Base3D.__init__(self, parent, db_obj, None, angle, position, scale, material, data=data)
+        _base3d.Base3D.__init__(self, parent, db_obj, None,
+                                angle, position, scale,
+                                material, data=data)
+
         self._is_visible = True
         self.editor3d.Refresh(False)
 
@@ -414,7 +435,8 @@ class CavityPanel(scrolledpanel.ScrolledPanel):
         self.housing = housing
         self.dialog = parent
 
-        scrolledpanel.ScrolledPanel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_NONE)
+        scrolledpanel.ScrolledPanel.__init__(
+            self, parent, wx.ID_ANY, style=wx.BORDER_NONE)
 
         cavity_sz = wx.StaticBoxSizer(wx.HORIZONTAL, self, "Cavity")
         cavity_sb = cavity_sz.GetStaticBox()
@@ -423,41 +445,61 @@ class CavityPanel(scrolledpanel.ScrolledPanel):
 
         self.cavity_names = sorted([cavity.name for cavity in self.cavities])
 
-        self.cavity_name = _combobox_ctrl.ComboBoxCtrl(cavity_sb, 'Name:', self.cavity_names)
+        self.cavity_name = _combobox_ctrl.ComboBoxCtrl(
+            cavity_sb, 'Name:', self.cavity_names)
+
         self.cavity_name.Bind(wx.EVT_COMBOBOX, self.on_cavity_name)
-        self.cavity_name.SetToolTipString('Select OR enter a new name and then press enter to add.')
+        self.cavity_name.SetToolTipString(
+            'Select OR enter a new name and then press enter to add.')
 
         left_size_sizer.Add(self.cavity_name, 0, wx.EXPAND | wx.ALL, 5)
 
-        self.change_name = _checkbox_ctrl.CheckboxCtrl(cavity_sb, 'Change Name:')
-        self.change_name.SetToolTipString('Changes the selected cavities name to the name entered above.')
+        self.change_name = _checkbox_ctrl.CheckboxCtrl(
+            cavity_sb, 'Change Name:')
+
+        self.change_name.SetToolTipString(
+            'Changes the selected cavities name to the name entered above.')
+
         self.change_name.Enable(False)
 
         left_size_sizer.Add(self.change_name, 0, wx.ALL, 5)
 
-        self.cavity_type = _checkbox_ctrl.CheckboxCtrl(cavity_sb, 'Is Round:')
+        self.cavity_type = _checkbox_ctrl.CheckboxCtrl(
+            cavity_sb, 'Is Round:')
+
         self.cavity_type.Bind(wx.EVT_CHECKBOX, self.on_cavity_type)
         self.cavity_type.Enable(False)
 
         left_size_sizer.Add(self.cavity_type, 0, wx.ALL, 5)
 
-        self.cavity_autoplace = _checkbox_ctrl.CheckboxCtrl(cavity_sb, 'Use in Autoplace:')
+        self.cavity_autoplace = _checkbox_ctrl.CheckboxCtrl(
+            cavity_sb, 'Use in Autoplace:')
+
         self.cavity_autoplace.Bind(wx.EVT_CHECKBOX, self.on_cavity_autoplace)
         self.cavity_autoplace.Enable(False)
 
         left_size_sizer.Add(self.cavity_type, 0, wx.ALL, 5)
 
-        self.cavity_terminal_sizes = _combobox_ctrl.ComboBoxCtrl(cavity_sb, 'Terminal Sizes', [])
-        self.cavity_terminal_sizes.Bind(wx.EVT_COMBOBOX, self.on_cavity_terminal_sizes)
+        self.cavity_terminal_sizes = _combobox_ctrl.ComboBoxCtrl(
+            cavity_sb, 'Terminal Sizes', [])
+
+        self.cavity_terminal_sizes.Bind(
+            wx.EVT_COMBOBOX, self.on_cavity_terminal_sizes)
+
         self.cavity_terminal_sizes.Enable(False)
 
-        left_size_sizer.Add(self.cavity_terminal_sizes, 0, wx.EXPAND | wx.ALL, 5)
+        left_size_sizer.Add(
+            self.cavity_terminal_sizes, 0, wx.EXPAND | wx.ALL, 5)
 
-        self.auto_place = wx.Button(cavity_sb, wx.ID_ANY, label='Auto Place Cavities')
+        self.auto_place = wx.Button(
+            cavity_sb, wx.ID_ANY, label='Auto Place Cavities')
+
         self.auto_place.Bind(wx.EVT_BUTTON, self.on_auto_place)
         self.auto_place.Enable(False)
 
-        self.remove_cavity = wx.Button(cavity_sb, wx.ID_ANY, label='Remove Cavity')
+        self.remove_cavity = wx.Button(
+            cavity_sb, wx.ID_ANY, label='Remove Cavity')
+
         self.remove_cavity.Bind(wx.EVT_BUTTON, self.on_remove_cavity)
         self.remove_cavity.Enable(False)
 
@@ -470,21 +512,29 @@ class CavityPanel(scrolledpanel.ScrolledPanel):
 
         cavity_sz.Add(left_size_sizer, 0)
 
-        cavity_position_sz = wx.StaticBoxSizer(wx.VERTICAL, cavity_sb, "Position")
+        cavity_position_sz = wx.StaticBoxSizer(
+            wx.VERTICAL, cavity_sb, "Position")
+
         cavity_position_sb = cavity_position_sz.GetStaticBox()
 
         self.cavity_x_pos = _float_ctrl.FloatCtrl(
-            cavity_position_sb, 'X:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
+            cavity_position_sb, 'X:', min_val=-999.0,
+            max_val=999.0, inc=0.01, slider=True)
+
         self.cavity_x_pos.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_cavity_x_pos)
         self.cavity_x_pos.Enable(False)
 
         self.cavity_y_pos = _float_ctrl.FloatCtrl(
-            cavity_position_sb, 'Y:', min_val=0.0, max_val=999.0, inc=0.01, slider=True)
+            cavity_position_sb, 'Y:', min_val=0.0,
+            max_val=999.0, inc=0.01, slider=True)
+
         self.cavity_y_pos.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_cavity_y_pos)
         self.cavity_y_pos.Enable(False)
 
         self.cavity_z_pos = _float_ctrl.FloatCtrl(
-            cavity_position_sb, 'Z:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
+            cavity_position_sb, 'Z:', min_val=-999.0,
+            max_val=999.0, inc=0.01, slider=True)
+
         self.cavity_z_pos.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_cavity_z_pos)
         self.cavity_z_pos.Enable(False)
 
@@ -497,17 +547,23 @@ class CavityPanel(scrolledpanel.ScrolledPanel):
         cavity_size_sz = wx.StaticBoxSizer(wx.VERTICAL, cavity_sb, "Size")
         cavity_size_sb = cavity_size_sz.GetStaticBox()
         self.cavity_x_size = _float_ctrl.FloatCtrl(
-            cavity_size_sb, 'X:', min_val=0.0, max_val=999.0, inc=0.01, slider=True)
+            cavity_size_sb, 'X:', min_val=0.0,
+            max_val=999.0, inc=0.01, slider=True)
+
         self.cavity_x_size.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_cavity_x_size)
         self.cavity_x_size.Enable(False)
 
         self.cavity_y_size = _float_ctrl.FloatCtrl(
-            cavity_size_sb, 'Y:', min_val=0.1, max_val=999.0, inc=0.01, slider=True)
+            cavity_size_sb, 'Y:', min_val=0.1,
+            max_val=999.0, inc=0.01, slider=True)
+
         self.cavity_y_size.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_cavity_y_size)
         self.cavity_y_size.Enable(False)
 
         self.cavity_z_size = _float_ctrl.FloatCtrl(
-            cavity_size_sb, 'Z:', min_val=0.1, max_val=999.0, inc=0.01, slider=True)
+            cavity_size_sb, 'Z:', min_val=0.1,
+            max_val=999.0, inc=0.01, slider=True)
+
         self.cavity_z_size.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_cavity_z_size)
         self.cavity_z_size.Enable(False)
 
@@ -521,17 +577,23 @@ class CavityPanel(scrolledpanel.ScrolledPanel):
         cavity_angle_sb = cavity_angle_sz.GetStaticBox()
 
         self.cavity_x_angle = _float_ctrl.FloatCtrl(
-            cavity_angle_sb, 'X:', min_val=-180.0, max_val=180.0, inc=0.01, slider=True)
+            cavity_angle_sb, 'X:', min_val=-180.0,
+            max_val=180.0, inc=0.01, slider=True)
+
         self.cavity_x_angle.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_cavity_x_angle)
         self.cavity_x_angle.Enable(False)
 
         self.cavity_y_angle = _float_ctrl.FloatCtrl(
-            cavity_angle_sb, 'Y:', min_val=-180.0, max_val=180.0, inc=0.01, slider=True)
+            cavity_angle_sb, 'Y:', min_val=-180.0,
+            max_val=180.0, inc=0.01, slider=True)
+
         self.cavity_y_angle.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_cavity_y_angle)
         self.cavity_y_angle.Enable(False)
 
         self.cavity_z_angle = _float_ctrl.FloatCtrl(
-            cavity_angle_sb, 'Z:', min_val=-180.0, max_val=180.0, inc=0.01, slider=True)
+            cavity_angle_sb, 'Z:', min_val=-180.0,
+            max_val=180.0, inc=0.01, slider=True)
+
         self.cavity_z_angle.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_cavity_z_angle)
         self.cavity_z_angle.Enable(False)
 
@@ -552,7 +614,6 @@ class CavityPanel(scrolledpanel.ScrolledPanel):
 
         if not self.cavities:
             self.dialog.housing_panel.enable_housing_rotation(True)
-
 
     def on_cavity_autoplace(self, _):
         value = self.cavity_autoplace.GetValue()
@@ -624,10 +685,8 @@ class CavityPanel(scrolledpanel.ScrolledPanel):
 
         self.set_cavity(None)
 
-
-        for cavity in self.cavities:
-            cavity.position
-
+        # for cavity in self.cavities:
+        #     cavity.position
 
         evt.Skip()
 
@@ -659,8 +718,10 @@ class CavityPanel(scrolledpanel.ScrolledPanel):
 
                 num_pins = self.housing.db_obj.num_pins
 
+                cavities_table = self.housing.db_obj.table.db.cavities_table
+
                 if (num_pins > 0 and idx <= num_pins) or num_pins == 0:
-                    cavity = self.housing.db_obj.table.db.cavities_table.insert(housing_id, idx)
+                    cavity = cavities_table.insert(housing_id, idx)
 
                     if not self.cavities:
                         self.dialog.housing_panel.enable_housing_rotation(False)
@@ -852,7 +913,8 @@ class HousingPanel(scrolledpanel.ScrolledPanel):
         self.housing = housing
         self.dialog = parent
 
-        scrolledpanel.ScrolledPanel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_NONE)
+        scrolledpanel.ScrolledPanel.__init__(self, parent, wx.ID_ANY,
+                                             style=wx.BORDER_NONE)
 
         vsizer = wx.BoxSizer(wx.VERTICAL)
 
@@ -860,15 +922,21 @@ class HousingPanel(scrolledpanel.ScrolledPanel):
         boot_position_sb = boot_position_sz.GetStaticBox()
 
         self.boot_x_pos = _float_ctrl.FloatCtrl(
-            boot_position_sb, 'X:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
+            boot_position_sb, 'X:', min_val=-999.0,
+            max_val=999.0, inc=0.01, slider=True)
+
         self.boot_x_pos.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_boot_x_pos)
 
         self.boot_y_pos = _float_ctrl.FloatCtrl(
-            boot_position_sb, 'Y:', min_val=0.0, max_val=999.0, inc=0.01, slider=True)
+            boot_position_sb, 'Y:', min_val=0.0,
+            max_val=999.0, inc=0.01, slider=True)
+
         self.boot_y_pos.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_boot_y_pos)
 
         self.boot_z_pos = _float_ctrl.FloatCtrl(
-            boot_position_sb, 'Z:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
+            boot_position_sb, 'Z:', min_val=-999.0,
+            max_val=999.0, inc=0.01, slider=True)
+
         self.boot_z_pos.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_boot_z_pos)
 
         self.boot_pos = housing.boot_pos
@@ -888,19 +956,27 @@ class HousingPanel(scrolledpanel.ScrolledPanel):
 
         vsizer.Add(boot_position_sz, 0, wx.EXPAND | wx.ALL, 5)
 
-        cpa_lock_position_sz = wx.StaticBoxSizer(wx.VERTICAL, self, "CPA Lock Position")
+        cpa_lock_position_sz = wx.StaticBoxSizer(
+            wx.VERTICAL, self, "CPA Lock Position")
+
         cpa_lock_position_sb = cpa_lock_position_sz.GetStaticBox()
 
         self.cpa_x_pos = _float_ctrl.FloatCtrl(
-            cpa_lock_position_sb, 'X:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
+            cpa_lock_position_sb, 'X:', min_val=-999.0,
+            max_val=999.0, inc=0.01, slider=True)
+
         self.cpa_x_pos.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_cpa_x_pos)
 
         self.cpa_y_pos = _float_ctrl.FloatCtrl(
-            cpa_lock_position_sb, 'Y:', min_val=0.0, max_val=999.0, inc=0.01, slider=True)
+            cpa_lock_position_sb, 'Y:', min_val=0.0,
+            max_val=999.0, inc=0.01, slider=True)
+
         self.cpa_y_pos.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_cpa_y_pos)
 
         self.cpa_z_pos = _float_ctrl.FloatCtrl(
-            cpa_lock_position_sb, 'Z:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
+            cpa_lock_position_sb, 'Z:', min_val=-999.0,
+            max_val=999.0, inc=0.01, slider=True)
+
         self.cpa_z_pos.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_cpa_z_pos)
 
         self.cpa_pos = housing.cpa_pos
@@ -920,19 +996,27 @@ class HousingPanel(scrolledpanel.ScrolledPanel):
 
         vsizer.Add(cpa_lock_position_sz, 0, wx.EXPAND | wx.ALL, 5)
 
-        cover_position_sz = wx.StaticBoxSizer(wx.VERTICAL, self, "Cover Position")
+        cover_position_sz = wx.StaticBoxSizer(
+            wx.VERTICAL, self, "Cover Position")
+
         cover_position_sb = cover_position_sz.GetStaticBox()
 
         self.cover_x_pos = _float_ctrl.FloatCtrl(
-            cover_position_sb, 'X:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
+            cover_position_sb, 'X:', min_val=-999.0,
+            max_val=999.0, inc=0.01, slider=True)
+
         self.cover_x_pos.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_cover_x_pos)
 
         self.cover_y_pos = _float_ctrl.FloatCtrl(
-            cover_position_sb, 'Y:', min_val=0.0, max_val=999.0, inc=0.01, slider=True)
+            cover_position_sb, 'Y:', min_val=0.0,
+            max_val=999.0, inc=0.01, slider=True)
+
         self.cover_y_pos.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_cover_y_pos)
 
         self.cover_z_pos = _float_ctrl.FloatCtrl(
-            cover_position_sb, 'Z:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
+            cover_position_sb, 'Z:', min_val=-999.0,
+            max_val=999.0, inc=0.01, slider=True)
+
         self.cover_z_pos.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_cover_z_pos)
 
         self.cover_pos = housing.cover_pos
@@ -951,19 +1035,27 @@ class HousingPanel(scrolledpanel.ScrolledPanel):
 
         vsizer.Add(cover_position_sz, 0, wx.EXPAND | wx.ALL, 5)
 
-        tpa_lock1_position_sz = wx.StaticBoxSizer(wx.VERTICAL, self, "TPA Lock 1 Position")
+        tpa_lock1_position_sz = wx.StaticBoxSizer(
+            wx.VERTICAL, self, "TPA Lock 1 Position")
+
         tpa_lock1_position_sb = tpa_lock1_position_sz.GetStaticBox()
 
         self.tpa1_x_pos = _float_ctrl.FloatCtrl(
-            tpa_lock1_position_sb, 'X:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
+            tpa_lock1_position_sb, 'X:', min_val=-999.0,
+            max_val=999.0, inc=0.01, slider=True)
+
         self.tpa1_x_pos.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_tpa1_x_pos)
 
         self.tpa1_y_pos = _float_ctrl.FloatCtrl(
-            tpa_lock1_position_sb, 'Y:', min_val=0.0, max_val=999.0, inc=0.01, slider=True)
+            tpa_lock1_position_sb, 'Y:', min_val=0.0,
+            max_val=999.0, inc=0.01, slider=True)
+
         self.tpa1_y_pos.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_tpa1_y_pos)
 
         self.tpa1_z_pos = _float_ctrl.FloatCtrl(
-            tpa_lock1_position_sb, 'Z:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
+            tpa_lock1_position_sb, 'Z:', min_val=-999.0,
+            max_val=999.0, inc=0.01, slider=True)
+
         self.tpa1_z_pos.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_tpa1_z_pos)
 
         self.tpa1_pos = housing.tpa1_pos
@@ -982,19 +1074,27 @@ class HousingPanel(scrolledpanel.ScrolledPanel):
 
         vsizer.Add(tpa_lock1_position_sz, 0, wx.EXPAND | wx.ALL, 5)
 
-        tpa_lock2_position_sz = wx.StaticBoxSizer(wx.VERTICAL, self, "TPA Lock 2 Position")
+        tpa_lock2_position_sz = wx.StaticBoxSizer(
+            wx.VERTICAL, self, "TPA Lock 2 Position")
+
         tpa_lock2_position_sb = tpa_lock2_position_sz.GetStaticBox()
 
         self.tpa2_x_pos = _float_ctrl.FloatCtrl(
-            tpa_lock2_position_sb, 'X:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
+            tpa_lock2_position_sb, 'X:', min_val=-999.0,
+            max_val=999.0, inc=0.01, slider=True)
+
         self.tpa2_x_pos.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_tpa2_x_pos)
 
         self.tpa2_y_pos = _float_ctrl.FloatCtrl(
-            tpa_lock2_position_sb, 'Y:', min_val=0.0, max_val=999.0, inc=0.01, slider=True)
+            tpa_lock2_position_sb, 'Y:', min_val=0.0,
+            max_val=999.0, inc=0.01, slider=True)
+
         self.tpa2_y_pos.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_tpa2_y_pos)
 
         self.tpa2_z_pos = _float_ctrl.FloatCtrl(
-            tpa_lock2_position_sb, 'Z:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
+            tpa_lock2_position_sb, 'Z:', min_val=-999.0,
+            max_val=999.0, inc=0.01, slider=True)
+
         self.tpa2_z_pos.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_tpa2_z_pos)
 
         self.tpa2_pos = housing.tpa2_pos
@@ -1013,19 +1113,27 @@ class HousingPanel(scrolledpanel.ScrolledPanel):
 
         vsizer.Add(tpa_lock2_position_sz, 0, wx.EXPAND | wx.ALL, 5)
 
-        seal_position_sz = wx.StaticBoxSizer(wx.VERTICAL, self, "Seal Position")
+        seal_position_sz = wx.StaticBoxSizer(
+            wx.VERTICAL, self, "Seal Position")
+
         seal_position_sb = seal_position_sz.GetStaticBox()
 
         self.seal_x_pos = _float_ctrl.FloatCtrl(
-            seal_position_sb, 'X:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
+            seal_position_sb, 'X:', min_val=-999.0,
+            max_val=999.0, inc=0.01, slider=True)
+
         self.seal_x_pos.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_seal_x_pos)
 
         self.seal_y_pos = _float_ctrl.FloatCtrl(
-            seal_position_sb, 'Y:', min_val=0.0, max_val=999.0, inc=0.01, slider=True)
+            seal_position_sb, 'Y:', min_val=0.0,
+            max_val=999.0, inc=0.01, slider=True)
+
         self.seal_y_pos.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_seal_y_pos)
 
         self.seal_z_pos = _float_ctrl.FloatCtrl(
-            seal_position_sb, 'Z:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
+            seal_position_sb, 'Z:', min_val=-999.0,
+            max_val=999.0, inc=0.01, slider=True)
+
         self.seal_z_pos.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_seal_z_pos)
 
         self.seal_pos = housing.seal_pos
@@ -1044,26 +1152,37 @@ class HousingPanel(scrolledpanel.ScrolledPanel):
 
         vsizer.Add(seal_position_sz, 0, wx.EXPAND | wx.ALL, 5)
 
-        housing_angle_sz = wx.StaticBoxSizer(wx.VERTICAL, self, "Housing Angle")
+        housing_angle_sz = wx.StaticBoxSizer(
+            wx.VERTICAL, self, "Housing Angle")
+
         housing_angle_sb = housing_angle_sz.GetStaticBox()
 
         self.housing_x_angle = _float_ctrl.FloatCtrl(
-            housing_angle_sb, 'X:', min_val=-180.0, max_val=180.0, inc=0.01, slider=True)
+            housing_angle_sb, 'X:', min_val=-180.0,
+            max_val=180.0, inc=0.01, slider=True)
+
         self.housing_x_angle.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_housing_x_angle)
         self.housing_x_angle.Enable(False)
-        self.housing_x_angle.SetToolTip('You need to remove all added cavities in order to rotare the housing')
+        self.housing_x_angle.SetToolTip(
+            'You need to remove all added cavities in order to rotare the housing')
 
         self.housing_y_angle = _float_ctrl.FloatCtrl(
-            housing_angle_sb, 'Y:', min_val=-180.0, max_val=180.0, inc=0.01, slider=True)
+            housing_angle_sb, 'Y:', min_val=-180.0,
+            max_val=180.0, inc=0.01, slider=True)
+
         self.housing_y_angle.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_housing_y_angle)
         self.housing_y_angle.Enable(False)
-        self.housing_y_angle.SetToolTip('You need to remove all added cavities in order to rotare the housing')
+        self.housing_y_angle.SetToolTip(
+            'You need to remove all added cavities in order to rotare the housing')
 
         self.housing_z_angle = _float_ctrl.FloatCtrl(
-            housing_angle_sb, 'Z:', min_val=-180.0, max_val=180.0, inc=0.01, slider=True)
+            housing_angle_sb, 'Z:', min_val=-180.0,
+            max_val=180.0, inc=0.01, slider=True)
+
         self.housing_z_angle.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_housing_z_angle)
         self.housing_z_angle.Enable(False)
-        self.housing_z_angle.SetToolTip('You need to remove all added cavities in order to rotare the housing')
+        self.housing_z_angle.SetToolTip(
+            'You need to remove all added cavities in order to rotare the housing')
 
         self.housing_angle = housing.angle
         self.housing_angle.bind(self.update_housing_angle)
@@ -1133,9 +1252,12 @@ class HousingPanel(scrolledpanel.ScrolledPanel):
             self.housing_z_angle.SetToolTip('')
             self.housing_y_angle.SetToolTip('')
         else:
-            self.housing_x_angle.SetToolTip('You need to remove all added cavities in order to rotare the housing')
-            self.housing_z_angle.SetToolTip('You need to remove all added cavities in order to rotare the housing')
-            self.housing_y_angle.SetToolTip('You need to remove all added cavities in order to rotare the housing')
+            self.housing_x_angle.SetToolTip(
+                'You need to remove all added cavities in order to rotare the housing')
+            self.housing_z_angle.SetToolTip(
+                'You need to remove all added cavities in order to rotare the housing')
+            self.housing_y_angle.SetToolTip(
+                'You need to remove all added cavities in order to rotare the housing')
 
         self.housing_x_angle.Enable(flag)
         self.housing_y_angle.Enable(flag)
@@ -1332,11 +1454,13 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
     def __init__(self, parent, db_obj):
         self.db_obj = db_obj
 
-        _dialog_base.BaseDialog.__init__(self, parent, 'Edit Housing', size=(1200, 900))
+        _dialog_base.BaseDialog.__init__(self, parent,
+                                         'Edit Housing', size=(1200, 900))
 
         vsizer = wx.BoxSizer(wx.VERTICAL)
 
-        self.canvas = _canvas3d.Canvas3D(self.panel, Config.editor3d, size=(750, 500))
+        self.canvas = _canvas3d.Canvas3D(
+            self.panel, Config.editor3d, size=(750, 500))
 
         self.housing = Housing(self, db_obj)
 

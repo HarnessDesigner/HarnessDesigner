@@ -1,28 +1,56 @@
-import wx
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 import time
+from typing import TYPE_CHECKING
+
+from PySide6.QtCore import (
+    Qt, QAbstractTableModel, QModelIndex, QTimer, QSize
+)
+from PySide6.QtGui import QPixmap, QIcon
+from PySide6.QtWidgets import (
+    QTableView, QAbstractItemView, QHeaderView, QApplication
+)
 
 from . import edit_dialog as _edit_dialog
 from ... import config as _config
+
+
+def _inject_where_placeholder(query: str) -> str:
+    """Insert a ``{where_clause}`` format placeholder into one of the
+    EditorList page query templates, immediately before the close-paren
+    that terminates the innermost SELECT.
+
+    Every page template in this module has the shape::
+
+        SELECT * FROM (
+            SELECT Row_Number() OVER (ORDER BY ...) AS RowNum, *
+            FROM (
+                SELECT t.id, t.part_number, ...
+                FROM <table> AS t
+                LEFT JOIN ...
+                LEFT JOIN ...
+            )                              <-- innermost close
+        ) WHERE RowNum BETWEEN ... AND ...;
+
+    The injection point is right before that innermost close-paren so a
+    WHERE clause is applied BEFORE pagination.
+    """
+    pos = query.find('WHERE RowNum BETWEEN')
+    if pos == -1:
+        return query
+    outer_close = query.rfind(')', 0, pos)
+    if outer_close == -1:
+        return query
+    inner_close = query.rfind(')', 0, outer_close)
+    if inner_close == -1:
+        return query
+    return query[:inner_close] + '{where_clause}\n        ' + query[inner_close:]
 
 
 class EditorDBConfig(metaclass=_config.ConfigDB):
     pass
 
 
-# This class is used to time how fast a suer is scrolling.
-# The porpose of this is to set the number of rows to collect when scrilling.
-# The number os records that get collected is determine by the number that
-# is able to be displayed and the scrolling speed. The faster the scrolling
-# speed the more rows that get collected at a time. The row data is cached
-# and later pruned down to what the last collected size was. The pruning occurs
-# when the UI is idle and it will only occur a single time after a scrolling
-# event has finished. This allows any change that might be made at a different
-# seat to prropgate out to other clients. There is a small studder when
-# scrolling that does occur when viewing the housings and this studder is
-# occuring simply because of the complexity of the query that is being made to
-# collect the data. The queries are quite involved in order to provide the ability
-# to sort the data by column. This is done by clicking on the arrow in the
-# column header.
 class ScrollTracker:
     min_buffer = 10
     max_buffer = 200
@@ -34,37 +62,136 @@ class ScrollTracker:
     def get_buffer_size(self, current_row):
         now = time.monotonic_ns()
         elapsed = (now - self.last_time) * 1e-9
-
-        if elapsed:
-            velocity = abs(current_row - self.last_row) / elapsed
-        else:
-            velocity = 0
-
+        velocity = abs(current_row - self.last_row) / elapsed if elapsed else 0
         self.last_row = current_row
         self.last_time = now
-
-        # scale buffer between MIN and MAX based on velocity
-        # tune the divisor to taste based on your expected scroll speeds
-        buffer = int(min(self.max_buffer, max(self.min_buffer, velocity * 1.5)))
-
-        return buffer
+        return int(min(self.max_buffer, max(self.min_buffer, velocity * 1.5)))
 
 
-class EditorList(wx.ListCtrl):
+class _EditorModel(QAbstractTableModel):
+    """Qt model backing EditorList. Feeds data on demand from the DB via
+    the same row-cache and buffer strategy as the original wx.ListCtrl
+    virtual implementation."""
+
+    def __init__(self, editor_list):
+        super().__init__()
+        self._list = editor_list
+
+    def rowCount(self, parent=QModelIndex()):
+        if parent.isValid():
+            return 0
+        return self._list._row_count
+
+    def columnCount(self, parent=QModelIndex()):
+        if parent.isValid():
+            return 0
+        return len(self._list.column_mapping) + 1  # +1 for icon column
+
+    def headerData(self, section, orientation, role=Qt.DisplayRole):
+        if orientation != Qt.Horizontal or role != Qt.DisplayRole:
+            return None
+        if section == 0:
+            return ''
+        col_key = section - 1
+        if col_key in self._list.column_mapping:
+            return self._list.column_mapping[col_key][0]
+        return None
+
+    def data(self, index, role=Qt.DisplayRole):
+        if not index.isValid():
+            return None
+
+        row_id = index.row()
+        col_id = index.column()
+
+        if role == Qt.DecorationRole and col_id == 0:
+            return self._list._get_icon(row_id)
+
+        if role == Qt.DisplayRole:
+            if col_id == 0:
+                return None
+            return self._list._get_cell_text(row_id, col_id)
+
+        if role == Qt.TextAlignmentRole:
+            col_key = col_id - 1
+            if col_key in self._list.column_mapping:
+                _, col_name = self._list.column_mapping[col_key]
+                if col_name == 'model3d_id':
+                    return Qt.AlignCenter
+            return Qt.AlignLeft | Qt.AlignVCenter
+
+        return None
+
+    def invalidate_row(self, row_id):
+        self.dataChanged.emit(
+            self.index(row_id, 0),
+            self.index(row_id, self.columnCount() - 1)
+        )
+
+    def reset_all(self):
+        self.beginResetModel()
+        self.endResetModel()
+
+
+class EditorList(QTableView):
     _has_image = True
     _has_model_3d = True
     __table_name__ = ''
     __query__ = ''
     column_mapping = {}
-    resize_registered = False
+    resize_registered = False  # kept for compat; not used in Qt path
+
+    # ------------------------------------------------------------------
+    # Public interface expected by the rest of the codebase
+    # ------------------------------------------------------------------
+
+    def GetLabel(self):
+        return self._label
+
+    def GetSelection(self):
+        indexes = self.selectedIndexes()
+        if not indexes:
+            return None
+        return indexes[0].row()
+
+    def set_filter(self, where_clause: str = '', where_params=None):
+        """Replace the active WHERE clause and refresh the list."""
+        self._where_clause = where_clause or ''
+        self._where_params = list(where_params or [])
+        self.rows.clear()
+        self.bitmap_indexes.clear()
+        self.selected = None
+        self._row_count = self.record_count
+        self._model.reset_all()
+
+    # ------------------------------------------------------------------
+    # DB helpers
+    # ------------------------------------------------------------------
 
     @property
     def record_count(self):
-        self.table.execute(f'SELECT COUNT(*) FROM {self.table_name};')
+        sql = f'SELECT COUNT(*) FROM {self.table_name} AS t'
+        if self._where_clause:
+            sql += f' WHERE {self._where_clause}'
+            self.table.execute(sql + ';', self._where_params)
+        else:
+            self.table.execute(sql + ';')
         return self.table.fetchall()[0][0]
 
     def get_obj_id(self, row):
-        self.table.execute(self.__query__.format(sort_column=self.sort_column, sort_direction=self.sort_direction, row=row + 1))
+        where_sql = f'WHERE {self._where_clause}' if self._where_clause else ''
+        sql = self._effective_query.format(
+            sort_column=self.sort_column,
+            sort_direction=self.sort_direction,
+            row=row + 1,
+            start_row=row + 1,
+            end_row=row + 1,
+            where_clause=where_sql,
+        )
+        if self._where_params:
+            self.table.execute(sql, self._where_params)
+        else:
+            self.table.execute(sql)
         rows = self.table.fetchall()
         if rows:
             return rows[0][0]
@@ -77,183 +204,24 @@ class EditorList(wx.ListCtrl):
             self.get_rows(start_row, end_row)
             self.current_row = row
             self.needs_pruning = True
-
         return self.rows.get(row, None)
 
     def get_rows(self, start, stop):
-        self.table.execute(self.__query__.format(
-            sort_column=self.sort_column, sort_direction=self.sort_direction,
-            start_row=start, end_row=stop))
-
+        where_sql = f'WHERE {self._where_clause}' if self._where_clause else ''
+        sql = self._effective_query.format(
+            sort_column=self.sort_column,
+            sort_direction=self.sort_direction,
+            start_row=start,
+            end_row=stop,
+            where_clause=where_sql,
+        )
+        if self._where_params:
+            self.table.execute(sql, self._where_params)
+        else:
+            self.table.execute(sql)
         rows = self.table.fetchall()
         if rows:
-            rows = {i + start: rows[i] for i in range(len(rows))}
-            self.rows.update(rows)
-
-    def GetLabel(self):
-        return self._label
-
-    def __init__(self, parent, mainframe, label, table):
-        self._label = label
-        self.table_name = table.__table_name__
-        self.table = table
-        self.visible_row = 0
-        self.scroll_tracker = ScrollTracker()
-        self.bitmap_indexes = {}
-        self.set_buffer_size = True
-        self.rows = {}
-        self.selected = None
-        self.mainframe = mainframe
-        self.downloading_images = []
-        self.sort_column = 'id'
-        self.sort_direction = 'ASC'  # DESC
-
-        # if not hasattr(EditorDBConfig, self.__table_name__):
-        #     cls = _config.ConfigDB(self.__table_name__, (), {})
-        #     setattr(EditorDBConfig, self.__table_name__, cls)
-        #
-        # self.config = getattr(EditorDBConfig, self.__table_name__)
-        self.needs_pruning = False
-        self.current_row = 0
-
-        wx.ListCtrl.__init__(self, parent, wx.ID_ANY,
-                             style=wx.LC_REPORT | wx.LC_VIRTUAL | wx.LC_HRULES | wx.LC_VRULES | wx.LC_SINGLE_SEL)
-
-        self.images = wx.ImageList(64, 64)
-        self.blank_bitmap = wx.Bitmap(64, 64, 32)
-        dc = wx.MemoryDC(self.blank_bitmap)
-        dc.SetBackground(wx.Brush((0, 0, 0, 0)))
-        dc.Clear()
-        del dc
-
-        self.blank_id = self.images.Add(self.blank_bitmap)
-        self.blank_bitmap.SetMaskColour((0, 0, 0))
-        self.SetImageList(self.images, wx.IMAGE_LIST_SMALL)
-        self.column_lookup = {}
-
-        for i in sorted(list(self.column_mapping.keys())):
-            label, column_name = self.column_mapping[i]
-            if i == 0:
-                self.AppendColumn('')
-                self.SetColumnWidth(i, 72)
-
-            i += 1
-            if column_name == 'model3d_id':
-                align = wx.LIST_FORMAT_CENTER
-            else:
-                align = wx.LIST_FORMAT_LEFT
-
-            self.AppendColumn(label, format=align)
-            self.column_lookup[i] = column_name
-
-            if label == 'DB ID':
-                # ascending indicator is backwards
-                self.ShowSortIndicator(i, ascending=False)
-
-            if label == 'Description':
-                offset = 100
-            else:
-                offset = 25
-
-            self.max_column_count = i
-
-            # if not hasattr(self.config, column_name):
-            #     width = self.GetTextExtent(label)[0] + offset
-            #     setattr(self.config, column_name, width)
-            #
-            # getattr(self.config, column_name)
-
-            width = self.GetTextExtent(label)[0] + offset
-            self.SetColumnWidth(i, width)
-
-        self.SetItemCount(self.record_count)
-
-        self.Bind(wx.EVT_LIST_ITEM_SELECTED, self.on_item_selected)
-        self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.on_item_activated)
-        self.Bind(wx.EVT_LIST_ITEM_DESELECTED, self.on_item_deselected)
-
-        self.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.on_right_click)
-
-        self.Bind(wx.EVT_LIST_COL_CLICK, self.on_column_click)
-
-        self.Bind(wx.EVT_IDLE, self.on_idle)
-        # self.Bind(wx.EVT_WINDOW_DESTROY, self.on_destroy)
-        # self.Bind(wx.EVT_CLOSE, self.on_close)
-
-        if not EditorList.resize_registered:
-            self.Bind(wx.EVT_SIZE, self.on_size)
-            EditorList.resize_registered = True
-
-        self.buffer_size = self.GetCountPerPage()
-
-    def _save_column_widths(self):
-        for i in range(1, self.GetColumnCount(), 1):
-            width = self.GetColumnWidth(i)
-            column_name = self.column_lookup[i]
-
-            setattr(self.config, column_name, width)
-
-    def on_close(self, evt):
-        evt.Skip()
-        self._save_column_widths()
-
-    def on_destroy(self, evt):
-        evt.Skip()
-        self._save_column_widths()
-
-    def on_size(self, evt):
-        evt.Skip()
-
-        def _do():
-            count = self.GetCountPerPage()
-
-            if count > 0:
-                ScrollTracker.min_buffer = (count + 1) * 2
-                ScrollTracker.max_buffer = (count + 1) * 2 * 20
-
-            print(ScrollTracker.min_buffer, ScrollTracker.max_buffer)
-
-        wx.CallAfter(_do)
-
-    def on_column_click(self, evt):
-        col = evt.GetColumn()
-        evt.Skip()
-
-        if col not in self.column_lookup:
-            return
-
-        sort_column = self.column_lookup[col]
-
-        if sort_column == self.sort_column:
-            if self.sort_direction == 'ASC':
-                self.sort_direction = 'DESC'
-
-                # ascending indicator is backwards
-                self.ShowSortIndicator(col, ascending=True)
-            else:
-                self.sort_direction = 'ASC'
-
-                # ascending indicator is backwards
-                self.ShowSortIndicator(col, ascending=False)
-
-        else:
-            self.sort_direction = 'ASC'
-
-            # ascending indicator is backwards
-            self.ShowSortIndicator(col, ascending=False)
-
-        self.sort_column = sort_column
-
-        self.rows.clear()
-        self.selected = None
-        self.Refresh(False)
-
-    def on_right_click(self, evt):
-        evt.Skip()
-
-    def on_item_selected(self, evt):
-        self.selected = evt.Index
-        evt.Skip()
+            self.rows.update({i + start: rows[i] for i in range(len(rows))})
 
     def prune_cache(self, current_row, buffer_size):
         keep_range = buffer_size * 2
@@ -261,100 +229,223 @@ class EditorList(wx.ListCtrl):
         max_row = current_row + keep_range
         self.rows = {k: v for k, v in self.rows.items() if min_row <= k <= max_row}
 
-    def on_idle(self, _):
+    # ------------------------------------------------------------------
+    # Model data helpers (called from _EditorModel)
+    # ------------------------------------------------------------------
+
+    def _get_cell_text(self, row_id, col_id):
+        if row_id < 0:
+            return ''
+        row = self.get_row(row_id)
+        if row is None:
+            return ''
+        if self._has_model_3d:
+            col_name = self.column_lookup.get(col_id, '')
+            if col_name == 'model3d_id':
+                return '\u2714' if row[-2] is not None else ''
+        return str(row[col_id - 1])
+
+    def _get_icon(self, row_id):
+        if row_id < 0:
+            return None
+        row = self.get_row(row_id)
+        if row is None:
+            return None
+
+        db_id = row[0]
+        if db_id not in self.bitmap_indexes:
+            if not self._has_image:
+                self.bitmap_indexes[db_id] = None
+                return None
+
+            image_id = row[-1]
+            if image_id is None:
+                self.bitmap_indexes[db_id] = None
+                return None
+
+            image = self.table.db.images_table[image_id]
+            if image.uuid is None:
+                if image_id not in self.downloading_images:
+                    self.mainframe.db_connector.update_monitor.get_image(image_id)
+                    self.downloading_images.append(image_id)
+                return None
+
+            if image_id in self.downloading_images:
+                self.downloading_images.remove(image_id)
+
+            image_path = image.data_path
+            if image_path is None:
+                self.bitmap_indexes[db_id] = None
+                return None
+
+            pixmap = QPixmap(image_path).scaled(
+                64, 64, Qt.KeepAspectRatio, Qt.SmoothTransformation
+            )
+            self.bitmap_indexes[db_id] = QIcon(pixmap)
+
+        return self.bitmap_indexes[db_id]
+
+    # ------------------------------------------------------------------
+    # Qt event overrides
+    # ------------------------------------------------------------------
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+
+        def _do():
+            count = self.rowsPerPage()
+            if count > 0:
+                ScrollTracker.min_buffer = (count + 1) * 2
+                ScrollTracker.max_buffer = (count + 1) * 2 * 20
+            print(ScrollTracker.min_buffer, ScrollTracker.max_buffer)
+
+        QTimer.singleShot(0, _do)
+
+    def rowsPerPage(self):
+        row_h = self._row_height if self._row_height > 0 else 68
+        return max(1, self.viewport().height() // row_h)
+
+    def contextMenuEvent(self, event):
+        pass  # stub; subclasses may override
+
+    # ------------------------------------------------------------------
+    # Slot handlers
+    # ------------------------------------------------------------------
+
+    def _on_selection_changed(self, selected, deselected):
+        indexes = selected.indexes()
+        self.selected = indexes[0].row() if indexes else None
+
+    def _on_activated(self, index):
+        row_id = index.row()
+        self.selected = row_id
+        db_id = self.get_obj_id(row_id)
+        obj = self.table[db_id]
+
+        dlg = _edit_dialog.EditDialog(self.mainframe, 'Edit ' + self._label, obj)
+        dlg.exec()
+
+        if row_id in self.rows:
+            del self.rows[row_id]
+        self._model.invalidate_row(row_id)
+
+    def _on_header_clicked(self, logical_index):
+        if logical_index not in self.column_lookup:
+            return
+
+        sort_column = self.column_lookup[logical_index]
+        header = self.horizontalHeader()
+
+        if sort_column == self.sort_column:
+            if self.sort_direction == 'ASC':
+                self.sort_direction = 'DESC'
+                # ascending indicator is backwards (matches original comment)
+                header.setSortIndicator(logical_index, Qt.AscendingOrder)
+            else:
+                self.sort_direction = 'ASC'
+                header.setSortIndicator(logical_index, Qt.DescendingOrder)
+        else:
+            self.sort_direction = 'ASC'
+            self.sort_column = sort_column
+            header.setSortIndicator(logical_index, Qt.DescendingOrder)
+
+        self.rows.clear()
+        self.selected = None
+        self._model.reset_all()
+
+    def _on_idle(self):
         if self.needs_pruning:
             self.prune_cache(self.current_row, self.buffer_size)
             self.needs_pruning = False
 
-    def on_item_activated(self, evt):
-        self.selected = evt.Index
-        db_id = self.get_obj_id(self.selected)
-        obj = self.table[db_id]
+    # ------------------------------------------------------------------
+    # Construction
+    # ------------------------------------------------------------------
 
-        dlg = _edit_dialog.EditDialog(self.mainframe, 'Edit ' + self._label, obj)
-        dlg.ShowModal()
-        del self.rows[self.selected]
-        self.Refresh(False)
-        evt.Skip()
+    def __init__(self, parent, mainframe, label, table):
+        self._where_clause = ''
+        self._where_params: list = []
+        self._effective_query = _inject_where_placeholder(self.__query__)
 
-    def on_item_deselected(self, evt):
+        self._label = label
+        self.table_name = table.__table_name__
+        self.table = table
+        self.visible_row = 0
+        self.scroll_tracker = ScrollTracker()
+        self.bitmap_indexes = {}
+        self.rows = {}
         self.selected = None
-        evt.Skip()
+        self.mainframe = mainframe
+        self.downloading_images = []
+        self.sort_column = 'id'
+        self.sort_direction = 'ASC'
+        self.needs_pruning = False
+        self.current_row = 0
+        self._row_height = 68
 
-    def OnGetItemText(self, row_id, col_id):
-        if col_id == 0:
-            return ''
+        super().__init__(parent)
 
-        if row_id <= 0:
-            return ''
+        self._row_count = self.record_count
+        self._model = _EditorModel(self)
+        self.setModel(self._model)
 
-        row = self.get_row(row_id)
+        self.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.setShowGrid(True)
+        self.setAlternatingRowColors(True)
+        self.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.setSortingEnabled(False)  # manual sort via header click
 
-        if row is None:
-            # self.SetItemCount(self.record_count)
-            return ''
+        self.setIconSize(QSize(64, 64))
+        self.verticalHeader().setDefaultSectionSize(68)
+        self.verticalHeader().hide()
 
-        if self._has_model_3d:
-            col = self.column_lookup.get(col_id, '')
-            if col == 'model3d_id':
-                if row[-2] is not None:
-                    return '✔'
-                else:
-                    return ''  # '✘'
+        header = self.horizontalHeader()
+        header.setSectionsClickable(True)
+        header.setSortIndicatorShown(True)
+        # DB ID column starts with descending indicator (matches original)
+        header.setSortIndicator(1, Qt.DescendingOrder)
 
-        return str(row[col_id - 1])
+        self.column_lookup = {}
 
-    def OnGetItemImage(self, row_id):
-        if row_id <= 0:
-            return -1
+        # icon column
+        self.setColumnWidth(0, 72)
+        header.setSectionResizeMode(0, QHeaderView.Fixed)
 
-        row = self.get_row(row_id)
+        fm = self.fontMetrics()
+        for i in sorted(self.column_mapping.keys()):
+            label_text, column_name = self.column_mapping[i]
+            logical = i + 1  # offset for icon column
+            self.column_lookup[logical] = column_name
 
-        if row is None:
-            return -1  # self.blank_id
-
-        db_id = row[0]
-
-        if db_id not in self.bitmap_indexes:
-            if self._has_image:
-                image_id = row[-1]
-                if image_id is None:
-                    self.bitmap_indexes[db_id] = -1  # self.blank_id
-                    return -1  # self.blank_id
-                else:
-                    image = self.table.db.images_table[image_id]
-                    if image.uuid is None:
-                        if image_id not in self.downloading_images:
-                            self.mainframe.db_connector.update_monitor.get_image(image_id)
-                            self.downloading_images.append(image_id)
-
-                        return -1  # self.blank_id
-                    else:
-                        if image_id in self.downloading_images:
-                            self.downloading_images.remove(image_id)
-
-                        image = image.data_path
-                        if image is None:
-                            self.bitmap_indexes[db_id] = -1  # self.blank_id
-                            return -1  # self.blank_id
-                        else:
-                            image = wx.Image(image)
-                            image = image.Rescale(64, 64)
-                            bmp = image.ConvertToBitmap()
+            if column_name == 'model3d_id':
+                header.setSectionResizeMode(logical, QHeaderView.Fixed)
             else:
-                self.bitmap_indexes[db_id] = -1  # self.blank_id
-                return -1  # self.blank_id
+                header.setSectionResizeMode(logical, QHeaderView.Interactive)
 
-            bmp_id = self.images.Add(bmp)
-            self.bitmap_indexes[db_id] = bmp_id
+            offset = 100 if label_text == 'Description' else 25
+            self.setColumnWidth(logical, fm.horizontalAdvance(label_text) + offset)
 
-        return self.bitmap_indexes[db_id]
+        self.max_column_count = len(self.column_mapping)
+        self.buffer_size = self.rowsPerPage()
 
-    def OnGetItemAttr(self, item):
-        return None
+        self.selectionModel().selectionChanged.connect(self._on_selection_changed)
+        self.activated.connect(self._on_activated)
+        header.sectionClicked.connect(self._on_header_clicked)
 
-    def GetSelection(self):
-        if self.selected is None:
-            return None
+        self._idle_timer = QTimer(self)
+        self._idle_timer.setInterval(200)
+        self._idle_timer.timeout.connect(self._on_idle)
+        self._idle_timer.start()
 
-        return self.selected
+    # ------------------------------------------------------------------
+    # Compatibility shims
+    # ------------------------------------------------------------------
+
+    def Refresh(self, *args, **kwargs):
+        self._model.reset_all()
+        self.viewport().update()
+
+    def Destroy(self):
+        self._idle_timer.stop()
+        self.deleteLater()

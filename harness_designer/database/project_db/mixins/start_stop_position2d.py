@@ -1,7 +1,8 @@
-from ....ui import prop_ctrls as _prop_ctrls
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 import wx
 
+from ....ui import prop_ctrls as _prop_ctrls
 from .base import BaseMixin
 from ....geometry import point as _point
 from .. import pjt_point2d as _pjt_point2d

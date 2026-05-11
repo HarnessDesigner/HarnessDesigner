@@ -1,7 +1,9 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
-import wx
-from wx import aui
+from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import Qt
 
 from ... import config as _config
 from ...gl import canvas3d as _canvas3d
@@ -14,35 +16,20 @@ if TYPE_CHECKING:
 Config = _config.Config.editor3d
 
 
-class Editor3D(aui.AuiPaneInfo):
+class Editor3D:
 
     def __init__(self, mainframe: "_mainframe.MainFrame"):
-        # self.notebook = EditorNotebook(mainframe)
         self.editor = Editor3DPanel(mainframe)
-
         self.mainframe = mainframe
-        self.manager = mainframe.manager
 
-        aui.AuiPaneInfo.__init__(self)
-
-        self.Name('editor_3d')
-        self.CaptionVisible()
-        self.Floatable(False)
-        self.MinimizeButton()
-        self.MaximizeButton()
-        self.Dockable()
-        self.CenterPane()
-        self.CloseButton(False)
-        self.PaneBorder()
-        self.Caption('3D Editor')
-        self.DestroyOnClose(False)
-        self.Gripper()
-        self.Resizable()
-        self.Window(self.editor)
-
-        self.manager.AddPane(self.editor, self)
-        self.Show()
-        self.manager.Update()
+        dock = mainframe._make_dock(
+            title='3D Editor',
+            name='editor_3d',
+            widget=self.editor,
+            area=Qt.CentralWidget,  # centre pane — set as central widget directly
+        )
+        self._dock = dock
+        dock.show()
 
     @property
     def context(self):
@@ -66,13 +53,13 @@ class Editor3D(aui.AuiPaneInfo):
         self.editor.remove_object(obj)
 
     def Refresh(self, *args, **kwargs):
-        self.editor.Refresh(*args, **kwargs)
+        self.editor.update()
 
     def Destroy(self):
-        self.editor.Destroy()
+        self.editor.deleteLater()
 
-    def Bind(self, *args, **kwargs):
-        self.editor.Bind(*args, **kwargs)
+    def connect(self, signal_name, handler):
+        getattr(self.editor, signal_name).connect(handler)
 
     def set_clone_obj(self, obj):
         self.editor.set_clone_obj(obj)
@@ -86,24 +73,14 @@ class Editor3DPanel(_canvas3d.Canvas3D):
             max_y = 0
             min_x = 0
             min_y = 0
-            displays = (wx.Display(i) for i in range(wx.Display.GetCount()))
-            for display in displays:
-                geometry = display.GetGeometry()
-                x, y = geometry.GetPosition()
-                w, h = geometry.GetSize()
+            for screen in QApplication.screens():
+                geo = screen.geometry()
+                x, y, w, h = geo.x(), geo.y(), geo.width(), geo.height()
                 max_x = max(x + w, max_x)
                 max_y = max(y + h, max_y)
                 min_x = min(x, min_x)
                 min_y = min(y, min_y)
 
-            # we want to keep a 16:9 aspect ratio so the rendered
-            # canvas doesn't get distorted. This is the reason why we are using
-            # a "virtual" size. The canvas in most cases will actually be
-            # larger than what is being viewed. The window clips what is being
-            # seen. This allows th window size to be changed without causing
-            # the contents of the window to change size. It actually expands the
-            # field of view instead of altering the size of what is ebing seen.
-            # this virtual size is able to be adjusted in the settings.
             width = max_x - min_x
             height = int(width / 1.777777)
 

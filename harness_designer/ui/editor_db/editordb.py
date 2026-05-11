@@ -1,8 +1,8 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
-import wx
-from wx import aui
-
+from PySide6.QtWidgets import QTabWidget, QWidget
 
 from . import accessory as _accessory
 from . import boot as _boot
@@ -24,43 +24,31 @@ if TYPE_CHECKING:
     from .. import mainframe as _mainframe
 
 
-class EditorDB(aui.AuiPaneInfo):
+class EditorDB:
+    """Wrapper that creates the dock widget and owns the EditorDBPanel.
+
+    In the wx version this subclassed aui.AuiPaneInfo and registered
+    itself with the AuiManager directly. In Qt, dock management belongs
+    to QMainWindow (Phase 2). EditorDB now acts as a thin coordinator
+    that holds the panel and exposes the same public surface.
+    """
 
     def __init__(self, mainframe: "_mainframe.MainFrame"):
-        self.editor = EditorDBPanel(mainframe)
         self.mainframe = mainframe
-        self.manager = mainframe.manager
+        self.editor = EditorDBPanel(mainframe)
 
-        aui.AuiPaneInfo.__init__(self)
-
-        self.Name('editor_db')
-        self.CaptionVisible(True)
-        self.Floatable(True)
-        self.MinimizeButton(True)
-        self.MaximizeButton(True)
-        self.Dockable(True)
-        self.CloseButton(True)
-        self.PaneBorder(True)
-        self.Caption('Database Editor')
-        self.DestroyOnClose(False)
-        self.Gripper(True)
-        self.Bottom()
-        self.Resizable(True)
-        self.Window(self.editor)
-
-        self.manager.AddPane(self.editor, self)
-        aui.AuiPaneInfo.Show(self)
-        self.manager.Update()
+        # The dock widget itself is created and registered by mainframe
+        # via mainframe._make_dock('Database Editor', 'editor_db', self.editor, Bottom).
+        # EditorDB just stores the reference so callers can reach the panel.
 
     def Show(self, show=True):
-        aui.AuiPaneInfo.Show(self, show)
-        self.manager.Update()
+        self.editor.setVisible(show)
 
     def Refresh(self, *args, **kwargs):
         self.editor.Refresh(*args, **kwargs)
 
     def Destroy(self):
-        self.editor.Destroy()
+        self.editor.deleteLater()
 
     def load_db(self, g_db: "_global_db.GLBTables"):
         self.editor.load_db(g_db)
@@ -118,15 +106,18 @@ class EditorDB(aui.AuiPaneInfo):
         return self.editor.wire_markers
 
 
-class EditorDBPanel(aui.AuiNotebook):
+class EditorDBPanel(QTabWidget):
+    """The notebook panel that contains one tab per component type.
+
+    Replaces aui.AuiNotebook. QTabWidget provides the same tab strip,
+    tab splitting is not reproduced (AUI_NB_TAB_SPLIT has no Qt
+    equivalent and was rarely used interactively).
+    """
 
     def __init__(self, parent: "_mainframe.MainFrame"):
+        super().__init__(parent)
+
         self.g_db: "_global_db.GLBTables" = None
-
-        aui.AuiNotebook.__init__(self, parent, wx.ID_ANY,
-                                 style=(aui.AUI_NB_TOP | aui.AUI_NB_TAB_SPLIT |
-                                        aui.AUI_NB_TAB_MOVE | aui.AUI_NB_SCROLL_BUTTONS))
-
         self.mainframe = parent
 
         self.accessories: _accessory.AccessoriesPage = None
@@ -143,44 +134,66 @@ class EditorDBPanel(aui.AuiNotebook):
         self.wires: _wire.WiresPage = None
         self.wire_markers: _wire_marker.WireMarkersPage = None
 
+        # Tab bar scrolls when there are many tabs (matches AUI_NB_SCROLL_BUTTONS)
+        self.setUsesScrollButtons(True)
+        self.setMovable(True)  # matches AUI_NB_TAB_MOVE
+
     def load_db(self, g_db: "_global_db.GLBTables"):
         self.g_db = g_db
 
-        self.accessories = _accessory.AccessoriesPage(self, self.mainframe, 'Accessory', g_db.accessories_table)
-        self.AddPage(self.accessories, 'Accessories')
+        self.accessories = _accessory.AccessoriesPage(
+            self, self.mainframe, 'Accessory', g_db.accessories_table)
+        self.addTab(self.accessories, 'Accessories')
 
-        self.boots = _boot.BootsPage(self, self.mainframe, 'Boots', g_db.boots_table)
-        self.AddPage(self.boots, 'Boots')
+        self.boots = _boot.BootsPage(
+            self, self.mainframe, 'Boots', g_db.boots_table)
+        self.addTab(self.boots, 'Boots')
 
-        self.bundle_covers = _bundle_cover.BundleCoversPage(self, self.mainframe, 'Bundle Cover', g_db.bundle_covers_table)
-        self.AddPage(self.bundle_covers, 'Bundle Covers')
+        self.bundle_covers = _bundle_cover.BundleCoversPage(
+            self, self.mainframe, 'Bundle Cover', g_db.bundle_covers_table)
+        self.addTab(self.bundle_covers, 'Bundle Covers')
 
-        self.covers = _cover.CoversPage(self, self.mainframe, 'Cover', g_db.covers_table)
-        self.AddPage(self.covers, 'Covers')
+        self.covers = _cover.CoversPage(
+            self, self.mainframe, 'Cover', g_db.covers_table)
+        self.addTab(self.covers, 'Covers')
 
-        self.cpa_locks = _cpa_lock.CPALocksPage(self, self.mainframe, 'CPA Lock', g_db.cpa_locks_table)
-        self.AddPage(self.cpa_locks, 'CPA Locks')
+        self.cpa_locks = _cpa_lock.CPALocksPage(
+            self, self.mainframe, 'CPA Lock', g_db.cpa_locks_table)
+        self.addTab(self.cpa_locks, 'CPA Locks')
 
-        self.housings = _housing.HousingsPage(self, self.mainframe, 'Housing', g_db.housings_table)
-        self.AddPage(self.housings, 'Housings')
+        self.housings = _housing.HousingsPage(
+            self, self.mainframe, 'Housing', g_db.housings_table)
+        self.addTab(self.housings, 'Housings')
 
-        self.seals = _seal.SealsPage(self, self.mainframe, 'Seal', g_db.seals_table)
-        self.AddPage(self.seals, 'Seals')
+        self.seals = _seal.SealsPage(
+            self, self.mainframe, 'Seal', g_db.seals_table)
+        self.addTab(self.seals, 'Seals')
 
-        self.splices = _splice.SplicesPage(self, self.mainframe, 'Splice', g_db.splices_table)
-        self.AddPage(self.splices, 'Splices')
+        self.splices = _splice.SplicesPage(
+            self, self.mainframe, 'Splice', g_db.splices_table)
+        self.addTab(self.splices, 'Splices')
 
-        self.terminals = _terminal.TerminalsPage(self, self.mainframe, 'Terminal', g_db.terminals_table)
-        self.AddPage(self.terminals, 'Terminals')
+        self.terminals = _terminal.TerminalsPage(
+            self, self.mainframe, 'Terminal', g_db.terminals_table)
+        self.addTab(self.terminals, 'Terminals')
 
-        self.tpa_locks = _tpa_lock.TPALocksPage(self, self.mainframe, 'TPA Lock', g_db.tpa_locks_table)
-        self.AddPage(self.tpa_locks, 'TPA Locks')
+        self.tpa_locks = _tpa_lock.TPALocksPage(
+            self, self.mainframe, 'TPA Lock', g_db.tpa_locks_table)
+        self.addTab(self.tpa_locks, 'TPA Locks')
 
-        self.transitions = _transition.TransitionsPage(self, self.mainframe, 'Transition', g_db.transitions_table)
-        self.AddPage(self.transitions, 'Transitions')
+        self.transitions = _transition.TransitionsPage(
+            self, self.mainframe, 'Transition', g_db.transitions_table)
+        self.addTab(self.transitions, 'Transitions')
 
-        self.wires = _wire.WiresPage(self, self.mainframe, 'Wire', g_db.wires_table)
-        self.AddPage(self.wires, 'Wires')
+        self.wires = _wire.WiresPage(
+            self, self.mainframe, 'Wire', g_db.wires_table)
+        self.addTab(self.wires, 'Wires')
 
-        self.wire_markers = _wire_marker.WireMarkersPage(self, self.mainframe, 'Wire Marker', g_db.wire_markers_table)
-        self.AddPage(self.wire_markers, 'Wire Markers')
+        self.wire_markers = _wire_marker.WireMarkersPage(
+            self, self.mainframe, 'Wire Marker', g_db.wire_markers_table)
+        self.addTab(self.wire_markers, 'Wire Markers')
+
+    def Refresh(self, *args, **kwargs):
+        current = self.currentWidget()
+        if current is not None:
+            current.Refresh()

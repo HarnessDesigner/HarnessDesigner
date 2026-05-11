@@ -1,59 +1,47 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
-import wx
+from PySide6.QtWidgets import QMenu
 
 from ...database.db_connectors.mysql_connector import settings_dialog as _mysql_settings
 from ...database.db_connectors.sqlite_connector import settings_dialog as _sqlite_settings
-
 from ... import config as _config
-
-DBConfig = _config.Config.database
-MySQLConfig = _config.Config.database.mysql
-SQLiteConfig = _config.Config.database.sqlite
 
 
 if TYPE_CHECKING:
     from ... import ui as _ui
 
 
-class DatabaseMenu(wx.Menu):
+DBConfig    = _config.Config.database
+MySQLConfig = _config.Config.database.mysql
+SQLiteConfig = _config.Config.database.sqlite
+
+
+class DatabaseMenu(QMenu):
 
     def __init__(self, mainframe: "_ui.MainFrame"):
+        super().__init__('Database', mainframe)
         self.mainframe = mainframe
-        wx.Menu.__init__(self)
 
-        menu_item = self.Append(wx.ID_ANY, 'SQLite Settings')
-        mainframe.Bind(wx.EVT_MENU, self.on_sqlite_settings, id=menu_item.GetId())
+        self.addAction('SQLite Settings').triggered.connect(self.on_sqlite_settings)
+        self.addAction('MySQL Settings').triggered.connect(self.on_mysql_settings)
+        self.addSeparator()
+        self.addAction('Import Data').triggered.connect(self.on_import_data)
 
-        menu_item = self.Append(wx.ID_ANY, 'MySQL Settings')
-        mainframe.Bind(wx.EVT_MENU, self.on_mysql_settings, id=menu_item.GetId())
-
-        self.AppendSeparator()
-
-        menu_item = self.Append(wx.ID_ANY, 'Import Data')
-        mainframe.Bind(wx.EVT_MENU, self.on_import_data, id=menu_item.GetId())
-
-    def on_sqlite_settings(self, _):
+    def on_sqlite_settings(self):
         pass
 
-    def on_mysql_settings(self, _):
+    def on_mysql_settings(self):
         dlg = _mysql_settings.SQLOptionsDialog(self.mainframe)
-
-        if dlg.ShowModal() == wx.ID_OK:
+        if dlg.exec() == dlg.Accepted:
             settings = dlg.GetValue()
-
             for key, value in settings.items():
                 setattr(MySQLConfig, key, value)
 
-        dlg.Destroy()
-
-    def on_import_data(self, _):
+    def on_import_data(self):
         dlg = _sqlite_settings.SQLOptionsDialog(self.mainframe)
-
-        if dlg.ShowModal() == wx.ID_OK:
+        if dlg.exec() == dlg.Accepted:
             settings = dlg.GetValue()
-
             for key, value in settings.items():
                 setattr(SQLiteConfig, key, value)
-
-        dlg.Destroy()

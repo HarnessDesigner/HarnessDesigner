@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
 from . import handler_base as _handler_base
@@ -8,12 +10,17 @@ from ..objects import wire_layout as _wire_layout
 from ..objects import terminal as _terminal
 from ..objects import splice as _splice
 from ..objects import wire as _wire
-
 from .. import utils as _utils
+from ..gl import materials as _materials
+from .. import config as _config
+
 
 if TYPE_CHECKING:
     from ..gl.canvas3d import camera as _camera
     from .. import ui as _ui
+
+
+Config = _config.Config.colors
 
 
 def _can_accept_wire_endpoint(obj) -> bool:
@@ -46,50 +53,51 @@ def _get_position_on_object(
 
 
 class AddWireHandler(_handler_base.HandlerBase):
-    """
-    Manages interactive wire placement in 3D editor.
-
-    Handles two-click wire placement with real-time preview:
-    - First click: Set start point
-    - Mouse move: Update preview wire
-    - Second click: Finalize wire
-    """
     obj: _wire.Wire
 
     def __init__(self, mainframe: "_ui.MainFrame", part_id: int):
         super().__init__(mainframe, part_id)
 
-    def start(self, mouse_pos: _point.Point):
-        """Start wire placement with first click"""
+        self._preview_material = _materials.Plastic(Config.add_object.preview_color)
+        self._terminal_highlight_material = _materials.Plastic(Config.add_object.terminal_highlight)
+        self._wire_highlight_material = _materials.Plastic(Config.add_object.wire_highlight)
+        self._splice_highlight_material = _materials.Plastic(Config.add_object.splice_highlight)
+        self.start_position: _point.Point = None
+        self.stop_position: _point.Point = None
 
-        start_point = _get_world_position_for_wire_endpoint(mouse_pos, self.camera)
+    def release_capture(self) -> None:
+        if self._finalized:
+            return
 
-        if start_point:
-            self.is_active = True
+        mouse_pos = self._captured_position
 
-            # Create points in DB
-            p1_db = self.mainframe.ptables.pjt_points3d_table.insert(
-                start_point.x, start_point.y, start_point.z)
+        position = _get_world_position_for_wire_endpoint(mouse_pos, self.camera)
 
-            p2_db = self.mainframe.ptables.pjt_points3d_table.insert(
-                start_point.x, start_point.y, start_point.z)
+        if self.start_position is None:
+            self.start_position = position
+            self.stop_position = position.copy()
 
-            # Create temporary wire DB object
-            wire_db = self.mainframe.ptables.pjt_wires_table.insert(
-                self.part_id, p1_db.db_id, p2_db.db_id, None  # No circuit yet
+            if self.start_position.db_id is None:
+                obj = self.ptables.pjt_points3d_table.insert(*self.start_position.as_float)
+                start_position = obj.point
+            else:
+                start_position = self.start_position
+
+            start_position_id = start_position.db_id[:-2]
+            stop_position_id = self.stop_position.db_id[:-2]
+
+            wire_db = self.ptables.pjt_wires_table.insert(
+                self.part_id, None, start_position_id, stop_position_id,  # No circuit yet
             )
 
             self.obj = _wire.Wire(self.mainframe, wire_db)
+            self.obj.identify(self._preview_material)
 
-            # Mark as preview (semi-transparent)
-            self.obj.obj3d.material.alpha = 0.5
-
-            # Add to editors (but not to project's wire dict yet)
-            self.mainframe.add_object(self.obj)
+        raise NotImplementedError
 
     def hover(self, mouse_pos: _point.Point):
         """Update preview wire as mouse moves"""
-        if not self.is_active:
+        if self._finalized:
             return
 
         end_point = _get_world_position_for_wire_endpoint(mouse_pos, self.camera)
@@ -122,7 +130,7 @@ class AddWireHandler(_handler_base.HandlerBase):
             self.mainframe.remove_object(self.obj)
 
             # Delete from DB
-            self.mainframe.ptables.pjt_wires_table.delete(
+            self.ptables.pjt_wires_table.delete(
                 self.obj.db_obj.db_id)
 
             self.obj = None

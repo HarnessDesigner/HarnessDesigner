@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 import os
 
 import pyopencl as cl
@@ -7,6 +9,7 @@ import threading
 
 from .. import config as _config
 from .. import gpu_mem as _gpu_mem
+
 
 # Suppress OpenCL compiler warnings
 warnings.filterwarnings('ignore', category=cl.CompilerWarning)

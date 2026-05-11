@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 """
 2D Camera for Schematic Editor
 
@@ -9,6 +11,7 @@ the camera and the focal plane.
 from typing import TYPE_CHECKING
 
 from ...geometry import point as _point
+
 
 if TYPE_CHECKING:
     from . import canvas as _canvas

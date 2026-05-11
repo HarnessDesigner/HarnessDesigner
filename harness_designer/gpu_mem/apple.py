@@ -1,6 +1,7 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from apple_smi import soc_info
 from apple_smi import sampler
-
 
 from . import gpu_base as _gpu_base
 

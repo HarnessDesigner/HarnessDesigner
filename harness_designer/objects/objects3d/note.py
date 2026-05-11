@@ -1,6 +1,8 @@
-from typing import TYPE_CHECKING
-import weakref
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
+
+import weakref
 import wx
 import build123d
 

@@ -1,8 +1,11 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import Iterable as _Iterable
+
+import uuid
 
 from .bases import EntryBase, TableBase
 from .mixins import NameMixin
-import uuid
 from ... import color as _color
 
 

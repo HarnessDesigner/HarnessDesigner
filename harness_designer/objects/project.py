@@ -1,8 +1,10 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
+
 import wx
 
 from ..config import Config as _Config
-
 from . import boot as _boot
 from . import bundle as _bundle
 from . import bundle_layout as _bundle_layout
@@ -21,7 +23,6 @@ from . import wire as _wire
 from . import wire_layout as _wire_layout
 from . import wire_marker as _wire_marker
 from . import wire_service_loop as _wire_service_loop
-
 from .. import config as _config
 from ..ui.dialogs import project_load as _project_load
 

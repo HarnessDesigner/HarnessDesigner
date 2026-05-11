@@ -1,4 +1,4 @@
-
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 # threaded_bvh_processor.py
 import threading
 import queue
@@ -7,6 +7,7 @@ import numpy as np
 import bvh_fast
 from dataclasses import dataclass
 from typing import Optional, List, Tuple
+
 
 @dataclass
 class ObjectData:
@@ -18,6 +19,7 @@ class ObjectData:
     position: np.ndarray      # (3,) float32
     rotation: np.ndarray      # (3, 3) float32 or (4,) quaternion
     material_id: int
+
 
 @dataclass
 class ProcessedObject:
@@ -31,6 +33,7 @@ class ProcessedObject:
     bvh_indices: np.ndarray   # BVH indices
     material_id: int
     processing_time: float    # ms
+
 
 class BVHWorkerThread(threading.Thread):
     """Worker thread that processes objects from queue"""

@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 import amdsmi
 
 from . import gpu_base as _gpu_base

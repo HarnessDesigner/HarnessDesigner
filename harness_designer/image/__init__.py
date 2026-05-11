@@ -1,12 +1,14 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
 import sys
 import os
-import wx
-
 from PIL import Image as _Image
 
 from . import utils
+
+from PySide6.QtGui import QPixmap, QCursor
 
 
 BASE_PATH = os.path.dirname(__file__)
@@ -31,32 +33,39 @@ class Image:
     def pil(self) -> _Image.Image:
         return utils.bytes_data_2_pil_image(self.png_data)
 
+    # Kept for any callers that still use .pil_image (alias)
     @property
-    def bitmap(self) -> wx.Bitmap:
-        return wx.Bitmap.FromPNGData(self.png_data)
+    def pil_image(self) -> _Image.Image:
+        return self.pil
 
     @property
-    def disabled_bitmap(self) -> wx.Bitmap:
-        bmp = wx.Bitmap.FromPNGData(self.png_data)
-        bmp.ConvertToDisabled()
-        return bmp
+    def pixmap(self) -> QPixmap:
+        return utils.bytes_data_2_qpixmap(self.png_data)
 
     @property
-    def image(self) -> wx.Image:
-        return utils.wx_bitmap_2_wx_image(wx.Bitmap.FromPNGData(self.png_data))
+    def disabled_pixmap(self) -> QPixmap:
+        pil = self.pil.convert('RGBA')
+        r, g, b, a = pil.split()
+        # Convert to greyscale and halve opacity to simulate a disabled icon
+        grey = _Image.merge('RGBA', [r, g, b, a])
+        grey = grey.convert('LA').convert('RGBA')
+        r2, g2, b2, a2 = grey.split()
+        from PIL import ImageEnhance
+        a2 = a2.point(lambda p: p // 2)
+        disabled = _Image.merge('RGBA', [r2, g2, b2, a2])
+        return utils.pil_image_2_qpixmap(disabled)
 
     @property
-    def cursor(self) -> wx.Cursor:
-        image = utils.wx_bitmap_2_wx_image(wx.Bitmap.FromPNGData(self.png_data))
-        return utils.wx_image_2_wx_cursor(image)
+    def cursor(self) -> QCursor:
+        return utils.pil_image_2_qcursor(self.pil)
 
     def resize(self, w: int, h: int) -> "Image":
-        bmp = utils.resize_wx_bitmap(self.bitmap, w, h)
-        return Image(self.name, png_data=utils.wx_bitmap_2_png_bytes(bmp))
+        pil = utils.resize_pil_image(self.pil, w, h)
+        return Image(self.name, png_data=utils.pil_image_2_png_bytes(pil))
 
     def rotate(self, angle: int | float) -> "Image":
-        bmp = utils.rotate_wx_bitmap(self.bitmap, angle)
-        return Image(self.name, png_data=utils.wx_bitmap_2_png_bytes(bmp))
+        pil = utils.rotate_pil_image(self.pil, angle)
+        return Image(self.name, png_data=utils.pil_image_2_png_bytes(pil))
 
     def recolor(self, r, g, b):
         img = utils.bytes_data_2_pil_image(self.png_data)
@@ -82,21 +91,16 @@ class Image:
 
         if h1 > h2:
             h = h1
-
             img = _Image.new('RGBA', (w, h), (0, 0, 0, 0))
             x_offset = int((h1 - h2) / 2)
             y_offset = w1
-
             img.paste(img1)
             img.paste(img2, (x_offset, y_offset))
-
         else:
             h = h2
-
             img = _Image.new('RGBA', (w, h), (0, 0, 0, 0))
             x_offset = int((h2 - h1) / 2)
             y_offset = w1
-
             img.paste(img1, (0, y_offset))
             img.paste(img2, (x_offset, 0))
 
@@ -108,42 +112,29 @@ class Image:
         return Image(f'{self.name}|{other.name}', png_data=data)
 
     def __add__(self, other: "Image") -> "Image":
-        dc = wx.MemoryDC()
-        bmp1 = self.bitmap
-        dc.SelectObject(bmp1)
+        """Composite other on top of self (centred), both as PIL images."""
+        img1 = self.pil
+        img2 = other.pil
 
-        w1, h1 = bmp1.GetSize()
+        w1, h1 = img1.size
+        w2, h2 = img2.size
 
-        bmp2 = other.bitmap
-        w2, h2 = bmp2.GetSize()
+        x_offset = (w1 - w2) // 2 if w1 != w2 else 0
+        y_offset = (h1 - h2) // 2 if h1 != h2 else 0
 
-        if w1 != w2:
-            x_offset = int((w1 - w2) / 2)
-        else:
-            x_offset = 0
+        result = img1.copy()
+        result.paste(img2, (x_offset, y_offset), mask=img2)
 
-        if h1 != h2:
-            y_offset = int((h1 - h2) / 2)
-        else:
-            y_offset = 0
+        data = utils.pil_image_2_png_bytes(result)
+        img1.close()
+        img2.close()
+        result.close()
 
-        gcdc = wx.GCDC(dc)
-
-        gcdc.DrawBitmap(bmp2, x_offset, y_offset)
-        dc.SelectObject(wx.NullBitmap)
-
-        gcdc.Destroy()
-        del gcdc
-
-        dc.Destroy()
-        del dc
-
-        return Image(f'{self.name}+{other.name}', png_data=utils.wx_bitmap_2_png_bytes(bmp1))
+        return Image(f'{self.name}+{other.name}', png_data=data)
 
 
 # This is a dynamic loader that acts like a module.
-# This is done to save some memory by only loading the icons and images that
-# are actually being used
+# Done to save memory by only loading icons/images that are actually used.
 class ImageLoader:
 
     def __init__(self, path):

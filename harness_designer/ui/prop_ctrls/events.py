@@ -1,13 +1,11 @@
-import wx
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-wxEVT_PROPERTY_CHANGED = wx.NewEventType()
-EVT_PROPERTY_CHANGED = wx.PyEventBinder(wxEVT_PROPERTY_CHANGED, 0)
+from PySide6.QtCore import Signal
 
 
-class PropertyEvent(wx.CommandEvent):
+class PropertyEvent:
 
-    def __init__(self, evtType):
-        wx.CommandEvent.__init__(self, evtType)
+    def __init__(self):
         self._name = None
         self._property = None
         self._property_type = None
@@ -36,3 +34,9 @@ class PropertyEvent(wx.CommandEvent):
 
     def SetValue(self, value):
         self._value = value
+
+
+# Sentinel used by property controls to expose the signal; consumers connect via:
+#   prop.property_changed.connect(handler)
+# The handler receives a PropertyEvent instance.
+EVT_PROPERTY_CHANGED = 'property_changed'

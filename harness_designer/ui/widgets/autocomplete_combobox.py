@@ -1,91 +1,86 @@
-
-import wx
-
-
-class AutoCompleter(wx.TextCompleter):
-    def __init__(self, choices):
-        wx.TextCompleter.__init__(self)
-
-        self.choices = choices
-        self._last_returned = wx.NOT_FOUND
-        self._prefix = ''
-
-    def Start(self, prefix):
-        self._prefix = prefix.lower()
-        self._last_returned = wx.NOT_FOUND
-
-        for item in self.choices:
-            if item.lower().startswith(self._prefix):
-                return True
-
-        return False
-
-    def AppendChoices(self, choices):
-        self.choices.extend(choices[:])
-
-    def SetChoices(self, choices):
-        self.choices = choices[:]
-        self._last_returned = wx.NOT_FOUND
-        self._prefix = ''
-
-    def GetChoices(self):
-        return self.choices[:]
-
-    def InsertChoice(self, item: str, pos: int):
-        self.choices.insert(pos, item)
-
-    def RemoveChoice(self, pos: int):
-        self.choices.pop(pos)
-
-    def GetNext(self):
-        for i in range(self._last_returned + 1, len(self.choices)):
-            if self.choices[i].lower().startswith(self._prefix):
-                self._last_returned = i
-                return self.choices[i]
-
-        return ''
+from PySide6.QtWidgets import QComboBox, QCompleter
+from PySide6.QtCore import Qt, QStringListModel
 
 
-class AutoCompleteComboBox(wx.ComboBox):
+class AutoCompleteComboBox(QComboBox):
+    """QComboBox with inline autocomplete and a mirrored choice list.
 
-    def __init__(
-        self, parent, id=wx.ID_ANY, choices=[], pos=wx.DefaultPosition,
-        size=wx.DefaultSize, style=0, validator=wx.DefaultValidator,
-        name=wx.ComboBoxNameStr
-    ):
-        wx.ComboBox.__init__(self, parent, id, value='', pos=pos, size=size, choices=choices,
-                             style=style, validator=validator, name=name)
+    Public API is a superset of the original wx AutoCompleteComboBox so all
+    existing call sites continue to work unchanged.
+    """
 
-        self._ac = AutoCompleter(choices[:])
-        self.AutoComplete(self._ac)
+    def __init__(self, parent=None, choices=None):
+        super().__init__(parent)
+        self.setEditable(True)
+        self.setInsertPolicy(QComboBox.NoInsert)
 
+        self._choices = list(choices or [])
+        if self._choices:
+            self.addItems(self._choices)
+
+        self._completer = QCompleter(self._choices, self)
+        self._completer.setCaseSensitivity(Qt.CaseInsensitive)
+        self._completer.setCompletionMode(QCompleter.InlineCompletion)
+        self.lineEdit().setCompleter(self._completer)
+
+    # ------------------------------------------------------------------
+    # Internal helper
+    # ------------------------------------------------------------------
+    def _rebuild_completer(self):
+        self._completer.setModel(QStringListModel(self._choices, self._completer))
+
+    # ------------------------------------------------------------------
+    # Mirrored list mutation API
+    # ------------------------------------------------------------------
     def Clear(self):
-        wx.ComboBox.Clear(self)
-        self._ac.SetChoices([])
+        super().clear()
+        self._choices.clear()
+        self._rebuild_completer()
 
     def Delete(self, n: int):
-        wx.ComboBox.Delete(self, n)
-        self._ac.RemoveChoice(n)
+        self.removeItem(n)
+        self._choices.pop(n)
+        self._rebuild_completer()
 
-    def Insert(self, item: str, pos: int, clientData):
-        wx.ComboBox.Insert(self, item, pos, clientData)
-        self._ac.InsertChoice(item, pos)
+    def Insert(self, item: str, pos: int, clientData=None):
+        self.insertItem(pos, item)
+        self._choices.insert(pos, item)
+        self._rebuild_completer()
 
     def Set(self, items):
-        wx.ComboBox.Set(self, items)
-        self._ac.SetChoices(items)
+        self.Clear()
+        self._choices = list(items)
+        self.addItems(self._choices)
+        self._rebuild_completer()
 
-    def SetItems(self, items: list[str]):
-        wx.ComboBox.SetItems(self, items)
+    def SetItems(self, items):
+        self.Set(items)
 
     def AppendItems(self, items):
-        self.Append(items)
+        for item in items:
+            self.Append(item)
 
     def Append(self, item):
-        if not isinstance(item, list):
-            item = [item]
+        if isinstance(item, list):
+            for i in item:
+                self.Append(i)
+            return
+        super().addItem(item)
+        self._choices.append(item)
+        self._rebuild_completer()
 
-        res = wx.ComboBox.AppendItems(self, item)
-        self._ac.AppendChoices(item)
+    # ------------------------------------------------------------------
+    # Value access
+    # ------------------------------------------------------------------
+    def GetValue(self) -> str:
+        return self.currentText()
 
-        return res
+    def SetValue(self, value: str):
+        idx = self.findText(value, Qt.MatchFixedString)
+        if idx >= 0:
+            self.setCurrentIndex(idx)
+        else:
+            self.lineEdit().setText(value)
+
+    def GetItems(self):
+        return [self.itemText(i) for i in range(self.count())]

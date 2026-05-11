@@ -1,9 +1,9 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from typing import TYPE_CHECKING
 
-import wx
+from PySide6.QtWidgets import QApplication
 
-from wx import aui
 from ...gl import canvas2d as _canvas2d
 from ... import config as _config
 
@@ -15,40 +15,30 @@ if TYPE_CHECKING:
 Config = _config.Config.editor2d
 
 
-class Editor2D(aui.AuiPaneInfo):
+class Editor2D:
 
     def __init__(self, mainframe: "_mainframe.MainFrame"):
         self.editor = Editor2DPanel(mainframe)
         self.mainframe = mainframe
-        self.manager = mainframe.manager
 
-        aui.AuiPaneInfo.__init__(self)
-
-        self.Name('editor_2d')
-        self.CaptionVisible(True)
-        self.Floatable(True)
-        self.MinimizeButton(True)
-        self.MaximizeButton(True)
-        self.Dockable(True)
-        self.CloseButton(True)
-        self.PaneBorder(True)
-        self.Caption('Schematic Editor')
-        self.DestroyOnClose(False)
-        self.Gripper(True)
-        self.Right()
-        self.Resizable(True)
-        self.Window(self.editor)
-
-        self.manager.AddPane(self.editor, self)
-        aui.AuiPaneInfo.Show(self)
-        self.manager.Update()
+        dock = mainframe._make_dock(
+            title='Schematic Editor',
+            name='editor_2d',
+            widget=self.editor,
+            area=None,  # Right area; _make_dock uses Qt.RightDockWidgetArea by default
+        )
+        self._dock = dock
+        dock.show()
 
     def Show(self, show=True):
-        aui.AuiPaneInfo.Show(self, show)
-        self.manager.Update()
+        if show:
+            self._dock.show()
+            self._dock.raise_()
+        else:
+            self._dock.hide()
 
-    def Bind(self, *args, **kwargs):
-        self.editor.Bind(*args, **kwargs)
+    def connect(self, signal_name, handler):
+        getattr(self.editor, signal_name).connect(handler)
 
     def set_selected(self, obj):
         self.editor.set_selected(obj)
@@ -60,10 +50,10 @@ class Editor2D(aui.AuiPaneInfo):
         self.editor.remove_object(obj)
 
     def Refresh(self, *args, **kwargs):
-        self.editor.Refresh(*args, **kwargs)
+        self.editor.update()
 
     def Destroy(self):
-        self.editor.Destroy()
+        self.editor.deleteLater()
 
     def set_clone_obj(self, obj):
         self.editor.set_clone_obj(obj)
@@ -77,24 +67,14 @@ class Editor2DPanel(_canvas2d.Canvas2D):
             max_y = 0
             min_x = 0
             min_y = 0
-            displays = (wx.Display(i) for i in range(wx.Display.GetCount()))
-            for display in displays:
-                geometry = display.GetGeometry()
-                x, y = geometry.GetPosition()
-                w, h = geometry.GetSize()
+            for screen in QApplication.screens():
+                geo = screen.geometry()
+                x, y, w, h = geo.x(), geo.y(), geo.width(), geo.height()
                 max_x = max(x + w, max_x)
                 max_y = max(y + h, max_y)
                 min_x = min(x, min_x)
                 min_y = min(y, min_y)
 
-            # we want to keep a 16:9 aspect ratio so the rendered
-            # canvas doesn't get distorted. This is the reason why we are using
-            # a "virtual" size. The canvas in most cases will actually be
-            # larger than what is being viewed. The window clips what is being
-            # seen. This allows th window size to be changed without causing
-            # the contents of the window to change size. It actually expands the
-            # field of view instead of altering the size of what is ebing seen.
-            # this virtual size is able to be adjusted in the settings.
             width = max_x - min_x
             height = int(width / 1.777777)
 

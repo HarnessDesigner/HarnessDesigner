@@ -1,51 +1,50 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
-import wx
+from PySide6.QtWidgets import QMenu
 
 
 if TYPE_CHECKING:
     from ... import ui as _ui
 
 
-class ViewMenu(wx.Menu):
+class ViewMenu(QMenu):
 
     def __init__(self, mainframe: "_ui.MainFrame"):
+        super().__init__('View', mainframe)
         self.mainframe = mainframe
-        wx.Menu.__init__(self)
 
-        menu_item = self.Append(wx.ID_ANY, 'Schematic Editor')
-        mainframe.Bind(wx.EVT_MENU, self.on_show_editor2d, id=menu_item.GetId())
+        self.addAction('Schematic Editor').triggered.connect(self.on_show_editor2d)
+        self.addAction('Object Editor').triggered.connect(self.on_show_editor_obj)
+        self.addAction('Log Viewer').triggered.connect(self.on_show_log_viewer)
+        self.addAction('Database Editor').triggered.connect(self.on_show_editor_db)
+        self.addAction('Assembly Editor').triggered.connect(self.on_show_editor_assembly)
+        self.addAction('Script Editor').triggered.connect(self.on_show_editor_script)
 
-        menu_item = self.Append(wx.ID_ANY, 'Object Editor')
-        mainframe.Bind(wx.EVT_MENU, self.on_show_editor_obj, id=menu_item.GetId())
+    # Each action shows the dock that wraps the editor.  QDockWidget.show()
+    # both makes the dock visible and raises it if it is tabbed behind another.
 
-        menu_item = self.Append(wx.ID_ANY, 'Log Viewer')
-        mainframe.Bind(wx.EVT_MENU, self.on_show_log_viewer, id=menu_item.GetId())
+    def on_show_editor2d(self):
+        self.mainframe._dock_editor2d.show()
+        self.mainframe._dock_editor2d.raise_()
 
-        menu_item = self.Append(wx.ID_ANY, 'Database Editor')
-        mainframe.Bind(wx.EVT_MENU, self.on_show_editor_db, id=menu_item.GetId())
+    def on_show_editor_obj(self):
+        self.mainframe._dock_editor_obj.show()
+        self.mainframe._dock_editor_obj.raise_()
 
-        menu_item = self.Append(wx.ID_ANY, 'Assembly Editor')
-        mainframe.Bind(wx.EVT_MENU, self.on_show_editor_assembly, id=menu_item.GetId())
+    def on_show_log_viewer(self):
+        self.mainframe._dock_log_viewer.show()
+        self.mainframe._dock_log_viewer.raise_()
 
-        menu_item = self.Append(wx.ID_ANY, 'Script Editor')
-        mainframe.Bind(wx.EVT_MENU, self.on_show_editor_script, id=menu_item.GetId())
+    def on_show_editor_db(self):
+        self.mainframe._dock_editor_db.show()
+        self.mainframe._dock_editor_db.raise_()
 
-    def on_show_editor2d(self, _):
-        self.mainframe.editor2d.Show()
+    def on_show_editor_assembly(self):
+        self.mainframe._dock_editor_assembly.show()
+        self.mainframe._dock_editor_assembly.raise_()
 
-    def on_show_editor_obj(self, _):
-        self.mainframe.editor_obj.Show()
-
-    def on_show_log_viewer(self, _):
-        self.mainframe.log_viewer.Show()
-
-    def on_show_editor_db(self, _):
-        self.mainframe.editor_db.Show()
-
-    def on_show_editor_assembly(self, _):
-        self.mainframe.editor_assembly.Show()
-
-    def on_show_editor_script(self, _):
-        # self.mainframe.editor_script.Show()
+    def on_show_editor_script(self):
+        # self.mainframe._dock_editor_script.show()
         pass

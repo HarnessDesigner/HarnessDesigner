@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
 import wx
@@ -12,7 +14,6 @@ from ...shapes import helix as _helix
 from ...gl import materials as _materials
 from ... import color as _color
 from ... import utils as _utils
-
 from ... import config as _config
 
 

@@ -1,147 +1,136 @@
-import wx
+from PySide6.QtWidgets import (
+    QWidget, QHBoxLayout, QLabel, QLineEdit, QTextEdit, QPushButton
+)
+from PySide6.QtCore import Qt, QTimer, Signal
 
 
-class TextCtrl(wx.BoxSizer):
+class TextCtrl(QWidget):
+    """Label + text input + optional Apply button composite widget.
+
+    Replaces the wx.BoxSizer-based TextCtrl.
+
+    Styles
+    ------
+    readonly     - text is read-only
+    multiline    - use QTextEdit instead of QLineEdit
+    hslider      - enable horizontal scrolling (default True)
+    apply_button - show an Apply button (default True); when shown, the widget
+                   emits apply_clicked when the button is pressed.  When hidden,
+                   it emits text_committed on Enter (QLineEdit) or whenever text
+                   changes (QTextEdit).
+
+    Signals
+    -------
+    apply_clicked()   - Apply button pressed (only when apply_button=True)
+    text_committed()  - Enter pressed (apply_button=False, single-line only)
     """
-    styles that can be used.
-    wx.TE_READONLY
-    wx.TE_MULTILINE
 
-    This control does not word wrap and a horizontal scroll bar will be visible
-    should the text exceed the controls length.
+    apply_clicked = Signal()
+    text_committed = Signal()
 
-    when using multiline once again there is no text wrap and there will be a
-    vertical scroll bar visible should the text exceed the controls height. The
-    horizontal scroll bar will also be show as explained above.
-
-    when using multiline pressing enter will advance to the next line in the
-    control. This behavior overrides pressing the default button if the control
-    is used in a dialog.
-
-    There is an apply button so when binding to update the databse bind
-    wx.EVT_BUTTON to know when you need to update the database.
-
-    """
-
-    def __init__(self, parent, label, size, style=0, apply_button=True, hslider=True):
-        wx.BoxSizer.__init__(self, wx.HORIZONTAL)
+    def __init__(self, parent=None, label: str = '', size=None,
+                 style: int = 0, apply_button: bool = True,
+                 hslider: bool = True, readonly: bool = False,
+                 multiline: bool = False):
+        super().__init__(parent)
         self._show_apply_button = apply_button
-
-        # width, height = size
-        # if height == -1:
-        #     height = parent.GetTextExtent('W')[1]
-        #
-        # size = (width, int(height * 2.6))
-
-        style |= wx.TE_LEFT | wx.TE_PROCESS_ENTER
-
-        if hslider:
-            style |= wx.HSCROLL
-
-        self.st = wx.StaticText(parent, wx.ID_ANY, label=label)
-        self.ctrl = wx.TextCtrl(parent, wx.ID_ANY, value='', size=size, style=style)
-        self.apply_button = wx.Button(parent, wx.ID_ANY, label='Apply')
-        self.apply_button.Enable(False)
-        self.apply_button.Show(apply_button)
-
         self._original_text = ''
+        self._multiline = multiline
 
-        self.ctrl.Bind(wx.EVT_TEXT, self._on_text)
-        self.ctrl.Bind(wx.EVT_TEXT_ENTER, self._on_enter)
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
 
-        if style & wx.TE_MULTILINE:
-            self.Add(self.st, 1, wx.ALL | wx.ALIGN_TOP, 5)
-        elif hslider:
-            self.Add(self.st, 1, wx.ALL, 5)
+        self.st = QLabel(label, self)
+
+        if multiline:
+            self.ctrl = QTextEdit(self)
+            self.ctrl.setReadOnly(readonly)
+            if not hslider:
+                self.ctrl.setLineWrapMode(QTextEdit.WidgetWidth)
+            else:
+                self.ctrl.setLineWrapMode(QTextEdit.NoWrap)
+            if size:
+                self.ctrl.setFixedSize(*size)
+            layout.addWidget(self.st, 1, Qt.AlignTop)
+            layout.addWidget(self.ctrl, 4)
         else:
-            self.Add(self.st, 1, wx.ALL | wx.ALIGN_CENTER, 5)
+            self.ctrl = QLineEdit(self)
+            self.ctrl.setReadOnly(readonly)
+            if size and size[0] > 0:
+                self.ctrl.setFixedWidth(size[0])
+            layout.addWidget(self.st, 1)
+            layout.addWidget(self.ctrl, 4)
+            self.ctrl.returnPressed.connect(self._on_enter)
 
-        self.Add(self.ctrl, 4, wx.ALL, 5)
-        self.Add(self.apply_button, 1, wx.ALL, 5)
+        if apply_button:
+            self.apply_button = QPushButton('Apply', self)
+            self.apply_button.setEnabled(False)
+            layout.addWidget(self.apply_button, 1)
+            self.apply_button.clicked.connect(self._on_apply)
 
-    def SetStyle(self, start: int, end: int, style: wx.TextAttr):
-        self.ctrl.SetStyle(start, end, style)
+            if multiline:
+                self.ctrl.textChanged.connect(self._on_text_changed_multi)
+            else:
+                self.ctrl.textChanged.connect(self._on_text_changed)
+        else:
+            self.apply_button = None
 
-    def _on_text(self, evt: wx.CommandEvent):
+    # ------------------------------------------------------------------
+    # Internal
+    # ------------------------------------------------------------------
+    def _on_text_changed(self, text: str):
+        QTimer.singleShot(0, lambda: self.apply_button.setEnabled(
+            text != self._original_text))
+
+    def _on_text_changed_multi(self):
+        text = self.ctrl.toPlainText()
+        QTimer.singleShot(0, lambda: self.apply_button.setEnabled(
+            text != self._original_text))
+
+    def _on_enter(self):
         if self._show_apply_button:
-            def _do():
-                text = self.ctrl.GetValue()
-                self.apply_button.Enable(text != self._original_text)
+            # In single-line + apply_button mode, Enter inserts a newline in
+            # the original code.  Replicate that behaviour.
+            pass
+        else:
+            self.text_committed.emit()
 
-            wx.CallAfter(_do)
+    def _on_apply(self):
+        self.apply_clicked.emit()
 
-        evt.Skip()
-
-    def _on_enter(self, _):
-        index = self.ctrl.GetInsertionPoint()
-        start_text = self.ctrl.GetRange(0, index)
-        all_text = self.ctrl.GetValue()
-        all_text = all_text.replace(start_text, '')
-        all_text = f'{start_text}\n{all_text}'
-        self.ctrl.ChangeValue(all_text)
-        self.ctrl.SetInsertionPoint(index + 1)
-
-    def Enable(self, flag=True):
-        self.ctrl.Enable(flag)
-        self.st.Enable(flag)
-
+    # ------------------------------------------------------------------
+    # wx-compatible public API
+    # ------------------------------------------------------------------
+    def Enable(self, flag: bool = True):
+        self.ctrl.setEnabled(flag)
+        self.st.setEnabled(flag)
         if self._show_apply_button:
             if flag:
-                flag = self._original_text != self.ctrl.GetValue()
-                self.apply_button.Enable(flag)
+                cur = self.GetValue()
+                self.apply_button.setEnabled(cur != self._original_text)
             else:
-                self.apply_button.Enable(flag)
+                self.apply_button.setEnabled(False)
 
-    def SetToolTip(self, text):
-        self.ctrl.SetToolTip(text)
-        self.st.SetToolTip(text)
+    def SetToolTip(self, text: str):
+        self.ctrl.setToolTip(text)
+        self.st.setToolTip(text)
 
-    def SetToolTipString(self, text):
-        self.ctrl.SetToolTip(text)
-        self.st.SetToolTip(text)
-
-    def Bind(self, event, handler):
-        if self._show_apply_button:
-            self.apply_button.Bind(event, handler)
-        else:
-            self.ctrl.Bind(event, handler)
+    SetToolTipString = SetToolTip
 
     def SetValue(self, value: str):
         self._original_text = value
-        self.ctrl.ChangeValue(value)
+        if self._multiline:
+            self.ctrl.blockSignals(True)
+            self.ctrl.setPlainText(value)
+            self.ctrl.blockSignals(False)
+        else:
+            self.ctrl.blockSignals(True)
+            self.ctrl.setText(value)
+            self.ctrl.blockSignals(False)
+        if self.apply_button is not None:
+            self.apply_button.setEnabled(False)
 
     def GetValue(self) -> str:
-        return self.ctrl.GetValue()
-
-
-if __name__ == '__main__':
-    app = wx.App()
-
-    frame = wx.Frame(None, wx.ID_ANY, size=(600, 300))
-    panel = wx.Panel(frame, wx.ID_ANY, style=wx.BORDER_NONE)
-    hsizer = wx.BoxSizer(wx.HORIZONTAL)
-    hsizer.Add(panel, 1, wx.EXPAND)
-
-    vsizer = wx.BoxSizer(wx.VERTICAL)
-    vsizer.Add(hsizer, 1, wx.EXPAND)
-
-    frame.SetSizer(vsizer)
-
-    sz = wx.StaticBoxSizer(wx.VERTICAL, panel, "Static Box")
-    sb = sz.GetStaticBox()
-
-    ctrl1 = TextCtrl(sb, 'This is a test:', size=(100, -1), hslider=False)
-    ctrl2 = TextCtrl(sb, 'This is a test:', size=(100, 40), hslider=True)
-
-    sz.Add(ctrl1, 0, wx.ALL, 5)
-    sz.Add(ctrl2, 1, wx.ALL, 5)
-
-    sizer = wx.BoxSizer(wx.VERTICAL)
-
-    sizer.Add(sz, 1, wx.EXPAND | wx.ALL, 10)
-
-    panel.SetSizer(sizer)
-
-    frame.Show()
-
-    app.MainLoop()
+        if self._multiline:
+            return self.ctrl.toPlainText()
+        return self.ctrl.text()

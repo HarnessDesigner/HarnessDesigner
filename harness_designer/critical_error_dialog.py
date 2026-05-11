@@ -1,39 +1,61 @@
-import wx
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 import traceback
+from PySide6.QtWidgets import (
+    QDialog, QVBoxLayout, QHBoxLayout, QTextEdit,
+    QLabel, QPushButton, QStyle, QDialogButtonBox
+)
+from PySide6.QtGui import QIcon
+from PySide6.QtCore import Qt
 
 
-class CriticalErrorDialog(wx.Dialog):
+class CriticalErrorDialog(QDialog):
 
     def __init__(self, parent, err):
+        super().__init__(parent)
+
         message = ''.join(traceback.format_exception(err))
 
-        caption = (
+        caption_text = (
             'A critical error has occured...\n\n'
             'Please report this error to\n'
             'https://github.com/HarnessDesigner/HarnessDesigner/issues\n'
         )
 
-        wx.Dialog.__init__(self, parent, wx.ID_ANY, title='Critical Error', size=(400, 600),
-                           style=wx.STAY_ON_TOP | wx.CAPTION | wx.CLOSE_BOX)
+        self.setWindowTitle('Critical Error')
+        self.resize(400, 600)
+        self.setWindowFlags(
+            Qt.WindowStaysOnTopHint |
+            Qt.Dialog |
+            Qt.WindowCloseButtonHint |
+            Qt.WindowTitleHint
+        )
 
-        err_msg = wx.TextCtrl(self, wx.ID_ANY, value=message, style=wx.TE_READONLY | wx.TE_MULTILINE | wx.TE_DONTWRAP)
+        # Error icon from the platform style
+        style = self.style()
+        icon_pixmap = style.standardIcon(QStyle.SP_MessageBoxCritical).pixmap(32, 32)
+        icon_label = QLabel()
+        icon_label.setPixmap(icon_pixmap)
 
-        style = wx.ART_ERROR
-        icon = wx.ArtProvider.GetBitmap(style, wx.ART_MESSAGE_BOX)
-        icon = wx.StaticBitmap(self, wx.ID_ANY, bitmap=icon)
-        caption = wx.StaticText(self, wx.ID_ANY, label=caption)
+        caption_label = QLabel(caption_text)
+        caption_label.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
 
-        hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        vsizer = wx.BoxSizer(wx.VERTICAL)
-        hsizer.Add(icon, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 20)
-        hsizer.Add(caption, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 20)
-        vsizer.Add(hsizer, 0)
-        hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        hsizer.Add(err_msg, 1, wx.EXPAND | wx.ALL, 10)
-        vsizer.Add(hsizer, 1, wx.EXPAND)
+        header_layout = QHBoxLayout()
+        header_layout.addWidget(icon_label)
+        header_layout.addWidget(caption_label)
+        header_layout.addStretch()
 
-        button_sizer = self.CreateSeparatedButtonSizer(wx.OK)
-        vsizer.Add(button_sizer, 0, wx.ALL | wx.EXPAND, 10)
+        err_msg = QTextEdit()
+        err_msg.setPlainText(message)
+        err_msg.setReadOnly(True)
+        err_msg.setLineWrapMode(QTextEdit.NoWrap)
 
-        self.SetSizer(vsizer)
-        self.CenterOnParent()
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok)
+        button_box.accepted.connect(self.accept)
+
+        layout = QVBoxLayout(self)
+        layout.addLayout(header_layout)
+        layout.addWidget(err_msg)
+        layout.addWidget(button_box)
+
+        self.setLayout(layout)

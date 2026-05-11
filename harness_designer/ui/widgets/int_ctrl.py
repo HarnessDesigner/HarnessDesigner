@@ -1,84 +1,94 @@
-import wx
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSpinBox, QSlider
+)
+from PySide6.QtCore import Qt, Signal
 
 
-class IntCtrl(wx.BoxSizer):
+class IntCtrl(QWidget):
+    """Label + QSpinBox + optional QSlider composite widget.
 
-    def __init__(self, parent, label, min_val, max_val, slider=True):
-        wx.BoxSizer.__init__(self, wx.HORIZONTAL)
-        vsizer = wx.BoxSizer(wx.VERTICAL)
-        hsizer = wx.BoxSizer(wx.HORIZONTAL)
+    Replaces the wx.BoxSizer-based IntCtrl.  Emits value_changed(int) whenever
+    the spin or slider changes.
+    """
 
-        self.st = wx.StaticText(parent, wx.ID_ANY, label=label)
-        self.ctrl = wx.SpinCtrl(parent, wx.ID_ANY, value=str(max_val),
-                                initial=max_val, min=min_val, max=max_val)
+    value_changed = Signal(int)
+
+    def __init__(self, parent=None, label: str = '',
+                 min_val: int = 0, max_val: int = 100, slider: bool = True):
+        super().__init__(parent)
 
         self.__min_val = min_val
         self.__max_val = max_val
 
-        hsizer.Add(self.st, 1, wx.ALL, 5)
-        hsizer.Add(self.ctrl, 1, wx.EXPAND | wx.ALL, 5)
-        vsizer.Add(hsizer, 1, wx.EXPAND)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+
+        top = QHBoxLayout()
+        self.st = QLabel(label, self)
+        self.ctrl = QSpinBox(self)
+        self.ctrl.setRange(min_val, max_val)
+        self.ctrl.setValue(max_val)
+
+        top.addWidget(self.st, 1)
+        top.addWidget(self.ctrl, 1)
+        outer.addLayout(top)
 
         if slider:
-            hsizer = wx.BoxSizer(wx.HORIZONTAL)
-            self.slider = wx.Slider(parent, wx.ID_ANY, value=max_val, minValue=min_val,
-                                    maxValue=max_val, style=wx.SL_HORIZONTAL)
+            self.slider = QSlider(Qt.Horizontal, self)
+            self.slider.setRange(min_val, max_val)
+            self.slider.setValue(max_val)
 
-            hsizer.Add(self.slider, 1, wx.ALL | wx.EXPAND, 5)
-            vsizer.Add(hsizer, 1, wx.EXPAND)
+            bottom = QHBoxLayout()
+            bottom.addWidget(self.slider)
+            outer.addLayout(bottom)
 
-            self.slider.Bind(wx.EVT_SCROLL_CHANGED, self._on_slider_scroll)
-
+            self.slider.valueChanged.connect(self._on_slider)
+            self.ctrl.valueChanged.connect(self._on_spin)
         else:
-            self.slider: wx.Slider = None
+            self.slider = None
+            self.ctrl.valueChanged.connect(self._on_spin)
 
-        self.Add(vsizer, 1)
+    # ------------------------------------------------------------------
+    # Internal
+    # ------------------------------------------------------------------
+    def _on_slider(self, value: int):
+        self.ctrl.blockSignals(True)
+        self.ctrl.setValue(value)
+        self.ctrl.blockSignals(False)
+        self.value_changed.emit(value)
 
-    def _on_slider_scroll(self, evt):
-        spin_value = self.slider.GetValue()
-
-        self.ctrl.SetValue(spin_value)
-
-        event = wx.SpinEvent(wx.wxEVT_SPINCTRL)
-        event.SetPosition(spin_value)
-        event.SetEventObject(self.ctrl)
-        event.SetId(self.ctrl.GetId())
-        self.ctrl.GetEventHandler().ProcessEvent(event)
-
-        evt.Skip()
-
-    def _on_spin_changed(self, evt: wx.SpinDoubleEvent):
+    def _on_spin(self, value: int):
         if self.slider is not None:
-            slider_value = self.ctrl.GetValue()
-            self.slider.SetValue(slider_value)
+            self.slider.blockSignals(True)
+            self.slider.setValue(value)
+            self.slider.blockSignals(False)
+        self.value_changed.emit(value)
 
-        evt.Skip()
-
-    def Enable(self, flag=True):
-        self.ctrl.Enable(flag)
-        self.st.Enable(flag)
+    # ------------------------------------------------------------------
+    # wx-compatible public API
+    # ------------------------------------------------------------------
+    def Enable(self, flag: bool = True):
+        self.ctrl.setEnabled(flag)
+        self.st.setEnabled(flag)
         if self.slider is not None:
-            self.slider.Enable(flag)
+            self.slider.setEnabled(flag)
 
-    def SetToolTip(self, text):
-        self.ctrl.SetToolTip(text)
-        self.st.SetToolTip(text)
-
+    def SetToolTip(self, text: str):
+        self.ctrl.setToolTip(text)
+        self.st.setToolTip(text)
         if self.slider is not None:
-            self.slider.SetToolTip(text)
+            self.slider.setToolTip(text)
 
-    def SetToolTipString(self, text):
-        self.ctrl.SetToolTip(text)
-        self.st.SetToolTip(text)
-
-        if self.slider is not None:
-            self.slider.SetToolTip(text)
-
-    def Bind(self, event, handler):
-        self.ctrl.Bind(event, handler)
+    SetToolTipString = SetToolTip
 
     def SetValue(self, value: int):
-        self.ctrl.SetValue(value)
+        self.ctrl.blockSignals(True)
+        self.ctrl.setValue(value)
+        self.ctrl.blockSignals(False)
+        if self.slider is not None:
+            self.slider.blockSignals(True)
+            self.slider.setValue(value)
+            self.slider.blockSignals(False)
 
     def GetValue(self) -> int:
-        return self.ctrl.GetValue()
+        return self.ctrl.value()

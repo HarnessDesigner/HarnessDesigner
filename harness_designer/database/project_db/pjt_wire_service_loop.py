@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 import math
@@ -22,7 +24,6 @@ from .mixins import (
 if TYPE_CHECKING:
     from . import pjt_terminal as _pjt_terminal
     from . import pjt_wire as _pjt_wire
-
     from ...objects import wire_service_loop as _wire_service_loop_obj
 
 

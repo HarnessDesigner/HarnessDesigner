@@ -4,6 +4,8 @@
 # cython: boundscheck=False
 # cython: wraparound=False
 
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 import numpy as np
 cimport numpy as np
 from libc.stdlib cimport malloc, free

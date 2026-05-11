@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from . import gpu_vendor as _gpu_vendor
 from .gpu_base import GPU
 

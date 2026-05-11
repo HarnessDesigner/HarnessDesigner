@@ -1,17 +1,26 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
-from . import handler_base as _handler_base
+import wx
 
+from . import handler_base as _handler_base
 from ..geometry import point as _point
-from ..geometry import angle as _angle
 from ..gl.canvas3d import object_picker as _object_picker
 from ..objects import cover as _cover
 from ..objects import housing as _housing
+from ..gl import materials as _materials
+from .. import config as _config
+from ..ui.dialogs import part_search as _part_search
+from ..ui import editor_db as _editor_db
 
 
 if TYPE_CHECKING:
     from ..gl.canvas3d import camera as _camera
     from .. import ui as _ui
+
+
+Config = _config.Config.colors
 
 
 def _get_compat_object_at_mouse(
@@ -28,50 +37,73 @@ def _get_compat_object_at_mouse(
 
 
 class AddCoverHandler(_handler_base.HandlerBase):
+    obj: _cover.Cover = None
 
-    def __init__(self, mainframe: "_ui.MainFrame", part_id: int):
+    def __init__(self, mainframe: "_ui.MainFrame"):
+
+        part_id = mainframe.editor_db.editor.covers.GetSelection()
+
+        if part_id is None:
+            dlg = _part_search.SearchDialog(
+                mainframe, _editor_db.CoversPage, title='Add Cover',
+                table=mainframe.global_db.covers_table)
+
+            if dlg.ShowModal() == wx.ID_OK:
+                part_id = dlg.GetValue()
+
+            dlg.Destroy()
+
         super().__init__(mainframe, part_id)
+
+        self._preview_material = _materials.Plastic(Config.add_object.preview_color)
+        self._highlight_material = _materials.Plastic(Config.add_object.housing_highlight)
+
+        if part_id is None:
+            self._finalized = True
+            return
 
         self.part = mainframe.project.gtables.covers_table[part_id]
         part_number = self.part.part_number
 
-        compat_housings = mainframe.project.gtables.housings_table.get_compat(seal=part_number)
+        compat_housings = mainframe.global_db.housings_table.get_compat(cover=part_number)
         compat_housings.extend(self.part.compat_housings)
 
         self.compat_housings = list(set(compat_housings))
 
         for housing in mainframe.project.housings:
-            if housing.db_obj.db_id in self.compat_housings:
-                housing.identify([0.3, 1.0, 0.3, 1.0])
-            else:
-                housing.identify([1.0, 0.6549, 0.0, 1.0])
+            if housing.db_obj.cover is not None:
+                continue
 
-    def finalize(self, mouse_pos: _point.Point):
+            if housing.db_obj.part.part_number in self.compat_housings:
+                housing.identify(self._highlight_material)
+            else:
+                housing.identify(self._preview_material)
+
+    def hover(self, mouse_pos: _point.Point):
+        pass
+
+    def release_capture(self) -> None:
+        if self._finalized:
+            return
+
+        self._finalized = True
         for housing in self.mainframe.project.housings:
             housing.identify(None)
 
-        if not self.is_active:
+        mouse_pos = self._captured_position
+
+        selected = _get_compat_object_at_mouse(mouse_pos, self.camera)
+        if selected is None:
             return
 
-        obj = _get_compat_object_at_mouse(mouse_pos, self.camera)
-
-        if obj is None:
+        if selected.db_obj.cover is not None:
             return
 
-        position = obj.obj3d.seal_position
-        angle = _angle.Angle()
-        housing_id = obj.db_obj.db_id
+        position3d_id = selected.db_obj.cover_position3d_id
+        housing_id = selected.db_obj.db_id
 
-        cover = self.ptables.pjt_covers_table.insert(
-            self.part_id, position.db_id[:-2], housing_id=housing_id)
+        db_obj = self.ptables.pjt_covers_table.insert(
+            self.part_id, position3d_id, housing_id)
 
-        angle_delta = angle - cover.angle3d
-        angle = cover.angle3d
-        angle += angle_delta
-
-        cover = _cover.Cover(self.mainframe, cover)
-
-        self.mainframe.project.add_cover(cover)
-
-    def start(self, mouse_pos: _point.Point):
-        self.finalize(mouse_pos)
+        obj = _cover.Cover(self.mainframe, db_obj)
+        self.mainframe.project.add_cover(obj)

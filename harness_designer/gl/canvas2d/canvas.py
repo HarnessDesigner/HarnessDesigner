@@ -1,35 +1,41 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 """
 2D Schematic Editor Canvas using OpenGL
 
-This canvas provides a 2D orthographic view for schematic editing of wire harnesses.
-It handles:
-- 2D OpenGL rendering with orthographic projection
-- Pan and zoom operations
-- Mouse interactions (select, drag, click)
-- Object picking and selection
-- Coordinate transformations between screen and world space
+wx.glcanvas.GLCanvas → QOpenGLWidget
+
+Conversion notes (same pattern as canvas3d):
+  - initializeGL()  replaces _init_gl() called from EVT_PAINT handler
+  - resizeGL(w, h)  replaces EVT_SIZE handler
+  - paintGL()       replaces EVT_PAINT / _on_paint
+  - SwapBuffers()   implicit — Qt does it automatically
+  - makeCurrent()   called by GLContext.acquire() (no explicit SetCurrent)
+  - wx.CallAfter    → QTimer.singleShot(0, fn)  (not used here but pattern noted)
+  - GetClientSize() → self.width(), self.height()
 """
 
-import wx
 import math
-from wx import glcanvas
-from wx import aui
+
+from PySide6.QtCore import QSize, QTimer, Signal
+from PySide6.QtOpenGLWidgets import QOpenGLWidget
 from OpenGL import GL
 
 from .. import context as _context
 from ... import config as _config
-# from ... import debug as _debug
 from ...geometry import point as _point
 from . import grid as _grid
+
+from .. import events as _events
 
 
 MOUSE_REVERSE_X_AXIS = _config.MOUSE_REVERSE_X_AXIS
 MOUSE_REVERSE_Y_AXIS = _config.MOUSE_REVERSE_Y_AXIS
 
 
-class Canvas(glcanvas.GLCanvas):
+class Canvas(QOpenGLWidget):
     """
-    2D OpenGL Canvas for Schematic Editor
+    2D OpenGL Canvas for Schematic Editor.
 
     Provides orthographic 2D view with:
     - 1:1 mm mapping (same as 3D canvas)
@@ -39,235 +45,195 @@ class Canvas(glcanvas.GLCanvas):
     - Snap-to-grid functionality
     """
 
-    def __init__(self, parent, config: _config.Config.editor2d, size=wx.DefaultSize, pos=wx.DefaultPosition):
-        glcanvas.GLCanvas.__init__(self, parent, -1, size=size, pos=pos)
+    # GL signals — same set as canvas3d (mouse/key handlers emit these)
+    gl_object_selected     = Signal(object)
+    gl_object_unselected   = Signal(object)
+    gl_object_activated    = Signal(object)
+    gl_object_right_click  = Signal(object)
+    gl_object_right_dclick = Signal(object)
+    gl_object_middle_click  = Signal(object)
+    gl_object_middle_dclick = Signal(object)
+    gl_object_aux1_click   = Signal(object)
+    gl_object_aux1_dclick  = Signal(object)
+    gl_object_aux2_click   = Signal(object)
+    gl_object_aux2_dclick  = Signal(object)
+    gl_object_drag         = Signal(object)
+    gl_key_down    = Signal(object)
+    gl_key_up      = Signal(object)
+    gl_mouse_move  = Signal(object)
+    gl_left_down   = Signal(object)
+    gl_left_up     = Signal(object)
+    gl_left_dclick = Signal(object)
+    gl_right_down   = Signal(object)
+    gl_right_up     = Signal(object)
+    gl_right_dclick = Signal(object)
+    gl_middle_down   = Signal(object)
+    gl_middle_up     = Signal(object)
+    gl_middle_dclick = Signal(object)
+    gl_aux1_down   = Signal(object)
+    gl_aux1_up     = Signal(object)
+    gl_aux1_dclick = Signal(object)
+    gl_aux2_down   = Signal(object)
+    gl_aux2_up     = Signal(object)
+    gl_aux2_dclick = Signal(object)
+    gl_capture_lost = Signal(object)
 
-        try:
-            self.mainframe = aui.AuiManager.GetManager(parent).GetManagedWindow()
-        except AttributeError:
-            self.mainframe = parent
+    def __init__(self, parent, config: "_config.Config.editor2d", size: QSize = None):
+        super().__init__(parent)
+
+        # Walk up to mainframe
+        w = parent
+        while w is not None and not hasattr(w, 'editor2d'):
+            w = w.parent()
+        self.mainframe = w if w is not None else parent
 
         self.config = config
         self._init = False
         self.context = _context.GLContext(self)
 
-        # Camera for 2D view
         from . import camera as _camera
         self.camera = _camera.Camera2D(self)
 
-        # Mouse state
-        self._mouse_down_pos = None
-        self._last_mouse_pos = None
-        self._is_panning = False
-        self._is_dragging = False
+        self._mouse_down_pos  = None
+        self._last_mouse_pos  = None
+        self._is_panning      = False
+        self._is_dragging     = False
 
-        # Objects and selection
-        self._objects = []
+        self._objects  = []
         self._selected = None
-        self._hovered = None
-
-        # Reference counting for deferred refresh
+        self._hovered  = None
         self._ref_count = 0
 
         self.size = None
 
-        # Event bindings
-        self.Bind(wx.EVT_SIZE, self._on_size)
-        self.Bind(wx.EVT_PAINT, self._on_paint)
-        self.Bind(wx.EVT_ERASE_BACKGROUND, self._on_erase_background)
-
-        # Mouse handlers
         from . import mouse_handler as _mouse_handler
         self._mouse_handler = _mouse_handler.MouseHandler2D(self)
 
-        font = self.GetFont()
-        font.SetPointSize(12)
-        self.SetFont(font)
+        font = self.font()
+        font.setPointSize(12)
+        self.setFont(font)
 
         self._grid = _grid.Grid(self)
 
-    def Zoom(self, dx: float, _):
+        if size is not None:
+            self.resize(size)
+
+    # ------------------------------------------------------------------
+    # Camera movement
+    # ------------------------------------------------------------------
+
+    def Zoom(self, dx: float, _=None):
         dx *= self.config.zoom.sensitivity
         self.camera.Zoom(dx)
 
     def Pan(self, dx: float, dy: float) -> None:
         if self.config.pan.mouse & MOUSE_REVERSE_X_AXIS:
             dx = -dx
-
         if self.config.pan.mouse & MOUSE_REVERSE_Y_AXIS:
             dy = -dy
-
         sens = self.config.pan.sensitivity
+        self.camera.Pan(dx * sens, dy * sens)
 
-        dx *= sens
-        dy *= sens
-        self.camera.Pan(dx, dy)
+    # ------------------------------------------------------------------
+    # Grid / snap helpers (unchanged)
+    # ------------------------------------------------------------------
 
     def snap_to_grid(self, world_pos: _point.Point) -> _point.Point:
-        """
-        Snap world coordinates to grid
-        """
         if not self.config.grid.snap:
             return world_pos
-
         spacing = self._grid.grid_spacing
-        snapped_x = round(world_pos.x / spacing) * spacing
-        snapped_y = round(world_pos.y / spacing) * spacing
-
-        return _point.Point(snapped_x, snapped_y)
+        return _point.Point(
+            round(world_pos.x / spacing) * spacing,
+            round(world_pos.y / spacing) * spacing,
+        )
 
     def apply_angle_lock(self, start_pos: _point.Point, end_pos: _point.Point) -> _point.Point:
-        """
-        Apply angle lock to constrain movement to specific angles
-        """
         if not self.config.angle.lock:
             return end_pos
-
-        # Calculate delta
         delta = end_pos - start_pos
-
-        # Calculate angle in degrees
         angle_rad = math.atan2(delta.y, delta.x)
         angle_deg = math.degrees(angle_rad)
-
-        # Normalize to 0-360
         if angle_deg < 0:
             angle_deg += 360
-
-        # Round to nearest increment
-        locked_angle_deg = round(angle_deg / self.config.angle.lock_increment) * self.config.angle.lock_increment
-        locked_angle_rad = math.radians(locked_angle_deg)
-
-        # Calculate distance
-        distance = math.sqrt(delta.x * delta.x + delta.y * delta.y)
-
-        # Apply locked angle
-        locked_x = start_pos.x + distance * math.cos(locked_angle_rad)
-        locked_y = start_pos.y + distance * math.sin(locked_angle_rad)
-
-        return _point.Point(locked_x, locked_y)
+        locked = round(angle_deg / self.config.angle.lock_increment) * self.config.angle.lock_increment
+        locked_rad = math.radians(locked)
+        dist = math.sqrt(delta.x ** 2 + delta.y ** 2)
+        return _point.Point(
+            start_pos.x + dist * math.cos(locked_rad),
+            start_pos.y + dist * math.sin(locked_rad),
+        )
 
     def set_grid_snap(self, value):
-        """Set grid snap setting in config"""
         self.config.grid.snap = bool(value)
 
     def set_angle_lock(self, value):
-        """Set angle lock setting in config"""
         self.config.angle.lock = bool(value)
 
     def set_grid_display(self, value):
-        """Set grid display setting in config"""
         self.config.grid.enabled = bool(value)
         self._grid.set(self.config.grid.enabled)
-        self.Refresh()
+        self.update()
+
+    # ------------------------------------------------------------------
+    # Object management
+    # ------------------------------------------------------------------
 
     def set_selected(self, obj):
-        """Set the currently selected object"""
         self._selected = obj
 
     def get_selected(self):
-        """Get the currently selected object"""
         return self._selected
 
     def add_object(self, obj):
-        """Add an object to the canvas"""
         if obj not in self._objects:
             self._objects.append(obj)
-            self.Refresh()
+            self.update()
 
     def remove_object(self, obj):
-        """Remove an object from the canvas"""
         try:
             self._objects.remove(obj)
             if self._selected == obj:
                 self._selected = None
             if self._hovered == obj:
                 self._hovered = None
-            self.Refresh()
+            self.update()
         except ValueError:
             pass
 
     @property
     def objects(self):
-        """Get list of all objects"""
         return self._objects
 
+    # ------------------------------------------------------------------
+    # Reference-counting context manager
+    # ------------------------------------------------------------------
+
     def __enter__(self):
-        """Context manager entry - increment reference count"""
         self._ref_count += 1
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit - decrement reference count"""
         self._ref_count -= 1
 
     def Refresh(self, *args, **kwargs):
-        """Refresh the canvas (respects reference counting)"""
         if self._ref_count:
             return
-        glcanvas.GLCanvas.Refresh(self, *args, **kwargs)
+        self.update()
 
-    def _on_erase_background(self, event):
-        """Prevent flicker by not erasing background"""
-        pass
+    # ------------------------------------------------------------------
+    # QOpenGLWidget lifecycle
+    # ------------------------------------------------------------------
 
-    def _on_size(self, event):
-        """Handle resize events"""
-        size = self.GetClientSize()
-        self.size = (size.width, size.height)
-
-        if self._init:
-            with self.context:
-                GL.glViewport(0, 0, size.width, size.height)
-                self._setup_projection()
-
-        event.Skip()
-
-    def _setup_projection(self):
-        """Setup orthographic projection for 2D rendering"""
-        if self.size is None:
-            return
-
-        width, height = self.size
-        if width == 0 or height == 0:
-            return
-
-        GL.glMatrixMode(GL.GL_PROJECTION)
-        GL.glLoadIdentity()
-
-        # Calculate visible world bounds based on camera distance
-        # The distance controls how much of the world we see
-        # Larger distance = see more (zoomed out), smaller distance = see less (zoomed in)
-        world_per_pixel = self.camera.distance / 1000.0
-
-        half_width = (width / 2.0) * world_per_pixel
-        half_height = (height / 2.0) * world_per_pixel
-
-        left = self.camera.x - half_width
-        right = self.camera.x + half_width
-        bottom = self.camera.y - half_height
-        top = self.camera.y + half_height
-
-        # Orthographic projection
-        GL.glOrtho(left, right, bottom, top, -1.0, 1.0)
-
-        GL.glMatrixMode(GL.GL_MODELVIEW)
-        GL.glLoadIdentity()
-
-    def _init_gl(self):
-        """Initialize OpenGL settings"""
+    def initializeGL(self):
+        """One-time GL setup (replaces _init_gl called from _on_paint)."""
         with self.context:
-            # Basic OpenGL setup
-            GL.glClearColor(0.9600, 0.9568, 0.9372, 1.0)  # Light beige background
+            GL.glClearColor(0.9600, 0.9568, 0.9372, 1.0)
             GL.glEnable(GL.GL_BLEND)
             GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
             GL.glEnable(GL.GL_LINE_SMOOTH)
             GL.glHint(GL.GL_LINE_SMOOTH_HINT, GL.GL_NICEST)
-
-            # Disable depth test for 2D
             GL.glDisable(GL.GL_DEPTH_TEST)
 
-            # Setup projection
             if self.size:
                 GL.glViewport(0, 0, self.size[0], self.size[1])
 
@@ -276,26 +242,46 @@ class Canvas(glcanvas.GLCanvas):
 
         self._init = True
 
-    def _on_paint(self, _):
-        """Handle paint events - render the scene"""
-        if not self._init:
-            self._init_gl()
-
-        # Use context manager for thread-safe OpenGL access
+    def resizeGL(self, width: int, height: int):
+        """Called by Qt on resize (replaces EVT_SIZE handler)."""
+        self.size = (width, height)
         with self.context:
-            # Clear the screen
-            GL.glClear(GL.GL_COLOR_BUFFER_BIT)
-
-            # Setup projection (in case zoom/pan changed)
+            GL.glViewport(0, 0, width, height)
             self._setup_projection()
 
-            # Render grid
-
+    def paintGL(self):
+        """Render one frame (replaces EVT_PAINT / _on_paint)."""
+        with self.context:
+            GL.glClear(GL.GL_COLOR_BUFFER_BIT)
+            self._setup_projection()
             self._grid.render(self.camera.distance)
-
-            # Render all objects
             for obj in self._objects:
                 obj.obj2d.render_gl()
+            # Qt handles SwapBuffers automatically.
 
-            # Swap buffers
-            self.SwapBuffers()
+    # ------------------------------------------------------------------
+    # Projection (unchanged)
+    # ------------------------------------------------------------------
+
+    def _setup_projection(self):
+        if self.size is None:
+            return
+        width, height = self.size
+        if width == 0 or height == 0:
+            return
+
+        GL.glMatrixMode(GL.GL_PROJECTION)
+        GL.glLoadIdentity()
+
+        world_per_pixel = self.camera.distance / 1000.0
+        half_width  = (width  / 2.0) * world_per_pixel
+        half_height = (height / 2.0) * world_per_pixel
+
+        left   = self.camera.x - half_width
+        right  = self.camera.x + half_width
+        bottom = self.camera.y - half_height
+        top    = self.camera.y + half_height
+
+        GL.glOrtho(left, right, bottom, top, -1.0, 1.0)
+        GL.glMatrixMode(GL.GL_MODELVIEW)
+        GL.glLoadIdentity()

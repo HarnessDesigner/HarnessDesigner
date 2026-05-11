@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from .. import db_connectors as _con
 from . import manufacturers as _manufacturers
 from ... import logger as _logger

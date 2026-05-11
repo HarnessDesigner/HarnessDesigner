@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -7,15 +9,20 @@ from . import handler_base as _handler_base
 from ..geometry import point as _point
 from ..geometry import angle as _angle
 from ..gl.canvas3d import object_picker as _object_picker
-from ..gl import materials as _materials
 from ..objects import wire_service_loop as _wire_service_loop
 from ..objects import wire as _wire
 from ..shapes import cylinder_helix as _cylinder_helix
 from .. import utils as _utils
+from ..gl import materials as _materials
+from .. import config as _config
+
 
 if TYPE_CHECKING:
     from ..gl.canvas3d import camera as _camera
     from .. import ui as _ui
+
+
+Config = _config.Config.colors
 
 
 def _get_wire_at_mouse(
@@ -63,37 +70,18 @@ def _compute_stop_point(
 
 
 class AddWireServiceLoopHandler(_handler_base.HandlerBase):
-    """
-    Manages interactive wire service loop placement on wires.
-
-    Workflow:
-    - Hover over a wire: wire highlights cyan, a semi-transparent preview
-      loop appears tracking the closest point along the wire
-    - The preview snaps the loop root to the nearest wire endpoint when
-      within snap distance, otherwise tracks freely along the wire
-    - Click to place: the wire is broken at the loop position (same as
-      splice handler), the loop's start and stop points share the
-      resulting wire endpoint Points so the callback system keeps
-      everything connected when the wire is moved
-    - The stop point offset is computed from the helix VBO endpoint so
-      it matches the rendered geometry exactly
-
-    Service loops can ONLY be placed on wires.
-    """
-
     obj: _wire_service_loop.WireServiceLoop = None
-
-    # Cyan highlight for the wire being hovered
-    WIRE_HIGHLIGHT = [0.0, 0.8, 1.0, 0.6]
-
-    # Soft white-blue preview for the loop ghost — distinct from the wire highlight
-    PREVIEW_COLOR = [0.5, 0.85, 1.0, 0.45]
 
     def __init__(self, mainframe: "_ui.MainFrame", part_id: int):
         super().__init__(mainframe, part_id)
 
         self.wire = None
-        self._preview_material = _materials.Plastic(self.PREVIEW_COLOR)
+        self._preview_material = _materials.Plastic(Config.add_object.preview_color)
+        self._highlight_material = _materials.Plastic(Config.add_object.wire_highlight)
+        self._terminal_material = _materials.Plastic(Config.add_object.terminal_highlight)
+
+    def release_capture(self) -> None:
+        raise NotImplementedError
 
     def _get_wire_diameter(self) -> float:
         part = self.mainframe.project.gtables.wires_table[self.part_id]
@@ -101,15 +89,11 @@ class AddWireServiceLoopHandler(_handler_base.HandlerBase):
 
     def _make_preview_loop(self, position: _point.Point, wire_angle: _angle.Angle,
                            circuit_id: int | None) -> _wire_service_loop.WireServiceLoop:
-        """
-        Create a temporary preview loop at the given position.
-        Both start and stop use independent temporary points — the wire
-        is NOT broken at this stage.
-        """
+
         diameter = self._get_wire_diameter()
         stop_pos = _compute_stop_point(position, wire_angle, diameter)
 
-        quat = np.array(wire_angle.as_quaternion_float)
+        quat = np.array(wire_angle.as_quat_float)
 
         p3d_start = self.ptables.pjt_points3d_table.insert(
             position.x, position.y, position.z)
@@ -134,10 +118,7 @@ class AddWireServiceLoopHandler(_handler_base.HandlerBase):
         return loop
 
     def _update_preview_position(self, position: _point.Point, wire_angle: _angle.Angle):
-        """
-        Move the preview loop to a new position along the wire.
-        Updates both start and stop points without touching the wire geometry.
-        """
+
         if self.obj is None:
             return
 
@@ -155,8 +136,8 @@ class AddWireServiceLoopHandler(_handler_base.HandlerBase):
         cur_stop += delta
 
         # Update quaternion to match wire angle at this position
-        quat = np.array(wire_angle.as_quaternion_float)
-        self.obj.db_obj._table.update(
+        quat = np.array(wire_angle.as_quat_float)
+        self.obj.db_obj.table.update(
             self.obj.db_obj.db_id, quat=str(quat.tolist()))
 
     def _delete_preview(self):

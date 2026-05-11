@@ -1,8 +1,11 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
-from wx import aui
-import wx
 import build123d
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QAction, QActionGroup, QIcon
+from PySide6.QtWidgets import QToolBar
 
 from ... import gl as _gl
 from ... import image as _image
@@ -13,186 +16,126 @@ if TYPE_CHECKING:
     from .. import mainframe as _mainframe
 
 
-'''
-_gl.EVT_GL_OBJECT_SELECTED
-_gl.EVT_GL_OBJECT_UNSELECTED
-_gl.EVT_GL_OBJECT_ACTIVATED
-_gl.EVT_GL_OBJECT_RIGHT_CLICK
-_gl.EVT_GL_OBJECT_RIGHT_DCLICK
-_gl.EVT_GL_OBJECT_MIDDLE_CLICK
-_gl.EVT_GL_OBJECT_MIDDLE_DCLICK
-_gl.EVT_GL_OBJECT_AUX1_CLICK
-_gl.EVT_GL_OBJECT_AUX1_DCLICK
-_gl.EVT_GL_OBJECT_AUX2_CLICK
-_gl.EVT_GL_OBJECT_AUX2_DCLICK
-_gl.EVT_GL_OBJECT_DRAG
-_gl.EVT_GL_LEFT_DOWN
-_gl.EVT_GL_LEFT_UP
-_gl.EVT_GL_LEFT_DCLICK
-_gl.EVT_GL_RIGHT_DOWN
-_gl.EVT_GL_RIGHT_UP
-_gl.EVT_GL_RIGHT_DCLICK
-_gl.EVT_GL_MIDDLE_DOWN
-_gl.EVT_GL_MIDDLE_UP
-_gl.EVT_GL_MIDDLE_DCLICK
-_gl.EVT_GL_AUX1_DOWN
-_gl.EVT_GL_AUX1_UP
-_gl.EVT_GL_AUX1_DCLICK
-_gl.EVT_GL_AUX2_DOWN
-_gl.EVT_GL_AUX2_UP
-_gl.EVT_GL_AUX2_DCLICK
-'''
+# ---------------------------------------------------------------------------
+# Tool IDs — plain ints replace wx.NewIdRef().  Unique sentinel values used
+# throughout mainframe.py to identify the active editor mode.
+# ---------------------------------------------------------------------------
 
-ID_SELECT = wx.NewIdRef()
-ID_CONNECTOR = wx.NewIdRef()
-ID_TERMINAL = wx.NewIdRef()
-ID_WIRE = wx.NewIdRef()
-ID_SPLICE = wx.NewIdRef()
-ID_NOTE = wx.NewIdRef()
-ID_WIRE_SERVICE_LOOP = wx.NewIdRef()
-ID_COVER = wx.NewIdRef()
+_id_counter = iter(range(1, 1000))
 
-ID_ZOOM_IN = wx.NewIdRef()
-ID_ZOOM_OUT = wx.NewIdRef()
-
-ID_CIRCLE = wx.NewIdRef()
-ID_SQUARE = wx.NewIdRef()
-
-ID_TRANSITION = wx.NewIdRef()
-ID_SEAL = wx.NewIdRef()
-ID_BUNDLE_COVER = wx.NewIdRef()
-ID_TPA_LOCK = wx.NewIdRef()
-ID_CPA_LOCK = wx.NewIdRef()
+def _new_id() -> int:
+    return next(_id_counter)
 
 
-class EditorToolbar(aui.AuiPaneInfo):
+ID_SELECT          = _new_id()
+ID_CONNECTOR       = _new_id()
+ID_TERMINAL        = _new_id()
+ID_WIRE            = _new_id()
+ID_SPLICE          = _new_id()
+ID_NOTE            = _new_id()
+ID_WIRE_SERVICE_LOOP = _new_id()
+ID_COVER           = _new_id()
+
+ID_ZOOM_IN         = _new_id()
+ID_ZOOM_OUT        = _new_id()
+
+ID_CIRCLE          = _new_id()
+ID_SQUARE          = _new_id()
+
+ID_TRANSITION      = _new_id()
+ID_SEAL            = _new_id()
+ID_BUNDLE_COVER    = _new_id()
+ID_TPA_LOCK        = _new_id()
+ID_CPA_LOCK        = _new_id()
+
+
+def _make_icon(img_attr, size: int = 32) -> QIcon:
+    """Convert a harness_designer image object to a QIcon."""
+    return QIcon(img_attr.resize(size, size).pixmap)
+
+
+# ---------------------------------------------------------------------------
+# EditorToolbar
+# ---------------------------------------------------------------------------
+
+class EditorToolbar:
+    """
+    Object-placement mode toolbar.
+
+    wx: subclassed aui.AuiPaneInfo AND held an aui.AuiToolBar internally.
+    Qt: is a thin wrapper around a QToolBar added to the QMainWindow.
+    The toolbar object itself is self.toolbar; callers that stored a reference
+    to the whole class continue to work because all public methods delegate.
+    """
 
     def __init__(self, mainframe: "_mainframe.MainFrame"):
-        self.toolbar = aui.AuiToolBar(mainframe, style=aui.AUI_TB_GRIPPER)
         self.mainframe = mainframe
-        self.manager = mainframe.manager
-        self._mode = None
+        self._mode: int | None = None
 
-        aui.AuiPaneInfo.__init__(self)
+        tb = QToolBar('Editor', mainframe)
+        tb.setObjectName('editor_toolbar')
+        tb.setMovable(True)
+        tb.setFloatable(True)
+        tb.setIconSize(__import__('PySide6.QtCore', fromlist=['QSize']).QSize(32, 32))
+        self.toolbar = tb
 
-        self.Top()
-        self.Floatable(True)
-        self.Gripper(True)
-        self.Resizable(True)
-        self.Movable(True)
-        self.Name('editor_toolbar')
-        self.CaptionVisible(False)
-        self.PaneBorder(True)
-        self.CloseButton(False)
-        self.MaximizeButton(False)
-        self.MinimizeButton(False)
-        self.PinButton(False)
-        self.DestroyOnClose(False)
-        self.ToolbarPane()
+        # Radio group for mode buttons
+        self._mode_group = QActionGroup(tb)
+        self._mode_group.setExclusive(True)
 
-        self.toolbar.SetToolBitmapSize((32, 32))
+        def _radio(id_: int, label: str, icon: QIcon) -> QAction:
+            act = QAction(icon, label, tb)
+            act.setCheckable(True)
+            act.setToolTip(label)
+            act.setData(id_)
+            act.triggered.connect(lambda checked=False, i=id_: self._on_mode(i))
+            self._mode_group.addAction(act)
+            tb.addAction(act)
+            return act
 
-        select_object = _image.icons.select_object.resize(32, 32)
-        connector = _image.icons.connector.resize(32, 32)
-        terminal = _image.icons.terminal.resize(32, 32)
-        wire = _image.icons.wire.resize(32, 32)
-        splice = _image.icons.splice.resize(32, 32)
-        note = _image.icons.notes.resize(32, 32)
+        icons = _image.icons
+        self._select   = _radio(ID_SELECT,    'Select',          _make_icon(icons.select_object))
+        self._housing  = _radio(ID_CONNECTOR, 'Add Housing',     _make_icon(icons.connector))
+        self._terminal = _radio(ID_TERMINAL,  'Add Terminal',    _make_icon(icons.terminal))
+        self._wire     = _radio(ID_WIRE,      'Add Wire',        _make_icon(icons.wire))
+        self._splice   = _radio(ID_SPLICE,    'Add Splice',      _make_icon(icons.splice))
+        self._note     = _radio(ID_NOTE,      'Add Note',        _make_icon(icons.notes))
+        self._zoom_in  = _radio(ID_ZOOM_IN,   'Zoom +',          _make_icon(icons.zoom_in))
+        self._zoom_out = _radio(ID_ZOOM_OUT,  'Zoom -',          _make_icon(icons.zoom_out))
+        self._draw_circle   = _radio(ID_CIRCLE,    'Draw Circle',    _make_icon(icons.circle))
+        self._draw_square   = _radio(ID_SQUARE,    'Draw Square',    _make_icon(icons.square))
+        self._transition    = _radio(ID_TRANSITION,'Add Transition', _make_icon(icons.transition))
+        self._seal          = _radio(ID_SEAL,      'Add Seal',       _make_icon(icons.seal))
+        self._bundle        = _radio(ID_BUNDLE_COVER,'Add Bundle',   _make_icon(icons.bundle_cover))
+        self._tpa_lock      = _radio(ID_TPA_LOCK,  'Add TPA Lock',   _make_icon(icons.tpa_lock))
+        self._cpa_lock      = _radio(ID_CPA_LOCK,  'Add CPA Lock',   _make_icon(icons.cpa_lock))
 
-        zoom_in = _image.icons.zoom_in.resize(32, 32)
-        zoom_out = _image.icons.zoom_out.resize(32, 32)
-        circle = _image.icons.circle.resize(32, 32)
-        square = _image.icons.square.resize(32, 32)
-        transition = _image.icons.transition.resize(32, 32)
+        # Initially disabled (context-dependent) — mirrors AUI_BUTTON_STATE_DISABLED
+        for act in (self._cpa_lock, self._tpa_lock, self._bundle, self._seal,
+                    self._transition, self._draw_square, self._draw_circle,
+                    self._splice, self._terminal):
+            act.setEnabled(False)
 
-        seal = _image.icons.seal.resize(32, 32)
-        bundle_cover = _image.icons.bundle_cover.resize(32, 32)
-        tpa_lock = _image.icons.tpa_lock.resize(32, 32)
-        cpa_lock = _image.icons.cpa_lock.resize(32, 32)
+        self._select.setChecked(True)
+        self._mode = ID_SELECT
 
-        self._select = self.toolbar.AddTool(toolId=ID_SELECT, label='Select', bitmap=select_object.bitmap,
-                                            short_help_string='Select', kind=wx.ITEM_RADIO)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_tools, id=ID_SELECT)
+        mainframe.addToolBar(Qt.TopToolBarArea, tb)
 
-        self._housing = self.toolbar.AddTool(toolId=ID_CONNECTOR, label='Add Housing', bitmap=connector.bitmap,
-                                             short_help_string='Add Housing', kind=wx.ITEM_RADIO)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_tools, id=ID_CONNECTOR)
+        # GL object selection drives button enable/disable
+        mainframe.editor3d.gl_object_selected.connect(self._on_obj_selected)
+        mainframe.editor3d.gl_object_unselected.connect(self._on_obj_unselected)
 
-        self._terminal = self.toolbar.AddTool(toolId=ID_TERMINAL, label='Add Terminal', bitmap=terminal.bitmap,
-                                              short_help_string='Add Terminal', kind=wx.ITEM_RADIO)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_tools, id=ID_TERMINAL)
+    # --- mode ---
 
-        self._wire = self.toolbar.AddTool(toolId=ID_WIRE, label='Add Wire', bitmap=wire.bitmap,
-                                          short_help_string='Add Wire', kind=wx.ITEM_RADIO)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_tools, id=ID_WIRE)
-
-        self._splice = self.toolbar.AddTool(toolId=ID_SPLICE, label='Add Splice', bitmap=splice.bitmap,
-                                            short_help_string='Add Splice', kind=wx.ITEM_RADIO)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_tools, id=ID_SPLICE)
-
-        self._note = self.toolbar.AddTool(toolId=ID_NOTE, label='Add Note', bitmap=note.bitmap,
-                                          short_help_string='Add Note', kind=wx.ITEM_RADIO)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_tools, id=ID_NOTE)
-
-        self._zoom_in = self.toolbar.AddTool(toolId=ID_ZOOM_IN, label='Zoom +', bitmap=zoom_in.bitmap,
-                                             short_help_string='Zoom +', kind=wx.ITEM_RADIO)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_tools, id=ID_ZOOM_IN)
-
-        self._zoom_out = self.toolbar.AddTool(toolId=ID_ZOOM_OUT, label='Zoom -', bitmap=zoom_out.bitmap,
-                                              short_help_string='Zoom -', kind=wx.ITEM_RADIO)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_tools, id=ID_ZOOM_OUT)
-
-        self._draw_circle = self.toolbar.AddTool(toolId=ID_CIRCLE, label='Draw Circle', bitmap=circle.bitmap,
-                                                 short_help_string='Draw Circle', kind=wx.ITEM_RADIO)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_tools, id=ID_CIRCLE)
-
-        self._draw_square = self.toolbar.AddTool(toolId=ID_SQUARE, label='Draw Square', bitmap=square.bitmap,
-                                                 short_help_string='Draw Square', kind=wx.ITEM_RADIO)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_tools, id=ID_SQUARE)
-
-        self._transition = self.toolbar.AddTool(toolId=ID_TRANSITION, label='Add Transition', bitmap=transition.bitmap,
-                                                short_help_string='Add Transition', kind=wx.ITEM_RADIO)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_tools, id=ID_TRANSITION)
-
-        self._seal = self.toolbar.AddTool(toolId=ID_SEAL, label='Add Seal', bitmap=seal.bitmap,
-                                          short_help_string='Add Seal', kind=wx.ITEM_RADIO)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_tools, id=ID_SEAL)
-
-        self._bundle = self.toolbar.AddTool(toolId=ID_BUNDLE_COVER, label='Add Bundle', bitmap=bundle_cover.bitmap,
-                                            short_help_string='Add Bundle', kind=wx.ITEM_RADIO)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_tools, id=ID_BUNDLE_COVER)
-
-        self._tpa_lock = self.toolbar.AddTool(toolId=ID_TPA_LOCK, label='Add TPA Lock', bitmap=tpa_lock.bitmap,
-                                              short_help_string='Add TPA Lock', kind=wx.ITEM_RADIO)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_tools, id=ID_TPA_LOCK)
-
-        self._cpa_lock = self.toolbar.AddTool(toolId=ID_CPA_LOCK, label='Add CPA Lock', bitmap=cpa_lock.bitmap,
-                                              short_help_string='Add CPA Lock', kind=wx.ITEM_RADIO)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_tools, id=ID_CPA_LOCK)
-
-        self._cpa_lock.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-        self._tpa_lock.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-        self._bundle.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-        self._seal.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-        self._transition.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-        self._draw_square.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-        self._draw_circle.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-        self._splice.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-        self._terminal.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-
-        self.toolbar.Realize()
-        self.manager.AddPane(self.toolbar, self)
-
-        self.Show()
-        self.manager.Update()
-
-        self.mainframe.editor3d.Bind(_gl.EVT_GL_OBJECT_SELECTED, self._on_obj_selected)
-        self.mainframe.editor3d.Bind(_gl.EVT_GL_OBJECT_UNSELECTED, self._on_obj_unselected)
-
-    def get_mode(self) -> int:
+    def get_mode(self) -> int | None:
         return self._mode
 
-    def _on_obj_selected(self, evt: _gl.GLObjectEvent):
+    def _on_mode(self, id_: int):
+        self._mode = id_
+
+    # --- context-sensitive enable/disable ---
+
+    def _on_obj_selected(self, evt: "_gl.GLObjectEvent"):
         from ...objects import housing as _housing
         from ...objects import wire as _wire
         from ...objects import terminal as _terminal
@@ -200,534 +143,333 @@ class EditorToolbar(aui.AuiPaneInfo):
 
         obj = evt.GetGLObject()
 
-        if isinstance(obj, _housing.Housing):
-            self._cpa_lock.SetState(aui.AUI_BUTTON_STATE_NORMAL)
-            self._tpa_lock.SetState(aui.AUI_BUTTON_STATE_NORMAL)
-            self._seal.SetState(aui.AUI_BUTTON_STATE_NORMAL)
-            self._terminal.SetState(aui.AUI_BUTTON_STATE_NORMAL)
+        # Reset everything to disabled first, then selectively enable.
+        for act in (self._cpa_lock, self._tpa_lock, self._bundle, self._seal,
+                    self._transition, self._draw_square, self._draw_circle,
+                    self._splice, self._terminal):
+            act.setEnabled(False)
 
-            self._bundle.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-            self._transition.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-            self._draw_square.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-            self._draw_circle.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-            self._splice.SetState(aui.AUI_BUTTON_STATE_DISABLED)
+        if isinstance(obj, _housing.Housing):
+            for act in (self._cpa_lock, self._tpa_lock, self._seal, self._terminal):
+                act.setEnabled(True)
 
         elif isinstance(obj, _wire.Wire):
-            self._bundle.SetState(aui.AUI_BUTTON_STATE_NORMAL)
-            self._splice.SetState(aui.AUI_BUTTON_STATE_NORMAL)
-
-            self._cpa_lock.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-            self._tpa_lock.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-            self._seal.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-            self._transition.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-            self._draw_square.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-            self._draw_circle.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-            self._terminal.SetState(aui.AUI_BUTTON_STATE_DISABLED)
+            for act in (self._bundle, self._splice):
+                act.setEnabled(True)
 
         elif isinstance(obj, _bundle.Bundle):
-            self._transition.SetState(aui.AUI_BUTTON_STATE_NORMAL)
-
-            self._cpa_lock.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-            self._tpa_lock.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-            self._bundle.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-            self._seal.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-            self._draw_square.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-            self._draw_circle.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-            self._splice.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-            self._terminal.SetState(aui.AUI_BUTTON_STATE_DISABLED)
+            self._transition.setEnabled(True)
 
         elif isinstance(obj, _terminal.Terminal):
-            self._seal.SetState(aui.AUI_BUTTON_STATE_NORMAL)
+            self._seal.setEnabled(True)
 
-            self._cpa_lock.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-            self._tpa_lock.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-            self._bundle.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-            self._transition.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-            self._draw_square.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-            self._draw_circle.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-            self._splice.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-            self._terminal.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-        else:
-            self._cpa_lock.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-            self._tpa_lock.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-            self._bundle.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-            self._seal.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-            self._transition.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-            self._draw_square.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-            self._draw_circle.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-            self._splice.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-            self._terminal.SetState(aui.AUI_BUTTON_STATE_DISABLED)
+        evt.skip()
 
-        self.toolbar.Refresh(False)
-        evt.Skip()
+    def _on_obj_unselected(self, evt: "_gl.GLObjectEvent"):
+        for act in (self._cpa_lock, self._tpa_lock, self._bundle, self._seal,
+                    self._transition, self._draw_square, self._draw_circle,
+                    self._splice, self._terminal):
+            act.setEnabled(False)
+        evt.skip()
 
-    def _on_obj_unselected(self, evt: _gl.GLObjectEvent):
-        self._cpa_lock.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-        self._tpa_lock.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-        self._bundle.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-        self._seal.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-        self._transition.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-        self._draw_square.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-        self._draw_circle.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-        self._splice.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-        self._terminal.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-
-        self.toolbar.Refresh(False)
-        evt.Skip()
-
-    def on_tools(self, evt: wx.MenuEvent):
-        self._mode = evt.GetId()
-        evt.Skip()
+    # --- passthrough helpers used by mainframe ---
 
     def Refresh(self, *args, **kwargs):
-        self.toolbar.Refresh(*args, **kwargs)
+        self.toolbar.repaint()
 
     def Destroy(self):
-        self.toolbar.Destroy()
+        self.toolbar.deleteLater()
 
 
-class NoteToolbar(aui.AuiPaneInfo):
+# ---------------------------------------------------------------------------
+# NoteToolbar
+# ---------------------------------------------------------------------------
 
-    ID_ALIGN_HORIZ_CENTER = wx.NewIdRef()
-    ID_ALIGN_HORIZ_LEFT = wx.NewIdRef()
-    ID_ALIGN_HORIZ_RIGHT = wx.NewIdRef()
+class NoteToolbar:
+    """Text-alignment toolbar, visible when a Note object is selected."""
 
-    ID_ALIGN_VERT_CENTER = wx.NewIdRef()
-    ID_ALIGN_VERT_TOP = wx.NewIdRef()
-    ID_ALIGN_VERT_BOTTOM = wx.NewIdRef()
+    ID_ALIGN_HORIZ_CENTER = _new_id()
+    ID_ALIGN_HORIZ_LEFT   = _new_id()
+    ID_ALIGN_HORIZ_RIGHT  = _new_id()
+
+    ID_ALIGN_VERT_CENTER  = _new_id()
+    ID_ALIGN_VERT_TOP     = _new_id()
+    ID_ALIGN_VERT_BOTTOM  = _new_id()
 
     def __init__(self, mainframe: "_mainframe.MainFrame"):
-        self.toolbar = aui.AuiToolBar(mainframe, style=aui.AUI_TB_GRIPPER)
         self.mainframe = mainframe
-        self.manager = mainframe.manager
-        self.selected = True
 
-        aui.AuiPaneInfo.__init__(self)
+        tb = QToolBar('Note', mainframe)
+        tb.setObjectName('note_toolbar')
+        tb.setMovable(True)
+        tb.setFloatable(True)
+        tb.setIconSize(__import__('PySide6.QtCore', fromlist=['QSize']).QSize(32, 32))
+        self.toolbar = tb
 
-        self.Top()
-        self.Floatable(True)
-        self.Gripper(True)
-        self.Resizable(True)
-        self.Movable(True)
-        self.Name('note_toolbar')
-        self.CaptionVisible(False)
-        self.PaneBorder(True)
-        self.CloseButton(False)
-        self.MaximizeButton(False)
-        self.MinimizeButton(False)
-        self.PinButton(False)
-        self.DestroyOnClose(False)
-        self.ToolbarPane()
+        group = QActionGroup(tb)
+        group.setExclusive(True)
 
-        self.toolbar.SetToolBitmapSize((32, 32))
+        def _radio(id_: int, label: str, icon: QIcon) -> QAction:
+            act = QAction(icon, label, tb)
+            act.setCheckable(True)
+            act.setEnabled(False)
+            act.setToolTip(label)
+            act.setData(id_)
+            group.addAction(act)
+            tb.addAction(act)
+            return act
 
-        align_horizontal_center = _image.icons.align_horizontal_center.resize(32, 32)
-        align_left_edge = _image.icons.align_left_edge.resize(32, 32)
-        align_right_edge = _image.icons.align_right_edge.resize(32, 32)
+        icons = _image.icons
+        self.align_left   = _radio(self.ID_ALIGN_HORIZ_LEFT,   'Align Left',
+                                   _make_icon(icons.align_left_edge))
+        self.align_center = _radio(self.ID_ALIGN_HORIZ_CENTER, 'Align Center',
+                                   _make_icon(icons.align_horizontal_center))
+        self.align_right  = _radio(self.ID_ALIGN_HORIZ_RIGHT,  'Align Right',
+                                   _make_icon(icons.align_right_edge))
 
-        self.align_left = self.toolbar.AddTool(
-            toolId=self.ID_ALIGN_HORIZ_LEFT, label='Align Left',
-            bitmap=align_left_edge.bitmap, short_help_string='Align Left',
-            kind=wx.ITEM_RADIO)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_tools, id=self.ID_ALIGN_HORIZ_LEFT)
-        self.align_left.SetState(aui.AUI_BUTTON_STATE_DISABLED)
+        mainframe.addToolBar(Qt.TopToolBarArea, tb)
 
-        self.align_center = self.toolbar.AddTool(
-            toolId=self.ID_ALIGN_HORIZ_CENTER, label='Align Center',
-            bitmap=align_horizontal_center.bitmap, short_help_string='Align Center',
-            kind=wx.ITEM_RADIO)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_tools, id=self.ID_ALIGN_HORIZ_CENTER)
-        self.align_center.SetState(aui.AUI_BUTTON_STATE_DISABLED)
+        mainframe.editor2d.gl_object_selected.connect(self.on_obj2d_selected)
+        mainframe.editor2d.gl_object_unselected.connect(self.on_obj2d_unselected)
+        mainframe.editor3d.gl_object_selected.connect(self.on_obj3d_selected)
+        mainframe.editor3d.gl_object_unselected.connect(self.on_obj3d_unselected)
 
-        self.align_right = self.toolbar.AddTool(
-            toolId=self.ID_ALIGN_HORIZ_RIGHT, label='Align Right',
-            bitmap=align_right_edge.bitmap, short_help_string='Align Right',
-            kind=wx.ITEM_RADIO)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_tools, id=self.ID_ALIGN_HORIZ_RIGHT)
-        self.align_right.SetState(aui.AUI_BUTTON_STATE_DISABLED)
+        # "Pane activated" → QDockWidget.visibilityChanged on the editor docks.
+        # We connect to each dock and check which editor is now on top.
+        mainframe._dock_editor2d.visibilityChanged.connect(
+            lambda visible: self._on_editor_visibility('editor2d', visible))
+        mainframe._dock_editor3d.visibilityChanged.connect(
+            lambda visible: self._on_editor_visibility('editor3d', visible))
 
-        mainframe.editor2d.Bind(_gl.EVT_GL_OBJECT_SELECTED, self.on_obj2d_selected)
-        mainframe.editor2d.Bind(_gl.EVT_GL_OBJECT_UNSELECTED, self.on_obj2d_unselected)
-        mainframe.editor3d.Bind(_gl.EVT_GL_OBJECT_SELECTED, self.on_obj3d_selected)
-        mainframe.editor3d.Bind(_gl.EVT_GL_OBJECT_UNSELECTED, self.on_obj3d_unselected)
-
-        mainframe.manager.Bind(aui.EVT_AUI_PANE_ACTIVATED, self.on_pane_activated)
-
-        self.toolbar.Realize()
-        self.manager.AddPane(self.toolbar, self)
-
-        self.Show()
-        self.manager.Update()
-
-    def set_buttons(self, align):
-        if align == -1:
-            self.align_left.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-            self.align_center.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-            self.align_right.SetState(aui.AUI_BUTTON_STATE_DISABLED)
-        else:
-            self.align_left.SetState(aui.AUI_BUTTON_STATE_NORMAL)
-            self.align_center.SetState(aui.AUI_BUTTON_STATE_NORMAL)
-            self.align_right.SetState(aui.AUI_BUTTON_STATE_NORMAL)
-
-            if align == build123d.TextAlign.LEFT:
-                self.align_left.SetState(aui.AUI_BUTTON_STATE_PRESSED)
-            elif align == build123d.TextAlign.CENTER:
-                self.align_center.SetState(aui.AUI_BUTTON_STATE_PRESSED)
-            elif align == build123d.TextAlign.RIGHT:
-                self.align_right.SetState(aui.AUI_BUTTON_STATE_PRESSED)
-            else:
-                raise RuntimeError('sanity check')
-
-    def on_pane_activated(self, evt: aui.AuiManagerEvent):
-        evt.Skip()
-        pane = evt.GetPane()
-
-        if pane == self.mainframe.editor2d:
-            obj = self.mainframe.get_selected()
-            if isinstance(obj, _note.Note):
-                self.set_buttons(obj.db_obj.h_align2d)
-        elif pane == self.mainframe.editor3d:
-            obj = self.mainframe.get_selected()
-            if isinstance(obj, _note.Note):
-                self.set_buttons(obj.db_obj.h_align3d)
-        else:
+    def _on_editor_visibility(self, editor_name: str, visible: bool):
+        if not visible:
+            return
+        obj = self.mainframe.get_selected()
+        if not isinstance(obj, _note.Note):
             self.set_buttons(-1)
-
-    def on_obj2d_selected(self, evt: _gl.GLObjectEvent):
-        evt.Skip()
-        obj = evt.GetGLObject()
-
-        # aui.AUI_BUTTON_STATE_NORMAL
-        # aui.AUI_BUTTON_STATE_HOVER
-        # aui.AUI_BUTTON_STATE_PRESSED
-        # aui.AUI_BUTTON_STATE_DISABLED
-        # aui.AUI_BUTTON_STATE_HIDDEN
-        # aui.AUI_BUTTON_STATE_CHECKED
-
-        if isinstance(obj, _note.Note):
+            return
+        if editor_name == 'editor2d':
             self.set_buttons(obj.db_obj.h_align2d)
-        else:
-            self.set_buttons(-1)
-
-    def on_obj2d_unselected(self, evt: _gl.GLObjectEvent):
-        evt.Skip()
-        self.set_buttons(-1)
-
-    def on_obj3d_selected(self, evt: _gl.GLObjectEvent):
-        evt.Skip()
-        obj = evt.GetGLObject()
-
-        # aui.AUI_BUTTON_STATE_NORMAL
-        # aui.AUI_BUTTON_STATE_HOVER
-        # aui.AUI_BUTTON_STATE_PRESSED
-        # aui.AUI_BUTTON_STATE_DISABLED
-        # aui.AUI_BUTTON_STATE_HIDDEN
-        # aui.AUI_BUTTON_STATE_CHECKED
-
-        if isinstance(obj, _note.Note):
+        elif editor_name == 'editor3d':
             self.set_buttons(obj.db_obj.h_align3d)
         else:
             self.set_buttons(-1)
 
-    def on_obj3d_unselected(self, evt: _gl.GLObjectEvent):
-        evt.Skip()
+    def set_buttons(self, align):
+        if align == -1:
+            for act in (self.align_left, self.align_center, self.align_right):
+                act.setEnabled(False)
+                act.setChecked(False)
+        else:
+            for act in (self.align_left, self.align_center, self.align_right):
+                act.setEnabled(True)
+
+            if align == build123d.TextAlign.LEFT:
+                self.align_left.setChecked(True)
+            elif align == build123d.TextAlign.CENTER:
+                self.align_center.setChecked(True)
+            elif align == build123d.TextAlign.RIGHT:
+                self.align_right.setChecked(True)
+            else:
+                raise RuntimeError('sanity check')
+
+    def on_obj2d_selected(self, evt: "_gl.GLObjectEvent"):
+        evt.skip()
+        obj = evt.GetGLObject()
+        self.set_buttons(obj.db_obj.h_align2d if isinstance(obj, _note.Note) else -1)
+
+    def on_obj2d_unselected(self, evt: "_gl.GLObjectEvent"):
+        evt.skip()
         self.set_buttons(-1)
 
-    def on_tools(self, evt):
-        evt.Skip()
+    def on_obj3d_selected(self, evt: "_gl.GLObjectEvent"):
+        evt.skip()
+        obj = evt.GetGLObject()
+        self.set_buttons(obj.db_obj.h_align3d if isinstance(obj, _note.Note) else -1)
+
+    def on_obj3d_unselected(self, evt: "_gl.GLObjectEvent"):
+        evt.skip()
+        self.set_buttons(-1)
 
     def Refresh(self, *args, **kwargs):
-        self.toolbar.Refresh(*args, **kwargs)
+        self.toolbar.repaint()
 
     def Destroy(self):
-        self.toolbar.Destroy()
+        self.toolbar.deleteLater()
 
 
-class EditorObjectToolbar(aui.AuiPaneInfo):
+# ---------------------------------------------------------------------------
+# EditorObjectToolbar
+# ---------------------------------------------------------------------------
 
-    ID_ROTATE_X = wx.NewIdRef()
-    ID_ROTATE_Y = wx.NewIdRef()
-    ID_ROTATE_Z = wx.NewIdRef()  # not available in 2d
+class EditorObjectToolbar:
+    """Transform-mode toolbar (rotate / scale / move on each axis)."""
 
-    ID_SCALE_X = wx.NewIdRef()
-    ID_SCALE_Y = wx.NewIdRef()
-    ID_SCALE_Z = wx.NewIdRef()  # not available in 2d
+    ID_ROTATE_X = _new_id()
+    ID_ROTATE_Y = _new_id()
+    ID_ROTATE_Z = _new_id()
 
-    ID_MOVE_X = wx.NewIdRef()
-    ID_MOVE_Y = wx.NewIdRef()
-    ID_MOVE_Z = wx.NewIdRef()  # not available in 2d
+    ID_SCALE_X  = _new_id()
+    ID_SCALE_Y  = _new_id()
+    ID_SCALE_Z  = _new_id()
+
+    ID_MOVE_X   = _new_id()
+    ID_MOVE_Y   = _new_id()
+    ID_MOVE_Z   = _new_id()
 
     def __init__(self, mainframe: "_mainframe.MainFrame"):
-        self.toolbar = aui.AuiToolBar(mainframe, style=aui.AUI_TB_GRIPPER)
         self.mainframe = mainframe
-        self.manager = mainframe.manager
 
-        aui.AuiPaneInfo.__init__(self)
+        tb = QToolBar('Object', mainframe)
+        tb.setObjectName('object_toolbar')
+        tb.setMovable(True)
+        tb.setFloatable(True)
+        tb.setIconSize(__import__('PySide6.QtCore', fromlist=['QSize']).QSize(32, 32))
+        self.toolbar = tb
 
-        self.Top()
-        self.Floatable(True)
-        self.Gripper(True)
-        self.Resizable(True)
-        self.Movable(True)
-        self.Name('object_toolbar')
-        self.CaptionVisible(False)
-        self.PaneBorder(True)
-        self.CloseButton(False)
-        self.MaximizeButton(False)
-        self.MinimizeButton(False)
-        self.PinButton(False)
-        self.DestroyOnClose(False)
-        self.ToolbarPane()
+        group = QActionGroup(tb)
+        group.setExclusive(True)
 
-        self.toolbar.SetToolBitmapSize((32, 32))
+        def _radio(id_: int, label: str, icon: QIcon) -> QAction:
+            act = QAction(icon, label, tb)
+            act.setCheckable(True)
+            act.setToolTip(label)
+            act.setData(id_)
+            act.triggered.connect(lambda checked=False, i=id_: self.on_tools(i))
+            group.addAction(act)
+            tb.addAction(act)
+            return act
 
-        rotate_x = _image.icons.rotate_x.resize(32, 32)
-        rotate_y = _image.icons.rotate_y.resize(32, 32)
-        rotate_z = _image.icons.rotate_z.resize(32, 32)
-        scale_x = _image.icons.scale_x.resize(32, 32)
-        scale_y = _image.icons.scale_y.resize(32, 32)
-        scale_z = _image.icons.scale_z.resize(32, 32)
-        move_x = _image.icons.move_x.resize(32, 32)
-        move_y = _image.icons.move_y.resize(32, 32)
-        move_z = _image.icons.move_z.resize(32, 32)
+        icons = _image.icons
+        _radio(self.ID_ROTATE_X, 'Rotate on X Axis', _make_icon(icons.rotate_x))
+        _radio(self.ID_ROTATE_Y, 'Rotate on Y Axis', _make_icon(icons.rotate_y))
+        _radio(self.ID_ROTATE_Z, 'Rotate on Z Axis', _make_icon(icons.rotate_z))
+        _radio(self.ID_SCALE_X,  'Scale on X Axis',  _make_icon(icons.scale_x))
+        _radio(self.ID_SCALE_Y,  'Scale on Y Axis',  _make_icon(icons.scale_y))
+        _radio(self.ID_SCALE_Z,  'Scale on Z Axis',  _make_icon(icons.scale_z))
+        _radio(self.ID_MOVE_X,   'Move on X Axis',   _make_icon(icons.move_x))
+        _radio(self.ID_MOVE_Y,   'Move on Y Axis',   _make_icon(icons.move_y))
+        _radio(self.ID_MOVE_Z,   'Move on Z Axis',   _make_icon(icons.move_z))
 
-        self.toolbar.AddTool(toolId=self.ID_ROTATE_X, label='Rotate on X Axis', bitmap=rotate_x.bitmap,
-                             short_help_string='Rotate on X Axis', kind=wx.ITEM_RADIO)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_tools, id=self.ID_ROTATE_X)
+        mainframe.addToolBar(Qt.TopToolBarArea, tb)
 
-        self.toolbar.AddTool(toolId=self.ID_ROTATE_Y, label='Rotate on Y Axis', bitmap=rotate_y.bitmap,
-                             short_help_string='Rotate on Y Axis', kind=wx.ITEM_RADIO)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_tools, id=self.ID_ROTATE_Y)
-
-        self.toolbar.AddTool(toolId=self.ID_ROTATE_Z, label='Rotate on Z Axis', bitmap=rotate_z.bitmap,
-                             short_help_string='Rotate on Z Axis', kind=wx.ITEM_RADIO)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_tools, id=self.ID_ROTATE_Z)
-
-        self.toolbar.AddTool(toolId=self.ID_SCALE_X, label='Scale on X Axis', bitmap=scale_x.bitmap,
-                             short_help_string='Scale on X Axis', kind=wx.ITEM_RADIO)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_tools, id=self.ID_SCALE_X)
-
-        self.toolbar.AddTool(toolId=self.ID_SCALE_Y, label='Scale on Y Axis', bitmap=scale_y.bitmap,
-                             short_help_string='Scale on Y Axis', kind=wx.ITEM_RADIO)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_tools, id=self.ID_SCALE_Y)
-
-        self.toolbar.AddTool(toolId=self.ID_SCALE_Z, label='Scale on Z Axis', bitmap=scale_z.bitmap,
-                             short_help_string='Scale on Z Axis', kind=wx.ITEM_RADIO)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_tools, id=self.ID_SCALE_Z)
-
-        self.toolbar.AddTool(toolId=self.ID_MOVE_X, label='Move on X Axis', bitmap=move_x.bitmap,
-                             short_help_string='Move on X Axis', kind=wx.ITEM_RADIO)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_tools, id=self.ID_MOVE_X)
-
-        self.toolbar.AddTool(toolId=self.ID_MOVE_Y, label='Move on Y Axis', bitmap=move_y.bitmap,
-                             short_help_string='Move on Y Axis', kind=wx.ITEM_RADIO)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_tools, id=self.ID_MOVE_Y)
-
-        self.toolbar.AddTool(toolId=self.ID_MOVE_Z, label='Move on Z Axis', bitmap=move_z.bitmap,
-                             short_help_string='Move on Z Axis', kind=wx.ITEM_RADIO)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_tools, id=self.ID_MOVE_Z)
-
-        self.toolbar.Realize()
-        self.manager.AddPane(self.toolbar, self)
-
-        self.Show()
-        self.manager.Update()
-
-    def on_tools(self, evt):
-        evt.Skip()
+    def on_tools(self, id_: int):
+        pass  # future: notify handlers of transform mode change
 
     def Refresh(self, *args, **kwargs):
-        self.toolbar.Refresh(*args, **kwargs)
+        self.toolbar.repaint()
 
     def Destroy(self):
-        self.toolbar.Destroy()
+        self.toolbar.deleteLater()
 
 
-class Setting3DToolbar(aui.AuiPaneInfo):
+# ---------------------------------------------------------------------------
+# Setting3DToolbar
+# ---------------------------------------------------------------------------
 
-    ID_SHOW_SPOTLIGHT = wx.NewIdRef()
-    ID_SHOW_NORMALS = wx.NewIdRef()
-    ID_SHOW_WIREFRAME = wx.NewIdRef()
-    ID_SHOW_VERTICES = wx.NewIdRef()
-    ID_SHOW_REFLECTIONS = wx.NewIdRef()
+class Setting3DToolbar:
+    """Toggle toolbar for 3D viewport display settings."""
+
+    ID_SHOW_SPOTLIGHT   = _new_id()
+    ID_SHOW_NORMALS     = _new_id()
+    ID_SHOW_WIREFRAME   = _new_id()
+    ID_SHOW_VERTICES    = _new_id()
+    ID_SHOW_REFLECTIONS = _new_id()
 
     def __init__(self, mainframe: "_mainframe.MainFrame"):
-        self.toolbar = aui.AuiToolBar(mainframe, style=aui.AUI_TB_GRIPPER)
         self.mainframe = mainframe
-        self.manager = mainframe.manager
 
-        aui.AuiPaneInfo.__init__(self)
+        tb = QToolBar('3D Settings', mainframe)
+        tb.setObjectName('settings3d_toolbar')
+        tb.setMovable(True)
+        tb.setFloatable(True)
+        tb.setIconSize(__import__('PySide6.QtCore', fromlist=['QSize']).QSize(32, 32))
+        self.toolbar = tb
 
-        self.Top()
-        self.Floatable(True)
-        self.Gripper(True)
-        self.Resizable(True)
-        self.Movable(True)
-        self.Name('settings3d_toolbar')
-        self.CaptionVisible(False)
-        self.PaneBorder(True)
-        self.CloseButton(False)
-        self.MaximizeButton(False)
-        self.MinimizeButton(False)
-        self.PinButton(False)
-        self.DestroyOnClose(False)
-        self.ToolbarPane()
+        def _toggle(id_: int, label: str, icon: QIcon, slot) -> QAction:
+            act = QAction(icon, label, tb)
+            act.setCheckable(True)
+            act.setToolTip(label)
+            act.setData(id_)
+            act.triggered.connect(slot)
+            tb.addAction(act)
+            return act
 
-        self.toolbar.SetToolBitmapSize((32, 32))
+        icons = _image.icons
+        self._wireframe   = _toggle(self.ID_SHOW_WIREFRAME,   'Show Wireframe',
+                                    _make_icon(icons.show_wireframe),   self.on_show_wireframe)
+        self._reflections = _toggle(self.ID_SHOW_REFLECTIONS, 'Show Reflections',
+                                    _make_icon(icons.reflections),       self.on_show_reflections)
+        self._spotlight   = _toggle(self.ID_SHOW_SPOTLIGHT,   'Show Spotlight',
+                                    _make_icon(icons.spot_light),        self.on_show_spotlight)
+        self._normals     = _toggle(self.ID_SHOW_NORMALS,     'Show Normals',
+                                    _make_icon(icons.normals),           self.on_show_normals)
+        self._vertices    = _toggle(self.ID_SHOW_VERTICES,    'Show Vertices',
+                                    _make_icon(icons.vertices),          self.on_show_vertices)
 
-        wireframe = _image.icons.show_wireframe.resize(32, 32).bitmap
-        normals = _image.icons.normals.resize(32, 32).bitmap
-        spotlight = _image.icons.spot_light.resize(32, 32).bitmap
-        vertices = _image.icons.vertices.resize(32, 32).bitmap
-        reflections = _image.icons.reflections.resize(32, 32).bitmap
+        mainframe.addToolBar(Qt.TopToolBarArea, tb)
 
-        self._wireframe = self.toolbar.AddTool(
-            toolId=self.ID_SHOW_WIREFRAME, label='Show Wireframe',
-            bitmap=wireframe, short_help_string='Show Wireframe',
-            kind=wx.ITEM_CHECK)
-
-        self.mainframe.Bind(wx.EVT_MENU, self.on_show_wireframe, id=self.ID_SHOW_WIREFRAME)
-
-        self._reflections = self.toolbar.AddTool(
-            toolId=self.ID_SHOW_REFLECTIONS, label='Show Reflections',
-            bitmap=reflections, short_help_string='Show Reflections',
-            kind=wx.ITEM_CHECK
-        )
-        self.mainframe.Bind(wx.EVT_MENU, self.on_show_reflections, id=self.ID_SHOW_REFLECTIONS)
-
-        self._spotlight = self.toolbar.AddTool(
-            toolId=self.ID_SHOW_SPOTLIGHT, label='Show Spotlight',
-            bitmap=spotlight, short_help_string='Show Spotlight',
-            kind=wx.ITEM_CHECK
-        )
-        self.mainframe.Bind(wx.EVT_MENU, self.on_show_spotlight, id=self.ID_SHOW_SPOTLIGHT)
-
-        self._normals = self.toolbar.AddTool(
-            toolId=self.ID_SHOW_NORMALS, label='Show Normals',
-            bitmap=normals, short_help_string='Show Normals',
-            kind=wx.ITEM_CHECK
-        )
-        self.mainframe.Bind(wx.EVT_MENU, self.on_show_normals, id=self.ID_SHOW_NORMALS)
-
-        self._vertices = self.toolbar.AddTool(
-            toolId=self.ID_SHOW_VERTICES, label='Show Vertices',
-            bitmap=vertices, short_help_string='Show Vertices',
-            kind=wx.ITEM_CHECK
-        )
-        self.mainframe.Bind(wx.EVT_MENU, self.on_show_vertices, id=self.ID_SHOW_VERTICES)
-
-        self.toolbar.Realize()
-        self.manager.AddPane(self.toolbar, self)
-
-        self.Show()
-        self.manager.Update()
-
-    def on_show_wireframe(self, evt):
-        evt.Skip()
-
-    def on_show_reflections(self, evt):
-        evt.Skip()
-
-    def on_show_spotlight(self, evt):
-        evt.Skip()
-
-    def on_show_vertices(self, evt):
-        evt.Skip()
-
-    def on_show_normals(self, evt):
-        evt.Skip()
+    def on_show_wireframe(self, checked: bool): pass
+    def on_show_reflections(self, checked: bool): pass
+    def on_show_spotlight(self, checked: bool): pass
+    def on_show_normals(self, checked: bool): pass
+    def on_show_vertices(self, checked: bool): pass
 
     def Refresh(self, *args, **kwargs):
-        self.toolbar.Refresh(*args, **kwargs)
+        self.toolbar.repaint()
 
     def Destroy(self):
-        self.toolbar.Destroy()
+        self.toolbar.deleteLater()
 
 
-class GeneralToolbar(aui.AuiPaneInfo):
+# ---------------------------------------------------------------------------
+# GeneralToolbar
+# ---------------------------------------------------------------------------
 
-    # --- single click buttons ---
-    ID_BROWSER = wx.NewIdRef()
-    ID_SETTINGS = wx.NewIdRef()
-    ID_TOOLS = wx.NewIdRef()
+class GeneralToolbar:
+    """Application-level toolbar (browser, settings, tools, connect, BOM)."""
 
-    # connect to database (only available with mysql)
-    ID_CONNECT = wx.NewIdRef()
-    ID_BOM = wx.NewIdRef()
+    ID_BROWSER  = _new_id()
+    ID_SETTINGS = _new_id()
+    ID_TOOLS    = _new_id()
+    ID_CONNECT  = _new_id()
+    ID_BOM      = _new_id()
 
     def __init__(self, mainframe: "_mainframe.MainFrame"):
-        self.toolbar = aui.AuiToolBar(mainframe, style=aui.AUI_TB_GRIPPER)
         self.mainframe = mainframe
-        self.manager = mainframe.manager
 
-        aui.AuiPaneInfo.__init__(self)
+        tb = QToolBar('General', mainframe)
+        tb.setObjectName('general_toolbar')
+        tb.setMovable(True)
+        tb.setFloatable(True)
+        tb.setIconSize(__import__('PySide6.QtCore', fromlist=['QSize']).QSize(32, 32))
+        self.toolbar = tb
 
-        self.Top()
-        self.Floatable(True)
-        self.Gripper(True)
-        self.Resizable(True)
-        self.Movable(True)
-        self.Name('general_toolbar')
-        self.CaptionVisible(False)
-        self.PaneBorder(True)
-        self.CloseButton(False)
-        self.MaximizeButton(False)
-        self.MinimizeButton(False)
-        self.PinButton(False)
-        self.DestroyOnClose(False)
-        self.ToolbarPane()
+        def _push(id_: int, label: str, icon: QIcon, slot) -> QAction:
+            act = QAction(icon, label, tb)
+            act.setToolTip(label)
+            act.setData(id_)
+            act.triggered.connect(slot)
+            tb.addAction(act)
+            return act
 
-        self.toolbar.SetToolBitmapSize((32, 32))
+        icons = _image.icons
+        _push(self.ID_BROWSER,  'Internet',          _make_icon(icons.internet), self.on_browser)
+        _push(self.ID_SETTINGS, 'Settings',          _make_icon(icons.settings), self.on_settings)
+        _push(self.ID_TOOLS,    'Tools',             _make_icon(icons.tool),     self.on_tools)
+        _push(self.ID_CONNECT,  'Connect Database',  _make_icon(icons.connect),  self.on_database)
+        _push(self.ID_BOM,      'BOM',               _make_icon(icons.bom),      self.on_bom)
 
-        bom = _image.icons.bom.resize(32, 32)
-        connect = _image.icons.connect.resize(32, 32)
-        internet = _image.icons.internet.resize(32, 32)
-        tool = _image.icons.tool.resize(32, 32)
-        settings = _image.icons.settings.resize(32, 32)
+        mainframe.addToolBar(Qt.TopToolBarArea, tb)
 
-        self.toolbar.AddTool(toolId=self.ID_BROWSER, label='Internet', bitmap=internet.bitmap,
-                             short_help_string='Internet', kind=wx.ITEM_NORMAL)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_browser, id=self.ID_BROWSER)
-
-        self.toolbar.AddTool(toolId=self.ID_SETTINGS, label='Settings', bitmap=settings.bitmap,
-                             short_help_string='Settings', kind=wx.ITEM_NORMAL)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_settings, id=self.ID_SETTINGS)
-
-        self.toolbar.AddTool(toolId=self.ID_TOOLS, label='Tools', bitmap=tool.bitmap,
-                             short_help_string='Tools', kind=wx.ITEM_NORMAL)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_tools, id=self.ID_TOOLS)
-
-        self.toolbar.AddTool(toolId=self.ID_CONNECT, label='Connect Database', bitmap=connect.bitmap,
-                             short_help_string='Connect Database', kind=wx.ITEM_NORMAL)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_database, id=self.ID_CONNECT)
-
-        self.toolbar.AddTool(toolId=self.ID_BOM, label='BOM', bitmap=bom.bitmap,
-                             short_help_string='BOM', kind=wx.ITEM_NORMAL)
-        self.mainframe.Bind(wx.EVT_MENU, self.on_bom, id=self.ID_BOM)
-
-        self.toolbar.Realize()
-        self.manager.AddPane(self.toolbar, self)
-
-        self.Show()
-        self.manager.Update()
-
-    def on_browser(self, evt):
-        evt.Skip()
-
-    def on_settings(self, evt):
-        evt.Skip()
-
-    def on_tools(self, evt):
-        evt.Skip()
-
-    def on_database(self, evt):
-        evt.Skip()
-
-    def on_bom(self, evt):
-        evt.Skip()
+    def on_browser(self, checked: bool = False): pass
+    def on_settings(self, checked: bool = False): pass
+    def on_tools(self, checked: bool = False): pass
+    def on_database(self, checked: bool = False): pass
+    def on_bom(self, checked: bool = False): pass
 
     def Refresh(self, *args, **kwargs):
-        self.toolbar.Refresh(*args, **kwargs)
+        self.toolbar.repaint()
 
     def Destroy(self):
-        self.toolbar.Destroy()
+        self.toolbar.deleteLater()

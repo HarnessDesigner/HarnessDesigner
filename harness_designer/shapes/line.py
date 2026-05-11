@@ -1,11 +1,13 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
 import wx
 
-from ...geometry import point as _point
-from ...geometry import line as _line
-from ...wrappers.decimal import Decimal as _decimal
-from ...wrappers import color as _color
+from ..geometry import point as _point
+from ..geometry import line as _line
+from ..geometry.decimal import Decimal as _decimal
+from .. import color as _color
 
 
 if TYPE_CHECKING:

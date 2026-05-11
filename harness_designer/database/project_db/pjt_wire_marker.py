@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 import weakref
@@ -16,9 +18,9 @@ from .mixins import (
     NotesMixin, NotesControl
 )
 
+
 if TYPE_CHECKING:
     from . import pjt_wire as _pjt_wire
-
     from ...objects import wire_marker as _wire_marker_obj
 
 

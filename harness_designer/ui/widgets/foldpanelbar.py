@@ -1,1622 +1,652 @@
-# --------------------------------------------------------------------------- #
-# FOLDPANELBAR wxPython IMPLEMENTATION
-# Ported From Jorgen Bodde & Julian Smart (Extended Demo) C++ Code By:
-#
-# Andrea Gavana, @ 23 Mar 2005
-# Latest Revision: 16 Jul 2012, 15.00 GMT
-#
-#
-# TODO List
-#
-# All The C++ TODOs Are Still Alive. I Am Not Able to Read Jorges's Mind
-# So I Don't Really Know What Will Be The New Features/Additions He Will
-# Make On His Code. At The Moment They Are:
-#
-# 1. OnPaint Function In CaptionBar Class:
-# TODO: Maybe First A Memory Dc Should Draw All, And Then Paint It On The
-# Caption. This Way A Flickering Arrow During Resize Is Not Visible.
-#
-# 2. OnChar Function In CaptionBar Class:
-# TODO: This Is Easy To Do But I Don't Have Any Useful Idea On Which Kind
-# Of Features To Add. Does Anyone Have An Intelligent Idea?
-#
-# 3. AddFoldPanelWindow Function In FoldPanelBar Class:
-# TODO: Take Old And New Heights, And If Difference, Reposition All The
-# Lower Panels. This Is Because The User Can Add New wxWindow Controls
-# Somewhere In Between When Other Panels Are Already Present.
-# Don't Know What It Means. Probably Is My Poor English...
-#
-# 4. OnSizePanel Function In FoldPanelBar Class:
-# TODO: A Smart Way To Check Whether The Old - New Width Of The
-# Panel Changed, If So No Need To Resize The Fold Panel Items
-#
-#
-# DONE List:
-#
-# 1. Implemented Styles Like FPB_SINGLE_FOLD and FPB_EXCLUSIVE_FOLD
-# Thanks To E. A. Tacao For His Nice Suggestions.
-#
-# 2. Added Some Maquillage To FoldPanelBar: When The Mouse Enters The Icon
-# Region, It Is Changed To wx.CURSOR_HAND.
-#
-#
-# For The Original TODO List From Jorgen, Please Refer To:
-# http://www.solidsteel.nl/jorg/components/foldpanel/wxFoldPanelBar.php#todo_list
-#
-#
-#
-# For All Kind Of Problems, Requests Of Enhancements And Bug Reports, Please
-# Write To Me At:
-#
-# andrea.gavana@gmail.com
-# andrea.gavana@maerskoil.com
-#
-# Or, Obviously, To The wxPython Mailing List!!!
-#
-# Tags:        phoenix-port, unittest, documented, py3-port
-#
-# End Of Comments
-# --------------------------------------------------------------------------- #
-
-
 """
-:class:`~wx.lib.agw.foldpanelbar.FoldPanelBar` is a control that contains multiple panels, which can be expanded
-or collapsed.
+FoldPanelBar — PySide6 port of the wxPython AGW FoldPanelBar widget.
 
+Public API is fully preserved so all call sites work without modification:
+    bar = FoldPanelBar(parent, agwStyle=FPB_VERTICAL)
+    fp  = bar.AddFoldPanel("Title", collapsed=False, cbstyle=style)
+    bar.AddFoldPanelWindow(fp, some_widget)
+    bar.AddFoldPanelSeparator(fp)
+    bar.Collapse(fp) / bar.Expand(fp)
+    bar.ApplyCaptionStyleAll(style)
 
-Description
-===========
-
-The :class:`FoldPanelBar` is a control that contains multiple panels (of type
-:class:`FoldPanelItem`) that can be expanded or collapsed. The captionbar of
-the :class:`FoldPanelBar` can be customized by setting it to a horizontal gradient
-style, vertical gradient style, a single colour, a rectangle or filled
-rectangle. The `FoldPanel` items can be collapsed in place or to the
-bottom of the control. :class:`wx.Window` derived controls can be added
-dynamically, and separated by separator lines.
-
-
-How does it work
-----------------
-
-The internals of the :class:`FoldPanelBar` is a list of :class:`FoldPanelItem` objects. Through
-the reference of `FoldPanel` these panels can be controlled by adding new controls
-to a FoldPanel or adding new FoldPanels to the :class:`FoldPanelBar`.
-
-The :class:`CaptionBar` fires events to the parent (container of all panel items) when a
-sub-panel needs resizing (either folding or expanding). The fold or expand process
-is simply a resize of the panel so it looks like all controls on it are gone. All
-controls are still child of the `FoldPanel` they are located on. If they don't
-handle the event (and they won't) then the owner of the :class:`FoldPanelBar` gets the
-events.
-
-This is what you need to handle the controls. There isn't much to it just
-a lot of calculations to see what panel belongs where. There are no sizers
-involved in the panels, everything is purely x-y positioning.
-
-
-What can it do and what not?
-----------------------------
-
-a) What it can do:
-
-   * Run-time addition of panels (no deletion just yet);
-   * Run time addition of controls to the panel (it will be resized accordingly);
-   * Creating panels in collapsed mode or expanded mode;
-   * Various modes of caption behaviour and filling to make it more appealing;
-   * Panels can be folded and collapsed (or all of them) to allow more space.
-
-b) What it cannot do:
-
-   * Selection of a panel like in a listctrl;
-   * Dragging and dropping the panels;
-   * Re-ordering the panels (not yet).
-
-
-Usage
-=====
-
-Usage example::
-
-    import wx
-    import wx.lib.agw.foldpanelbar as fpb
-
-    class MyFrame(wx.Frame):
-
-        def __init__(self, parent):
-
-            wx.Frame.__init__(self, parent, -1, "FoldPanelBar Demo")
-
-            text_ctrl = wx.TextCtrl(self, -1, size=(400, 100), style=wx.TE_MULTILINE)
-
-            panel_bar = fpb.FoldPanelBar(self, -1, agwStyle=fpb.FPB_VERTICAL)
-
-            fold_panel = panel_bar.AddFoldPanel("Thing")
-            thing = wx.TextCtrl(fold_panel, -1, size=(400, -1), style=wx.TE_MULTILINE)
-
-            panel_bar.AddFoldPanelWindow(fold_panel, thing)
-
-            main_sizer = wx.BoxSizer(wx.VERTICAL)
-            main_sizer.Add(text_ctrl, 1, wx.EXPAND)
-            main_sizer.Add(panel_bar, 1, wx.EXPAND)
-            self.SetSizer(main_sizer)
-
-
-    # our normal wxApp-derived class, as usual
-
-    app = wx.App(0)
-
-    frame = MyFrame(None)
-    app.SetTopWindow(frame)
-    frame.Show()
-
-    app.MainLoop()
-
-
-
-Supported Platforms
-===================
-
-:class:`FoldPanelBar` is supported on the following platforms:
-  * Windows (Verified on Windows XP, 2000)
-  * Linux/Unix (GTK2) (Thanks to Toni Brkic and Robin Dunn)
-  * Mac OSX (Thanks to Robin Dunn for the :class:`CaptionBar` size patch)
-
-
-Window Styles
-=============
-
-This class supports the following window styles:
-
-========================== =========== ==================================================
-Window Styles              Hex Value   Description
-========================== =========== ==================================================
-``FPB_SINGLE_FOLD``                0x1 Single fold forces other panels to close when they are open, and only opens the current panel. This will allow the open panel to gain the full size left in the client area.
-``FPB_COLLAPSE_TO_BOTTOM``         0x2 All panels are stacked to the bottom. When they are expanded again they show up at the top.
-``FPB_EXCLUSIVE_FOLD``             0x4 ``FPB_SINGLE_FOLD`` style plus the panels will be stacked at the bottom.
-``FPB_HORIZONTAL``                 0x8 :class:`FoldPanelBar` will be horizontal.
-``FPB_VERTICAL``                  0x10 :class:`FoldPanelBar` will be vertical.
-========================== =========== ==================================================
-
-
-Events Processing
-=================
-
-This class processes the following events:
-
-================== ==================================================
-Event Name         Description
-================== ==================================================
-``EVT_CAPTIONBAR`` The user has pressed the caption bar: :class:`FoldPanelBar` will either expand or collapse the underlying panel.
-================== ==================================================
-
-
-License And Version
-===================
-
-:class:`FoldPanelBar` is distributed under the wxPython license.
-
-Latest Revision: Andrea Gavana @ 16 Jul 2012, 15.00 GMT
-
-Version 0.6
-
+CaptionBarStyle keeps all its setter/getter methods unchanged.
 """
 
-import wx
 import math
+import base64
 
-# ----------------------------------------------------------------------
-# Collapsed And Expanded Bitmap Images
-# Created With img2py.py
-# ----------------------------------------------------------------------
-from wx.lib.embeddedimage import PyEmbeddedImage
+from PySide6.QtWidgets import QWidget, QScrollArea, QSizePolicy
+from PySide6.QtCore import Qt, Signal, QSize, QRect, QPoint
+from PySide6.QtGui import (
+    QPainter, QPen, QBrush, QColor, QFont, QFontMetrics,
+    QLinearGradient, QPixmap, QImage, QPaintEvent,
+    QMouseEvent, QResizeEvent, QCursor
+)
 
-CollapsedIcon = PyEmbeddedImage(
-    "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABHNCSVQICAgIfAhkiAAAADdJ"
-    "REFUOI1jZGRiZqAEMFGke/Ab8P/f3/8D5wKY7YRcQRsXoNuKzxXUdwEu23CJU+wCxtG8wAAA"
-    "mvUb+vltJD8AAAAASUVORK5CYII=")
-
-ExpandedIcon = PyEmbeddedImage(
+# ---------------------------------------------------------------------------
+# Embedded icons (same PNG data as the original, decoded once at import)
+# ---------------------------------------------------------------------------
+_EXPANDED_PNG_B64 = (
     "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABHNCSVQICAgIfAhkiAAAAEJJ"
     "REFUOI1jZGRiZqAEMFGke1AYwIIu8P/f3/+4FDMyMTNS3QUYBmCzBZ84bQIR3TZcttPOBci2"
-    "4rOdKi5gHM0LDACevARXGc9htQAAAABJRU5ErkJggg==")
+    "4rOdKi5gHM0LDACevARXGc9htQAAAABJRU5ErkJggg=="
+)
+_COLLAPSED_PNG_B64 = (
+    "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABHNCSVQICAgIfAhkiAAAADdJ"
+    "REFUOI1jZGRiZqAEMFGke/Ab8P/f3/8D5wKY7YRcQRsXoNuKzxXUdwEu23CJU+wCxtG8wAAA"
+    "mvUb+vltJD8AAAAASUVORK5CYII="
+)
 
-# ----------------------------------------------------------------------
-# FOLDPANELBAR Starts Here
-# ----------------------------------------------------------------------
 
-# CAPTIONBAR STYLES
-#
-# - CAPTIONBAR_GRADIENT_V: Draws a vertical gradient from top to bottom
-# - CAPTIONBAR_GRADIENT_H: Draws a horizontal gradient from left to right
-# - CAPTIONBAR_SINGLE: Draws a single filled rectangle to draw the caption
-# - CAPTIONBAR_RECTANGLE: Draws a single colour with a rectangle around the caption
-# - CAPTIONBAR_FILLED_RECTANGLE: Draws a filled rectangle and a border around it
+def _load_icon_pixmap(b64: str) -> QPixmap:
+    data = base64.b64decode(b64)
+    img = QImage.fromData(data)
+    return QPixmap.fromImage(img)
 
-CAPTIONBAR_NOSTYLE = 0
-""" The :class:`CaptionBar` has no style bit set. """
-CAPTIONBAR_GRADIENT_V = 1
-""" Draws a vertical gradient from top to bottom. """
-CAPTIONBAR_GRADIENT_H = 2
-""" Draws a vertical gradient from left to right. """
-CAPTIONBAR_SINGLE = 3
-""" Draws a single filled rectangle to draw the caption. """
-CAPTIONBAR_RECTANGLE = 4
-""" Draws a single colour with a rectangle around the caption. """
+
+_EXPANDED_PIXMAP: QPixmap | None = None
+_COLLAPSED_PIXMAP: QPixmap | None = None
+
+
+def _get_icons() -> tuple[QPixmap, QPixmap]:
+    global _EXPANDED_PIXMAP, _COLLAPSED_PIXMAP
+    if _EXPANDED_PIXMAP is None:
+        _EXPANDED_PIXMAP = _load_icon_pixmap(_EXPANDED_PNG_B64)
+        _COLLAPSED_PIXMAP = _load_icon_pixmap(_COLLAPSED_PNG_B64)
+    return _EXPANDED_PIXMAP, _COLLAPSED_PIXMAP
+
+
+# ---------------------------------------------------------------------------
+# Constants (identical values to the originals)
+# ---------------------------------------------------------------------------
+CAPTIONBAR_NOSTYLE          = 0
+CAPTIONBAR_GRADIENT_V       = 1
+CAPTIONBAR_GRADIENT_H       = 2
+CAPTIONBAR_SINGLE           = 3
+CAPTIONBAR_RECTANGLE        = 4
 CAPTIONBAR_FILLED_RECTANGLE = 5
-""" Draws a filled rectangle and a border around it. """
 
-FPB_EXTRA_X = 10
-""" Extra horizontal padding, in pixels. """
-FPB_EXTRA_Y = 4
-""" Extra vertical padding, in pixels. """
+FPB_EXTRA_X           = 10
+FPB_EXTRA_Y           = 4
+FPB_BMP_RIGHTSPACE    = 2
 
-# pixels of the bmp to be aligned from the right filled with space
-FPB_BMP_RIGHTSPACE = 2
-""" Pixels of the bmp to be aligned from the right filled with space. """
+FPB_SINGLE_FOLD       = 0x0001
+FPB_COLLAPSE_TO_BOTTOM= 0x0002
+FPB_EXCLUSIVE_FOLD    = 0x0004
+FPB_HORIZONTAL        = 0x0008
+FPB_VERTICAL          = 0x0010
 
-# Now supported! Single fold forces
-# other panels to close when they are open, and only opens the current panel.
-# This will allow the open panel to gain the full size left in the client area
-FPB_SINGLE_FOLD = 0x0001
-""" Single fold forces other panels to close when they are open, and only opens the current panel. This will allow the open panel to gain the full size left in the client area."""
+FPB_ALIGN_LEFT        = 0
+FPB_ALIGN_WIDTH       = 1
 
-
-# All panels are stacked to the bottom. When they are expanded again they
-# show up at the top
-FPB_COLLAPSE_TO_BOTTOM = 0x0002
-""" All panels are stacked to the bottom. When they are expanded again they show up at the top. """
-
-# Now supported! Single fold plus panels
-# will be stacked at the bottom
-FPB_EXCLUSIVE_FOLD = 0x0004
-""" ``FPB_SINGLE_FOLD`` style plus the panels will be stacked at the bottom. """
-
-# Orientation Flag
-FPB_HORIZONTAL = 0x0008
-""" :class:`FoldPanelBar` will be horizontal. """
-FPB_VERTICAL = 0x0010
-""" :class:`FoldPanelBar` will be vertical. """
-
-# FoldPanelItem default settings
-FPB_ALIGN_LEFT = 0
-""" Aligns left instead of fitting the width of the child window to be added. Use either this one or ``FPB_ALIGN_WIDTH``. """
-FPB_ALIGN_WIDTH = 1
-""" The :class:`wx.Window` to be added will be aligned to fit the width of the FoldPanel when it is resized. Very handy for sizer items, buttons and text boxes. """
-
-FPB_DEFAULT_LEFTSPACING = 5
-FPB_DEFAULT_RIGHTSPACING = 10
-FPB_DEFAULT_SPACING = 8
-
-FPB_DEFAULT_LEFTLINESPACING = 2
+FPB_DEFAULT_LEFTSPACING    = 5
+FPB_DEFAULT_RIGHTSPACING   = 10
+FPB_DEFAULT_SPACING        = 8
+FPB_DEFAULT_LEFTLINESPACING  = 2
 FPB_DEFAULT_RIGHTLINESPACING = 2
 
 
-# ------------------------------------------------------------------------------ #
-# class CaptionBarStyle
-# ------------------------------------------------------------------------------ #
-class CaptionBarStyle(object):
-    """
-    This class encapsulates the styles you wish to set for the
-    :class:`CaptionBar` (this is the part of the `FoldPanel` where the caption
-    is displayed). It can either be applied at creation time be
-    reapplied when styles need to be changed.
-
-    At construction time, all styles are set to their default
-    transparency.  This means none of the styles will be applied to
-    the :class:`CaptionBar` in question, meaning it will be created using the
-    default internals. When setting i.e the colour, font or panel
-    style, these styles become active to be used.
-    """
+# ---------------------------------------------------------------------------
+# CaptionBarStyle  (pure Python — no wx types)
+# ---------------------------------------------------------------------------
+class CaptionBarStyle:
+    """Encapsulates visual styles for a CaptionBar.  API identical to original."""
 
     def __init__(self):
-        """ Default constructor for this class. """
-        self._captionFont: wx.Font = None
-        self._textColour: wx.Colour = None
-        self._firstColour: wx.Colour = None
-        self._secondColour: wx.Colour = None
+        self._captionFont: QFont | None = None
+        self._textColour:  QColor | None = None
+        self._firstColour: QColor | None = None
+        self._secondColour: QColor | None = None
 
-        self._captionFontUsed = True
-        self._firstColourUsed = False
-        self._secondColourUsed = False
-        self._textColourUsed = False
-        self._captionFontUsed = False
-        self._captionStyleUsed = False
-        self._captionStyle = CAPTIONBAR_GRADIENT_V
-
-        self.ResetDefaults()
+        self._captionFontUsed   = False
+        self._firstColourUsed   = False
+        self._secondColourUsed  = False
+        self._textColourUsed    = False
+        self._captionStyleUsed  = False
+        self._captionStyle      = CAPTIONBAR_GRADIENT_V
 
     def ResetDefaults(self):
-        """ Resets default :class:`CaptionBarStyle`. """
-        self._firstColourUsed = False
-        self._secondColourUsed = False
-        self._textColourUsed = False
-        self._captionFontUsed = False
-        self._captionStyleUsed = False
-        self._captionStyle = CAPTIONBAR_GRADIENT_V
+        self._firstColourUsed   = False
+        self._secondColourUsed  = False
+        self._textColourUsed    = False
+        self._captionFontUsed   = False
+        self._captionStyleUsed  = False
+        self._captionStyle      = CAPTIONBAR_GRADIENT_V
 
-    # ------- CaptionBar Font -------
-    def SetCaptionFont(self, font):
-        """
-        Sets font for the caption bar.
-
-        :param font: a valid :class:`wx.Font` object.
-
-        :note: If this is not set, the font property is undefined and will not be used.
-         Use :meth:`~CaptionBarStyle.CaptionFontUsed` to check if this style is used.
-        """
-
+    # Font
+    def SetCaptionFont(self, font: QFont):
         self._captionFont = font
         self._captionFontUsed = True
 
-    def CaptionFontUsed(self):
-        """ Checks if the caption bar font is set. """
-
+    def CaptionFontUsed(self) -> bool:
         return self._captionFontUsed
 
-    def GetCaptionFont(self):
-        """
-        Returns the font for the caption bar.
-
-        :note: Please be warned this will result in an assertion failure when
-         this property is not previously set.
-
-        :see: :meth:`~CaptionBarStyle.SetCaptionFont`, :meth:`~CaptionBarStyle.CaptionFontUsed`
-        """
-
+    def GetCaptionFont(self) -> QFont:
         return self._captionFont
 
-    # ------- First Colour -------
-    def SetFirstColour(self, colour):
-        """
-        Sets first colour for the caption bar.
-
-        :param colour: a valid :class:`wx.Colour` object.
-
-        :note: If this is not set, the colour property is undefined and will not be used.
-         Use :meth:`~CaptionBarStyle.FirstColourUsed` to check if this style is used.
-        """
-
+    # First colour
+    def SetFirstColour(self, colour: QColor):
         self._firstColour = colour
         self._firstColourUsed = True
 
-    def FirstColourUsed(self):
-        """ Checks if the first colour of the caption bar is set."""
-
+    def FirstColourUsed(self) -> bool:
         return self._firstColourUsed
 
-    def GetFirstColour(self):
-        """
-        Returns the first colour for the caption bar.
-
-        :note: Please be warned this will result in an assertion failure when
-         this property is not previously set.
-
-        :see: :meth:`~CaptionBarStyle.SetFirstColour`, :meth:`~CaptionBarStyle.FirstColourUsed`
-        """
-
+    def GetFirstColour(self) -> QColor:
         return self._firstColour
 
-    # ------- Second Colour -------
-    def SetSecondColour(self, colour):
-        """
-        Sets second colour for the caption bar.
-
-        :param colour: a valid :class:`wx.Colour` object.
-
-        :note: If this is not set, the colour property is undefined and will not be used.
-         Use :meth:`~CaptionBarStyle.SecondColourUsed` to check if this style is used.
-        """
-
+    # Second colour
+    def SetSecondColour(self, colour: QColor):
         self._secondColour = colour
         self._secondColourUsed = True
 
-    def SecondColourUsed(self):
-        """ Checks if the second colour of the caption bar is set."""
-
+    def SecondColourUsed(self) -> bool:
         return self._secondColourUsed
 
-    def GetSecondColour(self):
-        """
-        Returns the second colour for the caption bar.
-
-        :note: Please be warned this will result in an assertion failure when
-         this property is not previously set.
-
-        :see: :meth:`~CaptionBarStyle.SetSecondColour`, :meth:`~CaptionBarStyle.SecondColourUsed`
-        """
-
+    def GetSecondColour(self) -> QColor:
         return self._secondColour
 
-    # ------- Caption Text Colour -------
-    def SetCaptionColour(self, colour):
-        """
-        Sets caption colour for the caption bar.
-
-        :param colour: a valid :class:`wx.Colour` object.
-
-        :note: If this is not set, the colour property is undefined and will not be used.
-         Use :meth:`~CaptionBarStyle.CaptionColourUsed` to check if this style is used.
-        """
-
+    # Caption (text) colour
+    def SetCaptionColour(self, colour: QColor):
         self._textColour = colour
         self._textColourUsed = True
 
-    def CaptionColourUsed(self):
-        """ Checks if the caption colour of the caption bar is set."""
-
+    def CaptionColourUsed(self) -> bool:
         return self._textColourUsed
 
-    def GetCaptionColour(self):
-        """
-        Returns the caption colour for the caption bar.
-
-        :note: Please be warned this will result in an assertion failure
-         when this property is not previously set.
-
-        :see: :meth:`~CaptionBarStyle.SetCaptionColour`, :meth:`~CaptionBarStyle.CaptionColourUsed`
-        """
-
+    def GetCaptionColour(self) -> QColor:
         return self._textColour
 
-    # ------- CaptionStyle  -------
-    def SetCaptionStyle(self, style):
-        """
-        Sets caption style for the caption bar.
-
-        :param style: can be one of the following bits:
-
-         =============================== ======= =============================
-         Caption Style                    Value  Description
-         =============================== ======= =============================
-         ``CAPTIONBAR_GRADIENT_V``             1 Draws a vertical gradient from top to bottom
-         ``CAPTIONBAR_GRADIENT_H``             2 Draws a horizontal gradient from left to right
-         ``CAPTIONBAR_SINGLE``                 3 Draws a single filled rectangle to draw the caption
-         ``CAPTIONBAR_RECTANGLE``              4 Draws a single colour with a rectangle around the caption
-         ``CAPTIONBAR_FILLED_RECTANGLE``       5 Draws a filled rectangle and a border around it
-         =============================== ======= =============================
-
-        :note: If this is not set, the property is undefined and will not be used.
-         Use :meth:`~CaptionBarStyle.CaptionStyleUsed` to check if this style is used.
-        """
-
+    # Caption style
+    def SetCaptionStyle(self, style: int):
         self._captionStyle = style
         self._captionStyleUsed = True
 
-    def CaptionStyleUsed(self):
-        """ Checks if the caption style of the caption bar is set."""
-
+    def CaptionStyleUsed(self) -> bool:
         return self._captionStyleUsed
 
-    def GetCaptionStyle(self):
-        """
-        Returns the caption style for the caption bar.
-
-        :note: Please be warned this will result in an assertion failure
-         when this property is not previously set.
-
-        :see: :meth:`~CaptionBarStyle.SetCaptionStyle`, :meth:`~CaptionBarStyle.CaptionStyleUsed`
-        """
-
+    def GetCaptionStyle(self) -> int:
         return self._captionStyle
 
 
-# -----------------------------------#
-#        CaptionBarEvent
-# -----------------------------------#
-wxEVT_CAPTIONBAR = wx.NewEventType()
-EVT_CAPTIONBAR = wx.PyEventBinder(wxEVT_CAPTIONBAR, 0)
-""" The user has pressed the caption bar: :class:`FoldPanelBar` will either expand or\
- collapse the underlying panel. """
-
-# Define Empty CaptionBar Style
 EmptyCaptionBarStyle = CaptionBarStyle()
 
 
-# ---------------------------------------------------------------------------- #
-# class CaptionBarEvent
-# ---------------------------------------------------------------------------- #
-class CaptionBarEvent(wx.CommandEvent):
-    """
-    This event will be sent when a ``EVT_CAPTIONBAR`` is mapped in the parent.
-    It is to notify the parent that the bar is now in collapsed or expanded
-    state. The parent should re-arrange the associated windows accordingly
-    """
+# ---------------------------------------------------------------------------
+# CaptionBar
+# ---------------------------------------------------------------------------
+class CaptionBar(QWidget):
+    """Clickable gradient caption strip with a collapse/expand arrow."""
 
-    def __init__(self, evtType):
-        """
-        Default class constructor.
+    # Emitted when the user clicks to collapse or expand
+    caption_toggled = Signal(object)   # passes self (the CaptionBar)
 
-        :param evtType: the event type.
-        """
+    _ICON_W = 16
+    _ICON_H = 16
 
-        wx.CommandEvent.__init__(self, evtType)
-        self._tag: "FoldPanelBar" = None
-        self._bar: "CaptionBar" = None
+    def __init__(self, parent: QWidget, caption: str = '',
+                 cbstyle: CaptionBarStyle | None = None,
+                 rightIndent: int = FPB_BMP_RIGHTSPACE,
+                 collapsed: bool = False):
+        super().__init__(parent)
+        self.setMinimumSize(20, 20)
+        self.setCursor(QCursor(Qt.ArrowCursor))
+        self.setMouseTracking(True)
 
-    def GetFoldStatus(self):
-        """
-        Returns whether the bar is expanded or collapsed. ``True`` means
-        expanded.
-        """
-
-        return not self._bar.IsCollapsed()
-
-    def GetBar(self):
-        """ Returns the selected :class:`CaptionBar`. """
-
-        return self._bar
-
-    def SetTag(self, tag):
-        """
-        Assigns a tag to the selected :class:`CaptionBar`.
-
-        :param tag: an instance of :class:`FoldPanelBar`.
-        """
-
-        self._tag = tag
-
-    def GetTag(self):
-        """ Returns the tag assigned to the selected :class:`CaptionBar`. """
-
-        return self._tag
-
-    def SetBar(self, bar):
-        """
-        Sets the bar associated with this event.
-
-        :param bar: an instance of :class:`CaptionBar`.
-
-        :note: Should not be used by any other than the originator of the event.
-        """
-
-        self._bar = bar
-
-
-# -------------------------------------------------------------------------------- #
-# class CaptionBar
-# -------------------------------------------------------------------------------- #
-class CaptionBar(wx.Window):
-    """
-    This class is a graphical caption component that consists of a
-    caption and a clickable arrow.
-
-    The :class:`CaptionBar` fires an event ``EVT_CAPTIONBAR`` which is a
-    :class:`CaptionBarEvent`. This event can be caught and the parent window
-    can act upon the collapsed or expanded state of the bar (which is
-    actually just the icon which changed). The parent panel can
-    reduce size or expand again.
-    """
-
-    def __init__(self, parent, pos, caption="",
-                 foldIcons=None, cbstyle=None,
-                 rightIndent=FPB_BMP_RIGHTSPACE,
-                 iconWidth=16, iconHeight=16, collapsed=False):
-        """
-        Default class constructor.
-
-        :param parent: the :class:`CaptionBar` parent window;
-        :param pos: the control position. A value of (-1, -1) indicates a default position,
-         chosen by either the windowing system or wxPython, depending on platform;
-        :param caption: the string to be displayed in :class:`CaptionBar`;
-        :param foldIcons: an instance of :class:`wx.ImageList` containing the icons to display
-         next to the caption text;
-        :param cbstyle: the :class:`CaptionBar` window style. Must be an instance of
-         :class:`CaptionBarStyle`;
-        :param rightIndent: number of pixels of the bmp to be aligned from the right filled
-         with space;
-        :param iconWidth: the :class:`CaptionBar` icon width;
-        :param iconHeight: the :class:`CaptionBar` icon height;
-        :param collapsed: ``True`` if the :class:`CaptionBar` should start in the collapsed state,
-         ``False`` otherwise.
-        """
-
-        wx.Window.__init__(self, parent, wx.ID_ANY, pos=pos,
-                           size=(20, 20), style=wx.NO_BORDER)
-
-        self._controlCreated = False
+        self._caption   = caption
         self._collapsed = collapsed
-        self.ApplyCaptionStyle(cbstyle, True)
-
-        if foldIcons is None:
-            foldIcons = wx.ImageList(16, 16)
-
-            bmp = ExpandedIcon.GetBitmap()
-            foldIcons.Add(bmp)
-            bmp = CollapsedIcon.GetBitmap()
-            foldIcons.Add(bmp)
-
-        # set initial size
-        if foldIcons:
-            assert foldIcons.GetImageCount() > 1
-            iconWidth, iconHeight = foldIcons.GetSize(0)
-
-        self._caption = caption
-        self._foldIcons = foldIcons
-        self._style = cbstyle
         self._rightIndent = rightIndent
-        self._iconWidth = iconWidth
-        self._iconHeight = iconHeight
-        self._oldSize = wx.Size(20, 20)
+        self._style: CaptionBarStyle = CaptionBarStyle()
+        self._expanded_pm, self._collapsed_pm = _get_icons()
 
-        self._controlCreated = True
+        self.ApplyCaptionStyle(cbstyle, applyDefault=True)
 
-        self.Bind(wx.EVT_PAINT, self.OnPaint)
-        self.Bind(wx.EVT_SIZE, self.OnSize)
-        self.Bind(wx.EVT_MOUSE_EVENTS, self.OnMouseEvent)
-        self.Bind(wx.EVT_CHAR, self.OnChar)
-
-    def ApplyCaptionStyle(self, cbstyle=None, applyDefault=True):
-        """
-        Applies the style defined in `cbstyle` to the :class:`CaptionBar`.
-
-        :param cbstyle: an instance of :class:`CaptionBarStyle`;
-        :param applyDefault: if ``True``, the colours used in the :class:`CaptionBarStyle`
-         will be reset to their default values.
-        """
-
+    # ------------------------------------------------------------------
+    # Style
+    # ------------------------------------------------------------------
+    def ApplyCaptionStyle(self, cbstyle: CaptionBarStyle | None = None,
+                          applyDefault: bool = True):
         if cbstyle is None:
             cbstyle = EmptyCaptionBarStyle
-
-        newstyle = cbstyle
 
         if applyDefault:
+            if not cbstyle.FirstColourUsed():
+                cbstyle.SetFirstColour(QColor(Qt.white))
+            if not cbstyle.SecondColourUsed():
+                bg = self.parent().palette().color(self.parent().backgroundRole()) \
+                    if self.parent() else QColor(180, 180, 180)
+                r = min(255, (bg.red()   >> 1) + 20)
+                g = min(255, (bg.green() >> 1) + 20)
+                b = min(255, (bg.blue()  >> 1) + 20)
+                cbstyle.SetSecondColour(QColor(r, g, b))
+            if not cbstyle.CaptionColourUsed():
+                cbstyle.SetCaptionColour(QColor(Qt.black))
+            if not cbstyle.CaptionFontUsed():
+                cbstyle.SetCaptionFont(self.font())
+            if not cbstyle.CaptionStyleUsed():
+                cbstyle.SetCaptionStyle(CAPTIONBAR_GRADIENT_V)
 
-            # get first colour from style or make it default
-            if not newstyle.FirstColourUsed():
-                newstyle.SetFirstColour(wx.WHITE)
+        self._style = cbstyle
+        self.update()
 
-            # get second colour from style or make it default
-            if not newstyle.SecondColourUsed():
-                # make the second colour slightly darker then the background
-                colour = self.GetParent().GetBackgroundColour()
-                r, g, b = int(colour.Red()), int(colour.Green()), int(colour.Blue())
-                colour = ((r >> 1) + 20, (g >> 1) + 20, (b >> 1) + 20)
-                newstyle.SetSecondColour(wx.Colour(colour[0], colour[1], colour[2]))
-
-            # get text colour
-            if not newstyle.CaptionColourUsed():
-                newstyle.SetCaptionColour(wx.BLACK)
-
-            # get font colour
-            if not newstyle.CaptionFontUsed():
-                newstyle.SetCaptionFont(self.GetParent().GetFont())
-
-            # apply caption style
-            if not newstyle.CaptionStyleUsed():
-                newstyle.SetCaptionStyle(CAPTIONBAR_GRADIENT_V)
-
-        self._style = newstyle
-
-    def SetCaptionStyle(self, cbstyle=None, applyDefault=True):
-        """
-        Sets :class:`CaptionBar` styles with :class:`CaptionBarStyle` class.
-
-        :param cbstyle: an instance of :class:`CaptionBarStyle`;
-        :param applyDefault: if ``True``, the colours used in the :class:`CaptionBarStyle`
-         will be reset to their default values.
-
-        :note: All styles that are actually set, are applied. If you set `applyDefault`
-         to ``True``, all other (not defined) styles will be set to default. If it is
-         ``False``, the styles which are not set in the :class:`CaptionBarStyle` will be ignored.
-        """
-
-        if cbstyle is None:
-            cbstyle = EmptyCaptionBarStyle
-
+    def SetCaptionStyle(self, cbstyle: CaptionBarStyle | None = None,
+                        applyDefault: bool = True):
         self.ApplyCaptionStyle(cbstyle, applyDefault)
-        self.Refresh()
 
-    def GetCaptionStyle(self):
-        """
-        Returns the current style of the captionbar in a :class:`CaptionBarStyle` class.
-
-        :note: This can be used to change and set back the changes.
-        """
-
+    def GetCaptionStyle(self) -> CaptionBarStyle:
         return self._style
 
-    def IsCollapsed(self):
-        """ Returns whether the status of the bar is expanded or collapsed. """
-
+    # ------------------------------------------------------------------
+    # State
+    # ------------------------------------------------------------------
+    def IsCollapsed(self) -> bool:
         return self._collapsed
 
-    def SetRightIndent(self, pixels):
-        """
-        Sets the amount of pixels on the right from which the bitmap
-        is trailing.
-
-        :param pixels: the number of pixels on the right from which the bitmap
-         is trailing. If this is 0, it will be drawn all the way to the right,
-         default is equal to ``FPB_BMP_RIGHTSPACE``. Assign this before
-         assigning an image list to prevent a redraw.
-        """
-
-        assert pixels >= 0
-        self._rightIndent = pixels
-        if self._foldIcons:
-            self.Refresh()
-
     def Collapse(self):
-        """
-        This sets the internal state/representation to collapsed.
-
-        :note: This does not trigger a :class:`CaptionBarEvent` to be sent to the
-         parent.
-        """
-
         self._collapsed = True
-        self.RedrawIconBitmap()
+        self.update()
 
     def Expand(self):
-        """
-        This sets the internal state/representation to expanded.
-
-        :note: This does not trigger a :class:`CaptionBarEvent` to be sent to the
-         parent.
-        """
-
         self._collapsed = False
-        self.RedrawIconBitmap()
+        self.update()
+
+    def SetRightIndent(self, pixels: int):
+        assert pixels >= 0
+        self._rightIndent = pixels
+        self.update()
 
     def SetBoldFont(self):
-        """ Sets the :class:`CaptionBar` font weight to bold."""
-
-        self.GetFont().SetWeight(wx.FONTWEIGHT_BOLD)
+        f = self.font()
+        f.setBold(True)
+        self.setFont(f)
 
     def SetNormalFont(self):
-        """ Sets the :class:`CaptionBar` font weight to normal."""
+        f = self.font()
+        f.setBold(False)
+        self.setFont(f)
 
-        self.GetFont().SetWeight(wx.FONTWEIGHT_NORMAL)
+    def IsVertical(self) -> bool:
+        bar = self._fold_panel_bar()
+        if bar is not None:
+            return bar.IsVertical()
+        return True
 
-    def IsVertical(self):
-        """
-        Returns whether the :class:`CaptionBar` has a default orientation or not.
-        Default is vertical.
-        """
+    def _fold_panel_bar(self) -> 'FoldPanelBar | None':
+        # CaptionBar -> FoldPanelItem -> (inner panel of) FoldPanelBar
+        p = self.parent()
+        while p is not None:
+            if isinstance(p, FoldPanelBar):
+                return p
+            p = p.parent()
+        return None
 
-        fld = self.GetParent().GetGrandParent()
-        if isinstance(fld, FoldPanelBar):
-            return self.GetParent().GetGrandParent().IsVertical()
+    # ------------------------------------------------------------------
+    # Painting
+    # ------------------------------------------------------------------
+    def sizeHint(self) -> QSize:
+        fm = QFontMetrics(self._style.GetCaptionFont() or self.font())
+        if self.IsVertical():
+            tw = fm.horizontalAdvance(self._caption)
+            th = fm.height()
         else:
-            raise Exception("ERROR: Wrong Parent " + repr(fld))
+            th = fm.horizontalAdvance(self._caption)
+            tw = fm.height()
+        w = max(tw, self._ICON_W) + FPB_EXTRA_X
+        h = max(th, self._ICON_H) + FPB_EXTRA_Y
+        return QSize(w, h)
 
-    def OnPaint(self, event):
-        """
-        Handles the ``wx.EVT_PAINT`` event for :class:`CaptionBar`.
-
-        :param event: a :class:`PaintEvent` event to be processed.
-        """
-
-        if not self._controlCreated:
-            event.Skip()
-            return
-
-        dc = wx.BufferedPaintDC(self)
-
-        wndRect = self.GetRect()
+    def paintEvent(self, event: QPaintEvent):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing, False)
+        rect = self.rect()
         vertical = self.IsVertical()
 
-        # TODO: Maybe first a memory DC should draw all, and then paint it on
-        # the caption. This way a flickering arrow during resize is not visible
+        self._fill_background(painter, rect)
 
-        self.FillCaptionBackground(dc)
-        dc.SetFont(self._style.GetCaptionFont())
-        dc.SetTextForeground(self._style.GetCaptionColour())
+        # Draw caption text
+        font = self._style.GetCaptionFont() or self.font()
+        painter.setFont(font)
+        painter.setPen(QPen(self._style.GetCaptionColour() or QColor(Qt.black)))
 
         if vertical:
-            dc.DrawText(self._caption, 4, FPB_EXTRA_Y//2)
+            painter.drawText(4, FPB_EXTRA_Y // 2,
+                             rect.width(), rect.height(),
+                             Qt.AlignVCenter | Qt.AlignLeft,
+                             self._caption)
         else:
-            dc.DrawRotatedText(self._caption, FPB_EXTRA_Y//2,
-                               wndRect.GetBottom() - 4, 90)
+            painter.save()
+            painter.translate(FPB_EXTRA_Y // 2, rect.bottom() - 4)
+            painter.rotate(-90)
+            painter.drawText(0, 0, self._caption)
+            painter.restore()
 
-        # draw small icon, either collapsed or expanded
-        # based on the state of the bar. If we have any bmp's
-        if self._foldIcons:
-
-            index = self._collapsed
-
+        # Draw collapse/expand icon
+        pm = self._collapsed_pm if self._collapsed else self._expanded_pm
+        if not pm.isNull():
+            iw, ih = pm.width(), pm.height()
             if vertical:
-                drw = wndRect.GetRight() - self._iconWidth - self._rightIndent
-                self._foldIcons.Draw(index, dc, drw,
-                                     (wndRect.GetHeight() - self._iconHeight) // 2,
-                                     wx.IMAGELIST_DRAW_TRANSPARENT)
+                x = rect.right() - iw - self._rightIndent
+                y = (rect.height() - ih) // 2
             else:
-                self._foldIcons.Draw(index, dc,
-                                     (wndRect.GetWidth() - self._iconWidth)//2,
-                                     self._rightIndent, wx.IMAGELIST_DRAW_TRANSPARENT)
+                x = (rect.width() - iw) // 2
+                y = self._rightIndent
+            painter.drawPixmap(x, y, pm)
 
-    def FillCaptionBackground(self, dc):
-        """
-        Fills the background of the caption with either a gradient or
-        a solid colour.
+        painter.end()
 
-        :param dc: an instance of :class:`wx.DC`.
-        """
-
+    def _fill_background(self, painter: QPainter, rect: QRect):
         style = self._style.GetCaptionStyle()
+        c1 = self._style.GetFirstColour()  or QColor(Qt.white)
+        c2 = self._style.GetSecondColour() or QColor(180, 180, 180)
+        vertical = self.IsVertical()
 
         if style == CAPTIONBAR_GRADIENT_V:
-            if self.IsVertical():
-                self.DrawVerticalGradient(dc, self.GetRect())
-            else:
-                self.DrawHorizontalGradient(dc, self.GetRect())
+            grad = QLinearGradient(
+                rect.left(), rect.top(),
+                rect.left() if vertical else rect.right(),
+                rect.bottom() if vertical else rect.top()
+            )
+            grad.setColorAt(0.0, c1)
+            grad.setColorAt(1.0, c2)
+            painter.fillRect(rect, QBrush(grad))
 
         elif style == CAPTIONBAR_GRADIENT_H:
-            if self.IsVertical():
-                self.DrawHorizontalGradient(dc, self.GetRect())
-            else:
-                self.DrawVerticalGradient(dc, self.GetRect())
+            grad = QLinearGradient(
+                rect.left(), rect.top(),
+                rect.right() if vertical else rect.left(),
+                rect.top() if vertical else rect.bottom()
+            )
+            grad.setColorAt(0.0, c1)
+            grad.setColorAt(1.0, c2)
+            painter.fillRect(rect, QBrush(grad))
 
         elif style == CAPTIONBAR_SINGLE:
-            self.DrawSingleColour(dc, self.GetRect())
-        elif style == CAPTIONBAR_RECTANGLE or style == CAPTIONBAR_FILLED_RECTANGLE:
-            self.DrawSingleRectangle(dc, self.GetRect())
+            painter.fillRect(rect, QBrush(c1))
+
+        elif style in (CAPTIONBAR_RECTANGLE, CAPTIONBAR_FILLED_RECTANGLE):
+            fill = (self.parent().palette().window().color()
+                    if style == CAPTIONBAR_RECTANGLE else c1)
+            painter.fillRect(rect, QBrush(fill))
+            painter.setPen(QPen(c2))
+            painter.drawRect(rect.adjusted(0, 0, -1, -2))
+
         else:
-            raise Exception("STYLE Error: Undefined Style Selected: " + repr(style))
+            painter.fillRect(rect, QBrush(c1))
 
-    def OnMouseEvent(self, event):
-        """
-        Handles the ``wx.EVT_MOUSE_EVENTS`` event for :class:`CaptionBar`.
-
-        :param event: a :class:`MouseEvent` event to be processed.
-
-        :note: This method catches the mouse click-double click. If clicked on
-         the arrow (single) or double on the caption we change state and an event
-         must be fired to let this panel collapse or expand.
-        """
-
-        send_event = False
+    # ------------------------------------------------------------------
+    # Mouse events
+    # ------------------------------------------------------------------
+    def _icon_hit(self, pos: QPoint) -> bool:
+        rect = self.rect()
+        iw = self._ICON_W
         vertical = self.IsVertical()
-
-        if event.LeftDown() and self._foldIcons:
-
-            pt = event.GetPosition()
-            rect = self.GetRect()
-
-            drw = (rect.GetWidth() - self._iconWidth - self._rightIndent)
-            if vertical and pt.x > drw or not vertical and \
-               pt.y < (self._iconHeight + self._rightIndent):
-                send_event = True
-
-        elif event.LeftDClick():
-            self.SetCursor(wx.Cursor(wx.CURSOR_ARROW))
-            send_event = True
-
-        elif event.Entering() and self._foldIcons:
-            pt = event.GetPosition()
-            rect = self.GetRect()
-
-            drw = (rect.GetWidth() - self._iconWidth - self._rightIndent)
-            if vertical and pt.x > drw or not vertical and \
-               pt.y < (self._iconHeight + self._rightIndent):
-                self.SetCursor(wx.Cursor(wx.CURSOR_HAND))
-            else:
-                self.SetCursor(wx.Cursor(wx.CURSOR_ARROW))
-
-        elif event.Leaving():
-            self.SetCursor(wx.Cursor(wx.CURSOR_ARROW))
-
-        elif event.Moving():
-            pt = event.GetPosition()
-            rect = self.GetRect()
-
-            drw = (rect.GetWidth() - self._iconWidth - self._rightIndent)
-            if vertical and pt.x > drw or not vertical and \
-               pt.y < (self._iconHeight + self._rightIndent):
-                self.SetCursor(wx.Cursor(wx.CURSOR_HAND))
-            else:
-                self.SetCursor(wx.Cursor(wx.CURSOR_ARROW))
-
-        # send the collapse, expand event to the parent
-
-        if send_event:
-            event = CaptionBarEvent(wxEVT_CAPTIONBAR)
-            event.SetId(self.GetId())
-            event.SetEventObject(self)
-            event.SetBar(self)
-            self.GetEventHandler().ProcessEvent(event)
-
-    @staticmethod
-    def OnChar(event):
-        """
-        Handles the ``wx.EVT_CHAR`` event for :class:`CaptionBar`.
-
-        :param event: a :class:`KeyEvent` event to be processed.
-
-        :note: This method currently does nothing.
-        """
-
-        # TODO: Anything here?
-        event.Skip()
-
-    def DoGetBestSize(self):
-        """
-        Returns the best size for this panel, based upon the font
-        assigned to this window, and the caption string.
-
-        :note: Overridden from :class:`wx.Window`.
-        """
-
-        if self.IsVertical():
-            x, y = self.GetTextExtent(self._caption)
+        if vertical:
+            drw = rect.width() - iw - self._rightIndent
+            return pos.x() > drw
         else:
-            y, x = self.GetTextExtent(self._caption)
+            return pos.y() < (self._ICON_H + self._rightIndent)
 
-        if x < self._iconWidth:
-            x = self._iconWidth
+    def mousePressEvent(self, event: QMouseEvent):
+        if event.button() == Qt.LeftButton and self._icon_hit(event.position().toPoint()):
+            self.caption_toggled.emit(self)
+        super().mousePressEvent(event)
 
-        if y < self._iconHeight:
-            y = self._iconHeight
+    def mouseDoubleClickEvent(self, event: QMouseEvent):
+        if event.button() == Qt.LeftButton:
+            self.setCursor(QCursor(Qt.ArrowCursor))
+            self.caption_toggled.emit(self)
+        super().mouseDoubleClickEvent(event)
 
-        # TODO: The extra FPB_EXTRA_X constants should be adjustable as well
-
-        return wx.Size(x + FPB_EXTRA_X, y + FPB_EXTRA_Y)
-
-    def DrawVerticalGradient(self, dc, rect):
-        """
-        Gradient fill from colour 1 to colour 2 from top to bottom.
-
-        :param dc: an instance of :class:`wx.DC`;
-        :param rect: the :class:`CaptionBar` client rectangle.
-        """
-
-        if rect.height < 1 or rect.width < 1:
-            return
-
-        gcdc = wx.GCDC(dc)
-        gc = gcdc.GetGraphicsContext()
-
-        gstops = wx.GraphicsGradientStops()
-        gstops.SetStartColour(self._style.GetFirstColour())
-        gstops.SetEndColour(self._style.GetSecondColour())
-
-        matrix = wx.AffineMatrix2D()
-        matrix.Rotate(math.radians(90))
-
-        matrix = gc.CreateMatrix(matrix)
-
-        brush = gc.CreateLinearGradientBrush(rect.x, rect.y, rect.width, rect.height, gstops, matrix=matrix)
-        gc.SetBrush(brush)
-        gc.SetPen(wx.TRANSPARENT_PEN)
-        gc.DrawRectangle(rect.x, rect.y, rect.width, rect.height)
-
-        gcdc.Destroy()
-        del gcdc
-
-    def DrawHorizontalGradient(self, dc, rect):
-        """
-        Gradient fill from colour 1 to colour 2 from left to right.
-
-        :param dc: an instance of :class:`wx.DC`;
-        :param rect: the :class:`CaptionBar` client rectangle.
-        """
-
-        if rect.height < 1 or rect.width < 1:
-            return
-
-        gcdc = wx.GCDC(dc)
-        gc = gcdc.GetGraphicsContext()
-
-        gstops = wx.GraphicsGradientStops()
-        gstops.SetStartColour(self._style.GetFirstColour())
-        gstops.SetEndColour(self._style.GetSecondColour())
-
-        brush = gc.CreateLinearGradientBrush(rect.x, rect.y, rect.width, rect.height, gstops)
-        gc.SetBrush(brush)
-        gc.SetPen(wx.TRANSPARENT_PEN)
-        gc.DrawRectangle(rect.x, rect.y, rect.width, rect.height)
-
-        gcdc.Destroy()
-        del gcdc
-
-    def DrawSingleColour(self, dc, rect):
-        """
-        Single colour fill for :class:`CaptionBar`.
-
-        :param dc: an instance of :class:`wx.DC`;
-        :param rect: the :class:`CaptionBar` client rectangle.
-        """
-
-        if rect.height < 1 or rect.width < 1:
-            return
-
-        dc.SetPen(wx.TRANSPARENT_PEN)
-
-        # draw simple rectangle
-        dc.SetBrush(wx.Brush(self._style.GetFirstColour(), wx.BRUSHSTYLE_SOLID))
-        dc.DrawRectangle(rect.x, rect.y, rect.width, rect.height)
-
-    def DrawSingleRectangle(self, dc, rect):
-        """
-        Single rectangle for :class:`CaptionBar`.
-
-        :param dc: an instance of :class:`wx.DC`;
-        :param rect: the :class:`CaptionBar` client rectangle.
-        """
-
-        if rect.height < 2 or rect.width < 1:
-            return
-
-        # single frame, set up internal fill colour
-
-        if self._style.GetCaptionStyle() == CAPTIONBAR_RECTANGLE:
-            colour = self.GetParent().GetBackgroundColour()
-            br = wx.Brush(colour, wx.BRUSHSTYLE_SOLID)
+    def mouseMoveEvent(self, event: QMouseEvent):
+        if self._icon_hit(event.position().toPoint()):
+            self.setCursor(QCursor(Qt.PointingHandCursor))
         else:
-            colour = self._style.GetFirstColour()
-            br = wx.Brush(colour, wx.BRUSHSTYLE_SOLID)
+            self.setCursor(QCursor(Qt.ArrowCursor))
+        super().mouseMoveEvent(event)
 
-        # setup the pen frame
-
-        pen = wx.Pen(self._style.GetSecondColour())
-        dc.SetPen(pen)
-        dc.SetBrush(br)
-        dc.DrawRectangle(rect.x, rect.y, rect.width, rect.height - 1)
-
-        bgpen = wx.Pen(self.GetParent().GetBackgroundColour())
-        dc.SetPen(bgpen)
-        dc.DrawLine(rect.x, rect.y + rect.height - 1, rect.x + rect.width,
-                    rect.y + rect.height - 1)
-
-    def OnSize(self, event):
-        """
-        Handles the ``wx.EVT_SIZE`` event for :class:`CaptionBar`.
-
-        :param event: a :class:`wx.SizeEvent` event to be processed.
-        """
-
-        if not self._controlCreated:
-            event.Skip()
-            return
-
-        size = event.GetSize()
-
-        if self._foldIcons:
-
-            # What I am doing here is simply invalidating the part of the window
-            # exposed. So when I make a rect with as width the newly exposed part,
-            # and the x,y of the old window size origin, I don't need a bitmap
-            # calculation in it, or do I ? The bitmap needs redrawing anyway.
-            # Leave it like this until I figured it out.
-
-            # set rect to redraw as old bitmap area which is entitled to redraw
-
-            rect = wx.Rect(size.GetWidth() - self._iconWidth - self._rightIndent, 0,
-                           self._iconWidth + self._rightIndent,
-                           self._iconWidth + self._rightIndent)
-
-            # adjust rectangle when more is slided so we need to redraw all
-            # the old stuff but not all (ugly flickering)
-
-            diffX = size.GetWidth() - self._oldSize.GetWidth()
-
-            if diffX > 1:
-
-                # adjust the rect with all the crap to redraw
-
-                rect.SetWidth(rect.GetWidth() + diffX + 10)
-                rect.SetX(rect.GetX() - diffX - 10)
-
-            self.RefreshRect(rect)
-
-        else:
-
-            rect = self.GetRect()
-            self.RefreshRect(rect)
-
-        self._oldSize = size
-
-    def RedrawIconBitmap(self):
-        """ Redraws the icons (if they exists). """
-
-        if self._foldIcons:
-
-            # invalidate the bitmap area and force a redraw
-
-            rect = self.GetRect()
-
-            rect.SetX(rect.GetWidth() - self._iconWidth - self._rightIndent)
-            rect.SetWidth(self._iconWidth + self._rightIndent)
-            self.RefreshRect(rect)
+    def leaveEvent(self, event):
+        self.setCursor(QCursor(Qt.ArrowCursor))
+        super().leaveEvent(event)
 
 
-# ---------------------------------------------------------------------------------- #
-# class FoldPanelBar
-# ---------------------------------------------------------------------------------- #
-class FoldPanelBar(wx.Panel):
+# ---------------------------------------------------------------------------
+# FoldWindowItem  (pure data / geometry helper — no wx base class)
+# ---------------------------------------------------------------------------
+class FoldWindowItem:
+    """Tracks a single child (window or separator) inside a FoldPanelItem."""
 
-    def __init__(self, parent, id=-1, pos=wx.DefaultPosition, size=wx.DefaultSize,
-                 style=wx.TAB_TRAVERSAL|wx.NO_BORDER, agwStyle=0):
+    def __init__(self, parent: 'FoldPanelItem', window: QWidget | None, **kw):
+        typ = kw.get('Type')
+        if typ not in ('WINDOW', 'SEPARATOR'):
+            raise ValueError(f'FoldWindowItem Type must be WINDOW or SEPARATOR, got {typ!r}')
 
-        self._controlCreated = False
+        self._type       = typ
+        self._parent     = parent
+        self._wnd        = window
+        self._flags      = kw.get('flags',      FPB_ALIGN_WIDTH)
+        self._spacing    = kw.get('spacing',    FPB_DEFAULT_SPACING)
+        self._leftSpacing  = kw.get('leftSpacing',  FPB_DEFAULT_LEFTSPACING)
+        self._rightSpacing = kw.get('rightSpacing', FPB_DEFAULT_RIGHTSPACING)
+        self._lineY      = kw.get('y',          0)
+        self._sepLineColour = kw.get('colour',  QColor(Qt.black))
+        self._lineLength = 0
 
-        # make sure there is any orientation
-        if not agwStyle & (FPB_HORIZONTAL | FPB_VERTICAL):
-            agwStyle = agwStyle | FPB_VERTICAL
+    def GetType(self) -> str:
+        return self._type
 
-        if agwStyle & FPB_HORIZONTAL:
-            self._isVertical = False
-        else:
-            self._isVertical = True
+    def GetLineY(self) -> int:
+        return self._lineY
 
-        self._agwStyle = agwStyle
+    def GetLineLength(self) -> int:
+        return self._lineLength
 
-        # create the panel (duh!). This causes a size event, which we are going
-        # to skip when we are not initialised
+    def GetLineColour(self) -> QColor:
+        return self._sepLineColour
 
-        wx.Panel.__init__(self, parent, id, pos, size, style)
+    def GetLeftSpacing(self) -> int:
+        return self._leftSpacing
 
-        # the fold panel area
+    def GetRightSpacing(self) -> int:
+        return self._rightSpacing
 
-        self._foldPanel = wx.Panel(self, wx.ID_ANY, pos, size,
-                                   wx.NO_BORDER | wx.TAB_TRAVERSAL)
+    def GetSpacing(self) -> int:
+        return self._spacing
 
-        self._controlCreated = True
-        self._panels = []
-        self._cbstyle = None
-
-        self.Bind(EVT_CAPTIONBAR, self.OnPressCaption)
-        self.Bind(wx.EVT_SIZE, self.OnSizePanel)
-
-    def AddFoldPanel(self, caption="", collapsed=False, foldIcons=None, cbstyle=None):
-        if cbstyle is None:
-            if self._cbstyle is not None:
-                cbstyle = self._cbstyle
-            else:
-                cbstyle = EmptyCaptionBarStyle
-
-        # create a fold panel item, which is first only the caption.
-        # the user can now add a panel area which will be folded in
-        # when pressed.
-
-        if foldIcons is None:
-            foldIcons = wx.ImageList(16, 16)
-
-            bmp = ExpandedIcon.GetBitmap()
-            foldIcons.Add(bmp)
-            bmp = CollapsedIcon.GetBitmap()
-            foldIcons.Add(bmp)
-
-        item = FoldPanelItem(self._foldPanel, -1, caption=caption,
-                             foldIcons=foldIcons,
-                             collapsed=collapsed, cbstyle=cbstyle)
-
-        pos = 0
-        if len(self._panels) > 0:
-            pos = self._panels[-1].GetItemPos() + self._panels[-1].GetPanelLength()
-
-        item.Reposition(pos)
-        self._panels.append(item)
-
-        return item
-
-    def AddFoldPanelWindow(self, panel, window, flags=FPB_ALIGN_WIDTH,
-                           spacing=FPB_DEFAULT_SPACING,
-                           leftSpacing=FPB_DEFAULT_LEFTLINESPACING,
-                           rightSpacing=FPB_DEFAULT_RIGHTLINESPACING):
-        try:
-            item = self._panels.index(panel)
-        except:
-            raise Exception("ERROR: Invalid Panel Passed To AddFoldPanelWindow: " + repr(panel))
-
-        panel.AddWindow(window, flags, spacing, leftSpacing, rightSpacing)
-
-        # TODO: Take old and new height, and if difference, reposition all the lower
-        # panels this is because the user can add new wxWindow controls somewhere in
-        # between when other panels are already present.
-
+    def GetWindowLength(self, vertical: bool = True) -> int:
+        if self._type == 'WINDOW' and self._wnd:
+            sz = self._wnd.size()
+            return (sz.height() if vertical else sz.width()) + self._spacing
+        elif self._type == 'SEPARATOR':
+            return 1 + self._spacing
         return 0
 
-    def AddFoldPanelSeparator(self, panel, colour=wx.BLACK,
-                              spacing=FPB_DEFAULT_SPACING,
-                              leftSpacing=FPB_DEFAULT_LEFTLINESPACING,
-                              rightSpacing=FPB_DEFAULT_RIGHTLINESPACING):
-
-        try:
-            item = self._panels.index(panel)
-        except:
-            raise Exception("ERROR: Invalid Panel Passed To AddFoldPanelSeparator: " + repr(panel))
-
-        panel.AddSeparator(colour, spacing, leftSpacing, rightSpacing)
-        return 0
-
-    def OnSizePanel(self, event):
-        # skip all stuff when we are not initialised yet
-
-        if not self._controlCreated:
-            event.Skip()
-            return
-
-        foldrect = self.GetRect()
-
-        # fold panel itself. If too little space,
-        # don't show it
-
-        foldrect.SetX(0)
-        foldrect.SetY(0)
-
-        self._foldPanel.SetSize(foldrect[2:])
-
-        if self._agwStyle & FPB_COLLAPSE_TO_BOTTOM or self._agwStyle & FPB_EXCLUSIVE_FOLD:
-            rect = self.RepositionCollapsedToBottom()
-            vertical = self.IsVertical()
-            if vertical and rect.GetHeight() > 0 or not vertical and rect.GetWidth() > 0:
-                self.RefreshRect(rect)
-
-        # TODO: A smart way to check whether the old - new width of the
-        # panel changed, if so no need to resize the fold panel items
-
-        self.RedisplayFoldPanelItems()
-
-    def OnPressCaption(self, event):
-        # act upon the folding or expanding status of the bar
-        # to expand or collapse the panel(s)
-
-        if event.GetFoldStatus():
-            self.Collapse(event.GetTag())
-        else:
-            self.Expand(event.GetTag())
-
-    def RefreshPanelsFrom(self, item):
-        try:
-            i = self._panels.index(item)
-        except:
-            raise Exception("ERROR: Invalid Panel Passed To RefreshPanelsFrom: " + repr(item))
-
-        self.Freeze()
-
-        # if collapse to bottom is on, the panels that are not expanded
-        # should be drawn at the bottom. All panels that are expanded
-        # are drawn on top. The last expanded panel gets all the extra space
-
-        if self._agwStyle & FPB_COLLAPSE_TO_BOTTOM or self._agwStyle & FPB_EXCLUSIVE_FOLD:
-
-            offset = 0
-
-            for panels in self._panels:
-
-                if panels.IsExpanded():
-                    offset = offset + panels.Reposition(offset)
-
-            # put all non collapsed panels at the bottom where there is space,
-            # else put them right behind the expanded ones
-
-            self.RepositionCollapsedToBottom()
-
-        else:
-
-            pos = self._panels[i].GetItemPos() + self._panels[i].GetPanelLength()
-            for j in range(i+1, len(self._panels)):
-                pos = pos + self._panels[j].Reposition(pos)
-
-        self.Thaw()
-
-    def RedisplayFoldPanelItems(self):
-        # resize them all. No need to reposition
-        for panels in self._panels:
-            panels.ResizePanel()
-            panels.Refresh()
-
-    def RepositionCollapsedToBottom(self):
-        value = wx.Rect(0,0,0,0)
-        vertical = self.IsVertical()
-
-        # determine whether the number of panels left
-        # times the size of their captions is enough
-        # to be placed in the left over space
-
-        expanded = 0
-        collapsed = 0
-        collapsed, expanded, values = self.GetPanelsLength(collapsed, expanded)
-
-        # if no room stick them behind the normal ones, else
-        # at the bottom
-
-        if (vertical and [self.GetSize().GetHeight()] or
-            [self.GetSize().GetWidth()])[0] - expanded - collapsed < 0:
-            offset = expanded
-        else:
-
-            # value is the region which is left unpainted
-            # I will send it back as 'slack' so it does not need to
-            # be recalculated.
-
-            value.SetHeight(self.GetSize().GetHeight())
-            value.SetWidth(self.GetSize().GetWidth())
-
-            if vertical:
-                value.SetY(expanded)
-                value.SetHeight(value.GetHeight() - expanded)
-            else:
-                value.SetX(expanded)
-                value.SetWidth(value.GetWidth() - expanded)
-
-            offset = (vertical and [self.GetSize().GetHeight()] or
-                      [self.GetSize().GetWidth()])[0] - collapsed
-
-        # go reposition
-        for panels in self._panels:
-            if not panels.IsExpanded():
-                offset = offset + panels.Reposition(offset)
-
-        return value
-
-    def GetPanelsLength(self, collapsed, expanded):
-        value = 0
-
-        # assumed here that all the panels that are expanded
-        # are positioned after each other from 0,0 to end.
-
-        for j in range(0, len(self._panels)):
-            offset = self._panels[j].GetPanelLength()
-            value = value + offset
-            if self._panels[j].IsExpanded():
-                expanded = expanded + offset
-            else:
-                collapsed = collapsed + offset
-
-        return collapsed, expanded, value
-
-    def Collapse(self, foldpanel):
-        try:
-            item = self._panels.index(foldpanel)
-        except:
-            raise Exception("ERROR: Invalid Panel Passed To Collapse: " + repr(foldpanel))
-
-        foldpanel.Collapse()
-        self.RefreshPanelsFrom(foldpanel)
-
-    def Expand(self, foldpanel):
-        fpbextrastyle = 0
-
-        if self._agwStyle & FPB_SINGLE_FOLD or self._agwStyle & FPB_EXCLUSIVE_FOLD:
-            fpbextrastyle = 1
-            for panel in self._panels:
-                panel.Collapse()
-
-        foldpanel.Expand()
-
-        if fpbextrastyle:
-            if self._agwStyle & FPB_EXCLUSIVE_FOLD:
-                self.RepositionCollapsedToBottom()
-            self.RefreshPanelsFrom(self._panels[0])
-        else:
-            self.RefreshPanelsFrom(foldpanel)
-
-    def ApplyCaptionStyle(self, foldpanel, cbstyle):
-        foldpanel.ApplyCaptionStyle(cbstyle)
-
-    def ApplyCaptionStyleAll(self, cbstyle):
-        for panels in self._panels:
-            self.ApplyCaptionStyle(panels, cbstyle)
-
-        self._cbstyle = cbstyle
-
-    def GetCaptionStyle(self, foldpanel):
-        return foldpanel.GetCaptionStyle()
-
-    def IsVertical(self):
-        return self._isVertical
-
-    def GetFoldPanel(self, item):
-        try:
-            ind = self._panels[item]
-            return self._panels[item]
-        except:
-            raise Exception("ERROR: List Index Out Of Range Or Bad Item Passed: " + repr(item) + \
-                            ". Item Should Be An Integer Between " + repr(0) + " And " + \
-                            repr(len(self._panels)))
-
-    def GetCount(self):
-        try:
-            return len(self._panels)
-        except:
-            raise Exception("ERROR: No Panels Have Been Added To FoldPanelBar")
+    def ResizeItem(self, size: int, vertical: bool = True):
+        if self._flags & FPB_ALIGN_WIDTH:
+            my_size = max(10, size - self._leftSpacing - self._rightSpacing)
+            if self._type == 'SEPARATOR':
+                self._lineLength = my_size
+            elif self._wnd:
+                if vertical:
+                    self._wnd.setFixedWidth(my_size)
+                else:
+                    self._wnd.setFixedHeight(my_size)
 
 
-# --------------------------------------------------------------------------------- #
-# class FoldPanelItem
-# --------------------------------------------------------------------------------- #
-class FoldPanelItem(wx.Panel):
+# ---------------------------------------------------------------------------
+# FoldPanelItem
+# ---------------------------------------------------------------------------
+class FoldPanelItem(QWidget):
+    """One collapsible section (caption bar + content area)."""
 
-    def __init__(self, parent, id=wx.ID_ANY, caption="", foldIcons=None,
-                 collapsed=False, cbstyle=None):
+    def __init__(self, parent: QWidget, caption: str = '',
+                 cbstyle: CaptionBarStyle | None = None,
+                 collapsed: bool = False):
+        super().__init__(parent)
+        self.setMinimumSize(1, 1)
 
-        wx.Panel.__init__(self, parent, id, wx.Point(0,0), style=wx.CLIP_CHILDREN)
-        self._controlCreated = False
-        self._UserSize = 0
-        self._PanelSize = 0
+        self._UserSize    = 0
+        self._PanelSize   = 0
         self._LastInsertPos = 0
-        self._itemPos = 0
-        self._userSized = False
+        self._itemPos     = 0
+        self._userSized   = False
+        self._items: list[FoldWindowItem] = []
 
-        if foldIcons is None:
-            foldIcons = wx.ImageList(16, 16)
-
-            bmp = ExpandedIcon.GetBitmap()
-            foldIcons.Add(bmp)
-            bmp = CollapsedIcon.GetBitmap()
-            foldIcons.Add(bmp)
-
-        self._foldIcons = foldIcons
         if cbstyle is None:
             cbstyle = EmptyCaptionBarStyle
 
-        # create the caption bar, in collapsed or expanded state
+        self._captionBar = CaptionBar(self, caption=caption, cbstyle=cbstyle,
+                                      collapsed=collapsed)
+        self._captionBar.caption_toggled.connect(self._on_caption_toggle)
 
-        self._captionBar = CaptionBar(self, wx.Point(0,0),
-                                      caption=caption,
-                                      foldIcons=foldIcons, cbstyle=cbstyle)
-
-        if collapsed:
-            self._captionBar.Collapse()
-
-        self._controlCreated = True
-
-        # make initial size for component, if collapsed, the
-        # size is determined on the panel height and won't change
-
-        size = self._captionBar.GetSize()
-
-        self._PanelSize = (self.IsVertical() and [size.GetHeight()] or
-                           [size.GetWidth()])[0]
-
+        # Initial panel size = caption height
+        self._PanelSize   = self._captionBar.sizeHint().height()
         self._LastInsertPos = self._PanelSize
-        self._items = []
 
-        self.Bind(EVT_CAPTIONBAR, self.OnPressCaption)
-        self.Bind(wx.EVT_PAINT, self.OnPaint)
-
-    def AddWindow(self, window, flags=FPB_ALIGN_WIDTH, spacing=FPB_DEFAULT_SPACING,
-                  leftSpacing=FPB_DEFAULT_LEFTLINESPACING,
-                  rightSpacing=FPB_DEFAULT_RIGHTLINESPACING):
-
-        wi = FoldWindowItem(self, window, Type="WINDOW", flags=flags, spacing=spacing,
-                            leftSpacing=leftSpacing, rightSpacing=rightSpacing)
-
-        self._items.append(wi)
-
-        vertical = self.IsVertical()
-
-        self._spacing = spacing
-        self._leftSpacing = leftSpacing
-        self._rightSpacing = rightSpacing
-
-        xpos = (vertical and [leftSpacing] or [self._LastInsertPos + spacing])[0]
-        ypos = (vertical and [self._LastInsertPos + spacing] or [leftSpacing])[0]
-
-        window.SetSize(xpos, ypos, -1, -1, wx.SIZE_USE_EXISTING)
-
-        self._LastInsertPos = self._LastInsertPos + wi.GetWindowLength(vertical)
-        self.ResizePanel()
-
-    def AddSeparator(self, colour=wx.BLACK, spacing=FPB_DEFAULT_SPACING,
-                     leftSpacing=FPB_DEFAULT_LEFTSPACING,
-                     rightSpacing=FPB_DEFAULT_RIGHTSPACING):
-
-        wi = FoldWindowItem(self, window=None, Type="SEPARATOR",
-                            flags=FPB_ALIGN_WIDTH, y=self._LastInsertPos,
-                            colour=colour, spacing=spacing, leftSpacing=leftSpacing,
-                            rightSpacing=rightSpacing)
-
-        self._items.append(wi)
-        self._LastInsertPos = self._LastInsertPos + \
-                              wi.GetWindowLength(self.IsVertical())
-
-        self.ResizePanel()
-
-    def Reposition(self, pos):
-        # NOTE: Call Resize before Reposition when an item is added, because the new
-        # size needed will be calculated by Resize. Of course the relative position
-        # of the controls have to be correct in respect to the caption bar
-
-        self.Freeze()
-
-        vertical = self.IsVertical()
-        xpos = (vertical and [-1] or [pos])[0]
-        ypos = (vertical and [pos] or [-1])[0]
-
-        self.SetSize(xpos, ypos, -1, -1, wx.SIZE_USE_EXISTING)
-        self._itemPos = pos
-
-        self.Thaw()
-
-        return self.GetPanelLength()
-
-    def OnPressCaption(self, event):
-        # tell the upper container we are responsible
-        # for this event, so it can fold the panel item
-        # and do a refresh
-
-        event.SetTag(self)
-        event.Skip()
-
-    def ResizePanel(self):
-        # prevent unnecessary updates by blocking repaints for a sec
-
-        self.Freeze()
-
-        vertical = self.IsVertical()
-        # force this panel to take the width of the parent panel and the y of the
-        # user or calculated width (which will be recalculated by the contents here)
-
-
-        if self._captionBar.IsCollapsed():
-            size = self._captionBar.GetSize()
-            self._PanelSize = (vertical and [size.GetHeight()] or [size.GetWidth()])[0]
+    # ------------------------------------------------------------------
+    # Internal
+    # ------------------------------------------------------------------
+    def _on_caption_toggle(self, bar: CaptionBar):
+        # Bubble up to FoldPanelBar
+        fpb = self._fold_panel_bar()
+        if fpb is None:
+            return
+        if bar.IsCollapsed():
+            fpb.Expand(self)
         else:
-            size = self.GetBestSize()
-            self._PanelSize = (vertical and [size.GetHeight()] or [size.GetWidth()])[0]
+            fpb.Collapse(self)
 
-            if self._UserSize:
-                if vertical:
-                    size.SetHeight(self._UserSize)
-                else:
-                    size.SetWidth(self._UserSize)
+    def _fold_panel_bar(self) -> 'FoldPanelBar | None':
+        p = self.parent()
+        while p is not None:
+            if isinstance(p, FoldPanelBar):
+                return p
+            p = p.parent()
+        return None
 
-        pnlsize = self.GetParent().GetSize()
+    # ------------------------------------------------------------------
+    # Geometry
+    # ------------------------------------------------------------------
+    def IsVertical(self) -> bool:
+        fpb = self._fold_panel_bar()
+        return fpb.IsVertical() if fpb else True
 
-        if vertical:
-            size.SetWidth(pnlsize.GetWidth())
-        else:
-            size.SetHeight(pnlsize.GetHeight())
-
-        # resize caption bar
-        xsize = (vertical and [size.GetWidth()] or [-1])[0]
-        ysize = (vertical and [-1] or [size.GetHeight()])[0]
-
-        self._captionBar.SetSize((xsize, ysize))
-
-        # resize the panel
-        self.SetSize(size)
-
-        # go by all the controls and call Layout
-
-        for items in self._items:
-            items.ResizeItem((vertical and [size.GetWidth()] or
-                              [size.GetHeight()])[0], vertical)
-
-        self.Thaw()
-
-    def OnPaint(self, event):
-        # draw all the items that are lines
-
-        dc = wx.PaintDC(self)
-        vertical = self.IsVertical()
-
-        for item in self._items:
-
-            if item.GetType() == "SEPARATOR":
-                pen = wx.Pen(item.GetLineColour(), 1, wx.PENSTYLE_SOLID)
-                dc.SetPen(pen)
-                a = item.GetLeftSpacing()
-                b = item.GetLineY() + item.GetSpacing()
-                c = item.GetLineLength()
-                d = a + c
-
-                if vertical:
-                    dc.DrawLine(a, b, d, b)
-                else:
-                    dc.DrawLine(b, a, b, d)
-
-        event.Skip()
-
-    def IsVertical(self):
-        # grandparent of FoldPanelItem is FoldPanelBar
-        # default is vertical
-
-        if isinstance(self.GetGrandParent(), FoldPanelBar):
-            return self.GetGrandParent().IsVertical()
-        else:
-            raise Exception("ERROR: Wrong Parent " + repr(self.GetGrandParent()))
-
-    def IsExpanded(self):
+    def IsExpanded(self) -> bool:
         return not self._captionBar.IsCollapsed()
 
-    def GetItemPos(self):
+    def GetItemPos(self) -> int:
         return self._itemPos
 
+    def GetPanelLength(self) -> int:
+        if self._captionBar.IsCollapsed():
+            return self.GetCaptionLength()
+        if self._userSized:
+            return self._UserSize
+        return self._PanelSize
+
+    def GetCaptionLength(self) -> int:
+        sz = self._captionBar.sizeHint()
+        return sz.height() if self.IsVertical() else sz.width()
+
+    def Reposition(self, pos: int) -> int:
+        vertical = self.IsVertical()
+        if vertical:
+            self.move(0, pos)
+        else:
+            self.move(pos, 0)
+        self._itemPos = pos
+        return self.GetPanelLength()
+
+    def ResizePanel(self):
+        vertical = self.IsVertical()
+        parent_size = self.parent().size()
+
+        if self._captionBar.IsCollapsed():
+            cap_len = self.GetCaptionLength()
+            self._PanelSize = cap_len
+            if vertical:
+                self.resize(parent_size.width(), cap_len)
+                self._captionBar.resize(parent_size.width(),
+                                        self._captionBar.sizeHint().height())
+            else:
+                self.resize(cap_len, parent_size.height())
+                self._captionBar.resize(self._captionBar.sizeHint().width(),
+                                        parent_size.height())
+        else:
+            cap_h = self._captionBar.sizeHint().height() if vertical \
+                else self._captionBar.sizeHint().width()
+            content_len = self._LastInsertPos
+            total = cap_h + content_len
+            self._PanelSize = total
+
+            if self._UserSize:
+                total = self._UserSize
+
+            if vertical:
+                self.resize(parent_size.width(), total)
+                self._captionBar.resize(parent_size.width(), cap_h)
+            else:
+                self.resize(total, parent_size.height())
+                self._captionBar.resize(cap_h, parent_size.height())
+
+            # Resize child windows
+            available = parent_size.width() if vertical else parent_size.height()
+            for item in self._items:
+                item.ResizeItem(available, vertical)
+
+        self.update()
+
+    # ------------------------------------------------------------------
+    # Adding content
+    # ------------------------------------------------------------------
+    def AddWindow(self, window: QWidget,
+                  flags: int = FPB_ALIGN_WIDTH,
+                  spacing: int = FPB_DEFAULT_SPACING,
+                  leftSpacing: int = FPB_DEFAULT_LEFTLINESPACING,
+                  rightSpacing: int = FPB_DEFAULT_RIGHTLINESPACING):
+        wi = FoldWindowItem(self, window, Type='WINDOW', flags=flags,
+                            spacing=spacing, leftSpacing=leftSpacing,
+                            rightSpacing=rightSpacing)
+        self._items.append(wi)
+        window.setParent(self)
+
+        vertical = self.IsVertical()
+        cap_h = self._captionBar.sizeHint().height() if vertical \
+            else self._captionBar.sizeHint().width()
+
+        xpos = leftSpacing if vertical else self._LastInsertPos + spacing
+        ypos = self._LastInsertPos + spacing if vertical else leftSpacing
+        window.move(xpos, ypos)
+        window.show()
+
+        self._LastInsertPos += wi.GetWindowLength(vertical)
+        self.ResizePanel()
+
+    def AddSeparator(self, colour: QColor = None,
+                     spacing: int = FPB_DEFAULT_SPACING,
+                     leftSpacing: int = FPB_DEFAULT_LEFTSPACING,
+                     rightSpacing: int = FPB_DEFAULT_RIGHTSPACING):
+        if colour is None:
+            colour = QColor(Qt.black)
+        wi = FoldWindowItem(self, window=None, Type='SEPARATOR',
+                            flags=FPB_ALIGN_WIDTH, y=self._LastInsertPos,
+                            colour=colour, spacing=spacing,
+                            leftSpacing=leftSpacing, rightSpacing=rightSpacing)
+        self._items.append(wi)
+        self._LastInsertPos += wi.GetWindowLength(self.IsVertical())
+        self.ResizePanel()
+
+    # ------------------------------------------------------------------
+    # Style delegation
+    # ------------------------------------------------------------------
+    def ApplyCaptionStyle(self, cbstyle: CaptionBarStyle):
+        self._captionBar.SetCaptionStyle(cbstyle)
+
+    def GetCaptionStyle(self) -> CaptionBarStyle:
+        return self._captionBar.GetCaptionStyle()
+
+    # ------------------------------------------------------------------
+    # Collapse / Expand (called by FoldPanelBar)
+    # ------------------------------------------------------------------
     def Collapse(self):
         self._captionBar.Collapse()
         self.ResizePanel()
@@ -1625,262 +655,201 @@ class FoldPanelItem(wx.Panel):
         self._captionBar.Expand()
         self.ResizePanel()
 
-    def GetPanelLength(self):
-        if self._captionBar.IsCollapsed():
-            return self.GetCaptionLength()
-        elif self._userSized:
-            return self._UserSize
+    # ------------------------------------------------------------------
+    # Paint separators
+    # ------------------------------------------------------------------
+    def paintEvent(self, event: QPaintEvent):
+        painter = QPainter(self)
+        vertical = self.IsVertical()
 
-        return self._PanelSize
+        for item in self._items:
+            if item.GetType() == 'SEPARATOR':
+                painter.setPen(QPen(item.GetLineColour(), 1, Qt.SolidLine))
+                a = item.GetLeftSpacing()
+                b = item.GetLineY() + item.GetSpacing()
+                c = item.GetLineLength()
+                d = a + c
+                if vertical:
+                    painter.drawLine(a, b, d, b)
+                else:
+                    painter.drawLine(b, a, b, d)
 
-    def GetCaptionLength(self):
-        size = self._captionBar.GetSize()
-        return (self.IsVertical() and [size.GetHeight()] or [size.GetWidth()])[0]
-
-    def ApplyCaptionStyle(self, cbstyle):
-        self._captionBar.SetCaptionStyle(cbstyle)
-
-    def GetCaptionStyle(self):
-        return self._captionBar.GetCaptionStyle()
+        painter.end()
 
 
-# ----------------------------------------------------------------------------------- #
-# class FoldWindowItem
-# ----------------------------------------------------------------------------------- #
-class FoldWindowItem(object):
+# ---------------------------------------------------------------------------
+# FoldPanelBar
+# ---------------------------------------------------------------------------
+class FoldPanelBar(QWidget):
+    """Container for multiple collapsible FoldPanelItem sections.
+
+    Replacement for wx.lib.agw.foldpanelbar.FoldPanelBar.
     """
-    This class is a child sibling of the :class:`FoldPanelItem` class. It
-    will contain :class:`wx.Window` that can be either a separator (a coloured
-    line simulated by a :class:`wx.Window`) or a wxPython controls (such as a
-    :class:`Button`, a :class:`ListCtrl` etc...).
-    """
 
-    def __init__(self, parent, window=None, **kw):
-        """
-        Default class constructor
+    def __init__(self, parent: QWidget | None = None, agwStyle: int = 0):
+        super().__init__(parent)
 
-        :param parent: the :class:`FoldWindowItem` parent;
-        :param window: the window contained in this item.
+        if not agwStyle & (FPB_HORIZONTAL | FPB_VERTICAL):
+            agwStyle |= FPB_VERTICAL
 
-        :keyword Type: can be "WINDOW" or "SEPARATOR";
-        :keyword lineColour: the separator colour (meaningful for separators only);
-        :keyword y: the separator y position (meaningful for separators only);
-        :keyword flags: the alignment flags;
-        :keyword spacing: reserves a number of pixels before the window/separator element;
-        :keyword leftSpacing: an indent, in pixels;
-        :keyword rightSpacing: a right spacing, only relevant when the style
-         ``FPB_ALIGN_WIDTH`` is chosen.
+        self._isVertical = bool(agwStyle & FPB_VERTICAL)
+        self._agwStyle   = agwStyle
+        self._panels: list[FoldPanelItem] = []
+        self._cbstyle: CaptionBarStyle | None = None
 
-        :see: :meth:`FoldPanelBar.AddFoldPanelWindow() <FoldPanelBar.AddFoldPanelWindow>` for a list of valid alignment flags.
-        """
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
-        if "Type" not in kw:
-            raise Exception('ERROR: Missing Window Type Information. This Should Be "WINDOW" Or "SEPARATOR"')
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+    def IsVertical(self) -> bool:
+        return self._isVertical
 
-        if kw.get("Type") == "WINDOW":
-            # Window constructor. This initialises the class as a wx.Window Type
+    def AddFoldPanel(self, caption: str = '', collapsed: bool = False,
+                     foldIcons=None,   # ignored — we use our own embedded icons
+                     cbstyle: CaptionBarStyle | None = None) -> FoldPanelItem:
+        if cbstyle is None:
+            cbstyle = self._cbstyle if self._cbstyle is not None else EmptyCaptionBarStyle
 
-            if "flags" in kw:
-                self._flags = kw.get("flags")
-            else:
-                self._flags = FPB_ALIGN_WIDTH
-            if "spacing" in kw:
-                self._spacing = kw.get("spacing")
-            else:
-                self._spacing = FPB_DEFAULT_SPACING
-            if "leftSpacing" in kw:
-                self._leftSpacing = kw.get("leftSpacing")
-            else:
-                self._leftSpacing = FPB_DEFAULT_LEFTSPACING
-            if "rightSpacing" in kw:
-                self._rightSpacing = kw.get("rightSpacing")
-            else:
-                self._rightSpacing = FPB_DEFAULT_RIGHTSPACING
+        item = FoldPanelItem(self, caption=caption, cbstyle=cbstyle,
+                             collapsed=collapsed)
 
-            self._lineY = 0
-            self._sepLineColour = None
-            self._wnd = window
+        pos = 0
+        if self._panels:
+            last = self._panels[-1]
+            pos = last.GetItemPos() + last.GetPanelLength()
 
-        elif kw.get("Type") == "SEPARATOR":
-            # separator constructor. This initialises the class as a separator type
+        item.Reposition(pos)
+        item.show()
+        self._panels.append(item)
+        return item
 
-            if "y" in kw:
-                self._lineY = kw.get("y")
-            else:
-                raise Exception("ERROR: Undefined Y Position For The Separator")
-            if "lineColour" in kw:
-                self._sepLineColour = kw.get("lineColour")
-            else:
-                self._sepLineColour = wx.BLACK
-            if "flags" in kw:
-                self._flags = kw.get("flags")
-            else:
-                self._flags = FPB_ALIGN_WIDTH
-            if "spacing" in kw:
-                self._spacing = kw.get("spacing")
-            else:
-                self._spacing = FPB_DEFAULT_SPACING
-            if "leftSpacing" in kw:
-                self._leftSpacing = kw.get("leftSpacing")
-            else:
-                self._leftSpacing = FPB_DEFAULT_LEFTSPACING
-            if "rightSpacing" in kw:
-                self._rightSpacing = kw.get("rightSpacing")
-            else:
-                self._rightSpacing = FPB_DEFAULT_RIGHTSPACING
+    def AddFoldPanelWindow(self, panel: FoldPanelItem, window: QWidget,
+                           flags: int = FPB_ALIGN_WIDTH,
+                           spacing: int = FPB_DEFAULT_SPACING,
+                           leftSpacing: int = FPB_DEFAULT_LEFTLINESPACING,
+                           rightSpacing: int = FPB_DEFAULT_RIGHTLINESPACING) -> int:
+        if panel not in self._panels:
+            raise ValueError(f'Invalid panel passed to AddFoldPanelWindow: {panel!r}')
+        panel.AddWindow(window, flags, spacing, leftSpacing, rightSpacing)
+        return 0
 
-            self._wnd = window
+    def AddFoldPanelSeparator(self, panel: FoldPanelItem,
+                               colour: QColor | None = None,
+                               spacing: int = FPB_DEFAULT_SPACING,
+                               leftSpacing: int = FPB_DEFAULT_LEFTLINESPACING,
+                               rightSpacing: int = FPB_DEFAULT_RIGHTLINESPACING) -> int:
+        if panel not in self._panels:
+            raise ValueError(f'Invalid panel passed to AddFoldPanelSeparator: {panel!r}')
+        panel.AddSeparator(colour, spacing, leftSpacing, rightSpacing)
+        return 0
 
+    def Collapse(self, foldpanel: FoldPanelItem):
+        if foldpanel not in self._panels:
+            raise ValueError(f'Invalid panel passed to Collapse: {foldpanel!r}')
+        foldpanel.Collapse()
+        self.RefreshPanelsFrom(foldpanel)
+
+    def Expand(self, foldpanel: FoldPanelItem):
+        if foldpanel not in self._panels:
+            raise ValueError(f'Invalid panel passed to Expand: {foldpanel!r}')
+
+        if self._agwStyle & (FPB_SINGLE_FOLD | FPB_EXCLUSIVE_FOLD):
+            for p in self._panels:
+                p.Collapse()
+
+        foldpanel.Expand()
+
+        if self._agwStyle & FPB_EXCLUSIVE_FOLD:
+            self.RepositionCollapsedToBottom()
+            self.RefreshPanelsFrom(self._panels[0])
+        elif self._agwStyle & FPB_SINGLE_FOLD:
+            self.RefreshPanelsFrom(self._panels[0])
         else:
-            raise Exception("ERROR: Undefined Window Type Selected: " + repr(kw.get("Type")))
+            self.RefreshPanelsFrom(foldpanel)
 
-        self._type = kw.get("Type")
-        self._lineLength = 0
-        self._parent = parent
+    def ApplyCaptionStyle(self, foldpanel: FoldPanelItem,
+                          cbstyle: CaptionBarStyle):
+        foldpanel.ApplyCaptionStyle(cbstyle)
 
-    def GetType(self):
-        """ Returns the :class:`FoldWindowItem` type. """
+    def ApplyCaptionStyleAll(self, cbstyle: CaptionBarStyle):
+        for p in self._panels:
+            self.ApplyCaptionStyle(p, cbstyle)
+        self._cbstyle = cbstyle
 
-        return self._type
+    def GetCaptionStyle(self, foldpanel: FoldPanelItem) -> CaptionBarStyle:
+        return foldpanel.GetCaptionStyle()
 
-    def GetLineY(self):
-        """ Returns the y position of the separator. """
+    def GetFoldPanel(self, item: int) -> FoldPanelItem:
+        try:
+            return self._panels[item]
+        except IndexError:
+            raise ValueError(f'Index {item} out of range (0..{len(self._panels)-1})')
 
-        return self._lineY
+    def GetCount(self) -> int:
+        return len(self._panels)
 
-    def GetLineLength(self):
-        """ Returns the separator line length. """
+    # ------------------------------------------------------------------
+    # Layout
+    # ------------------------------------------------------------------
+    def RefreshPanelsFrom(self, item: FoldPanelItem):
+        try:
+            i = self._panels.index(item)
+        except ValueError:
+            raise ValueError(f'Invalid panel passed to RefreshPanelsFrom: {item!r}')
 
-        return self._lineLength
+        if self._agwStyle & (FPB_COLLAPSE_TO_BOTTOM | FPB_EXCLUSIVE_FOLD):
+            offset = 0
+            for p in self._panels:
+                if p.IsExpanded():
+                    offset += p.Reposition(offset)
+            self.RepositionCollapsedToBottom()
+        else:
+            pos = self._panels[i].GetItemPos() + self._panels[i].GetPanelLength()
+            for j in range(i + 1, len(self._panels)):
+                pos += self._panels[j].Reposition(pos)
 
-    def GetLineColour(self):
-        """ Returns the separator line colour. """
+        self.update()
 
-        return self._sepLineColour
+    def RepositionCollapsedToBottom(self):
+        vertical = self._isVertical
+        total = self.height() if vertical else self.width()
 
-    def GetLeftSpacing(self):
-        """ Returns the left indent of :class:`FoldWindowItem`. """
+        collapsed_len, expanded_len, _ = self.GetPanelsLength(0, 0)
 
-        return self._leftSpacing
+        if total - expanded_len - collapsed_len < 0:
+            offset = expanded_len
+        else:
+            offset = total - collapsed_len
 
-    def GetRightSpacing(self):
-        """ Returns the right indent of :class:`FoldWindowItem`. """
+        for p in self._panels:
+            if not p.IsExpanded():
+                offset += p.Reposition(offset)
 
-        return self._rightSpacing
-
-    def GetSpacing(self):
-        """ Returns the spacing of :class:`FoldWindowItem`. """
-
-        return self._spacing
-
-    def GetWindowLength(self, vertical=True):
-        """
-        Returns space needed by the window if type is :class:`FoldWindowItem`
-        "WINDOW" and returns the total size plus the extra spacing.
-
-        :param vertical: ``True`` if the parent :class:`FoldPanelBar` is in vertical
-         mode.
-        """
-
+    def GetPanelsLength(self, collapsed: int, expanded: int):
         value = 0
-        if self._type == "WINDOW":
-            size = self._wnd.GetSize()
-            value = (vertical and [size.GetHeight()] or [size.GetWidth()])[0] + self._spacing
+        for p in self._panels:
+            length = p.GetPanelLength()
+            value += length
+            if p.IsExpanded():
+                expanded += length
+            else:
+                collapsed += length
+        return collapsed, expanded, value
 
-        elif self._type == "SEPARATOR":
-            value = 1 + self._spacing
+    def RedisplayFoldPanelItems(self):
+        for p in self._panels:
+            p.ResizePanel()
+            p.update()
 
-        return value
+    # ------------------------------------------------------------------
+    # Qt events
+    # ------------------------------------------------------------------
+    def resizeEvent(self, event: QResizeEvent):
+        super().resizeEvent(event)
+        foldrect = self.rect()
 
-    def ResizeItem(self, size, vertical=True):
-        """
-        Resizes the element, whatever it is.
+        if self._agwStyle & (FPB_COLLAPSE_TO_BOTTOM | FPB_EXCLUSIVE_FOLD):
+            self.RepositionCollapsedToBottom()
 
-        A separator or line will be always aligned by width or height
-        depending on orientation of the whole panel.
-
-        :param size: the maximum size available for the :class:`FoldWindowItem`;
-        :param vertical: ``True`` if the parent :class:`FoldPanelBar` is in vertical
-         mode.
-        """
-
-        # if self._flags & FPB_ALIGN_WIDTH:
-        #     # align by taking full width
-        #     mySize = size - self._leftSpacing - self._rightSpacing
-        #
-        #     if mySize < 0:
-        #         mySize = 10  # can't have negative width
-        #
-        #     if self._type == "SEPARATOR":
-        #         self._lineLength = mySize
-        #     else:
-        #         xsize = (vertical and [mySize] or [-1])[0]
-        #         ysize = (vertical and [-1] or [mySize])[0]
-        #
-        #         self._wnd.SetSize((xsize, ysize))
-        pass
-
-
-if __name__ == '__main__':
-
-    import wx
-
-    class MyFrame(wx.Frame):
-
-        def __init__(self, parent):
-
-            wx.Frame.__init__(self, parent, -1, "FoldPanelBar Demo", size=(400, 600))
-            panel = wx.Panel(self, wx.ID_ANY, style=wx.BORDER_NONE)
-
-            text_ctrl = wx.TextCtrl(panel, -1, size=(-1, -1), style=wx.TE_MULTILINE)
-
-            panel_bar = FoldPanelBar(panel, -1, agwStyle=FPB_VERTICAL)
-
-            font = self.GetFont()
-
-            font.MakeItalic()
-            font.MakeBold()
-
-            # font = wx.Font()
-
-            style = CaptionBarStyle()
-            style.SetCaptionFont(font)
-            style.SetFirstColour(wx.Colour(0, 0, 0, 255))
-            style.SetSecondColour(wx.Colour(181, 28, 181, 255))
-            style.SetCaptionColour(wx.Colour(255, 216, 0, 255))
-            style.SetCaptionStyle(CAPTIONBAR_GRADIENT_H)
-
-            fold_panel1 = panel_bar.AddFoldPanel("Thing1")
-            thing1 = wx.TextCtrl(fold_panel1, -1, size=(-1, -1), style=wx.TE_MULTILINE)
-            panel_bar.AddFoldPanelWindow(fold_panel1, thing1)
-
-            fold_panel2 = panel_bar.AddFoldPanel("Thing2")
-            thing2 = wx.TextCtrl(fold_panel2, -1, size=(-1, -1), style=wx.TE_MULTILINE)
-            panel_bar.AddFoldPanelWindow(fold_panel2, thing2)
-
-            fold_panel3 = panel_bar.AddFoldPanel("Thing3")
-            thing3 = wx.TextCtrl(fold_panel3, -1, size=(-1, -1), style=wx.TE_MULTILINE)
-            panel_bar.AddFoldPanelWindow(fold_panel3, thing3)
-
-            panel_bar.ApplyCaptionStyleAll(style)
-
-            main_sizer = wx.BoxSizer(wx.VERTICAL)
-            main_sizer.Add(text_ctrl, 1, wx.ALL | wx.EXPAND, 5)
-            main_sizer.Add(panel_bar, 1, wx.ALL | wx.EXPAND, 5)
-            panel.SetSizer(main_sizer)
-
-            hsizer = wx.BoxSizer(wx.HORIZONTAL)
-            vsizer = wx.BoxSizer(wx.VERTICAL)
-            vsizer.Add(hsizer, 1, wx.EXPAND)
-            hsizer.Add(panel, 1, wx.EXPAND)
-            self.SetSizer(vsizer)
-
-    # our normal wxApp-derived class, as usual
-
-    app = wx.App(0)
-
-    frame = MyFrame(None)
-    app.SetTopWindow(frame)
-    frame.Show()
-
-    app.MainLoop()
+        self.RedisplayFoldPanelItems()

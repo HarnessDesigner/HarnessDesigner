@@ -1,112 +1,120 @@
-
-import wx
-import wx.adv
-
-
-class AutoCompleter(wx.TextCompleter):
-    def __init__(self, choices):
-        wx.TextCompleter.__init__(self)
-
-        self.choices = choices
-        self._last_returned = wx.NOT_FOUND
-        self._prefix = ''
-
-    def Start(self, prefix):
-        self._prefix = prefix.lower()
-        self._last_returned = wx.NOT_FOUND
-
-        for item in self.choices:
-            if item.lower().startswith(self._prefix):
-                return True
-
-        return False
-
-    def AppendChoices(self, choices):
-        self.choices.extend(choices[:])
-
-    def SetChoices(self, choices):
-        self.choices = choices[:]
-        self._last_returned = wx.NOT_FOUND
-        self._prefix = ''
-
-    def GetChoices(self):
-        return self.choices[:]
-
-    def InsertChoice(self, item: str, pos: int):
-        self.choices.insert(pos, item)
-
-    def RemoveChoice(self, pos: int):
-        self.choices.pop(pos)
-
-    def GetNext(self):
-        for i in range(self._last_returned + 1, len(self.choices)):
-            if self.choices[i].lower().startswith(self._prefix):
-                self._last_returned = i
-                return self.choices[i]
-
-        return ''
+from PySide6.QtWidgets import QComboBox, QCompleter
+from PySide6.QtCore import Qt, QStringListModel
+from PySide6.QtGui import QIcon, QPixmap
 
 
-class BitmapAutoCompleteComboBox(wx.adv.BitmapComboBox):
+class BitmapAutoCompleteComboBox(QComboBox):
+    """Editable, icon-bearing combobox with inline autocomplete.
 
-    def __init__(
-        self, parent, id=wx.ID_ANY, choices: list[str, wx.Bitmap, str] = [], pos=wx.DefaultPosition,
-        size=wx.DefaultSize, style=0, validator=wx.DefaultValidator,
-        name=wx.adv.BitmapComboBoxNameStr
-    ):
+    Replaces wx.adv.BitmapComboBox + AutoCompleter.  Each item is a
+    (label: str, pixmap: QPixmap, tooltip: str) tuple, matching the original
+    wx API where the third argument was clientData used as a tooltip.
 
-        style |= wx.TE_PROCESS_ENTER
+    Signals
+    -------
+    currentTextChanged  — fired on selection or Enter (replaces EVT_COMBOBOX +
+                         EVT_TEXT_ENTER).  Connect to this instead.
+    """
 
-        wx.adv.BitmapComboBox.__init__(self, parent, id, value='', pos=pos, size=size, choices=[],
-                                       style=style, validator=validator, name=name)
+    def __init__(self, parent=None, choices=None):
+        super().__init__(parent)
+        self.setEditable(True)
+        self.setInsertPolicy(QComboBox.NoInsert)
 
-        self.choices = choices
-        self._ac = AutoCompleter([choice[0] for choice in choices])
-        self.AutoComplete(self._ac)
+        self._choices: list[tuple[str, QPixmap | None, str | None]] = []
+        self._ac_labels: list[str] = []
 
-        self.Bind(wx.EVT_TEXT_ENTER, self._on_enter)
-        self.Bind(wx.EVT_COMBOBOX, self._on_selection)
+        self._completer = QCompleter([], self)
+        self._completer.setCaseSensitivity(Qt.CaseInsensitive)
+        self._completer.setCompletionMode(QCompleter.InlineCompletion)
+        self.lineEdit().setCompleter(self._completer)
 
-        for item in choices:
+        self.currentIndexChanged.connect(self._on_index_changed)
+        self.lineEdit().returnPressed.connect(self._on_enter)
+
+        for item in (choices or []):
             self.Append(*item)
 
-    def _on_selection(self, evt):
-        evt.Skip()
-        selection = self.GetSelection()
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+    def _rebuild_completer(self):
+        self._completer.setModel(QStringListModel(self._ac_labels, self._completer))
 
-        if selection != wx.NOT_FOUND:
-            tooltip = self.GetClientData(selection)
-            self.SetToolTip(tooltip)
+    def _on_index_changed(self, index: int):
+        if 0 <= index < len(self._choices):
+            tooltip = self._choices[index][2]
+            if tooltip:
+                self.setToolTip(tooltip)
 
-    def _on_enter(self, evt):
-        evt.Skip()
-        selection = self.GetSelection()
+    def _on_enter(self):
+        index = self.currentIndex()
+        if 0 <= index < len(self._choices):
+            tooltip = self._choices[index][2]
+            if tooltip:
+                self.setToolTip(tooltip)
 
-        if selection != wx.NOT_FOUND:
-            tooltip = self.GetClientData(selection)
-            self.SetToolTip(tooltip)
-
+    # ------------------------------------------------------------------
+    # wx-compatible item management
+    # ------------------------------------------------------------------
     def Clear(self):
-        wx.adv.BitmapComboBox.Clear(self)
-        self._ac.SetChoices([])
+        super().clear()
+        self._choices.clear()
+        self._ac_labels.clear()
+        self._rebuild_completer()
 
     def Delete(self, n: int):
-        wx.adv.BitmapComboBox.Delete(self, n)
-        self._ac.RemoveChoice(n)
+        self.removeItem(n)
+        self._choices.pop(n)
+        self._ac_labels.pop(n)
+        self._rebuild_completer()
 
-    def Insert(self, item: str, bitmap: wx.Bitmap, pos: int, clientData=None):
-        wx.adv.BitmapComboBox.Insert(self, item, bitmap, pos, clientData)
-        self._ac.InsertChoice(item, pos)
+    def Insert(self, item: str, bitmap=None, pos: int = 0, clientData=None):
+        pixmap = bitmap if isinstance(bitmap, QPixmap) else None
+        icon = QIcon(pixmap) if pixmap else QIcon()
+        self.insertItem(pos, icon, item)
+        self._choices.insert(pos, (item, pixmap, clientData))
+        self._ac_labels.insert(pos, item)
+        self._rebuild_completer()
 
     def Set(self, items):
-        wx.ComboBox.Set(self, items)
-        self._ac.SetChoices(items)
+        self.Clear()
+        for entry in items:
+            self.Append(*entry)
 
-    def SetItems(self, items: list[str]):
-        wx.adv.BitmapComboBox.SetItems(self, items)
+    def SetItems(self, items):
+        self.Set(items)
 
-    def Append(self, item, bitmap: wx.Bitmap, clientData=None):
-        res = wx.adv.BitmapComboBox.Append(self, item, bitmap, clientData)
-        self._ac.AppendChoices(item)
+    def Append(self, item: str, bitmap=None, clientData=None):
+        pixmap = bitmap if isinstance(bitmap, QPixmap) else None
+        icon = QIcon(pixmap) if pixmap else QIcon()
+        super().addItem(icon, item)
+        self._choices.append((item, pixmap, clientData))
+        self._ac_labels.append(item)
+        self._rebuild_completer()
+        return self.count() - 1
 
-        return res
+    # ------------------------------------------------------------------
+    # Value access
+    # ------------------------------------------------------------------
+    def GetValue(self) -> str:
+        return self.currentText()
+
+    def SetValue(self, value: str):
+        idx = self.findText(value, Qt.MatchFixedString)
+        if idx >= 0:
+            self.setCurrentIndex(idx)
+        else:
+            self.lineEdit().setText(value)
+
+    def GetItems(self) -> list[str]:
+        return self._ac_labels[:]
+
+    def GetClientData(self, n: int):
+        """Return the tooltip/clientData stored with item n."""
+        if 0 <= n < len(self._choices):
+            return self._choices[n][2]
+        return None
+
+    def GetSelection(self) -> int:
+        return self.currentIndex()

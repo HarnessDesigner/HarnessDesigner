@@ -1,8 +1,11 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
 from . import ObjectBase as _ObjectBase
 from .objects2d import seal as _seal_2d
 from .objects3d import seal as _seal_3d
+
 
 if TYPE_CHECKING:
     from .. import ui as _ui

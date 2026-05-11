@@ -1,6 +1,9 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
 from . import base2d as _base2d
+
 
 if TYPE_CHECKING:
     from ...database.project_db import pjt_seal as _pjt_seal

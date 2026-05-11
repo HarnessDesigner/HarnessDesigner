@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
 import wx
@@ -10,6 +12,7 @@ from ...ui.widgets import context_menus as _context_menus
 from ...geometry import angle as _angle
 from ...geometry import point as _point
 from ...geometry.decimal import Decimal as _d
+
 
 if TYPE_CHECKING:
     from ...database.project_db import pjt_housing as _pjt_housing

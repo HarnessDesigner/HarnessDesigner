@@ -1,8 +1,11 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
 from . import ObjectBase as _ObjectBase
 from .objects2d import transition as _transition_2d
 from .objects3d import transition as _transition_3d
+
 
 if TYPE_CHECKING:
     from .. import ui as _ui

@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
 import wx
@@ -17,6 +19,7 @@ from ... import color as _color
 if TYPE_CHECKING:
     from ...database.project_db import pjt_tpa_lock as _pjt_tpa_lock
     from .. import tpa_lock as _tpa_lock
+
 
 Config = _config.Config.editor3d
 

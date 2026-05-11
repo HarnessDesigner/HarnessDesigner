@@ -1,16 +1,16 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 from ...ui import prop_ctrls as _prop_ctrls
-
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from .mixins import NotesMixin, Position2DMixin
+
 
 if TYPE_CHECKING:
     from . import pjt_point2d as _pjt_point2d
     from . import pjt_wire as _pjt_wire
     from . import pjt_concentric_layer as _pjt_concentric_layer
-
     from ...objects import boot as _boot_obj
 
 

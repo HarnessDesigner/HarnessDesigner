@@ -1,3 +1,4 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 # TODO: Rewrite the splices so they accept models and a set number
 #       of splice points. It also needs to be written so there can be a
@@ -14,7 +15,6 @@ from ..global_db import splice as _splice
 from . import pjt_circuit as _pjt_circuit
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from ...geometry import point as _point
-
 from .mixins import (
     PartMixin,
     Position2DMixin, Position2DControl,
@@ -29,7 +29,6 @@ from .mixins import (
 if TYPE_CHECKING:
     from . import pjt_point3d as _pjt_point3d
     from . import pjt_wire as _pjt_wire
-
     from ...objects import splice as _splice_obj
 
 
