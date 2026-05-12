@@ -56,8 +56,8 @@ class TemperatureControl(_prop_ctrls.Category):
         self.min_temp_ctrl = _prop_ctrls.ComboBoxProperty(self, 'Minimum')
         self.max_temp_ctrl = _prop_ctrls.ComboBoxProperty(self, 'Maximum')
 
-        self.min_temp_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_min_temp)
-        self.max_temp_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_max_temp)
+        self.min_temp_ctrl.property_changed.connect(self._on_min_temp)
+        self.max_temp_ctrl.property_changed.connect(self._on_max_temp)
 
     def set_obj(self, db_obj: TemperatureMixin):
         self.db_obj = db_obj

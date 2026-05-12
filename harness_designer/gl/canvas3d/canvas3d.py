@@ -3,7 +3,8 @@
 from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import QWidget, QVBoxLayout
-from PySide6.QtCore import QEvent, Qt, QTimer
+from PySide6.QtCore import Qt, QTimer
+from PySide6 import QtCore
 
 from . import canvas as _canvas
 
@@ -15,11 +16,48 @@ if TYPE_CHECKING:
 
 class Canvas3D(QWidget):
 
+    # --- GL canvas signals (replace wx.PyEventBinder / ProcessEvent) ---
+    # object events
+    gl_object_selected = QtCore.Signal(object)
+    gl_object_unselected = QtCore.Signal(object)
+    gl_object_activated = QtCore.Signal(object)
+    gl_object_right_click = QtCore.Signal(object)
+    gl_object_right_dclick = QtCore.Signal(object)
+    gl_object_middle_click = QtCore.Signal(object)
+    gl_object_middle_dclick = QtCore.Signal(object)
+    gl_object_aux1_click = QtCore.Signal(object)
+    gl_object_aux1_dclick = QtCore.Signal(object)
+    gl_object_aux2_click = QtCore.Signal(object)
+    gl_object_aux2_dclick = QtCore.Signal(object)
+    gl_object_drag = QtCore.Signal(object)
+    # key events
+    gl_key_down = QtCore.Signal(object)
+    gl_key_up = QtCore.Signal(object)
+    # mouse events
+    gl_mouse_move = QtCore.Signal(object)
+    gl_left_down = QtCore.Signal(object)
+    gl_left_up = QtCore.Signal(object)
+    gl_left_dclick = QtCore.Signal(object)
+    gl_right_down = QtCore.Signal(object)
+    gl_right_up = QtCore.Signal(object)
+    gl_right_dclick = QtCore.Signal(object)
+    gl_middle_down = QtCore.Signal(object)
+    gl_middle_up = QtCore.Signal(object)
+    gl_middle_dclick = QtCore.Signal(object)
+    gl_aux1_down = QtCore.Signal(object)
+    gl_aux1_up = QtCore.Signal(object)
+    gl_aux1_dclick = QtCore.Signal(object)
+    gl_aux2_down = QtCore.Signal(object)
+    gl_aux2_up = QtCore.Signal(object)
+    gl_aux2_dclick = QtCore.Signal(object)
+    # misc
+    gl_capture_lost = QtCore.Signal(object)
+
     def __init__(self, parent: "_ui.MainFrame", config: "_config.Config.editor3d",
-                 size=None, axis_overlay=False):
+                 size=(), axis_overlay=False):
 
         QWidget.__init__(self, parent)
-        self.setAttribute(Qt.WA_OpaquePaintEvent)
+        self.setAttribute(Qt.WA_OpaquePaintEvent)  # NOQA
         self._ref_count = 0
 
         layout = QVBoxLayout(self)
@@ -30,14 +68,13 @@ class Canvas3D(QWidget):
             self, config, axis_overlay=axis_overlay)
         layout.addWidget(self._canvas)
 
-        if size is not None:
-            self._canvas.resize(size)
+        if size:
+            w, h, = size
+            self._canvas.resize(w, h)
 
         self.config = config
 
     def event(self, event):
-        if event.type() == QEvent.MouseCaptureLost:
-            pass  # canvas handles its own mouse capture release
         return QWidget.event(self, event)
 
     def resizeEvent(self, event):
@@ -113,7 +150,7 @@ class Canvas3D(QWidget):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._ref_count -= 1
 
-    def Refresh(self, *args, **kwargs):
+    def Refresh(self, *_, **__):
         if self._ref_count:
             return
 

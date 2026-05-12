@@ -435,10 +435,10 @@ class SealControl(QTabWidget):
             general_page, 'Inside Diameter', min_value=0.00,
             max_value=99.9, increment=0.01, units='mm')
 
-        self.hardness_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_hardness)
-        self.lubricant_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_lubricant)
-        self.o_dia_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_o_dia)
-        self.i_dia_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_i_dia)
+        self.hardness_ctrl.property_changed.connect(self._on_hardness)
+        self.lubricant_ctrl.property_changed.connect(self._on_lubricant)
+        self.o_dia_ctrl.property_changed.connect(self._on_o_dia)
+        self.i_dia_ctrl.property_changed.connect(self._on_i_dia)
 
         self.mfg_page = ManufacturerControl(self)
         self.family_page = FamilyControl(self)

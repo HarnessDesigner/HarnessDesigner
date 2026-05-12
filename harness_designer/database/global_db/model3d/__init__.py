@@ -217,7 +217,7 @@ class Model3D(EntryBase):
         dialog = _positioning.PositioningDialog(
             self._table.db.mainframe, vertices, faces, self)
 
-        if dialog.exec() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             (
                 simplify,
                 target_count,
@@ -254,7 +254,7 @@ class Model3D(EntryBase):
 
             a.z = angle.z
 
-        dialog.Destroy()
+        dialog.deleteLater()
 
     def load(self):
         file = self.data_path

@@ -2,7 +2,8 @@
 
 import threading
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, QEvent, QObject
+from PySide6.QtGui import QCursor
 
 from . import canvas as _canvas
 from ... import debug as _debug
@@ -91,9 +92,10 @@ def _process_key_event(keycode: int, *keys):
             return expected_keycode
 
 
-class KeyHandler:
+class KeyHandler(QObject):
 
     def __init__(self, canvas: "_canvas.Canvas"):
+        super().__init__()
         self.canvas = canvas
 
         # Qt: override keyPressEvent / keyReleaseEvent on the canvas instead
@@ -109,14 +111,16 @@ class KeyHandler:
 
     # Qt event filter — called by the canvas's event loop.
     def eventFilter(self, obj, qt_event):
-        from PySide6.QtCore import QEvent
+
         if obj is self.canvas:
-            if qt_event.type() == QEvent.KeyPress and not qt_event.isAutoRepeat():
+            if qt_event.type() == QEvent.Type.KeyPress and not qt_event.isAutoRepeat():
                 self._on_key_down(qt_event)
                 return False        # let Qt continue (focus, etc.)
-            if qt_event.type() == QEvent.KeyRelease and not qt_event.isAutoRepeat():
+
+            if qt_event.type() == QEvent.Type.KeyRelease and not qt_event.isAutoRepeat():
                 self._on_key_up(qt_event)
                 return False
+
         return False
 
     def _key_loop(self):
@@ -141,7 +145,6 @@ class KeyHandler:
 
     @_debug.logfunc
     def _on_key_up(self, evt):
-        from PySide6.QtGui import QKeyEvent
         keycode = evt.key()
 
         if not self._send_event(_events.EVT_GL_KEY_UP, evt):
@@ -195,11 +198,10 @@ class KeyHandler:
             return
 
     def _send_event(self, event_type, qt_evt) -> bool:
-        from PySide6.QtCore import Qt as _Qt
 
         # Screen position under the cursor — Qt key events don't carry a
         # position, so we use the current cursor position mapped to the widget.
-        from PySide6.QtGui import QCursor
+
         local_pos = self.canvas.mapFromGlobal(QCursor.pos())
         position = _point.Point(local_pos.x(), local_pos.y())
         world_position = self.canvas.camera.UnprojectPoint(position)
@@ -218,13 +220,13 @@ class KeyHandler:
         event.SetUnicodeKey(ord(text[0]) if text else 0)
 
         mods = qt_evt.modifiers()
-        event.SetAltDown(bool(mods & _Qt.AltModifier))
-        event.SetControlDown(bool(mods & _Qt.ControlModifier))
-        event.SetCmdDown(bool(mods & _Qt.ControlModifier))   # same as Ctrl on Windows/Linux
+        event.SetAltDown(bool(mods & Qt.AltModifier))  # NOQA
+        event.SetControlDown(bool(mods & Qt.ControlModifier))  # NOQA
+        event.SetCmdDown(bool(mods & Qt.ControlModifier))   # NOQA
         event.SetModifiers(int(mods))
-        event.SetMetaDown(bool(mods & _Qt.MetaModifier))
-        event.SetRawControlDown(bool(mods & _Qt.ControlModifier))
-        event.SetShiftDown(bool(mods & _Qt.ShiftModifier))
+        event.SetMetaDown(bool(mods & Qt.MetaModifier))  # NOQA
+        event.SetRawControlDown(bool(mods & Qt.ControlModifier))  # NOQA
+        event.SetShiftDown(bool(mods & Qt.ShiftModifier))  # NOQA
 
         event.SetId(id(self.canvas))
         event.SetEventObject(self.canvas)
@@ -238,7 +240,7 @@ class KeyHandler:
         else:
             self.canvas.gl_key_up.emit(event)
 
-        return not event.skipped()
+        return event.ShouldPropagate()
 
     @_debug.logfunc
     def _on_key_down(self, evt):

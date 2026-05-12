@@ -39,8 +39,8 @@ class CavityLockControl(_prop_ctrls.Property):
 
         self.name_ctrl = _prop_ctrls.ComboBoxProperty(self, 'Name')
         self.desc_ctrl = _prop_ctrls.StringProperty(self, 'Description')
-        self.name_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_name)
-        self.desc_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_desc)
+        self.name_ctrl.property_changed.connect(self._on_name)
+        self.desc_ctrl.property_changed.connect(self._on_desc)
 
     def set_obj(self, db_obj: CavityLockMixin):
         self.db_obj = db_obj

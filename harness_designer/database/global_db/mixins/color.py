@@ -40,7 +40,7 @@ class ColorControl(_prop_ctrls.ColorProperty):
 
         super().__init__(parent, 'Color')
 
-        self.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_color)
+        self.property_changed.connect(self._on_color)
 
     def SetAttributeName(self, name):
         self.attribute_name = name

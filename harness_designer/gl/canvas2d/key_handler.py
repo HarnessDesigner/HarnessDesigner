@@ -98,10 +98,10 @@ class KeyHandler:
 
     def eventFilter(self, obj, qt_event):
         if obj is self.canvas:
-            if qt_event.type() == QEvent.KeyPress and not qt_event.isAutoRepeat():
+            if qt_event.type() == QEvent.Type.KeyPress and not qt_event.isAutoRepeat():
                 self._on_key_down(qt_event)
                 return False
-            if qt_event.type() == QEvent.KeyRelease and not qt_event.isAutoRepeat():
+            if qt_event.type() == QEvent.Type.KeyRelease and not qt_event.isAutoRepeat():
                 self._on_key_up(qt_event)
                 return False
         return False

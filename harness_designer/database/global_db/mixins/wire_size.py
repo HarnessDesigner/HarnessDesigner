@@ -183,11 +183,11 @@ class WireSizeControl(_prop_ctrls.Category):
         self.max_dia_ctrl = _prop_ctrls.FloatProperty(
             self, 'Maximum Diameter', min_value=0.254, max_value=13.1191, increment=0.0001, units='mm')
 
-        self.min_mm2_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_min_mm2)
-        self.max_mm2_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_max_mm2)
+        self.min_mm2_ctrl.property_changed.connect(self._on_min_mm2)
+        self.max_mm2_ctrl.property_changed.connect(self._on_max_mm2)
 
-        self.min_awg_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_min_awg)
-        self.max_awg_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_max_awg)
+        self.min_awg_ctrl.property_changed.connect(self._on_min_awg)
+        self.max_awg_ctrl.property_changed.connect(self._on_max_awg)
 
-        self.min_dia_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_min_dia)
-        self.max_dia_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_max_dia)
+        self.min_dia_ctrl.property_changed.connect(self._on_min_dia)
+        self.max_dia_ctrl.property_changed.connect(self._on_max_dia)

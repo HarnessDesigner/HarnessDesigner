@@ -23,7 +23,7 @@ class NameControl(_prop_ctrls.StringProperty):
 
         super().__init__(parent, 'Name')
 
-        self.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_name)
+        self.property_changed.connect(self._on_name)
 
     def _on_name(self, evt):
         value = evt.GetValue()

@@ -303,11 +303,11 @@ class WireMarkerControl(QTabWidget):
 
         self.wire_size_page = WireSizeControl(self)
 
-        self.min_diameter_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_min_diameter)
-        self.max_diameter_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_max_diameter)
+        self.min_diameter_ctrl.property_changed.connect(self._on_min_diameter)
+        self.max_diameter_ctrl.property_changed.connect(self._on_max_diameter)
 
-        self.length_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_length)
-        self.label_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_label)
+        self.length_ctrl.property_changed.connect(self._on_length)
+        self.label_ctrl.property_changed.connect(self._on_label)
 
         for page in (
             general_page,

@@ -9,11 +9,9 @@ import math
 import ctypes
 import weakref
 
-from PySide6.QtCore import Qt, QTimer, QSize
-from PySide6.QtGui import QFont, QImage
-from PySide6.QtOpenGLWidgets import QOpenGLWidget
-from PySide6.QtWidgets import QApplication
-from PySide6.QtCore import Signal
+from PySide6 import QtCore
+from PySide6 import QtGui
+from PySide6 import QtOpenGLWidgets
 
 from . import headlight as _headlight
 from . import focal_target as _focal_target
@@ -31,7 +29,7 @@ MOUSE_REVERSE_X_AXIS = _config.MOUSE_REVERSE_X_AXIS
 _debug_config = _config.Config.debug.rendering3d
 
 
-class Canvas(QOpenGLWidget):
+class Canvas(QtOpenGLWidgets.QOpenGLWidget):
     """
     3D GL Engine — wx.glcanvas.GLCanvas → QOpenGLWidget
 
@@ -59,45 +57,10 @@ class Canvas(QOpenGLWidget):
     The mouse/key handlers and all object-management code are unchanged.
     """
 
-    # --- GL canvas signals (replace wx.PyEventBinder / ProcessEvent) ---
-    # object events
-    gl_object_selected     = Signal(object)
-    gl_object_unselected   = Signal(object)
-    gl_object_activated    = Signal(object)
-    gl_object_right_click  = Signal(object)
-    gl_object_right_dclick = Signal(object)
-    gl_object_middle_click  = Signal(object)
-    gl_object_middle_dclick = Signal(object)
-    gl_object_aux1_click   = Signal(object)
-    gl_object_aux1_dclick  = Signal(object)
-    gl_object_aux2_click   = Signal(object)
-    gl_object_aux2_dclick  = Signal(object)
-    gl_object_drag         = Signal(object)
-    # key events
-    gl_key_down    = Signal(object)
-    gl_key_up      = Signal(object)
-    # mouse events
-    gl_mouse_move  = Signal(object)
-    gl_left_down   = Signal(object)
-    gl_left_up     = Signal(object)
-    gl_left_dclick = Signal(object)
-    gl_right_down   = Signal(object)
-    gl_right_up     = Signal(object)
-    gl_right_dclick = Signal(object)
-    gl_middle_down   = Signal(object)
-    gl_middle_up     = Signal(object)
-    gl_middle_dclick = Signal(object)
-    gl_aux1_down   = Signal(object)
-    gl_aux1_up     = Signal(object)
-    gl_aux1_dclick = Signal(object)
-    gl_aux2_down   = Signal(object)
-    gl_aux2_up     = Signal(object)
-    gl_aux2_dclick = Signal(object)
-    # misc
-    gl_capture_lost = Signal(object)
+
 
     def __init__(self, parent, config: "_config.Config.editor3d",
-                 size: QSize = None, axis_overlay: bool = False):
+                 size: QtCore.QSize = None, axis_overlay: bool = False):
         super().__init__(parent)
 
         # Walk up to the QMainWindow (replaces aui.AuiManager.GetManager().GetManagedWindow())
@@ -123,10 +86,10 @@ class Canvas(QOpenGLWidget):
         self.camera = _camera.Camera(self)
         self._angle_overlay = None
 
-        self._faces_program   = None
-        self._edges_program   = None
+        self._faces_program = None
+        self._edges_program = None
         self._vertices_program = None
-        self._floor_program   = None
+        self._floor_program = None
 
         self.floor: _floor.Floor = None
         self._view_culling = _culling.CullingThreadPool()
@@ -144,16 +107,16 @@ class Canvas(QOpenGLWidget):
         self._ref_count = 0
 
         # angle-view overlay — now stored as a QImage instead of wx.Bitmap
-        self._angle_view_image: QImage | None = None
+        self._angle_view_image: QtGui.QImage | None = None
 
         from . import key_handler as _key_handler
         from . import mouse_handler as _mouse_handler
         from . import scene_light as _scene_light
 
-        self._key_handler   = _key_handler.KeyHandler(self)
+        self._key_handler = _key_handler.KeyHandler(self)
         self._mouse_handler = _mouse_handler.MouseHandler(self)
-        self._headlight     = _headlight.Headlight(self)
-        self._scene_light   = _scene_light.SceneLight(self)
+        self._headlight = _headlight.Headlight(self)
+        self._scene_light = _scene_light.SceneLight(self)
         self._focal_target: _focal_target.FocalPoint = None
 
         if size is not None:
@@ -190,21 +153,18 @@ class Canvas(QOpenGLWidget):
             self._angle_view_image = None
             return
 
-        from PySide6.QtGui import QPainter, QColor, QPen
-        from PySide6.QtCore import QRectF
-
         text = f'X: {round(x, 6)}  Y: {round(y, 6)}  Z: {round(z, 6)}'
 
         fm = self.fontMetrics()
         w = fm.horizontalAdvance(text) + 14
         h = fm.height() + 4
 
-        img = QImage(w, h, QImage.Format_RGBA8888)
-        img.fill(Qt.transparent)
+        img = QtGui.QImage(w, h, QtGui.QImage.Format.Format_RGBA8888)
+        img.fill(QtCore.Qt.GlobalColor.transparent)
 
-        painter = QPainter(img)
+        painter = QtGui.QPainter(img)
         painter.setFont(self.font())
-        painter.setPen(QColor(255, 255, 255, 255))
+        painter.setPen(QtGui.QColor(255, 255, 255, 255))
         painter.drawText(2, fm.ascent() + 2, text)
         painter.end()
 
@@ -434,10 +394,10 @@ class Canvas(QOpenGLWidget):
         GL.glEnable(GL.GL_DEPTH_TEST)
         GL.glClearColor(*self.config.background_color)
 
-        self._faces_program    = _shaders.compile_faces_program()
-        self._edges_program    = _shaders.compile_edges_program()
+        self._faces_program = _shaders.compile_faces_program()
+        self._edges_program = _shaders.compile_edges_program()
         self._vertices_program = _shaders.compile_vertices_program()
-        self._floor_program    = _shaders.compile_floor_program()
+        self._floor_program = _shaders.compile_floor_program()
 
         self.floor = _floor.Floor(self, self._floor_program)
 
@@ -457,7 +417,7 @@ class Canvas(QOpenGLWidget):
         self.set_focal_target(self.config.focal_target.enable)
 
         # wx.CallAfter → QTimer.singleShot(0, …)
-        QTimer.singleShot(0, lambda: self.Zoom(1.0))
+        QtCore.QTimer.singleShot(0, lambda: self.Zoom(1.0))
 
     def set_focal_target(self, flag):
         with self.context:
@@ -472,7 +432,7 @@ class Canvas(QOpenGLWidget):
     @_debug.logfunc
     def _draw_scene(self, obj_data):
         projection_matrix = GL.glGetFloatv(GL.GL_PROJECTION_MATRIX)
-        view_matrix       = GL.glGetFloatv(GL.GL_MODELVIEW_MATRIX)
+        view_matrix = GL.glGetFloatv(GL.GL_MODELVIEW_MATRIX)
 
         GL.glUseProgram(self._faces_program)
         GL.glUniform3fv(GL.glGetUniformLocation(self._faces_program, "viewPosition"),
@@ -502,13 +462,13 @@ class Canvas(QOpenGLWidget):
         self._scene_light.set(self._faces_program)
         self._headlight(self._faces_program)
 
-        removed_objects  = []
-        objects_in_view  = []
+        removed_objects = []
+        objects_in_view = []
 
         for row in obj_data:
             ref_address = row[-1]
             obj_ref = ctypes.cast(ref_address, ctypes.py_object).value
-            obj     = obj_ref()
+            obj = obj_ref()
 
             if obj is None:
                 try:
@@ -535,8 +495,8 @@ class Canvas(QOpenGLWidget):
     @_debug.logfunc
     def _on_draw(self):
         self.context.acquire()
-        w   = self.width()
-        h   = self.height()
+        w = self.width()
+        h = self.height()
         aspect = w / float(h) if h else 1.0
 
         f_size = self.config.floor.grid.size ** 2
@@ -585,7 +545,7 @@ class Canvas(QOpenGLWidget):
     # Snapshot (returns QImage instead of wx.Bitmap)
     # ------------------------------------------------------------------
 
-    def take_snapshot(self) -> QImage:
+    def take_snapshot(self) -> QtGui.QImage:
         self.makeCurrent()
         w = self.width()
         h = self.height()
@@ -596,5 +556,5 @@ class Canvas(QOpenGLWidget):
         arr = np.frombuffer(data, dtype=np.uint8).reshape((h, w, 3))
         arr = np.flipud(arr)
 
-        img = QImage(arr.tobytes(), w, h, w * 3, QImage.Format_RGB888)
+        img = QtGui.QImage(arr.tobytes(), w, h, w * 3, QtGui.QImage.Format.Format_RGB888)
         return img.copy()   # copy so the buffer outlives arr

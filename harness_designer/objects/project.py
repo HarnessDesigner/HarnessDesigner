@@ -2,6 +2,8 @@
 
 from typing import TYPE_CHECKING
 
+from PySide6.QtWidgets import QApplication, QDialog
+
 
 from ..config import Config as _Config
 from . import boot as _boot
@@ -286,7 +288,7 @@ class Project:
                 self._bundle_layouts[layout.db_id] = obj
 
         pdlg.Show(False)
-        pdlg.Destroy()
+        pdlg.deleteLater()
 
         for table_name, ids in db_ids.items():
             kwargs = {'type': f'add_{table_name}', 'data': ids}
@@ -325,7 +327,7 @@ class Project:
             else:
                 return
         finally:
-            dlg.Destroy()
+            dlg.deleteLater()
 
         connector.execute(f'SELECT id FROM projects WHERE name = "{project_name}";')
         res = connector.fetchall()

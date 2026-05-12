@@ -1,10 +1,15 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-import wx
 import zipfile
 import os
 import tempfile
 import io
+
+from PySide6.QtWidgets import (
+    QDialog, QDialogButtonBox, QVBoxLayout, QHBoxLayout, QWidget, QTreeWidget,
+    QTreeWidgetItem, QAbstractItemView, QApplication
+)
+from PySide6.QtCore import Qt
 
 from . import preview as _preview
 from . import loader as _loader
@@ -14,94 +19,99 @@ from .... import utils as _utils
 import requests
 
 
-class FileBrowser(wx.Panel):
+class FileBrowser(QWidget):
 
     def __init__(self, parent: "ModelDownloadDialog", extensions: list[str]):
-        wx.Panel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_NONE)
-        self.parent = parent
+        QWidget.__init__(self, parent)
+        self.parent_dialog = parent
         self.extensions = extensions
 
-        self.tree_ctrl = wx.TreeCtrl(
-            self, wx.ID_ANY, style=wx.TR_HAS_BUTTONS | wx.TR_LINES_AT_ROOT | wx.TR_ROW_LINES | wx.TR_SINGLE)
+        self.tree_ctrl = QTreeWidget(self)
+        self.tree_ctrl.setHeaderHidden(True)
+        self.tree_ctrl.setRootIsDecorated(True)
+        self.tree_ctrl.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
 
-        self.root = self.tree_ctrl.AddRoot('files')
+        self.root = QTreeWidgetItem(self.tree_ctrl, ['files'])
+        self.tree_ctrl.addTopLevelItem(self.root)
+
         self.zipfile: zipfile.ZipFile = None
 
-        self.tree_ctrl.Bind(wx.EVT_TREE_SEL_CHANGED, self.on_item_selected)
+        self.tree_ctrl.currentItemChanged.connect(self.on_item_selected)
         self.file_type = None
         self.file_data = None
 
-        hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        hsizer.Add(self.tree_ctrl, 0, wx.EXPAND)
-        vsizer = wx.BoxSizer(wx.VERTICAL)
-        vsizer.Add(hsizer, 0, wx.EXPAND)
-        self.SetSizer(vsizer)
+        layout = QVBoxLayout(self)
+        layout.addWidget(self.tree_ctrl)
 
     def GetValues(self):
         return self.file_data, self.file_type
 
-    def on_item_selected(self, evt: wx.TreeEvent):
-        evt.Skip()
-        item = evt.GetItem()
+    def on_item_selected(self, item: QTreeWidgetItem, _):
+        if item is None:
+            return
+        if item.childCount() > 0:
+            return
 
-        if item.IsOk() and not self.tree_ctrl.ItemHasChildren(item):
-            data = self.tree_ctrl.GetItemData(item)
-            if self.zipfile is None:
-                filename = self.tree_ctrl.GetItemText(data)
-                ext = os.path.splitext(filename)[-1]
+        data = item.data(0, Qt.ItemDataRole.UserRole)
+        if data is None:
+            return
 
-                self.file_data = data
+        if self.zipfile is None:
+            filename = item.text(0)
+            ext = os.path.splitext(filename)[-1]
+            self.file_data = data
+        else:
+            filename = data.filename
+            ext = None
+            for e in self.extensions:
+                if filename.endswith(e):
+                    ext = e
+                    break
             else:
-                filename = data.filename
-                for ext in self.extensions:
-                    if filename.endswith(ext):
-                        break
-                else:
-                    self.file_data = None
-                    self.file_type = None
-                    return
-
-                with self.zipfile.open(data) as f:
-                    self.file_data = f.read()
-
-            wx.BeginBusyCursor()
-
-            tempdir = tempfile.tempdir
-
-            temp_file = os.path.join(tempdir, 'hd_model' + ext)
-            with open(temp_file, 'wb') as f:
-                f.write(self.file_data)
-
-            self.file_type = ext
-
-            try:
-                mdata = _loader.load(temp_file)
-                triangles = []
-                for vertices, faces in mdata:
-                    tris, nrmls, count = _utils.compute_vertex_normals(vertices, faces)
-                    triangles.append([tris, nrmls, count])
-
-                wx.EndBusyCursor()
-            except:  # NOQA
-                try:
-                    os.remove(temp_file)
-                except OSError:
-                    pass
-
-                wx.EndBusyCursor()
-
                 self.file_data = None
                 self.file_type = None
                 return
 
-            self.parent.preview.set_model(triangles)
+            with self.zipfile.open(data) as f:
+                self.file_data = f.read()
 
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+
+        tempdir = tempfile.tempdir or tempfile.gettempdir()
+        temp_file = os.path.join(tempdir, 'hd_model' + ext)
+        with open(temp_file, 'wb') as f:
+            f.write(self.file_data)
+
+        self.file_type = ext
+
+        try:
+            mdata = _loader.load(temp_file)
+            triangles = []
+            for vertices, faces in mdata:
+                tris, nrmls, count = _utils.compute_vertex_normals(vertices, faces)
+                triangles.append([tris, nrmls, count])
+
+            QApplication.restoreOverrideCursor()
+        except:  # NOQA
             try:
                 os.remove(temp_file)
             except OSError:
                 pass
 
-            wx.EndBusyCursor()
+            QApplication.restoreOverrideCursor()
+
+            self.file_data = None
+            self.file_type = None
+            return
+
+        self.parent_dialog.preview.set_model(triangles)
+
+        try:
+            os.remove(temp_file)
+        except OSError:
+            pass
+
+        QApplication.restoreOverrideCursor()
 
     def load_zipfile(self, file: zipfile.ZipFile):
         self.zipfile = file
@@ -124,8 +134,9 @@ class FileBrowser(wx.Panel):
                         parent = tree[d]['tree_item']
                         tree = tree[d]['children']
                     else:
-                        child = self.tree_ctrl.AppendItem(parent, d)
-                        self.tree_ctrl.SetItemHasChildren(child, True)
+                        child = QTreeWidgetItem(parent, [d])
+                        child.setChildIndicatorPolicy(
+                            QTreeWidgetItem.ChildIndicatorPolicy.ShowIndicator)
                         items[d] = {
                             'tree_item': child,
                             'children': {}
@@ -149,8 +160,9 @@ class FileBrowser(wx.Panel):
                         parent = tree[d]['tree_item']
                         tree = tree[d]['children']
                     else:
-                        child = self.tree_ctrl.AppendItem(parent, d)
-                        self.tree_ctrl.SetItemHasChildren(child, True)
+                        child = QTreeWidgetItem(parent, [d])
+                        child.setChildIndicatorPolicy(
+                            QTreeWidgetItem.ChildIndicatorPolicy.ShowIndicator)
                         items[d] = {
                             'tree_item': child,
                             'children': {}
@@ -158,22 +170,20 @@ class FileBrowser(wx.Panel):
                         parent = child
                         tree = items[d]['children']
 
-                child = self.tree_ctrl.AppendItem(parent, filename)
-
-                self.tree_ctrl.SetItemData(child, f)
-                self.tree_ctrl.SetItemHasChildren(child, False)
+                child = QTreeWidgetItem(parent, [filename])
+                child.setData(0, Qt.ItemDataRole.UserRole, f)
 
     def load_file(self, filename, data):
-        child = self.tree_ctrl.AppendItem(self.root, filename)
-        self.tree_ctrl.SetItemData(child, data)
-        self.tree_ctrl.SetItemHasChildren(False)
+        child = QTreeWidgetItem(self.root, [filename])
+        child.setData(0, Qt.ItemDataRole.UserRole, data)
 
 
-class ModelDownloadDialog(wx.Dialog):
+class ModelDownloadDialog(QDialog):
 
     def __init__(self, parent, url, extensions):
-        wx.Dialog.__init__(self, parent, wx.ID_ANY,
-                           style=wx.CAPTION | wx.RESIZE_BORDER | wx.CLOSE_BOX | wx.STAY_ON_TOP)
+        QDialog.__init__(self, parent,
+                         Qt.WindowType.Dialog | Qt.WindowType.WindowCloseButtonHint |
+                         Qt.WindowType.WindowTitleHint | Qt.WindowType.WindowStaysOnTopHint)
 
         self.preview = _preview.Preview(self)
         self.browser = FileBrowser(self, extensions)
@@ -227,17 +237,18 @@ class ModelDownloadDialog(wx.Dialog):
                 filename = 'model' + extension
                 self.browser.load_file(filename, data)
 
-        hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        hsizer.Add(self.preview, 0, wx.EXPAND | wx.RIGHT, 20)
-        hsizer.Add(self.browser, 0, wx.EXPAND)
+        h_layout = QHBoxLayout()
+        h_layout.addWidget(self.preview)
+        h_layout.addWidget(self.browser)
 
-        vsizer = wx.BoxSizer(wx.VERTICAL)
-        vsizer.Add(hsizer, 0, wx.EXPAND | wx.ALL, 10)
+        v_layout = QVBoxLayout(self)
+        v_layout.addLayout(h_layout)
 
-        button_sizer = self.CreateSeparatedButtonSizer(wx.OK | wx.CANCEL)
-        vsizer.Add(button_sizer, 0, wx.ALL, 10)
-
-        self.SetSizer(vsizer)
+        button_box = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
+        v_layout.addWidget(button_box)
 
     def GetValues(self) -> tuple[bytes, str] | tuple[None, None]:
         return self.browser.GetValues()

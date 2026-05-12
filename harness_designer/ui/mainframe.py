@@ -2,8 +2,11 @@
 
 from typing import TYPE_CHECKING
 
-import wx
-from wx import aui
+from PySide6.QtWidgets import (
+    QMainWindow, QStatusBar, QLabel, QDockWidget, QWidget, QMenu, QDialog
+)
+from PySide6.QtCore import Qt, QTimer, QByteArray
+from PySide6.QtGui import QCursor
 
 from .. import config as _config
 from . import dialogs as _dialogs
@@ -26,8 +29,46 @@ _mainframe: "MainFrame" = None
 
 Config = _config.Config.mainframe
 
+# ---------------------------------------------------------------------------
+# EVT_GL_* sentinel → snake_case signal name mapping
+# (mirrors the Signal definitions on gl/canvas3d/canvas.py)
+# ---------------------------------------------------------------------------
+_GL_SIGNAL_MAP = {
+    _gl.EVT_GL_OBJECT_SELECTED.name:      'gl_object_selected',
+    _gl.EVT_GL_OBJECT_UNSELECTED.name:    'gl_object_unselected',
+    _gl.EVT_GL_OBJECT_ACTIVATED.name:     'gl_object_activated',
+    _gl.EVT_GL_OBJECT_RIGHT_CLICK.name:   'gl_object_right_click',
+    _gl.EVT_GL_OBJECT_RIGHT_DCLICK.name:  'gl_object_right_dclick',
+    _gl.EVT_GL_OBJECT_MIDDLE_CLICK.name:  'gl_object_middle_click',
+    _gl.EVT_GL_OBJECT_MIDDLE_DCLICK.name: 'gl_object_middle_dclick',
+    _gl.EVT_GL_OBJECT_AUX1_CLICK.name:   'gl_object_aux1_click',
+    _gl.EVT_GL_OBJECT_AUX1_DCLICK.name:  'gl_object_aux1_dclick',
+    _gl.EVT_GL_OBJECT_AUX2_CLICK.name:   'gl_object_aux2_click',
+    _gl.EVT_GL_OBJECT_AUX2_DCLICK.name:  'gl_object_aux2_dclick',
+    _gl.EVT_GL_OBJECT_DRAG.name:         'gl_object_drag',
+    _gl.EVT_GL_KEY_DOWN.name:            'gl_key_down',
+    _gl.EVT_GL_KEY_UP.name:              'gl_key_up',
+    _gl.EVT_GL_MOUSE_MOVE.name:          'gl_mouse_move',
+    _gl.EVT_GL_LEFT_DOWN.name:           'gl_left_down',
+    _gl.EVT_GL_LEFT_UP.name:             'gl_left_up',
+    _gl.EVT_GL_LEFT_DCLICK.name:         'gl_left_dclick',
+    _gl.EVT_GL_RIGHT_DOWN.name:          'gl_right_down',
+    _gl.EVT_GL_RIGHT_UP.name:            'gl_right_up',
+    _gl.EVT_GL_RIGHT_DCLICK.name:        'gl_right_dclick',
+    _gl.EVT_GL_MIDDLE_DOWN.name:         'gl_middle_down',
+    _gl.EVT_GL_MIDDLE_UP.name:           'gl_middle_up',
+    _gl.EVT_GL_MIDDLE_DCLICK.name:       'gl_middle_dclick',
+    _gl.EVT_GL_AUX1_DOWN.name:           'gl_aux1_down',
+    _gl.EVT_GL_AUX1_UP.name:             'gl_aux1_up',
+    _gl.EVT_GL_AUX1_DCLICK.name:         'gl_aux1_dclick',
+    _gl.EVT_GL_AUX2_DOWN.name:           'gl_aux2_down',
+    _gl.EVT_GL_AUX2_UP.name:             'gl_aux2_up',
+    _gl.EVT_GL_AUX2_DCLICK.name:         'gl_aux2_dclick',
+    _gl.EVT_GL_CAPTURE_LOST.name:        'gl_capture_lost',
+}
 
-class MainFrame(wx.Frame):
+
+class MainFrame(QMainWindow):
     db_connector: "_SQLConnector" = None
 
     global_db: "_global_db.GLBTables" = None
@@ -35,6 +76,8 @@ class MainFrame(wx.Frame):
     project: "_project.Project" = None
 
     def __init__(self, splash, logger: "_logger.Log"):
+        QMainWindow.__init__(self)
+
         self.config = _config.Config
 
         splash.SetText('Startup logging ...')
@@ -45,36 +88,22 @@ class MainFrame(wx.Frame):
         self._add_handler: _handlers.HandlerBase = None
 
         if not Config.size:
-            w, h = wx.GetDisplaySize()
-
-            w //= 3
-            w *= 2
-
-            h //= 3
-            h *= 2
-
+            screen = self.screen()
+            geo = screen.availableGeometry()
+            w = geo.width() * 2 // 3
+            h = geo.height() * 2 // 3
             Config.size = (w, h)
 
         if not Config.position:
-            w, h = wx.GetDisplaySize()
-            w -= Config.size[0]
-            h -= Config.size[1]
+            screen = self.screen()
+            geo = screen.availableGeometry()
+            x = (geo.width() - Config.size[0]) // 2
+            y = (geo.height() - Config.size[1]) // 2
+            Config.position = (x, y)
 
-            x = w // 2
-            y = h // 2
-            Config.position = (x - 7, y)
-
-        wx.Frame.__init__(self, None, wx.ID_ANY, title='Harness Designer',
-                          size=Config.size, pos=Config.position,
-                          style=(wx.CLIP_CHILDREN | wx.MINIMIZE_BOX | wx.CLOSE_BOX |
-                                 wx.RESIZE_BORDER | wx.MAXIMIZE_BOX | wx.SYSTEM_MENU |
-                                 wx.CAPTION))
-
-        self.Bind(wx.EVT_MOVE, self._on_move)
-        self.Bind(wx.EVT_SIZE, self._on_size)
-        self.Bind(wx.EVT_CLOSE, self._on_close)
-        self.Bind(wx.EVT_IDLE, self._on_idle)
-        self.Bind(wx.EVT_ERASE_BACKGROUND, self.on_erase_background)
+        self.setWindowTitle('Harness Designer')
+        self.resize(*Config.size)
+        self.move(*Config.position)
 
         self.db_connector = None
         self.global_db = None
@@ -82,30 +111,46 @@ class MainFrame(wx.Frame):
         self._selected_obj: "_objects.ObjectBase" = None
         self._obj_handler: _handlers.HandlerBase = None
 
-        splash.SetText('Starting UI manager...')
-        splash.flush()
-
-        self.manager = aui.AuiManager(flags=aui.AUI_MGR_ALLOW_FLOATING |
-                                      aui.AUI_MGR_ALLOW_ACTIVE_PANE |
-                                      aui.AUI_MGR_TRANSPARENT_DRAG |
-                                      aui.AUI_MGR_TRANSPARENT_HINT |
-                                      aui.AUI_MGR_HINT_FADE)
-        self.manager.SetManagedWindow(self)
-
-        self.manager.Bind(aui.EVT_AUI_PANE_ACTIVATED, self._on_pane_activated)
+        # ------------------------------------------------------------------
+        # Docking setup
+        # Qt QMainWindow has built-in dock support. For full AUI-equivalent
+        # floating/tabbing behaviour (Phase 17 note: PySide6-QtAds was
+        # considered but QMainWindow dock widgets faithfully reproduce the
+        # pane layout needed here; QtAds would be needed only if free-
+        # floating drag-and-tab between arbitrary positions is required).
+        # ------------------------------------------------------------------
+        self.setDockOptions(
+            QMainWindow.DockOption.AnimatedDocks |
+            QMainWindow.DockOption.AllowNestedDocks |
+            QMainWindow.DockOption.AllowTabbedDocks
+        )
 
         splash.SetText('Creating statusbar...')
         splash.flush()
 
-        self.status_bar = status_bar = self.CreateStatusBar(3, id=wx.ID_ANY)
-        status_bar.SetStatusText('X: 0.000000', 0)
-        status_bar.SetStatusText('Y: 0.000000', 1)
-        status_bar.SetStatusText('Z: 0.000000', 2)
+        # ------------------------------------------------------------------
+        # Status bar — 3 permanent QLabel widgets replace CreateStatusBar(3).
+        # showMessage() is for transient notifications; coordinates use
+        # permanent widgets so they are never overwritten by transient text.
+        # ------------------------------------------------------------------
+        status_bar = QStatusBar(self)
+        self.setStatusBar(status_bar)
+        self.status_bar = status_bar
 
-        w, h = self.GetTextExtent(status_bar.GetStatusText(0))
-        status_bar.SetStatusWidths([w + 4, w + 4, w + 4])
-        status_bar.SetMinHeight(h)
-        # status_bar_pane = status_bar.GetField(6)
+        fm = self.fontMetrics()
+        coord_text = 'X: 0.000000'
+        label_width = fm.horizontalAdvance(coord_text) + 8
+
+        self._status_x = QLabel('X: 0.000000')
+        self._status_x.setFixedWidth(label_width)
+        self._status_y = QLabel('Y: 0.000000')
+        self._status_y.setFixedWidth(label_width)
+        self._status_z = QLabel('Z: 0.000000')
+        self._status_z.setFixedWidth(label_width)
+
+        status_bar.addPermanentWidget(self._status_x)
+        status_bar.addPermanentWidget(self._status_y)
+        status_bar.addPermanentWidget(self._status_z)
 
         splash.SetText('Creating 3D editor...')
         splash.flush()
@@ -127,6 +172,12 @@ class MainFrame(wx.Frame):
         from . import editor_db
 
         self.editor_db = editor_db.EditorDB(self)
+        self._make_dock(
+            title='Database Editor',
+            name='editor_db',
+            widget=self.editor_db.editor,
+            area=Qt.DockWidgetArea.BottomDockWidgetArea,
+        )
 
         splash.SetText('Creating attribute editor...')
         splash.flush()
@@ -170,7 +221,7 @@ class MainFrame(wx.Frame):
 
         from . import system_menu
         self.system_menu = system_menu.SystemMenu(self)
-        self.SetMenuBar(self.system_menu)
+        self.setMenuBar(self.system_menu)
 
         splash.SetText('Starting boot editor...')
         splash.flush()
@@ -277,51 +328,259 @@ class MainFrame(wx.Frame):
         splash.SetText('Loading UI perspective...')
         splash.flush()
 
+        # Restore saved dock layout.  saveState() returns QByteArray; we store
+        # it in Config as bytes.  restoreState() accepts both QByteArray and
+        # bytes directly.
         if Config.ui_perspective:
             logger.debug('SAVED UI:', repr(Config.ui_perspective))
-            self.manager.LoadPerspective(Config.ui_perspective)
+            state = Config.ui_perspective
+            if isinstance(state, str):
+                # Guard: if an old str value slipped in, encode before use
+                state = state.encode('latin-1')
+            self.restoreState(QByteArray(state))
 
         if Config.position:
-            def _do():
-                self.SetPosition(Config.position)
-
-            wx.CallAfter(_do)
+            QTimer.singleShot(0, lambda: self.move(*Config.position))
         else:
-            self.CenterOnScreen()
+            QTimer.singleShot(0, self._center_on_screen)
 
-        self.manager.Update()
+        # ------------------------------------------------------------------
+        # Connect GL canvas signals using editor3d.connect() shim.
+        # editor3d.connect(signal_name, handler) calls
+        # getattr(self.editor, signal_name).connect(handler) on the inner
+        # QOpenGLWidget.  We derive the snake_case signal name from the
+        # _GLEventType sentinel via _GL_SIGNAL_MAP.
+        # ------------------------------------------------------------------
+        self._connect_editor3d_signals()
 
-        self.editor3d.Bind(_gl.EVT_GL_OBJECT_SELECTED, self._on_obj_selected_3d)
-        self.editor3d.Bind(_gl.EVT_GL_OBJECT_UNSELECTED, self._on_obj_unselected_3d)
-        self.editor3d.Bind(_gl.EVT_GL_OBJECT_ACTIVATED, self._on_obj_activated_3d)
-        self.editor3d.Bind(_gl.EVT_GL_OBJECT_RIGHT_CLICK, self._on_obj_right_click_3d)
-        self.editor3d.Bind(_gl.EVT_GL_OBJECT_RIGHT_DCLICK, self._on_obj_right_dclick_3d)
-        self.editor3d.Bind(_gl.EVT_GL_OBJECT_MIDDLE_CLICK, self._on_obj_middle_click_3d)
-        self.editor3d.Bind(_gl.EVT_GL_OBJECT_MIDDLE_DCLICK, self._on_obj_middle_dclick_3d)
-        self.editor3d.Bind(_gl.EVT_GL_OBJECT_AUX1_CLICK, self._on_obj_aux1_click_3d)
-        self.editor3d.Bind(_gl.EVT_GL_OBJECT_AUX1_DCLICK, self._on_obj_aux1_dclick_3d)
-        self.editor3d.Bind(_gl.EVT_GL_OBJECT_AUX2_CLICK, self._on_obj_aux2_click_3d)
-        self.editor3d.Bind(_gl.EVT_GL_OBJECT_AUX2_DCLICK, self._on_obj_aux2_dclick_3d)
-        self.editor3d.Bind(_gl.EVT_GL_OBJECT_DRAG, self._on_obj_drag_3d)
-        self.editor3d.Bind(_gl.EVT_GL_KEY_DOWN, self._on_key_down_3d)
-        self.editor3d.Bind(_gl.EVT_GL_KEY_UP, self._on_key_up_3d)
-        self.editor3d.Bind(_gl.EVT_GL_MOUSE_MOVE, self._on_mouse_move_3d)
-        self.editor3d.Bind(_gl.EVT_GL_CAPTURE_LOST, self._on_capture_lost_3d)
-        self.editor3d.Bind(_gl.EVT_GL_LEFT_DOWN, self._on_left_down_3d)
-        self.editor3d.Bind(_gl.EVT_GL_LEFT_UP, self._on_left_up_3d)
-        self.editor3d.Bind(_gl.EVT_GL_LEFT_DCLICK, self._on_left_dclick_3d)
-        self.editor3d.Bind(_gl.EVT_GL_RIGHT_DOWN, self._on_right_down_3d)
-        self.editor3d.Bind(_gl.EVT_GL_RIGHT_UP, self._on_right_up_3d)
-        self.editor3d.Bind(_gl.EVT_GL_RIGHT_DCLICK, self._on_right_dclick_3d)
-        self.editor3d.Bind(_gl.EVT_GL_MIDDLE_DOWN, self._on_middle_down_3d)
-        self.editor3d.Bind(_gl.EVT_GL_MIDDLE_UP, self._on_middle_up_3d)
-        self.editor3d.Bind(_gl.EVT_GL_MIDDLE_DCLICK, self._on_middle_dclick_3d)
-        self.editor3d.Bind(_gl.EVT_GL_AUX1_DOWN, self._on_aux1_down_3d)
-        self.editor3d.Bind(_gl.EVT_GL_AUX1_UP, self._on_aux1_up_3d)
-        self.editor3d.Bind(_gl.EVT_GL_AUX1_DCLICK, self._on_aux1_dclick_3d)
-        self.editor3d.Bind(_gl.EVT_GL_AUX2_DOWN, self._on_aux2_down_3d)
-        self.editor3d.Bind(_gl.EVT_GL_AUX2_UP, self._on_aux2_up_3d)
-        self.editor3d.Bind(_gl.EVT_GL_AUX2_DCLICK, self._on_aux2_dclick_3d)
+        # ------------------------------------------------------------------
+        # Idle processing — replaces wx.EVT_IDLE.
+        # A zero-interval QTimer fires as fast as the event loop allows when
+        # no other events are pending, giving the same semantics as wx idle.
+        # The timer is started lazily (after initializeGL) to avoid GL calls
+        # before the context is ready; we use a 0ms single-shot here which
+        # chains itself only when there is remaining work, matching the
+        # original event.RequestMore() pattern.
+        # ------------------------------------------------------------------
+        self._idle_timer = QTimer(self)
+        self._idle_timer.setInterval(0)
+        self._idle_timer.timeout.connect(self._on_idle)
+        self._idle_timer.start()
+
+    # ------------------------------------------------------------------
+    # Dock widget factory
+    # ------------------------------------------------------------------
+
+    def _make_dock(self, title: str, name: str, widget: QWidget,
+                   area=None) -> QDockWidget:
+        """Create and register a QDockWidget.
+
+        Parameters
+        ----------
+        title:  Human-readable pane caption (shown in the title bar).
+        name:   Stable object name used by saveState/restoreState.
+                Must be unique across all dock widgets.
+        widget: The content widget to embed in the dock.
+        area:   Qt dock area constant (Qt.LeftDockWidgetArea etc.).
+                Pass Qt.CentralWidget to set the widget as the central
+                widget instead of docking it.  Defaults to
+                Qt.RightDockWidgetArea when None.
+        """
+        if area is Qt.DockWidgetArea.AllDockWidgetAreas:
+            # The 3D editor fills the central area — not a dockable pane
+            self.setCentralWidget(widget)
+            return None  # no QDockWidget to return
+
+        dock = QDockWidget(title, self)
+        dock.setObjectName(name)   # required for saveState/restoreState
+        dock.setWindowTitle(title)
+        dock.setWidget(widget)
+
+        if area is None:
+            area = Qt.DockWidgetArea.RightDockWidgetArea
+
+        self.addDockWidget(area, dock)
+        return dock
+
+    def add_object_browser_panel(self, widget: QWidget) -> QDockWidget:
+        """Called by ObjectBrowser.__init__ to register its panel."""
+        dock = self._make_dock(
+            title='Object Browser',
+            name='object_browser',
+            widget=widget,
+            area=Qt.DockWidgetArea.LeftDockWidgetArea,
+        )
+        dock.show()
+        return dock
+
+    def _center_on_screen(self):
+        screen = self.screen()
+        geo = screen.availableGeometry()
+        x = (geo.width() - self.width()) // 2
+        y = (geo.height() - self.height()) // 2
+        self.move(x, y)
+
+    # ------------------------------------------------------------------
+    # GL signal wiring
+    # ------------------------------------------------------------------
+
+    def _connect_editor3d_signals(self):
+        """Wire all EVT_GL_* signal sentinels to their mainframe handlers."""
+        pairs = [
+            (_gl.EVT_GL_OBJECT_SELECTED,      self._on_obj_selected_3d),
+            (_gl.EVT_GL_OBJECT_UNSELECTED,    self._on_obj_unselected_3d),
+            (_gl.EVT_GL_OBJECT_ACTIVATED,     self._on_obj_activated_3d),
+            (_gl.EVT_GL_OBJECT_RIGHT_CLICK,   self._on_obj_right_click_3d),
+            (_gl.EVT_GL_OBJECT_RIGHT_DCLICK,  self._on_obj_right_dclick_3d),
+            (_gl.EVT_GL_OBJECT_MIDDLE_CLICK,  self._on_obj_middle_click_3d),
+            (_gl.EVT_GL_OBJECT_MIDDLE_DCLICK, self._on_obj_middle_dclick_3d),
+            (_gl.EVT_GL_OBJECT_AUX1_CLICK,   self._on_obj_aux1_click_3d),
+            (_gl.EVT_GL_OBJECT_AUX1_DCLICK,  self._on_obj_aux1_dclick_3d),
+            (_gl.EVT_GL_OBJECT_AUX2_CLICK,   self._on_obj_aux2_click_3d),
+            (_gl.EVT_GL_OBJECT_AUX2_DCLICK,  self._on_obj_aux2_dclick_3d),
+            (_gl.EVT_GL_OBJECT_DRAG,         self._on_obj_drag_3d),
+            (_gl.EVT_GL_KEY_DOWN,            self._on_key_down_3d),
+            (_gl.EVT_GL_KEY_UP,              self._on_key_up_3d),
+            (_gl.EVT_GL_MOUSE_MOVE,          self._on_mouse_move_3d),
+            (_gl.EVT_GL_CAPTURE_LOST,        self._on_capture_lost_3d),
+            (_gl.EVT_GL_LEFT_DOWN,           self._on_left_down_3d),
+            (_gl.EVT_GL_LEFT_UP,             self._on_left_up_3d),
+            (_gl.EVT_GL_LEFT_DCLICK,         self._on_left_dclick_3d),
+            (_gl.EVT_GL_RIGHT_DOWN,          self._on_right_down_3d),
+            (_gl.EVT_GL_RIGHT_UP,            self._on_right_up_3d),
+            (_gl.EVT_GL_RIGHT_DCLICK,        self._on_right_dclick_3d),
+            (_gl.EVT_GL_MIDDLE_DOWN,         self._on_middle_down_3d),
+            (_gl.EVT_GL_MIDDLE_UP,           self._on_middle_up_3d),
+            (_gl.EVT_GL_MIDDLE_DCLICK,       self._on_middle_dclick_3d),
+            (_gl.EVT_GL_AUX1_DOWN,           self._on_aux1_down_3d),
+            (_gl.EVT_GL_AUX1_UP,             self._on_aux1_up_3d),
+            (_gl.EVT_GL_AUX1_DCLICK,         self._on_aux1_dclick_3d),
+            (_gl.EVT_GL_AUX2_DOWN,           self._on_aux2_down_3d),
+            (_gl.EVT_GL_AUX2_UP,             self._on_aux2_up_3d),
+            (_gl.EVT_GL_AUX2_DCLICK,         self._on_aux2_dclick_3d),
+        ]
+        for evt_type, handler in pairs:
+            signal_name = _GL_SIGNAL_MAP[evt_type.name]
+            self.editor3d.connect(signal_name, handler)
+
+    # ------------------------------------------------------------------
+    # QMainWindow event overrides (replace wx.EVT_* bindings)
+    # ------------------------------------------------------------------
+
+    def moveEvent(self, event):
+        QMainWindow.moveEvent(self, event)
+        QTimer.singleShot(0, self._save_position)
+
+    def resizeEvent(self, event):
+        QMainWindow.resizeEvent(self, event)
+        QTimer.singleShot(0, self._save_size)
+
+    def closeEvent(self, event):
+        self._on_close()
+        event.accept()
+
+    def _save_position(self):
+        pos = self.pos()
+        Config.position = (pos.x(), pos.y())
+
+    def _save_size(self):
+        sz = self.size()
+        Config.size = (sz.width(), sz.height())
+
+    # ------------------------------------------------------------------
+    # Idle processing (replaces wx.EVT_IDLE / event.RequestMore)
+    # ------------------------------------------------------------------
+
+    def _on_idle(self):
+        """
+        Called by the zero-interval QTimer whenever the event loop is idle.
+
+        Delegates one chunk of orphan-point cleanup to the project's
+        ProjectCleanup instance.  Stops the timer when there is no more
+        work so the loop is not spinning while the application is truly
+        idle.  The timer restarts itself the next time it runs — because
+        it fires continuously while running — so there is no explicit
+        restart needed when new work arrives.
+        """
+        if self.project is None:
+            return
+
+        if not self.project.cleanup.process_chunk():
+            # No remaining work; pause idle processing.  The timer will
+            # still fire on the next Qt event-loop pass and re-check, which
+            # is effectively the same cost as the original wx idle pattern.
+            pass
+
+    # ------------------------------------------------------------------
+    # Close / shutdown
+    # ------------------------------------------------------------------
+
+    def _on_close(self):
+        self.logger.info('Harness Designer shutting down')
+
+        self.logger.info('Saving UI layout...')
+        # saveState() returns QByteArray; store as bytes for Config
+        Config.ui_perspective = bytes(self.saveState())
+
+        self.logger.info('Closing 2D Editor....')
+        self.editor2d.Destroy()
+
+        self.logger.info('Closing 3D Editor....')
+        self.editor3d.Destroy()
+
+        self.logger.info('Closing Database Editor....')
+        self.editor_db.Destroy()
+
+        self.logger.info('Closing Object Editor....')
+        self.editor_obj.Destroy()
+
+        self.logger.info('Closing Assembly Editor....')
+        self.editor_assembly.Destroy()
+
+        self.logger.info('Closing Log Viewer....')
+        self.log_viewer.Destroy()
+
+    # ------------------------------------------------------------------
+    # Status bar helpers (public API used by canvas handlers)
+    # ------------------------------------------------------------------
+
+    def SetStatusText(self, text, _=None):
+        self.status_bar.showMessage(text)
+
+    def RevertStatusText(self):
+        self.status_bar.clearMessage()
+
+    def Set2DCoordinates(self, x, y):
+        self._status_x.setText(f'X: {round(float(x), 4)}')
+        self._status_y.setText(f'Y: {round(float(y), 4)}')
+        self._status_z.setText('')
+
+    def Set3DCoordinates(self, x, y, z):
+        self._status_x.setText(f'X: {round(float(x), 4)}')
+        self._status_y.setText(f'Y: {round(float(y), 4)}')
+        self._status_z.setText(f'Z: {round(float(z), 4)}')
+
+    # ------------------------------------------------------------------
+    # Show / initial load
+    # ------------------------------------------------------------------
+
+    def Show(self, flag=True):
+        if flag:
+            self.show()
+        else:
+            self.hide()
+
+        def _do():
+            from ..objects import project as _proj
+
+            self.editor_db.load_db(self.global_db)
+            self.project = _proj.Project.select_project(self)
+
+        QTimer.singleShot(0, _do)
+
+    # ------------------------------------------------------------------
+    # GL object event handlers (3D canvas)
+    # ------------------------------------------------------------------
 
     def _on_obj_selected_3d(self, evt: _gl.GLObjectEvent) -> None:
         if self._obj_handler is not None:
@@ -350,8 +609,15 @@ class MainFrame(wx.Frame):
 
             context_menu = obj.obj3d.get_context_menu()
             if context_menu is not None:
+                # QMenu.exec() takes a global screen position.
+                # evt.GetPosition() returns a Point in canvas-local coords;
+                # map it to global via the canvas widget.
                 x, y, _ = evt.GetPosition().as_int
-                self.editor3d.editor.PopupMenu(context_menu, x, y)
+                canvas_widget = self.editor3d.editor
+                global_pos = canvas_widget.mapToGlobal(
+                    canvas_widget.rect().topLeft().__class__(x, y)
+                )
+                context_menu.exec(global_pos)
 
     def _on_obj_right_dclick_3d(self, evt: _gl.GLObjectEvent) -> None:
         if self._obj_handler is not None:
@@ -404,7 +670,7 @@ class MainFrame(wx.Frame):
     def _on_key_down_3d(self, evt: _gl.GLKeyEvent) -> None:
         if self._obj_handler is not None:
             keycode = evt.GetKeyCode()
-            if keycode == wx.WXK_ESCAPE:
+            if keycode == Qt.Key.Key_Escape:
                 mouse_event = evt.GetMouseEvent()
 
                 if (
@@ -455,15 +721,15 @@ class MainFrame(wx.Frame):
         if self._obj_handler is not None:
             position = evt.GetPosition()
             self._obj_handler.capture_position(position)
-            self.editor3d.CaptureMouse()
+            # grabMouse() replaces wx CaptureMouse() on the canvas widget
+            self.editor3d.editor.grabMouse()
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_left_up_3d(self, evt: _gl.GLEvent) -> None:
         if self._obj_handler is not None:
-            position = evt.GetPosition
-            self._obj_handler.release_capture(position)
+            self._obj_handler.release_capture()
 
             if self._obj_handler.is_finalized:
                 self._obj_handler = None
@@ -605,14 +871,62 @@ class MainFrame(wx.Frame):
         else:
             evt.Skip()
 
+    # ------------------------------------------------------------------
+    # Pane activation (replaces aui.EVT_AUI_PANE_ACTIVATED)
+    # QDockWidget.visibilityChanged / raise_() is the Qt equivalent for
+    # focus-tracking; this stub preserves the hook for future use.
+    # ------------------------------------------------------------------
+
+    def _on_pane_activated(self, dock: QDockWidget) -> None:
+        widget = dock.widget() if dock is not None else None
+
+        if widget is self.editor2d.editor:
+            pass
+        elif widget is self.editor3d.editor:
+            pass
+        elif widget is self.editor_db.editor:
+            pass
+        elif widget is self.editor_obj.editor:
+            pass
+        elif widget is self.editor_assembly.editor:
+            pass
+
+    # ------------------------------------------------------------------
+    # Object management
+    # ------------------------------------------------------------------
+
     def set_clone_obj(self, obj):
         self._clone_obj = obj
-
         self.editor3d.set_clone_obj(obj)
         self.editor2d.set_clone_obj(obj)
 
     def get_clone_obj(self):
         return self._clone_obj
+
+    def add_object(self, obj):
+        self.editor2d.add_object(obj)
+        self.editor3d.add_object(obj)
+
+    def remove_object(self, obj):
+        self.editor2d.remove_object(obj)
+        self.editor3d.remove_object(obj)
+
+    def _set_selected(self, obj: "_objects.ObjectBase"):
+        self._selected_obj = obj
+        self.editor3d.set_selected(obj)
+        self.editor2d.set_selected(obj)
+        self.editor_obj.set_selected(obj)
+
+    def set_selected(self, obj: "_objects.ObjectBase"):
+        if obj is not None:
+            obj.set_selected(True)
+
+    def get_selected(self) -> "_objects.ObjectBase":
+        return self._selected_obj
+
+    # ------------------------------------------------------------------
+    # Add-object helpers
+    # ------------------------------------------------------------------
 
     def add_housing(self, position2d: "_point.Point" = None,
                     position3d: "_point.Point" = None, part_id: int = None) -> None:
@@ -633,15 +947,14 @@ class MainFrame(wx.Frame):
                 from .dialogs import housing_editor
 
                 dlg = housing_editor.HousingEditorDialog(self, hsng)
-                if dlg.ShowModal() != wx.ID_OK:
-                    dlg.Destroy()
+                if dlg.exec() != QDialog.DialogCode.Accepted:
+                    dlg.deleteLater()
                     return
 
-                dlg.Destroy()
-
+                dlg.deleteLater()
                 self.project.add_housing(part_id, p2d, p3d)
 
-            wx.CallAfter(_do, housing, position2d, position3d)
+            QTimer.singleShot(0, lambda: _do(housing, position2d, position3d))
             return
 
         self.project.add_housing(part_id, position2d, position3d)
@@ -688,7 +1001,7 @@ class MainFrame(wx.Frame):
         if part_id is None:
             return
 
-        self.project.add_wire_marker(part_id,  position2d, position3d)
+        self.project.add_wire_marker(part_id, position2d, position3d)
 
     def add_splice(self, position2d: "_point.Point" = None,
                    position3d: "_point.Point" = None, part_id: int = None) -> None:
@@ -783,131 +1096,6 @@ class MainFrame(wx.Frame):
 
         self.project.add_cover(part_id, position3d)
 
-    def _on_pane_activated(self, evt: aui.AuiManagerEvent):
-        pane = evt.GetPane()
-
-        if pane == self.editor2d:
-            pass
-
-        if pane == self.editor3d:
-            pass
-
-        if pane == self.editor_db:
-            pass
-
-        if pane == self.editor_obj:
-            pass
-
-        if pane == self.editor_assembly:
-            pass
-
-        evt.Skip()
-
-    def add_object(self, obj):
-        self.editor2d.add_object(obj)
-        self.editor3d.add_object(obj)
-
-    def remove_object(self, obj):
-        self.editor2d.remove_object(obj)
-        self.editor3d.remove_object(obj)
-
-    def _set_selected(self, obj: "_objects.ObjectBase"):
-        self._selected_obj = obj
-        self.editor3d.set_selected(obj)
-        self.editor2d.set_selected(obj)
-        self.editor_obj.set_selected(obj)
-
-    def set_selected(self, obj: "_objects.ObjectBase"):
-        if obj is not None:
-            obj.set_selected(True)
-
-    def get_selected(self) -> "_objects.ObjectBase":
-        return self._selected_obj
-
-    def on_erase_background(self, _):
-        pass
-
-    def SetStatusText(self, text, _=None):
-        self.status_bar.PushStatusText(text, 4)
-
-    def RevertStatusText(self):
-        self.status_bar.PopStatusText(4)
-
-    def Set2DCoordinates(self, x, y):
-        self.status_bar.SetStatusText(f'X: {round(float(x), 4)}', 0)
-        self.status_bar.SetStatusText(f'Y: {round(float(y), 4)}', 1)
-        self.status_bar.SetStatusText(f'', 2)
-
-    def Set3DCoordinates(self, x, y, z):
-        self.status_bar.SetStatusText(f'X: {round(float(x), 4)}', 0)
-        self.status_bar.SetStatusText(f'Y: {round(float(y), 4)}', 1)
-        self.status_bar.SetStatusText(f'Z: {round(float(z), 4)}', 2)
-
-    def _on_idle(self, event: wx.IdleEvent):
-        """
-        Called by wxPython whenever the event queue is empty.
-
-        Delegates one chunk of orphan-point cleanup to the project's
-        ProjectCleanup instance.  Returns immediately if no project is open.
-
-        event.RequestMore() is called only when there is remaining work in
-        the current pass, which keeps idle events flowing until the pass
-        completes.  Once the pass is done RequestMore() is not called, so
-        wxPython stops firing idle events until the next user interaction —
-        zero CPU cost while the application is genuinely idle.
-        """
-        if self.project is None:
-            return
-
-        if self.project.cleanup.process_chunk():
-            event.RequestMore()
-
-    def _on_close(self, _):
-        self.logger.info('Harness Designer shutting down')
-
-        self.logger.info('Saving UI layout...')
-        Config.ui_perspective = self.manager.SavePerspective()
-
-        self.logger.info('Closing 2D Editor....')
-        self.editor2d.Destroy()
-
-        self.logger.info('Closing 3D Editor....')
-        self.editor3d.Destroy()
-
-        self.logger.info('Closing Database Editor....')
-        self.editor_db.Destroy()
-
-        self.logger.info('Closing Object Editor....')
-        self.editor_obj.Destroy()
-
-        self.logger.info('Closing Assembly Editor....')
-        self.editor_assembly.Destroy()
-
-        self.logger.info('Closing Log Viewer....')
-        self.log_viewer.Destroy()
-
-        self.logger.info('Uninitizing UI Manager...')
-        self.manager.UnInit()
-
-        self.logger.info('Closing UI')
-        self.Destroy()
-
-    def _on_size(self, evt: wx.SizeEvent):
-        def _do():
-            w, h = self.GetSize()
-            Config.size = (w, h)
-
-        wx.CallAfter(_do)
-        evt.Skip()
-
-    def _on_move(self, evt):
-        def _do():
-            x, y = self.GetPosition()
-            Config.position = (x, y)
-
-        wx.CallAfter(_do)
-        evt.Skip()
-
     def unload(self):
         pass
 
@@ -922,16 +1110,3 @@ class MainFrame(wx.Frame):
 
         self.global_db = global_db.GLBTables(splash, self)
         self.project_db = project_db.PJTTables(splash, self)
-
-    def Show(self, flag=True):
-        wx.Frame.Show(self, flag)
-
-        def _do():
-
-            from ..objects import project as _proj
-
-            self.editor_db.load_db(self.global_db)
-            self.project = _proj.Project.select_project(self)
-
-        wx.CallAfter(_do)
-

@@ -6,7 +6,11 @@ from typing import (
     Generator as _Generator,
 )
 
-import wx
+from PySide6.QtWidgets import (
+    QDialog, QDialogButtonBox, QVBoxLayout, QHBoxLayout,
+    QLabel, QLineEdit, QPushButton
+)
+from PySide6.QtCore import Qt
 
 from datetime import (
     date as _date,
@@ -51,77 +55,66 @@ _ParamsSequenceOrDictType = _Union[_ParamsDictType, _ParamsSequenceType]
 _RowType = tuple[_ToPythonOutputTypes, ...]
 
 
-class LoginDialog(wx.Dialog):
+class LoginDialog(QDialog):
     def __init__(self, parent):
+        QDialog.__init__(self, parent, Qt.WindowType.Dialog | Qt.WindowType.WindowStaysOnTopHint)
+        self.setWindowTitle('LOGIN')
+        self.resize(400, 250)
 
-        wx.Dialog.__init__(self, parent, wx.ID_ANY, title='LOGIN', style=wx.CAPTION | wx.STAY_ON_TOP, size=(400, 250))
-        sizer = wx.BoxSizer(wx.VERTICAL)
+        layout = QVBoxLayout(self)
 
-        user_label = wx.StaticText(self, wx.ID_ANY, label='Username:')
-        username_ctrl = auto_complete.AutoComplete(self, wx.ID_ANY, wx.EmptyString, size=(200, 22),
-                                                   autocomplete_choices=Config.recent_users)
+        user_row = QHBoxLayout()
+        user_label = QLabel('Username:')
+        self.username_ctrl = auto_complete.AutoComplete(
+            self, autocomplete_choices=Config.recent_users)
+        user_row.addWidget(user_label)
+        user_row.addWidget(self.username_ctrl)
+        layout.addLayout(user_row)
 
-        h_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        h_sizer.Add(user_label, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 10)
-        h_sizer.Add(username_ctrl, 0, wx.LEFT | wx.TOP | wx.BOTTOM, 10)
+        pass_row = QHBoxLayout()
+        pass_label = QLabel('Password:')
+        self.password_ctrl = QLineEdit()
+        self.password_ctrl.setEchoMode(QLineEdit.EchoMode.Password)
+        pass_row.addWidget(pass_label)
+        pass_row.addWidget(self.password_ctrl)
+        layout.addLayout(pass_row)
 
-        sizer.Add(h_sizer, 0, wx.ALL | wx.ALIGN_CENTER_HORIZONTAL, 10)
+        layout.addStretch(1)
 
-        password_label = wx.StaticText(self, wx.ID_ANY, label='Password:')
-        password_ctrl = wx.TextCtrl(self, wx.ID_ANY, value='', size=(200, 22), style=wx.TE_PASSWORD)
+        btn_row = QHBoxLayout()
+        self._settings_button = QPushButton('Settings')
+        btn_row.addWidget(self._settings_button)
+        btn_row.addStretch()
 
-        h_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        h_sizer.Add(password_label, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 10)
-        h_sizer.Add(password_ctrl, 0, wx.LEFT | wx.TOP | wx.BOTTOM, 10)
+        button_box = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        # Rename OK to Login
+        ok_btn = button_box.button(QDialogButtonBox.StandardButton.Ok)
+        ok_btn.setText('Login')
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
 
-        sizer.Add(h_sizer, 0, wx.ALL | wx.ALIGN_CENTER_HORIZONTAL, 10)
+        btn_row.addWidget(button_box)
+        layout.addLayout(btn_row)
 
-        settings_button = wx.Button(self, wx.ID_ANY, label='Settings')
+        self._settings_button.clicked.connect(self._on_settings_button)
 
-        sizer.AddStretchSpacer(1)
+    def _on_settings_button(self):
+        try:
+            from . import settings_dialog
+        except ImportError:
+            import settings_dialog
 
-        button_sizer = self.CreateSeparatedButtonSizer(wx.OK | wx.CANCEL)
-
-        b_sizer = button_sizer.GetItem(1).GetSizer()
-
-        b_sizer.Insert(0, settings_button, 0, wx.ALL, 5)
-
-        for child in b_sizer.GetChildren():
-            child = child.GetWindow()
-            if isinstance(child, wx.Button) and child.GetLabel() == 'OK':
-                child.SetLabel('Login')
-                break
-
-        sizer.Add(button_sizer, 0, wx.EXPAND | wx.ALL, 10)
-
-        self.SetSizer(sizer)
-
-        def _on_settings_button(evt):
-            try:
-                from . import settings_dialog
-            except ImportError:
-                import settings_dialog
-
-            dlg = settings_dialog.SQLOptionsDialog(self)
-            if dlg.ShowModal() == wx.ID_OK:
-                values = dlg.GetValue()
-                for key, value in values.items():
-                    setattr(Config, key, value)
-            dlg.Destroy()
-
-            evt.Skip()
-
-        settings_button.Bind(wx.EVT_LEFT_UP, _on_settings_button)
-
-        self.username_ctrl = username_ctrl
-        self.password_ctrl = password_ctrl
-
-        self.CenterOnParent()
+        dlg = settings_dialog.SQLOptionsDialog(self)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            values = dlg.GetValue()
+            for key, value in values.items():
+                setattr(Config, key, value)
 
     def GetValue(self):
         return (
             self.username_ctrl.GetValue(),
-            self.password_ctrl.GetValue()
+            self.password_ctrl.text()
         )
 
 
@@ -137,14 +130,12 @@ class SQLConnector(_base.ConnectorBase):
     def connect(self):
         dlg = LoginDialog(self.mainframe)
         try:
-            if dlg.ShowModal() == wx.ID_OK:
+            if dlg.exec() == QDialog.DialogCode.Accepted:
                 username, password = dlg.GetValue()
             else:
                 return False
         except:  # NOQA
             raise RuntimeError('This should not happen')
-        finally:
-            dlg.Destroy()
 
         try:
             self._connection = mysql.connector.connect(
@@ -249,23 +240,3 @@ class SQLConnector(_base.ConnectorBase):
 
         self.update_monitor.stop()
         self.cred_manager.cleanup()
-
-
-if __name__ == '__main__':
-    app = wx.App()
-
-    frame = wx.Frame(None, wx.ID_ANY, size=(100, 60))
-    btn = wx.Button(frame, wx.ID_ANY, 'click_me', size=(50, 30))
-
-    def _do(evt):
-        dlg = LoginDialog(frame)
-        if dlg.ShowModal() == wx.ID_OK:
-            print(dlg.GetValue())
-        dlg.Destroy()
-
-        evt.Skip()
-
-
-    btn.Bind(wx.EVT_BUTTON, _do)
-    frame.Show()
-    app.MainLoop()

@@ -24,7 +24,7 @@ class PartNumberControl(_prop_ctrls.StringProperty):
 
         super().__init__(parent, 'Part Number')
 
-        self.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_part_number)
+        self.property_changed.connect(self._on_part_number)
 
     def set_obj(self, db_obj: PartNumberMixin):
         self.db_obj = db_obj

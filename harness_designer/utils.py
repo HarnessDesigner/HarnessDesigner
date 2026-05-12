@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING
 
 import numpy as np
-import wx
+from PySide6.QtWidgets import QHBoxLayout, QLabel
 import sys
 import os
 import math
@@ -211,13 +211,12 @@ def get_documents():
     return documents
 
 
-def HSizer(parent, label, ctrl) -> wx.BoxSizer:
-    sizer = wx.BoxSizer(wx.HORIZONTAL)
-
-    st = wx.StaticText(parent, wx.ID_ANY, label=label)
-    sizer.Add(st, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
-    sizer.Add(ctrl, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALIGN_RIGHT)
-    return sizer
+def HSizer(parent, label, ctrl) -> QHBoxLayout:
+    layout = QHBoxLayout()
+    lbl = QLabel(label, parent)
+    layout.addWidget(lbl)
+    layout.addWidget(ctrl)
+    return layout
 
 
 def remap(

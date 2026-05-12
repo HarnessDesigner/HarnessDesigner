@@ -42,8 +42,8 @@ class FamilyControl(_prop_ctrls.Category):
         self.desc_ctrl = _prop_ctrls.LongStringProperty(self, 'Description')
         self.mfg_ctrl = _prop_ctrls.StringProperty(self, 'Manufacturer', read_only=True)
 
-        self.name_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_name)
-        self.desc_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_desc)
+        self.name_ctrl.property_changed.connect(self._on_name)
+        self.desc_ctrl.property_changed.connect(self._on_desc)
 
     def set_obj(self, db_obj: FamilyMixin):
         self.db_obj = db_obj

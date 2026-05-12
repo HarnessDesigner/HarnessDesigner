@@ -35,7 +35,7 @@ class AddHousingHandler(_handler_base.HandlerBase):
             if dlg.exec() == QDialog.DialogCode.Accepted:
                 part_id = dlg.GetValue()
 
-            dlg.Destroy()
+            dlg.deleteLater()
 
         super().__init__(mainframe, part_id)
 

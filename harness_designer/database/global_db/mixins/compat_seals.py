@@ -42,7 +42,7 @@ class CompatSealsControl(_prop_ctrls.ArrayStringProperty):
         self.db_obj: CompatSealsMixin = None
         super().__init__(parent, 'Compatible Seals')
 
-        self.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_compat_housings)
+        self.property_changed.connect(self._on_compat_housings)
 
     def set_obj(self, db_obj: CompatSealsMixin):
         self.db_obj = db_obj

@@ -2,8 +2,11 @@
 
 from typing import TYPE_CHECKING
 
-import wx
-from wx import aui
+from PySide6.QtWidgets import (
+    QWidget, QTreeWidget, QTreeWidgetItem, QAbstractItemView,
+    QVBoxLayout, QHBoxLayout
+)
+from PySide6.QtCore import Qt
 import weakref
 
 from ...objects import (
@@ -30,33 +33,14 @@ if TYPE_CHECKING:
     from .. import mainframe as _mainframe
 
 
-class ObjectBrowser(aui.AuiPaneInfo):
+class ObjectBrowser:
 
     def __init__(self, mainframe: "_mainframe.MainFrame"):
         self.editor = ObjectBrowserPanel(mainframe)
         self.mainframe = mainframe
-        self.manager = mainframe.manager
 
-        aui.AuiPaneInfo.__init__(self)
-
-        self.Name('object_browser')
-        self.CaptionVisible()
-        self.Floatable()
-        self.MinimizeButton()
-        self.MaximizeButton()
-        self.Dockable()
-        self.CloseButton(True)
-        self.PaneBorder()
-        self.Caption('Object Browser')
-        self.DestroyOnClose(False)
-        self.Gripper()
-        self.Left()
-        self.Resizable()
-        self.Window(self.editor)
-
-        self.manager.AddPane(self.editor, self)
-        self.Show()
-        self.manager.Update()
+        # Register the panel with the dock system (handled in mainframe)
+        mainframe.add_object_browser_panel(self.editor)
 
     def add_boot(self, obj: _boot.Boot):
         self.editor.add_boot(obj)
@@ -119,146 +103,117 @@ class ObjectBrowser(aui.AuiPaneInfo):
         self.editor.remove_object(obj)
 
     def Refresh(self, *args, **kwargs):
-        self.editor.Refresh(*args, **kwargs)
+        self.editor.update()
 
     def Destroy(self):
-        self.editor.Destroy()
+        self.editor.deleteLater()
 
 
-class ObjectBrowserPanel(wx.Panel):
+class ObjectBrowserPanel(QWidget):
 
     def __init__(self, parent: "_mainframe.MainFrame"):
-        wx.Panel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_NONE)
+        QWidget.__init__(self, parent)
         self.mainframe = parent
 
         self._objects = []
         self._selected = None
-        self._treectrl = wx.TreeCtrl(
-            self, wx.ID_ANY, style=wx.TR_HAS_BUTTONS | wx.TR_SINGLE)
+        self._treectrl = QTreeWidget(self)
+        self._treectrl.setHeaderHidden(True)
+        self._treectrl.setRootIsDecorated(True)
+        self._treectrl.setSelectionMode(
+            QAbstractItemView.SelectionMode.SingleSelection)
 
-        hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        vsizer = wx.BoxSizer(wx.VERTICAL)
+        h_layout = QHBoxLayout()
+        v_layout = QVBoxLayout(self)
 
-        hsizer.Add(self._treectrl, 1, wx.EXPAND)
-        vsizer.Add(hsizer, 1, wx.EXPAND | wx.ALL, 10)
-        self.SetSizer(vsizer)
+        h_layout.addWidget(self._treectrl)
+        v_layout.addLayout(h_layout)
 
-        self._root: wx.TreeItemId = None
-        self._boots: wx.TreeItemId = None
-        self._bundles: wx.TreeItemId = None
-        self._cavities: wx.TreeItemId = None
-        self._circuits: wx.TreeItemId = None
-        self._covers: wx.TreeItemId = None
-        self._cpa_locks: wx.TreeItemId = None
-        self._housings: wx.TreeItemId = None
-        self._notes: wx.TreeItemId = None
-        self._seals: wx.TreeItemId = None
-        self._splices: wx.TreeItemId = None
-        self._terminals: wx.TreeItemId = None
-        self._tpa_locks: wx.TreeItemId = None
-        self._transitions: wx.TreeItemId = None
-        self._wires: wx.TreeItemId = None
-        self._wire_markers: wx.TreeItemId = None
+        self._root: QTreeWidgetItem = None
+        self._boots: QTreeWidgetItem = None
+        self._bundles: QTreeWidgetItem = None
+        self._cavities: QTreeWidgetItem = None
+        self._circuits: QTreeWidgetItem = None
+        self._covers: QTreeWidgetItem = None
+        self._cpa_locks: QTreeWidgetItem = None
+        self._housings: QTreeWidgetItem = None
+        self._notes: QTreeWidgetItem = None
+        self._seals: QTreeWidgetItem = None
+        self._splices: QTreeWidgetItem = None
+        self._terminals: QTreeWidgetItem = None
+        self._tpa_locks: QTreeWidgetItem = None
+        self._transitions: QTreeWidgetItem = None
+        self._wires: QTreeWidgetItem = None
+        self._wire_markers: QTreeWidgetItem = None
         self._weakrefs = []
 
-        # EVT_TREE_ITEM_ACTIVATED
-        # EVT_TREE_ITEM_MENU
-        # EVT_TREE_SEL_CHANGED
-        #
-        # EVT_TREE_ITEM_COLLAPSING
-        # EVT_TREE_ITEM_EXPANDING
+    def _append_item(self, parent: QTreeWidgetItem, label: str,
+                     has_children: bool = False) -> QTreeWidgetItem:
+        item = QTreeWidgetItem(parent, [label])
+        if has_children:
+            item.setChildIndicatorPolicy(
+                QTreeWidgetItem.ChildIndicatorPolicy.ShowIndicator)
+        return item
 
     def reset(self):
-        self._treectrl.DeleteAllItems()
-        self._root = self._treectrl.AddRoot('root')
+        self._treectrl.clear()
+        self._root = QTreeWidgetItem(self._treectrl, ['root'])
+        self._treectrl.addTopLevelItem(self._root)
 
-        self._boots = self._treectrl.AppendItem(self._root, 'Boots')
-        self._treectrl.SetItemHasChildren(self._boots, True)
-
-        self._bundles = self._treectrl.AppendItem(self._root, 'Bundles')
-        self._treectrl.SetItemHasChildren(self._bundles, True)
-
-        self._cavities = self._treectrl.AppendItem(self._root, 'Cavities')
-        self._treectrl.SetItemHasChildren(self._cavities, True)
-
-        self._circuits = self._treectrl.AppendItem(self._root, 'Circuits')
-        self._treectrl.SetItemHasChildren(self._circuits, True)
-
-        self._covers = self._treectrl.AppendItem(self._root, 'Covers')
-        self._treectrl.SetItemHasChildren(self._covers, True)
-
-        self._cpa_locks = self._treectrl.AppendItem(self._root, 'CPA Locks')
-        self._treectrl.SetItemHasChildren(self._cpa_locks, True)
-
-        self._housings = self._treectrl.AppendItem(self._root, 'Housings')
-        self._treectrl.SetItemHasChildren(self._housings, True)
-
-        self._notes = self._treectrl.AppendItem(self._root, 'Notes')
-        self._treectrl.SetItemHasChildren(self._notes, True)
-
-        self._seals = self._treectrl.AppendItem(self._root, 'Seals')
-        self._treectrl.SetItemHasChildren(self._seals, True)
-
-        self._splices = self._treectrl.AppendItem(self._root, 'Splices')
-        self._treectrl.SetItemHasChildren(self._splices, True)
-
-        self._terminals = self._treectrl.AppendItem(self._root, 'Terminals')
-        self._treectrl.SetItemHasChildren(self._terminals, True)
-
-        self._tpa_locks = self._treectrl.AppendItem(self._root, 'TPA Locks')
-        self._treectrl.SetItemHasChildren(self._tpa_locks, True)
-
-        self._transitions = self._treectrl.AppendItem(self._root, 'Transitions')
-        self._treectrl.SetItemHasChildren(self._transitions, True)
-
-        self._wires = self._treectrl.AppendItem(self._root, 'Wires')
-        self._treectrl.SetItemHasChildren(self._wires, True)
-
-        self._wire_markers = self._treectrl.AppendItem(self._root, 'Wire Markers')
-        self._treectrl.SetItemHasChildren(self._wire_markers, True)
+        self._boots = self._append_item(self._root, 'Boots', True)
+        self._bundles = self._append_item(self._root, 'Bundles', True)
+        self._cavities = self._append_item(self._root, 'Cavities', True)
+        self._circuits = self._append_item(self._root, 'Circuits', True)
+        self._covers = self._append_item(self._root, 'Covers', True)
+        self._cpa_locks = self._append_item(self._root, 'CPA Locks', True)
+        self._housings = self._append_item(self._root, 'Housings', True)
+        self._notes = self._append_item(self._root, 'Notes', True)
+        self._seals = self._append_item(self._root, 'Seals', True)
+        self._splices = self._append_item(self._root, 'Splices', True)
+        self._terminals = self._append_item(self._root, 'Terminals', True)
+        self._tpa_locks = self._append_item(self._root, 'TPA Locks', True)
+        self._transitions = self._append_item(self._root, 'Transitions', True)
+        self._wires = self._append_item(self._root, 'Wires', True)
+        self._wire_markers = self._append_item(self._root, 'Wire Markers', True)
 
         self._weakrefs = []
 
     def __remove_refs(self, ref):
-
-        def iter_tree(parent):
-            child, cookie = self._treectrl.GetFirstChild(parent)
-
-            while child.IsOk():
-                d_ref = self._treectrl.GetItemData(child)
-
+        def iter_tree(parent: QTreeWidgetItem):
+            for i in range(parent.childCount() - 1, -1, -1):
+                child = parent.child(i)
+                d_ref = child.data(0, Qt.ItemDataRole.UserRole)
                 if d_ref is not None:
                     data = d_ref()
                     if data is None:
-                        if self._treectrl.ItemHasChildren(child):
-                            self._treectrl.DeleteChildren(child)
-                        else:
-                            self._treectrl.Delete(child)
-
-                if child.IsOk() and self._treectrl.ItemHasChildren(child):
+                        parent.removeChild(child)
+                        continue
+                if child.childCount() > 0:
                     iter_tree(child)
 
-                child, cookie = self._treectrl.GetNextChild(parent, cookie)
+        if self._root is not None:
+            iter_tree(self._root)
 
-        iter_tree(self._root)
+        try:
+            self._weakrefs.remove(ref)
+        except ValueError:
+            pass
 
-        self._weakrefs.remove(ref)
+    def _set_data(self, item: QTreeWidgetItem, ref):
+        item.setData(0, Qt.ItemDataRole.UserRole, ref)
 
     def add_boot(self, obj: _boot.Boot):
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
-        treeitem = self._treectrl.AppendItem(self._boots, obj.db_obj.name)
-        self._treectrl.SetItemHasChildren(treeitem, True)
-        self._treectrl.SetItemData(treeitem, ref)
+        treeitem = self._append_item(self._boots, obj.db_obj.name, True)
+        self._set_data(treeitem, ref)
 
         housing = obj.db_obj.housing
-
-        ref = weakref.ref(housing, self.__remove_refs)
-        self._weakrefs.append(ref)
-
-        child = self._treectrl.AppendItem(treeitem, f'Housing: {housing.name}')
-        self._treectrl.SetItemData(child, ref)
+        ref2 = weakref.ref(housing, self.__remove_refs)
+        self._weakrefs.append(ref2)
+        child = self._append_item(treeitem, f'Housing: {housing.name}')
+        self._set_data(child, ref2)
 
         obj.set_treeitem(treeitem)
 
@@ -266,16 +221,14 @@ class ObjectBrowserPanel(wx.Panel):
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
-        treeitem = self._treectrl.AppendItem(self._bundles, obj.db_obj.name)
-        self._treectrl.SetItemHasChildren(treeitem, True)
-        self._treectrl.SetItemData(treeitem, ref)
+        treeitem = self._append_item(self._bundles, obj.db_obj.name, True)
+        self._set_data(treeitem, ref)
 
         for wire in obj.db_obj.wires:
-            ref = weakref.ref(wire, self.__remove_refs)
-            self._weakrefs.append(ref)
-
-            child = self._treectrl.AppendItem(treeitem, f'Wire: {wire.name}')
-            self._treectrl.SetItemData(child, ref)
+            ref2 = weakref.ref(wire, self.__remove_refs)
+            self._weakrefs.append(ref2)
+            child = self._append_item(treeitem, f'Wire: {wire.name}')
+            self._set_data(child, ref2)
 
         obj.set_treeitem(treeitem)
 
@@ -283,33 +236,28 @@ class ObjectBrowserPanel(wx.Panel):
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
-        treeitem = self._treectrl.AppendItem(self._cavities, obj.db_obj.name)
-        self._treectrl.SetItemHasChildren(treeitem, True)
-        self._treectrl.SetItemData(treeitem, ref)
+        treeitem = self._append_item(self._cavities, obj.db_obj.name, True)
+        self._set_data(treeitem, ref)
 
         housing = obj.db_obj.housing
-
-        ref = weakref.ref(housing, self.__remove_refs)
-        self._weakrefs.append(ref)
-
-        child = self._treectrl.AppendItem(treeitem, f'Housing: {housing.name}')
-        self._treectrl.SetItemData(child, ref)
+        ref2 = weakref.ref(housing, self.__remove_refs)
+        self._weakrefs.append(ref2)
+        child = self._append_item(treeitem, f'Housing: {housing.name}')
+        self._set_data(child, ref2)
 
         terminal = obj.db_obj.terminal
         if terminal is not None:
-            ref = weakref.ref(terminal, self.__remove_refs)
-            self._weakrefs.append(ref)
-
-            child = self._treectrl.AppendItem(treeitem, f'Terminal: {terminal.name}')
-            self._treectrl.SetItemData(child, ref)
+            ref2 = weakref.ref(terminal, self.__remove_refs)
+            self._weakrefs.append(ref2)
+            child = self._append_item(treeitem, f'Terminal: {terminal.name}')
+            self._set_data(child, ref2)
 
         seal = obj.db_obj.seal
         if seal is not None:
-            ref = weakref.ref(seal, self.__remove_refs)
-            self._weakrefs.append(ref)
-
-            child = self._treectrl.AppendItem(treeitem, f'Seal: {seal.name}')
-            self._treectrl.SetItemData(child, ref)
+            ref2 = weakref.ref(seal, self.__remove_refs)
+            self._weakrefs.append(ref2)
+            child = self._append_item(treeitem, f'Seal: {seal.name}')
+            self._set_data(child, ref2)
 
         obj.set_treeitem(treeitem)
 
@@ -317,45 +265,36 @@ class ObjectBrowserPanel(wx.Panel):
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
-        treeitem = self._treectrl.AppendItem(self._circuits, obj.db_obj.name)
-        self._treectrl.SetItemHasChildren(treeitem, True)
-        self._treectrl.SetItemData(treeitem, ref)
+        treeitem = self._append_item(self._circuits, obj.db_obj.name, True)
+        self._set_data(treeitem, ref)
 
-        wire_treeitem = self._treectrl.AppendItem(treeitem, 'Wires')
-        self._treectrl.SetItemHasChildren(wire_treeitem, True)
+        wire_treeitem = self._append_item(treeitem, 'Wires', True)
         for wire in obj.db_obj.wires:
-            ref = weakref.ref(wire, self.__remove_refs)
-            self._weakrefs.append(ref)
+            ref2 = weakref.ref(wire, self.__remove_refs)
+            self._weakrefs.append(ref2)
+            wireitem = self._append_item(wire_treeitem, f'Wire: {wire.name}')
+            self._set_data(wireitem, ref2)
 
-            wireitem = self._treectrl.AppendItem(wire_treeitem, f'Wire: {wire.name}')
-            self._treectrl.SetItemData(wireitem, ref)
-
-        loop_treeitem = self._treectrl.AppendItem(treeitem, 'Wire Service Loops')
-        self._treectrl.SetItemHasChildren(loop_treeitem, True)
+        loop_treeitem = self._append_item(treeitem, 'Wire Service Loops', True)
         for wire in obj.db_obj.wire_service_loops:
-            ref = weakref.ref(wire, self.__remove_refs)
-            self._weakrefs.append(ref)
+            ref2 = weakref.ref(wire, self.__remove_refs)
+            self._weakrefs.append(ref2)
+            loopitem = self._append_item(loop_treeitem, f'Wire Loop: {wire.name}')
+            self._set_data(loopitem, ref2)
 
-            loopitem = self._treectrl.AppendItem(loop_treeitem, f'Wire Loop: {wire.name}')
-            self._treectrl.SetItemData(loopitem, ref)
-
-        terminal_treeitem = self._treectrl.AppendItem(treeitem, 'Terminals')
-        self._treectrl.SetItemHasChildren(terminal_treeitem, True)
+        terminal_treeitem = self._append_item(treeitem, 'Terminals', True)
         for terminal in obj.db_obj.terminals:
-            ref = weakref.ref(terminal, self.__remove_refs)
-            self._weakrefs.append(ref)
+            ref2 = weakref.ref(terminal, self.__remove_refs)
+            self._weakrefs.append(ref2)
+            terminalitem = self._append_item(terminal_treeitem, f'Terminal: {terminal.name}')
+            self._set_data(terminalitem, ref2)
 
-            terminalitem = self._treectrl.AppendItem(terminal_treeitem, f'Terminal: {terminal.name}')
-            self._treectrl.SetItemData(terminalitem, ref)
-
-        splice_treeitem = self._treectrl.AppendItem(treeitem, 'Splices')
-        self._treectrl.SetItemHasChildren(splice_treeitem, True)
+        splice_treeitem = self._append_item(treeitem, 'Splices', True)
         for splice in obj.db_obj.splices:
-            ref = weakref.ref(splice, self.__remove_refs)
-            self._weakrefs.append(ref)
-
-            spliceitem = self._treectrl.AppendItem(splice_treeitem, f'Splice: {splice.name}')
-            self._treectrl.SetItemData(spliceitem, ref)
+            ref2 = weakref.ref(splice, self.__remove_refs)
+            self._weakrefs.append(ref2)
+            spliceitem = self._append_item(splice_treeitem, f'Splice: {splice.name}')
+            self._set_data(spliceitem, ref2)
 
         obj.set_treeitem(treeitem)
 
@@ -363,17 +302,14 @@ class ObjectBrowserPanel(wx.Panel):
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
-        treeitem = self._treectrl.AppendItem(self._covers, obj.db_obj.name)
-        self._treectrl.SetItemHasChildren(treeitem, True)
-        self._treectrl.SetItemData(treeitem, ref)
+        treeitem = self._append_item(self._covers, obj.db_obj.name, True)
+        self._set_data(treeitem, ref)
 
         housing = obj.db_obj.housing
-
-        ref = weakref.ref(housing, self.__remove_refs)
-        self._weakrefs.append(ref)
-
-        child = self._treectrl.AppendItem(treeitem, f'Housing: {housing.name}')
-        self._treectrl.SetItemData(child, ref)
+        ref2 = weakref.ref(housing, self.__remove_refs)
+        self._weakrefs.append(ref2)
+        child = self._append_item(treeitem, f'Housing: {housing.name}')
+        self._set_data(child, ref2)
 
         obj.set_treeitem(treeitem)
 
@@ -381,17 +317,14 @@ class ObjectBrowserPanel(wx.Panel):
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
-        treeitem = self._treectrl.AppendItem(self._cpa_locks, obj.db_obj.name)
-        self._treectrl.SetItemHasChildren(treeitem, True)
-        self._treectrl.SetItemData(treeitem, ref)
+        treeitem = self._append_item(self._cpa_locks, obj.db_obj.name, True)
+        self._set_data(treeitem, ref)
 
         housing = obj.db_obj.housing
-
-        ref = weakref.ref(housing, self.__remove_refs)
-        self._weakrefs.append(ref)
-
-        child = self._treectrl.AppendItem(treeitem, f'Housing: {housing.name}')
-        self._treectrl.SetItemData(child, ref)
+        ref2 = weakref.ref(housing, self.__remove_refs)
+        self._weakrefs.append(ref2)
+        child = self._append_item(treeitem, f'Housing: {housing.name}')
+        self._set_data(child, ref2)
 
         obj.set_treeitem(treeitem)
 
@@ -399,9 +332,8 @@ class ObjectBrowserPanel(wx.Panel):
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
-        treeitem = self._treectrl.AppendItem(self._housings, obj.db_obj.name)
-        self._treectrl.SetItemHasChildren(treeitem, True)
-        self._treectrl.SetItemData(treeitem, ref)
+        treeitem = self._append_item(self._housings, obj.db_obj.name, True)
+        self._set_data(treeitem, ref)
 
         seal = obj.db_obj.seal
         cover = obj.db_obj.cover
@@ -410,43 +342,36 @@ class ObjectBrowserPanel(wx.Panel):
         cavities = obj.db_obj.cavities
 
         if seal is not None:
-            ref = weakref.ref(seal, self.__remove_refs)
-            self._weakrefs.append(ref)
-
-            child = self._treectrl.AppendItem(treeitem, f'Seal: {seal.name}')
-            self._treectrl.SetItemData(child, ref)
+            ref2 = weakref.ref(seal, self.__remove_refs)
+            self._weakrefs.append(ref2)
+            child = self._append_item(treeitem, f'Seal: {seal.name}')
+            self._set_data(child, ref2)
 
         if cover is not None:
-            ref = weakref.ref(cover, self.__remove_refs)
-            self._weakrefs.append(ref)
-
-            child = self._treectrl.AppendItem(treeitem, f'Cover: {cover.name}')
-            self._treectrl.SetItemData(child, ref)
+            ref2 = weakref.ref(cover, self.__remove_refs)
+            self._weakrefs.append(ref2)
+            child = self._append_item(treeitem, f'Cover: {cover.name}')
+            self._set_data(child, ref2)
 
         if cpa_lock is not None:
-            ref = weakref.ref(cpa_lock, self.__remove_refs)
-            self._weakrefs.append(ref)
+            ref2 = weakref.ref(cpa_lock, self.__remove_refs)
+            self._weakrefs.append(ref2)
+            child = self._append_item(treeitem, f'CPA Lock: {cpa_lock.name}')
+            self._set_data(child, ref2)
 
-            child = self._treectrl.AppendItem(treeitem, f'CPA Lock: {cpa_lock.name}')
-            self._treectrl.SetItemData(child, ref)
-
-        tpa_locks_treeitem = self._treectrl.AppendItem(treeitem, 'TPA Locks')
-        self._treectrl.SetItemHasChildren(tpa_locks_treeitem, True)
+        tpa_locks_treeitem = self._append_item(treeitem, 'TPA Locks', True)
         for lock in tpa_locks:
-            ref = weakref.ref(lock, self.__remove_refs)
-            self._weakrefs.append(ref)
+            ref2 = weakref.ref(lock, self.__remove_refs)
+            self._weakrefs.append(ref2)
+            lockitem = self._append_item(tpa_locks_treeitem, f'TPA Lock: {lock.name}')
+            self._set_data(lockitem, ref2)
 
-            lockitem = self._treectrl.AppendItem(tpa_locks_treeitem, f'TPA Lock: {lock.name}')
-            self._treectrl.SetItemData(lockitem, ref)
-
-        cavities_treeitem = self._treectrl.AppendItem(treeitem, 'Cavities')
-        self._treectrl.SetItemHasChildren(cavities_treeitem, True)
+        cavities_treeitem = self._append_item(treeitem, 'Cavities', True)
         for cavity in cavities:
-            ref = weakref.ref(cavity, self.__remove_refs)
-            self._weakrefs.append(ref)
-
-            cavityitem = self._treectrl.AppendItem(cavities_treeitem, f'Cavity: {cavity.name}')
-            self._treectrl.SetItemData(cavityitem, ref)
+            ref2 = weakref.ref(cavity, self.__remove_refs)
+            self._weakrefs.append(ref2)
+            cavityitem = self._append_item(cavities_treeitem, f'Cavity: {cavity.name}')
+            self._set_data(cavityitem, ref2)
 
         obj.set_treeitem(treeitem)
 
@@ -454,9 +379,8 @@ class ObjectBrowserPanel(wx.Panel):
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
-        treeitem = self._treectrl.AppendItem(self._notes, obj.db_obj.note)
-        self._treectrl.SetItemHasChildren(treeitem, False)
-        self._treectrl.SetItemData(treeitem, ref)
+        treeitem = self._append_item(self._notes, obj.db_obj.note)
+        self._set_data(treeitem, ref)
 
         obj.set_treeitem(treeitem)
 
@@ -464,32 +388,28 @@ class ObjectBrowserPanel(wx.Panel):
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
-        treeitem = self._treectrl.AppendItem(self._seals, obj.db_obj.name)
-        self._treectrl.SetItemHasChildren(treeitem, True)
-        self._treectrl.SetItemData(treeitem, ref)
+        treeitem = self._append_item(self._seals, obj.db_obj.name, True)
+        self._set_data(treeitem, ref)
 
         housing = obj.db_obj.housing
         cavity = obj.db_obj.cavity
         terminal = obj.db_obj.terminal
 
         if housing is not None:
-            ref = weakref.ref(housing, self.__remove_refs)
-            self._weakrefs.append(ref)
-
-            child = self._treectrl.AppendItem(treeitem, f'Housing: {housing.name}')
-            self._treectrl.SetItemData(child, ref)
+            ref2 = weakref.ref(housing, self.__remove_refs)
+            self._weakrefs.append(ref2)
+            child = self._append_item(treeitem, f'Housing: {housing.name}')
+            self._set_data(child, ref2)
         elif cavity is not None:
-            ref = weakref.ref(cavity, self.__remove_refs)
-            self._weakrefs.append(ref)
-
-            child = self._treectrl.AppendItem(treeitem, f'Cavity: {cavity.name}')
-            self._treectrl.SetItemData(child, ref)
+            ref2 = weakref.ref(cavity, self.__remove_refs)
+            self._weakrefs.append(ref2)
+            child = self._append_item(treeitem, f'Cavity: {cavity.name}')
+            self._set_data(child, ref2)
         elif terminal is not None:
-            ref = weakref.ref(terminal, self.__remove_refs)
-            self._weakrefs.append(ref)
-
-            child = self._treectrl.AppendItem(treeitem, f'Terminal: {terminal.name}')
-            self._treectrl.SetItemData(child, ref)
+            ref2 = weakref.ref(terminal, self.__remove_refs)
+            self._weakrefs.append(ref2)
+            child = self._append_item(treeitem, f'Terminal: {terminal.name}')
+            self._set_data(child, ref2)
 
         obj.set_treeitem(treeitem)
 
@@ -497,16 +417,14 @@ class ObjectBrowserPanel(wx.Panel):
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
-        treeitem = self._treectrl.AppendItem(self._splices, obj.db_obj.name)
-        self._treectrl.SetItemHasChildren(treeitem, True)
-        self._treectrl.SetItemData(treeitem, ref)
+        treeitem = self._append_item(self._splices, obj.db_obj.name, True)
+        self._set_data(treeitem, ref)
 
         for wire in obj.db_obj.wires:
-            ref = weakref.ref(wire, self.__remove_refs)
-            self._weakrefs.append(ref)
-
-            child = self._treectrl.AppendItem(treeitem, f'Wire: {wire.name}')
-            self._treectrl.SetItemData(child, ref)
+            ref2 = weakref.ref(wire, self.__remove_refs)
+            self._weakrefs.append(ref2)
+            child = self._append_item(treeitem, f'Wire: {wire.name}')
+            self._set_data(child, ref2)
 
         obj.set_treeitem(treeitem)
 
@@ -514,32 +432,28 @@ class ObjectBrowserPanel(wx.Panel):
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
-        treeitem = self._treectrl.AppendItem(self._terminals, obj.db_obj.name)
-        self._treectrl.SetItemHasChildren(treeitem, True)
-        self._treectrl.SetItemData(treeitem, ref)
+        treeitem = self._append_item(self._terminals, obj.db_obj.name, True)
+        self._set_data(treeitem, ref)
 
         seal = obj.db_obj.seal
         cavity = obj.db_obj.cavity
         circuit = obj.db_obj.circuit
 
         if seal is not None:
-            ref = weakref.ref(seal, self.__remove_refs)
-            self._weakrefs.append(ref)
-
-            child = self._treectrl.AppendItem(treeitem, f'Seal: {seal.name}')
-            self._treectrl.SetItemData(child, ref)
+            ref2 = weakref.ref(seal, self.__remove_refs)
+            self._weakrefs.append(ref2)
+            child = self._append_item(treeitem, f'Seal: {seal.name}')
+            self._set_data(child, ref2)
         if cavity is not None:
-            ref = weakref.ref(cavity, self.__remove_refs)
-            self._weakrefs.append(ref)
-
-            child = self._treectrl.AppendItem(treeitem, f'Cavity: {cavity.name}')
-            self._treectrl.SetItemData(child, ref)
+            ref2 = weakref.ref(cavity, self.__remove_refs)
+            self._weakrefs.append(ref2)
+            child = self._append_item(treeitem, f'Cavity: {cavity.name}')
+            self._set_data(child, ref2)
         if circuit is not None:
-            ref = weakref.ref(circuit, self.__remove_refs)
-            self._weakrefs.append(ref)
-
-            child = self._treectrl.AppendItem(treeitem, f'Circuit: {circuit.name}')
-            self._treectrl.SetItemData(child, ref)
+            ref2 = weakref.ref(circuit, self.__remove_refs)
+            self._weakrefs.append(ref2)
+            child = self._append_item(treeitem, f'Circuit: {circuit.name}')
+            self._set_data(child, ref2)
 
         obj.set_treeitem(treeitem)
 
@@ -547,17 +461,14 @@ class ObjectBrowserPanel(wx.Panel):
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
-        treeitem = self._treectrl.AppendItem(self._tpa_locks, obj.db_obj.name)
-        self._treectrl.SetItemHasChildren(treeitem, True)
-        self._treectrl.SetItemData(treeitem, ref)
+        treeitem = self._append_item(self._tpa_locks, obj.db_obj.name, True)
+        self._set_data(treeitem, ref)
 
         housing = obj.db_obj.housing
-
-        ref = weakref.ref(housing, self.__remove_refs)
-        self._weakrefs.append(ref)
-
-        child = self._treectrl.AppendItem(treeitem, f'Housing: {housing.name}')
-        self._treectrl.SetItemData(child, ref)
+        ref2 = weakref.ref(housing, self.__remove_refs)
+        self._weakrefs.append(ref2)
+        child = self._append_item(treeitem, f'Housing: {housing.name}')
+        self._set_data(child, ref2)
 
         obj.set_treeitem(treeitem)
 
@@ -565,43 +476,30 @@ class ObjectBrowserPanel(wx.Panel):
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
-        treeitem = self._treectrl.AppendItem(self._transitions, obj.db_obj.name)
-        self._treectrl.SetItemHasChildren(treeitem, True)
-        self._treectrl.SetItemData(treeitem, ref)
+        treeitem = self._append_item(self._transitions, obj.db_obj.name, True)
+        self._set_data(treeitem, ref)
 
-        branch1 = obj.db_obj.branch1
-        branch2 = obj.db_obj.branch2
-        branch3 = obj.db_obj.branch3
-        branch4 = obj.db_obj.branch4
-        branch5 = obj.db_obj.branch5
-        branch6 = obj.db_obj.branch6
+        branches = [obj.db_obj.branch1, obj.db_obj.branch2, obj.db_obj.branch3,
+                    obj.db_obj.branch4, obj.db_obj.branch5, obj.db_obj.branch6]
 
-        for i, branch in enumerate(
-            [branch1, branch2, branch3, branch4, branch5, branch6]
-        ):
+        for i, branch in enumerate(branches):
             if branch is None:
                 continue
 
-            i += 1
-            branch_treeitem = self._treectrl.AppendItem(treeitem, f'Branch {i}')
-            self._treectrl.SetItemHasChildren(branch_treeitem, True)
+            branch_treeitem = self._append_item(treeitem, f'Branch {i + 1}', True)
             bundle = branch.bundle
             if bundle is not None:
-                ref = weakref.ref(bundle, self.__remove_refs)
-                self._weakrefs.append(ref)
+                ref2 = weakref.ref(bundle, self.__remove_refs)
+                self._weakrefs.append(ref2)
+                child = self._append_item(branch_treeitem, f'Bundle: {bundle.name}')
+                self._set_data(child, ref2)
 
-                child = self._treectrl.AppendItem(branch_treeitem, f'Bundle: {bundle.name}')
-                self._treectrl.SetItemData(child, ref)
-
-            wires_treeitem = self._treectrl.AppendItem(branch_treeitem, 'Wires')
-            self._treectrl.SetItemHasChildren(wires_treeitem, True)
-
+            wires_treeitem = self._append_item(branch_treeitem, 'Wires', True)
             for wire in branch.wires:
-                ref = weakref.ref(wire, self.__remove_refs)
-                self._weakrefs.append(ref)
-
-                child = self._treectrl.AppendItem(wires_treeitem, f'Wire: {wire.name}')
-                self._treectrl.SetItemData(child, ref)
+                ref2 = weakref.ref(wire, self.__remove_refs)
+                self._weakrefs.append(ref2)
+                child = self._append_item(wires_treeitem, f'Wire: {wire.name}')
+                self._set_data(child, ref2)
 
         obj.set_treeitem(treeitem)
 
@@ -609,38 +507,32 @@ class ObjectBrowserPanel(wx.Panel):
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
-        treeitem = self._treectrl.AppendItem(self._wires, obj.db_obj.name)
-        self._treectrl.SetItemHasChildren(treeitem, True)
-        self._treectrl.SetItemData(treeitem, ref)
+        treeitem = self._append_item(self._wires, obj.db_obj.name, True)
+        self._set_data(treeitem, ref)
 
         terminals = obj.db_obj.terminals
         circuit = obj.db_obj.circuit
         wire_markers = obj.db_obj.wire_markers
 
         if circuit is not None:
-            ref = weakref.ref(circuit, self.__remove_refs)
-            self._weakrefs.append(ref)
+            ref2 = weakref.ref(circuit, self.__remove_refs)
+            self._weakrefs.append(ref2)
+            child = self._append_item(treeitem, f'Circuit: {circuit.name}')
+            self._set_data(child, ref2)
 
-            child = self._treectrl.AppendItem(treeitem, f'Circuit: {circuit.name}')
-            self._treectrl.SetItemData(child, ref)
-
-        terminals_treeitem = self._treectrl.AppendItem(treeitem, 'Wire Markers')
-        self._treectrl.SetItemHasChildren(terminals_treeitem, True)
+        terminals_treeitem = self._append_item(treeitem, 'Terminals', True)
         for terminal in terminals:
-            ref = weakref.ref(terminal, self.__remove_refs)
-            self._weakrefs.append(ref)
+            ref2 = weakref.ref(terminal, self.__remove_refs)
+            self._weakrefs.append(ref2)
+            child = self._append_item(terminals_treeitem, f'Terminal: {terminal.name}')
+            self._set_data(child, ref2)
 
-            child = self._treectrl.AppendItem(terminals_treeitem, f'Terminal: {terminal.name}')
-            self._treectrl.SetItemData(child, ref)
-
-        wires_treeitem = self._treectrl.AppendItem(treeitem, 'Wire Markers')
-        self._treectrl.SetItemHasChildren(wires_treeitem, True)
+        markers_treeitem = self._append_item(treeitem, 'Wire Markers', True)
         for marker in wire_markers:
-            ref = weakref.ref(marker, self.__remove_refs)
-            self._weakrefs.append(ref)
-
-            child = self._treectrl.AppendItem(wires_treeitem, f'Housing: {marker.name}')
-            self._treectrl.SetItemData(child, ref)
+            ref2 = weakref.ref(marker, self.__remove_refs)
+            self._weakrefs.append(ref2)
+            child = self._append_item(markers_treeitem, f'Marker: {marker.name}')
+            self._set_data(child, ref2)
 
         obj.set_treeitem(treeitem)
 
@@ -648,56 +540,48 @@ class ObjectBrowserPanel(wx.Panel):
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
-        treeitem = self._treectrl.AppendItem(self._wire_markers, obj.db_obj.name)
-        self._treectrl.SetItemHasChildren(treeitem, True)
-        self._treectrl.SetItemData(treeitem, ref)
+        treeitem = self._append_item(self._wire_markers, obj.db_obj.name, True)
+        self._set_data(treeitem, ref)
 
         wire = obj.db_obj.wire
-
-        ref = weakref.ref(wire, self.__remove_refs)
-        self._weakrefs.append(ref)
-
-        child = self._treectrl.AppendItem(treeitem, f'Wire: {wire.name}')
-        self._treectrl.SetItemData(child, ref)
+        ref2 = weakref.ref(wire, self.__remove_refs)
+        self._weakrefs.append(ref2)
+        child = self._append_item(treeitem, f'Wire: {wire.name}')
+        self._set_data(child, ref2)
 
     def add_wire_service_loop(self, obj: _wire_service_loop.WireServiceLoop):
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
-        treeitem = self._treectrl.AppendItem(self._wire_markers, obj.db_obj.name)
-        self._treectrl.SetItemHasChildren(treeitem, True)
-        self._treectrl.SetItemData(treeitem, ref)
+        treeitem = self._append_item(self._wire_markers, obj.db_obj.name, True)
+        self._set_data(treeitem, ref)
 
         wire = obj.db_obj.wire
-
-        ref = weakref.ref(wire, self.__remove_refs)
-        self._weakrefs.append(ref)
-
-        child = self._treectrl.AppendItem(treeitem, f'Wire: {wire.name}')
-        self._treectrl.SetItemData(child, ref)
+        ref2 = weakref.ref(wire, self.__remove_refs)
+        self._weakrefs.append(ref2)
+        child = self._append_item(treeitem, f'Wire: {wire.name}')
+        self._set_data(child, ref2)
 
         terminal = obj.db_obj.terminal
         circuit = obj.db_obj.circuit
 
         if terminal is not None:
-            ref = weakref.ref(terminal, self.__remove_refs)
-            self._weakrefs.append(ref)
-
-            child = self._treectrl.AppendItem(treeitem, f'Terminal: {terminal.name}')
-            self._treectrl.SetItemData(child, ref)
+            ref2 = weakref.ref(terminal, self.__remove_refs)
+            self._weakrefs.append(ref2)
+            child = self._append_item(treeitem, f'Terminal: {terminal.name}')
+            self._set_data(child, ref2)
 
         if circuit is not None:
-            ref = weakref.ref(circuit, self.__remove_refs)
-            self._weakrefs.append(ref)
-
-            child = self._treectrl.AppendItem(treeitem, f'Circuit: {circuit.name}')
-            self._treectrl.SetItemData(child, ref)
+            ref2 = weakref.ref(circuit, self.__remove_refs)
+            self._weakrefs.append(ref2)
+            child = self._append_item(treeitem, f'Circuit: {circuit.name}')
+            self._set_data(child, ref2)
 
     def set_selected(self, obj):
         if obj is not None:
             treeitem = obj.get_treeitem()
-            if treeitem.IsOk():
-                self._treectrl.EnsureVisible(treeitem)
+            if treeitem is not None:
+                self._treectrl.scrollToItem(treeitem)
 
     def add_object(self, obj):
         self._objects.append(obj)

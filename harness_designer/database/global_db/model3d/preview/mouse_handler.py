@@ -1,11 +1,12 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-import wx
+from PySide6.QtCore import Qt, QEvent
+from PySide6.QtGui import QMouseEvent, QWheelEvent
 
 from . import Preview as _Preview
-from ...geometry import point as _point
+from ....geometry import point as _point
 
-from ... import config as _config
+from .... import config as _config
 
 Config = _config.Config
 
@@ -27,26 +28,26 @@ class MouseHandler:
 
     def __init__(self, canvas: _Preview):
         self.canvas = canvas
-
         self.mouse_pos = None
 
-        canvas.Bind(wx.EVT_LEFT_UP, self.on_left_up)
-        canvas.Bind(wx.EVT_LEFT_DOWN, self.on_left_down)
+        # Install as event filter on canvas
+        canvas.installEventFilter(self)
 
-        canvas.Bind(wx.EVT_MIDDLE_UP, self.on_middle_up)
-        canvas.Bind(wx.EVT_MIDDLE_DOWN, self.on_middle_down)
+    def eventFilter(self, obj, event):
+        if obj is not self.canvas:
+            return False
 
-        canvas.Bind(wx.EVT_RIGHT_UP, self.on_right_up)
-        canvas.Bind(wx.EVT_RIGHT_DOWN, self.on_right_down)
+        t = event.type()
+        if t == QEvent.Type.MouseButtonPress:
+            self._on_mouse_press(event)
+        elif t == QEvent.Type.MouseButtonRelease:
+            self._on_mouse_release(event)
+        elif t == QEvent.Type.MouseMove:
+            self._on_mouse_motion(event)
+        elif t == QEvent.Type.Wheel:
+            self._on_mouse_wheel(event)
 
-        canvas.Bind(wx.EVT_MOUSE_AUX1_UP, self.on_aux1_up)
-        canvas.Bind(wx.EVT_MOUSE_AUX1_DOWN, self.on_aux1_down)
-
-        canvas.Bind(wx.EVT_MOUSE_AUX2_UP, self.on_aux2_up)
-        canvas.Bind(wx.EVT_MOUSE_AUX2_DOWN, self.on_aux2_down)
-
-        canvas.Bind(wx.EVT_MOTION, self.on_mouse_motion)
-        canvas.Bind(wx.EVT_MOUSEWHEEL, self.on_mouse_wheel)
+        return False  # don't consume
 
     def _process_mouse(self, code):
         for config, func in (
@@ -61,13 +62,11 @@ class MouseHandler:
                 continue
 
             if config.mouse & code:
-
-                def _wrapper(dx, dy):
-                    if config.mouse & MOUSE_SWAP_AXIS:
-                        func(dy, dx)
+                def _wrapper(dx, dy, _config=config, _func=func):
+                    if _config.mouse & MOUSE_SWAP_AXIS:
+                        _func(dy, dx)
                     else:
-                        func(dx, dy)
-
+                        _func(dx, dy)
                 return _wrapper
 
         def _do_nothing_func(_, __):
@@ -75,115 +74,48 @@ class MouseHandler:
 
         return _do_nothing_func
 
-    def on_left_down(self, evt: wx.MouseEvent):
-        x, y = evt.GetPosition()
-        mouse_pos = _point.Point(x, y)
-        self.mouse_pos = mouse_pos
+    def _on_mouse_press(self, evt: QMouseEvent):
+        pos = evt.position()
+        self.mouse_pos = _point.Point(pos.x(), pos.y())
+        self.canvas.setFocus()
+        if not self.canvas.hasMouseTracking():
+            self.canvas.setMouseTracking(True)
 
-        if not self.canvas.HasCapture():
-            self.canvas.CaptureMouse()
+    def _on_mouse_release(self, evt: QMouseEvent):
+        pass
 
-    def on_left_up(self, evt: wx.MouseEvent):
-        if self.canvas.HasCapture():
-            self.canvas.ReleaseMouse()
-
-        evt.Skip()
-
-    def on_middle_up(self, evt: wx.MouseEvent):
-        if self.canvas.HasCapture():
-            self.canvas.ReleaseMouse()
-
-        evt.Skip()
-
-    def on_middle_down(self, evt: wx.MouseEvent):
-        if not self.canvas.HasCapture():
-            self.canvas.CaptureMouse()
-
-        x, y = evt.GetPosition()
-        self.mouse_pos = _point.Point(x, y)
-
-        evt.Skip()
-
-    def on_right_up(self, evt: wx.MouseEvent):
-        if self.canvas.HasCapture():
-            self.canvas.ReleaseMouse()
-
-        evt.Skip()
-
-    def on_right_down(self, evt: wx.MouseEvent):
-        if not self.canvas.HasCapture():
-            self.canvas.CaptureMouse()
-
-        x, y = evt.GetPosition()
-
-        mouse_pos = _point.Point(x, y)
-        self.mouse_pos = mouse_pos
-
-        evt.Skip()
-
-    def on_mouse_wheel(self, evt: wx.MouseEvent):
-        if evt.GetWheelRotation() > 0:
-            delta = 1.0
-        else:
-            delta = -1.0
-
+    def _on_mouse_wheel(self, evt: QWheelEvent):
+        delta = 1.0 if evt.angleDelta().y() > 0 else -1.0
         self._process_mouse(MOUSE_WHEEL)(delta, 0.0)
+        self.canvas.update()
 
-        self.canvas.Refresh(False)
-        evt.Skip()
+    def _on_mouse_motion(self, evt: QMouseEvent):
+        buttons = evt.buttons()
+        if not (buttons & (Qt.MouseButton.LeftButton | Qt.MouseButton.MiddleButton |
+                           Qt.MouseButton.RightButton | Qt.MouseButton.XButton1 |
+                           Qt.MouseButton.XButton2)):
+            return
 
-    def on_mouse_motion(self, evt: wx.MouseEvent):
-        if evt.Dragging():
-            x, y = evt.GetPosition()
-            mouse_pos = _point.Point(x, y)
+        pos = evt.position()
+        mouse_pos = _point.Point(pos.x(), pos.y())
 
-            if self.mouse_pos is None:
-                self.mouse_pos = mouse_pos
-
-            delta = mouse_pos - self.mouse_pos
+        if self.mouse_pos is None:
             self.mouse_pos = mouse_pos
 
-            if evt.LeftIsDown():
-                self._process_mouse(MOUSE_LEFT)(*list(delta)[:-1])
-            if evt.MiddleIsDown():
-                self._process_mouse(MOUSE_MIDDLE)(*list(delta)[:-1])
-            if evt.RightIsDown():
-                self._process_mouse(MOUSE_RIGHT)(*list(delta)[:-1])
-            if evt.Aux1IsDown():
-                self._process_mouse(MOUSE_AUX1)(*list(delta)[:-1])
-            if evt.Aux2IsDown():
-                self._process_mouse(MOUSE_AUX2)(*list(delta)[:-1])
+        delta = mouse_pos - self.mouse_pos
+        self.mouse_pos = mouse_pos
 
-            self.canvas.Refresh(False)
+        dx, dy = list(delta)[:-1]
 
-        evt.Skip()
+        if buttons & Qt.MouseButton.LeftButton:
+            self._process_mouse(MOUSE_LEFT)(dx, dy)
+        if buttons & Qt.MouseButton.MiddleButton:
+            self._process_mouse(MOUSE_MIDDLE)(dx, dy)
+        if buttons & Qt.MouseButton.RightButton:
+            self._process_mouse(MOUSE_RIGHT)(dx, dy)
+        if buttons & Qt.MouseButton.XButton1:
+            self._process_mouse(MOUSE_AUX1)(dx, dy)
+        if buttons & Qt.MouseButton.XButton2:
+            self._process_mouse(MOUSE_AUX2)(dx, dy)
 
-    def on_aux1_up(self, evt: wx.MouseEvent):
-        if self.canvas.HasCapture():
-            self.canvas.ReleaseMouse()
-
-        evt.Skip()
-
-    def on_aux1_down(self, evt: wx.MouseEvent):
-        if not self.canvas.HasCapture():
-            self.canvas.CaptureMouse()
-
-        x, y = evt.GetPosition()
-        self.mouse_pos = _point.Point(x, y)
-
-        evt.Skip()
-
-    def on_aux2_up(self, evt: wx.MouseEvent):
-        if self.canvas.HasCapture():
-            self.canvas.ReleaseMouse()
-
-        evt.Skip()
-
-    def on_aux2_down(self, evt: wx.MouseEvent):
-        if not self.canvas.HasCapture():
-            self.canvas.CaptureMouse()
-
-        x, y = evt.GetPosition()
-        self.mouse_pos = _point.Point(x, y)
-
-        evt.Skip()
+        self.canvas.update()

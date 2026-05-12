@@ -9,12 +9,9 @@ import zipfile
 import io
 import pandas as pd
 
-from PySide6.QtWidgets import (
-    QWidget, QSplitter, QTreeWidget, QTreeWidgetItem,
-    QAbstractItemView, QHeaderView, QTableView, QApplication
-)
-from PySide6.QtCore import Qt, QAbstractTableModel, QModelIndex, QTimer, Signal
-from PySide6.QtGui import QColor
+from PySide6 import QtWidgets
+from PySide6 import QtCore
+from PySide6 import QtGui
 
 if TYPE_CHECKING:
     from ... import logger as _logger
@@ -30,12 +27,12 @@ Config = _config.Config.logging
 # ---------------------------------------------------------------------------
 
 _LEVEL_COLOURS = {
-    'ERROR':     QColor(Qt.red),
-    'TRACEBACK': QColor(Qt.red),
-    'WARNING':   QColor(255, 140, 0),
-    'WARN':      QColor(255, 140, 0),
-    'NOTICE':    QColor(0, 100, 200),
-    'DEBUG':     QColor(128, 128, 128),
+    'ERROR':     QtGui.QColor(QtCore.Qt.GlobalColor.red),
+    'TRACEBACK': QtGui.QColor(QtCore.Qt.GlobalColor.red),
+    'WARNING':   QtGui.QColor(255, 140, 0),
+    'WARN':      QtGui.QColor(255, 140, 0),
+    'NOTICE':    QtGui.QColor(0, 100, 200),
+    'DEBUG':     QtGui.QColor(128, 128, 128),
 }
 
 
@@ -43,7 +40,7 @@ _LEVEL_COLOURS = {
 # VirtualLogListCtrl replacement: QAbstractTableModel + QTableView
 # ---------------------------------------------------------------------------
 
-class _LogModel(QAbstractTableModel):
+class _LogModel(QtCore.QAbstractTableModel):
     _HEADERS = ['Timestamp', 'Level', 'Message']
     _COLS = ['timestamp_str', 'level', 'message']
 
@@ -51,27 +48,27 @@ class _LogModel(QAbstractTableModel):
         super().__init__(parent)
         self._data = pd.DataFrame(columns=['timestamp', 'level', 'message', 'timestamp_str'])
 
-    def rowCount(self, parent=QModelIndex()):
+    def rowCount(self, parent=QtCore.QModelIndex()):
         return len(self._data)
 
-    def columnCount(self, parent=QModelIndex()):
+    def columnCount(self, parent=QtCore.QModelIndex()):
         return 3
 
-    def headerData(self, section, orientation, role=Qt.DisplayRole):
-        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
+    def headerData(self, section, orientation, role=QtCore.Qt.ItemDataRole.DisplayRole):
+        if orientation == QtCore.Qt.Orientation.Horizontal and role == QtCore.Qt.ItemDataRole.DisplayRole:
             return self._HEADERS[section]
 
-    def data(self, index, role=Qt.DisplayRole):
+    def data(self, index, role=QtCore.Qt.ItemDataRole.DisplayRole):
         if not index.isValid() or index.row() >= len(self._data):
             return None
 
         row = self._data.iloc[index.row()]
 
-        if role == Qt.DisplayRole:
+        if role == QtCore.Qt.ItemDataRole.DisplayRole:
             col = self._COLS[index.column()]
             return str(row.get(col, ''))
 
-        if role == Qt.ForegroundRole:
+        if role == QtCore.Qt.ItemDataRole.ForegroundRole:
             level = str(row.get('level', '')).upper()
             for key, colour in _LEVEL_COLOURS.items():
                 if key in level:
@@ -97,12 +94,12 @@ class _LogModel(QAbstractTableModel):
         df = self._ensure_timestamp_str(df)
         first = len(self._data)
         last = first + len(df) - 1
-        self.beginInsertRows(QModelIndex(), first, last)
+        self.beginInsertRows(QtCore.QModelIndex(), first, last)
         self._data = pd.concat([self._data, df], ignore_index=True)
         self.endInsertRows()
 
 
-class VirtualLogListCtrl(QTableView):
+class VirtualLogListCtrl(QtWidgets.QTableView):
     """Replaces wx.ListCtrl (LC_REPORT | LC_VIRTUAL | LC_SINGLE_SEL)."""
 
     def __init__(self, parent):
@@ -111,16 +108,16 @@ class VirtualLogListCtrl(QTableView):
         self._model = _LogModel(self)
         self.setModel(self._model)
 
-        self.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.setSelectionMode(QAbstractItemView.SingleSelection)
-        self.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
+        self.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
+        self.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
         self.setAlternatingRowColors(True)
         self.verticalHeader().setVisible(False)
 
         hdr = self.horizontalHeader()
         hdr.resizeSection(0, 180)
         hdr.resizeSection(1, 100)
-        hdr.setSectionResizeMode(2, QHeaderView.Stretch)
+        hdr.setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeMode.Stretch)
 
         self._is_destroyed = False
 
@@ -133,7 +130,7 @@ class VirtualLogListCtrl(QTableView):
             if not self._is_destroyed:
                 self._model.append_data(new_data)
 
-        QTimer.singleShot(0, lambda d=data: _do(d))
+        QtCore.QTimer.singleShot(0, lambda d=data: _do(d))
 
     def SetData(self, df: pd.DataFrame):
         self._model.set_data(df)
@@ -143,10 +140,10 @@ class VirtualLogListCtrl(QTableView):
 # LogViewerPanel — QSplitter replacing wx.SplitterWindow
 # ---------------------------------------------------------------------------
 
-class LogViewerPanel(QSplitter):
+class LogViewerPanel(QtWidgets.QSplitter):
 
-    def __init__(self, parent, logger: "\"_logger.Log\""):
-        super().__init__(Qt.Horizontal, parent)
+    def __init__(self, parent, logger: "_logger.Log"):
+        super().__init__(QtCore.Qt.Orientation.Horizontal, parent)
 
         self.logger = logger
         self._curr_log = None
@@ -155,10 +152,10 @@ class LogViewerPanel(QSplitter):
         self.expanded_items: set = set()
 
         # Left pane: tree
-        self.treectrl = QTreeWidget(self)
+        self.treectrl = QtWidgets.QTreeWidget(self)
         self.treectrl.setHeaderHidden(True)
         self.treectrl.setRootIsDecorated(True)
-        self.root = QTreeWidgetItem(self.treectrl, ['Logs'])
+        self.root = QtWidgets.QTreeWidgetItem(self.treectrl, ['Logs'])
         self.treectrl.addTopLevelItem(self.root)
 
         # Right pane: log list
@@ -177,14 +174,14 @@ class LogViewerPanel(QSplitter):
         logger.log_handler.bind(self.new_data)
 
         def _do():
-            QApplication.setOverrideCursor(Qt.WaitCursor)
+            QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.CursorShape.WaitCursor)
             try:
                 self.load()
                 self._load_current_log_initial()
             finally:
-                QApplication.restoreOverrideCursor()
+                QtWidgets.QApplication.restoreOverrideCursor()
 
-        QTimer.singleShot(0, _do)
+        QtCore.QTimer.singleShot(0, _do)
 
     def Destroy(self):
         self._is_destroyed = True
@@ -219,7 +216,7 @@ class LogViewerPanel(QSplitter):
         if not items:
             return
         item = items[0]
-        data = item.data(0, Qt.UserRole)
+        data = item.data(0, QtCore.Qt.ItemDataRole.UserRole)
         if not data:
             return
 
@@ -233,12 +230,12 @@ class LogViewerPanel(QSplitter):
         elif item_type == 'archive_file':
             self._load_archive_file(data['zipfile'], data['filename'])
 
-    def on_tree_expanding(self, item: QTreeWidgetItem):
+    def on_tree_expanding(self, item: QtWidgets.QTreeWidgetItem):
         item_id = id(item)
         if item_id in self.expanded_items:
             return
 
-        data = item.data(0, Qt.UserRole)
+        data = item.data(0, QtCore.Qt.ItemDataRole.UserRole)
         if not data:
             return
 
@@ -254,73 +251,73 @@ class LogViewerPanel(QSplitter):
         elif item_type == 'archive_date':
             self._load_hours_for_archive_date(item, data['zipfile'], data['filename'], data['date'], item_id)
 
-    def on_tree_collapsed(self, item: QTreeWidgetItem):
+    def on_tree_collapsed(self, item: QtWidgets.QTreeWidgetItem):
         item_id = id(item)
         self.expanded_items.discard(item_id)
         item.takeChildren()
-        placeholder = QTreeWidgetItem(item, ['Loading...'])
+        placeholder = QtWidgets.QTreeWidgetItem(item, ['Loading...'])
 
     # ------------------------------------------------------------------
     # Lazy-load helpers
     # ------------------------------------------------------------------
 
-    def _load_dates_for_file(self, file_item: QTreeWidgetItem, log_path: str, item_id: int):
+    def _load_dates_for_file(self, file_item: QtWidgets.QTreeWidgetItem, log_path: str, item_id: int):
         file_item.takeChildren()
-        QTreeWidgetItem(file_item, ['Loading dates...'])
+        QtWidgets.QTreeWidgetItem(file_item, ['Loading dates...'])
 
         def load_dates():
             dates = self._get_dates_in_log(log_path)
-            QTimer.singleShot(0, lambda: self._populate_dates(file_item, log_path, dates, item_id))
+            QtCore.QTimer.singleShot(0, lambda: self._populate_dates(file_item, log_path, dates, item_id))
 
         threading.Thread(target=load_dates, daemon=True).start()
 
-    def _populate_dates(self, parent_item: QTreeWidgetItem, log_path: str,
+    def _populate_dates(self, parent_item: QtWidgets.QTreeWidgetItem, log_path: str,
                         dates: List[str], item_id: int):
         parent_item.takeChildren()
         self.expanded_items.add(item_id)
         if not dates:
-            QTreeWidgetItem(parent_item, ['(No dates found)'])
+            QtWidgets.QTreeWidgetItem(parent_item, ['(No dates found)'])
             return
         for date_str in dates:
-            date_item = QTreeWidgetItem(parent_item, [date_str])
-            date_item.setData(0, Qt.UserRole, {'type': 'date', 'file': log_path, 'date': date_str})
-            QTreeWidgetItem(date_item, ['Loading...'])
+            date_item = QtWidgets.QTreeWidgetItem(parent_item, [date_str])
+            date_item.setData(0, QtCore.Qt.ItemDataRole.UserRole, {'type': 'date', 'file': log_path, 'date': date_str})
+            QtWidgets.QTreeWidgetItem(date_item, ['Loading...'])
 
-    def _load_hours_for_date(self, date_item: QTreeWidgetItem, log_path: str,
+    def _load_hours_for_date(self, date_item: QtWidgets.QTreeWidgetItem, log_path: str,
                              date_str: str, item_id: int):
         date_item.takeChildren()
-        QTreeWidgetItem(date_item, ['Loading hours...'])
+        QtWidgets.QTreeWidgetItem(date_item, ['Loading hours...'])
 
         def load_hours():
             hours = self._get_hours_in_date(log_path, date_str)
-            QTimer.singleShot(0, lambda: self._populate_hours(
+            QtCore.QTimer.singleShot(0, lambda: self._populate_hours(
                 date_item, log_path, date_str, hours, item_id, False))
 
         threading.Thread(target=load_hours, daemon=True).start()
 
-    def _populate_hours(self, parent_item: QTreeWidgetItem, log_path: Optional[str],
+    def _populate_hours(self, parent_item: QtWidgets.QTreeWidgetItem, log_path: Optional[str],
                         date_str: str, hours: List[int], item_id: int,
                         is_archive: bool, zipfile_obj=None, filename=None):
         parent_item.takeChildren()
         self.expanded_items.add(item_id)
         if not hours:
-            QTreeWidgetItem(parent_item, ['(No hours found)'])
+            QtWidgets.QTreeWidgetItem(parent_item, ['(No hours found)'])
             return
         for hour in hours:
             hour_label = f"{hour:02d}:00 - {hour:02d}:59"
-            hour_item = QTreeWidgetItem(parent_item, [hour_label])
+            hour_item = QtWidgets.QTreeWidgetItem(parent_item, [hour_label])
             if is_archive:
-                hour_item.setData(0, Qt.UserRole, {
+                hour_item.setData(0, QtCore.Qt.ItemDataRole.UserRole, {
                     'type': 'archive_hour', 'zipfile': zipfile_obj,
                     'filename': filename, 'date': date_str, 'hour': hour
                 })
             else:
-                hour_item.setData(0, Qt.UserRole, {
+                hour_item.setData(0, QtCore.Qt.ItemDataRole.UserRole, {
                     'type': 'hour', 'file': log_path,
                     'date': date_str, 'hour': hour
                 })
 
-    def _load_archive_files(self, archive_item: QTreeWidgetItem, archive_path: str, item_id: int):
+    def _load_archive_files(self, archive_item: QtWidgets.QTreeWidgetItem, archive_path: str, item_id: int):
         archive_item.takeChildren()
         try:
             zf = zipfile.ZipFile(archive_path, 'r')
@@ -328,50 +325,50 @@ class LogViewerPanel(QSplitter):
             self.expanded_items.add(item_id)
             for name in names:
                 if name.endswith('.csv'):
-                    child = QTreeWidgetItem(archive_item, [name])
-                    child.setData(0, Qt.UserRole, {
+                    child = QtWidgets.QTreeWidgetItem(archive_item, [name])
+                    child.setData(0, QtCore.Qt.ItemDataRole.UserRole, {
                         'type': 'archive_file', 'zipfile': zf, 'filename': name
                     })
-                    QTreeWidgetItem(child, ['Loading...'])
+                    QtWidgets.QTreeWidgetItem(child, ['Loading...'])
         except Exception as e:
             self.logger.error(f"Failed to load archive {archive_path}: {e}")
-            QTreeWidgetItem(archive_item, ['(Error loading archive)'])
+            QtWidgets.QTreeWidgetItem(archive_item, ['(Error loading archive)'])
 
-    def _load_dates_for_archive_file(self, file_item: QTreeWidgetItem, zipfile_obj,
+    def _load_dates_for_archive_file(self, file_item: QtWidgets.QTreeWidgetItem, zipfile_obj,
                                      filename: str, item_id: int):
         file_item.takeChildren()
-        QTreeWidgetItem(file_item, ['Loading dates...'])
+        QtWidgets.QTreeWidgetItem(file_item, ['Loading dates...'])
 
         def load_dates():
             dates = self._get_dates_in_archive(zipfile_obj, filename)
-            QTimer.singleShot(0, lambda: self._populate_archive_dates(
+            QtCore.QTimer.singleShot(0, lambda: self._populate_archive_dates(
                 file_item, zipfile_obj, filename, dates, item_id))
 
         threading.Thread(target=load_dates, daemon=True).start()
 
-    def _populate_archive_dates(self, parent_item: QTreeWidgetItem, zipfile_obj,
+    def _populate_archive_dates(self, parent_item: QtWidgets.QTreeWidgetItem, zipfile_obj,
                                 filename: str, dates: List[str], item_id: int):
         parent_item.takeChildren()
         self.expanded_items.add(item_id)
         if not dates:
-            QTreeWidgetItem(parent_item, ['(No dates found)'])
+            QtWidgets.QTreeWidgetItem(parent_item, ['(No dates found)'])
             return
         for date_str in dates:
-            date_item = QTreeWidgetItem(parent_item, [date_str])
-            date_item.setData(0, Qt.UserRole, {
+            date_item = QtWidgets.QTreeWidgetItem(parent_item, [date_str])
+            date_item.setData(0, QtCore.Qt.ItemDataRole.UserRole, {
                 'type': 'archive_date', 'zipfile': zipfile_obj,
                 'filename': filename, 'date': date_str
             })
-            QTreeWidgetItem(date_item, ['Loading...'])
+            QtWidgets.QTreeWidgetItem(date_item, ['Loading...'])
 
-    def _load_hours_for_archive_date(self, date_item: QTreeWidgetItem, zipfile_obj,
+    def _load_hours_for_archive_date(self, date_item: QtWidgets.QTreeWidgetItem, zipfile_obj,
                                      filename: str, date_str: str, item_id: int):
         date_item.takeChildren()
-        QTreeWidgetItem(date_item, ['Loading hours...'])
+        QtWidgets.QTreeWidgetItem(date_item, ['Loading hours...'])
 
         def load_hours():
             hours = self._get_hours_in_archive_date(zipfile_obj, filename, date_str)
-            QTimer.singleShot(0, lambda: self._populate_hours(
+            QtCore.QTimer.singleShot(0, lambda: self._populate_hours(
                 date_item, None, date_str, hours, item_id, True, zipfile_obj, filename))
 
         threading.Thread(target=load_hours, daemon=True).start()
@@ -388,7 +385,7 @@ class LogViewerPanel(QSplitter):
                 df = self._filter_by_date_and_hour(df, date_filter, hour_filter)
             elif date_filter:
                 df = self._filter_by_date(df, date_filter)
-            QTimer.singleShot(0, lambda: self._display_log_data(df))
+            QtCore.QTimer.singleShot(0, lambda: self._display_log_data(df))
 
         threading.Thread(target=load_data, daemon=True).start()
 
@@ -401,7 +398,7 @@ class LogViewerPanel(QSplitter):
                 df = self._filter_by_date_and_hour(df, date_filter, hour_filter)
             elif date_filter:
                 df = self._filter_by_date(df, date_filter)
-            QTimer.singleShot(0, lambda: self._display_log_data(df))
+            QtCore.QTimer.singleShot(0, lambda: self._display_log_data(df))
 
         threading.Thread(target=load_data, daemon=True).start()
 
@@ -490,24 +487,24 @@ class LogViewerPanel(QSplitter):
     def load(self):
         self.treectrl.clear()
         self.expanded_items.clear()
-        self.root = QTreeWidgetItem(self.treectrl, ['Logs'])
+        self.root = QtWidgets.QTreeWidgetItem(self.treectrl, ['Logs'])
         self.treectrl.addTopLevelItem(self.root)
 
         archives = self.get_archives()
         for archive_name, timestamp, archive_path in archives:
-            child = QTreeWidgetItem(self.root, [f'{archive_name} ({timestamp})'])
-            child.setData(0, Qt.UserRole, {'type': 'archive', 'path': archive_path})
-            QTreeWidgetItem(child, ['Loading...'])
+            child = QtWidgets.QTreeWidgetItem(self.root, [f'{archive_name} ({timestamp})'])
+            child.setData(0, QtCore.Qt.ItemDataRole.UserRole, {'type': 'archive', 'path': archive_path})
+            QtWidgets.QTreeWidgetItem(child, ['Loading...'])
 
         logfiles = self.get_logfiles()
         self._curr_log = None
 
         for log_name, timestamp, log_path in logfiles:
-            child = QTreeWidgetItem(self.root, [f'{log_name} ({timestamp})'])
-            child.setData(0, Qt.UserRole, {'type': 'file', 'path': log_path})
+            child = QtWidgets.QTreeWidgetItem(self.root, [f'{log_name} ({timestamp})'])
+            child.setData(0, QtCore.Qt.ItemDataRole.UserRole, {'type': 'file', 'path': log_path})
             if self._curr_log is None:
                 self._curr_log = child
-            QTreeWidgetItem(child, ['Loading...'])
+            QtWidgets.QTreeWidgetItem(child, ['Loading...'])
 
         self.root.setExpanded(True)
 
@@ -548,7 +545,7 @@ class LogViewer:
         self.viewer = LogViewerPanel(mainframe, mainframe.logger)
         self.mainframe = mainframe
         self._dock = mainframe._make_dock('Log Viewer', 'log_viewer', self.viewer,
-                                          mainframe._dock_area_left)
+                                          QtCore.Qt.DockWidgetArea.LeftDockWidgetArea)
         self._dock.show()
 
     def Show(self, show=True):
@@ -558,7 +555,7 @@ class LogViewer:
         else:
             self._dock.hide()
 
-    def Refresh(self, *args, **kwargs):
+    def Refresh(self, *_, **__):
         self.viewer.update()
 
     def Destroy(self):

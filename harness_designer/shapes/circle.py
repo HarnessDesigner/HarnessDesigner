@@ -50,8 +50,8 @@ class Circle:
 
     @center.setter
     def center(self, value: _point.Point):
-        self._center.Unbind(self._update_artist)
-        value.Bind(self._update_artist)
+        self._center.unbind(self._update_artist)
+        value.bind(self._update_artist)
         self._center = value
 
         self._pixmap = None

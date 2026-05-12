@@ -24,7 +24,7 @@ class WeightControl(_prop_ctrls.FloatProperty):
 
         super().__init__(parent, 'Weight', min_value=0.01, max_value=999.99, increment=0.01, units='g')
 
-        self.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_weight)
+        self.property_changed.connect(self._on_weight)
 
     def set_obj(self, db_obj: WeightMixin):
         self.db_obj = db_obj

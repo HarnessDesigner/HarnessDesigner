@@ -42,7 +42,7 @@ class CompatTerminalsControl(_prop_ctrls.ArrayStringProperty):
         self.db_obj: CompatTerminalsMixin = None
         super().__init__(parent, 'Compatible Terminals')
 
-        self.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_compat_housings)
+        self.property_changed.connect(self._on_compat_housings)
 
     def set_obj(self, db_obj: CompatTerminalsMixin):
         self.db_obj = db_obj

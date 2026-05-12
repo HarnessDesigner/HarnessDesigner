@@ -23,7 +23,7 @@ class Visible2DControl(_prop_ctrls.BoolProperty):
 
         super().__init__(parent, 'Is Visible 2D')
 
-        self.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_visible2d)
+        self.property_changed.connect(self._on_visible2d)
 
     def _on_visible2d(self, evt):
         value = evt.GetValue()

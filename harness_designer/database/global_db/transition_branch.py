@@ -330,10 +330,10 @@ class TransitionBranchControl(_prop_ctrls.Category):
             flange_group, 'Width',
             min_value=0.00, max_value=999.9, increment=0.01, units='mm')
 
-        self.length_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_length)
-        self.angle_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_angle)
-        self.bulb_length_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_bulb_length)
-        self.min_dia_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_min_dia)
-        self.max_dia_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_max_dia)
-        self.flange_height_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_flange_height)
-        self.flange_width_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_flange_width)
+        self.length_ctrl.property_changed.connect(self._on_length)
+        self.angle_ctrl.property_changed.connect(self._on_angle)
+        self.bulb_length_ctrl.property_changed.connect(self._on_bulb_length)
+        self.min_dia_ctrl.property_changed.connect(self._on_min_dia)
+        self.max_dia_ctrl.property_changed.connect(self._on_max_dia)
+        self.flange_height_ctrl.property_changed.connect(self._on_flange_height)
+        self.flange_width_ctrl.property_changed.connect(self._on_flange_width)

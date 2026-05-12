@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt, QEvent
+from PySide6 import QtCore
 from PySide6.QtWidgets import QMenu
 
 from ... import config as _config
@@ -33,9 +33,10 @@ def _qt_pos(qt_event) -> _point.Point:
     return _point.Point(p.x(), p.y())
 
 
-class MouseHandler2D:
+class MouseHandler2D(QtCore.QObject):
 
     def __init__(self, canvas: "_canvas.Canvas"):
+        super().__init__()
         self.canvas = canvas
 
         self._mouse_pos: _point.Point = None
@@ -61,53 +62,53 @@ class MouseHandler2D:
 
         t = qt_event.type()
 
-        if t == QEvent.MouseButtonPress:
+        if t == QtCore.QEvent.Type.MouseButtonPress:
             btn = qt_event.button()
-            if btn == Qt.LeftButton:
+            if btn == QtCore.Qt.MouseButton.LeftButton:
                 self.on_left_down(qt_event)
-            elif btn == Qt.MiddleButton:
+            elif btn == QtCore.Qt.MouseButton.MiddleButton:
                 self.on_middle_down(qt_event)
-            elif btn == Qt.RightButton:
+            elif btn == QtCore.Qt.MouseButton.RightButton:
                 self.on_right_down(qt_event)
-            elif btn == Qt.XButton1:
+            elif btn == QtCore.Qt.MouseButton.XButton1:
                 self.on_aux1_down(qt_event)
-            elif btn == Qt.XButton2:
+            elif btn == QtCore.Qt.MouseButton.XButton2:
                 self.on_aux2_down(qt_event)
             return False
 
-        if t == QEvent.MouseButtonRelease:
+        if t == QtCore.QEvent.Type.MouseButtonRelease:
             btn = qt_event.button()
-            if btn == Qt.LeftButton:
+            if btn == QtCore.Qt.MouseButton.LeftButton:
                 self.on_left_up(qt_event)
-            elif btn == Qt.MiddleButton:
+            elif btn == QtCore.Qt.MouseButton.MiddleButton:
                 self.on_middle_up(qt_event)
-            elif btn == Qt.RightButton:
+            elif btn == QtCore.Qt.MouseButton.RightButton:
                 self.on_right_up(qt_event)
-            elif btn == Qt.XButton1:
+            elif btn == QtCore.Qt.MouseButton.XButton1:
                 self.on_aux1_up(qt_event)
-            elif btn == Qt.XButton2:
+            elif btn == QtCore.Qt.MouseButton.XButton2:
                 self.on_aux2_up(qt_event)
             return False
 
-        if t == QEvent.MouseButtonDblClick:
+        if t == QtCore.QEvent.Type.MouseButtonDblClick:
             btn = qt_event.button()
-            if btn == Qt.LeftButton:
+            if btn == QtCore.Qt.MouseButton.LeftButton:
                 self.on_left_dclick(qt_event)
-            elif btn == Qt.MiddleButton:
+            elif btn == QtCore.Qt.MouseButton.MiddleButton:
                 self.on_middle_dclick(qt_event)
-            elif btn == Qt.RightButton:
+            elif btn == QtCore.Qt.MouseButton.RightButton:
                 self.on_right_dclick(qt_event)
-            elif btn == Qt.XButton1:
+            elif btn == QtCore.Qt.MouseButton.XButton1:
                 self.on_aux1_dclick(qt_event)
-            elif btn == Qt.XButton2:
+            elif btn == QtCore.Qt.MouseButton.XButton2:
                 self.on_aux2_dclick(qt_event)
             return False
 
-        if t == QEvent.MouseMove:
+        if t == QtCore.QEvent.Type.MouseMove:
             self.on_mouse_motion(qt_event)
             return False
 
-        if t == QEvent.Wheel:
+        if t == QtCore.QEvent.Type.Wheel:
             self.on_mouse_wheel(qt_event)
             return False
 
@@ -311,7 +312,7 @@ class MouseHandler2D:
         refresh = False
 
         btns = evt.buttons()
-        if btns != Qt.NoButton:
+        if btns != QtCore.Qt.MouseButton.NoButton:
             mouse_pos = _qt_pos(evt)
 
             if self._mouse_pos is None:
@@ -321,7 +322,7 @@ class MouseHandler2D:
             self._mouse_pos = mouse_pos
 
             with self.canvas:
-                if btns & Qt.LeftButton:
+                if btns & QtCore.Qt.MouseButton.LeftButton:
                     self._is_motion = True
 
                     if self._drag_obj is None:
@@ -340,22 +341,22 @@ class MouseHandler2D:
 
                     refresh = True
 
-                if btns & Qt.MiddleButton:
+                if btns & QtCore.Qt.MouseButton.MiddleButton:
                     self._is_motion = True
                     self._process_mouse(MOUSE_MIDDLE)(*list(delta)[:-1])
                     refresh = True
 
-                if btns & Qt.RightButton:
+                if btns & QtCore.Qt.MouseButton.RightButton:
                     self._is_motion = True
                     self._process_mouse(MOUSE_RIGHT)(*list(delta)[:-1])
                     refresh = True
 
-                if btns & Qt.XButton1:
+                if btns & QtCore.Qt.MouseButton.XButton1:
                     self._is_motion = True
                     self._process_mouse(MOUSE_AUX1)(*list(delta)[:-1])
                     refresh = True
 
-                if btns & Qt.XButton2:
+                if btns & QtCore.Qt.MouseButton.XButton2:
                     self._is_motion = True
                     self._process_mouse(MOUSE_AUX2)(*list(delta)[:-1])
                     refresh = True

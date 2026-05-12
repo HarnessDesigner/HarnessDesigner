@@ -41,8 +41,8 @@ class PlatingControl(_prop_ctrls.Category):
         self.symbol_ctrl = _prop_ctrls.ComboBoxProperty(self, 'Symbol')
         self.desc_ctrl = _prop_ctrls.LongStringProperty(self, 'Description')
 
-        self.symbol_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_symbol)
-        self.desc_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_desc)
+        self.symbol_ctrl.property_changed.connect(self._on_symbol)
+        self.desc_ctrl.property_changed.connect(self._on_desc)
 
     def set_obj(self, db_obj: PlatingMixin):
         self.db_obj = db_obj

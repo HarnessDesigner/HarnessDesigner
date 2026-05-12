@@ -692,17 +692,17 @@ class WireControl(QTabWidget):
             size_page, 'Outside Diameter',
             min_value=0.0, max_value=99.9999, increment=0.0001, units='mm')
 
-        self.tpi_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_tpi)
-        self.weight_1km_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_weight_1km)
-        self.volts_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_volts)
-        self.resistance_1km_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_resistance_1km)
-        self.num_conductors_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_num_conductors)
-        self.strands_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_strands)
-        self.shielded_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_shielded)
-        self.conductor_dia_mm_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_conductor_dia_mm)
-        self.size_mm2_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_size_mm2)
-        self.size_awg_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_size_awg)
-        self.od_mm_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_od_mm)
+        self.tpi_ctrl.property_changed.connect(self._on_tpi)
+        self.weight_1km_ctrl.property_changed.connect(self._on_weight_1km)
+        self.volts_ctrl.property_changed.connect(self._on_volts)
+        self.resistance_1km_ctrl.property_changed.connect(self._on_resistance_1km)
+        self.num_conductors_ctrl.property_changed.connect(self._on_num_conductors)
+        self.strands_ctrl.property_changed.connect(self._on_strands)
+        self.shielded_ctrl.property_changed.connect(self._on_shielded)
+        self.conductor_dia_mm_ctrl.property_changed.connect(self._on_conductor_dia_mm)
+        self.size_mm2_ctrl.property_changed.connect(self._on_size_mm2)
+        self.size_awg_ctrl.property_changed.connect(self._on_size_awg)
+        self.od_mm_ctrl.property_changed.connect(self._on_od_mm)
 
         for page in (
             general_page,

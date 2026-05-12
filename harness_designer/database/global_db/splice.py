@@ -358,10 +358,10 @@ class SpliceControl(QTabWidget):
             general_page, 'Maximum', min_value=0.00,
             max_value=99.9, increment=0.01, units='mm')
 
-        self.splice_type_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_splice_type)
-        self.resistance_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_resistance)
-        self.min_dia_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_min_dia)
-        self.max_dia_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_max_dia)
+        self.splice_type_ctrl.property_changed.connect(self._on_splice_type)
+        self.resistance_ctrl.property_changed.connect(self._on_resistance)
+        self.min_dia_ctrl.property_changed.connect(self._on_min_dia)
+        self.max_dia_ctrl.property_changed.connect(self._on_max_dia)
 
         self.mfg_page = ManufacturerControl(self)
         self.family_page = FamilyControl(self)

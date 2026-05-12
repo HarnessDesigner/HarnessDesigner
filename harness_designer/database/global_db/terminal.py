@@ -578,12 +578,12 @@ class TerminalControl(QTabWidget):
             general_page, 'Maximum Current',
             min_value=0, max_value=100000, units='ma')
 
-        self.sealing_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_sealing)
-        self.blade_size_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_blade_size)
-        self.resistance_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_resistance)
-        self.mating_cycles_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_mating_cycles)
-        self.max_vibration_g_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_vibration)
-        self.max_current_ma_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_current)
+        self.sealing_ctrl.property_changed.connect(self._on_sealing)
+        self.blade_size_ctrl.property_changed.connect(self._on_blade_size)
+        self.resistance_ctrl.property_changed.connect(self._on_resistance)
+        self.mating_cycles_ctrl.property_changed.connect(self._on_mating_cycles)
+        self.max_vibration_g_ctrl.property_changed.connect(self._on_vibration)
+        self.max_current_ma_ctrl.property_changed.connect(self._on_current)
 
         self.mfg_page = ManufacturerControl(self)
         self.family_page = FamilyControl(self)

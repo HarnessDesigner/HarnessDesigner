@@ -1,129 +1,52 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-import wx
 import threading
+
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QKeyEvent
 
 from . import Preview as _Preview
 from ... import config as _config
 
 Config = _config.Config
 
-
+# Map wx WXK_* equivalents to Qt.Key_* constants.
+# Keys that had numpad variants collapse to canonical Qt keys;
+# Qt handles numlock transparently.
 KEY_MULTIPLES = {
-    wx.WXK_UP: [wx.WXK_UP, wx.WXK_NUMPAD_UP],
-    wx.WXK_NUMPAD_UP: [wx.WXK_UP, wx.WXK_NUMPAD_UP],
+    Qt.Key.Key_Up:       [Qt.Key.Key_Up],
+    Qt.Key.Key_Down:     [Qt.Key.Key_Down],
+    Qt.Key.Key_Left:     [Qt.Key.Key_Left],
+    Qt.Key.Key_Right:    [Qt.Key.Key_Right],
 
-    wx.WXK_DOWN: [wx.WXK_DOWN, wx.WXK_NUMPAD_DOWN],
-    wx.WXK_NUMPAD_DOWN: [wx.WXK_DOWN, wx.WXK_NUMPAD_DOWN],
-
-    wx.WXK_LEFT: [wx.WXK_LEFT, wx.WXK_NUMPAD_LEFT],
-    wx.WXK_NUMPAD_LEFT: [wx.WXK_LEFT, wx.WXK_NUMPAD_LEFT],
-
-    wx.WXK_RIGHT: [wx.WXK_RIGHT, wx.WXK_NUMPAD_RIGHT],
-    wx.WXK_NUMPAD_RIGHT: [wx.WXK_RIGHT, wx.WXK_NUMPAD_RIGHT],
-
-    ord('-'): [ord('-'), wx.WXK_SUBTRACT, wx.WXK_NUMPAD_SUBTRACT],
-    wx.WXK_SUBTRACT: [ord('-'), wx.WXK_SUBTRACT, wx.WXK_NUMPAD_SUBTRACT],
-    wx.WXK_NUMPAD_SUBTRACT: [ord('-'), wx.WXK_SUBTRACT, wx.WXK_NUMPAD_SUBTRACT],
-
-    ord('+'): [ord('+'), wx.WXK_ADD, wx.WXK_NUMPAD_ADD],
-    wx.WXK_ADD: [ord('+'), wx.WXK_ADD, wx.WXK_NUMPAD_ADD],
-    wx.WXK_NUMPAD_ADD: [ord('+'), wx.WXK_ADD, wx.WXK_NUMPAD_ADD],
-
-    ord('/'): [ord('/'), wx.WXK_DIVIDE, wx.WXK_NUMPAD_DIVIDE],
-    wx.WXK_DIVIDE: [ord('/'), wx.WXK_DIVIDE, wx.WXK_NUMPAD_DIVIDE],
-    wx.WXK_NUMPAD_DIVIDE: [ord('/'), wx.WXK_DIVIDE, wx.WXK_NUMPAD_DIVIDE],
-
-    ord('*'): [ord('*'), wx.WXK_MULTIPLY, wx.WXK_NUMPAD_MULTIPLY],
-    wx.WXK_MULTIPLY: [ord('*'), wx.WXK_MULTIPLY, wx.WXK_NUMPAD_MULTIPLY],
-    wx.WXK_NUMPAD_MULTIPLY: [ord('*'), wx.WXK_MULTIPLY, wx.WXK_NUMPAD_MULTIPLY],
-
-    ord('.'): [ord('.'), wx.WXK_DECIMAL, wx.WXK_NUMPAD_DECIMAL],
-    wx.WXK_DECIMAL: [ord('.'), wx.WXK_DECIMAL, wx.WXK_NUMPAD_DECIMAL],
-    wx.WXK_NUMPAD_DECIMAL: [ord('.'), wx.WXK_DECIMAL, wx.WXK_NUMPAD_DECIMAL],
-
-    ord('|'): [ord('|'), wx.WXK_SEPARATOR, wx.WXK_NUMPAD_SEPARATOR],
-    wx.WXK_SEPARATOR: [ord('|'), wx.WXK_SEPARATOR, wx.WXK_NUMPAD_SEPARATOR],
-    wx.WXK_NUMPAD_SEPARATOR: [ord('|'), wx.WXK_SEPARATOR, wx.WXK_NUMPAD_SEPARATOR],
-
-    ord(' '): [ord(' '), wx.WXK_SPACE, wx.WXK_NUMPAD_SPACE],
-    wx.WXK_SPACE: [ord(' '), wx.WXK_SPACE, wx.WXK_NUMPAD_SPACE],
-    wx.WXK_NUMPAD_SPACE: [ord(' '), wx.WXK_SPACE, wx.WXK_NUMPAD_SPACE],
-
-    ord('='): [ord('='), wx.WXK_NUMPAD_EQUAL],
-    wx.WXK_NUMPAD_EQUAL: [ord('='), wx.WXK_NUMPAD_EQUAL],
-
-    wx.WXK_HOME: [wx.WXK_HOME, wx.WXK_NUMPAD_HOME],
-    wx.WXK_NUMPAD_HOME: [wx.WXK_HOME, wx.WXK_NUMPAD_HOME],
-
-    wx.WXK_END: [wx.WXK_END, wx.WXK_NUMPAD_END],
-    wx.WXK_NUMPAD_END: [wx.WXK_END, wx.WXK_NUMPAD_END],
-
-    wx.WXK_PAGEUP: [wx.WXK_PAGEUP, wx.WXK_NUMPAD_PAGEUP],
-    wx.WXK_NUMPAD_PAGEUP: [wx.WXK_PAGEUP, wx.WXK_NUMPAD_PAGEUP],
-
-    wx.WXK_PAGEDOWN: [wx.WXK_PAGEDOWN, wx.WXK_NUMPAD_PAGEDOWN],
-    wx.WXK_NUMPAD_PAGEDOWN: [wx.WXK_PAGEDOWN, wx.WXK_NUMPAD_PAGEDOWN],
-
-    wx.WXK_RETURN: [wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER],
-    wx.WXK_NUMPAD_ENTER: [wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER],
-
-    wx.WXK_INSERT: [wx.WXK_INSERT, wx.WXK_NUMPAD_INSERT],
-    wx.WXK_NUMPAD_INSERT: [wx.WXK_INSERT, wx.WXK_NUMPAD_INSERT],
-
-    wx.WXK_TAB: [wx.WXK_TAB, wx.WXK_NUMPAD_TAB],
-    wx.WXK_NUMPAD_TAB: [wx.WXK_TAB, wx.WXK_NUMPAD_TAB],
-
-    wx.WXK_DELETE: [wx.WXK_DELETE, wx.WXK_NUMPAD_DELETE],
-    wx.WXK_NUMPAD_DELETE: [wx.WXK_DELETE, wx.WXK_NUMPAD_DELETE],
-
-    ord('0'): [ord('0'), wx.WXK_NUMPAD0],
-    wx.WXK_NUMPAD0: [ord('0'), wx.WXK_NUMPAD0],
-
-    ord('1'): [ord('1'), wx.WXK_NUMPAD1],
-    wx.WXK_NUMPAD1: [ord('1'), wx.WXK_NUMPAD1],
-
-    ord('2'): [ord('2'), wx.WXK_NUMPAD2],
-    wx.WXK_NUMPAD2: [ord('2'), wx.WXK_NUMPAD2],
-
-    ord('3'): [ord('3'), wx.WXK_NUMPAD3],
-    wx.WXK_NUMPAD3: [ord('3'), wx.WXK_NUMPAD3],
-
-    ord('4'): [ord('4'), wx.WXK_NUMPAD4],
-    wx.WXK_NUMPAD4: [ord('4'), wx.WXK_NUMPAD4],
-
-    ord('5'): [ord('5'), wx.WXK_NUMPAD5],
-    wx.WXK_NUMPAD5: [ord('5'), wx.WXK_NUMPAD5],
-
-    ord('6'): [ord('6'), wx.WXK_NUMPAD6],
-    wx.WXK_NUMPAD6: [ord('6'), wx.WXK_NUMPAD6],
-
-    ord('7'): [ord('7'), wx.WXK_NUMPAD7],
-    wx.WXK_NUMPAD7: [ord('7'), wx.WXK_NUMPAD7],
-
-    ord('8'): [ord('8'), wx.WXK_NUMPAD8],
-    wx.WXK_NUMPAD8: [ord('8'), wx.WXK_NUMPAD8],
-
-    ord('9'): [ord('9'), wx.WXK_NUMPAD9],
-    wx.WXK_NUMPAD9: [ord('9'), wx.WXK_NUMPAD9],
+    Qt.Key.Key_Minus:    [Qt.Key.Key_Minus],
+    Qt.Key.Key_Plus:     [Qt.Key.Key_Plus],
+    Qt.Key.Key_Slash:    [Qt.Key.Key_Slash],
+    Qt.Key.Key_Asterisk: [Qt.Key.Key_Asterisk],
+    Qt.Key.Key_Period:   [Qt.Key.Key_Period],
+    Qt.Key.Key_Bar:      [Qt.Key.Key_Bar],
+    Qt.Key.Key_Space:    [Qt.Key.Key_Space],
+    Qt.Key.Key_Equal:    [Qt.Key.Key_Equal],
+    Qt.Key.Key_Home:     [Qt.Key.Key_Home],
+    Qt.Key.Key_End:      [Qt.Key.Key_End],
+    Qt.Key.Key_PageUp:   [Qt.Key.Key_PageUp],
+    Qt.Key.Key_PageDown: [Qt.Key.Key_PageDown],
+    Qt.Key.Key_Return:   [Qt.Key.Key_Return, Qt.Key.Key_Enter],
+    Qt.Key.Key_Enter:    [Qt.Key.Key_Return, Qt.Key.Key_Enter],
+    Qt.Key.Key_Insert:   [Qt.Key.Key_Insert],
+    Qt.Key.Key_Tab:      [Qt.Key.Key_Tab],
+    Qt.Key.Key_Delete:   [Qt.Key.Key_Delete],
+    **{Qt.Key(ord(str(i))): [Qt.Key(ord(str(i)))] for i in range(10)},
 }
 
 
-def _process_key_event(keycode: int, *keys):
-
+def _process_key_event(keycode, *keys):
     for expected_keycode in keys:
         if expected_keycode is None:
             continue
 
-        expected_keycodes = KEY_MULTIPLES.get(
-            expected_keycode,
-            [expected_keycode, ord(chr(expected_keycode).upper())]
-            if 32 <= expected_keycode <= 126 else
-            [expected_keycode]
-        )
-
+        expected_keycodes = KEY_MULTIPLES.get(expected_keycode, [expected_keycode])
         if keycode in expected_keycodes:
-
             return expected_keycode
 
 
@@ -132,8 +55,8 @@ class KeyHandler:
     def __init__(self, canvas: "_Preview"):
         self.canvas = canvas
 
-        canvas.Bind(wx.EVT_KEY_UP, self._on_key_up)
-        canvas.Bind(wx.EVT_KEY_DOWN, self._on_key_down)
+        # Install self as event filter on canvas to intercept key events
+        canvas.installEventFilter(self)
 
         self._running_keycodes = {}
         self._key_event = threading.Event()
@@ -142,15 +65,23 @@ class KeyHandler:
         self._keycode_thread.daemon = True
         self._keycode_thread.start()
 
-    def _key_loop(self):
+    def eventFilter(self, obj, event):
+        if obj is self.canvas:
+            if isinstance(event, QKeyEvent):
+                if event.type() == QKeyEvent.Type.KeyPress:
+                    self._on_key_down(event)
+                elif event.type() == QKeyEvent.Type.KeyRelease:
+                    self._on_key_up(event)
+        return False  # don't consume
 
+    def _key_loop(self):
         while not self._key_event.is_set():
             with self._key_queue_lock:
                 temp_queue = [[func, items['keys'], items['factor']]
                               for func, items in self._running_keycodes.items()]
 
             for func, keys, factor in temp_queue:
-                wx.CallAfter(func, factor, *list(keys))
+                QTimer.singleShot(0, lambda f=func, fc=factor, ks=keys: f(fc, *list(ks)))
 
                 if factor < Config.keyboard_settings.max_speed_factor:
                     factor += Config.keyboard_settings.speed_factor_increment
@@ -160,9 +91,8 @@ class KeyHandler:
 
             self._key_event.wait(0.05)
 
-    def _on_key_up(self, evt: wx.KeyEvent):
-        keycode = evt.GetKeyCode()
-        evt.Skip()
+    def _on_key_up(self, evt: QKeyEvent):
+        keycode = Qt.Key(evt.key())
 
         def remove_from_queue(func, k):
             with self._key_queue_lock:
@@ -171,7 +101,6 @@ class KeyHandler:
                     keys = list(items['keys'])
                     if k in keys:
                         keys.remove(k)
-
                     if keys:
                         items['keys'] = set(keys)
                         self._running_keycodes[func] = items
@@ -211,9 +140,8 @@ class KeyHandler:
             remove_from_queue(self._process_zoom_key, key)
             return
 
-    def _on_key_down(self, evt: wx.KeyEvent):
-        keycode = evt.GetKeyCode()
-        evt.Skip()
+    def _on_key_down(self, evt: QKeyEvent):
+        keycode = Qt.Key(evt.key())
 
         def add_to_queue(func, k):
             with self._key_queue_lock:
@@ -221,7 +149,6 @@ class KeyHandler:
                     self._running_keycodes[func] = dict(
                         keys=set(),
                         factor=Config.keyboard_settings.start_speed_factor)
-
                 self._running_keycodes[func]['keys'].add(k)
 
         rot = Config.rotate
@@ -267,7 +194,6 @@ class KeyHandler:
     def _process_rotate_key(self, factor, *keys):
         dx = 0.0
         dy = 0.0
-
         for key in keys:
             if key == Config.rotate.up_key:
                 dy += 1.0
@@ -277,13 +203,11 @@ class KeyHandler:
                 dx -= 1.0
             elif key == Config.rotate.right_key:
                 dx += 1.0
-
         self.canvas.Rotate(dx * factor, dy * factor)
 
     def _process_pan_tilt_key(self, factor, *keys):
         dx = 0.0
         dy = 0.0
-
         for key in keys:
             if key == Config.pan_tilt.up_key:
                 dy += 1.0
@@ -293,13 +217,11 @@ class KeyHandler:
                 dx -= 1.0
             elif key == Config.pan_tilt.right_key:
                 dx += 1.0
-
         self.canvas.PanTilt(dx * factor, dy * factor)
 
     def _process_truck_pedestal_key(self, factor, *keys):
         dx = 0.0
         dy = 0.0
-
         for key in keys:
             if key == Config.truck_pedestal.up_key:
                 dy -= 3.0
@@ -309,13 +231,11 @@ class KeyHandler:
                 dx -= 3.0
             elif key == Config.truck_pedestal.right_key:
                 dx += 3.0
-
         self.canvas.TruckPedestal(dx * factor, dy * factor)
 
     def _process_walk_key(self, factor, *keys):
         dx = 0.0
         dy = 0.0
-
         for key in keys:
             if key == Config.walk.forward_key:
                 dy += 2.0
@@ -325,18 +245,15 @@ class KeyHandler:
                 dx += 1.0
             elif key == Config.walk.right_key:
                 dx -= 1.0
-
         self.canvas.Walk(dx * factor, dy * factor)
 
     def _process_zoom_key(self, factor, *keys):
         delta = 0.0
-
         for key in keys:
             if key == Config.zoom.in_key:
                 delta += 1.0
             elif key == Config.zoom.out_key:
                 delta -= 1.0
-
         self.canvas.Zoom(delta * factor, None)
 
     def _process_reset_key(self, *_):

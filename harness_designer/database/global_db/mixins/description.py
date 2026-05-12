@@ -24,7 +24,7 @@ class DescriptionControl(_prop_ctrls.LongStringProperty):
 
         super().__init__(parent, 'Description')
 
-        self.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_desc)
+        self.property_changed.connect(self._on_desc)
 
     def set_obj(self, db_obj: DescriptionMixin):
         self.db_obj = db_obj

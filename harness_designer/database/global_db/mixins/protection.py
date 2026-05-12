@@ -35,7 +35,7 @@ class ProtectionControl(_prop_ctrls.AutocompleteStringProperty):
 
         super().__init__(parent, 'Protections')
 
-        self.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_protection)
+        self.property_changed.connect(self._on_protection)
 
     def set_obj(self, db_obj: ProtectionMixin):
         self.db_obj = db_obj

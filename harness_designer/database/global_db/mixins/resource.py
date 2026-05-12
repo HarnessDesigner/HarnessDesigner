@@ -107,9 +107,9 @@ class ResourcesControl(_prop_ctrls.Category):
         self.datasheet_ctrl = _prop_ctrls.DatasheetCADProperty(self, 'Datasheet')
         self.cad_ctrl = _prop_ctrls.DatasheetCADProperty(self, 'CAD')
 
-        self.image_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_image)
-        self.datasheet_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_datasheet)
-        self.cad_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_cad)
+        self.image_ctrl.property_changed.connect(self._on_image)
+        self.datasheet_ctrl.property_changed.connect(self._on_datasheet)
+        self.cad_ctrl.property_changed.connect(self._on_cad)
 
     def set_obj(self, db_obj: ResourceMixin):
         self.db_obj = db_obj

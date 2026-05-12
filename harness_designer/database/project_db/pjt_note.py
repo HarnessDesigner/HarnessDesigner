@@ -306,11 +306,11 @@ class PJTNoteControl(QTabWidget):
         self.align_2d_ctrl = _prop_ctrls.EnumProperty(align_page, '2D Align')
         self.align_3d_ctrl = _prop_ctrls.EnumProperty(align_page, '3D Align')
 
-        self.style_2d_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_style2d)
-        self.style_3d_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_style3d)
+        self.style_2d_ctrl.property_changed.connect(self._on_style2d)
+        self.style_3d_ctrl.property_changed.connect(self._on_style3d)
 
-        self.align_2d_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_align2d)
-        self.align_3d_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_align3d)
+        self.align_2d_ctrl.property_changed.connect(self._on_align2d)
+        self.align_3d_ctrl.property_changed.connect(self._on_align3d)
 
         angle_page = _prop_ctrls.Category(self, 'Angle')
         self.angle2d_ctrl = Angle2DControl(angle_page)

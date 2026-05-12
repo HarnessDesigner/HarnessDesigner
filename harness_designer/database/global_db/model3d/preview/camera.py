@@ -2,16 +2,15 @@
 
 from typing import TYPE_CHECKING
 
-import wx
 import math
 from OpenGL import GL
 from OpenGL import GLU
 
 import numpy as np
 
-from ...geometry import point as _point
-from ...geometry import angle as _angle
-from ...geometry import line as _line
+from ....geometry import point as _point
+from ....geometry import angle as _angle
+from ....geometry import line as _line
 
 
 if TYPE_CHECKING:
@@ -25,7 +24,6 @@ class Camera:
 
     def __init__(self, canvas: "_Preview"):
         self.canvas = canvas
-        self._context = canvas.context
 
         self._is_dirty = True
         self._projection = None
@@ -43,11 +41,9 @@ class Camera:
         self._focal_target = None
 
         self._position = _point.Point(0.0, 0.0, 0.0)
-
         self._eye = _point.Point(0.0, 1.0, 75.0)
 
         self._angle = _angle.Angle.from_points(self._position, self._eye)
-
         self._angle_from_center = _angle.Angle.from_points(ZERO_POINT.copy(), self._eye)
         self._focal_distance = _line.Line(self._eye, self._position).length()
         self._distance_from_center = _line.Line(ZERO_POINT, self._eye).length()
@@ -78,10 +74,8 @@ class Camera:
         self._update_camera(None)
 
     def _update_camera(self, _=None):
-        if self._context.is_locked:
-            self._is_dirty = True
-        else:
-            wx.CallAfter(self.canvas.Refresh, False)
+        from PySide6.QtCore import QTimer
+        QTimer.singleShot(0, self.canvas.update)
 
     @property
     def orthonormalized_axes(self):  # NOQA
@@ -90,10 +84,9 @@ class Camera:
             n = np.linalg.norm(v)
             return v / (n if n != 0 else 1.0)
 
-        # Returns forward, right, up (all unit) with forward pointing from eye -> center
         f = normalize((self._position - self._eye).as_numpy)
-        r = normalize(np.cross(f, self._up))  # camera right  # NOQA
-        u = np.cross(r, f)  # camera up re-orthonormalized  # NOQA
+        r = normalize(np.cross(f, self._up))  # NOQA
+        u = np.cross(r, f)  # NOQA
         return f, r, u
 
     def Set(self):
@@ -155,15 +148,16 @@ class Camera:
             return
 
         self._calculate_camera()
-        with self._context:
-            self._is_dirty = False
-            self._viewport = np.ascontiguousarray(GL.glGetIntegerv(GL.GL_VIEWPORT))
+        self.canvas.makeCurrent()
+        self._is_dirty = False
+        self._viewport = np.ascontiguousarray(GL.glGetIntegerv(GL.GL_VIEWPORT))
 
-            self._projection = np.ascontiguousarray(np.array(
-                GL.glGetDoublev(GL.GL_PROJECTION_MATRIX)).reshape((4, 4), order="F").T)
+        self._projection = np.ascontiguousarray(np.array(
+            GL.glGetDoublev(GL.GL_PROJECTION_MATRIX)).reshape((4, 4), order="F").T)
 
-            self._modelview = np.ascontiguousarray(np.array(
-                GL.glGetDoublev(GL.GL_MODELVIEW_MATRIX)).reshape((4, 4), order="F").T)
+        self._modelview = np.ascontiguousarray(np.array(
+            GL.glGetDoublev(GL.GL_MODELVIEW_MATRIX)).reshape((4, 4), order="F").T)
+        self.canvas.doneCurrent()
 
     def Rotate(self, dx, dy):
         self._is_dirty = True
@@ -189,10 +183,8 @@ class Camera:
 
         def _rodrigues(v, k, angle_rad):
             k = k / np.linalg.norm(k)
-
             cos_a = math.cos(angle_rad)
             sin_a = math.sin(angle_rad)  # NOQA
-
             return ((v * cos_a) + (np.cross(k, v) * sin_a) +  # NOQA
                     (k * (np.dot(k, v)) * (1.0 - cos_a)))
 
@@ -205,12 +197,10 @@ class Camera:
         yaw_dir = yaw_offset / yaw_offset_n
 
         horiz_len = math.hypot(yaw_dir[0], yaw_dir[2])
-
         cur_pitch_deg = math.degrees(math.atan2(yaw_dir[1], horiz_len))
 
         desired_pitch = cur_pitch_deg + dy
         if desired_pitch > max_pitch or desired_pitch < -max_pitch:
-            # block pitch movement entirely (yaw still applies)
             dy = 0.0
 
         if abs(dy) < 1e-6:
@@ -230,7 +220,6 @@ class Camera:
                 if rnorm < 1e-6:
                     final_offset = yaw_dir * dist
                 else:
-                    # explicitly restore original distance to avoid shrink/grow
                     final_offset = rotated * (dist / rnorm)
 
         new_point = p2 + final_offset
@@ -245,10 +234,8 @@ class Camera:
     def Zoom(self, delta, *_):
         move = self._forward * float(delta)
 
-        # If moving would invert eye and pos, prevent crossing pos
         if delta > 0 and self._focal_distance <= 0.1:
             return
-
         elif delta < 0 and self._focal_distance >= 150.0:
             return
 
@@ -256,7 +243,6 @@ class Camera:
         self._eye += move
 
     def Walk(self, dx, dy, speed):
-        # Build desired move from input
         input_mag = math.sqrt((dx * dx) + (dy * dy))
 
         if input_mag == 0:
@@ -278,7 +264,6 @@ class Camera:
             self._position += move
 
     def TruckPedestal(self, dx, dy, speed):
-        # Build desired move from input
         input_mag = math.sqrt((dx * dx) + (dy * dy))
 
         if input_mag == 0:
@@ -291,7 +276,6 @@ class Camera:
             return
 
         move_dir = move_dir / mdn
-
         move = move_dir * (input_mag * speed)
 
         with self._eye:

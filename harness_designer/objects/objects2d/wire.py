@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-import wx
+from PySide6.QtWidgets import QMenu
 from OpenGL import GL
 import math
 
@@ -53,8 +53,8 @@ class Wire(_base2d.Base2D):
         _base2d.Base2D.__init__(self, parent, db_obj)
 
         self._part = db_obj.part
-        self._p1 = db_obj.start_point2d.point
-        self._p2 = db_obj.stop_point2d.point
+        self._p1 = db_obj.start_position2d
+        self._p2 = db_obj.stop_position2d
 
         # Bind to point changes to trigger re-render
         self._p1.bind(self._on_point_changed)
@@ -273,7 +273,7 @@ class Wire(_base2d.Base2D):
         """Get wire color from part or default"""
         # Try to get color from part
         if self._part and hasattr(self._part, 'color'):
-            color_name = self._part.color
+            color_name = self._part.color.name
             # Map color name to RGB using shared color map
             if color_name and color_name.lower() in WIRE_COLOR_MAP:
                 return WIRE_COLOR_MAP[color_name.lower()]
@@ -733,73 +733,73 @@ class Wire(_base2d.Base2D):
 #     def __len__(self):
 #         return len(self._sections)
 
-class WireMenu(wx.Menu):
+class WireMenu(QMenu):
 
     def __init__(self, canvas, selected):
-        wx.Menu.__init__(self)
+        QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
 
-        item = self.Append(wx.ID_ANY, 'Add Handle')
-        canvas.Bind(wx.EVT_MENU, self.on_add_handle, id=item.GetId())
+        action = self.addAction('Add Handle')
+        action.triggered.connect(self.on_add_handle)
 
-        item = self.Append(wx.ID_ANY, 'Add Marker')
-        canvas.Bind(wx.EVT_MENU, self.on_add_marker, id=item.GetId())
+        action = self.addAction('Add Marker')
+        action.triggered.connect(self.on_add_marker)
 
-        item = self.Append(wx.ID_ANY, 'Add Splice')
-        canvas.Bind(wx.EVT_MENU, self.on_add_splice, id=item.GetId())
+        action = self.addAction('Add Splice')
+        action.triggered.connect(self.on_add_splice)
 
-        item = self.Append(wx.ID_ANY, 'Add Wire')
-        canvas.Bind(wx.EVT_MENU, self.on_add_wire, id=item.GetId())
+        action = self.addAction('Add Wire')
+        action.triggered.connect(self.on_add_wire)
 
-        item = self.Append(wx.ID_ANY, 'Add Wire Service Loop')
-        canvas.Bind(wx.EVT_MENU, self.on_add_wire_service_loop, id=item.GetId())
+        action = self.addAction('Add Wire Service Loop')
+        action.triggered.connect(self.on_add_wire_service_loop)
 
-        self.AppendSeparator()
-        item = self.Append(wx.ID_ANY, 'Add to Bundle')
-        canvas.Bind(wx.EVT_MENU, self.on_add_to_bundle, id=item.GetId())
+        self.addSeparator()
+        action = self.addAction('Add to Bundle')
+        action.triggered.connect(self.on_add_to_bundle)
 
-        self.AppendSeparator()
-        item = self.Append(wx.ID_ANY, 'Trace Circuit')
-        canvas.Bind(wx.EVT_MENU, self.on_trace_circuit, id=item.GetId())
+        self.addSeparator()
+        action = self.addAction('Trace Circuit')
+        action.triggered.connect(self.on_trace_circuit)
 
-        item = self.Append(wx.ID_ANY, 'Select')
-        canvas.Bind(wx.EVT_MENU, self.on_select, id=item.GetId())
+        action = self.addAction('Select')
+        action.triggered.connect(self.on_select)
 
-        self.AppendSeparator()
-        item = self.Append(wx.ID_ANY, 'Delete')
-        canvas.Bind(wx.EVT_MENU, self.on_delete, id=item.GetId())
+        self.addSeparator()
+        action = self.addAction('Delete')
+        action.triggered.connect(self.on_delete)
 
-        self.AppendSeparator()
-        item = self.Append(wx.ID_ANY, 'Properties')
-        canvas.Bind(wx.EVT_MENU, self.on_properties, id=item.GetId())
+        self.addSeparator()
+        action = self.addAction('Properties')
+        action.triggered.connect(self.on_properties)
 
-    def on_add_handle(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_add_handle(self):
+        pass
 
-    def on_add_marker(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_add_marker(self):
+        pass
 
-    def on_add_splice(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_add_splice(self):
+        pass
 
-    def on_add_wire(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_add_wire(self):
+        pass
 
-    def on_add_wire_service_loop(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_add_wire_service_loop(self):
+        pass
 
-    def on_add_to_bundle(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_add_to_bundle(self):
+        pass
 
-    def on_trace_circuit(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_trace_circuit(self):
+        pass
 
-    def on_select(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_select(self):
+        pass
 
-    def on_delete(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_delete(self):
+        pass
 
-    def on_properties(self, evt: wx.MenuEvent):
-        evt.Skip()
+    def on_properties(self):
+        pass

@@ -425,9 +425,9 @@ class CavityControl(_prop_ctrls.Category):
         angle_page = _prop_ctrls.Category(self.nb, 'Angle')
         self.angle3d_ctrl = _prop_ctrls.Angle3DProperty(angle_page, '3D Angle')
 
-        self.round_terminal_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_round_terminal)
-        self.index_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_index)
-        self.terminal_sizes_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_terminal_sizes)
+        self.round_terminal_ctrl.property_changed.connect(self._on_round_terminal)
+        self.index_ctrl.property_changed.connect(self._on_index)
+        self.terminal_sizes_ctrl.property_changed.connect(self._on_terminal_sizes)
 
         for page in (
             general_page,

@@ -395,9 +395,9 @@ class BundleCoverControl(QTabWidget):
         self.shrink_ratio_ctrl = _prop_ctrls.StringProperty(general_page, 'Shrink Ratio')
         self.wall_ctrl = _prop_ctrls.StringProperty(general_page, 'Wall')
 
-        self.rigidity_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_rigidity)
-        self.shrink_ratio_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_shrink_ratio)
-        self.wall_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_wall)
+        self.rigidity_ctrl.property_changed.connect(self._on_rigidity)
+        self.shrink_ratio_ctrl.property_changed.connect(self._on_shrink_ratio)
+        self.wall_ctrl.property_changed.connect(self._on_wall)
 
         self.diameter_page = _prop_ctrls.Property(self, 'Diameter')
 
@@ -409,8 +409,8 @@ class BundleCoverControl(QTabWidget):
             self.diameter_page, 'Maximum', min_value=0.00,
             max_value=999.9, increment=0.01, units='mm')
 
-        self.min_dia_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_min_dia)
-        self.max_dia_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_max_dia)
+        self.min_dia_ctrl.property_changed.connect(self._on_min_dia)
+        self.max_dia_ctrl.property_changed.connect(self._on_max_dia)
 
         self.mfg_page = ManufacturerControl(self)
         self.family_page = FamilyControl(self)
@@ -420,7 +420,7 @@ class BundleCoverControl(QTabWidget):
 
         self.shrink_temp_choices: list[str] = []
         self.shrink_temp_ctrl = _prop_ctrls.ComboBoxProperty(self.temperature_page, 'Shrink Temperature')
-        self.shrink_temp_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_shrink_temp)
+        self.shrink_temp_ctrl.property_changed.connect(self._on_shrink_temp)
 
         for page in (
             general_page,

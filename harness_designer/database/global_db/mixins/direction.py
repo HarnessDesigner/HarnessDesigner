@@ -38,7 +38,7 @@ class DirectionControl(_prop_ctrls.ComboBoxProperty):
         self.db_obj: DirectionMixin = None
 
         super().__init__(parent, 'Direction')
-        self.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_direction)
+        self.property_changed.connect(self._on_direction)
 
     def set_obj(self, db_obj: DirectionMixin):
         self.db_obj = db_obj

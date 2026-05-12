@@ -39,7 +39,7 @@ class Angle2DControl(_prop_ctrls.FloatProperty):
 
         super().__init__(parent, '2D Angle', min_value=-180.0, max_value=180.0, increment=0.01, units='°')
 
-        self.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_angle)
+        self.property_changed.connect(self._on_angle)
 
     def _on_angle(self, evt):
         self.db_obj.angle2d.z = evt.GetValue()

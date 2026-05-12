@@ -84,9 +84,9 @@ class DimensionControl(_prop_ctrls.Category):
         self.height_ctrl = _prop_ctrls.FloatProperty(
             self, 'Height', min_value=0.01, max_value=999.0, increment=0.01, units='mm')
 
-        self.length_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_length)
-        self.width_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_width)
-        self.height_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_height)
+        self.length_ctrl.property_changed.connect(self._on_length)
+        self.width_ctrl.property_changed.connect(self._on_width)
+        self.height_ctrl.property_changed.connect(self._on_height)
 
     def set_obj(self, db_obj: DimensionMixin):
         self.db_obj = db_obj

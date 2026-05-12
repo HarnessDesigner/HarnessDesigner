@@ -48,44 +48,44 @@ class _GLEventType:
         return f'<GLEventType {self.name}>'
 
 
-EVT_GL_OBJECT_SELECTED    = _GLEventType('EVT_GL_OBJECT_SELECTED')
-EVT_GL_OBJECT_UNSELECTED  = _GLEventType('EVT_GL_OBJECT_UNSELECTED')
-EVT_GL_OBJECT_ACTIVATED   = _GLEventType('EVT_GL_OBJECT_ACTIVATED')
+EVT_GL_OBJECT_SELECTED = _GLEventType('EVT_GL_OBJECT_SELECTED')
+EVT_GL_OBJECT_UNSELECTED = _GLEventType('EVT_GL_OBJECT_UNSELECTED')
+EVT_GL_OBJECT_ACTIVATED = _GLEventType('EVT_GL_OBJECT_ACTIVATED')
 EVT_GL_OBJECT_RIGHT_CLICK = _GLEventType('EVT_GL_OBJECT_RIGHT_CLICK')
-EVT_GL_OBJECT_RIGHT_DCLICK  = _GLEventType('EVT_GL_OBJECT_RIGHT_DCLICK')
-EVT_GL_OBJECT_MIDDLE_CLICK  = _GLEventType('EVT_GL_OBJECT_MIDDLE_CLICK')
+EVT_GL_OBJECT_RIGHT_DCLICK = _GLEventType('EVT_GL_OBJECT_RIGHT_DCLICK')
+EVT_GL_OBJECT_MIDDLE_CLICK = _GLEventType('EVT_GL_OBJECT_MIDDLE_CLICK')
 EVT_GL_OBJECT_MIDDLE_DCLICK = _GLEventType('EVT_GL_OBJECT_MIDDLE_DCLICK')
-EVT_GL_OBJECT_AUX1_CLICK   = _GLEventType('EVT_GL_OBJECT_AUX1_CLICK')
-EVT_GL_OBJECT_AUX1_DCLICK  = _GLEventType('EVT_GL_OBJECT_AUX1_DCLICK')
-EVT_GL_OBJECT_AUX2_CLICK   = _GLEventType('EVT_GL_OBJECT_AUX2_CLICK')
-EVT_GL_OBJECT_AUX2_DCLICK  = _GLEventType('EVT_GL_OBJECT_AUX2_DCLICK')
-EVT_GL_OBJECT_DRAG        = _GLEventType('EVT_GL_OBJECT_DRAG')
+EVT_GL_OBJECT_AUX1_CLICK = _GLEventType('EVT_GL_OBJECT_AUX1_CLICK')
+EVT_GL_OBJECT_AUX1_DCLICK = _GLEventType('EVT_GL_OBJECT_AUX1_DCLICK')
+EVT_GL_OBJECT_AUX2_CLICK = _GLEventType('EVT_GL_OBJECT_AUX2_CLICK')
+EVT_GL_OBJECT_AUX2_DCLICK = _GLEventType('EVT_GL_OBJECT_AUX2_DCLICK')
+EVT_GL_OBJECT_DRAG = _GLEventType('EVT_GL_OBJECT_DRAG')
 
-EVT_GL_KEY_DOWN    = _GLEventType('EVT_GL_KEY_DOWN')
-EVT_GL_KEY_UP      = _GLEventType('EVT_GL_KEY_UP')
+EVT_GL_KEY_DOWN = _GLEventType('EVT_GL_KEY_DOWN')
+EVT_GL_KEY_UP = _GLEventType('EVT_GL_KEY_UP')
 
-EVT_GL_MOUSE_MOVE  = _GLEventType('EVT_GL_MOUSE_MOVE')
+EVT_GL_MOUSE_MOVE = _GLEventType('EVT_GL_MOUSE_MOVE')
 
 EVT_GL_CAPTURE_LOST = _GLEventType('EVT_GL_CAPTURE_LOST')
 
-EVT_GL_LEFT_DOWN   = _GLEventType('EVT_GL_LEFT_DOWN')
-EVT_GL_LEFT_UP     = _GLEventType('EVT_GL_LEFT_UP')
+EVT_GL_LEFT_DOWN = _GLEventType('EVT_GL_LEFT_DOWN')
+EVT_GL_LEFT_UP = _GLEventType('EVT_GL_LEFT_UP')
 EVT_GL_LEFT_DCLICK = _GLEventType('EVT_GL_LEFT_DCLICK')
 
-EVT_GL_RIGHT_DOWN   = _GLEventType('EVT_GL_RIGHT_DOWN')
-EVT_GL_RIGHT_UP     = _GLEventType('EVT_GL_RIGHT_UP')
+EVT_GL_RIGHT_DOWN = _GLEventType('EVT_GL_RIGHT_DOWN')
+EVT_GL_RIGHT_UP = _GLEventType('EVT_GL_RIGHT_UP')
 EVT_GL_RIGHT_DCLICK = _GLEventType('EVT_GL_RIGHT_DCLICK')
 
-EVT_GL_MIDDLE_DOWN   = _GLEventType('EVT_GL_MIDDLE_DOWN')
-EVT_GL_MIDDLE_UP     = _GLEventType('EVT_GL_MIDDLE_UP')
+EVT_GL_MIDDLE_DOWN = _GLEventType('EVT_GL_MIDDLE_DOWN')
+EVT_GL_MIDDLE_UP = _GLEventType('EVT_GL_MIDDLE_UP')
 EVT_GL_MIDDLE_DCLICK = _GLEventType('EVT_GL_MIDDLE_DCLICK')
 
-EVT_GL_AUX1_DOWN   = _GLEventType('EVT_GL_AUX1_DOWN')
-EVT_GL_AUX1_UP     = _GLEventType('EVT_GL_AUX1_UP')
+EVT_GL_AUX1_DOWN = _GLEventType('EVT_GL_AUX1_DOWN')
+EVT_GL_AUX1_UP = _GLEventType('EVT_GL_AUX1_UP')
 EVT_GL_AUX1_DCLICK = _GLEventType('EVT_GL_AUX1_DCLICK')
 
-EVT_GL_AUX2_DOWN   = _GLEventType('EVT_GL_AUX2_DOWN')
-EVT_GL_AUX2_UP     = _GLEventType('EVT_GL_AUX2_UP')
+EVT_GL_AUX2_DOWN = _GLEventType('EVT_GL_AUX2_DOWN')
+EVT_GL_AUX2_UP = _GLEventType('EVT_GL_AUX2_UP')
 EVT_GL_AUX2_DCLICK = _GLEventType('EVT_GL_AUX2_DCLICK')
 
 EVT_GL_DRAG = _GLEventType('EVT_GL_DRAG')
@@ -95,12 +95,12 @@ EVT_GL_DRAG = _GLEventType('EVT_GL_DRAG')
 # Mouse-button bitmask constants (previously wx.MOUSE_BTN_*)
 # ---------------------------------------------------------------------------
 
-BTN_NONE   = 0x00
-BTN_LEFT   = 0x01
-BTN_RIGHT  = 0x02
+BTN_NONE = 0x00
+BTN_LEFT = 0x01
+BTN_RIGHT = 0x02
 BTN_MIDDLE = 0x04
-BTN_AUX1   = 0x08
-BTN_AUX2   = 0x10
+BTN_AUX1 = 0x08
+BTN_AUX2 = 0x10
 
 
 # ---------------------------------------------------------------------------
@@ -110,21 +110,42 @@ BTN_AUX2   = 0x10
 class _GLEventBase:
     """Common base for all GL event data objects."""
 
-    def __init__(self):
+    def __init__(self, type_):
+        self._type = type_
         self._skipped = False
+        self._id = None
+        self._obj = None
+        self._stop_prop = False
 
-    def skip(self):
-        """Mark the event as 'not fully handled' (replaces wx evt.Skip())."""
+    def GetEventType(self):
+        return self._type
+
+    def Skip(self):
         self._skipped = True
 
     # StopPropagation was used in the old wx code to prevent parent-window
     # handlers from seeing the event.  Qt signals don't propagate that way,
     # so this is a no-op kept for call-site compatibility.
     def StopPropagation(self):
-        pass
+        self._stop_prop = True
+
+    def ShouldPropagate(self):
+        return self._stop_prop
+
+    def SetId(self, id_):
+        self._id = id_
+
+    def GetId(self):
+        return self._id
+
+    def SetEventObject(self, obj):
+        self._obj = obj
+
+    def GetEventObject(self):
+        return self._obj
 
     @property
-    def skipped(self) -> bool:
+    def GetSkipped(self) -> bool:
         return self._skipped
 
 
@@ -135,8 +156,8 @@ class GLCaptureLostEvent(_GLEventBase):
 class GLEvent(_GLEventBase):
     """Mouse-position event on a GL canvas."""
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, type_):
+        super().__init__(type_)
         self._mouse_pos = None
         self._world_pos = None
         self._mouse_buttons: int = BTN_NONE
@@ -182,8 +203,8 @@ class GLEvent(_GLEventBase):
 class GLObjectEvent(_GLEventBase):
     """Mouse interaction with a specific GL object."""
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, type_):
+        super().__init__(type_)
         self._gl_object = None
         self._mouse_pos = None
         self._world_pos = None
@@ -238,8 +259,8 @@ class GLObjectEvent(_GLEventBase):
 class GLKeyEvent(_GLEventBase):
     """Keyboard event on a GL canvas."""
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, type_):
+        super().__init__(type_)
         self._pos = None
         self._world_pos = None
         self._mouse_event: GLObjectEvent | GLEvent | None = None

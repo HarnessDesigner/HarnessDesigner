@@ -204,7 +204,7 @@ class Model3DControl(_prop_ctrls.Category):
         self.data_path_ctrl = _prop_ctrls.StringProperty(general_page, 'DB Path', read_only=True)
         self.uuid_ctrl = _prop_ctrls.StringProperty(general_page, 'DB Path', read_only=True)
 
-        self.path_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_path)
+        self.path_ctrl.property_changed.connect(self._on_path)
 
         simplify_page = _prop_ctrls.Category(self.nb, 'Simplify')
         self.simplify_ctrl = _prop_ctrls.BoolProperty(general_page, 'Enable')
@@ -213,11 +213,11 @@ class Model3DControl(_prop_ctrls.Category):
         self.iterations_ctrl = _prop_ctrls.IntProperty(simplify_page, 'Iterations', min_value=1, max_value=100)
         self.aggressiveness_ctrl = _prop_ctrls.FloatProperty(simplify_page, 'Aggressiveness', min_value=1.0, max_value=100.0, increment=0.1)
 
-        self.simplify_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_simplify)
-        self.target_count_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_target_count)
-        self.update_rate_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_update_rate)
-        self.iterations_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_iterations)
-        self.aggressiveness_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_aggressiveness)
+        self.simplify_ctrl.property_changed.connect(self._on_simplify)
+        self.target_count_ctrl.property_changed.connect(self._on_target_count)
+        self.update_rate_ctrl.property_changed.connect(self._on_update_rate)
+        self.iterations_ctrl.property_changed.connect(self._on_iterations)
+        self.aggressiveness_ctrl.property_changed.connect(self._on_aggressiveness)
 
         file_type_page = _prop_ctrls.Category(self.nb, 'File Type')
         self.name_ctrl = _prop_ctrls.StringProperty(file_type_page, 'Name', read_only=True)

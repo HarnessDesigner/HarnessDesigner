@@ -22,14 +22,12 @@ class Editor3D:
         self.editor = Editor3DPanel(mainframe)
         self.mainframe = mainframe
 
-        dock = mainframe._make_dock(
+        mainframe._make_dock(
             title='3D Editor',
             name='editor_3d',
             widget=self.editor,
-            area=Qt.CentralWidget,  # centre pane — set as central widget directly
+            area=Qt.DockWidgetArea.AllDockWidgetAreas,  # centre pane — set as central widget directly
         )
-        self._dock = dock
-        dock.show()
 
     @property
     def context(self):

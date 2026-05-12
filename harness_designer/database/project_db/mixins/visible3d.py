@@ -23,7 +23,7 @@ class Visible3DControl(_prop_ctrls.BoolProperty):
 
         super().__init__(parent, 'Is Visible 3D')
 
-        self.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_visible3d)
+        self.property_changed.connect(self._on_visible3d)
 
     def _on_visible3d(self, evt):
         value = evt.GetValue()

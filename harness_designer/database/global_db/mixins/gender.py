@@ -38,7 +38,7 @@ class GenderControl(_prop_ctrls.ComboBoxProperty):
         self.db_obj: GenderMixin = None
 
         super().__init__(parent, 'Gender')
-        self.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_gender)
+        self.property_changed.connect(self._on_gender)
 
     def set_obj(self, db_obj: GenderMixin):
         self.db_obj = db_obj

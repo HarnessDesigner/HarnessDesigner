@@ -23,7 +23,7 @@ class NotesControl(_prop_ctrls.LongStringProperty):
 
         super().__init__(parent, 'Notes')
 
-        self.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_notes)
+        self.property_changed.connect(self._on_notes)
 
     def _on_notes(self, evt):
         value = evt.GetValue()

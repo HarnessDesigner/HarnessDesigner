@@ -323,7 +323,7 @@ class TransitionControl(QTabWidget):
         self.branch_page.setTabPosition(QTabWidget.TabPosition.North)
         self.branch_page.setUsesScrollButtons(True)
 
-        self.branch_count_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_branch_count)
+        self.branch_count_ctrl.property_changed.connect(self._on_branch_count)
 
         self.mfg_page = ManufacturerControl(self)
         self.family_page = FamilyControl(self)

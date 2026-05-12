@@ -90,8 +90,11 @@ class _Set:
                     line.append(_iter(item, indent + '  '))
                 else:
                     line.append(f'{indent}  {str(item)}')
-            line = ',\n'.join(line)
-            return f'{indent}[' + '\n' + line + '\n' + f'{indent}]'
+            line = ',
+'.join(line)
+            return f'{indent}[' + '
+' + line + '
+' + f'{indent}]'
 
         return _iter(self.items)
 
@@ -674,9 +677,9 @@ class PJTCircuitControl(QTabWidget):
         self.description_ctrl = _prop_ctrls.LongStringProperty(general_page, 'Description')
         self.notes_ctrl = NotesControl(general_page)
 
-        self.name_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_name)
-        self.circuit_num_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_circuit_num)
-        self.description_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_description)
+        self.name_ctrl.property_changed.connect(self._on_name)
+        self.circuit_num_ctrl.property_changed.connect(self._on_circuit_num)
+        self.description_ctrl.property_changed.connect(self._on_description)
 
         info_page = _prop_ctrls.Category(self, 'Info')
 

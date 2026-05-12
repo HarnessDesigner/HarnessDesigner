@@ -47,14 +47,14 @@ class ManufacturerControl(_prop_ctrls.Category):
         self.email_ctrl = _prop_ctrls.StringProperty(self, 'Email')
         self.website_ctrl = _prop_ctrls.StringProperty(self, 'Website')
 
-        self.website_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_website_change)
-        self.email_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_email_change)
-        self.ext_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_ext_change)
-        self.phone_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_phone_change)
-        self.contact_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_contact_change)
-        self.address_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_addr_change)
-        self.desc_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_desc_change)
-        self.name_ctrl.Bind(_prop_ctrls.EVT_PROPERTY_CHANGED, self._on_name_change)
+        self.website_ctrl.property_changed.connect(self._on_website_change)
+        self.email_ctrl.property_changed.connect(self._on_email_change)
+        self.ext_ctrl.property_changed.connect(self._on_ext_change)
+        self.phone_ctrl.property_changed.connect(self._on_phone_change)
+        self.contact_ctrl.property_changed.connect(self._on_contact_change)
+        self.address_ctrl.property_changed.connect(self._on_addr_change)
+        self.desc_ctrl.property_changed.connect(self._on_desc_change)
+        self.name_ctrl.property_changed.connect(self._on_name_change)
 
     def set_obj(self, db_obj: ManufacturerMixin):
         self.db_obj = db_obj

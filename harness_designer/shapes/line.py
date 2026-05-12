@@ -26,8 +26,8 @@ class Line:
         self._pixmap: QPixmap | None = None
         self.artist = None
 
-        p1.Bind(self._update_artist)
-        p2.Bind(self._update_artist)
+        p1.bind(self._update_artist)
+        p2.bind(self._update_artist)
 
     @property
     def width(self) -> _decimal:
@@ -65,8 +65,8 @@ class Line:
 
     @p1.setter
     def p1(self, value: _point.Point):
-        self._p1.Unbind(self._update_artist)
-        value.Bind(self._update_artist)
+        self._p1.unbind(self._update_artist)
+        value.bind(self._update_artist)
         self._p1 = value
 
         self._pixmap = None
@@ -78,8 +78,8 @@ class Line:
 
     @p2.setter
     def p2(self, value: _point.Point):
-        self._p2.Unbind(self._update_artist)
-        value.Bind(self._update_artist)
+        self._p2.unbind(self._update_artist)
+        value.bind(self._update_artist)
         self._p2 = value
 
         self._pixmap = None
