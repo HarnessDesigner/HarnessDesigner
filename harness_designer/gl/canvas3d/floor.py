@@ -25,9 +25,8 @@ class Floor:
         self.solid_vbo = None
         self.solid_vertex_count = 0
 
-        with self.canvas.context:
-            self.projection_loc = GL.glGetUniformLocation(floor_program, "projection")
-            self.view_loc = GL.glGetUniformLocation(floor_program, "view")
+        self.projection_loc = GL.glGetUniformLocation(floor_program, "projection")
+        self.view_loc = GL.glGetUniformLocation(floor_program, "view")
 
         self.config = canvas.config
 
@@ -130,33 +129,32 @@ class Floor:
                 solid_vbo, solid_vertex_count)
 
     def set(self, flag):
-        with (self.canvas.context):
-            if self.grid_vbo is not None:
-                try:
-                    GL.glDeleteVertexArrays(1, [self.grid_vbo])
-                except:  # NOQA
-                    pass
+        if self.grid_vbo is not None:
+            try:
+                GL.glDeleteVertexArrays(1, [self.grid_vbo])
+            except:  # NOQA
+                pass
 
-                try:
-                    GL.glDeleteBuffers(1, [self.stipple_vbo])
-                except:  # NOQA
-                    pass
+            try:
+                GL.glDeleteBuffers(1, [self.stipple_vbo])
+            except:  # NOQA
+                pass
 
-                try:
-                    GL.glDeleteBuffers(1, [self.solid_vbo])
-                except:  # NOQA
-                    pass
+            try:
+                GL.glDeleteBuffers(1, [self.solid_vbo])
+            except:  # NOQA
+                pass
 
-                self.grid_vbo = None
-                self.stipple_vbo = None
-                self.solid_vbo = None
+            self.grid_vbo = None
+            self.stipple_vbo = None
+            self.solid_vbo = None
 
-            if flag:
-                (
-                    self.grid_vbo, self.grid_vertex_count,
-                    self.stipple_vbo, self.stipple_vertex_count,
-                    self.solid_vbo, self.solid_vertex_count
-                ) = self._initialize_grid()
+        if flag:
+            (
+                self.grid_vbo, self.grid_vertex_count,
+                self.stipple_vbo, self.stipple_vertex_count,
+                self.solid_vbo, self.solid_vertex_count
+            ) = self._initialize_grid()
 
         self.canvas.Refresh(False)
 

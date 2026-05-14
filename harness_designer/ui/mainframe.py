@@ -30,42 +30,8 @@ _mainframe: "MainFrame" = None
 Config = _config.Config.mainframe
 
 # ---------------------------------------------------------------------------
-# EVT_GL_* sentinel → snake_case signal name mapping
-# (mirrors the Signal definitions on gl/canvas3d/canvas.py)
-# ---------------------------------------------------------------------------
-_GL_SIGNAL_MAP = {
-    _gl.EVT_GL_OBJECT_SELECTED.name:      'gl_object_selected',
-    _gl.EVT_GL_OBJECT_UNSELECTED.name:    'gl_object_unselected',
-    _gl.EVT_GL_OBJECT_ACTIVATED.name:     'gl_object_activated',
-    _gl.EVT_GL_OBJECT_RIGHT_CLICK.name:   'gl_object_right_click',
-    _gl.EVT_GL_OBJECT_RIGHT_DCLICK.name:  'gl_object_right_dclick',
-    _gl.EVT_GL_OBJECT_MIDDLE_CLICK.name:  'gl_object_middle_click',
-    _gl.EVT_GL_OBJECT_MIDDLE_DCLICK.name: 'gl_object_middle_dclick',
-    _gl.EVT_GL_OBJECT_AUX1_CLICK.name:   'gl_object_aux1_click',
-    _gl.EVT_GL_OBJECT_AUX1_DCLICK.name:  'gl_object_aux1_dclick',
-    _gl.EVT_GL_OBJECT_AUX2_CLICK.name:   'gl_object_aux2_click',
-    _gl.EVT_GL_OBJECT_AUX2_DCLICK.name:  'gl_object_aux2_dclick',
-    _gl.EVT_GL_OBJECT_DRAG.name:         'gl_object_drag',
-    _gl.EVT_GL_KEY_DOWN.name:            'gl_key_down',
-    _gl.EVT_GL_KEY_UP.name:              'gl_key_up',
-    _gl.EVT_GL_MOUSE_MOVE.name:          'gl_mouse_move',
-    _gl.EVT_GL_LEFT_DOWN.name:           'gl_left_down',
-    _gl.EVT_GL_LEFT_UP.name:             'gl_left_up',
-    _gl.EVT_GL_LEFT_DCLICK.name:         'gl_left_dclick',
-    _gl.EVT_GL_RIGHT_DOWN.name:          'gl_right_down',
-    _gl.EVT_GL_RIGHT_UP.name:            'gl_right_up',
-    _gl.EVT_GL_RIGHT_DCLICK.name:        'gl_right_dclick',
-    _gl.EVT_GL_MIDDLE_DOWN.name:         'gl_middle_down',
-    _gl.EVT_GL_MIDDLE_UP.name:           'gl_middle_up',
-    _gl.EVT_GL_MIDDLE_DCLICK.name:       'gl_middle_dclick',
-    _gl.EVT_GL_AUX1_DOWN.name:           'gl_aux1_down',
-    _gl.EVT_GL_AUX1_UP.name:             'gl_aux1_up',
-    _gl.EVT_GL_AUX1_DCLICK.name:         'gl_aux1_dclick',
-    _gl.EVT_GL_AUX2_DOWN.name:           'gl_aux2_down',
-    _gl.EVT_GL_AUX2_UP.name:             'gl_aux2_up',
-    _gl.EVT_GL_AUX2_DCLICK.name:         'gl_aux2_dclick',
-    _gl.EVT_GL_CAPTURE_LOST.name:        'gl_capture_lost',
-}
+# EVT_GL_* constants are plain strings equal to the signal names,
+# so pass them directly to editor.connect() — no mapping table needed.
 
 
 class MainFrame(QMainWindow):
@@ -172,12 +138,6 @@ class MainFrame(QMainWindow):
         from . import editor_db
 
         self.editor_db = editor_db.EditorDB(self)
-        self._make_dock(
-            title='Database Editor',
-            name='editor_db',
-            widget=self.editor_db.editor,
-            area=Qt.DockWidgetArea.BottomDockWidgetArea,
-        )
 
         splash.SetText('Creating attribute editor...')
         splash.flush()
@@ -349,9 +309,10 @@ class MainFrame(QMainWindow):
         # editor3d.connect(signal_name, handler) calls
         # getattr(self.editor, signal_name).connect(handler) on the inner
         # QOpenGLWidget.  We derive the snake_case signal name from the
-        # _GLEventType sentinel via _GL_SIGNAL_MAP.
+        # EVT_GL_* constants are plain strings equal to the signal names.
         # ------------------------------------------------------------------
         self._connect_editor3d_signals()
+        self._connect_editor2d_signals()
 
         # ------------------------------------------------------------------
         # Idle processing — replaces wx.EVT_IDLE.
@@ -366,6 +327,7 @@ class MainFrame(QMainWindow):
         self._idle_timer.setInterval(0)
         self._idle_timer.timeout.connect(self._on_idle)
         self._idle_timer.start()
+        self._splash = splash
 
     # ------------------------------------------------------------------
     # Dock widget factory
@@ -400,17 +362,6 @@ class MainFrame(QMainWindow):
             area = Qt.DockWidgetArea.RightDockWidgetArea
 
         self.addDockWidget(area, dock)
-        return dock
-
-    def add_object_browser_panel(self, widget: QWidget) -> QDockWidget:
-        """Called by ObjectBrowser.__init__ to register its panel."""
-        dock = self._make_dock(
-            title='Object Browser',
-            name='object_browser',
-            widget=widget,
-            area=Qt.DockWidgetArea.LeftDockWidgetArea,
-        )
-        dock.show()
         return dock
 
     def _center_on_screen(self):
@@ -460,8 +411,45 @@ class MainFrame(QMainWindow):
             (_gl.EVT_GL_AUX2_DCLICK,         self._on_aux2_dclick_3d),
         ]
         for evt_type, handler in pairs:
-            signal_name = _GL_SIGNAL_MAP[evt_type.name]
-            self.editor3d.connect(signal_name, handler)
+            self.editor3d.bind(evt_type, handler)
+
+    def _connect_editor2d_signals(self):
+        """Wire all EVT_GL_* signal sentinels to their mainframe 2D handlers."""
+        pairs = [
+            (_gl.EVT_GL_OBJECT_SELECTED,      self._on_obj_selected_2d),
+            (_gl.EVT_GL_OBJECT_UNSELECTED,    self._on_obj_unselected_2d),
+            (_gl.EVT_GL_OBJECT_ACTIVATED,     self._on_obj_activated_2d),
+            (_gl.EVT_GL_OBJECT_RIGHT_CLICK,   self._on_obj_right_click_2d),
+            (_gl.EVT_GL_OBJECT_RIGHT_DCLICK,  self._on_obj_right_dclick_2d),
+            (_gl.EVT_GL_OBJECT_MIDDLE_CLICK,  self._on_obj_middle_click_2d),
+            (_gl.EVT_GL_OBJECT_MIDDLE_DCLICK, self._on_obj_middle_dclick_2d),
+            (_gl.EVT_GL_OBJECT_AUX1_CLICK,   self._on_obj_aux1_click_2d),
+            (_gl.EVT_GL_OBJECT_AUX1_DCLICK,  self._on_obj_aux1_dclick_2d),
+            (_gl.EVT_GL_OBJECT_AUX2_CLICK,   self._on_obj_aux2_click_2d),
+            (_gl.EVT_GL_OBJECT_AUX2_DCLICK,  self._on_obj_aux2_dclick_2d),
+            (_gl.EVT_GL_OBJECT_DRAG,         self._on_obj_drag_2d),
+            (_gl.EVT_GL_KEY_DOWN,            self._on_key_down_2d),
+            (_gl.EVT_GL_KEY_UP,              self._on_key_up_2d),
+            (_gl.EVT_GL_MOUSE_MOVE,          self._on_mouse_move_2d),
+            (_gl.EVT_GL_CAPTURE_LOST,        self._on_capture_lost_2d),
+            (_gl.EVT_GL_LEFT_DOWN,           self._on_left_down_2d),
+            (_gl.EVT_GL_LEFT_UP,             self._on_left_up_2d),
+            (_gl.EVT_GL_LEFT_DCLICK,         self._on_left_dclick_2d),
+            (_gl.EVT_GL_RIGHT_DOWN,          self._on_right_down_2d),
+            (_gl.EVT_GL_RIGHT_UP,            self._on_right_up_2d),
+            (_gl.EVT_GL_RIGHT_DCLICK,        self._on_right_dclick_2d),
+            (_gl.EVT_GL_MIDDLE_DOWN,         self._on_middle_down_2d),
+            (_gl.EVT_GL_MIDDLE_UP,           self._on_middle_up_2d),
+            (_gl.EVT_GL_MIDDLE_DCLICK,       self._on_middle_dclick_2d),
+            (_gl.EVT_GL_AUX1_DOWN,           self._on_aux1_down_2d),
+            (_gl.EVT_GL_AUX1_UP,             self._on_aux1_up_2d),
+            (_gl.EVT_GL_AUX1_DCLICK,         self._on_aux1_dclick_2d),
+            (_gl.EVT_GL_AUX2_DOWN,           self._on_aux2_down_2d),
+            (_gl.EVT_GL_AUX2_UP,             self._on_aux2_up_2d),
+            (_gl.EVT_GL_AUX2_DCLICK,         self._on_aux2_dclick_2d),
+        ]
+        for evt_type, handler in pairs:
+            self.editor2d.bind(evt_type, handler)
 
     # ------------------------------------------------------------------
     # QMainWindow event overrides (replace wx.EVT_* bindings)
@@ -560,23 +548,15 @@ class MainFrame(QMainWindow):
         self._status_y.setText(f'Y: {round(float(y), 4)}')
         self._status_z.setText(f'Z: {round(float(z), 4)}')
 
-    # ------------------------------------------------------------------
-    # Show / initial load
-    # ------------------------------------------------------------------
+    def showEvent(self, event):
+        if self._splash is not None:
+            self._splash.Destroy()
+            self._splash = None
 
-    def Show(self, flag=True):
-        if flag:
-            self.show()
-        else:
-            self.hide()
+        from ..objects import project as _proj
 
-        def _do():
-            from ..objects import project as _proj
-
-            self.editor_db.load_db(self.global_db)
-            self.project = _proj.Project.select_project(self)
-
-        QTimer.singleShot(0, _do)
+        self.editor_db.load_db(self.global_db)
+        self.project = _proj.Project.select_project(self)
 
     # ------------------------------------------------------------------
     # GL object event handlers (3D canvas)
@@ -872,7 +852,297 @@ class MainFrame(QMainWindow):
             evt.Skip()
 
     # ------------------------------------------------------------------
-    # Pane activation (replaces aui.EVT_AUI_PANE_ACTIVATED)
+    # 2D canvas GL event handlers
+    # Mirror of the _3d handlers above; the 2D editor uses the same
+    # EVT_GL_* signal protocol, routed through editor2d.connect().
+    # ------------------------------------------------------------------
+
+    def _on_obj_selected_2d(self, evt: _gl.GLObjectEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_obj_unselected_2d(self, evt: _gl.GLObjectEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_obj_activated_2d(self, evt: _gl.GLObjectEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_obj_right_click_2d(self, evt: _gl.GLObjectEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+            obj = evt.GetGLObject()
+
+            context_menu = obj.obj2d.get_context_menu()
+            if context_menu is not None:
+                x, y, _ = evt.GetPosition().as_int
+                canvas_widget = self.editor2d.editor
+                global_pos = canvas_widget.mapToGlobal(
+                    canvas_widget.rect().topLeft().__class__(x, y)
+                )
+                context_menu.exec(global_pos)
+
+    def _on_obj_right_dclick_2d(self, evt: _gl.GLObjectEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_obj_middle_click_2d(self, evt: _gl.GLObjectEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_obj_middle_dclick_2d(self, evt: _gl.GLObjectEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_obj_aux1_click_2d(self, evt: _gl.GLObjectEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_obj_aux1_dclick_2d(self, evt: _gl.GLObjectEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_obj_aux2_click_2d(self, evt: _gl.GLObjectEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_obj_aux2_dclick_2d(self, evt: _gl.GLObjectEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_obj_drag_2d(self, evt: _gl.GLObjectEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_key_down_2d(self, evt: _gl.GLKeyEvent) -> None:
+        if self._obj_handler is not None:
+            keycode = evt.GetKeyCode()
+            if keycode == Qt.Key.Key_Escape:
+                mouse_event = evt.GetMouseEvent()
+
+                if (
+                    mouse_event is not None and (
+                        mouse_event.Aux1IsDown() or
+                        mouse_event.Aux2IsDown() or
+                        mouse_event.RightIsDown() or
+                        mouse_event.MiddleIsDown() or
+                        mouse_event.LeftIsDown()
+                    )
+                ):
+                    self._obj_handler.ignore_next_input()
+                else:
+                    self._obj_handler.cancel()
+                    self._obj_handler = None
+
+                evt.StopPropagation()
+                return
+
+        evt.Skip()
+
+    def _on_key_up_2d(self, evt: _gl.GLKeyEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_mouse_move_2d(self, evt: _gl.GLEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+        mouse_pos = evt.GetPosition()
+
+        if self._add_handler is not None:
+            self._add_handler.hover(mouse_pos)
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_capture_lost_2d(self, evt: _gl.GLCaptureLostEvent) -> None:
+        if self._obj_handler is not None:
+            self._obj_handler.veto_position()
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_left_down_2d(self, evt: _gl.GLEvent) -> None:
+        if self._obj_handler is not None:
+            position = evt.GetPosition()
+            self._obj_handler.capture_position(position)
+            self.editor2d.editor.grabMouse()
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+        mode = self.editor_toolbar.get_mode()
+
+        if mode == _toolbar.ID_SELECT:
+            return
+        elif mode == _toolbar.ID_CONNECTOR:
+            evt.StopPropagation()
+            self.add_housing(position2d=evt.GetWorldPosition())
+        elif mode == _toolbar.ID_TERMINAL:
+            evt.StopPropagation()
+            self.add_terminal(position2d=evt.GetWorldPosition())
+        elif mode == _toolbar.ID_WIRE:
+            evt.StopPropagation()
+            self.add_wire(position2d=evt.GetWorldPosition())
+        elif mode == _toolbar.ID_WIRE_SERVICE_LOOP:
+            evt.StopPropagation()
+            self.add_wire_service_loop(position2d=evt.GetWorldPosition())
+        elif mode == _toolbar.ID_SPLICE:
+            evt.StopPropagation()
+            self.add_splice(position2d=evt.GetWorldPosition())
+        elif mode == _toolbar.ID_NOTE:
+            evt.StopPropagation()
+            self.add_note(position2d=evt.GetWorldPosition())
+        elif mode == _toolbar.ID_CIRCLE:
+            evt.StopPropagation()
+            self.add_circle(position2d=evt.GetWorldPosition())
+        elif mode == _toolbar.ID_SQUARE:
+            evt.StopPropagation()
+            self.add_square(position2d=evt.GetWorldPosition())
+        elif mode == _toolbar.ID_TRANSITION:
+            evt.StopPropagation()
+            self.add_transition(position2d=evt.GetWorldPosition())
+        elif mode == _toolbar.ID_SEAL:
+            evt.StopPropagation()
+            self.add_seal(position2d=evt.GetWorldPosition())
+        elif mode == _toolbar.ID_BUNDLE_COVER:
+            evt.StopPropagation()
+            self.add_bundle(position2d=evt.GetWorldPosition())
+        elif mode == _toolbar.ID_TPA_LOCK:
+            evt.StopPropagation()
+            self.add_tpa_lock(position2d=evt.GetWorldPosition())
+        elif mode == _toolbar.ID_CPA_LOCK:
+            evt.StopPropagation()
+            self.add_cpa_lock(position2d=evt.GetWorldPosition())
+        elif mode == _toolbar.ID_COVER:
+            evt.StopPropagation()
+            self.add_cover(position2d=evt.GetWorldPosition())
+        elif mode == _toolbar.ID_ZOOM_IN:
+            evt.StopPropagation()
+            self.editor2d.editor.camera.zoom_at_point(evt.GetPosition(), 1.0)
+        elif mode == _toolbar.ID_ZOOM_OUT:
+            evt.StopPropagation()
+            self.editor2d.editor.camera.zoom_at_point(evt.GetPosition(), -1.0)
+
+        evt.Skip()
+
+    def _on_left_up_2d(self, evt: _gl.GLEvent) -> None:
+        if self._obj_handler is not None:
+            self._obj_handler.release_capture()
+
+            if self._obj_handler.is_finalized:
+                self._obj_handler = None
+
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_left_dclick_2d(self, evt: _gl.GLEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_right_down_2d(self, evt: _gl.GLEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_right_up_2d(self, evt: _gl.GLEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_right_dclick_2d(self, evt: _gl.GLEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_middle_down_2d(self, evt: _gl.GLEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_middle_up_2d(self, evt: _gl.GLEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_middle_dclick_2d(self, evt: _gl.GLEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_aux1_down_2d(self, evt: _gl.GLEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_aux1_up_2d(self, evt: _gl.GLEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_aux1_dclick_2d(self, evt: _gl.GLEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_aux2_down_2d(self, evt: _gl.GLEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_aux2_up_2d(self, evt: _gl.GLEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_aux2_dclick_2d(self, evt: _gl.GLEvent) -> None:
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
     # QDockWidget.visibilityChanged / raise_() is the Qt equivalent for
     # focus-tracking; this stub preserves the hook for future use.
     # ------------------------------------------------------------------

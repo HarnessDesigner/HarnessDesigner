@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import Qt
+from PySide6 import QtWidgets
 
 from ... import config as _config
 from ...gl import canvas3d as _canvas3d
@@ -19,6 +20,7 @@ Config = _config.Config.editor3d
 class Editor3D:
 
     def __init__(self, mainframe: "_mainframe.MainFrame"):
+
         self.editor = Editor3DPanel(mainframe)
         self.mainframe = mainframe
 
@@ -56,8 +58,8 @@ class Editor3D:
     def Destroy(self):
         self.editor.deleteLater()
 
-    def connect(self, signal_name, handler):
-        getattr(self.editor, signal_name).connect(handler)
+    def bind(self, signal_name, handler):
+        self.editor.bind(signal_name, handler)
 
     def set_clone_obj(self, obj):
         self.editor.set_clone_obj(obj)

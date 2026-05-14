@@ -123,8 +123,8 @@ class EditorToolbar:
         mainframe.addToolBar(Qt.ToolBarArea.TopToolBarArea, tb)
 
         # GL object selection drives button enable/disable
-        mainframe.editor3d.gl_object_selected.connect(self._on_obj_selected)
-        mainframe.editor3d.gl_object_unselected.connect(self._on_obj_unselected)
+        mainframe.editor3d.bind(_gl.EVT_GL_OBJECT_SELECTED, self._on_obj_selected)
+        mainframe.editor3d.bind(_gl.EVT_GL_OBJECT_UNSELECTED, self._on_obj_unselected)
 
     # --- mode ---
 
@@ -228,17 +228,17 @@ class NoteToolbar:
 
         mainframe.addToolBar(Qt.ToolBarArea.TopToolBarArea, tb)
 
-        mainframe.editor2d.gl_object_selected.connect(self.on_obj2d_selected)
-        mainframe.editor2d.gl_object_unselected.connect(self.on_obj2d_unselected)
-        mainframe.editor3d.gl_object_selected.connect(self.on_obj3d_selected)
-        mainframe.editor3d.gl_object_unselected.connect(self.on_obj3d_unselected)
+        mainframe.editor2d.bind(_gl.EVT_GL_OBJECT_SELECTED, self.on_obj2d_selected)
+        mainframe.editor2d.bind(_gl.EVT_GL_OBJECT_UNSELECTED, self.on_obj2d_unselected)
+        mainframe.editor3d.bind(_gl.EVT_GL_OBJECT_SELECTED, self.on_obj3d_selected)
+        mainframe.editor3d.bind(_gl.EVT_GL_OBJECT_UNSELECTED, self.on_obj3d_unselected)
 
         # "Pane activated" → QDockWidget.visibilityChanged on the editor docks.
         # We connect to each dock and check which editor is now on top.
-        mainframe.editor2d.visibilityChanged.connect(
-            lambda visible: self._on_editor_visibility('editor2d', visible))
-        mainframe.editor3d.visibilityChanged.connect(
-            lambda visible: self._on_editor_visibility('editor3d', visible))
+        # mainframe.editor2d.visibilityChanged.connect(
+        #     lambda visible: self._on_editor_visibility('editor2d', visible))
+        # mainframe.editor3d.connect('visibilityChanged',
+        #     lambda visible: self._on_editor_visibility('editor3d', visible))
 
     def _on_editor_visibility(self, editor_name: str, visible: bool):
         if not visible:

@@ -328,10 +328,8 @@ class Camera:
             with self._position:
                 self._position.y = self.canvas.config.floor.ground_height + 0.25
 
-        if self._context.is_locked:
-            self._is_dirty = True
-        else:
-            QTimer.singleShot(0, self.canvas.update)
+        self._is_dirty = True
+        QTimer.singleShot(0, self.canvas.update)
 
     @property
     def orthonormalized_axes(self):  # NOQA

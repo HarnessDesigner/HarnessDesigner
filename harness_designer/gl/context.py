@@ -13,56 +13,36 @@ class GLContext:
     Thread-safe OpenGL context manager.
 
     wx: wrapped glcanvas.GLContext + canvas.SetCurrent(context).
-    Qt:  QOpenGLWidget manages its own context internally; we just call
+    Qt:  QOpenGLWidget manages its own context internally; we call
          widget.makeCurrent() / doneCurrent() at acquire/release time.
 
-    The re-entrant reference-counting logic is identical to the original —
-    only the two wx API calls change.
+    Re-entrant: the same thread may acquire multiple times (e.g. a helper
+    called from inside paintGL) without deadlocking.  The context is only
+    released — and doneCurrent() only called — when the outermost caller
+    exits.
+
+    IMPORTANT: Do NOT use this inside initializeGL / resizeGL / paintGL.
+    Qt guarantees the context is already current when it calls those three
+    methods.  Only use GLContext for GL work done *outside* those callbacks
+    (e.g. take_snapshot, set_focal_target, background-thread uploads).
     """
 
     def __init__(self, canvas: "QOpenGLWidget"):
         self.canvas = canvas
-        # Qt owns the actual GL context object; we don't create one.
         self._lock = threading.RLock()
-        self._refs_lock = threading.Lock()
-        self._refs: dict[threading.Thread, int] = {}
-        self._refs_order: list[threading.Thread] = []
+        self.ref = 0
 
     @property
     def is_locked(self) -> bool:
-        cur_thread = threading.current_thread()
-        with self._refs_lock:
-            if not self._refs_order:
-                return False
-            return self._refs_order[0] != cur_thread
+        return self.ref != 0
 
-    def acquire(self) -> None:
-        cur_thread = threading.current_thread()
-
-        with self._refs_lock:
-            if cur_thread not in self._refs:
-                self._refs[cur_thread] = 0
-                self._refs_order.append(cur_thread)
-            self._refs[cur_thread] += 1
-
+    def acquire(self):
         self._lock.acquire()
-        # wx: canvas.SetCurrent(self.context)
-        # Qt: makeCurrent() activates the widget's own context
-        self.canvas.makeCurrent()
+        self.ref += 1
 
-    def release(self) -> None:
-        # wx: no explicit "done" call needed after SetCurrent
-        # Qt: doneCurrent() is good practice; keeps context hygiene correct
-        # when multiple widgets share a thread.
-        self.canvas.doneCurrent()
+    def release(self):
+        self.ref -= 1
         self._lock.release()
-
-        cur_thread = threading.current_thread()
-        with self._refs_lock:
-            self._refs[cur_thread] -= 1
-            if self._refs[cur_thread] == 0:
-                del self._refs[cur_thread]
-                self._refs_order.remove(cur_thread)
 
     def __enter__(self) -> "GLContext":
         self.acquire()

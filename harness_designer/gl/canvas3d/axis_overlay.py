@@ -386,8 +386,6 @@ class GLOverlay(QOpenGLWidget):
         camera = self.camera_eye.as_float + self.camera_pos.as_float + (0.0, 1.0, 0.0)
         GLU.gluLookAt(*camera)
 
-        self._init = True
-
     def resizeGL(self, width, height):
         self.size = (width, height)
         GL.glViewport(0, 0, width, height)
@@ -411,7 +409,7 @@ class GLOverlay(QOpenGLWidget):
         temp_up = np.array(
             [0.0, 1.0, 0.0],
             dtype=np.dtypes.Float64DType
-            )
+        )
 
         right = np.cross(temp_up, forward)  # NOQA
 

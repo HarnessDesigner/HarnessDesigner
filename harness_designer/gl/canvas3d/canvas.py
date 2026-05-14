@@ -12,6 +12,7 @@ import weakref
 from PySide6 import QtCore
 from PySide6 import QtGui
 from PySide6 import QtOpenGLWidgets
+from PySide6.QtCore import Signal
 
 from . import headlight as _headlight
 from . import focal_target as _focal_target
@@ -59,15 +60,66 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
 
 
 
+    # ------------------------------------------------------------------
+    # Signals — replace wx EVT_GL_* custom events
+    # Each carries a single GL event data object.
+    # ------------------------------------------------------------------
+
+    gl_object_selected = Signal(object)
+    gl_object_unselected = Signal(object)
+    gl_object_activated = Signal(object)
+    gl_object_right_click = Signal(object)
+    gl_object_right_dclick = Signal(object)
+    gl_object_middle_click = Signal(object)
+    gl_object_middle_dclick = Signal(object)
+    gl_object_aux1_click = Signal(object)
+    gl_object_aux1_dclick = Signal(object)
+    gl_object_aux2_click = Signal(object)
+    gl_object_aux2_dclick = Signal(object)
+    gl_object_drag = Signal(object)
+    gl_key_down = Signal(object)
+    gl_key_up = Signal(object)
+    gl_mouse_move = Signal(object)
+    gl_left_down = Signal(object)
+    gl_left_up = Signal(object)
+    gl_left_dclick = Signal(object)
+    gl_right_down = Signal(object)
+    gl_right_up = Signal(object)
+    gl_right_dclick = Signal(object)
+    gl_middle_down = Signal(object)
+    gl_middle_up = Signal(object)
+    gl_middle_dclick = Signal(object)
+    gl_aux1_down = Signal(object)
+    gl_aux1_up = Signal(object)
+    gl_aux1_dclick = Signal(object)
+    gl_aux2_down = Signal(object)
+    gl_aux2_up = Signal(object)
+    gl_aux2_dclick = Signal(object)
+    gl_capture_lost = Signal(object)
+
     def __init__(self, parent, config: "_config.Config.editor3d",
                  size: QtCore.QSize = None, axis_overlay: bool = False):
-        super().__init__(parent)
+
+        QtOpenGLWidgets.QOpenGLWidget.__init__(self, parent)
+
+        # Ensure depth buffering and double-buffering are active.
+        # The model_preview canvas sets this explicitly; the main 3D canvas must too.
+        from PySide6.QtGui import QSurfaceFormat
+        fmt = QSurfaceFormat()
+        fmt.setDepthBufferSize(24)
+        fmt.setSwapBehavior(QSurfaceFormat.SwapBehavior.DoubleBuffer)
+        self.setFormat(fmt)
 
         # Walk up to the QMainWindow (replaces aui.AuiManager.GetManager().GetManagedWindow())
         w = parent
+        mainframe = None
+
         while w is not None and not hasattr(w, 'editor3d'):
             w = w.parent()
-        self.mainframe = w if w is not None else parent
+            if w is not None:
+                mainframe = w
+
+        self.mainframe = mainframe
 
         self.config = config
         self._mode = None
@@ -76,13 +128,17 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         from . import camera as _camera
         from . import axis_overlay as _axis_overlay
 
+        # Create the GLContext wrapper for this widget.
+        # Use it ONLY outside of initializeGL / resizeGL / paintGL —
+        # Qt already makes the context current before calling those.
+        self.context = _context.GLContext(self)
+
         if axis_overlay:
             self._axis_overlay = _axis_overlay.Overlay(self, config.axis_overlay)
         else:
             self._axis_overlay = None
 
         self._init = False
-        self.context = _context.GLContext(self)
         self.camera = _camera.Camera(self)
         self._angle_overlay = None
 
@@ -249,6 +305,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         """wx-compatible name; delegates to Qt update()."""
         if self._ref_count:
             return
+
         self.update()
 
     # ------------------------------------------------------------------
@@ -307,37 +364,102 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
     # ------------------------------------------------------------------
 
     def initializeGL(self):
-        """Called once by Qt after the GL context is created."""
-        self._init_gl()
-        self._init = True
+        """Called once by Qt after the GL context is created.
+        Qt guarantees the context is already current here — no makeCurrent needed."""
 
-    def resizeGL(self, width: int, height: int):
+        GL.glEnable(GL.GL_DEPTH_TEST)
+        GL.glClearColor(*self.config.background_color)
+
+        self._faces_program = _shaders.compile_faces_program()
+        self._edges_program = _shaders.compile_edges_program()
+        self._vertices_program = _shaders.compile_vertices_program()
+        self._floor_program = _shaders.compile_floor_program()
+
+        self.floor = _floor.Floor(self, self._floor_program)
+
+        GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
+        GL.glEnable(GL.GL_BLEND)
+
+        self.camera.Set()
+
+        # Use the virtual size recorded in resizeGL (first call), not the
+        # current widget geometry, so the aspect ratio matches the virtual
+        # canvas — not the (possibly different) container size.
+        vw = getattr(self, "_virtual_w", None) or self.width()
+        vh = getattr(self, "_virtual_h", None) or self.height()
+        GL.glViewport(0, 0, vw, vh)
+        self.size = (vw, vh)
+        aspect = vw / float(vh) if vh else 1.0
+
+        GL.glMatrixMode(GL.GL_PROJECTION)
+        GLU.gluPerspective(65, aspect, 0.1, 1000.0)
+        GL.glMatrixMode(GL.GL_MODELVIEW)
+
+        self._init = True  # viewport is live; notify_virtual_size_changed may update it
+
+        self.set_draw_grid(self.config.floor.enable)
+        self.set_focal_target(self.config.focal_target.enable)
+
+    def notify_virtual_size_changed(self, width: int, height: int) -> None:
         """
-        Called by Qt whenever the widget is resized.
-        wx: EVT_SIZE → wx.CallAfter(_do_set_viewport, event.GetSize())
-        Qt: resizeGL is already called on the main thread after resize;
-            no deferred scheduling needed.
+        Called by Canvas3D.set_virtual_size() (and on first initialisation)
+        to update the GL viewport and camera projection for a new virtual
+        canvas size.
+
+        This is the Qt equivalent of wx EVT_SIZE triggered by SetVirtualSize.
+        Unlike resizeGL — which Qt calls automatically whenever the widget's
+        widget geometry changes — this method is only called when the *render*
+        size genuinely changes, so the aspect ratio is never distorted by a
+        passive parent-panel resize.
         """
         dpr = self.devicePixelRatio()
         w = int(width * dpr)
         h = int(height * dpr)
+        self._virtual_w = w
+        self._virtual_h = h
         self.size = (w, h)
-        GL.glViewport(0, 0, w, h)
+
+        if self._init:
+            self.makeCurrent()
+            GL.glViewport(0, 0, w, h)
+            self.doneCurrent()
+            self.update()
+
+    def resizeGL(self, width: int, height: int):
+        """
+        Called by Qt whenever the *widget geometry* changes.
+
+        wx behaviour: the canvas had a fixed virtual size set via
+        SetVirtualSize().  Resizing the surrounding panel did NOT fire an
+        EVT_SIZE on the canvas and therefore never changed the GL viewport.
+
+        Qt equivalent: resizeGL fires for every geometry change, including
+        passive ones caused by layout managers.  We ignore those here —
+        viewport updates only happen through notify_virtual_size_changed(),
+        which is triggered only when the virtual size is intentionally changed.
+
+        The only exception is the very first call (before _init is set),
+        which we use to record the initial size so the viewport is set up
+        correctly when initializeGL runs.
+        """
+        if not self._init:
+            # Record initial size; initializeGL will apply the viewport.
+            dpr = self.devicePixelRatio()
+            self._virtual_w = int(width * dpr)
+            self._virtual_h = int(height * dpr)
+            self.size = (self._virtual_w, self._virtual_h)
+        # else: ignore — virtual size is managed by notify_virtual_size_changed
 
     def paintGL(self):
         """
-        Called by Qt to render a frame.
+        Called by Qt to render a frame. Context is already current here.
         wx: EVT_PAINT → _on_paint → wx.PaintDC(self) + context.acquire() + _on_draw()
         Qt: paintGL already runs with the context current; no PaintDC needed.
         """
-        if not self._init:
-            # Shouldn't happen (initializeGL runs first), but guard anyway.
-            self._init_gl()
-            self._init = True
-
         self._on_draw()
 
         # Angle-view overlay — rendered via OpenGL pixel blit (same algorithm).
+        # Context is already current inside paintGL — no with self.context needed.
         if self._angle_view_image is not None:
             img = self._angle_view_image
             w, h = img.width(), img.height()
@@ -384,47 +506,11 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
     # Internal GL helpers (unchanged rendering logic)
     # ------------------------------------------------------------------
 
-    @staticmethod
-    def _normalize(v: np.ndarray) -> np.ndarray:
-        n = np.linalg.norm(v)
-        return v if n == 0.0 else v / n
-
-    @_debug.logfunc
-    def _init_gl(self):
-        GL.glEnable(GL.GL_DEPTH_TEST)
-        GL.glClearColor(*self.config.background_color)
-
-        self._faces_program = _shaders.compile_faces_program()
-        self._edges_program = _shaders.compile_edges_program()
-        self._vertices_program = _shaders.compile_vertices_program()
-        self._floor_program = _shaders.compile_floor_program()
-
-        self.floor = _floor.Floor(self, self._floor_program)
-
-        GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
-        GL.glEnable(GL.GL_BLEND)
-
-        self.camera.Set()
-
-        w, h = self.width(), self.height()
-        aspect = w / float(h) if h else 1.0
-
-        GL.glMatrixMode(GL.GL_PROJECTION)
-        GLU.gluPerspective(65, aspect, 0.1, 1000.0)
-        GL.glMatrixMode(GL.GL_MODELVIEW)
-
-        self.set_draw_grid(self.config.floor.enable)
-        self.set_focal_target(self.config.focal_target.enable)
-
-        # wx.CallAfter → QTimer.singleShot(0, …)
-        QtCore.QTimer.singleShot(0, lambda: self.Zoom(1.0))
-
     def set_focal_target(self, flag):
-        with self.context:
-            if flag and self._focal_target is None:
-                self._focal_target = _focal_target.FocalPoint(self)
-            elif not flag and self._focal_target is not None:
-                self._focal_target = None
+        if flag and self._focal_target is None:
+            self._focal_target = _focal_target.FocalPoint(self)
+        elif not flag and self._focal_target is not None:
+            self._focal_target = None
 
     def set_draw_grid(self, flag):
         self.floor.set(flag)
@@ -434,29 +520,30 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         projection_matrix = GL.glGetFloatv(GL.GL_PROJECTION_MATRIX)
         view_matrix = GL.glGetFloatv(GL.GL_MODELVIEW_MATRIX)
 
+        view_position = GL.glGetUniformLocation(self._faces_program, "viewPosition")
+        faces_projection = GL.glGetUniformLocation(self._faces_program, "projection")
+        faces_view = GL.glGetUniformLocation(self._faces_program, "view")
+        floor_y = GL.glGetUniformLocation(self._faces_program, "floorY")
+        object_has_reflection = GL.glGetUniformLocation(self._faces_program, "objectHasReflection")
+        edges_projection = GL.glGetUniformLocation(self._edges_program, "projection")
+        edges_view = GL.glGetUniformLocation(self._edges_program, "view")
+        vertices_projection = GL.glGetUniformLocation(self._vertices_program, "projection")
+        vertices_view = GL.glGetUniformLocation(self._vertices_program, "view")
+
         GL.glUseProgram(self._faces_program)
-        GL.glUniform3fv(GL.glGetUniformLocation(self._faces_program, "viewPosition"),
-                        1, self.camera.position.as_numpy)
-        GL.glUniformMatrix4fv(GL.glGetUniformLocation(self._faces_program, "projection"),
-                              1, GL.GL_FALSE, projection_matrix)
-        GL.glUniformMatrix4fv(GL.glGetUniformLocation(self._faces_program, "view"),
-                              1, GL.GL_FALSE, view_matrix)
-        GL.glUniform1f(GL.glGetUniformLocation(self._faces_program, "floorY"),
-                       self.config.floor.ground_height)
-        GL.glUniform1i(GL.glGetUniformLocation(self._faces_program, "objectHasReflection"),
-                       int(self.config.floor.reflections.enable and self.config.floor.enable_floor_lock))
+        GL.glUniform3fv(view_position, 1, self.camera.position.as_numpy)
+        GL.glUniformMatrix4fv(faces_projection, 1, GL.GL_FALSE, projection_matrix)
+        GL.glUniformMatrix4fv(faces_view, 1, GL.GL_FALSE, view_matrix)
+        GL.glUniform1f(floor_y, self.config.floor.ground_height)
+        GL.glUniform1i(object_has_reflection, int(self.config.floor.reflections.enable and self.config.floor.enable_floor_lock))
 
         GL.glUseProgram(self._edges_program)
-        GL.glUniformMatrix4fv(GL.glGetUniformLocation(self._edges_program, "projection"),
-                              1, GL.GL_FALSE, projection_matrix)
-        GL.glUniformMatrix4fv(GL.glGetUniformLocation(self._edges_program, "view"),
-                              1, GL.GL_FALSE, view_matrix)
+        GL.glUniformMatrix4fv(edges_projection, 1, GL.GL_FALSE, projection_matrix)
+        GL.glUniformMatrix4fv(edges_view, 1, GL.GL_FALSE, view_matrix)
 
         GL.glUseProgram(self._vertices_program)
-        GL.glUniformMatrix4fv(GL.glGetUniformLocation(self._vertices_program, "projection"),
-                              1, GL.GL_FALSE, projection_matrix)
-        GL.glUniformMatrix4fv(GL.glGetUniformLocation(self._vertices_program, "view"),
-                              1, GL.GL_FALSE, view_matrix)
+        GL.glUniformMatrix4fv(vertices_projection, 1, GL.GL_FALSE, projection_matrix)
+        GL.glUniformMatrix4fv(vertices_view, 1, GL.GL_FALSE, view_matrix)
 
         GL.glUseProgram(self._faces_program)
         self._scene_light.set(self._faces_program)
@@ -494,9 +581,15 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
 
     @_debug.logfunc
     def _on_draw(self):
-        self.context.acquire()
-        w = self.width()
-        h = self.height()
+        # Use the virtual canvas size for the aspect ratio, not the widget
+        # geometry.  This prevents distortion when the surrounding panel is
+        # resized (mirrors the wx SetVirtualSize behaviour).
+        if self.size:
+            w, h = self.size
+        else:
+            w = self.width()
+            h = self.height()
+
         aspect = w / float(h) if h else 1.0
 
         f_size = self.config.floor.grid.size ** 2
@@ -517,12 +610,6 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
 
         self.camera.Set()
 
-        if self._axis_overlay is not None:
-            self.context.release()
-            self._axis_overlay.set_angle(
-                (self.camera.position - self.camera.focal_position).inverse)
-            self.context.acquire()
-
         objs = self._view_culling.cull(
             self._object_data, self.camera.frustum_normals,
             self.camera.frustum_distances, self.camera.position.as_numpy)
@@ -537,24 +624,28 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
 
         self.floor.render(self._floor_program)
 
-        # Qt handles SwapBuffers automatically — removed.
+        if self._axis_overlay is not None:
+            self._axis_overlay.set_angle(
+                (self.camera.position - self.camera.focal_position).inverse)
 
-        self.context.release()
+        # Qt handles SwapBuffers automatically — removed.
 
     # ------------------------------------------------------------------
     # Snapshot (returns QImage instead of wx.Bitmap)
     # ------------------------------------------------------------------
 
     def take_snapshot(self) -> QtGui.QImage:
-        self.makeCurrent()
-        w = self.width()
-        h = self.height()
+        # take_snapshot is called outside of paintGL so we must acquire
+        # the context explicitly via the context manager.
+        with self.context:
+            w = self.width()
+            h = self.height()
 
-        GL.glPixelStorei(GL.GL_PACK_ALIGNMENT, 1)
-        data = GL.glReadPixels(0, 0, w, h, GL.GL_RGB, GL.GL_UNSIGNED_BYTE)
+            GL.glPixelStorei(GL.GL_PACK_ALIGNMENT, 1)
+            data = GL.glReadPixels(0, 0, w, h, GL.GL_RGB, GL.GL_UNSIGNED_BYTE)
 
-        arr = np.frombuffer(data, dtype=np.uint8).reshape((h, w, 3))
-        arr = np.flipud(arr)
+            arr = np.frombuffer(data, dtype=np.uint8).reshape((h, w, 3))
+            arr = np.flipud(arr)
 
-        img = QtGui.QImage(arr.tobytes(), w, h, w * 3, QtGui.QImage.Format.Format_RGB888)
-        return img.copy()   # copy so the buffer outlives arr
+            img = QtGui.QImage(arr.tobytes(), w, h, w * 3, QtGui.QImage.Format.Format_RGB888)
+            return img.copy()   # copy so the buffer outlives arr

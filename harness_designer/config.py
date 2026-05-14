@@ -1,7 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 import sqlite3
-from PySide6.QtCore import Qt
 import weakref
 import threading
 import os
@@ -411,20 +410,20 @@ class Config(metaclass=ConfigDB):
 
         class zoom(metaclass=ConfigDB):
             mouse = MOUSE_WHEEL  # | MOUSE_REVERSE_WHEEL_AXIS
-            in_key = Qt.Key.Key_Plus
-            out_key = Qt.Key.Key_Minus
+            in_key = 43
+            out_key = 45
             sensitivity = 5.0
 
         class pan(metaclass=ConfigDB):
             mouse = MOUSE_LEFT
-            up_key = Qt.Key.Key_Up
-            down_key = Qt.Key.Key_Down
-            left_key = Qt.Key.Key_Left
-            right_key = Qt.Key.Key_Right
+            up_key = 16777235
+            down_key = 16777237
+            left_key = 16777234
+            right_key = 16777236
             sensitivity = 0.4
 
         class reset(metaclass=ConfigDB):
-            key = Qt.Key.Key_Home
+            key = 16777232
             mouse = MOUSE_NONE
 
         class canvas(metaclass=ConfigDB):
@@ -509,21 +508,21 @@ class Config(metaclass=ConfigDB):
 
         class walk(metaclass=ConfigDB):
             mouse = MOUSE_WHEEL | MOUSE_SWAP_AXIS
-            forward_key = Qt.Key.Key_Up
-            backward_key = Qt.Key.Key_Down
-            left_key = Qt.Key.Key_Left
-            right_key = Qt.Key.Key_Right
+            forward_key = 16777235
+            backward_key = 16777237
+            left_key = 16777234
+            right_key = 16777236
             sensitivity = 1.0
             speed = 5.0
 
         class zoom(metaclass=ConfigDB):
             mouse = MOUSE_NONE  # | MOUSE_REVERSE_WHEEL_AXIS
-            in_key = Qt.Key.Key_Plus
-            out_key = Qt.Key.Key_Minus
+            in_key = 43
+            out_key = 45
             sensitivity = 5.0
 
         class reset(metaclass=ConfigDB):
-            key = Qt.Key.Key_Home
+            key = 16777232
             mouse = MOUSE_NONE
 
         class headlight(metaclass=ConfigDB):

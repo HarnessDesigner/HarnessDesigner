@@ -33,6 +33,23 @@ def _qt_pos(qt_event) -> _point.Point:
     return _point.Point(p.x(), p.y())
 
 
+def _qt_buttons_flag(qt_event) -> int:
+    """Convert Qt button flags to our BTN_* bitmask."""
+    btns = qt_event.buttons()
+    flags = _events.BTN_NONE
+    if btns & QtCore.Qt.MouseButton.LeftButton:
+        flags |= _events.BTN_LEFT
+    if btns & QtCore.Qt.MouseButton.RightButton:
+        flags |= _events.BTN_RIGHT
+    if btns & QtCore.Qt.MouseButton.MiddleButton:
+        flags |= _events.BTN_MIDDLE
+    if btns & QtCore.Qt.MouseButton.XButton1:
+        flags |= _events.BTN_AUX1
+    if btns & QtCore.Qt.MouseButton.XButton2:
+        flags |= _events.BTN_AUX2
+    return flags
+
+
 class MouseHandler2D(QtCore.QObject):
 
     def __init__(self, canvas: "_canvas.Canvas"):
@@ -51,6 +68,26 @@ class MouseHandler2D(QtCore.QObject):
         self._click_threshold = 3
 
         canvas.installEventFilter(self)
+
+    # ------------------------------------------------------------------
+    # Signal dispatch helper
+    # ------------------------------------------------------------------
+
+    def _send_event(self, signal_name: str, event, qt_event):
+        """Populate event fields and emit the named canvas signal."""
+        mouse_pos = _qt_pos(qt_event)
+        world_pos = self.canvas.camera.screen_to_world(mouse_pos)
+        flags = _qt_buttons_flag(qt_event)
+
+        event.SetId(id(self.canvas))
+        event.SetEventObject(self.canvas)
+        event.SetPosition(mouse_pos)
+        event.SetWorldPosition(world_pos)
+        event.SetMouseButtons(flags)
+
+        getattr(self.canvas, signal_name).emit(event)
+
+        return event
 
     # ------------------------------------------------------------------
     # Qt event filter dispatcher
@@ -167,6 +204,9 @@ class MouseHandler2D(QtCore.QObject):
         if selected is None:
             if cur_selected is not None:
                 cur_selected.set_selected(False)
+                unsel_event = _events.GLObjectEvent()
+                unsel_event.SetGLObject(cur_selected)
+                self._send_event(_events.EVT_GL_OBJECT_UNSELECTED, unsel_event, evt)
                 refresh = True
         else:
             if selected == cur_selected:
@@ -174,10 +214,17 @@ class MouseHandler2D(QtCore.QObject):
             else:
                 if cur_selected is not None:
                     cur_selected.set_selected(False)
+                    unsel_event = _events.GLObjectEvent()
+                    unsel_event.SetGLObject(cur_selected)
+                    self._send_event(_events.EVT_GL_OBJECT_UNSELECTED, unsel_event, evt)
 
                 selected.set_selected(True)
+                sel_event = _events.GLObjectEvent()
+                sel_event.SetGLObject(selected)
+                self._send_event(_events.EVT_GL_OBJECT_SELECTED, sel_event, evt)
                 refresh = True
 
+        self._send_event(_events.EVT_GL_LEFT_DOWN, _events.GLEvent(), evt)
         self.canvas.grabMouse()
 
         if refresh:
@@ -195,13 +242,16 @@ class MouseHandler2D(QtCore.QObject):
         if not self._is_motion and self._drag_obj is not None:
             if selected is not None and selected == cur_selected:
                 selected.set_selected(False)
+                unsel_event = _events.GLObjectEvent()
+                unsel_event.SetGLObject(selected)
+                self._send_event(_events.EVT_GL_OBJECT_UNSELECTED, unsel_event, evt)
                 refresh = True
 
             if self._drag_obj is not None:
                 self._drag_obj = None
 
         self._is_motion = False
-
+        self._send_event(_events.GLEvent(_events.EVT_GL_LEFT_UP), evt)
         self.canvas.releaseMouse()
 
         if refresh:
@@ -226,12 +276,11 @@ class MouseHandler2D(QtCore.QObject):
                 selected.set_selected(True)
                 refresh = True
 
-            # Emit the activated signal on the canvas.
-            event = _events.GLObjectEvent(_events.EVT_GL_OBJECT_ACTIVATED)
+            event = _events.GLObjectEvent()
             event.SetGLObject(selected)
-            event.SetPosition(mouse_pos)
-            event.SetWorldPosition(world_pos)
-            self.canvas.gl_object_activated.emit(event)
+            self._send_event(_events.EVT_GL_OBJECT_ACTIVATED, event, evt)
+
+        self._send_event(_events.EVT_GL_LEFT_DCLICK, _events.GLEvent(), evt)
 
         if refresh:
             self.canvas.update()
@@ -240,7 +289,7 @@ class MouseHandler2D(QtCore.QObject):
         mouse_pos = _qt_pos(evt)
         self._mouse_pos = mouse_pos
         self._is_motion = False
-
+        self._send_event(_events.GLEvent(_events.EVT_GL_RIGHT_DOWN), evt)
         self.canvas.grabMouse()
 
     def on_right_up(self, evt):
@@ -257,16 +306,31 @@ class MouseHandler2D(QtCore.QObject):
             if selected is not None:
                 if cur_selected is None:
                     selected.set_selected(True)
+                    sel_event = _events.GLObjectEvent()
+                    sel_event.SetGLObject(selected)
+                    self._send_event(_events.EVT_GL_OBJECT_SELECTED, sel_event, evt)
                     refresh = True
 
                 elif cur_selected != selected:
                     cur_selected.set_selected(False)
+                    unsel_event = _events.GLObjectEvent()
+                    unsel_event.SetGLObject(cur_selected)
+                    self._send_event(_events.EVT_GL_OBJECT_UNSELECTED, unsel_event, evt)
+
                     selected.set_selected(True)
+                    sel_event = _events.GLObjectEvent()
+                    sel_event.SetGLObject(selected)
+                    self._send_event(_events.EVT_GL_OBJECT_SELECTED, sel_event, evt)
                     refresh = True
+
+                rc_event = _events.GLObjectEvent()
+                rc_event.SetGLObject(selected)
+                self._send_event(_events.EVT_GL_OBJECT_RIGHT_CLICK, rc_event, evt)
 
                 self._show_canvas_context_menu(mouse_pos)
 
         self._is_motion = False
+        self._send_event(_events.GLEvent(_events.EVT_GL_RIGHT_UP), evt)
 
         if refresh:
             self.canvas.update()
@@ -274,39 +338,41 @@ class MouseHandler2D(QtCore.QObject):
         self.canvas.releaseMouse()
 
     def on_right_dclick(self, evt):
-        pass
+        self._send_event(_events.EVT_GL_RIGHT_DCLICK, _events.GLEvent(), evt)
 
     def on_middle_down(self, evt):
         mouse_pos = _qt_pos(evt)
         self._mouse_pos = mouse_pos
         self._is_motion = False
+        self._send_event(_events.GLEvent(_events.EVT_GL_MIDDLE_DOWN), evt)
         self.canvas.grabMouse()
 
     def on_middle_up(self, evt):
         self._mouse_pos = _qt_pos(evt)
         self._is_motion = False
+        self._send_event(_events.GLEvent(_events.EVT_GL_MIDDLE_UP), evt)
         self.canvas.releaseMouse()
 
     def on_middle_dclick(self, evt):
-        pass
+        self._send_event(_events.EVT_GL_MIDDLE_DCLICK, _events.GLEvent(), evt)
 
     def on_aux1_up(self, evt):
-        pass
+        self._send_event(_events.EVT_GL_AUX1_UP, _events.GLEvent(), evt)
 
     def on_aux1_down(self, evt):
-        pass
+        self._send_event(_events.EVT_GL_AUX1_DOWN, _events.GLEvent(), evt)
 
     def on_aux1_dclick(self, evt):
-        pass
+        self._send_event(_events.EVT_GL_AUX1_DCLICK, _events.GLEvent(), evt)
 
     def on_aux2_up(self, evt):
-        pass
+        self._send_event(_events.EVT_GL_AUX2_UP, _events.GLEvent(), evt)
 
     def on_aux2_down(self, evt):
-        pass
+        self._send_event(_events.EVT_GL_AUX2_DOWN, _events.GLEvent(), evt)
 
     def on_aux2_dclick(self, evt):
-        pass
+        self._send_event(_events.EVT_GL_AUX2_DCLICK, _events.GLEvent(), evt)
 
     def on_mouse_motion(self, evt):
         refresh = False
@@ -339,6 +405,10 @@ class MouseHandler2D(QtCore.QObject):
                         position = self._drag_obj.obj2d.position
                         position += world_pos - position
 
+                        drag_event = _events.GLObjectEvent()
+                        drag_event.SetGLObject(self._drag_obj)
+                        self._send_event(_events.EVT_GL_OBJECT_DRAG, drag_event, evt)
+
                     refresh = True
 
                 if btns & QtCore.Qt.MouseButton.MiddleButton:
@@ -360,6 +430,8 @@ class MouseHandler2D(QtCore.QObject):
                     self._is_motion = True
                     self._process_mouse(MOUSE_AUX2)(*list(delta)[:-1])
                     refresh = True
+
+        self._send_event(_events.GLEvent(_events.EVT_GL_MOUSE_MOVE), evt)
 
         if refresh:
             self.canvas.update()

@@ -85,40 +85,43 @@ class _EditorModel(QAbstractTableModel):
     def columnCount(self, parent=QModelIndex()):
         if parent.isValid():
             return 0
+
         return len(self._list.column_mapping) + 1  # +1 for icon column
 
-    def headerData(self, section, orientation, role=Qt.DisplayRole):
-        if orientation != Qt.Horizontal or role != Qt.DisplayRole:
+    def headerData(self, section, orientation, role=Qt.ItemDataRole.DisplayRole):
+        if orientation != Qt.Orientation.Horizontal or role != Qt.ItemDataRole.DisplayRole:
             return None
+
         if section == 0:
             return ''
+
         col_key = section - 1
         if col_key in self._list.column_mapping:
             return self._list.column_mapping[col_key][0]
         return None
 
-    def data(self, index, role=Qt.DisplayRole):
+    def data(self, index, role=Qt.ItemDataRole.DisplayRole):
         if not index.isValid():
             return None
 
         row_id = index.row()
         col_id = index.column()
 
-        if role == Qt.DecorationRole and col_id == 0:
+        if role == Qt.ItemDataRole.DecorationRole and col_id == 0:
             return self._list._get_icon(row_id)
 
-        if role == Qt.DisplayRole:
+        if role == Qt.ItemDataRole.DisplayRole:
             if col_id == 0:
                 return None
             return self._list._get_cell_text(row_id, col_id)
 
-        if role == Qt.TextAlignmentRole:
+        if role == Qt.ItemDataRole.TextAlignmentRole:
             col_key = col_id - 1
             if col_key in self._list.column_mapping:
                 _, col_name = self._list.column_mapping[col_key]
                 if col_name == 'model3d_id':
-                    return Qt.AlignCenter
-            return Qt.AlignLeft | Qt.AlignVCenter
+                    return Qt.AlignmentFlag.AlignCenter
+            return Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
 
         return None
 
@@ -183,9 +186,9 @@ class EditorList(QTableView):
         sql = self._effective_query.format(
             sort_column=self.sort_column,
             sort_direction=self.sort_direction,
-            row=row + 1,
-            start_row=row + 1,
-            end_row=row + 1,
+            row=row,
+            start_row=row,
+            end_row=row,
             where_clause=where_sql,
         )
         if self._where_params:
@@ -199,7 +202,7 @@ class EditorList(QTableView):
     def get_row(self, row):
         if row not in self.rows:
             self.buffer_size = self.scroll_tracker.get_buffer_size(row)
-            start_row = max(1, row - self.buffer_size // 2)
+            start_row = max(0, row - self.buffer_size // 2)
             end_row = start_row + self.buffer_size
             self.get_rows(start_row, end_row)
             self.current_row = row
@@ -236,18 +239,23 @@ class EditorList(QTableView):
     def _get_cell_text(self, row_id, col_id):
         if row_id < 0:
             return ''
+
         row = self.get_row(row_id)
+
         if row is None:
             return ''
+
         if self._has_model_3d:
             col_name = self.column_lookup.get(col_id, '')
             if col_name == 'model3d_id':
                 return '\u2714' if row[-2] is not None else ''
+
         return str(row[col_id - 1])
 
     def _get_icon(self, row_id):
         if row_id < 0:
             return None
+
         row = self.get_row(row_id)
         if row is None:
             return None
@@ -268,6 +276,7 @@ class EditorList(QTableView):
                 if image_id not in self.downloading_images:
                     self.mainframe.db_connector.update_monitor.get_image(image_id)
                     self.downloading_images.append(image_id)
+
                 return None
 
             if image_id in self.downloading_images:
@@ -297,7 +306,6 @@ class EditorList(QTableView):
             if count > 0:
                 ScrollTracker.min_buffer = (count + 1) * 2
                 ScrollTracker.max_buffer = (count + 1) * 2 * 20
-            print(ScrollTracker.min_buffer, ScrollTracker.max_buffer)
 
         QTimer.singleShot(0, _do)
 
@@ -327,6 +335,7 @@ class EditorList(QTableView):
 
         if row_id in self.rows:
             del self.rows[row_id]
+        
         self._model.invalidate_row(row_id)
 
     def _on_header_clicked(self, logical_index):

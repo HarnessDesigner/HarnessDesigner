@@ -1,12 +1,13 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from PySide6.QtCore import QTimer
 from typing import TYPE_CHECKING
 
 import multiprocessing
 import threading
 import os
 import json
+
+os.environ['PYTHON_KEYRING_BACKEND'] = 'keyring.backends.Windows.WinVaultKeyring'
 
 from . import manager as _manager
 from ... import config as _config
@@ -109,6 +110,11 @@ def connect_to_database(credentials):
 def process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.Queue,
                    exit_event: multiprocessing.Event, print_lock: multiprocessing.Lock,
                    sleep_event: multiprocessing.Event):
+
+    exit_event.set()  # signal parent: alive and handle duplication succeeded
+
+    while exit_event.is_set():
+        pass  # wait for parent to clear before proceeding
 
     while in_queue.empty():
         pass
@@ -229,6 +235,11 @@ def image_process_worker(in_queue: multiprocessing.Queue,
                          print_lock: multiprocessing.Lock,
                          sleep_event: multiprocessing.Event):
 
+    exit_event.set()  # signal parent: alive
+
+    while exit_event.is_set():
+        pass  # wait for parent to clear
+
     while in_queue.empty():
         pass
 
@@ -298,34 +309,50 @@ class Monitor(threading.Thread):
         self.print_lock = multiprocessing.Lock()
         self.sleep_event = multiprocessing.Event()
 
-        self.out_queue.put(os.getpid())
-
         self.queue_lock = threading.Lock()
         self.exit_event = threading.Event()
         self.queue = []
         self.wait_event = threading.Event()
 
-        threading.Thread.__init__(self, name='db_monitor_thread')
-        self.daemon = True
-
-        self.process = multiprocessing.Process(
-            target=process_worker, args=(self.out_queue, self.in_queue, self.process_exit_event,
-                                         self.print_lock, self.sleep_event))
-
         self.image_out_queue = multiprocessing.Queue()
         self.image_sleep_event = multiprocessing.Event()
         self.image_exit_event = multiprocessing.Event()
 
-        self.image_out_queue.put(os.getpid())
+        threading.Thread.__init__(self, name='db_monitor_thread')
+        self.daemon = True
+
+        self.process = multiprocessing.Process(
+            target=process_worker, args=(self.out_queue, self.in_queue,
+                                         self.process_exit_event,
+                                         self.print_lock, self.sleep_event))
 
         self.image_process = multiprocessing.Process(
-            target=image_process_worker, args=(self.image_out_queue, self.image_exit_event, self.print_lock, self.image_sleep_event))
+            target=image_process_worker, args=(self.image_out_queue, self.image_exit_event,
+                                               self.print_lock, self.image_sleep_event))
 
         self.process.daemon = True
+        self.image_process.daemon = True
 
     def start(self):
         self.process.start()
+        self.process_exit_event.wait(timeout=10.0)
+        if not self.process_exit_event.is_set():
+            raise RuntimeError(
+                'process_worker failed to start within 10 seconds'
+                )
+        self.process_exit_event.clear()
+
         self.image_process.start()
+        self.image_exit_event.wait(timeout=10.0)
+        if not self.image_exit_event.is_set():
+            raise RuntimeError(
+                'image_process_worker failed to start within 10 seconds'
+                )
+        self.image_exit_event.clear()
+
+        self.out_queue.put(os.getpid())
+        self.image_out_queue.put(os.getpid())
+
         threading.Thread.start(self)
 
     def get_image(self, image_id):
@@ -333,6 +360,8 @@ class Monitor(threading.Thread):
         self.image_sleep_event.set()
 
     def run(self):
+        from PySide6.QtCore import QTimer
+
         while not self.exit_event.is_set():
             self.wait_event.wait(Config.monitor_duration)
             self.wait_event.clear()

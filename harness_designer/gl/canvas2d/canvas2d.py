@@ -64,6 +64,10 @@ class Canvas2D(QtWidgets.QWidget):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._ref_count -= 1
 
+    def bind(self, signal_name: str, handler) -> None:
+        """Forward signal connections to the inner QOpenGLWidget canvas."""
+        getattr(self._canvas, signal_name).connect(handler)
+
     def Refresh(self, *_, **__):
         if self._ref_count:
             return

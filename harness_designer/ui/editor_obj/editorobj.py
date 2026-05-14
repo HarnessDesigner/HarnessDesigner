@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout
 from PySide6.QtCore import Qt
+from PySide6 import QtWidgets
 
 
 if TYPE_CHECKING:
@@ -16,15 +17,14 @@ class EditorObj:
         self.editor = EditorObjPanel(mainframe)
         self.mainframe = mainframe
 
-        dock = mainframe._make_dock(
+        self._dock = mainframe._make_dock(
             title='Object Editor',
             name='editor_obj',
             widget=self.editor,
-            area=Qt.RightDockWidgetArea,
+            area=Qt.DockWidgetArea.RightDockWidgetArea,
         )
-        self._dock = dock
-        self._dock.visibilityChanged.connect(self._on_visibility_changed)
-        dock.show()
+        # self._dock.visibilityChanged.connect(self._on_visibility_changed)
+        self._dock.show()
 
     def _on_visibility_changed(self, visible):
         if not visible:

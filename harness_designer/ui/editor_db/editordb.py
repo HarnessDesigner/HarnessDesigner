@@ -3,6 +3,8 @@
 from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import QTabWidget, QWidget
+from PySide6 import QtWidgets
+from PySide6.QtCore import Qt
 
 from . import accessory as _accessory
 from . import boot as _boot
@@ -40,6 +42,15 @@ class EditorDB:
         # The dock widget itself is created and registered by mainframe
         # via mainframe._make_dock('Database Editor', 'editor_db', self.editor, Bottom).
         # EditorDB just stores the reference so callers can reach the panel.
+
+        self._dock = mainframe._make_dock(
+            title='Database Editor',
+            name='editor_db',
+            widget=self.editor,
+            area=Qt.DockWidgetArea.BottomDockWidgetArea,
+        )
+        # self._dock.visibilityChanged.connect(self._on_visibility_changed)
+        self._dock.show()
 
     def Show(self, show=True):
         self.editor.setVisible(show)

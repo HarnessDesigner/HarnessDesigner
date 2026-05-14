@@ -90,11 +90,8 @@ class _Set:
                     line.append(_iter(item, indent + '  '))
                 else:
                     line.append(f'{indent}  {str(item)}')
-            line = ',
-'.join(line)
-            return f'{indent}[' + '
-' + line + '
-' + f'{indent}]'
+            line = ',\n'.join(line)
+            return f'{indent}[' + '\n' + line + '\n' + f'{indent}]'
 
         return _iter(self.items)
 

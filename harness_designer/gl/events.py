@@ -3,24 +3,17 @@
 """
 GL event system — wx → PySide6
 
-wx used wx.NewEventType() + wx.PyEventBinder() + wx.CommandEvent subclasses.
+The EVT_GL_* constants are plain strings that match the Qt Signal names
+declared on the canvas classes.  Passing one to canvas.connect() or
+editor.connect() directly selects the right signal:
 
-Qt equivalent: plain Python objects for the event *data* (replacing
-CommandEvent subclasses), plus Signal objects on the canvas widget.
+    editor3d.connect(EVT_GL_OBJECT_SELECTED, self._on_obj_selected_3d)
 
-The EVT_GL_* names are kept as sentinel objects so that any code that
-compares against them continues to work, but they are no longer wx
-PyEventBinders.  The real signal wiring is done directly on the canvas
-classes using the snake_case signal names (gl_left_down, etc.).
-
-The event *data* classes (GLEvent, GLObjectEvent, GLKeyEvent,
-GLCaptureLostEvent) are completely wx-free — they are plain Python
-objects.  The only behavioural change is that Skip() / StopPropagation()
-are now no-ops:  Qt signals don't propagate through a widget hierarchy
-the way wx events do, so callers that call evt.skip() are fine, and
-callers that relied on StopPropagation() to block parent handlers should
-be reviewed (the canvas handlers in mainframe.py already guard on
-self._obj_handler is not None instead).
+The event data classes (GLEvent, GLObjectEvent, GLKeyEvent,
+GLCaptureLostEvent) are plain Python objects that carry all contextual
+information (positions, button state, the GL object that was hit, etc.)
+to the handler.  They are emitted through the matching Qt Signal and
+received directly by the connected handler — no conversion step needed.
 """
 
 from typing import TYPE_CHECKING
@@ -32,75 +25,63 @@ if TYPE_CHECKING:
 
 
 # ---------------------------------------------------------------------------
-# Sentinel objects — replace wx.PyEventBinder.
-# These are only kept for backward-compat isinstance / identity checks.
-# The real signal plumbing uses string names on QOpenGLWidget subclasses.
+# EVT_GL_* constants — plain strings matching the Signal names on the canvas.
+# Pass directly to editor.connect() / canvas.connect().
 # ---------------------------------------------------------------------------
 
-class _GLEventType:
-    """Lightweight sentinel replacing wx.PyEventBinder."""
-    __slots__ = ('name',)
+EVT_GL_OBJECT_SELECTED      = 'gl_object_selected'
+EVT_GL_OBJECT_UNSELECTED    = 'gl_object_unselected'
+EVT_GL_OBJECT_ACTIVATED     = 'gl_object_activated'
+EVT_GL_OBJECT_RIGHT_CLICK   = 'gl_object_right_click'
+EVT_GL_OBJECT_RIGHT_DCLICK  = 'gl_object_right_dclick'
+EVT_GL_OBJECT_MIDDLE_CLICK  = 'gl_object_middle_click'
+EVT_GL_OBJECT_MIDDLE_DCLICK = 'gl_object_middle_dclick'
+EVT_GL_OBJECT_AUX1_CLICK    = 'gl_object_aux1_click'
+EVT_GL_OBJECT_AUX1_DCLICK   = 'gl_object_aux1_dclick'
+EVT_GL_OBJECT_AUX2_CLICK    = 'gl_object_aux2_click'
+EVT_GL_OBJECT_AUX2_DCLICK   = 'gl_object_aux2_dclick'
+EVT_GL_OBJECT_DRAG          = 'gl_object_drag'
 
-    def __init__(self, name: str):
-        self.name = name
+EVT_GL_KEY_DOWN    = 'gl_key_down'
+EVT_GL_KEY_UP      = 'gl_key_up'
 
-    def __repr__(self):
-        return f'<GLEventType {self.name}>'
+EVT_GL_MOUSE_MOVE   = 'gl_mouse_move'
 
+EVT_GL_CAPTURE_LOST = 'gl_capture_lost'
 
-EVT_GL_OBJECT_SELECTED = _GLEventType('EVT_GL_OBJECT_SELECTED')
-EVT_GL_OBJECT_UNSELECTED = _GLEventType('EVT_GL_OBJECT_UNSELECTED')
-EVT_GL_OBJECT_ACTIVATED = _GLEventType('EVT_GL_OBJECT_ACTIVATED')
-EVT_GL_OBJECT_RIGHT_CLICK = _GLEventType('EVT_GL_OBJECT_RIGHT_CLICK')
-EVT_GL_OBJECT_RIGHT_DCLICK = _GLEventType('EVT_GL_OBJECT_RIGHT_DCLICK')
-EVT_GL_OBJECT_MIDDLE_CLICK = _GLEventType('EVT_GL_OBJECT_MIDDLE_CLICK')
-EVT_GL_OBJECT_MIDDLE_DCLICK = _GLEventType('EVT_GL_OBJECT_MIDDLE_DCLICK')
-EVT_GL_OBJECT_AUX1_CLICK = _GLEventType('EVT_GL_OBJECT_AUX1_CLICK')
-EVT_GL_OBJECT_AUX1_DCLICK = _GLEventType('EVT_GL_OBJECT_AUX1_DCLICK')
-EVT_GL_OBJECT_AUX2_CLICK = _GLEventType('EVT_GL_OBJECT_AUX2_CLICK')
-EVT_GL_OBJECT_AUX2_DCLICK = _GLEventType('EVT_GL_OBJECT_AUX2_DCLICK')
-EVT_GL_OBJECT_DRAG = _GLEventType('EVT_GL_OBJECT_DRAG')
+EVT_GL_LEFT_DOWN    = 'gl_left_down'
+EVT_GL_LEFT_UP      = 'gl_left_up'
+EVT_GL_LEFT_DCLICK  = 'gl_left_dclick'
 
-EVT_GL_KEY_DOWN = _GLEventType('EVT_GL_KEY_DOWN')
-EVT_GL_KEY_UP = _GLEventType('EVT_GL_KEY_UP')
+EVT_GL_RIGHT_DOWN   = 'gl_right_down'
+EVT_GL_RIGHT_UP     = 'gl_right_up'
+EVT_GL_RIGHT_DCLICK = 'gl_right_dclick'
 
-EVT_GL_MOUSE_MOVE = _GLEventType('EVT_GL_MOUSE_MOVE')
+EVT_GL_MIDDLE_DOWN   = 'gl_middle_down'
+EVT_GL_MIDDLE_UP     = 'gl_middle_up'
+EVT_GL_MIDDLE_DCLICK = 'gl_middle_dclick'
 
-EVT_GL_CAPTURE_LOST = _GLEventType('EVT_GL_CAPTURE_LOST')
+EVT_GL_AUX1_DOWN   = 'gl_aux1_down'
+EVT_GL_AUX1_UP     = 'gl_aux1_up'
+EVT_GL_AUX1_DCLICK = 'gl_aux1_dclick'
 
-EVT_GL_LEFT_DOWN = _GLEventType('EVT_GL_LEFT_DOWN')
-EVT_GL_LEFT_UP = _GLEventType('EVT_GL_LEFT_UP')
-EVT_GL_LEFT_DCLICK = _GLEventType('EVT_GL_LEFT_DCLICK')
+EVT_GL_AUX2_DOWN   = 'gl_aux2_down'
+EVT_GL_AUX2_UP     = 'gl_aux2_up'
+EVT_GL_AUX2_DCLICK = 'gl_aux2_dclick'
 
-EVT_GL_RIGHT_DOWN = _GLEventType('EVT_GL_RIGHT_DOWN')
-EVT_GL_RIGHT_UP = _GLEventType('EVT_GL_RIGHT_UP')
-EVT_GL_RIGHT_DCLICK = _GLEventType('EVT_GL_RIGHT_DCLICK')
-
-EVT_GL_MIDDLE_DOWN = _GLEventType('EVT_GL_MIDDLE_DOWN')
-EVT_GL_MIDDLE_UP = _GLEventType('EVT_GL_MIDDLE_UP')
-EVT_GL_MIDDLE_DCLICK = _GLEventType('EVT_GL_MIDDLE_DCLICK')
-
-EVT_GL_AUX1_DOWN = _GLEventType('EVT_GL_AUX1_DOWN')
-EVT_GL_AUX1_UP = _GLEventType('EVT_GL_AUX1_UP')
-EVT_GL_AUX1_DCLICK = _GLEventType('EVT_GL_AUX1_DCLICK')
-
-EVT_GL_AUX2_DOWN = _GLEventType('EVT_GL_AUX2_DOWN')
-EVT_GL_AUX2_UP = _GLEventType('EVT_GL_AUX2_UP')
-EVT_GL_AUX2_DCLICK = _GLEventType('EVT_GL_AUX2_DCLICK')
-
-EVT_GL_DRAG = _GLEventType('EVT_GL_DRAG')
+EVT_GL_DRAG = 'gl_drag'
 
 
 # ---------------------------------------------------------------------------
 # Mouse-button bitmask constants (previously wx.MOUSE_BTN_*)
 # ---------------------------------------------------------------------------
 
-BTN_NONE = 0x00
-BTN_LEFT = 0x01
-BTN_RIGHT = 0x02
+BTN_NONE   = 0x00
+BTN_LEFT   = 0x01
+BTN_RIGHT  = 0x02
 BTN_MIDDLE = 0x04
-BTN_AUX1 = 0x08
-BTN_AUX2 = 0x10
+BTN_AUX1   = 0x08
+BTN_AUX2   = 0x10
 
 
 # ---------------------------------------------------------------------------
@@ -110,27 +91,20 @@ BTN_AUX2 = 0x10
 class _GLEventBase:
     """Common base for all GL event data objects."""
 
-    def __init__(self, type_):
-        self._type = type_
+    def __init__(self):
         self._skipped = False
         self._id = None
         self._obj = None
         self._stop_prop = False
 
-    def GetEventType(self):
-        return self._type
-
     def Skip(self):
         self._skipped = True
 
-    # StopPropagation was used in the old wx code to prevent parent-window
-    # handlers from seeing the event.  Qt signals don't propagate that way,
-    # so this is a no-op kept for call-site compatibility.
     def StopPropagation(self):
         self._stop_prop = True
 
     def ShouldPropagate(self):
-        return self._stop_prop
+        return not self._stop_prop
 
     def SetId(self, id_):
         self._id = id_
@@ -151,18 +125,17 @@ class _GLEventBase:
 
 class GLCaptureLostEvent(_GLEventBase):
     """Emitted when the canvas loses mouse capture."""
+    pass
 
 
 class GLEvent(_GLEventBase):
     """Mouse-position event on a GL canvas."""
 
-    def __init__(self, type_):
-        super().__init__(type_)
+    def __init__(self):
+        super().__init__()
         self._mouse_pos = None
         self._world_pos = None
         self._mouse_buttons: int = BTN_NONE
-
-    # --- button state ---
 
     def RightIsDown(self) -> bool:
         return bool(self._mouse_buttons & BTN_RIGHT)
@@ -184,8 +157,6 @@ class GLEvent(_GLEventBase):
 
     def GetMouseButtons(self) -> int:
         return self._mouse_buttons
-
-    # --- positions ---
 
     def GetPosition(self) -> "_point.Point":
         return self._mouse_pos
@@ -203,14 +174,12 @@ class GLEvent(_GLEventBase):
 class GLObjectEvent(_GLEventBase):
     """Mouse interaction with a specific GL object."""
 
-    def __init__(self, type_):
-        super().__init__(type_)
+    def __init__(self):
+        super().__init__()
         self._gl_object = None
         self._mouse_pos = None
         self._world_pos = None
         self._mouse_buttons: int = BTN_NONE
-
-    # --- button state (same as GLEvent) ---
 
     def RightIsDown(self) -> bool:
         return bool(self._mouse_buttons & BTN_RIGHT)
@@ -233,8 +202,6 @@ class GLObjectEvent(_GLEventBase):
     def GetMouseButtons(self) -> int:
         return self._mouse_buttons
 
-    # --- positions ---
-
     def GetPosition(self) -> "_point.Point":
         return self._mouse_pos
 
@@ -247,8 +214,6 @@ class GLObjectEvent(_GLEventBase):
     def SetWorldPosition(self, pos: "_point.Point") -> None:
         self._world_pos = pos
 
-    # --- GL object ---
-
     def GetGLObject(self) -> "_objects.ObjectBase":
         return self._gl_object
 
@@ -259,8 +224,8 @@ class GLObjectEvent(_GLEventBase):
 class GLKeyEvent(_GLEventBase):
     """Keyboard event on a GL canvas."""
 
-    def __init__(self, type_):
-        super().__init__(type_)
+    def __init__(self):
+        super().__init__()
         self._pos = None
         self._world_pos = None
         self._mouse_event: GLObjectEvent | GLEvent | None = None
@@ -271,7 +236,7 @@ class GLKeyEvent(_GLEventBase):
         self._meta_down = False
         self._raw_ctrl_down = False
         self._shift_down = False
-        self._key_code: int = 0          # Qt.Key value
+        self._key_code: int = 0
         self._raw_key_code: int = 0
         self._raw_key_flags: int = 0
         self._unicode_key: int = 0

@@ -7,6 +7,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout, QHBoxLayout
 )
 from PySide6.QtCore import Qt
+from PySide6 import QtWidgets
+
 import weakref
 
 from ...objects import (
@@ -40,7 +42,13 @@ class ObjectBrowser:
         self.mainframe = mainframe
 
         # Register the panel with the dock system (handled in mainframe)
-        mainframe.add_object_browser_panel(self.editor)
+        self._dock = mainframe._make_dock(
+            title='Object Browser',
+            name='object_browser',
+            widget=self.editor,
+            area=Qt.DockWidgetArea.LeftDockWidgetArea,
+        )
+        self._dock.show()
 
     def add_boot(self, obj: _boot.Boot):
         self.editor.add_boot(obj)

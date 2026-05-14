@@ -3,6 +3,7 @@
 from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import QApplication
+from PySide6 import QtWidgets
 
 from ...gl import canvas2d as _canvas2d
 from ... import config as _config
@@ -18,6 +19,7 @@ Config = _config.Config.editor2d
 class Editor2D:
 
     def __init__(self, mainframe: "_mainframe.MainFrame"):
+
         self.editor = Editor2DPanel(mainframe)
         self.mainframe = mainframe
 
@@ -37,9 +39,6 @@ class Editor2D:
         else:
             self._dock.hide()
 
-    def connect(self, signal_name, handler):
-        getattr(self.editor, signal_name).connect(handler)
-
     def set_selected(self, obj):
         self.editor.set_selected(obj)
 
@@ -55,13 +54,16 @@ class Editor2D:
     def Destroy(self):
         self.editor.deleteLater()
 
+    def bind(self, signal_name, handler):
+        self.editor.bind(signal_name, handler)
+
     def set_clone_obj(self, obj):
         self.editor.set_clone_obj(obj)
 
 
 class Editor2DPanel(_canvas2d.Canvas2D):
 
-    def __init__(self, parent: "_mainframe.MainFrame"):
+    def __init__(self, parent):
         if not Config.virtual_canvas.width or not Config.virtual_canvas.height:
             max_x = 0
             max_y = 0

@@ -151,7 +151,7 @@ class Splash:
     def draw(self, text: str):
         with self._draw_lock:
             w, h = self._size
-            bmp_height = self._img_h - 35
+            bmp_height = self._img_h - 40
             bar_height = h - bmp_height
 
             pixmap = QPixmap(w, h)

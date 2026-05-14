@@ -102,6 +102,8 @@ class _LogModel(QtCore.QAbstractTableModel):
 class VirtualLogListCtrl(QtWidgets.QTableView):
     """Replaces wx.ListCtrl (LC_REPORT | LC_VIRTUAL | LC_SINGLE_SEL)."""
 
+    _append_ready = QtCore.Signal(object)  # carries a pd.DataFrame
+
     def __init__(self, parent):
         super().__init__(parent)
 
@@ -120,17 +122,20 @@ class VirtualLogListCtrl(QtWidgets.QTableView):
         hdr.setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeMode.Stretch)
 
         self._is_destroyed = False
+        self._append_ready.connect(self._do_append, QtCore.Qt.ConnectionType.QueuedConnection)
 
     def Destroy(self):
         self._is_destroyed = True
         self.deleteLater()
 
-    def AppendData(self, data: pd.DataFrame):
-        def _do(new_data):
-            if not self._is_destroyed:
-                self._model.append_data(new_data)
+    def _do_append(self, new_data: pd.DataFrame):
+        if not self._is_destroyed:
+            self._model.append_data(new_data)
 
-        QtCore.QTimer.singleShot(0, lambda d=data: _do(d))
+    def AppendData(self, data: pd.DataFrame):
+        # Emit the signal so the append always runs on the main thread,
+        # even when AppendData is called from a worker thread.
+        self._append_ready.emit(data)
 
     def SetData(self, df: pd.DataFrame):
         self._model.set_data(df)
@@ -141,6 +146,10 @@ class VirtualLogListCtrl(QtWidgets.QTableView):
 # ---------------------------------------------------------------------------
 
 class LogViewerPanel(QtWidgets.QSplitter):
+    # Signal used to marshal worker-thread results back onto the main thread.
+    # QTimer.singleShot called from a plain threading.Thread (which has no Qt
+    # event loop) never fires, so we use a queued signal connection instead.
+    _callback_ready = QtCore.Signal(object)  # carries a zero-argument callable
 
     def __init__(self, parent, logger: "_logger.Log"):
         super().__init__(QtCore.Qt.Orientation.Horizontal, parent)
@@ -171,6 +180,11 @@ class LogViewerPanel(QtWidgets.QSplitter):
         self.treectrl.itemExpanded.connect(self.on_tree_expanding)
         self.treectrl.itemCollapsed.connect(self.on_tree_collapsed)
 
+        # Route worker-thread callbacks safely to the main thread via a queued
+        # signal connection (QTimer.singleShot from a plain threading.Thread has
+        # no event loop to fire in, so it silently never runs).
+        self._callback_ready.connect(self._run_callback, QtCore.Qt.ConnectionType.QueuedConnection)
+
         logger.log_handler.bind(self.new_data)
 
         def _do():
@@ -187,6 +201,10 @@ class LogViewerPanel(QtWidgets.QSplitter):
         self._is_destroyed = True
         self.log_list.Destroy()
         self.deleteLater()
+
+    def _run_callback(self, fn):
+        """Slot that executes a callable posted from a worker thread."""
+        fn()
 
     def _load_current_log_initial(self):
         try:
@@ -267,7 +285,7 @@ class LogViewerPanel(QtWidgets.QSplitter):
 
         def load_dates():
             dates = self._get_dates_in_log(log_path)
-            QtCore.QTimer.singleShot(0, lambda: self._populate_dates(file_item, log_path, dates, item_id))
+            self._callback_ready.emit(lambda: self._populate_dates(file_item, log_path, dates, item_id))
 
         threading.Thread(target=load_dates, daemon=True).start()
 
@@ -290,7 +308,7 @@ class LogViewerPanel(QtWidgets.QSplitter):
 
         def load_hours():
             hours = self._get_hours_in_date(log_path, date_str)
-            QtCore.QTimer.singleShot(0, lambda: self._populate_hours(
+            self._callback_ready.emit(lambda: self._populate_hours(
                 date_item, log_path, date_str, hours, item_id, False))
 
         threading.Thread(target=load_hours, daemon=True).start()
@@ -341,7 +359,7 @@ class LogViewerPanel(QtWidgets.QSplitter):
 
         def load_dates():
             dates = self._get_dates_in_archive(zipfile_obj, filename)
-            QtCore.QTimer.singleShot(0, lambda: self._populate_archive_dates(
+            self._callback_ready.emit(lambda: self._populate_archive_dates(
                 file_item, zipfile_obj, filename, dates, item_id))
 
         threading.Thread(target=load_dates, daemon=True).start()
@@ -368,7 +386,7 @@ class LogViewerPanel(QtWidgets.QSplitter):
 
         def load_hours():
             hours = self._get_hours_in_archive_date(zipfile_obj, filename, date_str)
-            QtCore.QTimer.singleShot(0, lambda: self._populate_hours(
+            self._callback_ready.emit(lambda: self._populate_hours(
                 date_item, None, date_str, hours, item_id, True, zipfile_obj, filename))
 
         threading.Thread(target=load_hours, daemon=True).start()
@@ -385,7 +403,7 @@ class LogViewerPanel(QtWidgets.QSplitter):
                 df = self._filter_by_date_and_hour(df, date_filter, hour_filter)
             elif date_filter:
                 df = self._filter_by_date(df, date_filter)
-            QtCore.QTimer.singleShot(0, lambda: self._display_log_data(df))
+            self._callback_ready.emit(lambda: self._display_log_data(df))
 
         threading.Thread(target=load_data, daemon=True).start()
 
@@ -398,7 +416,7 @@ class LogViewerPanel(QtWidgets.QSplitter):
                 df = self._filter_by_date_and_hour(df, date_filter, hour_filter)
             elif date_filter:
                 df = self._filter_by_date(df, date_filter)
-            QtCore.QTimer.singleShot(0, lambda: self._display_log_data(df))
+            self._callback_ready.emit(lambda: self._display_log_data(df))
 
         threading.Thread(target=load_data, daemon=True).start()
 
@@ -541,11 +559,16 @@ class LogViewerPanel(QtWidgets.QSplitter):
 
 class LogViewer:
 
-    def __init__(self, mainframe: "\"_mainframe.MainFrame\""):
+    def __init__(self, mainframe: "_mainframe.MainFrame"):
         self.viewer = LogViewerPanel(mainframe, mainframe.logger)
         self.mainframe = mainframe
-        self._dock = mainframe._make_dock('Log Viewer', 'log_viewer', self.viewer,
-                                          QtCore.Qt.DockWidgetArea.LeftDockWidgetArea)
+
+        self._dock = mainframe._make_dock(
+            'Log Viewer',
+            'log_viewer',
+            self.viewer,
+            QtCore.Qt.DockWidgetArea.LeftDockWidgetArea
+        )
         self._dock.show()
 
     def Show(self, show=True):
