@@ -50,7 +50,6 @@ class Housing(_ObjectBase):
         self.boot = None
         self.mainframe.add_object(self)
 
-
     def add_cavity(self, cavity: "_pjt_cavity.PJTCavity"):
         pass
 

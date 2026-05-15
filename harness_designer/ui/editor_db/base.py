@@ -335,7 +335,7 @@ class EditorList(QTableView):
 
         if row_id in self.rows:
             del self.rows[row_id]
-        
+
         self._model.invalidate_row(row_id)
 
     def _on_header_clicked(self, logical_index):

@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QDialogButtonBox
+from PySide6 import QtWidgets
 
 from ..widgets import combobox_ctrl as _combobox_ctrl
 from . import dialog_base as _dialog_base
@@ -22,16 +22,18 @@ class OpenProjectDialog(_dialog_base.BaseDialog):
             self.project_ctrl.SetValue(last_project)
 
         # Relabel the OK button to "Open"
-        ok_btn = self.button_box.button(QDialogButtonBox.Ok)
+        ok_btn = self.button_box.button(
+            QtWidgets.QDialogButtonBox.StandardButton.Ok)
+
         if ok_btn is not None:
             ok_btn.setText('Open')
 
-        h_sizer = QHBoxLayout()
+        h_sizer = QtWidgets.QHBoxLayout()
         h_sizer.addSpacing(100)
         h_sizer.addWidget(self.project_ctrl, 1)
         h_sizer.addSpacing(100)
 
-        sizer = QVBoxLayout(self.panel)
+        sizer = QtWidgets.QVBoxLayout(self.panel)
         sizer.addLayout(h_sizer)
 
     def GetValue(self):

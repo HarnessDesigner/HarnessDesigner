@@ -83,11 +83,7 @@ class Project:
 
         self._obj_count = mainframe.project_db.projects_table.get_object_count(project_id)
 
-        pdlg = _project_load.ProjectLoadDialog(mainframe)
-        pdlg.SetRange(self._obj_count)
-        pdlg.Update(0, '')
-        pdlg.Show()
-        QApplication.processEvents()
+        mainframe.start_progress('Loading Project...', self._obj_count)
 
         db_ids = {}
         count = 0
@@ -95,8 +91,7 @@ class Project:
         with self.mainframe.editor3d.context:
             for wire_service_loop in ptables.pjt_wire_service_loops_table:
                 count += 1
-                pdlg.Update(count, 'Loading Wire Service Loop...')
-                QApplication.processEvents()
+                mainframe.set_progress(count, 'Loading Wire Service Loop...')
 
                 obj = _wire_service_loop.WireServiceLoop(mainframe, wire_service_loop)
                 wire_service_loop.merge_packet_data(wire_service_loop.build_monitor_packet(), db_ids)
@@ -106,8 +101,7 @@ class Project:
 
             for wire_marker in ptables.pjt_wire_markers_table:
                 count += 1
-                pdlg.Update(count, 'Loading Wire Marker...')
-                QApplication.processEvents()
+                mainframe.set_progress(count, 'Loading Wire Marker...')
 
                 obj = _wire_marker.WireMarker(mainframe, wire_marker)
                 wire_marker.merge_packet_data(wire_marker.build_monitor_packet(), db_ids)
@@ -117,8 +111,7 @@ class Project:
 
             for note in ptables.pjt_notes_table:
                 count += 1
-                pdlg.Update(count, 'Loading Note...')
-                QApplication.processEvents()
+                mainframe.set_progress(count, 'Loading Note...')
 
                 obj = _note.Note(mainframe, note)
                 note.merge_packet_data(note.build_monitor_packet(), db_ids)
@@ -128,8 +121,7 @@ class Project:
 
             for circuit in ptables.pjt_circuits_table:
                 count += 1
-                pdlg.Update(count, 'Loading Circuit...')
-                QApplication.processEvents()
+                mainframe.set_progress(count, 'Loading Circuit...')
 
                 obj = _circuit.Circuit(mainframe, circuit)
                 circuit.merge_packet_data(circuit.build_monitor_packet(), db_ids)
@@ -139,8 +131,7 @@ class Project:
 
             for boot in ptables.pjt_boots_table:
                 count += 1
-                pdlg.Update(count, 'Loading Boot...')
-                QApplication.processEvents()
+                mainframe.set_progress(count, 'Loading Boot...')
 
                 obj = _boot.Boot(mainframe, boot)
                 boot.merge_packet_data(boot.build_monitor_packet(), db_ids)
@@ -150,8 +141,7 @@ class Project:
 
             for cover in ptables.pjt_covers_table:
                 count += 1
-                pdlg.Update(count, 'Loading Cover...')
-                QApplication.processEvents()
+                mainframe.set_progress(count, 'Loading Cover...')
 
                 obj = _cover.Cover(mainframe, cover)
                 cover.merge_packet_data(cover.build_monitor_packet(), db_ids)
@@ -161,8 +151,7 @@ class Project:
 
             for cpa_lock in ptables.pjt_cpa_locks_table:
                 count += 1
-                pdlg.Update(count, 'Loading CPA Lock...')
-                QApplication.processEvents()
+                mainframe.set_progress(count, 'Loading CPA Lock...')
 
                 obj = _cpa_lock.CPALock(mainframe, cpa_lock)
                 cpa_lock.merge_packet_data(cpa_lock.build_monitor_packet(), db_ids)
@@ -172,8 +161,7 @@ class Project:
 
             for tpa_lock in ptables.pjt_tpa_locks_table:
                 count += 1
-                pdlg.Update(count, 'Loading TPA Lock...')
-                QApplication.processEvents()
+                mainframe.set_progress(count, 'Loading TPA Lock...')
 
                 obj = _tpa_lock.TPALock(mainframe, tpa_lock)
                 tpa_lock.merge_packet_data(tpa_lock.build_monitor_packet(), db_ids)
@@ -183,8 +171,7 @@ class Project:
 
             for seal in ptables.pjt_seals_table:
                 count += 1
-                pdlg.Update(count, 'Loading Seal...')
-                QApplication.processEvents()
+                mainframe.set_progress(count, 'Loading Seal...')
 
                 obj = _seal.Seal(mainframe, seal)
                 seal.merge_packet_data(seal.build_monitor_packet(), db_ids)
@@ -194,8 +181,7 @@ class Project:
 
             for terminal in ptables.pjt_terminals_table:
                 count += 1
-                pdlg.Update(count, 'Loading Terminal...')
-                QApplication.processEvents()
+                mainframe.set_progress(count, 'Loading Terminal...')
 
                 obj = _terminal.Terminal(mainframe, terminal)
                 terminal.merge_packet_data(terminal.build_monitor_packet(), db_ids)
@@ -205,8 +191,7 @@ class Project:
 
             for transition in ptables.pjt_transitions_table:
                 count += 1
-                pdlg.Update(count, 'Loading Transition...')
-                QApplication.processEvents()
+                mainframe.set_progress(count, 'Loading Transition...')
 
                 obj = _transition.Transition(mainframe, transition)
                 transition.merge_packet_data(transition.build_monitor_packet(), db_ids)
@@ -216,8 +201,7 @@ class Project:
 
             for housing in ptables.pjt_housings_table:
                 count += 1
-                pdlg.Update(count, 'Loading Housing...')
-                QApplication.processEvents()
+                mainframe.set_progress(count, 'Loading Housing...')
 
                 obj = _housing.Housing(mainframe, housing)
                 housing.merge_packet_data(housing.build_monitor_packet(), db_ids)
@@ -227,8 +211,7 @@ class Project:
 
             for cavity in ptables.pjt_cavities_table:
                 count += 1
-                pdlg.Update(count, 'Loading Cavity...')
-                QApplication.processEvents()
+                mainframe.set_progress(count, 'Loading Cavity...')
 
                 obj = _cavity.Cavity(mainframe, cavity)
                 housing.merge_packet_data(cavity.build_monitor_packet(), db_ids)
@@ -238,8 +221,7 @@ class Project:
 
             for splice in ptables.pjt_splices_table:
                 count += 1
-                pdlg.Update(count, 'Loading Splice...')
-                QApplication.processEvents()
+                mainframe.set_progress(count, 'Loading Splice...')
 
                 obj = _splice.Splice(mainframe, splice)
                 splice.merge_packet_data(splice.build_monitor_packet(), db_ids)
@@ -249,8 +231,7 @@ class Project:
 
             for wire in ptables.pjt_wires_table:
                 count += 1
-                pdlg.Update(count, 'Loading Wire...')
-                QApplication.processEvents()
+                mainframe.set_progress(count, 'Loading Wire...')
 
                 obj = _wire.Wire(mainframe, wire)
                 wire.merge_packet_data(wire.build_monitor_packet(), db_ids)
@@ -260,8 +241,7 @@ class Project:
 
             for layout in ptables.pjt_wire_layouts_table:
                 count += 1
-                pdlg.Update(count, 'Loading Wire Layout...')
-                QApplication.processEvents()
+                mainframe.set_progress(count, 'Loading Wire Layout...')
 
                 obj = _wire_layout.WireLayout(mainframe, layout)
                 layout.merge_packet_data(layout.build_monitor_packet(), db_ids)
@@ -269,8 +249,7 @@ class Project:
 
             for bundle in ptables.pjt_bundles_table:
                 count += 1
-                pdlg.Update(count, 'Loading Bundle...')
-                QApplication.processEvents()
+                mainframe.set_progress(count, 'Loading Bundle...')
 
                 obj = _bundle.Bundle(mainframe, bundle)
                 bundle.merge_packet_data(bundle.build_monitor_packet(), db_ids)
@@ -280,15 +259,13 @@ class Project:
 
             for layout in ptables.pjt_bundle_layouts_table:
                 count += 1
-                pdlg.Update(count, 'Loading Bundle Layout...')
-                QApplication.processEvents()
+                mainframe.set_progress(count, 'Loading Bundle Layout...')
 
                 obj = _bundle_layout.BundleLayout(mainframe, layout)
                 layout.merge_packet_data(layout.build_monitor_packet(), db_ids)
                 self._bundle_layouts[layout.db_id] = obj
 
-        pdlg.Show(False)
-        pdlg.deleteLater()
+        mainframe.set_progress(self._obj_count, 'DONE!')
 
         for table_name, ids in db_ids.items():
             kwargs = {'type': f'add_{table_name}', 'data': ids}

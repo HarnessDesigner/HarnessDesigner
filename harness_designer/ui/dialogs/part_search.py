@@ -91,8 +91,8 @@ class _FilterPanelBase(QWidget):
 
     def add_reset_button(self, layout):
         line = QFrame(self)
-        line.setFrameShape(QFrame.HLine)
-        line.setFrameShadow(QFrame.Sunken)
+        line.setFrameShape(QFrame.Shape.HLine)
+        line.setFrameShadow(QFrame.Shadow.Sunken)
 
         button = QPushButton('Reset', self)
         button.clicked.connect(self._on_reset_button)
@@ -111,7 +111,9 @@ class _FilterPanelBase(QWidget):
 class FKFilterPanel(_FilterPanelBase):
     kind = FK_FILTER
 
-    def __init__(self, parent, column, ref_table, display_col, label, on_change):
+    def __init__(self, parent, column, ref_table,
+                 display_col, label, on_change):
+
         super().__init__(parent, label, on_change)
         self.column = column
         self.ref_table = ref_table
@@ -124,7 +126,9 @@ class FKFilterPanel(_FilterPanelBase):
         lay.addWidget(title)
 
         self.list = QListWidget(self)
-        self.list.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.list.setSelectionMode(
+            QAbstractItemView.SelectionMode.SingleSelection)
+
         lay.addWidget(self.list, 1)
 
         self.add_reset_button(lay)
@@ -136,14 +140,15 @@ class FKFilterPanel(_FilterPanelBase):
         self.list.clear()
         for d in displays:
             item = QListWidgetItem(str(d))
-            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-            item.setCheckState(Qt.Unchecked)
+            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+            item.setCheckState(Qt.CheckState.Unchecked)
             self.list.addItem(item)
         self.list.blockSignals(False)
 
     def update_availability(self, available) -> None:
         if isinstance(available, list):
             available = set(available)
+
         self._available = available
         normal = self.palette().color(self.foregroundRole())
 
@@ -156,7 +161,7 @@ class FKFilterPanel(_FilterPanelBase):
         displays = [
             self.list.item(i).text()
             for i in range(self.list.count())
-            if self.list.item(i).checkState() == Qt.Checked
+            if self.list.item(i).checkState() == Qt.CheckState.Checked
         ]
 
         if not displays:
@@ -172,12 +177,13 @@ class FKFilterPanel(_FilterPanelBase):
     def clear(self) -> None:
         self.list.blockSignals(True)
         for i in range(self.list.count()):
-            self.list.item(i).setCheckState(Qt.Unchecked)
+            self.list.item(i).setCheckState(Qt.CheckState.Unchecked)
         self.list.blockSignals(False)
 
-    def _on_check(self, item):
+    def _on_check(self, _):
         if self._syncing:
             return
+
         QTimer.singleShot(0, self._sync_and_notify)
 
     def _sync_and_notify(self):
@@ -186,9 +192,11 @@ class FKFilterPanel(_FilterPanelBase):
             if self._available is not None:
                 for i in range(self.list.count()):
                     item = self.list.item(i)
-                    if (item.checkState() == Qt.Checked and
-                            item.text() not in self._available):
-                        item.setCheckState(Qt.Unchecked)
+                    if (
+                        item.checkState() == Qt.CheckState.Checked and
+                        item.text() not in self._available
+                    ):
+                        item.setCheckState(Qt.CheckState.Unchecked)
         finally:
             self._syncing = False
 
@@ -209,7 +217,7 @@ class EnumFilterPanel(_FilterPanelBase):
         lay.addWidget(title)
 
         self.list = QListWidget(self)
-        self.list.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.list.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         lay.addWidget(self.list, 1)
 
         self.add_reset_button(lay)
@@ -219,11 +227,13 @@ class EnumFilterPanel(_FilterPanelBase):
     def populate(self, values: List[int]) -> None:
         self.list.blockSignals(True)
         self.list.clear()
+
         for v in values:
             item = QListWidgetItem(str(v))
-            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-            item.setCheckState(Qt.Unchecked)
+            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+            item.setCheckState(Qt.CheckState.Unchecked)
             self.list.addItem(item)
+
         self.list.blockSignals(False)
 
     def update_availability(self, available) -> None:
@@ -238,6 +248,7 @@ class EnumFilterPanel(_FilterPanelBase):
                 v = int(item.text())
             except ValueError:
                 continue
+
             ok = available is None or v in available
             item.setForeground(normal if ok else DISABLED_COLOUR)
 
@@ -245,7 +256,7 @@ class EnumFilterPanel(_FilterPanelBase):
         vals: List[int] = []
         for i in range(self.list.count()):
             item = self.list.item(i)
-            if item.checkState() == Qt.Checked:
+            if item.checkState() == Qt.CheckState.Checked:
                 try:
                     vals.append(int(item.text()))
                 except ValueError:
@@ -260,12 +271,13 @@ class EnumFilterPanel(_FilterPanelBase):
     def clear(self) -> None:
         self.list.blockSignals(True)
         for i in range(self.list.count()):
-            self.list.item(i).setCheckState(Qt.Unchecked)
+            self.list.item(i).setCheckState(Qt.CheckState.Unchecked)
         self.list.blockSignals(False)
 
-    def _on_check(self, item):
+    def _on_check(self, _):
         if self._syncing:
             return
+
         QTimer.singleShot(0, self._sync_and_notify)
 
     def _sync_and_notify(self):
@@ -274,14 +286,14 @@ class EnumFilterPanel(_FilterPanelBase):
             if self._available is not None:
                 for i in range(self.list.count()):
                     item = self.list.item(i)
-                    if item.checkState() != Qt.Checked:
+                    if item.checkState() != Qt.CheckState.Checked:
                         continue
                     try:
                         v = int(item.text())
                     except ValueError:
                         continue
                     if v not in self._available:
-                        item.setCheckState(Qt.Unchecked)
+                        item.setCheckState(Qt.CheckState.Unchecked)
         finally:
             self._syncing = False
 
@@ -445,7 +457,7 @@ class SearchDialog(_dialog_base.BaseDialog):
 
         try:
             return self.results.get_obj_id(sel)
-        except Exception:
+        except Exception:  # NOQA
             return None
 
     def _build_ui(self) -> None:
@@ -468,14 +480,18 @@ class SearchDialog(_dialog_base.BaseDialog):
 
         # Horizontally scrolling filter strip
         self.filter_scroll = QScrollArea(self)
-        self.filter_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        self.filter_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.filter_scroll.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+
+        self.filter_scroll.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
         self.filter_scroll.setWidgetResizable(True)
         self.filter_scroll.setFixedHeight(PANEL_H + 20)
 
         self._filter_container = QWidget()
         self.filter_sizer = QHBoxLayout(self._filter_container)
-        self.filter_sizer.setAlignment(Qt.AlignLeft)
+        self.filter_sizer.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self.filter_scroll.setWidget(self._filter_container)
 
         outer.addWidget(self.filter_scroll)
@@ -492,11 +508,12 @@ class SearchDialog(_dialog_base.BaseDialog):
         # The page class connects these via standard Qt list signals.
         try:
             self.results.itemSelectionChanged.disconnect()
-        except Exception:
+        except Exception:  # NOQA
             pass
+
         try:
             self.results.itemActivated.disconnect()
-        except Exception:
+        except Exception:  # NOQA
             pass
 
         self.results.itemSelectionChanged.connect(self._on_selection_changed)

@@ -91,11 +91,15 @@ BTN_AUX2   = 0x10
 class _GLEventBase:
     """Common base for all GL event data objects."""
 
-    def __init__(self):
+    def __init__(self, type_):
+        self._type = type_
         self._skipped = False
         self._id = None
         self._obj = None
         self._stop_prop = False
+
+    def GetType(self):
+        return self._type
 
     def Skip(self):
         self._skipped = True
@@ -131,8 +135,8 @@ class GLCaptureLostEvent(_GLEventBase):
 class GLEvent(_GLEventBase):
     """Mouse-position event on a GL canvas."""
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, type_):
+        super().__init__(type_)
         self._mouse_pos = None
         self._world_pos = None
         self._mouse_buttons: int = BTN_NONE
@@ -174,8 +178,8 @@ class GLEvent(_GLEventBase):
 class GLObjectEvent(_GLEventBase):
     """Mouse interaction with a specific GL object."""
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, type_):
+        super().__init__(type_)
         self._gl_object = None
         self._mouse_pos = None
         self._world_pos = None
@@ -224,8 +228,8 @@ class GLObjectEvent(_GLEventBase):
 class GLKeyEvent(_GLEventBase):
     """Keyboard event on a GL canvas."""
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, type_):
+        super().__init__(type_)
         self._pos = None
         self._world_pos = None
         self._mouse_event: GLObjectEvent | GLEvent | None = None

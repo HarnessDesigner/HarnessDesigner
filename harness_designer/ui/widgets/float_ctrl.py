@@ -1,24 +1,11 @@
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QDoubleSpinBox, QSlider
-)
-from PySide6.QtCore import Qt, Signal
+from PySide6 import QtWidgets
+from PySide6 import QtCore
 
-try:
-    from ... import utils as _utils
-    from ...geometry.decimal import Decimal as _d
-except ImportError:
-    from decimal import Decimal as _d
-    class _utils:
-        @staticmethod
-        def remap(value, in_min, in_max, out_min, out_max):
-            span_in = in_max - in_min
-            span_out = out_max - out_min
-            if span_in == 0:
-                return out_min
-            return out_min + (value - in_min) * span_out / span_in
+from ... import utils as _utils
+from ...geometry.decimal import Decimal as _d
 
 
-class FloatCtrl(QWidget):
+class FloatCtrl(QtWidgets.QWidget):
     """Label + QDoubleSpinBox + optional QSlider composite widget.
 
     Replaces the wx.BoxSizer-based FloatCtrl.  Emits value_changed(float)
@@ -26,11 +13,11 @@ class FloatCtrl(QWidget):
     signal instead of binding EVT_SPINCTRLDOUBLE.
     """
 
-    value_changed = Signal(float)
+    value_changed: QtCore.SignalInstance = QtCore.Signal(float)
 
-    def __init__(self, parent=None, label: str = '',
-                 min_val: float = 0.0, max_val: float = 100.0,
-                 inc: float = 1.0, slider: bool = True):
+    def __init__(self, parent, label: str, min_val: float, max_val: float,
+                 inc: float, slider: bool = True):
+
         super().__init__(parent)
 
         self.__min_val = min_val
@@ -43,12 +30,14 @@ class FloatCtrl(QWidget):
         while d_inc < 1:
             precision += 1
             d_inc *= _d('10')
+
         self.__precision = precision
 
         # Compute a sensible initial value (midpoint snapped to increment)
         value_range = _d(str(max_val)) - _d(str(min_val))
         middle = (value_range / _d('2')) + _d(str(min_val))
         d_inc = _d(str(inc))
+
         remaining = middle % d_inc
         if remaining:
             middle += d_inc - remaining
@@ -62,12 +51,12 @@ class FloatCtrl(QWidget):
             self.__s_max = 0
 
         # --- Build UI ---
-        outer = QVBoxLayout(self)
+        outer = QtWidgets.QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
 
-        top = QHBoxLayout()
-        self.st = QLabel(label, self)
-        self.ctrl = QDoubleSpinBox(self)
+        top = QtWidgets.QHBoxLayout()
+        self.st = QtWidgets.QLabel(label, self)
+        self.ctrl = QtWidgets.QDoubleSpinBox(self)
         self.ctrl.setDecimals(precision)
         self.ctrl.setSingleStep(inc)
         self.ctrl.setRange(min_val, max_val)
@@ -79,11 +68,11 @@ class FloatCtrl(QWidget):
 
         if slider:
             slider_val = _utils.remap(middle, min_val, max_val, 0, self.__s_max)
-            self.slider = QSlider(Qt.Horizontal, self)
+            self.slider = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal, self)
             self.slider.setRange(0, self.__s_max)
             self.slider.setValue(int(slider_val))
 
-            bottom = QHBoxLayout()
+            bottom = QtWidgets.QHBoxLayout()
             bottom.addWidget(self.slider)
             outer.addLayout(bottom)
 
@@ -99,8 +88,10 @@ class FloatCtrl(QWidget):
     def _on_slider(self, slider_val: int):
         spin_value = _utils.remap(slider_val, 0, self.__s_max,
                                   self.__min_val, self.__max_val)
+
         d = _d(str(spin_value))
         d_inc = _d(str(self.__increment))
+
         remaining = d % d_inc
         if remaining:
             d += d_inc - remaining
@@ -114,9 +105,11 @@ class FloatCtrl(QWidget):
         if self.slider is not None:
             sv = _utils.remap(spin_value, self.__min_val, self.__max_val,
                               0, self.__s_max)
+
             self.slider.blockSignals(True)
             self.slider.setValue(int(sv))
             self.slider.blockSignals(False)
+
         self.value_changed.emit(spin_value)
 
     # ------------------------------------------------------------------
@@ -125,12 +118,14 @@ class FloatCtrl(QWidget):
     def Enable(self, flag: bool = True):
         self.ctrl.setEnabled(flag)
         self.st.setEnabled(flag)
+
         if self.slider is not None:
             self.slider.setEnabled(flag)
 
     def SetToolTip(self, text: str):
         self.ctrl.setToolTip(text)
         self.st.setToolTip(text)
+
         if self.slider is not None:
             self.slider.setToolTip(text)
 
@@ -140,9 +135,11 @@ class FloatCtrl(QWidget):
         value = round(value, self.__precision)
         d = _d(str(value))
         d_inc = _d(str(self.__increment))
+
         remaining = d % d_inc
         if remaining:
             d += d_inc - remaining
+
         d = max(_d(str(self.__min_val)), min(_d(str(self.__max_val)), d))
 
         self.ctrl.blockSignals(True)
@@ -152,6 +149,7 @@ class FloatCtrl(QWidget):
         if self.slider is not None:
             sv = _utils.remap(float(d), self.__min_val, self.__max_val,
                               0, self.__s_max)
+
             self.slider.blockSignals(True)
             self.slider.setValue(int(sv))
             self.slider.blockSignals(False)

@@ -1,20 +1,31 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from PySide6.QtWidgets import (
-    QDialog, QWidget, QVBoxLayout, QDialogButtonBox, QFrame
-)
-from PySide6.QtCore import Qt
+from typing import TYPE_CHECKING
+
+from PySide6 import QtWidgets
+from PySide6 import QtCore
 
 from . import header as _header
 
+if TYPE_CHECKING:
+    from ... import ui as _ui
 
-class BaseDialog(QDialog):
 
-    def __init__(self, parent, title, size=(-1, -1),
+class BaseDialog(QtWidgets.QDialog):
+
+    def __init__(self, parent: "_ui.MainFrame", title: str, size=(-1, -1),
                  style=None, button_ids=None):
 
-        flags = (Qt.Dialog | Qt.WindowStaysOnTopHint |
-                 Qt.WindowCloseButtonHint | Qt.WindowTitleHint)
+        self.mainframe = parent
+
+        flags = (QtCore.Qt.WindowType.Dialog |
+                 QtCore.Qt.WindowType.WindowStaysOnTopHint |
+                 QtCore.Qt.WindowType.WindowCloseButtonHint |
+                 QtCore.Qt.WindowType.WindowTitleHint)
+
+        if style is not None:
+            flags |= style
+
         super().__init__(parent, flags)
 
         w, h = size
@@ -24,21 +35,22 @@ class BaseDialog(QDialog):
                 h if h != -1 else self.sizeHint().height()
             )
 
-        self.panel = QWidget(self)
+        self.panel = QtWidgets.QWidget(self)
         self.header = _header.Header(self, title)
 
         if button_ids is None:
-            button_ids = QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+            button_ids = (QtWidgets.QDialogButtonBox.StandardButton.Ok |
+                          QtWidgets.QDialogButtonBox.StandardButton.Cancel)
 
-        self.button_box = QDialogButtonBox(button_ids, parent=self)
+        self.button_box = QtWidgets.QDialogButtonBox(button_ids, parent=self)
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
 
-        sep = QFrame(self)
-        sep.setFrameShape(QFrame.HLine)
-        sep.setFrameShadow(QFrame.Sunken)
+        sep = QtWidgets.QFrame(self)
+        sep.setFrameShape(QtWidgets.QFrame.Shape.HLine)
+        sep.setFrameShadow(QtWidgets.QFrame.Shadow.Sunken)
 
-        root = QVBoxLayout(self)
+        root = QtWidgets.QVBoxLayout(self)
         root.setContentsMargins(5, 10, 5, 10)
         root.setSpacing(0)
         root.addWidget(self.header)
@@ -51,10 +63,8 @@ class BaseDialog(QDialog):
 
         if parent is not None:
             self.adjustSize()
-            self.move(
-                parent.mapToGlobal(parent.rect().center()) -
-                self.rect().center()
-            )
+            self.move(parent.mapToGlobal(
+                parent.rect().center()) - self.rect().center())
 
     def GetValue(self):
         raise NotImplementedError

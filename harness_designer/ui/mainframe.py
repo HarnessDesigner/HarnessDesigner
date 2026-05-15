@@ -3,8 +3,16 @@
 from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import (
-    QMainWindow, QStatusBar, QLabel, QDockWidget, QWidget, QMenu, QDialog
+    QMainWindow,
+    QStatusBar,
+    QLabel,
+    QDockWidget,
+    QWidget,
+    QProgressBar,
+    QDialog,
+    QApplication
 )
+
 from PySide6.QtCore import Qt, QTimer, QByteArray
 from PySide6.QtGui import QCursor
 
@@ -117,6 +125,16 @@ class MainFrame(QMainWindow):
         status_bar.addPermanentWidget(self._status_x)
         status_bar.addPermanentWidget(self._status_y)
         status_bar.addPermanentWidget(self._status_z)
+
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 100)  # Set your known max here
+        self.progress_bar.setValue(0)
+        self.progress_bar.setMaximumWidth(300)
+        self.progress_bar.setTextVisible(True)  # Shows "X%" label inside bar
+        self.progress_bar.hide()
+
+        status_bar.addPermanentWidget(self.progress_bar)
+        status_bar.showMessage("Ready")
 
         splash.SetText('Creating 3D editor...')
         splash.flush()
@@ -332,6 +350,22 @@ class MainFrame(QMainWindow):
     # ------------------------------------------------------------------
     # Dock widget factory
     # ------------------------------------------------------------------
+
+    def set_progress(self, value, label=None):
+        if label is not None:
+            self.status_bar.showMessage(label)
+
+        self.progress_bar.setValue(value)
+
+        if value == self.progress_bar.maximum():
+            self.status_bar.showMessage("Ready")
+            self.progress_bar.hide()
+
+    def start_progress(self, label, max_value):
+        self.progress_bar.setRange(0, max_value)
+        self.progress_bar.setValue(0)
+        self.status_bar.showMessage(label)
+        self.progress_bar.show()
 
     def _make_dock(self, title: str, name: str, widget: QWidget,
                    area=None) -> QDockWidget:

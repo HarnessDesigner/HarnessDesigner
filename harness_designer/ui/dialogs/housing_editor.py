@@ -7,11 +7,12 @@ from PySide6.QtWidgets import (
     QGroupBox, QPushButton, QLabel
 )
 from PySide6.QtGui import QPixmap, QPainter, QFont, QColor
-from PySide6.QtCore import Qt
 
+from . import dialog_base as _dialog_base
 from ..widgets import float_ctrl as _float_ctrl
+from . import error as _error_dialog
+from ...gl import vbo as _vbo
 from ..widgets import checkbox_ctrl as _checkbox_ctrl
-from ..widgets import text_ctrl as _text_ctrl
 from ...shapes import box as _box
 from ...shapes import cylinder as _cylinder
 from ...shapes import sphere as _sphere
@@ -297,21 +298,17 @@ class HousingAccessory3D(_base3d.Base3D):
     def __init__(self, parent: HousingAccessory, position: _point.Point):
         self.dialog = parent.dialog
 
-        angle = _angle.Angle()
+        angle = _angle.Angle.from_euler(0.0, 0.0, 0.0)
         scale = _point.Point(3.0, 3.0, 3.0)
 
         self._position = position.copy()
+        vbo = _sphere.create_vbo()
 
-        vertices, faces = _sphere.create(1.0, 20)
-        vertices += self._position
-
-        data = _utils.compute_smoothed_vertex_normals(vertices, faces)
         material_color = _color.Color(0.8, 0.2, 0.8, 0.99)
         material = _materials.Plastic(material_color)
 
-        _base3d.Base3D.__init__(self, parent, None, None,
-                                angle, self._position, scale,
-                                material, data=data)
+        _base3d.Base3D.__init__(self, parent, None, vbo, angle,
+                                self._position, scale, material)
 
         self._selected_material = _materials.Plastic(
             _color.Color(0.8, 0.8, 0.2, 0.99))
@@ -339,16 +336,72 @@ class Housing3D(_base3d.Base3D):
         self.db_obj = db_obj
 
         self._angle = db_obj.angle3d
-        self._position = db_obj.point3d
+        self._position = _point.Point(0.0, 0.0, 0.0)
         scale = db_obj.scale
+
+        model = db_obj.model3d
+
+        if model is None:
+            length = db_obj.length
+            width = db_obj.width
+            height = db_obj.height
+
+            parent.dialog.mainframe.status_bar.showMessage()
+
+            if 0.0 in (length, width, height):
+                length_ctrl = _float_ctrl.FloatCtrl(None, 'Length',
+                                                    0.01, 500.0, 0.01)
+
+                width_ctrl = _float_ctrl.FloatCtrl(None, 'Width',
+                                                   0.01, 500.0, 0.01)
+
+                height_ctrl = _float_ctrl.FloatCtrl(None, 'Height',
+                                                    0.01, 500.0, 0.01)
+
+                length_ctrl.SetValue(length)
+                width_ctrl.SetValue(width)
+                height_ctrl.SetValue(height)
+
+                dlg = _error_dialog.ErrorDialog(
+                    parent.dialog.mainframe,
+                    'Dimensions are not valid.\n\nPlease set correct dimensions.',
+                    'Dimension Error', length_ctrl, width_ctrl, height_ctrl)
+
+                while 0.0 in (length, width, height):
+                    dlg.exec()
+                    length = length_ctrl.GetValue()
+                    width = width_ctrl.GetValue()
+                    height = height_ctrl.GetValue()
+
+                db_obj.length = length
+                db_obj.width = width
+                db_obj.height = height
+
+            vertices, faces = _box.create(width, height, length)
+            data = _utils.compute_vertex_normals(vertices, faces)
+            vbo = None
+            position3d = _point.Point(0.0, 0.0, 0.0)
+            angle3d = _angle.Angle.from_euler(0.0, 0.0, 0.0)
+        else:
+            uuid = model.uuid
+            scale = _point.Point(1.0, 1.0, 1.0)
+            data = None
+            position3d = model.position3d
+            angle3d = model.angle3d
+
+            if uuid in _vbo.VBOHandler:
+                vbo = _vbo.VBOHandler(uuid)
+            else:
+                vertices, faces = model.load()
+                verts, nrmls, faces, count = _utils.compute_vbo_smoothed_vertex_normals(vertices, faces)
+
+                vbo = _vbo.VBOHandler(uuid, verts, nrmls, faces, count)
 
         material_color = _color.Color(0.6, 0.6, 0.8, 1.0)
         material = _materials.Plastic(material_color)
 
-        data = _utils.compute_vertex_normals(*db_obj.mesh) if db_obj.mesh else None
-
-        _base3d.Base3D.__init__(self, parent, db_obj, None,
-                                self._angle, self._position, scale,
+        _base3d.Base3D.__init__(self, parent, db_obj, vbo,
+                                angle3d, position3d, scale,
                                 material, data=data)
 
         self._selected_material = _materials.Plastic(
@@ -395,32 +448,46 @@ class CavityPanel(QScrollArea):
 
         self.cavity_name = _combobox_ctrl.ComboBoxCtrl(
             cavity_group, 'Name:', self.cavity_names)
+
         self.cavity_name.setToolTip(
             'Select OR enter a new name and then press enter to add.')
+
         self.cavity_name.currentTextChanged.connect(self._on_cavity_name_changed)
         left_layout.addWidget(self.cavity_name)
 
-        self.change_name = _checkbox_ctrl.CheckboxCtrl(cavity_group, 'Change Name:')
+        self.change_name = _checkbox_ctrl.CheckboxCtrl(
+            cavity_group, 'Change Name:')
+
         self.change_name.setToolTip(
             'Changes the selected cavities name to the name entered above.')
-        self.change_name.setEnabled(False)
+
+        self.change_name.Enable(False)
         left_layout.addWidget(self.change_name)
 
-        self.cavity_type = _checkbox_ctrl.CheckboxCtrl(cavity_group, 'Is Round:')
-        self.cavity_type.setEnabled(False)
-        self.cavity_type.stateChanged.connect(lambda _: self.on_cavity_type())
+        self.cavity_type = _checkbox_ctrl.CheckboxCtrl(
+            cavity_group, 'Is Round:')
+
+        self.cavity_type.Enable(False)
+        self.cavity_type.checkStateChanged.connect(lambda _: self.on_cavity_type())
         left_layout.addWidget(self.cavity_type)
 
-        self.cavity_autoplace = _checkbox_ctrl.CheckboxCtrl(cavity_group, 'Use in Autoplace:')
-        self.cavity_autoplace.setEnabled(False)
-        self.cavity_autoplace.stateChanged.connect(lambda _: self.on_cavity_autoplace())
+        self.cavity_autoplace = _checkbox_ctrl.CheckboxCtrl(
+            cavity_group, 'Use in Autoplace:')
+
+        self.cavity_autoplace.Enable(False)
+        self.cavity_autoplace.checkStateChanged.connect(
+            lambda _: self.on_cavity_autoplace())
+
         left_layout.addWidget(self.cavity_autoplace)
 
         self.cavity_terminal_sizes = _combobox_ctrl.ComboBoxCtrl(
             cavity_group, 'Terminal Sizes', [])
-        self.cavity_terminal_sizes.setEnabled(False)
+
+        self.cavity_terminal_sizes.Enable(False)
+
         self.cavity_terminal_sizes.currentTextChanged.connect(
             self.on_cavity_terminal_sizes)
+
         left_layout.addWidget(self.cavity_terminal_sizes)
 
         btn_row = QHBoxLayout()
@@ -444,20 +511,26 @@ class CavityPanel(QScrollArea):
         pos_layout = QVBoxLayout(pos_group)
 
         self.cavity_x_pos = _float_ctrl.FloatCtrl(
-            pos_group, 'X:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
-        self.cavity_x_pos.setEnabled(False)
+            pos_group, 'X:', min_val=-999.0,
+            max_val=999.0, inc=0.01, slider=True)
+
+        self.cavity_x_pos.Enable(False)
         self.cavity_x_pos.value_changed.connect(self.on_cavity_x_pos)
         pos_layout.addWidget(self.cavity_x_pos)
 
         self.cavity_y_pos = _float_ctrl.FloatCtrl(
-            pos_group, 'Y:', min_val=0.0, max_val=999.0, inc=0.01, slider=True)
-        self.cavity_y_pos.setEnabled(False)
+            pos_group, 'Y:', min_val=0.0,
+            max_val=999.0, inc=0.01, slider=True)
+
+        self.cavity_y_pos.Enable(False)
         self.cavity_y_pos.value_changed.connect(self.on_cavity_y_pos)
         pos_layout.addWidget(self.cavity_y_pos)
 
         self.cavity_z_pos = _float_ctrl.FloatCtrl(
-            pos_group, 'Z:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
-        self.cavity_z_pos.setEnabled(False)
+            pos_group, 'Z:', min_val=-999.0,
+            max_val=999.0, inc=0.01, slider=True)
+
+        self.cavity_z_pos.Enable(False)
         self.cavity_z_pos.value_changed.connect(self.on_cavity_z_pos)
         pos_layout.addWidget(self.cavity_z_pos)
         cavity_layout.addWidget(pos_group)
@@ -467,20 +540,26 @@ class CavityPanel(QScrollArea):
         size_layout = QVBoxLayout(size_group)
 
         self.cavity_x_size = _float_ctrl.FloatCtrl(
-            size_group, 'X:', min_val=0.0, max_val=999.0, inc=0.01, slider=True)
-        self.cavity_x_size.setEnabled(False)
+            size_group, 'X:', min_val=0.0,
+            max_val=999.0, inc=0.01, slider=True)
+
+        self.cavity_x_size.Enable(False)
         self.cavity_x_size.value_changed.connect(self.on_cavity_x_size)
         size_layout.addWidget(self.cavity_x_size)
 
         self.cavity_y_size = _float_ctrl.FloatCtrl(
-            size_group, 'Y:', min_val=0.1, max_val=999.0, inc=0.01, slider=True)
-        self.cavity_y_size.setEnabled(False)
+            size_group, 'Y:', min_val=0.1,
+            max_val=999.0, inc=0.01, slider=True)
+
+        self.cavity_y_size.Enable(False)
         self.cavity_y_size.value_changed.connect(self.on_cavity_y_size)
         size_layout.addWidget(self.cavity_y_size)
 
         self.cavity_z_size = _float_ctrl.FloatCtrl(
-            size_group, 'Z:', min_val=0.1, max_val=999.0, inc=0.01, slider=True)
-        self.cavity_z_size.setEnabled(False)
+            size_group, 'Z:', min_val=0.1,
+            max_val=999.0, inc=0.01, slider=True)
+
+        self.cavity_z_size.Enable(False)
         self.cavity_z_size.value_changed.connect(self.on_cavity_z_size)
         size_layout.addWidget(self.cavity_z_size)
         cavity_layout.addWidget(size_group)
@@ -490,20 +569,26 @@ class CavityPanel(QScrollArea):
         angle_layout = QVBoxLayout(angle_group)
 
         self.cavity_x_angle = _float_ctrl.FloatCtrl(
-            angle_group, 'X:', min_val=-180.0, max_val=180.0, inc=0.01, slider=True)
-        self.cavity_x_angle.setEnabled(False)
+            angle_group, 'X:', min_val=-180.0,
+            max_val=180.0, inc=0.01, slider=True)
+
+        self.cavity_x_angle.Enable(False)
         self.cavity_x_angle.value_changed.connect(self.on_cavity_x_angle)
         angle_layout.addWidget(self.cavity_x_angle)
 
         self.cavity_y_angle = _float_ctrl.FloatCtrl(
-            angle_group, 'Y:', min_val=-180.0, max_val=180.0, inc=0.01, slider=True)
-        self.cavity_y_angle.setEnabled(False)
+            angle_group, 'Y:', min_val=-180.0,
+            max_val=180.0, inc=0.01, slider=True)
+
+        self.cavity_y_angle.Enable(False)
         self.cavity_y_angle.value_changed.connect(self.on_cavity_y_angle)
         angle_layout.addWidget(self.cavity_y_angle)
 
         self.cavity_z_angle = _float_ctrl.FloatCtrl(
-            angle_group, 'Z:', min_val=-180.0, max_val=180.0, inc=0.01, slider=True)
-        self.cavity_z_angle.setEnabled(False)
+            angle_group, 'Z:', min_val=-180.0,
+            max_val=180.0, inc=0.01, slider=True)
+
+        self.cavity_z_angle.Enable(False)
         self.cavity_z_angle.value_changed.connect(self.on_cavity_z_angle)
         angle_layout.addWidget(self.cavity_z_angle)
         cavity_layout.addWidget(angle_group)
@@ -522,7 +607,7 @@ class CavityPanel(QScrollArea):
         self.on_cavity_name(name)
 
     def on_cavity_autoplace(self):
-        value = self.cavity_autoplace.isChecked()
+        value = self.cavity_autoplace.GetValue()
         self.cavity.autoplace = value
 
         count = sum(1 for c in self.cavities if c.autoplace)
@@ -582,7 +667,7 @@ class CavityPanel(QScrollArea):
                     break
             return
 
-        if self.change_name.isChecked():
+        if self.change_name.GetValue():
             if name in self.cavity_names:
                 raise RuntimeError
             else:
@@ -592,7 +677,8 @@ class CavityPanel(QScrollArea):
                 self.cavity_names = sorted(self.cavity_names)
                 self.cavity_name.SetItems(self.cavity_names)
                 self.cavity_name.SetValue(name)
-                self.change_name.setChecked(False)
+                self.change_name.SetValue(False)
+
         elif name in self.cavity_names:
             for cavity in self.cavities:
                 if cavity.name == name:
@@ -643,7 +729,7 @@ class CavityPanel(QScrollArea):
                 cavity.set_selected(True)
 
     def on_cavity_type(self):
-        self.cavity.is_round = self.cavity_type.isChecked()
+        self.cavity.is_round = self.cavity_type.GetValue()
 
     def on_cavity_x_pos(self, x):
         self.cavity_pos.unbind(self.on_cavity_pos)
@@ -709,7 +795,7 @@ class CavityPanel(QScrollArea):
                      self.remove_cavity):
             ctrl.setEnabled(enabled)
 
-        self.change_name.setChecked(False)
+        self.change_name.SetValue(False)
 
         if self.cavity is not None:
             self.cavity_pos.unbind(self.on_cavity_pos)
@@ -727,7 +813,7 @@ class CavityPanel(QScrollArea):
             self.cavity_angle_ref.bind(self.on_cavity_angle)
 
             self.cavity_name.SetValue(cavity.name)
-            self.cavity_type.setChecked(cavity.is_round)
+            self.cavity_type.SetValue(cavity.is_round)
 
             choices = [str(item) for item in cavity.terminal_sizes]
             choices.insert(0, '')
@@ -869,20 +955,28 @@ class HousingPanel(QScrollArea):
         y_ctrl.SetValue(y)
         z_ctrl.SetValue(z)
 
-    def on_boot_pos(self, p): self._sync_pos(self.boot_x_pos, self.boot_y_pos, self.boot_z_pos, p)
-    def on_cpa_pos(self, p): self._sync_pos(self.cpa_x_pos, self.cpa_y_pos, self.cpa_z_pos, p)
-    def on_cover_pos(self, p): self._sync_pos(self.cover_x_pos, self.cover_y_pos, self.cover_z_pos, p)
-    def on_tpa1_pos(self, p): self._sync_pos(self.tpa1_x_pos, self.tpa1_y_pos, self.tpa1_z_pos, p)
-    def on_tpa2_pos(self, p): self._sync_pos(self.tpa2_x_pos, self.tpa2_y_pos, self.tpa2_z_pos, p)
-    def on_seal_pos(self, p): self._sync_pos(self.seal_x_pos, self.seal_y_pos, self.seal_z_pos, p)
+    def on_boot_pos(self, p):
+        self._sync_pos(self.boot_x_pos, self.boot_y_pos, self.boot_z_pos, p)
 
+    def on_cpa_pos(self, p):
+        self._sync_pos(self.cpa_x_pos, self.cpa_y_pos, self.cpa_z_pos, p)
 
-from . import dialog_base as _dialog_base
+    def on_cover_pos(self, p):
+        self._sync_pos(self.cover_x_pos, self.cover_y_pos, self.cover_z_pos, p)
+
+    def on_tpa1_pos(self, p):
+        self._sync_pos(self.tpa1_x_pos, self.tpa1_y_pos, self.tpa1_z_pos, p)
+
+    def on_tpa2_pos(self, p):
+        self._sync_pos(self.tpa2_x_pos, self.tpa2_y_pos, self.tpa2_z_pos, p)
+
+    def on_seal_pos(self, p):
+        self._sync_pos(self.seal_x_pos, self.seal_y_pos, self.seal_z_pos, p)
 
 
 class HousingEditorDialog(_dialog_base.BaseDialog):
 
-    def __init__(self, parent, db_obj):
+    def __init__(self, parent: "_ui.mainframe", db_obj):
         self.db_obj = db_obj
 
         _dialog_base.BaseDialog.__init__(self, parent,

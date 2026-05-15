@@ -1,10 +1,9 @@
-from PySide6.QtWidgets import (
-    QWidget, QHBoxLayout, QLabel, QLineEdit, QTextEdit, QPushButton
-)
-from PySide6.QtCore import Qt, QTimer, Signal
+
+from PySide6 import QtWidgets
+from PySide6 import QtCore
 
 
-class TextCtrl(QWidget):
+class TextCtrl(QtWidgets.QWidget):
     """Label + text input + optional Apply button composite widget.
 
     Replaces the wx.BoxSizer-based TextCtrl.
@@ -25,45 +24,53 @@ class TextCtrl(QWidget):
     text_committed()  - Enter pressed (apply_button=False, single-line only)
     """
 
-    apply_clicked = Signal()
-    text_committed = Signal()
+    apply_clicked: QtCore.SignalInstance = QtCore.Signal()
+    text_committed: QtCore.SignalInstance = QtCore.Signal()
+    text_changed: QtCore.SignalInstance = QtCore.Signal(str)
 
-    def __init__(self, parent=None, label: str = '', size=None,
-                 style: int = 0, apply_button: bool = True,
-                 hslider: bool = True, readonly: bool = False,
-                 multiline: bool = False):
+    def __init__(self, parent=None, label: str = '', size=None, style: int = 0,
+                 apply_button: bool = True, hslider: bool = True,
+                 readonly: bool = False, multiline: bool = False):
+
         super().__init__(parent)
         self._show_apply_button = apply_button
         self._original_text = ''
         self._multiline = multiline
 
-        layout = QHBoxLayout(self)
+        layout = QtWidgets.QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        self.st = QLabel(label, self)
+        self.st = QtWidgets.QLabel(label, self)
 
         if multiline:
-            self.ctrl = QTextEdit(self)
+            self.ctrl = QtWidgets.QTextEdit(self)
             self.ctrl.setReadOnly(readonly)
+
             if not hslider:
-                self.ctrl.setLineWrapMode(QTextEdit.WidgetWidth)
+                self.ctrl.setLineWrapMode(QtWidgets.QTextEdit.LineWrapMode.WidgetWidth)
             else:
-                self.ctrl.setLineWrapMode(QTextEdit.NoWrap)
+                self.ctrl.setLineWrapMode(QtWidgets.QTextEdit.LineWrapMode.NoWrap)
+
             if size:
-                self.ctrl.setFixedSize(*size)
-            layout.addWidget(self.st, 1, Qt.AlignTop)
+                w, h = size
+                self.ctrl.setFixedSize(w, h)
+
+            layout.addWidget(self.st, 1, QtCore.Qt.AlignmentFlag.AlignTop)
             layout.addWidget(self.ctrl, 4)
         else:
-            self.ctrl = QLineEdit(self)
+            self.ctrl = QtWidgets.QLineEdit(self)
             self.ctrl.setReadOnly(readonly)
+
             if size and size[0] > 0:
+
                 self.ctrl.setFixedWidth(size[0])
+
             layout.addWidget(self.st, 1)
             layout.addWidget(self.ctrl, 4)
             self.ctrl.returnPressed.connect(self._on_enter)
 
         if apply_button:
-            self.apply_button = QPushButton('Apply', self)
+            self.apply_button = QtWidgets.QPushButton('Apply', self)
             self.apply_button.setEnabled(False)
             layout.addWidget(self.apply_button, 1)
             self.apply_button.clicked.connect(self._on_apply)
@@ -72,20 +79,31 @@ class TextCtrl(QWidget):
                 self.ctrl.textChanged.connect(self._on_text_changed_multi)
             else:
                 self.ctrl.textChanged.connect(self._on_text_changed)
+
         else:
             self.apply_button = None
+
+        # Always forward the inner control's text-change to our public signal
+        # so callers never need to reach inside via .ctrl
+        if multiline:
+            self.ctrl.textChanged.connect(
+                lambda: self.text_changed.emit(self.ctrl.toPlainText()))
+        else:
+            self.ctrl.textChanged.connect(self.text_changed.emit)
 
     # ------------------------------------------------------------------
     # Internal
     # ------------------------------------------------------------------
     def _on_text_changed(self, text: str):
-        QTimer.singleShot(0, lambda: self.apply_button.setEnabled(
-            text != self._original_text))
+        QtCore.QTimer.singleShot(
+            0, lambda: self.apply_button.setEnabled(text != self._original_text))
 
     def _on_text_changed_multi(self):
-        text = self.ctrl.toPlainText()
-        QTimer.singleShot(0, lambda: self.apply_button.setEnabled(
-            text != self._original_text))
+        if isinstance(self.ctrl, QtWidgets.QTextEdit):
+            text = self.ctrl.toPlainText()
+
+            QtCore.QTimer.singleShot(
+                0, lambda: self.apply_button.setEnabled(text != self._original_text))
 
     def _on_enter(self):
         if self._show_apply_button:
@@ -104,6 +122,7 @@ class TextCtrl(QWidget):
     def Enable(self, flag: bool = True):
         self.ctrl.setEnabled(flag)
         self.st.setEnabled(flag)
+
         if self._show_apply_button:
             if flag:
                 cur = self.GetValue()
@@ -119,7 +138,7 @@ class TextCtrl(QWidget):
 
     def SetValue(self, value: str):
         self._original_text = value
-        if self._multiline:
+        if isinstance(self.ctrl, QtWidgets.QTextEdit):
             self.ctrl.blockSignals(True)
             self.ctrl.setPlainText(value)
             self.ctrl.blockSignals(False)
@@ -127,10 +146,29 @@ class TextCtrl(QWidget):
             self.ctrl.blockSignals(True)
             self.ctrl.setText(value)
             self.ctrl.blockSignals(False)
+
         if self.apply_button is not None:
             self.apply_button.setEnabled(False)
 
     def GetValue(self) -> str:
-        if self._multiline:
+        if isinstance(self.ctrl, QtWidgets.QTextEdit):
             return self.ctrl.toPlainText()
+
         return self.ctrl.text()
+
+    # ------------------------------------------------------------------
+    # Forwarding helpers — let callers interact with appearance / completion
+    # without reaching into the private .ctrl attribute directly
+    # ------------------------------------------------------------------
+    def setCompleter(self, completer):
+        """Forward to the inner QLineEdit (single-line only)."""
+        if not self._multiline:
+            self.ctrl.setCompleter(completer)
+
+    def inputPalette(self):
+        """Return the palette of the inner input control."""
+        return self.ctrl.palette()
+
+    def setInputPalette(self, palette):
+        """Apply *palette* to the inner input control."""
+        self.ctrl.setPalette(palette)
