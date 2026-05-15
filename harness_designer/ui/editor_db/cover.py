@@ -47,8 +47,8 @@ class CoversPage(_base.EditorList):
 
     column_mapping = {
         0: ('DB ID', 'id'),
-        1: ('Part Number', 'part_number'),
-        2: ('Description', 'description'),
+        1: ('Part Number', 'part_number', True),
+        2: ('Description', 'description', True),
         3: ('Manufacturer', 'mfg_name'),
         4: ('Family', 'family_name'),
         5: ('Series', 'series_name'),

@@ -52,15 +52,15 @@ class BootsPage(_base.EditorList):
     '''
 
     column_mapping = {
-        0: ('DB ID', 'id'),
-        1: ('Part Number', 'part_number'),
+        0: ('DB ID', 'id', True),
+        1: ('Part Number', 'part_number', True),
         2: ('Description', 'description'),
         3: ('Manufacturer', 'mfg_name'),
         4: ('Family', 'family_name'),
         5: ('Series', 'series_name'),
         6: ('Color', 'color_name'),
         7: ('Material', 'material_name'),
-        8: ('Direction', 'firection_name'),
+        8: ('Direction', 'direction_name'),
         9: ('Temperature (min)', 'min_temp_name'),
         10: ('Temperature (max)', 'max_temp_name'),
         11: ('Protections', 'protection_name'),

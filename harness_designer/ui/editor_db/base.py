@@ -1,22 +1,17 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 import time
-from typing import TYPE_CHECKING
-
-from PySide6.QtCore import (
-    Qt, QAbstractTableModel, QModelIndex, QTimer, QSize
-)
+from PySide6.QtCore import Qt, QAbstractTableModel, QModelIndex, QTimer, QSize
 from PySide6.QtGui import QPixmap, QIcon
-from PySide6.QtWidgets import (
-    QTableView, QAbstractItemView, QHeaderView, QApplication
-)
+from PySide6.QtWidgets import QTableView, QAbstractItemView, QHeaderView
 
 from . import edit_dialog as _edit_dialog
 from ... import config as _config
 
 
 def _inject_where_placeholder(query: str) -> str:
-    """Insert a ``{where_clause}`` format placeholder into one of the
+    """
+    Insert a ``{where_clause}`` format placeholder into one of the
     EditorList page query templates, immediately before the close-paren
     that terminates the innermost SELECT.
 
@@ -38,12 +33,15 @@ def _inject_where_placeholder(query: str) -> str:
     pos = query.find('WHERE RowNum BETWEEN')
     if pos == -1:
         return query
+
     outer_close = query.rfind(')', 0, pos)
     if outer_close == -1:
         return query
+
     inner_close = query.rfind(')', 0, outer_close)
     if inner_close == -1:
         return query
+
     return query[:inner_close] + '{where_clause}\n        ' + query[inner_close:]
 
 
@@ -62,16 +60,26 @@ class ScrollTracker:
     def get_buffer_size(self, current_row):
         now = time.monotonic_ns()
         elapsed = (now - self.last_time) * 1e-9
-        velocity = abs(current_row - self.last_row) / elapsed if elapsed else 0
+
+        if elapsed:
+            velocity = abs(current_row - self.last_row) / elapsed
+        else:
+            velocity = 0
+
         self.last_row = current_row
         self.last_time = now
+
         return int(min(self.max_buffer, max(self.min_buffer, velocity * 1.5)))
 
 
 class _EditorModel(QAbstractTableModel):
-    """Qt model backing EditorList. Feeds data on demand from the DB via
+    """
+    Qt model backing EditorList
+
+    Feeds data on demand from the DB via
     the same row-cache and buffer strategy as the original wx.ListCtrl
-    virtual implementation."""
+    virtual implementation.
+    """
 
     def __init__(self, editor_list):
         super().__init__()
@@ -80,54 +88,63 @@ class _EditorModel(QAbstractTableModel):
     def rowCount(self, parent=QModelIndex()):
         if parent.isValid():
             return 0
-        return self._list._row_count
+
+        return self._list._row_count  # NOQA
 
     def columnCount(self, parent=QModelIndex()):
         if parent.isValid():
             return 0
 
-        return len(self._list.column_mapping) + 1  # +1 for icon column
+        # +1 for icon column
+        return len(self._list.column_mapping) + 1
 
     def headerData(self, section, orientation, role=Qt.ItemDataRole.DisplayRole):
-        if orientation != Qt.Orientation.Horizontal or role != Qt.ItemDataRole.DisplayRole:
-            return None
+        if (
+            orientation != Qt.Orientation.Horizontal or
+            role != Qt.ItemDataRole.DisplayRole
+        ):
+            return
 
         if section == 0:
             return ''
 
         col_key = section - 1
         if col_key not in self._list.column_mapping:
-            return None
+            return
 
         label = self._list.column_mapping[col_key][0]
 
         # Find this column in the sort stack and annotate the label.
         col_name = self._list.column_mapping[col_key][1]
-        for priority, (sort_col, direction) in enumerate(self._list.sort_columns, start=1):
+
+        enumerated_data = enumerate(self._list.sort_columns, start=1)
+        for priority, (sort_col, direction) in enumerated_data:
             if sort_col == col_name:
                 # ASC = A at top, Z at bottom → triangle points down ▼
                 # DESC = Z at top, A at bottom → triangle points up ▲
                 triangle = '▼' if direction == 'ASC' else '▲'
                 if len(self._list.sort_columns) > 1:
                     return f'{label} {triangle}({priority})'
+
                 return f'{label} {triangle}'
 
         return label
 
     def data(self, index, role=Qt.ItemDataRole.DisplayRole):
         if not index.isValid():
-            return None
+            return
 
         row_id = index.row()
         col_id = index.column()
 
         if role == Qt.ItemDataRole.DecorationRole and col_id == 0:
-            return self._list._get_icon(row_id)
+            return self._list._get_icon(row_id)  # NOQA
 
         if role == Qt.ItemDataRole.DisplayRole:
             if col_id == 0:
-                return None
-            return self._list._get_cell_text(row_id, col_id)
+                return
+
+            return self._list._get_cell_text(row_id, col_id)  # NOQA
 
         if role == Qt.ItemDataRole.TextAlignmentRole:
             col_key = col_id - 1
@@ -135,15 +152,12 @@ class _EditorModel(QAbstractTableModel):
                 _, col_name = self._list.column_mapping[col_key]
                 if col_name == 'model3d_id':
                     return Qt.AlignmentFlag.AlignCenter
+
             return Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
 
-        return None
-
     def invalidate_row(self, row_id):
-        self.dataChanged.emit(
-            self.index(row_id, 0),
-            self.index(row_id, self.columnCount() - 1)
-        )
+        self.dataChanged.emit(self.index(row_id, 0),
+                              self.index(row_id, self.columnCount() - 1))
 
     def reset_all(self):
         self.beginResetModel()
@@ -156,7 +170,9 @@ class EditorList(QTableView):
     __table_name__ = ''
     __query__ = ''
     column_mapping = {}
-    resize_registered = False  # kept for compat; not used in Qt path
+
+    # kept for compat; not used in Qt path
+    resize_registered = False
 
     # ------------------------------------------------------------------
     # Public interface expected by the rest of the codebase
@@ -169,10 +185,12 @@ class EditorList(QTableView):
         indexes = self.selectedIndexes()
         if not indexes:
             return None
+
         return indexes[0].row()
 
     def set_filter(self, where_clause: str = '', where_params=None):
         """Replace the active WHERE clause and refresh the list."""
+
         self._where_clause = where_clause or ''
         self._where_params = list(where_params or [])
         self.rows.clear()
@@ -201,50 +219,68 @@ class EditorList(QTableView):
 
     @property
     def sort_clause(self) -> str:
-        """Build the ORDER BY expression from the current sort stack.
+        """
+        Build the ORDER BY expression from the current sort stack.
 
         ``sort_columns`` is a list of ``(column_name, 'ASC'|'DESC')``
         pairs in priority order.  When empty we fall back to ``id ASC``
         so the window function always has a deterministic ordering.
         """
+
         if not self.sort_columns:
             return 'id ASC'
-        return ', '.join(f'{col} {direction}' for col, direction in self.sort_columns)
+
+        return ', '.join(
+            f'{col} {direction}' for col, direction in self.sort_columns)
 
     def _column_is_unique(self, column_name: str) -> bool:
-        """Return True when *column_name* is marked unique in
+        """
+        Return True when *column_name* is marked unique in
         ``column_mapping``.  The mapping entry must be a 3-tuple
         ``(label, db_column, unique)``; older 2-tuple entries are
         treated as non-unique.
         """
+
         for entry in self.column_mapping.values():
-            if len(entry) >= 3 and entry[1] == column_name:
-                return bool(entry[2])
+            if entry[1] != column_name:
+                continue
+
+            if len(entry) == 3:
+                return entry[2]
+
         return False
 
     def _sorted_column_index(self, column_name: str) -> int:
-        """Return the 0-based position of *column_name* in
+        """
+        Return the 0-based position of *column_name* in
         ``sort_columns``, or -1 when not present.
         """
+
         for i, (col, _dir) in enumerate(self.sort_columns):
             if col == column_name:
                 return i
+
         return -1
 
     def _active_unique_column(self) -> str | None:
-        """Return the column name if a unique column is currently the
+        """
+        Return the column name if a unique column is currently the
         **last** entry in the sort stack (i.e. it would block further
         additions), otherwise None.
         """
+
         if not self.sort_columns:
             return None
+
         last_col, _ = self.sort_columns[-1]
         if self._column_is_unique(last_col):
             return last_col
+
         return None
 
     def _rebuild_sort_indicators(self):
-        """Trigger a header repaint so every section re-fetches its label
+        """
+        Trigger a header repaint so every section re-fetches its label
         from ``_EditorModel.headerData``, which now embeds the arrow and
         priority number directly in the label text.
 
@@ -252,32 +288,34 @@ class EditorList(QTableView):
         mark one section at a time).  All visual feedback is carried by
         the label string itself, e.g. ``"Part Number ↓2"``.
         """
-        self._model.headerDataChanged.emit(
-            Qt.Orientation.Horizontal,
-            0,
-            self._model.columnCount() - 1,
-        )
+
+        self._model.headerDataChanged.emit(Qt.Orientation.Horizontal, 0,
+                                           self._model.columnCount() - 1)
 
     # ------------------------------------------------------------------
     # DB helpers
     # ------------------------------------------------------------------
 
     def get_obj_id(self, row):
-        where_sql = f'WHERE {self._where_clause}' if self._where_clause else ''
-        sql = self._effective_query.format(
-            sort_clause=self.sort_clause,
-            row=row,
-            start_row=row,
-            end_row=row,
-            where_clause=where_sql,
-        )
+        if self._where_clause:
+            where_sql = f'WHERE {self._where_clause}'
+        else:
+            where_sql = ''
+
+        sql = self._effective_query.format(sort_clause=self.sort_clause,
+                                           row=row, start_row=row, end_row=row,
+                                           where_clause=where_sql)
+
         if self._where_params:
             self.table.execute(sql, self._where_params)
         else:
             self.table.execute(sql)
+
         rows = self.table.fetchall()
+
         if rows:
-            return rows[0][1]  # rows[0][0] is RowNum; actual id is at index 1
+            # rows[0][0] is RowNum; actual id is at index 1
+            return rows[0][1]
 
     def get_row(self, row):
         if row not in self.rows:
@@ -287,21 +325,26 @@ class EditorList(QTableView):
             self.get_rows(start_row, end_row)
             self.current_row = row
             self.needs_pruning = True
+
         return self.rows.get(row, None)
 
     def get_rows(self, start, stop):
-        where_sql = f'WHERE {self._where_clause}' if self._where_clause else ''
-        sql = self._effective_query.format(
-            sort_clause=self.sort_clause,
-            start_row=start,
-            end_row=stop,
-            where_clause=where_sql,
-        )
+        if self._where_clause:
+            where_sql = f'WHERE {self._where_clause}'
+        else:
+            where_sql = ''
+
+        sql = self._effective_query.format(sort_clause=self.sort_clause,
+                                           start_row=start, end_row=stop,
+                                           where_clause=where_sql)
+
         if self._where_params:
             self.table.execute(sql, self._where_params)
         else:
             self.table.execute(sql)
+
         rows = self.table.fetchall()
+
         if rows:
             self.rows.update({i + start: rows[i] for i in range(len(rows))})
 
@@ -309,7 +352,9 @@ class EditorList(QTableView):
         keep_range = buffer_size * 2
         min_row = current_row - keep_range
         max_row = current_row + keep_range
-        self.rows = {k: v for k, v in self.rows.items() if min_row <= k <= max_row}
+
+        self.rows = {k: v for k, v in self.rows.items()
+                     if min_row <= k <= max_row}
 
     # ------------------------------------------------------------------
     # Model data helpers (called from _EditorModel)
@@ -329,8 +374,9 @@ class EditorList(QTableView):
             if col_name == 'model3d_id':
                 return '\u2714' if row[-2] is not None else ''
 
-        # row[0] is RowNum (the window-function prefix); actual data starts at row[1].
-        # col_id is already offset by 1 for the icon column, so net index is col_id.
+        # row[0] is RowNum (the window-function prefix);
+        # actual data starts at row[1]. col_id is already offset by 1 for
+        # the icon column, so net index is col_id.
         return str(row[col_id])
 
     def _get_icon(self, row_id):
@@ -341,7 +387,8 @@ class EditorList(QTableView):
         if row is None:
             return None
 
-        db_id = row[1]  # row[0] is RowNum; actual id is at index 1
+        # row[0] is RowNum; actual id is at index 1
+        db_id = row[1]
         if db_id not in self.bitmap_indexes:
             if not self._has_image:
                 self.bitmap_indexes[db_id] = None
@@ -391,11 +438,16 @@ class EditorList(QTableView):
         QTimer.singleShot(0, _do)
 
     def rowsPerPage(self):
-        row_h = self._row_height if self._row_height > 0 else 68
+        if self._row_height > 0:
+            row_h = self._row_height
+        else:
+            row_h = 68
+
         return max(1, self.viewport().height() // row_h)
 
     def contextMenuEvent(self, event):
-        pass  # stub; subclasses may override
+        # stub; subclasses may override
+        pass
 
     # ------------------------------------------------------------------
     # Slot handlers
@@ -403,7 +455,11 @@ class EditorList(QTableView):
 
     def _on_selection_changed(self, selected, deselected):
         indexes = selected.indexes()
-        self.selected = indexes[0].row() if indexes else None
+
+        if indexes:
+            self.selected = indexes[0].row()
+        else:
+            self.selected = None
 
     def _on_activated(self, index):
         row_id = index.row()
@@ -411,7 +467,9 @@ class EditorList(QTableView):
         db_id = self.get_obj_id(row_id)
         obj = self.table[db_id]
 
-        dlg = _edit_dialog.EditDialog(self.mainframe, 'Edit ' + self._label, obj)
+        dlg = _edit_dialog.EditDialog(
+            self.mainframe, 'Edit ' + self._label, obj)
+
         dlg.exec()
 
         if row_id in self.rows:
@@ -478,7 +536,10 @@ class EditorList(QTableView):
         self.selected = None
         self.mainframe = mainframe
         self.downloading_images = []
-        self.sort_columns: list[tuple[str, str]] = []  # [(col_name, 'ASC'|'DESC'), ...]
+
+        # [(col_name, 'ASC'|'DESC'), ...]
+        self.sort_columns: list[tuple[str, str]] = []
+
         self.needs_pruning = False
         self.current_row = 0
         self._row_height = 68
@@ -494,7 +555,9 @@ class EditorList(QTableView):
         self.setShowGrid(True)
         self.setAlternatingRowColors(True)
         self.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        self.setSortingEnabled(False)  # manual sort via header click
+
+        # manual sort via header click
+        self.setSortingEnabled(False)
 
         self.setIconSize(QSize(64, 64))
         self.verticalHeader().setDefaultSectionSize(68)
@@ -502,7 +565,9 @@ class EditorList(QTableView):
 
         header = self.horizontalHeader()
         header.setSectionsClickable(True)
-        header.setSortIndicatorShown(False)  # arrows embedded in label text instead
+
+        # arrows embedded in label text instead
+        header.setSortIndicatorShown(False)
 
         self.column_lookup = {}
 
@@ -512,8 +577,10 @@ class EditorList(QTableView):
 
         fm = self.fontMetrics()
         for i in sorted(self.column_mapping.keys()):
-            label_text, column_name = self.column_mapping[i]
-            logical = i + 1  # offset for icon column
+            label_text, column_name = self.column_mapping[i][:2]
+
+            # offset for icon column
+            logical = i + 1
             self.column_lookup[logical] = column_name
 
             if column_name == 'model3d_id':
@@ -522,7 +589,8 @@ class EditorList(QTableView):
                 header.setSectionResizeMode(logical, QHeaderView.Interactive)
 
             offset = 100 if label_text == 'Description' else 25
-            self.setColumnWidth(logical, fm.horizontalAdvance(label_text) + offset)
+            self.setColumnWidth(
+                logical, fm.horizontalAdvance(label_text) + offset)
 
         self.max_column_count = len(self.column_mapping)
         self.buffer_size = self.rowsPerPage()
@@ -540,7 +608,7 @@ class EditorList(QTableView):
     # Compatibility shims
     # ------------------------------------------------------------------
 
-    def Refresh(self, *args, **kwargs):
+    def Refresh(self, *_, **__):
         self._model.reset_all()
         self.viewport().update()
 
