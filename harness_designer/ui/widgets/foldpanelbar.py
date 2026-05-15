@@ -12,10 +12,9 @@ Public API is fully preserved so all call sites work without modification:
 CaptionBarStyle keeps all its setter/getter methods unchanged.
 """
 
-import math
 import base64
 
-from PySide6.QtWidgets import QWidget, QScrollArea, QSizePolicy
+from PySide6.QtWidgets import QWidget, QSizePolicy
 from PySide6.QtCore import Qt, Signal, QSize, QRect, QPoint
 from PySide6.QtGui import (
     QPainter, QPen, QBrush, QColor, QFont, QFontMetrics,
@@ -50,39 +49,41 @@ _COLLAPSED_PIXMAP: QPixmap | None = None
 
 def _get_icons() -> tuple[QPixmap, QPixmap]:
     global _EXPANDED_PIXMAP, _COLLAPSED_PIXMAP
+
     if _EXPANDED_PIXMAP is None:
         _EXPANDED_PIXMAP = _load_icon_pixmap(_EXPANDED_PNG_B64)
         _COLLAPSED_PIXMAP = _load_icon_pixmap(_COLLAPSED_PNG_B64)
+
     return _EXPANDED_PIXMAP, _COLLAPSED_PIXMAP
 
 
 # ---------------------------------------------------------------------------
 # Constants (identical values to the originals)
 # ---------------------------------------------------------------------------
-CAPTIONBAR_NOSTYLE          = 0
-CAPTIONBAR_GRADIENT_V       = 1
-CAPTIONBAR_GRADIENT_H       = 2
-CAPTIONBAR_SINGLE           = 3
-CAPTIONBAR_RECTANGLE        = 4
+CAPTIONBAR_NOSTYLE = 0
+CAPTIONBAR_GRADIENT_V = 1
+CAPTIONBAR_GRADIENT_H = 2
+CAPTIONBAR_SINGLE = 3
+CAPTIONBAR_RECTANGLE = 4
 CAPTIONBAR_FILLED_RECTANGLE = 5
 
-FPB_EXTRA_X           = 10
-FPB_EXTRA_Y           = 4
-FPB_BMP_RIGHTSPACE    = 2
+FPB_EXTRA_X = 10
+FPB_EXTRA_Y = 4
+FPB_BMP_RIGHTSPACE = 2
 
-FPB_SINGLE_FOLD       = 0x0001
-FPB_COLLAPSE_TO_BOTTOM= 0x0002
-FPB_EXCLUSIVE_FOLD    = 0x0004
-FPB_HORIZONTAL        = 0x0008
-FPB_VERTICAL          = 0x0010
+FPB_SINGLE_FOLD = 0x0001
+FPB_COLLAPSE_TO_BOTTOM = 0x0002
+FPB_EXCLUSIVE_FOLD = 0x0004
+FPB_HORIZONTAL = 0x0008
+FPB_VERTICAL = 0x0010
 
-FPB_ALIGN_LEFT        = 0
-FPB_ALIGN_WIDTH       = 1
+FPB_ALIGN_LEFT = 0
+FPB_ALIGN_WIDTH = 1
 
-FPB_DEFAULT_LEFTSPACING    = 5
-FPB_DEFAULT_RIGHTSPACING   = 10
-FPB_DEFAULT_SPACING        = 8
-FPB_DEFAULT_LEFTLINESPACING  = 2
+FPB_DEFAULT_LEFTSPACING = 5
+FPB_DEFAULT_RIGHTSPACING = 10
+FPB_DEFAULT_SPACING = 8
+FPB_DEFAULT_LEFTLINESPACING = 2
 FPB_DEFAULT_RIGHTLINESPACING = 2
 
 
@@ -90,7 +91,11 @@ FPB_DEFAULT_RIGHTLINESPACING = 2
 # CaptionBarStyle  (pure Python — no wx types)
 # ---------------------------------------------------------------------------
 class CaptionBarStyle:
-    """Encapsulates visual styles for a CaptionBar.  API identical to original."""
+    """
+    Encapsulates visual styles for a CaptionBar.
+
+    API identical to original.
+    """
 
     def __init__(self):
         self._captionFont: QFont | None = None
@@ -98,20 +103,20 @@ class CaptionBarStyle:
         self._firstColour: QColor | None = None
         self._secondColour: QColor | None = None
 
-        self._captionFontUsed   = False
-        self._firstColourUsed   = False
-        self._secondColourUsed  = False
-        self._textColourUsed    = False
-        self._captionStyleUsed  = False
-        self._captionStyle      = CAPTIONBAR_GRADIENT_V
+        self._captionFontUsed = False
+        self._firstColourUsed = False
+        self._secondColourUsed = False
+        self._textColourUsed = False
+        self._captionStyleUsed = False
+        self._captionStyle = CAPTIONBAR_GRADIENT_V
 
     def ResetDefaults(self):
-        self._firstColourUsed   = False
-        self._secondColourUsed  = False
-        self._textColourUsed    = False
-        self._captionFontUsed   = False
-        self._captionStyleUsed  = False
-        self._captionStyle      = CAPTIONBAR_GRADIENT_V
+        self._firstColourUsed = False
+        self._secondColourUsed = False
+        self._textColourUsed = False
+        self._captionFontUsed = False
+        self._captionStyleUsed = False
+        self._captionStyle = CAPTIONBAR_GRADIENT_V
 
     # Font
     def SetCaptionFont(self, font: QFont):
@@ -188,12 +193,13 @@ class CaptionBar(QWidget):
                  cbstyle: CaptionBarStyle | None = None,
                  rightIndent: int = FPB_BMP_RIGHTSPACE,
                  collapsed: bool = False):
+
         super().__init__(parent)
         self.setMinimumSize(20, 20)
-        self.setCursor(QCursor(Qt.ArrowCursor))
+        self.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
         self.setMouseTracking(True)
 
-        self._caption   = caption
+        self._caption = caption
         self._collapsed = collapsed
         self._rightIndent = rightIndent
         self._style: CaptionBarStyle = CaptionBarStyle()
@@ -211,18 +217,26 @@ class CaptionBar(QWidget):
 
         if applyDefault:
             if not cbstyle.FirstColourUsed():
-                cbstyle.SetFirstColour(QColor(Qt.white))
+                cbstyle.SetFirstColour(QColor(Qt.GlobalColor.white))
+
             if not cbstyle.SecondColourUsed():
-                bg = self.parent().palette().color(self.parent().backgroundRole()) \
-                    if self.parent() else QColor(180, 180, 180)
-                r = min(255, (bg.red()   >> 1) + 20)
+
+                if self.parent():
+                    bg = self.parent().palette().color(self.parent().backgroundRole())
+                else:
+                    bg = QColor(180, 180, 180)
+
+                r = min(255, (bg.red() >> 1) + 20)
                 g = min(255, (bg.green() >> 1) + 20)
-                b = min(255, (bg.blue()  >> 1) + 20)
+                b = min(255, (bg.blue() >> 1) + 20)
                 cbstyle.SetSecondColour(QColor(r, g, b))
+
             if not cbstyle.CaptionColourUsed():
-                cbstyle.SetCaptionColour(QColor(Qt.black))
+                cbstyle.SetCaptionColour(QColor(Qt.GlobalColor.black))
+
             if not cbstyle.CaptionFontUsed():
                 cbstyle.SetCaptionFont(self.font())
+
             if not cbstyle.CaptionStyleUsed():
                 cbstyle.SetCaptionStyle(CAPTIONBAR_GRADIENT_V)
 
@@ -231,6 +245,7 @@ class CaptionBar(QWidget):
 
     def SetCaptionStyle(self, cbstyle: CaptionBarStyle | None = None,
                         applyDefault: bool = True):
+
         self.ApplyCaptionStyle(cbstyle, applyDefault)
 
     def GetCaptionStyle(self) -> CaptionBarStyle:
@@ -269,16 +284,17 @@ class CaptionBar(QWidget):
         bar = self._fold_panel_bar()
         if bar is not None:
             return bar.IsVertical()
+
         return True
 
-    def _fold_panel_bar(self) -> 'FoldPanelBar | None':
+    def _fold_panel_bar(self) -> "FoldPanelBar":
         # CaptionBar -> FoldPanelItem -> (inner panel of) FoldPanelBar
         p = self.parent()
         while p is not None:
             if isinstance(p, FoldPanelBar):
                 return p
+
             p = p.parent()
-        return None
 
     # ------------------------------------------------------------------
     # Painting
@@ -297,7 +313,7 @@ class CaptionBar(QWidget):
 
     def paintEvent(self, event: QPaintEvent):
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing, False)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
         rect = self.rect()
         vertical = self.IsVertical()
 
@@ -306,12 +322,13 @@ class CaptionBar(QWidget):
         # Draw caption text
         font = self._style.GetCaptionFont() or self.font()
         painter.setFont(font)
-        painter.setPen(QPen(self._style.GetCaptionColour() or QColor(Qt.black)))
+        painter.setPen(
+            QPen(self._style.GetCaptionColour() or QColor(Qt.GlobalColor.black)))
 
         if vertical:
             painter.drawText(4, FPB_EXTRA_Y // 2,
                              rect.width(), rect.height(),
-                             Qt.AlignVCenter | Qt.AlignLeft,
+                             Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
                              self._caption)
         else:
             painter.save()
@@ -330,32 +347,31 @@ class CaptionBar(QWidget):
             else:
                 x = (rect.width() - iw) // 2
                 y = self._rightIndent
+
             painter.drawPixmap(x, y, pm)
 
         painter.end()
 
     def _fill_background(self, painter: QPainter, rect: QRect):
         style = self._style.GetCaptionStyle()
-        c1 = self._style.GetFirstColour()  or QColor(Qt.white)
+        c1 = self._style.GetFirstColour() or QColor(Qt.GlobalColor.white)
         c2 = self._style.GetSecondColour() or QColor(180, 180, 180)
         vertical = self.IsVertical()
 
         if style == CAPTIONBAR_GRADIENT_V:
-            grad = QLinearGradient(
-                rect.left(), rect.top(),
-                rect.left() if vertical else rect.right(),
-                rect.bottom() if vertical else rect.top()
-            )
+            grad = QLinearGradient(rect.left(), rect.top(),
+                                   rect.left() if vertical else rect.right(),
+                                   rect.bottom() if vertical else rect.top())
+
             grad.setColorAt(0.0, c1)
             grad.setColorAt(1.0, c2)
             painter.fillRect(rect, QBrush(grad))
 
         elif style == CAPTIONBAR_GRADIENT_H:
-            grad = QLinearGradient(
-                rect.left(), rect.top(),
-                rect.right() if vertical else rect.left(),
-                rect.top() if vertical else rect.bottom()
-            )
+            grad = QLinearGradient(rect.left(), rect.top(),
+                                   rect.right() if vertical else rect.left(),
+                                   rect.top() if vertical else rect.bottom())
+
             grad.setColorAt(0.0, c1)
             grad.setColorAt(1.0, c2)
             painter.fillRect(rect, QBrush(grad))
@@ -364,8 +380,11 @@ class CaptionBar(QWidget):
             painter.fillRect(rect, QBrush(c1))
 
         elif style in (CAPTIONBAR_RECTANGLE, CAPTIONBAR_FILLED_RECTANGLE):
-            fill = (self.parent().palette().window().color()
-                    if style == CAPTIONBAR_RECTANGLE else c1)
+            if style == CAPTIONBAR_RECTANGLE:
+                fill = self.parent().palette().window().color()
+            else:
+                fill = c1
+
             painter.fillRect(rect, QBrush(fill))
             painter.setPen(QPen(c2))
             painter.drawRect(rect.adjusted(0, 0, -1, -2))
@@ -383,29 +402,33 @@ class CaptionBar(QWidget):
         if vertical:
             drw = rect.width() - iw - self._rightIndent
             return pos.x() > drw
-        else:
-            return pos.y() < (self._ICON_H + self._rightIndent)
+
+        return pos.y() < (self._ICON_H + self._rightIndent)
 
     def mousePressEvent(self, event: QMouseEvent):
-        if event.button() == Qt.LeftButton and self._icon_hit(event.position().toPoint()):
+        if (
+            event.button() == Qt.MouseButton.LeftButton and
+            self._icon_hit(event.position().toPoint())
+        ):
             self.caption_toggled.emit(self)
+
         super().mousePressEvent(event)
 
     def mouseDoubleClickEvent(self, event: QMouseEvent):
-        if event.button() == Qt.LeftButton:
-            self.setCursor(QCursor(Qt.ArrowCursor))
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
             self.caption_toggled.emit(self)
         super().mouseDoubleClickEvent(event)
 
     def mouseMoveEvent(self, event: QMouseEvent):
         if self._icon_hit(event.position().toPoint()):
-            self.setCursor(QCursor(Qt.PointingHandCursor))
+            self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         else:
-            self.setCursor(QCursor(Qt.ArrowCursor))
+            self.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
         super().mouseMoveEvent(event)
 
     def leaveEvent(self, event):
-        self.setCursor(QCursor(Qt.ArrowCursor))
+        self.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
         super().leaveEvent(event)
 
 
@@ -417,18 +440,20 @@ class FoldWindowItem:
 
     def __init__(self, parent: 'FoldPanelItem', window: QWidget | None, **kw):
         typ = kw.get('Type')
-        if typ not in ('WINDOW', 'SEPARATOR'):
-            raise ValueError(f'FoldWindowItem Type must be WINDOW or SEPARATOR, got {typ!r}')
 
-        self._type       = typ
-        self._parent     = parent
-        self._wnd        = window
-        self._flags      = kw.get('flags',      FPB_ALIGN_WIDTH)
-        self._spacing    = kw.get('spacing',    FPB_DEFAULT_SPACING)
-        self._leftSpacing  = kw.get('leftSpacing',  FPB_DEFAULT_LEFTSPACING)
+        if typ not in ('WINDOW', 'SEPARATOR'):
+            raise ValueError(
+                f'FoldWindowItem Type must be WINDOW or SEPARATOR, got {typ!r}')
+
+        self._type = typ
+        self._parent = parent
+        self._wnd = window
+        self._flags = kw.get('flags', FPB_ALIGN_WIDTH)
+        self._spacing = kw.get('spacing', FPB_DEFAULT_SPACING)
+        self._leftSpacing = kw.get('leftSpacing', FPB_DEFAULT_LEFTSPACING)
         self._rightSpacing = kw.get('rightSpacing', FPB_DEFAULT_RIGHTSPACING)
-        self._lineY      = kw.get('y',          0)
-        self._sepLineColour = kw.get('colour',  QColor(Qt.black))
+        self._lineY = kw.get('y',          0)
+        self._sepLineColour = kw.get('colour',  QColor(Qt.GlobalColor.black))
         self._lineLength = 0
 
     def GetType(self) -> str:
@@ -455,14 +480,21 @@ class FoldWindowItem:
     def GetWindowLength(self, vertical: bool = True) -> int:
         if self._type == 'WINDOW' and self._wnd:
             sz = self._wnd.size()
-            return (sz.height() if vertical else sz.width()) + self._spacing
+
+            if vertical:
+                return sz.height() + self._spacing
+
+            return sz.width() + self._spacing
+
         elif self._type == 'SEPARATOR':
             return 1 + self._spacing
+
         return 0
 
     def ResizeItem(self, size: int, vertical: bool = True):
         if self._flags & FPB_ALIGN_WIDTH:
             my_size = max(10, size - self._leftSpacing - self._rightSpacing)
+
             if self._type == 'SEPARATOR':
                 self._lineLength = my_size
             elif self._wnd:
@@ -481,14 +513,15 @@ class FoldPanelItem(QWidget):
     def __init__(self, parent: QWidget, caption: str = '',
                  cbstyle: CaptionBarStyle | None = None,
                  collapsed: bool = False):
+
         super().__init__(parent)
         self.setMinimumSize(1, 1)
 
-        self._UserSize    = 0
-        self._PanelSize   = 0
+        self._UserSize = 0
+        self._PanelSize = 0
         self._LastInsertPos = 0
-        self._itemPos     = 0
-        self._userSized   = False
+        self._itemPos = 0
+        self._userSized = False
         self._items: list[FoldWindowItem] = []
 
         if cbstyle is None:
@@ -496,10 +529,11 @@ class FoldPanelItem(QWidget):
 
         self._captionBar = CaptionBar(self, caption=caption, cbstyle=cbstyle,
                                       collapsed=collapsed)
+
         self._captionBar.caption_toggled.connect(self._on_caption_toggle)
 
         # Initial panel size = caption height
-        self._PanelSize   = self._captionBar.sizeHint().height()
+        self._PanelSize = self._captionBar.sizeHint().height()
         self._LastInsertPos = self._PanelSize
 
     # ------------------------------------------------------------------
@@ -510,25 +544,29 @@ class FoldPanelItem(QWidget):
         fpb = self._fold_panel_bar()
         if fpb is None:
             return
+
         if bar.IsCollapsed():
             fpb.Expand(self)
         else:
             fpb.Collapse(self)
 
-    def _fold_panel_bar(self) -> 'FoldPanelBar | None':
+    def _fold_panel_bar(self) -> "FoldPanelBar":
         p = self.parent()
         while p is not None:
             if isinstance(p, FoldPanelBar):
                 return p
+
             p = p.parent()
-        return None
 
     # ------------------------------------------------------------------
     # Geometry
     # ------------------------------------------------------------------
     def IsVertical(self) -> bool:
         fpb = self._fold_panel_bar()
-        return fpb.IsVertical() if fpb else True
+        if fpb:
+            return fpb.IsVertical()
+
+        return True
 
     def IsExpanded(self) -> bool:
         return not self._captionBar.IsCollapsed()
@@ -539,13 +577,19 @@ class FoldPanelItem(QWidget):
     def GetPanelLength(self) -> int:
         if self._captionBar.IsCollapsed():
             return self.GetCaptionLength()
+
         if self._userSized:
             return self._UserSize
+
         return self._PanelSize
 
     def GetCaptionLength(self) -> int:
         sz = self._captionBar.sizeHint()
-        return sz.height() if self.IsVertical() else sz.width()
+
+        if self.IsVertical():
+            return sz.height()
+
+        return sz.width()
 
     def Reposition(self, pos: int) -> int:
         vertical = self.IsVertical()
@@ -553,7 +597,9 @@ class FoldPanelItem(QWidget):
             self.move(0, pos)
         else:
             self.move(pos, 0)
+
         self._itemPos = pos
+
         return self.GetPanelLength()
 
     def ResizePanel(self):
@@ -563,6 +609,7 @@ class FoldPanelItem(QWidget):
         if self._captionBar.IsCollapsed():
             cap_len = self.GetCaptionLength()
             self._PanelSize = cap_len
+
             if vertical:
                 self.resize(parent_size.width(), cap_len)
                 self._captionBar.resize(parent_size.width(),
@@ -572,8 +619,11 @@ class FoldPanelItem(QWidget):
                 self._captionBar.resize(self._captionBar.sizeHint().width(),
                                         parent_size.height())
         else:
-            cap_h = self._captionBar.sizeHint().height() if vertical \
-                else self._captionBar.sizeHint().width()
+            if vertical:
+                cap_h = self._captionBar.sizeHint().height()
+            else:
+                cap_h = self._captionBar.sizeHint().width()
+
             content_len = self._LastInsertPos
             total = cap_h + content_len
             self._PanelSize = total
@@ -589,7 +639,11 @@ class FoldPanelItem(QWidget):
                 self._captionBar.resize(cap_h, parent_size.height())
 
             # Resize child windows
-            available = parent_size.width() if vertical else parent_size.height()
+            if vertical:
+                available = parent_size.width()
+            else:
+                available = parent_size.height()
+
             for item in self._items:
                 item.ResizeItem(available, vertical)
 
@@ -598,39 +652,45 @@ class FoldPanelItem(QWidget):
     # ------------------------------------------------------------------
     # Adding content
     # ------------------------------------------------------------------
-    def AddWindow(self, window: QWidget,
-                  flags: int = FPB_ALIGN_WIDTH,
+    def AddWindow(self, window: QWidget, flags: int = FPB_ALIGN_WIDTH,
                   spacing: int = FPB_DEFAULT_SPACING,
                   leftSpacing: int = FPB_DEFAULT_LEFTLINESPACING,
                   rightSpacing: int = FPB_DEFAULT_RIGHTLINESPACING):
+
         wi = FoldWindowItem(self, window, Type='WINDOW', flags=flags,
                             spacing=spacing, leftSpacing=leftSpacing,
                             rightSpacing=rightSpacing)
+
         self._items.append(wi)
         window.setParent(self)
 
         vertical = self.IsVertical()
-        cap_h = self._captionBar.sizeHint().height() if vertical \
-            else self._captionBar.sizeHint().width()
 
-        xpos = leftSpacing if vertical else self._LastInsertPos + spacing
-        ypos = self._LastInsertPos + spacing if vertical else leftSpacing
+        if vertical:
+            xpos = leftSpacing
+            ypos = self._LastInsertPos + spacing
+        else:
+            xpos = self._LastInsertPos + spacing
+            ypos = leftSpacing
+
         window.move(xpos, ypos)
         window.show()
 
         self._LastInsertPos += wi.GetWindowLength(vertical)
         self.ResizePanel()
 
-    def AddSeparator(self, colour: QColor = None,
-                     spacing: int = FPB_DEFAULT_SPACING,
+    def AddSeparator(self, colour: QColor = None, spacing: int = FPB_DEFAULT_SPACING,
                      leftSpacing: int = FPB_DEFAULT_LEFTSPACING,
                      rightSpacing: int = FPB_DEFAULT_RIGHTSPACING):
+
         if colour is None:
-            colour = QColor(Qt.black)
+            colour = QColor(Qt.GlobalColor.black)
+
         wi = FoldWindowItem(self, window=None, Type='SEPARATOR',
                             flags=FPB_ALIGN_WIDTH, y=self._LastInsertPos,
                             colour=colour, spacing=spacing,
                             leftSpacing=leftSpacing, rightSpacing=rightSpacing)
+
         self._items.append(wi)
         self._LastInsertPos += wi.GetWindowLength(self.IsVertical())
         self.ResizePanel()
@@ -664,11 +724,14 @@ class FoldPanelItem(QWidget):
 
         for item in self._items:
             if item.GetType() == 'SEPARATOR':
-                painter.setPen(QPen(item.GetLineColour(), 1, Qt.SolidLine))
+                painter.setPen(
+                    QPen(item.GetLineColour(), 1, Qt.PenStyle.SolidLine))
+
                 a = item.GetLeftSpacing()
                 b = item.GetLineY() + item.GetSpacing()
                 c = item.GetLineLength()
                 d = a + c
+
                 if vertical:
                     painter.drawLine(a, b, d, b)
                 else:
@@ -693,11 +756,12 @@ class FoldPanelBar(QWidget):
             agwStyle |= FPB_VERTICAL
 
         self._isVertical = bool(agwStyle & FPB_VERTICAL)
-        self._agwStyle   = agwStyle
+        self._agwStyle = agwStyle
         self._panels: list[FoldPanelItem] = []
         self._cbstyle: CaptionBarStyle | None = None
 
-        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
     # ------------------------------------------------------------------
     # Public API
@@ -706,13 +770,16 @@ class FoldPanelBar(QWidget):
         return self._isVertical
 
     def AddFoldPanel(self, caption: str = '', collapsed: bool = False,
-                     foldIcons=None,   # ignored — we use our own embedded icons
+                     foldIcons=None,   # NOQA IGNORED
                      cbstyle: CaptionBarStyle | None = None) -> FoldPanelItem:
-        if cbstyle is None:
-            cbstyle = self._cbstyle if self._cbstyle is not None else EmptyCaptionBarStyle
 
-        item = FoldPanelItem(self, caption=caption, cbstyle=cbstyle,
-                             collapsed=collapsed)
+        if cbstyle is None:
+            cbstyle = EmptyCaptionBarStyle
+        else:
+            cbstyle = self._cbstyle
+
+        item = FoldPanelItem(
+            self, caption=caption, cbstyle=cbstyle, collapsed=collapsed)
 
         pos = 0
         if self._panels:
@@ -722,6 +789,7 @@ class FoldPanelBar(QWidget):
         item.Reposition(pos)
         item.show()
         self._panels.append(item)
+
         return item
 
     def AddFoldPanelWindow(self, panel: FoldPanelItem, window: QWidget,
@@ -729,24 +797,33 @@ class FoldPanelBar(QWidget):
                            spacing: int = FPB_DEFAULT_SPACING,
                            leftSpacing: int = FPB_DEFAULT_LEFTLINESPACING,
                            rightSpacing: int = FPB_DEFAULT_RIGHTLINESPACING) -> int:
+
         if panel not in self._panels:
-            raise ValueError(f'Invalid panel passed to AddFoldPanelWindow: {panel!r}')
+            raise ValueError(
+                f'Invalid panel passed to AddFoldPanelWindow: {panel!r}')
+
         panel.AddWindow(window, flags, spacing, leftSpacing, rightSpacing)
+
         return 0
 
-    def AddFoldPanelSeparator(self, panel: FoldPanelItem,
-                               colour: QColor | None = None,
-                               spacing: int = FPB_DEFAULT_SPACING,
-                               leftSpacing: int = FPB_DEFAULT_LEFTLINESPACING,
-                               rightSpacing: int = FPB_DEFAULT_RIGHTLINESPACING) -> int:
+    def AddFoldPanelSeparator(self, panel: FoldPanelItem, colour: QColor | None = None,
+                              spacing: int = FPB_DEFAULT_SPACING,
+                              leftSpacing: int = FPB_DEFAULT_LEFTLINESPACING,
+                              rightSpacing: int = FPB_DEFAULT_RIGHTLINESPACING) -> int:
+
         if panel not in self._panels:
-            raise ValueError(f'Invalid panel passed to AddFoldPanelSeparator: {panel!r}')
+            raise ValueError(
+                f'Invalid panel passed to AddFoldPanelSeparator: {panel!r}')
+
         panel.AddSeparator(colour, spacing, leftSpacing, rightSpacing)
+
         return 0
 
     def Collapse(self, foldpanel: FoldPanelItem):
         if foldpanel not in self._panels:
-            raise ValueError(f'Invalid panel passed to Collapse: {foldpanel!r}')
+            raise ValueError(
+                f'Invalid panel passed to Collapse: {foldpanel!r}')
+
         foldpanel.Collapse()
         self.RefreshPanelsFrom(foldpanel)
 
@@ -768,23 +845,26 @@ class FoldPanelBar(QWidget):
         else:
             self.RefreshPanelsFrom(foldpanel)
 
-    def ApplyCaptionStyle(self, foldpanel: FoldPanelItem,
+    def ApplyCaptionStyle(self, foldpanel: FoldPanelItem,  # NOQA
                           cbstyle: CaptionBarStyle):
+
         foldpanel.ApplyCaptionStyle(cbstyle)
 
     def ApplyCaptionStyleAll(self, cbstyle: CaptionBarStyle):
         for p in self._panels:
             self.ApplyCaptionStyle(p, cbstyle)
+
         self._cbstyle = cbstyle
 
-    def GetCaptionStyle(self, foldpanel: FoldPanelItem) -> CaptionBarStyle:
+    def GetCaptionStyle(self, foldpanel: FoldPanelItem) -> CaptionBarStyle:  # NOQA
         return foldpanel.GetCaptionStyle()
 
     def GetFoldPanel(self, item: int) -> FoldPanelItem:
         try:
             return self._panels[item]
         except IndexError:
-            raise ValueError(f'Index {item} out of range (0..{len(self._panels)-1})')
+            raise ValueError(
+                f'Index {item} out of range (0..{len(self._panels)-1})')
 
     def GetCount(self) -> int:
         return len(self._panels)
@@ -796,13 +876,15 @@ class FoldPanelBar(QWidget):
         try:
             i = self._panels.index(item)
         except ValueError:
-            raise ValueError(f'Invalid panel passed to RefreshPanelsFrom: {item!r}')
+            raise ValueError(
+                f'Invalid panel passed to RefreshPanelsFrom: {item!r}')
 
         if self._agwStyle & (FPB_COLLAPSE_TO_BOTTOM | FPB_EXCLUSIVE_FOLD):
             offset = 0
             for p in self._panels:
                 if p.IsExpanded():
                     offset += p.Reposition(offset)
+
             self.RepositionCollapsedToBottom()
         else:
             pos = self._panels[i].GetItemPos() + self._panels[i].GetPanelLength()
@@ -815,7 +897,8 @@ class FoldPanelBar(QWidget):
         vertical = self._isVertical
         total = self.height() if vertical else self.width()
 
-        collapsed_len, expanded_len, _ = self.GetPanelsLength(0, 0)
+        collapsed_len, expanded_len, _ = (
+            self.GetPanelsLength(0, 0))
 
         if total - expanded_len - collapsed_len < 0:
             offset = expanded_len
@@ -831,10 +914,12 @@ class FoldPanelBar(QWidget):
         for p in self._panels:
             length = p.GetPanelLength()
             value += length
+
             if p.IsExpanded():
                 expanded += length
             else:
                 collapsed += length
+
         return collapsed, expanded, value
 
     def RedisplayFoldPanelItems(self):
@@ -847,7 +932,6 @@ class FoldPanelBar(QWidget):
     # ------------------------------------------------------------------
     def resizeEvent(self, event: QResizeEvent):
         super().resizeEvent(event)
-        foldrect = self.rect()
 
         if self._agwStyle & (FPB_COLLAPSE_TO_BOTTOM | FPB_EXCLUSIVE_FOLD):
             self.RepositionCollapsedToBottom()

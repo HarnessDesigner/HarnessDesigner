@@ -6,7 +6,8 @@ from ...geometry.decimal import Decimal as _d
 
 
 class FloatCtrl(QtWidgets.QWidget):
-    """Label + QDoubleSpinBox + optional QSlider composite widget.
+    """
+    Label + QDoubleSpinBox + optional QSlider composite widget.
 
     Replaces the wx.BoxSizer-based FloatCtrl.  Emits value_changed(float)
     whenever the spin or slider changes; call sites should connect to that

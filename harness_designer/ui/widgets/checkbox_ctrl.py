@@ -1,8 +1,9 @@
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QCheckBox
+from PySide6 import QtWidgets
 
 
-class CheckboxCtrl(QWidget):
-    """Label + checkbox composite widget.
+class CheckboxCtrl(QtWidgets.QWidget):
+    """
+    Label + checkbox composite widget.
 
     The original was a wx.BoxSizer subclass, which made it behave like a
     layout object.  In Qt the composite is a proper QWidget so it can be
@@ -12,11 +13,11 @@ class CheckboxCtrl(QWidget):
 
     def __init__(self, parent=None, label: str = ''):
         super().__init__(parent)
-        layout = QHBoxLayout(self)
+        layout = QtWidgets.QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        self.st = QLabel(label, self)
-        self.ctrl = QCheckBox(self)
+        self.st = QtWidgets.QLabel(label, self)
+        self.ctrl = QtWidgets.QCheckBox(self)
 
         layout.addWidget(self.st, 1)
         layout.addWidget(self.ctrl, 1)

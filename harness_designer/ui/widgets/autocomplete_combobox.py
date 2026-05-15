@@ -1,9 +1,10 @@
-from PySide6.QtWidgets import QComboBox, QCompleter
-from PySide6.QtCore import Qt, QStringListModel
+from PySide6 import QtWidgets
+from PySide6 import QtCore
 
 
-class AutoCompleteComboBox(QComboBox):
-    """QComboBox with inline autocomplete and a mirrored choice list.
+class AutoCompleteComboBox(QtWidgets.QComboBox):
+    """
+    QComboBox with inline autocomplete and a mirrored choice list.
 
     Public API is a superset of the original wx AutoCompleteComboBox so all
     existing call sites continue to work unchanged.
@@ -12,22 +13,27 @@ class AutoCompleteComboBox(QComboBox):
     def __init__(self, parent=None, choices=None):
         super().__init__(parent)
         self.setEditable(True)
-        self.setInsertPolicy(QComboBox.NoInsert)
+        self.setInsertPolicy(QtWidgets.QComboBox.InsertPolicy.NoInsert)
 
         self._choices = list(choices or [])
         if self._choices:
             self.addItems(self._choices)
 
-        self._completer = QCompleter(self._choices, self)
-        self._completer.setCaseSensitivity(Qt.CaseInsensitive)
-        self._completer.setCompletionMode(QCompleter.InlineCompletion)
+        self._completer = QtWidgets.QCompleter(self._choices, self)
+        self._completer.setCaseSensitivity(
+            QtCore.Qt.CaseSensitivity.CaseInsensitive)
+
+        self._completer.setCompletionMode(
+            QtWidgets.QCompleter.CompletionMode.InlineCompletion)
+
         self.lineEdit().setCompleter(self._completer)
 
     # ------------------------------------------------------------------
     # Internal helper
     # ------------------------------------------------------------------
     def _rebuild_completer(self):
-        self._completer.setModel(QStringListModel(self._choices, self._completer))
+        self._completer.setModel(
+            QtCore.QStringListModel(self._choices, self._completer))
 
     # ------------------------------------------------------------------
     # Mirrored list mutation API
@@ -42,7 +48,7 @@ class AutoCompleteComboBox(QComboBox):
         self._choices.pop(n)
         self._rebuild_completer()
 
-    def Insert(self, item: str, pos: int, clientData=None):
+    def Insert(self, item: str, pos: int, _=None):
         self.insertItem(pos, item)
         self._choices.insert(pos, item)
         self._rebuild_completer()
@@ -76,7 +82,7 @@ class AutoCompleteComboBox(QComboBox):
         return self.currentText()
 
     def SetValue(self, value: str):
-        idx = self.findText(value, Qt.MatchFixedString)
+        idx = self.findText(value, QtCore.Qt.MatchFlag.MatchFixedString)
         if idx >= 0:
             self.setCurrentIndex(idx)
         else:

@@ -1,11 +1,12 @@
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel
-from PySide6.QtCore import Qt
+from PySide6 import QtWidgets
+from PySide6 import QtCore
 
 from .autocomplete_combobox import AutoCompleteComboBox
 
 
-class ComboBoxCtrl(QWidget):
-    """Label + autocomplete combobox composite widget.
+class ComboBoxCtrl(QtWidgets.QWidget):
+    """
+    Label + autocomplete combobox composite widget.
 
     Replaces the wx.BoxSizer-based ComboBoxCtrl.  The widget emits
     currentTextChanged from the inner AutoCompleteComboBox for all selection
@@ -18,16 +19,17 @@ class ComboBoxCtrl(QWidget):
         super().__init__(parent)
         self.process_enter = process_enter
 
-        layout = QHBoxLayout(self)
+        layout = QtWidgets.QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        self.st = QLabel(label, self)
+        self.st = QtWidgets.QLabel(label, self)
         self.ctrl = AutoCompleteComboBox(self, choices=choices or [])
 
         layout.addWidget(self.st, 0)
         layout.addWidget(self.ctrl, 1)
 
-        # Enter key in the line edit commits the value by firing currentTextChanged
+        # Enter key in the line edit commits the value
+        # by firing currentTextChanged
         self.ctrl.lineEdit().returnPressed.connect(self._on_enter)
 
     # ------------------------------------------------------------------
@@ -37,7 +39,7 @@ class ComboBoxCtrl(QWidget):
         # Normalise: if the typed text matches an item, select it so
         # currentIndex is consistent.
         text = self.ctrl.currentText()
-        idx = self.ctrl.findText(text, Qt.MatchFixedString)
+        idx = self.ctrl.findText(text, QtCore.Qt.MatchFlag.MatchFixedString)
         if idx >= 0:
             self.ctrl.blockSignals(True)
             self.ctrl.setCurrentIndex(idx)

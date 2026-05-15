@@ -1,10 +1,11 @@
-from PySide6.QtWidgets import QComboBox, QCompleter
-from PySide6.QtCore import Qt, QStringListModel
-from PySide6.QtGui import QIcon, QPixmap
+from PySide6 import QtWidgets
+from PySide6 import QtCore
+from PySide6 import QtGui
 
 
-class BitmapAutoCompleteComboBox(QComboBox):
-    """Editable, icon-bearing combobox with inline autocomplete.
+class BitmapAutoCompleteComboBox(QtWidgets.QComboBox):
+    """
+    Editable, icon-bearing combobox with inline autocomplete.
 
     Replaces wx.adv.BitmapComboBox + AutoCompleter.  Each item is a
     (label: str, pixmap: QPixmap, tooltip: str) tuple, matching the original
@@ -19,14 +20,18 @@ class BitmapAutoCompleteComboBox(QComboBox):
     def __init__(self, parent=None, choices=None):
         super().__init__(parent)
         self.setEditable(True)
-        self.setInsertPolicy(QComboBox.NoInsert)
+        self.setInsertPolicy(QtWidgets.QComboBox.InsertPolicy.NoInsert)
 
-        self._choices: list[tuple[str, QPixmap | None, str | None]] = []
+        self._choices: list[tuple[str, QtGui.QPixmap | None, str | None]] = []
         self._ac_labels: list[str] = []
 
-        self._completer = QCompleter([], self)
-        self._completer.setCaseSensitivity(Qt.CaseInsensitive)
-        self._completer.setCompletionMode(QCompleter.InlineCompletion)
+        self._completer = QtWidgets.QCompleter([], self)
+        self._completer.setCaseSensitivity(
+            QtCore.Qt.CaseSensitivity.CaseInsensitive)
+
+        self._completer.setCompletionMode(
+            QtWidgets.QCompleter.CompletionMode.InlineCompletion)
+
         self.lineEdit().setCompleter(self._completer)
 
         self.currentIndexChanged.connect(self._on_index_changed)
@@ -39,7 +44,8 @@ class BitmapAutoCompleteComboBox(QComboBox):
     # Internal helpers
     # ------------------------------------------------------------------
     def _rebuild_completer(self):
-        self._completer.setModel(QStringListModel(self._ac_labels, self._completer))
+        self._completer.setModel(
+            QtCore.QStringListModel(self._ac_labels, self._completer))
 
     def _on_index_changed(self, index: int):
         if 0 <= index < len(self._choices):
@@ -70,8 +76,8 @@ class BitmapAutoCompleteComboBox(QComboBox):
         self._rebuild_completer()
 
     def Insert(self, item: str, bitmap=None, pos: int = 0, clientData=None):
-        pixmap = bitmap if isinstance(bitmap, QPixmap) else None
-        icon = QIcon(pixmap) if pixmap else QIcon()
+        pixmap = bitmap if isinstance(bitmap, QtGui.QPixmap) else None
+        icon = QtGui.QIcon(pixmap) if pixmap else QtGui.QIcon()
         self.insertItem(pos, icon, item)
         self._choices.insert(pos, (item, pixmap, clientData))
         self._ac_labels.insert(pos, item)
@@ -86,8 +92,8 @@ class BitmapAutoCompleteComboBox(QComboBox):
         self.Set(items)
 
     def Append(self, item: str, bitmap=None, clientData=None):
-        pixmap = bitmap if isinstance(bitmap, QPixmap) else None
-        icon = QIcon(pixmap) if pixmap else QIcon()
+        pixmap = bitmap if isinstance(bitmap, QtGui.QPixmap) else None
+        icon = QtGui.QIcon(pixmap) if pixmap else QtGui.QIcon()
         super().addItem(icon, item)
         self._choices.append((item, pixmap, clientData))
         self._ac_labels.append(item)
@@ -101,7 +107,7 @@ class BitmapAutoCompleteComboBox(QComboBox):
         return self.currentText()
 
     def SetValue(self, value: str):
-        idx = self.findText(value, Qt.MatchFixedString)
+        idx = self.findText(value, QtCore.Qt.MatchFlag.MatchFixedString)
         if idx >= 0:
             self.setCurrentIndex(idx)
         else:

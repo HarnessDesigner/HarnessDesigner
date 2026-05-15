@@ -1,8 +1,7 @@
-from PySide6.QtWidgets import QMenu
-from PySide6.QtGui import QAction
+from PySide6 import QtWidgets
 
 
-class Rotate2DMenu(QMenu):
+class Rotate2DMenu(QtWidgets.QMenu):
 
     def __init__(self, canvas, obj):
         super().__init__(canvas)
@@ -29,7 +28,7 @@ class Rotate2DMenu(QMenu):
         pass
 
 
-class Mirror2DMenu(QMenu):
+class Mirror2DMenu(QtWidgets.QMenu):
 
     def __init__(self, canvas, obj):
         super().__init__(canvas)
@@ -49,37 +48,47 @@ class Mirror2DMenu(QMenu):
         pass
 
 
-class Rotate3DMenu(QMenu):
+class Rotate3DMenu(QtWidgets.QMenu):
 
     def __init__(self, canvas, selected):
         super().__init__(canvas)
         self.selected = selected
         self.canvas = canvas
 
-        for label, slot in [
-            ('X +90\u00b0', self.on_x_pos_90),
-            ('X -90\u00b0', self.on_x_neg_90),
-            None,
-            ('Y +90\u00b0', self.on_y_pos_90),
-            ('Y -90\u00b0', self.on_y_neg_90),
-            None,
-            ('Z +90\u00b0', self.on_z_pos_90),
-            ('Z -90\u00b0', self.on_z_neg_90),
-        ]:
+        for label, slot in [('X +90\u00b0', self.on_x_pos_90),
+                            ('X -90\u00b0', self.on_x_neg_90),
+                            None,
+                            ('Y +90\u00b0', self.on_y_pos_90),
+                            ('Y -90\u00b0', self.on_y_neg_90),
+                            None,
+                            ('Z +90\u00b0', self.on_z_pos_90),
+                            ('Z -90\u00b0', self.on_z_neg_90)]:
+
             if label is None:
                 self.addSeparator()
             else:
                 self.addAction(label).triggered.connect(slot)
 
-    def on_x_pos_90(self): pass
-    def on_x_neg_90(self): pass
-    def on_y_pos_90(self): pass
-    def on_y_neg_90(self): pass
-    def on_z_pos_90(self): pass
-    def on_z_neg_90(self): pass
+    def on_x_pos_90(self):
+        pass
+
+    def on_x_neg_90(self):
+        pass
+
+    def on_y_pos_90(self):
+        pass
+
+    def on_y_neg_90(self):
+        pass
+
+    def on_z_pos_90(self):
+        pass
+
+    def on_z_neg_90(self):
+        pass
 
 
-class Mirror3DMenu(QMenu):
+class Mirror3DMenu(QtWidgets.QMenu):
 
     def __init__(self, canvas, selected):
         super().__init__(canvas)
@@ -93,6 +102,11 @@ class Mirror3DMenu(QMenu):
         ]:
             self.addAction(label).triggered.connect(slot)
 
-    def on_x(self): pass
-    def on_y(self): pass
-    def on_z(self): pass
+    def on_x(self):
+        pass
+
+    def on_y(self):
+        pass
+
+    def on_z(self):
+        pass

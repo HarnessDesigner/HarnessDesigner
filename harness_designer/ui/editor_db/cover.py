@@ -13,7 +13,7 @@ class CoversPage(_base.EditorList):
     __table_name__ = 'covers'
     __query__ = f'''\
         SELECT * FROM (
-        SELECT Row_Number() OVER (ORDER BY {{sort_column}} {{sort_direction}}) AS RowNum, *
+        SELECT Row_Number() OVER (ORDER BY {{sort_clause}}) AS RowNum, *
         FROM (
             SELECT
                 t.id AS id,

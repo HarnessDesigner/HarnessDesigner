@@ -4,14 +4,9 @@ from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 from collections import OrderedDict
 
-from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-    QPushButton, QWidget, QScrollArea, QSizePolicy,
-    QListWidget, QListWidgetItem, QFrame, QSpinBox, QDoubleSpinBox,
-    QAbstractItemView
-)
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QColor
+from PySide6 import QtWidgets
+from PySide6 import QtCore
+from PySide6 import QtGui
 
 from . import dialog_base as _dialog_base
 
@@ -69,13 +64,13 @@ class _MainTableInfo:
 
 PANEL_W = 200
 PANEL_H = 260
-DISABLED_COLOUR = QColor(160, 160, 160)
+DISABLED_COLOUR = QtGui.QColor(160, 160, 160)
 
 
-class _FilterPanelBase(QWidget):
+class _FilterPanelBase(QtWidgets.QWidget):
     kind: str = ""
 
-    def __init__(self, parent: QWidget, label: str, on_change):
+    def __init__(self, parent: QtWidgets.QWidget, label: str, on_change):
         super().__init__(parent)
         self.label = label
         self.on_change = on_change
@@ -90,14 +85,14 @@ class _FilterPanelBase(QWidget):
         raise NotImplementedError
 
     def add_reset_button(self, layout):
-        line = QFrame(self)
-        line.setFrameShape(QFrame.Shape.HLine)
-        line.setFrameShadow(QFrame.Shadow.Sunken)
+        line = QtWidgets.QFrame(self)
+        line.setFrameShape(QtWidgets.QFrame.Shape.HLine)
+        line.setFrameShadow(QtWidgets.QFrame.Shadow.Sunken)
 
-        button = QPushButton('Reset', self)
+        button = QtWidgets.QPushButton('Reset', self)
         button.clicked.connect(self._on_reset_button)
 
-        row = QHBoxLayout()
+        row = QtWidgets.QHBoxLayout()
         row.addStretch()
         row.addWidget(button)
 
@@ -121,13 +116,13 @@ class FKFilterPanel(_FilterPanelBase):
         self._available: Optional[set] = None
         self._syncing = False
 
-        lay = QVBoxLayout(self)
-        title = QLabel(f'<b>{label}</b>', self)
+        lay = QtWidgets.QVBoxLayout(self)
+        title = QtWidgets.QLabel(f'<b>{label}</b>', self)
         lay.addWidget(title)
 
-        self.list = QListWidget(self)
+        self.list = QtWidgets.QListWidget(self)
         self.list.setSelectionMode(
-            QAbstractItemView.SelectionMode.SingleSelection)
+            QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
 
         lay.addWidget(self.list, 1)
 
@@ -139,9 +134,9 @@ class FKFilterPanel(_FilterPanelBase):
         self.list.blockSignals(True)
         self.list.clear()
         for d in displays:
-            item = QListWidgetItem(str(d))
-            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
-            item.setCheckState(Qt.CheckState.Unchecked)
+            item = QtWidgets.QListWidgetItem(str(d))
+            item.setFlags(item.flags() | QtCore.Qt.ItemFlag.ItemIsUserCheckable)
+            item.setCheckState(QtCore.Qt.CheckState.Unchecked)
             self.list.addItem(item)
         self.list.blockSignals(False)
 
@@ -161,7 +156,7 @@ class FKFilterPanel(_FilterPanelBase):
         displays = [
             self.list.item(i).text()
             for i in range(self.list.count())
-            if self.list.item(i).checkState() == Qt.CheckState.Checked
+            if self.list.item(i).checkState() == QtCore.Qt.CheckState.Checked
         ]
 
         if not displays:
@@ -177,14 +172,14 @@ class FKFilterPanel(_FilterPanelBase):
     def clear(self) -> None:
         self.list.blockSignals(True)
         for i in range(self.list.count()):
-            self.list.item(i).setCheckState(Qt.CheckState.Unchecked)
+            self.list.item(i).setCheckState(QtCore.Qt.CheckState.Unchecked)
         self.list.blockSignals(False)
 
     def _on_check(self, _):
         if self._syncing:
             return
 
-        QTimer.singleShot(0, self._sync_and_notify)
+        QtCore.QTimer.singleShot(0, self._sync_and_notify)
 
     def _sync_and_notify(self):
         self._syncing = True
@@ -193,10 +188,10 @@ class FKFilterPanel(_FilterPanelBase):
                 for i in range(self.list.count()):
                     item = self.list.item(i)
                     if (
-                        item.checkState() == Qt.CheckState.Checked and
+                        item.checkState() == QtCore.Qt.CheckState.Checked and
                         item.text() not in self._available
                     ):
-                        item.setCheckState(Qt.CheckState.Unchecked)
+                        item.setCheckState(QtCore.Qt.CheckState.Unchecked)
         finally:
             self._syncing = False
 
@@ -212,12 +207,14 @@ class EnumFilterPanel(_FilterPanelBase):
         self._available: Optional[set] = None
         self._syncing = False
 
-        lay = QVBoxLayout(self)
-        title = QLabel(f'<b>{label}</b>', self)
+        lay = QtWidgets.QVBoxLayout(self)
+        title = QtWidgets.QLabel(f'<b>{label}</b>', self)
         lay.addWidget(title)
 
-        self.list = QListWidget(self)
-        self.list.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.list = QtWidgets.QListWidget(self)
+        self.list.setSelectionMode(
+            QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
+
         lay.addWidget(self.list, 1)
 
         self.add_reset_button(lay)
@@ -229,9 +226,9 @@ class EnumFilterPanel(_FilterPanelBase):
         self.list.clear()
 
         for v in values:
-            item = QListWidgetItem(str(v))
-            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
-            item.setCheckState(Qt.CheckState.Unchecked)
+            item = QtWidgets.QListWidgetItem(str(v))
+            item.setFlags(item.flags() | QtCore.Qt.ItemFlag.ItemIsUserCheckable)
+            item.setCheckState(QtCore.Qt.CheckState.Unchecked)
             self.list.addItem(item)
 
         self.list.blockSignals(False)
@@ -256,7 +253,7 @@ class EnumFilterPanel(_FilterPanelBase):
         vals: List[int] = []
         for i in range(self.list.count()):
             item = self.list.item(i)
-            if item.checkState() == Qt.CheckState.Checked:
+            if item.checkState() == QtCore.Qt.CheckState.Checked:
                 try:
                     vals.append(int(item.text()))
                 except ValueError:
@@ -271,14 +268,14 @@ class EnumFilterPanel(_FilterPanelBase):
     def clear(self) -> None:
         self.list.blockSignals(True)
         for i in range(self.list.count()):
-            self.list.item(i).setCheckState(Qt.CheckState.Unchecked)
+            self.list.item(i).setCheckState(QtCore.Qt.CheckState.Unchecked)
         self.list.blockSignals(False)
 
     def _on_check(self, _):
         if self._syncing:
             return
 
-        QTimer.singleShot(0, self._sync_and_notify)
+        QtCore.QTimer.singleShot(0, self._sync_and_notify)
 
     def _sync_and_notify(self):
         self._syncing = True
@@ -286,14 +283,14 @@ class EnumFilterPanel(_FilterPanelBase):
             if self._available is not None:
                 for i in range(self.list.count()):
                     item = self.list.item(i)
-                    if item.checkState() != Qt.CheckState.Checked:
+                    if item.checkState() != QtCore.Qt.CheckState.Checked:
                         continue
                     try:
                         v = int(item.text())
                     except ValueError:
                         continue
                     if v not in self._available:
-                        item.setCheckState(Qt.CheckState.Unchecked)
+                        item.setCheckState(QtCore.Qt.CheckState.Unchecked)
         finally:
             self._syncing = False
 
@@ -314,23 +311,23 @@ class RangeFilterPanel(_FilterPanelBase):
         self._hi_default: Optional[float] = None
         self._initialised = False
 
-        lay = QVBoxLayout(self)
-        title = QLabel(f'<b>{label}</b>', self)
+        lay = QtWidgets.QVBoxLayout(self)
+        title = QtWidgets.QLabel(f'<b>{label}</b>', self)
         lay.addWidget(title)
 
         from PySide6.QtWidgets import QFormLayout
         form = QFormLayout()
 
         if is_int:
-            self.min_ctrl = QSpinBox(self)
+            self.min_ctrl = QtWidgets.QSpinBox(self)
             self.min_ctrl.setRange(-self._INT_LIMIT, self._INT_LIMIT)
-            self.max_ctrl = QSpinBox(self)
+            self.max_ctrl = QtWidgets.QSpinBox(self)
             self.max_ctrl.setRange(-self._INT_LIMIT, self._INT_LIMIT)
         else:
-            self.min_ctrl = QDoubleSpinBox(self)
+            self.min_ctrl = QtWidgets.QDoubleSpinBox(self)
             self.min_ctrl.setRange(-self._FLOAT_LIMIT, self._FLOAT_LIMIT)
             self.min_ctrl.setDecimals(4)
-            self.max_ctrl = QDoubleSpinBox(self)
+            self.max_ctrl = QtWidgets.QDoubleSpinBox(self)
             self.max_ctrl.setRange(-self._FLOAT_LIMIT, self._FLOAT_LIMIT)
             self.max_ctrl.setDecimals(4)
 
@@ -338,7 +335,7 @@ class RangeFilterPanel(_FilterPanelBase):
         form.addRow('Max:', self.max_ctrl)
         lay.addLayout(form)
 
-        self.range_label = QLabel('(no data)', self)
+        self.range_label = QtWidgets.QLabel('(no data)', self)
         self.range_label.setStyleSheet('color: gray;')
         lay.addWidget(self.range_label)
         lay.addStretch()
@@ -347,7 +344,7 @@ class RangeFilterPanel(_FilterPanelBase):
         self.max_ctrl.valueChanged.connect(self._fire)
 
     def _fire(self):
-        QTimer.singleShot(0, lambda: self.on_change(self))
+        QtCore.QTimer.singleShot(0, lambda: self.on_change(self))
 
     @staticmethod
     def _good_increment(span: float) -> float:
@@ -447,7 +444,7 @@ class SearchDialog(_dialog_base.BaseDialog):
         self._build_filters_for(self.current_table)
         self._refresh_all()
 
-        QTimer.singleShot(0, lambda: self.resize(1180, 780))
+        QtCore.QTimer.singleShot(0, lambda: self.resize(1180, 780))
 
     def GetValue(self) -> Optional[int]:
         sel = getattr(self.results, "selected", None)
@@ -461,43 +458,43 @@ class SearchDialog(_dialog_base.BaseDialog):
             return None
 
     def _build_ui(self) -> None:
-        outer = QVBoxLayout(self)
+        outer = QtWidgets.QVBoxLayout(self)
 
-        top = QHBoxLayout()
-        st = QLabel("Keyword:", self)
+        top = QtWidgets.QHBoxLayout()
+        st = QtWidgets.QLabel("Keyword:", self)
         top.addWidget(st)
 
-        self.kw_ctrl = QLineEdit(self)
+        self.kw_ctrl = QtWidgets.QLineEdit(self)
         self.kw_ctrl.setPlaceholderText("Part # or description...")
         self.kw_ctrl.textChanged.connect(self._on_kw_changed)
         top.addWidget(self.kw_ctrl, 1)
 
-        clear_btn = QPushButton("Clear All", self)
+        clear_btn = QtWidgets.QPushButton("Clear All", self)
         clear_btn.clicked.connect(self._on_clear_all)
         top.addWidget(clear_btn)
 
         outer.addLayout(top)
 
         # Horizontally scrolling filter strip
-        self.filter_scroll = QScrollArea(self)
+        self.filter_scroll = QtWidgets.QScrollArea(self)
         self.filter_scroll.setHorizontalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+            QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
 
         self.filter_scroll.setVerticalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         self.filter_scroll.setWidgetResizable(True)
         self.filter_scroll.setFixedHeight(PANEL_H + 20)
 
-        self._filter_container = QWidget()
-        self.filter_sizer = QHBoxLayout(self._filter_container)
-        self.filter_sizer.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        self._filter_container = QtWidgets.QWidget()
+        self.filter_sizer = QtWidgets.QHBoxLayout(self._filter_container)
+        self.filter_sizer.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
         self.filter_scroll.setWidget(self._filter_container)
 
         outer.addWidget(self.filter_scroll)
 
-        bottom = QHBoxLayout()
-        self.status = QLabel("0 results", self)
+        bottom = QtWidgets.QHBoxLayout()
+        self.status = QtWidgets.QLabel("0 results", self)
         bottom.addWidget(self.status)
         bottom.addStretch(1)
         outer.addLayout(bottom)
@@ -608,9 +605,9 @@ class SearchDialog(_dialog_base.BaseDialog):
         if hasattr(self, "_kw_timer"):
             self._kw_timer.stop()
         else:
-            self._kw_timer = QTimer(self)
+            self._kw_timer = QtCore.QTimer(self)
             self._kw_timer.setSingleShot(True)
-            self._kw_timer.timeout.connect(self._refresh_all)
+            self._kw_timer.timeout.connect(self._refresh_all)  # NOQA
 
         self._kw_timer.start(180)
 

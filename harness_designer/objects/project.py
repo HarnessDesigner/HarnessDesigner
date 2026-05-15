@@ -25,7 +25,6 @@ from . import wire_layout as _wire_layout
 from . import wire_marker as _wire_marker
 from . import wire_service_loop as _wire_service_loop
 from .. import config as _config
-from ..ui.dialogs import project_load as _project_load
 
 
 if TYPE_CHECKING:

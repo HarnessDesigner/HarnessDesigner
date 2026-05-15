@@ -1,20 +1,21 @@
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QPushButton, QColorDialog
-from PySide6.QtGui import QColor
-from PySide6.QtCore import Signal
+from PySide6 import QtWidgets
+from PySide6 import QtGui
+from PySide6 import QtCore
 
 from .combobox_ctrl import ComboBoxCtrl
 from ... import color as _color
 
 
-class ColorCtrl(QWidget):
-    """Label + combobox + colour-picker-button composite widget.
+class ColorCtrl(QtWidgets.QWidget):
+    """
+    Label + combobox + colour-picker-button composite widget.
 
     Emits colour_changed(Color) whenever the selection or the picker changes.
     Call sites should connect to this signal instead of binding
     EVT_COLOURPICKER_CHANGED on the old sizer-based widget.
     """
 
-    colour_changed = Signal(object)  # emits a _color.Color
+    colour_changed: QtCore.SignalInstance = QtCore.Signal(object)
 
     def __init__(self, parent=None, label: str = '', table=None):
         super().__init__(parent)
@@ -23,13 +24,15 @@ class ColorCtrl(QWidget):
         rows = table.fetchall()
         self._choices = sorted(rows, key=lambda x: x[1])
 
-        layout = QHBoxLayout(self)
+        layout = QtWidgets.QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        self.ctrl = ComboBoxCtrl(self, label, [item[1] for item in self._choices])
-        self.button = QPushButton(self)
+        self.ctrl = ComboBoxCtrl(
+            self, label, [item[1] for item in self._choices])
+
+        self.button = QtWidgets.QPushButton(self)
         self.button.setFixedWidth(32)
-        self._current_qcolor = QColor(255, 255, 255, 255)
+        self._current_qcolor = QtGui.QColor(255, 255, 255, 255)
         self._update_button_colour(self._current_qcolor)
 
         layout.addWidget(self.ctrl, 2)
@@ -41,21 +44,26 @@ class ColorCtrl(QWidget):
     # ------------------------------------------------------------------
     # Internal
     # ------------------------------------------------------------------
-    def _update_button_colour(self, qc: QColor):
+    def _update_button_colour(self, qc: QtGui.QColor):
         self._current_qcolor = qc
         r, g, b = qc.red(), qc.green(), qc.blue()
-        self.button.setStyleSheet(
-            f'QPushButton {{ background-color: rgb({r},{g},{b}); border: 1px solid #666; }}'
-        )
+        self.button.setStyleSheet(f'QPushButton {{ '
+                                  f'background-color: rgb({r},{g},{b});'
+                                  f' border: 1px solid #666; }}')
 
-    def _rgba_from_qcolor(self, name: str, qc: QColor) -> int:
+    @staticmethod
+    def _rgba_from_qcolor(_: str, qc: QtGui.QColor) -> int:
         r, g, b = qc.red(), qc.green(), qc.blue()
+
         return r << 24 | g << 16 | b << 8 | 0xFF
 
     def _on_colour_button(self):
-        qc = QColorDialog.getColor(self._current_qcolor, self, 'Select Colour')
+        qc = QtWidgets.QColorDialog.getColor(
+            self._current_qcolor, self, 'Select Colour')
+
         if not qc.isValid():
             return
+
         self._update_button_colour(qc)
 
         # Try to match a named colour and update the combobox
@@ -79,7 +87,7 @@ class ColorCtrl(QWidget):
             g = (rgba >> 16) & 0xFF
             b = (rgba >> 8) & 0xFF
             a = rgba & 0xFF
-            qc = QColor(r, g, b, a)
+            qc = QtGui.QColor(r, g, b, a)
             self._update_button_colour(qc)
 
         self.colour_changed.emit(self.GetColour())
@@ -100,7 +108,12 @@ class ColorCtrl(QWidget):
     def GetColour(self) -> '_color.Color':
         qc = self._current_qcolor
         name = self.GetValue()
-        a = 0 if name in ('None', 'Transparent') else 255
+
+        if name in ('None', 'Transparent'):
+            a = 0
+        else:
+            a = 255
+
         return _color.Color(qc.red(), qc.green(), qc.blue(), a)
 
     def GetValue(self) -> str:
@@ -115,5 +128,6 @@ class ColorCtrl(QWidget):
             g = (rgba >> 16) & 0xFF
             b = (rgba >> 8) & 0xFF
             a = rgba & 0xFF
-            self._update_button_colour(QColor(r, g, b, a))
+            self._update_button_colour(QtGui.QColor(r, g, b, a))
+
         self.ctrl.SetValue(value)

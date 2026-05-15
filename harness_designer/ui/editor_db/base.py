@@ -96,9 +96,23 @@ class _EditorModel(QAbstractTableModel):
             return ''
 
         col_key = section - 1
-        if col_key in self._list.column_mapping:
-            return self._list.column_mapping[col_key][0]
-        return None
+        if col_key not in self._list.column_mapping:
+            return None
+
+        label = self._list.column_mapping[col_key][0]
+
+        # Find this column in the sort stack and annotate the label.
+        col_name = self._list.column_mapping[col_key][1]
+        for priority, (sort_col, direction) in enumerate(self._list.sort_columns, start=1):
+            if sort_col == col_name:
+                # ASC = A at top, Z at bottom → triangle points down ▼
+                # DESC = Z at top, A at bottom → triangle points up ▲
+                triangle = '▼' if direction == 'ASC' else '▲'
+                if len(self._list.sort_columns) > 1:
+                    return f'{label} {triangle}({priority})'
+                return f'{label} {triangle}'
+
+        return label
 
     def data(self, index, role=Qt.ItemDataRole.DisplayRole):
         if not index.isValid():
@@ -181,11 +195,77 @@ class EditorList(QTableView):
             self.table.execute(sql + ';')
         return self.table.fetchall()[0][0]
 
+    # ------------------------------------------------------------------
+    # Multi-column sort helpers
+    # ------------------------------------------------------------------
+
+    @property
+    def sort_clause(self) -> str:
+        """Build the ORDER BY expression from the current sort stack.
+
+        ``sort_columns`` is a list of ``(column_name, 'ASC'|'DESC')``
+        pairs in priority order.  When empty we fall back to ``id ASC``
+        so the window function always has a deterministic ordering.
+        """
+        if not self.sort_columns:
+            return 'id ASC'
+        return ', '.join(f'{col} {direction}' for col, direction in self.sort_columns)
+
+    def _column_is_unique(self, column_name: str) -> bool:
+        """Return True when *column_name* is marked unique in
+        ``column_mapping``.  The mapping entry must be a 3-tuple
+        ``(label, db_column, unique)``; older 2-tuple entries are
+        treated as non-unique.
+        """
+        for entry in self.column_mapping.values():
+            if len(entry) >= 3 and entry[1] == column_name:
+                return bool(entry[2])
+        return False
+
+    def _sorted_column_index(self, column_name: str) -> int:
+        """Return the 0-based position of *column_name* in
+        ``sort_columns``, or -1 when not present.
+        """
+        for i, (col, _dir) in enumerate(self.sort_columns):
+            if col == column_name:
+                return i
+        return -1
+
+    def _active_unique_column(self) -> str | None:
+        """Return the column name if a unique column is currently the
+        **last** entry in the sort stack (i.e. it would block further
+        additions), otherwise None.
+        """
+        if not self.sort_columns:
+            return None
+        last_col, _ = self.sort_columns[-1]
+        if self._column_is_unique(last_col):
+            return last_col
+        return None
+
+    def _rebuild_sort_indicators(self):
+        """Trigger a header repaint so every section re-fetches its label
+        from ``_EditorModel.headerData``, which now embeds the arrow and
+        priority number directly in the label text.
+
+        Qt's native single-column sort indicator is not used (it can only
+        mark one section at a time).  All visual feedback is carried by
+        the label string itself, e.g. ``"Part Number ↓2"``.
+        """
+        self._model.headerDataChanged.emit(
+            Qt.Orientation.Horizontal,
+            0,
+            self._model.columnCount() - 1,
+        )
+
+    # ------------------------------------------------------------------
+    # DB helpers
+    # ------------------------------------------------------------------
+
     def get_obj_id(self, row):
         where_sql = f'WHERE {self._where_clause}' if self._where_clause else ''
         sql = self._effective_query.format(
-            sort_column=self.sort_column,
-            sort_direction=self.sort_direction,
+            sort_clause=self.sort_clause,
             row=row,
             start_row=row,
             end_row=row,
@@ -197,7 +277,7 @@ class EditorList(QTableView):
             self.table.execute(sql)
         rows = self.table.fetchall()
         if rows:
-            return rows[0][0]
+            return rows[0][1]  # rows[0][0] is RowNum; actual id is at index 1
 
     def get_row(self, row):
         if row not in self.rows:
@@ -212,8 +292,7 @@ class EditorList(QTableView):
     def get_rows(self, start, stop):
         where_sql = f'WHERE {self._where_clause}' if self._where_clause else ''
         sql = self._effective_query.format(
-            sort_column=self.sort_column,
-            sort_direction=self.sort_direction,
+            sort_clause=self.sort_clause,
             start_row=start,
             end_row=stop,
             where_clause=where_sql,
@@ -250,7 +329,9 @@ class EditorList(QTableView):
             if col_name == 'model3d_id':
                 return '\u2714' if row[-2] is not None else ''
 
-        return str(row[col_id - 1])
+        # row[0] is RowNum (the window-function prefix); actual data starts at row[1].
+        # col_id is already offset by 1 for the icon column, so net index is col_id.
+        return str(row[col_id])
 
     def _get_icon(self, row_id):
         if row_id < 0:
@@ -260,7 +341,7 @@ class EditorList(QTableView):
         if row is None:
             return None
 
-        db_id = row[0]
+        db_id = row[1]  # row[0] is RowNum; actual id is at index 1
         if db_id not in self.bitmap_indexes:
             if not self._has_image:
                 self.bitmap_indexes[db_id] = None
@@ -342,22 +423,33 @@ class EditorList(QTableView):
         if logical_index not in self.column_lookup:
             return
 
-        sort_column = self.column_lookup[logical_index]
-        header = self.horizontalHeader()
+        col_name = self.column_lookup[logical_index]
+        pos = self._sorted_column_index(col_name)
 
-        if sort_column == self.sort_column:
-            if self.sort_direction == 'ASC':
-                self.sort_direction = 'DESC'
-                # ascending indicator is backwards (matches original comment)
-                header.setSortIndicator(logical_index, Qt.AscendingOrder)
-            else:
-                self.sort_direction = 'ASC'
-                header.setSortIndicator(logical_index, Qt.DescendingOrder)
+        if pos == -1:
+            # Column not currently sorted — try to append it.
+            # Block if the last sorted column is unique (it already
+            # produces a deterministic order on its own).
+            blocking = self._active_unique_column()
+            if blocking is not None:
+                # Silently ignore; callers may connect a status-bar
+                # message here if desired.
+                return
+
+            # First click → ASC
+            self.sort_columns.append((col_name, 'ASC'))
+
         else:
-            self.sort_direction = 'ASC'
-            self.sort_column = sort_column
-            header.setSortIndicator(logical_index, Qt.DescendingOrder)
+            current_dir = self.sort_columns[pos][1]
+            if current_dir == 'ASC':
+                # Second click → DESC
+                self.sort_columns[pos] = (col_name, 'DESC')
+            else:
+                # Third click → remove from sort stack entirely.
+                # Re-number remaining entries (list order is preserved).
+                self.sort_columns.pop(pos)
 
+        self._rebuild_sort_indicators()
         self.rows.clear()
         self.selected = None
         self._model.reset_all()
@@ -386,8 +478,7 @@ class EditorList(QTableView):
         self.selected = None
         self.mainframe = mainframe
         self.downloading_images = []
-        self.sort_column = 'id'
-        self.sort_direction = 'ASC'
+        self.sort_columns: list[tuple[str, str]] = []  # [(col_name, 'ASC'|'DESC'), ...]
         self.needs_pruning = False
         self.current_row = 0
         self._row_height = 68
@@ -411,9 +502,7 @@ class EditorList(QTableView):
 
         header = self.horizontalHeader()
         header.setSectionsClickable(True)
-        header.setSortIndicatorShown(True)
-        # DB ID column starts with descending indicator (matches original)
-        header.setSortIndicator(1, Qt.DescendingOrder)
+        header.setSortIndicatorShown(False)  # arrows embedded in label text instead
 
         self.column_lookup = {}
 

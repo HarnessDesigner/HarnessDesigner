@@ -1,5 +1,5 @@
-from PySide6.QtWidgets import QLineEdit, QCompleter
-from PySide6.QtCore import Qt
+from PySide6 import QtWidgets
+from PySide6 import QtCore
 
 
 class _AutoCompleter:
@@ -25,11 +25,16 @@ class _AutoCompleter:
 
 
 def _attach_completer(widget, ac: _AutoCompleter):
-    """Create and attach a QCompleter to *widget*, returning it so callers can
-    refresh it when the choices list changes."""
-    completer = QCompleter(ac.choices, widget)
-    completer.setCaseSensitivity(Qt.CaseInsensitive)
-    completer.setCompletionMode(QCompleter.InlineCompletion)
+    """
+    Create and attach a QCompleter to *widget*, returning it so callers can
+    refresh it when the choices list changes.
+    """
+    completer = QtWidgets.QCompleter(ac.choices, widget)
+    completer.setCaseSensitivity(QtCore.Qt.CaseSensitivity.CaseInsensitive)
+
+    completer.setCompletionMode(
+        QtWidgets.QCompleter.CompletionMode.InlineCompletion)
+
     widget.setCompleter(completer)
     return completer
 
@@ -44,8 +49,10 @@ def _refresh_completer(widget, ac: _AutoCompleter):
         completer.setModel(QStringListModel(ac.choices, completer))
 
 
-class AutoComplete(QLineEdit):
-    """QLineEdit with inline autocomplete (replaces the wx AutoComplete TextCtrl)."""
+class AutoComplete(QtWidgets.QLineEdit):
+    """
+    QLineEdit with inline autocomplete (replaces the wx AutoComplete TextCtrl).
+    """
 
     def __init__(self, parent=None, value='', autocomplete_choices=None):
         super().__init__(parent)

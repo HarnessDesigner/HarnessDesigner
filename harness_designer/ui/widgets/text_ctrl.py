@@ -28,9 +28,10 @@ class TextCtrl(QtWidgets.QWidget):
     text_committed: QtCore.SignalInstance = QtCore.Signal()
     text_changed: QtCore.SignalInstance = QtCore.Signal(str)
 
-    def __init__(self, parent=None, label: str = '', size=None, style: int = 0,
-                 apply_button: bool = True, hslider: bool = True,
-                 readonly: bool = False, multiline: bool = False):
+    def __init__(self, parent=None, label: str = '', size=None,
+                 style: int = 0, apply_button: bool = True, # NOQA
+                 hslider: bool = True, readonly: bool = False,
+                 multiline: bool = False):
 
         super().__init__(parent)
         self._show_apply_button = apply_button
@@ -47,9 +48,11 @@ class TextCtrl(QtWidgets.QWidget):
             self.ctrl.setReadOnly(readonly)
 
             if not hslider:
-                self.ctrl.setLineWrapMode(QtWidgets.QTextEdit.LineWrapMode.WidgetWidth)
+                self.ctrl.setLineWrapMode(
+                    QtWidgets.QTextEdit.LineWrapMode.WidgetWidth)
             else:
-                self.ctrl.setLineWrapMode(QtWidgets.QTextEdit.LineWrapMode.NoWrap)
+                self.ctrl.setLineWrapMode(
+                    QtWidgets.QTextEdit.LineWrapMode.NoWrap)
 
             if size:
                 w, h = size

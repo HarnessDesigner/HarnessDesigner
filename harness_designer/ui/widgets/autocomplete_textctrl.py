@@ -1,8 +1,8 @@
-from PySide6.QtWidgets import QLineEdit, QCompleter
-from PySide6.QtCore import Qt, QStringListModel
+from PySide6 import QtWidgets
+from PySide6 import QtCore
 
 
-class AutoCompleteTextCtrl(QLineEdit):
+class AutoCompleteTextCtrl(QtWidgets.QLineEdit):
     """QLineEdit with inline autocomplete (replaces wx AutoCompleteTextCtrl).
 
     Choice-management API is identical to the original so all call sites work
@@ -12,16 +12,21 @@ class AutoCompleteTextCtrl(QLineEdit):
     def __init__(self, parent=None, choices=None):
         super().__init__(parent)
         self._choices = list(choices or [])
-        self._completer = QCompleter(self._choices, self)
-        self._completer.setCaseSensitivity(Qt.CaseInsensitive)
-        self._completer.setCompletionMode(QCompleter.InlineCompletion)
+        self._completer = QtWidgets.QCompleter(self._choices, self)
+        self._completer.setCaseSensitivity(
+            QtCore.Qt.CaseSensitivity.CaseInsensitive)
+
+        self._completer.setCompletionMode(
+            QtWidgets.QCompleter.CompletionMode.InlineCompletion)
+
         self.setCompleter(self._completer)
 
     # ------------------------------------------------------------------
     # Internal helper
     # ------------------------------------------------------------------
     def _rebuild_completer(self):
-        self._completer.setModel(QStringListModel(self._choices, self._completer))
+        self._completer.setModel(
+            QtCore.QStringListModel(self._choices, self._completer))
 
     # ------------------------------------------------------------------
     # wx-compatible choice management
