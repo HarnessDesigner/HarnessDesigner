@@ -21,7 +21,7 @@ from ... import config as _config
 
 class Overlay(QWidget):
     def __init__(self, parent, config: _config.Config.editor3d.axis_overlay):
-
+        self.canvas3d = parent
         QWidget.__init__(self, parent)
         self.setFixedSize(*config.size)
         self.move(*config.position)
@@ -47,6 +47,7 @@ class Overlay(QWidget):
         QWidget.setVisible(self, flag)
 
     def resizeEvent(self, event):
+
         def _do():
             w = self.width()
             h = self.height()
@@ -57,6 +58,7 @@ class Overlay(QWidget):
         QWidget.resizeEvent(self, event)
 
     def moveEvent(self, event):
+
         def _do():
             pos = self.pos()
             self.config.position = (pos.x(), pos.y())
@@ -89,6 +91,7 @@ class GLOverlay(QOpenGLWidget):
         self.camera_eye = _point.Point(0.0, 0.5, 10.0)
 
         self.distance = 10.0
+        self._last_angle = _point.Point(0, 0, 0)
 
         self._triangles = []
 
@@ -116,35 +119,27 @@ class GLOverlay(QOpenGLWidget):
     def _on_left_down(self, event):
         x = event.position().x()
         y = event.position().y()
-        w = self.width()
-        h = self.height()
+        w = self.parent_overlay.width()
+        h = self.parent_overlay.height()
 
         sx = event.globalPosition().x()
         sy = event.globalPosition().y()
         self.mouse_pos = _point.Point(sx, sy)
 
-        if (
-            (0 <= x <= 10 and 0 <= y <= 10) or
-            (0 <= x <= 10 and 0 <= y <= 10)
-        ):
-            self.grab_location = 5
-        elif (
-            (w - 10 <= x <= w and h - 10 <= y <= h) or
-            (w - 10 <= x <= w and h - 10 <= y <= h)
-        ):
-            self.grab_location = 6
-        elif (
-            (w - 10 <= x <= w and 0 <= y <= 10) or
-            (w <= x <= w - 10 and 0 <= y <= 10)
-        ):
-            self.grab_location = 7
-        elif (
-            (0 <= x <= 10 and h - 10 <= y <= h) or
-            (0 <= x <= 10 and h - 10 <= y <= h)
-        ):
-            self.grab_location = 8
+        if 0 <= x <= 10 and 0 <= y <= 10:
+            # top left
+            self.grab_location = 1
+        elif w - 10 <= x <= w and 0 <= y <= 10:
+            # top right
+            self.grab_location = 2
+        elif 0 <= x <= 10 and h - 10 <= y <= h:
+            # bottom left
+            self.grab_location = 3
+        elif w - 10 <= x <= w and h - 10 <= y <= h:
+            # bottom right
+            self.grab_location = 4
         else:
-            self.grab_location = 9
+            self.grab_location = 5
 
         self.grabMouse()
 
@@ -159,13 +154,19 @@ class GLOverlay(QOpenGLWidget):
         pass
 
     def _on_mouse_motion(self, event):
-        x = event.position().x()
-        y = event.position().y()
-        w = self.parent_overlay.width()
-        h = self.parent_overlay.height()
+        size = self.parent_overlay.size()
+        w = size.width()
+        h = size.height()
+
+        pos = self.parent_overlay.pos()
+        x = pos.x()
+        y = pos.y()
 
         sx = event.globalPosition().x()
         sy = event.globalPosition().y()
+
+        mx = event.position().x()
+        my = event.position().y()
 
         mouse_pos = _point.Point(sx, sy)
 
@@ -180,91 +181,116 @@ class GLOverlay(QOpenGLWidget):
 
         if self.grab_location:
             if self.grab_location == 1:
-                w -= delta_x
-                self.parent_overlay.setFixedSize(w, h)
-                pos = self.parent_overlay.pos()
-                self.parent_overlay.move(pos.x() + delta_x, pos.y())
+                # top left
+                delta = min(delta_x, delta_y)
+                w += -delta
+                h += -delta
+
+                s = min(w, h)
+
+                x += delta
+                y += delta
+
+                self.parent_overlay.setFixedSize(s, s)
+                self.parent_overlay.move(x, y)
 
             elif self.grab_location == 2:
-                w += delta_x
-                self.parent_overlay.setFixedSize(w, h)
+                # top right
+                if abs(delta_x) > abs(delta_y):
+                    w += delta_x
+                    h += delta_x
+
+                    y += -delta_x
+                else:
+                    w += -delta_y
+                    h += -delta_y
+
+                    y += delta_y
+
+                s = min(w, h)
+
+                self.parent_overlay.setFixedSize(s, s)
+                self.parent_overlay.move(x, y)
 
             elif self.grab_location == 3:
-                h -= delta_y
-                self.parent_overlay.setFixedSize(w, h)
-                pos = self.parent_overlay.pos()
-                self.parent_overlay.move(pos.x(), pos.y() + delta_y)
+                # bottom left
+                if abs(delta_x) > abs(delta_y):
+                    w += -delta_x
+                    h += -delta_x
+
+                    x += delta_x
+
+                else:
+                    w += delta_y
+                    h += delta_y
+
+                    x += -delta_y
+
+                s = min(w, h)
+
+                self.parent_overlay.setFixedSize(s, s)
+                self.parent_overlay.move(x, y)
 
             elif self.grab_location == 4:
-                h += delta_y
-                self.parent_overlay.setFixedSize(w, h)
-
-            elif self.grab_location == 5:
-                delta = max(delta_x, delta_y)
-                w -= delta
-                h -= delta
-                pos = self.parent_overlay.pos()
-                self.parent_overlay.setFixedSize(w, h)
-                self.parent_overlay.move(pos.x() + delta, pos.y() + delta)
-
-            elif self.grab_location == 6:
+                # bottom right
                 delta = min(delta_x, delta_y)
+
                 w += delta
                 h += delta
+
+                w = h = min(w, h)
+
                 self.parent_overlay.setFixedSize(w, h)
+            elif self.grab_location == 5:
+                # move
+                x1 = x + delta_x
+                y1 = y + delta_y
 
-            elif self.grab_location == 7:
-                delta = max(abs(delta_x), abs(delta_y))
-                pos = self.parent_overlay.pos()
-                if delta_x < 0:
-                    w += delta
-                    h -= delta
-                    self.parent_overlay.setFixedSize(w, h)
-                    self.parent_overlay.move(pos.x(), pos.y() + delta)
+                x2 = x1 + w
+                y2 = y1 + h
+
+                size = self.parent_overlay.canvas3d.size()
+                cw = size.width()
+                ch = size.height()
+
+                if x1 < 0:
+                    x_offset = -x1
+                elif x2 > cw:
+                    x_offset = cw - x2
                 else:
-                    w += delta
-                    h += delta
-                    self.parent_overlay.setFixedSize(w, h)
-                    self.parent_overlay.move(pos.x(), pos.y() - delta)
+                    x_offset = 0
 
-            elif self.grab_location == 8:
-                pos = self.parent_overlay.pos()
-                delta = max(abs(delta_x), abs(delta_y))
-                if delta_x < 0:
-                    w += delta
-                    h += delta
-                    self.parent_overlay.setFixedSize(w, h)
-                    self.parent_overlay.move(pos.x() - delta, pos.y())
+                if y1 < 0:
+                    y_offset = -y1
+                elif y2 > ch:
+                    y_offset = ch - y2
                 else:
-                    w -= delta_x
-                    h -= delta_y
-                    self.parent_overlay.setFixedSize(w, h)
-                    self.parent_overlay.move(pos.x() + delta, pos.y())
+                    y_offset = 0
 
-            elif self.grab_location == 9:
-                pos = self.parent_overlay.pos()
-                self.parent_overlay.move(pos.x() + delta_x, pos.y() + delta_y)
+                x = x1 + x_offset
+                y = y1 + y_offset
 
-            if self.grab_location != 9:
-                self.build_model(min(w, h))
+                self.parent_overlay.move(x, y)
+
+            if self.grab_location != 5:
+                self.build_model(max(w, h))
+                self.set_angle(self._last_angle)
 
             parent = self.parent_overlay.parent()
+
             if parent is not None:
                 parent.update()
+
             self.parent_overlay.update()
 
         elif (
-            (0 <= x <= 5 and 0 <= y <= 10) or
-            (0 <= x <= 10 and 0 <= y <= 5) or
-            (w - 10 <= x <= w and h - 5 <= y <= h) or
-            (w - 5 <= x <= w and h - 10 <= y <= h)
+            (0 <= mx <= 10 and 0 <= my <= 10) or
+            (w - 10 <= mx <= w and h - 10 <= my <= h)
         ):
             self.setCursor(QCursor(Qt.SizeFDiagCursor))
         elif (
-            (w - 10 <= x <= w and 0 <= y <= 5) or
-            (w <= x <= w - 5 and 0 <= y <= 10) or
-            (0 <= x <= 5 and h - 10 <= y <= h) or
-            (0 <= x <= 10 and h - 5 <= y <= h)
+            (w - 10 <= mx <= w and 0 <= my <= 10) or
+            (0 <= mx <= 10 and h - 10 <= my <= h)
         ):
             self.setCursor(QCursor(Qt.SizeBDiagCursor))
         else:
@@ -311,6 +337,8 @@ class GLOverlay(QOpenGLWidget):
         ]
 
     def set_angle(self, point: _point.Point):
+        self._last_angle = point
+
         coords = list(point)
 
         scale = 1.0

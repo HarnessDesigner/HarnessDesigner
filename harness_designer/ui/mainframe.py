@@ -160,6 +160,13 @@ class MainFrame(QMainWindow):
         splash.SetText('Creating attribute editor...')
         splash.flush()
 
+        from . import editor_ciruit
+
+        self.editor_obj = editor_ciruit.EditorCircuit(self)
+
+        splash.SetText('Creating circuit editor...')
+        splash.flush()
+
         from . import editor_obj
 
         self.editor_obj = editor_obj.EditorObj(self)

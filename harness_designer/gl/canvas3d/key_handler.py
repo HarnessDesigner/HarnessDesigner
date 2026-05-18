@@ -9,6 +9,7 @@ from . import canvas as _canvas
 from ... import debug as _debug
 from .. import events as _events
 from ...geometry import point as _point
+from ... import app as _app
 
 
 # wx key code → Qt.Key mapping for the numpad-equivalence groups.
@@ -24,12 +25,12 @@ from ...geometry import point as _point
 _Q = Qt.Key  # shorthand
 
 KEY_MULTIPLES = {
-    _Q.Key_Up:       [_Q.Key_Up, _Q.Key_Up],          # numpad up = Key_Up in Qt
-    _Q.Key_Down:     [_Q.Key_Down, _Q.Key_Down],
-    _Q.Key_Left:     [_Q.Key_Left, _Q.Key_Left],
-    _Q.Key_Right:    [_Q.Key_Right, _Q.Key_Right],
+    _Q.Key_Up:       [_Q.Key_Up],
+    _Q.Key_Down:     [_Q.Key_Down],
+    _Q.Key_Left:     [_Q.Key_Left],
+    _Q.Key_Right:    [_Q.Key_Right],
 
-    ord('-'): [ord('-'), _Q.Key_Minus, _Q.Key_Minus],
+    ord('-'): [ord('-'), _Q.Key_Minus],
     _Q.Key_Minus: [ord('-'), _Q.Key_Minus],
 
     ord('+'): [ord('+'), _Q.Key_Plus],
@@ -92,15 +93,10 @@ def _process_key_event(keycode: int, *keys):
             return expected_keycode
 
 
-class KeyHandler(QObject):
+class KeyHandler:
 
     def __init__(self, canvas: "_canvas.Canvas"):
-        super().__init__()
         self.canvas = canvas
-
-        # Qt: override keyPressEvent / keyReleaseEvent on the canvas instead
-        # of canvas.Bind().  The canvas delegates those overrides here.
-        canvas.installEventFilter(self)
 
         self._running_keycodes = {}
         self._key_event = threading.Event()
@@ -109,17 +105,16 @@ class KeyHandler(QObject):
         self._keycode_thread.daemon = True
         self._keycode_thread.start()
 
-    # Qt event filter — called by the canvas's event loop.
-    def eventFilter(self, obj, qt_event):
+    def handle_event(self, event):
+        t = event.type()
 
-        if obj is self.canvas:
-            if qt_event.type() == QEvent.Type.KeyPress and not qt_event.isAutoRepeat():
-                self._on_key_down(qt_event)
-                return False        # let Qt continue (focus, etc.)
+        if event.isAutoRepeat():  # ← ignore auto-repeats
+            return False
 
-            if qt_event.type() == QEvent.Type.KeyRelease and not qt_event.isAutoRepeat():
-                self._on_key_up(qt_event)
-                return False
+        if t == QEvent.Type.KeyPress:
+            self.on_key_down(event)
+        elif t == QEvent.Type.KeyRelease:
+            self.on_key_up(event)
 
         return False
 
@@ -130,10 +125,9 @@ class KeyHandler(QObject):
                               for func, items in self._running_keycodes.items()]
 
             for func, keys, factor in temp_queue:
-                # wx.CallAfter → QTimer.singleShot(0, ...) for main-thread dispatch
                 _keys = list(keys)
                 _factor = factor
-                QTimer.singleShot(0, lambda f=func, fac=_factor, k=_keys: f(fac, *k))
+                _app.CallAfter(func, _factor, *_keys)
 
                 if factor < self.canvas.config.keyboard_settings.max_speed_factor:
                     factor += self.canvas.config.keyboard_settings.speed_factor_increment
@@ -144,7 +138,7 @@ class KeyHandler(QObject):
             self._key_event.wait(0.05)
 
     @_debug.logfunc
-    def _on_key_up(self, evt):
+    def on_key_up(self, evt):
         keycode = evt.key()
 
         if not self._send_event(_events.EVT_GL_KEY_UP, evt):
@@ -223,7 +217,7 @@ class KeyHandler(QObject):
         event.SetAltDown(bool(mods & Qt.AltModifier))  # NOQA
         event.SetControlDown(bool(mods & Qt.ControlModifier))  # NOQA
         event.SetCmdDown(bool(mods & Qt.ControlModifier))   # NOQA
-        event.SetModifiers(int(mods))
+        event.SetModifiers(int(mods.value))
         event.SetMetaDown(bool(mods & Qt.MetaModifier))  # NOQA
         event.SetRawControlDown(bool(mods & Qt.ControlModifier))  # NOQA
         event.SetShiftDown(bool(mods & Qt.ShiftModifier))  # NOQA
@@ -243,7 +237,7 @@ class KeyHandler(QObject):
         return event.ShouldPropagate()
 
     @_debug.logfunc
-    def _on_key_down(self, evt):
+    def on_key_down(self, evt):
         keycode = evt.key()
 
         if not self._send_event(_events.EVT_GL_KEY_DOWN, evt):

@@ -204,7 +204,5 @@ class EditorDBPanel(QTabWidget):
             self, self.mainframe, 'Wire Marker', g_db.wire_markers_table)
         self.addTab(self.wire_markers, 'Wire Markers')
 
-    def Refresh(self, *args, **kwargs):
-        current = self.currentWidget()
-        if current is not None:
-            current.Refresh()
+    def Refresh(self, *_, **__):
+        self.update()

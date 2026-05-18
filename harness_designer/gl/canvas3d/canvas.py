@@ -30,6 +30,198 @@ MOUSE_REVERSE_X_AXIS = _config.MOUSE_REVERSE_X_AXIS
 _debug_config = _config.Config.debug.rendering3d
 
 
+class CanvasEventFilter(QtCore.QObject):
+
+    def __init__(self, canvas):
+        self.canvas = canvas  # Qt: install event filter instead of canvas.Bind()
+
+        super().__init__()
+        canvas.installEventFilter(self)
+
+    def eventFilter(self, obj, event):
+        if obj != self.canvas:
+            return False
+
+        t = event.type()
+
+        # QtCore.QEvent.Type.ActionAdded
+        # QtCore.QEvent.Type.ActionChanged
+        # QtCore.QEvent.Type.ActionRemoved
+        # QtCore.QEvent.Type.ActivationChange
+        # QtCore.QEvent.Type.ApplicationActivate
+        # QtCore.QEvent.Type.ApplicationActivated
+        # QtCore.QEvent.Type.ApplicationDeactivate
+        # QtCore.QEvent.Type.ApplicationFontChange
+        # QtCore.QEvent.Type.ApplicationLayoutDirectionChange
+        # QtCore.QEvent.Type.ApplicationPaletteChange
+        # QtCore.QEvent.Type.ApplicationStateChange
+        # QtCore.QEvent.Type.ApplicationWindowIconChange
+        # QtCore.QEvent.Type.ChildAdded
+        # QtCore.QEvent.Type.ChildPolished
+        # QtCore.QEvent.Type.ChildRemoved
+        # QtCore.QEvent.Type.ChildWindowAdded
+        # QtCore.QEvent.Type.ChildWindowRemoved
+        # QtCore.QEvent.Type.Clipboard
+        # QtCore.QEvent.Type.Close
+        # QtCore.QEvent.Type.CloseSoftwareInputPanel
+        # QtCore.QEvent.Type.ContentsRectChange
+        # QtCore.QEvent.Type.ContextMenu
+        # QtCore.QEvent.Type.CursorChange
+        # QtCore.QEvent.Type.DeferredDelete
+        # QtCore.QEvent.Type.DevicePixelRatioChange
+        # QtCore.QEvent.Type.DragEnter
+        # QtCore.QEvent.Type.DragLeave
+        # QtCore.QEvent.Type.DragMove
+        # QtCore.QEvent.Type.Drop
+        # QtCore.QEvent.Type.DynamicPropertyChange
+        # QtCore.QEvent.Type.EnabledChange
+        # QtCore.QEvent.Type.Enter
+        # QtCore.QEvent.Type.EnterEditFocus
+        # QtCore.QEvent.Type.EnterWhatsThisMode
+        # QtCore.QEvent.Type.Expose
+        # QtCore.QEvent.Type.FileOpen
+        # QtCore.QEvent.Type.FocusIn
+        # QtCore.QEvent.Type.FocusOut
+        # QtCore.QEvent.Type.FocusAboutToChange
+        # QtCore.QEvent.Type.FontChange
+        # QtCore.QEvent.Type.Gesture
+        # QtCore.QEvent.Type.GestureOverride
+        # QtCore.QEvent.Type.GrabKeyboard
+        # QtCore.QEvent.Type.GrabMouse
+        # QtCore.QEvent.Type.GraphicsSceneContextMenu
+        # QtCore.QEvent.Type.GraphicsSceneDragEnter
+        # QtCore.QEvent.Type.GraphicsSceneDragLeave
+        # QtCore.QEvent.Type.GraphicsSceneDragMove
+        # QtCore.QEvent.Type.GraphicsSceneDrop
+        # QtCore.QEvent.Type.GraphicsSceneHelp
+        # QtCore.QEvent.Type.GraphicsSceneHoverEnter
+        # QtCore.QEvent.Type.GraphicsSceneHoverLeave
+        # QtCore.QEvent.Type.GraphicsSceneHoverMove
+        # QtCore.QEvent.Type.GraphicsSceneMouseDoubleClick
+        # QtCore.QEvent.Type.GraphicsSceneMouseMove
+        # QtCore.QEvent.Type.GraphicsSceneMousePress
+        # QtCore.QEvent.Type.GraphicsSceneMouseRelease
+        # QtCore.QEvent.Type.GraphicsSceneMove
+        # QtCore.QEvent.Type.GraphicsSceneResize
+        # QtCore.QEvent.Type.GraphicsSceneWheel
+        # QtCore.QEvent.Type.GraphicsSceneLeave
+        # QtCore.QEvent.Type.Hide
+        # QtCore.QEvent.Type.HideToParent
+        # QtCore.QEvent.Type.HoverEnter
+        # QtCore.QEvent.Type.HoverLeave
+        # QtCore.QEvent.Type.HoverMove
+        # QtCore.QEvent.Type.IconDrag
+        # QtCore.QEvent.Type.IconTextChange
+        # QtCore.QEvent.Type.InputMethod
+        # QtCore.QEvent.Type.InputMethodQuery
+        # QtCore.QEvent.Type.KeyboardLayoutChange
+        # QtCore.QEvent.Type.KeyPress
+        # QtCore.QEvent.Type.KeyRelease
+        # QtCore.QEvent.Type.LanguageChange
+        # QtCore.QEvent.Type.LayoutDirectionChange
+        # QtCore.QEvent.Type.LayoutRequest
+        # QtCore.QEvent.Type.Leave
+        # QtCore.QEvent.Type.LeaveEditFocus
+        # QtCore.QEvent.Type.LeaveWhatsThisMode
+        # QtCore.QEvent.Type.LocaleChange
+        # QtCore.QEvent.Type.NonClientAreaMouseButtonDblClick
+        # QtCore.QEvent.Type.NonClientAreaMouseButtonPress
+        # QtCore.QEvent.Type.NonClientAreaMouseButtonRelease
+        # QtCore.QEvent.Type.NonClientAreaMouseMove
+        # QtCore.QEvent.Type.MacSizeChange
+        # QtCore.QEvent.Type.MetaCall
+        # QtCore.QEvent.Type.ModifiedChange
+        # QtCore.QEvent.Type.MouseButtonDblClick
+        # QtCore.QEvent.Type.MouseButtonPress
+        # QtCore.QEvent.Type.MouseButtonRelease
+        # QtCore.QEvent.Type.MouseMove
+        # QtCore.QEvent.Type.MouseTrackingChange
+        # QtCore.QEvent.Type.Move
+        # QtCore.QEvent.Type.NativeGesture
+        # QtCore.QEvent.Type.OrientationChange
+        # QtCore.QEvent.Type.Paint
+        # QtCore.QEvent.Type.PaletteChange
+        # QtCore.QEvent.Type.ParentAboutToChange
+        # QtCore.QEvent.Type.ParentChange
+        # QtCore.QEvent.Type.ParentWindowAboutToChange
+        # QtCore.QEvent.Type.ParentWindowChange
+        # QtCore.QEvent.Type.PlatformPanel
+        # QtCore.QEvent.Type.PlatformSurface
+        # QtCore.QEvent.Type.Polish
+        # QtCore.QEvent.Type.PolishRequest
+        # QtCore.QEvent.Type.QueryWhatsThis
+        # QtCore.QEvent.Type.Quit
+        # QtCore.QEvent.Type.ReadOnlyChange
+        # QtCore.QEvent.Type.RequestSoftwareInputPanel
+        # QtCore.QEvent.Type.Resize
+        # QtCore.QEvent.Type.ScrollPrepare
+        # QtCore.QEvent.Type.Scroll
+        # QtCore.QEvent.Type.Shortcut
+        # QtCore.QEvent.Type.ShortcutOverride
+        # QtCore.QEvent.Type.Show
+        # QtCore.QEvent.Type.ShowToParent
+        # QtCore.QEvent.Type.SockAct
+        # QtCore.QEvent.Type.StateMachineSignal
+        # QtCore.QEvent.Type.StateMachineWrapped
+        # QtCore.QEvent.Type.StatusTip
+        # QtCore.QEvent.Type.StyleChange
+        # QtCore.QEvent.Type.TabletMove
+        # QtCore.QEvent.Type.TabletPress
+        # QtCore.QEvent.Type.TabletRelease
+        # QtCore.QEvent.Type.TabletEnterProximity
+        # QtCore.QEvent.Type.TabletLeaveProximity
+        # QtCore.QEvent.Type.TabletTrackingChange
+        # QtCore.QEvent.Type.ThreadChange
+        # QtCore.QEvent.Type.Timer
+        # QtCore.QEvent.Type.ToolBarChange
+        # QtCore.QEvent.Type.ToolTip
+        # QtCore.QEvent.Type.ToolTipChange
+        # QtCore.QEvent.Type.TouchBegin
+        # QtCore.QEvent.Type.TouchCancel
+        # QtCore.QEvent.Type.TouchEnd
+        # QtCore.QEvent.Type.TouchUpdate
+        # QtCore.QEvent.Type.UngrabKeyboard
+        # QtCore.QEvent.Type.UngrabMouse
+        # QtCore.QEvent.Type.UpdateLater
+        # QtCore.QEvent.Type.UpdateRequest
+        # QtCore.QEvent.Type.WhatsThis
+        # QtCore.QEvent.Type.WhatsThisClicked
+        # QtCore.QEvent.Type.Wheel
+        # QtCore.QEvent.Type.WinEventAct
+        # QtCore.QEvent.Type.WindowActivate
+        # QtCore.QEvent.Type.WindowBlocked
+        # QtCore.QEvent.Type.WindowDeactivate
+        # QtCore.QEvent.Type.WindowIconChange
+        # QtCore.QEvent.Type.WindowStateChange
+        # QtCore.QEvent.Type.WindowTitleChange
+        # QtCore.QEvent.Type.WindowUnblocked
+        # QtCore.QEvent.Type.WinIdChange
+        # QtCore.QEvent.Type.ZOrderChange
+        # QtCore.QEvent.Type.SafeAreaMarginsChange
+
+        if t in (
+            QtCore.QEvent.Type.MouseButtonPress,
+            QtCore.QEvent.Type.MouseButtonRelease,
+            QtCore.QEvent.Type.MouseButtonDblClick,
+            QtCore.QEvent.Type.MouseMove,
+            QtCore.QEvent.Type.Wheel
+        ):
+            self.canvas._mouse_handler.handle_event(event)
+
+        elif t in (
+            QtCore.QEvent.Type.KeyPress,
+            QtCore.QEvent.Type.KeyRelease
+        ):
+            self.canvas._key_handler.handle_event(event)
+
+        # Mouse capture lost: Qt sends QEvent.Type.MouseButtonRelease with no
+        # button held when the grab is broken externally.  For explicit
+        # capture-lost notification we use QWidget.mouseGrabber() == None
+        # after a grab was active.  The canvas calls this directly when
+        # needed — see Canvas.changeEvent override (not required here).
+        return super().eventFilter(obj, event)
+
+
 class Canvas(QtOpenGLWidgets.QOpenGLWidget):
     """
     3D GL Engine — wx.glcanvas.GLCanvas → QOpenGLWidget
@@ -102,6 +294,8 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
 
         QtOpenGLWidgets.QOpenGLWidget.__init__(self, parent)
 
+        self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
+
         # Ensure depth buffering and double-buffering are active.
         # The model_preview canvas sets this explicitly; the main 3D canvas must too.
         from PySide6.QtGui import QSurfaceFormat
@@ -134,7 +328,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         self.context = _context.GLContext(self)
 
         if axis_overlay:
-            self._axis_overlay = _axis_overlay.Overlay(self, config.axis_overlay)
+            self._axis_overlay = _axis_overlay.Overlay(parent, config.axis_overlay)
         else:
             self._axis_overlay = None
 
@@ -175,6 +369,8 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         self._scene_light = _scene_light.SceneLight(self)
         self._focal_target: _focal_target.FocalPoint = None
 
+        self._event_filter = CanvasEventFilter(self)
+
         if size is not None:
             self.resize(size)
 
@@ -184,7 +380,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
 
     # ------------------------------------------------------------------
     # Properties / mode
-    # ------------------------------------------------------------------
+    # -----------------------------------------------------------------
 
     @property
     def axis_overlay(self):

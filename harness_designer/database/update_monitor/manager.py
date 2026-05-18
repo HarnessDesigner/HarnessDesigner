@@ -34,17 +34,17 @@ class Manager:
         else:
             self.parent_pid = pid
 
-        with print_lock:
-            print('parent pid:', self.parent_pid)
+        # with print_lock:
+        #     print('parent pid:', self.parent_pid)
 
         pair_index = self.parent_pid % len(STEALTH_ENV_PAIRS)
-        with print_lock:
-            print('pair_index:', pair_index)
+        # with print_lock:
+        #     print('pair_index:', pair_index)
 
         self.env_uuid, self.env_token = STEALTH_ENV_PAIRS[pair_index]
-        with print_lock:
-            print('env_uuid:', self.env_uuid)
-            print('env_token:', self.env_token)
+        # with print_lock:
+        #     print('env_uuid:', self.env_uuid)
+        #     print('env_token:', self.env_token)
 
         if self.env_uuid not in os.environ:
             self.app_uuid = str(uuid.uuid4())
@@ -55,9 +55,9 @@ class Manager:
             self.app_uuid = os.environ[self.env_uuid]
             self._is_parent = False
 
-        with print_lock:
-            print('app_uuid:', self.app_uuid)
-            print('is_parent:', self._is_parent)
+        # with print_lock:
+        #     print('app_uuid:', self.app_uuid)
+        #     print('is_parent:', self._is_parent)
 
         if self.env_token not in os.environ:
             self.secret_token = secrets.token_hex(32)
@@ -67,9 +67,9 @@ class Manager:
 
         self.service_id = self._generate_service_id()
 
-        with print_lock:
-            print('secret_token:', self.secret_token)
-            print('service_id:', self.service_id)
+        # with print_lock:
+        #     print('secret_token:', self.secret_token)
+        #     print('service_id:', self.service_id)
 
     def _generate_service_id(self):
         message = f"{self.app_uuid}|{self.parent_pid}".encode('utf-8')
@@ -96,15 +96,15 @@ class Manager:
             self.store_mysql_credentials(print_lock, **kwargs)
 
     def store_sqlite_credentials(self, print_lock, database_path):
-        with print_lock:
-            print('database_path:', database_path)
+        # with print_lock:
+        #     print('database_path:', database_path)
 
         keyring.set_password(self.service_id, "db_type", "sqlite")
         keyring.set_password(self.service_id, "sqlite_path", database_path)
 
     def store_mysql_credentials(self, print_lock, host, port, user, password, database):
-        with print_lock:
-            print('host:', host)
+        # with print_lock:
+        #     print('host:', host)
 
         keyring.set_password(self.service_id, "db_type", "mysql")
         keyring.set_password(self.service_id, "mysql_host", host)
@@ -117,16 +117,16 @@ class Manager:
         from .. import db_connectors as _db_connectors
 
         db_type = keyring.get_password(self.service_id, "db_type")
-        with print_lock:
-            print('db_type:', db_type)
+        # with print_lock:
+        #     print('db_type:', db_type)
 
         if db_type is None:
             return None
 
         if db_type == "sqlite":
             db_path = keyring.get_password(self.service_id, "sqlite_path")
-            with print_lock:
-                print('db_path:', db_path)
+            # with print_lock:
+            #     print('db_path:', db_path)
 
             return dict(type=_db_connectors.CONNECTOR_SQLITE,
                         database_path=db_path)

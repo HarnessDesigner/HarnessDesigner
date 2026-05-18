@@ -46,7 +46,7 @@ class MoveArrows(_object_base.ObjectBase):
         self.delete()
 
     def delete(self):
-        print('deleting object from mainframe')
+        # print('deleting object from mainframe')
         self.mainframe.remove_object(self)
 
     def close(self):

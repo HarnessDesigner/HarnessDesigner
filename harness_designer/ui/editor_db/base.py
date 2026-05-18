@@ -149,7 +149,7 @@ class _EditorModel(QAbstractTableModel):
         if role == Qt.ItemDataRole.TextAlignmentRole:
             col_key = col_id - 1
             if col_key in self._list.column_mapping:
-                _, col_name = self._list.column_mapping[col_key]
+                _, col_name = self._list.column_mapping[col_key][:2]
                 if col_name == 'model3d_id':
                     return Qt.AlignmentFlag.AlignCenter
 

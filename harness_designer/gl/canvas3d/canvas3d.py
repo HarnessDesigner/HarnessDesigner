@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import QWidget, QAbstractScrollArea, QSizePolicy
+from PySide6.QtWidgets import QWidget, QSizePolicy
 from PySide6.QtCore import Qt, QTimer, QSize
 from PySide6 import QtCore, QtGui
 
@@ -14,65 +14,32 @@ if TYPE_CHECKING:
     from ... import config as _config
 
 
-class Canvas3D(QAbstractScrollArea):
-    """
-    Container widget for the 3-D OpenGL canvas that replicates the
-    wx SetVirtualSize / virtual-canvas behaviour.
-
-    wx behaviour recap
-    ------------------
-    * The GLCanvas had a *virtual size* larger (or equal) to the window.
-    * Resizing the panel that held the canvas did NOT change the canvas
-      size — it only changed how much of the virtual canvas was visible.
-    * The GL viewport, projection aspect-ratio, etc. were therefore stable
-      and never distorted by panel resizes.
-
-    PySide6 equivalent
-    ------------------
-    * Canvas3D inherits QAbstractScrollArea.  The inner QOpenGLWidget
-      lives in the scroll area's *viewport()* but is positioned manually
-      (no layout manager) so it can be larger than the visible area.
-    * When the outer frame resizes, only the *viewport* window changes
-      size.  The inner canvas keeps its virtual size and is simply
-      clipped.  No resizeGL / aspect-ratio change occurs.
-    * Call set_virtual_size(w, h) to explicitly change the canvas
-      dimensions (mirrors wx SetVirtualSize).
-    * When no explicit size is supplied the canvas starts at the same
-      size as the container and grows with it — identical to the old
-      behaviour when the panel and canvas started at the same size.
-    """
+class Canvas3D(QWidget):
 
     def __init__(self, parent: "QWidget", config: "_config.Config.editor3d",
-                 size=(), axis_overlay=False):
+                 size, axis_overlay=False):
 
-        QAbstractScrollArea.__init__(self, parent)
-
-        # Hide scroll bars — we mirror wx which showed no scroll bars
-        # (the "virtual" area was just a larger GL surface, not scrollable
-        # in the traditional sense).  Flip to ScrollBarAsNeeded if you
-        # want scroll bars later.
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.setFrameShape(QAbstractScrollArea.Shape.NoFrame)
+        QWidget.__init__(self, parent)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
         self._ref_count = 0
         self.config = config
 
-        # The actual OpenGL canvas sits inside the scroll area's viewport
-        # widget.  We position it manually so it can exceed the visible area.
+        # Canvas is now a direct child of this widget — no viewport() indirection
         self._canvas = _canvas.Canvas(
-            self.viewport(), config, axis_overlay=axis_overlay)
+            self, config, axis_overlay=axis_overlay)
 
-        # If an explicit virtual size was requested, apply it immediately.
-        # Otherwise start at (0, 0) — the first resizeEvent will sync it.
-        if size:
-            w, h = size
-            self._canvas.setFixedSize(w, h)
-            self._virtual_size = QSize(w, h)
-        else:
-            self._virtual_size = QSize(0, 0)  # filled in first resizeEvent
+        vw, vh = size
+        self._canvas.setFixedSize(vw, vh)
+        self._virtual_size = QSize(vw, vh)
 
-        self._canvas.move(0, 0)
+        size = self.size()
+        w = size.width()
+        h = size.height()
+
+        x = (w - vw) // 2
+        y = (h - vh) // 2
+        self._canvas.move(x, y)
 
     # ------------------------------------------------------------------
     # Virtual-size API  (mirrors wx SetVirtualSize / GetVirtualSize)
@@ -99,75 +66,66 @@ class Canvas3D(QAbstractScrollArea):
     # ------------------------------------------------------------------
 
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
-        """
-        Called when the *outer* container is resized.
+        QWidget.resizeEvent(self, event)
 
-        wx behaviour: the canvas size was unaffected; only the visible
-        window into it changed.
+        vw = self._virtual_size.width()
+        vh = self._virtual_size.height()
 
-        Qt equivalent: if no explicit virtual size has been set yet, grow
-        the canvas to match the new container size (same as wx when the
-        canvas and panel start at the same dimensions).  Once an explicit
-        virtual size is set, the canvas is left at that size.
-        """
-        QAbstractScrollArea.resizeEvent(self, event)
+        size = self.size()
+        w = size.width()
+        h = size.height()
 
-        vw = self.viewport().width()
-        vh = self.viewport().height()
-
-        if self._virtual_size.isEmpty():
-            # First resize — initialise virtual size to container size
-            self._virtual_size = QSize(vw, vh)
-            self._canvas.setFixedSize(vw, vh)
-            self._canvas.notify_virtual_size_changed(vw, vh)
-        # else: virtual size was set explicitly — do NOT resize the canvas
+        x = (w - vw) // 2
+        y = (h - vh) // 2
+        self._canvas.move(x, y)
 
         # Reposition axis overlay so it stays within the visible viewport
-        QTimer.singleShot(0, self._reposition_axis_overlay)
+        self._reposition_axis_overlay()
 
     def _reposition_axis_overlay(self) -> None:
         axis_overlay = self._canvas.axis_overlay
+
         if axis_overlay is None:
             return
 
-        vx1 = self.viewport().mapToGlobal(self.viewport().rect().topLeft()).x()
-        vy1 = self.viewport().mapToGlobal(self.viewport().rect().topLeft()).y()
-        vx2 = vx1 + self.viewport().width()
-        vy2 = vy1 + self.viewport().height()
+        pos = axis_overlay.pos()
+        x1 = pos.x()
+        y1 = pos.y()
 
-        ao_global = axis_overlay.mapToGlobal(axis_overlay.rect().topLeft())
-        ax1 = ao_global.x()
-        ay1 = ao_global.y()
-        aw = axis_overlay.width()
-        ah = axis_overlay.height()
-        ax2 = ax1 + aw
-        ay2 = ay1 + ah
+        size = axis_overlay.size()
+        x2 = x1 + size.width()
+        y2 = y1 + size.height()
 
-        x = y = 0
-        if ax1 < vx1:
-            x = vx1
-        elif ax2 > vx2:
-            x = vx2 - aw
+        size = self.size()
+        w = size.width()
+        h = size.height()
 
-        if ay1 < vy1:
-            y = vy1
-        elif ay2 > vy2:
-            y = vy2 - ah
+        if x1 < 0:
+            x_offset = -x1
+        elif x2 > w:
+            x_offset = w - x2
+        else:
+            x_offset = 0
 
-        if x or y:
-            new_local = axis_overlay.mapFromGlobal(
-                axis_overlay.mapToGlobal(
-                    axis_overlay.rect().topLeft()).__class__(x, y)
-            )
-            axis_overlay.move(new_local)
-            axis_overlay.update()
+        if y1 < 0:
+            y_offset = -y1
+        elif y2 > h:
+            y_offset = h - y2
+        else:
+            y_offset = 0
+
+        x = x1 + x_offset
+        y = y1 + y_offset
+
+        if x != x1 or y != y1:
+            axis_overlay.move(x, y)
 
     # ------------------------------------------------------------------
     # Forwarded API — identical public interface as before
     # ------------------------------------------------------------------
 
-    def event(self, event):
-        return QAbstractScrollArea.event(self, event)
+    def event(self, evt):
+        return QWidget.event(self, evt)
 
     @property
     def context(self):

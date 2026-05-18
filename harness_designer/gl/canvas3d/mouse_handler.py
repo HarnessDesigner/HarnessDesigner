@@ -49,10 +49,9 @@ def _qt_buttons_flag(qt_event) -> int:
     return flags
 
 
-class MouseHandler(QtCore.QObject):
+class MouseHandler:
 
     def __init__(self, canvas: _canvas.Canvas):
-        super().__init__()
         self.canvas = canvas
 
         self._drag_obj: _dragging.DragObject = None
@@ -77,68 +76,62 @@ class MouseHandler(QtCore.QObject):
         self._wire_layout_handler: _handlers.AddWireLayoutHandler = None
         self._wire_service_loop_handler: _handlers.AddWireServiceLoopHandler = None
 
-        # Qt: install event filter instead of canvas.Bind()
-        canvas.installEventFilter(self)
-
     # ------------------------------------------------------------------
     # Qt event filter dispatcher
     # ------------------------------------------------------------------
 
-    def eventFilter(self, obj, qt_event):
-        if obj is not self.canvas:
-            return False
-
-        t = qt_event.type()
+    def handle_event(self, event):
+        t = event.type()
 
         if t == QtCore.QEvent.Type.MouseButtonPress:
-            btn = qt_event.button()
+            btn = event.button()
             if btn == QtCore.Qt.MouseButton.LeftButton:
-                self.on_left_down(qt_event)
+                self.on_left_down(event)
             elif btn == QtCore.Qt.MouseButton.MiddleButton:
-                self.on_middle_down(qt_event)
+                self.on_middle_down(event)
             elif btn == QtCore.Qt.MouseButton.RightButton:
-                self.on_right_down(qt_event)
+                self.on_right_down(event)
             elif btn == QtCore.Qt.MouseButton.XButton1:
-                self.on_aux1_down(qt_event)
+                self.on_aux1_down(event)
             elif btn == QtCore.Qt.MouseButton.XButton2:
-                self.on_aux2_down(qt_event)
-                
+                self.on_aux2_down(event)
+
             return False
 
         if t == QtCore.QEvent.Type.MouseButtonRelease:
-            btn = qt_event.button()
+            btn = event.button()
             if btn == QtCore.Qt.MouseButton.LeftButton:
-                self.on_left_up(qt_event)
+                self.on_left_up(event)
             elif btn == QtCore.Qt.MouseButton.MiddleButton:
-                self.on_middle_up(qt_event)
+                self.on_middle_up(event)
             elif btn == QtCore.Qt.MouseButton.RightButton:
-                self.on_right_up(qt_event)
+                self.on_right_up(event)
             elif btn == QtCore.Qt.MouseButton.XButton1:
-                self.on_aux1_up(qt_event)
+                self.on_aux1_up(event)
             elif btn == QtCore.Qt.MouseButton.XButton2:
-                self.on_aux2_up(qt_event)
+                self.on_aux2_up(event)
             return False
 
         if t == QtCore.QEvent.Type.MouseButtonDblClick:
-            btn = qt_event.button()
+            btn = event.button()
             if btn == QtCore.Qt.MouseButton.LeftButton:
-                self.on_left_dclick(qt_event)
+                self.on_left_dclick(event)
             elif btn == QtCore.Qt.MouseButton.MiddleButton:
-                self.on_middle_dclick(qt_event)
+                self.on_middle_dclick(event)
             elif btn == QtCore.Qt.MouseButton.RightButton:
-                self.on_right_dclick(qt_event)
+                self.on_right_dclick(event)
             elif btn == QtCore.Qt.MouseButton.XButton1:
-                self.on_aux1_dclick(qt_event)
+                self.on_aux1_dclick(event)
             elif btn == QtCore.Qt.MouseButton.XButton2:
-                self.on_aux2_dclick(qt_event)
+                self.on_aux2_dclick(event)
             return False
 
         if t == QtCore.QEvent.Type.MouseMove:
-            self.on_mouse_motion(qt_event)
+            self.on_mouse_motion(event)
             return False
 
         if t == QtCore.QEvent.Type.Wheel:
-            self.on_mouse_wheel(qt_event)
+            self.on_mouse_wheel(event)
             return False
 
         # Mouse capture lost: Qt sends QEvent.Type.MouseButtonRelease with no
