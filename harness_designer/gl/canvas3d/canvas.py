@@ -13,6 +13,7 @@ from PySide6 import QtCore
 from PySide6 import QtGui
 from PySide6 import QtOpenGLWidgets
 from PySide6.QtCore import Signal
+from PySide6.QtGui import QOpenGLContext
 
 from . import headlight as _headlight
 from . import focal_target as _focal_target
@@ -562,6 +563,13 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
     def initializeGL(self):
         """Called once by Qt after the GL context is created.
         Qt guarantees the context is already current here — no makeCurrent needed."""
+        
+        print("=" * 80)
+        print("initializeGL() called!")
+        print(f"GL Context current: {QOpenGLContext.currentContext()}")
+        print(f"GL Version: {GL.glGetString(GL.GL_VERSION)}")
+        print(f"GL Vendor: {GL.glGetString(GL.GL_VENDOR)}")
+        print("=" * 80)
 
         GL.glEnable(GL.GL_DEPTH_TEST)
         GL.glClearColor(*self.config.background_color)
@@ -652,6 +660,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         wx: EVT_PAINT → _on_paint → wx.PaintDC(self) + context.acquire() + _on_draw()
         Qt: paintGL already runs with the context current; no PaintDC needed.
         """
+        print("paintGL() called")  # DEBUG
         self._on_draw()
 
         # Angle-view overlay — rendered via OpenGL pixel blit (same algorithm).
