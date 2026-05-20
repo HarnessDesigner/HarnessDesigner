@@ -82,13 +82,32 @@ class VBOHandler(metaclass=VBOSingleton):
         self.__faces = faces
         self.__count = count
 
+        # Store VBO IDs (these are shared across contexts)
+        self.__vbo_vertices = None
+        self.__vbo_normals = None
+        self.__vbo_faces = None
+        self.__vert_count = 0
+        
+        # Store VAOs per context (VAOs are NOT shared across contexts)
+        # Key is id(QOpenGLContext), value is VAO ID
+        self.__vaos = {}
+
+        # Create the shared VBOs
         (
-            self.__vao,
+            vao,
             self.__vbo_vertices,
             self.__vbo_normals,
             self.__vbo_faces,
             self.__vert_count
         ) = self._create_vbo(vertices, normals, faces, count)
+        
+        # Store the initial VAO for the context that created it
+        from PySide6.QtGui import QOpenGLContext
+        ctx = QOpenGLContext.currentContext()
+        if ctx is not None:
+            # Use __builtins__.id to avoid shadowing by the 'id' parameter
+            ctx_id = __builtins__.id(ctx)
+            self.__vaos[ctx_id] = vao
 
         local_aabb = _utils.compute_aabb(vertices.reshape(-1, 3))
         self.local_obb = _utils.compute_obb(*local_aabb)
@@ -105,19 +124,59 @@ class VBOHandler(metaclass=VBOSingleton):
         return self.__faces
 
     def __del__(self):
-        self._release_buffers(self.__vao, self.__vbo_vertices,
-                              self.__vbo_normals, self.__vbo_faces)
+        # Add context guard to prevent crashes when no context is current
+        from PySide6.QtGui import QOpenGLContext
+        if QOpenGLContext.currentContext() is None:
+            # No context current — buffers will be leaked but won't crash
+            return
+        
+        # Clean up all VAOs across all contexts
+        for vao in self.__vaos.values():
+            self._release_vao(vao)
+        
+        # Clean up shared VBOs
+        self._release_vbos(self.__vbo_vertices, self.__vbo_normals, self.__vbo_faces)
 
-        self.__vao = None
+        self.__vaos.clear()
         self.__vbo_vertices = None
         self.__vbo_normals = None
         self.__vbo_faces = None
         self.__vert_count = 0
 
     @staticmethod
+    def _release_vao(vao):
+        """Release a single VAO."""
+        if vao is not None:
+            try:
+                GL.glDeleteVertexArrays(1, [vao])
+            except:  # NOQA
+                pass
+
+    @staticmethod
+    def _release_vbos(vbo_vertices=None, vbo_normals=None, vbo_faces=None):
+        """Release VBO buffers (shared across contexts)."""
+        if vbo_vertices is not None:
+            try:
+                GL.glDeleteBuffers(1, [vbo_vertices])
+            except:  # NOQA
+                pass
+
+        if vbo_normals is not None:
+            try:
+                GL.glDeleteBuffers(1, [vbo_normals])
+            except:  # NOQA
+                pass
+
+        if vbo_faces is not None:
+            try:
+                GL.glDeleteBuffers(1, [vbo_faces])
+            except:  # NOQA
+                pass
+
+    @staticmethod
     def _release_buffers(vao=None, vbo_vertices=None,
                          vbo_normals=None, vbo_faces=None):
-
+        """Legacy method - kept for compatibility. Use _release_vao and _release_vbos instead."""
         # Clean up any partially created buffers
         if vao is not None:
             try:
@@ -142,6 +201,54 @@ class VBOHandler(metaclass=VBOSingleton):
                 GL.glDeleteBuffers(1, [vbo_faces])
             except:  # NOQA
                 pass
+
+    def _get_or_create_vao(self):
+        """Get or create a VAO for the current OpenGL context.
+        
+        VAOs are not shared across contexts, so we need to create one
+        per context while reusing the shared VBOs.
+        
+        Returns:
+            int: VAO ID for the current context
+        """
+        from PySide6.QtGui import QOpenGLContext
+        ctx = QOpenGLContext.currentContext()
+        if ctx is None:
+            raise RuntimeError("No OpenGL context is current")
+        
+        # Use __builtins__.id to avoid shadowing by the 'id' parameter in __init__
+        ctx_id = __builtins__.id(ctx)
+        
+        # Check if we already have a VAO for this context
+        if ctx_id in self.__vaos:
+            return self.__vaos[ctx_id]
+        
+        # Create a new VAO for this context
+        vao = GL.glGenVertexArrays(1)
+        GL.glBindVertexArray(vao)
+        
+        # Check for errors
+        err = GL.glGetError()
+        if err != GL.GL_NO_ERROR:
+            raise RuntimeError(f"OpenGL error creating VAO: {err}")
+        
+        # Bind the shared VBOs and set up vertex attribute pointers
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.__vbo_vertices)
+        GL.glEnableVertexAttribArray(0)
+        GL.glVertexAttribPointer(0, 3, GL.GL_FLOAT, GL.GL_FALSE, 0, None)
+        
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.__vbo_normals)
+        GL.glEnableVertexAttribArray(1)
+        GL.glVertexAttribPointer(1, 3, GL.GL_FLOAT, GL.GL_FALSE, 0, None)
+        
+        GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, self.__vbo_faces)
+        
+        GL.glBindVertexArray(0)
+        
+        # Store the VAO for this context
+        self.__vaos[ctx_id] = vao
+        
+        return vao
 
     @classmethod
     def _create_vbo(cls, vertices, normals, faces, count):
@@ -219,7 +326,10 @@ class VBOHandler(metaclass=VBOSingleton):
         return w_h_aspect, w_l_aspect, h_l_aspect
 
     def render(self):
-        GL.glBindVertexArray(self.__vao)
+        # Get or create VAO for the current context
+        vao = self._get_or_create_vao()
+        
+        GL.glBindVertexArray(vao)
 
         GL.glDrawElements(GL.GL_TRIANGLES, self.__vert_count,
                           GL.GL_UNSIGNED_INT, None)

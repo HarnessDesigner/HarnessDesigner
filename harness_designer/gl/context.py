@@ -3,6 +3,8 @@
 import threading
 from typing import TYPE_CHECKING
 
+from PySide6.QtGui import QOpenGLContext
+from PySide6 import QtOpenGLWidgets
 
 if TYPE_CHECKING:
     from PySide6.QtOpenGLWidgets import QOpenGLWidget
@@ -21,16 +23,15 @@ class GLContext:
     released — and doneCurrent() only called — when the outermost caller
     exits.
 
-    IMPORTANT: Do NOT use this inside initializeGL / resizeGL / paintGL.
-    Qt guarantees the context is already current when it calls those three
-    methods.  Only use GLContext for GL work done *outside* those callbacks
-    (e.g. take_snapshot, set_focal_target, background-thread uploads).
+    Now safe to use inside initializeGL/resizeGL/paintGL - will detect
+    if context is already current and avoid redundant makeCurrent() calls.
     """
 
     def __init__(self, canvas: "QOpenGLWidget"):
         self.canvas = canvas
         self._lock = threading.RLock()
         self.ref = 0
+        self._made_current = False  # Track if WE made the context current
 
     @property
     def is_locked(self) -> bool:
@@ -38,10 +39,29 @@ class GLContext:
 
     def acquire(self):
         self._lock.acquire()
+        if self.ref == 0:
+            # Check if context is already current
+            current_ctx = QOpenGLContext.currentContext()
+            widget_ctx = QtOpenGLWidgets.QOpenGLWidget.context(self.canvas)
+
+            if current_ctx != widget_ctx:
+                # Only call makeCurrent if context is not already current
+                self.canvas.makeCurrent()
+                self._made_current = True
+            else:
+                # Context already current (e.g., inside initializeGL/paintGL)
+                self._made_current = False
+
         self.ref += 1
 
     def release(self):
         self.ref -= 1
+        if self.ref == 0:
+            # Only call doneCurrent if WE made it current
+            if self._made_current:
+                self.canvas.doneCurrent()
+                self._made_current = False
+
         self._lock.release()
 
     def __enter__(self) -> "GLContext":
@@ -50,3 +70,4 @@ class GLContext:
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         self.release()
+

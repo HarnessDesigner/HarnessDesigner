@@ -85,14 +85,6 @@ class Canvas(QOpenGLWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        # Qt handles depth/rgba/double-buffer via QSurfaceFormat; set it
-        # explicitly to match the wx attribList if needed:
-        from PySide6.QtGui import QSurfaceFormat
-        fmt = QSurfaceFormat()
-        fmt.setDepthBufferSize(24)
-        fmt.setSwapBehavior(QSurfaceFormat.DoubleBuffer)
-        self.setFormat(fmt)
-
         self.initialized = False
 
         self.center     = None

@@ -66,9 +66,9 @@ def get(parent=None):
 
     # --- collect via offscreen surface (replaces temporary GLCanvas) ---
 
-    fmt = QSurfaceFormat()
-    fmt.setDepthBufferSize(24)
-    fmt.setSwapBehavior(QSurfaceFormat.SingleBuffer)
+    # Use the default format that was set in app.py
+    # This ensures the info context is compatible with widget contexts
+    fmt = QSurfaceFormat.defaultFormat()
 
     surface = QOffscreenSurface()
     surface.setFormat(fmt)
