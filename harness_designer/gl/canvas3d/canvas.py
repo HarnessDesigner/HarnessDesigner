@@ -597,8 +597,12 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
             GL.glEnable(GL.GL_BLEND)
             print("Step 4: OK")
 
-            print("Step 5: Setting camera...")
-            self.camera.Set()
+            print("Step 5: Setting up matrix modes...")
+            # Initialize OpenGL matrix stacks BEFORE doing anything else
+            GL.glMatrixMode(GL.GL_PROJECTION)
+            GL.glLoadIdentity()
+            GL.glMatrixMode(GL.GL_MODELVIEW)
+            GL.glLoadIdentity()
             print("Step 5: OK")
 
             print("Step 6: Setting viewport...")
@@ -626,13 +630,19 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
 
             print("Step 7: Setting projection...")
             GL.glMatrixMode(GL.GL_PROJECTION)
+            GL.glLoadIdentity()
             GLU.gluPerspective(65, aspect, 0.1, 1000.0)
             GL.glMatrixMode(GL.GL_MODELVIEW)
+            GL.glLoadIdentity()
             print("Step 7: OK")
+
+            print("Step 8: Setting camera...")
+            self.camera.Set()
+            print("Step 8: OK")
 
             self._init = True  # viewport is live; notify_virtual_size_changed may update it
 
-            print("Step 8: Setting up grid and focal target...")
+            print("Step 9: Setting up grid and focal target...")
             self.set_draw_grid(self.config.floor.enable)
             print("  - set_draw_grid OK")
             self.set_focal_target(self.config.focal_target.enable)
