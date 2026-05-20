@@ -4,6 +4,7 @@ import threading
 from typing import TYPE_CHECKING
 
 from PySide6.QtGui import QOpenGLContext
+from PySide6 import QtOpenGLWidgets
 
 if TYPE_CHECKING:
     from PySide6.QtOpenGLWidgets import QOpenGLWidget
@@ -41,8 +42,8 @@ class GLContext:
         if self.ref == 0:
             # Check if context is already current
             current_ctx = QOpenGLContext.currentContext()
-            widget_ctx = self.canvas.context()
-            
+            widget_ctx = QtOpenGLWidgets.QOpenGLWidget.context(self.canvas)
+
             if current_ctx != widget_ctx:
                 # Only call makeCurrent if context is not already current
                 self.canvas.makeCurrent()
@@ -50,6 +51,7 @@ class GLContext:
             else:
                 # Context already current (e.g., inside initializeGL/paintGL)
                 self._made_current = False
+
         self.ref += 1
 
     def release(self):
@@ -59,6 +61,7 @@ class GLContext:
             if self._made_current:
                 self.canvas.doneCurrent()
                 self._made_current = False
+
         self._lock.release()
 
     def __enter__(self) -> "GLContext":
@@ -67,3 +70,4 @@ class GLContext:
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         self.release()
+
