@@ -79,18 +79,7 @@ class Overlay(QWidget):
 class GLOverlay(QOpenGLWidget):
 
     def __init__(self, parent: Overlay, size=(-1, -1)):
-        # Initialize parent first so setFormat() method is available
         QOpenGLWidget.__init__(self, parent)
-        
-        # Set compatibility profile to keep axis indicator isolated from shared context
-        # This widget uses fixed-function OpenGL (glShadeModel, glColorMaterial, etc.)
-        from PySide6.QtGui import QSurfaceFormat
-        fmt = QSurfaceFormat()
-        fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
-        fmt.setDepthBufferSize(24)
-        fmt.setSwapBehavior(QSurfaceFormat.SwapBehavior.DoubleBuffer)
-        self.setFormat(fmt)
-        
         self.parent_overlay = parent
         self._init = False
         self.size = None

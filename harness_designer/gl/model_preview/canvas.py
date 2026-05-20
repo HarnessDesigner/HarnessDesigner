@@ -84,18 +84,7 @@ class Canvas(QOpenGLWidget):
     """
 
     def __init__(self, parent=None):
-        # Initialize parent first so setFormat() method is available
         super().__init__(parent)
-        
-        # Set compatibility profile to keep preview widget isolated
-        # This widget uses fixed-function OpenGL for preview rendering
-        from PySide6.QtGui import QSurfaceFormat
-        fmt = QSurfaceFormat()
-        fmt.setDepthBufferSize(24)
-        fmt.setSwapBehavior(QSurfaceFormat.SwapBehavior.DoubleBuffer)
-        fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
-        self.setFormat(fmt)
-
         self.initialized = False
 
         self.center     = None
