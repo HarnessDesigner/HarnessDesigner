@@ -607,7 +607,18 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
             # canvas — not the (possibly different) container size.
             vw = getattr(self, "_virtual_w", None) or self.width()
             vh = getattr(self, "_virtual_h", None) or self.height()
-            print(f"  - viewport size: {vw}x{vh}")
+            print(f"  - viewport size BEFORE validation: {vw}x{vh}")
+            print(f"  - _virtual_w: {getattr(self, '_virtual_w', None)}")
+            print(f"  - _virtual_h: {getattr(self, '_virtual_h', None)}")
+            print(f"  - self.width(): {self.width()}")
+            print(f"  - self.height(): {self.height()}")
+            
+            # Ensure we have valid dimensions (must be > 0)
+            if vw <= 0 or vh <= 0:
+                print(f"  ! WARNING: Invalid viewport dimensions ({vw}x{vh}), using fallback 800x600")
+                vw, vh = 800, 600
+            
+            print(f"  - final viewport size: {vw}x{vh}")
             GL.glViewport(0, 0, vw, vh)
             self.size = (vw, vh)
             aspect = vw / float(vh) if vh else 1.0
