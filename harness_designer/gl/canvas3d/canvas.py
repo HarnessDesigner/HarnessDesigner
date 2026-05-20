@@ -635,11 +635,10 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         self._virtual_h = h
         self.size = (w, h)
 
-        if self._init:
-            self.makeCurrent()
+        with self.context:
             GL.glViewport(0, 0, w, h)
-            self.doneCurrent()
-            self.update()
+
+        self.update()
 
     def resizeGL(self, width: int, height: int):
         """

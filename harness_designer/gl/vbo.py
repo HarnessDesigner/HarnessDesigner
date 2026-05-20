@@ -3,6 +3,7 @@
 import numpy as np
 import weakref
 from OpenGL import GL
+from PySide6.QtGui import QOpenGLContext
 
 from ..geometry import point as _point
 from .. import utils as _utils
@@ -24,32 +25,32 @@ class VBOSingleton(type):
     def __contains__(cls, item):
         return item in cls._instances
 
-    def __call__(cls, id: str, vertices: np.ndarray | None = None,  # NOQA
+    def __call__(cls, id_: str, vertices: np.ndarray | None = None,  # NOQA
                  normals: np.ndarray | None = None,
                  faces: np.ndarray | None = None,
                  count: int = 0,
                  endpoint: _point.Point | None = None) -> "VBOHandler":
 
-        if id not in cls._instances:
-            instance = super().__call__(id, vertices, normals, faces,
+        if id_ not in cls._instances:
+            instance = super().__call__(id_, vertices, normals, faces,
                                         count, endpoint)
 
-            cls._instances[id] = weakref.ref(instance, cls._remove_ref)
+            cls._instances[id_] = weakref.ref(instance, cls._remove_ref)
 
-        elif cls._instances[id]() is None:
+        elif cls._instances[id_]() is None:
             # Handle edge case where a reference has been removed
             # but the reference object has not yet been removed from
             # the dict. We have to make sure that we delete the key
             # before adding the object again because of the internal
             # mechanics in weakref and not wanting it to remove
             # the newly added reference
-            del cls._instances[id]
-            instance = super().__call__(id, vertices, normals, faces,
+            del cls._instances[id_]
+            instance = super().__call__(id_, vertices, normals, faces,
                                         count, endpoint)
 
-            cls._instances[id] = weakref.ref(instance, cls._remove_ref)
+            cls._instances[id_] = weakref.ref(instance, cls._remove_ref)
         else:
-            instance = cls._instances[id]()
+            instance = cls._instances[id_]()
 
         return instance
 
@@ -68,13 +69,13 @@ class VBOHandler(metaclass=VBOSingleton):
     #       approach with managing VBOs to control frag I will do that at a later
     #       time.
 
-    def __init__(self, id: str, vertices: np.ndarray | None = None,  # NOQA
+    def __init__(self, id_: str, vertices: np.ndarray | None = None,  # NOQA
                  normals: np.ndarray | None = None,
                  faces: np.ndarray | None = None,
                  count: int = 0,
                  endpoint: _point.Point | None = None):
 
-        self.id = id
+        self.id = id_
         self.endpoint = endpoint
 
         self.__vertices = vertices
@@ -102,11 +103,10 @@ class VBOHandler(metaclass=VBOSingleton):
         ) = self._create_vbo(vertices, normals, faces, count)
         
         # Store the initial VAO for the context that created it
-        from PySide6.QtGui import QOpenGLContext
         ctx = QOpenGLContext.currentContext()
         if ctx is not None:
             # Use __builtins__.id to avoid shadowing by the 'id' parameter
-            ctx_id = __builtins__.id(ctx)
+            ctx_id = id(ctx)
             self.__vaos[ctx_id] = vao
 
         local_aabb = _utils.compute_aabb(vertices.reshape(-1, 3))
@@ -125,7 +125,6 @@ class VBOHandler(metaclass=VBOSingleton):
 
     def __del__(self):
         # Add context guard to prevent crashes when no context is current
-        from PySide6.QtGui import QOpenGLContext
         if QOpenGLContext.currentContext() is None:
             # No context current — buffers will be leaked but won't crash
             return
@@ -211,13 +210,12 @@ class VBOHandler(metaclass=VBOSingleton):
         Returns:
             int: VAO ID for the current context
         """
-        from PySide6.QtGui import QOpenGLContext
         ctx = QOpenGLContext.currentContext()
         if ctx is None:
             raise RuntimeError("No OpenGL context is current")
         
         # Use __builtins__.id to avoid shadowing by the 'id' parameter in __init__
-        ctx_id = __builtins__.id(ctx)
+        ctx_id = id(ctx)
         
         # Check if we already have a VAO for this context
         if ctx_id in self.__vaos:

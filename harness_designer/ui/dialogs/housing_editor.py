@@ -160,8 +160,8 @@ class Cavity3D(_base3d.Base3D):
 
         scale = _point.Point(1.0, 1.0, 1.0)
 
-        material_color = _color.Color(0.8, 0.3, 0.3, 1.0)
-        material = _materials.Plastic(material_color)
+        material = _materials.Plastic(
+            _color.Color(0.8, 0.3, 0.3, 1.0))
         self.db_obj = db_obj
         data = self.build()
 
@@ -207,7 +207,7 @@ class Cavity3D(_base3d.Base3D):
     @height.setter
     def height(self, value: float):
         self.db_obj.height = value
-        self._data = self.build()
+        self.build()
         self._compute_obb()
         self._compute_aabb()
         self.editor3d.update()
@@ -219,7 +219,7 @@ class Cavity3D(_base3d.Base3D):
     @length.setter
     def length(self, value: float):
         self.db_obj.length = value
-        self._data = self.build()
+        self.build()
         self._compute_obb()
         self._compute_aabb()
         self.editor3d.update()
@@ -231,7 +231,7 @@ class Cavity3D(_base3d.Base3D):
     @is_round.setter
     def is_round(self, value: bool):
         self.db_obj.round_terminal = value
-        self._data = self.build()
+        self.build()
         self._compute_obb()
         self._compute_aabb()
         self.editor3d.update()
@@ -256,28 +256,11 @@ class Cavity3D(_base3d.Base3D):
         if self.is_round:
             radius = float(_d(self.width) / _d(2.0))
 
-            vertices, faces = _cylinder.create(radius, self.length,
-                                               resolution=90, split=1)
-
-            p1, p2 = _utils.compute_aabb(vertices)
-
-            position = (p2 - p1) / 2.0
-            vertices -= position
-            vertices @= self._angle
-            vertices += self._position
-
-            verts, nrmls, count = (
-                _utils.compute_smoothed_vertex_normals(vertices, faces))
+            self._vbo = _cylinder.create_vbo()
+            self._scale = _point.Point(radius, radius, self.length)
         else:
-            vertices, faces = _box.create(self.width, self.height, self.length)
-            p1, p2 = _utils.compute_aabb(vertices)
-
-            vertices @= self._angle
-            vertices += self._position
-
-            verts, nrmls, count = _utils.compute_vertex_normals(vertices, faces)
-
-        return [verts, nrmls, count]
+            self._vbo = _box.create_vbo()
+            self._scale = _point.Point(self.width, self.height, self.length)
 
 
 class HousingAccessory(_objects.ObjectBase):
@@ -337,8 +320,6 @@ class Housing3D(_base3d.Base3D):
 
         self._angle = db_obj.angle3d
         self._position = _point.Point(0.0, 0.0, 0.0)
-        scale = db_obj.scale
-
         model = db_obj.model3d
 
         if model is None:
@@ -377,27 +358,31 @@ class Housing3D(_base3d.Base3D):
                 db_obj.width = width
                 db_obj.height = height
 
-            vertices, faces = _box.create(width, height, length)
-            data = _utils.compute_vertex_normals(vertices, faces)
-            vbo = None
+            scale = _point.Point(width, height, length)
+            vertices, faces = _box.create_vbo()
+            vbo = _utils.compute_vbo_vertex_normals(vertices, faces)
             position3d = _point.Point(0.0, 0.0, 0.0)
             angle3d = _angle.Angle.from_euler(0.0, 0.0, 0.0)
         else:
             uuid = model.uuid
-            scale = _point.Point(1.0, 1.0, 1.0)
-            data = None
-            position3d = model.position3d
+            scale = model.scale
             angle3d = model.angle3d
+            position3d = model.position3d
 
-            vertices, faces = model.load()
-            data = _utils.compute_smoothed_vertex_normals(vertices, faces)
+            if uuid in _vbo.VBOHandler:
+                vbo = _vbo.VBOHandler(uuid)
+            else:
+                vertices, faces = model.load()
+                verts, nrmls, faces, count = (
+                    _utils.compute_vbo_smoothed_vertex_normals(vertices, faces))
+
+                vbo = _vbo.VBOHandler(uuid, verts, nrmls, faces, count)
 
         material_color = _color.Color(0.6, 0.6, 0.8, 1.0)
         material = _materials.Plastic(material_color)
 
-        _base3d.Base3D.__init__(self, parent, db_obj, None,
-                                angle3d, position3d, scale,
-                                material, data=data)
+        _base3d.Base3D.__init__(
+            self, parent, db_obj, vbo, angle3d, position3d, scale, material)
 
         self._selected_material = _materials.Plastic(
             _color.Color(0.3, 0.8, 0.3, 1.0))
