@@ -54,8 +54,7 @@ class Floor:
             # Calculate the number of vertices (for rendering)
             verts_count = len(verts) / 3
 
-            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)  # Unbind the VBO
-
+            # Create and bind VBO
             vbo = GL.glGenBuffers(1)
             GL.glBindBuffer(GL.GL_ARRAY_BUFFER, vbo)
             GL.glBufferData(GL.GL_ARRAY_BUFFER, v_data.nbytes,
