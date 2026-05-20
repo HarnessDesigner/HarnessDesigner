@@ -647,7 +647,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
             print("  - set_draw_grid OK")
             self.set_focal_target(self.config.focal_target.enable)
             print("  - set_focal_target OK")
-            print("Step 8: OK")
+            print("Step 9: OK")
 
             print("=" * 80)
             print("initializeGL() COMPLETED SUCCESSFULLY")
