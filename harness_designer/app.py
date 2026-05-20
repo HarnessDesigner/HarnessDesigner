@@ -58,6 +58,16 @@ class App(QObject):
 
         import harness_designer as _hd
 
+        # Set default QSurfaceFormat for shared OpenGL contexts
+        # This MUST be called before ANY OpenGL context is created (including GL info query)
+        from PySide6.QtGui import QSurfaceFormat
+        fmt = QSurfaceFormat()
+        fmt.setDepthBufferSize(24)
+        fmt.setSwapBehavior(QSurfaceFormat.SwapBehavior.DoubleBuffer)
+        fmt.setVersion(3, 3)
+        fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
+        QSurfaceFormat.setDefaultFormat(fmt)
+
         # Query GL capabilities using a temporary offscreen surface
         try:
             from .gl import info as _gl_info
@@ -67,16 +77,6 @@ class App(QObject):
             dlg = _ced.CriticalErrorDialog(None, err)
             dlg.exec()
             return False
-
-        # Set default QSurfaceFormat for shared OpenGL contexts
-        # This must be called before the first QOpenGLWidget is created
-        from PySide6.QtGui import QSurfaceFormat
-        fmt = QSurfaceFormat()
-        fmt.setDepthBufferSize(24)
-        fmt.setSwapBehavior(QSurfaceFormat.SwapBehavior.DoubleBuffer)
-        fmt.setVersion(3, 3)
-        fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
-        QSurfaceFormat.setDefaultFormat(fmt)
 
         # Set up logger
         try:
