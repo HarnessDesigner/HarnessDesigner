@@ -565,44 +565,79 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         Qt guarantees the context is already current here — no makeCurrent needed."""
         
         print("=" * 80)
-        print("initializeGL() called!")
+        print("initializeGL() START")
         print(f"GL Context current: {QOpenGLContext.currentContext()}")
         print(f"GL Version: {GL.glGetString(GL.GL_VERSION)}")
         print(f"GL Vendor: {GL.glGetString(GL.GL_VENDOR)}")
         print("=" * 80)
 
-        GL.glEnable(GL.GL_DEPTH_TEST)
-        GL.glClearColor(*self.config.background_color)
+        try:
+            print("Step 1: Setting up GL state...")
+            GL.glEnable(GL.GL_DEPTH_TEST)
+            GL.glClearColor(*self.config.background_color)
+            print("Step 1: OK")
 
-        self._faces_program = _shaders.compile_faces_program()
-        self._edges_program = _shaders.compile_edges_program()
-        self._vertices_program = _shaders.compile_vertices_program()
-        self._floor_program = _shaders.compile_floor_program()
+            print("Step 2: Compiling shaders...")
+            self._faces_program = _shaders.compile_faces_program()
+            print("  - faces_program OK")
+            self._edges_program = _shaders.compile_edges_program()
+            print("  - edges_program OK")
+            self._vertices_program = _shaders.compile_vertices_program()
+            print("  - vertices_program OK")
+            self._floor_program = _shaders.compile_floor_program()
+            print("  - floor_program OK")
+            print("Step 2: OK")
 
-        self.floor = _floor.Floor(self, self._floor_program)
+            print("Step 3: Creating floor...")
+            self.floor = _floor.Floor(self, self._floor_program)
+            print("Step 3: OK")
 
-        GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
-        GL.glEnable(GL.GL_BLEND)
+            print("Step 4: Setting blend mode...")
+            GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
+            GL.glEnable(GL.GL_BLEND)
+            print("Step 4: OK")
 
-        self.camera.Set()
+            print("Step 5: Setting camera...")
+            self.camera.Set()
+            print("Step 5: OK")
 
-        # Use the virtual size recorded in resizeGL (first call), not the
-        # current widget geometry, so the aspect ratio matches the virtual
-        # canvas — not the (possibly different) container size.
-        vw = getattr(self, "_virtual_w", None) or self.width()
-        vh = getattr(self, "_virtual_h", None) or self.height()
-        GL.glViewport(0, 0, vw, vh)
-        self.size = (vw, vh)
-        aspect = vw / float(vh) if vh else 1.0
+            print("Step 6: Setting viewport...")
+            # Use the virtual size recorded in resizeGL (first call), not the
+            # current widget geometry, so the aspect ratio matches the virtual
+            # canvas — not the (possibly different) container size.
+            vw = getattr(self, "_virtual_w", None) or self.width()
+            vh = getattr(self, "_virtual_h", None) or self.height()
+            print(f"  - viewport size: {vw}x{vh}")
+            GL.glViewport(0, 0, vw, vh)
+            self.size = (vw, vh)
+            aspect = vw / float(vh) if vh else 1.0
+            print("Step 6: OK")
 
-        GL.glMatrixMode(GL.GL_PROJECTION)
-        GLU.gluPerspective(65, aspect, 0.1, 1000.0)
-        GL.glMatrixMode(GL.GL_MODELVIEW)
+            print("Step 7: Setting projection...")
+            GL.glMatrixMode(GL.GL_PROJECTION)
+            GLU.gluPerspective(65, aspect, 0.1, 1000.0)
+            GL.glMatrixMode(GL.GL_MODELVIEW)
+            print("Step 7: OK")
 
-        self._init = True  # viewport is live; notify_virtual_size_changed may update it
+            self._init = True  # viewport is live; notify_virtual_size_changed may update it
 
-        self.set_draw_grid(self.config.floor.enable)
-        self.set_focal_target(self.config.focal_target.enable)
+            print("Step 8: Setting up grid and focal target...")
+            self.set_draw_grid(self.config.floor.enable)
+            print("  - set_draw_grid OK")
+            self.set_focal_target(self.config.focal_target.enable)
+            print("  - set_focal_target OK")
+            print("Step 8: OK")
+
+            print("=" * 80)
+            print("initializeGL() COMPLETED SUCCESSFULLY")
+            print("=" * 80)
+        except Exception as e:
+            print("!" * 80)
+            print(f"ERROR in initializeGL: {e}")
+            import traceback
+            traceback.print_exc()
+            print("!" * 80)
+            raise
 
     def notify_virtual_size_changed(self, width: int, height: int) -> None:
         """
