@@ -23,6 +23,7 @@ from ... import config as _config
 from . import floor as _floor
 from . import culling as _culling
 from .. import events as _events
+from ... import logger as _logger
 
 
 MOUSE_REVERSE_Y_AXIS = _config.MOUSE_REVERSE_Y_AXIS
@@ -250,8 +251,6 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
 
     The mouse/key handlers and all object-management code are unchanged.
     """
-
-
 
     # ------------------------------------------------------------------
     # Signals — replace wx EVT_GL_* custom events
@@ -563,101 +562,58 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
     def initializeGL(self):
         """Called once by Qt after the GL context is created.
         Qt guarantees the context is already current here — no makeCurrent needed."""
-        
-        print("=" * 80)
-        print("initializeGL() START")
-        print(f"GL Context current: {QOpenGLContext.currentContext()}")
-        print(f"GL Version: {GL.glGetString(GL.GL_VERSION)}")
-        print(f"GL Vendor: {GL.glGetString(GL.GL_VENDOR)}")
-        print("=" * 80)
 
         try:
-            print("Step 1: Setting up GL state...")
             GL.glEnable(GL.GL_DEPTH_TEST)
             GL.glClearColor(*self.config.background_color)
-            print("Step 1: OK")
 
-            print("Step 2: Compiling shaders...")
             self._faces_program = _shaders.compile_faces_program()
-            print("  - faces_program OK")
             self._edges_program = _shaders.compile_edges_program()
-            print("  - edges_program OK")
             self._vertices_program = _shaders.compile_vertices_program()
-            print("  - vertices_program OK")
             self._floor_program = _shaders.compile_floor_program()
-            print("  - floor_program OK")
-            print("Step 2: OK")
 
-            print("Step 3: Creating floor...")
             self.floor = _floor.Floor(self, self._floor_program)
-            print("Step 3: OK")
 
-            print("Step 4: Setting blend mode...")
             GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
             GL.glEnable(GL.GL_BLEND)
-            print("Step 4: OK")
 
-            print("Step 5: Setting up matrix modes...")
             # Initialize OpenGL matrix stacks BEFORE doing anything else
             GL.glMatrixMode(GL.GL_PROJECTION)
             GL.glLoadIdentity()
             GL.glMatrixMode(GL.GL_MODELVIEW)
             GL.glLoadIdentity()
-            print("Step 5: OK")
 
-            print("Step 6: Setting viewport...")
             # Use the virtual size recorded in resizeGL (first call), not the
             # current widget geometry, so the aspect ratio matches the virtual
             # canvas — not the (possibly different) container size.
             vw = getattr(self, "_virtual_w", None) or self.width()
             vh = getattr(self, "_virtual_h", None) or self.height()
-            print(f"  - viewport size BEFORE validation: {vw}x{vh}")
-            print(f"  - _virtual_w: {getattr(self, '_virtual_w', None)}")
-            print(f"  - _virtual_h: {getattr(self, '_virtual_h', None)}")
-            print(f"  - self.width(): {self.width()}")
-            print(f"  - self.height(): {self.height()}")
             
             # Ensure we have valid dimensions (must be > 0)
             if vw <= 0 or vh <= 0:
-                print(f"  ! WARNING: Invalid viewport dimensions ({vw}x{vh}), using fallback 800x600")
-                vw, vh = 800, 600
+                _logger.logger.warning(f"  ! WARNING: Invalid viewport dimensions ({vw}x{vh}), using fallback 1920x1080")
+                vw = 1920
+                vh = 1080
             
-            print(f"  - final viewport size: {vw}x{vh}")
             GL.glViewport(0, 0, vw, vh)
             self.size = (vw, vh)
             aspect = vw / float(vh) if vh else 1.0
-            print("Step 6: OK")
 
-            print("Step 7: Setting projection...")
             GL.glMatrixMode(GL.GL_PROJECTION)
             GL.glLoadIdentity()
             GLU.gluPerspective(65, aspect, 0.1, 1000.0)
             GL.glMatrixMode(GL.GL_MODELVIEW)
             GL.glLoadIdentity()
-            print("Step 7: OK")
 
-            print("Step 8: Setting camera...")
             self.camera.Set()
-            print("Step 8: OK")
 
             self._init = True  # viewport is live; notify_virtual_size_changed may update it
 
-            print("Step 9: Setting up grid and focal target...")
             self.set_draw_grid(self.config.floor.enable)
-            print("  - set_draw_grid OK")
             self.set_focal_target(self.config.focal_target.enable)
-            print("  - set_focal_target OK")
-            print("Step 9: OK")
 
-            print("=" * 80)
-            print("initializeGL() COMPLETED SUCCESSFULLY")
-            print("=" * 80)
-        except Exception as e:
-            print("!" * 80)
-            print(f"ERROR in initializeGL: {e}")
-            import traceback
-            traceback.print_exc()
-            print("!" * 80)
+        except Exception as err:  # NOQA
+            _logger.logger.traceback(err, 'initializeGL')
             raise
 
     def notify_virtual_size_changed(self, width: int, height: int) -> None:
@@ -713,10 +669,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
     def paintGL(self):
         """
         Called by Qt to render a frame. Context is already current here.
-        wx: EVT_PAINT → _on_paint → wx.PaintDC(self) + context.acquire() + _on_draw()
-        Qt: paintGL already runs with the context current; no PaintDC needed.
         """
-        print("paintGL() called")  # DEBUG
         self._on_draw()
 
         # Angle-view overlay — rendered via OpenGL pixel blit (same algorithm).
@@ -749,6 +702,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
                     r, g, b, a = overlay.getpixel((x_, y_))
                     if a == 0:
                         continue
+
                     i = (row + x_) * 4
                     nr = 255 - pixel_data[i]
                     ng = 255 - pixel_data[i + 1]
@@ -781,32 +735,80 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         projection_matrix = GL.glGetFloatv(GL.GL_PROJECTION_MATRIX)
         view_matrix = GL.glGetFloatv(GL.GL_MODELVIEW_MATRIX)
 
+        # ---------- Faces program
         GL.glUseProgram(self._faces_program)
-        view_position = GL.glGetUniformLocation(self._faces_program, 'viewPosition')
-        projection = GL.glGetUniformLocation(self._faces_program, 'projection')
-        view = GL.glGetUniformLocation(self._faces_program, 'view')
-        floor_y = GL.glGetUniformLocation(self._faces_program, 'floorY')
-        object_has_reflection = GL.glGetUniformLocation(self._faces_program, 'objectHasReflection')
 
-        GL.glUniform3fv(view_position, 1, self.camera.position.as_numpy)
-        GL.glUniformMatrix4fv(projection, 1, GL.GL_FALSE, projection_matrix)
-        GL.glUniformMatrix4fv(view, 1, GL.GL_FALSE, view_matrix)
-        GL.glUniform1f(floor_y, self.config.floor.ground_height)
-        GL.glUniform1i(object_has_reflection, int(self.config.floor.reflections.enable and self.config.floor.enable_floor_lock))
+        # ---------- Faces program variable locations
+        view_position = GL.glGetUniformLocation(
+            self._faces_program, 'viewPosition')
 
+        projection = GL.glGetUniformLocation(
+            self._faces_program, 'projection')
+
+        view = GL.glGetUniformLocation(
+            self._faces_program, 'view')
+
+        floor_y = GL.glGetUniformLocation(
+            self._faces_program, 'floorY')
+
+        object_has_reflection = GL.glGetUniformLocation(
+            self._faces_program, 'objectHasReflection')
+
+        # ---------- Faces program set variables
+        GL.glUniform3fv(
+            view_position, 1, self.camera.position.as_numpy)
+
+        GL.glUniformMatrix4fv(
+            projection, 1, GL.GL_FALSE, projection_matrix)
+
+        GL.glUniformMatrix4fv(
+            view, 1, GL.GL_FALSE, view_matrix)
+
+        GL.glUniform1f(
+            floor_y, self.config.floor.ground_height)
+
+        GL.glUniform1i(
+            object_has_reflection,
+            int(self.config.floor.reflections.enable and
+                self.config.floor.enable_floor_lock))
+
+        # ---------- Edges program
         GL.glUseProgram(self._edges_program)
-        projection = GL.glGetUniformLocation(self._edges_program, 'projection')
-        view = GL.glGetUniformLocation(self._edges_program, 'view')
-        GL.glUniformMatrix4fv(projection, 1, GL.GL_FALSE, projection_matrix)
+
+        # ---------- Edges program variable locations
+        projection = GL.glGetUniformLocation(
+            self._edges_program, 'projection')
+
+        view = GL.glGetUniformLocation(
+            self._edges_program, 'view')
+
+        # ---------- Edges program set variables
+        GL.glUniformMatrix4fv(
+            projection, 1, GL.GL_FALSE, projection_matrix)
+
         GL.glUniformMatrix4fv(view, 1, GL.GL_FALSE, view_matrix)
 
+        # ---------- Vertices program
         GL.glUseProgram(self._vertices_program)
-        projection = GL.glGetUniformLocation(self._vertices_program, 'projection')
-        view = GL.glGetUniformLocation(self._vertices_program, 'view')
-        GL.glUniformMatrix4fv(projection, 1, GL.GL_FALSE, projection_matrix)
-        GL.glUniformMatrix4fv(view, 1, GL.GL_FALSE, view_matrix)
 
+        # ---------- Vertices program variable locations
+        projection = GL.glGetUniformLocation(
+            self._vertices_program, 'projection')
+
+        view = GL.glGetUniformLocation(
+            self._vertices_program, 'view')
+
+        # ---------- Vertices program set variables
+        GL.glUniformMatrix4fv(
+            projection, 1, GL.GL_FALSE, projection_matrix)
+
+        GL.glUniformMatrix4fv(
+            view, 1, GL.GL_FALSE, view_matrix)
+
+        # ---------- Faces program rendering
         GL.glUseProgram(self._faces_program)
+
+        # ---------- Faces program set lighting
         self._scene_light.set(self._faces_program)
         self._headlight(self._faces_program)
 
