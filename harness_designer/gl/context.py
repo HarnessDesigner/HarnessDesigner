@@ -38,10 +38,16 @@ class GLContext:
 
     def acquire(self):
         self._lock.acquire()
+        if self.ref == 0:
+            # Make context current on first acquire
+            self.canvas.makeCurrent()
         self.ref += 1
 
     def release(self):
         self.ref -= 1
+        if self.ref == 0:
+            # Release context on last release
+            self.canvas.doneCurrent()
         self._lock.release()
 
     def __enter__(self) -> "GLContext":

@@ -68,6 +68,16 @@ class App(QObject):
             dlg.exec()
             return False
 
+        # Set default QSurfaceFormat for shared OpenGL contexts
+        # This must be called before the first QOpenGLWidget is created
+        from PySide6.QtGui import QSurfaceFormat
+        fmt = QSurfaceFormat()
+        fmt.setDepthBufferSize(24)
+        fmt.setSwapBehavior(QSurfaceFormat.SwapBehavior.DoubleBuffer)
+        fmt.setVersion(3, 3)
+        fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
+        QSurfaceFormat.setDefaultFormat(fmt)
+
         # Set up logger
         try:
             from . import logger as _lggr

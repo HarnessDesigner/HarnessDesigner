@@ -17,6 +17,15 @@ MOUSE_REVERSE_X_AXIS = _config.MOUSE_REVERSE_X_AXIS
 class Preview(QOpenGLWidget):
 
     def __init__(self, parent, size=None):
+        # Set compatibility profile to keep preview widget isolated
+        # This widget uses fixed-function OpenGL
+        from PySide6.QtGui import QSurfaceFormat
+        fmt = QSurfaceFormat()
+        fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
+        fmt.setDepthBufferSize(24)
+        fmt.setSwapBehavior(QSurfaceFormat.SwapBehavior.DoubleBuffer)
+        self.setFormat(fmt)
+        
         QOpenGLWidget.__init__(self, parent)
         if size is not None:
             self.setFixedSize(size[0], size[1])

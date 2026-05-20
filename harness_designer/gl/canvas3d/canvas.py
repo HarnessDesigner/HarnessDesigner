@@ -845,3 +845,9 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
 
             img = QtGui.QImage(arr.tobytes(), w, h, w * 3, QtGui.QImage.Format.Format_RGB888)
             return img.copy()   # copy so the buffer outlives arr
+
+    def cleanup(self):
+        """Clean up GL resources before widget destruction."""
+        # Currently no explicit cleanup needed - shaders/programs are
+        # automatically cleaned up by Qt when the context is destroyed
+        pass

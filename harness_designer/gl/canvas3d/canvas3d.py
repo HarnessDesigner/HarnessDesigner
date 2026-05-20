@@ -192,3 +192,7 @@ class Canvas3D(QWidget):
 
     def PanTilt(self, pan_delta, tilt_delta):
         self._canvas.PanTilt(pan_delta, tilt_delta)
+
+    def cleanup(self):
+        """Clean up GL resources before widget destruction."""
+        self._canvas.cleanup()
