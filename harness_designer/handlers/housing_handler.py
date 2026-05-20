@@ -12,7 +12,7 @@ from ..gl import materials as _materials
 from .. import config as _config
 from ..ui.dialogs import part_search as _part_search
 from ..ui import editor_db as _editor_db
-
+from .. import color as _color
 
 if TYPE_CHECKING:
     from .. import ui as _ui
@@ -39,13 +39,28 @@ class AddHousingHandler(_handler_base.HandlerBase):
 
         super().__init__(mainframe, part_id)
 
-        self._preview_material = _materials.Plastic(Config.add_object.preview_color)
+        self._preview_material = _materials.Plastic(
+            _color.Color(*Config.add_object.preview_color))
 
         if part_id is None:
             self._finalized = True
             return
 
         self.part = mainframe.project.gtables.housings_table[part_id]
+
+        for cavity in self.part.cavities:
+            if cavity is not None:
+                break
+        else:
+            from ..ui.dialogs import housing_editor
+
+            dlg = housing_editor.HousingEditorDialog(mainframe, self.part)
+            if dlg.exec() != QDialog.DialogCode.Accepted:
+                dlg.deleteLater()
+                self._finalized = True
+                return
+
+            dlg.deleteLater()
 
     def hover(self, mouse_pos: _point.Point):
         pass

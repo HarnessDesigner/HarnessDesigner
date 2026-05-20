@@ -85,6 +85,20 @@ class MainFrame(QMainWindow):
         self._selected_obj: "_objects.ObjectBase" = None
         self._obj_handler: _handlers.HandlerBase = None
 
+        self._bundle_handler: _handlers.AddBundleHandler = None
+        self._bundle_layout_handler: _handlers.AddBundleLayoutHandler = None
+        self._cover_handler: _handlers.AddCoverHandler = None
+        self._cpa_lock_handler: _handlers.AddCPALockHandler = None
+        self._housing_handler: _handlers.AddHousingHandler = None
+        self._seal_handler: _handlers.AddSealHandler = None
+        self._splice_handler: _handlers.AddSpliceHandler = None
+        self._terminal_handler: _handlers.AddTerminalHandler = None
+        self._tpa_lock_handler: _handlers.AddTPALockHandler = None
+        self._transition_handler: _handlers.AddTransitionHandler = None
+        self._wire_handler: _handlers.AddWireHandler = None
+        self._wire_layout_handler: _handlers.AddWireLayoutHandler = None
+        self._wire_service_loop_handler: _handlers.AddWireServiceLoopHandler = None
+
         # ------------------------------------------------------------------
         # Docking setup
         # Qt QMainWindow has built-in dock support. For full AUI-equivalent
@@ -765,7 +779,7 @@ class MainFrame(QMainWindow):
             return
         elif mode == _toolbar.ID_CONNECTOR:
             evt.StopPropagation()
-            self.add_housing(position3d=evt.GetWorldPosition())
+            self.add_housing(position3d=evt.GetPosition())
         elif mode == _toolbar.ID_TERMINAL:
             evt.StopPropagation()
             self.add_terminal(position3d=evt.GetWorldPosition())
@@ -1047,7 +1061,15 @@ class MainFrame(QMainWindow):
             return
         elif mode == _toolbar.ID_CONNECTOR:
             evt.StopPropagation()
-            self.add_housing(position2d=evt.GetWorldPosition())
+
+            if (
+                self._housing_handler is not None and
+                not self._housing_handler.is_finalized
+            ):
+                raise RuntimeError('sanity check')
+
+            self.add_housing(position2d=evt.GetPosition())
+
         elif mode == _toolbar.ID_TERMINAL:
             evt.StopPropagation()
             self.add_terminal(position2d=evt.GetWorldPosition())
@@ -1240,35 +1262,11 @@ class MainFrame(QMainWindow):
     # ------------------------------------------------------------------
 
     def add_housing(self, position2d: "_point.Point" = None,
-                    position3d: "_point.Point" = None, part_id: int = None) -> None:
+                    position3d: "_point.Point" = None) -> None:
 
-        if part_id is None:
-            part_id = self.editor_db.housings.GetSelection()
-
-        if part_id is None:
-            return
-
-        housing = self.global_db.housings_table[part_id]
-
-        for cavity in housing.cavities:
-            if cavity is not None:
-                break
-        else:
-            def _do(hsng, p2d, p3d):
-                from .dialogs import housing_editor
-
-                dlg = housing_editor.HousingEditorDialog(self, hsng)
-                if dlg.exec() != QDialog.DialogCode.Accepted:
-                    dlg.deleteLater()
-                    return
-
-                dlg.deleteLater()
-                self.project.add_housing(part_id, p2d, p3d)
-
-            QTimer.singleShot(0, lambda: _do(housing, position2d, position3d))
-            return
-
-        self.project.add_housing(part_id, position2d, position3d)
+        if position3d is not None:
+            self._housing_handler = _handlers.AddHousingHandler(self)
+            self._housing_handler.capture_position(position3d)
 
     def add_terminal(self, position2d: "_point.Point" = None,
                      position3d: "_point.Point" = None, part_id: int = None) -> None:

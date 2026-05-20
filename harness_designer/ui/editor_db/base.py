@@ -51,15 +51,27 @@ class EditorDBConfig(metaclass=_config.ConfigDB):
 
 class ScrollTracker:
     min_buffer = 10
-    max_buffer = 200
+    max_buffer = 500
 
     def __init__(self):
         self.last_row = 0
         self.last_time = time.monotonic_ns()
+        self._start_query = time.monotonic_ns()
+        self._query_elapsed = 0
+
+    def start_query(self):
+        self._start_query = time.monotonic_ns()
+
+    def stop_query(self):
+        now = time.monotonic_ns()
+        self._query_elapsed += (now - self._start_query) * 1e-9
 
     def get_buffer_size(self, current_row):
         now = time.monotonic_ns()
         elapsed = (now - self.last_time) * 1e-9
+        elapsed -= self._query_elapsed
+
+        self._query_elapsed = 0
 
         if elapsed:
             velocity = abs(current_row - self.last_row) / elapsed
@@ -186,7 +198,8 @@ class EditorList(QTableView):
         if not indexes:
             return None
 
-        return indexes[0].row()
+        row = self.get_row(indexes[0].row())
+        return row[1]
 
     def set_filter(self, where_clause: str = '', where_params=None):
         """Replace the active WHERE clause and refresh the list."""
@@ -329,6 +342,8 @@ class EditorList(QTableView):
         return self.rows.get(row, None)
 
     def get_rows(self, start, stop):
+        self.scroll_tracker.start_query()
+
         if self._where_clause:
             where_sql = f'WHERE {self._where_clause}'
         else:
@@ -347,6 +362,8 @@ class EditorList(QTableView):
 
         if rows:
             self.rows.update({i + start: rows[i] for i in range(len(rows))})
+
+        self.scroll_tracker.stop_query()
 
     def prune_cache(self, current_row, buffer_size):
         keep_range = buffer_size * 2

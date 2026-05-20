@@ -14,6 +14,7 @@ from ..objects import wire_layout as _wire_layout
 from .. import utils as _utils
 from ..gl import materials as _materials
 from .. import config as _config
+from .. import color as _color
 
 
 if TYPE_CHECKING:
@@ -208,9 +209,12 @@ class AddTransitionHandler(_handler_base.HandlerBase):
         super().__init__(mainframe, part_id)
         self.target = None
 
-        self._preview_material = _materials.Plastic(Config.add_object.preview_color)
-        self._wire_highlight_material = _materials.Plastic(Config.add_object.wire_highlight)
-        self._bundle_highlight_material = _materials.Plastic(Config.add_object.bundle_highlight)
+        self._preview_material = _materials.Plastic(
+            _color.Color(*Config.add_object.preview_color))
+        self._wire_highlight_material = _materials.Plastic(
+            _color.Color(*Config.add_object.wire_highlight))
+        self._bundle_highlight_material = _materials.Plastic(
+            _color.Color(*Config.add_object.bundle_highlight))
 
     def release_capture(self) -> None:
         raise NotImplementedError

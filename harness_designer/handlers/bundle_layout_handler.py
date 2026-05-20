@@ -10,6 +10,7 @@ from ..objects import bundle as _bundle
 from .. import utils as _utils
 from ..gl import materials as _materials
 from .. import config as _config
+from .. import color as _color
 
 
 if TYPE_CHECKING:
@@ -138,8 +139,10 @@ class AddBundleLayoutHandler(_handler_base.HandlerBase):
 
     def __init__(self, mainframe: "_ui.MainFrame"):
         super().__init__(mainframe, None)
-        self._preview_material = _materials.Plastic(Config.add_object.preview_color)
-        self._highlight_material = _materials.Plastic(Config.add_object.bundle_highlight)
+        self._preview_material = _materials.Plastic(
+            _color.Color(*Config.add_object.preview_color))
+        self._highlight_material = _materials.Plastic(
+            _color.Color(*Config.add_object.bundle_highlight))
 
         self.bundle: _bundle.Bundle = None
 

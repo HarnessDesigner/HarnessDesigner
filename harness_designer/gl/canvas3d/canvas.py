@@ -298,11 +298,11 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
 
         # Ensure depth buffering and double-buffering are active.
         # The model_preview canvas sets this explicitly; the main 3D canvas must too.
-        from PySide6.QtGui import QSurfaceFormat
-        fmt = QSurfaceFormat()
-        fmt.setDepthBufferSize(24)
-        fmt.setSwapBehavior(QSurfaceFormat.SwapBehavior.DoubleBuffer)
-        self.setFormat(fmt)
+        # from PySide6.QtGui import QSurfaceFormat
+        # fmt = QSurfaceFormat()
+        # fmt.setDepthBufferSize(24)
+        # fmt.setSwapBehavior(QSurfaceFormat.SwapBehavior.DoubleBuffer)
+        # self.setFormat(fmt)
 
         # Walk up to the QMainWindow (replaces aui.AuiManager.GetManager().GetManagedWindow())
         w = parent
@@ -716,30 +716,30 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         projection_matrix = GL.glGetFloatv(GL.GL_PROJECTION_MATRIX)
         view_matrix = GL.glGetFloatv(GL.GL_MODELVIEW_MATRIX)
 
-        view_position = GL.glGetUniformLocation(self._faces_program, "viewPosition")
-        faces_projection = GL.glGetUniformLocation(self._faces_program, "projection")
-        faces_view = GL.glGetUniformLocation(self._faces_program, "view")
-        floor_y = GL.glGetUniformLocation(self._faces_program, "floorY")
-        object_has_reflection = GL.glGetUniformLocation(self._faces_program, "objectHasReflection")
-        edges_projection = GL.glGetUniformLocation(self._edges_program, "projection")
-        edges_view = GL.glGetUniformLocation(self._edges_program, "view")
-        vertices_projection = GL.glGetUniformLocation(self._vertices_program, "projection")
-        vertices_view = GL.glGetUniformLocation(self._vertices_program, "view")
-
         GL.glUseProgram(self._faces_program)
+        view_position = GL.glGetUniformLocation(self._faces_program, 'viewPosition')
+        projection = GL.glGetUniformLocation(self._faces_program, 'projection')
+        view = GL.glGetUniformLocation(self._faces_program, 'view')
+        floor_y = GL.glGetUniformLocation(self._faces_program, 'floorY')
+        object_has_reflection = GL.glGetUniformLocation(self._faces_program, 'objectHasReflection')
+
         GL.glUniform3fv(view_position, 1, self.camera.position.as_numpy)
-        GL.glUniformMatrix4fv(faces_projection, 1, GL.GL_FALSE, projection_matrix)
-        GL.glUniformMatrix4fv(faces_view, 1, GL.GL_FALSE, view_matrix)
+        GL.glUniformMatrix4fv(projection, 1, GL.GL_FALSE, projection_matrix)
+        GL.glUniformMatrix4fv(view, 1, GL.GL_FALSE, view_matrix)
         GL.glUniform1f(floor_y, self.config.floor.ground_height)
         GL.glUniform1i(object_has_reflection, int(self.config.floor.reflections.enable and self.config.floor.enable_floor_lock))
 
         GL.glUseProgram(self._edges_program)
-        GL.glUniformMatrix4fv(edges_projection, 1, GL.GL_FALSE, projection_matrix)
-        GL.glUniformMatrix4fv(edges_view, 1, GL.GL_FALSE, view_matrix)
+        projection = GL.glGetUniformLocation(self._edges_program, 'projection')
+        view = GL.glGetUniformLocation(self._edges_program, 'view')
+        GL.glUniformMatrix4fv(projection, 1, GL.GL_FALSE, projection_matrix)
+        GL.glUniformMatrix4fv(view, 1, GL.GL_FALSE, view_matrix)
 
         GL.glUseProgram(self._vertices_program)
-        GL.glUniformMatrix4fv(vertices_projection, 1, GL.GL_FALSE, projection_matrix)
-        GL.glUniformMatrix4fv(vertices_view, 1, GL.GL_FALSE, view_matrix)
+        projection = GL.glGetUniformLocation(self._vertices_program, 'projection')
+        view = GL.glGetUniformLocation(self._vertices_program, 'view')
+        GL.glUniformMatrix4fv(projection, 1, GL.GL_FALSE, projection_matrix)
+        GL.glUniformMatrix4fv(view, 1, GL.GL_FALSE, view_matrix)
 
         GL.glUseProgram(self._faces_program)
         self._scene_light.set(self._faces_program)

@@ -15,6 +15,7 @@ from ..shapes import cylinder_helix as _cylinder_helix
 from .. import utils as _utils
 from ..gl import materials as _materials
 from .. import config as _config
+from .. import color as _color
 
 
 if TYPE_CHECKING:
@@ -76,9 +77,12 @@ class AddWireServiceLoopHandler(_handler_base.HandlerBase):
         super().__init__(mainframe, part_id)
 
         self.wire = None
-        self._preview_material = _materials.Plastic(Config.add_object.preview_color)
-        self._highlight_material = _materials.Plastic(Config.add_object.wire_highlight)
-        self._terminal_material = _materials.Plastic(Config.add_object.terminal_highlight)
+        self._preview_material = _materials.Plastic(
+            _color.Color(*Config.add_object.preview_color))
+        self._highlight_material = _materials.Plastic(
+            _color.Color(*Config.add_object.wire_highlight))
+        self._terminal_material = _materials.Plastic(
+            _color.Color(*Config.add_object.terminal_highlight))
 
     def release_capture(self) -> None:
         raise NotImplementedError

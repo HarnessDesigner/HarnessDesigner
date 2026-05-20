@@ -13,6 +13,7 @@ from ..objects import wire as _wire
 from .. import utils as _utils
 from ..gl import materials as _materials
 from .. import config as _config
+from .. import color as _color
 
 
 if TYPE_CHECKING:
@@ -58,10 +59,14 @@ class AddWireHandler(_handler_base.HandlerBase):
     def __init__(self, mainframe: "_ui.MainFrame", part_id: int):
         super().__init__(mainframe, part_id)
 
-        self._preview_material = _materials.Plastic(Config.add_object.preview_color)
-        self._terminal_highlight_material = _materials.Plastic(Config.add_object.terminal_highlight)
-        self._wire_highlight_material = _materials.Plastic(Config.add_object.wire_highlight)
-        self._splice_highlight_material = _materials.Plastic(Config.add_object.splice_highlight)
+        self._preview_material = _materials.Plastic(
+            _color.Color(*Config.add_object.preview_color))
+        self._terminal_highlight_material = _materials.Plastic(
+            _color.Color(*Config.add_object.terminal_highlight))
+        self._wire_highlight_material = _materials.Plastic(
+            _color.Color(*Config.add_object.wire_highlight))
+        self._splice_highlight_material = _materials.Plastic(
+            _color.Color(*Config.add_object.splice_highlight))
         self.start_position: _point.Point = None
         self.stop_position: _point.Point = None
 

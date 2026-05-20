@@ -7,12 +7,12 @@ from . import handler_base as _handler_base
 from ..geometry import point as _point
 from ..geometry import angle as _angle
 from ..gl.canvas3d import object_picker as _object_picker
-from ..gl import materials as _materials
 from ..objects import wire as _wire
 from ..objects import splice as _splice
 from .. import utils as _utils
 from ..gl import materials as _materials
 from .. import config as _config
+from .. import color as _color
 
 
 if TYPE_CHECKING:
@@ -49,8 +49,10 @@ class AddSpliceHandler(_handler_base.HandlerBase):
         super().__init__(mainframe, part_id)
         self.wire = None
 
-        self._preview_material = _materials.Plastic(Config.add_object.preview_color)
-        self._highlight_material = _materials.Plastic(Config.add_object.wire_highlight)
+        self._preview_material = _materials.Plastic(
+            _color.Color(*Config.add_object.preview_color))
+        self._highlight_material = _materials.Plastic(
+            _color.Color(*Config.add_object.wire_highlight))
 
     def release_capture(self) -> None:
         raise NotImplementedError

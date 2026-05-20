@@ -46,11 +46,12 @@ class Image:
     def disabled_pixmap(self) -> QPixmap:
         pil = self.pil.convert('RGBA')
         r, g, b, a = pil.split()
+
         # Convert to greyscale and halve opacity to simulate a disabled icon
         grey = _Image.merge('RGBA', [r, g, b, a])
         grey = grey.convert('LA').convert('RGBA')
         r2, g2, b2, a2 = grey.split()
-        from PIL import ImageEnhance
+
         a2 = a2.point(lambda p: p // 2)
         disabled = _Image.merge('RGBA', [r2, g2, b2, a2])
         return utils.pil_image_2_qpixmap(disabled)
@@ -58,6 +59,11 @@ class Image:
     @property
     def cursor(self) -> QCursor:
         return utils.pil_image_2_qcursor(self.pil)
+
+    def crop(self, x1, y1, x2, y2):
+        pil = self.pil.convert('RGBA')
+        pil = pil.crop((x1, y1, x2, y2))
+        return Image(self.name, png_data=utils.pil_image_2_png_bytes(pil))
 
     def resize(self, w: int, h: int) -> "Image":
         pil = utils.resize_pil_image(self.pil, w, h)

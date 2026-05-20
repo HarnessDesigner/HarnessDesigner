@@ -13,6 +13,7 @@ from ..objects import housing as _housing
 from ..objects import cavity as _cavity
 from ..gl import materials as _materials
 from .. import config as _config
+from .. import color as _color
 
 
 if TYPE_CHECKING:
@@ -42,10 +43,14 @@ class AddSealHandler(_handler_base.HandlerBase):
     def __init__(self, mainframe: "_ui.MainFrame", part_id: int):
         super().__init__(mainframe, part_id)
 
-        self._preview_material = _materials.Plastic(Config.add_object.preview_color)
-        self._terminal_highlight_material = _materials.Plastic(Config.add_object.terminal_highlight)
-        self._housing_highlight_material = _materials.Plastic(Config.add_object.housing_highlight)
-        self._cavity_highlight_material = _materials.Plastic(Config.add_object.cavity_highlight)
+        self._preview_material = _materials.Plastic(
+            _color.Color(*Config.add_object.preview_color))
+        self._terminal_highlight_material = _materials.Plastic(
+            _color.Color(*Config.add_object.terminal_highlight))
+        self._housing_highlight_material = _materials.Plastic(
+            _color.Color(*Config.add_object.housing_highlight))
+        self._cavity_highlight_material = _materials.Plastic(
+            _color.Color(*Config.add_object.cavity_highlight))
 
         self.part = mainframe.project.gtables.seals_table[part_id]
         part_number = self.part.part_number

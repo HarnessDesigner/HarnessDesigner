@@ -12,6 +12,7 @@ from ..objects import cavity as _cavity
 from ..objects import housing as _housing
 from ..gl import materials as _materials
 from .. import config as _config
+from .. import color as _color
 
 
 if TYPE_CHECKING:
@@ -44,9 +45,12 @@ class AddTerminalHandler(_handler_base.HandlerBase):
         self.part = mainframe.project.gtables.terminals_table[part_id]
         part_number = self.part.part_number
 
-        self._preview_material = _materials.Plastic(Config.add_object.preview_color)
-        self._wire_highlight_material = _materials.Plastic(Config.add_object.wire_highlight)
-        self._cavity_highlight_material = _materials.Plastic(Config.add_object.cavity_highlight)
+        self._preview_material = _materials.Plastic(
+            _color.Color(*Config.add_object.preview_color))
+        self._wire_highlight_material = _materials.Plastic(
+            _color.Color(*Config.add_object.wire_highlight))
+        self._cavity_highlight_material = _materials.Plastic(
+            _color.Color(*Config.add_object.cavity_highlight))
 
         compat_housings = mainframe.project.gtables.housings_table.get_compat(terminal=part_number)
         compat_housings.extend(self.part.compat_housings)

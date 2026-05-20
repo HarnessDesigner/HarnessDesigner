@@ -70,19 +70,35 @@ class Base2D:
     def is_selected(self) -> bool:
         return self._is_selected
 
-    def render_gl(self) -> None:
+    def render_gl(self, program: int, proj, view) -> None:
         """
-        Render this object using OpenGL
+        Render this object using the schematic2d shader.
 
-        Override this method in subclasses to implement specific rendering.
+        Parameters
+        ----------
+        program  Compiled schematic2d shader program handle for this context.
+        proj     (4,4) float32 orthographic projection matrix from Canvas.
+        view     (4,4) float32 view matrix from Canvas (identity for 2D).
+
+        The 3D VBO shared with canvas3d is reused here.  The schematic2d
+        vertex shader projects 3D vertices onto the XZ plane (Y-up world
+        coords, flipY=0) to produce the top-down schematic view:
+            2D X = 3D X
+            2D Y = 3D Z
+
+        The 2D position (self._position) is the canvas-local position that
+        the user can move freely, independent of the 3D position.
+
+        Override this method in subclasses to implement object-specific
+        rendering.
         """
         pass
 
-    def render_selection(self) -> None:
+    def render_selection(self, program: int, proj, view) -> None:
         """
-        Render selection highlight using OpenGL
+        Render selection highlight using the schematic2d shader.
 
-        Override this method to customize selection appearance.
+        Override this method to customise selection appearance.
         """
         pass
 

@@ -389,18 +389,13 @@ class Housing3D(_base3d.Base3D):
             position3d = model.position3d
             angle3d = model.angle3d
 
-            if uuid in _vbo.VBOHandler:
-                vbo = _vbo.VBOHandler(uuid)
-            else:
-                vertices, faces = model.load()
-                verts, nrmls, faces, count = _utils.compute_vbo_smoothed_vertex_normals(vertices, faces)
-
-                vbo = _vbo.VBOHandler(uuid, verts, nrmls, faces, count)
+            vertices, faces = model.load()
+            data = _utils.compute_smoothed_vertex_normals(vertices, faces)
 
         material_color = _color.Color(0.6, 0.6, 0.8, 1.0)
         material = _materials.Plastic(material_color)
 
-        _base3d.Base3D.__init__(self, parent, db_obj, vbo,
+        _base3d.Base3D.__init__(self, parent, db_obj, None,
                                 angle3d, position3d, scale,
                                 material, data=data)
 
@@ -418,8 +413,8 @@ def _make_pos_group(parent_widget, label):
 
 class CavityPanel(QScrollArea):
 
-    def __init__(self, parent: "HousingEditorDialog", housing: Housing3D):
-        QScrollArea.__init__(self, parent)
+    def __init__(self, dialog, panel: "HousingEditorDialog", housing: Housing3D):
+        QScrollArea.__init__(self, panel)
         self.setWidgetResizable(True)
 
         self.__hold_change = False
@@ -428,12 +423,13 @@ class CavityPanel(QScrollArea):
         for cavity in housing.db_obj.cavities:
             if cavity is None:
                 continue
-            cavity = Cavity(parent, cavity)
+
+            cavity = Cavity(dialog, cavity)
             self.cavities.append(cavity.obj3d)
 
         self.cavity: Cavity3D = None
         self.housing = housing
-        self.dialog = parent
+        self.dialog = dialog
 
         inner = QWidget()
         self.setWidget(inner)
@@ -837,60 +833,192 @@ class CavityPanel(QScrollArea):
 
 class HousingPanel(QScrollArea):
 
-    def __init__(self, parent: "HousingEditorDialog", housing: Housing3D):
-        QScrollArea.__init__(self, parent)
+    def __init__(self, dialog, panel: "HousingEditorDialog", housing: Housing3D):
+        QScrollArea.__init__(self, panel)
         self.setWidgetResizable(True)
 
         self.housing = housing
-        self.dialog = parent
+        self.dialog = dialog
 
         inner = QWidget()
         self.setWidget(inner)
         v_layout = QVBoxLayout(inner)
 
-        def _pos_group(title, x_attr, y_attr, z_attr, pos_attr, pos_cb):
-            group = QGroupBox(title, inner)
-            gl = QVBoxLayout(group)
+        group = QGroupBox('Boot Position', inner)
+        gl = QVBoxLayout(group)
 
-            x_ctrl = _float_ctrl.FloatCtrl(group, 'X:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
-            y_ctrl = _float_ctrl.FloatCtrl(group, 'Y:', min_val=0.0, max_val=999.0, inc=0.01, slider=True)
-            z_ctrl = _float_ctrl.FloatCtrl(group, 'Z:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
+        self.setMaximumWidth(400)
 
-            gl.addWidget(x_ctrl)
-            gl.addWidget(y_ctrl)
-            gl.addWidget(z_ctrl)
-            setattr(self, x_attr, x_ctrl)
-            setattr(self, y_attr, y_ctrl)
-            setattr(self, z_attr, z_ctrl)
+        self.boot_x_pos = _float_ctrl.FloatCtrl(group, 'X:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
+        self.boot_y_pos = _float_ctrl.FloatCtrl(group, 'Y:', min_val=0.0, max_val=999.0, inc=0.01, slider=True)
+        self.boot_z_pos = _float_ctrl.FloatCtrl(group, 'Z:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
 
-            pos = getattr(housing, pos_attr)
-            setattr(self, pos_attr, pos)
-            HousingAccessory(self.dialog, pos).obj3d
-            pos.bind(pos_cb)
+        gl.addWidget(self.boot_x_pos)
+        gl.addWidget(self.boot_y_pos)
+        gl.addWidget(self.boot_z_pos)
 
-            px, py, pz = pos.as_float
-            x_ctrl.SetValue(px)
-            y_ctrl.SetValue(py)
-            z_ctrl.SetValue(pz)
+        pos = housing.db_obj.boot_position3d
+        
+        self.boot_pos = pos
+        pos.bind(self.on_boot_pos)
 
-            x_ctrl.value_changed.connect(lambda v, p=pos, cb=pos_cb: (p.unbind(cb), setattr(p, 'x', v), p.bind(cb)))
-            y_ctrl.value_changed.connect(lambda v, p=pos, cb=pos_cb: (p.unbind(cb), setattr(p, 'y', v), p.bind(cb)))
-            z_ctrl.value_changed.connect(lambda v, p=pos, cb=pos_cb: (p.unbind(cb), setattr(p, 'z', v), p.bind(cb)))
+        px, py, pz = pos.as_float
+        self.boot_x_pos.SetValue(px)
+        self.boot_y_pos.SetValue(py)
+        self.boot_z_pos.SetValue(pz)
+        
+        self.boot = HousingAccessory(dialog, pos)
 
-            v_layout.addWidget(group)
+        self.boot_x_pos.value_changed.connect(self.on_boot_x_pos)
+        self.boot_y_pos.value_changed.connect(self.on_boot_y_pos)
+        self.boot_z_pos.value_changed.connect(self.on_boot_z_pos)
 
-        _pos_group('Boot Position', 'boot_x_pos', 'boot_y_pos', 'boot_z_pos',
-                   'boot_pos', self.on_boot_pos)
-        _pos_group('CPA Lock Position', 'cpa_x_pos', 'cpa_y_pos', 'cpa_z_pos',
-                   'cpa_pos', self.on_cpa_pos)
-        _pos_group('Cover Position', 'cover_x_pos', 'cover_y_pos', 'cover_z_pos',
-                   'cover_pos', self.on_cover_pos)
-        _pos_group('TPA Lock 1 Position', 'tpa1_x_pos', 'tpa1_y_pos', 'tpa1_z_pos',
-                   'tpa1_pos', self.on_tpa1_pos)
-        _pos_group('TPA Lock 2 Position', 'tpa2_x_pos', 'tpa2_y_pos', 'tpa2_z_pos',
-                   'tpa2_pos', self.on_tpa2_pos)
-        _pos_group('Seal Position', 'seal_x_pos', 'seal_y_pos', 'seal_z_pos',
-                   'seal_pos', self.on_seal_pos)
+        v_layout.addWidget(group)
+
+        group = QGroupBox('CPA Lock Position', inner)
+        gl = QVBoxLayout(group)
+
+        self.cpa_x_pos = _float_ctrl.FloatCtrl(group, 'X:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
+        self.cpa_y_pos = _float_ctrl.FloatCtrl(group, 'Y:', min_val=0.0, max_val=999.0, inc=0.01, slider=True)
+        self.cpa_z_pos = _float_ctrl.FloatCtrl(group, 'Z:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
+
+        gl.addWidget(self.cpa_x_pos)
+        gl.addWidget(self.cpa_y_pos)
+        gl.addWidget(self.cpa_z_pos)
+
+        pos = housing.db_obj.cpa_lock_position3d
+        
+        self.cpa_pos = pos
+        pos.bind(self.on_cpa_pos)
+
+        px, py, pz = pos.as_float
+        self.cpa_x_pos.SetValue(px)
+        self.cpa_y_pos.SetValue(py)
+        self.cpa_z_pos.SetValue(pz)
+        
+        self.cpa_lock = HousingAccessory(dialog, pos)
+        
+        self.cpa_x_pos.value_changed.connect(self.on_cpa_x_pos)
+        self.cpa_y_pos.value_changed.connect(self.on_cpa_y_pos)
+        self.cpa_z_pos.value_changed.connect(self.on_cpa_z_pos)
+
+        v_layout.addWidget(group)
+
+        group = QGroupBox('Cover Position', inner)
+        gl = QVBoxLayout(group)
+
+        self.cover_x_pos = _float_ctrl.FloatCtrl(group, 'X:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
+        self.cover_y_pos = _float_ctrl.FloatCtrl(group, 'Y:', min_val=0.0, max_val=999.0, inc=0.01, slider=True)
+        self.cover_z_pos = _float_ctrl.FloatCtrl(group, 'Z:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
+
+        gl.addWidget(self.cover_x_pos)
+        gl.addWidget(self.cover_y_pos)
+        gl.addWidget(self.cover_z_pos)
+
+        pos = housing.db_obj.cover_position3d
+        
+        self.cover_pos = pos
+        pos.bind(self.on_cover_pos)
+
+        px, py, pz = pos.as_float
+        self.cover_x_pos.SetValue(px)
+        self.cover_y_pos.SetValue(py)
+        self.cover_z_pos.SetValue(pz)
+        
+        self.cover = HousingAccessory(dialog, pos)
+        
+        self.cover_x_pos.value_changed.connect(self.on_cover_x_pos)
+        self.cover_y_pos.value_changed.connect(self.on_cover_y_pos)
+        self.cover_z_pos.value_changed.connect(self.on_cover_z_pos)
+
+        v_layout.addWidget(group)
+
+        group = QGroupBox('TPA Lock 1 Position', inner)
+        gl = QVBoxLayout(group)
+
+        self.tpa1_x_pos = _float_ctrl.FloatCtrl(group, 'X:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
+        self.tpa1_y_pos = _float_ctrl.FloatCtrl(group, 'Y:', min_val=0.0, max_val=999.0, inc=0.01, slider=True)
+        self.tpa1_z_pos = _float_ctrl.FloatCtrl(group, 'Z:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
+
+        gl.addWidget(self.tpa1_x_pos)
+        gl.addWidget(self.tpa1_y_pos)
+        gl.addWidget(self.tpa1_z_pos)
+
+        pos = housing.db_obj.tpa_lock_1_position3d
+        
+        self.tpa1_pos = pos
+        pos.bind(self.on_tpa1_pos)
+
+        px, py, pz = pos.as_float
+        self.tpa1_x_pos.SetValue(px)
+        self.tpa1_y_pos.SetValue(py)
+        self.tpa1_z_pos.SetValue(pz)
+        
+        self.tpa_lock1 = HousingAccessory(dialog, pos)
+
+        self.tpa1_x_pos.value_changed.connect(self.on_tpa1_x_pos)
+        self.tpa1_y_pos.value_changed.connect(self.on_tpa1_y_pos)
+        self.tpa1_z_pos.value_changed.connect(self.on_tpa1_z_pos)
+
+        v_layout.addWidget(group)
+
+        group = QGroupBox('TPA Lock 2 Position', inner)
+        gl = QVBoxLayout(group)
+
+        self.tpa2_x_pos = _float_ctrl.FloatCtrl(group, 'X:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
+        self.tpa2_y_pos = _float_ctrl.FloatCtrl(group, 'Y:', min_val=0.0, max_val=999.0, inc=0.01, slider=True)
+        self.tpa2_z_pos = _float_ctrl.FloatCtrl(group, 'Z:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
+
+        gl.addWidget(self.tpa2_x_pos)
+        gl.addWidget(self.tpa2_y_pos)
+        gl.addWidget(self.tpa2_z_pos)
+
+        pos = housing.db_obj.tpa_lock_2_position3d
+        
+        self.tpa2_pos = pos
+        pos.bind(self.on_tpa2_pos)
+
+        px, py, pz = pos.as_float
+        self.tpa2_x_pos.SetValue(px)
+        self.tpa2_y_pos.SetValue(py)
+        self.tpa2_z_pos.SetValue(pz)
+        
+        self.tpa_lock2 = HousingAccessory(dialog, pos)
+
+        self.tpa2_x_pos.value_changed.connect(self.on_tpa2_x_pos)
+        self.tpa2_y_pos.value_changed.connect(self.on_tpa2_y_pos)
+        self.tpa2_z_pos.value_changed.connect(self.on_tpa2_z_pos)
+
+        v_layout.addWidget(group)
+
+        group = QGroupBox('Seal Position', inner)
+        gl = QVBoxLayout(group)
+
+        self.seal_x_pos = _float_ctrl.FloatCtrl(group, 'X:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
+        self.seal_y_pos = _float_ctrl.FloatCtrl(group, 'Y:', min_val=0.0, max_val=999.0, inc=0.01, slider=True)
+        self.seal_z_pos = _float_ctrl.FloatCtrl(group, 'Z:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
+
+        gl.addWidget(self.seal_x_pos)
+        gl.addWidget(self.seal_y_pos)
+        gl.addWidget(self.seal_z_pos)
+
+        pos = housing.db_obj.seal_position3d
+        
+        self.seal_pos = pos
+        pos.bind(self.on_seal_pos)
+
+        px, py, pz = pos.as_float
+        self.seal_x_pos.SetValue(px)
+        self.seal_y_pos.SetValue(py)
+        self.seal_z_pos.SetValue(pz)
+        
+        self.seal = HousingAccessory(dialog, pos)
+
+        self.seal_x_pos.value_changed.connect(self.on_seal_x_pos)
+        self.seal_y_pos.value_changed.connect(self.on_seal_y_pos)
+        self.seal_z_pos.value_changed.connect(self.on_seal_z_pos)
+
+        v_layout.addWidget(group)
 
         # Housing Angle group
         angle_group = QGroupBox('Housing Angle', inner)
@@ -955,6 +1083,96 @@ class HousingPanel(QScrollArea):
         y_ctrl.SetValue(y)
         z_ctrl.SetValue(z)
 
+    def on_boot_x_pos(self, value):
+        self.boot_pos.unbind(self.on_boot_pos)
+        self.boot_pos.x = value                
+        self.boot_pos.bind(self.on_boot_pos)
+
+    def on_boot_y_pos(self, value):
+        self.boot_pos.unbind(self.on_boot_pos)
+        self.boot_pos.y = value
+        self.boot_pos.bind(self.on_boot_pos)
+
+    def on_boot_z_pos(self, value):
+        self.boot_pos.unbind(self.on_boot_pos)
+        self.boot_pos.z = value
+        self.boot_pos.bind(self.on_boot_pos)
+    
+    def on_cpa_x_pos(self, value):
+        self.cpa_pos.unbind(self.on_cpa_pos)
+        self.cpa_pos.x = value                
+        self.cpa_pos.bind(self.on_cpa_pos)
+
+    def on_cpa_y_pos(self, value):
+        self.cpa_pos.unbind(self.on_cpa_pos)
+        self.cpa_pos.y = value
+        self.cpa_pos.bind(self.on_cpa_pos)
+
+    def on_cpa_z_pos(self, value):
+        self.cpa_pos.unbind(self.on_cpa_pos)
+        self.cpa_pos.z = value
+        self.cpa_pos.bind(self.on_cpa_pos)
+
+    def on_cover_x_pos(self, value):
+        self.cover_pos.unbind(self.on_cover_pos)
+        self.cover_pos.x = value                
+        self.cover_pos.bind(self.on_cover_pos)
+
+    def on_cover_y_pos(self, value):
+        self.cover_pos.unbind(self.on_cover_pos)
+        self.cover_pos.y = value
+        self.cover_pos.bind(self.on_cover_pos)
+
+    def on_cover_z_pos(self, value):
+        self.cover_pos.unbind(self.on_cover_pos)
+        self.cover_pos.z = value
+        self.cover_pos.bind(self.on_cover_pos)
+
+    def on_tpa1_x_pos(self, value):
+        self.tpa1_pos.unbind(self.on_tpa1_pos)
+        self.tpa1_pos.x = value                
+        self.tpa1_pos.bind(self.on_tpa1_pos)
+
+    def on_tpa1_y_pos(self, value):
+        self.tpa1_pos.unbind(self.on_tpa1_pos)
+        self.tpa1_pos.y = value
+        self.tpa1_pos.bind(self.on_tpa1_pos)
+
+    def on_tpa1_z_pos(self, value):
+        self.tpa1_pos.unbind(self.on_tpa1_pos)
+        self.tpa1_pos.z = value
+        self.tpa1_pos.bind(self.on_tpa1_pos)
+        
+    def on_tpa2_x_pos(self, value):
+        self.tpa2_pos.unbind(self.on_tpa2_pos)
+        self.tpa2_pos.x = value                
+        self.tpa2_pos.bind(self.on_tpa2_pos)
+
+    def on_tpa2_y_pos(self, value):
+        self.tpa2_pos.unbind(self.on_tpa2_pos)
+        self.tpa2_pos.y = value
+        self.tpa2_pos.bind(self.on_tpa2_pos)
+
+    def on_tpa2_z_pos(self, value):
+        self.tpa2_pos.unbind(self.on_tpa2_pos)
+        self.tpa2_pos.z = value
+        self.tpa2_pos.bind(self.on_tpa2_pos)
+        
+    def on_seal_x_pos(self, value):
+        self.seal_pos.unbind(self.on_seal_pos)
+        self.seal_pos.x = value                
+        self.seal_pos.bind(self.on_seal_pos)
+
+    def on_seal_y_pos(self, value):
+        self.seal_pos.unbind(self.on_seal_pos)
+        self.seal_pos.y = value
+        self.seal_pos.bind(self.on_seal_pos)
+
+    def on_seal_z_pos(self, value):
+        self.seal_pos.unbind(self.on_seal_pos)
+        self.seal_pos.z = value
+        self.seal_pos.bind(self.on_seal_pos)
+
     def on_boot_pos(self, p):
         self._sync_pos(self.boot_x_pos, self.boot_y_pos, self.boot_z_pos, p)
 
@@ -979,24 +1197,33 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
     def __init__(self, parent: "_ui.mainframe", db_obj):
         self.db_obj = db_obj
 
-        _dialog_base.BaseDialog.__init__(self, parent,
-                                         'Edit Housing', size=(1200, 900))
+        _dialog_base.BaseDialog.__init__(self, parent, 'Edit Housing', size=(1200, 900))
+
+        w = _config.Config.editor3d.virtual_canvas.width
+        h = _config.Config.editor3d.virtual_canvas.height
 
         self.canvas = _canvas3d.Canvas3D(
-            self.panel, Config.editor3d, size=(750, 500))
+            self.panel, Config.editor3d, size=(w, h))
 
         self.housing = Housing(self, db_obj)
 
-        self.housing_panel = HousingPanel(self.panel, self.housing.obj3d)
-        self.cavity_panel = CavityPanel(self.panel, self.housing.obj3d)
+        self.housing_panel = HousingPanel(self, self.panel, self.housing.obj3d)
+        self.cavity_panel = CavityPanel(self, self.panel, self.housing.obj3d)
 
         h_layout = QHBoxLayout()
-        h_layout.addWidget(self.canvas, 2)
-        h_layout.addWidget(self.housing_panel, 1)
+        h_layout.addWidget(self.canvas)
+        h_layout.addSpacing(5)
+        h_layout.addWidget(self.housing_panel)
+        h_layout.addSpacing(5)
 
         v_layout = QVBoxLayout(self.panel)
         v_layout.addLayout(h_layout, 1)
-        v_layout.addWidget(self.cavity_panel, 1)
+        v_layout.addWidget(self.cavity_panel)
+
+    def closeEvent(self, event):  # noqa: N802
+        """Clean up the dialog's GL canvas before the window is destroyed."""
+        self.canvas.cleanup()
+        super().closeEvent(event)
 
     @property
     def editor2d(self):

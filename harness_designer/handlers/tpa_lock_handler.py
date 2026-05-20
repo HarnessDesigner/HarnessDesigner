@@ -13,6 +13,7 @@ from ..gl import materials as _materials
 from .. import config as _config
 from ..ui.dialogs import part_search as _part_search
 from ..ui import editor_db as _editor_db
+from .. import color as _color
 
 
 if TYPE_CHECKING:
@@ -55,8 +56,10 @@ class AddTPALockHandler(_handler_base.HandlerBase):
 
         super().__init__(mainframe, part_id)
 
-        self._preview_material = _materials.Plastic(Config.add_object.preview_color)
-        self._highlight_material = _materials.Plastic(Config.add_object.housing_highlight)
+        self._preview_material = _materials.Plastic(
+            _color.Color(*Config.add_object.preview_color))
+        self._highlight_material = _materials.Plastic(
+            _color.Color(*Config.add_object.housing_highlight))
 
         if part_id is None:
             self._finalized = True

@@ -10,6 +10,7 @@ from ..objects import wire as _wire
 from .. import utils as _utils
 from ..gl import materials as _materials
 from .. import config as _config
+from .. import color as _color
 
 
 if TYPE_CHECKING:
@@ -143,8 +144,10 @@ class AddWireLayoutHandler(_handler_base.HandlerBase):
         super().__init__(mainframe, None)
         self.wire: _wire.Wire = None
 
-        self._preview_material = _materials.Plastic(Config.add_object.preview_color)
-        self._highlight_material = _materials.Plastic(Config.add_object.wire_highlight)
+        self._preview_material = _materials.Plastic(
+            _color.Color(*Config.add_object.preview_color))
+        self._highlight_material = _materials.Plastic(
+            _color.Color(*Config.add_object.wire_highlight))
 
     def release_capture(self) -> None:
         raise NotImplementedError
