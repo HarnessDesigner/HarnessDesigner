@@ -105,7 +105,9 @@ class VBOHandler(metaclass=VBOSingleton):
         from PySide6.QtGui import QOpenGLContext
         ctx = QOpenGLContext.currentContext()
         if ctx is not None:
-            self.__vaos[id(ctx)] = vao
+            # Use __builtins__.id to avoid shadowing by the 'id' parameter
+            ctx_id = __builtins__.id(ctx)
+            self.__vaos[ctx_id] = vao
 
         local_aabb = _utils.compute_aabb(vertices.reshape(-1, 3))
         self.local_obb = _utils.compute_obb(*local_aabb)
@@ -214,7 +216,8 @@ class VBOHandler(metaclass=VBOSingleton):
         if ctx is None:
             raise RuntimeError("No OpenGL context is current")
         
-        ctx_id = id(ctx)
+        # Use __builtins__.id to avoid shadowing by the 'id' parameter in __init__
+        ctx_id = __builtins__.id(ctx)
         
         # Check if we already have a VAO for this context
         if ctx_id in self.__vaos:
