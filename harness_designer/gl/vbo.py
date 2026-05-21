@@ -282,6 +282,8 @@ class VBOHandler(metaclass=VBOSingleton):
         VAOs are not shared across contexts, so we need to create one
         per context while reusing the shared VBOs.
         
+        Automatically calls acquire() on first use by this context.
+        
         Returns:
             int: VAO ID for the current context
         """
@@ -296,7 +298,24 @@ class VBOHandler(metaclass=VBOSingleton):
         if ctx_id in self.__vaos:
             return self.__vaos[ctx_id]
         
-        # Create a new VAO for this context
+        # New context is using this VBO - acquire it
+        if self._ref_count == 0:
+            # First acquire - allocate shared VBOs
+            (
+                vao,
+                self.__vbo_vertices,
+                self.__vbo_normals,
+                self.__vbo_faces,
+                self.__vert_count
+            ) = self._create_vbo(self.__vertices, self.__normals, self.__faces, self.__count)
+            
+            # Store the VAO for this context
+            self.__vaos[ctx_id] = vao
+            self._ref_count += 1
+            
+            return vao
+        
+        # VBOs already exist, just create a new VAO for this context
         vao = GL.glGenVertexArrays(1)
         GL.glBindVertexArray(vao)
         
@@ -318,10 +337,31 @@ class VBOHandler(metaclass=VBOSingleton):
         
         GL.glBindVertexArray(0)
         
-        # Store the VAO for this context
+        # Store the VAO for this context and increment ref count
         self.__vaos[ctx_id] = vao
+        self._ref_count += 1
         
         return vao
+
+    @classmethod
+    def cleanup_all_for_context(cls):
+        """
+        Clean up VAOs and release resources for the current context across all VBOHandler instances.
+        
+        This should be called by each canvas in its cleanup() method.
+        """
+        ctx = QOpenGLContext.currentContext()
+        if ctx is None:
+            return
+        
+        # Iterate through all VBOHandler instances
+        for weak_ref in list(cls._instances.values()):
+            instance = weak_ref()
+            if instance is not None:
+                # Release the VAO for this specific context
+                instance.release_context_vao()
+                # Release (decrement ref count)
+                instance.release()
 
     @classmethod
     def _create_vbo(cls, vertices, normals, faces, count):
