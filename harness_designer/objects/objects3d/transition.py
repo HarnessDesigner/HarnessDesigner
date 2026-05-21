@@ -291,6 +291,8 @@ class Branch(_base3d.Base3D):
     def __init__(self, parent: "_transition.Transition", db_obj: "_pjt_transition_branch.PJTTransitionBranch",
                  diameter: float, position: _point.Point):
 
+        parent.mainframe.editor3d.context.acquire()
+
         self._diameter = diameter
 
         vbo = _sphere.create_vbo()
@@ -300,8 +302,10 @@ class Branch(_base3d.Base3D):
         color = _color.Color(1.0, 0.3, 0.3, 1.0)
         material = _materials.Rubber(color)
 
+        vbo.acquire()
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position,
                                 scale, material)
+        parent.mainframe.editor3d.context.release()
 
         color = _color.Color(0.3, 1.0, 0.3, 1.0)
         self._selected_material = _materials.Rubber(color)

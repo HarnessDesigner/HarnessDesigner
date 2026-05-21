@@ -31,6 +31,7 @@ class Bundle(_base3d.Base3D):
     def __init__(self, parent: "_bundle.Bundle",
                  db_obj: "_pjt_bundle.PJTBundle"):
 
+        parent.mainframe.editor3d.context.acquire()
         self._part = db_obj.part
 
         layers = db_obj.concentric.layers
@@ -55,6 +56,7 @@ class Bundle(_base3d.Base3D):
         angle = _angle.Angle()
         scale = _point.Point(self._diameter, self._diameter, 0.0)
         vbo = _cylinder.create_vbo()
+        vbo.acquire()
 
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
 
@@ -64,6 +66,7 @@ class Bundle(_base3d.Base3D):
 
         self._p2.bind(self._update_position)
         self._update_position(None)
+        parent.mainframe.editor3d.context.release()
 
     def _update_scale(self, scale: _point.Point):
         pass

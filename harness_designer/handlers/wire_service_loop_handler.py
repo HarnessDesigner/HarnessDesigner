@@ -57,7 +57,10 @@ def _compute_stop_point(
     rotate and translate to get the world position, matching exactly what
     the 3D object does at render time.
     """
+
     vbo = _cylinder_helix.create_vbo()
+    vbo.acquire()
+
     scale = _point.Point(diameter, diameter, diameter)
 
     # vbo.endpoint is a Point in unit local space
@@ -155,43 +158,46 @@ class AddWireServiceLoopHandler(_handler_base.HandlerBase):
         Track mouse over wires — highlight wire and show/move preview loop.
         The wire is never touched here, only the preview object moves.
         """
-        wire = _get_wire_at_mouse(mouse_pos, self.camera)
 
-        if wire is None:
-            # Mouse left all wires — clear highlight and preview
-            if self.wire is not None:
-                self.wire.identify(None)
-                self.wire = None
+        with self.mainframe.editor3d.context:
 
-            self._delete_preview()
-            return
+            wire = _get_wire_at_mouse(mouse_pos, self.camera)
 
-        # Get closest point on the wire and wire direction at that point
-        position, wire_angle = _utils.get_closest_point_on_wire(
-            mouse_pos, self.camera, wire)
+            if wire is None:
+                # Mouse left all wires — clear highlight and preview
+                if self.wire is not None:
+                    self.wire.identify(None)
+                    self.wire = None
 
-        if None in (position, wire_angle):
-            if self.wire is not None:
-                self.wire.identify(None)
-                self.wire = None
+                self._delete_preview()
+                return
 
-            self._delete_preview()
-            return
+            # Get closest point on the wire and wire direction at that point
+            position, wire_angle = _utils.get_closest_point_on_wire(
+                mouse_pos, self.camera, wire)
 
-        # Highlight the wire if it changed
-        if wire != self.wire:
-            if self.wire is not None:
-                self.wire.identify(None)
+            if None in (position, wire_angle):
+                if self.wire is not None:
+                    self.wire.identify(None)
+                    self.wire = None
 
-            wire.identify(self.WIRE_HIGHLIGHT)
-            self.wire = wire
+                self._delete_preview()
+                return
 
-        # Create preview on first hover over this wire, or update position
-        if self.obj is None:
-            self.obj = self._make_preview_loop(
-                position, wire_angle, wire.db_obj.circuit_id)
-        else:
-            self._update_preview_position(position, wire_angle)
+            # Highlight the wire if it changed
+            if wire != self.wire:
+                if self.wire is not None:
+                    self.wire.identify(None)
+
+                wire.identify(self.WIRE_HIGHLIGHT)
+                self.wire = wire
+
+            # Create preview on first hover over this wire, or update position
+            if self.obj is None:
+                self.obj = self._make_preview_loop(
+                    position, wire_angle, wire.db_obj.circuit_id)
+            else:
+                self._update_preview_position(position, wire_angle)
 
     def start(self, mouse_pos: _point.Point):
         """
@@ -201,107 +207,111 @@ class AddWireServiceLoopHandler(_handler_base.HandlerBase):
         handler). The loop's start point shares the Point from the break
         so the callback chain keeps the loop root pinned to the wire end.
         """
-        wire = _get_wire_at_mouse(mouse_pos, self.camera)
 
-        if wire is None:
-            return
+        with self.mainframe.editor3d.context:
 
-        position, wire_angle = _utils.get_closest_point_on_wire(
-            mouse_pos, self.camera, wire)
+            wire = _get_wire_at_mouse(mouse_pos, self.camera)
 
-        if None in (position, wire_angle):
-            return
+            if wire is None:
+                return
 
-        # Remove the preview — we are about to create the real object
-        self._delete_preview()
+            position, wire_angle = _utils.get_closest_point_on_wire(
+                mouse_pos, self.camera, wire)
 
-        if self.wire is not None:
-            self.wire.identify(None)
-            self.wire = None
+            if None in (position, wire_angle):
+                return
 
-        # ── Break the wire at the loop position ──────────────────────────
-        # Mirror the splice handler: create a shared Point at the break
-        # position, split the wire into two segments, then reference that
-        # shared Point as the loop's start so callbacks stay connected.
+            # Remove the preview — we are about to create the real object
+            self._delete_preview()
 
-        original_start_db_id = int(wire.obj3d.start_position.db_id[:-2])
-        original_stop_db_id = int(wire.obj3d.stop_position.db_id[:-2])
-        part_id = wire.db_obj.part_id
-        circuit_id = wire.db_obj.circuit_id
+            if self.wire is not None:
+                self.wire.identify(None)
+                self.wire = None
 
-        # Shared point at the break — referenced by both wire segments
-        # and by the loop start
-        shared_p3d = self.ptables.pjt_points3d_table.insert(
-            position.x, position.y, position.z)
-        shared_db_id = shared_p3d.db_id
+            # ── Break the wire at the loop position ──────────────────────────
+            # Mirror the splice handler: create a shared Point at the break
+            # position, split the wire into two segments, then reference that
+            # shared Point as the loop's start so callbacks stay connected.
 
-        # Wire segment 1: original start → shared point
-        wire1_db = self.ptables.pjt_wires_table.insert(
-            part_id=part_id,
-            circuit_id=circuit_id,
-            start_point3d_id=original_start_db_id,
-            stop_point3d_id=shared_db_id,
-            start_point2d_id=None,
-            stop_point2d_id=None,
-            is_visible3d=True,
-            is_visible2d=False,
-            layer_view_point_id=None,
-            layer_id=None,
-            is_filler_wire=False
-        )
+            original_start_db_id = int(wire.obj3d.start_position.db_id[:-2])
+            original_stop_db_id = int(wire.obj3d.stop_position.db_id[:-2])
+            part_id = wire.db_obj.part_id
+            circuit_id = wire.db_obj.circuit_id
 
-        # Wire segment 2: shared point → original stop
-        wire2_db = self.ptables.pjt_wires_table.insert(
-            part_id=part_id,
-            circuit_id=circuit_id,
-            start_point3d_id=shared_db_id,
-            stop_point3d_id=original_stop_db_id,
-            start_point2d_id=None,
-            stop_point2d_id=None,
-            is_visible3d=True,
-            is_visible2d=False,
-            layer_view_point_id=None,
-            layer_id=None,
-            is_filler_wire=False
-        )
+            # Shared point at the break — referenced by both wire segments
+            # and by the loop start
+            shared_p3d = self.ptables.pjt_points3d_table.insert(
+                position.x, position.y, position.z)
+            shared_db_id = shared_p3d.db_id
 
-        wire1_obj = _wire.Wire(self.mainframe, wire1_db)
-        wire2_obj = _wire.Wire(self.mainframe, wire2_db)
+            # Wire segment 1: original start → shared point
+            wire1_db = self.ptables.pjt_wires_table.insert(
+                part_id=part_id,
+                circuit_id=circuit_id,
+                start_point3d_id=original_start_db_id,
+                stop_point3d_id=shared_db_id,
+                start_point2d_id=None,
+                stop_point2d_id=None,
+                is_visible3d=True,
+                is_visible2d=False,
+                layer_view_point_id=None,
+                layer_id=None,
+                is_filler_wire=False
+            )
 
-        self.mainframe.project.add_wire(wire1_obj)
-        self.mainframe.project.add_wire(wire2_obj)
+            # Wire segment 2: shared point → original stop
+            wire2_db = self.ptables.pjt_wires_table.insert(
+                part_id=part_id,
+                circuit_id=circuit_id,
+                start_point3d_id=shared_db_id,
+                stop_point3d_id=original_stop_db_id,
+                start_point2d_id=None,
+                stop_point2d_id=None,
+                is_visible3d=True,
+                is_visible2d=False,
+                layer_view_point_id=None,
+                layer_id=None,
+                is_filler_wire=False
+            )
 
-        wire.delete()
+            wire1_obj = _wire.Wire(self.mainframe, wire1_db)
+            wire2_obj = _wire.Wire(self.mainframe, wire2_db)
 
-        # ── Compute exact stop point from VBO endpoint ────────────────────
-        diameter = self._get_wire_diameter()
-        stop_pos = _compute_stop_point(position, wire_angle, diameter)
+            self.mainframe.project.add_wire(wire1_obj)
+            self.mainframe.project.add_wire(wire2_obj)
 
-        p3d_stop = self.ptables.pjt_points3d_table.insert(
-            stop_pos.x, stop_pos.y, stop_pos.z)
+            wire.delete()
 
-        quat = np.array(wire_angle.as_quaternion_float)
+            # ── Compute exact stop point from VBO endpoint ────────────────────
+            diameter = self._get_wire_diameter()
+            stop_pos = _compute_stop_point(position, wire_angle, diameter)
 
-        # Loop start references the SHARED point — same instance as wire
-        # segment boundary, so the callback system keeps them in sync
-        loop_db = self.ptables.pjt_wire_service_loops_table.insert(
-            start_point3d_id=shared_db_id,
-            stop_point3d_id=p3d_stop.db_id,
-            part_id=self.part_id,
-            circuit_id=circuit_id,
-            is_visible=True,
-            quat=quat
-        )
+            p3d_stop = self.ptables.pjt_points3d_table.insert(
+                stop_pos.x, stop_pos.y, stop_pos.z)
 
-        loop = _wire_service_loop.WireServiceLoop(self.mainframe, loop_db)
-        self.mainframe.project.add_wire_service_loop(loop)
+            quat = np.array(wire_angle.as_quaternion_float)
+
+            # Loop start references the SHARED point — same instance as wire
+            # segment boundary, so the callback system keeps them in sync
+            loop_db = self.ptables.pjt_wire_service_loops_table.insert(
+                start_point3d_id=shared_db_id,
+                stop_point3d_id=p3d_stop.db_id,
+                part_id=self.part_id,
+                circuit_id=circuit_id,
+                is_visible=True,
+                quat=quat
+            )
+
+            loop = _wire_service_loop.WireServiceLoop(self.mainframe, loop_db)
+            self.mainframe.project.add_wire_service_loop(loop)
 
     def finalize(self, mouse_pos: _point.Point):
-        # For this handler start() does the placement on first click.
-        # finalize() is called on the second click — clean up any
-        # lingering preview if the user managed to click twice.
-        self._delete_preview()
+        with self.mainframe.editor3d.context:
+            # For this handler start() does the placement on first click.
+            # finalize() is called on the second click — clean up any
+            # lingering preview if the user managed to click twice.
+            self._delete_preview()
 
-        if self.wire is not None:
-            self.wire.identify(None)
-            self.wire = None
+            if self.wire is not None:
+                self.wire.identify(None)
+                self.wire = None

@@ -65,6 +65,7 @@ class App(QObject):
         fmt.setDepthBufferSize(24)
         fmt.setSwapBehavior(QSurfaceFormat.SwapBehavior.DoubleBuffer)
         fmt.setVersion(3, 3)
+        fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CoreProfile)
         fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
         QSurfaceFormat.setDefaultFormat(fmt)
 

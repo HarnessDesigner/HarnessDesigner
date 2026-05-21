@@ -107,14 +107,16 @@ class Grid:
 
                 # TODO: change the code to either the creation of the grid is done
                 #       using cython code and a thread this way the GIL doesn't
-                #       cause a stall in the program. Another option is to use a
+                #       cause a stall in the program. Another  optionis to use a
                 #       subprocess to create the grid.
                 if self.thread is None and f:
                     self.thread = threading.Thread(target=self._initialize_grid)
                     self.thread.daemon = True
                     self.thread.start()
 
-        QTimer.singleShot(0, lambda: _do(flag))
+        from harness_designer import app as _app
+
+        _app.CallAfter(_do, flag)
 
     def render(self, zoom):
         """Render the precomputed grid using the VBO."""
@@ -140,31 +142,32 @@ class Grid:
             GL.glDisableClientState(GL.GL_VERTEX_ARRAY)
             GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
 
-        GL.glEnable(GL.GL_BLEND)
-        GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
-        GL.glDepthMask(GL.GL_FALSE)
+        with self.canvas.context:
+            GL.glEnable(GL.GL_BLEND)
+            GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
+            GL.glDepthMask(GL.GL_FALSE)
 
-        num_layers = len(self.vbos)
-        zoom_levels = [100]
-        for _ in range(num_layers - 1):
-            zoom_levels.append(zoom_levels[-1] * 2.5)
+            num_layers = len(self.vbos)
+            zoom_levels = [100]
+            for _ in range(num_layers - 1):
+                zoom_levels.append(zoom_levels[-1] * 2.5)
 
-        for i, level in enumerate(zoom_levels):
-            i = ~i + num_layers
-            if zoom <= level:
-                major = i
-                break
-        else:
-            major = 0
+            for i, level in enumerate(zoom_levels):
+                i = ~i + num_layers
+                if zoom <= level:
+                    major = i
+                    break
+            else:
+                major = 0
 
-        if major < num_layers - 1:
-            GL.glColor4f(0.75, 0.75, 0.75, 1.0)  # Light gray
-            GL.glPointSize(1.75)
-            _draw_vbo(*self.vbos[major + 1])
-            self.grid_spacing = self._layer_steps[major + 1]
-        else:
-            self.grid_spacing = self._layer_steps[major]
+            if major < num_layers - 1:
+                GL.glColor4f(0.75, 0.75, 0.75, 1.0)  # Light gray
+                GL.glPointSize(1.75)
+                _draw_vbo(*self.vbos[major + 1])
+                self.grid_spacing = self._layer_steps[major + 1]
+            else:
+                self.grid_spacing = self._layer_steps[major]
 
-        GL.glColor4f(0.25, 0.25, 0.25, 1.0)  # Dark gray for contrast
-        GL.glPointSize(2.5)
-        _draw_vbo(*self.vbos[major])
+            GL.glColor4f(0.25, 0.25, 0.25, 1.0)  # Dark gray for contrast
+            GL.glPointSize(2.5)
+            _draw_vbo(*self.vbos[major])

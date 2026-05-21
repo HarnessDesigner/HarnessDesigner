@@ -27,6 +27,8 @@ class WireServiceLoop(_base3d.Base3D):
     def __init__(self, parent: "_wire_service_loop.WireServiceLoop",
                  db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop"):
 
+        parent.mainframe.editor3d.context.acquire()
+
         self._part = db_obj.part
         color = self._part.color.ui
         material = _materials.Plastic(color)
@@ -51,10 +53,12 @@ class WireServiceLoop(_base3d.Base3D):
 
             position2.z = tmp_position.z
 
+        vbo.acquire()
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
 
         self._p1 = position
         self._p2 = position2
+        parent.mainframe.editor3d.context.release()
 
     def get_context_menu(self):
         return WireServiceLoopMenu(self.mainframe.editor3d.editor, self)

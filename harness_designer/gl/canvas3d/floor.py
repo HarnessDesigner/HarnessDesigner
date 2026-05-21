@@ -43,6 +43,12 @@ class Floor:
         size = self.config.floor.distance
         step = self.config.floor.grid.size
 
+        def _frange(start, stop, inc):
+            value = start
+            while value < stop:
+                yield value
+                value += inc
+
         def _get_vbo(verts, clrs):
             # Flatten the data
             verts = np.array(verts, dtype=np.float32).flatten()
@@ -65,89 +71,85 @@ class Floor:
 
             return vbo, int(verts_count)
 
-        if self.config.floor.grid.enable:
-            # Grid configuration
+        with self.canvas.context:
+            if self.config.floor.grid.enable:
+                # Grid configuration
 
-            odd_color = self.config.floor.grid.secondary_color
+                odd_color = self.config.floor.grid.secondary_color
 
-            # Precompute vertices and colors
-            vertices = []
-            colors = []
+                # Precompute vertices and colors
+                vertices = []
+                colors = []
 
-            for x in range(-size, size, step):
-                for y in range(-size, size, step):
-                    # Alternate coloring for checkerboard effect
-                    is_even = ((x // step) + (y // step)) % 2 == 0
-                    color = even_color if is_even else odd_color
+                for x in range(-size, size, step):
+                    for y in range(-size, size, step):
+                        # Alternate coloring for checkerboard effect
+                        is_even = ((x // step) + (y // step)) % 2 == 0
+                        color = even_color if is_even else odd_color
 
-                    # Each quad consists of 4 vertices
-                    vertices.extend([
-                        [x, ground_height, y], [x, ground_height, y + step],
-                        [x + step, ground_height, y + step], [x + step, ground_height, y]])
+                        # Each quad consists of 4 vertices
+                        vertices.extend([
+                            [x, ground_height, y], [x, ground_height, y + step],
+                            [x + step, ground_height, y + step], [x + step, ground_height, y]])
 
-                    # Each vertex has the same color for the quad
-                    colors.extend([color] * 4)
-        else:
-            vertices = [[size, ground_height, size], [size, ground_height, -size],
-                        [-size, ground_height, -size], [-size, ground_height, size]]
-
-            colors = [even_color] * 4
-
-        grid_vbo, grid_vertex_count = _get_vbo(vertices, colors)
-
-        sstep = step / 5.0
-        y1 = ground_height + 0.1
-        y2 = ground_height + 0.15
-
-        def _frange(start, stop, inc):
-            value = start
-            while value < stop:
-                yield value
-                value += inc
-
-        stipple_lines = []
-        solid_lines = []
-
-        stipple_colors = []
-        solid_colors = []
-
-        for i in _frange(-size, size + 1, sstep):
-            if not i % step:
-                solid_colors.extend([0.65, 0.65, 0.65, 1.0] * 4)
-                solid_lines.extend([[i, y2, size], [i, y2, -size],
-                                    [size, y2, i], [-size, y2, i]])
+                        # Each vertex has the same color for the quad
+                        colors.extend([color] * 4)
             else:
-                stipple_colors.extend([0.35, 0.35, 0.35, 1.0] * 4)
-                stipple_lines.extend([[i, y1, size], [i, y1, -size],
-                                      [size, y1, i], [-size, y1, i]])
+                vertices = [[size, ground_height, size], [size, ground_height, -size],
+                            [-size, ground_height, -size], [-size, ground_height, size]]
 
-        stipple_vbo, stipple_vertex_count = _get_vbo(stipple_lines, stipple_colors)
-        solid_vbo, solid_vertex_count = _get_vbo(solid_lines, solid_colors)
+                colors = [even_color] * 4
 
-        return (grid_vbo, grid_vertex_count,
-                stipple_vbo, stipple_vertex_count,
-                solid_vbo, solid_vertex_count)
+            grid_vbo, grid_vertex_count = _get_vbo(vertices, colors)
+
+            sstep = step / 5.0
+            y1 = ground_height + 0.1
+            y2 = ground_height + 0.15
+
+            stipple_lines = []
+            solid_lines = []
+
+            stipple_colors = []
+            solid_colors = []
+
+            for i in _frange(-size, size + 1, sstep):
+                if not i % step:
+                    solid_colors.extend([0.65, 0.65, 0.65, 1.0] * 4)
+                    solid_lines.extend([[i, y2, size], [i, y2, -size],
+                                        [size, y2, i], [-size, y2, i]])
+                else:
+                    stipple_colors.extend([0.35, 0.35, 0.35, 1.0] * 4)
+                    stipple_lines.extend([[i, y1, size], [i, y1, -size],
+                                          [size, y1, i], [-size, y1, i]])
+
+            stipple_vbo, stipple_vertex_count = _get_vbo(stipple_lines, stipple_colors)
+            solid_vbo, solid_vertex_count = _get_vbo(solid_lines, solid_colors)
+
+            return (grid_vbo, grid_vertex_count,
+                    stipple_vbo, stipple_vertex_count,
+                    solid_vbo, solid_vertex_count)
 
     def set(self, flag):
         if self.grid_vbo is not None:
-            try:
-                GL.glDeleteVertexArrays(1, [self.grid_vbo])
-            except:  # NOQA
-                pass
+            with self.canvas.context:
+                try:
+                    GL.glDeleteVertexArrays(1, [self.grid_vbo])
+                except:  # NOQA
+                    pass
 
-            try:
-                GL.glDeleteBuffers(1, [self.stipple_vbo])
-            except:  # NOQA
-                pass
+                try:
+                    GL.glDeleteBuffers(1, [self.stipple_vbo])
+                except:  # NOQA
+                    pass
 
-            try:
-                GL.glDeleteBuffers(1, [self.solid_vbo])
-            except:  # NOQA
-                pass
+                try:
+                    GL.glDeleteBuffers(1, [self.solid_vbo])
+                except:  # NOQA
+                    pass
 
-            self.grid_vbo = None
-            self.stipple_vbo = None
-            self.solid_vbo = None
+                self.grid_vbo = None
+                self.stipple_vbo = None
+                self.solid_vbo = None
 
         if flag:
             (

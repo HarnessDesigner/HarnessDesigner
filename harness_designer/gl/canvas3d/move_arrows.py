@@ -97,6 +97,7 @@ class Arrows3D(_base3d.Base3D):
         # CRITICAL: Set OpenGL context before creating VBO
         with mainframe.editor3d.context:
             vbo = _arrow.create_vbo()
+            vbo.acquire()
 
         # Create cyan material
         color = _color.Color(0, 170, 170, 255)

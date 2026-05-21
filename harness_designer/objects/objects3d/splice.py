@@ -49,6 +49,8 @@ class Splice(_base3d.Base3D):
     def __init__(self, parent: "_splice.Splice",
                  db_obj: "_pjt_splice.PJTSplice"):
 
+        parent.mainframe.editor3d.context.acquire()
+
         self._part = db_obj.part
 
         self._p1 = db_obj.start_position3d
@@ -115,8 +117,11 @@ class Splice(_base3d.Base3D):
             vbo = _cylinder.create_vbo()
 
         position = self._p1
-
+        vbo.acquire()
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
+
+        parent.mainframe.editor3d.context.release()
+
 
     def get_context_menu(self):
         return SpliceMenu(self.mainframe.editor3d.editor, self)

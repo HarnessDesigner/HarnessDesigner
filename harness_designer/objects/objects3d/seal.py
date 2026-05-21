@@ -45,6 +45,8 @@ class Seal(_base3d.Base3D):
     db_obj: "_pjt_seal.PJTSeal" = None
 
     def __init__(self, parent: "_seal.Seal", db_obj: "_pjt_seal.PJTSeal"):
+        parent.mainframe.editor3d.context.acquire()
+
         self._part = db_obj.part
 
         color = self._part.color.ui
@@ -68,7 +70,7 @@ class Seal(_base3d.Base3D):
 
                 vbo = _vbo.VBOHandler(uuid, verts, nrmls, faces, count)
         else:
-            type_ = self._part.type
+            type_ = self._part.type.name
             scale = self._part.scale
 
             if type_.lower() in ('sws', 'single wire seal'):
@@ -90,11 +92,14 @@ class Seal(_base3d.Base3D):
 
                     vbo = _vbo.VBOHandler(vbo_id, vertices, normals, faces, count)
             elif type_.lower() == 'plug':
-                vbo = _cylinder.create_vbo
+                vbo = _cylinder.create_vbo()
             else:
                 vbo = _box.create_vbo()
 
+        vbo.acquire()
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, db_obj.position3d, scale, material)
+        parent.mainframe.editor3d.context.release()
+
 
     def get_context_menu(self):
         return SealMenu(self.mainframe.editor3d.editor, self)

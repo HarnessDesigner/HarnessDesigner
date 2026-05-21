@@ -31,6 +31,8 @@ class Terminal(_base3d.Base3D):
     def __init__(self, parent: "_terminal.Terminal",
                  db_obj: "_pjt_terminal.PJTTerminal"):
 
+        parent.mainframe.editor3d.context.acquire()
+
         self._part = db_obj.part
 
         symbol = self._part.plating.symbol
@@ -85,7 +87,9 @@ class Terminal(_base3d.Base3D):
             else:
                 vbo = _box.create_vbo()
 
+        vbo.acquire()
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, db_obj.position3d, scale, material)
+        parent.mainframe.editor3d.context.release()
 
     def _update_position(self, position: _point.Point):
         seal = self.db_obj.seal

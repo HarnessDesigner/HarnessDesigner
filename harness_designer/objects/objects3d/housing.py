@@ -34,6 +34,8 @@ class Housing(_base3d.Base3D):
     def __init__(self, parent: "_housing.Housing",
                  db_obj: "_pjt_housing.PJTHousing"):
 
+        parent.mainframe.editor3d.context.acquire()
+
         self._part = db_obj.part
 
         angle = db_obj.angle3d
@@ -62,7 +64,10 @@ class Housing(_base3d.Base3D):
             vbo = _box.create_vbo()
             scale = self._part.scale
 
+        vbo.acquire()
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, db_obj.position3d, scale, material)
+        parent.mainframe.editor3d.context.release()
+
 
     @property
     def seal_position(self) -> _point.Point:

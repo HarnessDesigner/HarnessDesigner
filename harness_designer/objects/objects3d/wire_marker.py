@@ -30,6 +30,8 @@ class WireMarker(_base3d.Base3D):
     def __init__(self, parent: "_wire_marker.WireMarker",
                  db_obj: "_pjt_wire_marker.PJTWireMarker"):
 
+        parent.mainframe.editor3d.context.acquire()
+
         self._part = db_obj.part
         position = db_obj.position3d
         wire = db_obj.wire
@@ -64,7 +66,12 @@ class WireMarker(_base3d.Base3D):
         wire_p1.bind(self._update_position)
         wire_p2.bind(self._update_position)
 
-        _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, db_obj.position3d, scale, material)
+        vbo.acquire()
+        _base3d.Base3D.__init__(
+            self, parent, db_obj, vbo, angle, db_obj.position3d, scale, material)
+
+        parent.mainframe.editor3d.context.release()
+
 
     def _update_position(self, position: _point.Point):
         if position.db_id == self._position.db_id:

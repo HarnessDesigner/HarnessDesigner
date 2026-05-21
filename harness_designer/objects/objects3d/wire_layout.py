@@ -27,6 +27,8 @@ class WireLayout(_base3d.Base3D):
     def __init__(self, parent: "_wire_layout.WireLayout",
                  db_obj: "_pjt_wire_layout.PJTWireLayout"):
 
+        parent.mainframe.editor3d.context.acquire()
+
         wires = db_obj.attached_wires
         if wires:
             diameter = wires[0].part.od_mm
@@ -40,8 +42,10 @@ class WireLayout(_base3d.Base3D):
         vbo = _sphere.create_vbo()
         angle = _angle.Angle()
         position = db_obj.position3d
-
+        vbo.acquire()
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
+        parent.mainframe.editor3d.context.acquire()
+
 
     @property
     def wire_position(self) -> _point.Point:

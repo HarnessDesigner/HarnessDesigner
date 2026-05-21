@@ -30,6 +30,8 @@ class Wire(_base3d.Base3D):
     db_obj: "_pjt_wire.PJTWire" = None
 
     def __init__(self, parent: "_wire.Wire", db_obj: "_pjt_wire.PJTWire"):
+        parent.mainframe.editor3d.context.acquire()
+
         self._part = db_obj.part
         color = self._part.color.ui
         stripe_color = self._part.stripe_color
@@ -61,9 +63,11 @@ class Wire(_base3d.Base3D):
         else:
             self._stripe = WireStripe(parent, self, stripe_color.ui, scale, angle, position)
 
+        vbo.acquire()
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
 
         self._update_position(None)
+        parent.mainframe.editor3d.context.release()
 
     @property
     def start_position(self):

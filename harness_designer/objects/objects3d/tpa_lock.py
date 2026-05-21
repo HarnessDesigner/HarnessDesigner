@@ -29,6 +29,9 @@ class TPALock(_base3d.Base3D):
     db_obj: "_pjt_tpa_lock.PJTTPALock" = None
 
     def __init__(self, parent: "_tpa_lock.TPALock", db_obj: "_pjt_tpa_lock.PJTTPALock"):
+
+        parent.mainframe.editor3d.context.acquire()
+
         self._part = db_obj.part
 
         model = self._part.model3d
@@ -59,7 +62,10 @@ class TPALock(_base3d.Base3D):
 
             material = _materials.Metallic(color)
 
+        vbo.acquire()
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, db_obj.position3d, scale, material)
+        parent.mainframe.editor3d.context.release()
+
 
     def get_context_menu(self):
         return TPALockMenu(self.mainframe.editor3d.editor, self)

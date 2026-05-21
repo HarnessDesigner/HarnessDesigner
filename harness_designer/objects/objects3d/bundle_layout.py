@@ -27,6 +27,7 @@ class BundleLayout(_base3d.Base3D):
     def __init__(self, parent: "_bundle_layout.BundleLayout",
                  db_obj: "_pjt_bundle_layout.PJTBundleLayout"):
 
+        parent.mainframe.editor3d.context.acquire()
         bundles = db_obj.attached_bundles
 
         bundle = bundles[-1]
@@ -38,10 +39,13 @@ class BundleLayout(_base3d.Base3D):
 
         scale = _point.Point(self._diameter, self._diameter, self._diameter)
         vbo = _sphere.create_vbo()
+        vbo.acquire()
         angle = _angle.Angle()
         position = db_obj.position3d
 
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
+
+        parent.mainframe.editor3d.context.release()
 
     def set_diameter(self, parent_bundle, value: float):
         self._diameter = value

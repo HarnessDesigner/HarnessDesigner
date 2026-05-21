@@ -23,4 +23,9 @@ class Generic(_base3d.Base3D):
                  angle: _angle.Angle, position: _point.Point, scale: _point.Point,
                  material: _materials.GLMaterial, data=list[np.ndarray, np.ndarray, int] | None):
 
+        parent.mainframe.editor3d.context.acquire()
+        if vbo is not None:
+            vbo.acquire()
         _base3d.Base3D.__init__(self, parent, None, vbo, angle, position, scale, material, data)
+        parent.mainframe.editor3d.context.release()
+
