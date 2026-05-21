@@ -296,6 +296,9 @@ class VBOHandler(metaclass=VBOSingleton):
             raise RuntimeError('context has not been acquired')
 
         ctx_id = id(ctx)
+        if ctx_id not in self.__vaos:
+            self.acquire()
+
         vao = self.__vaos[ctx_id]
 
         GL.glBindVertexArray(vao)

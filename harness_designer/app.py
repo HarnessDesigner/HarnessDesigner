@@ -7,6 +7,9 @@ import threading
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import Signal, QObject
 
+from PySide6.QtCore import Qt
+
+QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
 
 _call_on_main = None
 
@@ -63,9 +66,9 @@ class App(QObject):
         from PySide6.QtGui import QSurfaceFormat
         fmt = QSurfaceFormat()
         fmt.setDepthBufferSize(24)
-        fmt.setSwapBehavior(QSurfaceFormat.SwapBehavior.DoubleBuffer)
+        # fmt.setSwapBehavior(QSurfaceFormat.SwapBehavior.DoubleBuffer)
         fmt.setVersion(3, 3)
-        fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CoreProfile)
+        # fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CoreProfile)
         fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
         QSurfaceFormat.setDefaultFormat(fmt)
 

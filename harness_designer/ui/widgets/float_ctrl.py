@@ -90,19 +90,24 @@ class FloatCtrl(QtWidgets.QWidget):
         spin_value = _utils.remap(slider_val, 0, self.__s_max,
                                   self.__min_val, self.__max_val)
 
-        d = _d(str(spin_value))
-        d_inc = _d(str(self.__increment))
+        value = _d(str(spin_value))
+        value_inc = _d(str(self.__increment))
 
-        remaining = d % d_inc
+        remaining = value % value_inc
         if remaining:
-            d += d_inc - remaining
+            value += value_inc - remaining
+
+        value = round(float(value), self.__precision)
 
         self.ctrl.blockSignals(True)
-        self.ctrl.setValue(float(d))
+        self.ctrl.setValue(value)
         self.ctrl.blockSignals(False)
-        self.value_changed.emit(float(d))
+
+        self.value_changed.emit(value)
 
     def _on_spin(self, spin_value: float):
+        spin_value = round(spin_value, self.__precision)
+
         if self.slider is not None:
             sv = _utils.remap(spin_value, self.__min_val, self.__max_val,
                               0, self.__s_max)
@@ -156,4 +161,6 @@ class FloatCtrl(QtWidgets.QWidget):
             self.slider.blockSignals(False)
 
     def GetValue(self) -> float:
-        return self.ctrl.value()
+        value = self.ctrl.value()
+        return round(value, self.__precision)
+

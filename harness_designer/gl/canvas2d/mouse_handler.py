@@ -97,7 +97,10 @@ class MouseHandler2D(QtCore.QObject):
         if obj is not self.canvas:
             return False
 
-        t = qt_event.type()
+        try:
+            t = qt_event.type()
+        except:  # NOQA
+            return False
 
         if t == QtCore.QEvent.Type.MouseButtonPress:
             btn = qt_event.button()

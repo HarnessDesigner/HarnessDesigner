@@ -296,15 +296,14 @@ class Project:
             project_names.append(name[0])
 
         dlg = OpenProjectDialog(mainframe, Config.last_project, project_names)
-
         try:
-            if dlg.exec() != QDialog.DialogCode.Rejected:
+            res = dlg.exec()
+            if res != QDialog.DialogCode.Rejected:
                 project_name = dlg.GetValue()
             else:
                 return
         finally:
             dlg.deleteLater()
-
         connector.execute(f'SELECT id FROM projects WHERE name = "{project_name}";')
         res = connector.fetchall()
 

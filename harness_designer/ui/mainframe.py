@@ -604,6 +604,8 @@ class MainFrame(QMainWindow):
         self._status_z.setText(f'Z: {round(float(z), 4)}')
 
     def showEvent(self, event):
+        # super().showEvent(event)
+
         if self._splash is not None:
             self._splash.Destroy()
             self._splash = None
@@ -611,6 +613,7 @@ class MainFrame(QMainWindow):
         from ..objects import project as _proj
 
         self.editor_db.load_db(self.global_db)
+
         self.project = _proj.Project.select_project(self)
 
     # ------------------------------------------------------------------

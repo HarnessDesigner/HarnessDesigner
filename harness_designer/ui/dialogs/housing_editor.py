@@ -155,26 +155,31 @@ class Cavity3D(_base3d.Base3D):
     def __init__(self, parent: Cavity, db_obj: "_cavity.Cavity"):
         self.dialog: "HousingEditorDialog" = parent.dialog
 
-        self._angle = db_obj.angle3d
-        self._position = db_obj.position3d.copy()
+        angle = db_obj.angle3d
+        position = db_obj.position3d.copy()
 
-        scale = _point.Point(1.0, 1.0, 1.0)
+        self._scale = _point.Point(1.0, 1.0, 1.0)
 
         material = _materials.Plastic(
             _color.Color(0.8, 0.3, 0.3, 1.0))
-        self.db_obj = db_obj
-        data = self.build()
 
-        _base3d.Base3D.__init__(self, parent, db_obj, None,
-                                self._angle, self._position, scale,
-                                material, data=data)
+        self.db_obj = db_obj
+
+        parent.dialog.context.acquire()
+
+        vbo = self.build()
+
+        _base3d.Base3D.__init__(self, parent, db_obj, vbo,
+                                angle, position, self._scale,
+                                material)
 
         self._selected_material = _materials.Plastic(
             _color.Color(0.3, 1.0, 0.3, 1.0))
 
         self._is_visible = True
         self.autoplace = False
-        self.editor3d.update()
+        self.editor3d.Refresh(False)
+        parent.dialog.context.release()
 
     def set_selected(self, flag: bool):
         if flag:
@@ -195,10 +200,7 @@ class Cavity3D(_base3d.Base3D):
     @width.setter
     def width(self, value: float):
         self.db_obj.width = value
-        self._data = self.build()
-        self._compute_obb()
-        self._compute_aabb()
-        self.editor3d.update()
+        self._scale.x = value
 
     @property
     def height(self) -> float:
@@ -207,10 +209,7 @@ class Cavity3D(_base3d.Base3D):
     @height.setter
     def height(self, value: float):
         self.db_obj.height = value
-        self.build()
-        self._compute_obb()
-        self._compute_aabb()
-        self.editor3d.update()
+        self._scale.y = value
 
     @property
     def length(self) -> float:
@@ -219,10 +218,7 @@ class Cavity3D(_base3d.Base3D):
     @length.setter
     def length(self, value: float):
         self.db_obj.length = value
-        self.build()
-        self._compute_obb()
-        self._compute_aabb()
-        self.editor3d.update()
+        self._scale.z = value
 
     @property
     def is_round(self) -> bool:
@@ -231,10 +227,7 @@ class Cavity3D(_base3d.Base3D):
     @is_round.setter
     def is_round(self, value: bool):
         self.db_obj.round_terminal = value
-        self.build()
-        self._compute_obb()
-        self._compute_aabb()
-        self.editor3d.update()
+        vbo = self.build()
 
     @property
     def terminal_sizes(self) -> list[float]:
@@ -254,13 +247,26 @@ class Cavity3D(_base3d.Base3D):
 
     def build(self):
         if self.is_round:
-            radius = float(_d(self.width) / _d(2.0))
+            width = height = float(_d(self.width) / _d(2.0))
+            self.db_obj.width = width
+            self.db_obj.height = height
 
             self._vbo = _cylinder.create_vbo()
-            self._scale = _point.Point(radius, radius, self.length)
+            self._vbo.acquire()
         else:
+            width = self.width
+            height = self.height
+
             self._vbo = _box.create_vbo()
-            self._scale = _point.Point(self.width, self.height, self.length)
+
+        self._vbo.acquire()
+        with self._scale:
+            self._scale.x = width
+            self._scale.y = height
+
+        self._scale.z = self.length
+
+        return self._vbo
 
 
 class HousingAccessory(_objects.ObjectBase):
@@ -284,20 +290,22 @@ class HousingAccessory3D(_base3d.Base3D):
         angle = _angle.Angle.from_euler(0.0, 0.0, 0.0)
         scale = _point.Point(3.0, 3.0, 3.0)
 
-        self._position = position.copy()
+        parent.dialog.context.acquire()
         vbo = _sphere.create_vbo()
+        vbo.acquire()
 
         material_color = _color.Color(0.8, 0.2, 0.8, 0.99)
         material = _materials.Plastic(material_color)
 
         _base3d.Base3D.__init__(self, parent, None, vbo, angle,
-                                self._position, scale, material)
+                                position, scale, material)
 
         self._selected_material = _materials.Plastic(
             _color.Color(0.8, 0.8, 0.2, 0.99))
 
         self._is_visible = True
-        self.editor3d.update()
+        self.editor3d.Refresh(False)
+        parent.dialog.context.release()
 
 
 class Housing(_objects.ObjectBase):
@@ -317,6 +325,8 @@ class Housing3D(_base3d.Base3D):
     def __init__(self, parent: Housing, db_obj: "_housing.Housing"):
         self.dialog: "HousingEditorDialog" = parent.dialog
         self.db_obj = db_obj
+
+        parent.dialog.context.acquire()
 
         self._angle = db_obj.angle3d
         self._position = _point.Point(0.0, 0.0, 0.0)
@@ -378,6 +388,8 @@ class Housing3D(_base3d.Base3D):
 
                 vbo = _vbo.VBOHandler(uuid, verts, nrmls, faces, count)
 
+        vbo.acquire()
+
         material_color = _color.Color(0.6, 0.6, 0.8, 1.0)
         material = _materials.Plastic(material_color)
 
@@ -388,6 +400,7 @@ class Housing3D(_base3d.Base3D):
             _color.Color(0.3, 0.8, 0.3, 1.0))
 
         self._is_visible = True
+        parent.dialog.context.release()
 
 
 def _make_pos_group(parent_widget, label):
@@ -834,9 +847,17 @@ class HousingPanel(QScrollArea):
 
         self.setMaximumWidth(400)
 
-        self.boot_x_pos = _float_ctrl.FloatCtrl(group, 'X:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
-        self.boot_y_pos = _float_ctrl.FloatCtrl(group, 'Y:', min_val=0.0, max_val=999.0, inc=0.01, slider=True)
-        self.boot_z_pos = _float_ctrl.FloatCtrl(group, 'Z:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
+        self.boot_x_pos = _float_ctrl.FloatCtrl(
+            group, 'X:', min_val=-999.0,
+            max_val=999.0, inc=0.01, slider=True)
+
+        self.boot_y_pos = _float_ctrl.FloatCtrl(
+            group, 'Y:', min_val=0.0,
+            max_val=999.0, inc=0.01, slider=True)
+
+        self.boot_z_pos = _float_ctrl.FloatCtrl(
+            group, 'Z:', min_val=-999.0,
+            max_val=999.0, inc=0.01, slider=True)
 
         gl.addWidget(self.boot_x_pos)
         gl.addWidget(self.boot_y_pos)
@@ -863,9 +884,17 @@ class HousingPanel(QScrollArea):
         group = QGroupBox('CPA Lock Position', inner)
         gl = QVBoxLayout(group)
 
-        self.cpa_x_pos = _float_ctrl.FloatCtrl(group, 'X:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
-        self.cpa_y_pos = _float_ctrl.FloatCtrl(group, 'Y:', min_val=0.0, max_val=999.0, inc=0.01, slider=True)
-        self.cpa_z_pos = _float_ctrl.FloatCtrl(group, 'Z:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
+        self.cpa_x_pos = _float_ctrl.FloatCtrl(
+            group, 'X:', min_val=-999.0,
+            max_val=999.0, inc=0.01, slider=True)
+
+        self.cpa_y_pos = _float_ctrl.FloatCtrl(
+            group, 'Y:', min_val=0.0,
+            max_val=999.0, inc=0.01, slider=True)
+
+        self.cpa_z_pos = _float_ctrl.FloatCtrl(
+            group, 'Z:', min_val=-999.0,
+            max_val=999.0, inc=0.01, slider=True)
 
         gl.addWidget(self.cpa_x_pos)
         gl.addWidget(self.cpa_y_pos)
@@ -892,9 +921,17 @@ class HousingPanel(QScrollArea):
         group = QGroupBox('Cover Position', inner)
         gl = QVBoxLayout(group)
 
-        self.cover_x_pos = _float_ctrl.FloatCtrl(group, 'X:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
-        self.cover_y_pos = _float_ctrl.FloatCtrl(group, 'Y:', min_val=0.0, max_val=999.0, inc=0.01, slider=True)
-        self.cover_z_pos = _float_ctrl.FloatCtrl(group, 'Z:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
+        self.cover_x_pos = _float_ctrl.FloatCtrl(
+            group, 'X:', min_val=-999.0,
+            max_val=999.0, inc=0.01, slider=True)
+
+        self.cover_y_pos = _float_ctrl.FloatCtrl(
+            group, 'Y:', min_val=0.0,
+            max_val=999.0, inc=0.01, slider=True)
+
+        self.cover_z_pos = _float_ctrl.FloatCtrl(
+            group, 'Z:', min_val=-999.0,
+            max_val=999.0, inc=0.01, slider=True)
 
         gl.addWidget(self.cover_x_pos)
         gl.addWidget(self.cover_y_pos)
@@ -921,9 +958,17 @@ class HousingPanel(QScrollArea):
         group = QGroupBox('TPA Lock 1 Position', inner)
         gl = QVBoxLayout(group)
 
-        self.tpa1_x_pos = _float_ctrl.FloatCtrl(group, 'X:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
-        self.tpa1_y_pos = _float_ctrl.FloatCtrl(group, 'Y:', min_val=0.0, max_val=999.0, inc=0.01, slider=True)
-        self.tpa1_z_pos = _float_ctrl.FloatCtrl(group, 'Z:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
+        self.tpa1_x_pos = _float_ctrl.FloatCtrl(
+            group, 'X:', min_val=-999.0,
+            max_val=999.0, inc=0.01, slider=True)
+
+        self.tpa1_y_pos = _float_ctrl.FloatCtrl(
+            group, 'Y:', min_val=0.0,
+            max_val=999.0, inc=0.01, slider=True)
+
+        self.tpa1_z_pos = _float_ctrl.FloatCtrl(
+            group, 'Z:', min_val=-999.0,
+            max_val=999.0, inc=0.01, slider=True)
 
         gl.addWidget(self.tpa1_x_pos)
         gl.addWidget(self.tpa1_y_pos)
@@ -950,9 +995,17 @@ class HousingPanel(QScrollArea):
         group = QGroupBox('TPA Lock 2 Position', inner)
         gl = QVBoxLayout(group)
 
-        self.tpa2_x_pos = _float_ctrl.FloatCtrl(group, 'X:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
-        self.tpa2_y_pos = _float_ctrl.FloatCtrl(group, 'Y:', min_val=0.0, max_val=999.0, inc=0.01, slider=True)
-        self.tpa2_z_pos = _float_ctrl.FloatCtrl(group, 'Z:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
+        self.tpa2_x_pos = _float_ctrl.FloatCtrl(
+            group, 'X:', min_val=-999.0,
+            max_val=999.0, inc=0.01, slider=True)
+
+        self.tpa2_y_pos = _float_ctrl.FloatCtrl(
+            group, 'Y:', min_val=0.0,
+            max_val=999.0, inc=0.01, slider=True)
+
+        self.tpa2_z_pos = _float_ctrl.FloatCtrl(
+            group, 'Z:', min_val=-999.0,
+            max_val=999.0, inc=0.01, slider=True)
 
         gl.addWidget(self.tpa2_x_pos)
         gl.addWidget(self.tpa2_y_pos)
@@ -979,9 +1032,17 @@ class HousingPanel(QScrollArea):
         group = QGroupBox('Seal Position', inner)
         gl = QVBoxLayout(group)
 
-        self.seal_x_pos = _float_ctrl.FloatCtrl(group, 'X:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
-        self.seal_y_pos = _float_ctrl.FloatCtrl(group, 'Y:', min_val=0.0, max_val=999.0, inc=0.01, slider=True)
-        self.seal_z_pos = _float_ctrl.FloatCtrl(group, 'Z:', min_val=-999.0, max_val=999.0, inc=0.01, slider=True)
+        self.seal_x_pos = _float_ctrl.FloatCtrl(
+            group, 'X:', min_val=-999.0,
+            max_val=999.0, inc=0.01, slider=True)
+
+        self.seal_y_pos = _float_ctrl.FloatCtrl(
+            group, 'Y:', min_val=0.0,
+            max_val=999.0, inc=0.01, slider=True)
+
+        self.seal_z_pos = _float_ctrl.FloatCtrl(
+            group, 'Z:', min_val=-999.0,
+            max_val=999.0, inc=0.01, slider=True)
 
         gl.addWidget(self.seal_x_pos)
         gl.addWidget(self.seal_y_pos)
@@ -1011,24 +1072,36 @@ class HousingPanel(QScrollArea):
         tip = 'You need to remove all added cavities in order to rotate the housing'
 
         self.housing_x_angle = _float_ctrl.FloatCtrl(
-            angle_group, 'X:', min_val=-180.0, max_val=180.0, inc=0.01, slider=True)
+            angle_group, 'X:', min_val=-180.0,
+            max_val=180.0, inc=0.01, slider=True)
+
         self.housing_x_angle.setEnabled(False)
         self.housing_x_angle.setToolTip(tip)
-        self.housing_x_angle.value_changed.connect(lambda v: setattr(self.housing_angle, 'x', v))
+        self.housing_x_angle.value_changed.connect(
+            lambda v: setattr(self.housing_angle, 'x', v))
+
         agl.addWidget(self.housing_x_angle)
 
         self.housing_y_angle = _float_ctrl.FloatCtrl(
-            angle_group, 'Y:', min_val=-180.0, max_val=180.0, inc=0.01, slider=True)
+            angle_group, 'Y:', min_val=-180.0,
+            max_val=180.0, inc=0.01, slider=True)
+
         self.housing_y_angle.setEnabled(False)
         self.housing_y_angle.setToolTip(tip)
-        self.housing_y_angle.value_changed.connect(lambda v: setattr(self.housing_angle, 'y', v))
+        self.housing_y_angle.value_changed.connect(
+            lambda v: setattr(self.housing_angle, 'y', v))
+
         agl.addWidget(self.housing_y_angle)
 
         self.housing_z_angle = _float_ctrl.FloatCtrl(
-            angle_group, 'Z:', min_val=-180.0, max_val=180.0, inc=0.01, slider=True)
+            angle_group, 'Z:', min_val=-180.0,
+            max_val=180.0, inc=0.01, slider=True)
+
         self.housing_z_angle.setEnabled(False)
         self.housing_z_angle.setToolTip(tip)
-        self.housing_z_angle.value_changed.connect(lambda v: setattr(self.housing_angle, 'z', v))
+        self.housing_z_angle.value_changed.connect(
+            lambda v: setattr(self.housing_angle, 'z', v))
+
         agl.addWidget(self.housing_z_angle)
 
         self.housing_angle = housing.angle
@@ -1063,26 +1136,37 @@ class HousingPanel(QScrollArea):
             ctrl.setToolTip(tip)
 
     def _sync_pos(self, x_ctrl, y_ctrl, z_ctrl, position: _point.Point):
+        print('_sync_pos:', x_ctrl, y_ctrl, z_ctrl)
         x, y, z = position.as_float
         x_ctrl.SetValue(x)
         y_ctrl.SetValue(y)
         z_ctrl.SetValue(z)
 
+        x_ctrl.update()
+        y_ctrl.update()
+        z_ctrl.update()
+
     def on_boot_x_pos(self, value):
+        print('on_boot_x_pos:', value)
+
         self.boot_pos.unbind(self.on_boot_pos)
-        self.boot_pos.x = value                
+        self.boot_pos.x = value
         self.boot_pos.bind(self.on_boot_pos)
 
     def on_boot_y_pos(self, value):
+        print('on_boot_y_pos:', value)
+
         self.boot_pos.unbind(self.on_boot_pos)
         self.boot_pos.y = value
         self.boot_pos.bind(self.on_boot_pos)
 
     def on_boot_z_pos(self, value):
+        print('on_boot_z_pos:', value)
+
         self.boot_pos.unbind(self.on_boot_pos)
         self.boot_pos.z = value
         self.boot_pos.bind(self.on_boot_pos)
-    
+
     def on_cpa_x_pos(self, value):
         self.cpa_pos.unbind(self.on_cpa_pos)
         self.cpa_pos.x = value                
@@ -1238,3 +1322,10 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
     @property
     def config(self):
         return Config.editor3d
+
+    def Refresh(self, *_, **__):
+        self.canvas.update()
+
+    @property
+    def context(self):
+        return self.canvas.context

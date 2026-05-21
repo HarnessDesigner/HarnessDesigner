@@ -30,6 +30,10 @@ class Manager:
 
     def __init__(self, print_lock, pid=None):
         if pid is None:
+            # from . import clean_creds as _clean_creds
+            #
+            # _clean_creds.run()
+
             self.parent_pid = os.getpid()
         else:
             self.parent_pid = pid
