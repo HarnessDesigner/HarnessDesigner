@@ -92,28 +92,97 @@ class VBOHandler(metaclass=VBOSingleton):
         # Store VAOs per context (VAOs are NOT shared across contexts)
         # Key is id(QOpenGLContext), value is VAO ID
         self.__vaos = {}
-
-        # Create the shared VBOs
-        (
-            vao,
-            self.__vbo_vertices,
-            self.__vbo_normals,
-            self.__vbo_faces,
-            self.__vert_count
-        ) = self._create_vbo(vertices, normals, faces, count)
         
-        # Store the initial VAO for the context that created it
-        ctx = QOpenGLContext.currentContext()
-        if ctx is not None:
-            # Use __builtins__.id to avoid shadowing by the 'id' parameter
-            ctx_id = id(ctx)
-            self.__vaos[ctx_id] = vao
+        # Ref-counting for shared VBO resources
+        self._ref_count = 0
 
+        # Compute AABB/OBB (CPU-side, doesn't need OpenGL context)
         local_aabb = _utils.compute_aabb(vertices.reshape(-1, 3))
         self.local_obb = _utils.compute_obb(*local_aabb)
 
         p1, p2 = local_aabb
         self.local_aabb = np.array([p1.as_numpy, p2.as_numpy], dtype=np.float64)
+
+    @property
+    def ready(self) -> bool:
+        """Check if VBO resources are allocated and ready to use."""
+        return self._ref_count > 0 and self.__vbo_vertices is not None
+
+    def acquire(self):
+        """
+        Increment ref-count and allocate GPU resources on first acquire.
+        
+        This should be called by each canvas in initializeGL() to ensure
+        the shared VBOs exist and to track that this context is using them.
+        """
+        if self._ref_count == 0:
+            # First acquire - allocate shared VBOs
+            ctx = QOpenGLContext.currentContext()
+            if ctx is None:
+                raise RuntimeError("No OpenGL context is current")
+            
+            (
+                vao,
+                self.__vbo_vertices,
+                self.__vbo_normals,
+                self.__vbo_faces,
+                self.__vert_count
+            ) = self._create_vbo(self.__vertices, self.__normals, self.__faces, self.__count)
+            
+            # Store the initial VAO for the context that created it
+            ctx_id = id(ctx)
+            self.__vaos[ctx_id] = vao
+            
+        self._ref_count += 1
+
+    def release(self):
+        """
+        Decrement ref-count and free GPU resources when count reaches zero.
+        
+        This should be called by each canvas in cleanup() to indicate
+        it's done using the shared VBOs.
+        """
+        if self._ref_count <= 0:
+            return
+            
+        self._ref_count -= 1
+        
+        if self._ref_count == 0:
+            # Last reference released - free all resources
+            ctx = QOpenGLContext.currentContext()
+            if ctx is None:
+                # No context current — buffers will be leaked but won't crash
+                return
+            
+            # Clean up all VAOs across all contexts
+            for vao in self.__vaos.values():
+                self._release_vao(vao)
+            
+            # Clean up shared VBOs
+            self._release_vbos(self.__vbo_vertices, self.__vbo_normals, self.__vbo_faces)
+
+            self.__vaos.clear()
+            self.__vbo_vertices = None
+            self.__vbo_normals = None
+            self.__vbo_faces = None
+            self.__vert_count = 0
+
+    def release_context_vao(self):
+        """
+        Release the VAO for the current context only.
+        
+        This should be called when a specific canvas/context is being destroyed
+        but other contexts may still be using the shared VBOs.
+        """
+        ctx = QOpenGLContext.currentContext()
+        if ctx is None:
+            return
+            
+        ctx_id = id(ctx)
+        if ctx_id in self.__vaos:
+            vao = self.__vaos[ctx_id]
+            self._release_vao(vao)
+            del self.__vaos[ctx_id]
 
     @property
     def vertices(self):
@@ -124,6 +193,12 @@ class VBOHandler(metaclass=VBOSingleton):
         return self.__faces
 
     def __del__(self):
+        # Safety net: If ref_count is still > 0, there's a cleanup bug
+        # but we still need to free resources to avoid leaks
+        if self._ref_count > 0:
+            # Log warning if we had a way to do so
+            pass
+        
         # Add context guard to prevent crashes when no context is current
         if QOpenGLContext.currentContext() is None:
             # No context current — buffers will be leaked but won't crash
