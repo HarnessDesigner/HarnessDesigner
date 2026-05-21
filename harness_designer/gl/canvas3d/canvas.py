@@ -914,6 +914,19 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
 
     def cleanup(self):
         """Clean up GL resources before widget destruction."""
-        # Currently no explicit cleanup needed - shaders/programs are
-        # automatically cleaned up by Qt when the context is destroyed
-        pass
+        # Import here to avoid circular dependency
+        from ..vbo import VBOHandler
+        
+        # Make sure we have a current context before cleaning up
+        self.makeCurrent()
+        
+        # Clean up all VBOHandler instances for this context
+        VBOHandler.cleanup_all_for_context()
+        
+        # Release context
+        self.doneCurrent()
+
+    def closeEvent(self, event):
+        """Handle widget close event - clean up OpenGL resources."""
+        self.cleanup()
+        super().closeEvent(event)

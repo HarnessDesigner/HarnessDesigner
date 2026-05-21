@@ -5,7 +5,7 @@ import time
 import threading
 
 from PySide6.QtWidgets import QApplication
-from PySide6.QtCore import Signal, QObject
+from PySide6.QtCore import Signal, QObject, Qt
 
 
 _call_on_main = None
@@ -32,6 +32,10 @@ class App(QObject):
         self.frame = None
         self.logger = None
 
+        # Enable OpenGL context sharing BEFORE creating QApplication
+        # This ensures all QOpenGLWidgets share the same OpenGL context group
+        QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
+        
         self._qt_app = QApplication.instance() or QApplication(sys.argv)
         self._signals = _AppSignals()
         self._signals.call_on_main.connect(self._dispatch)

@@ -271,6 +271,25 @@ class Canvas(QOpenGLWidget):
             obj.obj2d.render_gl()
         # Qt handles SwapBuffers automatically.
 
+    def cleanup(self):
+        """Clean up GL resources before widget destruction."""
+        # Import here to avoid circular dependency
+        from ..vbo import VBOHandler
+        
+        # Make sure we have a current context before cleaning up
+        self.makeCurrent()
+        
+        # Clean up all VBOHandler instances for this context
+        VBOHandler.cleanup_all_for_context()
+        
+        # Release context
+        self.doneCurrent()
+
+    def closeEvent(self, event):
+        """Handle widget close event - clean up OpenGL resources."""
+        self.cleanup()
+        super().closeEvent(event)
+
     # ------------------------------------------------------------------
     # Projection (unchanged)
     # ------------------------------------------------------------------
