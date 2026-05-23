@@ -603,19 +603,27 @@ class Camera:
         This also doesn't change the camera position at all. It simply shinks
         or expands the distance between the focal point and the camera eye.
         """
-        move = self._forward * float(delta)
+        min_distance = 0.1
+        max_distance = 500.0
 
-        position = self._position + move
-        # Calculate focal distance directly without creating Line object
-        diff = self._focal_position.as_numpy - position.as_numpy
-        focal_distance = np.linalg.norm(diff)
-
-        # If moving would invert eye and pos, prevent crossing pos
-        if delta > 0 and focal_distance < 0.1:
+        offset = self._focal_position.as_numpy - self._position.as_numpy
+        current_distance = np.linalg.norm(offset)
+        if current_distance < 1e-6:
             return
 
-        elif delta < 0 and focal_distance > 500.0:
+        direction = offset / current_distance
+        target_distance = current_distance - float(delta)
+
+        if target_distance < min_distance:
+            target_distance = min_distance
+        elif target_distance > max_distance:
+            target_distance = max_distance
+
+        move_distance = current_distance - target_distance
+        if abs(move_distance) < 1e-9:
             return
+
+        move = direction * move_distance
 
         self._is_dirty = True
         self._position += move
