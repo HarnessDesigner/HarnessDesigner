@@ -339,37 +339,25 @@ class GLOverlay(QOpenGLWidget):
     def set_angle(self, point: _point.Point):
         self._last_angle = point
 
-        coords = list(point)
-
-        scale = 1.0
-
-        for item in coords:
-            if item == 0.0:
-                continue
-
-            new_scale = 1.0
-
-            while abs(item) * new_scale > 20.0:
-                new_scale -= 0.05
-
-            if new_scale < scale:
-                scale = new_scale
-
-        for i, item in enumerate(coords):
-            if item == 0.0:
-                continue
-
-            coords[i] = -coords[i] * scale
-
-        new_camera_eye = _point.Point(*coords).as_numpy
-
         camera_pos = self.camera_pos.as_numpy
+        target_eye = point.as_numpy
 
-        delta = new_camera_eye - camera_pos
-        distance = np.linalg.norm(delta)
+        forward = camera_pos - target_eye
+        distance = np.linalg.norm(forward)
 
-        nce = camera_pos + delta * (self.distance / distance)
-        nce = _point.Point(*[float(item) for item in nce])
+        if distance < 1e-6:
+            forward = (self.camera_pos - self.camera_eye).as_numpy
+            distance = np.linalg.norm(forward)
+
+            if distance < 1e-6:
+                forward = np.array([0.0, 0.0, -1.0], dtype=np.float64)
+            else:
+                forward = forward / distance
+        else:
+            forward = forward / distance
+
+        new_camera_eye = camera_pos - (forward * self.distance)
+        nce = _point.Point(*[float(item) for item in new_camera_eye])
 
         self.camera_eye = nce
 
@@ -434,10 +422,9 @@ class GLOverlay(QOpenGLWidget):
         else:
             forward = forward / fn
 
-        temp_up = np.array(
-            [0.0, 1.0, 0.0],
-            dtype=np.dtypes.Float64DType
-        )
+        temp_up = np.array([0.0, 1.0, 0.0], dtype=np.float64)
+        if abs(np.dot(forward, temp_up)) > 0.999:
+            temp_up = np.array([0.0, 0.0, 1.0], dtype=np.float64)
 
         right = np.cross(temp_up, forward)  # NOQA
 
