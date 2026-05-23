@@ -63,13 +63,15 @@ class PointMeta(type):
 
     @classmethod
     def _remove_ref(cls, ref):
-        """Remove a collected weak reference from the singleton cache.
+        """
+        Remove a collected weak reference from the singleton cache.
 
         :param ref: Weak reference previously stored in :attr:`_instances`.
         :type ref: :class:`weakref.ReferenceType`
         :returns: ``None``
         :rtype: None
         """
+
         for key, value in cls._instances.items():
             if value == ref:
                 break
@@ -80,7 +82,8 @@ class PointMeta(type):
 
     def __call__(cls, x: float | _d, y: float | _d,
                  z: float | _d | None = None, db_id: int | str | None = None) -> "Point":
-        """Return a cached or newly created :class:`Point` instance.
+        """
+        Return a cached or newly created :class:`Point` instance.
 
         :param x: X coordinate.
         :type x: float | :class:`~harness_designer.geometry.decimal.Decimal`
@@ -245,25 +248,25 @@ class Point(metaclass=PointMeta):
     as the operand, not the result container.
     """
 
-    def __array_ufunc__(self, func, method, inputs, instance, out=None, **kwargs):
-        """Handle selected NumPy ufuncs involving a point.
+    def __array_ufunc__(self, func, _, inputs, instance, out=None, **__):
+        """
+        Handle selected NumPy ufuncs involving a point.
 
         :param func: NumPy ufunc being dispatched.
         :type func: object
         :param method: Ufunc method name.
         :type method: str
         :param inputs: Left-hand input provided by NumPy.
-        :type inputs: object
+        :type inputs: :class:`numpy.ndarray` | None
         :param instance: Operand instance chosen by NumPy.
-        :type instance: object
+        :type instance: :class:`numpy.ndarray` | None
         :param out: Optional output container supplied by NumPy.
         :type out: tuple[:class:`numpy.ndarray`] | None
-        :param kwargs: Additional ufunc keyword arguments.
-        :type kwargs: dict
         :returns: NumPy result for the supported operation.
         :rtype: :class:`numpy.ndarray`
         :raises RuntimeError: If the ufunc is unsupported for :class:`Point`.
         """
+
         if func == np.matmul:
             # numpy array is left hand and class instance is right hand
             # there would be no case where we would use
@@ -403,21 +406,25 @@ class Point(metaclass=PointMeta):
         object's __init__) need to update points without triggering redraws
         until the entire object is ready.
         """
+
         self._ref_count += 1
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Decrement the ref-count guard.  See __enter__."""
+
         self._ref_count -= 1
 
     def __remove_callback(self, ref):
-        """Drop a dead callback weak reference from the callback list.
+        """
+        Drop a dead callback weak reference from the callback list.
 
         :param ref: Weak method reference scheduled for removal.
         :type ref: :class:`weakref.WeakMethod`
         :returns: ``None``
         :rtype: None
         """
+
         try:
             self._callbacks.remove(ref)
         except:  # NOQA
@@ -444,6 +451,7 @@ class Point(metaclass=PointMeta):
         the object will not respond to position changes even though it holds a
         reference to the shared Point.
         """
+
         # we don't explicitly check to see if a callback is already registered
         # what we care about is if a callback is called only one time and that
         # check is done when the callbacks are being done and if there happend
@@ -468,6 +476,7 @@ class Point(metaclass=PointMeta):
         will eventually be collected — but it can cause spurious updates while
         the owning object still exists.
         """
+
         for ref in self._callbacks[:]:
             cb = ref()
             if cb is None:
@@ -497,6 +506,7 @@ class Point(metaclass=PointMeta):
         and removed — each unique callback fires at most once per update cycle
         even if it was registered more than once.
         """
+
         if self._ref_count:
             return
 
@@ -515,46 +525,67 @@ class Point(metaclass=PointMeta):
 
     @property
     def x(self) -> _d:
-        """Return the X coordinate.
+        """
+        Return the X coordinate.
 
         :returns: Current X component.
         :rtype: :class:`~harness_designer.geometry.decimal.Decimal`
         """
+
         return _d(self._data[0])
 
     @x.setter
     def x(self, value: float | _d):
-        """Set the X component and fire callbacks (unless batching)."""
+        """
+        Set the X component
+
+        Fires callbacks (unless batching).
+        """
+
         self._data[0] = value
         self._process_update()
 
     @property
     def y(self) -> _d:
-        """Return the Y coordinate.
+        """
+        Return the Y coordinate.
 
         :returns: Current Y component.
         :rtype: :class:`~harness_designer.geometry.decimal.Decimal`
         """
+
         return _d(self._data[1])
 
     @y.setter
     def y(self, value: float | _d):
-        """Set the Y component and fire callbacks (unless batching)."""
+        """
+        Set the Y component
+
+        Fires callbacks (unless batching).
+        """
+
         self._data[1] = value
         self._process_update()
 
     @property
     def z(self) -> _d:
-        """Return the Z coordinate.
+        """
+        Return the Z coordinate.
 
         :returns: Current Z component.
         :rtype: :class:`~harness_designer.geometry.decimal.Decimal`
         """
+
         return _d(self._data[2])
 
     @z.setter
     def z(self, value: float | _d):
-        """Set the Z component and fire callbacks (unless batching)."""
+        """
+        Set the Z component
+
+        Fires callbacks (unless batching).
+        """
+
         self._data[2] = value
         self._process_update()
 
@@ -568,11 +599,13 @@ class Point(metaclass=PointMeta):
         reference.  Never assign a db_id to a copy — use the original
         singleton for anything that needs to participate in the callback chain.
         """
+
         return Point(*self._data.tolist())
 
     @staticmethod
     def __other_to_decimal(other: Union[_d, float, "Point", np.ndarray]) -> tuple[_d, _d, _d]:
-        """Convert supported operand types to decimal coordinate triples.
+        """
+        Convert supported operand types to decimal coordinate triples.
 
         :param other: Operand to normalize.
         :type other: :class:`~harness_designer.geometry.decimal.Decimal` | float | :class:`Point` | :class:`numpy.ndarray`
@@ -580,6 +613,7 @@ class Point(metaclass=PointMeta):
         :rtype: tuple[:class:`~harness_designer.geometry.decimal.Decimal`, :class:`~harness_designer.geometry.decimal.Decimal`, :class:`~harness_designer.geometry.decimal.Decimal`]
         :raises TypeError: If ``other`` cannot be converted.
         """
+
         if isinstance(other, np.ndarray):
             x, y, z = [_d(item) for item in other.tolist()]
         elif isinstance(other, Point):
@@ -595,7 +629,9 @@ class Point(metaclass=PointMeta):
 
     def __iadd__(self, other: Union["Point", np.ndarray, float]) -> Self:
         """
-        In-place add.  Fires callbacks after the operation unless batching.
+        In-place add.
+
+        Fires callbacks after the operation unless batching.
 
         This is the primary way to move a shared Point — every object that
         has bound a callback (wires, bundles, layouts, etc.) will receive the
@@ -604,6 +640,7 @@ class Point(metaclass=PointMeta):
             # Move a wire endpoint and everything connected to it
             position += delta
         """
+
         x1, y1, z1 = self.as_decimal
         x2, y2, z2 = self.__other_to_decimal(other)
 
@@ -618,16 +655,24 @@ class Point(metaclass=PointMeta):
     def __add__(self, other: Union["Point", np.ndarray, float, _d]) -> "Point":
         """
         Return a new Point (no db_id, no callbacks) with the summed
-        coordinates.  Does NOT fire callbacks on self.  Use __iadd__ when
+        coordinates.
+
+        Does NOT fire callbacks on self.  Use __iadd__ when
         you intend to move a shared Point.
         """
+
         x1, y1, z1 = self.as_decimal
         x2, y2, z2 = self.__other_to_decimal(other)
 
         return Point(x1 + x2, y1 + y2, z1 + z2)
 
     def __isub__(self, other: Union["Point", np.ndarray, float, _d]) -> Self:
-        """In-place subtract.  Fires callbacks after the operation."""
+        """
+        In-place subtract.
+
+        Fires callbacks after the operation.
+        """
+
         x1, y1, z1 = self.as_decimal
         x2, y2, z2 = self.__other_to_decimal(other)
 
@@ -641,6 +686,7 @@ class Point(metaclass=PointMeta):
 
     def __sub__(self, other: Union["Point", np.ndarray, float, _d]) -> "Point":
         """Return a new Point (no db_id, no callbacks) with the difference."""
+
         x1, y1, z1 = self.as_decimal
         x2, y2, z2 = self.__other_to_decimal(other)
 
@@ -648,13 +694,16 @@ class Point(metaclass=PointMeta):
 
     def __imul__(self, other: Union[float, "Point", np.ndarray, _d]) -> Self:
         """
-        In-place component-wise multiply.  Fires callbacks after the operation.
+        In-place component-wise multiply.
+
+        Fires callbacks after the operation.
 
         Primarily used for scaling — e.g. multiplying a unit-space VBO
         endpoint by a scale Point to get world-space coordinates::
 
             stop_local *= scale  # scale is Point(diameter, diameter, diameter)
         """
+
         x1, y1, z1 = self.as_decimal
         x2, y2, z2 = self.__other_to_decimal(other)
 
@@ -668,6 +717,7 @@ class Point(metaclass=PointMeta):
 
     def __mul__(self, other: Union[float, "Point", np.ndarray, _d]) -> "Point":
         """Return a new Point (no db_id) with the component-wise product."""
+
         x1, y1, z1 = self.as_decimal
         x2, y2, z2 = self.__other_to_decimal(other)
 
@@ -675,6 +725,7 @@ class Point(metaclass=PointMeta):
 
     def __itruediv__(self, other: Union[float, "Point", np.ndarray, _d]) -> Self:
         """In-place component-wise divide.  Fires callbacks after the operation."""
+
         x1, y1, z1 = self.as_decimal
         x2, y2, z2 = self.__other_to_decimal(other)
 
@@ -688,6 +739,7 @@ class Point(metaclass=PointMeta):
 
     def __truediv__(self, other: Union[_d, float, "Point", np.ndarray]) -> "Point":
         """Return a new Point (no db_id) with the component-wise quotient."""
+
         x1, y1, z1 = self.as_decimal
         x2, y2, z2 = self.__other_to_decimal(other)
 
@@ -704,6 +756,7 @@ class Point(metaclass=PointMeta):
         Does NOT fire callbacks — use __imatmul__ to rotate a shared Point
         in-place and propagate the change to all connected objects.
         """
+
         if isinstance(other, np.ndarray):
             if other.shape[0] == 3:
                 angle = _angle.Angle.from_euler(*other.tolist())
@@ -723,7 +776,9 @@ class Point(metaclass=PointMeta):
 
     def __imatmul__(self, other: Union[np.ndarray, "_angle.Angle"]) -> "Point":
         """
-        In-place rotation by *other*.  Fires callbacks after the operation.
+        In-place rotation by *other*.
+
+        Fires callbacks after the operation.
 
         Used to rotate a shared Point (and propagate the change to all
         connected objects) when the owning object's angle changes::
@@ -735,6 +790,7 @@ class Point(metaclass=PointMeta):
             branch_point += transition_centre
             # callback fires on the += which is outside the with block
         """
+
         if isinstance(other, np.ndarray):
             if other.shape[0] == 3:
                 angle = _angle.Angle.from_euler(*other.tolist())
@@ -769,6 +825,7 @@ class Point(metaclass=PointMeta):
 
             branch_point.set_angle(delta_angle, transition_centre)
         """
+
         p = self.copy()
 
         p -= origin
@@ -784,15 +841,19 @@ class Point(metaclass=PointMeta):
 
     def get_angle(self, origin: "Point") -> "_angle.Angle":
         """Return the Angle from *origin* to this Point."""
+
         return _angle.Angle.from_points(origin, self)
 
     def __bool__(self):
         """
         False when all three components are effectively zero (within numpy
-        isclose tolerance).  Used to distinguish uninitialized Points
+        isclose tolerance).
+
+        Used to distinguish uninitialized Points
         (e.g. branch positions that have not yet been computed by _build_model)
         from genuine zero-coordinates.
         """
+
         arr = np.array([0.0, 0.0, 0.0], dtype=np.float64)
         return not all(np.isclose(self._data, arr))
 
@@ -804,6 +865,7 @@ class Point(metaclass=PointMeta):
         :returns: ``True`` when all coordinates are numerically close.
         :rtype: bool
         """
+
         return all(np.isclose(self._data, other.as_numpy))
 
     def __ne__(self, other: "Point") -> bool:
@@ -814,23 +876,27 @@ class Point(metaclass=PointMeta):
         :returns: ``True`` when any coordinate differs.
         :rtype: bool
         """
+
         return not self.__eq__(other)
 
     @property
     def as_decimal(self):
         """Return (x, y, z) as a tuple of Decimal values for precision arithmetic."""
+
         x, y, z = self.as_float
         return _d(x), _d(y), _d(z)
 
     @property
     def as_float(self) -> tuple[float, float, float]:
         """Return (x, y, z) as plain Python floats."""
+
         x, y, z = self._data.tolist()
         return float(x), float(y), float(z)
 
     @property
     def as_int(self) -> tuple[int, int, int]:
         """Return (x, y, z) truncated to integers."""
+
         x, y, z = self.as_float
         return int(x), int(y), int(z)
 
@@ -911,57 +977,68 @@ class Point(metaclass=PointMeta):
         return self._data
 
     def __iter__(self) -> Iterable[float]:
-        """Iterate over the point coordinates as floats.
+        """
+        Iterate over the point coordinates as floats.
 
         :returns: Iterator yielding ``x``, ``y``, and ``z``.
         :rtype: collections.abc.Iterable[float]
         """
+
         return iter(self.as_float)
 
     def __str__(self) -> str:
-        """Return a readable coordinate string.
+        """
+        Return a readable coordinate string.
 
         :returns: String representation of the point.
         :rtype: str
         """
+
         return f'X: {self.x}, Y: {self.y}, Z: {self.z}'
 
     def __le__(self, other: "Point") -> bool:
-        """Return whether every component is less than or equal to ``other``.
+        """
+        Return whether every component is less than or equal to ``other``.
 
         :param other: Point to compare against.
         :type other: :class:`Point`
         :returns: ``True`` when all components are less than or equal.
         :rtype: bool
         """
+
         x1, y1, z1 = self
         x2, y2, z2 = other
         return x1 <= x2 and y1 <= y2 and z1 <= z2
 
     def __ge__(self, other: "Point") -> bool:
-        """Return whether every component is greater than or equal to ``other``.
+        """
+        Return whether every component is greater than or equal to ``other``.
 
         :param other: Point to compare against.
         :type other: :class:`Point`
         :returns: ``True`` when all components are greater than or equal.
         :rtype: bool
         """
+
         x1, y1, z1 = self
         x2, y2, z2 = other
         return x1 >= x2 and y1 >= y2 and z1 >= z2
 
     def __neg__(self) -> "Point":
-        """Return a new point with all coordinates negated.
+        """
+        Return a new point with all coordinates negated.
 
         :returns: Negated point copy.
         :rtype: :class:`Point`
         """
+
         x, y, z = self._data.tolist()
         return Point(-x, -y, -z)
 
     @property
     def inverse(self) -> "Point":
         """Return a new Point with all components negated (no db_id, no callbacks)."""
+
         return -self
 
 

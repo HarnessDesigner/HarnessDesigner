@@ -1,8 +1,9 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 """Decimal helpers for geometry calculations."""
+from typing import Union
 
-from decimal import Decimal as _Decimal
+from decimal import Decimal as _Decimal, Context as _Context
 
 
 class Decimal(_Decimal):
@@ -22,11 +23,12 @@ class Decimal(_Decimal):
     This wrapper fixes that issue.
     """
 
-    def __new__(cls, value, *args, **kwargs):
-        """Create a :class:`Decimal` from a value coerced through ``float``.
+    def __new__(cls, value: Union["Decimal", int, float, str], *args, **kwargs):
+        """
+        Create a :class:`Decimal` from a value coerced through ``float``.
 
         :param value: Source value to convert.
-        :type value: object
+        :type value: int | float | str | :class:`Decimal`
         :param args: Additional positional arguments forwarded to :class:`decimal.Decimal`.
         :type args: tuple
         :param kwargs: Additional keyword arguments forwarded to :class:`decimal.Decimal`.
@@ -34,241 +36,288 @@ class Decimal(_Decimal):
         :returns: New wrapped decimal value.
         :rtype: :class:`Decimal`
         """
+
         value = str(float(value))
 
         return super().__new__(cls, value, *args, **kwargs)
 
-    def __ipow__(self, power, modulo=None):
-        """Return ``self`` raised to ``power`` as :class:`Decimal`.
+    def __ipow__(self, power: Union["Decimal", int, float], modulo=None):
+        """
+        Return ``self`` raised to ``power`` as :class:`Decimal`.
 
         :param power: Exponent value.
-        :type power: object
+        :type power: int | float | :class:`Decimal`
         :param modulo: Optional modulo passed to :meth:`decimal.Decimal.__pow__`.
         :type modulo: object | None
         :returns: Wrapped power result.
         :rtype: :class:`Decimal`
         """
+
         power = Decimal(power)
         return Decimal(_Decimal.__pow__(self, power, modulo))
 
-    def __pow__(self, power, modulo=None):
-        """Return ``self`` raised to ``power``.
+    def __pow__(self, power: Union["Decimal", int, float], modulo=None):
+        """
+        Return ``self`` raised to ``power``.
 
         :param power: Exponent value.
-        :type power: object
+        :type power: int | float | :class:`Decimal`
         :param modulo: Optional modulo passed to :meth:`decimal.Decimal.__pow__`.
         :type modulo: object | None
         :returns: Wrapped power result.
         :rtype: :class:`Decimal`
         """
+
         power = Decimal(power)
         return Decimal(_Decimal.__pow__(self, power, modulo))
 
-    def __rpow__(self, other):
-        """Return ``other`` raised to ``self``.
+    def __rpow__(self, __value: Union["Decimal", int, float],
+                 __mod: _Context | None = None) -> "Decimal":
 
-        :param other: Base value.
-        :type other: object
+        """
+        Return ``other`` raised to ``self``.
+
+        :param __value: Base value.
+        :type __value: int | float | :class:`Decimal`
+        :param __mod: UNKNOWN
+        :type __mod: :class:`_Context` | None
         :returns: Wrapped power result.
         :rtype: :class:`Decimal`
         """
-        other = Decimal(other)
-        return Decimal(_Decimal.__rpow__(self, other))
 
-    def __iadd__(self, other):
-        """Return the sum of ``self`` and ``other``.
+        other = Decimal(__value)
+        return Decimal(_Decimal.__rpow__(self, other, __mod))
+
+    def __iadd__(self, other: Union["Decimal", int, float]):
+        """
+        Return the sum of ``self`` and ``other``.
 
         :param other: Value to add.
-        :type other: object
+        :type other: int | float | :class:`Decimal`
         :returns: Wrapped sum.
         :rtype: :class:`Decimal`
         """
-        other = Decimal(other)
-        return Decimal(_Decimal.__add__(self, other))
 
-    def __add__(self, other):
-        """Return the sum of ``self`` and ``other``.
-
-        :param other: Value to add.
-        :type other: object
-        :returns: Wrapped sum.
-        :rtype: :class:`Decimal`
-        """
         other = Decimal(other)
         return Decimal(_Decimal.__add__(self, other))
 
-    def __radd__(self, other):
-        """Return the sum of ``other`` and ``self``.
+    def __add__(self, other: Union["Decimal", int, float]):
+        """
+        Return the sum of ``self`` and ``other``.
 
         :param other: Value to add.
-        :type other: object
+        :type other: int | float | :class:`Decimal`
         :returns: Wrapped sum.
         :rtype: :class:`Decimal`
         """
+
+        other = Decimal(other)
+        return Decimal(_Decimal.__add__(self, other))
+
+    def __radd__(self, other: Union["Decimal", int, float]):
+        """
+        Return the sum of ``other`` and ``self``.
+
+        :param other: Value to add.
+        :type other: int | float | :class:`Decimal`
+        :returns: Wrapped sum.
+        :rtype: :class:`Decimal`
+        """
+
         other = Decimal(other)
         return Decimal(_Decimal.__radd__(self, other))
 
-    def __isub__(self, other):
-        """Return the difference of ``self`` and ``other``.
+    def __isub__(self, other: Union["Decimal", int, float]):
+        """
+        Return the difference of ``self`` and ``other``.
 
         :param other: Value to subtract.
-        :type other: object
+        :type other: int | float | :class:`Decimal`
         :returns: Wrapped difference.
         :rtype: :class:`Decimal`
         """
+
         other = Decimal(other)
         return Decimal(_Decimal.__sub__(self, other))
 
-    def __sub__(self, other):
-        """Return the difference of ``self`` and ``other``.
+    def __sub__(self, other: Union["Decimal", int, float]):
+        """
+        Return the difference of ``self`` and ``other``.
 
         :param other: Value to subtract.
-        :type other: object
+        :type other: int | float | :class:`Decimal`
         :returns: Wrapped difference.
         :rtype: :class:`Decimal`
         """
+
         other = Decimal(other)
         return Decimal(_Decimal.__sub__(self, other))
 
-    def __rsub__(self, other):
-        """Return the difference of ``other`` and ``self``.
+    def __rsub__(self, other: Union["Decimal", int, float]):
+        """
+        Return the difference of ``other`` and ``self``.
 
         :param other: Value to subtract from.
-        :type other: object
+        :type other: int | float | :class:`Decimal`
         :returns: Wrapped difference.
         :rtype: :class:`Decimal`
         """
+
         other = Decimal(other)
         return Decimal(_Decimal.__rsub__(self, other))
 
-    def __imul__(self, other):
-        """Return the product of ``self`` and ``other``.
+    def __imul__(self, other: Union["Decimal", int, float]):
+        """
+        Return the product of ``self`` and ``other``.
 
         :param other: Value to multiply by.
-        :type other: object
+        :type other: int | float | :class:`Decimal`
         :returns: Wrapped product.
         :rtype: :class:`Decimal`
         """
+
         other = Decimal(other)
         return Decimal(_Decimal.__mul__(self, other))
 
-    def __mul__(self, other):
-        """Return the product of ``self`` and ``other``.
+    def __mul__(self, other: Union["Decimal", int, float]):
+        """
+        Return the product of ``self`` and ``other``.
 
         :param other: Value to multiply by.
-        :type other: object
+        :type other: int | float | :class:`Decimal`
         :returns: Wrapped product.
         :rtype: :class:`Decimal`
         """
+
         other = Decimal(other)
         return Decimal(_Decimal.__mul__(self, other))
 
-    def __rmul__(self, other):
-        """Return the product of ``other`` and ``self``.
+    def __rmul__(self, other: Union["Decimal", int, float]):
+        """
+        Return the product of ``other`` and ``self``.
 
         :param other: Value to multiply by.
-        :type other: object
+        :type other: int | float | :class:`Decimal`
         :returns: Wrapped product.
         :rtype: :class:`Decimal`
         """
+
         other = Decimal(other)
         return Decimal(_Decimal.__rmul__(self, other))
 
-    def __itruediv__(self, other):
-        """Return the quotient of ``self`` and ``other``.
+    def __itruediv__(self, other: Union["Decimal", int, float]):
+        """
+        Return the quotient of ``self`` and ``other``.
 
         :param other: Divisor value.
-        :type other: object
+        :type other: int | float | :class:`Decimal`
         :returns: Wrapped quotient.
         :rtype: :class:`Decimal`
         """
+
         other = Decimal(other)
         return Decimal(_Decimal.__truediv__(self, other))
 
-    def __truediv__(self, other):
-        """Return the quotient of ``self`` and ``other``.
+    def __truediv__(self, other: Union["Decimal", int, float]):
+        """
+        Return the quotient of ``self`` and ``other``.
 
         :param other: Divisor value.
-        :type other: object
+        :type other: int | float | :class:`Decimal`
         :returns: Wrapped quotient.
         :rtype: :class:`Decimal`
         """
+
         other = Decimal(other)
         return Decimal(_Decimal.__truediv__(self, other))
 
-    def __rtruediv__(self, other):
-        """Return the quotient of ``other`` and ``self``.
+    def __rtruediv__(self, other: Union["Decimal", int, float]):
+        """
+        Return the quotient of ``other`` and ``self``.
 
         :param other: Dividend value.
-        :type other: object
+        :type other: int | float | :class:`Decimal`
         :returns: Wrapped quotient.
         :rtype: :class:`Decimal`
         """
+
         other = Decimal(other)
         return Decimal(_Decimal.__rtruediv__(self, other))
 
-    def __ifloordiv__(self, other):
-        """Return the floor-division result of ``self`` and ``other``.
+    def __ifloordiv__(self, other: Union["Decimal", int, float]):
+        """
+        Return the floor-division result of ``self`` and ``other``.
 
         :param other: Divisor value.
-        :type other: object
+        :type other: int | float | :class:`Decimal`
         :returns: Wrapped floor-division result.
         :rtype: :class:`Decimal`
         """
+
         other = Decimal(other)
         return Decimal(_Decimal.__floordiv__(self, other))
 
-    def __floordiv__(self, other):
-        """Return the floor-division result of ``self`` and ``other``.
+    def __floordiv__(self, other: Union["Decimal", int, float]):
+        """
+        eturn the floor-division result of ``self`` and ``other``.
 
         :param other: Divisor value.
-        :type other: object
+        :type other: int | float | :class:`Decimal`
         :returns: Wrapped floor-division result.
         :rtype: :class:`Decimal`
         """
+
         other = Decimal(other)
         return Decimal(_Decimal.__floordiv__(self, other))
 
-    def __rfloordiv__(self, other):
-        """Return the floor-division result of ``other`` and ``self``.
+    def __rfloordiv__(self, other: Union["Decimal", int, float]):
+        """
+        Return the floor-division result of ``other`` and ``self``.
 
         :param other: Dividend value.
-        :type other: object
+        :type other: int | float | :class:`Decimal`
         :returns: Wrapped floor-division result.
         :rtype: :class:`Decimal`
         """
+
         other = Decimal(other)
         return Decimal(_Decimal.__rfloordiv__(self, other))
 
-    def __imod__(self, other):
-        """Return ``self`` modulo ``other``.
+    def __imod__(self, other: Union["Decimal", int, float]):
+        """
+        Return ``self`` modulo ``other``.
 
         :param other: Divisor value.
-        :type other: object
+        :type other: int | float | :class:`Decimal`
         :returns: Wrapped modulo result.
         :rtype: :class:`Decimal`
         """
+
         other = Decimal(other)
         return Decimal(_Decimal.__mod__(self, other))
 
-    def __mod__(self, other):
-        """Return ``self`` modulo ``other``.
+    def __mod__(self, other: Union["Decimal", int, float]):
+        """
+        Return ``self`` modulo ``other``.
 
         :param other: Divisor value.
-        :type other: object
+        :type other: int | float | :class:`Decimal`
         :returns: Wrapped modulo result.
         :rtype: :class:`Decimal`
         """
+
         other = Decimal(other)
         return Decimal(_Decimal.__mod__(self, other))
 
-    def __rmod__(self, other):
-        """Return ``other`` modulo ``self``.
+    def __rmod__(self, other: Union["Decimal", int, float]):
+        """
+        Return ``other`` modulo ``self``.
 
         :param other: Dividend value.
-        :type other: object
+        :type other: int | float | :class:`Decimal`
         :returns: Wrapped modulo result.
         :rtype: :class:`Decimal`
         """
+
         other = Decimal(other)
         return Decimal(_Decimal.__rmod__(self, other))

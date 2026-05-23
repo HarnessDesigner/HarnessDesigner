@@ -23,13 +23,15 @@ class AngleMeta(type):
 
     @classmethod
     def _remove_instance(cls, ref):
-        """Remove a collected cached angle reference.
+        """
+        Remove a collected cached angle reference.
 
         :param ref: Weak reference stored in :attr:`_instances`.
         :type ref: :class:`weakref.ReferenceType`
         :returns: ``None``
         :rtype: None
         """
+
         for key, value in cls._instances.items():
             if ref == value:
                 break
@@ -41,7 +43,8 @@ class AngleMeta(type):
     def __call__(cls, q: _quaternion.Quaternion | None = None,
                  euler_angles: list[float, float, float] | None = None,
                  db_id: int | str | None = None):
-        """Return a cached or new :class:`Angle` instance.
+        """
+        Return a cached or new :class:`Angle` instance.
 
         :param q: Quaternion backing the angle.
         :type q: :class:`~.quaternion.Quaternion` | None
@@ -72,16 +75,17 @@ class Angle(metaclass=AngleMeta):
     """Represent an orientation using quaternion and Euler-angle forms."""
 
     def __array_ufunc__(self, func, method, inputs, instance, out=None, **kwargs):  # NOQA
-        """Handle selected NumPy ufuncs involving an angle.
+        """
+        Handle selected NumPy ufuncs involving an angle.
 
         :param func: NumPy ufunc being invoked.
         :type func: object
         :param method: Ufunc method name.
         :type method: str
         :param inputs: Left-hand NumPy input.
-        :type inputs: object
+        :type inputs: :class:`numpy.ndarray` | None
         :param instance: Operand instance chosen by NumPy dispatch.
-        :type instance: object
+        :type instance: :class:`numpy.ndarray` | None
         :param out: Optional output array.
         :type out: tuple[:class:`numpy.ndarray`] | None
         :param kwargs: Additional ufunc keyword arguments.
@@ -90,6 +94,7 @@ class Angle(metaclass=AngleMeta):
         :rtype: :class:`numpy.ndarray` | :class:`~.quaternion.Quaternion` | :class:`Angle`
         :raises RuntimeError: If the ufunc is unsupported.
         """
+
         if func == np.matmul:
             if isinstance(instance, Angle):
                 # __matmul__
@@ -199,7 +204,8 @@ class Angle(metaclass=AngleMeta):
     def __init__(self, q: _quaternion.Quaternion | None = None, 
                  euler_angles: list[float, float, float] | None = None,
                  db_id: int | str | None = None):
-        """Create an angle.
+        """
+        Create an angle.
 
         :param q: Quaternion representation. Identity is used when omitted.
         :type q: :class:`~.quaternion.Quaternion` | None
@@ -227,16 +233,19 @@ class Angle(metaclass=AngleMeta):
         self._matrix = self._q.as_matrix
 
     def __enter__(self):
-        """Enter a batched update block.
+        """
+        Enter a batched update block.
 
         :returns: This angle instance.
         :rtype: :class:`Angle`
         """
+
         self._ref_count += 1
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """Leave a batched update block.
+        """
+        Leave a batched update block.
 
         :param exc_type: Exception type, if any.
         :type exc_type: type | None
@@ -247,29 +256,34 @@ class Angle(metaclass=AngleMeta):
         :returns: ``None``
         :rtype: None
         """
+
         self._ref_count -= 1
 
     def __remove_callback(self, ref):
-        """Remove a dead callback reference.
+        """
+        Remove a dead callback reference.
 
         :param ref: Callback weak reference.
         :type ref: :class:`weakref.WeakMethod`
         :returns: ``None``
         :rtype: None
         """
+
         try:
             self.__callbacks.remove(ref)
         except:  # NOQA
             pass
 
     def bind(self, cb: Callable[["Angle"], None]) -> bool:
-        """Register a callback to run after updates.
+        """
+        Register a callback to run after updates.
 
         :param cb: Bound method receiving this angle.
         :type cb: collections.abc.Callable[[ :class:`Angle` ], None]
         :returns: ``True`` after registration.
         :rtype: bool
         """
+
         # We don't explicitly check to see if a callback is already registered.
         # What we care about is if a callback is called only one time and that
         # check is done when the callbacks are being executed. If there happens
@@ -279,13 +293,15 @@ class Angle(metaclass=AngleMeta):
         return True
 
     def unbind(self, cb: Callable[["Angle"], None]) -> None:
-        """Remove all registrations for a callback.
+        """
+        Remove all registrations for a callback.
 
         :param cb: Previously registered callback.
         :type cb: collections.abc.Callable[[ :class:`Angle` ], None]
         :returns: ``None``
         :rtype: None
         """
+
         for ref in self.__callbacks[:]:
             callback = ref()
             if callback is None:
@@ -299,11 +315,13 @@ class Angle(metaclass=AngleMeta):
                 self.__callbacks.remove(ref)
 
     def _process_update(self):
-        """Notify bound callbacks unless batching is active.
+        """
+        Notify bound callbacks unless batching is active.
 
         :returns: ``None``
         :rtype: None
         """
+
         if self._ref_count:
             return
 
@@ -316,30 +334,36 @@ class Angle(metaclass=AngleMeta):
 
     @property
     def inverse(self) -> "Angle":
-        """Return the inverse rotation.
+        """
+        Return the inverse rotation.
 
         :returns: Inverse angle.
         :rtype: :class:`Angle`
         """
+
         q = -self._q
         return Angle(q)
     
     def __neg__(self) -> "Angle":
-        """Return the inverse rotation.
+        """
+        Return the inverse rotation.
 
         :returns: Inverse angle.
         :rtype: :class:`Angle`
         """
+
         q = -self._q
         return Angle(q)
 
     @property
     def x(self) -> float:
-        """Return the cached X Euler angle or ``nan`` when UNKNOWN.
+        """
+        Return the cached X Euler angle or ``nan`` when UNKNOWN.
 
         :returns: X-axis rotation in degrees, or ``nan`` when the Euler cache is unavailable.
         :rtype: float
         """
+
         if self.__euler_angles is None:
             # self.__euler_angles = self._q.as_euler
             return math.nan
@@ -348,13 +372,15 @@ class Angle(metaclass=AngleMeta):
 
     @x.setter
     def x(self, value: float):
-        """Set the cached X Euler angle and update the quaternion.
+        """
+        Set the cached X Euler angle and update the quaternion.
 
         :param value: New X-axis rotation in degrees.
         :type value: float
         :returns: ``None``
         :rtype: None
         """
+
         if self.__euler_angles is None:
             # self.__euler_angles = self._q.as_euler
             return
@@ -367,13 +393,15 @@ class Angle(metaclass=AngleMeta):
         self._process_update()
 
     def __update_quat(self, q):
-        """Copy quaternion component values into the cached quaternion.
+        """
+        Copy quaternion component values into the cached quaternion.
 
         :param q: Source quaternion.
         :type q: :class:`~.quaternion.Quaternion`
         :returns: ``None``
         :rtype: None
         """
+
         self._q.w = q.w
         self._q.x = q.x
         self._q.y = q.y
@@ -382,11 +410,13 @@ class Angle(metaclass=AngleMeta):
 
     @property
     def y(self) -> float:
-        """Return the cached Y Euler angle or ``nan`` when UNKNOWN.
+        """
+        Return the cached Y Euler angle or ``nan`` when UNKNOWN.
 
         :returns: Y-axis rotation in degrees, or ``nan`` when the Euler cache is unavailable.
         :rtype: float
         """
+
         if self.__euler_angles is None:
             # self.__euler_angles = self._q.as_euler
             return math.nan
@@ -395,13 +425,15 @@ class Angle(metaclass=AngleMeta):
 
     @y.setter
     def y(self, value: float):
-        """Set the cached Y Euler angle and update the quaternion.
+        """
+        Set the cached Y Euler angle and update the quaternion.
 
         :param value: New Y-axis rotation in degrees.
         :type value: float
         :returns: ``None``
         :rtype: None
         """
+
         if self.__euler_angles is None:
             # self.__euler_angles = self._q.as_euler
             return
@@ -414,11 +446,13 @@ class Angle(metaclass=AngleMeta):
 
     @property
     def z(self) -> float:
-        """Return the cached Z Euler angle or ``nan`` when UNKNOWN.
+        """
+        Return the cached Z Euler angle or ``nan`` when UNKNOWN.
 
         :returns: Z-axis rotation in degrees, or ``nan`` when the Euler cache is unavailable.
         :rtype: float
         """
+
         if self.__euler_angles is None:
             # self.__euler_angles = self._q.as_euler
             return math.nan
@@ -427,13 +461,15 @@ class Angle(metaclass=AngleMeta):
 
     @z.setter
     def z(self, value: float):
-        """Set the cached Z Euler angle and update the quaternion.
+        """
+        Set the cached Z Euler angle and update the quaternion.
 
         :param value: New Z-axis rotation in degrees.
         :type value: float
         :returns: ``None``
         :rtype: None
         """
+
         if self.__euler_angles is None:
             # self.__euler_angles = self._q.as_euler
             return
@@ -446,11 +482,13 @@ class Angle(metaclass=AngleMeta):
         self._process_update()
 
     def copy(self) -> "Angle":
-        """Return a copy of this angle.
+        """
+        Return a copy of this angle.
 
         :returns: New angle with the same quaternion and cached Euler data when available.
         :rtype: :class:`Angle`
         """
+
         if self.__euler_angles is not None:
             return Angle.from_quat(self._q.as_numpy.tolist(), euler_angles=self.__euler_angles.tolist())
         else:
@@ -458,7 +496,8 @@ class Angle(metaclass=AngleMeta):
 
     @staticmethod
     def __get_quat_from_other(other: Union["Angle", np.ndarray | _quaternion.Quaternion]) -> _quaternion.Quaternion:
-        """Convert supported operands into a quaternion.
+        """
+        Convert supported operands into a quaternion.
 
         :param other: Angle-like operand.
         :type other: :class:`Angle` | :class:`numpy.ndarray` | :class:`~.quaternion.Quaternion`
@@ -467,6 +506,7 @@ class Angle(metaclass=AngleMeta):
         :raises ValueError: If a NumPy array has an unsupported shape.
         :raises TypeError: If ``other`` is an unsupported type.
         """
+
         if isinstance(other, Angle):
             quat = other.as_quat_numpy
             quat = _quaternion.Quaternion(q=quat)
@@ -488,11 +528,13 @@ class Angle(metaclass=AngleMeta):
         return quat
 
     def __update_matrix(self):
-        """Refresh the cached rotation matrix from the quaternion.
+        """
+        Refresh the cached rotation matrix from the quaternion.
 
         :returns: ``None``
         :rtype: None
         """
+
         matrix = self._q.as_matrix
 
         for i in range(3):
@@ -500,7 +542,8 @@ class Angle(metaclass=AngleMeta):
                 self._matrix[i][j] = matrix[i][j]
 
     def __iadd__(self, other: Union["Angle", np.ndarray]) -> Self:
-        """Compose this angle with ``other`` in place.
+        """
+        Compose this angle with ``other`` in place.
 
         :param other: Angle-like operand.
         :type other: :class:`Angle` | :class:`numpy.ndarray`
@@ -534,13 +577,15 @@ class Angle(metaclass=AngleMeta):
         return self
 
     def __add__(self, other: Union["Angle", np.ndarray]) -> "Angle":
-        """Return the composition of this angle with ``other``.
+        """
+        Return the composition of this angle with ``other``.
 
         :param other: Angle-like operand.
         :type other: :class:`Angle` | :class:`numpy.ndarray`
         :returns: Combined angle.
         :rtype: :class:`Angle`
         """
+
         if isinstance(other, Angle):
             x2, y2, z2 = other.x, other.y, other.z
             if math.nan not in (x2, y2, z2) and self.__euler_angles is not None:
@@ -558,7 +603,8 @@ class Angle(metaclass=AngleMeta):
         return self.from_quat(q)
 
     def __isub__(self, other: Union["Angle", np.ndarray]) -> Self:
-        """Subtract ``other`` from this angle in place.
+        """
+        Subtract ``other`` from this angle in place.
 
         :param other: Angle-like operand.
         :type other: :class:`Angle` | :class:`numpy.ndarray`
@@ -592,13 +638,15 @@ class Angle(metaclass=AngleMeta):
         return self
 
     def __sub__(self, other: Union["Angle", np.ndarray]) -> "Angle":
-        """Return this angle minus ``other``.
+        """
+        Return this angle minus ``other``.
 
         :param other: Angle-like operand.
         :type other: :class:`Angle` | :class:`numpy.ndarray`
         :returns: Angle difference.
         :rtype: :class:`Angle`
         """
+
         if isinstance(other, Angle):
             x2, y2, z2 = other.x, other.y, other.z
             if math.nan not in (x2, y2, z2) and self.__euler_angles is not None:
@@ -615,13 +663,15 @@ class Angle(metaclass=AngleMeta):
         return self.from_quat(q)
 
     def __rmatmul__(self, other: Union[np.ndarray, _point.Point]) -> np.ndarray | _point.Point:
-        """Apply this angle to ``other`` in place when supported.
+        """
+        Apply this angle to ``other`` in place when supported.
 
         :param other: Vector or point to rotate.
         :type other: :class:`numpy.ndarray` | :class:`~harness_designer.geometry.point.Point`
         :returns: Rotated operand.
         :rtype: :class:`numpy.ndarray` | :class:`~harness_designer.geometry.point.Point`
         """
+
         other @= self._q
         return other
 
@@ -649,13 +699,15 @@ class Angle(metaclass=AngleMeta):
         # return other
 
     def __matmul__(self, other: Union[np.ndarray, _point.Point]) -> np.ndarray | _point.Point:
-        """Return ``other`` rotated by this angle.
+        """
+        Return ``other`` rotated by this angle.
 
         :param other: Vector or point to rotate.
         :type other: :class:`numpy.ndarray` | :class:`~harness_designer.geometry.point.Point`
         :returns: Rotated copy of ``other``.
         :rtype: :class:`numpy.ndarray` | :class:`~harness_designer.geometry.point.Point`
         """
+
         other = other @ self._q
         return other
 
@@ -677,78 +729,94 @@ class Angle(metaclass=AngleMeta):
         # return other
 
     def __bool__(self):
-        """Return whether this angle is not the identity rotation.
+        """
+        Return whether this angle is not the identity rotation.
 
         :returns: ``True`` when the quaternion differs from identity.
         :rtype: bool
         """
+
         arr = np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float64)
         return not all(np.isclose(self.as_quat_numpy, arr))
 
     def __eq__(self, other: "Angle") -> bool:
-        """Return whether this angle matches ``other``.
+        """
+        Return whether this angle matches ``other``.
 
         :param other: Angle to compare against.
         :type other: :class:`Angle`
         :returns: ``True`` when the quaternions are numerically equal.
         :rtype: bool
         """
+
         other = other.as_quat_numpy
         return all(np.isclose(other, self.as_quat_numpy))
 
     def __ne__(self, other: "Angle") -> bool:
-        """Return whether this angle differs from ``other``.
+        """
+        Return whether this angle differs from ``other``.
 
         :param other: Angle to compare against.
         :type other: :class:`Angle`
         :returns: ``True`` when the quaternions are not numerically equal.
         :rtype: bool
         """
+
         return not self.__eq__(other)
 
     @property
     def as_euler_numpy(self) -> np.ndarray:
-        """Return cached Euler angles as a NumPy array.
+        """
+        Return cached Euler angles as a NumPy array.
 
         :returns: Cached Euler values.
         :rtype: :class:`numpy.ndarray`
         """
+
         return self.__euler_angles
 
     @property
     def as_euler_float(self) -> list[float, float, float]:
-        """Return cached Euler angles as floats.
+        """
+        Return cached Euler angles as floats.
 
         :returns: ``[x, y, z]`` Euler values.
         :rtype: list[float, float, float]
         """
+
         return self.__euler_angles.tolist()
 
     @property
     def as_quat_numpy(self) -> np.ndarray:
-        """Return quaternion components as a NumPy array.
+        """
+        Return quaternion components as a NumPy array.
 
         :returns: Quaternion data.
         :rtype: :class:`numpy.ndarray`
         """
+
         return self._q.as_numpy
 
     @property
     def as_quat_float(self) -> list[float, float, float]:
-        """Return quaternion components as floats.
+        """
+        Return quaternion components as floats.
 
         :returns: Quaternion values.
         :rtype: list[float, float, float]
         """
+
         return self._q.as_numpy.tolist()
 
     @property
     def as_euler_int(self) -> tuple[int, int, int]:
-        """Return cached Euler angles truncated to integers.
+        """
+        Return cached Euler angles truncated to integers.
 
         :returns: Integer Euler values.
         :rtype: tuple[int, int, int]
         """
+
         x, y, z = self.as_euler_float
         return int(x), int(y), int(z)
 
@@ -756,7 +824,8 @@ class Angle(metaclass=AngleMeta):
     def as_matrix_float(
         self
     ) -> list[list[float, float, float], list[float, float, float], list[float, float, float]]:
-        """Return the cached rotation matrix as nested float lists.
+        """
+        Return the cached rotation matrix as nested float lists.
 
         :returns: Rotation matrix rows.
         :rtype: list[list[float, float, float], list[float, float, float], list[float, float, float]]
@@ -766,29 +835,35 @@ class Angle(metaclass=AngleMeta):
 
     @property
     def as_matrix_numpy(self) -> np.ndarray:
-        """Return the cached rotation matrix.
+        """
+        Return the cached rotation matrix.
 
         :returns: Rotation matrix.
         :rtype: :class:`numpy.ndarray`
         """
+
         return self._matrix
 
     def __iter__(self) -> Iterable[float]:
-        """Iterate over Euler-angle components.
+        """
+        Iterate over Euler-angle components.
 
         :returns: Iterator yielding Euler angles in degrees.
         :rtype: collections.abc.Iterable[float]
         """
+
         x, y, z = self._q.as_euler
 
         return iter([x, y, z])
 
     def __str__(self) -> str:
-        """Return a readable Euler-angle string.
+        """
+        Return a readable Euler-angle string.
 
         :returns: String form of the angle.
         :rtype: str
         """
+
         x, y, z = self._q.as_euler
 
         return f'X: {x}, Y: {y}, Z: {z}'
@@ -796,6 +871,7 @@ class Angle(metaclass=AngleMeta):
     @classmethod
     def from_direction(cls, direction: np.ndarray) -> "Angle":
         """Create quaternion to rotate +Z axis to align with direction"""
+
         # Unit cylinder points along +Z, rotate it to point along 'direction'
 
         z_axis = np.array([0.0, 0.0, 1.0], dtype=np.float32)
@@ -818,7 +894,8 @@ class Angle(metaclass=AngleMeta):
 
     @classmethod
     def from_euler(cls, x: float, y: float, z: float, db_id: str | None = None) -> "Angle":
-        """Create an angle from Euler angles in degrees.
+        """
+        Create an angle from Euler angles in degrees.
 
         :param x: Rotation about the X axis.
         :type x: float
@@ -831,6 +908,7 @@ class Angle(metaclass=AngleMeta):
         :returns: New angle instance.
         :rtype: :class:`Angle`
         """
+
         q = _quaternion.Quaternion.from_euler(x, y, z)  # NOQA
         ret = cls(q, [x, y, z], db_id)
         return ret
@@ -838,7 +916,8 @@ class Angle(metaclass=AngleMeta):
     @classmethod
     def from_quat(cls, q: list[float, float, float, float] | np.ndarray | _quaternion.Quaternion,
                   euler_angles: list[float, float, float] | None = None, db_id: str | None = None) -> "Angle":
-        """Create an angle from quaternion data.
+        """
+        Create an angle from quaternion data.
 
         :param q: Quaternion components or quaternion object.
         :type q: list[float, float, float, float] | :class:`numpy.ndarray` | :class:`~.quaternion.Quaternion`
@@ -857,9 +936,7 @@ class Angle(metaclass=AngleMeta):
 
     @classmethod
     def from_matrix(cls, matrix: np.ndarray, db_id: str | None = None) -> "Angle":
-        """
-        Convert a 3x3 rotation matrix to a unit quaternion (w, x, y, z).
-        """
+        """Convert a 3x3 rotation matrix to a unit quaternion (w, x, y, z)."""
 
         m00 = matrix[0, 0]
         m01 = matrix[0, 1]
@@ -911,7 +988,8 @@ class Angle(metaclass=AngleMeta):
     @classmethod
     def from_points(cls, p1: _point.Point, p2: _point.Point,
                     db_id: str | None = None) -> "Angle":  # NOQA
-        """Create an angle that aligns the local forward axis to the line ``p1`` → ``p2``.
+        """
+        Create an angle that aligns the local forward axis to the line ``p1`` → ``p2``.
 
         :param p1: Start point.
         :type p1: :class:`~harness_designer.geometry.point.Point`
@@ -923,6 +1001,7 @@ class Angle(metaclass=AngleMeta):
         :rtype: :class:`Angle`
         :raises RuntimeError: If a valid right vector cannot be computed.
         """
+
         # the sign for all of the verticies in the array needs to be flipped in
         # order to handle the -Z axis being near
         p1 = -p1.as_numpy
@@ -970,7 +1049,8 @@ class Angle(metaclass=AngleMeta):
 
     @classmethod
     def from_axis_angle(cls, axis: np.ndarray, angle: float, db_id: str | None = None):
-        """Create an angle from an axis-angle rotation.
+        """
+        Create an angle from an axis-angle rotation.
 
         :param axis: Rotation axis.
         :type axis: :class:`numpy.ndarray`
@@ -981,4 +1061,5 @@ class Angle(metaclass=AngleMeta):
         :returns: New angle instance.
         :rtype: :class:`Angle`
         """
+
         return cls(_quaternion.Quaternion.from_axis_angle(axis, angle), db_id=db_id)

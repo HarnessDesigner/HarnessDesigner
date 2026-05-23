@@ -18,16 +18,17 @@ class Quaternion:
     """Represent a normalized quaternion used for 3D rotations."""
 
     def __array_ufunc__(self, func, method, inputs, instance, out=None, **kwargs):  # NOQA
-        """Handle selected NumPy ufuncs for quaternion operations.
+        """
+        Handle selected NumPy ufuncs for quaternion operations.
 
         :param func: NumPy ufunc being invoked.
         :type func: object
         :param method: Ufunc method name.
         :type method: str
         :param inputs: Left-hand NumPy input.
-        :type inputs: object
+        :type inputs: :class:`numpy.ndarray` | None
         :param instance: Operand instance chosen by NumPy dispatch.
-        :type instance: object
+        :type instance: :class:`numpy.ndarray` | None
         :param out: Optional output array.
         :type out: tuple[:class:`numpy.ndarray`] | None
         :param kwargs: Additional ufunc keyword arguments.
@@ -36,6 +37,7 @@ class Quaternion:
         :rtype: :class:`Quaternion` | :class:`numpy.ndarray`
         :raises RuntimeError: If the ufunc is unsupported.
         """
+
         if func == np.matmul:
             if isinstance(instance, Quaternion):
                 w, x, y, z = self.as_float
@@ -97,11 +99,13 @@ class Quaternion:
         raise RuntimeError
 
     def __normalize(self):
-        """Normalize the quaternion data in place.
+        """
+        Normalize the quaternion data in place.
 
         :returns: ``None``
         :rtype: None
         """
+
         norm = _d(np.linalg.norm(self._data))
 
         w, x, y, z = self.as_decimal
@@ -117,15 +121,18 @@ class Quaternion:
         self._data[3] = z
 
     def __enter__(self):
-        """Enter a mutation block before re-normalization.
+        """
+        Enter a mutation block before re-normalization.
 
         :returns: This quaternion instance.
         :rtype: :class:`Quaternion`
         """
+
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """Normalize the quaternion when leaving a mutation block.
+        """
+        Normalize the quaternion when leaving a mutation block.
 
         :param exc_type: Exception type, if any.
         :type exc_type: type | None
@@ -139,7 +146,8 @@ class Quaternion:
         self.__normalize()
 
     def __init__(self, w=None, x=None, y=None, z=None, q=None):
-        """Create and normalize a quaternion.
+        """
+        Create and normalize a quaternion.
 
         :param w: Scalar component when ``q`` is not supplied.
         :type w: float | None
@@ -152,6 +160,7 @@ class Quaternion:
         :param q: Existing quaternion array to wrap.
         :type q: :class:`numpy.ndarray` | None
         """
+
         if q is None:
             self._data = np.array([w, x, y, z], dtype=np.float64)
         else:
@@ -161,114 +170,137 @@ class Quaternion:
 
     @property
     def w(self) -> float:
-        """Return the scalar component.
+        """
+        Return the scalar component.
 
         :returns: ``w`` component.
         :rtype: float
         """
+
         return float(self._data[0])
 
     @w.setter
     def w(self, value: [float, _d]):
-        """Set the scalar component.
+        """
+        Set the scalar component.
 
         :param value: New ``w`` value.
         :type value: float | :class:`~harness_designer.geometry.decimal.Decimal`
         :returns: ``None``
         :rtype: None
         """
+
         self._data[0] = value
 
     @property
     def x(self) -> float:
-        """Return the X vector component.
+        """
+        Return the X vector component.
 
         :returns: ``x`` component.
         :rtype: float
         """
+
         return float(self._data[1])
 
     @x.setter
     def x(self, value: [float, _d]):
-        """Set the X vector component.
+        """
+        Set the X vector component.
 
         :param value: New ``x`` value.
         :type value: float | :class:`~harness_designer.geometry.decimal.Decimal`
         :returns: ``None``
         :rtype: None
         """
+
         self._data[1] = value
 
     @property
     def y(self) -> float:
-        """Return the Y vector component.
+        """
+        Return the Y vector component.
 
         :returns: ``y`` component.
         :rtype: float
         """
+
         return float(self._data[2])
 
     @y.setter
     def y(self, value: [float, _d]):
-        """Set the Y vector component.
+        """
+        Set the Y vector component.
 
         :param value: New ``y`` value.
         :type value: float | :class:`~harness_designer.geometry.decimal.Decimal`
         :returns: ``None``
         :rtype: None
         """
+
         self._data[2] = value
 
     @property
     def z(self) -> float:
-        """Return the Z vector component.
+        """
+        Return the Z vector component.
 
         :returns: ``z`` component.
         :rtype: float
         """
+
         return float(self._data[3])
 
     @z.setter
     def z(self, value: [float, _d]):
-        """Set the Z vector component.
+        """
+        Set the Z vector component.
 
         :param value: New ``z`` value.
         :type value: float | :class:`~harness_designer.geometry.decimal.Decimal`
         :returns: ``None``
         :rtype: None
         """
+
         self._data[3] = value
 
     @property
     def as_numpy(self):
-        """Return the underlying quaternion array.
+        """
+        Return the underlying quaternion array.
 
         :returns: Raw quaternion data.
         :rtype: :class:`numpy.ndarray`
         """
+
         return self._data
 
     @property
     def as_float(self):
-        """Return the quaternion components as floats.
+        """
+        Return the quaternion components as floats.
 
         :returns: ``[w, x, y, z]`` values.
         :rtype: list[float]
         """
+
         return self._data.tolist()
 
     @property
     def as_decimal(self):
-        """Return the quaternion components as decimals.
+        """
+        Return the quaternion components as decimals.
 
         :returns: Decimal ``(w, x, y, z)`` values.
         :rtype: tuple[:class:`~harness_designer.geometry.decimal.Decimal`, :class:`~harness_designer.geometry.decimal.Decimal`, :class:`~harness_designer.geometry.decimal.Decimal`, :class:`~harness_designer.geometry.decimal.Decimal`]
         """
+
         w, x, y, z = self.as_float
         return _d(w), _d(x), _d(y), _d(z)
 
     def __isub__(self, other: "Quaternion") -> Self:
-        """Subtract ``other`` from this quaternion in place.
+        """
+        Subtract ``other`` from this quaternion in place.
 
         :param other: Quaternion to subtract.
         :type other: :class:`Quaternion`
@@ -276,6 +308,7 @@ class Quaternion:
         :rtype: Self
         :raises TypeError: If ``other`` is not a :class:`Quaternion`.
         """
+
         if not isinstance(other, Quaternion):
             raise TypeError
 
@@ -289,7 +322,8 @@ class Quaternion:
         return self
 
     def __sub__(self, other: "Quaternion") -> "Quaternion":
-        """Return ``self`` combined with the inverse of ``other``.
+        """
+        Return ``self`` combined with the inverse of ``other``.
 
         :param other: Quaternion to subtract.
         :type other: :class:`Quaternion`
@@ -297,6 +331,7 @@ class Quaternion:
         :rtype: :class:`Quaternion`
         :raises TypeError: If ``other`` is not a :class:`Quaternion`.
         """
+
         if not isinstance(other, Quaternion):
             raise TypeError
 
@@ -304,7 +339,8 @@ class Quaternion:
 
     @staticmethod
     def __mul(qa: "Quaternion", qb: "Quaternion") -> "Quaternion":
-        """Multiply two quaternions.
+        """
+        Multiply two quaternions.
 
         :param qa: Left quaternion operand.
         :type qa: :class:`Quaternion`
@@ -313,6 +349,7 @@ class Quaternion:
         :returns: Quaternion product.
         :rtype: :class:`Quaternion`
         """
+
         wb, xb, yb, zb = qb.as_decimal
         wa, xa, ya, za = qa.as_decimal
         q = np.array([wb * wa - xb * xa - yb * ya - zb * za,
@@ -323,7 +360,8 @@ class Quaternion:
         return Quaternion(q=q)
 
     def __iadd__(self, other: "Quaternion") -> Self:
-        """Compose this quaternion with ``other`` in place.
+        """
+        Compose this quaternion with ``other`` in place.
 
         :param other: Quaternion to add.
         :type other: :class:`Quaternion`
@@ -331,6 +369,7 @@ class Quaternion:
         :rtype: Self
         :raises TypeError: If ``other`` is not a :class:`Quaternion`.
         """
+
         if not isinstance(other, Quaternion):
             raise TypeError
 
@@ -345,7 +384,8 @@ class Quaternion:
         return self
 
     def __add__(self, other: "Quaternion") -> "Quaternion":
-        """Compose this quaternion with ``other``.
+        """
+        Compose this quaternion with ``other``.
 
         :param other: Quaternion to add.
         :type other: :class:`Quaternion`
@@ -353,6 +393,7 @@ class Quaternion:
         :rtype: :class:`Quaternion`
         :raises TypeError: If ``other`` is not a :class:`Quaternion`.
         """
+
         if not isinstance(other, Quaternion):
             raise TypeError
 
@@ -360,7 +401,8 @@ class Quaternion:
         return self.__mul(diff, self)
 
     def __itruediv__(self, other: "Quaternion") -> Self:
-        """Divide quaternion components in place.
+        """
+        Divide quaternion components in place.
 
         :param other: Scalar or quaternion divisor.
         :type other: :class:`Quaternion` | int | float
@@ -368,6 +410,7 @@ class Quaternion:
         :rtype: Self
         :raises TypeError: If ``other`` is an unsupported type.
         """
+
         if isinstance(other, (int, float)):
             other = np.array([other, other, other, other], dtype=np.float64)
         elif not isinstance(other, Quaternion):
@@ -379,15 +422,17 @@ class Quaternion:
         w2, x2, y2, z2 = [_d(item) for item in other.tolist()]
 
         def _div(v1, v2):
-            """Safely divide two scalar values.
+            """
+            Safely divide two scalar values.
 
             :param v1: Dividend.
-            :type v1: object
+            :type v1: :class:`~harness_designer.geometry.decimal.Decimal`
             :param v2: Divisor.
-            :type v2: object
+            :type v2: :class:`~harness_designer.geometry.decimal.Decimal`
             :returns: Quotient or ``0.0`` when dividing by zero.
-            :rtype: object
+            :rtype: :class:`~harness_designer.geometry.decimal.Decimal` | float
             """
+
             try:
                 return v1 / v2
             except ZeroDivisionError:
@@ -402,7 +447,8 @@ class Quaternion:
         return self
 
     def __truediv__(self, other: "Quaternion") -> "Quaternion":
-        """Return a component-wise divided quaternion.
+        """
+        Return a component-wise divided quaternion.
 
         :param other: Scalar or quaternion divisor.
         :type other: :class:`Quaternion` | int | float
@@ -410,6 +456,7 @@ class Quaternion:
         :rtype: :class:`Quaternion`
         :raises TypeError: If ``other`` is an unsupported type.
         """
+
         if isinstance(other, (int, float)):
             other = np.array([other, other, other, other], dtype=np.float64)
         elif not isinstance(other, Quaternion):
@@ -421,15 +468,17 @@ class Quaternion:
         w2, x2, y2, z2 = [_d(item) for item in other.tolist()]
 
         def _div(v1, v2):
-            """Safely divide two scalar values.
+            """
+            Safely divide two scalar values.
 
             :param v1: Dividend.
-            :type v1: object
+            :type v1: :class:`~harness_designer.geometry.decimal.Decimal`
             :param v2: Divisor.
-            :type v2: object
+            :type v2: :class:`~harness_designer.geometry.decimal.Decimal`
             :returns: Quotient or ``0.0`` when dividing by zero.
-            :rtype: object
+            :rtype: :class:`~harness_designer.geometry.decimal.Decimal` | float
             """
+
             try:
                 return v1 / v2
             except ZeroDivisionError:
@@ -443,13 +492,15 @@ class Quaternion:
         return Quaternion(w, x, y, z)
 
     def __matmul__(self, other: _point.Point | np.ndarray) -> _point.Point | np.ndarray:
-        """Return ``other`` rotated by this quaternion.
+        """
+        Return ``other`` rotated by this quaternion.
 
         :param other: Point or vector to rotate.
         :type other: :class:`~harness_designer.geometry.point.Point` | :class:`numpy.ndarray`
         :returns: Rotated copy of ``other``.
         :rtype: :class:`~harness_designer.geometry.point.Point` | :class:`numpy.ndarray`
         """
+
         w, x, y, z = self.as_float
 
         # Vectorized quaternion rotation formula
@@ -468,13 +519,15 @@ class Quaternion:
             return result
 
     def __rmatmul__(self, other: _point.Point | np.ndarray) -> _point.Point | np.ndarray:
-        """Rotate ``other`` in place when possible.
+        """
+        Rotate ``other`` in place when possible.
 
         :param other: Point or vector to rotate.
         :type other: :class:`~harness_designer.geometry.point.Point` | :class:`numpy.ndarray`
         :returns: Mutated operand.
         :rtype: :class:`~harness_designer.geometry.point.Point` | :class:`numpy.ndarray`
         """
+
         w, x, y, z = self.as_float
 
         # Vectorized quaternion rotation formula
@@ -499,35 +552,42 @@ class Quaternion:
         return other
 
     def __iter__(self):
-        """Iterate over ``w, x, y, z``.
+        """
+        Iterate over ``w, x, y, z``.
 
         :returns: Iterator over quaternion components.
         :rtype: collections.abc.Iterable[float]
         """
+
         return iter(self._data.tolist())
 
     def conj(self) -> "Quaternion":
-        """Return the quaternion conjugate.
+        """
+        Return the quaternion conjugate.
 
         :returns: Conjugated quaternion.
         :rtype: :class:`Quaternion`
         """
+
         w, x, y, z = self._data.tolist()
         return Quaternion(w, -x, -y, -z)
 
     def __neg__(self) -> "Quaternion":
-        """Return the multiplicative inverse quaternion.
+        """
+        Return the multiplicative inverse quaternion.
 
         :returns: Inverse quaternion.
         :rtype: :class:`Quaternion`
         """
+
         q = self._data
 
         return Quaternion(*[float(item) for item in self.conj() / np.dot(q, q)])
 
     @classmethod
     def from_euler(cls, x: float, y: float, z: float) -> "Quaternion":
-        """Build a quaternion from Euler rotation angles in degrees.
+        """
+        Build a quaternion from Euler rotation angles in degrees.
 
         :param x: Rotation about the X axis.
         :type x: float
@@ -538,6 +598,7 @@ class Quaternion:
         :returns: Quaternion representing the rotation.
         :rtype: :class:`Quaternion`
         """
+
         rx, ry, rz = [_d(item) for item in np.deg2rad([x, y, z])]
         qx = cls(math.cos(rx / TWO), math.sin(rx / TWO), 0.0, 0.0)
         qy = cls(math.cos(ry / TWO), 0.0, math.sin(ry / TWO), 0.0)
@@ -548,11 +609,13 @@ class Quaternion:
 
     @property
     def as_euler(self) -> tuple[float, float, float]:
-        """Return the quaternion as Euler angles in degrees.
+        """
+        Return the quaternion as Euler angles in degrees.
 
         :returns: ``(x, y, z)`` Euler angles.
         :rtype: tuple[float, float, float]
         """
+
         w, x, y, z = self.as_float
 
         # Rotation matrix elements from quaternion
@@ -581,11 +644,13 @@ class Quaternion:
 
     @property
     def as_matrix(self) -> np.ndarray:
-        """Return the quaternion as a ``3 x 3`` rotation matrix.
+        """
+        Return the quaternion as a ``3 x 3`` rotation matrix.
 
         :returns: Rotation matrix.
         :rtype: :class:`numpy.ndarray`
         """
+
         w, x, y, z = self.as_decimal
 
         xx, yy, zz = x * x, y * y, z * z
@@ -606,13 +671,16 @@ class Quaternion:
         """
         Create quaternion from axis-angle representation
 
-        Args:
-            axis: 3D vector (list, tuple, or numpy array) representing rotation axis
-            angle: rotation angle in radians
 
-        Returns:
-            Quaternion representing the rotation
+        :param axis: Rotation axis.
+        :type axis: list[int | float, int | float, int | float] | :class:`numpy.ndarray`
+        :param angle: Rotation angle in radians.
+        :type angle: float
+
+        :returns: Quaternion representing the rotation.
+        :rtype: :class:`Quaternion`
         """
+
         # Convert axis to numpy array and normalize
         axis = np.array(axis, dtype=np.float32)
         axis_length = np.linalg.norm(axis)
