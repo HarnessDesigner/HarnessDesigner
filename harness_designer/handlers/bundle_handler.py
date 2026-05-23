@@ -1,5 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""Interactive handler logic for placing bundle cover objects. UNKNOWN naming details.
+"""
+
 from PySide6.QtWidgets import QDialog
 from typing import TYPE_CHECKING
 
@@ -32,6 +35,15 @@ def _get_compat_object_at_mouse(
     camera: "_camera.Camera"
 ) -> _transition.Transition | _wire_layout.WireLayout | None:
 
+    """Return the compatible object currently located beneath the mouse cursor.
+
+    :param mouse_pos: Mouse position used for picking or preview updates.
+    :type mouse_pos: _point.Point
+    :param camera: Active 3D camera used to resolve positions and visible objects.
+    :type camera: "_camera.Camera"
+    :returns: The compatible object under the cursor, or :data:`None` when no compatible object is selected.
+    :rtype: object | None
+    """
     selected = _object_picker.find_object(mouse_pos, camera.objects_in_view, camera)
 
     if isinstance(selected, (_transition.Transition, _wire_layout.WireLayout)):
@@ -41,9 +53,16 @@ def _get_compat_object_at_mouse(
 
 
 class AddBundleHandler(_handler_base.HandlerBase):
+    """Handle interactive placement of a bundle-related object. UNKNOWN placement details because parts of the implementation are incomplete.
+    """
     obj: _bundle.Bundle
 
     def __init__(self, mainframe: "_ui.MainFrame"):
+        """Initialize the object and capture the state required for later interaction.
+
+        :param mainframe: Main application frame that owns the editor and project state.
+        :type mainframe: "_ui.MainFrame"
+        """
         part_id = mainframe.editor_db.editor.bundle_covers.GetSelection()
         if part_id is None:
             dlg = _part_search.SearchDialog(
@@ -69,6 +88,8 @@ class AddBundleHandler(_handler_base.HandlerBase):
             self._finalized = True
 
     def release_capture(self) -> None:
+        """Handle release of the captured position and complete any deferred placement work.
+        """
         if self._finalized:
             return
 

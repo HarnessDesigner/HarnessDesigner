@@ -1,5 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""Scene assembly helpers for preparing geometry and lighting for ray tracing.
+"""
+
 from typing import TYPE_CHECKING
 
 import os
@@ -20,7 +23,18 @@ Config = _config.Config.ray_trace
 
 class Scene:
 
+    """Collect camera state, scene objects, materials, and lighting for the ray-tracing renderer.
+    """
     def __init__(self, width, height, camera: "_camera.Camera"):
+        """Initialize the object and capture the state required for later interaction.
+
+        :param width: Target render width in pixels.
+        :type width: int
+        :param height: Target render height in pixels.
+        :type height: int
+        :param camera: Active 3D camera used to resolve positions and visible objects.
+        :type camera: "_camera.Camera"
+        """
         self.objects = []
         self.environment_map = None
         self.width = width
@@ -31,13 +45,28 @@ class Scene:
         self.fov = camera.field_of_view
 
     def add_object(self, obj):
+        """Add an object to the scene so it can be included in later rendering work.
+
+        :param obj: Object to inspect or add to the current operation.
+        :type obj: object
+        """
         self.objects.append(obj)
 
     def load_environment_map(self, image_path):
+        """Load an environment map image and enable environment-map rendering.
+
+        :param image_path: Path to the image file that should be loaded.
+        :type image_path: str
+        """
         self.environment_map = Image.open(image_path).convert('RGB')
         Config.environment_map.enable = True
 
     def generate_environment(self, size):
+        """Generate a simple gradient environment image for the scene.
+
+        :param size: Requested image size as ``(width, height)``.
+        :type size: tuple[int, int]
+        """
         img = Image.new('RGB', size)
         pixels = img.load()
 
@@ -52,6 +81,11 @@ class Scene:
         self.environment_map = img
 
     def build(self):
+        """Build flattened geometry, BVH, material, and lighting arrays for GPU rendering.
+
+        :returns: The vertex, face, BVH, object-id, material, and light arrays required by the renderer.
+        :rtype: tuple
+        """
         thread_count = os.cpu_count() - 1
 
         processor = _bvh_processor.ThreadedBVHProcessor(num_threads=thread_count)

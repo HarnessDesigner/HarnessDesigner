@@ -1,5 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""Interactive handler logic for placing wires between compatible endpoints.
+"""
+
 from typing import TYPE_CHECKING
 
 from . import handler_base as _handler_base
@@ -25,6 +28,13 @@ Config = _config.Config.colors
 
 
 def _can_accept_wire_endpoint(obj) -> bool:
+    """Return whether the supplied object can accept a wire endpoint connection.
+
+    :param obj: Object to inspect or add to the current operation.
+    :type obj: object
+    :returns: :data:`True` when the object can serve as a wire endpoint.
+    :rtype: bool
+    """
     return isinstance(
         obj, (_wire_layout.WireLayout, _splice.Splice, _terminal.Terminal))
 
@@ -35,6 +45,15 @@ def _get_world_position_for_wire_endpoint(
 ) -> _point.Point:
 
     # First, check if user clicked on an existing object
+    """Resolve a world-space wire endpoint from either a picked object or the focal plane.
+
+    :param mouse_pos: Mouse position used for picking or preview updates.
+    :type mouse_pos: _point.Point
+    :param camera: Active 3D camera used to resolve positions and visible objects.
+    :type camera: "_camera.Camera"
+    :returns: The resolved world-space endpoint position.
+    :rtype: Point
+    """
     selected = _object_picker.find_object(
         mouse_pos, camera.objects_in_view, camera)
 
@@ -50,13 +69,29 @@ def _get_position_on_object(
     obj: _wire_layout.WireLayout | _splice.Splice | _terminal.Terminal
 ) -> _point.Point:
 
+    """Return the wire-attachment position exposed by the supplied object.
+
+    :param obj: Object to inspect or add to the current operation.
+    :type obj: _wire_layout.WireLayout | _splice.Splice | _terminal.Terminal
+    :returns: The wire-attachment point exposed by the object.
+    :rtype: Point
+    """
     return obj.obj3d.wire_position
 
 
 class AddWireHandler(_handler_base.HandlerBase):
+    """Handle interactive placement of wires between supported endpoints.
+    """
     obj: _wire.Wire
 
     def __init__(self, mainframe: "_ui.MainFrame", part_id: int):
+        """Initialize the object and capture the state required for later interaction.
+
+        :param mainframe: Main application frame that owns the editor and project state.
+        :type mainframe: "_ui.MainFrame"
+        :param part_id: Identifier of the selected part definition.
+        :type part_id: int
+        """
         super().__init__(mainframe, part_id)
 
         self._preview_material = _materials.Plastic(
@@ -71,6 +106,10 @@ class AddWireHandler(_handler_base.HandlerBase):
         self.stop_position: _point.Point = None
 
     def release_capture(self) -> None:
+        """Handle release of the captured position and complete any deferred placement work.
+
+        :raises NotImplementedError: Raised by handlers that require a subclass implementation.
+        """
         if self._finalized:
             return
 

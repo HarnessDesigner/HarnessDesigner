@@ -1,5 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""Interactive handler logic for inserting splices into wires.
+"""
+
 from typing import TYPE_CHECKING
 
 from . import handler_base as _handler_base
@@ -43,9 +46,18 @@ def _get_wire_at_mouse(
 
 
 class AddSpliceHandler(_handler_base.HandlerBase):
+    """Handle interactive insertion of splice objects into existing wires.
+    """
     obj: _splice.Splice = None
 
     def __init__(self, mainframe: "_ui.MainFrame", part_id: int):
+        """Initialize the object and capture the state required for later interaction.
+
+        :param mainframe: Main application frame that owns the editor and project state.
+        :type mainframe: "_ui.MainFrame"
+        :param part_id: Identifier of the selected part definition.
+        :type part_id: int
+        """
         super().__init__(mainframe, part_id)
         self.wire = None
 
@@ -55,9 +67,18 @@ class AddSpliceHandler(_handler_base.HandlerBase):
             _color.Color(*Config.add_object.wire_highlight))
 
     def release_capture(self) -> None:
+        """Handle release of the captured position and complete any deferred placement work.
+
+        :raises NotImplementedError: Raised by handlers that require a subclass implementation.
+        """
         raise NotImplementedError
 
     def _get_splice_length(self) -> float:
+        """Return the splice length used for preview and insertion.
+
+        :returns: The splice length in the current project units.
+        :rtype: float
+        """
         part = self.mainframe.project.gtables.splices_table[self.part_id]
         return float(part.length) if part.length else 5.0
 

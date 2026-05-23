@@ -1,5 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""Interactive handler logic for transitions and routed wires.
+"""
+
 from typing import TYPE_CHECKING
 
 from . import handler_base as _handler_base
@@ -73,6 +76,15 @@ def _repoint_all_references(ptables, old_point_id: int, new_point_id: int):
 # ── general helpers ───────────────────────────────────────────────────────────
 
 def _get_wire_or_bundle(mouse_pos, camera):
+    """Return the wire or bundle currently located beneath the mouse cursor.
+
+    :param mouse_pos: Mouse position used for picking or preview updates.
+    :type mouse_pos: Point
+    :param camera: Active 3D camera used to resolve positions and visible objects.
+    :type camera: Camera
+    :returns: The selected wire or bundle, or :data:`None` when neither matches.
+    :rtype: object | None
+    """
     selected = _object_picker.find_object(
         mouse_pos, camera.objects_in_view, camera)
     if isinstance(selected, (_wire.Wire, _bundle.Bundle)):
@@ -81,6 +93,13 @@ def _get_wire_or_bundle(mouse_pos, camera):
 
 
 def _diameter_of(obj) -> float:
+    """Return the effective diameter used when matching a wire or bundle to transition branches.
+
+    :param obj: Object to inspect or add to the current operation.
+    :type obj: object
+    :returns: The effective diameter in millimetres.
+    :rtype: float
+    """
     if isinstance(obj, _wire.Wire):
         od = obj.db_obj.part.od_mm
         return float(od) if od else 1.0
@@ -91,10 +110,28 @@ def _diameter_of(obj) -> float:
 
 
 def _fits(diameter: float, branch) -> bool:
+    """Return whether a branch accepts the supplied diameter.
+
+    :param diameter: Diameter value used for compatibility checks.
+    :type diameter: float
+    :param branch: Transition branch object to test.
+    :type branch: object
+    :returns: :data:`True` when the branch accepts the supplied diameter.
+    :rtype: bool
+    """
     return branch.min_diameter <= diameter <= branch.max_diameter
 
 
 def _best_fitting_branches(branches, diameter: float):
+    """Return the two transition branches that best fit the supplied diameter.
+
+    :param branches: Iterable of transition branches to evaluate.
+    :type branches: list
+    :param diameter: Diameter value used for compatibility checks.
+    :type diameter: float
+    :returns: The best entry and exit branches, or ``(None, None)`` when fewer than two branches fit.
+    :rtype: tuple
+    """
     fitting = sorted(
         [b for b in branches if _fits(diameter, b)],
         key=lambda b: abs(diameter - (b.min_diameter + b.max_diameter) / 2.0)
@@ -106,6 +143,23 @@ def _best_fitting_branches(branches, diameter: float):
 
 def _insert_wire(ptables, part_id, circuit_id,
                  start_id, stop_id, visible: bool):
+    """Insert a wire database row with the supplied endpoints and visibility settings.
+
+    :param ptables: Project table collection used to read or update database rows.
+    :type ptables: object
+    :param part_id: Identifier of the selected part definition.
+    :type part_id: int | None
+    :param circuit_id: Identifier of the associated circuit, if any.
+    :type circuit_id: int | None
+    :param start_id: 3D point identifier for the segment start.
+    :type start_id: int
+    :param stop_id: 3D point identifier for the segment end.
+    :type stop_id: int
+    :param visible: Whether the inserted segment should be visible in the 3D editor.
+    :type visible: bool
+    :returns: The inserted wire database row.
+    :rtype: object
+    """
     return ptables.pjt_wires_table.insert(
         part_id=part_id,
         circuit_id=circuit_id,
@@ -122,6 +176,19 @@ def _insert_wire(ptables, part_id, circuit_id,
 
 
 def _insert_bundle(ptables, part_id, start_id, stop_id):
+    """Insert a bundle database row with the supplied endpoints.
+
+    :param ptables: Project table collection used to read or update database rows.
+    :type ptables: object
+    :param part_id: Identifier of the selected part definition.
+    :type part_id: int | None
+    :param start_id: 3D point identifier for the segment start.
+    :type start_id: int
+    :param stop_id: 3D point identifier for the segment end.
+    :type stop_id: int
+    :returns: The inserted bundle database row.
+    :rtype: object
+    """
     db = ptables.pjt_bundles_table.insert(part_id=part_id)
     db.start_position3d_id = start_id
     db.stop_position3d_id  = stop_id
@@ -203,9 +270,18 @@ def _walk_bundle_chain(bundle_db_obj, ptables):
 # ══════════════════════════════════════════════════════════════════════════════
 
 class AddTransitionHandler(_handler_base.HandlerBase):
+    """Handle insertion of transition objects into wires or bundles.
+    """
     obj: _transition.Transition = None
 
     def __init__(self, mainframe: '_ui.MainFrame', part_id: int):
+        """Initialize the object and capture the state required for later interaction.
+
+        :param mainframe: Main application frame that owns the editor and project state.
+        :type mainframe: '_ui.MainFrame'
+        :param part_id: Identifier of the selected part definition.
+        :type part_id: int
+        """
         super().__init__(mainframe, part_id)
         self.target = None
 
@@ -217,9 +293,18 @@ class AddTransitionHandler(_handler_base.HandlerBase):
             _color.Color(*Config.add_object.bundle_highlight))
 
     def release_capture(self) -> None:
+        """Handle release of the captured position and complete any deferred placement work.
+
+        :raises NotImplementedError: Raised by handlers that require a subclass implementation.
+        """
         raise NotImplementedError
 
     def hover(self, mouse_pos: _point.Point):
+        """Update preview or highlight state for the supplied mouse position.
+
+        :param mouse_pos: Mouse position used for picking or preview updates.
+        :type mouse_pos: _point.Point
+        """
         target = _get_wire_or_bundle(mouse_pos, self.camera)
         if target is None:
             if self.target is not None:
@@ -233,10 +318,20 @@ class AddTransitionHandler(_handler_base.HandlerBase):
             self.target = target
 
     def start(self, mouse_pos: _point.Point):
+        """Start the handler operation for the supplied mouse position.
+
+        :param mouse_pos: Mouse position used for picking or preview updates.
+        :type mouse_pos: _point.Point
+        """
         self.is_active = True
         self.finalize(mouse_pos)
 
     def finalize(self, mouse_pos: _point.Point):
+        """Finalize the active operation using the supplied mouse position.
+
+        :param mouse_pos: Mouse position used for picking or preview updates.
+        :type mouse_pos: _point.Point
+        """
         if not self.is_active:
             return
 
@@ -321,8 +416,19 @@ class AddTransitionHandler(_handler_base.HandlerBase):
 
 class RouteThroughTransitionHandler(_handler_base.HandlerBase):
 
+    """Reconnect an existing wire or bundle endpoint to a compatible transition branch.
+    """
     def __init__(self, mainframe: '_ui.MainFrame',
                  target, is_start: bool):
+        """Initialize the object and capture the state required for later interaction.
+
+        :param mainframe: Main application frame that owns the editor and project state.
+        :type mainframe: '_ui.MainFrame'
+        :param target: Existing object being rerouted or replaced.
+        :type target: object
+        :param is_start: Whether the routed endpoint is the start point of the target object.
+        :type is_start: bool
+        """
         super().__init__(mainframe, None)
         self.target       = target
         self.is_start     = is_start
@@ -330,6 +436,8 @@ class RouteThroughTransitionHandler(_handler_base.HandlerBase):
         self._highlighted = []
 
     def _highlight_all_branches(self):
+        """Highlight every transition branch according to whether it accepts the current diameter.
+        """
         for t_obj in self.mainframe.project.transitions:
             for branch in t_obj.obj3d._branches:
                 color = (_BRANCH_FIT if _fits(self.diameter, branch)
@@ -338,18 +446,35 @@ class RouteThroughTransitionHandler(_handler_base.HandlerBase):
                 self._highlighted.append(branch)
 
     def _clear_highlights(self):
+        """Clear every highlight that this handler applied.
+        """
         for b in self._highlighted:
             b.identify(None)
         self._highlighted.clear()
 
     def start(self, mouse_pos: _point.Point):
+        """Start the handler operation for the supplied mouse position.
+
+        :param mouse_pos: Mouse position used for picking or preview updates.
+        :type mouse_pos: _point.Point
+        """
         self.is_active = True
         self._highlight_all_branches()
 
     def hover(self, mouse_pos: _point.Point):
+        """Update preview or highlight state for the supplied mouse position.
+
+        :param mouse_pos: Mouse position used for picking or preview updates.
+        :type mouse_pos: _point.Point
+        """
         pass
 
     def finalize(self, mouse_pos: _point.Point):
+        """Finalize the active operation using the supplied mouse position.
+
+        :param mouse_pos: Mouse position used for picking or preview updates.
+        :type mouse_pos: _point.Point
+        """
         if not self.is_active:
             return
 
@@ -399,14 +524,30 @@ class RouteThroughTransitionHandler(_handler_base.HandlerBase):
 
 class RouteThroughBundleHandler(_handler_base.HandlerBase):
 
+    """Reconnect an existing wire endpoint so it shares a selected bundle endpoint.
+    """
     def __init__(self, mainframe: '_ui.MainFrame',
                  target: _wire.Wire, is_start: bool):
+        """Initialize the object and capture the state required for later interaction.
+
+        :param mainframe: Main application frame that owns the editor and project state.
+        :type mainframe: '_ui.MainFrame'
+        :param target: Existing object being rerouted or replaced.
+        :type target: _wire.Wire
+        :param is_start: Whether the routed endpoint is the start point of the target object.
+        :type is_start: bool
+        """
         super().__init__(mainframe, None)
         self.target          = target
         self.is_start        = is_start
         self._hovered_bundle = None
 
     def hover(self, mouse_pos: _point.Point):
+        """Update preview or highlight state for the supplied mouse position.
+
+        :param mouse_pos: Mouse position used for picking or preview updates.
+        :type mouse_pos: _point.Point
+        """
         selected = _object_picker.find_object(
             mouse_pos, self.camera.objects_in_view, self.camera)
 
@@ -423,9 +564,19 @@ class RouteThroughBundleHandler(_handler_base.HandlerBase):
             self._hovered_bundle = selected
 
     def start(self, mouse_pos: _point.Point):
+        """Start the handler operation for the supplied mouse position.
+
+        :param mouse_pos: Mouse position used for picking or preview updates.
+        :type mouse_pos: _point.Point
+        """
         self.is_active = True
 
     def finalize(self, mouse_pos: _point.Point):
+        """Finalize the active operation using the supplied mouse position.
+
+        :param mouse_pos: Mouse position used for picking or preview updates.
+        :type mouse_pos: _point.Point
+        """
         if not self.is_active:
             return
 
@@ -503,11 +654,20 @@ class RouteThroughBundleHandler(_handler_base.HandlerBase):
 
 class RoutedWireHandler(_handler_base.HandlerBase):
 
+    """Create a wire that can pass through bundle chains and transitions before final placement.
+    """
     _IDLE     = 'idle'
     _ROUTING  = 'routing'
     _IN_TRANS = 'in_transition'
 
     def __init__(self, mainframe: '_ui.MainFrame', part_id: int):
+        """Initialize the object and capture the state required for later interaction.
+
+        :param mainframe: Main application frame that owns the editor and project state.
+        :type mainframe: '_ui.MainFrame'
+        :param part_id: Identifier of the selected part definition.
+        :type part_id: int
+        """
         super().__init__(mainframe, part_id)
         self._state        = self._IDLE
         self._segments     = []
@@ -517,31 +677,59 @@ class RoutedWireHandler(_handler_base.HandlerBase):
         self._highlighted  = []
 
     def _clear_highlights(self):
+        """Clear every highlight that this handler applied.
+        """
         for obj in self._highlighted:
             obj.identify(None)
         self._highlighted.clear()
 
     def _commit(self, stop_id: int, visible: bool):
+        """Append a routed wire segment and advance the current segment start identifier.
+
+        :param stop_id: 3D point identifier for the segment end.
+        :type stop_id: int
+        :param visible: Whether the inserted segment should be visible in the 3D editor.
+        :type visible: bool
+        """
         if self._seg_start_id is not None:
             self._segments.append((self._seg_start_id, stop_id, visible))
         self._seg_start_id = stop_id
 
     def _commit_chain(self, ordered_point_ids: list):
+        """Append routed wire segments for every adjacent pair in the supplied point chain.
+
+        :param ordered_point_ids: Ordered point identifiers describing a routed path.
+        :type ordered_point_ids: list
+        """
         for i in range(len(ordered_point_ids) - 1):
             self._segments.append(
                 (ordered_point_ids[i], ordered_point_ids[i + 1], False))
         self._seg_start_id = ordered_point_ids[-1]
 
     def _delete_preview(self):
+        """Delete the current preview object and any temporary database rows it owns.
+        """
         if self._preview is not None:
             self._preview.delete()
             self._preview = None
 
     def _wire_od(self) -> float:
+        """Return the active wire outer diameter used for routing decisions.
+
+        :returns: The value returned by ``_wire_od``.
+        :rtype: float
+        """
         od = self.mainframe.project.gtables.wires_table[self.part_id].od_mm
         return float(od) if od else 1.0
 
     def _highlight_exit_branches(self, diameter: float, exclude_branch):
+        """Highlight exit branches that can be used after entering a transition.
+
+        :param diameter: Diameter value used for compatibility checks.
+        :type diameter: float
+        :param exclude_branch: Branch that should remain unhighlighted while choosing an exit branch.
+        :type exclude_branch: object
+        """
         for t_obj in self.mainframe.project.transitions:
             for branch in t_obj.obj3d._branches:
                 if branch is exclude_branch:
@@ -553,6 +741,11 @@ class RoutedWireHandler(_handler_base.HandlerBase):
                 self._highlighted.append(branch)
 
     def start(self, mouse_pos: _point.Point):
+        """Start the handler operation for the supplied mouse position.
+
+        :param mouse_pos: Mouse position used for picking or preview updates.
+        :type mouse_pos: _point.Point
+        """
         if self._state == self._IDLE:
             self._begin(mouse_pos)
         elif self._state == self._ROUTING:
@@ -561,14 +754,29 @@ class RoutedWireHandler(_handler_base.HandlerBase):
             self._handle_exit_click(mouse_pos)
 
     def hover(self, mouse_pos: _point.Point):
+        """Update preview or highlight state for the supplied mouse position.
+
+        :param mouse_pos: Mouse position used for picking or preview updates.
+        :type mouse_pos: _point.Point
+        """
         if self._state == self._ROUTING:
             self._update_preview(mouse_pos)
 
     def finalize(self, mouse_pos: _point.Point):
+        """Finalize the active operation using the supplied mouse position.
+
+        :param mouse_pos: Mouse position used for picking or preview updates.
+        :type mouse_pos: _point.Point
+        """
         if self._state == self._ROUTING:
             self._place_all(mouse_pos)
 
     def _begin(self, mouse_pos: _point.Point):
+        """Create the first routed-wire point on the focal plane and enter routing mode.
+
+        :param mouse_pos: Mouse position used for picking or preview updates.
+        :type mouse_pos: _point.Point
+        """
         pos = _utils.get_position_on_focal_plane(mouse_pos, self.camera)
         if pos is None:
             return
@@ -578,6 +786,11 @@ class RoutedWireHandler(_handler_base.HandlerBase):
         self.is_active = True
 
     def _update_preview(self, mouse_pos: _point.Point):
+        """Create or move the routed-wire preview segment for the current cursor position.
+
+        :param mouse_pos: Mouse position used for picking or preview updates.
+        :type mouse_pos: _point.Point
+        """
         target = _get_wire_or_bundle(mouse_pos, self.camera)
         if target is not None:
             pos, _ = _utils.get_closest_point_on_wire(
@@ -602,6 +815,11 @@ class RoutedWireHandler(_handler_base.HandlerBase):
             end_pos += delta
 
     def _handle_routing_click(self, mouse_pos: _point.Point):
+        """Handle a routing click while the handler is outside a transition.
+
+        :param mouse_pos: Mouse position used for picking or preview updates.
+        :type mouse_pos: _point.Point
+        """
         from ..objects.objects3d.transition import Branch as _Branch3D
 
         selected = _object_picker.find_object(
@@ -648,6 +866,11 @@ class RoutedWireHandler(_handler_base.HandlerBase):
             self._place_all(mouse_pos)
 
     def _handle_exit_click(self, mouse_pos: _point.Point):
+        """Handle selection of the exit branch while the routed wire is inside a transition.
+
+        :param mouse_pos: Mouse position used for picking or preview updates.
+        :type mouse_pos: _point.Point
+        """
         from ..objects.objects3d.transition import Branch as _Branch3D
 
         selected = _object_picker.find_object(
@@ -667,6 +890,11 @@ class RoutedWireHandler(_handler_base.HandlerBase):
         self._state = self._ROUTING
 
     def _place_all(self, mouse_pos: _point.Point):
+        """Commit every queued routed-wire segment and any required invisible wire layouts.
+
+        :param mouse_pos: Mouse position used for picking or preview updates.
+        :type mouse_pos: _point.Point
+        """
         self._delete_preview()
         self._clear_highlights()
 
@@ -714,6 +942,8 @@ class RoutedWireHandler(_handler_base.HandlerBase):
         self._reset()
 
     def _reset(self):
+        """Reset the routed-wire handler back to its idle state.
+        """
         self._stat = self._IDLE
         self._segments = []
         self._seg_start_id = None

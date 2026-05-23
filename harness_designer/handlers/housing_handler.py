@@ -1,5 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""Interactive handler logic for placing housing objects.
+"""
+
 from PySide6.QtWidgets import QDialog
 from typing import TYPE_CHECKING
 
@@ -22,9 +25,16 @@ Config = _config.Config.colors
 
 
 class AddHousingHandler(_handler_base.HandlerBase):
+    """Handle interactive placement of housings in the 3D editor.
+    """
     obj: _housing.Housing = None
 
     def __init__(self, mainframe: "_ui.MainFrame"):
+        """Initialize the object and capture the state required for later interaction.
+
+        :param mainframe: Main application frame that owns the editor and project state.
+        :type mainframe: "_ui.MainFrame"
+        """
         part_id = mainframe.editor_db.editor.housings.GetSelection()
 
         if part_id is None:
@@ -63,9 +73,16 @@ class AddHousingHandler(_handler_base.HandlerBase):
             dlg.deleteLater()
 
     def hover(self, mouse_pos: _point.Point):
+        """Update preview or highlight state for the supplied mouse position.
+
+        :param mouse_pos: Mouse position used for picking or preview updates.
+        :type mouse_pos: _point.Point
+        """
         pass
 
     def release_capture(self) -> None:
+        """Handle release of the captured position and complete any deferred placement work.
+        """
         if self._finalized:
             return
 

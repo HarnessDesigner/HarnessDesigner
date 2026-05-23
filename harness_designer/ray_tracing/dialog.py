@@ -1,5 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""Dialog helpers for configuring, running, and previewing ray-tracing renders.
+"""
+
 from typing import TYPE_CHECKING
 
 import os
@@ -31,7 +34,16 @@ Config = _config.Config.ray_trace
 
 class RayTracingDialog(QDialog):
 
+    """Display render progress, preview the current image, and expose save/settings actions for the ray tracer.
+    """
     def __init__(self, parent: "_ui.MainFrame", title="Ray Tracing Progress"):
+        """Initialize the object and capture the state required for later interaction.
+
+        :param parent: Owning main window or parent widget.
+        :type parent: "_ui.MainFrame"
+        :param title: Dialog title text shown in the custom header.
+        :type title: str
+        """
         self._parent = parent
         super().__init__(parent, Qt.Dialog | Qt.WindowCloseButtonHint)
         self.setWindowTitle('')
@@ -110,10 +122,14 @@ class RayTracingDialog(QDialog):
             )
 
     def on_settings(self):
+        """Open the render settings dialog for the current operation.
+        """
         dlg = _render_settings.RenderSettingsDialog(self)
         dlg.exec()
 
     def on_mfb2(self):
+        """Handle the secondary action button. UNKNOWN button naming details.
+        """
         label = self.mfb2.text()
         if label == 'Start':
             self.mfb2.setText('Cancel')
@@ -156,6 +172,8 @@ class RayTracingDialog(QDialog):
             self.settings_btn.setEnabled(True)
 
     def on_mfb1(self):
+        """Handle the primary action button. UNKNOWN button naming details.
+        """
         label = self.mfb1.text()
 
         if label == 'Close':
@@ -177,6 +195,16 @@ class RayTracingDialog(QDialog):
                     self.current_image.save(path)
 
     def update_progress(self, start_y, image_array, progress):
+        """Update the render image with a newly completed chunk and schedule a UI refresh.
+
+        :param start_y: Top row index of the rendered image chunk.
+        :type start_y: int
+        :param image_array: Rendered RGB image chunk represented as a NumPy array.
+        :type image_array: numpy.ndarray
+        :param progress: Current completion percentage for the render operation.
+        :type progress: float
+        :returns: The result of the operation. UNKNOWN exact semantics when not inferable from the current source.
+        """
         if self.cancelled:
             self.cancelled = False
             return False
@@ -196,6 +224,11 @@ class RayTracingDialog(QDialog):
         return not self.cancelled
 
     def _update_ui(self, progress):
+        """Refresh the visible progress widgets and preview image for the current render.
+
+        :param progress: Current completion percentage for the render operation.
+        :type progress: float
+        """
         self.progress.setValue(int(progress))
         self.progress_text.setText(f"{progress:.1f}%")
         self.status_text.setText(f"Ray tracing... {progress:.1f}% complete")
@@ -215,4 +248,9 @@ class RayTracingDialog(QDialog):
             self.settings_btn.setEnabled(True)
 
     def get_image(self):
+        """Return the most recently rendered image stored by the dialog.
+
+        :returns: The current :class:`~PySide6.QtGui.QImage` instance or :data:`None` when no render is available.
+        :rtype: QImage | None
+        """
         return self.current_image
