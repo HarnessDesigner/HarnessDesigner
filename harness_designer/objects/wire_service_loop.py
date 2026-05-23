@@ -13,12 +13,25 @@ if TYPE_CHECKING:
 
 
 class WireServiceLoop(_ObjectBase):
+    """Represent a wire service loop in :mod:`harness_designer.objects.wire_service_loop`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     obj2d: _wire_service_loop_2d.WireServiceLoop = None
     obj3d: _wire_service_loop_3d.WireServiceLoop = None
     db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop"):
+        """Initialise the :class:`WireServiceLoop` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mainframe: Main application frame.
+        :type mainframe: :class:`_ui.MainFrame`
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_pjt_wire_service_loop.PJTWireServiceLoop`
+        """
 
         db_obj.set_object(self)
         db_obj.add_object(self)

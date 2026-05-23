@@ -35,8 +35,16 @@ if TYPE_CHECKING:
 
 
 class Config:
+    """Represent a config in :mod:`harness_designer.ui.editor_3d.housing_editor.backup`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     class editor3d:
+        """Represent an editor 3D in :mod:`harness_designer.ui.editor_3d.housing_editor.backup`.
+
+        UNKNOWN details are inferred from the class name and surrounding code.
+        """
         lighting = _config.Config.editor3d.lighting
         virtual_canvas = _config.Config.editor3d.virtual_canvas
         keyboard_settings = _config.Config.editor3d.keyboard_settings
@@ -51,6 +59,10 @@ class Config:
         background_color = [0.70, 0.70, 0.70, 1.0]
 
         class renderer:
+            """Represent a renderer in :mod:`harness_designer.ui.editor_3d.housing_editor.backup`.
+
+            UNKNOWN details are inferred from the class name and surrounding code.
+            """
             smooth_covers = False
             smooth_boots = True
             smooth_housings = False
@@ -62,28 +74,52 @@ class Config:
             smooth_terminals = False
 
         class focal_target:
+            """Represent a focal target in :mod:`harness_designer.ui.editor_3d.housing_editor.backup`.
+
+            UNKNOWN details are inferred from the class name and surrounding code.
+            """
             enable = False
             color = [1.0, 0.4, 0.4, 1.0]
             radius = 0.25
 
         class floor:
+            """Represent a floor in :mod:`harness_designer.ui.editor_3d.housing_editor.backup`.
+
+            UNKNOWN details are inferred from the class name and surrounding code.
+            """
             enable = False
             ground_height = 0.0
             distance = 1000
 
             class grid:
+                """Represent a grid in :mod:`harness_designer.ui.editor_3d.housing_editor.backup`.
+
+                UNKNOWN details are inferred from the class name and surrounding code.
+                """
                 primary_color = [0.2039, 0.2549, 0.2902, 0.8]
                 secondary_color = [0.2925, 0.3430, 0.3430, 0.8]
                 size = 50
                 enable = False
 
             class reflections:
+                """Represent a reflections in :mod:`harness_designer.ui.editor_3d.housing_editor.backup`.
+
+                UNKNOWN details are inferred from the class name and surrounding code.
+                """
                 enable = False
                 strength = 50.0
 
     class debug:
+        """Represent a debug in :mod:`harness_designer.ui.editor_3d.housing_editor.backup`.
+
+        UNKNOWN details are inferred from the class name and surrounding code.
+        """
 
         class rendering3d:
+            """Represent a rendering 3D in :mod:`harness_designer.ui.editor_3d.housing_editor.backup`.
+
+            UNKNOWN details are inferred from the class name and surrounding code.
+            """
             draw_obb = False
             draw_aabb = False
             draw_normals = False
@@ -97,14 +133,31 @@ class Config:
             normals_color = [1.0, 1.0, 1.0]
 
     class axis_overlay:
+        """Represent an axis overlay in :mod:`harness_designer.ui.editor_3d.housing_editor.backup`.
+
+        UNKNOWN details are inferred from the class name and surrounding code.
+        """
         is_visible = False
         size = (75, 75)
         position = (830, 245)
 
 
 class Cavity(_objects.ObjectBase):
+    """Represent a cavity in :mod:`harness_designer.ui.editor_3d.housing_editor.backup`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent, cavity):
+        """Initialise the :class:`Cavity` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param cavity: Value for ``cavity``.
+        :type cavity: UNKNOWN
+        """
         super().__init__(parent)
         self.obj3d = Cavity3D(self, cavity)
         self.obj2d = None
@@ -113,9 +166,22 @@ class Cavity(_objects.ObjectBase):
 
 
 class Cavity3D(_base3d.Base3D):
+    """Represent a cavity 3D in :mod:`harness_designer.ui.editor_3d.housing_editor.backup`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     db_obj: "_cavity.Cavity" = None
 
     def __init__(self, parent, db_obj: "_cavity.Cavity"):
+        """Initialise the :class:`Cavity3D` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_cavity.Cavity`
+        """
         angle = db_obj.angle3d
         position = db_obj.position3d
         scale = _point.Point(1.0, 1.0, 1.0)
@@ -129,61 +195,159 @@ class Cavity3D(_base3d.Base3D):
 
     @property
     def compat_terminals(self) -> list["_terminal.Terminal"]:
+        """Return the compat terminals.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: list['_terminal.Terminal']
+        """
         return self.db_obj.compat_terminals
 
     @property
     def width(self) -> float:
+        """Return the width.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         return self.db_obj.width
 
     @width.setter
     def width(self, value: float):
+        """Set the width.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: float
+        """
         self.db_obj.width = value
         self.build()
 
     @property
     def height(self) -> float:
+        """Return the height.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         return self.db_obj.height
 
     @height.setter
     def height(self, value: float):
+        """Set the height.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: float
+        """
         self.db_obj.height = value
         self.build()
 
     @property
     def length(self) -> float:
+        """Return the length.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         return self.db_obj.length
 
     @length.setter
     def length(self, value: float):
+        """Set the length.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: float
+        """
         self.db_obj.length = value
         self.build()
 
     @property
     def is_round(self) -> bool:
+        """Return the is round.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: bool
+        """
         return self.db_obj.round_terminal
 
     @is_round.setter
     def is_round(self, value: bool):
+        """Set the is round.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: bool
+        """
         self.db_obj.round_terminal = value
         self.build()
 
     @property
     def terminal_size(self) -> bool:
+        """Return the terminal size.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: bool
+        """
         return self.db_obj.terminal_size
 
     @terminal_size.setter
     def terminal_size(self, value: bool):
+        """Set the terminal size.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: bool
+        """
         self.db_obj.terminal_size = value
 
     @property
     def name(self) -> str:
+        """Return the name.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: str
+        """
         return self.db_obj.name
 
     @name.setter
     def name(self, value: str):
+        """Set the name.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: str
+        """
         self.db_obj.name = value
 
     def build(self):
+        """Execute the build operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         if self.is_round:
             radius = float(_d(self.width) / _d(2.0))
             vertices, faces = _cylinder.create(radius, self.length, resolution=90, split=1)
@@ -195,8 +359,21 @@ class Cavity3D(_base3d.Base3D):
 
 
 class HousingAccessory(_objects.ObjectBase):
+    """Represent a housing accessory in :mod:`harness_designer.ui.editor_3d.housing_editor.backup`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent, position: _point.Point):
+        """Initialise the :class:`HousingAccessory` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param position: Position value.
+        :type position: :class:`_point.Point`
+        """
         super().__init__(parent)
         self.obj3d = HousingAccessory3D(self, position)
         self.obj2d = None
@@ -205,9 +382,22 @@ class HousingAccessory(_objects.ObjectBase):
 
 
 class HousingAccessory3D(_base3d.Base3D):
+    """Represent a housing accessory 3D in :mod:`harness_designer.ui.editor_3d.housing_editor.backup`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     db_obj: "_housing.Housing" = None
 
     def __init__(self, parent, position: _point.Point):
+        """Initialise the :class:`HousingAccessory3D` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param position: Position value.
+        :type position: :class:`_point.Point`
+        """
         angle = _angle.Angle()
         scale = _point.Point(1.0, 1.0, 1.0)
 
@@ -221,8 +411,21 @@ class HousingAccessory3D(_base3d.Base3D):
 
 
 class Housing(_objects.ObjectBase):
+    """Represent a housing in :mod:`harness_designer.ui.editor_3d.housing_editor.backup`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent, housing):
+        """Initialise the :class:`Housing` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param housing: Value for ``housing``.
+        :type housing: UNKNOWN
+        """
         super().__init__(parent)
         self.obj3d = Housing3D(self, housing)
         self.obj2d = None
@@ -231,9 +434,22 @@ class Housing(_objects.ObjectBase):
 
 
 class Housing3D(_base3d.Base3D):
+    """Represent a housing 3D in :mod:`harness_designer.ui.editor_3d.housing_editor.backup`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     db_obj: "_housing.Housing" = None
 
     def __init__(self, parent, db_obj: "_housing.Housing"):
+        """Initialise the :class:`Housing3D` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_housing.Housing`
+        """
         angle = _angle.Angle()
         position = _point.Point(0.0, 0.0, 0.0)
         scale = _point.Point(1.0, 1.0, 1.0)
@@ -255,26 +471,68 @@ class Housing3D(_base3d.Base3D):
 
     @property
     def tpa1_pos(self):
+        """Return the TPA 1 pos.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self.db_obj.tpa_lock_1_position3d
 
     @property
     def tpa2_pos(self):
+        """Return the TPA 2 pos.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self.db_obj.tpa_lock_2_position3d
 
     @property
     def seal_pos(self):
+        """Return the seal pos.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self.db_obj.seal_position3d
 
     @property
     def cpa_pos(self):
+        """Return the CPA pos.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self.db_obj.cpa_lock_position3d
 
     @property
     def cover_pos(self):
+        """Return the cover pos.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self.db_obj.cover_position3d
 
     @property
     def boot_pos(self):
+        """Return the boot pos.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self.db_obj.boot_position3d
 
 
@@ -291,8 +549,23 @@ def _float_ctrl_group(parent, title, axes=('X', 'Y', 'Z'), **kwargs):
 
 
 class SettingsPanel(QScrollArea):
+    """Represent a settings panel in :mod:`harness_designer.ui.editor_3d.housing_editor.backup`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent, dialog: "HousingEditor", housing: Housing3D):
+        """Initialise the :class:`SettingsPanel` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param dialog: Value for ``dialog``.
+        :type dialog: :class:`HousingEditor`
+        :param housing: Value for ``housing``.
+        :type housing: :class:`Housing3D`
+        """
         self.cavity: Cavity3D = None
         self.housing = housing
         self.dialog = dialog
@@ -442,107 +715,329 @@ class SettingsPanel(QScrollArea):
         vsizer.addStretch()
 
     def on_cavity_terminal_size(self, value):
+        """Handle the cavity terminal size event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: UNKNOWN
+        """
         if self.cavity is not None:
             self.cavity.terminal_size = float(value)
 
     def on_add_cavity(self):
+        """Handle the add cavity event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         cavity = self.dialog.add_cavity()
         self.set_cavity(cavity)
 
     def on_remove_cavity(self):
+        """Handle the remove cavity event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.dialog.remove_cavity(self.cavity)
         self.set_cavity(None)
 
     def on_cavity_name(self):
+        """Handle the cavity name event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.cavity.name = self.cavity_name.GetValue()
 
     def on_cavity_type(self, state):
+        """Handle the cavity type event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param state: Value for ``state``.
+        :type state: UNKNOWN
+        """
         self.cavity.is_round = bool(state)
 
     def on_cavity_x_pos(self, x):
+        """Handle the cavity x pos event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param x: X-coordinate value.
+        :type x: UNKNOWN
+        """
         self.cavity.position.x = x
 
     def on_cavity_y_pos(self, y):
+        """Handle the cavity y pos event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param y: Y-coordinate value.
+        :type y: UNKNOWN
+        """
         self.cavity.position.y = y
 
     def on_cavity_z_pos(self, z):
+        """Handle the cavity z pos event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param z: Z-coordinate value.
+        :type z: UNKNOWN
+        """
         self.cavity.position.z = z
 
     def on_cavity_x_size(self, width):
+        """Handle the cavity x size event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param width: Value for ``width``.
+        :type width: UNKNOWN
+        """
         self.cavity.width = width
 
     def on_cavity_y_size(self, height):
+        """Handle the cavity y size event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param height: Value for ``height``.
+        :type height: UNKNOWN
+        """
         self.cavity.height = height
 
     def on_cavity_z_size(self, length):
+        """Handle the cavity z size event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param length: Value for ``length``.
+        :type length: UNKNOWN
+        """
         self.cavity.length = length
 
     def on_cavity_x_angle(self, x):
+        """Handle the cavity x angle event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param x: X-coordinate value.
+        :type x: UNKNOWN
+        """
         self.cavity.angle.x = x
 
     def on_cavity_y_angle(self, y):
+        """Handle the cavity y angle event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param y: Y-coordinate value.
+        :type y: UNKNOWN
+        """
         self.cavity.angle.y = y
 
     def on_cavity_z_angle(self, z):
+        """Handle the cavity z angle event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param z: Z-coordinate value.
+        :type z: UNKNOWN
+        """
         self.cavity.angle.z = z
 
     def on_boot_x_pos(self, x):
+        """Handle the boot x pos event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param x: X-coordinate value.
+        :type x: UNKNOWN
+        """
         self.housing.boot_pos.x = x
 
     def on_boot_y_pos(self, y):
+        """Handle the boot y pos event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param y: Y-coordinate value.
+        :type y: UNKNOWN
+        """
         self.housing.boot_pos.y = y
 
     def on_boot_z_pos(self, z):
+        """Handle the boot z pos event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param z: Z-coordinate value.
+        :type z: UNKNOWN
+        """
         self.housing.boot_pos.z = z
 
     def on_cpa_x_pos(self, x):
+        """Handle the CPA x pos event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param x: X-coordinate value.
+        :type x: UNKNOWN
+        """
         self.housing.cpa_pos.x = x
 
     def on_cpa_y_pos(self, y):
+        """Handle the CPA y pos event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param y: Y-coordinate value.
+        :type y: UNKNOWN
+        """
         self.housing.cpa_pos.y = y
 
     def on_cpa_z_pos(self, z):
+        """Handle the CPA z pos event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param z: Z-coordinate value.
+        :type z: UNKNOWN
+        """
         self.housing.cpa_pos.z = z
 
     def on_cover_x_pos(self, x):
+        """Handle the cover x pos event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param x: X-coordinate value.
+        :type x: UNKNOWN
+        """
         self.housing.cover_pos.x = x
 
     def on_cover_y_pos(self, y):
+        """Handle the cover y pos event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param y: Y-coordinate value.
+        :type y: UNKNOWN
+        """
         self.housing.cover_pos.y = y
 
     def on_cover_z_pos(self, z):
+        """Handle the cover z pos event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param z: Z-coordinate value.
+        :type z: UNKNOWN
+        """
         self.housing.cover_pos.z = z
 
     def on_tpa1_x_pos(self, x):
+        """Handle the TPA 1 x pos event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param x: X-coordinate value.
+        :type x: UNKNOWN
+        """
         # Note: original had a bug — on_tpa1_* all wrote to tpa2_pos.
         # Preserved intentionally to match existing behaviour.
         self.housing.tpa2_pos.x = x
 
     def on_tpa1_y_pos(self, y):
+        """Handle the TPA 1 y pos event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param y: Y-coordinate value.
+        :type y: UNKNOWN
+        """
         self.housing.tpa2_pos.y = y
 
     def on_tpa1_z_pos(self, z):
+        """Handle the TPA 1 z pos event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param z: Z-coordinate value.
+        :type z: UNKNOWN
+        """
         self.housing.tpa2_pos.z = z
 
     def on_tpa2_x_pos(self, x):
+        """Handle the TPA 2 x pos event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param x: X-coordinate value.
+        :type x: UNKNOWN
+        """
         self.housing.tpa2_pos.x = x
 
     def on_tpa2_y_pos(self, y):
+        """Handle the TPA 2 y pos event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param y: Y-coordinate value.
+        :type y: UNKNOWN
+        """
         self.housing.tpa2_pos.y = y
 
     def on_tpa2_z_pos(self, z):
+        """Handle the TPA 2 z pos event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param z: Z-coordinate value.
+        :type z: UNKNOWN
+        """
         self.housing.tpa2_pos.z = z
 
     def on_seal_x_pos(self, x):
+        """Handle the seal x pos event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param x: X-coordinate value.
+        :type x: UNKNOWN
+        """
         self.housing.seal_pos.x = x
 
     def on_seal_y_pos(self, y):
+        """Handle the seal y pos event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param y: Y-coordinate value.
+        :type y: UNKNOWN
+        """
         self.housing.seal_pos.y = y
 
     def on_seal_z_pos(self, z):
+        """Handle the seal z pos event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param z: Z-coordinate value.
+        :type z: UNKNOWN
+        """
         self.housing.seal_pos.z = z
 
     def set_cavity(self, cavity: Cavity3D):
+        """Set the cavity.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param cavity: Value for ``cavity``.
+        :type cavity: :class:`Cavity3D`
+        """
         enabled = cavity is not None
         for ctrl in (
             self.cavity_name, self.cavity_type, self.cavity_terminal_size,
@@ -573,8 +1068,21 @@ class SettingsPanel(QScrollArea):
 
 
 class HousingEditor(QWidget):
+    """Represent a housing editor in :mod:`harness_designer.ui.editor_3d.housing_editor.backup`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent: "_ui.MainFrame", db_obj: "_housing.Housing"):
+        """Initialise the :class:`HousingEditor` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`_ui.MainFrame`
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_housing.Housing`
+        """
         self.db_obj = db_obj
 
         self.cavities = []
@@ -600,9 +1108,23 @@ class HousingEditor(QWidget):
 
     @property
     def editor3d(self):
+        """Return the editor 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self
 
     def remove_cavity(self, cavity):
+        """Remove the cavity.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param cavity: Value for ``cavity``.
+        :type cavity: UNKNOWN
+        """
         self.cavities.remove(cavity)
         self.canvas.remove_object(cavity)
         cavity.db_obj.delete()
@@ -611,6 +1133,13 @@ class HousingEditor(QWidget):
             cav.db_obj.idx = i + 1
 
     def add_cavity(self) -> "_cavity.Cavity":
+        """Add a cavity.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`_cavity.Cavity`
+        """
         housing_id = self.db_obj.db_id
         idx = len(self.cavities) + 1
 
@@ -623,18 +1152,53 @@ class HousingEditor(QWidget):
             return cavity
 
     def add_object(self, obj):
+        """Add an object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
         self.canvas.add_object(obj)
 
     def remove_object(self, obj):
+        """Remove the object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
         self.canvas.remove_object(obj)
 
     def _set_selected(self, obj):
+        """Set the selected.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
         self._selected_obj = obj
         self.canvas.set_selected(obj)
 
     def set_selected(self, obj):
+        """Set the selected.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
         if obj is not None:
             obj.set_selected(True)
 
     def get_selected(self):
+        """Return the selected.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self._selected_obj

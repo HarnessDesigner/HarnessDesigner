@@ -17,10 +17,25 @@ if TYPE_CHECKING:
 
 
 class HousingAccessory(_objects.ObjectBase):
+    """Represent a housing accessory in :mod:`harness_designer.ui.dialogs.housing_editor.accessory_obj`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     obj3d: "HousingAccessory3D" = None
 
     def __init__(self, parent: "_housing_editor.HousingEditorDialog",
                  position: _point.Point, color: _color.Color):
+        """Initialise the :class:`HousingAccessory` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`_housing_editor.HousingEditorDialog`
+        :param position: Position value.
+        :type position: :class:`_point.Point`
+        :param color: Value for ``color``.
+        :type color: :class:`_color.Color`
+        """
 
         super().__init__(parent, None)
         self.dialog = parent
@@ -31,10 +46,25 @@ class HousingAccessory(_objects.ObjectBase):
 
 
 class HousingAccessory3D(_base3d.Base3D):
+    """Represent a housing accessory 3D in :mod:`harness_designer.ui.dialogs.housing_editor.accessory_obj`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     db_obj: "_housing.Housing" = None
 
     def __init__(self, parent: HousingAccessory,
                  position: _point.Point, color: _color.Color):
+        """Initialise the :class:`HousingAccessory3D` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`HousingAccessory`
+        :param position: Position value.
+        :type position: :class:`_point.Point`
+        :param color: Value for ``color``.
+        :type color: :class:`_color.Color`
+        """
 
         self.dialog = parent.dialog
 
@@ -58,5 +88,12 @@ class HousingAccessory3D(_base3d.Base3D):
         parent.dialog.context.release()
 
     def _update_position(self, position: _point.Point):
+        """Update the position.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param position: Position value.
+        :type position: :class:`_point.Point`
+        """
         super()._update_position(position)
         self.dialog.canvas.Refresh()

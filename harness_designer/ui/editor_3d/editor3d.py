@@ -18,8 +18,19 @@ Config = _config.Config.editor3d
 
 
 class Editor3D:
+    """Represent an editor 3D in :mod:`harness_designer.ui.editor_3d.editor3d`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, mainframe: "_mainframe.MainFrame"):
+        """Initialise the :class:`Editor3D` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mainframe: Main application frame.
+        :type mainframe: :class:`_mainframe.MainFrame`
+        """
 
         self.editor = Editor3DPanel(mainframe)
         self.mainframe = mainframe
@@ -33,41 +44,123 @@ class Editor3D:
 
     @property
     def context(self):
+        """Return the context.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self.editor.context
 
     @property
     def camera(self):
+        """Return the camera.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self.editor.camera
 
     @property
     def config(self) -> _config.Config.editor3d:
+        """Return the config.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_config.Config.editor3d`
+        """
         return self.editor.config
 
     def set_selected(self, obj):
+        """Set the selected.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
         self.editor.set_selected(obj)
 
     def add_object(self, obj):
+        """Add an object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
         self.editor.add_object(obj)
 
     def remove_object(self, obj):
+        """Remove the object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
         self.editor.remove_object(obj)
 
     def Refresh(self, *args, **kwargs):
+        """Execute the refresh operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param args: Additional positional arguments.
+        :type args: UNKNOWN
+        :param kwargs: Additional keyword arguments.
+        :type kwargs: UNKNOWN
+        """
         self.editor.update()
 
     def Destroy(self):
+        """Execute the destroy operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.editor.deleteLater()
 
     def bind(self, signal_name, handler):
+        """Execute the bind operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param signal_name: Value for ``signal_name``.
+        :type signal_name: UNKNOWN
+        :param handler: Value for ``handler``.
+        :type handler: UNKNOWN
+        """
         self.editor.bind(signal_name, handler)
 
     def set_clone_obj(self, obj):
+        """Set the clone obj.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
         self.editor.set_clone_obj(obj)
 
 
 class Editor3DPanel(_canvas3d.Canvas3D):
+    """Represent an editor 3dpanel in :mod:`harness_designer.ui.editor_3d.editor3d`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent: "_mainframe.MainFrame"):
+        """Initialise the :class:`Editor3DPanel` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`_mainframe.MainFrame`
+        """
         if not Config.virtual_canvas.width or not Config.virtual_canvas.height:
             max_x = 0
             max_y = 0

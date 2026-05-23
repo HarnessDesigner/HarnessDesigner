@@ -7,6 +7,17 @@ from ... import logger as _logger
 
 
 def get_datasheet_id(con, path: str):  # NOQA
+    """Return the datasheet ID.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param path: Filesystem path.
+    :type path: str
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
     if not path:
         return None
 

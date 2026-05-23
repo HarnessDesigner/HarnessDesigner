@@ -10,6 +10,10 @@ if TYPE_CHECKING:
 
 
 class BundleCoversPage(_base.EditorList):
+    """Represent a bundle covers page in :mod:`harness_designer.ui.editor_db.bundle_cover`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     _has_model_3d = False
     _has_image = False
 

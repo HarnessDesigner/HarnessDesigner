@@ -10,6 +10,10 @@ if TYPE_CHECKING:
 
 
 class SplicesPage(_base.EditorList):
+    """Represent a splices page in :mod:`harness_designer.ui.editor_db.splice`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     __table_name__ = 'splices'
     __query__ = f'''\
         SELECT * FROM (

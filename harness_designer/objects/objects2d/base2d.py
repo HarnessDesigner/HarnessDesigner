@@ -23,6 +23,19 @@ class Base2D:
     def __init__(self, parent: "_ObjectBase",
                  db_obj: "_project_db.PJTEntryBase",
                  position: _point.Point, angle: _angle.Angle):
+        """Initialise the :class:`Base2D` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: _ObjectBase
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_project_db.PJTEntryBase`
+        :param position: Position value.
+        :type position: :class:`_point.Point`
+        :param angle: Value for ``angle``.
+        :type angle: :class:`_angle.Angle`
+        """
 
         self.parent: "_ObjectBase" = parent
         self.db_obj = db_obj
@@ -43,6 +56,13 @@ class Base2D:
         self._angle.bind(self._on_angle)
 
     def identify(self, color: list[float] | None):
+        """Execute the identify operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param color: Value for ``color``.
+        :type color: list[float] | None
+        """
         pass
 
     def _on_position(self, position: _point.Point) -> None:
@@ -57,17 +77,45 @@ class Base2D:
 
     @property
     def position(self) -> _point.Point:
+        """Return the position.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_point.Point`
+        """
         return self._position
 
     @property
     def angle(self) -> _angle.Angle:
+        """Return the angle.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_angle.Angle`
+        """
         return self._angle
 
     def set_selected(self, flag: bool) -> None:
+        """Set the selected.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param flag: Value for ``flag``.
+        :type flag: bool
+        """
         self._is_selected = flag
 
     @property
     def is_selected(self) -> bool:
+        """Return the is selected.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: bool
+        """
         return self._is_selected
 
     def render_gl(self, program: int, proj, view) -> None:

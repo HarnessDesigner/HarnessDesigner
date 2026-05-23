@@ -36,6 +36,13 @@ class EditorDB:
     """
 
     def __init__(self, mainframe: "_mainframe.MainFrame"):
+        """Initialise the :class:`EditorDB` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mainframe: Main application frame.
+        :type mainframe: :class:`_mainframe.MainFrame`
+        """
         self.mainframe = mainframe
         self.editor = EditorDBPanel(mainframe)
 
@@ -53,67 +60,185 @@ class EditorDB:
         self._dock.show()
 
     def Show(self, show=True):
+        """Execute the show operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param show: Value for ``show``.
+        :type show: UNKNOWN
+        """
         self.editor.setVisible(show)
 
     def Refresh(self, *args, **kwargs):
+        """Execute the refresh operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param args: Additional positional arguments.
+        :type args: UNKNOWN
+        :param kwargs: Additional keyword arguments.
+        :type kwargs: UNKNOWN
+        """
         self.editor.Refresh(*args, **kwargs)
 
     def Destroy(self):
+        """Execute the destroy operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.editor.deleteLater()
 
     def load_db(self, g_db: "_global_db.GLBTables"):
+        """Load the database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param g_db: Value for ``g_db``.
+        :type g_db: :class:`_global_db.GLBTables`
+        """
         self.editor.load_db(g_db)
 
     @property
     def accessories(self):
+        """Return the accessories.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self.editor.accessories
 
     @property
     def boots(self):
+        """Return the boots.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self.editor.boots
 
     @property
     def bundle_covers(self):
+        """Return the bundle covers.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self.editor.bundle_covers
 
     @property
     def covers(self):
+        """Return the covers.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self.editor.covers
 
     @property
     def cpa_locks(self):
+        """Return the CPA locks.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self.editor.cpa_locks
 
     @property
     def housings(self):
+        """Return the housings.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self.editor.housings
 
     @property
     def seals(self):
+        """Return the seals.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self.editor.seals
 
     @property
     def splices(self):
+        """Return the splices.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self.editor.splices
 
     @property
     def terminals(self):
+        """Return the terminals.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self.editor.terminals
 
     @property
     def tpa_locks(self):
+        """Return the TPA locks.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self.editor.tpa_locks
 
     @property
     def transitions(self):
+        """Return the transitions.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self.editor.transitions
 
     @property
     def wires(self):
+        """Return the wires.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self.editor.wires
 
     @property
     def wire_markers(self):
+        """Return the wire markers.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self.editor.wire_markers
 
 
@@ -126,6 +251,13 @@ class EditorDBPanel(QTabWidget):
     """
 
     def __init__(self, parent: "_mainframe.MainFrame"):
+        """Initialise the :class:`EditorDBPanel` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`_mainframe.MainFrame`
+        """
         super().__init__(parent)
 
         self.g_db: "_global_db.GLBTables" = None
@@ -150,6 +282,13 @@ class EditorDBPanel(QTabWidget):
         self.setMovable(True)  # matches AUI_NB_TAB_MOVE
 
     def load_db(self, g_db: "_global_db.GLBTables"):
+        """Load the database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param g_db: Value for ``g_db``.
+        :type g_db: :class:`_global_db.GLBTables`
+        """
         self.g_db = g_db
 
         self.accessories = _accessory.AccessoriesPage(
@@ -205,4 +344,13 @@ class EditorDBPanel(QTabWidget):
         self.addTab(self.wire_markers, 'Wire Markers')
 
     def Refresh(self, *_, **__):
+        """Execute the refresh operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        :param __: Value for ``__``.
+        :type __: UNKNOWN
+        """
         self.update()

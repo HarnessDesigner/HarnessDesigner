@@ -28,6 +28,15 @@ MOUSE_SWAP_AXIS = _config.MOUSE_SWAP_AXIS
 
 
 def _qt_pos(qt_event) -> _point.Point:
+    """Execute the qt pos operation.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param qt_event: Value for ``qt_event``.
+    :type qt_event: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: :class:`_point.Point`
+    """
     p = qt_event.position().toPoint()
     return _point.Point(p.x(), p.y())
 
@@ -50,8 +59,19 @@ def _qt_buttons_flag(qt_event) -> int:
 
 
 class MouseHandler:
+    """Represent a mouse handler in :mod:`harness_designer.gl.canvas3d.mouse_handler`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, canvas: _canvas.Canvas):
+        """Initialise the :class:`MouseHandler` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param canvas: Canvas instance.
+        :type canvas: :class:`_canvas.Canvas`
+        """
         self.canvas = canvas
 
         self._drag_obj: _dragging.DragObject = None
@@ -81,6 +101,15 @@ class MouseHandler:
     # ------------------------------------------------------------------
 
     def handle_event(self, event):
+        """Handle the event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param event: Event object.
+        :type event: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         t = event.type()
 
         if t == QtCore.QEvent.Type.MouseButtonPress:
@@ -146,6 +175,15 @@ class MouseHandler:
     # ------------------------------------------------------------------
 
     def _process_mouse(self, code):
+        """Execute the process mouse operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param code: Value for ``code``.
+        :type code: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         for config, func in (
             (self.canvas.config.walk, self.canvas.Walk),
             (self.canvas.config.truck_pedestal, self.canvas.TruckPedestal),
@@ -159,7 +197,25 @@ class MouseHandler:
 
             if config.mouse & code:
                 def _wrapper_func(c):
+                    """Execute the wrapper func operation.
+
+                    UNKNOWN details are inferred from the callable name and signature.
+
+                    :param c: Value for ``c``.
+                    :type c: UNKNOWN
+                    :returns: Return value. UNKNOWN details.
+                    :rtype: UNKNOWN
+                    """
                     def _wrapper(dx, dy):
+                        """Execute the wrapper operation.
+
+                        UNKNOWN details are inferred from the callable name and signature.
+
+                        :param dx: Value for ``dx``.
+                        :type dx: UNKNOWN
+                        :param dy: Value for ``dy``.
+                        :type dy: UNKNOWN
+                        """
                         if c.mouse & MOUSE_SWAP_AXIS:
                             func(dy, dx)
                         else:
@@ -169,16 +225,43 @@ class MouseHandler:
                 return _wrapper_func(config)
 
         def _do_nothing_func(_, __):
+            """Execute the do nothing func operation.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param _: Value for ``_``.
+            :type _: UNKNOWN
+            :param __: Value for ``__``.
+            :type __: UNKNOWN
+            """
             pass
 
         return _do_nothing_func
 
     @property
     def active_event(self) -> "_events.GLEvent | _events.GLObjectEvent | None":
+        """Return the active event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: _events.GLEvent | _events.GLObjectEvent | None
+        """
         return self._gl_mouse_event
 
     def _send_event(self, new_event: "_events.GLEvent | _events.GLObjectEvent",
                     qt_event) -> bool:
+        """Execute the send event operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param new_event: Value for ``new_event``.
+        :type new_event: _events.GLEvent | _events.GLObjectEvent
+        :param qt_event: Value for ``qt_event``.
+        :type qt_event: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
 
         position = _qt_pos(qt_event)
         world_position = self.canvas.camera.UnprojectPoint(position)
@@ -201,6 +284,10 @@ class MouseHandler:
         return new_event.ShouldPropagate()
 
     def _send_capture_lost(self):
+        """Execute the send capture lost operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         event = _events.GLCaptureLostEvent(_events.EVT_GL_CAPTURE_LOST)
         event.SetId(id(self.canvas))
         event.SetEventObject(self.canvas)
@@ -223,6 +310,13 @@ class MouseHandler:
     # ------------------------------------------------------------------
 
     def on_left_down(self, evt):
+        """Handle the left down event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         mouse_pos = _qt_pos(evt)
         self._mouse_pos = mouse_pos
         self._is_motion = False
@@ -234,6 +328,13 @@ class MouseHandler:
         self.canvas.grabMouse()
 
     def on_left_up(self, evt):
+        """Handle the left up event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         refresh = False
 
         event = _events.GLEvent(_events.EVT_GL_LEFT_UP)
@@ -312,6 +413,13 @@ class MouseHandler:
             self.canvas.update()
 
     def on_left_dclick(self, evt):
+        """Handle the left dclick event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         mouse_pos = _qt_pos(evt)
 
         event = _events.GLEvent(_events.EVT_GL_LEFT_DCLICK)
@@ -326,6 +434,13 @@ class MouseHandler:
                     self._send_event(event, evt)
 
     def on_middle_up(self, evt):
+        """Handle the middle up event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         refresh = False
 
         event = _events.GLEvent(_events.EVT_GL_MIDDLE_UP)
@@ -347,6 +462,13 @@ class MouseHandler:
             self.canvas.update()
 
     def on_middle_down(self, evt):
+        """Handle the middle down event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         self._is_motion = False
 
         event = _events.GLEvent(_events.EVT_GL_MIDDLE_DOWN)
@@ -357,6 +479,13 @@ class MouseHandler:
         self._mouse_pos = _qt_pos(evt)
 
     def on_middle_dclick(self, evt):
+        """Handle the middle dclick event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         mouse_pos = _qt_pos(evt)
 
         event = _events.GLEvent(_events.EVT_GL_MIDDLE_DCLICK)
@@ -372,6 +501,13 @@ class MouseHandler:
                     self._send_event(event, evt)
 
     def on_right_up(self, evt):
+        """Handle the right up event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         refresh = False
 
         event = _events.GLEvent(_events.EVT_GL_RIGHT_UP)
@@ -403,6 +539,13 @@ class MouseHandler:
             self.canvas.update()
 
     def on_right_down(self, evt):
+        """Handle the right down event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         self._is_motion = False
 
         mouse_pos = _qt_pos(evt)
@@ -420,6 +563,13 @@ class MouseHandler:
         self.canvas.grabMouse()
 
     def on_right_dclick(self, evt):
+        """Handle the right dclick event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         mouse_pos = _qt_pos(evt)
 
         event = _events.GLEvent(_events.EVT_GL_RIGHT_DCLICK)
@@ -435,11 +585,25 @@ class MouseHandler:
                     self._send_event(event, evt)
 
     def on_mouse_wheel(self, evt):
+        """Handle the mouse wheel event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         delta = 1.0 if evt.angleDelta().y() > 0 else -1.0
         self._process_mouse(MOUSE_WHEEL)(delta, 0.0)
         self.canvas.update()
 
     def on_mouse_motion(self, evt):
+        """Handle the mouse motion event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         refresh = False
 
         mouse_pos = _qt_pos(evt)
@@ -508,6 +672,13 @@ class MouseHandler:
             self.canvas.update()
 
     def on_aux1_up(self, evt):
+        """Handle the aux 1 up event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         if not self._is_motion:
             with self.canvas:
                 mouse_pos = _qt_pos(evt)
@@ -522,11 +693,25 @@ class MouseHandler:
         self.canvas.releaseMouse()
 
     def on_aux1_down(self, evt):
+        """Handle the aux 1 down event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         self._is_motion = False
         self.canvas.grabMouse()
         self._mouse_pos = _qt_pos(evt)
 
     def on_aux1_dclick(self, evt):
+        """Handle the aux 1 dclick event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         mouse_pos = _qt_pos(evt)
         selected = _object_picker.find_object(
             mouse_pos, self.canvas.objects_in_view, self.canvas.camera)
@@ -538,6 +723,13 @@ class MouseHandler:
                 self._send_event(event, evt)
 
     def on_aux2_up(self, evt):
+        """Handle the aux 2 up event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         if not self._is_motion:
             with self.canvas:
                 mouse_pos = _qt_pos(evt)
@@ -552,11 +744,25 @@ class MouseHandler:
         self.canvas.releaseMouse()
 
     def on_aux2_down(self, evt):
+        """Handle the aux 2 down event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         self._is_motion = False
         self.canvas.grabMouse()
         self._mouse_pos = _qt_pos(evt)
 
     def on_aux2_dclick(self, evt):
+        """Handle the aux 2 dclick event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         mouse_pos = _qt_pos(evt)
         selected = _object_picker.find_object(
             mouse_pos, self.canvas.objects_in_view, self.canvas.camera)

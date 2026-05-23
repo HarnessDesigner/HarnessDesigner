@@ -17,8 +17,19 @@ Config = _config.Config.editor2d
 
 
 class Editor2D:
+    """Represent an editor 2D in :mod:`harness_designer.ui.editor_2d.editor2d`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, mainframe: "_mainframe.MainFrame"):
+        """Initialise the :class:`Editor2D` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mainframe: Main application frame.
+        :type mainframe: :class:`_mainframe.MainFrame`
+        """
 
         self.editor = Editor2DPanel(mainframe)
         self.mainframe = mainframe
@@ -33,6 +44,13 @@ class Editor2D:
         dock.show()
 
     def Show(self, show=True):
+        """Execute the show operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param show: Value for ``show``.
+        :type show: UNKNOWN
+        """
         if show:
             self._dock.show()
             self._dock.raise_()
@@ -40,30 +58,91 @@ class Editor2D:
             self._dock.hide()
 
     def set_selected(self, obj):
+        """Set the selected.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
         self.editor.set_selected(obj)
 
     def add_object(self, obj):
+        """Add an object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
         self.editor.add_object(obj)
 
     def remove_object(self, obj):
+        """Remove the object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
         self.editor.remove_object(obj)
 
     def Refresh(self, *args, **kwargs):
+        """Execute the refresh operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param args: Additional positional arguments.
+        :type args: UNKNOWN
+        :param kwargs: Additional keyword arguments.
+        :type kwargs: UNKNOWN
+        """
         self.editor.update()
 
     def Destroy(self):
+        """Execute the destroy operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.editor.deleteLater()
 
     def bind(self, signal_name, handler):
+        """Execute the bind operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param signal_name: Value for ``signal_name``.
+        :type signal_name: UNKNOWN
+        :param handler: Value for ``handler``.
+        :type handler: UNKNOWN
+        """
         self.editor.bind(signal_name, handler)
 
     def set_clone_obj(self, obj):
+        """Set the clone obj.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
         self.editor.set_clone_obj(obj)
 
 
 class Editor2DPanel(_canvas2d.Canvas2D):
+    """Represent an editor 2dpanel in :mod:`harness_designer.ui.editor_2d.editor2d`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent):
+        """Initialise the :class:`Editor2DPanel` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        """
         if not Config.virtual_canvas.width or not Config.virtual_canvas.height:
             max_x = 0
             max_y = 0

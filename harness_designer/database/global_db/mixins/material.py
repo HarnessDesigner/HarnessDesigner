@@ -12,25 +12,61 @@ if TYPE_CHECKING:
 
 
 class MaterialMixin(BaseMixin):
+    """Represent a material mixin in :mod:`harness_designer.database.global_db.mixins.material`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     @property
     def material(self) -> "_material.Material":
+        """Return the material.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_material.Material`
+        """
         material_id = self._table.select('material_id', id=self._db_id)
         return self._table.db.materials_table[material_id[0][0]]
 
     @property
     def material_id(self) -> int:
+        """Return the material ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         return self._table.select('material_id', id=self._db_id)[0][0]
 
     @material_id.setter
     def material_id(self, value: int):
+        """Set the material ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, material_id=value)
         self._populate('material_id')
 
 
 class MaterialControl(_prop_ctrls.ComboBoxProperty):
+    """Represent a material control in :mod:`harness_designer.database.global_db.mixins.material`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent):
+        """Initialise the :class:`MaterialControl` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        """
         self.db_obj: MaterialMixin = None
         self.choices: list[str] = []
 
@@ -38,6 +74,13 @@ class MaterialControl(_prop_ctrls.ComboBoxProperty):
         self.property_changed.connect(self._on_material)
 
     def set_obj(self, db_obj: MaterialMixin):
+        """Set the obj.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`MaterialMixin`
+        """
         self.db_obj = db_obj
 
         if db_obj is None:
@@ -55,6 +98,13 @@ class MaterialControl(_prop_ctrls.ComboBoxProperty):
             self.Enable(True)
 
     def _on_material(self, evt: _prop_ctrls.PropertyEvent):
+        """Handle the material event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_prop_ctrls.PropertyEvent`
+        """
         name = evt.GetValue()
 
         self.db_obj.table.execute('SELECT id FROM materials WHERE name="{name}";')

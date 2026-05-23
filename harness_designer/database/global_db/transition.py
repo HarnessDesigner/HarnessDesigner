@@ -28,23 +28,48 @@ if TYPE_CHECKING:
 
 
 class TransitionsTable(TableBase):
+    """Represent a transitions table in :mod:`harness_designer.database.global_db.transition`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     __table_name__ = 'transitions'
 
     _control: "TransitionControl" = None
 
     @property
     def control(self) -> "TransitionControl":
+        """Return the control.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`TransitionControl`
+        """
         if self._control is None:
             self._control = TransitionControl(self.db.mainframe)
             self._control.hide()
         return self._control
 
     def _table_needs_update(self) -> bool:
+        """Execute the table needs update operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
         from ..create_database import transitions
 
         return transitions.table.is_ok(self)
 
     def _add_table_to_db(self, splash):
+        """Add a table to database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param splash: Value for ``splash``.
+        :type splash: UNKNOWN
+        """
         from ..create_database import transitions
 
         transitions.table.add_to_db(self)
@@ -53,15 +78,37 @@ class TransitionsTable(TableBase):
         transitions.add_records(self._con, splash, data_path)
 
     def _update_table_in_db(self):
+        """Update the table in database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         from ..create_database import transitions
 
         transitions.table.update_fields(self)
 
     def __iter__(self) -> _Iterable["Transition"]:
+        """Iterate over the available items.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Iterator or iterable result. UNKNOWN details.
+        :rtype: _Iterable['Transition']
+        """
         for db_id in TableBase.__iter__(self):
             yield Transition(self, db_id)
 
     def __getitem__(self, item) -> "Transition":
+        """Return the requested item.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param item: Item identifier or value.
+        :type item: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`Transition`
+        :raises KeyError: Raised when the operation cannot be completed.
+        :raises IndexError: Raised when the operation cannot be completed.
+        """
         if isinstance(item, int):
             if item in self:
                 return Transition(self, item)
@@ -78,6 +125,47 @@ class TransitionsTable(TableBase):
                shape_id: int, protection_ids: list[int], adhesive_ids: list[int],
                cad_id: int, datasheet_id: int, image_id: int, min_temp_id: int,
                max_temp_id: int, weight: float) -> "Transition":
+        """Execute the insert operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param part_number: Value for ``part_number``.
+        :type part_number: str
+        :param mfg_id: Identifier for the mfg.
+        :type mfg_id: int
+        :param description: Value for ``description``.
+        :type description: str
+        :param family_id: Identifier for the family.
+        :type family_id: int
+        :param series_id: Identifier for the series.
+        :type series_id: int
+        :param color_id: Identifier for the color.
+        :type color_id: int
+        :param material_id: Identifier for the material.
+        :type material_id: int
+        :param branch_count: Value for ``branch_count``.
+        :type branch_count: int
+        :param shape_id: Identifier for the shape.
+        :type shape_id: int
+        :param protection_ids: Identifier for the protection.
+        :type protection_ids: list[int]
+        :param adhesive_ids: Identifier for the adhesive.
+        :type adhesive_ids: list[int]
+        :param cad_id: Identifier for the cad.
+        :type cad_id: int
+        :param datasheet_id: Identifier for the datasheet.
+        :type datasheet_id: int
+        :param image_id: Identifier for the image.
+        :type image_id: int
+        :param min_temp_id: Identifier for the min temp.
+        :type min_temp_id: int
+        :param max_temp_id: Identifier for the max temp.
+        :type max_temp_id: int
+        :param weight: Value for ``weight``.
+        :type weight: float
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`Transition`
+        """
 
         db_id = TableBase.insert(self, part_number=part_number, mfg_id=mfg_id, description=description,
                                  family_id=family_id, series_id=series_id, color_id=color_id,
@@ -90,6 +178,13 @@ class TransitionsTable(TableBase):
 
     @property
     def search_items(self) -> dict:
+        """Return the search items.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: dict
+        """
         ret = {
             0: {
                 'label': 'Part Number',
@@ -159,10 +254,21 @@ class TransitionsTable(TableBase):
 class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyMixin,
                  ManufacturerMixin, DescriptionMixin, ColorMixin, ProtectionMixin, AdhesiveMixin,
                  ResourceMixin, TemperatureMixin, WeightMixin):
+    """Represent a transition in :mod:`harness_designer.database.global_db.transition`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     
     _table: TransitionsTable = None
 
     def build_monitor_packet(self):
+        """Build the monitor packet.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         mfg = self.manufacturer
         color = self.color
 
@@ -185,15 +291,36 @@ class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyM
 
     @property
     def branch_count(self) -> int:
+        """Return the branch count.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         return self._table.select('branch_count', id=self._db_id)[0][0]
 
     @branch_count.setter
     def branch_count(self, value: int):
+        """Set the branch count.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, branch_count=value)
         self._populate('branch_count')
 
     @property
     def branches(self) -> list["_transition_branch.TransitionBranch"]:
+        """Return the branches.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: list['_transition_branch.TransitionBranch']
+        """
         res = [None] * self.branch_count
 
         branch_ids = self._table.db.transition_branches_table.select('id', transition_id=self._db_id)
@@ -206,6 +333,13 @@ class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyM
 
     @property
     def shape(self) -> "_shape.Shape":
+        """Return the shape.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_shape.Shape`
+        """
         shape_id = self.shape_id
         from .shape import Shape
 
@@ -213,17 +347,42 @@ class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyM
 
     @property
     def shape_id(self) -> int:
+        """Return the shape ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         return self._table.select('shape_id', id=self._db_id)[0][0]
 
     @shape_id.setter
     def shape_id(self, value: int):
+        """Set the shape ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, shape_id=value)
         self._populate('shape_id')
 
 
 class TransitionControl(QTabWidget):
+    """Represent a transition control in :mod:`harness_designer.database.global_db.transition`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def set_obj(self, db_obj: Transition):
+        """Set the obj.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`Transition`
+        """
         if self.db_obj is not None:
             for i in range(self.branch_count_ctrl.GetValue()):
                 self.branch_page.removeTab(i)
@@ -266,6 +425,13 @@ class TransitionControl(QTabWidget):
                 self.branches.append(branch_ctrl)
 
     def _on_branch_count(self, evt):
+        """Handle the branch count event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         new_value = evt.GetValue()
         old_value = self.db_obj.branch_count
 
@@ -297,6 +463,13 @@ class TransitionControl(QTabWidget):
         self.db_obj.branch_count = new_value
 
     def __init__(self, parent):
+        """Initialise the :class:`TransitionControl` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        """
         self.db_obj: Transition = None
         self.branches = []
 

@@ -24,12 +24,24 @@ if TYPE_CHECKING:
 
 
 class PJTCoversTable(PJTTableBase):
+    """Represent a PJT covers table in :mod:`harness_designer.database.project_db.pjt_cover`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     __table_name__ = 'pjt_covers'
 
     _control: "PJTCoverControl" = None
 
     @property
     def control(self) -> "PJTCoverControl":
+        """Return the control.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`PJTCoverControl`
+        :raises RuntimeError: Raised when the operation cannot be completed.
+        """
         if self._control is None:
             raise RuntimeError('sanity check')
 
@@ -37,29 +49,69 @@ class PJTCoversTable(PJTTableBase):
 
     @classmethod
     def start_control(cls, mainframe):
+        """Start the control.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mainframe: Main application frame.
+        :type mainframe: UNKNOWN
+        """
         cls._control = PJTCoverControl(mainframe)
         cls._control.hide()
 
     def _table_needs_update(self) -> bool:
+        """Execute the table needs update operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
         from ..create_database import covers
 
         return covers.pjt_table.is_ok(self)
 
     def _add_table_to_db(self):
+        """Add a table to database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         from ..create_database import covers
 
         covers.pjt_table.add_to_db(self)
 
     def _update_table_in_db(self):
+        """Update the table in database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         from ..create_database import covers
 
         covers.pjt_table.update_fields(self)
 
     def __iter__(self) -> _Iterable["PJTCover"]:
+        """Iterate over the available items.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Iterator or iterable result. UNKNOWN details.
+        :rtype: _Iterable['PJTCover']
+        """
         for db_id in PJTTableBase.__iter__(self):
             yield PJTCover(self, db_id, self.project_id)
 
     def __getitem__(self, item) -> "PJTCover":
+        """Return the requested item.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param item: Item identifier or value.
+        :type item: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`PJTCover`
+        :raises KeyError: Raised when the operation cannot be completed.
+        :raises IndexError: Raised when the operation cannot be completed.
+        """
         if isinstance(item, int):
             if item in self:
                 return PJTCover(self, item, self.project_id)
@@ -68,6 +120,19 @@ class PJTCoversTable(PJTTableBase):
         raise KeyError(item)
 
     def insert(self, part_id: int, position3d_id: int, housing_id: int | None) -> "PJTCover":
+        """Execute the insert operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param part_id: Identifier for the part.
+        :type part_id: int
+        :param position3d_id: Identifier for the position 3D.
+        :type position3d_id: int
+        :param housing_id: Identifier for the housing.
+        :type housing_id: int | None
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`PJTCover`
+        """
         db_id = PJTTableBase.insert(self, part_id=part_id, position3d_id=position3d_id, housing_id=housing_id)
 
         return PJTCover(self, db_id, self.project_id)
@@ -75,10 +140,21 @@ class PJTCoversTable(PJTTableBase):
 
 class PJTCover(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin,
                PartMixin, HousingMixin, Visible3DMixin, NameMixin):
+    """Represent a PJT cover in :mod:`harness_designer.database.project_db.pjt_cover`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     _table: PJTCoversTable = None
 
     def build_monitor_packet(self):
+        """Build the monitor packet.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
 
         packet = {
             'pjt_covers': [self.db_id],
@@ -91,15 +167,36 @@ class PJTCover(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin,
         return packet
 
     def get_object(self) -> "_cover_obj.Cover":
+        """Return the object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`_cover_obj.Cover`
+        """
         if self._obj is not None:
             return self._obj()
 
         return self._obj
 
     def __release_obj_ref(self, _):
+        """Release the obj ref.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        """
         self._obj = None
 
     def set_object(self, obj: "_cover_obj.Cover"):
+        """Set the object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_cover_obj.Cover`
+        """
         if obj is not None:
             self._obj = weakref.ref(obj, self.__release_obj_ref)
         else:
@@ -107,12 +204,26 @@ class PJTCover(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin,
 
     @property
     def table(self) -> PJTCoversTable:
+        """Return the table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`PJTCoversTable`
+        """
         return self._table
 
     _stored_part: "_cover.Cover" = None
 
     @property
     def part(self) -> "_cover.Cover":
+        """Return the part.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_cover.Cover`
+        """
         if self._stored_part is None and self._obj is not None:
             part_id = self.part_id
 
@@ -126,8 +237,19 @@ class PJTCover(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin,
 
 
 class PJTCoverControl(QTabWidget):
+    """Represent a PJT cover control in :mod:`harness_designer.database.project_db.pjt_cover`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def set_obj(self, db_obj: PJTCover):
+        """Set the obj.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`PJTCover`
+        """
         self.db_obj = db_obj
 
         self.name_ctrl.set_obj(db_obj)
@@ -142,6 +264,13 @@ class PJTCoverControl(QTabWidget):
             self.cover_ctrl.set_obj(db_obj.part)
 
     def __init__(self, parent):
+        """Initialise the :class:`PJTCoverControl` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        """
         self.db_obj: PJTCover = None
 
         QTabWidget.__init__(self, parent)

@@ -12,9 +12,20 @@ if TYPE_CHECKING:
 
 
 class ManufacturerMixin(BaseMixin):
+    """Represent a manufacturer mixin in :mod:`harness_designer.database.global_db.mixins.manufacturer`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     @property
     def manufacturer(self) -> "_manufacturer.Manufacturer":
+        """Return the manufacturer.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_manufacturer.Manufacturer`
+        """
         from .. import manufacturer as _manufacturer  # NOQA
 
         mfg_id = self._table.select('mfg_id', id=self._db_id)
@@ -22,17 +33,42 @@ class ManufacturerMixin(BaseMixin):
 
     @property
     def mfg_id(self) -> int:
+        """Return the mfg ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         return self._table.select('mfg_id', id=self._db_id)[0][0]
 
     @mfg_id.setter
     def mfg_id(self, value: int):
+        """Set the mfg ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, mfg_id=value)
         self._populate('mfg_id')
 
 
 class ManufacturerControl(_prop_ctrls.Category):
+    """Represent a manufacturer control in :mod:`harness_designer.database.global_db.mixins.manufacturer`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     
     def __init__(self, parent):
+        """Initialise the :class:`ManufacturerControl` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        """
         self.db_obj: ManufacturerMixin = None
         self.choices: list[str] = []
         
@@ -57,6 +93,13 @@ class ManufacturerControl(_prop_ctrls.Category):
         self.name_ctrl.property_changed.connect(self._on_name_change)
 
     def set_obj(self, db_obj: ManufacturerMixin):
+        """Set the obj.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`ManufacturerMixin`
+        """
         self.db_obj = db_obj
 
         if db_obj is None:
@@ -115,6 +158,13 @@ class ManufacturerControl(_prop_ctrls.Category):
             self.website_ctrl.Enable(True)
 
     def _on_name_change(self, evt: _prop_ctrls.PropertyEvent):
+        """Handle the name change event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_prop_ctrls.PropertyEvent`
+        """
         name = evt.GetValue()
         rows = self.db_obj.table.execute(f'SELECT id, description, address, contact_person, phone, ext, email, website FROM manufacturers WHERE name="{name}";')
         if rows:
@@ -147,22 +197,71 @@ class ManufacturerControl(_prop_ctrls.Category):
         self.website_ctrl.SetValue(website)
 
     def _on_desc_change(self, evt):
+        """Handle the desc change event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         self.db_obj.manufacturer.description = evt.GetValue()
 
     def _on_addr_change(self, evt):
+        """Handle the addr change event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         self.db_obj.manufacturer.address = evt.GetValue()
 
     def _on_contact_change(self, evt):
+        """Handle the contact change event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         self.db_obj.manufacturer.contact_person = evt.GetValue()
 
     def _on_phone_change(self, evt):
+        """Handle the phone change event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         self.db_obj.manufacturer.phone = evt.GetValue()
 
     def _on_ext_change(self, evt):
+        """Handle the ext change event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         self.db_obj.manufacturer.ext = evt.GetValue()
 
     def _on_email_change(self, evt):
+        """Handle the email change event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         self.db_obj.manufacturer.email = evt.GetValue()
 
     def _on_website_change(self, evt):
+        """Handle the website change event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         self.db_obj.manufacturer.website = evt.GetValue()

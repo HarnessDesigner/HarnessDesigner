@@ -19,9 +19,22 @@ if TYPE_CHECKING:
 
 
 class Cavity(_objects.ObjectBase):
+    """Represent a cavity in :mod:`harness_designer.ui.dialogs.housing_editor.cavity_obj`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     obj3d: "Cavity3D" = None
 
     def __init__(self, parent: "_housing_editor.HousingEditorDialog", cavity: "_cavity.Cavity"):
+        """Initialise the :class:`Cavity` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`_housing_editor.HousingEditorDialog`
+        :param cavity: Value for ``cavity``.
+        :type cavity: :class:`_cavity.Cavity`
+        """
         super().__init__(parent, cavity)
         self.dialog = parent
         self.obj3d = Cavity3D(self, cavity)
@@ -31,9 +44,22 @@ class Cavity(_objects.ObjectBase):
 
 
 class Cavity3D(_base3d.Base3D):
+    """Represent a cavity 3D in :mod:`harness_designer.ui.dialogs.housing_editor.cavity_obj`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     db_obj: "_cavity.Cavity" = None
 
     def __init__(self, parent: Cavity, db_obj: "_cavity.Cavity"):
+        """Initialise the :class:`Cavity3D` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`Cavity`
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_cavity.Cavity`
+        """
         self.dialog: "_housing_editor.HousingEditorDialog" = parent.dialog
 
         angle = db_obj.angle3d
@@ -63,6 +89,13 @@ class Cavity3D(_base3d.Base3D):
         parent.dialog.context.release()
 
     def set_selected(self, flag: bool):
+        """Set the selected.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param flag: Value for ``flag``.
+        :type flag: bool
+        """
         if flag:
             self.dialog.cavity_panel.set_cavity(self)
         else:
@@ -72,73 +105,192 @@ class Cavity3D(_base3d.Base3D):
 
     @property
     def compat_terminals(self) -> list["_terminal.Terminal"]:
+        """Return the compat terminals.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: list['_terminal.Terminal']
+        """
         return self.db_obj.compat_terminals
 
     @compat_terminals.setter
     def compat_terminals(self, value: list[str]):
+        """Set the compat terminals.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: list[str]
+        """
         pass
 
     @property
     def width(self) -> float:
+        """Return the width.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         return self.db_obj.width
 
     @width.setter
     def width(self, value: float):
+        """Set the width.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: float
+        """
         self.db_obj.width = value
         self._scale.x = value
 
     @property
     def height(self) -> float:
+        """Return the height.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         return self.db_obj.height
 
     @height.setter
     def height(self, value: float):
+        """Set the height.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: float
+        """
         self.db_obj.height = value
         self._scale.y = value
 
     @property
     def length(self) -> float:
+        """Return the length.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         return self.db_obj.length
 
     @length.setter
     def length(self, value: float):
+        """Set the length.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: float
+        """
         self.db_obj.length = value
         self._scale.z = value
 
     @property
     def is_round(self) -> bool:
+        """Return the is round.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: bool
+        """
         return self.db_obj.round_terminal
 
     @is_round.setter
     def is_round(self, value: bool):
+        """Set the is round.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: bool
+        """
         self.db_obj.round_terminal = value
         self.build()
 
     @property
     def terminal_sizes(self) -> list[float]:
+        """Return the terminal sizes.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: list[float]
+        """
         return self.db_obj.terminal_sizes
 
     @terminal_sizes.setter
     def terminal_sizes(self, value: list[float]):
+        """Set the terminal sizes.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: list[float]
+        """
         self.db_obj.terminal_sizes = value
 
     @property
     def name(self) -> str:
+        """Return the name.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: str
+        """
         return self.db_obj.name
 
     @name.setter
     def name(self, value: str):
+        """Set the name.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: str
+        """
         self.db_obj.name = value
 
     @property
     def idx(self) -> int:
+        """Return the idx.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         return self.db_obj.idx
 
     @idx.setter
     def idx(self, value: int):
+        """Set the idx.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self.db_obj.idx = value
 
     def build(self):
+        """Execute the build operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         self.editor3d.context.acquire()
         if self.is_round:
             width = height = float(_d(self.width) / _d(2.0))

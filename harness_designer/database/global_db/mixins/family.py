@@ -12,9 +12,20 @@ if TYPE_CHECKING:
 
 
 class FamilyMixin(BaseMixin):
+    """Represent a family mixin in :mod:`harness_designer.database.global_db.mixins.family`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     @property
     def family(self) -> "_family.Family":
+        """Return the family.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_family.Family`
+        """
         from .. import family as _family  # NOQA
 
         family_id = self._table.select('family_id', id=self._db_id)
@@ -22,17 +33,42 @@ class FamilyMixin(BaseMixin):
 
     @property
     def family_id(self) -> int:
+        """Return the family ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         return self._table.select('family_id', id=self._db_id)[0][0]
 
     @family_id.setter
     def family_id(self, value: int):
+        """Set the family ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, family_id=value)
         self._populate('family_id')
 
 
 class FamilyControl(_prop_ctrls.Category):
+    """Represent a family control in :mod:`harness_designer.database.global_db.mixins.family`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent):
+        """Initialise the :class:`FamilyControl` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        """
         super().__init__(parent, 'Family')
 
         self.choices: list[str] = []
@@ -46,6 +82,13 @@ class FamilyControl(_prop_ctrls.Category):
         self.desc_ctrl.property_changed.connect(self._on_desc)
 
     def set_obj(self, db_obj: FamilyMixin):
+        """Set the obj.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`FamilyMixin`
+        """
         self.db_obj = db_obj
 
         if db_obj is None:
@@ -77,6 +120,13 @@ class FamilyControl(_prop_ctrls.Category):
             self.desc_ctrl.Enable(True)
 
     def _on_name(self, evt: _prop_ctrls.PropertyEvent):
+        """Handle the name event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_prop_ctrls.PropertyEvent`
+        """
         name = evt.GetValue()
         mfg_id = self.db_obj.family.mfg_id
 
@@ -101,5 +151,12 @@ class FamilyControl(_prop_ctrls.Category):
         self.db_obj.family_id = db_id
 
     def _on_desc(self, evt: _prop_ctrls.PropertyEvent):
+        """Handle the desc event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_prop_ctrls.PropertyEvent`
+        """
         desc = evt.GetValue()
         self.db_obj.family.description = desc

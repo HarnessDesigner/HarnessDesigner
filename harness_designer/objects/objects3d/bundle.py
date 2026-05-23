@@ -25,11 +25,24 @@ Config = _config.Config.editor3d
 
 
 class Bundle(_base3d.Base3D):
+    """Represent a bundle in :mod:`harness_designer.objects.objects3d.bundle`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     parent: "_bundle.Bundle" = None
     db_obj: "_pjt_bundle.PJTBundle" = None
 
     def __init__(self, parent: "_bundle.Bundle",
                  db_obj: "_pjt_bundle.PJTBundle"):
+        """Initialise the :class:`Bundle` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`_bundle.Bundle`
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_pjt_bundle.PJTBundle`
+        """
 
         parent.mainframe.editor3d.context.acquire()
         self._part = db_obj.part
@@ -69,9 +82,23 @@ class Bundle(_base3d.Base3D):
         parent.mainframe.editor3d.context.release()
 
     def _update_scale(self, scale: _point.Point):
+        """Update the scale.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param scale: Value for ``scale``.
+        :type scale: :class:`_point.Point`
+        """
         pass
 
     def _update_angle(self, angle: _angle.Angle):
+        """Update the angle.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param angle: Value for ``angle``.
+        :type angle: :class:`_angle.Angle`
+        """
         self._update_position(None)
 
     def _update_position(self, _: _point.Point):
@@ -118,6 +145,15 @@ class Bundle(_base3d.Base3D):
         return _angle.Angle.from_axis_angle(axis, angle)
 
     def set_diameter(self, parent_layout, value: float):
+        """Set the diameter.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent_layout: Value for ``parent_layout``.
+        :type parent_layout: UNKNOWN
+        :param value: Value to store or process.
+        :type value: float
+        """
         # TODO: set transition branch diameter
         #       finish code to cascade bundle diameter
         #       through layouts from one end of the bundle to the other stopping
@@ -142,6 +178,13 @@ class Bundle(_base3d.Base3D):
                     break
 
     def add_wire(self, wire):
+        """Add a wire.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param wire: Value for ``wire``.
+        :type wire: UNKNOWN
+        """
         # Store weak reference to the wire
         wire_ref = weakref.ref(wire, self._on_wire_deleted)
         self._wires.append(wire_ref)
@@ -151,6 +194,13 @@ class Bundle(_base3d.Base3D):
             wire.is_visible = False
 
     def remove_wire(self, wire):
+        """Remove the wire.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param wire: Value for ``wire``.
+        :type wire: UNKNOWN
+        """
         # Remove the weak reference
         for ref in self._wires[:]:
             w = ref()
@@ -201,6 +251,13 @@ class Bundle(_base3d.Base3D):
         super().delete()
 
     def get_context_menu(self):
+        """Return the context menu.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return BundleMenu(self.mainframe.editor3d.editor, self)
 
     @property
@@ -215,8 +272,21 @@ class Bundle(_base3d.Base3D):
 
 
 class BundleMenu(QMenu):
+    """Represent a bundle menu in :mod:`harness_designer.objects.objects3d.bundle`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, canvas, selected):
+        """Initialise the :class:`BundleMenu` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param canvas: Canvas instance.
+        :type canvas: UNKNOWN
+        :param selected: Value for ``selected``.
+        :type selected: UNKNOWN
+        """
         QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
@@ -240,16 +310,36 @@ class BundleMenu(QMenu):
         action.triggered.connect(self.on_properties)
 
     def on_add_handle(self):
+        """Handle the add handle event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_add_transition(self):
+        """Handle the add transition event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_select(self):
+        """Handle the select event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_delete(self):
+        """Handle the delete event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_properties(self):
+        """Handle the properties event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass

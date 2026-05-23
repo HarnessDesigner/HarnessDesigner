@@ -43,6 +43,19 @@ Config = _config.Config.editor3d
 
 
 def _build_model(b_data: "_g_transition.Transition", branches: list["Branch"], update_points=False):
+    """Build the model.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param b_data: Value for ``b_data``.
+    :type b_data: :class:`_g_transition.Transition`
+    :param branches: Value for ``branches``.
+    :type branches: list['Branch']
+    :param update_points: Value for ``update_points``.
+    :type update_points: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
     model = None
 
     for branch in b_data.branches:
@@ -121,11 +134,24 @@ def _build_model(b_data: "_g_transition.Transition", branches: list["Branch"], u
 
 
 class Transition(_base3d.Base3D):
+    """Represent a transition in :mod:`harness_designer.objects.objects3d.transition`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     parent: "_transition.Transition" = None
     db_obj: "_pjt_transition.PJTTransition" = None
 
     def __init__(self, parent: "_transition.Transition",
                  db_obj: "_pjt_transition.PJTTransition"):
+        """Initialise the :class:`Transition` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`_transition.Transition`
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_pjt_transition.PJTTransition`
+        """
 
         self._part = db_obj.part
         position = db_obj.position3d
@@ -230,6 +256,10 @@ class Transition(_base3d.Base3D):
                                 scale, material, [tris, normals, count])
 
     def build(self):
+        """Execute the build operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         inverse_angle = -self._angle
 
         for branch in self._branches:
@@ -257,6 +287,13 @@ class Transition(_base3d.Base3D):
         self.editor3d.update()
 
     def _update_angle(self, angle: _angle.Angle):
+        """Update the angle.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param angle: Value for ``angle``.
+        :type angle: :class:`_angle.Angle`
+        """
         delta = angle - self._o_angle
         for branch in self._branches:
             with branch.position:
@@ -268,6 +305,13 @@ class Transition(_base3d.Base3D):
         super()._update_angle(angle)
 
     def _update_position(self, position: _point.Point):
+        """Update the position.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param position: Position value.
+        :type position: :class:`_point.Point`
+        """
         delta = position - self._o_position
 
         for branch in self._branches:
@@ -276,20 +320,53 @@ class Transition(_base3d.Base3D):
         super()._update_position(position)
 
     def get_branch(self, point: _point.Point) -> int:
+        """Return the branch.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param point: Point value.
+        :type point: :class:`_point.Point`
+        :returns: Return value. UNKNOWN details.
+        :rtype: int
+        """
         for branch in self._branches:
             if branch.position.db_id == point.db_id:
                 return branch
 
     def get_context_menu(self):
+        """Return the context menu.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return TransitionMenu(self.mainframe.editor3d.editor, self)
 
 
 class Branch(_base3d.Base3D):
+    """Represent a branch in :mod:`harness_designer.objects.objects3d.transition`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     _parent: "_transition.Transition" = None
     db_obj: "_pjt_transition_branch.PJTTransitionBranch"
 
     def __init__(self, parent: "_transition.Transition", db_obj: "_pjt_transition_branch.PJTTransitionBranch",
                  diameter: float, position: _point.Point):
+        """Initialise the :class:`Branch` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`_transition.Transition`
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_pjt_transition_branch.PJTTransitionBranch`
+        :param diameter: Value for ``diameter``.
+        :type diameter: float
+        :param position: Position value.
+        :type position: :class:`_point.Point`
+        """
 
         parent.mainframe.editor3d.context.acquire()
 
@@ -312,28 +389,69 @@ class Branch(_base3d.Base3D):
 
     @property
     def diameter(self) -> float:
+        """Return the diameter.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         return self._diameter
 
     @diameter.setter
     def diameter(self, value: float):
+        """Set the diameter.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: float
+        """
         self._diameter = value
         self.db_obj.diameter = value
         self._parent.obj3d.build()
 
     @property
     def min_diameter(self) -> float:
+        """Return the min diameter.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         branch = self.db_obj.transition.part.branches[self.db_obj.branch_id]
         return branch.min_dia
 
     @property
     def max_diameter(self) -> float:
+        """Return the max diameter.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         branch = self.db_obj.transition.part.branches[self.db_obj.branch_id]
         return branch.max_dia
 
 
 class TransitionMenu(QMenu):
+    """Represent a transition menu in :mod:`harness_designer.objects.objects3d.transition`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, canvas, selected):
+        """Initialise the :class:`TransitionMenu` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param canvas: Canvas instance.
+        :type canvas: UNKNOWN
+        :param selected: Value for ``selected``.
+        :type selected: UNKNOWN
+        """
         QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
@@ -360,13 +478,29 @@ class TransitionMenu(QMenu):
         action.triggered.connect(self.on_properties)
 
     def on_select(self):
+        """Handle the select event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_clone(self):
+        """Handle the clone event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_delete(self):
+        """Handle the delete event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_properties(self):
+        """Handle the properties event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass

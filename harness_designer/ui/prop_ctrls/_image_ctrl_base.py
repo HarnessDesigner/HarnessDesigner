@@ -26,13 +26,39 @@ def _pil_to_pixmap(pil_img) -> QPixmap:
 
 
 def _no_image_pixmap() -> QPixmap:
+    """Execute the no image pixmap operation.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :returns: Return value. UNKNOWN details.
+    :rtype: :class:`QPixmap`
+    """
     return _pil_to_pixmap(_image.images.no_image.resize(100, 100).pil_image)
 
 
 class ImageCtrl(QWidget):
+    """Represent an image ctrl in :mod:`harness_designer.ui.prop_ctrls._image_ctrl_base`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent, file_types, original_path, saved_path,
                  support_pdf=False):
+        """Initialise the :class:`ImageCtrl` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param file_types: Value for ``file_types``.
+        :type file_types: UNKNOWN
+        :param original_path: Value for ``original_path``.
+        :type original_path: UNKNOWN
+        :param saved_path: Value for ``saved_path``.
+        :type saved_path: UNKNOWN
+        :param support_pdf: Value for ``support_pdf``.
+        :type support_pdf: UNKNOWN
+        """
         QWidget.__init__(self, parent)
         self._support_pdf = support_pdf
         self.file_types = file_types
@@ -59,9 +85,23 @@ class ImageCtrl(QWidget):
             self.get_image(original_path)
 
     def SetFileTypes(self, file_types):
+        """Execute the set file types operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param file_types: Value for ``file_types``.
+        :type file_types: UNKNOWN
+        """
         self.file_types = file_types
 
     def _set_pixmap(self, pixmap: QPixmap):
+        """Set the pixmap.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param pixmap: Value for ``pixmap``.
+        :type pixmap: :class:`QPixmap`
+        """
         self._image_label.setPixmap(
             pixmap.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation))
 
@@ -118,6 +158,13 @@ class ImageCtrl(QWidget):
             self._image_label.setText(f'PDF\n{os.path.basename(path)}')
 
     def _load_pil(self, path):
+        """Load the pil.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param path: Filesystem path.
+        :type path: UNKNOWN
+        """
         try:
             img = Image.open(path).convert('RGBA').resize(
                 (100, 100), Image.Resampling.LANCZOS)
@@ -126,6 +173,15 @@ class ImageCtrl(QWidget):
             self._set_pixmap(_no_image_pixmap())
 
     def get_image(self, path) -> bool:
+        """Return the image.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param path: Filesystem path.
+        :type path: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
         mime_types = self.file_types
         extensions = {'.' + v: k for k, v in self.file_types.items()}
 
@@ -203,9 +259,25 @@ class ImageCtrl(QWidget):
         return True
 
     def GetValue(self):
+        """Execute the get value operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self._path
 
     def SetValue(self, value) -> bool:
+        """Execute the set value operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
         if self.get_image(value):
             self._path = value
             return True

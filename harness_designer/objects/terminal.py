@@ -14,12 +14,25 @@ if TYPE_CHECKING:
 
 
 class Terminal(_ObjectBase):
+    """Represent a terminal in :mod:`harness_designer.objects.terminal`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     obj2d: _terminal_2d.Terminal = None
     obj3d: _terminal_3d.Terminal = None
     db_obj: "_pjt_terminal.PJTTerminal" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_terminal.PJTTerminal"):
+        """Initialise the :class:`Terminal` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mainframe: Main application frame.
+        :type mainframe: :class:`_ui.MainFrame`
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_pjt_terminal.PJTTerminal`
+        """
 
         db_obj.set_object(self)
         db_obj.add_object(self)
@@ -31,4 +44,11 @@ class Terminal(_ObjectBase):
 
     @property
     def wire_position(self) -> _point.Point:
+        """Return the wire position.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_point.Point`
+        """
         return self.db_obj.wire_position3d

@@ -21,12 +21,24 @@ if TYPE_CHECKING:
 
 
 class PJTWireLayoutsTable(PJTTableBase):
+    """Represent a PJT wire layouts table in :mod:`harness_designer.database.project_db.pjt_wire_layout`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     __table_name__ = 'pjt_wire_layouts'
 
     _control: "PJTWireLayoutControl" = None
 
     @property
     def control(self) -> "PJTWireLayoutControl":
+        """Return the control.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`PJTWireLayoutControl`
+        :raises RuntimeError: Raised when the operation cannot be completed.
+        """
         if self._control is None:
             raise RuntimeError('sanity check')
 
@@ -34,29 +46,69 @@ class PJTWireLayoutsTable(PJTTableBase):
 
     @classmethod
     def start_control(cls, mainframe):
+        """Start the control.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mainframe: Main application frame.
+        :type mainframe: UNKNOWN
+        """
         cls._control = PJTWireLayoutControl(mainframe)
         cls._control.hide()
 
     def _table_needs_update(self) -> bool:
+        """Execute the table needs update operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
         from ..create_database import wire_layouts
 
         return wire_layouts.pjt_table.is_ok(self)
 
     def _add_table_to_db(self):
+        """Add a table to database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         from ..create_database import wire_layouts
 
         wire_layouts.pjt_table.add_to_db(self)
 
     def _update_table_in_db(self):
+        """Update the table in database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         from ..create_database import wire_layouts
 
         wire_layouts.pjt_table.update_fields(self)
 
     def __iter__(self) -> _Iterable["PJTWireLayout"]:
+        """Iterate over the available items.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Iterator or iterable result. UNKNOWN details.
+        :rtype: _Iterable['PJTWireLayout']
+        """
         for db_id in PJTTableBase.__iter__(self):
             yield PJTWireLayout(self, db_id, self.project_id)
 
     def __getitem__(self, item) -> "PJTWireLayout":
+        """Return the requested item.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param item: Item identifier or value.
+        :type item: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`PJTWireLayout`
+        :raises KeyError: Raised when the operation cannot be completed.
+        :raises IndexError: Raised when the operation cannot be completed.
+        """
         if isinstance(item, int):
             if item in self:
                 return PJTWireLayout(self, item, self.project_id)
@@ -65,16 +117,36 @@ class PJTWireLayoutsTable(PJTTableBase):
         raise KeyError(item)
 
     def insert(self, point_id: int) -> "PJTWireLayout":
+        """Execute the insert operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param point_id: Identifier for the point.
+        :type point_id: int
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`PJTWireLayout`
+        """
         db_id = PJTTableBase.insert(self, point_id=point_id)
         return PJTWireLayout(self, db_id, self.project_id)
 
 
 class PJTWireLayout(PJTEntryBase, Position3DMixin, Position2DMixin,
                     Visible3DMixin, Visible2DMixin):
+    """Represent a PJT wire layout in :mod:`harness_designer.database.project_db.pjt_wire_layout`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     _table: PJTWireLayoutsTable = None
 
     def build_monitor_packet(self):
+        """Build the monitor packet.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         position3d_id = self.position3d_id
         position2d_id = self.position2d_id
 
@@ -90,15 +162,36 @@ class PJTWireLayout(PJTEntryBase, Position3DMixin, Position2DMixin,
         return packet
 
     def get_object(self) -> "_wire_layout_obj.WireLayout":
+        """Return the object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`_wire_layout_obj.WireLayout`
+        """
         if self._obj is not None:
             return self._obj()
 
         return self._obj
 
     def __release_obj_ref(self, _):
+        """Release the obj ref.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        """
         self._obj = None
 
     def set_object(self, obj: "_wire_layout_obj.WireLayout"):
+        """Set the object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_wire_layout_obj.WireLayout`
+        """
         if obj is not None:
             self._obj = weakref.ref(obj, self.__release_obj_ref)
         else:
@@ -106,6 +199,13 @@ class PJTWireLayout(PJTEntryBase, Position3DMixin, Position2DMixin,
 
     @property
     def attached_wires(self) -> list["_pjt_wire.PJTWire"]:
+        """Return the attached wires.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: list['_pjt_wire.PJTWire']
+        """
         res = []
         point_id = self.position3d_id
         db_ids = self._table.db.pjt_wires_table.select(
@@ -117,12 +217,30 @@ class PJTWireLayout(PJTEntryBase, Position3DMixin, Position2DMixin,
 
     @property
     def table(self) -> PJTWireLayoutsTable:
+        """Return the table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`PJTWireLayoutsTable`
+        """
         return self._table
 
 
 class PJTWireLayoutControl(QTabWidget):
+    """Represent a PJT wire layout control in :mod:`harness_designer.database.project_db.pjt_wire_layout`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def set_obj(self, db_obj: PJTWireLayout):
+        """Set the obj.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`PJTWireLayout`
+        """
         self.db_obj = db_obj
 
         self.position2d_ctrl.set_obj(db_obj)
@@ -131,6 +249,13 @@ class PJTWireLayoutControl(QTabWidget):
         self.visible3d_ctrl.set_obj(db_obj)
 
     def __init__(self, parent):
+        """Initialise the :class:`PJTWireLayoutControl` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        """
         self.db_obj: PJTWireLayout = None
 
         QTabWidget.__init__(self, parent)

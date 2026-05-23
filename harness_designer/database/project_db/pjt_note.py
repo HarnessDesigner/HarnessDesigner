@@ -24,12 +24,24 @@ if TYPE_CHECKING:
 
 
 class PJTNotesTable(PJTTableBase):
+    """Represent a PJT notes table in :mod:`harness_designer.database.project_db.pjt_note`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     __table_name__ = 'pjt_notes'
 
     _control: "PJTNoteControl" = None
 
     @property
     def control(self) -> "PJTNoteControl":
+        """Return the control.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`PJTNoteControl`
+        :raises RuntimeError: Raised when the operation cannot be completed.
+        """
         if self._control is None:
             raise RuntimeError('sanity check')
 
@@ -37,29 +49,69 @@ class PJTNotesTable(PJTTableBase):
 
     @classmethod
     def start_control(cls, mainframe):
+        """Start the control.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mainframe: Main application frame.
+        :type mainframe: UNKNOWN
+        """
         cls._control = PJTNoteControl(mainframe)
         cls._control.hide()
 
     def _table_needs_update(self) -> bool:
+        """Execute the table needs update operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
         from ..create_database import notes
 
         return notes.pjt_table.is_ok(self)
 
     def _add_table_to_db(self):
+        """Add a table to database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         from ..create_database import notes
 
         notes.pjt_table.add_to_db(self)
 
     def _update_table_in_db(self):
+        """Update the table in database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         from ..create_database import notes
 
         notes.pjt_table.update_fields(self)
 
     def __iter__(self) -> _Iterable["PJTNote"]:
+        """Iterate over the available items.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Iterator or iterable result. UNKNOWN details.
+        :rtype: _Iterable['PJTNote']
+        """
         for db_id in PJTTableBase.__iter__(self):
             yield PJTNote(self, db_id, self.project_id)
 
     def __getitem__(self, item) -> "PJTNote":
+        """Return the requested item.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param item: Item identifier or value.
+        :type item: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`PJTNote`
+        :raises KeyError: Raised when the operation cannot be completed.
+        :raises IndexError: Raised when the operation cannot be completed.
+        """
         if isinstance(item, int):
             if item in self:
                 return PJTNote(self, item, self.project_id)
@@ -69,6 +121,21 @@ class PJTNotesTable(PJTTableBase):
 
     def insert(self, point2d_id: int | None, point3d_id: int | None,
                note: str, size: int) -> "PJTNote":
+        """Execute the insert operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param point2d_id: Identifier for the point 2D.
+        :type point2d_id: int | None
+        :param point3d_id: Identifier for the point 3D.
+        :type point3d_id: int | None
+        :param note: Value for ``note``.
+        :type note: str
+        :param size: Value for ``size``.
+        :type size: int
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`PJTNote`
+        """
 
         db_id = PJTTableBase.insert(self, point2d_id=point2d_id,
                                     point3d_id=point3d_id, note=note, size=size)
@@ -78,10 +145,21 @@ class PJTNotesTable(PJTTableBase):
 
 class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin,
               Position3DMixin, Position2DMixin, Visible3DMixin, Visible2DMixin):
+    """Represent a PJT note in :mod:`harness_designer.database.project_db.pjt_note`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     _table: PJTNotesTable = None
 
     def build_monitor_packet(self):
+        """Build the monitor packet.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
 
         packet = {
             'pjt_notes': [self.db_id],
@@ -92,15 +170,36 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin,
         return packet
 
     def get_object(self) -> "_note_obj.Note":
+        """Return the object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`_note_obj.Note`
+        """
         if self._obj is not None:
             return self._obj()
 
         return self._obj
 
     def __release_obj_ref(self, _):
+        """Release the obj ref.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        """
         self._obj = None
 
     def set_object(self, obj: "_note_obj.Note"):
+        """Set the object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_note_obj.Note`
+        """
         if obj is not None:
             self._obj = weakref.ref(obj, self.__release_obj_ref)
         else:
@@ -108,102 +207,260 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin,
 
     @property
     def table(self) -> PJTNotesTable:
+        """Return the table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`PJTNotesTable`
+        """
         return self._table
 
     @property
     def size2d(self) -> int:
+        """Return the size 2D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         return self._table.select('size2d', id=self._db_id)[0][0]
 
     @size2d.setter
     def size2d(self, value: int):
+        """Set the size 2D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, size2d=value)
         self._populate('size2d')
 
     @property
     def h_align2d(self) -> int:
+        """Return the h align 2D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         return self._table.select('h_align2d', id=self._db_id)[0][0]
 
     @h_align2d.setter
     def h_align2d(self, value: int):
+        """Set the h align 2D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, h_align2d=value)
         self._populate('h_align2d')
 
     @property
     def v_align2d(self) -> int:
+        """Return the v align 2D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         return self._table.select('v_align2d', id=self._db_id)[0][0]
 
     @v_align2d.setter
     def v_align2d(self, value: int):
+        """Set the v align 2D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, v_align2d=value)
         self._populate('v_align2d')
 
     @property
     def style2d(self) -> int:
+        """Return the style 2D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         return self._table.select('style2d', id=self._db_id)[0][0]
 
     @style2d.setter
     def style2d(self, value: int):
+        """Set the style 2D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, style2d=value)
         self._populate('style2d')
 
     @property
     def is_visible2d(self) -> bool:
+        """Return the is visible 2D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: bool
+        """
         return bool(self._table.select('is_visible2d', id=self._db_id)[0][0])
 
     @is_visible2d.setter
     def is_visible2d(self, value: bool):
+        """Set the is visible 2D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: bool
+        """
         self._table.update(self._db_id, is_visible2d=int(value))
         self._populate('is_visible2d')
 
     @property
     def size3d(self) -> float:
+        """Return the size 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         return self._table.select('size3d', id=self._db_id)[0][0]
 
     @size3d.setter
     def size3d(self, value: float):
+        """Set the size 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: float
+        """
         self._table.update(self._db_id, size3d=value)
         self._populate('size3d')
 
     @property
     def h_align3d(self) -> int:
+        """Return the h align 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         return self._table.select('h_align3d', id=self._db_id)[0][0]
 
     @h_align3d.setter
     def h_align3d(self, value: int):
+        """Set the h align 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, h_align3d=value)
         self._populate('h_align3d')
 
     @property
     def v_align3d(self) -> int:
+        """Return the v align 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         return self._table.select('v_align3d', id=self._db_id)[0][0]
 
     @v_align3d.setter
     def v_align3d(self, value: int):
+        """Set the v align 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, v_align3d=value)
         self._populate('v_align3d')
 
     @property
     def style3d(self) -> int:
+        """Return the style 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         return self._table.select('style3d', id=self._db_id)[0][0]
 
     @style3d.setter
     def style3d(self, value: int):
+        """Set the style 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, style3d=value)
         self._populate('style3d')
 
     @property
     def is_visible3d(self) -> bool:
+        """Return the is visible 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: bool
+        """
         return bool(self._table.select('is_visible3d', id=self._db_id)[0][0])
 
     @is_visible3d.setter
     def is_visible3d(self, value: bool):
+        """Set the is visible 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: bool
+        """
         self._table.update(self._db_id, is_visible3d=int(value))
         self._populate('is_visible3d')
 
 
 class PJTNoteControl(QTabWidget):
+    """Represent a PJT note control in :mod:`harness_designer.database.project_db.pjt_note`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def set_obj(self, db_obj: PJTNote):
+        """Set the obj.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`PJTNote`
+        """
         if self.db_obj is not None:
             if self.db_obj.is_visible2d:
                 self.align_2d_ctrl.SetValue(build123d.TextAlign.LEFT)
@@ -273,22 +530,57 @@ class PJTNoteControl(QTabWidget):
                 self.style_3d_ctrl.hide()
 
     def _on_align2d(self, evt):
+        """Handle the align 2D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         value = evt.GetValue()
         self.db_obj.h_align2d = value
 
     def _on_align3d(self, evt):
+        """Handle the align 3D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         value = evt.GetValue()
         self.db_obj.h_align3d = value
 
     def _on_style2d(self, evt):
+        """Handle the style 2D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         value = evt.GetValue()
         self.db_obj.style2d = value
 
     def _on_style3d(self, evt):
+        """Handle the style 3D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         value = evt.GetValue()
         self.db_obj.style3d = value
 
     def __init__(self, parent):
+        """Initialise the :class:`PJTNoteControl` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        """
         self.db_obj: PJTNote = None
 
         QTabWidget.__init__(self, parent)

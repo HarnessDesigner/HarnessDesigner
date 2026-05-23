@@ -41,24 +41,77 @@ _LEVEL_COLOURS = {
 # ---------------------------------------------------------------------------
 
 class _LogModel(QtCore.QAbstractTableModel):
+    """Represent a log model in :mod:`harness_designer.ui.log_viewer.viewer`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     _HEADERS = ['Timestamp', 'Level', 'Message']
     _COLS = ['timestamp_str', 'level', 'message']
 
     def __init__(self, parent=None):
+        """Initialise the :class:`_LogModel` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        """
         super().__init__(parent)
         self._data = pd.DataFrame(columns=['timestamp', 'level', 'message', 'timestamp_str'])
 
     def rowCount(self, parent=QtCore.QModelIndex()):
+        """Execute the row count operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return len(self._data)
 
     def columnCount(self, parent=QtCore.QModelIndex()):
+        """Execute the column count operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return 3
 
     def headerData(self, section, orientation, role=QtCore.Qt.ItemDataRole.DisplayRole):
+        """Execute the header data operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param section: Value for ``section``.
+        :type section: UNKNOWN
+        :param orientation: Value for ``orientation``.
+        :type orientation: UNKNOWN
+        :param role: Value for ``role``.
+        :type role: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         if orientation == QtCore.Qt.Orientation.Horizontal and role == QtCore.Qt.ItemDataRole.DisplayRole:
             return self._HEADERS[section]
 
     def data(self, index, role=QtCore.Qt.ItemDataRole.DisplayRole):
+        """Execute the data operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param index: Index value.
+        :type index: UNKNOWN
+        :param role: Value for ``role``.
+        :type role: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         if not index.isValid() or index.row() >= len(self._data):
             return None
 
@@ -77,18 +130,41 @@ class _LogModel(QtCore.QAbstractTableModel):
         return None
 
     def _ensure_timestamp_str(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Ensure the timestamp str.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param df: Value for ``df``.
+        :type df: :class:`pd.DataFrame`
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`pd.DataFrame`
+        """
         if not df.empty and 'timestamp' in df.columns:
             df = df.copy()
             df['timestamp_str'] = df['timestamp'].astype(str)
         return df
 
     def set_data(self, df: pd.DataFrame):
+        """Set the data.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param df: Value for ``df``.
+        :type df: :class:`pd.DataFrame`
+        """
         self.beginResetModel()
         self._data = self._ensure_timestamp_str(df.copy() if not df.empty
                                                 else pd.DataFrame(columns=['timestamp', 'level', 'message']))
         self.endResetModel()
 
     def append_data(self, df: pd.DataFrame):
+        """Execute the append data operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param df: Value for ``df``.
+        :type df: :class:`pd.DataFrame`
+        """
         if df.empty:
             return
         df = self._ensure_timestamp_str(df)
@@ -105,6 +181,13 @@ class VirtualLogListCtrl(QtWidgets.QTableView):
     _append_ready = QtCore.Signal(object)  # carries a pd.DataFrame
 
     def __init__(self, parent):
+        """Initialise the :class:`VirtualLogListCtrl` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        """
         super().__init__(parent)
 
         self._model = _LogModel(self)
@@ -125,19 +208,44 @@ class VirtualLogListCtrl(QtWidgets.QTableView):
         self._append_ready.connect(self._do_append, QtCore.Qt.ConnectionType.QueuedConnection)
 
     def Destroy(self):
+        """Execute the destroy operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self._is_destroyed = True
         self.deleteLater()
 
     def _do_append(self, new_data: pd.DataFrame):
+        """Execute the do append operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param new_data: Value for ``new_data``.
+        :type new_data: :class:`pd.DataFrame`
+        """
         if not self._is_destroyed:
             self._model.append_data(new_data)
 
     def AppendData(self, data: pd.DataFrame):
+        """Execute the append data operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param data: Data payload.
+        :type data: :class:`pd.DataFrame`
+        """
         # Emit the signal so the append always runs on the main thread,
         # even when AppendData is called from a worker thread.
         self._append_ready.emit(data)
 
     def SetData(self, df: pd.DataFrame):
+        """Execute the set data operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param df: Value for ``df``.
+        :type df: :class:`pd.DataFrame`
+        """
         self._model.set_data(df)
 
 
@@ -146,12 +254,25 @@ class VirtualLogListCtrl(QtWidgets.QTableView):
 # ---------------------------------------------------------------------------
 
 class LogViewerPanel(QtWidgets.QSplitter):
+    """Represent a log viewer panel in :mod:`harness_designer.ui.log_viewer.viewer`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     # Signal used to marshal worker-thread results back onto the main thread.
     # QTimer.singleShot called from a plain threading.Thread (which has no Qt
     # event loop) never fires, so we use a queued signal connection instead.
     _callback_ready = QtCore.Signal(object)  # carries a zero-argument callable
 
     def __init__(self, parent, logger: "_logger.Log"):
+        """Initialise the :class:`LogViewerPanel` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param logger: Value for ``logger``.
+        :type logger: :class:`_logger.Log`
+        """
         super().__init__(QtCore.Qt.Orientation.Horizontal, parent)
 
         self.logger = logger
@@ -188,6 +309,10 @@ class LogViewerPanel(QtWidgets.QSplitter):
         logger.log_handler.bind(self.new_data)
 
         def _do():
+            """Execute the do operation.
+
+            UNKNOWN details are inferred from the callable name and signature.
+            """
             QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.CursorShape.WaitCursor)
             try:
                 self.load()
@@ -198,6 +323,10 @@ class LogViewerPanel(QtWidgets.QSplitter):
         QtCore.QTimer.singleShot(0, _do)
 
     def Destroy(self):
+        """Execute the destroy operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self._is_destroyed = True
         self.log_list.Destroy()
         self.deleteLater()
@@ -207,6 +336,10 @@ class LogViewerPanel(QtWidgets.QSplitter):
         fn()
 
     def _load_current_log_initial(self):
+        """Load the current log initial.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         try:
             current_log_path = self.logger.log_handler.get_current_log_path()
             if current_log_path and os.path.exists(current_log_path):
@@ -217,6 +350,13 @@ class LogViewerPanel(QtWidgets.QSplitter):
             self.logger.error(f"Failed to load initial log: {e}")
 
     def new_data(self, data=None):
+        """Execute the new data operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param data: Data payload.
+        :type data: UNKNOWN
+        """
         if self._is_destroyed:
             return
         if data is None:
@@ -230,6 +370,10 @@ class LogViewerPanel(QtWidgets.QSplitter):
     # ------------------------------------------------------------------
 
     def _on_tree_selection_changed(self):
+        """Handle the tree selection changed event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         items = self.treectrl.selectedItems()
         if not items:
             return
@@ -249,6 +393,13 @@ class LogViewerPanel(QtWidgets.QSplitter):
             self._load_archive_file(data['zipfile'], data['filename'])
 
     def on_tree_expanding(self, item: QtWidgets.QTreeWidgetItem):
+        """Handle the tree expanding event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param item: Item identifier or value.
+        :type item: :class:`QtWidgets.QTreeWidgetItem`
+        """
         item_id = id(item)
         if item_id in self.expanded_items:
             return
@@ -270,6 +421,13 @@ class LogViewerPanel(QtWidgets.QSplitter):
             self._load_hours_for_archive_date(item, data['zipfile'], data['filename'], data['date'], item_id)
 
     def on_tree_collapsed(self, item: QtWidgets.QTreeWidgetItem):
+        """Handle the tree collapsed event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param item: Item identifier or value.
+        :type item: :class:`QtWidgets.QTreeWidgetItem`
+        """
         item_id = id(item)
         self.expanded_items.discard(item_id)
         item.takeChildren()
@@ -280,10 +438,25 @@ class LogViewerPanel(QtWidgets.QSplitter):
     # ------------------------------------------------------------------
 
     def _load_dates_for_file(self, file_item: QtWidgets.QTreeWidgetItem, log_path: str, item_id: int):
+        """Load the dates for file.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param file_item: Value for ``file_item``.
+        :type file_item: :class:`QtWidgets.QTreeWidgetItem`
+        :param log_path: Value for ``log_path``.
+        :type log_path: str
+        :param item_id: Identifier for the item.
+        :type item_id: int
+        """
         file_item.takeChildren()
         QtWidgets.QTreeWidgetItem(file_item, ['Loading dates...'])
 
         def load_dates():
+            """Load the dates.
+
+            UNKNOWN details are inferred from the callable name and signature.
+            """
             dates = self._get_dates_in_log(log_path)
             self._callback_ready.emit(lambda: self._populate_dates(file_item, log_path, dates, item_id))
 
@@ -291,6 +464,19 @@ class LogViewerPanel(QtWidgets.QSplitter):
 
     def _populate_dates(self, parent_item: QtWidgets.QTreeWidgetItem, log_path: str,
                         dates: List[str], item_id: int):
+        """Execute the populate dates operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent_item: Value for ``parent_item``.
+        :type parent_item: :class:`QtWidgets.QTreeWidgetItem`
+        :param log_path: Value for ``log_path``.
+        :type log_path: str
+        :param dates: Value for ``dates``.
+        :type dates: List[str]
+        :param item_id: Identifier for the item.
+        :type item_id: int
+        """
         parent_item.takeChildren()
         self.expanded_items.add(item_id)
         if not dates:
@@ -303,10 +489,27 @@ class LogViewerPanel(QtWidgets.QSplitter):
 
     def _load_hours_for_date(self, date_item: QtWidgets.QTreeWidgetItem, log_path: str,
                              date_str: str, item_id: int):
+        """Load the hours for date.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param date_item: Value for ``date_item``.
+        :type date_item: :class:`QtWidgets.QTreeWidgetItem`
+        :param log_path: Value for ``log_path``.
+        :type log_path: str
+        :param date_str: Value for ``date_str``.
+        :type date_str: str
+        :param item_id: Identifier for the item.
+        :type item_id: int
+        """
         date_item.takeChildren()
         QtWidgets.QTreeWidgetItem(date_item, ['Loading hours...'])
 
         def load_hours():
+            """Load the hours.
+
+            UNKNOWN details are inferred from the callable name and signature.
+            """
             hours = self._get_hours_in_date(log_path, date_str)
             self._callback_ready.emit(lambda: self._populate_hours(
                 date_item, log_path, date_str, hours, item_id, False))
@@ -316,6 +519,27 @@ class LogViewerPanel(QtWidgets.QSplitter):
     def _populate_hours(self, parent_item: QtWidgets.QTreeWidgetItem, log_path: Optional[str],
                         date_str: str, hours: List[int], item_id: int,
                         is_archive: bool, zipfile_obj=None, filename=None):
+        """Execute the populate hours operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent_item: Value for ``parent_item``.
+        :type parent_item: :class:`QtWidgets.QTreeWidgetItem`
+        :param log_path: Value for ``log_path``.
+        :type log_path: Optional[str]
+        :param date_str: Value for ``date_str``.
+        :type date_str: str
+        :param hours: Value for ``hours``.
+        :type hours: List[int]
+        :param item_id: Identifier for the item.
+        :type item_id: int
+        :param is_archive: Boolean flag for whether archive.
+        :type is_archive: bool
+        :param zipfile_obj: Value for ``zipfile_obj``.
+        :type zipfile_obj: UNKNOWN
+        :param filename: Value for ``filename``.
+        :type filename: UNKNOWN
+        """
         parent_item.takeChildren()
         self.expanded_items.add(item_id)
         if not hours:
@@ -336,6 +560,17 @@ class LogViewerPanel(QtWidgets.QSplitter):
                 })
 
     def _load_archive_files(self, archive_item: QtWidgets.QTreeWidgetItem, archive_path: str, item_id: int):
+        """Load the archive files.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param archive_item: Value for ``archive_item``.
+        :type archive_item: :class:`QtWidgets.QTreeWidgetItem`
+        :param archive_path: Value for ``archive_path``.
+        :type archive_path: str
+        :param item_id: Identifier for the item.
+        :type item_id: int
+        """
         archive_item.takeChildren()
         try:
             zf = zipfile.ZipFile(archive_path, 'r')
@@ -354,10 +589,27 @@ class LogViewerPanel(QtWidgets.QSplitter):
 
     def _load_dates_for_archive_file(self, file_item: QtWidgets.QTreeWidgetItem, zipfile_obj,
                                      filename: str, item_id: int):
+        """Load the dates for archive file.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param file_item: Value for ``file_item``.
+        :type file_item: :class:`QtWidgets.QTreeWidgetItem`
+        :param zipfile_obj: Value for ``zipfile_obj``.
+        :type zipfile_obj: UNKNOWN
+        :param filename: Value for ``filename``.
+        :type filename: str
+        :param item_id: Identifier for the item.
+        :type item_id: int
+        """
         file_item.takeChildren()
         QtWidgets.QTreeWidgetItem(file_item, ['Loading dates...'])
 
         def load_dates():
+            """Load the dates.
+
+            UNKNOWN details are inferred from the callable name and signature.
+            """
             dates = self._get_dates_in_archive(zipfile_obj, filename)
             self._callback_ready.emit(lambda: self._populate_archive_dates(
                 file_item, zipfile_obj, filename, dates, item_id))
@@ -366,6 +618,21 @@ class LogViewerPanel(QtWidgets.QSplitter):
 
     def _populate_archive_dates(self, parent_item: QtWidgets.QTreeWidgetItem, zipfile_obj,
                                 filename: str, dates: List[str], item_id: int):
+        """Execute the populate archive dates operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent_item: Value for ``parent_item``.
+        :type parent_item: :class:`QtWidgets.QTreeWidgetItem`
+        :param zipfile_obj: Value for ``zipfile_obj``.
+        :type zipfile_obj: UNKNOWN
+        :param filename: Value for ``filename``.
+        :type filename: str
+        :param dates: Value for ``dates``.
+        :type dates: List[str]
+        :param item_id: Identifier for the item.
+        :type item_id: int
+        """
         parent_item.takeChildren()
         self.expanded_items.add(item_id)
         if not dates:
@@ -381,10 +648,29 @@ class LogViewerPanel(QtWidgets.QSplitter):
 
     def _load_hours_for_archive_date(self, date_item: QtWidgets.QTreeWidgetItem, zipfile_obj,
                                      filename: str, date_str: str, item_id: int):
+        """Load the hours for archive date.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param date_item: Value for ``date_item``.
+        :type date_item: :class:`QtWidgets.QTreeWidgetItem`
+        :param zipfile_obj: Value for ``zipfile_obj``.
+        :type zipfile_obj: UNKNOWN
+        :param filename: Value for ``filename``.
+        :type filename: str
+        :param date_str: Value for ``date_str``.
+        :type date_str: str
+        :param item_id: Identifier for the item.
+        :type item_id: int
+        """
         date_item.takeChildren()
         QtWidgets.QTreeWidgetItem(date_item, ['Loading hours...'])
 
         def load_hours():
+            """Load the hours.
+
+            UNKNOWN details are inferred from the callable name and signature.
+            """
             hours = self._get_hours_in_archive_date(zipfile_obj, filename, date_str)
             self._callback_ready.emit(lambda: self._populate_hours(
                 date_item, None, date_str, hours, item_id, True, zipfile_obj, filename))
@@ -397,7 +683,22 @@ class LogViewerPanel(QtWidgets.QSplitter):
 
     def _load_log_data(self, log_path: str, date_filter: Optional[str] = None,
                        hour_filter: Optional[int] = None):
+        """Load the log data.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param log_path: Value for ``log_path``.
+        :type log_path: str
+        :param date_filter: Value for ``date_filter``.
+        :type date_filter: Optional[str]
+        :param hour_filter: Value for ``hour_filter``.
+        :type hour_filter: Optional[int]
+        """
         def load_data():
+            """Load the data.
+
+            UNKNOWN details are inferred from the callable name and signature.
+            """
             df = self._read_log_file(log_path)
             if date_filter and hour_filter is not None:
                 df = self._filter_by_date_and_hour(df, date_filter, hour_filter)
@@ -410,7 +711,24 @@ class LogViewerPanel(QtWidgets.QSplitter):
     def _load_archive_file(self, zipfile_obj, filename: str,
                            date_filter: Optional[str] = None,
                            hour_filter: Optional[int] = None):
+        """Load the archive file.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param zipfile_obj: Value for ``zipfile_obj``.
+        :type zipfile_obj: UNKNOWN
+        :param filename: Value for ``filename``.
+        :type filename: str
+        :param date_filter: Value for ``date_filter``.
+        :type date_filter: Optional[str]
+        :param hour_filter: Value for ``hour_filter``.
+        :type hour_filter: Optional[int]
+        """
         def load_data():
+            """Load the data.
+
+            UNKNOWN details are inferred from the callable name and signature.
+            """
             df = self._read_archive_file(zipfile_obj, filename)
             if date_filter and hour_filter is not None:
                 df = self._filter_by_date_and_hour(df, date_filter, hour_filter)
@@ -421,6 +739,13 @@ class LogViewerPanel(QtWidgets.QSplitter):
         threading.Thread(target=load_data, daemon=True).start()
 
     def _display_log_data(self, df: pd.DataFrame):
+        """Execute the display log data operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param df: Value for ``df``.
+        :type df: :class:`pd.DataFrame`
+        """
         self.current_data = df
         self.log_list.SetData(df)
 
@@ -429,6 +754,15 @@ class LogViewerPanel(QtWidgets.QSplitter):
     # ------------------------------------------------------------------
 
     def _read_log_file(self, log_path: str) -> pd.DataFrame:
+        """Execute the read log file operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param log_path: Value for ``log_path``.
+        :type log_path: str
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`pd.DataFrame`
+        """
         try:
             if not os.path.exists(log_path):
                 return pd.DataFrame(columns=['timestamp', 'level', 'message'])
@@ -441,6 +775,17 @@ class LogViewerPanel(QtWidgets.QSplitter):
             return pd.DataFrame(columns=['timestamp', 'level', 'message'])
 
     def _read_archive_file(self, zipfile_obj, filename: str) -> pd.DataFrame:
+        """Execute the read archive file operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param zipfile_obj: Value for ``zipfile_obj``.
+        :type zipfile_obj: UNKNOWN
+        :param filename: Value for ``filename``.
+        :type filename: str
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`pd.DataFrame`
+        """
         try:
             data = zipfile_obj.read(filename)
             df = pd.read_csv(io.BytesIO(data))
@@ -452,6 +797,15 @@ class LogViewerPanel(QtWidgets.QSplitter):
             return pd.DataFrame(columns=['timestamp', 'level', 'message'])
 
     def _get_dates_in_log(self, log_path: str) -> List[str]:
+        """Return the dates in log.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param log_path: Value for ``log_path``.
+        :type log_path: str
+        :returns: Return value. UNKNOWN details.
+        :rtype: List[str]
+        """
         df = self._read_log_file(log_path)
         if df.empty or 'timestamp' not in df.columns:
             return []
@@ -459,6 +813,17 @@ class LogViewerPanel(QtWidgets.QSplitter):
         return sorted([str(d) for d in dates], reverse=True)
 
     def _get_dates_in_archive(self, zipfile_obj, filename: str) -> List[str]:
+        """Return the dates in archive.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param zipfile_obj: Value for ``zipfile_obj``.
+        :type zipfile_obj: UNKNOWN
+        :param filename: Value for ``filename``.
+        :type filename: str
+        :returns: Return value. UNKNOWN details.
+        :rtype: List[str]
+        """
         df = self._read_archive_file(zipfile_obj, filename)
         if df.empty or 'timestamp' not in df.columns:
             return []
@@ -466,6 +831,17 @@ class LogViewerPanel(QtWidgets.QSplitter):
         return sorted([str(d) for d in dates], reverse=True)
 
     def _get_hours_in_date(self, log_path: str, date_str: str) -> List[int]:
+        """Return the hours in date.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param log_path: Value for ``log_path``.
+        :type log_path: str
+        :param date_str: Value for ``date_str``.
+        :type date_str: str
+        :returns: Return value. UNKNOWN details.
+        :rtype: List[int]
+        """
         df = self._read_log_file(log_path)
         if df.empty or 'timestamp' not in df.columns:
             return []
@@ -476,6 +852,19 @@ class LogViewerPanel(QtWidgets.QSplitter):
         return sorted(df_date['timestamp'].dt.hour.unique().tolist())
 
     def _get_hours_in_archive_date(self, zipfile_obj, filename: str, date_str: str) -> List[int]:
+        """Return the hours in archive date.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param zipfile_obj: Value for ``zipfile_obj``.
+        :type zipfile_obj: UNKNOWN
+        :param filename: Value for ``filename``.
+        :type filename: str
+        :param date_str: Value for ``date_str``.
+        :type date_str: str
+        :returns: Return value. UNKNOWN details.
+        :rtype: List[int]
+        """
         df = self._read_archive_file(zipfile_obj, filename)
         if df.empty or 'timestamp' not in df.columns:
             return []
@@ -487,6 +876,17 @@ class LogViewerPanel(QtWidgets.QSplitter):
 
     @staticmethod
     def _filter_by_date(df: pd.DataFrame, date_str: str) -> pd.DataFrame:
+        """Execute the filter by date operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param df: Value for ``df``.
+        :type df: :class:`pd.DataFrame`
+        :param date_str: Value for ``date_str``.
+        :type date_str: str
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`pd.DataFrame`
+        """
         if df.empty or 'timestamp' not in df.columns:
             return df
         target_date = pd.to_datetime(date_str).date()
@@ -494,6 +894,19 @@ class LogViewerPanel(QtWidgets.QSplitter):
 
     @staticmethod
     def _filter_by_date_and_hour(df: pd.DataFrame, date_str: str, hour: int) -> pd.DataFrame:
+        """Execute the filter by date and hour operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param df: Value for ``df``.
+        :type df: :class:`pd.DataFrame`
+        :param date_str: Value for ``date_str``.
+        :type date_str: str
+        :param hour: Value for ``hour``.
+        :type hour: int
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`pd.DataFrame`
+        """
         if df.empty or 'timestamp' not in df.columns:
             return df
         target_date = pd.to_datetime(date_str).date()
@@ -503,6 +916,10 @@ class LogViewerPanel(QtWidgets.QSplitter):
         ].copy()
 
     def load(self):
+        """Execute the load operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.treectrl.clear()
         self.expanded_items.clear()
         self.root = QtWidgets.QTreeWidgetItem(self.treectrl, ['Logs'])
@@ -528,6 +945,13 @@ class LogViewerPanel(QtWidgets.QSplitter):
 
     @staticmethod
     def get_archives():
+        """Return the archives.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         res = []
         for i in range(Config.num_archives):
             archive_name = f'log_archive-{i + 1}'
@@ -541,6 +965,13 @@ class LogViewerPanel(QtWidgets.QSplitter):
 
     @staticmethod
     def get_logfiles():
+        """Return the logfiles.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         res = []
         for i in range(Config.num_logfiles):
             log_name = f'log-{i + 1}'
@@ -558,8 +989,19 @@ class LogViewerPanel(QtWidgets.QSplitter):
 # ---------------------------------------------------------------------------
 
 class LogViewer:
+    """Represent a log viewer in :mod:`harness_designer.ui.log_viewer.viewer`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, mainframe: "_mainframe.MainFrame"):
+        """Initialise the :class:`LogViewer` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mainframe: Main application frame.
+        :type mainframe: :class:`_mainframe.MainFrame`
+        """
         self.viewer = LogViewerPanel(mainframe, mainframe.logger)
         self.mainframe = mainframe
 
@@ -572,6 +1014,13 @@ class LogViewer:
         self._dock.show()
 
     def Show(self, show=True):
+        """Execute the show operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param show: Value for ``show``.
+        :type show: UNKNOWN
+        """
         if show:
             self._dock.show()
             self._dock.raise_()
@@ -579,8 +1028,21 @@ class LogViewer:
             self._dock.hide()
 
     def Refresh(self, *_, **__):
+        """Execute the refresh operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        :param __: Value for ``__``.
+        :type __: UNKNOWN
+        """
         self.viewer.update()
 
     def Destroy(self):
+        """Execute the destroy operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.viewer.Destroy()
         self._dock.deleteLater()

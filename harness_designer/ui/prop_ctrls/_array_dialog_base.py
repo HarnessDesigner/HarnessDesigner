@@ -13,6 +13,17 @@ class _ArrayDialog(QDialog):
     _char_filter = None  # subclass sets to a callable(key_int) -> bool
 
     def __init__(self, parent, values, title='Modify Array'):
+        """Initialise the :class:`_ArrayDialog` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param values: Values to store or process.
+        :type values: UNKNOWN
+        :param title: Value for ``title``.
+        :type title: UNKNOWN
+        """
         QDialog.__init__(
             self, parent,
             Qt.Dialog | Qt.WindowStaysOnTopHint |
@@ -89,6 +100,15 @@ class _ArrayDialog(QDialog):
         self.setLayout(layout)
 
     def _add_ctrl(self, text=''):
+        """Add a ctrl.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param text: Text value.
+        :type text: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         ctrl = QLineEdit(text, self._scroll_container)
         if self._char_filter:
             ctrl.textEdited.connect(self._filter_input)
@@ -101,6 +121,13 @@ class _ArrayDialog(QDialog):
         return ctrl
 
     def _filter_input(self, text):
+        """Execute the filter input operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param text: Text value.
+        :type text: UNKNOWN
+        """
         ctrl = self.sender()
         filtered = ''.join(ch for ch in text if self._char_filter(ord(ch)))
         if filtered != text:
@@ -109,6 +136,15 @@ class _ArrayDialog(QDialog):
             ctrl.blockSignals(False)
 
     def _on_item_focus(self, ctrl, event):
+        """Handle the item focus event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param ctrl: Value for ``ctrl``.
+        :type ctrl: UNKNOWN
+        :param event: Event object.
+        :type event: UNKNOWN
+        """
         QLineEdit.focusInEvent(ctrl, event)
         self.selected_item = ctrl
         ctrl.selectAll()
@@ -119,6 +155,15 @@ class _ArrayDialog(QDialog):
         self.remove_item_button.setEnabled(True)
 
     def _on_item_kill_focus(self, ctrl, event):
+        """Handle the item kill focus event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param ctrl: Value for ``ctrl``.
+        :type ctrl: UNKNOWN
+        :param event: Event object.
+        :type event: UNKNOWN
+        """
         QLineEdit.focusOutEvent(ctrl, event)
         fw = self.focusWidget()
         if fw not in self._items and fw not in (
@@ -131,6 +176,10 @@ class _ArrayDialog(QDialog):
             self.selected_item = None
 
     def _on_move_item_up(self):
+        """Handle the move item up event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         if self.selected_item is None:
             return
         idx = self._items.index(self.selected_item)
@@ -143,6 +192,10 @@ class _ArrayDialog(QDialog):
         self._items[idx - 1].setFocus()
 
     def _on_move_item_down(self):
+        """Handle the move item down event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         if self.selected_item is None:
             return
         idx = self._items.index(self.selected_item)
@@ -155,6 +208,10 @@ class _ArrayDialog(QDialog):
         self._items[idx + 1].setFocus()
 
     def _on_remove_item(self):
+        """Handle the remove item event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         if self.selected_item is None:
             return
         idx = self._items.index(self.selected_item)
@@ -167,8 +224,19 @@ class _ArrayDialog(QDialog):
         self.remove_item_button.setEnabled(False)
 
     def _on_add_item(self):
+        """Handle the add item event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         ctrl = self._add_ctrl('')
         ctrl.setFocus()
 
     def _raw_values(self) -> list:
+        """Execute the raw values operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: list
+        """
         return [c.text() for c in self._items if c.text() != '']

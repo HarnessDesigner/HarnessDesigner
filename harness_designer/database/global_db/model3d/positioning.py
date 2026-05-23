@@ -17,9 +17,26 @@ if TYPE_CHECKING:
 
 
 class PositioningDialog(wx.Dialog):
+    """Represent a positioning dialog in :mod:`harness_designer.database.global_db.model3d.positioning`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent, vertices: np.ndarray,
                  faces: np.ndarray, db_obj: "_Model3D"):
+        """Initialise the :class:`PositioningDialog` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param vertices: Value for ``vertices``.
+        :type vertices: :class:`np.ndarray`
+        :param faces: Value for ``faces``.
+        :type faces: :class:`np.ndarray`
+        :param db_obj: Database-backed object.
+        :type db_obj: _Model3D
+        """
 
         wx.Dialog.__init__(self, parent, wx.ID_ANY, title='Model Orientation',
                            style=wx.CAPTION | wx.RESIZE_BORDER | wx.CLOSE_BOX | wx.STAY_ON_TOP)
@@ -298,10 +315,21 @@ class PositioningDialog(wx.Dialog):
         wx.CallAfter(self.set_counts)
 
     def set_counts(self):
+        """Set the counts.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.faces_count.SetLabel(str(len(self.faces)))
         self.vertex_count.SetLabel(str(len(self.vertices)))
 
     def on_simplify(self, evt):
+        """Handle the simplify event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         enabled = self.simplify.GetValue()
 
         self.target_vertices.Enable(enabled)
@@ -314,6 +342,17 @@ class PositioningDialog(wx.Dialog):
         evt.Skip()
 
     def _set_angle(self, x=None, y=None, z=None):
+        """Set the angle.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param x: X-coordinate value.
+        :type x: UNKNOWN
+        :param y: Y-coordinate value.
+        :type y: UNKNOWN
+        :param z: Z-coordinate value.
+        :type z: UNKNOWN
+        """
         if x is not None:
             self._angle.x = x
         if y is None:
@@ -324,18 +363,46 @@ class PositioningDialog(wx.Dialog):
         self.update_model(self.vertices, self.faces)
 
     def on_x_angle(self, evt):
+        """Handle the x angle event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         self._set_angle(x=self.x_angle.GetValue())
         evt.Skip()
 
     def on_y_angle(self, evt):
+        """Handle the y angle event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         self._set_angle(y=self.y_angle.GetValue())
         evt.Skip()
 
     def on_z_angle(self, evt):
+        """Handle the z angle event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         self._set_angle(z=self.z_angle.GetValue())
         evt.Skip()
 
     def on_angle_reset(self, evt):
+        """Handle the angle reset event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         self._angle.x = 0.0
         self._angle.y = 0.0
         self._angle.z = 0.0
@@ -344,10 +411,28 @@ class PositioningDialog(wx.Dialog):
         evt.Skip()
 
     def on_position_reset(self, evt):
+        """Handle the position reset event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         self._set_position(0.0, 0.0, 0.0)
         evt.skip()
 
     def _set_position(self, x=None, y=None, z=None):
+        """Set the position.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param x: X-coordinate value.
+        :type x: UNKNOWN
+        :param y: Y-coordinate value.
+        :type y: UNKNOWN
+        :param z: Z-coordinate value.
+        :type z: UNKNOWN
+        """
         if x is None:
             x = 0.0
         else:
@@ -376,6 +461,13 @@ class PositioningDialog(wx.Dialog):
         self.preview.set_model(self.triangles,  self.plane_size)
 
     def GetValues(self) -> tuple[bool, float, float, int, int, _point.Point, _angle.Angle, _point.Point]:
+        """Execute the get values operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: tuple[bool, float, float, int, int, _point.Point, _angle.Angle, _point.Point]
+        """
         return (
             self.simplify.GetValue(),
             self.target_vertices.GetValue(),
@@ -388,21 +480,49 @@ class PositioningDialog(wx.Dialog):
         )
 
     def on_x_pos(self, evt):
+        """Handle the x pos event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         value = self.x_pos.GetValue()
         self._set_position(x=value)
         evt.Skip()
 
     def on_y_pos(self, evt):
+        """Handle the y pos event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         value = self.y_pos.GetValue()
         self._set_position(y=value)
         evt.Skip()
 
     def on_z_pos(self, evt):
+        """Handle the z pos event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         value = self.z_pos.GetValue()
         self._set_position(z=value)
         evt.Skip()
 
     def on_position_center(self, evt):
+        """Handle the position center event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         p1, p2 = _utils.compute_aabb(*self.triangles)
 
         center = ((p2 - p1) / 2.0)
@@ -413,6 +533,17 @@ class PositioningDialog(wx.Dialog):
         evt.Skip()
 
     def _set_scale(self, x=None, y=None, z=None):
+        """Set the scale.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param x: X-coordinate value.
+        :type x: UNKNOWN
+        :param y: Y-coordinate value.
+        :type y: UNKNOWN
+        :param z: Z-coordinate value.
+        :type z: UNKNOWN
+        """
         if x is not None:
             self._scale.x = x
         if y is not None:
@@ -423,25 +554,60 @@ class PositioningDialog(wx.Dialog):
         self.update_model(self.vertices, self.faces)
 
     def on_scale_reset(self, evt):
+        """Handle the scale reset event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         self._set_scale(x=1.0, y=1.0, z=1.0)
         evt.skip()
 
     def on_x_scale(self, evt):
+        """Handle the x scale event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         value = self.x_scale.GetValue()
         self._set_scale(x=value)
         evt.Skip()
 
     def on_y_scale(self, evt):
+        """Handle the y scale event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         value = self.y_scale.GetValue()
         self._set_scale(y=value)
         evt.Skip()
 
     def on_z_scale(self, evt):
+        """Handle the z scale event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         value = self.z_scale.GetValue()
         self._set_scale(z=value)
         evt.Skip()
 
     def on_simplify_model(self, evt):
+        """Handle the simplify model event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         target_vertices = self.target_vertices.GetValue()
         aggressiveness = self.aggressiveness.GetValue()
         update_rate = self.update_rate.GetValue()
@@ -459,10 +625,26 @@ class PositioningDialog(wx.Dialog):
         evt.Skip()
 
     def on_smooth(self, evt):
+        """Handle the smooth event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         self.update_model(self.vertices, self.faces)
         evt.Skip()
 
     def update_model(self, vertices, faces):
+        """Update the model.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param vertices: Value for ``vertices``.
+        :type vertices: UNKNOWN
+        :param faces: Value for ``faces``.
+        :type faces: UNKNOWN
+        """
         self.vertices = vertices
         self.faces = faces
 
@@ -488,11 +670,27 @@ class PositioningDialog(wx.Dialog):
         self.preview.set_model(triangles,  self.plane_size)
 
     def on_reset_model(self, evt):
+        """Handle the reset model event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         self.update_model(self.o_vertices.copy(), self.o_faces.copy())
         evt.Skip()
 
     @staticmethod
     def _compute_plane_size(triangles: list[np.ndarray, np.ndarray, int]) -> float:
+        """Compute the plane size.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param triangles: Value for ``triangles``.
+        :type triangles: list[np.ndarray, np.ndarray, int]
+        :returns: Return value. UNKNOWN details.
+        :rtype: float
+        """
         p1, p2 = _utils.compute_aabb(triangles[0])
         diff = p2 - p1
 

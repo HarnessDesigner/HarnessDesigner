@@ -44,29 +44,61 @@ if TYPE_CHECKING:
 
 
 class HousingsTable(TableBase):
+    """Represent a housings table in :mod:`harness_designer.database.global_db.housing`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     __table_name__ = 'housings'
 
     _control: "HousingControl" = None
 
     @property
     def control(self) -> "HousingControl":
+        """Return the control.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`HousingControl`
+        """
         if self._control is None:
             self._control = HousingControl(self.db.mainframe)
             self._control.hide()
         return self._control
 
     def _load_database(self, splash):
+        """Load the database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param splash: Value for ``splash``.
+        :type splash: UNKNOWN
+        """
         from ..create_database import housings
 
         data_path = self._con.db_data.open(splash)
         housings.add_records(self._con, splash, data_path)
 
     def _table_needs_update(self) -> bool:
+        """Execute the table needs update operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
         from ..create_database import housings
 
         return housings.table.is_ok(self)
 
     def _add_table_to_db(self, splash):
+        """Add a table to database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param splash: Value for ``splash``.
+        :type splash: UNKNOWN
+        """
         from ..create_database import housings
 
         housings.table.add_to_db(self)
@@ -74,16 +106,38 @@ class HousingsTable(TableBase):
         housings.add_records(self._con, splash, data_path)
 
     def _update_table_in_db(self):
+        """Update the table in database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         from ..create_database import housings
 
         housings.table.update_fields(self)
 
     def __iter__(self) -> _Iterable["Housing"]:
+        """Iterate over the available items.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Iterator or iterable result. UNKNOWN details.
+        :rtype: _Iterable['Housing']
+        """
 
         for db_id in TableBase.__iter__(self):
             yield Housing(self, db_id)
 
     def __getitem__(self, item) -> "Housing":
+        """Return the requested item.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param item: Item identifier or value.
+        :type item: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`Housing`
+        :raises KeyError: Raised when the operation cannot be completed.
+        :raises IndexError: Raised when the operation cannot be completed.
+        """
         if isinstance(item, int):
             if item in self:
                 return Housing(self, item)
@@ -98,6 +152,23 @@ class HousingsTable(TableBase):
     def get_compat(self, seal: str = None, terminal: str = None,
                    cpa_lock: str = None, tpa_lock: str = None,
                    cover: str = None):
+        """Return the compat.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param seal: Value for ``seal``.
+        :type seal: str
+        :param terminal: Value for ``terminal``.
+        :type terminal: str
+        :param cpa_lock: Value for ``cpa_lock``.
+        :type cpa_lock: str
+        :param tpa_lock: Value for ``tpa_lock``.
+        :type tpa_lock: str
+        :param cover: Value for ``cover``.
+        :type cover: str
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
 
         res = []
 
@@ -142,6 +213,73 @@ class HousingsTable(TableBase):
                num_pins: int, terminal_sizes: list[float], compat_cpas: list[str], compat_tpas: list[str],
                compat_covers: list[str], compat_terminals: list[str], compat_seals: list[str],
                compat_housings: list[str], weight: float) -> "Housing":
+        """Execute the insert operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param part_number: Value for ``part_number``.
+        :type part_number: str
+        :param mfg_id: Identifier for the mfg.
+        :type mfg_id: int
+        :param description: Value for ``description``.
+        :type description: str
+        :param family_id: Identifier for the family.
+        :type family_id: int
+        :param series_id: Identifier for the series.
+        :type series_id: int
+        :param gender_id: Identifier for the gender.
+        :type gender_id: int
+        :param ip_rating_id: Identifier for the ip rating.
+        :type ip_rating_id: int
+        :param image_id: Identifier for the image.
+        :type image_id: int
+        :param datasheet_id: Identifier for the datasheet.
+        :type datasheet_id: int
+        :param cad_id: Identifier for the cad.
+        :type cad_id: int
+        :param min_temp_id: Identifier for the min temp.
+        :type min_temp_id: int
+        :param max_temp_id: Identifier for the max temp.
+        :type max_temp_id: int
+        :param cavity_lock_id: Identifier for the cavity lock.
+        :type cavity_lock_id: int
+        :param direction_id: Identifier for the direction.
+        :type direction_id: int
+        :param sealed: Value for ``sealed``.
+        :type sealed: bool
+        :param length: Value for ``length``.
+        :type length: float
+        :param width: Value for ``width``.
+        :type width: float
+        :param height: Value for ``height``.
+        :type height: float
+        :param centerline: Value for ``centerline``.
+        :type centerline: float
+        :param color_id: Identifier for the color.
+        :type color_id: int
+        :param rows: Value for ``rows``.
+        :type rows: int
+        :param num_pins: Value for ``num_pins``.
+        :type num_pins: int
+        :param terminal_sizes: Value for ``terminal_sizes``.
+        :type terminal_sizes: list[float]
+        :param compat_cpas: Value for ``compat_cpas``.
+        :type compat_cpas: list[str]
+        :param compat_tpas: Value for ``compat_tpas``.
+        :type compat_tpas: list[str]
+        :param compat_covers: Value for ``compat_covers``.
+        :type compat_covers: list[str]
+        :param compat_terminals: Value for ``compat_terminals``.
+        :type compat_terminals: list[str]
+        :param compat_seals: Value for ``compat_seals``.
+        :type compat_seals: list[str]
+        :param compat_housings: Value for ``compat_housings``.
+        :type compat_housings: list[str]
+        :param weight: Value for ``weight``.
+        :type weight: float
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`Housing`
+        """
 
         db_id = TableBase.insert(self, part_number=part_number, mfg_id=mfg_id, description=description,
                                  family_id=family_id, series_id=series_id, gender_id=gender_id, 
@@ -158,6 +296,13 @@ class HousingsTable(TableBase):
 
     @property
     def search_items(self) -> dict:
+        """Return the search items.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: dict
+        """
         ret = {
             0: {
                 'label': 'Part Number',
@@ -268,10 +413,21 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
               SeriesMixin, ColorMixin, TemperatureMixin, ResourceMixin, GenderMixin,
               DirectionMixin, DimensionMixin, WeightMixin, CavityLockMixin, Model3DMixin,
               CompatHousingsMixin, CompatSealsMixin, CompatTerminalsMixin):
+    """Represent a housing in :mod:`harness_designer.database.global_db.housing`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     _table: HousingsTable = None
 
     def build_monitor_packet(self):
+        """Build the monitor packet.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         color = self.color
 
         packet = {
@@ -296,6 +452,13 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @property
     def compat_covers(self) -> list[_cover.Cover]:
+        """Return the compat covers.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: list[_cover.Cover]
+        """
         compat_covers = self.compat_covers_array
         res = []
         for part_number in compat_covers:
@@ -307,17 +470,38 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @property
     def compat_covers_array(self) -> list[str]:
+        """Return the compat covers array.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: list[str]
+        """
         value = self._table.select('compat_covers', id=self._db_id)[0][0]
         return value[1:-1].split(', ')
 
     @compat_covers_array.setter
     def compat_covers_array(self, value: list[str]):
+        """Set the compat covers array.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: list[str]
+        """
         value = f'[{", ".join(value)}]'
         self._table.update(self._db_id, compat_covers=value)
         self._populate('compat_covers_array')
 
     @property
     def compat_boots(self) -> list[_boot.Boot]:
+        """Return the compat boots.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: list[_boot.Boot]
+        """
         compat_boots = self.compat_boots_array
         res = []
         for part_number in compat_boots:
@@ -329,17 +513,38 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @property
     def compat_boots_array(self) -> list[str]:
+        """Return the compat boots array.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: list[str]
+        """
         value = self._table.select('compat_boots', id=self._db_id)[0][0]
         return value[1:-1].split(', ')
 
     @compat_boots_array.setter
     def compat_boots_array(self, value: list[str]):
+        """Set the compat boots array.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: list[str]
+        """
         value = f'[{", ".join(value)}]'
         self._table.update(self._db_id, compat_boots=value)
         self._populate('compat_boots_array')
 
     @property
     def compat_cpas(self) -> list[_cpa_lock.CPALock]:
+        """Return the compat cpas.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: list[_cpa_lock.CPALock]
+        """
         compat_cpas = self.compat_cpas_array
         res = []
         for part_number in compat_cpas:
@@ -351,17 +556,38 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @property
     def compat_cpas_array(self) -> list[str]:
+        """Return the compat cpas array.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: list[str]
+        """
         value = self._table.select('compat_cpas', id=self._db_id)[0][0]
         return value[1:-1].split(', ')
 
     @compat_cpas_array.setter
     def compat_cpas_array(self, value: list[str]):
+        """Set the compat cpas array.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: list[str]
+        """
         value = f'[{", ".join(value)}]'
         self._table.update(self._db_id, compat_cpas=value)
         self._populate('compat_cpas_array')
 
     @property
     def compat_tpas(self) -> list[_tpa_lock.TPALock]:
+        """Return the compat tpas.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: list[_tpa_lock.TPALock]
+        """
         compat_tpas = self.compat_tpas_array
         res = []
         for part_number in compat_tpas:
@@ -373,127 +599,316 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @property
     def compat_tpas_array(self) -> list[str]:
+        """Return the compat tpas array.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: list[str]
+        """
         value = self._table.select('compat_tpas', id=self._db_id)[0][0]
         return value[1:-1].split(', ')
 
     @compat_tpas_array.setter
     def compat_tpas_array(self, value: list[str]):
+        """Set the compat tpas array.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: list[str]
+        """
         value = f'[{", ".join(value)}]'
         self._table.update(self._db_id, compat_tpas=value)
         self._populate('compat_tpas_array')
 
     @property
     def ip_rating(self) -> _ip.IPRating:
+        """Return the ip rating.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_ip.IPRating`
+        """
         ip_rating_id = self._table.select('ip_rating_id', id=self._db_id)
         return _ip.IPRating(self._table.db.ip_ratings_table, ip_rating_id[0][0])
 
     @property
     def ip_rating_id(self):
+        """Return the ip rating ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self._table.select('ip_rating_id', id=self._db_id)[0][0]
 
     @ip_rating_id.setter
     def ip_rating_id(self, value):
+        """Set the ip rating ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: UNKNOWN
+        """
         self._table.update(self._db_id, ip_rating_id=value)
         self._populate('ip_rating_id')
 
     @property
     def cavity_lock(self) -> _cavity_lock.CavityLock:
+        """Return the cavity lock.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_cavity_lock.CavityLock`
+        """
         cavity_lock_id = self.cavity_lock_id
         return self._table.db.cavity_locks_table[cavity_lock_id]
 
     @property
     def cavity_lock_id(self):
+        """Return the cavity lock ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self._table.select('cavity_lock_id', id=self._db_id)[0][0]
 
     @cavity_lock_id.setter
     def cavity_lock_id(self, value):
+        """Set the cavity lock ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: UNKNOWN
+        """
         self._table.update(self._db_id, cavity_lock_id=value)
         self._populate('cavity_lock_id')
 
     @property
     def seal_type(self) -> _seal_type.SealType:
+        """Return the seal type.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_seal_type.SealType`
+        """
         seal_type_id = self.seal_type_id
         return self._table.db.seal_types_table[seal_type_id]
 
     @property
     def seal_type_id(self):
+        """Return the seal type ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self._table.select('seal_type_id', id=self._db_id)[0][0]
 
     @seal_type_id.setter
     def seal_type_id(self, value):
+        """Set the seal type ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: UNKNOWN
+        """
         self._table.update(self._db_id, seal_type_id=value)
         self._populate('seal_type_id')
 
     @property
     def cpa_lock_type(self) -> _cpa_lock_type.CPALockType:
+        """Return the CPA lock type.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_cpa_lock_type.CPALockType`
+        """
         cpa_lock_type_id = self.cpa_lock_type_id
         return self._table.db.cpa_lock_types_table[cpa_lock_type_id]
 
     @property
     def cpa_lock_type_id(self):
+        """Return the CPA lock type ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self._table.select('cpa_lock_type_id', id=self._db_id)[0][0]
 
     @cpa_lock_type_id.setter
     def cpa_lock_type_id(self, value):
+        """Set the CPA lock type ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: UNKNOWN
+        """
         self._table.update(self._db_id, cpa_lock_type_id=value)
         self._populate('cpa_lock_type_id')
 
     @property
     def terminal_sizes(self) -> list[float]:
+        """Return the terminal sizes.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: list[float]
+        """
         return eval(self._table.select('terminal_sizes', id=self._db_id)[0][0])
 
     @terminal_sizes.setter
     def terminal_sizes(self, value: list[float]):
+        """Set the terminal sizes.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: list[float]
+        """
         self._table.update(self._db_id, terminal_sizes=str(value))
         self._populate('terminal_sizes')
 
     @property
     def terminal_size_counts(self) -> list[int]:
+        """Return the terminal size counts.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: list[int]
+        """
         return eval(self._table.select('terminal_size_counts', id=self._db_id)[0][0])
 
     @terminal_size_counts.setter
     def terminal_size_counts(self, value: list[int]):
+        """Set the terminal size counts.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: list[int]
+        """
         self._table.update(self._db_id, terminal_size_counts=str(value))
         self._populate('terminal_size_counts')
 
     @property
     def sealing(self) -> bool:
+        """Return the sealing.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: bool
+        """
         return bool(self._table.select('sealing', id=self._db_id)[0][0])
 
     @sealing.setter
     def sealing(self, value: bool):
+        """Set the sealing.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: bool
+        """
         self._table.update(self._db_id, sealing=int(value))
         self._populate('sealing')
 
     @property
     def centerline(self) -> float:
+        """Return the centerline.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         return self._table.select('centerline', id=self._db_id)[0][0]
 
     @centerline.setter
     def centerline(self, value: float):
+        """Set the centerline.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: float
+        """
         self._table.update(self._db_id, centerline=value)
         self._populate('centerline')
 
     @property
     def rows(self) -> int:
+        """Return the rows.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         return self._table.select('rows', id=self._db_id)[0][0]
 
     @rows.setter
     def rows(self, value: int):
+        """Set the rows.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, rows=value)
         self._populate('rows')
 
     @property
     def num_pins(self) -> int:
+        """Return the num pins.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         return self._table.select('num_pins', id=self._db_id)[0][0]
 
     @num_pins.setter
     def num_pins(self, value: int):
+        """Set the num pins.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, num_pins=value)
         self._populate('num_pins')
 
     @property
     def cavities(self) -> list["_cavity.Cavity"]:
+        """Return the cavities.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: list['_cavity.Cavity']
+        """
         res = [None] * self.num_pins
 
         rows = self._table.db.cavities_table.select("id", "idx",
@@ -506,11 +921,25 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _cover_position3d: str = None
     
     def __update_cover_position3d(self, point: _point.Point):
+        """Update the cover position 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param point: Point value.
+        :type point: :class:`_point.Point`
+        """
         self._table.update(self._db_id, cover_point3d=str(list(point.as_float)))
         self._populate('cover_position3d')
 
     @property
     def cover_position3d(self) -> "_point.Point":
+        """Return the cover position 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_point.Point`
+        """
         position_coords = eval(self._table.select('cover_point3d', id=self._db_id)[0][0])
         
         if self._cover_position3d is None:
@@ -525,11 +954,25 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _seal_position3d: str = None
     
     def __update_seal_position3d(self, point: _point.Point):
+        """Update the seal position 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param point: Point value.
+        :type point: :class:`_point.Point`
+        """
         self._table.update(self._db_id, seal_point3d=str(list(point.as_float)))
         self._populate('seal_position3d')
 
     @property
     def seal_position3d(self) -> "_point.Point":
+        """Return the seal position 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_point.Point`
+        """
         position_coords = eval(self._table.select('seal_point3d', id=self._db_id)[0][0])
         
         if self._seal_position3d is None:
@@ -544,11 +987,25 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _boot_position3d: str = None
 
     def __update_boot_position3d(self, point: _point.Point):
+        """Update the boot position 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param point: Point value.
+        :type point: :class:`_point.Point`
+        """
         self._table.update(self._db_id, boot_point3d=str(list(point.as_float)))
         self._populate('boot_position3d')
 
     @property
     def boot_position3d(self) -> "_point.Point":
+        """Return the boot position 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_point.Point`
+        """
         position_coords = eval(self._table.select('boot_point3d', id=self._db_id)[0][0])
         
         if self._boot_position3d is None:
@@ -563,11 +1020,25 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _tpa_lock_1_position3d: str = None
     
     def __update_tpa_lock_1_position3d(self, point: _point.Point):
+        """Update the TPA lock 1 position 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param point: Point value.
+        :type point: :class:`_point.Point`
+        """
         self._table.update(self._db_id, tpa_lock_1_point3d=str(list(point.as_float)))
         self._populate('tpa_lock_1_position3d')
 
     @property
     def tpa_lock_1_position3d(self) -> "_point.Point":
+        """Return the TPA lock 1 position 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_point.Point`
+        """
         position_coords = eval(self._table.select('tpa_lock_1_point3d', id=self._db_id)[0][0])
         
         if self._tpa_lock_1_position3d is None:
@@ -582,11 +1053,25 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _tpa_lock_2_position3d: str = None
     
     def __update_tpa_lock_2_position3d(self, point: _point.Point):
+        """Update the TPA lock 2 position 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param point: Point value.
+        :type point: :class:`_point.Point`
+        """
         self._table.update(self._db_id, tpa_lock_2_point3d=str(list(point.as_float)))
         self._populate('tpa_lock_2_position3d')
 
     @property
     def tpa_lock_2_position3d(self) -> "_point.Point":
+        """Return the TPA lock 2 position 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_point.Point`
+        """
         position_coords = eval(self._table.select('tpa_lock_2_point3d', id=self._db_id)[0][0])
         
         if self._tpa_lock_2_position3d is None:
@@ -601,11 +1086,25 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _cpa_lock_position3d: str = None
     
     def __update_cpa_lock_position3d(self, point: _point.Point):
+        """Update the CPA lock position 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param point: Point value.
+        :type point: :class:`_point.Point`
+        """
         self._table.update(self._db_id, cpa_lock_point3d=str(list(point.as_float)))
         self._populate('cpa_lock_position3d')
 
     @property
     def cpa_lock_position3d(self) -> "_point.Point":
+        """Return the CPA lock position 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_point.Point`
+        """
         position_coords = eval(self._table.select('cpa_lock_point3d', id=self._db_id)[0][0])
         
         if self._cpa_lock_position3d is None:
@@ -620,6 +1119,13 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _angle3d_db_id: str = None
 
     def __update_angle3d(self, angle: _angle.Angle):
+        """Update the angle 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param angle: Value for ``angle``.
+        :type angle: :class:`_angle.Angle`
+        """
         quat = list(angle.as_quat_float)
         euler_angle = list(angle.as_euler_float)
 
@@ -629,6 +1135,13 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @property
     def angle3d(self) -> _angle.Angle:
+        """Return the angle 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_angle.Angle`
+        """
         quat = eval(self._table.select('quat3d', id=self._db_id)[0][0])
         euler_angle = eval(self._table.select('angle3d', id=self._db_id)[0][0])
 
@@ -642,8 +1155,19 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
 
 class HousingControl(QTabWidget):
+    """Represent a housing control in :mod:`harness_designer.database.global_db.housing`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def set_obj(self, db_obj: Housing):
+        """Set the obj.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`Housing`
+        """
         self.manufacturer_page.set_obj(db_obj)
         self.family_page.set_obj(db_obj)
         self.series_page.set_obj(db_obj)
@@ -712,6 +1236,13 @@ class HousingControl(QTabWidget):
             self.cavity_pages.append(ctrl)
 
     def _on_seal_type(self, evt):
+        """Handle the seal type event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         name = evt.GetValue()
         self.db_obj.table.execute('SELECT id FROM seal_types WHERE name="{name}";')
         rows = self.db_obj.table.fetchall()
@@ -731,41 +1262,118 @@ class HousingControl(QTabWidget):
         self.db_obj.seal_type_id = db_id
 
     def _on_sealing(self, evt):
+        """Handle the sealing event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         value = evt.GetValue()
         self.db_obj.sealing = value
 
     def _on_compat_tpas(self, evt: _prop_ctrls.PropertyEvent):
+        """Handle the compat tpas event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_prop_ctrls.PropertyEvent`
+        """
         compat_tpas = evt.GetValue()
         self.db_obj.compat_tpas_array = compat_tpas
 
     def _on_compat_cpas(self, evt: _prop_ctrls.PropertyEvent):
+        """Handle the compat cpas event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_prop_ctrls.PropertyEvent`
+        """
         compat_cpas = evt.GetValue()
         self.db_obj.compat_cpas_array = compat_cpas
 
     def _on_compat_boots(self, evt: _prop_ctrls.PropertyEvent):
+        """Handle the compat boots event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_prop_ctrls.PropertyEvent`
+        """
         compat_boots = evt.GetValue()
         self.db_obj.compat_boots_array = compat_boots
 
     def _on_compat_covers(self, evt: _prop_ctrls.PropertyEvent):
+        """Handle the compat covers event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_prop_ctrls.PropertyEvent`
+        """
         compat_covers = evt.GetValue()
         self.db_obj.compat_covers_array = compat_covers
 
     def _on_terminal_sizes(self, evt):
+        """Handle the terminal sizes event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         self.db_obj.terminal_sizes = evt.GetValue()
 
     def _on_terminal_size_count(self, evt):
+        """Handle the terminal size count event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         self.db_obj.terminal_size_counts = evt.GetValue()
 
     def _on_pitch(self, evt):
+        """Handle the pitch event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         self.db_obj.centerline = evt.GetValue()
 
     def _on_rows(self, evt):
+        """Handle the rows event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         self.db_obj.rows = evt.GetValue()
 
     def _on_pin_count(self, evt):
+        """Handle the pin count event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         self.db_obj.num_pins = evt.GetValue()
 
     def __init__(self, parent):
+        """Initialise the :class:`HousingControl` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        """
         self.db_obj: Housing = None
 
         QTabWidget.__init__(self, parent)

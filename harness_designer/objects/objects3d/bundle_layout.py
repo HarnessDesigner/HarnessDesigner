@@ -21,11 +21,24 @@ Config = _config.Config.editor3d.renderer
 
 
 class BundleLayout(_base3d.Base3D):
+    """Represent a bundle layout in :mod:`harness_designer.objects.objects3d.bundle_layout`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     parent: "_bundle_layout.BundleLayout" = None
     db_obj: "_pjt_bundle_layout.PJTBundleLayout" = None
 
     def __init__(self, parent: "_bundle_layout.BundleLayout",
                  db_obj: "_pjt_bundle_layout.PJTBundleLayout"):
+        """Initialise the :class:`BundleLayout` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`_bundle_layout.BundleLayout`
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_pjt_bundle_layout.PJTBundleLayout`
+        """
 
         parent.mainframe.editor3d.context.acquire()
         bundles = db_obj.attached_bundles
@@ -48,6 +61,15 @@ class BundleLayout(_base3d.Base3D):
         parent.mainframe.editor3d.context.release()
 
     def set_diameter(self, parent_bundle, value: float):
+        """Set the diameter.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent_bundle: Value for ``parent_bundle``.
+        :type parent_bundle: UNKNOWN
+        :param value: Value to store or process.
+        :type value: float
+        """
         self._diameter = value
         scale = _point.Point(value, value, value)
         diff = self._scale - scale
@@ -62,12 +84,32 @@ class BundleLayout(_base3d.Base3D):
                 break
 
     def get_context_menu(self):
+        """Return the context menu.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return BundleLayoutMenu(self.mainframe.editor3d.editor, self)
 
 
 class BundleLayoutMenu(QMenu):
+    """Represent a bundle layout menu in :mod:`harness_designer.objects.objects3d.bundle_layout`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, canvas, selected):
+        """Initialise the :class:`BundleLayoutMenu` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param canvas: Canvas instance.
+        :type canvas: UNKNOWN
+        :param selected: Value for ``selected``.
+        :type selected: UNKNOWN
+        """
         QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
@@ -80,7 +122,15 @@ class BundleLayoutMenu(QMenu):
         action.triggered.connect(self.on_delete)
 
     def on_add_transition(self):
+        """Handle the add transition event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_delete(self):
+        """Handle the delete event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass

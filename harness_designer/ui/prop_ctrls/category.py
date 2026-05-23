@@ -4,8 +4,21 @@ from PySide6.QtWidgets import QScrollArea, QWidget, QVBoxLayout, QTabWidget
 
 
 class Category(QScrollArea):
+    """Represent a category in :mod:`harness_designer.ui.prop_ctrls.category`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent, label):
+        """Initialise the :class:`Category` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param label: Value for ``label``.
+        :type label: UNKNOWN
+        """
         QScrollArea.__init__(self, parent)
         self._label = label
 
@@ -18,6 +31,10 @@ class Category(QScrollArea):
         self.setWidgetResizable(True)
 
     def Realize(self):
+        """Execute the realize operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         for i in range(self._sizer.count()):
             item = self._sizer.itemAt(i)
             if item is None:
@@ -32,9 +49,23 @@ class Category(QScrollArea):
         self.update()
 
     def GetLabel(self):
+        """Execute the get label operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self._label
 
     def SetLabel(self, value):
+        """Execute the set label operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: UNKNOWN
+        """
         self._label = value
 
     def addChild(self, widget):

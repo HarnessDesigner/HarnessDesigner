@@ -33,14 +33,36 @@ _debug_config = _config.Config.debug.rendering3d
 
 
 class CanvasEventFilter(QtCore.QObject):
+    """Represent a canvas event filter in :mod:`harness_designer.gl.canvas3d.canvas`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, canvas):
+        """Initialise the :class:`CanvasEventFilter` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param canvas: Canvas instance.
+        :type canvas: UNKNOWN
+        """
         self.canvas = canvas  # Qt: install event filter instead of canvas.Bind()
 
         super().__init__()
         canvas.installEventFilter(self)
 
     def eventFilter(self, obj, event):
+        """Execute the event filter operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        :param event: Event object.
+        :type event: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         if obj != self.canvas:
             return False
 
@@ -291,6 +313,19 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
 
     def __init__(self, parent, config: "_config.Config.editor3d",
                  size: QtCore.QSize = None, axis_overlay: bool = False):
+        """Initialise the :class:`Canvas` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param config: Value for ``config``.
+        :type config: :class:`_config.Config.editor3d`
+        :param size: Value for ``size``.
+        :type size: :class:`QtCore.QSize`
+        :param axis_overlay: Value for ``axis_overlay``.
+        :type axis_overlay: bool
+        """
 
         QtOpenGLWidgets.QOpenGLWidget.__init__(self, parent)
 
@@ -384,13 +419,34 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
 
     @property
     def axis_overlay(self):
+        """Return the axis overlay.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self._axis_overlay
 
     @property
     def objects_in_view(self) -> list:
+        """Return the objects in view.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: list
+        """
         return self._objects_in_view
 
     def set_mode(self, mode: int) -> None:
+        """Set the mode.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mode: Value for ``mode``.
+        :type mode: int
+        """
         self._mode = mode
 
     # ------------------------------------------------------------------
@@ -401,6 +457,17 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
 
     @_debug.logfunc
     def set_angle_view(self, x, y, z):
+        """Set the angle view.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param x: X-coordinate value.
+        :type x: UNKNOWN
+        :param y: Y-coordinate value.
+        :type y: UNKNOWN
+        :param z: Z-coordinate value.
+        :type z: UNKNOWN
+        """
         if None in (x, y, z):
             self._angle_view_image = None
             return
@@ -427,12 +494,33 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
     # ------------------------------------------------------------------
 
     def set_selected(self, obj):
+        """Set the selected.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
         self._selected = obj
 
     def get_selected(self):
+        """Return the selected.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self._selected
 
     def add_object(self, obj):
+        """Add an object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
         if isinstance(obj, _focal_target.FocalPoint):
             return
 
@@ -458,12 +546,26 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         self._objects.append(obj)
 
     def __remove_obj_ref(self, ref):
+        """Remove the obj ref.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param ref: Value for ``ref``.
+        :type ref: UNKNOWN
+        """
         try:
             self._object_refs.remove(ref)
         except ValueError:
             pass
 
     def remove_object(self, obj):
+        """Remove the object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
         try:
             self._objects.remove(obj)
         except ValueError:
@@ -491,10 +593,25 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
     # ------------------------------------------------------------------
 
     def __enter__(self) -> Self:
+        """Enter the managed context.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self._ref_count += 1
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        """Exit the managed context.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param exc_type: Value for ``exc_type``.
+        :type exc_type: UNKNOWN
+        :param exc_val: Value for ``exc_val``.
+        :type exc_val: UNKNOWN
+        :param exc_tb: Value for ``exc_tb``.
+        :type exc_tb: UNKNOWN
+        """
         self._ref_count -= 1
 
     def Refresh(self, *args, **kwargs):
@@ -510,6 +627,15 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
 
     @_debug.logfunc
     def TruckPedestal(self, dx: float, dy: float) -> None:
+        """Execute the truck pedestal operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param dx: Value for ``dx``.
+        :type dx: float
+        :param dy: Value for ``dy``.
+        :type dy: float
+        """
         if self.config.truck_pedestal.mouse & MOUSE_REVERSE_X_AXIS:
             dx = -dx
         if self.config.truck_pedestal.mouse & MOUSE_REVERSE_Y_AXIS:
@@ -519,10 +645,28 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
 
     @_debug.logfunc
     def Zoom(self, dx: float, _=None):
+        """Execute the zoom operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param dx: Value for ``dx``.
+        :type dx: float
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        """
         dx *= self.config.zoom.sensitivity
         self.camera.Zoom(dx)
 
     def Rotate(self, dx: float, dy: float) -> None:
+        """Execute the rotate operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param dx: Value for ``dx``.
+        :type dx: float
+        :param dy: Value for ``dy``.
+        :type dy: float
+        """
         if self.config.rotate.mouse & MOUSE_REVERSE_X_AXIS:
             dx = -dx
         if self.config.rotate.mouse & MOUSE_REVERSE_Y_AXIS:
@@ -532,6 +676,15 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
 
     @_debug.logfunc
     def Walk(self, dx: float, dy: float) -> None:
+        """Execute the walk operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param dx: Value for ``dx``.
+        :type dx: float
+        :param dy: Value for ``dy``.
+        :type dy: float
+        """
         if dy == 0.0:
             self.PanTilt(dx * 6.0, 0.0)
             return
@@ -546,6 +699,15 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
 
     @_debug.logfunc
     def PanTilt(self, dx: float, dy: float) -> None:
+        """Execute the pan tilt operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param dx: Value for ``dx``.
+        :type dx: float
+        :param dy: Value for ``dy``.
+        :type dy: float
+        """
         if self.config.pan_tilt.mouse & MOUSE_REVERSE_X_AXIS:
             dx = -dx
         if self.config.pan_tilt.mouse & MOUSE_REVERSE_Y_AXIS:
@@ -721,16 +883,37 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
     # ------------------------------------------------------------------
 
     def set_focal_target(self, flag):
+        """Set the focal target.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param flag: Value for ``flag``.
+        :type flag: UNKNOWN
+        """
         if flag and self._focal_target is None:
             self._focal_target = _focal_target.FocalPoint(self)
         elif not flag and self._focal_target is not None:
             self._focal_target = None
 
     def set_draw_grid(self, flag):
+        """Set the draw grid.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param flag: Value for ``flag``.
+        :type flag: UNKNOWN
+        """
         self.floor.set(flag)
 
     @_debug.logfunc
     def _draw_scene(self, obj_data):
+        """Draw the scene.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj_data: Value for ``obj_data``.
+        :type obj_data: UNKNOWN
+        """
         projection_matrix = GL.glGetFloatv(GL.GL_PROJECTION_MATRIX)
         view_matrix = GL.glGetFloatv(GL.GL_MODELVIEW_MATRIX)
 
@@ -843,6 +1026,10 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
 
     @_debug.logfunc
     def _on_draw(self):
+        """Handle the draw event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         # Use the virtual canvas size for the aspect ratio, not the widget
         # geometry.  This prevents distortion when the surrounding panel is
         # resized (mirrors the wx SetVirtualSize behaviour).
@@ -897,6 +1084,13 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
     # ------------------------------------------------------------------
 
     def take_snapshot(self) -> QtGui.QImage:
+        """Execute the take snapshot operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`QtGui.QImage`
+        """
         # take_snapshot is called outside of paintGL so we must acquire
         # the context explicitly via the context manager.
         with self.context:

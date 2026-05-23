@@ -22,8 +22,19 @@ Config = _config.Config.editor3d
 
 
 class FocalPoint(_generic.Generic):
+    """Represent a focal point in :mod:`harness_designer.gl.canvas3d.focal_target`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, canvas: "_canvas.Canvas"):
+        """Initialise the :class:`FocalPoint` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param canvas: Canvas instance.
+        :type canvas: :class:`_canvas.Canvas`
+        """
         _generic.Generic.__init__(self, canvas)
 
         self.canvas = canvas
@@ -31,8 +42,19 @@ class FocalPoint(_generic.Generic):
 
 
 class FocalPoint3D(_generic.Generic3D):
+    """Represent a focal point 3D in :mod:`harness_designer.gl.canvas3d.focal_target`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent: "FocalPoint"):
+        """Initialise the :class:`FocalPoint3D` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`FocalPoint`
+        """
         self.canvas = parent.canvas
 
         color = _color.Color(*parent.canvas.config.focal_target.color)
@@ -47,6 +69,15 @@ class FocalPoint3D(_generic.Generic3D):
 
     @staticmethod
     def _build_point(radius=1.0):
+        """Build the point.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param radius: Value for ``radius``.
+        :type radius: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         resolution = int(max(20.0, _utils.remap(
             radius, 0.35, 19.0, 20.0, 30.0)))
 

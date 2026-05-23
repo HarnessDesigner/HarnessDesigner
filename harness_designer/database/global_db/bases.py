@@ -15,15 +15,37 @@ if TYPE_CHECKING:
 
 
 class _EntrySingleton(type):
+    """Represent an entry singleton in :mod:`harness_designer.database.global_db.bases`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     _instances = {}
 
     def __init__(cls, name, bases, dct):
+        """Initialise the :class:`_EntrySingleton` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param name: Name value.
+        :type name: UNKNOWN
+        :param bases: Value for ``bases``.
+        :type bases: UNKNOWN
+        :param dct: Value for ``dct``.
+        :type dct: UNKNOWN
+        """
         super().__init__(name, bases, dct)
         setattr(cls, '_instances', {})
         cls._instances = {}
 
     @classmethod
     def __remove_ref(cls, ref):
+        """Remove the ref.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param ref: Value for ``ref``.
+        :type ref: UNKNOWN
+        """
         for key, value in cls._instances.items():
             if value == ref:
                 break
@@ -33,6 +55,17 @@ class _EntrySingleton(type):
         del cls._instances[key]
 
     def __call__(cls, table, db_id: int):
+        """Call the instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param table: Value for ``table``.
+        :type table: UNKNOWN
+        :param db_id: Identifier for the database.
+        :type db_id: int
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         if db_id in cls._instances:
             ref = cls._instances[db_id]
             instance = ref()
@@ -47,14 +80,31 @@ class _EntrySingleton(type):
 
 
 class EntryBase(_callback.CallbackMixin, metaclass=_EntrySingleton):
+    """Represent an entry base in :mod:`harness_designer.database.global_db.bases`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, table: "TableBase", db_id: int):
+        """Initialise the :class:`EntryBase` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param table: Value for ``table``.
+        :type table: :class:`TableBase`
+        :param db_id: Identifier for the database.
+        :type db_id: int
+        """
         self._table = table
         self._db_id = db_id
         self._objects = []
         _callback.CallbackMixin.__init__(self)
 
     def update_objects(self):
+        """Update the objects.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         for ref in self._objects:
             obj = ref()
             if obj is None:
@@ -63,23 +113,57 @@ class EntryBase(_callback.CallbackMixin, metaclass=_EntrySingleton):
             obj.reload_from_db()
 
     def __remove_ref(self, ref):
+        """Remove the ref.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param ref: Value for ``ref``.
+        :type ref: UNKNOWN
+        """
         try:
             self._objects.remove(ref)
         except ValueError:
             pass
 
     def add_object(self, obj):
+        """Add an object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
         self._objects.append(weakref.ref(obj, self.__remove_ref))
 
     @property
     def db_id(self):
+        """Return the database ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self._db_id
 
     def delete(self) -> None:
+        """Execute the delete operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self._table.delete(self.db_id)
 
     @staticmethod
     def merge_packet_data(src: dict, dst: dict):
+        """Execute the merge packet data operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param src: Value for ``src``.
+        :type src: dict
+        :param dst: Value for ``dst``.
+        :type dst: dict
+        """
         for key, values in src.items():
             if key in dst:
                 values = [value for value in values if value not in dst[key]]
@@ -89,9 +173,26 @@ class EntryBase(_callback.CallbackMixin, metaclass=_EntrySingleton):
 
 
 class TableBase:
+    """Represent a table base in :mod:`harness_designer.database.global_db.bases`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     __table_name__: str = None
 
     def __init__(self, db: "GLBTables", table_names: list['str'], splash: "_splash.Splash", load_database: bool):
+        """Initialise the :class:`TableBase` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param db: Database accessor or connection.
+        :type db: :class:`GLBTables`
+        :param table_names: Value for ``table_names``.
+        :type table_names: list['str']
+        :param splash: Value for ``splash``.
+        :type splash: :class:`_splash.Splash`
+        :param load_database: Value for ``load_database``.
+        :type load_database: bool
+        """
         self.__field_names__ = None
         self.db = db
         self._con = db.connector
@@ -113,6 +214,13 @@ class TableBase:
 
     @property
     def field_names(self):
+        """Return the field names.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         if self.__field_names__ is None:
             field_names = list(self._con.get_table_column_names(self.__table_name__))
             if 'id' in field_names:
@@ -126,6 +234,15 @@ class TableBase:
         return self.__field_names__
 
     def get_record(self, db_id):
+        """Return the record.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param db_id: Identifier for the database.
+        :type db_id: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         self.execute(f'SELECT {", ".join(self.field_names)} FROM {self.__table_name__} WHERE id={db_id};')
         rows = self.fetchall()
 
@@ -138,24 +255,69 @@ class TableBase:
         return rows
 
     def _load_database(self, splash):
+        """Load the database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param splash: Value for ``splash``.
+        :type splash: UNKNOWN
+        """
         pass
 
     def _table_needs_update(self) -> bool:
+        """Execute the table needs update operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        :raises NotImplementedError: Raised when the operation cannot be completed.
+        """
         raise NotImplementedError
 
     def _add_table_to_db(self, splash) -> None:
+        """Add a table to database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param splash: Value for ``splash``.
+        :type splash: UNKNOWN
+        :raises NotImplementedError: Raised when the operation cannot be completed.
+        """
         raise NotImplementedError
 
     def _update_table_in_db(self) -> None:
+        """Update the table in database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :raises NotImplementedError: Raised when the operation cannot be completed.
+        """
         raise NotImplementedError
 
     def __getitem__(self, item):
+        """Return the requested item.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param item: Item identifier or value.
+        :type item: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         self._con.execute(f'SELECT * FROM {self.__table_name__} WHERE id = {item};')
 
         for line in self._con.fetchall():
             return line
 
     def __iter__(self) -> _Iterable[int]:
+        """Iterate over the available items.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Iterator or iterable result. UNKNOWN details.
+        :rtype: _Iterable[int]
+        """
         self._con.execute(f'SELECT id FROM {self.__table_name__};')
 
         for line in self._con.fetchall():
@@ -163,9 +325,25 @@ class TableBase:
 
     @property
     def table_name(self) -> str:
+        """Return the table name.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: str
+        """
         return self.__table_name__
 
     def __contains__(self, db_id: int) -> bool:
+        """Return whether the requested item is present.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param db_id: Identifier for the database.
+        :type db_id: int
+        :returns: ``True`` when the condition is satisfied.
+        :rtype: bool
+        """
         self._con.execute(f'SELECT id FROM {self.__table_name__} WHERE id = {db_id};')
 
         if self._con.fetchall():
@@ -174,6 +352,15 @@ class TableBase:
         return False
 
     def insert(self, **kwargs) -> int:
+        """Execute the insert operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param kwargs: Additional keyword arguments.
+        :type kwargs: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: int
+        """
         fields = []
         values = []
         args = []
@@ -245,6 +432,16 @@ class TableBase:
         return count
 
     def load_from_json(self, data: list[dict[str, float | int | str]] | str) -> int:
+        """Load the from json.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param data: Data payload.
+        :type data: list[dict[str, float | int | str]] | str
+        :returns: Return value. UNKNOWN details.
+        :rtype: int
+        :raises RuntimeError: Raised when the operation cannot be completed.
+        """
         if isinstance(data, str):
             data = json.loads(data)
 
@@ -278,6 +475,17 @@ class TableBase:
         return count
 
     def select(self, *args, **kwargs):
+        """Execute the select operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param args: Additional positional arguments.
+        :type args: UNKNOWN
+        :param kwargs: Additional keyword arguments.
+        :type kwargs: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         args = ', '.join(args)
 
         if kwargs:
@@ -301,10 +509,26 @@ class TableBase:
         return res
 
     def delete(self, db_id: int) -> None:
+        """Execute the delete operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param db_id: Identifier for the database.
+        :type db_id: int
+        """
         self._con.execute(f'DELETE FROM {self.__table_name__} WHERE id = {db_id};')
         self._con.commit()
 
     def update(self, db_id: int, **kwargs):
+        """Execute the update operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param db_id: Identifier for the database.
+        :type db_id: int
+        :param kwargs: Additional keyword arguments.
+        :type kwargs: UNKNOWN
+        """
         fields = []
         values = []
 
@@ -317,29 +541,86 @@ class TableBase:
         self._con.commit()
 
     def execute(self, cmd, params=None):
+        """Execute the execute operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param cmd: Value for ``cmd``.
+        :type cmd: UNKNOWN
+        :param params: Value for ``params``.
+        :type params: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         if params is None:
             return self._con.execute(cmd)
         else:
             return self._con.execute(cmd, params)
 
     def commit(self):
+        """Execute the commit operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self._con.commit()
 
     @property
     def lastrowid(self):
+        """Return the lastrowid.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self._con.lastrowid
 
     def fetchall(self):
+        """Execute the fetchall operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self._con.fetchall()
 
     def fetchone(self):
+        """Execute the fetchone operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self._con.fetchone()
 
     @property
     def search_items(self) -> dict:
+        """Return the search items.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: dict
+        :raises NotImplementedError: Raised when the operation cannot be completed.
+        """
         raise NotImplementedError
 
     def get_unique(self, field_name, table_name=None, get_field_name='name'):
+        """Return the unique.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param field_name: Value for ``field_name``.
+        :type field_name: UNKNOWN
+        :param table_name: Value for ``table_name``.
+        :type table_name: UNKNOWN
+        :param get_field_name: Value for ``get_field_name``.
+        :type get_field_name: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         if table_name is None:
             self.execute(f'SELECT DISTINCT {field_name} FROM {self.__table_name__} ORDER BY {field_name};')
             res = self._con.fetchall()
@@ -503,8 +784,21 @@ from .cpa_lock_type import CPALockTypesTable  # NOQA
 
 
 class GLBTables:
+    """Represent a glb tables in :mod:`harness_designer.database.global_db.bases`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, splash, mainframe: "_ui.MainFrame"):
+        """Initialise the :class:`GLBTables` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param splash: Value for ``splash``.
+        :type splash: UNKNOWN
+        :param mainframe: Main application frame.
+        :type mainframe: :class:`_ui.MainFrame`
+        """
         self.mainframe = mainframe
 
         self.connector = mainframe.db_connector
@@ -558,164 +852,451 @@ class GLBTables:
 
     @property
     def cpa_lock_types_table(self) -> CPALockTypesTable:
+        """Return the CPA lock types table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`CPALockTypesTable`
+        """
         return self._cpa_lock_types_table
 
     @property
     def images_table(self) -> ImagesTable:
+        """Return the images table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`ImagesTable`
+        """
         return self._images_table
 
     @property
     def datasheets_table(self) -> DatasheetsTable:
+        """Return the datasheets table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`DatasheetsTable`
+        """
         return self._datasheets_table
 
     @property
     def cads_table(self) -> CADsTable:
+        """Return the cads table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`CADsTable`
+        """
         return self._cads_table
 
     @property
     def file_types_table(self) -> FileTypesTable:
+        """Return the file types table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`FileTypesTable`
+        """
         return self._file_types_table
 
     @property
     def accessories_table(self) -> AccessoriesTable:
+        """Return the accessories table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`AccessoriesTable`
+        """
         return self._accessories_table
 
     @property
     def boots_table(self) -> BootsTable:
+        """Return the boots table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`BootsTable`
+        """
         return self._boots_table
 
     @property
     def manufacturers_table(self) -> ManufacturersTable:
+        """Return the manufacturers table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`ManufacturersTable`
+        """
         return self._manufacturers_table
 
     @property
     def tpa_locks_table(self) -> TPALocksTable:
+        """Return the TPA locks table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`TPALocksTable`
+        """
         return self._tpa_locks_table
 
     @property
     def cpa_locks_table(self) -> CPALocksTable:
+        """Return the CPA locks table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`CPALocksTable`
+        """
         return self._cpa_locks_table
 
     @property
     def platings_table(self) -> PlatingsTable:
+        """Return the platings table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`PlatingsTable`
+        """
         return self._platings_table
 
     @property
     def materials_table(self) -> MaterialsTable:
+        """Return the materials table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`MaterialsTable`
+        """
         return self._materials_table
 
     @property
     def covers_table(self) -> CoversTable:
+        """Return the covers table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`CoversTable`
+        """
         return self._covers_table
 
     @property
     def housings_table(self) -> HousingsTable:
+        """Return the housings table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`HousingsTable`
+        """
         return self._housings_table
 
     @property
     def seal_types_table(self) -> SealTypesTable:
+        """Return the seal types table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`SealTypesTable`
+        """
         return self._seal_types_table
 
     @property
     def seals_table(self) -> SealsTable:
+        """Return the seals table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`SealsTable`
+        """
         return self._seals_table
 
     @property
     def series_table(self) -> SeriesTable:
+        """Return the series table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`SeriesTable`
+        """
         return self._series_table
 
     @property
     def terminals_table(self) -> TerminalsTable:
+        """Return the terminals table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`TerminalsTable`
+        """
         return self._terminals_table
 
     @property
     def wires_table(self) -> WiresTable:
+        """Return the wires table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`WiresTable`
+        """
         return self._wires_table
 
     @property
     def cavity_locks_table(self) -> CavityLocksTable:
+        """Return the cavity locks table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`CavityLocksTable`
+        """
         return self._cavity_locks_table
 
     @property
     def colors_table(self) -> ColorsTable:
+        """Return the colors table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`ColorsTable`
+        """
         return self._colors_table
 
     @property
     def directions_table(self) -> DirectionsTable:
+        """Return the directions table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`DirectionsTable`
+        """
         return self._directions_table
 
     @property
     def families_table(self) -> FamiliesTable:
+        """Return the families table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`FamiliesTable`
+        """
         return self._families_table
 
     @property
     def genders_table(self) -> GendersTable:
+        """Return the genders table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`GendersTable`
+        """
         return self._genders_table
 
     @property
     def temperatures_table(self) -> TemperaturesTable:
+        """Return the temperatures table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`TemperaturesTable`
+        """
         return self._temperatures_table
 
     @property
     def ip_solids_table(self) -> IPSolidsTable:
+        """Return the ip solids table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`IPSolidsTable`
+        """
         return self._ip_solids_table
 
     @property
     def ip_fluids_table(self) -> IPFluidsTable:
+        """Return the ip fluids table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`IPFluidsTable`
+        """
         return self._ip_fluids_table
 
     @property
     def ip_supps_table(self) -> IPSuppsTable:
+        """Return the ip supps table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`IPSuppsTable`
+        """
         return self._ip_supps_table
 
     @property
     def ip_ratings_table(self) -> IPRatingsTable:
+        """Return the ip ratings table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`IPRatingsTable`
+        """
         return self._ip_ratings_table
 
     @property
     def cavities_table(self) -> CavitiesTable:
+        """Return the cavities table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`CavitiesTable`
+        """
         return self._cavities_table
 
     @property
     def bundle_covers_table(self) -> BundleCoversTable:
+        """Return the bundle covers table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`BundleCoversTable`
+        """
         return self._bundle_covers_table
 
     @property
     def transition_branches_table(self) -> TransitionBranchesTable:
+        """Return the transition branches table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`TransitionBranchesTable`
+        """
         return self._transition_branches_table
 
     @property
     def adhesives_table(self) -> AdhesivesTable:
+        """Return the adhesives table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`AdhesivesTable`
+        """
         return self._adhesives_table
 
     @property
     def protections_table(self) -> ProtectionsTable:
+        """Return the protections table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`ProtectionsTable`
+        """
         return self._protections_table
 
     @property
     def shapes_table(self) -> ShapesTable:
+        """Return the shapes table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`ShapesTable`
+        """
         return self._shapes_table
 
     @property
     def transitions_table(self) -> TransitionsTable:
+        """Return the transitions table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`TransitionsTable`
+        """
         return self._transitions_table
 
     @property
     def splices_table(self) -> SplicesTable:
+        """Return the splices table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`SplicesTable`
+        """
         return self._splices_table
 
     @property
     def models3d_table(self) -> Models3DTable:
+        """Return the models 3D table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`Models3DTable`
+        """
         return self._models3d_table
 
     @property
     def wire_markers_table(self) -> WireMarkersTable:
+        """Return the wire markers table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`WireMarkersTable`
+        """
         return self._wire_markers_table
 
     @property
     def splice_types_table(self) -> SpliceTypesTable:
+        """Return the splice types table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`SpliceTypesTable`
+        """
         return self._splice_types_table
 
     @property
     def settings_table(self) -> SettingsTable:
+        """Return the settings table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`SettingsTable`
+        """
         return self._settings_table

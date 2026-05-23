@@ -31,29 +31,61 @@ if TYPE_CHECKING:
 
 
 class SealsTable(TableBase):
+    """Represent a seals table in :mod:`harness_designer.database.global_db.seal`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     __table_name__ = 'seals'
 
     _control: "SealControl" = None
 
     @property
     def control(self) -> "SealControl":
+        """Return the control.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`SealControl`
+        """
         if self._control is None:
             self._control = SealControl(self.db.mainframe)
             self._control.hide()
         return self._control
 
     def _load_database(self, splash):
+        """Load the database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param splash: Value for ``splash``.
+        :type splash: UNKNOWN
+        """
         from ..create_database import seals
 
         data_path = self._con.db_data.open(splash)
         seals.add_records(self._con, splash, data_path)
 
     def _table_needs_update(self) -> bool:
+        """Execute the table needs update operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
         from ..create_database import seals
 
         return seals.table.is_ok(self)
 
     def _add_table_to_db(self, splash):
+        """Add a table to database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param splash: Value for ``splash``.
+        :type splash: UNKNOWN
+        """
         from ..create_database import seals
 
         seals.table.add_to_db(self)
@@ -62,15 +94,37 @@ class SealsTable(TableBase):
         seals.add_records(self._con, splash, data_path)
 
     def _update_table_in_db(self):
+        """Update the table in database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         from ..create_database import seals
 
         seals.table.update_fields(self)
 
     def __iter__(self) -> _Iterable["Seal"]:
+        """Iterate over the available items.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Iterator or iterable result. UNKNOWN details.
+        :rtype: _Iterable['Seal']
+        """
         for db_id in TableBase.__iter__(self):
             yield Seal(self, db_id)
 
     def __getitem__(self, item) -> "Seal":
+        """Return the requested item.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param item: Item identifier or value.
+        :type item: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`Seal`
+        :raises KeyError: Raised when the operation cannot be completed.
+        :raises IndexError: Raised when the operation cannot be completed.
+        """
         if isinstance(item, int):
             if item in self:
                 return Seal(self, item)
@@ -83,6 +137,17 @@ class SealsTable(TableBase):
         raise KeyError(item)
 
     def get_compat(self, terminal: str = None, housing: str = None):
+        """Return the compat.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param terminal: Value for ``terminal``.
+        :type terminal: str
+        :param housing: Value for ``housing``.
+        :type housing: str
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
 
         res = []
 
@@ -111,6 +176,51 @@ class SealsTable(TableBase):
                color_id: int, lubricant: str, min_temp_id: int, max_temp_id: int, length: float, o_dia: float,
                i_dia: float, wire_dia_min: float, wire_dia_max: float, image_id: int, datasheet_id: int,
                cad_id: int, weight: float) -> "Seal":
+        """Execute the insert operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param part_number: Value for ``part_number``.
+        :type part_number: str
+        :param mfg_id: Identifier for the mfg.
+        :type mfg_id: int
+        :param description: Value for ``description``.
+        :type description: str
+        :param series_id: Identifier for the series.
+        :type series_id: int
+        :param type: Value for ``type``.
+        :type type: str
+        :param hardness: Value for ``hardness``.
+        :type hardness: int
+        :param color_id: Identifier for the color.
+        :type color_id: int
+        :param lubricant: Value for ``lubricant``.
+        :type lubricant: str
+        :param min_temp_id: Identifier for the min temp.
+        :type min_temp_id: int
+        :param max_temp_id: Identifier for the max temp.
+        :type max_temp_id: int
+        :param length: Value for ``length``.
+        :type length: float
+        :param o_dia: Value for ``o_dia``.
+        :type o_dia: float
+        :param i_dia: Value for ``i_dia``.
+        :type i_dia: float
+        :param wire_dia_min: Value for ``wire_dia_min``.
+        :type wire_dia_min: float
+        :param wire_dia_max: Value for ``wire_dia_max``.
+        :type wire_dia_max: float
+        :param image_id: Identifier for the image.
+        :type image_id: int
+        :param datasheet_id: Identifier for the datasheet.
+        :type datasheet_id: int
+        :param cad_id: Identifier for the cad.
+        :type cad_id: int
+        :param weight: Value for ``weight``.
+        :type weight: float
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`Seal`
+        """
 
         db_id = TableBase.insert(self, part_number=part_number, mfg_id=mfg_id, description=description,
                                  series_id=series_id, type=type, hardness=hardness, color_id=color_id,
@@ -122,6 +232,13 @@ class SealsTable(TableBase):
 
     @property
     def search_items(self) -> dict:
+        """Return the search items.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: dict
+        """
         ret = {
             0: {
                 'label': 'Part Number',
@@ -212,10 +329,21 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
            SeriesMixin, ColorMixin, TemperatureMixin, ResourceMixin, WeightMixin,
            Model3DMixin, DimensionMixin, FamilyMixin, WireSizeMixin, CompatHousingsMixin,
            CompatTerminalsMixin):
+    """Represent a seal in :mod:`harness_designer.database.global_db.seal`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     _table: SealsTable = None
 
     def build_monitor_packet(self):
+        """Build the monitor packet.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         mfg = self.manufacturer
         color = self.color
 
@@ -237,6 +365,13 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _scale_id: str = None
 
     def _update_scale(self, scale: _point.Point):
+        """Update the scale.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param scale: Value for ``scale``.
+        :type scale: :class:`_point.Point`
+        """
         o_dia1, o_dia2, length = scale.as_float
 
         o_dia = max(o_dia1, o_dia2)
@@ -244,6 +379,13 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @property
     def scale(self) -> "_point.Point":
+        """Return the scale.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_point.Point`
+        """
         if self._scale_id is None:
             self._scale_id = str(uuid.uuid4())
 
@@ -282,78 +424,194 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @property
     def o_dia(self) -> float:
+        """Return the o dia.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         return self._table.select('o_dia', id=self._db_id)[0][0]
 
     @o_dia.setter
     def o_dia(self, value: float):
+        """Set the o dia.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: float
+        """
         self._table.update(self._db_id, o_dia=round(value, 6))
         self._populate('o_dia')
 
     @property
     def i_dia(self) -> float:
+        """Return the i dia.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         return self._table.select('i_dia', id=self._db_id)[0][0]
 
     @i_dia.setter
     def i_dia(self, value: float):
+        """Set the i dia.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: float
+        """
         self._table.update(self._db_id, i_dia=round(value, 6))
         self._populate('i_dia')
 
     @property
     def type(self) -> "_seal_type.SealType":
+        """Return the type.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_seal_type.SealType`
+        """
         type_id = self.type_id
         return self.table.db.seal_types_table[type_id]
 
     @property
     def type_id(self) -> int:
+        """Return the type ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         return self._table.select('type_id', id=self._db_id)[0][0]
 
     @type_id.setter
     def type_id(self, value: int):
+        """Set the type ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, type_id=value)
         self._populate('type_id')
 
     @property
     def hardness(self) -> int:
+        """Return the hardness.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         return self._table.select('hardness', id=self._db_id)[0][0]
 
     @hardness.setter
     def hardness(self, value: int):
+        """Set the hardness.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self.hardness, i_dia=value)
         self._populate('hardness')
 
     @property
     def lubricant(self) -> str:
+        """Return the lubricant.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: str
+        """
         return self._table.select('lubricant', id=self._db_id)[0][0]
 
     @lubricant.setter
     def lubricant(self, value: str):
+        """Set the lubricant.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: str
+        """
         self._table.update(self._db_id, lubricant=value)
         self._populate('lubricant')
 
     @property
     def wire_dia_min(self) -> float:
+        """Return the wire dia min.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         return self._table.select('wire_dia_min', id=self._db_id)[0][0]
 
     @wire_dia_min.setter
     def wire_dia_min(self, value: float):
+        """Set the wire dia min.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: float
+        """
         self._table.update(self._db_id, wire_dia_min=round(value, 6))
         self._populate('wire_dia_min')
 
     @property
     def wire_dia_max(self) -> float:
+        """Return the wire dia max.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         return self._table.select('wire_dia_max', id=self._db_id)[0][0]
 
     @wire_dia_max.setter
     def wire_dia_max(self, value: float):
+        """Set the wire dia max.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: float
+        """
         self._table.update(self._db_id, wire_dia_max=round(value, 6))
         self._populate('wire_dia_max')
 
 
 class SealControl(QTabWidget):
+    """Represent a seal control in :mod:`harness_designer.database.global_db.seal`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     # TODO: Add seal type
 
     def set_obj(self, db_obj: Seal):
+        """Set the obj.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`Seal`
+        """
         self.db_obj = db_obj
 
         self.mfg_page.set_obj(db_obj)
@@ -394,22 +652,57 @@ class SealControl(QTabWidget):
             self.i_dia_ctrl.Enable(True)
 
     def _on_hardness(self, evt):
+        """Handle the hardness event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         value = evt.GetValue()
         self.db_obj.hardness = value
 
     def _on_lubricant(self, evt):
+        """Handle the lubricant event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         value = evt.GetValue()
         self.db_obj.lubricant = value
 
     def _on_o_dia(self, evt):
+        """Handle the o dia event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         value = evt.GetValue()
         self.db_obj.o_dia = value
 
     def _on_i_dia(self, evt):
+        """Handle the i dia event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         value = evt.GetValue()
         self.db_obj.i_dia = value
 
     def __init__(self, parent):
+        """Initialise the :class:`SealControl` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        """
         self.db_obj: Seal = None
 
         QTabWidget.__init__(self, parent)

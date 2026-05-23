@@ -22,12 +22,32 @@ from ... import logger as _logger
 
 
 def add_wire_markers(con, data: tuple[dict] | list[dict]):
+    """Add a wire markers.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param data: Data payload.
+    :type data: tuple[dict] | list[dict]
+    """
 
     for line in data:
         add_wire_marker(con, **line)
 
 
 def add_records(con, splash, data_path):
+    """Add a records.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param splash: Value for ``splash``.
+    :type splash: UNKNOWN
+    :param data_path: Value for ``data_path``.
+    :type data_path: UNKNOWN
+    """
     con.execute('SELECT id FROM wire_markers WHERE id=1;')
     if con.fetchall():
         return
@@ -81,6 +101,61 @@ def add_wire_marker(con, part_number, description, mfg=None, family=None, series
                     wire_size_awg_max=None, wire_size_dia_min=None, wire_size_dia_max=None,
                     wire_size_cross_min=None, wire_size_cross_max=None, length=0.0,
                     weight=0.0, has_label=0, commit=True):
+    """Add a wire marker.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param part_number: Value for ``part_number``.
+    :type part_number: UNKNOWN
+    :param description: Value for ``description``.
+    :type description: UNKNOWN
+    :param mfg: Value for ``mfg``.
+    :type mfg: UNKNOWN
+    :param family: Value for ``family``.
+    :type family: UNKNOWN
+    :param series: Value for ``series``.
+    :type series: UNKNOWN
+    :param color: Value for ``color``.
+    :type color: UNKNOWN
+    :param image: Value for ``image``.
+    :type image: UNKNOWN
+    :param datasheet: Value for ``datasheet``.
+    :type datasheet: UNKNOWN
+    :param cad: Value for ``cad``.
+    :type cad: UNKNOWN
+    :param min_temp: Value for ``min_temp``.
+    :type min_temp: UNKNOWN
+    :param max_temp: Value for ``max_temp``.
+    :type max_temp: UNKNOWN
+    :param min_diameter: Value for ``min_diameter``.
+    :type min_diameter: UNKNOWN
+    :param max_diameter: Value for ``max_diameter``.
+    :type max_diameter: UNKNOWN
+    :param wire_size_awg_min: Value for ``wire_size_awg_min``.
+    :type wire_size_awg_min: UNKNOWN
+    :param wire_size_awg_max: Value for ``wire_size_awg_max``.
+    :type wire_size_awg_max: UNKNOWN
+    :param wire_size_dia_min: Value for ``wire_size_dia_min``.
+    :type wire_size_dia_min: UNKNOWN
+    :param wire_size_dia_max: Value for ``wire_size_dia_max``.
+    :type wire_size_dia_max: UNKNOWN
+    :param wire_size_cross_min: Value for ``wire_size_cross_min``.
+    :type wire_size_cross_min: UNKNOWN
+    :param wire_size_cross_max: Value for ``wire_size_cross_max``.
+    :type wire_size_cross_max: UNKNOWN
+    :param length: Value for ``length``.
+    :type length: UNKNOWN
+    :param weight: Value for ``weight``.
+    :type weight: UNKNOWN
+    :param has_label: Boolean flag for whether label is available.
+    :type has_label: UNKNOWN
+    :param commit: Value for ``commit``.
+    :type commit: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
 
     mfg, family, series = _manufacturers.inspect_mfg_fam_series(mfg, family, series)
 
@@ -116,6 +191,33 @@ def add_wire_marker(con, part_number, description, mfg=None, family=None, series
 def add_pjt_wire_marker(con, project_id, part_id, point3d_id=None, point2d_id=None,
                         wire_id=None, name='', notes='', label='', is_visible2d=1,
                         is_visible3d=1):
+    """Add a PJT wire marker.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param project_id: Identifier for the project.
+    :type project_id: UNKNOWN
+    :param part_id: Identifier for the part.
+    :type part_id: UNKNOWN
+    :param point3d_id: Identifier for the point 3D.
+    :type point3d_id: UNKNOWN
+    :param point2d_id: Identifier for the point 2D.
+    :type point2d_id: UNKNOWN
+    :param wire_id: Identifier for the wire.
+    :type wire_id: UNKNOWN
+    :param name: Name value.
+    :type name: UNKNOWN
+    :param notes: Value for ``notes``.
+    :type notes: UNKNOWN
+    :param label: Value for ``label``.
+    :type label: UNKNOWN
+    :param is_visible2d: Boolean flag for whether visible 2D.
+    :type is_visible2d: UNKNOWN
+    :param is_visible3d: Boolean flag for whether visible 3D.
+    :type is_visible3d: UNKNOWN
+    """
 
     con.execute('INSERT INTO pjt_wire_markers (project_id, part_id, point3d_id, '
                 'point2d_id, wire_id, name, notes, label, is_visible2d, is_visible3d) '

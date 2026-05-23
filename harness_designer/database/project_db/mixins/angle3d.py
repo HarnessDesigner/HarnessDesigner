@@ -8,9 +8,20 @@ from ....geometry import angle as _angle
 
 
 class Angle3DMixin(BaseMixin):
+    """Represent an angle 3dmixin in :mod:`harness_designer.database.project_db.mixins.angle3d`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     _angle3d_db_id: str = None
 
     def _update_angle3d(self, angle: _angle.Angle):
+        """Update the angle 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param angle: Value for ``angle``.
+        :type angle: :class:`_angle.Angle`
+        """
         quat = list(angle.as_quat_float)
         euler_angle = list(angle.as_euler_float)
 
@@ -20,6 +31,13 @@ class Angle3DMixin(BaseMixin):
 
     @property
     def angle3d(self) -> _angle.Angle:
+        """Return the angle 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_angle.Angle`
+        """
         quat = eval(self._table.select('quat3d', id=self._db_id)[0][0])
         euler_angle = eval(self._table.select('angle3d', id=self._db_id)[0][0])
 
@@ -33,13 +51,31 @@ class Angle3DMixin(BaseMixin):
 
 
 class Angle3DControl(_prop_ctrls.Angle3DProperty):
+    """Represent an angle 3dcontrol in :mod:`harness_designer.database.project_db.mixins.angle3d`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent):
+        """Initialise the :class:`Angle3DControl` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        """
         self.db_obj: Angle3DMixin = None
 
         super().__init__(parent, '3D Angle')
 
     def set_obj(self, db_obj: Angle3DMixin):
+        """Set the obj.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`Angle3DMixin`
+        """
         self.db_obj = db_obj
         if db_obj is None:
             self.SetValue(None)

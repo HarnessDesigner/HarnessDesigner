@@ -9,6 +9,17 @@ BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 
 def add_records(con, splash, _=None):
+    """Add a records.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param splash: Value for ``splash``.
+    :type splash: UNKNOWN
+    :param _: Value for ``_``.
+    :type _: UNKNOWN
+    """
     con.execute('SELECT id FROM ip_solids WHERE id=0;')
     if con.fetchall():
         return

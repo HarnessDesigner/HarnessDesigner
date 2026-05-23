@@ -15,6 +15,31 @@ def add_pjt_wire_service_loop(con, project_id, part_id, start_point3d_id=None,
                               stop_point3d_id=None, circuit_id=None, notes='',
                               quat3d=[1.0, 0.0, 0.0, 0.0], angle3d=[0.0, 0.0, 0.0],
                               is_visible3d=1):
+    """Add a PJT wire service loop.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param project_id: Identifier for the project.
+    :type project_id: UNKNOWN
+    :param part_id: Identifier for the part.
+    :type part_id: UNKNOWN
+    :param start_point3d_id: Identifier for the start point 3D.
+    :type start_point3d_id: UNKNOWN
+    :param stop_point3d_id: Identifier for the stop point 3D.
+    :type stop_point3d_id: UNKNOWN
+    :param circuit_id: Identifier for the circuit.
+    :type circuit_id: UNKNOWN
+    :param notes: Value for ``notes``.
+    :type notes: UNKNOWN
+    :param quat3d: Value for ``quat3d``.
+    :type quat3d: UNKNOWN
+    :param angle3d: Value for ``angle3d``.
+    :type angle3d: UNKNOWN
+    :param is_visible3d: Boolean flag for whether visible 3D.
+    :type is_visible3d: UNKNOWN
+    """
 
     con.execute('INSERT INTO pjt_wire_service_loops (project_id, part_id, '
                 'start_point3d_id, stop_point3d_id, circuit_id, notes, quat3d, '

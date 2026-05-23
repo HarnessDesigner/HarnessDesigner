@@ -13,11 +13,24 @@ if TYPE_CHECKING:
 
 
 class Transition(_ObjectBase):
+    """Represent a transition in :mod:`harness_designer.objects.transition`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     obj2d: _transition_2d.Transition = None
     obj3d: _transition_3d.Transition = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_transition.PJTTransition"):
+        """Initialise the :class:`Transition` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mainframe: Main application frame.
+        :type mainframe: :class:`_ui.MainFrame`
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_pjt_transition.PJTTransition`
+        """
 
         db_obj.set_object(self)
         db_obj.add_object(self)

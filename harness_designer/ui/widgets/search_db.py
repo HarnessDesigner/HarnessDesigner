@@ -34,6 +34,15 @@ class _ItemRow(QWidget):
     """A label + checkbox row inside _ItemsPanel."""
 
     def __init__(self, parent, label: str):
+        """Initialise the :class:`_ItemRow` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param label: Value for ``label``.
+        :type label: str
+        """
         super().__init__(parent)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(2, 2, 2, 2)
@@ -43,9 +52,23 @@ class _ItemRow(QWidget):
         layout.addWidget(self.ctrl, 0)
 
     def GetValue(self) -> bool:
+        """Execute the get value operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
         return self.ctrl.isChecked()
 
     def GetName(self) -> str:
+        """Execute the get name operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: str
+        """
         return self.st.text()
 
 
@@ -53,6 +76,15 @@ class _ItemsPanel(QScrollArea):
     """Scrollable list of label + checkbox rows."""
 
     def __init__(self, parent, choices: list[str]):
+        """Initialise the :class:`_ItemsPanel` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param choices: Value for ``choices``.
+        :type choices: list[str]
+        """
         super().__init__(parent)
         self.setFrameShape(QFrame.StyledPanel)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -73,10 +105,21 @@ class _ItemsPanel(QScrollArea):
         self._layout.addStretch()
 
     def Reset(self):
+        """Execute the reset operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         for item in self.items:
             item.ctrl.setChecked(False)
 
     def GetValues(self) -> list[_ItemRow]:
+        """Execute the get values operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: list[_ItemRow]
+        """
         return [item for item in self.items if item.GetValue()]
 
 
@@ -86,6 +129,19 @@ class _SearchPanelField(QFrame):
     changed = Signal()
 
     def __init__(self, parent, label: str, params, types):
+        """Initialise the :class:`_SearchPanelField` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param label: Value for ``label``.
+        :type label: str
+        :param params: Value for ``params``.
+        :type params: UNKNOWN
+        :param types: Value for ``types``.
+        :type types: UNKNOWN
+        """
         super().__init__(parent)
         self.setFrameShape(QFrame.StyledPanel)
         self.parent_panel = parent
@@ -116,10 +172,21 @@ class _SearchPanelField(QFrame):
             row.ctrl.stateChanged.connect(lambda _: self.changed.emit())
 
     def _on_reset(self):
+        """Handle the reset event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.items_panel.Reset()
         self.changed.emit()
 
     def GetValues(self) -> dict:
+        """Execute the get values operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: dict
+        """
         values = self.items_panel.GetValues()
         res = []
         if len(self.types) == 1:
@@ -144,6 +211,15 @@ class _SearchPanel(QScrollArea):
 
     def __init__(self, parent,
                  db_table: Union['_global_db.TableBase', '_project_db.PJTTableBase']):
+        """Initialise the :class:`_SearchPanel` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param db_table: Value for ``db_table``.
+        :type db_table: Union['_global_db.TableBase', '_project_db.PJTTableBase']
+        """
         super().__init__(parent)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -174,15 +250,37 @@ class _SearchPanel(QScrollArea):
                 field.changed.connect(self.on_update)
 
     def SetSearchAllParts(self, flag: bool):
+        """Execute the set search all parts operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param flag: Value for ``flag``.
+        :type flag: bool
+        """
         self._search_all_parts = flag
 
     def SetCompatParts(self, *compat_parts):
+        """Execute the set compat parts operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param compat_parts: Value for ``compat_parts``.
+        :type compat_parts: UNKNOWN
+        """
         self._compat_parts = compat_parts
 
     def load(self):
+        """Execute the load operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.on_update()
 
     def on_update(self):
+        """Handle the update event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         cmd = {}
         for field in self.fields:
             cmd.update(field.GetValues())
@@ -200,6 +298,15 @@ class _ResultCtrl(QTreeWidget):
     """Virtual list control for lazily-fetched search results."""
 
     def __init__(self, parent, columns: list[str]):
+        """Initialise the :class:`_ResultCtrl` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param columns: Value for ``columns``.
+        :type columns: list[str]
+        """
         super().__init__(parent)
         self.parent_panel = parent
         self._selected_db_id = None
@@ -219,9 +326,20 @@ class _ResultCtrl(QTreeWidget):
         self.itemActivated.connect(self._on_activated)
 
     def GetValue(self):
+        """Execute the get value operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self._selected_db_id
 
     def _on_selection_changed(self):
+        """Handle the selection changed event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         items = self.selectedItems()
         if not items:
             return
@@ -235,6 +353,15 @@ class _ResultCtrl(QTreeWidget):
         self.parent_panel.set_image(obj.image)
 
     def _on_activated(self, item, _column):
+        """Handle the activated event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param item: Item identifier or value.
+        :type item: UNKNOWN
+        :param _column: Value for ``column``.
+        :type _column: UNKNOWN
+        """
         row = item.data(0, Qt.UserRole)
         if row is None:
             return
@@ -245,6 +372,15 @@ class _ResultCtrl(QTreeWidget):
             top.accept()
 
     def SetValues(self, con, results):
+        """Execute the set values operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param con: Value for ``con``.
+        :type con: UNKNOWN
+        :param results: Value for ``results``.
+        :type results: UNKNOWN
+        """
         self.clear()
         self._loaded_results = []
         self.con = con
@@ -260,12 +396,26 @@ class _ResultCtrl(QTreeWidget):
         self._load_remaining(count)
 
     def _append_row(self, row):
+        """Execute the append row operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param row: Value for ``row``.
+        :type row: UNKNOWN
+        """
         item = QTreeWidgetItem([str(col) for col in row[1:]])
         item.setData(0, Qt.UserRole, row)
         self.addTopLevelItem(item)
         self._loaded_results.append(row)
 
     def _load_remaining(self, count: int):
+        """Load the remaining.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param count: Count value.
+        :type count: int
+        """
         if self.con is None:
             return
         while len(self._loaded_results) < count:
@@ -284,6 +434,17 @@ class SearchPanel(QWidget):
     search_changed = Signal()
 
     def __init__(self, parent=None, table=None, *compat_parts):
+        """Initialise the :class:`SearchPanel` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param table: Value for ``table``.
+        :type table: UNKNOWN
+        :param compat_parts: Value for ``compat_parts``.
+        :type compat_parts: UNKNOWN
+        """
         super().__init__(parent)
 
         self.parent_panel = parent
@@ -322,10 +483,24 @@ class SearchPanel(QWidget):
         self.search_panel.load()
 
     def _on_search_all_parts(self, state: int):
+        """Handle the search all parts event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param state: Value for ``state``.
+        :type state: int
+        """
         self.search_panel.SetSearchAllParts(bool(state))
         self.search_panel.load()
 
     def set_image(self, image):
+        """Set the image.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param image: Value for ``image``.
+        :type image: UNKNOWN
+        """
         if image is None:
             self.image_ctrl.setPixmap(QPixmap())
         else:
@@ -335,7 +510,23 @@ class SearchPanel(QWidget):
                           Qt.SmoothTransformation))
 
     def SetResults(self, con, results):
+        """Execute the set results operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param con: Value for ``con``.
+        :type con: UNKNOWN
+        :param results: Value for ``results``.
+        :type results: UNKNOWN
+        """
         self.result_ctrl.SetValues(con, results)
 
     def GetValue(self):
+        """Execute the get value operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self.result_ctrl.GetValue()

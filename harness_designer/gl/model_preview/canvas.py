@@ -22,6 +22,15 @@ from ... import utils as _utils
 # ---------------------------------------------------------------------------
 
 def _calculate_obb(vertices):
+    """Calculate the OBB.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param vertices: Value for ``vertices``.
+    :type vertices: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
     center   = np.mean(vertices, axis=0)
     centered = vertices - center
     cov      = np.cov(centered.T)
@@ -51,6 +60,17 @@ def _calculate_obb(vertices):
 
 
 def _find_best_corner_view(center, corners):
+    """Find the best corner view.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param center: Value for ``center``.
+    :type center: UNKNOWN
+    :param corners: Value for ``corners``.
+    :type corners: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
     distances    = np.linalg.norm(corners - center, axis=1)
     farthest_idx = np.argmax(distances)
     chosen_corner = corners[farthest_idx]
@@ -60,6 +80,21 @@ def _find_best_corner_view(center, corners):
 
 
 def _calculate_camera_distance(extents, fov_degrees, aspect_ratio, padding_factor=1.15):
+    """Calculate the camera distance.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param extents: Value for ``extents``.
+    :type extents: UNKNOWN
+    :param fov_degrees: Value for ``fov_degrees``.
+    :type fov_degrees: UNKNOWN
+    :param aspect_ratio: Value for ``aspect_ratio``.
+    :type aspect_ratio: UNKNOWN
+    :param padding_factor: Value for ``padding_factor``.
+    :type padding_factor: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
     import math
     max_extent      = np.max(extents) * 2
     fov_rad         = math.radians(fov_degrees)
@@ -84,6 +119,13 @@ class Canvas(QOpenGLWidget):
     """
 
     def __init__(self, parent=None):
+        """Initialise the :class:`Canvas` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        """
         super().__init__(parent)
         self.initialized = False
 
@@ -102,6 +144,17 @@ class Canvas(QOpenGLWidget):
     # ------------------------------------------------------------------
 
     def set_model(self, color, vertices, faces):
+        """Set the model.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param color: Value for ``color``.
+        :type color: UNKNOWN
+        :param vertices: Value for ``vertices``.
+        :type vertices: UNKNOWN
+        :param faces: Value for ``faces``.
+        :type faces: UNKNOWN
+        """
         self.color    = color
         self.vertices = vertices
         self.faces    = faces
@@ -167,6 +220,10 @@ class Canvas(QOpenGLWidget):
     # ------------------------------------------------------------------
 
     def setup_projection(self):
+        """Execute the setup projection operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         w = max(self.width(), 1)
         h = max(self.height(), 1)
         aspect = w / float(h)
@@ -200,6 +257,10 @@ class Canvas(QOpenGLWidget):
         )
 
     def render_model(self):
+        """Render the model.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         if self.data is None:
             return
 

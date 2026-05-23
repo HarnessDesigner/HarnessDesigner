@@ -6,6 +6,10 @@ from . import material as _material
 
 
 class PolishedMaterial(_material.GLMaterial):
+    """Represent a polished material in :mod:`harness_designer.gl.materials.polished`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     _ambient = (0.0, 0.0, 0.0)
     _diffuse = (0.0, 0.0, 0.0)
     _specular = (0.0, 0.0, 0.0)
@@ -19,6 +23,13 @@ class PolishedMaterial(_material.GLMaterial):
     _cl_roughness = 0.0
 
     def __init__(self, color: _color.Color):
+        """Initialise the :class:`PolishedMaterial` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param color: Value for ``color``.
+        :type color: :class:`_color.Color`
+        """
         r, g, b = color.rgb_scalar
 
         ar = _utils.remap(r, 0.75294, 1.0,

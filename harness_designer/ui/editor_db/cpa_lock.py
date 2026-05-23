@@ -10,6 +10,10 @@ if TYPE_CHECKING:
 
 
 class CPALocksPage(_base.EditorList):
+    """Represent a CPA locks page in :mod:`harness_designer.ui.editor_db.cpa_lock`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     __table_name__ = 'cpa_locks'
     __query__ = f'''\
         SELECT * FROM (

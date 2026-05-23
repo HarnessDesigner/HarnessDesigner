@@ -5,6 +5,17 @@ from ... import logger as _logger
 
 
 def add_records(con, splash, _):
+    """Add a records.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param splash: Value for ``splash``.
+    :type splash: UNKNOWN
+    :param _: Value for ``_``.
+    :type _: UNKNOWN
+    """
     con.execute('SELECT id FROM adhesives WHERE id=0;')
     if con.fetchall():
         return
@@ -33,6 +44,17 @@ def add_records(con, splash, _):
 
 
 def get_adhesive_id(con, code):
+    """Return the adhesive ID.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param code: Value for ``code``.
+    :type code: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
     if not code:
         return 0
 

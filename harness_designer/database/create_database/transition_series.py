@@ -5,6 +5,17 @@ from ... import logger as _logger
 
 
 def add_records(con, splash, _):
+    """Add a records.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param splash: Value for ``splash``.
+    :type splash: UNKNOWN
+    :param _: Value for ``_``.
+    :type _: UNKNOWN
+    """
     con.execute('SELECT id FROM transition_series WHERE id=0;')
     if con.fetchall():
         return
@@ -19,6 +30,17 @@ def add_records(con, splash, _):
 
 
 def get_transition_series_id(con, name):
+    """Return the transition series ID.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param name: Name value.
+    :type name: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
     if not name:
         return 0
 

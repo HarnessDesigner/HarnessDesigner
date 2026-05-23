@@ -5,6 +5,17 @@ from ... import logger as _logger
 
 
 def add_records(con, splash, _):
+    """Add a records.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param splash: Value for ``splash``.
+    :type splash: UNKNOWN
+    :param _: Value for ``_``.
+    :type _: UNKNOWN
+    """
     con.execute('SELECT id FROM protections WHERE id=0;')
     if con.fetchall():
         return
@@ -20,6 +31,21 @@ def add_records(con, splash, _):
 
 
 def add_protection(con, name, id=None, commit=True):  # NOQA
+    """Add a protection.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param name: Name value.
+    :type name: UNKNOWN
+    :param id: Identifier for the ID.
+    :type id: UNKNOWN
+    :param commit: Value for ``commit``.
+    :type commit: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
 
     if id is None:
         con.execute(
@@ -40,6 +66,17 @@ def add_protection(con, name, id=None, commit=True):  # NOQA
 
 
 def get_protection_id(con, name):
+    """Return the protection ID.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param name: Name value.
+    :type name: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
     if not name:
         return 0
 

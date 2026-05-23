@@ -32,6 +32,15 @@ class Housing(_base2d.Base2D):
 
     def __init__(self, parent: "_housing.Housing",
                  db_obj: "_pjt_housing.PJTHousing"):
+        """Initialise the :class:`Housing` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`_housing.Housing`
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_pjt_housing.PJTHousing`
+        """
 
         self._part = db_obj.part
         position = db_obj.position2d
@@ -218,8 +227,21 @@ class Housing(_base2d.Base2D):
 
 
 class HousingMenu(QMenu):
+    """Represent a housing menu in :mod:`harness_designer.objects.objects2d.housing`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, canvas, selected):
+        """Initialise the :class:`HousingMenu` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param canvas: Canvas instance.
+        :type canvas: UNKNOWN
+        :param selected: Value for ``selected``.
+        :type selected: UNKNOWN
+        """
         QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
@@ -266,31 +288,71 @@ class HousingMenu(QMenu):
         action.triggered.connect(self.on_properties)
 
     def on_add_seal(self):
+        """Handle the add seal event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_add_terminal(self):
+        """Handle the add terminal event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_add_cpa_lock(self):
+        """Handle the add CPA lock event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_add_tpa_lock(self):
+        """Handle the add TPA lock event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_add_cover(self):
+        """Handle the add cover event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_add_boot(self):
+        """Handle the add boot event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_select(self):
+        """Handle the select event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_clone(self):
+        """Handle the clone event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_delete(self):
+        """Handle the delete event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_properties(self):
+        """Handle the properties event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass

@@ -24,10 +24,23 @@ Config = _config.Config.editor3d
 
 
 class CPALock(_base3d.Base3D):
+    """Represent a CPA lock in :mod:`harness_designer.objects.objects3d.cpa_lock`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     parent: "_cpa_lock.CPALock" = None
     db_obj: "_pjt_cpa_lock.PJTCPALock" = None
 
     def __init__(self, parent: "_cpa_lock.CPALock", db_obj: "_pjt_cpa_lock.PJTCPALock"):
+        """Initialise the :class:`CPALock` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`_cpa_lock.CPALock`
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_pjt_cpa_lock.PJTCPALock`
+        """
         parent.mainframe.editor3d.context.acquire()
         self._part = db_obj.part
 
@@ -63,12 +76,32 @@ class CPALock(_base3d.Base3D):
 
 
     def get_context_menu(self):
+        """Return the context menu.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return CPALockMenu(self.mainframe.editor3d.editor, self)
 
 
 class CPALockMenu(QMenu):
+    """Represent a CPA lock menu in :mod:`harness_designer.objects.objects3d.cpa_lock`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, canvas, selected):
+        """Initialise the :class:`CPALockMenu` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param canvas: Canvas instance.
+        :type canvas: UNKNOWN
+        :param selected: Value for ``selected``.
+        :type selected: UNKNOWN
+        """
         QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
@@ -95,13 +128,29 @@ class CPALockMenu(QMenu):
         action.triggered.connect(self.on_properties)
 
     def on_select(self):
+        """Handle the select event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_clone(self):
+        """Handle the clone event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_delete(self):
+        """Handle the delete event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_properties(self):
+        """Handle the properties event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass

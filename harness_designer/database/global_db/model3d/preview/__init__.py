@@ -15,8 +15,21 @@ MOUSE_REVERSE_X_AXIS = _config.MOUSE_REVERSE_X_AXIS
 
 
 class Preview(QOpenGLWidget):
+    """Represent a preview in :mod:`harness_designer.database.global_db.model3d.preview.__init__`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent, size=None):
+        """Initialise the :class:`Preview` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param size: Value for ``size``.
+        :type size: UNKNOWN
+        """
         QOpenGLWidget.__init__(self, parent)
         if size is not None:
             self.setFixedSize(size[0], size[1])
@@ -44,6 +57,13 @@ class Preview(QOpenGLWidget):
         self._plane_size = 10.0
 
     def show_axis_planes(self, flag):
+        """Show the axis planes.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param flag: Value for ``flag``.
+        :type flag: UNKNOWN
+        """
         if flag:
             self.build_quads()
             self.build_plane_edges()
@@ -57,6 +77,10 @@ class Preview(QOpenGLWidget):
         self.update()
 
     def build_quads(self):
+        """Build the quads.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         size = self._plane_size / 2.0
 
         xy_color = (1.0, 0.0, 0.0, 0.3)
@@ -97,6 +121,10 @@ class Preview(QOpenGLWidget):
         self._plane_colors = [xy_color, xz_color, yz_color]
 
     def build_plane_edges(self):
+        """Build the plane edges.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         del self._plane_edges[:]
 
         size = self._plane_size / 2.0
@@ -136,6 +164,21 @@ class Preview(QOpenGLWidget):
 
     @staticmethod
     def draw_edge_glow(edge_start, edge_end, color, glow_width=0.02, num_layers=5):
+        """Draw the edge glow.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param edge_start: Value for ``edge_start``.
+        :type edge_start: UNKNOWN
+        :param edge_end: Value for ``edge_end``.
+        :type edge_end: UNKNOWN
+        :param color: Value for ``color``.
+        :type color: UNKNOWN
+        :param glow_width: Value for ``glow_width``.
+        :type glow_width: UNKNOWN
+        :param num_layers: Value for ``num_layers``.
+        :type num_layers: UNKNOWN
+        """
         for i in range(num_layers, 0, -1):
             alpha = (i / num_layers) * 0.8
             width = glow_width * i * 2.0
@@ -156,6 +199,10 @@ class Preview(QOpenGLWidget):
         GL.glEnd()
 
     def draw_plane_edges(self):
+        """Draw the plane edges.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         saved_emission = GL.glGetMaterialfv(GL.GL_FRONT, GL.GL_EMISSION)
 
         GL.glDisable(GL.GL_LIGHTING)
@@ -171,6 +218,15 @@ class Preview(QOpenGLWidget):
         GL.glMaterialfv(GL.GL_FRONT, GL.GL_EMISSION, saved_emission)
 
     def set_model(self, triangles: list[list[np.ndarray, np.ndarray, int]], plane_size=0):
+        """Set the model.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param triangles: Value for ``triangles``.
+        :type triangles: list[list[np.ndarray, np.ndarray, int]]
+        :param plane_size: Value for ``plane_size``.
+        :type plane_size: UNKNOWN
+        """
         self._triangles = triangles
 
         self._plane_size = plane_size
@@ -182,6 +238,15 @@ class Preview(QOpenGLWidget):
         self.update()
 
     def TruckPedestal(self, dx: float, dy: float) -> None:
+        """Execute the truck pedestal operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param dx: Value for ``dx``.
+        :type dx: float
+        :param dy: Value for ``dy``.
+        :type dy: float
+        """
         if Config.truck_pedestal.mouse & MOUSE_REVERSE_X_AXIS:
             dx = -dx
         if Config.truck_pedestal.mouse & MOUSE_REVERSE_Y_AXIS:
@@ -194,10 +259,28 @@ class Preview(QOpenGLWidget):
         self.camera.TruckPedestal(dx, dy, Config.truck_pedestal.speed)
 
     def Zoom(self, dx: float, _):
+        """Execute the zoom operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param dx: Value for ``dx``.
+        :type dx: float
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        """
         dx *= Config.zoom.sensitivity
         self.camera.Zoom(dx)
 
     def Rotate(self, dx: float, dy: float) -> None:
+        """Execute the rotate operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param dx: Value for ``dx``.
+        :type dx: float
+        :param dy: Value for ``dy``.
+        :type dy: float
+        """
         if Config.rotate.mouse & MOUSE_REVERSE_X_AXIS:
             dx = -dx
         if Config.rotate.mouse & MOUSE_REVERSE_Y_AXIS:
@@ -210,6 +293,15 @@ class Preview(QOpenGLWidget):
         self.camera.Rotate(dx, dy)
 
     def Walk(self, dx: float, dy: float) -> None:
+        """Execute the walk operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param dx: Value for ``dx``.
+        :type dx: float
+        :param dy: Value for ``dy``.
+        :type dy: float
+        """
         if dy == 0.0:
             self.PanTilt(dx * 6.0, 0.0)
             return
@@ -229,6 +321,15 @@ class Preview(QOpenGLWidget):
         self.PanTilt(look_dx * 2.0, 0.0)
 
     def PanTilt(self, dx: float, dy: float) -> None:
+        """Execute the pan tilt operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param dx: Value for ``dx``.
+        :type dx: float
+        :param dy: Value for ``dy``.
+        :type dy: float
+        """
         if Config.pan_tilt.mouse & MOUSE_REVERSE_X_AXIS:
             dx = -dx
         if Config.pan_tilt.mouse & MOUSE_REVERSE_Y_AXIS:
@@ -240,12 +341,25 @@ class Preview(QOpenGLWidget):
         self.camera.PanTilt(dx, dy)
 
     def resizeGL(self, w, h):
+        """Execute the resize GL operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param w: Value for ``w``.
+        :type w: UNKNOWN
+        :param h: Value for ``h``.
+        :type h: UNKNOWN
+        """
         self._size = (w, h)
         self.makeCurrent()
         GL.glViewport(0, 0, w, h)
         self.doneCurrent()
 
     def initializeGL(self):
+        """Execute the initialize GL operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self._init = True
         GL.glEnable(GL.GL_DEPTH_TEST)
         GL.glClearColor(0.20, 0.20, 0.20, 1.0)
@@ -283,6 +397,10 @@ class Preview(QOpenGLWidget):
         QTimer.singleShot(0, lambda: self.camera.Zoom(1.0))
 
     def paintGL(self):
+        """Execute the paint GL operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         w, h = self.width(), self.height()
         aspect = w / float(h) if h else 1.0
 

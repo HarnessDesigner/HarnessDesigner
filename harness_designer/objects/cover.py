@@ -13,12 +13,25 @@ if TYPE_CHECKING:
 
 
 class Cover(_ObjectBase):
+    """Represent a cover in :mod:`harness_designer.objects.cover`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     obj2d: _cover_2d.Cover = None
     obj3d: _cover_3d.Cover = None
     db_obj: "_pjt_cover.PJTCover" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_cover.PJTCover"):
+        """Initialise the :class:`Cover` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mainframe: Main application frame.
+        :type mainframe: :class:`_ui.MainFrame`
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_pjt_cover.PJTCover`
+        """
 
         db_obj.set_object(self)
         db_obj.add_object(self)

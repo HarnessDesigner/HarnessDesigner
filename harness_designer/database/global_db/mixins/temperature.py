@@ -11,9 +11,20 @@ if TYPE_CHECKING:
 
 
 class TemperatureMixin(BaseMixin):
+    """Represent a temperature mixin in :mod:`harness_designer.database.global_db.mixins.temperature`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     @property
     def min_temp(self) -> "_temperature.Temperature":
+        """Return the min temp.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_temperature.Temperature`
+        """
         from .. import temperature as _temperature  # NOQA
 
         min_temp_id = self._table.select('min_temp_id', id=self._db_id)
@@ -21,15 +32,36 @@ class TemperatureMixin(BaseMixin):
 
     @property
     def min_temp_id(self) -> int:
+        """Return the min temp ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         return self._table.select('min_temp_id', id=self._db_id)[0][0]
 
     @min_temp_id.setter
     def min_temp_id(self, value: int):
+        """Set the min temp ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, min_temp_id=value)
         self._populate('min_temp_id')
 
     @property
     def max_temp(self) -> "_temperature.Temperature":
+        """Return the max temp.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_temperature.Temperature`
+        """
         from .. import temperature as _temperature  # NOQA
 
         max_temp_id = self._table.select('max_temp_id', id=self._db_id)
@@ -37,17 +69,42 @@ class TemperatureMixin(BaseMixin):
 
     @property
     def max_temp_id(self) -> int:
+        """Return the max temp ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         return self._table.select('max_temp_id', id=self._db_id)[0][0]
 
     @max_temp_id.setter
     def max_temp_id(self, value: int):
+        """Set the max temp ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, max_temp_id=value)
         self._populate('max_temp_id')
 
 
 class TemperatureControl(_prop_ctrls.Category):
+    """Represent a temperature control in :mod:`harness_designer.database.global_db.mixins.temperature`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent):
+        """Initialise the :class:`TemperatureControl` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        """
         super().__init__(parent, 'Temperatures')
 
         self.choices: list[str] = []
@@ -60,6 +117,13 @@ class TemperatureControl(_prop_ctrls.Category):
         self.max_temp_ctrl.property_changed.connect(self._on_max_temp)
 
     def set_obj(self, db_obj: TemperatureMixin):
+        """Set the obj.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`TemperatureMixin`
+        """
         self.db_obj = db_obj
 
         if db_obj is None:
@@ -88,6 +152,13 @@ class TemperatureControl(_prop_ctrls.Category):
             self.max_temp_ctrl.Enable(True)
 
     def _on_min_temp(self, evt: _prop_ctrls.PropertyEvent):
+        """Handle the min temp event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_prop_ctrls.PropertyEvent`
+        """
         name = evt.GetValue()
 
         self.db_obj.table.execute(f'SELECT id FROM temperatures WHERE name="{name}";')
@@ -112,6 +183,13 @@ class TemperatureControl(_prop_ctrls.Category):
         self.db_obj.min_temp_id = db_id
 
     def _on_max_temp(self, evt: _prop_ctrls.PropertyEvent):
+        """Handle the max temp event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_prop_ctrls.PropertyEvent`
+        """
         name = evt.GetValue()
 
         self.db_obj.table.execute(f'SELECT id FROM temperatures WHERE name="{name}";')

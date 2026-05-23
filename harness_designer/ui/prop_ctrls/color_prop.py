@@ -8,8 +8,21 @@ from ..widgets import autocomplete_combobox as _autocomplete_combobox
 
 
 class ColorProperty(_prop_base.Property):
+    """Represent a color property in :mod:`harness_designer.ui.prop_ctrls.color_prop`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent, label):
+        """Initialise the :class:`ColorProperty` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param label: Value for ``label``.
+        :type label: UNKNOWN
+        """
         _prop_base.Property.__init__(self, parent, label)
         self._value = ['None', QColor(0, 0, 0)]
         self._choices = []
@@ -44,6 +57,10 @@ class ColorProperty(_prop_base.Property):
         self._button.clicked.connect(self._on_colour)
 
     def _on_colour(self):
+        """Handle the colour event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         current = self._value[1] if isinstance(self._value[1], QColor) else QColor(0, 0, 0)
         color = QColorDialog.getColor(current, self, 'Select Colour')
         if not color.isValid():
@@ -69,6 +86,13 @@ class ColorProperty(_prop_base.Property):
         self._send_changed_event(list, self._value)
 
     def _on_change(self, value):
+        """Handle the change event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: UNKNOWN
+        """
         values = [item[0] for item in self._choices]
         if value in values:
             index = values.index(value)
@@ -87,6 +111,13 @@ class ColorProperty(_prop_base.Property):
         self._send_changed_event(list, self._value)
 
     def SetValue(self, value):
+        """Execute the set value operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: UNKNOWN
+        """
         values = [item[0] for item in self._choices]
         self._ctrl.blockSignals(True)
         if value[0] in values:
@@ -101,16 +132,41 @@ class ColorProperty(_prop_base.Property):
         self._value = list(value)
 
     def GetValue(self):
+        """Execute the get value operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self._value
 
     def Clear(self):  # NOQA
+        """Execute the clear operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self._choices = []
         self._ctrl.clear()
 
     def GetItems(self):
+        """Execute the get items operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self._choices
 
     def SetItems(self, items):
+        """Execute the set items operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param items: Collection of items to process.
+        :type items: UNKNOWN
+        """
         self._choices = items
         self._ctrl.blockSignals(True)
         self._ctrl.clear()

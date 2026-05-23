@@ -78,6 +78,17 @@ KEY_MULTIPLES = {
 
 
 def _process_key_event(keycode: int, *keys):
+    """Execute the process key event operation.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param keycode: Value for ``keycode``.
+    :type keycode: int
+    :param keys: Lookup keys.
+    :type keys: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
     for expected_keycode in keys:
         if expected_keycode is None:
             continue
@@ -94,8 +105,19 @@ def _process_key_event(keycode: int, *keys):
 
 
 class KeyHandler:
+    """Represent a key handler in :mod:`harness_designer.gl.canvas3d.key_handler`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, canvas: "_canvas.Canvas"):
+        """Initialise the :class:`KeyHandler` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param canvas: Canvas instance.
+        :type canvas: :class:`_canvas.Canvas`
+        """
         self.canvas = canvas
 
         self._running_keycodes = {}
@@ -106,6 +128,15 @@ class KeyHandler:
         self._keycode_thread.start()
 
     def handle_event(self, event):
+        """Handle the event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param event: Event object.
+        :type event: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         t = event.type()
 
         if event.isAutoRepeat():  # ← ignore auto-repeats
@@ -119,6 +150,10 @@ class KeyHandler:
         return False
 
     def _key_loop(self):
+        """Execute the key loop operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         while not self._key_event.is_set():
             with self._key_queue_lock:
                 temp_queue = [[func, items['keys'], items['factor']]
@@ -142,12 +177,28 @@ class KeyHandler:
 
     @_debug.logfunc
     def on_key_up(self, evt):
+        """Handle the key up event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         keycode = evt.key()
 
         if not self._send_event(_events.EVT_GL_KEY_UP, evt):
             return
 
         def remove_from_queue(func, k):
+            """Remove the from queue.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param func: Value for ``func``.
+            :type func: UNKNOWN
+            :param k: Value for ``k``.
+            :type k: UNKNOWN
+            """
             with self._key_queue_lock:
                 if func in self._running_keycodes:
                     items = self._running_keycodes.pop(func)
@@ -195,6 +246,17 @@ class KeyHandler:
             return
 
     def _send_event(self, event_type, qt_evt) -> bool:
+        """Execute the send event operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param event_type: Value for ``event_type``.
+        :type event_type: UNKNOWN
+        :param qt_evt: Value for ``qt_evt``.
+        :type qt_evt: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
 
         # Screen position under the cursor — Qt key events don't carry a
         # position, so we use the current cursor position mapped to the widget.
@@ -241,12 +303,28 @@ class KeyHandler:
 
     @_debug.logfunc
     def on_key_down(self, evt):
+        """Handle the key down event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         keycode = evt.key()
 
         if not self._send_event(_events.EVT_GL_KEY_DOWN, evt):
             return
 
         def add_to_queue(func, k):
+            """Add a to queue.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param func: Value for ``func``.
+            :type func: UNKNOWN
+            :param k: Value for ``k``.
+            :type k: UNKNOWN
+            """
             with self._key_queue_lock:
                 if func not in self._running_keycodes:
                     self._running_keycodes[func] = dict(
@@ -297,6 +375,15 @@ class KeyHandler:
 
     @_debug.logfunc
     def _process_rotate_key(self, factor, *keys):
+        """Execute the process rotate key operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param factor: Value for ``factor``.
+        :type factor: UNKNOWN
+        :param keys: Lookup keys.
+        :type keys: UNKNOWN
+        """
         dx = 0.0
         dy = 0.0
 
@@ -314,6 +401,15 @@ class KeyHandler:
 
     @_debug.logfunc
     def _process_pan_tilt_key(self, factor, *keys):
+        """Execute the process pan tilt key operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param factor: Value for ``factor``.
+        :type factor: UNKNOWN
+        :param keys: Lookup keys.
+        :type keys: UNKNOWN
+        """
         dx = 0.0
         dy = 0.0
 
@@ -331,6 +427,15 @@ class KeyHandler:
 
     @_debug.logfunc
     def _process_truck_pedestal_key(self, factor, *keys):
+        """Execute the process truck pedestal key operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param factor: Value for ``factor``.
+        :type factor: UNKNOWN
+        :param keys: Lookup keys.
+        :type keys: UNKNOWN
+        """
         dx = 0.0
         dy = 0.0
 
@@ -348,6 +453,15 @@ class KeyHandler:
 
     @_debug.logfunc
     def _process_walk_key(self, factor, *keys):
+        """Execute the process walk key operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param factor: Value for ``factor``.
+        :type factor: UNKNOWN
+        :param keys: Lookup keys.
+        :type keys: UNKNOWN
+        """
         dx = 0.0
         dy = 0.0
 
@@ -365,6 +479,15 @@ class KeyHandler:
 
     @_debug.logfunc
     def _process_zoom_key(self, factor, *keys):
+        """Execute the process zoom key operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param factor: Value for ``factor``.
+        :type factor: UNKNOWN
+        :param keys: Lookup keys.
+        :type keys: UNKNOWN
+        """
         delta = 0.0
 
         for key in keys:
@@ -377,4 +500,11 @@ class KeyHandler:
 
     @_debug.logfunc
     def _process_reset_key(self, *_):
+        """Execute the process reset key operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        """
         self.canvas.camera.Reset()

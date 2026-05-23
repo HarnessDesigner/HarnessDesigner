@@ -15,9 +15,26 @@ if TYPE_CHECKING:
 
 
 class Canvas3D(QWidget):
+    """Represent a canvas 3D in :mod:`harness_designer.gl.canvas3d.canvas3d`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent: "QWidget", config: "_config.Config.editor3d",
                  size, axis_overlay=False):
+        """Initialise the :class:`Canvas3D` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`QWidget`
+        :param config: Value for ``config``.
+        :type config: :class:`_config.Config.editor3d`
+        :param size: Value for ``size``.
+        :type size: UNKNOWN
+        :param axis_overlay: Value for ``axis_overlay``.
+        :type axis_overlay: UNKNOWN
+        """
 
         QWidget.__init__(self, parent)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
@@ -59,6 +76,13 @@ class Canvas3D(QWidget):
         self._canvas.notify_virtual_size_changed(w, h)
 
     def get_virtual_size(self) -> tuple[int, int]:
+        """Return the virtual size.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: tuple[int, int]
+        """
         return self._virtual_size.width(), self._virtual_size.height()
 
     # ------------------------------------------------------------------
@@ -66,6 +90,13 @@ class Canvas3D(QWidget):
     # ------------------------------------------------------------------
 
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
+        """Execute the resize event operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param event: Event object.
+        :type event: :class:`QtGui.QResizeEvent`
+        """
         QWidget.resizeEvent(self, event)
 
         vw = self._virtual_size.width()
@@ -83,6 +114,10 @@ class Canvas3D(QWidget):
         self._reposition_axis_overlay()
 
     def _reposition_axis_overlay(self) -> None:
+        """Execute the reposition axis overlay operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         axis_overlay = self._canvas.axis_overlay
 
         if axis_overlay is None:
@@ -125,33 +160,99 @@ class Canvas3D(QWidget):
     # ------------------------------------------------------------------
 
     def event(self, evt):
+        """Execute the event operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return QWidget.event(self, evt)
 
     @property
     def context(self):
+        """Return the context.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self._canvas.context
 
     @property
     def camera(self):
+        """Return the camera.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self._canvas.camera
 
     def set_selected(self, obj):
+        """Set the selected.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
         self._canvas.set_selected(obj)
 
     def set_mode(self, mode: int) -> None:
+        """Set the mode.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mode: Value for ``mode``.
+        :type mode: int
+        """
         self._canvas.set_mode(mode)
 
     def add_object(self, obj):
+        """Add an object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
         self._canvas.add_object(obj)
 
     def remove_object(self, obj):
+        """Remove the object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
         self._canvas.remove_object(obj)
 
     def __enter__(self):
+        """Enter the managed context.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self._ref_count += 1
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        """Exit the managed context.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param exc_type: Value for ``exc_type``.
+        :type exc_type: UNKNOWN
+        :param exc_val: Value for ``exc_val``.
+        :type exc_val: UNKNOWN
+        :param exc_tb: Value for ``exc_tb``.
+        :type exc_tb: UNKNOWN
+        """
         self._ref_count -= 1
 
     def bind(self, signal_name: str, handler) -> None:
@@ -159,38 +260,125 @@ class Canvas3D(QWidget):
         getattr(self._canvas, signal_name).connect(handler)
 
     def Refresh(self, *_, **__):
+        """Execute the refresh operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        :param __: Value for ``__``.
+        :type __: UNKNOWN
+        """
         if self._ref_count:
             return
         self._canvas.update()
 
     def Truck(self, delta) -> None:
+        """Execute the truck operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param delta: Value for ``delta``.
+        :type delta: UNKNOWN
+        """
         self._canvas.TruckPedestal(delta, 0.0)
 
     def Pedestal(self, delta) -> None:
+        """Execute the pedestal operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param delta: Value for ``delta``.
+        :type delta: UNKNOWN
+        """
         self._canvas.TruckPedestal(0.0, delta)
 
     def TruckPedestal(self, truck_delta, pedestal_delta) -> None:
+        """Execute the truck pedestal operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param truck_delta: Value for ``truck_delta``.
+        :type truck_delta: UNKNOWN
+        :param pedestal_delta: Value for ``pedestal_delta``.
+        :type pedestal_delta: UNKNOWN
+        """
         self._canvas.TruckPedestal(truck_delta, pedestal_delta)
 
     def Zoom(self, delta):
+        """Execute the zoom operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param delta: Value for ``delta``.
+        :type delta: UNKNOWN
+        """
         self._canvas.Zoom(delta, None)
 
     def RotateAbout(self, delta_x, delta_y) -> None:
+        """Execute the rotate about operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param delta_x: Value for ``delta_x``.
+        :type delta_x: UNKNOWN
+        :param delta_y: Value for ``delta_y``.
+        :type delta_y: UNKNOWN
+        """
         self._canvas.Rotate(delta_x, delta_y)
 
     def Dolly(self, delta):
+        """Execute the dolly operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param delta: Value for ``delta``.
+        :type delta: UNKNOWN
+        """
         self._canvas.Walk(delta, 0.0)
 
     def Walk(self, delta_z, delta_x) -> None:
+        """Execute the walk operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param delta_z: Value for ``delta_z``.
+        :type delta_z: UNKNOWN
+        :param delta_x: Value for ``delta_x``.
+        :type delta_x: UNKNOWN
+        """
         self._canvas.Walk(delta_z, delta_x)
 
     def Pan(self, delta):
+        """Execute the pan operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param delta: Value for ``delta``.
+        :type delta: UNKNOWN
+        """
         self._canvas.PanTilt(delta, 0.0)
 
     def Tilt(self, delta) -> None:
+        """Execute the tilt operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param delta: Value for ``delta``.
+        :type delta: UNKNOWN
+        """
         self._canvas.PanTilt(0.0, delta)
 
     def PanTilt(self, pan_delta, tilt_delta):
+        """Execute the pan tilt operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param pan_delta: Value for ``pan_delta``.
+        :type pan_delta: UNKNOWN
+        :param tilt_delta: Value for ``tilt_delta``.
+        :type tilt_delta: UNKNOWN
+        """
         self._canvas.PanTilt(pan_delta, tilt_delta)
 
     def cleanup(self):

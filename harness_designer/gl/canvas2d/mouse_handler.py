@@ -29,6 +29,15 @@ MOUSE_SWAP_AXIS = _config.MOUSE_SWAP_AXIS
 
 
 def _qt_pos(qt_event) -> _point.Point:
+    """Execute the qt pos operation.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param qt_event: Value for ``qt_event``.
+    :type qt_event: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: :class:`_point.Point`
+    """
     p = qt_event.position().toPoint()
     return _point.Point(p.x(), p.y())
 
@@ -51,8 +60,19 @@ def _qt_buttons_flag(qt_event) -> int:
 
 
 class MouseHandler2D(QtCore.QObject):
+    """Represent a mouse handler 2D in :mod:`harness_designer.gl.canvas2d.mouse_handler`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, canvas: "_canvas.Canvas"):
+        """Initialise the :class:`MouseHandler2D` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param canvas: Canvas instance.
+        :type canvas: :class:`_canvas.Canvas`
+        """
         super().__init__()
         self.canvas = canvas
 
@@ -94,6 +114,17 @@ class MouseHandler2D(QtCore.QObject):
     # ------------------------------------------------------------------
 
     def eventFilter(self, obj, qt_event):
+        """Execute the event filter operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        :param qt_event: Value for ``qt_event``.
+        :type qt_event: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         if obj is not self.canvas:
             return False
 
@@ -159,12 +190,30 @@ class MouseHandler2D(QtCore.QObject):
     # ------------------------------------------------------------------
 
     def _get_object_at_point(self, world_pos: _point.Point):
+        """Return the object at point.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param world_pos: Value for ``world_pos``.
+        :type world_pos: :class:`_point.Point`
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         for obj in reversed(self.canvas.objects):
             if obj.obj2d.hit_test(world_pos):
                 return obj
         return None
 
     def _process_mouse(self, code):
+        """Execute the process mouse operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param code: Value for ``code``.
+        :type code: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         for config, func in (
             (self.canvas.config.pan, self.canvas.Pan),
             (self.canvas.config.zoom, self.canvas.Zoom),
@@ -175,7 +224,25 @@ class MouseHandler2D(QtCore.QObject):
 
             if config.mouse & code:
                 def _wrapper_func(c):
+                    """Execute the wrapper func operation.
+
+                    UNKNOWN details are inferred from the callable name and signature.
+
+                    :param c: Value for ``c``.
+                    :type c: UNKNOWN
+                    :returns: Return value. UNKNOWN details.
+                    :rtype: UNKNOWN
+                    """
                     def _wrapper(dx, dy):
+                        """Execute the wrapper operation.
+
+                        UNKNOWN details are inferred from the callable name and signature.
+
+                        :param dx: Value for ``dx``.
+                        :type dx: UNKNOWN
+                        :param dy: Value for ``dy``.
+                        :type dy: UNKNOWN
+                        """
                         if c.mouse & MOUSE_SWAP_AXIS:
                             func(dy, dx)
                         else:
@@ -185,6 +252,15 @@ class MouseHandler2D(QtCore.QObject):
                 return _wrapper_func(config)
 
         def _do_nothing_func(_, __):
+            """Execute the do nothing func operation.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param _: Value for ``_``.
+            :type _: UNKNOWN
+            :param __: Value for ``__``.
+            :type __: UNKNOWN
+            """
             pass
 
         return _do_nothing_func
@@ -194,6 +270,13 @@ class MouseHandler2D(QtCore.QObject):
     # ------------------------------------------------------------------
 
     def on_left_down(self, evt):
+        """Handle the left down event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         mouse_pos = _qt_pos(evt)
         self._mouse_pos = mouse_pos
         self._is_motion = False
@@ -234,6 +317,13 @@ class MouseHandler2D(QtCore.QObject):
             self.canvas.update()
 
     def on_left_up(self, evt):
+        """Handle the left up event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         mouse_pos = _qt_pos(evt)
         self._mouse_pos = mouse_pos
         refresh = False
@@ -261,6 +351,13 @@ class MouseHandler2D(QtCore.QObject):
             self.canvas.update()
 
     def on_left_dclick(self, evt):
+        """Handle the left dclick event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         mouse_pos = _qt_pos(evt)
         self._mouse_pos = mouse_pos
         refresh = False
@@ -289,6 +386,13 @@ class MouseHandler2D(QtCore.QObject):
             self.canvas.update()
 
     def on_right_down(self, evt):
+        """Handle the right down event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         mouse_pos = _qt_pos(evt)
         self._mouse_pos = mouse_pos
         self._is_motion = False
@@ -296,6 +400,13 @@ class MouseHandler2D(QtCore.QObject):
         self.canvas.grabMouse()
 
     def on_right_up(self, evt):
+        """Handle the right up event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         mouse_pos = _qt_pos(evt)
         self._mouse_pos = mouse_pos
         refresh = False
@@ -341,9 +452,23 @@ class MouseHandler2D(QtCore.QObject):
         self.canvas.releaseMouse()
 
     def on_right_dclick(self, evt):
+        """Handle the right dclick event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         self._send_event(_events.GLEvent(_events.EVT_GL_RIGHT_DCLICK), evt)
 
     def on_middle_down(self, evt):
+        """Handle the middle down event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         mouse_pos = _qt_pos(evt)
         self._mouse_pos = mouse_pos
         self._is_motion = False
@@ -351,33 +476,96 @@ class MouseHandler2D(QtCore.QObject):
         self.canvas.grabMouse()
 
     def on_middle_up(self, evt):
+        """Handle the middle up event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         self._mouse_pos = _qt_pos(evt)
         self._is_motion = False
         self._send_event(_events.GLEvent(_events.EVT_GL_MIDDLE_UP), evt)
         self.canvas.releaseMouse()
 
     def on_middle_dclick(self, evt):
+        """Handle the middle dclick event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         self._send_event(_events.GLEvent(_events.EVT_GL_MIDDLE_DCLICK), evt)
 
     def on_aux1_up(self, evt):
+        """Handle the aux 1 up event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         self._send_event(_events.GLEvent(_events.EVT_GL_AUX1_UP), evt)
 
     def on_aux1_down(self, evt):
+        """Handle the aux 1 down event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         self._send_event(_events.GLEvent(_events.EVT_GL_AUX1_DOWN), evt)
 
     def on_aux1_dclick(self, evt):
+        """Handle the aux 1 dclick event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         self._send_event(_events.GLEvent(_events.EVT_GL_AUX1_DCLICK), evt)
 
     def on_aux2_up(self, evt):
+        """Handle the aux 2 up event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         self._send_event(_events.GLEvent(_events.EVT_GL_AUX2_UP), evt)
 
     def on_aux2_down(self, evt):
+        """Handle the aux 2 down event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         self._send_event(_events.GLEvent(_events.EVT_GL_AUX2_DOWN), evt)
 
     def on_aux2_dclick(self, evt):
+        """Handle the aux 2 dclick event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         self._send_event(_events.GLEvent(_events.EVT_GL_AUX2_DCLICK), evt)
 
     def on_mouse_motion(self, evt):
+        """Handle the mouse motion event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         refresh = False
 
         btns = evt.buttons()
@@ -440,6 +628,13 @@ class MouseHandler2D(QtCore.QObject):
             self.canvas.update()
 
     def on_mouse_wheel(self, evt):
+        """Handle the mouse wheel event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         mouse_pos = _qt_pos(evt)
         delta = 1.0 if evt.angleDelta().y() > 0 else -1.0
         self.canvas.camera.zoom_at_point(mouse_pos, delta)
@@ -450,6 +645,13 @@ class MouseHandler2D(QtCore.QObject):
     # ------------------------------------------------------------------
 
     def _show_canvas_context_menu(self, pos: _point.Point):
+        """Show the canvas context menu.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param pos: Value for ``pos``.
+        :type pos: :class:`_point.Point`
+        """
         menu = QMenu(self.canvas)
 
         act = menu.addAction("Reset View")
@@ -484,16 +686,36 @@ class MouseHandler2D(QtCore.QObject):
         menu.exec(self.canvas.mapToGlobal(QPoint(int(pos.x), int(pos.y))))
 
     def _on_toggle_grid(self):
+        """Handle the toggle grid event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.canvas.set_grid(not self.canvas.config.grid.enabled)
 
     def _on_toggle_snap(self):
+        """Handle the toggle snap event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.canvas.set_snap_to_grid(not self.canvas.config.grid.snap)
 
     def _on_toggle_angle_lock(self):
+        """Handle the toggle angle lock event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.canvas.set_angle_lock(not self.canvas.config.angle.lock)
 
     def _on_reset_view(self):
+        """Handle the reset view event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.canvas.camera.reset()
 
     def _on_zoom_to_fit(self):
+        """Handle the zoom to fit event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.canvas.camera.zoom_to_fit(self.canvas.objects)

@@ -6,6 +6,10 @@ from . import material as _material
 
 
 class RubberMaterial(_material.GLMaterial):
+    """Represent a rubber material in :mod:`harness_designer.gl.materials.rubber`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     _ambient = (0.0, 0.0, 0.0)
     _diffuse = (0.0, 0.0, 0.0)
     _specular = (0.0, 0.0, 0.0)
@@ -19,6 +23,13 @@ class RubberMaterial(_material.GLMaterial):
     _cl_roughness = 0.2
 
     def __init__(self, color: _color.Color):
+        """Initialise the :class:`RubberMaterial` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param color: Value for ``color``.
+        :type color: :class:`_color.Color`
+        """
 
         r, g, b = color.rgb_scalar
 

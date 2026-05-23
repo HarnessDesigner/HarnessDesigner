@@ -22,8 +22,21 @@ RANGE_FILTER = "range"
 
 
 class _MainTableInfo:
+    """Represent a main table info in :mod:`harness_designer.ui.dialogs.part_search`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, conn, table_name: str):
+        """Initialise the :class:`_MainTableInfo` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param conn: Value for ``conn``.
+        :type conn: UNKNOWN
+        :param table_name: Value for ``table_name``.
+        :type table_name: str
+        """
         self.table_name = table_name
         self.columns: "OrderedDict[str, str]" = OrderedDict()
         self.fk_target: Dict[str, str] = {}
@@ -42,9 +55,25 @@ class _MainTableInfo:
 
     @property
     def exists(self) -> bool:
+        """Return the exists.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: bool
+        """
         return bool(self.columns)
 
     def resolve_alias(self, alias: str) -> Optional[Tuple[str, Optional[str]]]:
+        """Execute the resolve alias operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param alias: Value for ``alias``.
+        :type alias: str
+        :returns: Return value. UNKNOWN details.
+        :rtype: Optional[Tuple[str, Optional[str]]]
+        """
         if alias == "id":
             return None
 
@@ -68,9 +97,24 @@ DISABLED_COLOUR = QtGui.QColor(160, 160, 160)
 
 
 class _FilterPanelBase(QtWidgets.QWidget):
+    """Represent a filter panel base in :mod:`harness_designer.ui.dialogs.part_search`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     kind: str = ""
 
     def __init__(self, parent: QtWidgets.QWidget, label: str, on_change):
+        """Initialise the :class:`_FilterPanelBase` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`QtWidgets.QWidget`
+        :param label: Value for ``label``.
+        :type label: str
+        :param on_change: Value for ``on_change``.
+        :type on_change: UNKNOWN
+        """
         super().__init__(parent)
         self.label = label
         self.on_change = on_change
@@ -79,12 +123,33 @@ class _FilterPanelBase(QtWidgets.QWidget):
         self.setFrameShape = lambda *a: None  # compat stub
 
     def get_predicate(self) -> Optional[Tuple[str, List[Any]]]:
+        """Return the predicate.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: Optional[Tuple[str, List[Any]]]
+        :raises NotImplementedError: Raised when the operation cannot be completed.
+        """
         raise NotImplementedError
 
     def clear(self) -> None:
+        """Execute the clear operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :raises NotImplementedError: Raised when the operation cannot be completed.
+        """
         raise NotImplementedError
 
     def add_reset_button(self, layout):
+        """Add a reset button.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param layout: Value for ``layout``.
+        :type layout: UNKNOWN
+        """
         line = QtWidgets.QFrame(self)
         line.setFrameShape(QtWidgets.QFrame.Shape.HLine)
         line.setFrameShadow(QtWidgets.QFrame.Shadow.Sunken)
@@ -100,14 +165,39 @@ class _FilterPanelBase(QtWidgets.QWidget):
         layout.addLayout(row)
 
     def _on_reset_button(self):
+        """Handle the reset button event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.clear()
 
 
 class FKFilterPanel(_FilterPanelBase):
+    """Represent a fk filter panel in :mod:`harness_designer.ui.dialogs.part_search`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     kind = FK_FILTER
 
     def __init__(self, parent, column, ref_table,
                  display_col, label, on_change):
+        """Initialise the :class:`FKFilterPanel` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param column: Value for ``column``.
+        :type column: UNKNOWN
+        :param ref_table: Value for ``ref_table``.
+        :type ref_table: UNKNOWN
+        :param display_col: Value for ``display_col``.
+        :type display_col: UNKNOWN
+        :param label: Value for ``label``.
+        :type label: UNKNOWN
+        :param on_change: Value for ``on_change``.
+        :type on_change: UNKNOWN
+        """
 
         super().__init__(parent, label, on_change)
         self.column = column
@@ -131,6 +221,13 @@ class FKFilterPanel(_FilterPanelBase):
         self.list.itemChanged.connect(self._on_check)
 
     def populate(self, displays: List[str]) -> None:
+        """Execute the populate operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param displays: Value for ``displays``.
+        :type displays: List[str]
+        """
         self.list.blockSignals(True)
         self.list.clear()
         for d in displays:
@@ -141,6 +238,13 @@ class FKFilterPanel(_FilterPanelBase):
         self.list.blockSignals(False)
 
     def update_availability(self, available) -> None:
+        """Update the availability.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param available: Value for ``available``.
+        :type available: UNKNOWN
+        """
         if isinstance(available, list):
             available = set(available)
 
@@ -153,6 +257,13 @@ class FKFilterPanel(_FilterPanelBase):
             item.setForeground(normal if ok else DISABLED_COLOUR)
 
     def get_predicate(self) -> Optional[Tuple[str, List[Any]]]:
+        """Return the predicate.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: Optional[Tuple[str, List[Any]]]
+        """
         displays = [
             self.list.item(i).text()
             for i in range(self.list.count())
@@ -170,18 +281,33 @@ class FKFilterPanel(_FilterPanelBase):
         return sql, displays
 
     def clear(self) -> None:
+        """Execute the clear operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.list.blockSignals(True)
         for i in range(self.list.count()):
             self.list.item(i).setCheckState(QtCore.Qt.CheckState.Unchecked)
         self.list.blockSignals(False)
 
     def _on_check(self, _):
+        """Handle the check event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        """
         if self._syncing:
             return
 
         QtCore.QTimer.singleShot(0, self._sync_and_notify)
 
     def _sync_and_notify(self):
+        """Execute the sync and notify operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self._syncing = True
         try:
             if self._available is not None:
@@ -199,9 +325,26 @@ class FKFilterPanel(_FilterPanelBase):
 
 
 class EnumFilterPanel(_FilterPanelBase):
+    """Represent an enum filter panel in :mod:`harness_designer.ui.dialogs.part_search`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     kind = ENUM_FILTER
 
     def __init__(self, parent, column, label, on_change):
+        """Initialise the :class:`EnumFilterPanel` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param column: Value for ``column``.
+        :type column: UNKNOWN
+        :param label: Value for ``label``.
+        :type label: UNKNOWN
+        :param on_change: Value for ``on_change``.
+        :type on_change: UNKNOWN
+        """
         super().__init__(parent, label, on_change)
         self.column = column
         self._available: Optional[set] = None
@@ -222,6 +365,13 @@ class EnumFilterPanel(_FilterPanelBase):
         self.list.itemChanged.connect(self._on_check)
 
     def populate(self, values: List[int]) -> None:
+        """Execute the populate operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param values: Values to store or process.
+        :type values: List[int]
+        """
         self.list.blockSignals(True)
         self.list.clear()
 
@@ -234,6 +384,13 @@ class EnumFilterPanel(_FilterPanelBase):
         self.list.blockSignals(False)
 
     def update_availability(self, available) -> None:
+        """Update the availability.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param available: Value for ``available``.
+        :type available: UNKNOWN
+        """
         if isinstance(available, list):
             available = set(available)
         self._available = available
@@ -250,6 +407,13 @@ class EnumFilterPanel(_FilterPanelBase):
             item.setForeground(normal if ok else DISABLED_COLOUR)
 
     def get_predicate(self) -> Optional[Tuple[str, List[Any]]]:
+        """Return the predicate.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: Optional[Tuple[str, List[Any]]]
+        """
         vals: List[int] = []
         for i in range(self.list.count()):
             item = self.list.item(i)
@@ -266,18 +430,33 @@ class EnumFilterPanel(_FilterPanelBase):
         return f't.{self.column} IN ({placeholders})', vals
 
     def clear(self) -> None:
+        """Execute the clear operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.list.blockSignals(True)
         for i in range(self.list.count()):
             self.list.item(i).setCheckState(QtCore.Qt.CheckState.Unchecked)
         self.list.blockSignals(False)
 
     def _on_check(self, _):
+        """Handle the check event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        """
         if self._syncing:
             return
 
         QtCore.QTimer.singleShot(0, self._sync_and_notify)
 
     def _sync_and_notify(self):
+        """Execute the sync and notify operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self._syncing = True
         try:
             if self._available is not None:
@@ -298,12 +477,31 @@ class EnumFilterPanel(_FilterPanelBase):
 
 
 class RangeFilterPanel(_FilterPanelBase):
+    """Represent a range filter panel in :mod:`harness_designer.ui.dialogs.part_search`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     kind = RANGE_FILTER
 
     _INT_LIMIT = 2 ** 31 - 1
     _FLOAT_LIMIT = 1.0e15
 
     def __init__(self, parent, column, is_int, label, on_change):
+        """Initialise the :class:`RangeFilterPanel` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param column: Value for ``column``.
+        :type column: UNKNOWN
+        :param is_int: Boolean flag for whether int.
+        :type is_int: UNKNOWN
+        :param label: Value for ``label``.
+        :type label: UNKNOWN
+        :param on_change: Value for ``on_change``.
+        :type on_change: UNKNOWN
+        """
         super().__init__(parent, label, on_change)
         self.column = column
         self.is_int = is_int
@@ -344,10 +542,23 @@ class RangeFilterPanel(_FilterPanelBase):
         self.max_ctrl.valueChanged.connect(self._fire)
 
     def _fire(self):
+        """Execute the fire operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         QtCore.QTimer.singleShot(0, lambda: self.on_change(self))
 
     @staticmethod
     def _good_increment(span: float) -> float:
+        """Execute the good increment operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param span: Value for ``span``.
+        :type span: float
+        :returns: Return value. UNKNOWN details.
+        :rtype: float
+        """
         if span >= 1000:
             return 1.0
         if span >= 100:
@@ -359,6 +570,15 @@ class RangeFilterPanel(_FilterPanelBase):
         return 0.001
 
     def update_bounds(self, lo, hi) -> None:
+        """Update the bounds.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param lo: Value for ``lo``.
+        :type lo: UNKNOWN
+        :param hi: Value for ``hi``.
+        :type hi: UNKNOWN
+        """
         if lo is None or hi is None:
             self.range_label.setText("(no data)")
             return
@@ -387,6 +607,13 @@ class RangeFilterPanel(_FilterPanelBase):
         self.range_label.setText(f"In data: {lo:g} - {hi:g}")
 
     def get_predicate(self) -> Optional[Tuple[str, List[Any]]]:
+        """Return the predicate.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: Optional[Tuple[str, List[Any]]]
+        """
         if not self._initialised:
             return None
 
@@ -408,6 +635,10 @@ class RangeFilterPanel(_FilterPanelBase):
         return " AND ".join(clauses), params
 
     def clear(self) -> None:
+        """Execute the clear operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         if self._initialised:
             self.min_ctrl.setValue(self._lo_default)
             self.max_ctrl.setValue(self._hi_default)
@@ -418,8 +649,25 @@ MIN_DISTINCT_FOR_FILTER = 2
 
 
 class SearchDialog(_dialog_base.BaseDialog):
+    """Represent a search dialog in :mod:`harness_designer.ui.dialogs.part_search`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent: "_ui.MainFrame", page_class, table, title: str):
+        """Initialise the :class:`SearchDialog` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`_ui.MainFrame`
+        :param page_class: Value for ``page_class``.
+        :type page_class: UNKNOWN
+        :param table: Value for ``table``.
+        :type table: UNKNOWN
+        :param title: Value for ``title``.
+        :type title: str
+        """
         super().__init__(parent, title=title)
 
         self.table = table
@@ -447,6 +695,13 @@ class SearchDialog(_dialog_base.BaseDialog):
         QtCore.QTimer.singleShot(0, lambda: self.resize(1180, 780))
 
     def GetValue(self) -> Optional[int]:
+        """Execute the get value operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: Optional[int]
+        """
         sel = getattr(self.results, "selected", None)
 
         if sel is None:
@@ -458,6 +713,10 @@ class SearchDialog(_dialog_base.BaseDialog):
             return None
 
     def _build_ui(self) -> None:
+        """Build the UI.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         outer = QtWidgets.QVBoxLayout(self)
 
         top = QtWidgets.QHBoxLayout()
@@ -519,6 +778,13 @@ class SearchDialog(_dialog_base.BaseDialog):
         outer.addWidget(self.results, 1)
 
     def _build_filters_for(self, table: str) -> None:
+        """Build the filters for.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param table: Value for ``table``.
+        :type table: str
+        """
         for panel in self.filters.values():
             panel.deleteLater()
 
@@ -602,6 +868,10 @@ class SearchDialog(_dialog_base.BaseDialog):
             self.filter_sizer.addWidget(panel)
 
     def _on_kw_changed(self) -> None:
+        """Handle the kw changed event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         if hasattr(self, "_kw_timer"):
             self._kw_timer.stop()
         else:
@@ -612,9 +882,20 @@ class SearchDialog(_dialog_base.BaseDialog):
         self._kw_timer.start(180)
 
     def _on_filter_changed(self, _changed_panel) -> None:
+        """Handle the filter changed event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _changed_panel: Value for ``changed_panel``.
+        :type _changed_panel: UNKNOWN
+        """
         self._refresh_all()
 
     def _on_clear_all(self) -> None:
+        """Handle the clear all event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.kw_ctrl.blockSignals(True)
         self.kw_ctrl.clear()
         self.kw_ctrl.blockSignals(False)
@@ -625,6 +906,10 @@ class SearchDialog(_dialog_base.BaseDialog):
         self._refresh_all()
 
     def _refresh_all(self) -> None:
+        """Execute the refresh all operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self._refresh_filter_availability()
         self._push_filter_to_page()
 
@@ -632,6 +917,15 @@ class SearchDialog(_dialog_base.BaseDialog):
         self,
         exclude: Optional[str] = None
     ) -> Tuple[List[str], List[Any]]:
+        """Build the predicates.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param exclude: Value for ``exclude``.
+        :type exclude: Optional[str]
+        :returns: Return value. UNKNOWN details.
+        :rtype: Tuple[List[str], List[Any]]
+        """
 
         clauses, params = [], []
         kw = self.kw_ctrl.text().strip()
@@ -666,6 +960,10 @@ class SearchDialog(_dialog_base.BaseDialog):
         return clauses, params
 
     def _refresh_filter_availability(self) -> None:
+        """Execute the refresh filter availability operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         cur = self.conn
         table = self.current_table
 
@@ -709,6 +1007,10 @@ class SearchDialog(_dialog_base.BaseDialog):
                 panel.update_bounds(lo, hi)
 
     def _push_filter_to_page(self) -> None:
+        """Execute the push filter to page operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         clauses, params = self._build_predicates()
 
         if clauses:
@@ -722,6 +1024,10 @@ class SearchDialog(_dialog_base.BaseDialog):
         self.status.setText(f"{total:,} result{'s' if total != 1 else ''}")
 
     def _on_selection_changed(self) -> None:
+        """Handle the selection changed event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         sel = self.results.selectedItems()
         if sel:
             self.results.selected = self.results.row(sel[0])
@@ -729,6 +1035,13 @@ class SearchDialog(_dialog_base.BaseDialog):
             self.results.selected = None
 
     def _on_row_activated(self, item) -> None:
+        """Handle the row activated event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param item: Item identifier or value.
+        :type item: UNKNOWN
+        """
         self.results.selected = self.results.row(item)
         if self.GetValue() is not None:
             self.accept()

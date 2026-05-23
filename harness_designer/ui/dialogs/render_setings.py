@@ -11,8 +11,19 @@ Config = _config.Config.ray_trace
 
 
 class RenderSettingsDialog(_dialog_base.BaseDialog):
+    """Represent a render settings dialog in :mod:`harness_designer.ui.dialogs.render_setings`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent):
+        """Initialise the :class:`RenderSettingsDialog` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        """
         super().__init__(parent, title='Render Settings', size=(-1, 600))
 
         panel = self.panel
@@ -136,6 +147,10 @@ class RenderSettingsDialog(_dialog_base.BaseDialog):
         self.button_box.accepted.connect(self.on_apply)
 
     def on_load_envmap(self):
+        """Handle the load envmap event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         path, _ = QtWidgets.QFileDialog.getOpenFileName(
             self, 'Load Environment Map', '',
             'Image files (*.jpg *.png *.hdr *.bmp)')
@@ -146,6 +161,10 @@ class RenderSettingsDialog(_dialog_base.BaseDialog):
             self.envmap_check.setChecked(True)
 
     def on_apply(self):
+        """Handle the apply event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         Config.background.enable_gradient = self.gradient_check.isChecked()
         Config.environment_map.enable = self.envmap_check.isChecked()
         Config.enable_reflections = self.reflections_check.isChecked()
@@ -161,8 +180,19 @@ class RenderSettingsDialog(_dialog_base.BaseDialog):
 
 
 class LightingPanel(QtWidgets.QWidget):
+    """Represent a lighting panel in :mod:`harness_designer.ui.dialogs.render_setings`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent):
+        """Initialise the :class:`LightingPanel` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        """
         super().__init__(parent)
 
         self.lights_panel = LightsPanel(self, Config.lighting.lights)
@@ -186,18 +216,46 @@ class LightingPanel(QtWidgets.QWidget):
         lay.addLayout(btn_row)
 
     def on_add(self):
+        """Handle the add event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.lights_panel.add_light()
 
     def on_remove(self):
+        """Handle the remove event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.lights_panel.remove_item()
 
     def GetValue(self):
+        """Execute the get value operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self.lights_panel.GetValue()
 
 
 class LightsPanel(QtWidgets.QScrollArea):
+    """Represent a lights panel in :mod:`harness_designer.ui.dialogs.render_setings`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent, lights):
+        """Initialise the :class:`LightsPanel` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param lights: Value for ``lights``.
+        :type lights: UNKNOWN
+        """
         super().__init__(parent)
         self.setWidgetResizable(True)
         self.setFrameShape(QtWidgets.QFrame.Shape.Box)
@@ -217,9 +275,20 @@ class LightsPanel(QtWidgets.QScrollArea):
             self.main_sizer.addWidget(item)
 
     def GetValue(self):
+        """Execute the get value operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return [light.GetValue() for light in self.items]
 
     def add_light(self):
+        """Add a light.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         light = LightItem(self._container,
                           position=[0.0, 0.0, 0.0],
                           intensity=1.0,
@@ -230,6 +299,10 @@ class LightsPanel(QtWidgets.QScrollArea):
         self.main_sizer.addWidget(light)
 
     def remove_item(self):
+        """Remove the item.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         if self.selected is None:
             return
 
@@ -240,6 +313,13 @@ class LightsPanel(QtWidgets.QScrollArea):
         self.selected = None
 
     def _set_selected(self, light):
+        """Set the selected.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param light: Value for ``light``.
+        :type light: UNKNOWN
+        """
         if self.selected is not None:
             self.selected.unselect()
         self.selected = light
@@ -247,6 +327,19 @@ class LightsPanel(QtWidgets.QScrollArea):
 
 
 def _item_row(parent, label_text, ctrl):
+    """Execute the item row operation.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param parent: Parent object.
+    :type parent: UNKNOWN
+    :param label_text: Value for ``label_text``.
+    :type label_text: UNKNOWN
+    :param ctrl: Value for ``ctrl``.
+    :type ctrl: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
     row = QtWidgets.QHBoxLayout()
     row.addWidget(QtWidgets.QLabel(label_text, parent))
     row.addWidget(ctrl, 1)
@@ -254,9 +347,26 @@ def _item_row(parent, label_text, ctrl):
 
 
 class LightItem(QtWidgets.QWidget):
+    """Represent a light item in :mod:`harness_designer.ui.dialogs.render_setings`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     clicked_signal: QtCore.SignalInstance = QtCore.Signal()
 
     def __init__(self, parent, position, intensity, color):
+        """Initialise the :class:`LightItem` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param position: Position value.
+        :type position: UNKNOWN
+        :param intensity: Value for ``intensity``.
+        :type intensity: UNKNOWN
+        :param color: Value for ``color``.
+        :type color: UNKNOWN
+        """
         super().__init__(parent)
         self._unselected_bg = self.palette().color(self.backgroundRole())
 
@@ -303,6 +413,10 @@ class LightItem(QtWidgets.QWidget):
         row.addWidget(self.color_btn)
 
     def _pick_color(self):
+        """Execute the pick color operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         r, g, b = (int(c * 255) for c in self._color)
 
         chosen = QtWidgets.QColorDialog.getColor(
@@ -317,6 +431,13 @@ class LightItem(QtWidgets.QWidget):
                 f'background-color: {chosen.name()}; min-width:40px;')
 
     def GetValue(self):
+        """Execute the get value operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return dict(
             position=[self.x_ctrl.value(),
                       self.y_ctrl.value(),
@@ -326,11 +447,26 @@ class LightItem(QtWidgets.QWidget):
         )
 
     def select(self):
+        """Execute the select operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.setStyleSheet('background-color: palette(highlight);')
 
     def unselect(self):
+        """Execute the unselect operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.setStyleSheet('')
 
     def mousePressEvent(self, event):
+        """Execute the mouse press event operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param event: Event object.
+        :type event: UNKNOWN
+        """
         self.clicked_signal.emit()
         super().mousePressEvent(event)

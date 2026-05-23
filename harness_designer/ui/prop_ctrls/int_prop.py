@@ -7,8 +7,27 @@ from . import prop_base as _prop_base
 
 
 class IntProperty(_prop_base.Property):
+    """Represent an int property in :mod:`harness_designer.ui.prop_ctrls.int_prop`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent, label, min_value: int, max_value: int, units=None):
+        """Initialise the :class:`IntProperty` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param label: Value for ``label``.
+        :type label: UNKNOWN
+        :param min_value: Value for ``min_value``.
+        :type min_value: int
+        :param max_value: Value for ``max_value``.
+        :type max_value: int
+        :param units: Value for ``units``.
+        :type units: UNKNOWN
+        """
         _prop_base.Property.__init__(self, parent, label)
 
         self._min_val = min_value
@@ -52,6 +71,13 @@ class IntProperty(_prop_base.Property):
         self._ctrl.valueChanged.connect(self._on_spin_changed)
 
     def SetValue(self, value: int):
+        """Execute the set value operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         value = max(self._min_val, min(self._max_val, value))
         self._value = value
         self._ctrl.blockSignals(True)
@@ -62,9 +88,23 @@ class IntProperty(_prop_base.Property):
         self._slider.blockSignals(False)
 
     def GetValue(self) -> int:
+        """Execute the get value operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: int
+        """
         return self._value
 
     def _on_slider_scroll(self, value):
+        """Handle the slider scroll event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: UNKNOWN
+        """
         self._value = value
         self._ctrl.blockSignals(True)
         self._ctrl.setValue(value)
@@ -72,6 +112,13 @@ class IntProperty(_prop_base.Property):
         self._send_changed_event(int, value)
 
     def _on_spin_changed(self, value):
+        """Handle the spin changed event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: UNKNOWN
+        """
         self._value = value
         self._slider.blockSignals(True)
         self._slider.setValue(value)

@@ -12,9 +12,20 @@ if TYPE_CHECKING:
 
 
 class GenderMixin(BaseMixin):
+    """Represent a gender mixin in :mod:`harness_designer.database.global_db.mixins.gender`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     @property
     def gender(self) -> "_gender.Gender":
+        """Return the gender.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_gender.Gender`
+        """
         from .. import gender as _gender  # NOQA
 
         gender_id = self._table.select('gender_id', id=self._db_id)
@@ -22,17 +33,42 @@ class GenderMixin(BaseMixin):
 
     @property
     def gender_id(self) -> int:
+        """Return the gender ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         return self._table.select('gender_id', id=self._db_id)[0][0]
 
     @gender_id.setter
     def gender_id(self, value: int):
+        """Set the gender ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, gender_id=value)
         self._populate('gender_id')
 
 
 class GenderControl(_prop_ctrls.ComboBoxProperty):
+    """Represent a gender control in :mod:`harness_designer.database.global_db.mixins.gender`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent):
+        """Initialise the :class:`GenderControl` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        """
 
         self.choices: list[str] = []
         self.db_obj: GenderMixin = None
@@ -41,6 +77,13 @@ class GenderControl(_prop_ctrls.ComboBoxProperty):
         self.property_changed.connect(self._on_gender)
 
     def set_obj(self, db_obj: GenderMixin):
+        """Set the obj.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`GenderMixin`
+        """
         self.db_obj = db_obj
 
         if db_obj is None:
@@ -58,6 +101,13 @@ class GenderControl(_prop_ctrls.ComboBoxProperty):
             self.Enable(True)
 
     def _on_gender(self, evt: _prop_ctrls.PropertyEvent):
+        """Handle the gender event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_prop_ctrls.PropertyEvent`
+        """
         name = evt.GetValue()
 
         self.db_obj.table.execute('SELECT id FROM genders WHERE name="{name}";')

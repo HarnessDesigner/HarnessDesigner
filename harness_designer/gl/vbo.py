@@ -10,10 +10,21 @@ from .. import utils as _utils
 
 
 class VBOSingleton(type):
+    """Represent a VBO singleton in :mod:`harness_designer.gl.vbo`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     _instances = {}
 
     @classmethod
     def _remove_ref(cls, ref):
+        """Remove the ref.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param ref: Value for ``ref``.
+        :type ref: UNKNOWN
+        """
         for key, value in cls._instances.items():
             if value == ref:
                 break
@@ -23,6 +34,15 @@ class VBOSingleton(type):
         del cls._instances[key]
 
     def __contains__(cls, item):
+        """Return whether the requested item is present.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param item: Item identifier or value.
+        :type item: UNKNOWN
+        :returns: ``True`` when the condition is satisfied.
+        :rtype: bool
+        """
         return item in cls._instances
 
     def __call__(cls, id_: str, vertices: np.ndarray | None = None,  # NOQA
@@ -30,6 +50,25 @@ class VBOSingleton(type):
                  faces: np.ndarray | None = None,
                  count: int = 0,
                  endpoint: _point.Point | None = None) -> "VBOHandler":
+        """Call the instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param id_: Identifier for the ID.
+        :type id_: str
+        :param vertices: Value for ``vertices``.
+        :type vertices: np.ndarray | None
+        :param normals: Value for ``normals``.
+        :type normals: np.ndarray | None
+        :param faces: Value for ``faces``.
+        :type faces: np.ndarray | None
+        :param count: Count value.
+        :type count: int
+        :param endpoint: Value for ``endpoint``.
+        :type endpoint: _point.Point | None
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`VBOHandler`
+        """
 
         if id_ not in cls._instances:
             instance = super().__call__(id_, vertices, normals, faces,
@@ -56,6 +95,10 @@ class VBOSingleton(type):
 
 
 class VBOHandler(metaclass=VBOSingleton):
+    """Represent a VBO handler in :mod:`harness_designer.gl.vbo`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     # TODO: Might have to write the memory allocation differently where vbo's
     #       are allocated as chunks that contain data for more than 1 object at
@@ -74,6 +117,24 @@ class VBOHandler(metaclass=VBOSingleton):
                  faces: np.ndarray | None = None,
                  count: int = 0,
                  endpoint: _point.Point | None = None):
+        """Initialise the :class:`VBOHandler` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param id_: Identifier for the ID.
+        :type id_: str
+        :param vertices: Value for ``vertices``.
+        :type vertices: np.ndarray | None
+        :param normals: Value for ``normals``.
+        :type normals: np.ndarray | None
+        :param faces: Value for ``faces``.
+        :type faces: np.ndarray | None
+        :param count: Count value.
+        :type count: int
+        :param endpoint: Value for ``endpoint``.
+        :type endpoint: _point.Point | None
+        :raises RuntimeError: Raised when the operation cannot be completed.
+        """
 
         print('vbo init:', id_)
         ctx = QOpenGLContext.currentContext()
@@ -114,10 +175,24 @@ class VBOHandler(metaclass=VBOSingleton):
 
     @property
     def vertices(self):
+        """Return the vertices.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self.__vertices
 
     @property
     def faces(self):
+        """Return the faces.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self.__faces
 
     def acquire(self):
@@ -173,6 +248,12 @@ class VBOHandler(metaclass=VBOSingleton):
         self.__vaos[ctx_id] = vao
 
     def release(self):
+        """Execute the release operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :raises RuntimeError: Raised when the operation cannot be completed.
+        """
         ctx = QOpenGLContext.currentContext()
         if ctx is None:
             raise RuntimeError('context has not been acquired')
@@ -228,6 +309,22 @@ class VBOHandler(metaclass=VBOSingleton):
 
     @classmethod
     def _create_vbo(cls, vertices, normals, faces, count):
+        """Create a VBO.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param vertices: Value for ``vertices``.
+        :type vertices: UNKNOWN
+        :param normals: Value for ``normals``.
+        :type normals: UNKNOWN
+        :param faces: Value for ``faces``.
+        :type faces: UNKNOWN
+        :param count: Count value.
+        :type count: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        :raises RuntimeError: Raised when the operation cannot be completed.
+        """
         # Vertex buffer
         vbo_vertices = GL.glGenBuffers(1)
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, vbo_vertices)
@@ -277,6 +374,13 @@ class VBOHandler(metaclass=VBOSingleton):
         return vbo_vertices, vbo_normals, vbo_faces, int(count / 3)
 
     def get_aspect(self) -> tuple[float, float]:
+        """Return the aspect.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: tuple[float, float]
+        """
         p1, p2 = self.local_aabb
 
         x1, y1, z1 = float(p1[0]), float(p1[1]), float(p1[2])
@@ -293,6 +397,12 @@ class VBOHandler(metaclass=VBOSingleton):
         return w_h_aspect, w_l_aspect, h_l_aspect
 
     def render(self):
+        """Execute the render operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :raises RuntimeError: Raised when the operation cannot be completed.
+        """
         # Get or create VAO for the current context
         print('vbo render:', self.id)
 

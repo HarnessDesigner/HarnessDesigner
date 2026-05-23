@@ -14,6 +14,13 @@ class SceneLight:
     """Manages the main scene lighting uniforms"""
     
     def __init__(self, canvas: "_canvas.Canvas"):
+        """Initialise the :class:`SceneLight` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param canvas: Canvas instance.
+        :type canvas: :class:`_canvas.Canvas`
+        """
         self.canvas = canvas
         self.config = self.canvas.config.lighting
 

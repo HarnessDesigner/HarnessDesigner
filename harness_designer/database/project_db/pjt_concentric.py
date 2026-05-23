@@ -15,28 +15,65 @@ if TYPE_CHECKING:
 
 
 class PJTConcentricsTable(PJTTableBase):
+    """Represent a PJT concentrics table in :mod:`harness_designer.database.project_db.pjt_concentric`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     __table_name__ = 'pjt_concentrics'
 
     def _table_needs_update(self) -> bool:
+        """Execute the table needs update operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
         from ..create_database import concentrics
 
         return concentrics.pjt_table.is_ok(self)
 
     def _add_table_to_db(self):
+        """Add a table to database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         from ..create_database import concentrics
 
         concentrics.pjt_table.add_to_db(self)
 
     def _update_table_in_db(self):
+        """Update the table in database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         from ..create_database import concentrics
 
         concentrics.pjt_table.update_fields(self)
 
     def __iter__(self) -> _Iterable["PJTConcentric"]:
+        """Iterate over the available items.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Iterator or iterable result. UNKNOWN details.
+        :rtype: _Iterable['PJTConcentric']
+        """
         for db_id in PJTTableBase.__iter__(self):
             yield PJTConcentric(self, db_id, self.project_id)
 
     def __getitem__(self, item) -> "PJTConcentric":
+        """Return the requested item.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param item: Item identifier or value.
+        :type item: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`PJTConcentric`
+        :raises KeyError: Raised when the operation cannot be completed.
+        :raises IndexError: Raised when the operation cannot be completed.
+        """
         if isinstance(item, int):
             if item in self:
                 return PJTConcentric(self, item, self.project_id)
@@ -45,6 +82,17 @@ class PJTConcentricsTable(PJTTableBase):
         raise KeyError(item)
 
     def insert(self, bundle_id: int | None, transition_branch_id: int | None) -> "PJTConcentric":
+        """Execute the insert operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param bundle_id: Identifier for the bundle.
+        :type bundle_id: int | None
+        :param transition_branch_id: Identifier for the transition branch.
+        :type transition_branch_id: int | None
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`PJTConcentric`
+        """
 
         db_id = PJTTableBase.insert(self, bundle_id=bundle_id, transition_branch_id=transition_branch_id)
 
@@ -52,9 +100,20 @@ class PJTConcentricsTable(PJTTableBase):
 
 
 class PJTConcentric(PJTEntryBase, NotesMixin):
+    """Represent a PJT concentric in :mod:`harness_designer.database.project_db.pjt_concentric`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     _table: PJTConcentricsTable = None
 
     def build_monitor_packet(self):
+        """Build the monitor packet.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         bundle = self.bundle
         transition_branch = self.transition_branch
 
@@ -92,6 +151,13 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
 
     @property
     def layers(self) -> list["_pjt_concentric_layer.PJTConcentricLayer"]:
+        """Return the layers.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: list['_pjt_concentric_layer.PJTConcentricLayer']
+        """
         layers = []
 
         db_ids = self.table.db.pjt_concentric_layers_table.select("id", concentric_id=self.db_id)
@@ -102,10 +168,24 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
 
     @property
     def table(self) -> PJTConcentricsTable:
+        """Return the table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`PJTConcentricsTable`
+        """
         return self._table
 
     @property
     def bundle(self) -> "_pjt_bundle.PJTBundle":
+        """Return the bundle.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_pjt_bundle.PJTBundle`
+        """
         bundle_id = self.bundle_id
         if bundle_id is None:
             return None
@@ -114,15 +194,36 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
 
     @property
     def bundle_id(self) -> int:
+        """Return the bundle ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         return self._table.select('bundle_id', id=self._db_id)[0][0]
 
     @bundle_id.setter
     def bundle_id(self, value: int):
+        """Set the bundle ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, bundle_id=value)
         self._populate('bundle_id')
 
     @property
     def transition_branch(self) -> "_pjt_transition_branches.PJTTransitionBranch":
+        """Return the transition branch.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_pjt_transition_branches.PJTTransitionBranch`
+        """
         transition_branch_id = self.transition_branch_id
         if transition_branch_id is None:
             return None
@@ -131,15 +232,36 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
 
     @property
     def transition_branch_id(self) -> int:
+        """Return the transition branch ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         return self._table.select('transition_branch_id', id=self._db_id)[0][0]
 
     @transition_branch_id.setter
     def transition_branch_id(self, value: int):
+        """Set the transition branch ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, transition_branch_id=value)
         self._populate('transition_branch_id')
 
     @property
     def propgrid(self) -> _prop_ctrls.Category:
+        """Return the propgrid.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_prop_ctrls.Category`
+        """
         group = _prop_ctrls.Category('Concentric')
 
         notes_prop = self._notes_propgrid

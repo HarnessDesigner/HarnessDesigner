@@ -25,8 +25,19 @@ MOUSE_SWAP_AXIS = _config.MOUSE_SWAP_AXIS
 
 
 class MouseHandler:
+    """Represent a mouse handler in :mod:`harness_designer.database.global_db.model3d.preview.mouse_handler`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, canvas: _Preview):
+        """Initialise the :class:`MouseHandler` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param canvas: Canvas instance.
+        :type canvas: _Preview
+        """
         self.canvas = canvas
         self.mouse_pos = None
 
@@ -34,6 +45,17 @@ class MouseHandler:
         canvas.installEventFilter(self)
 
     def eventFilter(self, obj, event):
+        """Execute the event filter operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        :param event: Event object.
+        :type event: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         if obj is not self.canvas:
             return False
 
@@ -50,6 +72,15 @@ class MouseHandler:
         return False  # don't consume
 
     def _process_mouse(self, code):
+        """Execute the process mouse operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param code: Value for ``code``.
+        :type code: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         for config, func in (
             (Config.walk, self.canvas.Walk),
             (Config.truck_pedestal, self.canvas.TruckPedestal),
@@ -63,6 +94,19 @@ class MouseHandler:
 
             if config.mouse & code:
                 def _wrapper(dx, dy, _config=config, _func=func):
+                    """Execute the wrapper operation.
+
+                    UNKNOWN details are inferred from the callable name and signature.
+
+                    :param dx: Value for ``dx``.
+                    :type dx: UNKNOWN
+                    :param dy: Value for ``dy``.
+                    :type dy: UNKNOWN
+                    :param _config: Value for ``config``.
+                    :type _config: UNKNOWN
+                    :param _func: Value for ``func``.
+                    :type _func: UNKNOWN
+                    """
                     if _config.mouse & MOUSE_SWAP_AXIS:
                         _func(dy, dx)
                     else:
@@ -70,11 +114,27 @@ class MouseHandler:
                 return _wrapper
 
         def _do_nothing_func(_, __):
+            """Execute the do nothing func operation.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param _: Value for ``_``.
+            :type _: UNKNOWN
+            :param __: Value for ``__``.
+            :type __: UNKNOWN
+            """
             pass
 
         return _do_nothing_func
 
     def _on_mouse_press(self, evt: QMouseEvent):
+        """Handle the mouse press event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`QMouseEvent`
+        """
         pos = evt.position()
         self.mouse_pos = _point.Point(pos.x(), pos.y())
         self.canvas.setFocus()
@@ -82,14 +142,35 @@ class MouseHandler:
             self.canvas.setMouseTracking(True)
 
     def _on_mouse_release(self, evt: QMouseEvent):
+        """Handle the mouse release event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`QMouseEvent`
+        """
         pass
 
     def _on_mouse_wheel(self, evt: QWheelEvent):
+        """Handle the mouse wheel event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`QWheelEvent`
+        """
         delta = 1.0 if evt.angleDelta().y() > 0 else -1.0
         self._process_mouse(MOUSE_WHEEL)(delta, 0.0)
         self.canvas.update()
 
     def _on_mouse_motion(self, evt: QMouseEvent):
+        """Handle the mouse motion event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`QMouseEvent`
+        """
         buttons = evt.buttons()
         if not (buttons & (Qt.MouseButton.LeftButton | Qt.MouseButton.MiddleButton |
                            Qt.MouseButton.RightButton | Qt.MouseButton.XButton1 |

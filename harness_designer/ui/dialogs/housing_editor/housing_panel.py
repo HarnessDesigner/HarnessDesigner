@@ -13,9 +13,24 @@ if TYPE_CHECKING:
 
 
 class HousingPanel(QTabWidget):
+    """Represent a housing panel in :mod:`harness_designer.ui.dialogs.housing_editor.housing_panel`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, dialog, panel: "_housing_editor.HousingEditorDialog",
                  housing: _housing_obj.Housing3D):
+        """Initialise the :class:`HousingPanel` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param dialog: Value for ``dialog``.
+        :type dialog: UNKNOWN
+        :param panel: Value for ``panel``.
+        :type panel: :class:`_housing_editor.HousingEditorDialog`
+        :param housing: Value for ``housing``.
+        :type housing: :class:`_housing_obj.Housing3D`
+        """
 
         QTabWidget.__init__(self, panel)
 
@@ -45,6 +60,13 @@ class HousingPanel(QTabWidget):
         self.enable_housing_ctrls(True)
 
     def enable_housing_ctrls(self, flag: bool):
+        """Execute the enable housing ctrls operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param flag: Value for ``flag``.
+        :type flag: bool
+        """
         if flag:
             angle_tip = ''
             position_tip = ''

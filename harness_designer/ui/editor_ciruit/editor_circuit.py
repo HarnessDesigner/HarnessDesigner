@@ -19,6 +19,13 @@ class EditorCircuit:
     """
 
     def __init__(self, mainframe: "_ui.MainFrame"):
+        """Initialise the :class:`EditorCircuit` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mainframe: Main application frame.
+        :type mainframe: :class:`_ui.MainFrame`
+        """
         self.mainframe = mainframe
         self.editor = EditorCircuitPanel(mainframe)
 
@@ -36,19 +43,59 @@ class EditorCircuit:
         self._dock.show()
 
     def Show(self, show=True):
+        """Execute the show operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param show: Value for ``show``.
+        :type show: UNKNOWN
+        """
         self.editor.setVisible(show)
 
     def Refresh(self, *_, **__):
+        """Execute the refresh operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        :param __: Value for ``__``.
+        :type __: UNKNOWN
+        """
         self.editor.Refresh()
 
     def Destroy(self):
+        """Execute the destroy operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.editor.deleteLater()
 
 
 class EditorCircuitPanel(_editor_widget.EditorCircuitPanel):
+    """Represent an editor circuit panel in :mod:`harness_designer.ui.editor_ciruit.editor_circuit`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent: "_ui.MainFrame"):
+        """Initialise the :class:`EditorCircuitPanel` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`_ui.MainFrame`
+        """
         super().__init__(parent)
 
     def Refresh(self, *_, **__):
+        """Execute the refresh operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        :param __: Value for ``__``.
+        :type __: UNKNOWN
+        """
         self.update()

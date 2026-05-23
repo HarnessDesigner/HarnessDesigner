@@ -29,6 +29,15 @@ class Cavity(_base2d.Base2D):
 
     def __init__(self, parent: "_cavity.Cavity",
                  db_obj: "_pjt_cavity.PJTCavity"):
+        """Initialise the :class:`Cavity` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`_cavity.Cavity`
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_pjt_cavity.PJTCavity`
+        """
 
         position = db_obj.position2d
         angle = self._angle = db_obj.angle2d
@@ -97,6 +106,10 @@ class Cavity(_base2d.Base2D):
         GL.glPopMatrix()
 
     def render_selection(self):
+        """Render the selection.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         x, y = self._position.as_float[:-1]
 
         rotation = self._angle.z
@@ -128,6 +141,15 @@ class Cavity(_base2d.Base2D):
         GL.glPopMatrix()
 
     def hit_test(self, world_pos: "_point.Point") -> bool:
+        """Execute the hit test operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param world_pos: Value for ``world_pos``.
+        :type world_pos: :class:`_point.Point`
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
 
         if self._position is None:
             return False

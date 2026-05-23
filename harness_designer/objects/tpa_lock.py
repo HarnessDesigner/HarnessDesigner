@@ -13,11 +13,24 @@ if TYPE_CHECKING:
 
 
 class TPALock(_ObjectBase):
+    """Represent a TPA lock in :mod:`harness_designer.objects.tpa_lock`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     obj2d: _tpa_lock_2d.TPALock = None
     obj3d: _tpa_lock_3d.TPALock = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_tpa_lock.PJTTPALock"):
+        """Initialise the :class:`TPALock` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mainframe: Main application frame.
+        :type mainframe: :class:`_ui.MainFrame`
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_pjt_tpa_lock.PJTTPALock`
+        """
 
         db_obj.set_object(self)
         db_obj.add_object(self)

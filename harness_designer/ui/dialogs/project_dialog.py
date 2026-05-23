@@ -7,8 +7,23 @@ from . import dialog_base as _dialog_base
 
 
 class OpenProjectDialog(_dialog_base.BaseDialog):
+    """Represent an open project dialog in :mod:`harness_designer.ui.dialogs.project_dialog`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent, last_project, project_names):
+        """Initialise the :class:`OpenProjectDialog` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param last_project: Value for ``last_project``.
+        :type last_project: UNKNOWN
+        :param project_names: Value for ``project_names``.
+        :type project_names: UNKNOWN
+        """
         _dialog_base.BaseDialog.__init__(
             self, parent, 'Open Project', size=(600, 200))
 
@@ -37,4 +52,11 @@ class OpenProjectDialog(_dialog_base.BaseDialog):
         sizer.addLayout(h_sizer)
 
     def GetValue(self):
+        """Execute the get value operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self.project_ctrl.GetValue()

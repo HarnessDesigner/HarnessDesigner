@@ -23,11 +23,31 @@ from ... import logger as _logger
 
 
 def add_bundle_covers(con, data: tuple[dict] | list[dict]):
+    """Add a bundle covers.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param data: Data payload.
+    :type data: tuple[dict] | list[dict]
+    """
     for line in data:
         add_bundle_cover(con, **line)
 
 
 def add_records(con, splash, data_path):
+    """Add a records.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param splash: Value for ``splash``.
+    :type splash: UNKNOWN
+    :param data_path: Value for ``data_path``.
+    :type data_path: UNKNOWN
+    """
     con.execute('SELECT id FROM bundle_covers WHERE id=1;')
     if con.fetchall():
         return
@@ -79,6 +99,59 @@ def add_bundle_cover(con, part_number, description, mfg=None, family=None, serie
                      shrink_temp=None, min_temp=None, max_temp=None, protection=None,
                      rigidity='', shrink_ratio='', wall='', min_dia=0.0, max_dia=0.0,
                      adhesive_ids=None, weight=0.0, commit=True):
+    """Add a bundle cover.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param part_number: Value for ``part_number``.
+    :type part_number: UNKNOWN
+    :param description: Value for ``description``.
+    :type description: UNKNOWN
+    :param mfg: Value for ``mfg``.
+    :type mfg: UNKNOWN
+    :param family: Value for ``family``.
+    :type family: UNKNOWN
+    :param series: Value for ``series``.
+    :type series: UNKNOWN
+    :param color: Value for ``color``.
+    :type color: UNKNOWN
+    :param material: Value for ``material``.
+    :type material: UNKNOWN
+    :param image: Value for ``image``.
+    :type image: UNKNOWN
+    :param datasheet: Value for ``datasheet``.
+    :type datasheet: UNKNOWN
+    :param cad: Value for ``cad``.
+    :type cad: UNKNOWN
+    :param shrink_temp: Value for ``shrink_temp``.
+    :type shrink_temp: UNKNOWN
+    :param min_temp: Value for ``min_temp``.
+    :type min_temp: UNKNOWN
+    :param max_temp: Value for ``max_temp``.
+    :type max_temp: UNKNOWN
+    :param protection: Value for ``protection``.
+    :type protection: UNKNOWN
+    :param rigidity: Value for ``rigidity``.
+    :type rigidity: UNKNOWN
+    :param shrink_ratio: Value for ``shrink_ratio``.
+    :type shrink_ratio: UNKNOWN
+    :param wall: Value for ``wall``.
+    :type wall: UNKNOWN
+    :param min_dia: Value for ``min_dia``.
+    :type min_dia: UNKNOWN
+    :param max_dia: Value for ``max_dia``.
+    :type max_dia: UNKNOWN
+    :param adhesive_ids: Identifier for the adhesive.
+    :type adhesive_ids: UNKNOWN
+    :param weight: Value for ``weight``.
+    :type weight: UNKNOWN
+    :param commit: Value for ``commit``.
+    :type commit: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
 
     if adhesive_ids is None:
         adhesive_ids = []

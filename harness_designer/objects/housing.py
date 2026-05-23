@@ -26,6 +26,10 @@ if TYPE_CHECKING:
 
 
 class Housing(_ObjectBase):
+    """Represent a housing in :mod:`harness_designer.objects.housing`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     obj2d: _housing_2d.Housing = None
     obj3d: _housing_3d.Housing = None
 
@@ -33,6 +37,15 @@ class Housing(_ObjectBase):
 
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_housing.PJTHousing"):
+        """Initialise the :class:`Housing` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mainframe: Main application frame.
+        :type mainframe: :class:`_ui.MainFrame`
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_pjt_housing.PJTHousing`
+        """
 
         db_obj.set_object(self)
         db_obj.add_object(self)
@@ -51,19 +64,61 @@ class Housing(_ObjectBase):
         self.mainframe.add_object(self)
 
     def add_cavity(self, cavity: "_pjt_cavity.PJTCavity"):
+        """Add a cavity.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param cavity: Value for ``cavity``.
+        :type cavity: :class:`_pjt_cavity.PJTCavity`
+        """
         pass
 
     def add_tpa_lock(self, tpa_lock: "_pjt_tpa_lock.PJTTPALock"):
+        """Add a TPA lock.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param tpa_lock: Value for ``tpa_lock``.
+        :type tpa_lock: :class:`_pjt_tpa_lock.PJTTPALock`
+        """
         pass
 
     def add_cpa_lock(self, cpa_lock: "_pjt_cpa_lock.PJTCPALock"):
+        """Add a CPA lock.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param cpa_lock: Value for ``cpa_lock``.
+        :type cpa_lock: :class:`_pjt_cpa_lock.PJTCPALock`
+        """
         pass
 
     def add_boot(self, boot: "_pjt_boot.PJTBoot"):
+        """Add a boot.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param boot: Value for ``boot``.
+        :type boot: :class:`_pjt_boot.PJTBoot`
+        """
         pass
 
     def add_cover(self, cover: "_pjt_cover.PJTCover"):
+        """Add a cover.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param cover: Value for ``cover``.
+        :type cover: :class:`_pjt_cover.PJTCover`
+        """
         pass
 
     def add_seal(self, seal: "_pjt_seal.PJTSeal"):
+        """Add a seal.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param seal: Value for ``seal``.
+        :type seal: :class:`_pjt_seal.PJTSeal`
+        """
         pass

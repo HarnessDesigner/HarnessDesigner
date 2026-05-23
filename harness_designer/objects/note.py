@@ -13,12 +13,25 @@ if TYPE_CHECKING:
 
 
 class Note(_ObjectBase):
+    """Represent a note in :mod:`harness_designer.objects.note`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     obj2d: _note_2d.Note = None
     obj3d: _note_3d.Note = None
     db_obj: "_pjt_note.PJTNote" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_note.PJTNote"):
+        """Initialise the :class:`Note` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mainframe: Main application frame.
+        :type mainframe: :class:`_ui.MainFrame`
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_pjt_note.PJTNote`
+        """
         db_obj.set_object(self)
         db_obj.add_object(self)
 

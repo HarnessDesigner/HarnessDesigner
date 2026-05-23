@@ -28,11 +28,24 @@ Config = _config.Config.editor3d
 
 
 class Housing(_base3d.Base3D):
+    """Represent a housing in :mod:`harness_designer.objects.objects3d.housing`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     parent: "_housing.Housing" = None
     db_obj: "_pjt_housing.PJTHousing" = None
 
     def __init__(self, parent: "_housing.Housing",
                  db_obj: "_pjt_housing.PJTHousing"):
+        """Initialise the :class:`Housing` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`_housing.Housing`
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_pjt_housing.PJTHousing`
+        """
 
         parent.mainframe.editor3d.context.acquire()
 
@@ -70,15 +83,42 @@ class Housing(_base3d.Base3D):
 
     @property
     def seal_position(self) -> _point.Point:
+        """Return the seal position.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_point.Point`
+        """
         return self.db_obj.seal_position3d
 
     def get_context_menu(self):
+        """Return the context menu.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return HousingMenu(self.mainframe, self)
 
 
 class HousingMenu(QMenu):
+    """Represent a housing menu in :mod:`harness_designer.objects.objects3d.housing`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, mainframe: "_ui.MainFrame", obj: Housing):
+        """Initialise the :class:`HousingMenu` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mainframe: Main application frame.
+        :type mainframe: :class:`_ui.MainFrame`
+        :param obj: Object instance to operate on.
+        :type obj: :class:`Housing`
+        """
         QMenu.__init__(self)
         self.mainframe = mainframe
         self.canvas = mainframe.editor3d.editor
@@ -129,14 +169,39 @@ class HousingMenu(QMenu):
         action.triggered.connect(self.on_housing_editor)
 
     def on_housing_editor(self):
+        """Handle the housing editor event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         def _do(housing):
+            """Execute the do operation.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param housing: Value for ``housing``.
+            :type housing: UNKNOWN
+            """
             dlg = _housing_editor.HousingEditorDialog(self.mainframe, housing)
             dlg.exec()
 
         QTimer.singleShot(0, lambda: _do(self.obj.db_obj.part))
 
     def on_add_seal(self):
+        """Handle the add seal event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :raises RuntimeError: Raised when the operation cannot be completed.
+        """
         def _do(housing: "_pjt_housing.PJTHousing"):
+            """Execute the do operation.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param housing: Value for ``housing``.
+            :type housing: :class:`_pjt_housing.PJTHousing`
+            :raises RuntimeError: Raised when the operation cannot be completed.
+            """
             dlg = _pjt_add_seal.AddSealDialog(self.mainframe, housing)
             if dlg.exec() == QDialog.Accepted:
                 part_id, db_id = dlg.GetValue()
@@ -154,7 +219,18 @@ class HousingMenu(QMenu):
         QTimer.singleShot(0, lambda: _do(self.obj.db_obj))
 
     def on_add_terminal(self):
+        """Handle the add terminal event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         def _do(housing: "_pjt_housing.PJTHousing"):
+            """Execute the do operation.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param housing: Value for ``housing``.
+            :type housing: :class:`_pjt_housing.PJTHousing`
+            """
             dlg = _pjt_add_terminal.AddTerminalDialog(self.mainframe, housing)
 
             if dlg.exec() == QDialog.Accepted:
@@ -164,7 +240,18 @@ class HousingMenu(QMenu):
         QTimer.singleShot(0, lambda: _do(self.obj.db_obj))
 
     def on_add_cpa_lock(self):
+        """Handle the add CPA lock event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         def _do(housing: "_pjt_housing.PJTHousing"):
+            """Execute the do operation.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param housing: Value for ``housing``.
+            :type housing: :class:`_pjt_housing.PJTHousing`
+            """
             dlg = _pjt_add_cpa_lock.AddCPALockDialog(self.mainframe, housing)
 
             if dlg.exec() == QDialog.Accepted:
@@ -174,7 +261,18 @@ class HousingMenu(QMenu):
         QTimer.singleShot(0, lambda: _do(self.obj.db_obj))
 
     def on_add_tpa_lock(self):
+        """Handle the add TPA lock event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         def _do(housing: "_pjt_housing.PJTHousing"):
+            """Execute the do operation.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param housing: Value for ``housing``.
+            :type housing: :class:`_pjt_housing.PJTHousing`
+            """
             dlg = _pjt_add_tpa_lock.AddTPALockDialog(self.mainframe, housing)
 
             if dlg.exec() == QDialog.Accepted:
@@ -184,7 +282,18 @@ class HousingMenu(QMenu):
         QTimer.singleShot(0, lambda: _do(self.obj.db_obj))
 
     def on_add_cover(self):
+        """Handle the add cover event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         def _do(housing: "_pjt_housing.PJTHousing"):
+            """Execute the do operation.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param housing: Value for ``housing``.
+            :type housing: :class:`_pjt_housing.PJTHousing`
+            """
             dlg = _pjt_add_cover.AddCoverDialog(self.mainframe, housing)
 
             if dlg.exec() == QDialog.Accepted:
@@ -194,7 +303,18 @@ class HousingMenu(QMenu):
         QTimer.singleShot(0, lambda: _do(self.obj.db_obj))
 
     def on_add_boot(self):
+        """Handle the add boot event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         def _do(housing: "_pjt_housing.PJTHousing"):
+            """Execute the do operation.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param housing: Value for ``housing``.
+            :type housing: :class:`_pjt_housing.PJTHousing`
+            """
             dlg = _pjt_add_boot.AddBootDialog(self.mainframe, housing)
 
             if dlg.exec() == QDialog.Accepted:
@@ -204,6 +324,10 @@ class HousingMenu(QMenu):
         QTimer.singleShot(0, lambda: _do(self.obj.db_obj))
 
     def on_select(self):
+        """Handle the select event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         selected = self.mainframe.get_selected()
 
         if selected is not None:
@@ -212,11 +336,23 @@ class HousingMenu(QMenu):
         self.obj.set_selected(True)
 
     def on_clone(self):
+        """Handle the clone event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.mainframe.editor3d.setCursor(Qt.CursorShape.CrossCursor)
         self.mainframe.set_clone_obj(self.obj.parent)
 
     def on_delete(self):
+        """Handle the delete event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.obj.delete()
 
     def on_properties(self):
+        """Handle the properties event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass

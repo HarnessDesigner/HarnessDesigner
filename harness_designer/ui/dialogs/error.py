@@ -55,6 +55,19 @@ class ErrorDialog(QtWidgets.QDialog):
 
     def __init__(self, parent, message: str, title: str,
                  *widgets: tuple[QtWidgets.QWidget]) -> None:
+        """Initialise the :class:`ErrorDialog` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param message: Value for ``message``.
+        :type message: str
+        :param title: Value for ``title``.
+        :type title: str
+        :param widgets: Value for ``widgets``.
+        :type widgets: tuple[QtWidgets.QWidget]
+        """
 
         super().__init__(parent)
         self.setWindowTitle(title)

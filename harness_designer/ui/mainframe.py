@@ -43,6 +43,10 @@ Config = _config.Config.mainframe
 
 
 class MainFrame(QMainWindow):
+    """Represent a main frame in :mod:`harness_designer.ui.mainframe`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     db_connector: "_SQLConnector" = None
 
     global_db: "_global_db.GLBTables" = None
@@ -50,6 +54,15 @@ class MainFrame(QMainWindow):
     project: "_project.Project" = None
 
     def __init__(self, splash, logger: "_logger.Log"):
+        """Initialise the :class:`MainFrame` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param splash: Value for ``splash``.
+        :type splash: UNKNOWN
+        :param logger: Value for ``logger``.
+        :type logger: :class:`_logger.Log`
+        """
         QMainWindow.__init__(self)
 
         self.config = _config.Config
@@ -373,6 +386,15 @@ class MainFrame(QMainWindow):
     # ------------------------------------------------------------------
 
     def set_progress(self, value, label=None):
+        """Set the progress.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: UNKNOWN
+        :param label: Value for ``label``.
+        :type label: UNKNOWN
+        """
         if label is not None:
             self.status_bar.showMessage(label)
 
@@ -383,6 +405,15 @@ class MainFrame(QMainWindow):
             self.progress_bar.hide()
 
     def start_progress(self, label, max_value):
+        """Start the progress.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param label: Value for ``label``.
+        :type label: UNKNOWN
+        :param max_value: Value for ``max_value``.
+        :type max_value: UNKNOWN
+        """
         self.progress_bar.setRange(0, max_value)
         self.progress_bar.setValue(0)
         self.status_bar.showMessage(label)
@@ -420,6 +451,10 @@ class MainFrame(QMainWindow):
         return dock
 
     def _center_on_screen(self):
+        """Execute the center on screen operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         screen = self.screen()
         geo = screen.availableGeometry()
         x = (geo.width() - self.width()) // 2
@@ -511,22 +546,51 @@ class MainFrame(QMainWindow):
     # ------------------------------------------------------------------
 
     def moveEvent(self, event):
+        """Execute the move event operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param event: Event object.
+        :type event: UNKNOWN
+        """
         QMainWindow.moveEvent(self, event)
         QTimer.singleShot(0, self._save_position)
 
     def resizeEvent(self, event):
+        """Execute the resize event operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param event: Event object.
+        :type event: UNKNOWN
+        """
         QMainWindow.resizeEvent(self, event)
         QTimer.singleShot(0, self._save_size)
 
     def closeEvent(self, event):
+        """Execute the close event operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param event: Event object.
+        :type event: UNKNOWN
+        """
         self._on_close()
         event.accept()
 
     def _save_position(self):
+        """Save the position.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pos = self.pos()
         Config.position = (pos.x(), pos.y())
 
     def _save_size(self):
+        """Save the size.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         sz = self.size()
         Config.size = (sz.width(), sz.height())
 
@@ -559,6 +623,10 @@ class MainFrame(QMainWindow):
     # ------------------------------------------------------------------
 
     def _on_close(self):
+        """Handle the close event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.logger.info('Harness Designer shutting down')
 
         self.logger.info('Saving UI layout...')
@@ -588,22 +656,62 @@ class MainFrame(QMainWindow):
     # ------------------------------------------------------------------
 
     def SetStatusText(self, text, _=None):
+        """Execute the set status text operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param text: Text value.
+        :type text: UNKNOWN
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        """
         self.status_bar.showMessage(text)
 
     def RevertStatusText(self):
+        """Execute the revert status text operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.status_bar.clearMessage()
 
     def Set2DCoordinates(self, x, y):
+        """Execute the set 2dcoordinates operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param x: X-coordinate value.
+        :type x: UNKNOWN
+        :param y: Y-coordinate value.
+        :type y: UNKNOWN
+        """
         self._status_x.setText(f'X: {round(float(x), 4)}')
         self._status_y.setText(f'Y: {round(float(y), 4)}')
         self._status_z.setText('')
 
     def Set3DCoordinates(self, x, y, z):
+        """Execute the set 3dcoordinates operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param x: X-coordinate value.
+        :type x: UNKNOWN
+        :param y: Y-coordinate value.
+        :type y: UNKNOWN
+        :param z: Z-coordinate value.
+        :type z: UNKNOWN
+        """
         self._status_x.setText(f'X: {round(float(x), 4)}')
         self._status_y.setText(f'Y: {round(float(y), 4)}')
         self._status_z.setText(f'Z: {round(float(z), 4)}')
 
     def showEvent(self, event):
+        """Execute the show event operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param event: Event object.
+        :type event: UNKNOWN
+        """
         # super().showEvent(event)
 
         if self._splash is not None:
@@ -621,24 +729,52 @@ class MainFrame(QMainWindow):
     # ------------------------------------------------------------------
 
     def _on_obj_selected_3d(self, evt: _gl.GLObjectEvent) -> None:
+        """Handle the obj selected 3D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_obj_unselected_3d(self, evt: _gl.GLObjectEvent) -> None:
+        """Handle the obj unselected 3D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_obj_activated_3d(self, evt: _gl.GLObjectEvent) -> None:
+        """Handle the obj activated 3D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_obj_right_click_3d(self, evt: _gl.GLObjectEvent) -> None:
+        """Handle the obj right click 3D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -658,54 +794,117 @@ class MainFrame(QMainWindow):
                 context_menu.exec(global_pos)
 
     def _on_obj_right_dclick_3d(self, evt: _gl.GLObjectEvent) -> None:
+        """Handle the obj right dclick 3D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_obj_middle_click_3d(self, evt: _gl.GLObjectEvent) -> None:
+        """Handle the obj middle click 3D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_obj_middle_dclick_3d(self, evt: _gl.GLObjectEvent) -> None:
+        """Handle the obj middle dclick 3D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_obj_aux1_click_3d(self, evt: _gl.GLObjectEvent) -> None:
+        """Handle the obj aux 1 click 3D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_obj_aux1_dclick_3d(self, evt: _gl.GLObjectEvent) -> None:
+        """Handle the obj aux 1 dclick 3D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_obj_aux2_click_3d(self, evt: _gl.GLObjectEvent) -> None:
+        """Handle the obj aux 2 click 3D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_obj_aux2_dclick_3d(self, evt: _gl.GLObjectEvent) -> None:
+        """Handle the obj aux 2 dclick 3D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_obj_drag_3d(self, evt: _gl.GLObjectEvent) -> None:
+        """Handle the obj drag 3D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_key_down_3d(self, evt: _gl.GLKeyEvent) -> None:
+        """Handle the key down 3D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLKeyEvent`
+        """
         if self._obj_handler is not None:
             keycode = evt.GetKeyCode()
             if keycode == Qt.Key.Key_Escape:
@@ -729,12 +928,26 @@ class MainFrame(QMainWindow):
         evt.Skip()
 
     def _on_key_up_3d(self, evt: _gl.GLKeyEvent) -> None:
+        """Handle the key up 3D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLKeyEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_mouse_move_3d(self, evt: _gl.GLEvent) -> None:
+        """Handle the mouse move 3D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -749,6 +962,13 @@ class MainFrame(QMainWindow):
             evt.Skip()
 
     def _on_capture_lost_3d(self, evt: _gl.GLCaptureLostEvent) -> None:
+        """Handle the capture lost 3D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLCaptureLostEvent`
+        """
         if self._obj_handler is not None:
             self._obj_handler.veto_position()
             evt.StopPropagation()
@@ -756,6 +976,13 @@ class MainFrame(QMainWindow):
             evt.Skip()
 
     def _on_left_down_3d(self, evt: _gl.GLEvent) -> None:
+        """Handle the left down 3D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
         if self._obj_handler is not None:
             position = evt.GetPosition()
             self._obj_handler.capture_position(position)
@@ -766,6 +993,13 @@ class MainFrame(QMainWindow):
             evt.Skip()
 
     def _on_left_up_3d(self, evt: _gl.GLEvent) -> None:
+        """Handle the left up 3D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
         if self._obj_handler is not None:
             self._obj_handler.release_capture()
 
@@ -832,78 +1066,169 @@ class MainFrame(QMainWindow):
         evt.Skip()
 
     def _on_left_dclick_3d(self, evt: _gl.GLEvent) -> None:
+        """Handle the left dclick 3D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_right_down_3d(self, evt: _gl.GLEvent) -> None:
+        """Handle the right down 3D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_right_up_3d(self, evt: _gl.GLEvent) -> None:
+        """Handle the right up 3D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_right_dclick_3d(self, evt: _gl.GLEvent) -> None:
+        """Handle the right dclick 3D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_middle_down_3d(self, evt: _gl.GLEvent) -> None:
+        """Handle the middle down 3D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_middle_up_3d(self, evt: _gl.GLEvent) -> None:
+        """Handle the middle up 3D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_middle_dclick_3d(self, evt: _gl.GLEvent) -> None:
+        """Handle the middle dclick 3D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_aux1_down_3d(self, evt: _gl.GLEvent) -> None:
+        """Handle the aux 1 down 3D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_aux1_up_3d(self, evt: _gl.GLEvent) -> None:
+        """Handle the aux 1 up 3D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_aux1_dclick_3d(self, evt: _gl.GLEvent) -> None:
+        """Handle the aux 1 dclick 3D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_aux2_down_3d(self, evt: _gl.GLEvent) -> None:
+        """Handle the aux 2 down 3D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_aux2_up_3d(self, evt: _gl.GLEvent) -> None:
+        """Handle the aux 2 up 3D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_aux2_dclick_3d(self, evt: _gl.GLEvent) -> None:
+        """Handle the aux 2 dclick 3D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -916,24 +1241,52 @@ class MainFrame(QMainWindow):
     # ------------------------------------------------------------------
 
     def _on_obj_selected_2d(self, evt: _gl.GLObjectEvent) -> None:
+        """Handle the obj selected 2D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_obj_unselected_2d(self, evt: _gl.GLObjectEvent) -> None:
+        """Handle the obj unselected 2D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_obj_activated_2d(self, evt: _gl.GLObjectEvent) -> None:
+        """Handle the obj activated 2D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_obj_right_click_2d(self, evt: _gl.GLObjectEvent) -> None:
+        """Handle the obj right click 2D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -950,54 +1303,117 @@ class MainFrame(QMainWindow):
                 context_menu.exec(global_pos)
 
     def _on_obj_right_dclick_2d(self, evt: _gl.GLObjectEvent) -> None:
+        """Handle the obj right dclick 2D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_obj_middle_click_2d(self, evt: _gl.GLObjectEvent) -> None:
+        """Handle the obj middle click 2D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_obj_middle_dclick_2d(self, evt: _gl.GLObjectEvent) -> None:
+        """Handle the obj middle dclick 2D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_obj_aux1_click_2d(self, evt: _gl.GLObjectEvent) -> None:
+        """Handle the obj aux 1 click 2D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_obj_aux1_dclick_2d(self, evt: _gl.GLObjectEvent) -> None:
+        """Handle the obj aux 1 dclick 2D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_obj_aux2_click_2d(self, evt: _gl.GLObjectEvent) -> None:
+        """Handle the obj aux 2 click 2D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_obj_aux2_dclick_2d(self, evt: _gl.GLObjectEvent) -> None:
+        """Handle the obj aux 2 dclick 2D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_obj_drag_2d(self, evt: _gl.GLObjectEvent) -> None:
+        """Handle the obj drag 2D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_key_down_2d(self, evt: _gl.GLKeyEvent) -> None:
+        """Handle the key down 2D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLKeyEvent`
+        """
         if self._obj_handler is not None:
             keycode = evt.GetKeyCode()
             if keycode == Qt.Key.Key_Escape:
@@ -1023,12 +1439,26 @@ class MainFrame(QMainWindow):
         evt.Skip()
 
     def _on_key_up_2d(self, evt: _gl.GLKeyEvent) -> None:
+        """Handle the key up 2D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLKeyEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_mouse_move_2d(self, evt: _gl.GLEvent) -> None:
+        """Handle the mouse move 2D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1043,6 +1473,13 @@ class MainFrame(QMainWindow):
             evt.Skip()
 
     def _on_capture_lost_2d(self, evt: _gl.GLCaptureLostEvent) -> None:
+        """Handle the capture lost 2D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLCaptureLostEvent`
+        """
         if self._obj_handler is not None:
             self._obj_handler.veto_position()
             evt.StopPropagation()
@@ -1050,6 +1487,14 @@ class MainFrame(QMainWindow):
             evt.Skip()
 
     def _on_left_down_2d(self, evt: _gl.GLEvent) -> None:
+        """Handle the left down 2D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        :raises RuntimeError: Raised when the operation cannot be completed.
+        """
         if self._obj_handler is not None:
             position = evt.GetPosition()
             self._obj_handler.capture_position(position)
@@ -1122,6 +1567,13 @@ class MainFrame(QMainWindow):
         evt.Skip()
 
     def _on_left_up_2d(self, evt: _gl.GLEvent) -> None:
+        """Handle the left up 2D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
         if self._obj_handler is not None:
             self._obj_handler.release_capture()
 
@@ -1133,78 +1585,169 @@ class MainFrame(QMainWindow):
             evt.Skip()
 
     def _on_left_dclick_2d(self, evt: _gl.GLEvent) -> None:
+        """Handle the left dclick 2D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_right_down_2d(self, evt: _gl.GLEvent) -> None:
+        """Handle the right down 2D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_right_up_2d(self, evt: _gl.GLEvent) -> None:
+        """Handle the right up 2D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_right_dclick_2d(self, evt: _gl.GLEvent) -> None:
+        """Handle the right dclick 2D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_middle_down_2d(self, evt: _gl.GLEvent) -> None:
+        """Handle the middle down 2D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_middle_up_2d(self, evt: _gl.GLEvent) -> None:
+        """Handle the middle up 2D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_middle_dclick_2d(self, evt: _gl.GLEvent) -> None:
+        """Handle the middle dclick 2D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_aux1_down_2d(self, evt: _gl.GLEvent) -> None:
+        """Handle the aux 1 down 2D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_aux1_up_2d(self, evt: _gl.GLEvent) -> None:
+        """Handle the aux 1 up 2D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_aux1_dclick_2d(self, evt: _gl.GLEvent) -> None:
+        """Handle the aux 1 dclick 2D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_aux2_down_2d(self, evt: _gl.GLEvent) -> None:
+        """Handle the aux 2 down 2D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_aux2_up_2d(self, evt: _gl.GLEvent) -> None:
+        """Handle the aux 2 up 2D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
 
     def _on_aux2_dclick_2d(self, evt: _gl.GLEvent) -> None:
+        """Handle the aux 2 dclick 2D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1214,6 +1757,13 @@ class MainFrame(QMainWindow):
     # ------------------------------------------------------------------
 
     def _on_pane_activated(self, dock: QDockWidget) -> None:
+        """Handle the pane activated event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param dock: Value for ``dock``.
+        :type dock: :class:`QDockWidget`
+        """
         widget = dock.widget() if dock is not None else None
 
         if widget is self.editor2d.editor:
@@ -1232,32 +1782,81 @@ class MainFrame(QMainWindow):
     # ------------------------------------------------------------------
 
     def set_clone_obj(self, obj):
+        """Set the clone obj.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
         self._clone_obj = obj
         self.editor3d.set_clone_obj(obj)
         self.editor2d.set_clone_obj(obj)
 
     def get_clone_obj(self):
+        """Return the clone obj.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self._clone_obj
 
     def add_object(self, obj):
+        """Add an object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
         self.editor2d.add_object(obj)
         self.editor3d.add_object(obj)
 
     def remove_object(self, obj):
+        """Remove the object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
         self.editor2d.remove_object(obj)
         self.editor3d.remove_object(obj)
 
     def _set_selected(self, obj: "_objects.ObjectBase"):
+        """Set the selected.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_objects.ObjectBase`
+        """
         self._selected_obj = obj
         self.editor3d.set_selected(obj)
         self.editor2d.set_selected(obj)
         self.editor_obj.set_selected(obj)
 
     def set_selected(self, obj: "_objects.ObjectBase"):
+        """Set the selected.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_objects.ObjectBase`
+        """
         if obj is not None:
             obj.set_selected(True)
 
     def get_selected(self) -> "_objects.ObjectBase":
+        """Return the selected.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`_objects.ObjectBase`
+        """
         return self._selected_obj
 
     # ------------------------------------------------------------------
@@ -1266,6 +1865,15 @@ class MainFrame(QMainWindow):
 
     def add_housing(self, position2d: "_point.Point" = None,
                     position3d: "_point.Point" = None) -> None:
+        """Add a housing.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param position2d: 2D position value.
+        :type position2d: :class:`_point.Point`
+        :param position3d: 3D position value.
+        :type position3d: :class:`_point.Point`
+        """
 
         if position3d is not None:
             self._housing_handler = _handlers.AddHousingHandler(self)
@@ -1273,6 +1881,17 @@ class MainFrame(QMainWindow):
 
     def add_terminal(self, position2d: "_point.Point" = None,
                      position3d: "_point.Point" = None, part_id: int = None) -> None:
+        """Add a terminal.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param position2d: 2D position value.
+        :type position2d: :class:`_point.Point`
+        :param position3d: 3D position value.
+        :type position3d: :class:`_point.Point`
+        :param part_id: Identifier for the part.
+        :type part_id: int
+        """
 
         if part_id is None:
             part_id = self.editor_db.terminals.GetSelection()
@@ -1284,6 +1903,17 @@ class MainFrame(QMainWindow):
 
     def add_wire(self, position2d: "_point.Point" = None,
                  position3d: "_point.Point" = None, part_id: int = None) -> None:
+        """Add a wire.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param position2d: 2D position value.
+        :type position2d: :class:`_point.Point`
+        :param position3d: 3D position value.
+        :type position3d: :class:`_point.Point`
+        :param part_id: Identifier for the part.
+        :type part_id: int
+        """
 
         if part_id is None:
             part_id = self.editor_db.wires.GetSelection()
@@ -1295,6 +1925,15 @@ class MainFrame(QMainWindow):
 
     def add_wire_service_loop(self, position3d: "_point.Point",
                               part_id: int = None) -> None:
+        """Add a wire service loop.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param position3d: 3D position value.
+        :type position3d: :class:`_point.Point`
+        :param part_id: Identifier for the part.
+        :type part_id: int
+        """
 
         if part_id is None:
             part_id = self.editor_db.wires.GetSelection()
@@ -1306,6 +1945,17 @@ class MainFrame(QMainWindow):
 
     def add_wire_marker(self, position2d: "_point.Point" = None,
                         position3d: "_point.Point" = None, part_id: int = None) -> None:
+        """Add a wire marker.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param position2d: 2D position value.
+        :type position2d: :class:`_point.Point`
+        :param position3d: 3D position value.
+        :type position3d: :class:`_point.Point`
+        :param part_id: Identifier for the part.
+        :type part_id: int
+        """
 
         if part_id is None:
             part_id = self.editor_db.wire_markers.GetSelection()
@@ -1317,6 +1967,17 @@ class MainFrame(QMainWindow):
 
     def add_splice(self, position2d: "_point.Point" = None,
                    position3d: "_point.Point" = None, part_id: int = None) -> None:
+        """Add a splice.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param position2d: 2D position value.
+        :type position2d: :class:`_point.Point`
+        :param position3d: 3D position value.
+        :type position3d: :class:`_point.Point`
+        :param part_id: Identifier for the part.
+        :type part_id: int
+        """
 
         if part_id is None:
             part_id = self.editor_db.splices.GetSelection()
@@ -1328,11 +1989,31 @@ class MainFrame(QMainWindow):
 
     def add_note(self, position2d: "_point.Point" = None,
                  position3d: "_point.Point" = None, note: str = '') -> None:
+        """Add a note.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param position2d: 2D position value.
+        :type position2d: :class:`_point.Point`
+        :param position3d: 3D position value.
+        :type position3d: :class:`_point.Point`
+        :param note: Value for ``note``.
+        :type note: str
+        """
 
         self.project.add_note(note, position2d, position3d)
 
     def add_transition(self, position3d: "_point.Point",
                        part_id: int = None) -> None:
+        """Add a transition.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param position3d: 3D position value.
+        :type position3d: :class:`_point.Point`
+        :param part_id: Identifier for the part.
+        :type part_id: int
+        """
 
         if part_id is None:
             part_id = self.editor_db.transitions.GetSelection()
@@ -1344,6 +2025,15 @@ class MainFrame(QMainWindow):
 
     def add_seal(self, position3d: "_point.Point",
                  part_id: int = None) -> None:
+        """Add a seal.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param position3d: 3D position value.
+        :type position3d: :class:`_point.Point`
+        :param part_id: Identifier for the part.
+        :type part_id: int
+        """
 
         if part_id is None:
             part_id = self.editor_db.seals.GetSelection()
@@ -1355,6 +2045,15 @@ class MainFrame(QMainWindow):
 
     def add_bundle(self, position3d: "_point.Point",
                    part_id: int = None) -> None:
+        """Add a bundle.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param position3d: 3D position value.
+        :type position3d: :class:`_point.Point`
+        :param part_id: Identifier for the part.
+        :type part_id: int
+        """
 
         if part_id is None:
             part_id = self.editor_db.bundle_covers.GetSelection()
@@ -1366,6 +2065,15 @@ class MainFrame(QMainWindow):
 
     def add_tpa_lock(self, position3d: "_point.Point",
                      part_id: int = None) -> None:
+        """Add a TPA lock.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param position3d: 3D position value.
+        :type position3d: :class:`_point.Point`
+        :param part_id: Identifier for the part.
+        :type part_id: int
+        """
 
         if part_id is None:
             part_id = self.editor_db.tpa_locks.GetSelection()
@@ -1377,6 +2085,15 @@ class MainFrame(QMainWindow):
 
     def add_cpa_lock(self, position3d: "_point.Point",
                      part_id: int = None) -> None:
+        """Add a CPA lock.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param position3d: 3D position value.
+        :type position3d: :class:`_point.Point`
+        :param part_id: Identifier for the part.
+        :type part_id: int
+        """
 
         if part_id is None:
             part_id = self.editor_db.cpa_locks.GetSelection()
@@ -1388,6 +2105,15 @@ class MainFrame(QMainWindow):
 
     def add_boot(self, position3d: "_point.Point",
                  part_id: int = None) -> None:
+        """Add a boot.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param position3d: 3D position value.
+        :type position3d: :class:`_point.Point`
+        :param part_id: Identifier for the part.
+        :type part_id: int
+        """
 
         if part_id is None:
             part_id = self.editor_db.boots.GetSelection()
@@ -1399,6 +2125,15 @@ class MainFrame(QMainWindow):
 
     def add_cover(self, position3d: "_point.Point",
                   part_id: int = None) -> None:
+        """Add a cover.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param position3d: 3D position value.
+        :type position3d: :class:`_point.Point`
+        :param part_id: Identifier for the part.
+        :type part_id: int
+        """
 
         if part_id is None:
             part_id = self.editor_db.covers.GetSelection()
@@ -1409,9 +2144,20 @@ class MainFrame(QMainWindow):
         self.project.add_cover(part_id, position3d)
 
     def unload(self):
+        """Execute the unload operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def open_database(self, splash):
+        """Open the database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param splash: Value for ``splash``.
+        :type splash: UNKNOWN
+        """
         from ..database.db_connectors import SQLConnector
 
         self.db_connector = SQLConnector(self)

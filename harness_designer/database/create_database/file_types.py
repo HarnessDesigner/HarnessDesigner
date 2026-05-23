@@ -8,6 +8,17 @@ import json
 
 
 def add_records(con, splash, data_path):
+    """Add a records.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param splash: Value for ``splash``.
+    :type splash: UNKNOWN
+    :param data_path: Value for ``data_path``.
+    :type data_path: UNKNOWN
+    """
     con.execute('SELECT * from file_types WHERE id=1;')
     if con.fetchall():
         return
@@ -36,6 +47,25 @@ def add_records(con, splash, data_path):
 
 
 def add_file_type(con, name, extension, is_model, mimetype='', commit=True):
+    """Add a file type.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param name: Name value.
+    :type name: UNKNOWN
+    :param extension: Value for ``extension``.
+    :type extension: UNKNOWN
+    :param is_model: Boolean flag for whether model.
+    :type is_model: UNKNOWN
+    :param mimetype: Value for ``mimetype``.
+    :type mimetype: UNKNOWN
+    :param commit: Value for ``commit``.
+    :type commit: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
     con.execute('INSERT INTO file_types (mimetype, extension, name, is_model) '
                 'VALUES (?, ?, ?, ?);', (mimetype, extension, name, is_model))
 
@@ -47,6 +77,19 @@ def add_file_type(con, name, extension, is_model, mimetype='', commit=True):
 
 
 def get_file_type(con, extension=None, mimetype=None):
+    """Return the file type.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param extension: Value for ``extension``.
+    :type extension: UNKNOWN
+    :param mimetype: Value for ``mimetype``.
+    :type mimetype: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
     if extension is None and mimetype is None:
         return None
 

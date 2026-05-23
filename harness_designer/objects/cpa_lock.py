@@ -13,12 +13,25 @@ if TYPE_CHECKING:
 
 
 class CPALock(_ObjectBase):
+    """Represent a CPA lock in :mod:`harness_designer.objects.cpa_lock`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     obj2d: _cpa_lock_2d.CPALock = None
     obj3d: _cpa_lock_3d.CPALock = None
     db_obj: "_pjt_cpa_lock.PJTCPALock" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_cpa_lock.PJTCPALock"):
+        """Initialise the :class:`CPALock` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mainframe: Main application frame.
+        :type mainframe: :class:`_ui.MainFrame`
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_pjt_cpa_lock.PJTCPALock`
+        """
 
         db_obj.set_object(self)
         db_obj.add_object(self)

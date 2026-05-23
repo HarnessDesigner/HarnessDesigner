@@ -26,6 +26,10 @@ from PySide6.QtGui import QColor, QAction
 
 
 class ListCtrl(QWidget):
+    """Represent a list ctrl in :mod:`harness_designer.ui.widgets.list_ctrl`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     itemAdded = Signal(int, object)
     itemRemoved = Signal(int, object)
     itemChanged = Signal(int, object, object)
@@ -41,6 +45,19 @@ class ListCtrl(QWidget):
         unique: bool = False,
         item_type: type[str | int | float] = str,
     ):
+        """Initialise the :class:`ListCtrl` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`QWidget`
+        :param items: Collection of items to process.
+        :type items: list[str | float | int] | None
+        :param unique: Value for ``unique``.
+        :type unique: bool
+        :param item_type: Value for ``item_type``.
+        :type item_type: type[str | int | float]
+        """
         super().__init__(parent)
 
         self._item_type = item_type
@@ -125,6 +142,15 @@ class ListCtrl(QWidget):
             self._list.addItem(str(item))
 
     def _validate(self, value):
+        """Execute the validate operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         if value == '':
             return False, None
 
@@ -135,6 +161,15 @@ class ListCtrl(QWidget):
             return False, None
 
     def _existing_values(self, exclude_row: int = -1) -> set[str]:
+        """Execute the existing values operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param exclude_row: Value for ``exclude_row``.
+        :type exclude_row: int
+        :returns: Return value. UNKNOWN details.
+        :rtype: set[str]
+        """
         return {
             self._list.item(i).text()
             for i in range(self._list.count())
@@ -142,9 +177,24 @@ class ListCtrl(QWidget):
         }
 
     def _is_duplicate(self, text: str, exclude_row: int = -1) -> bool:
+        """Return whether the duplicate is available.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param text: Text value.
+        :type text: str
+        :param exclude_row: Value for ``exclude_row``.
+        :type exclude_row: int
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
         return self._unique and text in self._existing_values(exclude_row)
 
     def _enter_add_mode(self) -> None:
+        """Execute the enter add mode operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self._mode = self._MODE_ADD
         self._edit_row = -1
         self._edit_original = ""
@@ -157,6 +207,13 @@ class ListCtrl(QWidget):
         self._btn_ok.setEnabled(False)
 
     def _enter_edit_mode(self, row: int | None = None) -> None:
+        """Execute the enter edit mode operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param row: Value for ``row``.
+        :type row: int | None
+        """
         if row is None:
             sel = self._list.selectedItems()
             if not sel:
@@ -201,12 +258,26 @@ class ListCtrl(QWidget):
         self._on_selection_changed()
 
     def _set_main_buttons_enabled(self, enabled: bool) -> None:
+        """Set the main buttons enabled.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param enabled: Value for ``enabled``.
+        :type enabled: bool
+        """
         self._btn_add.setEnabled(enabled)
         if not enabled:
             self._btn_edit.setEnabled(False)
             self._btn_remove.setEnabled(False)
 
     def _on_text_changed(self, text: str) -> None:
+        """Handle the text changed event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param text: Text value.
+        :type text: str
+        """
         stripped = text.strip()
         is_valid_type, typed = self._validate(stripped)
 
@@ -250,6 +321,10 @@ class ListCtrl(QWidget):
         self._btn_ok.setEnabled(is_ok)
 
     def _on_ok(self) -> None:
+        """Handle the ok event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         if not self._btn_ok.isEnabled():
             return
 
@@ -279,9 +354,17 @@ class ListCtrl(QWidget):
             self.itemChanged.emit(row, typed_value, old_typed)
 
     def _on_cancel(self) -> None:
+        """Handle the cancel event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self._exit_edit_mode()
 
     def _on_selection_changed(self) -> None:
+        """Handle the selection changed event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         if self._mode != self._MODE_NONE:
             return
 
@@ -290,6 +373,13 @@ class ListCtrl(QWidget):
         self._btn_remove.setEnabled(has_selection)
 
     def _do_remove(self, row: int | None = None) -> None:
+        """Execute the do remove operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param row: Value for ``row``.
+        :type row: int | None
+        """
         if row is None:
             sel = self._list.selectedItems()
             if not sel:
@@ -302,6 +392,13 @@ class ListCtrl(QWidget):
             self.itemRemoved.emit(row, typed_value)
 
     def _show_context_menu(self, pos) -> None:
+        """Show the context menu.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param pos: Value for ``pos``.
+        :type pos: UNKNOWN
+        """
         if self._mode != self._MODE_NONE:
             return
 
@@ -332,14 +429,35 @@ class ListCtrl(QWidget):
 
     @property
     def unique(self) -> bool:
+        """Return the unique.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: bool
+        """
         return self._unique
 
     @unique.setter
     def unique(self, value: bool) -> None:
+        """Set the unique.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: bool
+        """
         self._unique = value
 
     @property
     def item_type(self) -> type:
+        """Return the item type.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: type
+        """
         return self._item_type
 
     def add_item(self, value: str | int | float) -> bool:
@@ -402,6 +520,13 @@ class ListCtrl(QWidget):
         self._list.clear()
 
     def count(self) -> int:
+        """Execute the count operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: int
+        """
         return self._list.count()
 
 

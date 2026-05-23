@@ -21,11 +21,24 @@ Config = _config.Config.editor3d
 
 
 class WireServiceLoop(_base3d.Base3D):
+    """Represent a wire service loop in :mod:`harness_designer.objects.objects3d.wire_service_loop`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     parent: "_wire_service_loop.WireServiceLoop" = None
     db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop" = None
 
     def __init__(self, parent: "_wire_service_loop.WireServiceLoop",
                  db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop"):
+        """Initialise the :class:`WireServiceLoop` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`_wire_service_loop.WireServiceLoop`
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_pjt_wire_service_loop.PJTWireServiceLoop`
+        """
 
         parent.mainframe.editor3d.context.acquire()
 
@@ -61,6 +74,13 @@ class WireServiceLoop(_base3d.Base3D):
         parent.mainframe.editor3d.context.release()
 
     def get_context_menu(self):
+        """Return the context menu.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return WireServiceLoopMenu(self.mainframe.editor3d.editor, self)
 
     @property
@@ -75,8 +95,21 @@ class WireServiceLoop(_base3d.Base3D):
 
 
 class WireServiceLoopMenu(QMenu):
+    """Represent a wire service loop menu in :mod:`harness_designer.objects.objects3d.wire_service_loop`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, canvas, selected):
+        """Initialise the :class:`WireServiceLoopMenu` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param canvas: Canvas instance.
+        :type canvas: UNKNOWN
+        :param selected: Value for ``selected``.
+        :type selected: UNKNOWN
+        """
         QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
@@ -103,19 +136,43 @@ class WireServiceLoopMenu(QMenu):
         action.triggered.connect(self.on_properties)
 
     def on_add_wire(self):
+        """Handle the add wire event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_trace_circuit(self):
+        """Handle the trace circuit event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_select(self):
+        """Handle the select event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_clone(self):
+        """Handle the clone event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_delete(self):
+        """Handle the delete event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_properties(self):
+        """Handle the properties event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass

@@ -5,6 +5,10 @@ from ... import color as _color
 
 
 class GenericMaterial(_material.GLMaterial):
+    """Represent a generic material in :mod:`harness_designer.gl.materials.generic`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     _ambient = (0.3, 0.3, 0.3, 0.5)
     _diffuse = (0.5, 0.5, 0.5, 0.5)
     _specular = (0.8, 0.8, 0.8, 0.5)
@@ -18,6 +22,13 @@ class GenericMaterial(_material.GLMaterial):
     _cl_roughness = 0.5
 
     def __init__(self, color: _color.Color):
+        """Initialise the :class:`GenericMaterial` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param color: Value for ``color``.
+        :type color: :class:`_color.Color`
+        """
         scalar = color.rgb_scalar
 
         self._ambient = scalar

@@ -26,6 +26,17 @@ from ... import logger as _logger
 
 
 def add_records(con, splash, data_path):
+    """Add a records.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param splash: Value for ``splash``.
+    :type splash: UNKNOWN
+    :param data_path: Value for ``data_path``.
+    :type data_path: UNKNOWN
+    """
     con.execute('SELECT id FROM splices WHERE id=1;')
     if con.fetchall():
         return
@@ -73,6 +84,15 @@ def add_records(con, splash, data_path):
 
 
 def add_splices(con, data: tuple[dict] | list[dict]):
+    """Add a splices.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param data: Data payload.
+    :type data: tuple[dict] | list[dict]
+    """
 
     for line in data:
         add_splice(con, **line)
@@ -85,6 +105,71 @@ def add_splice(con, part_number, description, mfg=None, family=None, series=None
                wire_size_awg_min=None, wire_size_awg_max=None, wire_size_dia_min=None,
                wire_size_dia_max=None, wire_size_cross_min=None, wire_size_cross_max=None,
                num_wires=None, commit=True):
+    """Add a splice.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param part_number: Value for ``part_number``.
+    :type part_number: UNKNOWN
+    :param description: Value for ``description``.
+    :type description: UNKNOWN
+    :param mfg: Value for ``mfg``.
+    :type mfg: UNKNOWN
+    :param family: Value for ``family``.
+    :type family: UNKNOWN
+    :param series: Value for ``series``.
+    :type series: UNKNOWN
+    :param color: Value for ``color``.
+    :type color: UNKNOWN
+    :param image: Value for ``image``.
+    :type image: UNKNOWN
+    :param datasheet: Value for ``datasheet``.
+    :type datasheet: UNKNOWN
+    :param cad: Value for ``cad``.
+    :type cad: UNKNOWN
+    :param min_temp: Value for ``min_temp``.
+    :type min_temp: UNKNOWN
+    :param max_temp: Value for ``max_temp``.
+    :type max_temp: UNKNOWN
+    :param model3d: Value for ``model3d``.
+    :type model3d: UNKNOWN
+    :param material: Value for ``material``.
+    :type material: UNKNOWN
+    :param plating: Value for ``plating``.
+    :type plating: UNKNOWN
+    :param type: Value for ``type``.
+    :type type: UNKNOWN
+    :param min_dia: Value for ``min_dia``.
+    :type min_dia: UNKNOWN
+    :param max_dia: Value for ``max_dia``.
+    :type max_dia: UNKNOWN
+    :param resistance: Value for ``resistance``.
+    :type resistance: UNKNOWN
+    :param length: Value for ``length``.
+    :type length: UNKNOWN
+    :param weight: Value for ``weight``.
+    :type weight: UNKNOWN
+    :param wire_size_awg_min: Value for ``wire_size_awg_min``.
+    :type wire_size_awg_min: UNKNOWN
+    :param wire_size_awg_max: Value for ``wire_size_awg_max``.
+    :type wire_size_awg_max: UNKNOWN
+    :param wire_size_dia_min: Value for ``wire_size_dia_min``.
+    :type wire_size_dia_min: UNKNOWN
+    :param wire_size_dia_max: Value for ``wire_size_dia_max``.
+    :type wire_size_dia_max: UNKNOWN
+    :param wire_size_cross_min: Value for ``wire_size_cross_min``.
+    :type wire_size_cross_min: UNKNOWN
+    :param wire_size_cross_max: Value for ``wire_size_cross_max``.
+    :type wire_size_cross_max: UNKNOWN
+    :param num_wires: Value for ``num_wires``.
+    :type num_wires: UNKNOWN
+    :param commit: Value for ``commit``.
+    :type commit: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
 
     mfg, family, series = _manufacturers.inspect_mfg_fam_series(mfg, family, series)
 
@@ -126,6 +211,35 @@ def add_splice(con, part_number, description, mfg=None, family=None, series=None
 def add_pjt_splice(con, project_id, part_id, start_point3d_id=None, stop_point3d_id=None,
                    branch_point3d_id=None, point2d_id=None, circuit_id=None, name='',
                    notes='', is_visible2d=0, is_visible3d=0):
+    """Add a PJT splice.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param project_id: Identifier for the project.
+    :type project_id: UNKNOWN
+    :param part_id: Identifier for the part.
+    :type part_id: UNKNOWN
+    :param start_point3d_id: Identifier for the start point 3D.
+    :type start_point3d_id: UNKNOWN
+    :param stop_point3d_id: Identifier for the stop point 3D.
+    :type stop_point3d_id: UNKNOWN
+    :param branch_point3d_id: Identifier for the branch point 3D.
+    :type branch_point3d_id: UNKNOWN
+    :param point2d_id: Identifier for the point 2D.
+    :type point2d_id: UNKNOWN
+    :param circuit_id: Identifier for the circuit.
+    :type circuit_id: UNKNOWN
+    :param name: Name value.
+    :type name: UNKNOWN
+    :param notes: Value for ``notes``.
+    :type notes: UNKNOWN
+    :param is_visible2d: Boolean flag for whether visible 2D.
+    :type is_visible2d: UNKNOWN
+    :param is_visible3d: Boolean flag for whether visible 3D.
+    :type is_visible3d: UNKNOWN
+    """
 
     con.execute('INSERT INTO pjt_splices (project_id, part_id, start_point3d_id, '
                 'stop_point3d_id, branch_point3d_id, point2d_id, circuit_id, name, '

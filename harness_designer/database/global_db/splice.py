@@ -29,29 +29,61 @@ if TYPE_CHECKING:
 
 
 class SplicesTable(TableBase):
+    """Represent a splices table in :mod:`harness_designer.database.global_db.splice`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     __table_name__ = 'splices'
 
     _control: "SpliceControl" = None
 
     @property
     def control(self) -> "SpliceControl":
+        """Return the control.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`SpliceControl`
+        """
         if self._control is None:
             self._control = SpliceControl(self.db.mainframe)
             self._control.hide()
         return self._control
 
     def _load_database(self, splash):
+        """Load the database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param splash: Value for ``splash``.
+        :type splash: UNKNOWN
+        """
         from ..create_database import splices
 
         data_path = self._con.db_data.open(splash)
         splices.add_records(self._con, splash, data_path)
 
     def _table_needs_update(self) -> bool:
+        """Execute the table needs update operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
         from ..create_database import splices
 
         return splices.table.is_ok(self)
 
     def _add_table_to_db(self, splash):
+        """Add a table to database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param splash: Value for ``splash``.
+        :type splash: UNKNOWN
+        """
         from ..create_database import splices
 
         splices.table.add_to_db(self)
@@ -60,15 +92,37 @@ class SplicesTable(TableBase):
         splices.add_records(self._con, splash, data_path)
 
     def _update_table_in_db(self):
+        """Update the table in database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         from ..create_database import splices
 
         splices.table.update_fields(self)
 
     def __iter__(self) -> _Iterable["Splice"]:
+        """Iterate over the available items.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Iterator or iterable result. UNKNOWN details.
+        :rtype: _Iterable['Splice']
+        """
         for db_id in TableBase.__iter__(self):
             yield Splice(self, db_id)
 
     def __getitem__(self, item) -> "Splice":
+        """Return the requested item.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param item: Item identifier or value.
+        :type item: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`Splice`
+        :raises KeyError: Raised when the operation cannot be completed.
+        :raises IndexError: Raised when the operation cannot be completed.
+        """
         if isinstance(item, int):
             if item in self:
                 return Splice(self, item)
@@ -84,6 +138,41 @@ class SplicesTable(TableBase):
                series_id: int, material_id: int, color_id: int, plating_id: int,
                type_id: int, min_dia: float, max_dia: float, resistance: float,
                length: float, weight: float) -> "Splice":
+        """Execute the insert operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param part_number: Value for ``part_number``.
+        :type part_number: str
+        :param description: Value for ``description``.
+        :type description: str
+        :param mfg_id: Identifier for the mfg.
+        :type mfg_id: int
+        :param family_id: Identifier for the family.
+        :type family_id: int
+        :param series_id: Identifier for the series.
+        :type series_id: int
+        :param material_id: Identifier for the material.
+        :type material_id: int
+        :param color_id: Identifier for the color.
+        :type color_id: int
+        :param plating_id: Identifier for the plating.
+        :type plating_id: int
+        :param type_id: Identifier for the type.
+        :type type_id: int
+        :param min_dia: Value for ``min_dia``.
+        :type min_dia: float
+        :param max_dia: Value for ``max_dia``.
+        :type max_dia: float
+        :param resistance: Value for ``resistance``.
+        :type resistance: float
+        :param length: Value for ``length``.
+        :type length: float
+        :param weight: Value for ``weight``.
+        :type weight: float
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`Splice`
+        """
 
         db_id = TableBase.insert(self, part_number=part_number, description=description,
                                  mfg_id=mfg_id, family_id=family_id, series_id=series_id,
@@ -95,6 +184,13 @@ class SplicesTable(TableBase):
 
     @property
     def search_items(self) -> dict:
+        """Return the search items.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: dict
+        """
         ret = {
             0: {
                 'label': 'Part Number',
@@ -175,10 +271,21 @@ class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
              FamilyMixin, SeriesMixin, MaterialMixin, ColorMixin, PlatingMixin,
              ResourceMixin, Model3DMixin, WeightMixin, TemperatureMixin,
              DimensionMixin, WireSizeMixin):
+    """Represent a splice in :mod:`harness_designer.database.global_db.splice`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     _table: SplicesTable = None
 
     def build_monitor_packet(self):
+        """Build the monitor packet.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         mfg = self.manufacturer
         color = self.color
 
@@ -200,51 +307,125 @@ class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
 
     @property
     def type(self) -> "_splice_types.SpliceType":
+        """Return the type.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_splice_types.SpliceType`
+        """
         db_id = self.type_id
         return self._table.db.splice_types_table[db_id]
 
     @property
     def type_id(self) -> int:
+        """Return the type ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         return self._table.select('type_id', id=self._db_id)[0][0]
 
     @type_id.setter
     def type_id(self, value: int):
+        """Set the type ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, type_id=value)
         self._populate('type_id')
 
     @property
     def resistance(self) -> float:
+        """Return the resistance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         return self._table.select('resistance', id=self._db_id)[0][0]
 
     @resistance.setter
     def resistance(self, value: float):
+        """Set the resistance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: float
+        """
         self._table.update(self._db_id, resistance=value)
         self._populate('resistance')
 
     @property
     def min_dia(self) -> float:
+        """Return the min dia.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         return self._table.select('min_dia', id=self._db_id)[0][0]
 
     @min_dia.setter
     def min_dia(self, value: float):
+        """Set the min dia.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: float
+        """
         self._table.update(self._db_id, min_dia=value)
         self._populate('min_dia')
 
     @property
     def max_dia(self) -> float:
+        """Return the max dia.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         return self._table.select('max_dia', id=self._db_id)[0][0]
 
     @max_dia.setter
     def max_dia(self, value: float):
+        """Set the max dia.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: float
+        """
         self._table.update(self._db_id, min_dia=value)
         self._populate('max_dia')
 
 
 class SpliceControl(QTabWidget):
+    """Represent a splice control in :mod:`harness_designer.database.global_db.splice`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     # TODO: Add splice types
 
     def set_obj(self, db_obj: Splice):
+        """Set the obj.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`Splice`
+        """
         self.db_obj = db_obj
 
         self.mfg_page.set_obj(db_obj)
@@ -294,18 +475,46 @@ class SpliceControl(QTabWidget):
             self.max_dia_ctrl.Enable(True)
 
     def _on_resistance(self, evt):
+        """Handle the resistance event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         value = evt.GetValue()
         self.db_obj.resistance = value
 
     def _on_max_dia(self, evt):
+        """Handle the max dia event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         value = evt.GetValue()
         self.db_obj.max_dia = value
 
     def _on_min_dia(self, evt):
+        """Handle the min dia event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         value = evt.GetValue()
         self.db_obj.min_dia = value
 
     def _on_splice_type(self, evt):
+        """Handle the splice type event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         name = evt.GetValue()
 
         self.db_obj.table.execute(f'SELECT id FROM splice_types WHERE name="{name}";')
@@ -326,6 +535,13 @@ class SpliceControl(QTabWidget):
         self.db_obj.type_id = db_id
 
     def __init__(self, parent):
+        """Initialise the :class:`SpliceControl` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        """
         self.db_obj: Splice = None
 
         QTabWidget.__init__(self, parent)

@@ -24,6 +24,15 @@ class WireLayout(_base2d.Base2D):
 
     def __init__(self, parent: "_wire_layout.WireLayout",
                  db_obj: "_pjt_wire_layout.PJTWireLayout"):
+        """Initialise the :class:`WireLayout` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`_wire_layout.WireLayout`
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_pjt_wire_layout.PJTWireLayout`
+        """
 
         _base2d.Base2D.__init__(self, parent, db_obj)
 
@@ -132,8 +141,21 @@ class WireLayout(_base2d.Base2D):
 
 
 class WireLayoutMenu(QMenu):
+    """Represent a wire layout menu in :mod:`harness_designer.objects.objects2d.wire_layout`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, canvas, selected):
+        """Initialise the :class:`WireLayoutMenu` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param canvas: Canvas instance.
+        :type canvas: UNKNOWN
+        :param selected: Value for ``selected``.
+        :type selected: UNKNOWN
+        """
         QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
@@ -153,13 +175,29 @@ class WireLayoutMenu(QMenu):
         action.triggered.connect(self.on_delete)
 
     def on_add_splice(self):
+        """Handle the add splice event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_trace_circuit(self):
+        """Handle the trace circuit event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_select(self):
+        """Handle the select event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_delete(self):
+        """Handle the delete event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass

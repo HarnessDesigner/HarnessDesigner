@@ -12,8 +12,21 @@ if TYPE_CHECKING:
 
 
 class Floor:
+    """Represent a floor in :mod:`harness_designer.gl.canvas3d.floor`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, canvas: "_canvas.Canvas", floor_program):
+        """Initialise the :class:`Floor` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param canvas: Canvas instance.
+        :type canvas: :class:`_canvas.Canvas`
+        :param floor_program: Value for ``floor_program``.
+        :type floor_program: UNKNOWN
+        """
         self.canvas = canvas
 
         self.grid_vbo = None
@@ -44,12 +57,36 @@ class Floor:
         step = self.config.floor.grid.size
 
         def _frange(start, stop, inc):
+            """Execute the frange operation.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param start: Value for ``start``.
+            :type start: UNKNOWN
+            :param stop: Value for ``stop``.
+            :type stop: UNKNOWN
+            :param inc: Value for ``inc``.
+            :type inc: UNKNOWN
+            :returns: Return value. UNKNOWN details.
+            :rtype: UNKNOWN
+            """
             value = start
             while value < stop:
                 yield value
                 value += inc
 
         def _get_vbo(verts, clrs):
+            """Return the VBO.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param verts: Value for ``verts``.
+            :type verts: UNKNOWN
+            :param clrs: Value for ``clrs``.
+            :type clrs: UNKNOWN
+            :returns: Return value. UNKNOWN details.
+            :rtype: UNKNOWN
+            """
             # Flatten the data
             verts = np.array(verts, dtype=np.float32).flatten()
             clrs = np.array(clrs, dtype=np.float32).flatten()
@@ -130,6 +167,13 @@ class Floor:
                     solid_vbo, solid_vertex_count)
 
     def set(self, flag):
+        """Execute the set operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param flag: Value for ``flag``.
+        :type flag: UNKNOWN
+        """
         if self.grid_vbo is not None:
             with self.canvas.context:
                 try:
@@ -176,6 +220,17 @@ class Floor:
 
         # type_ is either GL.GL_LINES or GL.GL_QUADS
         def _draw_vbo(vbo, count, type_):
+            """Draw the VBO.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param vbo: Value for ``vbo``.
+            :type vbo: UNKNOWN
+            :param count: Count value.
+            :type count: UNKNOWN
+            :param type_: Value for ``type_``.
+            :type type_: UNKNOWN
+            """
             GL.glBindBuffer(GL.GL_ARRAY_BUFFER, vbo)
 
             # Colors start immediately after all position data: count vertices × 3 position floats × 4 bytes per float

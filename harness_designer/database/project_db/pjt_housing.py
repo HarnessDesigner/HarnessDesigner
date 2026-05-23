@@ -38,12 +38,24 @@ if TYPE_CHECKING:
 
 
 class PJTHousingsTable(PJTTableBase):
+    """Represent a PJT housings table in :mod:`harness_designer.database.project_db.pjt_housing`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     __table_name__ = 'pjt_housings'
 
     _control: "PJTHousingControl" = None
 
     @property
     def control(self) -> "PJTHousingControl":
+        """Return the control.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`PJTHousingControl`
+        :raises RuntimeError: Raised when the operation cannot be completed.
+        """
         if self._control is None:
             raise RuntimeError('sanity check')
 
@@ -51,29 +63,69 @@ class PJTHousingsTable(PJTTableBase):
 
     @classmethod
     def start_control(cls, mainframe):
+        """Start the control.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mainframe: Main application frame.
+        :type mainframe: UNKNOWN
+        """
         cls._control = PJTHousingControl(mainframe)
         cls._control.hide()
 
     def _table_needs_update(self) -> bool:
+        """Execute the table needs update operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
         from ..create_database import housings
 
         return housings.pjt_table.is_ok(self)
 
     def _add_table_to_db(self):
+        """Add a table to database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         from ..create_database import housings
 
         housings.pjt_table.add_to_db(self)
 
     def _update_table_in_db(self):
+        """Update the table in database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         from ..create_database import housings
 
         housings.pjt_table.update_fields(self)
 
     def __iter__(self) -> _Iterable["PJTHousing"]:
+        """Iterate over the available items.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Iterator or iterable result. UNKNOWN details.
+        :rtype: _Iterable['PJTHousing']
+        """
         for db_id in PJTTableBase.__iter__(self):
             yield PJTHousing(self, db_id, self.project_id)
 
     def __getitem__(self, item) -> "PJTHousing":
+        """Return the requested item.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param item: Item identifier or value.
+        :type item: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`PJTHousing`
+        :raises KeyError: Raised when the operation cannot be completed.
+        :raises IndexError: Raised when the operation cannot be completed.
+        """
         if isinstance(item, int):
             if item in self:
                 return PJTHousing(self, item, self.project_id)
@@ -83,6 +135,19 @@ class PJTHousingsTable(PJTTableBase):
 
     def insert(self, part_id: int, position3d: "_point.Point" = None,
                position2d: "_point.Point" = None) -> "PJTHousing":
+        """Execute the insert operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param part_id: Identifier for the part.
+        :type part_id: int
+        :param position3d: 3D position value.
+        :type position3d: :class:`_point.Point`
+        :param position2d: 2D position value.
+        :type position2d: :class:`_point.Point`
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`PJTHousing`
+        """
 
         if position2d is None:
             position2d = _point.Point(0, 0)
@@ -141,10 +206,21 @@ class PJTHousingsTable(PJTTableBase):
 
 class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3DMixin,
                  Visible3DMixin, Visible2DMixin, NotesMixin, Angle2DMixin, Angle3DMixin):
+    """Represent a PJT housing in :mod:`harness_designer.database.project_db.pjt_housing`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     _table: PJTHousingsTable = None
 
     def build_monitor_packet(self):
+        """Build the monitor packet.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         packet = {
             'pjt_housings': [self.db_id],
             'housings': [self.part_id],
@@ -161,15 +237,36 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         return packet
 
     def get_object(self) -> "_housing_obj.Housing":
+        """Return the object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`_housing_obj.Housing`
+        """
         if self._obj is not None:
             return self._obj()
 
         return self._obj
 
     def __release_obj_ref(self, _):
+        """Release the obj ref.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        """
         self._obj = None
 
     def set_object(self, obj: "_housing_obj.Housing"):
+        """Set the object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_housing_obj.Housing`
+        """
         if obj is not None:
             self._obj = weakref.ref(obj, self.__release_obj_ref)
         else:
@@ -177,10 +274,24 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @property
     def table(self) -> PJTHousingsTable:
+        """Return the table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`PJTHousingsTable`
+        """
         return self._table
 
     @property
     def cavities(self) -> list["_pjt_cavity.PJTCavity"]:
+        """Return the cavities.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: list['_pjt_cavity.PJTCavity']
+        """
         cavities = []
 
         cavity_ids = self._table.db.pjt_cavities_table.select(
@@ -197,6 +308,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @property
     def cover_position3d(self) -> "_point.Point":
+        """Return the cover position 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_point.Point`
+        """
         if self._stored_cover_position3d is None and self._obj is not None:
             point_id = self.cover_position3d_id
 
@@ -207,6 +325,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @property
     def cover_position3d_id(self) -> int:
+        """Return the cover position 3D ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         point_id = self._table.select('cover_point3d_id',
                                       id=self._db_id)[0][0]
 
@@ -220,6 +345,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @cover_position3d_id.setter
     def cover_position3d_id(self, value: int):
+        """Set the cover position 3D ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, cover_point3d_id=value)
         self._populate('cover_position3d_id')
 
@@ -227,6 +359,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @property
     def seal_position3d(self) -> "_point.Point":
+        """Return the seal position 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_point.Point`
+        """
         if self._stored_seal_position3d is None and self._obj is not None:
 
             point_id = self.seal_position3d_id
@@ -238,6 +377,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @property
     def seal_position3d_id(self) -> int:
+        """Return the seal position 3D ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         point_id = self._table.select('seal_point3d_id',
                                       id=self._db_id)[0][0]
 
@@ -251,6 +397,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @seal_position3d_id.setter
     def seal_position3d_id(self, value: int):
+        """Set the seal position 3D ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, seal_point3d_id=value)
         self._populate('seal_position3d_id')
 
@@ -258,6 +411,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @property
     def boot_position3d(self) -> "_point.Point":
+        """Return the boot position 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_point.Point`
+        """
         if self._stored_boot_position3d is None and self._obj is not None:
 
             point_id = self.boot_position3d_id
@@ -269,6 +429,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @property
     def boot_position3d_id(self) -> int:
+        """Return the boot position 3D ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         point_id = self._table.select('boot_point3d_id',
                                       id=self._db_id)[0][0]
 
@@ -282,6 +449,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @boot_position3d_id.setter
     def boot_position3d_id(self, value: int):
+        """Set the boot position 3D ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, boot_point3d_id=value)
         self._populate('boot_position3d_id')
 
@@ -289,6 +463,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @property
     def tpa_lock_1_position3d(self) -> "_point.Point":
+        """Return the TPA lock 1 position 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_point.Point`
+        """
         if self._stored_tpa_lock_1_position3d is None and self._obj is not None:
 
             point_id = self.tpa_lock_1_position3d_id
@@ -300,6 +481,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @property
     def tpa_lock_1_position3d_id(self) -> int:
+        """Return the TPA lock 1 position 3D ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         point_id = self._table.select('tpa_lock_1_point3d_id',
                                       id=self._db_id)[0][0]
 
@@ -313,6 +501,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @tpa_lock_1_position3d_id.setter
     def tpa_lock_1_position3d_id(self, value: int):
+        """Set the TPA lock 1 position 3D ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, tpa_lock_1_point3d_id=value)
         self._populate('tpa_lock_1_position3d_id')
 
@@ -320,6 +515,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @property
     def tpa_lock_2_position3d(self) -> "_point.Point":
+        """Return the TPA lock 2 position 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_point.Point`
+        """
         if self._stored_tpa_lock_2_position3d is None and self._obj is not None:
 
             point_id = self.tpa_lock_2_position3d_id
@@ -331,6 +533,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @property
     def tpa_lock_2_position3d_id(self) -> int:
+        """Return the TPA lock 2 position 3D ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         point_id = self._table.select('tpa_lock_2_point3d_id',
                                       id=self._db_id)[0][0]
 
@@ -344,6 +553,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @tpa_lock_2_position3d_id.setter
     def tpa_lock_2_position3d_id(self, value: int):
+        """Set the TPA lock 2 position 3D ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, tpa_lock_2_point3d_id=value)
         self._populate('tpa_lock_2_position3d_id')
 
@@ -351,6 +567,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @property
     def cpa_lock_position3d(self) -> "_point.Point":
+        """Return the CPA lock position 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_point.Point`
+        """
         if self._stored_cpa_lock_position3d is None and self._obj is not None:
 
             point_id = self.cpa_lock_position3d_id
@@ -362,6 +585,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @property
     def cpa_lock_position3d_id(self) -> int:
+        """Return the CPA lock position 3D ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         point_id = self._table.select('cpa_lock_point3d_id',
                                       id=self._db_id)[0][0]
 
@@ -375,10 +605,28 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @cpa_lock_position3d_id.setter
     def cpa_lock_position3d_id(self, value: int):
+        """Set the CPA lock position 3D ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, cpa_lock_point3d_id=value)
         self._populate('cpa_lock_position3d_id')
 
     def add_cavity(self, index, name):
+        """Add a cavity.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param index: Index value.
+        :type index: UNKNOWN
+        :param name: Name value.
+        :type name: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         cavities = self.cavities
         assert cavities[index] is None, 'Sanity Check'
 
@@ -397,6 +645,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @property
     def seal(self) -> "_pjt_seal.PJTSeal":
+        """Return the seal.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_pjt_seal.PJTSeal`
+        """
         db_ids = self._table.db.pjt_seals_table.select('id',
                                                        housing_id=self.db_id)
 
@@ -410,6 +665,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @property
     def cpa_lock(self) -> "_pjt_cpa_lock.PJTCPALock":
+        """Return the CPA lock.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_pjt_cpa_lock.PJTCPALock`
+        """
         db_ids = self._table.db.pjt_cpa_locks_table.select('id',
                                                            housing_id=self.db_id)
 
@@ -423,6 +685,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @property
     def tpa_lock1(self) -> "_pjt_tpa_lock.PJTTPALock":
+        """Return the TPA lock 1.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_pjt_tpa_lock.PJTTPALock`
+        """
         rows = self._table.db.pjt_tpa_locks_table.select(
             'id', housing_id=self.db_id, idx=1)
 
@@ -432,6 +701,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @property
     def tpa_lock2(self) -> "_pjt_tpa_lock.PJTTPALock":
+        """Return the TPA lock 2.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_pjt_tpa_lock.PJTTPALock`
+        """
         rows = self._table.db.pjt_tpa_locks_table.select(
             'id', housing_id=self.db_id, idx=2)
 
@@ -441,6 +717,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @property
     def tpa_locks(self) -> list["_pjt_tpa_lock.PJTTPALock"]:
+        """Return the TPA locks.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: list['_pjt_tpa_lock.PJTTPALock']
+        """
         res = []
         db_ids = self._table.db.pjt_tpa_locks_table.select('id',
                                                            housing_id=self.db_id)
@@ -456,6 +739,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @property
     def cover(self) -> "_pjt_cover.PJTCover":
+        """Return the cover.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_pjt_cover.PJTCover`
+        """
         db_ids = self._table.db.pjt_covers_table.select('id',
                                                         housing_id=self.db_id)
 
@@ -469,6 +759,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @property
     def boot(self) -> "_pjt_boot.PJTBoot":
+        """Return the boot.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_pjt_boot.PJTBoot`
+        """
         db_ids = self._table.db.pjt_boots_table.select('id',
                                                        housing_id=self.db_id)
 
@@ -499,6 +796,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @property
     def part(self) -> "_housing.Housing":
+        """Return the part.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_housing.Housing`
+        """
         if self._stored_part is None and self._obj is not None:
             part_id = self.part_id
 
@@ -511,6 +815,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         return self._stored_part
 
     def _update_position3d(self, point: _point.Point):
+        """Update the position 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param point: Point value.
+        :type point: :class:`_point.Point`
+        """
 
         # when the position of a housing is changed all of the objects that
         # attach to the housing also need to change. That update should happen
@@ -554,6 +865,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @property
     def position3d(self) -> "_point.Point":
+        """Return the position 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_point.Point`
+        """
         if self._stored_position3d is None and self._obj is not None:
             point_id = self.position3d_id
 
@@ -572,6 +890,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         return point
 
     def _update_position2d(self, point: _point.Point):
+        """Update the position 2D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param point: Point value.
+        :type point: :class:`_point.Point`
+        """
         delta = point - self._o_position2d
         self._o_position2d = point.copy()
 
@@ -586,6 +911,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @property
     def position2d(self) -> "_point.Point":
+        """Return the position 2D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_point.Point`
+        """
         if self._stored_position2d is None and self._obj is not None:
 
             point_id = self.position2d_id
@@ -606,6 +938,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         return point
 
     def _update_angle3d(self, angle: _angle.Angle):
+        """Update the angle 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param angle: Value for ``angle``.
+        :type angle: :class:`_angle.Angle`
+        """
         quat = eval(self._table.select('quat3d',
                                        id=self._db_id)[0][0])
 
@@ -716,6 +1055,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         self._populate('angle3d')
 
     def _update_angle2d(self, angle: _angle.Angle):
+        """Update the angle 2D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param angle: Value for ``angle``.
+        :type angle: :class:`_angle.Angle`
+        """
         quat = list(angle.as_quat_float)
         euler_angle = list(angle.as_euler_float)
 
@@ -725,8 +1071,19 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
 
 class PJTHousingControl(QTabWidget):
+    """Represent a PJT housing control in :mod:`harness_designer.database.project_db.pjt_housing`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def set_obj(self, db_obj: PJTHousing):
+        """Set the obj.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`PJTHousing`
+        """
         self.db_obj = db_obj
 
         self.name_ctrl.set_obj(db_obj)
@@ -769,6 +1126,13 @@ class PJTHousingControl(QTabWidget):
             self.cavity_pages.append(ctrl)
 
     def __init__(self, parent):
+        """Initialise the :class:`PJTHousingControl` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        """
         self.db_obj: PJTHousing = None
 
         QTabWidget.__init__(self, parent)

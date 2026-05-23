@@ -28,6 +28,51 @@ def add_transition(con, part_number, description, mfg=None, family=None, series=
                    max_temp=None, material=None, shape=None, protection=None,
                    branch_count=0, adhesive_ids=None, weight=0.0, branches=[],
                    commit=True):
+    """Add a transition.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param part_number: Value for ``part_number``.
+    :type part_number: UNKNOWN
+    :param description: Value for ``description``.
+    :type description: UNKNOWN
+    :param mfg: Value for ``mfg``.
+    :type mfg: UNKNOWN
+    :param family: Value for ``family``.
+    :type family: UNKNOWN
+    :param series: Value for ``series``.
+    :type series: UNKNOWN
+    :param color: Value for ``color``.
+    :type color: UNKNOWN
+    :param image: Value for ``image``.
+    :type image: UNKNOWN
+    :param datasheet: Value for ``datasheet``.
+    :type datasheet: UNKNOWN
+    :param cad: Value for ``cad``.
+    :type cad: UNKNOWN
+    :param min_temp: Value for ``min_temp``.
+    :type min_temp: UNKNOWN
+    :param max_temp: Value for ``max_temp``.
+    :type max_temp: UNKNOWN
+    :param material: Value for ``material``.
+    :type material: UNKNOWN
+    :param shape: Value for ``shape``.
+    :type shape: UNKNOWN
+    :param protection: Value for ``protection``.
+    :type protection: UNKNOWN
+    :param branch_count: Value for ``branch_count``.
+    :type branch_count: UNKNOWN
+    :param adhesive_ids: Identifier for the adhesive.
+    :type adhesive_ids: UNKNOWN
+    :param weight: Value for ``weight``.
+    :type weight: UNKNOWN
+    :param branches: Value for ``branches``.
+    :type branches: UNKNOWN
+    :param commit: Value for ``commit``.
+    :type commit: UNKNOWN
+    """
     
     if adhesive_ids is None:
         adhesive_ids = []
@@ -71,6 +116,29 @@ def add_transition(con, part_number, description, mfg=None, family=None, series=
 
 def add_pjt_transition(con, project_id, part_id, point3d_id=None, name='', notes='',
                        quat3d=None, angle3d=None, is_visible3d=1):
+    """Add a PJT transition.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param project_id: Identifier for the project.
+    :type project_id: UNKNOWN
+    :param part_id: Identifier for the part.
+    :type part_id: UNKNOWN
+    :param point3d_id: Identifier for the point 3D.
+    :type point3d_id: UNKNOWN
+    :param name: Name value.
+    :type name: UNKNOWN
+    :param notes: Value for ``notes``.
+    :type notes: UNKNOWN
+    :param quat3d: Value for ``quat3d``.
+    :type quat3d: UNKNOWN
+    :param angle3d: Value for ``angle3d``.
+    :type angle3d: UNKNOWN
+    :param is_visible3d: Boolean flag for whether visible 3D.
+    :type is_visible3d: UNKNOWN
+    """
     
     if quat3d is None:
         quat3d = [1.0, 0.0, 0.0, 0.0]
@@ -86,12 +154,32 @@ def add_pjt_transition(con, project_id, part_id, point3d_id=None, name='', notes
 
 
 def add_transitions(con, data: tuple[dict] | list[dict]):
+    """Add a transitions.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param data: Data payload.
+    :type data: tuple[dict] | list[dict]
+    """
 
     for line in data:
         add_transition(con, **line)
 
 
 def add_records(con, splash, data_path):
+    """Add a records.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param splash: Value for ``splash``.
+    :type splash: UNKNOWN
+    :param data_path: Value for ``data_path``.
+    :type data_path: UNKNOWN
+    """
     con.execute('SELECT id FROM transitions WHERE id=1;')
     if con.fetchall():
         return

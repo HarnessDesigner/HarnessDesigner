@@ -12,9 +12,20 @@ if TYPE_CHECKING:
 
 
 class DirectionMixin(BaseMixin):
+    """Represent a direction mixin in :mod:`harness_designer.database.global_db.mixins.direction`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     @property
     def direction(self) -> "_direction.Direction":
+        """Return the direction.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_direction.Direction`
+        """
         from .. import direction as _direction  # NOQA
 
         direction_id = self._table.select('direction_id', id=self._db_id)
@@ -22,17 +33,42 @@ class DirectionMixin(BaseMixin):
 
     @property
     def direction_id(self) -> int:
+        """Return the direction ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         return self._table.select('direction_id', id=self._db_id)[0][0]
 
     @direction_id.setter
     def direction_id(self, value: int):
+        """Set the direction ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, direction_id=value)
         self._populate('direction_id')
 
 
 class DirectionControl(_prop_ctrls.ComboBoxProperty):
+    """Represent a direction control in :mod:`harness_designer.database.global_db.mixins.direction`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent):
+        """Initialise the :class:`DirectionControl` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        """
 
         self.choices: list[str] = []
         self.db_obj: DirectionMixin = None
@@ -41,6 +77,13 @@ class DirectionControl(_prop_ctrls.ComboBoxProperty):
         self.property_changed.connect(self._on_direction)
 
     def set_obj(self, db_obj: DirectionMixin):
+        """Set the obj.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`DirectionMixin`
+        """
         self.db_obj = db_obj
 
         if db_obj is None:
@@ -59,6 +102,13 @@ class DirectionControl(_prop_ctrls.ComboBoxProperty):
 
 
     def _on_direction(self, evt: _prop_ctrls.PropertyEvent):
+        """Handle the direction event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_prop_ctrls.PropertyEvent`
+        """
         name = evt.GetValue()
 
         self.db_obj.table.execute('SELECT id FROM directions WHERE name="{name}";')

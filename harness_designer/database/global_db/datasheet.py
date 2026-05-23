@@ -14,22 +14,62 @@ if TYPE_CHECKING:
 
 
 class DatasheetsTable(TableBase):
+    """Represent a datasheets table in :mod:`harness_designer.database.global_db.datasheet`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     __table_name__ = 'datasheets'
 
     def _table_needs_update(self) -> bool:
+        """Execute the table needs update operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
         return _datasheets.table.is_ok(self)
 
     def _add_table_to_db(self, _):
+        """Add a table to database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        """
         _datasheets.table.add_to_db(self)
 
     def _update_table_in_db(self):
+        """Update the table in database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         _datasheets.table.update_fields(self)
 
     def __iter__(self) -> _Iterable["Datasheet"]:
+        """Iterate over the available items.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Iterator or iterable result. UNKNOWN details.
+        :rtype: _Iterable['Datasheet']
+        """
         for db_id in TableBase.__iter__(self):
             yield Datasheet(self, db_id)
 
     def __getitem__(self, item) -> "Datasheet":
+        """Return the requested item.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param item: Item identifier or value.
+        :type item: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`Datasheet`
+        :raises KeyError: Raised when the operation cannot be completed.
+        :raises IndexError: Raised when the operation cannot be completed.
+        """
         if isinstance(item, int):
             if item in self:
                 return Datasheet(self, item)
@@ -38,6 +78,15 @@ class DatasheetsTable(TableBase):
         raise KeyError(item)
 
     def insert(self, path: str) -> "Datasheet":  # NOQA
+        """Execute the insert operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param path: Filesystem path.
+        :type path: str
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`Datasheet`
+        """
         self._con.execute(f'SELECT id FROM datasheets WHERE path="{path}";')
         rows = self._con.fetchall()
         if rows:
@@ -51,9 +100,20 @@ class DatasheetsTable(TableBase):
 
 
 class Datasheet(EntryBase):
+    """Represent a datasheet in :mod:`harness_designer.database.global_db.datasheet`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     _table: DatasheetsTable = None
 
     def build_monitor_packet(self):
+        """Build the monitor packet.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         packet = {
             'datasheets': [self.db_id]
         }
@@ -66,6 +126,13 @@ class Datasheet(EntryBase):
 
     @property
     def data_path(self) -> str | None:
+        """Return the data path.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: str | None
+        """
         file_id = self.uuid
         if file_id is None:
             values = _resources.collect_resource(self._table, _resources.IMAGE_TYPE_DATASHEET, self.path)
@@ -84,15 +151,36 @@ class Datasheet(EntryBase):
 
     @property
     def path(self) -> str:
+        """Return the path.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: str
+        """
         path = self._table.select('path', id=self._db_id)[0][0]
         return path
 
     @property
     def uuid(self) -> str | None:
+        """Return the uuid.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: str | None
+        """
         return self._table.select('uuid', id=self._db_id)[0][0]
 
     @property
     def file_type(self) -> "_file_types.FileType":
+        """Return the file type.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_file_types.FileType`
+        """
         db_id = self.file_type_id
         if db_id is None:
             return None
@@ -101,9 +189,23 @@ class Datasheet(EntryBase):
 
     @property
     def file_type_id(self) -> int | None:
+        """Return the file type ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int | None
+        """
         return self._table.select('file_type_id', id=self._db_id)[0][0]
 
     @file_type_id.setter
     def file_type_id(self, value: int):
+        """Set the file type ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, file_type_id=value)
         self._populate('file_type_id')

@@ -25,15 +25,32 @@ import pyassimp  # NOQA
 
 
 class ModelException(Exception):
+    """Represent a model exception in :mod:`harness_designer.database.global_db.model3d.loader`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     pass
 
 
 class ModelLoadError(ModelException):
+    """Represent a model load error in :mod:`harness_designer.database.global_db.model3d.loader`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     pass
 
 
 @_debug.logfunc
 def _ocp_read_shape(shape):
+    """Execute the ocp read shape operation.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param shape: Value for ``shape``.
+    :type shape: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
 
     BRepMesh_IncrementalMesh(theShape=shape, theLinDeflection=0.001,
                              isRelative=True, theAngDeflection=0.1, isInParallel=True)
@@ -80,6 +97,15 @@ def _ocp_read_shape(shape):
 
 @_debug.logfunc
 def _load_with_assimp(path):
+    """Load the with assimp.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param path: Filesystem path.
+    :type path: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
     flags = (pyassimp.postprocess.aiProcess_Triangulate |
              pyassimp.postprocess.aiProcess_JoinIdenticalVertices)
 
@@ -102,6 +128,15 @@ def _load_with_assimp(path):
 
 @_debug.logfunc
 def _load_vrml(file):
+    """Load the vrml.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param file: Value for ``file``.
+    :type file: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
     reader = Vrml_Provider()
     reader.ReadFile(file)
     reader.TransferRoots()
@@ -114,6 +149,15 @@ def _load_vrml(file):
 
 @_debug.logfunc
 def _load_step(file):
+    """Load the step.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param file: Value for ``file``.
+    :type file: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
     step_reader = STEPControl_Reader()
     step_reader.ReadFile(file)
     step_reader.TransferRoots()  # NOQA
@@ -126,6 +170,15 @@ def _load_step(file):
 
 @_debug.logfunc
 def _load_iges(file):
+    """Load the iges.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param file: Value for ``file``.
+    :type file: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
     reader = IGESControl_Reader()
     reader.ReadFile(file)
     reader.TransferRoots()  # NOQA
@@ -138,6 +191,16 @@ def _load_iges(file):
 
 @_debug.logfunc
 def load(file: str) -> tuple[np.ndarray, np.ndarray]:
+    """Execute the load operation.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param file: Value for ``file``.
+    :type file: str
+    :returns: Return value. UNKNOWN details.
+    :rtype: tuple[np.ndarray, np.ndarray]
+    :raises ModelLoadError: Raised when the operation cannot be completed.
+    """
     if file.endswith('.vrml') or file.endswith('wrl'):
         return _load_vrml(file)
     elif file.endswith('.iges') or file.endswith('.igs'):

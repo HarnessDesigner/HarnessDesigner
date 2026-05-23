@@ -12,6 +12,25 @@ pjt_id_field = _con.PrimaryKeyField('id')
 
 def add_pjt_wire_layout(con, project_id, point2d_id=None, point3d_id=None, notes='',
                         is_visible2d=0, is_visible3d=0):
+    """Add a PJT wire layout.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param project_id: Identifier for the project.
+    :type project_id: UNKNOWN
+    :param point2d_id: Identifier for the point 2D.
+    :type point2d_id: UNKNOWN
+    :param point3d_id: Identifier for the point 3D.
+    :type point3d_id: UNKNOWN
+    :param notes: Value for ``notes``.
+    :type notes: UNKNOWN
+    :param is_visible2d: Boolean flag for whether visible 2D.
+    :type is_visible2d: UNKNOWN
+    :param is_visible3d: Boolean flag for whether visible 3D.
+    :type is_visible3d: UNKNOWN
+    """
 
     con.execute('INSERT INTO pjt_wire_layouts (project_id, point2d_id, point3d_id, '
                 'notes, is_visible2d, is_visible3d) VALUES (?, ?, ?, ?, ?, ?);',

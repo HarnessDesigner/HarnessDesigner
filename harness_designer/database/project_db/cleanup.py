@@ -86,6 +86,13 @@ class ProjectCleanup:
     """
 
     def __init__(self, project: "_project.Project"):
+        """Initialise the :class:`ProjectCleanup` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param project: Value for ``project``.
+        :type project: :class:`_project.Project`
+        """
         self.project = project
         self._cursor_3d = 0
         self._cursor_2d = 0
