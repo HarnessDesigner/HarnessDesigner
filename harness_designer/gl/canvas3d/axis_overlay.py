@@ -342,9 +342,7 @@ class GLOverlay(QOpenGLWidget):
         self._last_angle = point
 
         camera_pos = self.camera_pos.as_numpy
-        target_eye = point.as_numpy
-
-        forward = camera_pos - target_eye
+        forward = point.as_numpy
         distance = np.linalg.norm(forward)
 
         if distance < 1e-6:
