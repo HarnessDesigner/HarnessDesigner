@@ -27,11 +27,15 @@ class CompatTerminalsMixin(BaseMixin):
     @property
     def compat_terminals_array(self) -> list[str]:
         value = self._table.select('compat_terminals', id=self._db_id)[0][0]
-        return value[1:-1].split(', ')
+        if value.startswith('[') and value.endswith(']'):
+            value = value[1:-1]
+
+        return value.split(', ')
 
     @compat_terminals_array.setter
     def compat_terminals_array(self, value: list[str]):
-        value = f'[{", ".join(value)}]'
+        value = ', '.join(value)
+
         self._table.update(self._db_id, compat_terminals=value)
         self._populate('compat_terminals_array')
 

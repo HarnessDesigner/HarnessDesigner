@@ -338,18 +338,13 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         res = []
 
         for terminal in self.housing.compat_terminals:
-            if (
-                not terminal_sizes and
-                terminal.round_terminal == round_terminal
-            ):
-                res.append(terminal)
-            elif terminal_sizes:
-                for terminal_size in terminal_sizes:
-                    if (
-                        terminal.blade_size == terminal_size and
-                        terminal.round_terminal == round_terminal
-                    ):
-                        res.append(terminal)
+            if terminal.round_terminal == round_terminal:
+                blade_size = terminal.blade_size
+                if (
+                    (blade_size and blade_size in terminal_sizes) or
+                    not terminal_sizes
+                ):
+                    res.append(terminal)
 
         return res
 

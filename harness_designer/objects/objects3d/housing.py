@@ -68,7 +68,6 @@ class Housing(_base3d.Base3D):
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, db_obj.position3d, scale, material)
         parent.mainframe.editor3d.context.release()
 
-
     @property
     def seal_position(self) -> _point.Point:
         return self.db_obj.seal_position3d

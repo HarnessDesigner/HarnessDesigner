@@ -75,6 +75,7 @@ class VBOHandler(metaclass=VBOSingleton):
                  count: int = 0,
                  endpoint: _point.Point | None = None):
 
+        print('vbo init:', id_)
         ctx = QOpenGLContext.currentContext()
         if ctx is None:
             raise RuntimeError('context has not been acquired')
@@ -123,6 +124,9 @@ class VBOHandler(metaclass=VBOSingleton):
         """
         creates a new vao for the context that is being used.
         """
+
+        print('vbo acquire:', self.id)
+
         ctx = QOpenGLContext.currentContext()
         if ctx is None:
             raise RuntimeError('context has not been acquired')
@@ -290,6 +294,7 @@ class VBOHandler(metaclass=VBOSingleton):
 
     def render(self):
         # Get or create VAO for the current context
+        print('vbo render:', self.id)
 
         ctx = QOpenGLContext.currentContext()
         if ctx is None:

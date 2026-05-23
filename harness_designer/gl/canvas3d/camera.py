@@ -393,11 +393,11 @@ class Camera:
 
         forward = fp - pos
 
-        fn = np.linalg.norm(forward)
-        if fn < 1e-6:
+        focal_distance = np.linalg.norm(forward)
+        if focal_distance < 0.1:
             return
 
-        forward = forward / fn
+        forward = forward / focal_distance
 
         gf = np.linalg.norm(forward)
         if gf < 1e-6:
@@ -433,9 +433,7 @@ class Camera:
         self._right = right
         self._forward = forward_ground
 
-        # Calculate focal distance directly without creating Line object
-        diff = self._focal_position.as_numpy - self._position.as_numpy
-        self._focal_distance = np.linalg.norm(diff)
+        self._focal_distance = focal_distance
 
     @property
     def projection(self) -> np.ndarray:
@@ -584,11 +582,18 @@ class Camera:
         """
         move = self._forward * float(delta)
 
+        position = self._position + move
+        # Calculate focal distance directly without creating Line object
+        diff = self._focal_position.as_numpy - position.as_numpy
+        focal_distance = np.linalg.norm(diff)
+
+        print(delta, focal_distance)
+
         # If moving would invert eye and pos, prevent crossing pos
-        if delta > 0 and self._focal_distance <= 0.1:
+        if delta > 0 and focal_distance < 0.1:
             return
 
-        elif delta < 0 and self._focal_distance >= 150.0:
+        elif delta < 0 and focal_distance > 500.0:
             return
 
         self._is_dirty = True

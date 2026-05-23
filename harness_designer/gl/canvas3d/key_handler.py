@@ -133,7 +133,10 @@ class KeyHandler:
                     factor += self.canvas.config.keyboard_settings.speed_factor_increment
 
                     with self._key_queue_lock:
-                        self._running_keycodes[func]['factor'] = factor
+                        try:
+                            self._running_keycodes[func]['factor'] = factor
+                        except KeyError:
+                            pass
 
             self._key_event.wait(0.05)
 

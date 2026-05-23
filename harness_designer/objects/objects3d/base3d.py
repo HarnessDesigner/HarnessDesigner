@@ -57,9 +57,6 @@ class Base3D:
 
         self._vbo = vbo
 
-        if vbo is not None:
-            vbo.acquire()
-
         self._is_selected = False
         self.numpy_position = self._position.as_numpy
 
@@ -134,11 +131,10 @@ class Base3D:
         pass
 
     def _update_position(self, position: _point.Point):
-        print('updating position')
+        self.editor3d.context.acquire()
+
         self._compute_obb()
         self._compute_aabb()
-
-        self.editor3d.context.acquire()
 
         if (
             self.editor3d.config.floor.enable_floor_lock and
@@ -161,8 +157,8 @@ class Base3D:
         self._compute_obb()
         self._compute_aabb()
 
-        self.editor3d.Refresh(False)
         self.editor3d.context.release()
+        self.editor3d.Refresh(False)
 
     def _update_angle(self, angle: _angle.Angle):
         self.editor3d.context.acquire()
@@ -199,10 +195,9 @@ class Base3D:
             self.editor3d.context.release()
 
             return
-
-        self.editor3d.Refresh(False)
         self.editor3d.context.release()
 
+        self.editor3d.Refresh(False)
 
     def _update_scale(self, scale: _point.Point):
         self.editor3d.context.acquire()
@@ -223,8 +218,9 @@ class Base3D:
             self.editor3d.context.release()
             return
 
-        self.editor3d.Refresh(False)
         self.editor3d.context.release()
+
+        self.editor3d.Refresh(False)
 
     @property
     def position(self) -> _point.Point:
