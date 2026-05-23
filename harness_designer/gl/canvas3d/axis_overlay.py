@@ -18,6 +18,8 @@ from ...shapes import sphere as _sphere
 from ...gl import materials as _materials
 from ... import config as _config
 
+_UP_PARALLEL_DOT_THRESHOLD = 0.999
+
 
 class Overlay(QWidget):
     def __init__(self, parent, config: _config.Config.editor3d.axis_overlay):
@@ -423,7 +425,7 @@ class GLOverlay(QOpenGLWidget):
             forward = forward / fn
 
         temp_up = np.array([0.0, 1.0, 0.0], dtype=np.float64)
-        if abs(np.dot(forward, temp_up)) > 0.999:
+        if abs(np.dot(forward, temp_up)) > _UP_PARALLEL_DOT_THRESHOLD:
             temp_up = np.array([0.0, 0.0, 1.0], dtype=np.float64)
 
         right = np.cross(temp_up, forward)  # NOQA
