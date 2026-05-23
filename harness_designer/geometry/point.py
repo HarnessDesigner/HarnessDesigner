@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""Reactive point primitives shared across the geometry subsystem."""
+
 from typing import Self, Iterable, Union
 
 import weakref
@@ -61,6 +63,13 @@ class PointMeta(type):
 
     @classmethod
     def _remove_ref(cls, ref):
+        """Remove a collected weak reference from the singleton cache.
+
+        :param ref: Weak reference previously stored in :attr:`_instances`.
+        :type ref: :class:`weakref.ReferenceType`
+        :returns: ``None``
+        :rtype: None
+        """
         for key, value in cls._instances.items():
             if value == ref:
                 break
@@ -71,6 +80,19 @@ class PointMeta(type):
 
     def __call__(cls, x: float | _d, y: float | _d,
                  z: float | _d | None = None, db_id: int | str | None = None) -> "Point":
+        """Return a cached or newly created :class:`Point` instance.
+
+        :param x: X coordinate.
+        :type x: float | :class:`~harness_designer.geometry.decimal.Decimal`
+        :param y: Y coordinate.
+        :type y: float | :class:`~harness_designer.geometry.decimal.Decimal`
+        :param z: Optional Z coordinate.
+        :type z: float | :class:`~harness_designer.geometry.decimal.Decimal` | None
+        :param db_id: Optional cache key for singleton reuse.
+        :type db_id: int | str | None
+        :returns: Shared or new point instance.
+        :rtype: :class:`Point`
+        """
 
         if db_id is not None:
             if db_id not in cls._instances:
@@ -224,6 +246,24 @@ class Point(metaclass=PointMeta):
     """
 
     def __array_ufunc__(self, func, method, inputs, instance, out=None, **kwargs):
+        """Handle selected NumPy ufuncs involving a point.
+
+        :param func: NumPy ufunc being dispatched.
+        :type func: object
+        :param method: Ufunc method name.
+        :type method: str
+        :param inputs: Left-hand input provided by NumPy.
+        :type inputs: object
+        :param instance: Operand instance chosen by NumPy.
+        :type instance: object
+        :param out: Optional output container supplied by NumPy.
+        :type out: tuple[:class:`numpy.ndarray`] | None
+        :param kwargs: Additional ufunc keyword arguments.
+        :type kwargs: dict
+        :returns: NumPy result for the supported operation.
+        :rtype: :class:`numpy.ndarray`
+        :raises RuntimeError: If the ufunc is unsupported for :class:`Point`.
+        """
         if func == np.matmul:
             # numpy array is left hand and class instance is right hand
             # there would be no case where we would use
@@ -371,6 +411,13 @@ class Point(metaclass=PointMeta):
         self._ref_count -= 1
 
     def __remove_callback(self, ref):
+        """Drop a dead callback weak reference from the callback list.
+
+        :param ref: Weak method reference scheduled for removal.
+        :type ref: :class:`weakref.WeakMethod`
+        :returns: ``None``
+        :rtype: None
+        """
         try:
             self._callbacks.remove(ref)
         except:  # NOQA
@@ -468,6 +515,11 @@ class Point(metaclass=PointMeta):
 
     @property
     def x(self) -> _d:
+        """Return the X coordinate.
+
+        :returns: Current X component.
+        :rtype: :class:`~harness_designer.geometry.decimal.Decimal`
+        """
         return _d(self._data[0])
 
     @x.setter
@@ -478,6 +530,11 @@ class Point(metaclass=PointMeta):
 
     @property
     def y(self) -> _d:
+        """Return the Y coordinate.
+
+        :returns: Current Y component.
+        :rtype: :class:`~harness_designer.geometry.decimal.Decimal`
+        """
         return _d(self._data[1])
 
     @y.setter
@@ -488,6 +545,11 @@ class Point(metaclass=PointMeta):
 
     @property
     def z(self) -> _d:
+        """Return the Z coordinate.
+
+        :returns: Current Z component.
+        :rtype: :class:`~harness_designer.geometry.decimal.Decimal`
+        """
         return _d(self._data[2])
 
     @z.setter
@@ -510,6 +572,14 @@ class Point(metaclass=PointMeta):
 
     @staticmethod
     def __other_to_decimal(other: Union[_d, float, "Point", np.ndarray]) -> tuple[_d, _d, _d]:
+        """Convert supported operand types to decimal coordinate triples.
+
+        :param other: Operand to normalize.
+        :type other: :class:`~harness_designer.geometry.decimal.Decimal` | float | :class:`Point` | :class:`numpy.ndarray`
+        :returns: Decimal ``(x, y, z)`` components.
+        :rtype: tuple[:class:`~harness_designer.geometry.decimal.Decimal`, :class:`~harness_designer.geometry.decimal.Decimal`, :class:`~harness_designer.geometry.decimal.Decimal`]
+        :raises TypeError: If ``other`` cannot be converted.
+        """
         if isinstance(other, np.ndarray):
             x, y, z = [_d(item) for item in other.tolist()]
         elif isinstance(other, Point):
@@ -727,9 +797,23 @@ class Point(metaclass=PointMeta):
         return not all(np.isclose(self._data, arr))
 
     def __eq__(self, other: "Point") -> bool:
+        """Return whether this point matches ``other`` component-wise.
+
+        :param other: Point to compare against.
+        :type other: :class:`Point`
+        :returns: ``True`` when all coordinates are numerically close.
+        :rtype: bool
+        """
         return all(np.isclose(self._data, other.as_numpy))
 
     def __ne__(self, other: "Point") -> bool:
+        """Return whether this point differs from ``other``.
+
+        :param other: Point to compare against.
+        :type other: :class:`Point`
+        :returns: ``True`` when any coordinate differs.
+        :rtype: bool
+        """
         return not self.__eq__(other)
 
     @property
@@ -827,22 +911,51 @@ class Point(metaclass=PointMeta):
         return self._data
 
     def __iter__(self) -> Iterable[float]:
+        """Iterate over the point coordinates as floats.
+
+        :returns: Iterator yielding ``x``, ``y``, and ``z``.
+        :rtype: collections.abc.Iterable[float]
+        """
         return iter(self.as_float)
 
     def __str__(self) -> str:
+        """Return a readable coordinate string.
+
+        :returns: String representation of the point.
+        :rtype: str
+        """
         return f'X: {self.x}, Y: {self.y}, Z: {self.z}'
 
     def __le__(self, other: "Point") -> bool:
+        """Return whether every component is less than or equal to ``other``.
+
+        :param other: Point to compare against.
+        :type other: :class:`Point`
+        :returns: ``True`` when all components are less than or equal.
+        :rtype: bool
+        """
         x1, y1, z1 = self
         x2, y2, z2 = other
         return x1 <= x2 and y1 <= y2 and z1 <= z2
 
     def __ge__(self, other: "Point") -> bool:
+        """Return whether every component is greater than or equal to ``other``.
+
+        :param other: Point to compare against.
+        :type other: :class:`Point`
+        :returns: ``True`` when all components are greater than or equal.
+        :rtype: bool
+        """
         x1, y1, z1 = self
         x2, y2, z2 = other
         return x1 >= x2 and y1 >= y2 and z1 >= z2
 
     def __neg__(self) -> "Point":
+        """Return a new point with all coordinates negated.
+
+        :returns: Negated point copy.
+        :rtype: :class:`Point`
+        """
         x, y, z = self._data.tolist()
         return Point(-x, -y, -z)
 

@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""Apple GPU memory collection helpers for :mod:`harness_designer.gpu_mem`."""
+
 from apple_smi import soc_info
 from apple_smi import sampler
 
@@ -7,6 +9,13 @@ from . import gpu_base as _gpu_base
 
 
 def collect():
+    """Populate :class:`.gpu_base.GPU` with metrics from Apple SMI helpers.
+
+    The function gathers static SoC details with :mod:`apple_smi.soc_info` and
+    then samples live metrics with :class:`apple_smi.sampler.Sampler`.
+
+    :raises Exception: Propagates Apple SMI errors raised while collecting data.
+    """
     GPU = _gpu_base.GPU
 
     res = soc_info.get_soc_info()

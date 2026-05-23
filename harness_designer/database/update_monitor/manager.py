@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""Keyring-backed credential management for database monitor processes."""
+
 import keyring
 import os
 import hmac
@@ -28,7 +30,16 @@ STEALTH_ENV_PAIRS = [
 
 class Manager:
 
+    """Store and recover database credentials for monitor subprocesses.
+    """
     def __init__(self, print_lock, pid=None):
+        """Initialize the credential manager and derive the service identifier.
+
+        :param print_lock: Lock optionally used for debug output.
+        :type print_lock: UNKNOWN
+        :param pid: Optional parent process identifier used to recreate a session.
+        :type pid: None
+        """
         if pid is None:
             # from . import clean_creds as _clean_creds
             #
@@ -76,6 +87,11 @@ class Manager:
         #     print('service_id:', self.service_id)
 
     def _generate_service_id(self):
+        """Generate the keyring service identifier for the current session.
+
+        :returns: The generated keyring service identifier.
+        :rtype: str
+        """
         message = f"{self.app_uuid}|{self.parent_pid}".encode('utf-8')
 
         mac = hmac.new(key=self.secret_token.encode('utf-8'),
@@ -88,9 +104,26 @@ class Manager:
         return f"session_{uuid_prefix}_{hmac_prefix}"
 
     def get_app_uuid(self):
+        """Return the application UUID used for this credential session.
+
+        :returns: The application UUID associated with the current credential session.
+        :rtype: str
+        """
         return self.app_uuid
 
     def store_credentials(self, print_lock, db_type, **kwargs):
+        """Store connector credentials for the requested database type.
+
+        :param print_lock: Lock optionally used for debug output.
+        :type print_lock: UNKNOWN
+        :param db_type: Connector type constant identifying the credentials being stored.
+        :type db_type: UNKNOWN
+        :param **kwargs: Connector-specific credential values.
+        :type **kwargs: UNKNOWN
+
+        :returns: ``None``.
+        :rtype: None
+        """
         from .. import db_connectors as _db_connectors
 
         if db_type == _db_connectors.CONNECTOR_SQLITE:
@@ -103,6 +136,16 @@ class Manager:
         # with print_lock:
         #     print('database_path:', database_path)
 
+        """Store SQLite monitor credentials in the keyring.
+
+        :param print_lock: Lock optionally used for debug output.
+        :type print_lock: UNKNOWN
+        :param database_path: Path to the SQLite database file.
+        :type database_path: UNKNOWN
+
+        :returns: ``None``.
+        :rtype: None
+        """
         keyring.set_password(self.service_id, "db_type", "sqlite")
         keyring.set_password(self.service_id, "sqlite_path", database_path)
 
@@ -110,6 +153,24 @@ class Manager:
         # with print_lock:
         #     print('host:', host)
 
+        """Store MySQL monitor credentials in the keyring.
+
+        :param print_lock: Lock optionally used for debug output.
+        :type print_lock: UNKNOWN
+        :param host: MySQL host name or address.
+        :type host: UNKNOWN
+        :param port: MySQL server port.
+        :type port: UNKNOWN
+        :param user: MySQL user name.
+        :type user: UNKNOWN
+        :param password: MySQL password.
+        :type password: UNKNOWN
+        :param database: MySQL database name.
+        :type database: UNKNOWN
+
+        :returns: ``None``.
+        :rtype: None
+        """
         keyring.set_password(self.service_id, "db_type", "mysql")
         keyring.set_password(self.service_id, "mysql_host", host)
         keyring.set_password(self.service_id, "mysql_port", str(port))
@@ -118,6 +179,15 @@ class Manager:
         keyring.set_password(self.service_id, "mysql_database", database)
 
     def retrieve_credentials(self, print_lock):
+        """Retrieve stored credentials for the current monitor session.
+
+        :param print_lock: Lock optionally used for debug output.
+        :type print_lock: UNKNOWN
+
+        :returns: The recovered credential mapping, or ``None`` when no credentials are stored.
+        :rtype: dict | None
+        :raises ValueError: Raised when stored credential data is incomplete or invalid.
+        """
         from .. import db_connectors as _db_connectors
 
         db_type = keyring.get_password(self.service_id, "db_type")
@@ -149,6 +219,11 @@ class Manager:
                         database=keyring.get_password(self.service_id, "mysql_database"))
 
     def cleanup(self):
+        """Remove stored credentials and related environment variables.
+
+        :returns: ``None``.
+        :rtype: None
+        """
         if not self._is_parent:
             return
 

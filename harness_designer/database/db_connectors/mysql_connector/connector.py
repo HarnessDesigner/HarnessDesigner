@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""MySQL connector dialogs and connection management classes."""
+
 from typing import (
     Optional as _Optional,
     Union as _Union,
@@ -56,7 +58,14 @@ _RowType = tuple[_ToPythonOutputTypes, ...]
 
 
 class LoginDialog(QDialog):
+    """Collect MySQL login credentials from the user.
+    """
     def __init__(self, parent):
+        """Build the MySQL login dialog widgets.
+
+        :param parent: Parent Qt widget for the login dialog.
+        :type parent: UNKNOWN
+        """
         QDialog.__init__(self, parent, Qt.WindowType.Dialog | Qt.WindowType.WindowStaysOnTopHint)
         self.setWindowTitle('LOGIN')
         self.resize(400, 250)
@@ -100,6 +109,11 @@ class LoginDialog(QDialog):
         self._settings_button.clicked.connect(self._on_settings_button)
 
     def _on_settings_button(self):
+        """Open the MySQL settings dialog and persist accepted changes.
+
+        :returns: ``None``.
+        :rtype: None
+        """
         try:
             from . import settings_dialog
         except ImportError:
@@ -112,6 +126,11 @@ class LoginDialog(QDialog):
                 setattr(Config, key, value)
 
     def GetValue(self):
+        """Return the username and password entered in the dialog.
+
+        :returns: The current values collected by the dialog.
+        :rtype: UNKNOWN
+        """
         return (
             self.username_ctrl.GetValue(),
             self.password_ctrl.text()
@@ -120,7 +139,18 @@ class LoginDialog(QDialog):
 
 class SQLConnector(_base.ConnectorBase):
 
+    """Implement database access through :mod:`mysql.connector`.
+    """
     def __init__(self, mainframe, splash, args):
+        """Initialize the MySQL connector state.
+
+        :param mainframe: Main application frame that owns the connector.
+        :type mainframe: UNKNOWN
+        :param splash: UNKNOWN.
+        :type splash: UNKNOWN
+        :param args: UNKNOWN.
+        :type args: UNKNOWN
+        """
         super().__init__(mainframe, Config.database_name)
         self._connection: mysql.connector.MySQLConnection = None
         self._cursor: _MySQLCursor = None
@@ -128,6 +158,12 @@ class SQLConnector(_base.ConnectorBase):
         self.update_monitor: _update_monitor.Monitor = None
 
     def connect(self):
+        """Prompt for credentials and connect to the configured MySQL database.
+
+        :returns: ``True`` when the connection succeeds; otherwise ``False``.
+        :rtype: bool
+        :raises RuntimeError: Raised when the connector or worker enters an unexpected state.
+        """
         dlg = LoginDialog(self.mainframe)
         try:
             if dlg.exec() == QDialog.DialogCode.Accepted:
@@ -197,6 +233,11 @@ class SQLConnector(_base.ConnectorBase):
         return True
 
     def get_tables(self) -> list[str]:
+        """Return the tables present in the configured MySQL schema.
+
+        :returns: A list of table names.
+        :rtype: list[str]
+        """
         self.execute(f'SELECT table_name FROM information_schema.tables WHERE table_schema = "{self.db_name}";')
         res = self.fetchall()
 
@@ -205,31 +246,86 @@ class SQLConnector(_base.ConnectorBase):
     def execute(self, operation: _StrOrBytes,
                 params: _Optional[_ParamsSequenceOrDictType] = None,
                 multi: bool = False) -> _Optional[_Generator[_MySQLCursor, None, None]]:
+        """Execute a MySQL operation using the active cursor.
+
+        :param operation: SQL statement to execute.
+        :type operation: _StrOrBytes
+        :param params: Parameters supplied for the SQL operation.
+        :type params: _Optional[_ParamsSequenceOrDictType]
+        :param multi: Whether the connector should execute multiple statements.
+        :type multi: bool
+
+        :returns: The connector-specific cursor result, if one is returned.
+        :rtype: UNKNOWN
+        """
         self._cursor.execute(operation, params, multi)
 
     def executemany(
         self, operation: str, seq_params: list[_ParamsSequenceOrDictType] | tuple[_ParamsSequenceOrDictType]
     ) -> _Optional[_Generator[_MySQLCursor, None, None]]:
 
+        """Execute a MySQL operation for multiple parameter sets.
+
+        :param operation: SQL statement to execute.
+        :type operation: str
+        :param seq_params: Sequence of parameter sets to execute.
+        :type seq_params: list[_ParamsSequenceOrDictType] | tuple[_ParamsSequenceOrDictType]
+
+        :returns: The connector-specific cursor result, if one is returned.
+        :rtype: UNKNOWN
+        """
         self._cursor.executemany(operation, seq_params)
 
     @property
     def lastrowid(self) -> _Optional[int]:
+        """Return the last inserted MySQL row identifier.
+
+        :returns: The row identifier reported by the active cursor.
+        :rtype: int | None
+        """
         return self._cursor.lastrowid
 
     def fetchone(self) -> _Optional[_RowType]:
+        """Fetch a single row from the MySQL cursor.
+
+        :returns: The next row from the cursor, if available.
+        :rtype: UNKNOWN
+        """
         return self._cursor.fetchone()
 
     def fetchmany(self, size: _Optional[int] = None) -> list[_RowType]:
+        """Fetch multiple rows from the MySQL cursor.
+
+        :param size: Maximum number of rows to fetch.
+        :type size: _Optional[int]
+
+        :returns: A list of fetched rows.
+        :rtype: list[tuple]
+        """
         return self._cursor.fetchmany(size)
 
     def fetchall(self) -> list[_RowType]:
+        """Fetch all remaining rows from the MySQL cursor.
+
+        :returns: All remaining rows from the cursor.
+        :rtype: list[tuple]
+        """
         return self._cursor.fetchall()
 
     def commit(self):
+        """Commit the active MySQL transaction.
+
+        :returns: ``None``.
+        :rtype: None
+        """
         self._connection.commit()
 
     def close(self):
+        """Close the MySQL connector and stop related monitors.
+
+        :returns: ``None``.
+        :rtype: None
+        """
         self.commit()
 
         self._cursor.close()

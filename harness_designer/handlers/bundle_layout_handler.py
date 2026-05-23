@@ -1,5 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""Interactive handler logic for adding bundle layout points.
+"""
+
 from typing import TYPE_CHECKING
 
 from . import handler_base as _handler_base
@@ -29,6 +32,15 @@ def _create_bundle_layout_at_endpoint(
     # Extract the actual database ID from the Point's db_id
     # Point.db_id format is "1233d" or "1232d"
     # We need to strip the suffix and convert to int
+    """Create a bundle layout object that reuses an existing bundle endpoint point.
+
+    :param project: Project object that owns the project tables and runtime objects.
+    :type project: object
+    :param position: 3D point used for placement or geometric calculations.
+    :type position: _point.Point
+    :returns: The created bundle layout object.
+    :rtype: BundleLayout
+    """
     point_db_id = int(position.db_id[:-2])  # Remove '3d' or '2d' suffix
 
     # Create bundle layout in database, referencing the EXISTING point
@@ -50,6 +62,17 @@ def _create_bundle_layout_on_bundle(
 
     # Create NEW position point in database (3D)
     # This point will be shared by the layout and both bundle segments
+    """Create a bundle layout object on a bundle segment and split the bundle at that location.
+
+    :param project: Project object that owns the project tables and runtime objects.
+    :type project: object
+    :param bundle: Value for the ``bundle`` parameter. UNKNOWN semantics.
+    :type bundle: _bundle.Bundle
+    :param position: 3D point used for placement or geometric calculations.
+    :type position: _point.Point
+    :returns: The created bundle layout object.
+    :rtype: BundleLayout
+    """
     position_p3d = project.ptables.pjt_points3d_table.insert(
         position.x, position.y, position.z
     )
@@ -84,6 +107,15 @@ def _split_bundle_at_layout(
 ):
 
     # Get original bundle data
+    """Replace one bundle with two bundle segments that share the supplied layout point.
+
+    :param project: Project object that owns the project tables and runtime objects.
+    :type project: object
+    :param original_bundle: Value for the ``original_bundle`` parameter. UNKNOWN semantics.
+    :type original_bundle: _bundle.Bundle
+    :param position: 3D point used for placement or geometric calculations.
+    :type position: _point.Point
+    """
     original_start_point = original_bundle.obj3d.start_position
     original_stop_point = original_bundle.obj3d.stop_position
     part_id = original_bundle.db_obj.part_id
@@ -135,9 +167,16 @@ def _get_bundle_at_mouse(mouse_pos: _point.Point, camera: "_camera.Camera"):
 
 
 class AddBundleLayoutHandler(_handler_base.HandlerBase):
+    """Handle interactive placement of bundle layout points along existing bundles.
+    """
     obj: _bundle_layout.BundleLayout = None
 
     def __init__(self, mainframe: "_ui.MainFrame"):
+        """Initialize the object and capture the state required for later interaction.
+
+        :param mainframe: Main application frame that owns the editor and project state.
+        :type mainframe: "_ui.MainFrame"
+        """
         super().__init__(mainframe, None)
         self._preview_material = _materials.Plastic(
             _color.Color(*Config.add_object.preview_color))
@@ -147,9 +186,18 @@ class AddBundleLayoutHandler(_handler_base.HandlerBase):
         self.bundle: _bundle.Bundle = None
 
     def release_capture(self) -> None:
+        """Handle release of the captured position and complete any deferred placement work.
+
+        :raises NotImplementedError: Raised by handlers that require a subclass implementation.
+        """
         raise NotImplementedError
 
     def hover(self, mouse_pos: _point.Point):
+        """Update preview or highlight state for the supplied mouse position.
+
+        :param mouse_pos: Mouse position used for picking or preview updates.
+        :type mouse_pos: _point.Point
+        """
         bundle = _get_bundle_at_mouse(mouse_pos, self.camera)
 
         if bundle is None:
@@ -177,6 +225,11 @@ class AddBundleLayoutHandler(_handler_base.HandlerBase):
                 self.bundle = bundle
 
     def start(self, mouse_pos: _point.Point):
+        """Start the handler operation for the supplied mouse position.
+
+        :param mouse_pos: Mouse position used for picking or preview updates.
+        :type mouse_pos: _point.Point
+        """
         if self.is_active:
             return
 
@@ -191,6 +244,11 @@ class AddBundleLayoutHandler(_handler_base.HandlerBase):
         self.is_active = True
 
     def finalize(self, mouse_pos: _point.Point):
+        """Finalize the active operation using the supplied mouse position.
+
+        :param mouse_pos: Mouse position used for picking or preview updates.
+        :type mouse_pos: _point.Point
+        """
         if not self.is_active:
             return
 

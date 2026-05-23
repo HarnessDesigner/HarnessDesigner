@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""CSV-backed logging helpers for :mod:`harness_designer.logger`."""
+
 import platform
 from .. import config as _config
 import datetime
@@ -54,11 +56,20 @@ def build_message(msg_type, args):
 
 
 class LogHandler:
+    """Write structured log entries to rotating CSV log files."""
 
     def _fake_callback(self, _=None):
+        """Placeholder callback invoked when no external callback is bound.
+
+        :param _: Callback payload from :meth:`write` or :meth:`_open_next_file`.
+        :type _: object | None
+        :returns: ``None``.
+        :rtype: None
+        """
         pass
 
     def __init__(self):
+        """Initialize log file rotation state and open the current CSV file."""
         self._callback = self._fake_callback
 
         if not os.path.exists(Config.save_path):
@@ -90,6 +101,13 @@ class LogHandler:
         self._current_size = os.path.getsize(last_log)
 
     def bind(self, callback):
+        """Bind a callback invoked after writes and file rotation events.
+
+        :param callback: Callable receiving the written DataFrame or no argument.
+        :type callback: collections.abc.Callable
+        :returns: ``None``.
+        :rtype: None
+        """
         self._callback = callback
 
     def get_current_log_path(self):
@@ -97,6 +115,11 @@ class LogHandler:
         return self._logfile_path
 
     def _open_next_file(self):
+        """Create and open the next CSV log file in the rotation sequence.
+
+        :returns: ``None``.
+        :rtype: None
+        """
         if self._logfile is not None:
             self._logfile.close()
 
@@ -113,6 +136,12 @@ class LogHandler:
         self._callback()
 
     def _archive_files(self):
+        """Archive the current set of log files into a ZIP rotation.
+
+        :returns: ``None``.
+        :rtype: None
+        :raises OSError: Raised when archive files cannot be moved or removed.
+        """
         if self._logfile is not None:
             self._logfile.close()
 
@@ -185,17 +214,35 @@ class LogHandler:
             print(f"Error writing to log: {e}")
 
     def close(self):
+        """Close the handler.
+
+        The current implementation keeps the file handle open for reuse, so no
+        explicit close action is performed here.
+
+        :returns: ``None``.
+        :rtype: None
+        """
         # No file handle to close since we append per write
         pass
 
     def flush(self):
+        """Flush the handler.
+
+        The current implementation does not manage an additional buffer, so the
+        method is effectively a no-op.
+
+        :returns: ``None``.
+        :rtype: None
+        """
         # No buffering to flush
         pass
 
 
 class Log(object):
+    """Application logger that routes messages to CSV logs and stream wrappers."""
 
     def __init__(self):
+        """Initialize logging, stream redirection, and startup environment logging."""
         self.log_handler = LogHandler()
 
         self.__stdout = stdout.StdOut(self)
@@ -252,9 +299,25 @@ class Log(object):
         _logger.logger = self
 
     def flush(self):
+        """Flush the underlying :class:`LogHandler`.
+
+        :returns: ``None``.
+        :rtype: None
+        """
         self.log_handler.flush()
 
     def print(self, *args, msg_type=INFO):
+        """Write a message with an explicit log level.
+
+        Embedded newline characters are split into separate log entries.
+
+        :param args: Message parts to stringify and join.
+        :type args: tuple
+        :param msg_type: Numeric log level constant.
+        :type msg_type: int
+        :returns: ``None``.
+        :rtype: None
+        """
         args = list(args)
 
         for arg in args[:]:
@@ -269,6 +332,13 @@ class Log(object):
             self.log_handler.write(log_entry)
 
     def info(self, *args):
+        """Write an informational message.
+
+        :param args: Message parts to stringify and join.
+        :type args: tuple
+        :returns: ``None``.
+        :rtype: None
+        """
         args = list(args)
 
         for arg in args[:]:
@@ -283,6 +353,13 @@ class Log(object):
             self.log_handler.write(log_entry)
 
     def debug(self, *args):
+        """Write a debug message when debug logging is enabled.
+
+        :param args: Message parts to stringify and join.
+        :type args: tuple
+        :returns: ``None``.
+        :rtype: None
+        """
         if Config.log_debug:
             args = list(args)
 
@@ -298,6 +375,13 @@ class Log(object):
                 self.log_handler.write(log_entry)
 
     def notice(self, *args):
+        """Write a notice message when notice logging is enabled.
+
+        :param args: Message parts to stringify and join.
+        :type args: tuple
+        :returns: ``None``.
+        :rtype: None
+        """
         if Config.log_notice:
             args = list(args)
 
@@ -313,6 +397,13 @@ class Log(object):
                 self.log_handler.write(log_entry)
 
     def warning(self, *args):
+        """Write a warning message when warning logging is enabled.
+
+        :param args: Message parts to stringify and join.
+        :type args: tuple
+        :returns: ``None``.
+        :rtype: None
+        """
         if Config.log_warning:
             args = list(args)
 
@@ -328,6 +419,13 @@ class Log(object):
                 self.log_handler.write(log_entry)
 
     def error(self, *args):
+        """Write an error message when error logging is enabled.
+
+        :param args: Message parts to stringify and join.
+        :type args: tuple
+        :returns: ``None``.
+        :rtype: None
+        """
         if Config.log_error:
             args = list(args)
 
@@ -345,6 +443,15 @@ class Log(object):
                 self.log_handler.flush()
 
     def traceback(self, exception, msg=None):
+        """Write an exception traceback and optional message.
+
+        :param exception: Exception instance to format.
+        :type exception: BaseException
+        :param msg: Optional message written before the traceback.
+        :type msg: str | None
+        :returns: ``None``.
+        :rtype: None
+        """
         if msg:
             self.error(msg)
 
@@ -358,6 +465,13 @@ class Log(object):
                 self.log_handler.flush()
 
     def database(self, *args):
+        """Write a database log message when database logging is enabled.
+
+        :param args: Message parts to stringify and join.
+        :type args: tuple
+        :returns: ``None``.
+        :rtype: None
+        """
         if Config.log_database:
             args = list(args)
 

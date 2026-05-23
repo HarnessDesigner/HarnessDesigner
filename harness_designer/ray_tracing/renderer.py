@@ -1,5 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""OpenCL-backed rendering helpers for the ray-tracing pipeline.
+"""
+
 import os
 
 import pyopencl as cl
@@ -19,7 +22,16 @@ Config = _config.Config.ray_trace
 
 class Renderer:
 
+    """Compile the OpenCL kernel and execute chunked ray-tracing work for a prepared :class:`Scene`.
+    """
     def __init__(self, scene, callback):
+        """Initialize the object and capture the state required for later interaction.
+
+        :param scene: Prepared scene description to render.
+        :type scene: Scene
+        :param callback: Callback invoked for each rendered chunk.
+        :type callback: callable
+        """
         self.scene = scene
         self.callback = callback
         self.ctx, self.queue, self.chunk_size = self.init_cl()
@@ -27,6 +39,11 @@ class Renderer:
 
     def init_cl(self):  # NOQA
         # Initialize OpenCL
+        """Initialize the OpenCL platform, command queue, and chunk sizing used by the renderer.
+
+        :returns: A tuple containing the OpenCL context, command queue, and chunk size.
+        :rtype: tuple
+        """
         platforms = cl.get_platforms()
         if not platforms:
             raise RuntimeError("No OpenCL platforms found")
@@ -61,6 +78,11 @@ class Renderer:
         return ctx, queue, chunk_size
 
     def compile_kernel(self):
+        """Load and compile the OpenCL kernel used for ray tracing.
+
+        :returns: A tuple containing the compiled program and kernel objects.
+        :rtype: tuple
+        """
         kernel_path = os.path.join(os.path.dirname(__file__), 'bvh_kernel.cl')
 
         with open(kernel_path, 'r') as f:
@@ -71,11 +93,17 @@ class Renderer:
         return program, kernel
 
     def start(self):
+        """Start the handler operation for the supplied mouse position.
+        """
         thread = threading.Thread(target=self._start)
         thread.daemon = True
         thread.start()
 
     def _start(self):
+        """Execute the ray-tracing job on the worker thread and stream chunk results through the callback.
+
+        :returns: The result of the operation. UNKNOWN exact semantics when not inferable from the current source.
+        """
         (
             vertices, faces, bvh_bounds, bvh_structure,
             bvh_indices, object_ids, materials, lights

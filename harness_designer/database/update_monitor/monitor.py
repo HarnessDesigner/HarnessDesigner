@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""Background monitoring helpers for database and image update detection."""
+
 from typing import TYPE_CHECKING
 
 import multiprocessing
@@ -22,20 +24,52 @@ Config = _config.Config.database
 
 class BaseConnector:
 
+    """Wrap a low-level database connection used by monitor workers.
+    """
     def __init__(self, con, cur):
+        """Initialize the connection and cursor wrapper.
+
+        :param con: Open database connection.
+        :type con: UNKNOWN
+        :param cur: Open cursor associated with ``con``.
+        :type cur: UNKNOWN
+        """
         self._connection = con
         self._cursor = cur
 
     def execute(self, cmd):
+        """Execute a SQL statement with the wrapped cursor.
+
+        :param cmd: SQL command string to execute.
+        :type cmd: UNKNOWN
+
+        :returns: The connector-specific cursor result, if one is returned.
+        :rtype: UNKNOWN
+        """
         self._cursor.execute(cmd)
 
     def fetchall(self):
+        """Fetch all rows from the wrapped cursor.
+
+        :returns: All remaining rows from the cursor.
+        :rtype: list[tuple]
+        """
         return self._cursor.fetchall()
 
     def commit(self):
+        """Commit the wrapped database transaction.
+
+        :returns: ``None``.
+        :rtype: None
+        """
         self._connection.commit()
 
     def close(self):
+        """Close the wrapped cursor and connection if possible.
+
+        :returns: ``None``.
+        :rtype: None
+        """
         try:
             self._cursor.close()
             self._connection.close()
@@ -45,7 +79,22 @@ class BaseConnector:
 
 class MySQLConnector(BaseConnector):
 
+    """Open a monitor-side connection to a MySQL database.
+    """
     def __init__(self, host, port, user, password, database):
+        """Initialize the MySQL monitor connector.
+
+        :param host: MySQL host name or address.
+        :type host: UNKNOWN
+        :param port: MySQL server port.
+        :type port: UNKNOWN
+        :param user: MySQL user name.
+        :type user: UNKNOWN
+        :param password: MySQL password.
+        :type password: UNKNOWN
+        :param database: MySQL database name.
+        :type database: UNKNOWN
+        """
         import mysql.connector
 
         con = mysql.connector.connect(
@@ -82,7 +131,14 @@ class MySQLConnector(BaseConnector):
 
 class SQLiteConnector(BaseConnector):
 
+    """Open a monitor-side connection to a SQLite database.
+    """
     def __init__(self, path):
+        """Initialize the SQLite monitor connector.
+
+        :param path: Path to the SQLite database file.
+        :type path: UNKNOWN
+        """
         import sqlite3
 
         con = sqlite3.connect(path)
@@ -92,6 +148,14 @@ class SQLiteConnector(BaseConnector):
 
 
 def connect_to_database(credentials):
+    """Create a monitor connector from stored credentials.
+
+    :param credentials: Credential dictionary previously stored in the keyring.
+    :type credentials: UNKNOWN
+
+    :returns: A connector instance for the supplied credentials.
+    :rtype: BaseConnector | None
+    """
     from .. import db_connectors as _db_connectors
 
     if credentials['type'] == _db_connectors.CONNECTOR_SQLITE:
@@ -111,6 +175,22 @@ def process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.Q
                    exit_event: multiprocessing.Event, print_lock: multiprocessing.Lock,
                    sleep_event: multiprocessing.Event):
 
+    """Monitor tracked database rows for updates in a subprocess.
+
+    :param in_queue: Queue used to receive messages from the monitor thread.
+    :type in_queue: multiprocessing.Queue
+    :param out_queue: Queue used to send notifications back to the monitor thread.
+    :type out_queue: multiprocessing.Queue
+    :param exit_event: Process event used to coordinate startup and shutdown.
+    :type exit_event: multiprocessing.Event
+    :param print_lock: Lock used when printing diagnostics.
+    :type print_lock: multiprocessing.Lock
+    :param sleep_event: Event used to wake the worker before the next polling interval.
+    :type sleep_event: multiprocessing.Event
+
+    :returns: ``None``.
+    :rtype: None
+    """
     exit_event.set()  # signal parent: alive and handle duplication succeeded
 
     while exit_event.is_set():
@@ -235,6 +315,20 @@ def image_process_worker(in_queue: multiprocessing.Queue,
                          print_lock: multiprocessing.Lock,
                          sleep_event: multiprocessing.Event):
 
+    """Download and register missing image resources in a subprocess.
+
+    :param in_queue: Queue containing image identifiers to process.
+    :type in_queue: multiprocessing.Queue
+    :param exit_event: Process event used to coordinate startup and shutdown.
+    :type exit_event: multiprocessing.Event
+    :param print_lock: Lock used when printing diagnostics.
+    :type print_lock: multiprocessing.Lock
+    :param sleep_event: Event used to wake the worker when new image work is queued.
+    :type sleep_event: multiprocessing.Event
+
+    :returns: ``None``.
+    :rtype: None
+    """
     exit_event.set()  # signal parent: alive
 
     while exit_event.is_set():
@@ -301,7 +395,14 @@ def image_process_worker(in_queue: multiprocessing.Queue,
 
 class Monitor(threading.Thread):
 
+    """Coordinate background database monitoring for the main UI thread.
+    """
     def __init__(self, mainframe: "_ui.MainFrame"):
+        """Initialize monitor threads, queues, and subprocesses.
+
+        :param mainframe: Main application frame that receives update notifications.
+        :type mainframe: '_ui.MainFrame'
+        """
         self.mainframe = mainframe
         self.process_exit_event = multiprocessing.Event()
         self.in_queue = multiprocessing.Queue()
@@ -334,6 +435,12 @@ class Monitor(threading.Thread):
         self.image_process.daemon = True
 
     def start(self):
+        """Start the monitor subprocesses and worker thread.
+
+        :returns: ``None``.
+        :rtype: None
+        :raises RuntimeError: Raised when the connector or worker enters an unexpected state.
+        """
         self.process.start()
         self.process_exit_event.wait(timeout=10.0)
         if not self.process_exit_event.is_set():
@@ -356,10 +463,23 @@ class Monitor(threading.Thread):
         threading.Thread.start(self)
 
     def get_image(self, image_id):
+        """Queue an image identifier for background resource collection.
+
+        :param image_id: Identifier of the image row to process.
+        :type image_id: UNKNOWN
+
+        :returns: ``None``.
+        :rtype: None
+        """
         self.image_out_queue.put(image_id)
         self.image_sleep_event.set()
 
     def run(self):
+        """Forward monitor subprocess messages back to the UI thread.
+
+        :returns: ``None``.
+        :rtype: None
+        """
         from PySide6.QtCore import QTimer
 
         while not self.exit_event.is_set():
@@ -390,9 +510,22 @@ class Monitor(threading.Thread):
             self.sleep_event.set()
 
     def reset(self):
+        """Clear cached monitor state in the worker process.
+
+        :returns: ``None``.
+        :rtype: None
+        """
         self.send(type='reset_storage')
 
     def send(self, **kwargs):
+        """Queue a message for delivery to the worker process.
+
+        :param **kwargs: Additional credential fields to persist.
+        :type **kwargs: UNKNOWN
+
+        :returns: ``None``.
+        :rtype: None
+        """
         message = json.dumps(kwargs)
         with self.queue_lock:
             self.queue.append(message)
@@ -400,6 +533,11 @@ class Monitor(threading.Thread):
         self.wait_event.set()
 
     def stop(self):
+        """Signal the worker thread and subprocesses to stop.
+
+        :returns: ``None``.
+        :rtype: None
+        """
         self.image_exit_event.set()
         self.image_sleep_event.set()
 

@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""Helpers for downloading and normalising external resource files."""
+
 import requests
 import time
 import uuid
@@ -33,6 +35,11 @@ te_header = {
 
 
 def handle_te_cookie(response):
+    """Merge TE response cookies into the module-level ``te_header``.
+
+    :param response: HTTP response returned by :mod:`requests`.
+    :type response: requests.Response
+    """
     if 'Set-Cookie' in response.headers:
         cur_cookie = te_header['Cookie']
 
@@ -52,6 +59,15 @@ def handle_te_cookie(response):
 
 
 def requests_get(url, **kwargs):
+    """Fetch a URL and normalise its content type.
+
+    :param url: Resource URL to request.
+    :type url: str
+    :param kwargs: Extra keyword arguments forwarded to :func:`requests.get`.
+    :type kwargs: dict
+    :returns: Response object and simplified content type.
+    :rtype: tuple[requests.Response, str | None]
+    """
     if 'www.te.com' in url:
         response = requests.get(url, headers=te_header, **kwargs)
         handle_te_cookie(response)
@@ -70,6 +86,18 @@ def requests_get(url, **kwargs):
 
 
 def _download_model(con, url, model_path):
+    """Download a model resource and store it with a generated filename.
+
+    :param con: Database cursor or cursor-like object.
+    :type con: UNKNOWN
+    :param url: Source URL.
+    :type url: str
+    :param model_path: Destination directory.
+    :type model_path: str
+    :returns: Saved file path, or ``None`` when the download cannot be mapped to
+        a supported model type.
+    :rtype: str | None
+    """
     con.execute('SELECT mimetype, extension FROM file_types WHERE is_model=1;')
     rows = con.fetchall()
     mime_types = {k: '.' + v for k, v in rows}
@@ -130,6 +158,13 @@ def _download_model(con, url, model_path):
 
 
 def _reformat_image(img: Image.Image):
+    """Resize and pad an image into a 256x256 RGBA preview.
+
+    :param img: Source image.
+    :type img: PIL.Image.Image
+    :returns: Reformatted preview image.
+    :rtype: PIL.Image.Image
+    """
     img = img.convert('RGBA')
     o_w, o_h = img.size
 
@@ -158,8 +193,20 @@ def _reformat_image(img: Image.Image):
 
 
 def _download_image(con, url, image_path):
+    """Download an image-like resource and save it locally.
+
+    :param con: Database cursor or cursor-like object.
+    :type con: UNKNOWN
+    :param url: Source URL.
+    :type url: str
+    :param image_path: Destination directory.
+    :type image_path: str
+    :returns: Saved file path, or ``None`` when the resource type is unsupported
+        or the request fails.
+    :rtype: str | None
+    """
     # Downloading an image is not a trivial thing to do. This is because of
-    # manufacturers handling images differently. Some there is a single imageand
+    # manufacturers handling images differently. Some there is a single image and
     # the link contains the extension of the image and that is used to determine
     # the type of image it is. Other times there is no extension and the mime type
     # that gets passed back in the header file is what is used to determine
@@ -227,6 +274,19 @@ IMAGE_TYPE_MODEL = 4
 
 
 def collect_resource(con, image_type, in_path):
+    """Collect a local or remote resource into managed storage.
+
+    :param con: Database cursor or cursor-like object.
+    :type con: UNKNOWN
+    :param image_type: Resource category constant such as :data:`IMAGE_TYPE_IMAGE`.
+    :type image_type: int
+    :param in_path: Local path or URL for the resource.
+    :type in_path: str | None
+    :returns: Resource UUID and file-type identifier, or ``None`` when the input
+        cannot be collected.
+    :rtype: tuple[str, int] | None
+    :raises RuntimeError: If a referenced local file does not exist.
+    """
     if not in_path:
         return None
 

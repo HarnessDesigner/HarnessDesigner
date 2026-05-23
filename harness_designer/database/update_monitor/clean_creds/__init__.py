@@ -1,3 +1,5 @@
+"""Platform-specific helpers for removing cached database credentials."""
+
 import sys
 
 if sys.platform.startswith('win'):

@@ -1,5 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""Convenience imports for interactive object-placement and routing handlers.
+"""
+
 from . import bundle_handler as _bundle_handler
 from . import bundle_layout_handler as _bundle_layout_handler
 from . import cover_handler as _cover_handler

@@ -1,5 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""Interactive handler logic for inserting wire service loops.
+"""
+
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -74,9 +77,18 @@ def _compute_stop_point(
 
 
 class AddWireServiceLoopHandler(_handler_base.HandlerBase):
+    """Handle interactive insertion of wire service loops into existing wires.
+    """
     obj: _wire_service_loop.WireServiceLoop = None
 
     def __init__(self, mainframe: "_ui.MainFrame", part_id: int):
+        """Initialize the object and capture the state required for later interaction.
+
+        :param mainframe: Main application frame that owns the editor and project state.
+        :type mainframe: "_ui.MainFrame"
+        :param part_id: Identifier of the selected part definition.
+        :type part_id: int
+        """
         super().__init__(mainframe, part_id)
 
         self.wire = None
@@ -88,15 +100,35 @@ class AddWireServiceLoopHandler(_handler_base.HandlerBase):
             _color.Color(*Config.add_object.terminal_highlight))
 
     def release_capture(self) -> None:
+        """Handle release of the captured position and complete any deferred placement work.
+
+        :raises NotImplementedError: Raised by handlers that require a subclass implementation.
+        """
         raise NotImplementedError
 
     def _get_wire_diameter(self) -> float:
+        """Return the wire outer diameter used when sizing the service loop preview.
+
+        :returns: The wire outer diameter in millimetres.
+        :rtype: float
+        """
         part = self.mainframe.project.gtables.wires_table[self.part_id]
         return float(part.od_mm) if part.od_mm else 2.0
 
     def _make_preview_loop(self, position: _point.Point, wire_angle: _angle.Angle,
                            circuit_id: int | None) -> _wire_service_loop.WireServiceLoop:
 
+        """Create a temporary wire service-loop preview object at the supplied wire position.
+
+        :param position: 3D point used for placement or geometric calculations.
+        :type position: _point.Point
+        :param wire_angle: Orientation of the wire at the chosen point.
+        :type wire_angle: _angle.Angle
+        :param circuit_id: Identifier of the associated circuit, if any.
+        :type circuit_id: int | None
+        :returns: The temporary wire service-loop preview object.
+        :rtype: WireServiceLoop
+        """
         diameter = self._get_wire_diameter()
         stop_pos = _compute_stop_point(position, wire_angle, diameter)
 
@@ -126,6 +158,13 @@ class AddWireServiceLoopHandler(_handler_base.HandlerBase):
 
     def _update_preview_position(self, position: _point.Point, wire_angle: _angle.Angle):
 
+        """Move the current preview object to the supplied wire position and orientation.
+
+        :param position: 3D point used for placement or geometric calculations.
+        :type position: _point.Point
+        :param wire_angle: Orientation of the wire at the chosen point.
+        :type wire_angle: _angle.Angle
+        """
         if self.obj is None:
             return
 
@@ -306,6 +345,11 @@ class AddWireServiceLoopHandler(_handler_base.HandlerBase):
             self.mainframe.project.add_wire_service_loop(loop)
 
     def finalize(self, mouse_pos: _point.Point):
+        """Finalize the active operation using the supplied mouse position.
+
+        :param mouse_pos: Mouse position used for picking or preview updates.
+        :type mouse_pos: _point.Point
+        """
         with self.mainframe.editor3d.context:
             # For this handler start() does the placement on first click.
             # finalize() is called on the second click — clean up any

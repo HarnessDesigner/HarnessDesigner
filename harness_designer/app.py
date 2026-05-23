@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""Qt application bootstrap helpers for :mod:`harness_designer`."""
+
 import sys
 import time
 import threading
@@ -15,6 +17,13 @@ _call_on_main = None
 
 
 def CallAfter(func, *args) -> None:
+    """Schedule a callable to execute on the Qt main thread.
+
+    :param func: Callable to invoke later.
+    :type func: collections.abc.Callable
+    :param args: Positional arguments passed to ``func``.
+    :type args: tuple
+    """
     _call_on_main.emit(lambda f=func, a=args: f(*a))  # NOQA
 
 
@@ -24,8 +33,18 @@ class _AppSignals(QObject):
 
 
 class App(QObject):
+    """Own the Qt application object and startup workflow.
+
+    This class coordinates splash creation, background loading, and shutdown
+    handling for :mod:`harness_designer`.
+    """
 
     def __init__(self, args):
+        """Initialise application state and cross-thread signals.
+
+        :param args: Command-line arguments passed to the application.
+        :type args: list[str]
+        """
         global _call_on_main
 
         QObject.__init__(self)  # must call this
@@ -46,6 +65,11 @@ class App(QObject):
     # ------------------------------------------------------------------
 
     def _dispatch(self, fn):  # NOQA
+        """Execute a zero-argument callable on the main thread.
+
+        :param fn: Callable emitted through :class:`_AppSignals`.
+        :type fn: collections.abc.Callable
+        """
         fn()
 
     def call_after(self, fn):
@@ -107,6 +131,9 @@ class App(QObject):
         return True
 
     def _start_loading_thread(self):
+        """Start the background worker that finishes application startup.
+
+        """
         t = threading.Thread(target=self._thread_loop, daemon=True)
         t.start()
 
@@ -120,6 +147,9 @@ class App(QObject):
 
         # ---- import mainframe on main thread ----
         def _import_mainframe():
+            """Import and construct the main frame on the UI thread.
+
+            """
             try:
                 from .ui import mainframe
             except Exception as e:
@@ -166,6 +196,11 @@ class App(QObject):
             _hd._mainframe.open_database(self.splash)  # NOQA
         except Exception as err:
             def _do(e=err):
+                """Report a database-open failure on the main thread.
+
+                :param e: Exception raised while opening the database.
+                :type e: Exception
+                """
                 self.logger.traceback(e)
                 from . import critical_error_dialog
                 err_dlg = critical_error_dialog.CriticalErrorDialog(None, e)
@@ -184,6 +219,9 @@ class App(QObject):
         time.sleep(0.50)
 
         def _do():
+            """Show the main frame after startup completes.
+
+            """
             _hd._mainframe.show()  # NOQA
 
         self.call_after(_do)
@@ -193,6 +231,12 @@ class App(QObject):
     # ------------------------------------------------------------------
 
     def MainLoop(self):
+        """Initialise the application and run the Qt event loop.
+
+        :returns: This method does not normally return because it exits the
+            process via :func:`sys.exit`.
+        :rtype: None
+        """
         if not self._init():
             return
 

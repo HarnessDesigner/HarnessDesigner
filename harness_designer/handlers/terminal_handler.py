@@ -1,5 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""Interactive handler logic for placing terminals into housings or cavities.
+"""
+
 from typing import TYPE_CHECKING
 
 from . import handler_base as _handler_base
@@ -28,6 +31,15 @@ def _get_compat_object_at_mouse(
     camera: "_camera.Camera"
 ) -> _cavity.Cavity | _housing.Housing | None:
 
+    """Return the compatible object currently located beneath the mouse cursor.
+
+    :param mouse_pos: Mouse position used for picking or preview updates.
+    :type mouse_pos: _point.Point
+    :param camera: Active 3D camera used to resolve positions and visible objects.
+    :type camera: "_camera.Camera"
+    :returns: The compatible object under the cursor, or :data:`None` when no compatible object is selected.
+    :rtype: object | None
+    """
     selected = _object_picker.find_object(mouse_pos, camera.objects_in_view, camera)
 
     if isinstance(selected, (_cavity.Cavity, _housing.Housing)):
@@ -37,9 +49,18 @@ def _get_compat_object_at_mouse(
 
 
 class AddTerminalHandler(_handler_base.HandlerBase):
+    """Handle interactive placement of terminals into cavities or housings.
+    """
     obj: _terminal.Terminal = None
 
     def __init__(self, mainframe: "_ui.MainFrame", part_id: int):
+        """Initialize the object and capture the state required for later interaction.
+
+        :param mainframe: Main application frame that owns the editor and project state.
+        :type mainframe: "_ui.MainFrame"
+        :param part_id: Identifier of the selected part definition.
+        :type part_id: int
+        """
         super().__init__(mainframe, part_id)
 
         self.part = mainframe.project.gtables.terminals_table[part_id]
@@ -66,9 +87,18 @@ class AddTerminalHandler(_handler_base.HandlerBase):
             cavity.identify([0.3, 1.0, 0.3, 1.0])
 
     def release_capture(self) -> None:
+        """Handle release of the captured position and complete any deferred placement work.
+
+        :raises NotImplementedError: Raised by handlers that require a subclass implementation.
+        """
         raise NotImplementedError
 
     def finalize(self, mouse_pos: _point.Point):
+        """Finalize the active operation using the supplied mouse position.
+
+        :param mouse_pos: Mouse position used for picking or preview updates.
+        :type mouse_pos: _point.Point
+        """
         for housing in self.mainframe.project.housings:
             housing.identify(None)
 
@@ -117,4 +147,9 @@ class AddTerminalHandler(_handler_base.HandlerBase):
         self.mainframe.project.add_terminal(terminal)
 
     def start(self, mouse_pos: _point.Point):
+        """Start the handler operation for the supplied mouse position.
+
+        :param mouse_pos: Mouse position used for picking or preview updates.
+        :type mouse_pos: _point.Point
+        """
         self.finalize(mouse_pos)

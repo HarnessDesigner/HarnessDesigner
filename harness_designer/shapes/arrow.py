@@ -1,5 +1,11 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""Arrow mesh generation helpers.
+
+The mesh built here is converted into a cached
+:class:`harness_designer.gl.vbo.VBOHandler` for reuse by the OpenGL layer.
+"""
+
 import build123d
 
 from .. import utils as _utils
@@ -10,6 +16,15 @@ _vbo: _vbo_handler.VBOHandler = None
 
 
 def create_vbo() -> _vbo_handler.VBOHandler:
+    """Create or return the cached arrow VBO.
+
+    The geometry is assembled with :mod:`build123d`, converted to a mesh with
+    :func:`harness_designer.utils.convert_model_to_mesh`, and then wrapped in a
+    :class:`harness_designer.gl.vbo.VBOHandler`.
+
+    :returns: Cached vertex-buffer object data for the move arrow mesh.
+    :rtype: :class:`harness_designer.gl.vbo.VBOHandler`
+    """
     global _vbo
 
     if _vbo is not None:

@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""Top-level package state and entry point for :mod:`harness_designer`."""
+
 from typing import TYPE_CHECKING
 
 
@@ -15,6 +17,11 @@ _app = None
 
 
 def __main__(args=None):
+    """Start the application and enter the main event loop.
+
+    :param args: Optional command-line arguments excluding the executable name.
+    :type args: list[str] | None
+    """
     from . import monkey_patch  # no-op stub; import kept for compatibility  # NOQA
     import sys
 

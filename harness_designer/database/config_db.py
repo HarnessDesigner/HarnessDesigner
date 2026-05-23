@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""SQLite-backed configuration database helpers for :mod:`harness_designer.database`."""
+
 import os
 import sqlite3
 
@@ -13,10 +15,25 @@ class ConfigTable:
     """
 
     def __init__(self, con, name):
+        """Initialize the configuration table wrapper.
+
+        :param con: SQLite connection used for all table operations.
+        :type con: UNKNOWN
+        :param name: SQLite table name represented by this wrapper.
+        :type name: UNKNOWN
+        """
         self._con = con
         self.name = name
 
     def __contains__(self, item):
+        """Return whether a configuration key exists in the table.
+
+        :param item: Key or table name being queried.
+        :type item: UNKNOWN
+
+        :returns: ``True`` when the requested item exists; otherwise ``False``.
+        :rtype: bool
+        """
         with self._con:
             cur = self._con.cursor()
             cur.execute(f'SELECT id FROM {self.name} WHERE key = "{item}";')
@@ -29,6 +46,14 @@ class ConfigTable:
         return False
 
     def __getitem__(self, item):
+        """Return the stored value for a configuration key.
+
+        :param item: Key or table name being queried.
+        :type item: UNKNOWN
+
+        :returns: The value stored for the requested key.
+        :rtype: UNKNOWN
+        """
         with self._con:
             cur = self._con.cursor()
             cur.execute(f'SELECT value FROM {self.name} WHERE key = "{item}";')
@@ -41,6 +66,16 @@ class ConfigTable:
             return value
 
     def __setitem__(self, key, value):
+        """Store or update a configuration value in the table.
+
+        :param key: Mapping key to store or remove.
+        :type key: UNKNOWN
+        :param value: Value or state to persist.
+        :type value: UNKNOWN
+
+        :returns: ``None``.
+        :rtype: None
+        """
         value = str(value)
 
         if key not in self:
@@ -58,6 +93,14 @@ class ConfigTable:
                 cur.close()
 
     def __delitem__(self, key):
+        """Delete a configuration value from the table.
+
+        :param key: Mapping key to store or remove.
+        :type key: UNKNOWN
+
+        :returns: ``None``.
+        :rtype: None
+        """
         with self._con:
             cur = self._con.cursor()
             cur.execute(f'DELETE FROM {self.name} WHERE key = "{key}"')
@@ -77,6 +120,11 @@ class ConfigDB:
 
     def __init__(self, app_data):
 
+        """Open the SQLite configuration database connection.
+
+        :param app_data: Directory where ``config.db`` is stored.
+        :type app_data: UNKNOWN
+        """
         import threading
 
         self.lock = threading.Lock()
@@ -86,6 +134,14 @@ class ConfigDB:
         self._con = sqlite3.connect(config_db_file, check_same_thread=False)
 
     def __contains__(self, item):
+        """Return whether a table exists in the configuration database.
+
+        :param item: Key or table name being queried.
+        :type item: UNKNOWN
+
+        :returns: ``True`` when the requested item exists; otherwise ``False``.
+        :rtype: bool
+        """
         with self._con:
             cur = self._con.cursor()
             cur.execute('SELECT name FROM sqlite_master WHERE type="table";')
@@ -95,6 +151,14 @@ class ConfigDB:
         return item in tables
 
     def __getitem__(self, item):
+        """Return a :class:`ConfigTable` for the requested table name.
+
+        :param item: Key or table name being queried.
+        :type item: UNKNOWN
+
+        :returns: The value stored for the requested key.
+        :rtype: UNKNOWN
+        """
         if item not in self:
             with self._con:
                 cur = self._con.cursor()
@@ -109,4 +173,9 @@ class ConfigDB:
         return ConfigTable(self._con, item)
 
     def close(self):
+        """Close the configuration database connection.
+
+        :returns: ``None``.
+        :rtype: None
+        """
         self._con.close()

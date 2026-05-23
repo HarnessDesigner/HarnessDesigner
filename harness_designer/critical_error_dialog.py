@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""Dialog helpers for reporting critical startup errors."""
+
 import traceback
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QTextEdit,
@@ -10,8 +12,16 @@ from PySide6.QtCore import Qt
 
 
 class CriticalErrorDialog(QDialog):
+    """Display an exception and issue-reporting instructions to the user."""
 
     def __init__(self, parent, err):
+        """Build the critical error dialog.
+
+        :param parent: Parent widget for the dialog.
+        :type parent: PySide6.QtWidgets.QWidget | None
+        :param err: Exception to display.
+        :type err: BaseException
+        """
         super().__init__(parent)
 
         message = ''.join(traceback.format_exception(err))

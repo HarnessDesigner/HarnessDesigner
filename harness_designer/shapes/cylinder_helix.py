@@ -1,5 +1,11 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""Composite cylinder-and-helix mesh generation helpers.
+
+This module builds a more complex part from :mod:`build123d` primitives and
+stores the result in a cached :class:`harness_designer.gl.vbo.VBOHandler`.
+"""
+
 import build123d
 
 from .. import utils as _utils
@@ -11,6 +17,15 @@ _vbo: _vbo_handler.VBOHandler = None
 
 
 def create_vbo():
+    """Create or return the cached cylinder-helix VBO.
+
+    The generated part combines two cylinders with a swept helix loop. The
+    returned VBO also stores a secondary connection point derived from the
+    internal tracking sphere.
+
+    :returns: Cached VBO for the composite cylinder/helix part.
+    :rtype: :class:`harness_designer.gl.vbo.VBOHandler`
+    """
     global _vbo
 
     if _vbo is not None:

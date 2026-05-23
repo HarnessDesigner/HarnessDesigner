@@ -1,5 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""Interactive handler logic for adding wire layout points.
+"""
+
 from typing import TYPE_CHECKING
 
 from . import handler_base as _handler_base
@@ -29,6 +32,15 @@ def _create_wire_layout_at_endpoint(
     # Extract the actual database ID from the Point's db_id
     # Point.db_id format is "1233d" or "1232d"
     # We need to strip the suffix and convert to int
+    """Create a wire layout object that reuses an existing wire endpoint point.
+
+    :param project: Project object that owns the project tables and runtime objects.
+    :type project: object
+    :param position: 3D point used for placement or geometric calculations.
+    :type position: _point.Point
+    :returns: The created wire layout object.
+    :rtype: WireLayout
+    """
     point_db_id = int(position.db_id[:-2])  # Remove '3d' or '2d' suffix
 
     # Create wire layout in database, referencing the EXISTING point
@@ -50,6 +62,17 @@ def _create_wire_layout_on_wire(
 
     # Create NEW position point in database (3D)
     # This point will be shared by the layout and both wire segments
+    """Create a wire layout object on a wire segment and split the wire at that location.
+
+    :param project: Project object that owns the project tables and runtime objects.
+    :type project: object
+    :param wire: Value for the ``wire`` parameter. UNKNOWN semantics.
+    :type wire: _wire.Wire
+    :param position: 3D point used for placement or geometric calculations.
+    :type position: _point.Point
+    :returns: The created wire layout object.
+    :rtype: WireLayout
+    """
     position_p3d = project.ptables.pjt_points3d_table.insert(
         position.x, position.y, position.z
     )
@@ -84,6 +107,15 @@ def _split_wire_at_layout(
 ):
 
     # Get original wire data
+    """Replace one wire with two wire segments that share the supplied layout point.
+
+    :param project: Project object that owns the project tables and runtime objects.
+    :type project: object
+    :param original_wire: Value for the ``original_wire`` parameter. UNKNOWN semantics.
+    :type original_wire: _wire.Wire
+    :param position: 3D point used for placement or geometric calculations.
+    :type position: _point.Point
+    """
     original_start_point = original_wire.obj3d.start_position
     original_stop_point = original_wire.obj3d.stop_position
     part_id = original_wire.db_obj.part_id
@@ -138,9 +170,16 @@ def _get_wire_at_mouse(mouse_pos: _point.Point, camera: "_camera.Camera"):
 
 
 class AddWireLayoutHandler(_handler_base.HandlerBase):
+    """Handle interactive placement of wire layout points along existing wires.
+    """
     obj: _wire_layout.WireLayout = None
 
     def __init__(self, mainframe: "_ui.MainFrame"):
+        """Initialize the object and capture the state required for later interaction.
+
+        :param mainframe: Main application frame that owns the editor and project state.
+        :type mainframe: "_ui.MainFrame"
+        """
         super().__init__(mainframe, None)
         self.wire: _wire.Wire = None
 
@@ -150,9 +189,18 @@ class AddWireLayoutHandler(_handler_base.HandlerBase):
             _color.Color(*Config.add_object.wire_highlight))
 
     def release_capture(self) -> None:
+        """Handle release of the captured position and complete any deferred placement work.
+
+        :raises NotImplementedError: Raised by handlers that require a subclass implementation.
+        """
         raise NotImplementedError
 
     def hover(self, mouse_pos: _point.Point):
+        """Update preview or highlight state for the supplied mouse position.
+
+        :param mouse_pos: Mouse position used for picking or preview updates.
+        :type mouse_pos: _point.Point
+        """
         wire = _get_wire_at_mouse(mouse_pos, self.camera)
 
         if wire is None:
@@ -180,6 +228,11 @@ class AddWireLayoutHandler(_handler_base.HandlerBase):
                 self.wire = wire
 
     def start(self, mouse_pos: _point.Point):
+        """Start the handler operation for the supplied mouse position.
+
+        :param mouse_pos: Mouse position used for picking or preview updates.
+        :type mouse_pos: _point.Point
+        """
         if self.is_active:
             return
 
@@ -194,6 +247,11 @@ class AddWireLayoutHandler(_handler_base.HandlerBase):
         self.is_active = True
 
     def finalize(self, mouse_pos: _point.Point):
+        """Finalize the active operation using the supplied mouse position.
+
+        :param mouse_pos: Mouse position used for picking or preview updates.
+        :type mouse_pos: _point.Point
+        """
         if not self.is_active:
             return
 

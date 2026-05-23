@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""Qt dialog helpers for editing MySQL connector settings."""
+
 import sys
 
 import mysql.connector.constants
@@ -77,6 +79,8 @@ def _file_browse_button(parent, label, initial_value=''):
     btn.setFixedWidth(28)
 
     def _browse():
+        """Perform the ``_browse`` operation. UNKNOWN.
+        """
         path, _ = QFileDialog.getOpenFileName(widget, f'Select {label}')
         if path:
             edit.setText(path)
@@ -88,7 +92,17 @@ def _file_browse_button(parent, label, initial_value=''):
 
 class SQLOptionsDialog(QDialog):
 
+    """Collect editable MySQL connector settings from the user.
+    """
     def __init__(self, parent):
+        """Build the MySQL options dialog.
+
+        :param parent: Parent Qt widget for the options dialog.
+        :type parent: UNKNOWN
+
+        :returns: Return value for this callable. UNKNOWN.
+        :rtype: UNKNOWN
+        """
         super().__init__(parent,
                          Qt.Dialog | Qt.WindowStaysOnTopHint | Qt.WindowCloseButtonHint)
         self.setWindowTitle('MySQL Options')
@@ -152,6 +166,18 @@ class SQLOptionsDialog(QDialog):
         misc_lay.addLayout(buf_row)
 
         def _timeout_spin(parent, label, value):
+            """Create a labeled timeout spin box row.
+
+            :param parent: Parent widget that owns the spin box.
+            :type parent: UNKNOWN
+            :param label: Label text displayed for the timeout control.
+            :type label: UNKNOWN
+            :param value: Initial timeout value, in seconds.
+            :type value: UNKNOWN
+
+            :returns: Return value for this callable. UNKNOWN.
+            :rtype: UNKNOWN
+            """
             r = QHBoxLayout()
             r.addWidget(QLabel(label, parent))
             sp = QSpinBox(parent)
@@ -380,6 +406,11 @@ class SQLOptionsDialog(QDialog):
         outer.addWidget(btn_box)
 
     def GetValue(self):
+        """Return the values selected in the MySQL options dialog.
+
+        :returns: The current values collected by the dialog.
+        :rtype: UNKNOWN
+        """
         tls_versions = []
         if self.tls_12_ctrl.isChecked():
             tls_versions.append('TLSv1.2')
@@ -387,6 +418,14 @@ class SQLOptionsDialog(QDialog):
             tls_versions.append('TLSv1.3')
 
         def _timeout(ctrl):
+            """Normalize a timeout control value to ``None`` when disabled.
+
+            :param ctrl: Spin box whose timeout value should be normalized.
+            :type ctrl: UNKNOWN
+
+            :returns: Return value for this callable. UNKNOWN.
+            :rtype: UNKNOWN
+            """
             v = ctrl.value()
             return None if v == 0 else v
 
@@ -429,24 +468,56 @@ class SQLOptionsDialog(QDialog):
         return res
 
     def _on_oci_file(self, value):
+        """Enable or disable OCI profile controls based on the selected file.
+
+        :param value: Value or state to persist.
+        :type value: UNKNOWN
+
+        :returns: ``None``.
+        :rtype: None
+        """
         import os
         has_file = bool(value) and os.path.exists(value)
         self.oci_config_profile_ctrl.setEnabled(has_file)
         self.oci_config_profile_label.setEnabled(has_file)
 
     def _on_size(self, evt):
+        """Persist the dialog size when the window is resized.
+
+        :param evt: Qt event object associated with the callback.
+        :type evt: UNKNOWN
+
+        :returns: ``None``.
+        :rtype: None
+        """
         s = evt.size()
         if hasattr(Config, 'settings_dialog') and Config.settings_dialog:
             Config.settings_dialog.size = (s.width(), s.height())
         super().resizeEvent(evt)
 
     def _on_move(self, evt):
+        """Persist the dialog position when the window is moved.
+
+        :param evt: Qt event object associated with the callback.
+        :type evt: UNKNOWN
+
+        :returns: ``None``.
+        :rtype: None
+        """
         p = evt.pos()
         if hasattr(Config, 'settings_dialog') and Config.settings_dialog:
             Config.settings_dialog.pos = (p.x(), p.y())
         super().moveEvent(evt)
 
     def _on_ssl_enabled(self, state):
+        """Enable or disable SSL-related controls.
+
+        :param state: Qt check-state value.
+        :type state: UNKNOWN
+
+        :returns: ``None``.
+        :rtype: None
+        """
         value = bool(state)
         for w in (self.tls_12_ctrl, self.tls_13_ctrl,
                   self.ssl_key_file_ctrl, self.ssl_cert_file_ctrl,
@@ -457,7 +528,14 @@ class SQLOptionsDialog(QDialog):
             w.setEnabled(value)
 
     def _on_auth_plugin(self):
+        """Refresh auth-plugin dependent controls after the plugin changes.
+
+        :returns: ``None``.
+        :rtype: None
+        """
         def _do():
+            """Apply delayed auth-plugin UI updates.
+            """
             value = self.auth_plugin_ctrl.text()
             self.openid_token_file_ctrl.setEnabled(
                 value == 'authentication_openid_connect_client')

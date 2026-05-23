@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""SQLite connector exports for :mod:`harness_designer.database.db_connectors`."""
+
 from . import connector as _connector
 
 
