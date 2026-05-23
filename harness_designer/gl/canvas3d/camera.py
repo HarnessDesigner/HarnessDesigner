@@ -394,44 +394,67 @@ class Camera:
         forward = fp - pos
 
         focal_distance = np.linalg.norm(forward)
-        if focal_distance < 0.1:
+        if focal_distance < 1e-6:
             return
 
         forward = forward / focal_distance
 
-        gf = np.linalg.norm(forward)
-        if gf < 1e-6:
-            forward_ground = np.array([0.0, 0.0, -1.0], dtype=np.float64)
-        else:
-            forward_ground = forward / gf
-
-        self._forward_norm = gf
-
         world_up = np.array([0.0, 1.0, 0.0], dtype=np.float64)
+        dot = float(np.dot(forward, world_up))
 
-        right = np.cross(world_up, forward_ground)  # NOQA
+        # When the view direction gets too close to the world-up vector the
+        # look-at basis becomes ill-conditioned. Preserve the previous camera up
+        # vector in that case so zooming through very small focal distances does
+        # not cause a sudden 90° roll.
+        if abs(dot) > 0.9999 and self._up is not None:
+            up = np.array(self._up, dtype=np.float64)
+            un = np.linalg.norm(up)
+            if un < 1e-6:
+                up = world_up.copy()
+                un = 1.0
+            else:
+                up = up / un
 
-        rn = np.linalg.norm(right)
-        if rn < 1e-6:
-            right = np.array([1.0, 0.0, 0.0], dtype=np.float64)
-        else:
+            right = np.cross(forward, up)  # NOQA
+            rn = np.linalg.norm(right)
+            if rn < 1e-6:
+                fallback_axis = np.array([1.0, 0.0, 0.0], dtype=np.float64)
+                if abs(float(np.dot(forward, fallback_axis))) > 0.9999:
+                    fallback_axis = np.array([0.0, 0.0, 1.0], dtype=np.float64)
+
+                right = np.cross(fallback_axis, forward)  # NOQA
+                rn = np.linalg.norm(right)
+
             right = right / rn
-
-        self._right_norm = rn
-
-        up = np.cross(forward_ground, right)  # NOQA
-
-        un = np.linalg.norm(up)
-        if un < 1e-6:
-            up = np.array([0.0, 1.0, 0.0], dtype=np.float64)
+            up = np.cross(right, forward)  # NOQA
+            un = np.linalg.norm(up)
+            up = up / (un if un >= 1e-6 else 1.0)
         else:
-            up = up / un
+            right = np.cross(world_up, forward)  # NOQA
 
+            rn = np.linalg.norm(right)
+            if rn < 1e-6:
+                right = np.array([1.0, 0.0, 0.0], dtype=np.float64)
+                rn = 1.0
+            else:
+                right = right / rn
+
+            up = np.cross(forward, right)  # NOQA
+
+            un = np.linalg.norm(up)
+            if un < 1e-6:
+                up = world_up.copy()
+                un = 1.0
+            else:
+                up = up / un
+
+        self._forward_norm = focal_distance
+        self._right_norm = rn
         self._up_norm = un
 
         self._up = up
         self._right = right
-        self._forward = forward_ground
+        self._forward = forward
 
         self._focal_distance = focal_distance
 
@@ -586,8 +609,6 @@ class Camera:
         # Calculate focal distance directly without creating Line object
         diff = self._focal_position.as_numpy - position.as_numpy
         focal_distance = np.linalg.norm(diff)
-
-        print(delta, focal_distance)
 
         # If moving would invert eye and pos, prevent crossing pos
         if delta > 0 and focal_distance < 0.1:
