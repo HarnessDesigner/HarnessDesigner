@@ -21,8 +21,21 @@ Config = _config.Config
 
 
 class HousingEditorDialog(_dialog_base.BaseDialog):
+    """Represent a housing editor dialog in :mod:`harness_designer.ui.dialogs.housing_editor.housing_editor`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent: "_ui.MainFrame", db_obj):
+        """Initialise the :class:`HousingEditorDialog` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`_ui.MainFrame`
+        :param db_obj: Database-backed object.
+        :type db_obj: UNKNOWN
+        """
         self.db_obj = db_obj
 
         _dialog_base.BaseDialog.__init__(self, parent, 'Edit Housing', size=(1200, 900))
@@ -58,36 +71,108 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
 
     @property
     def editor2d(self):
+        """Return the editor 2D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return None
 
     @property
     def editor3d(self):
+        """Return the editor 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self
 
     def add_object(self, obj):
+        """Add an object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
         self.canvas.add_object(obj)
 
     def remove_object(self, obj):
+        """Remove the object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
         self.canvas.remove_object(obj)
 
     def _set_selected(self, obj):
+        """Set the selected.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
         self._selected_obj = obj
         self.canvas.set_selected(obj)
 
     def set_selected(self, obj):  # NOQA
+        """Set the selected.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
         if obj is not None:
             obj.set_selected(True)
 
     def get_selected(self):
+        """Return the selected.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self._selected_obj
 
     @property
     def config(self):
+        """Return the config.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return Config.editor3d
 
     def Refresh(self, *_, **__):
+        """Execute the refresh operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        :param __: Value for ``__``.
+        :type __: UNKNOWN
+        """
         self.canvas.update()
 
     @property
     def context(self):
+        """Return the context.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self.canvas.context

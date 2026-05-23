@@ -16,8 +16,19 @@ if TYPE_CHECKING:
 
 
 class Grid:
+    """Represent a grid in :mod:`harness_designer.gl.canvas2d.grid`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, canvas: "_canvas.Canvas2D"):
+        """Initialise the :class:`Grid` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param canvas: Canvas instance.
+        :type canvas: :class:`_canvas.Canvas2D`
+        """
         self.canvas = canvas
 
         self.vbos = None
@@ -40,6 +51,15 @@ class Grid:
         num_layers = min(7, int(size / _d(1000)))
 
         def _get_vbo(verts):
+            """Return the VBO.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param verts: Value for ``verts``.
+            :type verts: UNKNOWN
+            :returns: Return value. UNKNOWN details.
+            :rtype: UNKNOWN
+            """
             # Flatten the data
             verts = np.array(verts, dtype=np.float32).flatten()
 
@@ -66,6 +86,19 @@ class Grid:
         layers = [[] for _ in range(num_layers)]
 
         def _frange(start, stop, step):
+            """Execute the frange operation.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param start: Value for ``start``.
+            :type start: UNKNOWN
+            :param stop: Value for ``stop``.
+            :type stop: UNKNOWN
+            :param step: Value for ``step``.
+            :type step: UNKNOWN
+            :returns: Return value. UNKNOWN details.
+            :rtype: UNKNOWN
+            """
             cur = start
             while cur < stop:
                 yield cur
@@ -83,6 +116,10 @@ class Grid:
         event = threading.Event()
 
         def _do():
+            """Execute the do operation.
+
+            UNKNOWN details are inferred from the callable name and signature.
+            """
             self._layer_steps = layer_steps
             self.vbos = [_get_vbo(layer) for layer in layers]
             self.canvas.Refresh(False)
@@ -93,7 +130,21 @@ class Grid:
         event.wait()
 
     def set(self, flag):
+        """Execute the set operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param flag: Value for ``flag``.
+        :type flag: UNKNOWN
+        """
         def _do(f):
+            """Execute the do operation.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param f: Value for ``f``.
+            :type f: UNKNOWN
+            """
             with self.canvas.context:
                 if self.vbos is not None:
                     for vbo, _ in self.vbos:
@@ -126,6 +177,15 @@ class Grid:
 
         # type_ is either GL.GL_LINES or GL.GL_QUADS
         def _draw_vbo(vbo, count):
+            """Draw the VBO.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param vbo: Value for ``vbo``.
+            :type vbo: UNKNOWN
+            :param count: Count value.
+            :type count: UNKNOWN
+            """
             # Setup the VBO for rendering
             GL.glBindBuffer(GL.GL_ARRAY_BUFFER, vbo)
 

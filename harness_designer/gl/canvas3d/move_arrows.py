@@ -27,9 +27,26 @@ ARROW_OFFSET_SCALE = 2.0
 
 
 class MoveArrows(_object_base.ObjectBase):
+    """Represent a move arrows in :mod:`harness_designer.gl.canvas3d.move_arrows`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, obj_position: _point.Point, axis: str,
                  mainframe: "_ui.MainFrame", aabb: np.ndarray):
+        """Initialise the :class:`MoveArrows` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj_position: Value for ``obj_position``.
+        :type obj_position: :class:`_point.Point`
+        :param axis: Value for ``axis``.
+        :type axis: str
+        :param mainframe: Main application frame.
+        :type mainframe: :class:`_ui.MainFrame`
+        :param aabb: Value for ``aabb``.
+        :type aabb: :class:`np.ndarray`
+        """
         _object_base.ObjectBase.__init__(self, mainframe, None)
         self.obj2d = Arrows2D(self)
         self.obj3d = Arrows3D(self, obj_position, axis, mainframe, aabb)
@@ -37,50 +54,128 @@ class MoveArrows(_object_base.ObjectBase):
         self.mainframe.add_object(self)
 
     def set_treeitem(self, treeitem):
+        """Set the treeitem.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param treeitem: Value for ``treeitem``.
+        :type treeitem: UNKNOWN
+        """
         self._treeitem = treeitem
 
     def get_treeitem(self):
+        """Return the treeitem.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self._treeitem
 
     def __del__(self):
+        """Execute the del operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.delete()
 
     def delete(self):
+        """Execute the delete operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         # print('deleting object from mainframe')
         self.mainframe.remove_object(self)
 
     def close(self):
+        """Execute the close operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :raises NotImplementedError: Raised when the operation cannot be completed.
+        """
         raise NotImplementedError
 
     def set_selected(self, flag):
+        """Set the selected.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param flag: Value for ``flag``.
+        :type flag: UNKNOWN
+        """
         pass
 
     @property
     def is_selected(self) -> bool:
+        """Return the is selected.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: bool
+        """
         return False
 
     @is_selected.setter
     def is_selected(self, value: bool):
+        """Set the is selected.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: bool
+        """
         pass
 
 
 class Arrows2D(_base2d.Base2D):
+    """Represent an arrows 2D in :mod:`harness_designer.gl.canvas3d.move_arrows`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent):
+        """Initialise the :class:`Arrows2D` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        """
         angle = _angle.Angle()
         position = _point.Point(0, 0)
 
         _base2d.Base2D.__init__(self, parent, None, position, angle)
 
     def set_selected(self, flag: bool):
+        """Set the selected.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param flag: Value for ``flag``.
+        :type flag: bool
+        """
         pass
 
     @property
     def is_selected(self) -> bool:
+        """Return the is selected.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: bool
+        """
         return False
 
 
 class Arrows3D(_base3d.Base3D):
+    """Represent an arrows 3D in :mod:`harness_designer.gl.canvas3d.move_arrows`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent, obj_position: _point.Point, axis: str,
                  mainframe: "_ui.MainFrame", aabb: np.ndarray):

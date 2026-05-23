@@ -13,6 +13,21 @@ class IntCtrl(QtWidgets.QWidget):
 
     def __init__(self, parent, label: str, min_val: int,
                  max_val: int, slider: bool = True):
+        """Initialise the :class:`IntCtrl` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param label: Value for ``label``.
+        :type label: str
+        :param min_val: Value for ``min_val``.
+        :type min_val: int
+        :param max_val: Value for ``max_val``.
+        :type max_val: int
+        :param slider: Value for ``slider``.
+        :type slider: bool
+        """
 
         super().__init__(parent)
 
@@ -51,12 +66,26 @@ class IntCtrl(QtWidgets.QWidget):
     # Internal
     # ------------------------------------------------------------------
     def _on_slider(self, value: int):
+        """Handle the slider event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self.ctrl.blockSignals(True)
         self.ctrl.setValue(value)
         self.ctrl.blockSignals(False)
         self.value_changed.emit(value)
 
     def _on_spin(self, value: int):
+        """Handle the spin event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         if self.slider is not None:
             self.slider.blockSignals(True)
             self.slider.setValue(value)
@@ -68,6 +97,13 @@ class IntCtrl(QtWidgets.QWidget):
     # wx-compatible public API
     # ------------------------------------------------------------------
     def Enable(self, flag: bool = True):
+        """Execute the enable operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param flag: Value for ``flag``.
+        :type flag: bool
+        """
         self.ctrl.setEnabled(flag)
         self.st.setEnabled(flag)
 
@@ -75,6 +111,13 @@ class IntCtrl(QtWidgets.QWidget):
             self.slider.setEnabled(flag)
 
     def SetToolTip(self, text: str):
+        """Execute the set tool tip operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param text: Text value.
+        :type text: str
+        """
         self.ctrl.setToolTip(text)
         self.st.setToolTip(text)
 
@@ -84,6 +127,13 @@ class IntCtrl(QtWidgets.QWidget):
     SetToolTipString = SetToolTip
 
     def SetValue(self, value: int):
+        """Execute the set value operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self.ctrl.blockSignals(True)
         self.ctrl.setValue(value)
         self.ctrl.blockSignals(False)
@@ -94,4 +144,11 @@ class IntCtrl(QtWidgets.QWidget):
             self.slider.blockSignals(False)
 
     def GetValue(self) -> int:
+        """Execute the get value operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: int
+        """
         return self.ctrl.value()

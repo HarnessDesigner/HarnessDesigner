@@ -17,7 +17,20 @@ if TYPE_CHECKING:
 
 
 class Arcball:
+    """Represent an arcball in :mod:`harness_designer.gl.canvas3d.arcball`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     def __init__(self, canvas: "_canvas.Canvas", selected: "_objects.ObjectBase"):
+        """Initialise the :class:`Arcball` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param canvas: Canvas instance.
+        :type canvas: :class:`_canvas.Canvas`
+        :param selected: Value for ``selected``.
+        :type selected: :class:`_objects.ObjectBase`
+        """
         self.canvas = canvas
         self.selected = selected
 
@@ -37,9 +50,20 @@ class Arcball:
         self.is_dragging = False
 
     def __del__(self):
+        """Execute the del operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.canvas.set_angle_view(None, None, None)
 
     def _get_screen_rect(self):
+        """Return the screen rect.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         # min_x = 999999
         # max_x = -999999
         # min_y = 999999
@@ -87,6 +111,13 @@ class Arcball:
         return np.array([float(nx), float(ny), float(nz)])
 
     def __call__(self, mouse_pos: _point.Point):
+        """Call the instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mouse_pos: Value for ``mouse_pos``.
+        :type mouse_pos: :class:`_point.Point`
+        """
         if self.start_vector is None:
             self.start_vector = self.map_to_sphere(mouse_pos)
             return
@@ -106,6 +137,13 @@ class Arcball:
         self.rotate(mouse_pos)
 
     def rotate(self, mouse_pos: _point.Point):
+        """Execute the rotate operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mouse_pos: Value for ``mouse_pos``.
+        :type mouse_pos: :class:`_point.Point`
+        """
         current_vector = self.map_to_sphere(mouse_pos)
 
         # Handle normal rotation outside of detent

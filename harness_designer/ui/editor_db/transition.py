@@ -10,6 +10,10 @@ if TYPE_CHECKING:
 
 
 class TransitionsPage(_base.EditorList):
+    """Represent a transitions page in :mod:`harness_designer.ui.editor_db.transition`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     _has_image = False
     _has_model_3d = False
 

@@ -10,6 +10,10 @@ if TYPE_CHECKING:
 
 
 class HousingsPage(_base.EditorList):
+    """Represent a housings page in :mod:`harness_designer.ui.editor_db.housing`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     __table_name__ = 'housings'
     __query__ = f'''\
         SELECT * FROM (

@@ -23,8 +23,23 @@ FILE_WILDCARD = "3D Model Files (*.obj *.fbx *.gltf *.glb *.stl *.ply *.dae *.3d
 
 
 class AddProjectDialog(_dialog_base.BaseDialog):
+    """Represent an add project dialog in :mod:`harness_designer.ui.dialogs.add_project`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent, name, table: "_project.ProjectsTable"):
+        """Initialise the :class:`AddProjectDialog` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param name: Name value.
+        :type name: UNKNOWN
+        :param table: Value for ``table``.
+        :type table: :class:`_project.ProjectsTable`
+        """
         self.table = table
 
         _dialog_base.BaseDialog.__init__(self, parent, 'Add Project', size=(-1, 475))
@@ -78,14 +93,32 @@ class AddProjectDialog(_dialog_base.BaseDialog):
         vsizer.addLayout(hsizer)
 
     def GetValue(self):
+        """Execute the get value operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return (self.name_ctrl.GetValue(),
                 self.creator_ctrl.GetValue(),
                 self.desc_ctrl.GetValue(),
                 self.user_model_ctrl.GetValue())
 
     def _on_name_text(self, _text: str = ''):
+        """Handle the name text event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _text: Text value.
+        :type _text: str
+        """
 
         def _do():
+            """Execute the do operation.
+
+            UNKNOWN details are inferred from the callable name and signature.
+            """
             name = self.name_ctrl.GetValue()
             try:
                 _ = self.table[name]
@@ -100,8 +133,19 @@ class AddProjectDialog(_dialog_base.BaseDialog):
         QtCore.QTimer.singleShot(0, _do)
 
     def _on_user_model_text(self, _text: str = ''):
+        """Handle the user model text event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _text: Text value.
+        :type _text: str
+        """
 
         def _do():
+            """Execute the do operation.
+
+            UNKNOWN details are inferred from the callable name and signature.
+            """
             path = self.user_model_ctrl.GetValue()
             if os.path.isfile(path):
                 color = QtGui.QColor(0, 0, 0)
@@ -115,6 +159,10 @@ class AddProjectDialog(_dialog_base.BaseDialog):
         QtCore.QTimer.singleShot(0, _do)
 
     def _on_open_file(self):
+        """Handle the open file event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         path = self.user_model_ctrl.GetValue()
         if path:
             default_dir = os.path.dirname(path)

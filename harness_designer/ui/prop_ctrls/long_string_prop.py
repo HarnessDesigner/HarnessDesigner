@@ -10,8 +10,23 @@ from . import prop_base as _prop_base
 
 
 class LongStringDialog(QDialog):
+    """Represent a long string dialog in :mod:`harness_designer.ui.prop_ctrls.long_string_prop`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent, value: str, title: str = 'Enter Text'):
+        """Initialise the :class:`LongStringDialog` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param value: Value to store or process.
+        :type value: str
+        :param title: Value for ``title``.
+        :type title: str
+        """
         QDialog.__init__(
             self, parent,
             Qt.Dialog | Qt.WindowStaysOnTopHint |
@@ -39,12 +54,36 @@ class LongStringDialog(QDialog):
         self.setLayout(layout)
 
     def GetValue(self) -> str:
+        """Execute the get value operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: str
+        """
         return self.ctrl.toPlainText()
 
 
 class LongStringProperty(_prop_base.Property):
+    """Represent a long string property in :mod:`harness_designer.ui.prop_ctrls.long_string_prop`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent, label, style=0, units=None):
+        """Initialise the :class:`LongStringProperty` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param label: Value for ``label``.
+        :type label: UNKNOWN
+        :param style: Value for ``style``.
+        :type style: UNKNOWN
+        :param units: Value for ``units``.
+        :type units: UNKNOWN
+        """
         _prop_base.Property.__init__(self, parent, label)
         self._dialog_title = 'Enter Text'
         self._value = ''
@@ -80,18 +119,43 @@ class LongStringProperty(_prop_base.Property):
         self._button.clicked.connect(self._on_dialog_button)
 
     def SetDialogTitle(self, value: str):
+        """Execute the set dialog title operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: str
+        """
         self._dialog_title = value
 
     def GetValue(self) -> str:
+        """Execute the get value operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: str
+        """
         return self._value
 
     def SetValue(self, value: str):
+        """Execute the set value operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: str
+        """
         self._value = value
         self._ctrl.blockSignals(True)
         self._ctrl.setText(value)
         self._ctrl.blockSignals(False)
 
     def _on_dialog_button(self):
+        """Handle the dialog button event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         dlg = LongStringDialog(self, self._value, self._dialog_title)
         dlg.adjustSize()
         dlg.move(

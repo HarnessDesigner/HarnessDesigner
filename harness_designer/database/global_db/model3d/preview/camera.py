@@ -20,9 +20,20 @@ ZERO_POINT = _point.ZERO_POINT
 
 
 class Camera:
+    """Represent a camera in :mod:`harness_designer.database.global_db.model3d.preview.camera`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     __doc__ = __doc__
 
     def __init__(self, canvas: "_Preview"):
+        """Initialise the :class:`Camera` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param canvas: Canvas instance.
+        :type canvas: _Preview
+        """
         self.canvas = canvas
 
         self._is_dirty = True
@@ -55,13 +66,31 @@ class Camera:
 
     @property
     def position(self):
+        """Return the position.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self._position
 
     @property
     def eye(self):
+        """Return the eye.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self._eye
 
     def Reset(self):
+        """Execute the reset operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         with self._position and self._eye:
             self._position.x = 0.0
             self._position.y = 0.0
@@ -74,12 +103,35 @@ class Camera:
         self._update_camera(None)
 
     def _update_camera(self, _=None):
+        """Update the camera.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        """
         from PySide6.QtCore import QTimer
         QTimer.singleShot(0, self.canvas.update)
 
     @property
     def orthonormalized_axes(self):  # NOQA
+        """Return the orthonormalized axes.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         def normalize(v):
+            """Execute the normalize operation.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param v: Value for ``v``.
+            :type v: UNKNOWN
+            :returns: Return value. UNKNOWN details.
+            :rtype: UNKNOWN
+            """
             v = np.array(v, dtype=float)
             n = np.linalg.norm(v)
             return v / (n if n != 0 else 1.0)
@@ -90,12 +142,20 @@ class Camera:
         return f, r, u
 
     def Set(self):
+        """Execute the set operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self._calculate_camera()
         camera = self._eye.as_float + self._position.as_float + tuple(self._up.tolist())
         GLU.gluLookAt(*camera)
         self._update_views()
 
     def _calculate_camera(self):
+        """Calculate the camera.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         eye = self._eye.as_numpy
         pos = self._position.as_numpy
 
@@ -144,6 +204,10 @@ class Camera:
         self._focal_distance = _line.Line(self._eye, self._position).length()
 
     def _update_views(self):
+        """Update the views.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         if not self._is_dirty:
             return
 
@@ -160,6 +224,15 @@ class Camera:
         self.canvas.doneCurrent()
 
     def Rotate(self, dx, dy):
+        """Execute the rotate operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param dx: Value for ``dx``.
+        :type dx: UNKNOWN
+        :param dy: Value for ``dy``.
+        :type dy: UNKNOWN
+        """
         self._is_dirty = True
         eye = self._rotate_about(dx, dy, self._eye, self._position)
         self._eye += eye - self._eye
@@ -167,6 +240,21 @@ class Camera:
     @staticmethod
     def _rotate_about(dx: int, dy: int,
                       p1: _point.Point, p2: _point.Point) -> np.ndarray:
+        """Execute the rotate about operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param dx: Value for ``dx``.
+        :type dx: int
+        :param dy: Value for ``dy``.
+        :type dy: int
+        :param p1: Value for ``p1``.
+        :type p1: :class:`_point.Point`
+        :param p2: Value for ``p2``.
+        :type p2: :class:`_point.Point`
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`np.ndarray`
+        """
 
         p1 = p1.as_numpy
         p2 = p2.as_numpy
@@ -182,6 +270,19 @@ class Camera:
         up = np.array([0.0, 1.0, 0.0], dtype=np.float64)
 
         def _rodrigues(v, k, angle_rad):
+            """Execute the rodrigues operation.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param v: Value for ``v``.
+            :type v: UNKNOWN
+            :param k: Value for ``k``.
+            :type k: UNKNOWN
+            :param angle_rad: Value for ``angle_rad``.
+            :type angle_rad: UNKNOWN
+            :returns: Return value. UNKNOWN details.
+            :rtype: UNKNOWN
+            """
             k = k / np.linalg.norm(k)
             cos_a = math.cos(angle_rad)
             sin_a = math.sin(angle_rad)  # NOQA
@@ -227,11 +328,29 @@ class Camera:
         return _point.Point(new_point[0], new_point[1], new_point[2])
 
     def PanTilt(self, dx, dy):
+        """Execute the pan tilt operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param dx: Value for ``dx``.
+        :type dx: UNKNOWN
+        :param dy: Value for ``dy``.
+        :type dy: UNKNOWN
+        """
         self._is_dirty = True
         position = self._rotate_about(dx, dy, self._position, self._eye)
         self._position += position - self._position
 
     def Zoom(self, delta, *_):
+        """Execute the zoom operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param delta: Value for ``delta``.
+        :type delta: UNKNOWN
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        """
         move = self._forward * float(delta)
 
         if delta > 0 and self._focal_distance <= 0.1:
@@ -243,6 +362,17 @@ class Camera:
         self._eye += move
 
     def Walk(self, dx, dy, speed):
+        """Execute the walk operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param dx: Value for ``dx``.
+        :type dx: UNKNOWN
+        :param dy: Value for ``dy``.
+        :type dy: UNKNOWN
+        :param speed: Value for ``speed``.
+        :type speed: UNKNOWN
+        """
         input_mag = math.sqrt((dx * dx) + (dy * dy))
 
         if input_mag == 0:
@@ -264,6 +394,17 @@ class Camera:
             self._position += move
 
     def TruckPedestal(self, dx, dy, speed):
+        """Execute the truck pedestal operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param dx: Value for ``dx``.
+        :type dx: UNKNOWN
+        :param dy: Value for ``dy``.
+        :type dy: UNKNOWN
+        :param speed: Value for ``speed``.
+        :type speed: UNKNOWN
+        """
         input_mag = math.sqrt((dx * dx) + (dy * dy))
 
         if input_mag == 0:

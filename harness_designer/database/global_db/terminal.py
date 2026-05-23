@@ -34,29 +34,61 @@ if TYPE_CHECKING:
 
 
 class TerminalsTable(TableBase):
+    """Represent a terminals table in :mod:`harness_designer.database.global_db.terminal`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     __table_name__: str = 'terminals'
 
     _control: "TerminalControl" = None
 
     @property
     def control(self) -> "TerminalControl":
+        """Return the control.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`TerminalControl`
+        """
         if self._control is None:
             self._control = TerminalControl(self.db.mainframe)
             self._control.hide()
         return self._control
 
     def _load_database(self, splash):
+        """Load the database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param splash: Value for ``splash``.
+        :type splash: UNKNOWN
+        """
         from ..create_database import terminals
 
         data_path = self._con.db_data.open(splash)
         terminals.add_records(self._con, splash, data_path)
 
     def _table_needs_update(self) -> bool:
+        """Execute the table needs update operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
         from ..create_database import terminals
 
         return terminals.table.is_ok(self)
 
     def _add_table_to_db(self, splash):
+        """Add a table to database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param splash: Value for ``splash``.
+        :type splash: UNKNOWN
+        """
         from ..create_database import terminals
 
         terminals.table.add_to_db(self)
@@ -65,15 +97,37 @@ class TerminalsTable(TableBase):
         terminals.add_records(self._con, splash, data_path)
 
     def _update_table_in_db(self):
+        """Update the table in database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         from ..create_database import terminals
 
         terminals.table.update_fields(self)
 
     def __iter__(self) -> _Iterable["Terminal"]:
+        """Iterate over the available items.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Iterator or iterable result. UNKNOWN details.
+        :rtype: _Iterable['Terminal']
+        """
         for db_id in TableBase.__iter__(self):
             yield Terminal(self, db_id)
 
     def __getitem__(self, item) -> "Terminal":
+        """Return the requested item.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param item: Item identifier or value.
+        :type item: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`Terminal`
+        :raises KeyError: Raised when the operation cannot be completed.
+        :raises IndexError: Raised when the operation cannot be completed.
+        """
         if isinstance(item, int):
             if item in self:
                 return Terminal(self, item)
@@ -86,6 +140,17 @@ class TerminalsTable(TableBase):
         raise KeyError(item)
 
     def get_compat(self, seal: str = None, housing: str = None):
+        """Return the compat.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param seal: Value for ``seal``.
+        :type seal: str
+        :param housing: Value for ``housing``.
+        :type housing: str
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
 
         res = []
 
@@ -118,6 +183,71 @@ class TerminalsTable(TableBase):
                wire_size_max_awg: int, wire_dia_min: float, wire_dia_max: float,
                min_wire_cross: float, max_wire_cross: float, plating_id: int,
                weight: float, length: float, width, _decimal, height: float) -> "Terminal":
+        """Execute the insert operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param part_number: Value for ``part_number``.
+        :type part_number: str
+        :param mfg_id: Identifier for the mfg.
+        :type mfg_id: int
+        :param description: Value for ``description``.
+        :type description: str
+        :param gender_id: Identifier for the gender.
+        :type gender_id: int
+        :param series_id: Identifier for the series.
+        :type series_id: int
+        :param family_id: Identifier for the family.
+        :type family_id: int
+        :param sealing: Value for ``sealing``.
+        :type sealing: bool
+        :param cavity_lock_id: Identifier for the cavity lock.
+        :type cavity_lock_id: int
+        :param image_id: Identifier for the image.
+        :type image_id: int
+        :param datasheet_id: Identifier for the datasheet.
+        :type datasheet_id: int
+        :param cad_id: Identifier for the cad.
+        :type cad_id: int
+        :param material_id: Identifier for the material.
+        :type material_id: int
+        :param blade_size: Value for ``blade_size``.
+        :type blade_size: float
+        :param resistance: Value for ``resistance``.
+        :type resistance: int
+        :param mating_cycles: Value for ``mating_cycles``.
+        :type mating_cycles: int
+        :param max_vibration_g: Value for ``max_vibration_g``.
+        :type max_vibration_g: int
+        :param max_current_ma: Value for ``max_current_ma``.
+        :type max_current_ma: int
+        :param wire_size_min_awg: Value for ``wire_size_min_awg``.
+        :type wire_size_min_awg: int
+        :param wire_size_max_awg: Value for ``wire_size_max_awg``.
+        :type wire_size_max_awg: int
+        :param wire_dia_min: Value for ``wire_dia_min``.
+        :type wire_dia_min: float
+        :param wire_dia_max: Value for ``wire_dia_max``.
+        :type wire_dia_max: float
+        :param min_wire_cross: Value for ``min_wire_cross``.
+        :type min_wire_cross: float
+        :param max_wire_cross: Value for ``max_wire_cross``.
+        :type max_wire_cross: float
+        :param plating_id: Identifier for the plating.
+        :type plating_id: int
+        :param weight: Value for ``weight``.
+        :type weight: float
+        :param length: Value for ``length``.
+        :type length: float
+        :param width: Value for ``width``.
+        :type width: UNKNOWN
+        :param _decimal: Value for ``decimal``.
+        :type _decimal: UNKNOWN
+        :param height: Value for ``height``.
+        :type height: float
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`Terminal`
+        """
 
         db_id = TableBase.insert(self, part_number=part_number, mfg_id=mfg_id, description=description,
                                  gender_id=gender_id, series_id=series_id, family_id=family_id, sealing=int(sealing),
@@ -135,6 +265,13 @@ class TerminalsTable(TableBase):
 
     @property
     def search_items(self) -> dict:
+        """Return the search items.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: dict
+        """
         ret = {
             0: {
                 'label': 'Part Number',
@@ -250,10 +387,21 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
                GenderMixin, SeriesMixin, FamilyMixin, ResourceMixin, TemperatureMixin,
                WeightMixin, CavityLockMixin, PlatingMixin, Model3DMixin, DimensionMixin,
                CompatHousingsMixin, CompatSealsMixin, ColorMixin, WireSizeMixin):
+    """Represent a terminal in :mod:`harness_designer.database.global_db.terminal`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     _table: TerminalsTable = None
 
     def build_monitor_packet(self):
+        """Build the monitor packet.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         mfg = self.manufacturer
 
         packet = {
@@ -275,6 +423,13 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @property
     def compat_seals(self) -> list["_seal.Seal"]:
+        """Return the compat seals.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: list['_seal.Seal']
+        """
         if not self.sealing:
             return []
 
@@ -301,78 +456,197 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @property
     def sealing(self) -> bool:
+        """Return the sealing.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: bool
+        """
         return bool(self._table.select('sealing', id=self._db_id)[0][0])
 
     @sealing.setter
     def sealing(self, value: bool):
+        """Set the sealing.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: bool
+        """
         self._table.update(self._db_id, size=int(value))
         self._populate('sealing')
 
     @property
     def blade_size(self) -> float:
+        """Return the blade size.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         return self._table.select('blade_size', id=self._db_id)[0][0]
 
     @blade_size.setter
     def blade_size(self, value: float):
+        """Set the blade size.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: float
+        """
         self._table.update(self._db_id, blade_size=value)
         self._populate('blade_size')
 
     @property
     def resistance(self) -> float:
+        """Return the resistance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         return self._table.select('resistance', id=self._db_id)[0][0]
 
     @resistance.setter
     def resistance(self, value: float):
+        """Set the resistance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: float
+        """
         self._table.update(self._db_id, resistance=value)
         self._populate('resistance')
 
     @property
     def mating_cycles(self) -> int:
+        """Return the mating cycles.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         return self._table.select('mating_cycles', id=self._db_id)[0][0]
 
     @mating_cycles.setter
     def mating_cycles(self, value: int):
+        """Set the mating cycles.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, mating_cycles=value)
         self._populate('mating_cycles')
 
     @property
     def max_vibration_g(self) -> int:
+        """Return the max vibration g.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         return self._table.select('max_vibration_g', id=self._db_id)[0][0]
 
     @max_vibration_g.setter
     def max_vibration_g(self, value: int):
+        """Set the max vibration g.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, max_vibration_g=value)
         self._populate('max_vibration_g')
 
     @property
     def max_current_ma(self) -> int:
+        """Return the max current ma.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         return self._table.select('max_current_ma', id=self._db_id)[0][0]
 
     @max_current_ma.setter
     def max_current_ma(self, value: int):
+        """Set the max current ma.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, max_current_ma=value)
         self._populate('max_current_ma')
 
     @property
     def round_terminal(self) -> bool:
+        """Return the round terminal.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: bool
+        """
         return bool(self._table.select('round_terminal', id=self._db_id)[0][0])
 
     @round_terminal.setter
     def round_terminal(self, value: bool):
+        """Set the round terminal.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: bool
+        """
         self._table.update(self._db_id, round_terminal=int(value))
         self._populate('round_terminal')
 
     @property
     def length(self) -> float:
+        """Return the length.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         return self._table.select('length', id=self._db_id)[0][0]
 
     @length.setter
     def length(self, value: float):
+        """Set the length.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: float
+        """
         self._table.update(self._db_id, length=round(value, 6))
         self._populate('length')
 
     @property
     def width(self) -> float:
+        """Return the width.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         if self.round_terminal:
             width, height = self._table.select('width', 'height', id=self._db_id)[0]
             if width != height:
@@ -385,6 +659,13 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @width.setter
     def width(self, value: float):
+        """Set the width.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: float
+        """
         if self.round_terminal:
             self._table.update(self._db_id, width=round(value, 6), height=round(value, 6))
         else:
@@ -393,6 +674,13 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @property
     def height(self) -> float:
+        """Return the height.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         if self.round_terminal:
             width, height = self._table.select('width', 'height', id=self._db_id)[0]
             if width != height:
@@ -406,6 +694,13 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @height.setter
     def height(self, value: float):
+        """Set the height.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: float
+        """
         if self.round_terminal:
             self._table.update(self._db_id, width=round(value, 6), height=round(value, 6))
         else:
@@ -415,6 +710,13 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _scale_id: str = None
 
     def _update_scale(self, scale: _point.Point):
+        """Update the scale.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param scale: Value for ``scale``.
+        :type scale: :class:`_point.Point`
+        """
         width, height, length = scale.as_float
 
         if self.round_terminal and width != height:
@@ -424,6 +726,13 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @property
     def scale(self) -> "_point.Point":
+        """Return the scale.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_point.Point`
+        """
         if self._scale_id is None:
             self._scale_id = str(uuid.uuid4())
 
@@ -467,8 +776,19 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
 
 class TerminalControl(QTabWidget):
+    """Represent a terminal control in :mod:`harness_designer.database.global_db.terminal`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def set_obj(self, db_obj: Terminal):
+        """Set the obj.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`Terminal`
+        """
         self.db_obj = db_obj
 
         self.mfg_page.set_obj(db_obj)
@@ -518,30 +838,79 @@ class TerminalControl(QTabWidget):
             self.max_current_ma_ctrl.Enable(True)
 
     def _on_sealing(self, evt):
+        """Handle the sealing event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         value = evt.GetValue()
         self.db_obj.sealing = value
 
     def _on_blade_size(self, evt):
+        """Handle the blade size event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         value = evt.GetValue()
         self.db_obj.blade_size = value
 
     def _on_resistance(self, evt):
+        """Handle the resistance event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         value = evt.GetValue()
         self.db_obj.resistance = value
 
     def _on_mating_cycles(self, evt):
+        """Handle the mating cycles event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         value = evt.GetValue()
         self.db_obj.mating_cycles = value
 
     def _on_vibration(self, evt):
+        """Handle the vibration event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         value = evt.GetValue()
         self.db_obj.max_vibration_g = value
 
     def _on_current(self, evt):
+        """Handle the current event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         value = evt.GetValue()
         self.db_obj.max_current_ma = value
 
     def __init__(self, parent):
+        """Initialise the :class:`TerminalControl` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        """
         self.db_obj: Terminal = None
 
         QTabWidget.__init__(self, parent)

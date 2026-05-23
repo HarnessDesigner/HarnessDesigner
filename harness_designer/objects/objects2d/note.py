@@ -16,10 +16,23 @@ if TYPE_CHECKING:
 
 
 class Note(_base2d.Base2D):
+    """Represent a note in :mod:`harness_designer.objects.objects2d.note`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     _parent: "_note.Note" = None
     db_obj: "_pjt_note.PJTNote"
 
     def __init__(self, parent: "_note.Note", db_obj: "_pjt_note.PJTNote"):
+        """Initialise the :class:`Note` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`_note.Note`
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_pjt_note.PJTNote`
+        """
         _base2d.Base2D.__init__(self, parent, db_obj)
 
         self._position = db_obj.point3d.point
@@ -33,8 +46,21 @@ class Note(_base2d.Base2D):
 
 
 class NoteMenu(QMenu):
+    """Represent a note menu in :mod:`harness_designer.objects.objects2d.note`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, canvas, selected):
+        """Initialise the :class:`NoteMenu` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param canvas: Canvas instance.
+        :type canvas: UNKNOWN
+        :param selected: Value for ``selected``.
+        :type selected: UNKNOWN
+        """
         QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
@@ -62,13 +88,29 @@ class NoteMenu(QMenu):
         action.triggered.connect(self.on_properties)
 
     def on_set_text(self):
+        """Handle the set text event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_clone(self):
+        """Handle the clone event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_delete(self):
+        """Handle the delete event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_properties(self):
+        """Handle the properties event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass

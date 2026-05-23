@@ -21,29 +21,66 @@ if TYPE_CHECKING:
 
 
 class PJTCircuitsTable(PJTTableBase):
+    """Represent a PJT circuits table in :mod:`harness_designer.database.project_db.pjt_circuit`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     __table_name__ = 'pjt_circuits'
 
     def _table_needs_update(self) -> bool:
+        """Execute the table needs update operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
         from ..create_database import circuits
 
         return circuits.pjt_table.is_ok(self)
 
     def _add_table_to_db(self):
+        """Add a table to database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         from ..create_database import circuits
 
         circuits.pjt_table.add_to_db(self)
 
     def _update_table_in_db(self):
+        """Update the table in database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         from ..create_database import circuits
 
         circuits.pjt_table.update_fields(self)
 
     def __iter__(self) -> _Iterable["PJTCircuit"]:
+        """Iterate over the available items.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Iterator or iterable result. UNKNOWN details.
+        :rtype: _Iterable['PJTCircuit']
+        """
 
         for db_id in PJTTableBase.__iter__(self):
             yield PJTCircuit(self, db_id, self.project_id)
 
     def __getitem__(self, item) -> "PJTCircuit":
+        """Return the requested item.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param item: Item identifier or value.
+        :type item: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`PJTCircuit`
+        :raises KeyError: Raised when the operation cannot be completed.
+        :raises IndexError: Raised when the operation cannot be completed.
+        """
         if isinstance(item, int):
             if item in self:
                 return PJTCircuit(self, item, self.project_id)
@@ -52,14 +89,34 @@ class PJTCircuitsTable(PJTTableBase):
         raise KeyError(item)
 
     def insert(self, circuit_num: int) -> "PJTCircuit":
+        """Execute the insert operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param circuit_num: Value for ``circuit_num``.
+        :type circuit_num: int
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`PJTCircuit`
+        """
         db_id = PJTTableBase.insert(self, circuit_num=circuit_num)
 
         return PJTCircuit(self, db_id, self.project_id)
 
 
 class _Set:
+    """Represent a set in :mod:`harness_designer.database.project_db.pjt_circuit`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, args: list):
+        """Initialise the :class:`_Set` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param args: Additional positional arguments.
+        :type args: list
+        """
         for arg in args:
             count = args.count(arg)
             while count > 1:
@@ -70,6 +127,15 @@ class _Set:
         self.items = args
 
     def intersection(self, args: list):
+        """Execute the intersection operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param args: Additional positional arguments.
+        :type args: list
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         new_args = []
 
         for arg in args:
@@ -79,10 +145,35 @@ class _Set:
         return _Set(new_args)
 
     def __iter__(self):
+        """Iterate over the available items.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Iterator or iterable result. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return iter(self.items)
 
     def __str__(self):
+        """Return the string representation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         def _iter(ls, indent=''):
+            """Execute the iter operation.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param ls: Value for ``ls``.
+            :type ls: UNKNOWN
+            :param indent: Value for ``indent``.
+            :type indent: UNKNOWN
+            :returns: Return value. UNKNOWN details.
+            :rtype: UNKNOWN
+            """
             line = []
 
             for item in ls:
@@ -97,9 +188,20 @@ class _Set:
 
 
 class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
+    """Represent a PJT circuit in :mod:`harness_designer.database.project_db.pjt_circuit`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     _table: PJTCircuitsTable = None
 
     def build_monitor_packet(self):
+        """Build the monitor packet.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
 
         packet = {
             'pjt_circuits': [self.db_id],
@@ -108,15 +210,36 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return packet
 
     def get_object(self) -> "_circuit_obj.Circuit":
+        """Return the object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`_circuit_obj.Circuit`
+        """
         if self._obj is not None:
             return self._obj()
 
         return self._obj
 
     def __release_obj_ref(self, _):
+        """Release the obj ref.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        """
         self._obj = None
 
     def set_object(self, obj: "_circuit_obj.Circuit"):
+        """Set the object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_circuit_obj.Circuit`
+        """
         if obj is not None:
             self._obj = weakref.ref(obj, self.__release_obj_ref)
         else:
@@ -124,6 +247,13 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
 
     @property
     def volts(self) -> float:
+        """Return the volts.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         terminal = self.start_terminal
         if terminal is None:
             return 0.0
@@ -132,6 +262,13 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
 
     @property
     def resistance(self) -> float:
+        """Return the resistance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         resistance = _d(0)
 
         for terminal in self.terminals:
@@ -150,12 +287,26 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
 
     @property
     def start_terminal(self) -> "_pjt_terminal.PJTTerminal":
+        """Return the start terminal.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_pjt_terminal.PJTTerminal`
+        """
         db_ids = self._table.db.pjt_terminals_table.select('db_id', is_start=1, circuit_id=self.db_id)
         if db_ids:
             return self._table.db.pjt_terminals_table[db_ids[0][0]]
 
     @property
     def voltage_drop(self) -> float:
+        """Return the voltage drop.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         drop = 0.0
 
         for terminal in self.load_terminals:
@@ -165,6 +316,13 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
 
     @property
     def load_terminals(self) -> list["_pjt_terminal.PJTTerminal"]:
+        """Return the load terminals.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: list['_pjt_terminal.PJTTerminal']
+        """
         res = []
         db_ids = self._table.db.pjt_terminals_table.select('db_id', is_start=0, circuit_id=self.db_id)
         for db_id in db_ids:
@@ -174,8 +332,28 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
 
     @property
     def circuit_map(self):
+        """Return the circuit map.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        :raises RuntimeError: Raised when the operation cannot be completed.
+        """
 
         def iter_objs(obj, point: "_point.Point"):
+            """Iterate over the objs.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param obj: Object instance to operate on.
+            :type obj: UNKNOWN
+            :param point: Point value.
+            :type point: :class:`_point.Point`
+            :returns: Iterator or iterable result. UNKNOWN details.
+            :rtype: UNKNOWN
+            :raises RuntimeError: Raised when the operation cannot be completed.
+            """
             res = []
 
             if isinstance(obj, _pjt_terminal.PJTTerminal):
@@ -330,10 +508,29 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
     def get_circuit_end_terminals(
         self, target: _Union["_pjt_terminal.PJTTerminal", "_pjt_wire.PJTWire", "_pjt_splice.PJTSplice",
                              "_pjt_wire_service_loop.PJTWireServiceLoop"]) -> list["_pjt_terminal.PJTTerminal"]:
+        """Return the circuit end terminals.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param target: Value for ``target``.
+        :type target: _Union['_pjt_terminal.PJTTerminal', '_pjt_wire.PJTWire', '_pjt_splice.PJTSplice', '_pjt_wire_service_loop.PJTWireServiceLoop']
+        :returns: Return value. UNKNOWN details.
+        :rtype: list['_pjt_terminal.PJTTerminal']
+        :raises RuntimeError: Raised when the operation cannot be completed.
+        """
 
         circuit_map = self.circuit_map
 
         def _iter_list(f_list):
+            """Iterate over the list.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param f_list: Value for ``f_list``.
+            :type f_list: UNKNOWN
+            :returns: Iterator or iterable result. UNKNOWN details.
+            :rtype: UNKNOWN
+            """
             terms = []
 
             for item in f_list:
@@ -345,6 +542,17 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
             return terms
 
         def _iter_map(objs, obj_found=False):
+            """Iterate over the map.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param objs: Value for ``objs``.
+            :type objs: UNKNOWN
+            :param obj_found: Value for ``obj_found``.
+            :type obj_found: UNKNOWN
+            :returns: Iterator or iterable result. UNKNOWN details.
+            :rtype: UNKNOWN
+            """
             res = []
 
             for obj in objs:
@@ -372,10 +580,29 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
 
     def get_circuit(self, target: _Union["_pjt_terminal.PJTTerminal", "_pjt_wire.PJTWire", "_pjt_splice.PJTSplice",
                                          "_pjt_wire_service_loop.PJTWireServiceLoop"]) -> list:
+        """Return the circuit.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param target: Value for ``target``.
+        :type target: _Union['_pjt_terminal.PJTTerminal', '_pjt_wire.PJTWire', '_pjt_splice.PJTSplice', '_pjt_wire_service_loop.PJTWireServiceLoop']
+        :returns: Return value. UNKNOWN details.
+        :rtype: list
+        :raises RuntimeError: Raised when the operation cannot be completed.
+        """
 
         circuit_map = self.circuit_map
 
         def _iter_map(objs):
+            """Iterate over the map.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param objs: Value for ``objs``.
+            :type objs: UNKNOWN
+            :returns: Iterator or iterable result. UNKNOWN details.
+            :rtype: UNKNOWN
+            """
             res = []
 
             for obj in objs:
@@ -398,28 +625,70 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
 
     @property
     def table(self) -> PJTCircuitsTable:
+        """Return the table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`PJTCircuitsTable`
+        """
         return self._table
 
     @property
     def circuit_num(self) -> int:
+        """Return the circuit num.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         return self._table.select('circuit_num', id=self._db_id)[0][0]
 
     @circuit_num.setter
     def circuit_num(self, value: int):
+        """Set the circuit num.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, circuit_num=value)
         self._populate('circuit_num')
 
     @property
     def description(self) -> str:
+        """Return the description.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: str
+        """
         return self._table.select('description', id=self._db_id)[0][0]
 
     @description.setter
     def description(self, value: str):
+        """Set the description.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: str
+        """
         self._table.update(self._db_id, description=value)
         self._populate('description')
 
     @property
     def total_circuit_load(self) -> float:
+        """Return the total circuit load.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         resistance = sum([wire.resistance for wire in self.wires])
         resistance += sum([splice.resistance for splice in self.splices])
         resistance += sum([loop.resistance for loop in self.wire_service_loops])
@@ -432,56 +701,140 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
 
     @property
     def total_circuit_weight_g(self) -> float:
+        """Return the total circuit weight g.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         return self.terminal_weight_g + self.wire_weight_g + self.splice_weight_g
 
     @property
     def total_circuit_weight_lb(self) -> float:
+        """Return the total circuit weight lb.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         return self.terminal_weight_lb + self.wire_weight_lb + self.splice_weight_lb
 
     @property
     def wire_length_mm(self) -> float:
+        """Return the wire length mm.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         wire_length = sum([wire.length_mm for wire in self.wires])
         wire_length += sum([loop.length_mm for loop in self.wire_service_loops])
         return wire_length
 
     @property
     def wire_length_m(self) -> float:
+        """Return the wire length m.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         return self.wire_length_mm / 1000.0
 
     @property
     def wire_length_ft(self) -> float:
+        """Return the wire length ft.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         return self.wire_length_m * 3.28084
 
     @property
     def wire_weight_g(self) -> float:
+        """Return the wire weight g.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         wire_weight = sum([wire.weight_g for wire in self.wires])
         wire_weight += sum([loop.weight_g for loop in self.wire_service_loops])
         return wire_weight
 
     @property
     def wire_weight_lb(self) -> float:
+        """Return the wire weight lb.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         return sum([wire.weight_lb for wire in self.wires])
 
     @property
     def terminal_weight_g(self) -> float:
+        """Return the terminal weight g.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         return sum([terminal.part.weight for terminal in self.terminals])
 
     @property
     def terminal_weight_lb(self) -> float:
+        """Return the terminal weight lb.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         weight_g = self.terminal_weight_g
         return weight_g * 0.00220462
 
     @property
     def splice_weight_g(self) -> float:
+        """Return the splice weight g.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         return sum([splice.part.weight for splice in self.splices])
 
     @property
     def splice_weight_lb(self) -> float:
+        """Return the splice weight lb.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         weight_g = self.splice_weight_g
         return weight_g * 0.00220462
 
     @property
     def wires(self) -> list["_pjt_wire.PJTWire"]:
+        """Return the wires.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: list['_pjt_wire.PJTWire']
+        """
         res = []
         for wire_id in self._table.db.pjt_wires_table.select('id', circuit_id=self._db_id):
             res.append(self._table.db.pjt_wires_table[wire_id[0]])
@@ -490,6 +843,13 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
 
     @property
     def wire_service_loops(self) -> list["_pjt_wire_service_loop.PJTWireServiceLoop"]:
+        """Return the wire service loops.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: list['_pjt_wire_service_loop.PJTWireServiceLoop']
+        """
         res = []
         for wire_id in self._table.db.pjt_wire_service_loops_table.select('id', circuit_id=self._db_id):
             res.append(self._table.db.pjt_wire_service_loops_table[wire_id[0]])
@@ -498,6 +858,13 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
 
     @property
     def splices(self) -> list["_pjt_splice.PJTSplice"]:
+        """Return the splices.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: list['_pjt_splice.PJTSplice']
+        """
         res = []
         for wire_id in self._table.db.pjt_splices_table.select('id', circuit_id=self._db_id):
             res.append(self._table.db.pjt_splices_table[wire_id[0]])
@@ -506,6 +873,13 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
 
     @property
     def terminals(self) -> list["_pjt_terminal.PJTTerminal"]:
+        """Return the terminals.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: list['_pjt_terminal.PJTTerminal']
+        """
         res = []
         for wire_id in self._table.db.pjt_terminals_table.select('id', circuit_id=self._db_id):
             res.append(self._table.db.pjt_terminals_table[wire_id[0]])
@@ -514,6 +888,13 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
 
     @property
     def housings(self) -> list["_pjt_housing.PJTHousing"]:
+        """Return the housings.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: list['_pjt_housing.PJTHousing']
+        """
         res = []
         for wire_id in self._table.db.pjt_housings_table.select('id', circuit_id=self._db_id):
             res.append(self._table.db.pjt_housings_table[wire_id[0]])
@@ -522,8 +903,19 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
 
 
 class PJTCircuitControl(QTabWidget):
+    """Represent a PJT circuit control in :mod:`harness_designer.database.project_db.pjt_circuit`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def _on_circuit_num(self, evt):
+        """Handle the circuit num event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         num = evt.GetValue()
 
         try:
@@ -565,10 +957,24 @@ class PJTCircuitControl(QTabWidget):
         self._parent.set_circuit(db_id)
 
     def _on_description(self, evt):
+        """Handle the description event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         value = evt.GetValue()
         self.db_obj.description = value
 
     def _on_name(self, evt):
+        """Handle the name event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         name = evt.GetValue()
 
         self.db_obj.table.execute(f'SELECT id FROM pjt_circuits WHERE name="{name}" AND project_id={self.db_obj.project_id};')
@@ -607,6 +1013,13 @@ class PJTCircuitControl(QTabWidget):
         self._parent.set_circuit(db_id)
 
     def set_obj(self, db_obj: PJTCircuit):
+        """Set the obj.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`PJTCircuit`
+        """
         self.db_obj = db_obj
 
         self.notes_ctrl.set_obj(db_obj)
@@ -658,6 +1071,13 @@ class PJTCircuitControl(QTabWidget):
             self.splice_weight_lb_ctrl.SetValue(str(db_obj.splice_weight_lb))
 
     def __init__(self, parent):
+        """Initialise the :class:`PJTCircuitControl` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        """
         self._parent = parent
         self.db_obj: PJTCircuit = None
         self.name_choices: list[str] = []

@@ -36,8 +36,19 @@ if TYPE_CHECKING:
 
 
 class ObjectBrowser:
+    """Represent an object browser in :mod:`harness_designer.ui.object_browser.objectbrowser`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, mainframe: "_mainframe.MainFrame"):
+        """Initialise the :class:`ObjectBrowser` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mainframe: Main application frame.
+        :type mainframe: :class:`_mainframe.MainFrame`
+        """
         self.editor = ObjectBrowserPanel(mainframe)
         self.mainframe = mainframe
 
@@ -51,75 +62,236 @@ class ObjectBrowser:
         self._dock.show()
 
     def add_boot(self, obj: _boot.Boot):
+        """Add a boot.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_boot.Boot`
+        """
         self.editor.add_boot(obj)
 
     def add_bundle(self, obj: _bundle.Bundle):
+        """Add a bundle.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_bundle.Bundle`
+        """
         self.editor.add_bundle(obj)
 
     def add_cavity(self, obj: _cavity.Cavity):
+        """Add a cavity.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_cavity.Cavity`
+        """
         self.editor.add_cavity(obj)
 
     def add_circuit(self, obj: _circuit.Circuit):
+        """Add a circuit.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_circuit.Circuit`
+        """
         self.editor.add_circuit(obj)
 
     def add_cover(self, obj: _cover.Cover):
+        """Add a cover.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_cover.Cover`
+        """
         self.editor.add_cover(obj)
 
     def add_cpa_lock(self, obj: _cpa_lock.CPALock):
+        """Add a CPA lock.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_cpa_lock.CPALock`
+        """
         self.editor.add_cpa_lock(obj)
 
     def add_housing(self, obj: _housing.Housing):
+        """Add a housing.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_housing.Housing`
+        """
         self.editor.add_housing(obj)
 
     def add_note(self, obj: _note.Note):
+        """Add a note.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_note.Note`
+        """
         self.editor.add_note(obj)
 
     def add_seal(self, obj: _seal.Seal):
+        """Add a seal.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_seal.Seal`
+        """
         self.editor.add_seal(obj)
 
     def add_splice(self, obj: _splice.Splice):
+        """Add a splice.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_splice.Splice`
+        """
         self.editor.add_splice(obj)
 
     def add_terminal(self, obj: _terminal.Terminal):
+        """Add a terminal.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_terminal.Terminal`
+        """
         self.editor.add_terminal(obj)
 
     def add_tpa_lock(self, obj: _tpa_lock.TPALock):
+        """Add a TPA lock.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_tpa_lock.TPALock`
+        """
         self.editor.add_tpa_lock(obj)
 
     def add_transition(self, obj: _transition.Transition):
+        """Add a transition.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_transition.Transition`
+        """
         self.editor.add_transition(obj)
 
     def add_wire(self, obj: _wire.Wire):
+        """Add a wire.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_wire.Wire`
+        """
         self.editor.add_wire(obj)
 
     def add_wire_marker(self, obj: _wire_marker.WireMarker):
+        """Add a wire marker.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_wire_marker.WireMarker`
+        """
         self.editor.add_wire_marker(obj)
 
     def add_wire_service_loop(self, obj: _wire_service_loop.WireServiceLoop):
+        """Add a wire service loop.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_wire_service_loop.WireServiceLoop`
+        """
         self.editor.add_wire_service_loop(obj)
 
     def reset(self):
+        """Execute the reset operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.editor.reset()
 
     def set_selected(self, obj):
+        """Set the selected.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
         self.editor.set_selected(obj)
 
     def add_object(self, obj):
+        """Add an object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
         self.editor.add_object(obj)
 
     def remove_object(self, obj):
+        """Remove the object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
         self.editor.remove_object(obj)
 
     def Refresh(self, *args, **kwargs):
+        """Execute the refresh operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param args: Additional positional arguments.
+        :type args: UNKNOWN
+        :param kwargs: Additional keyword arguments.
+        :type kwargs: UNKNOWN
+        """
         self.editor.update()
 
     def Destroy(self):
+        """Execute the destroy operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.editor.deleteLater()
 
 
 class ObjectBrowserPanel(QWidget):
+    """Represent an object browser panel in :mod:`harness_designer.ui.object_browser.objectbrowser`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent: "_mainframe.MainFrame"):
+        """Initialise the :class:`ObjectBrowserPanel` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`_mainframe.MainFrame`
+        """
         QWidget.__init__(self, parent)
         self.mainframe = parent
 
@@ -157,6 +329,19 @@ class ObjectBrowserPanel(QWidget):
 
     def _append_item(self, parent: QTreeWidgetItem, label: str,
                      has_children: bool = False) -> QTreeWidgetItem:
+        """Execute the append item operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`QTreeWidgetItem`
+        :param label: Value for ``label``.
+        :type label: str
+        :param has_children: Boolean flag for whether children is available.
+        :type has_children: bool
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`QTreeWidgetItem`
+        """
         item = QTreeWidgetItem(parent, [label])
         if has_children:
             item.setChildIndicatorPolicy(
@@ -164,6 +349,10 @@ class ObjectBrowserPanel(QWidget):
         return item
 
     def reset(self):
+        """Execute the reset operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self._treectrl.clear()
         self._root = QTreeWidgetItem(self._treectrl, ['root'])
         self._treectrl.addTopLevelItem(self._root)
@@ -187,7 +376,23 @@ class ObjectBrowserPanel(QWidget):
         self._weakrefs = []
 
     def __remove_refs(self, ref):
+        """Remove the refs.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param ref: Value for ``ref``.
+        :type ref: UNKNOWN
+        """
         def iter_tree(parent: QTreeWidgetItem):
+            """Iterate over the tree.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param parent: Parent object.
+            :type parent: :class:`QTreeWidgetItem`
+            :returns: Iterator or iterable result. UNKNOWN details.
+            :rtype: UNKNOWN
+            """
             for i in range(parent.childCount() - 1, -1, -1):
                 child = parent.child(i)
                 d_ref = child.data(0, Qt.ItemDataRole.UserRole)
@@ -208,9 +413,25 @@ class ObjectBrowserPanel(QWidget):
             pass
 
     def _set_data(self, item: QTreeWidgetItem, ref):
+        """Set the data.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param item: Item identifier or value.
+        :type item: :class:`QTreeWidgetItem`
+        :param ref: Value for ``ref``.
+        :type ref: UNKNOWN
+        """
         item.setData(0, Qt.ItemDataRole.UserRole, ref)
 
     def add_boot(self, obj: _boot.Boot):
+        """Add a boot.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_boot.Boot`
+        """
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
@@ -226,6 +447,13 @@ class ObjectBrowserPanel(QWidget):
         obj.set_treeitem(treeitem)
 
     def add_bundle(self, obj: _bundle.Bundle):
+        """Add a bundle.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_bundle.Bundle`
+        """
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
@@ -241,6 +469,13 @@ class ObjectBrowserPanel(QWidget):
         obj.set_treeitem(treeitem)
 
     def add_cavity(self, obj: _cavity.Cavity):
+        """Add a cavity.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_cavity.Cavity`
+        """
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
@@ -270,6 +505,13 @@ class ObjectBrowserPanel(QWidget):
         obj.set_treeitem(treeitem)
 
     def add_circuit(self, obj: _circuit.Circuit):
+        """Add a circuit.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_circuit.Circuit`
+        """
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
@@ -307,6 +549,13 @@ class ObjectBrowserPanel(QWidget):
         obj.set_treeitem(treeitem)
 
     def add_cover(self, obj: _cover.Cover):
+        """Add a cover.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_cover.Cover`
+        """
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
@@ -322,6 +571,13 @@ class ObjectBrowserPanel(QWidget):
         obj.set_treeitem(treeitem)
 
     def add_cpa_lock(self, obj: _cpa_lock.CPALock):
+        """Add a CPA lock.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_cpa_lock.CPALock`
+        """
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
@@ -337,6 +593,13 @@ class ObjectBrowserPanel(QWidget):
         obj.set_treeitem(treeitem)
 
     def add_housing(self, obj: _housing.Housing):
+        """Add a housing.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_housing.Housing`
+        """
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
@@ -384,6 +647,13 @@ class ObjectBrowserPanel(QWidget):
         obj.set_treeitem(treeitem)
 
     def add_note(self, obj: _note.Note):
+        """Add a note.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_note.Note`
+        """
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
@@ -393,6 +663,13 @@ class ObjectBrowserPanel(QWidget):
         obj.set_treeitem(treeitem)
 
     def add_seal(self, obj: _seal.Seal):
+        """Add a seal.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_seal.Seal`
+        """
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
@@ -422,6 +699,13 @@ class ObjectBrowserPanel(QWidget):
         obj.set_treeitem(treeitem)
 
     def add_splice(self, obj: _splice.Splice):
+        """Add a splice.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_splice.Splice`
+        """
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
@@ -437,6 +721,13 @@ class ObjectBrowserPanel(QWidget):
         obj.set_treeitem(treeitem)
 
     def add_terminal(self, obj: _terminal.Terminal):
+        """Add a terminal.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_terminal.Terminal`
+        """
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
@@ -466,6 +757,13 @@ class ObjectBrowserPanel(QWidget):
         obj.set_treeitem(treeitem)
 
     def add_tpa_lock(self, obj: _tpa_lock.TPALock):
+        """Add a TPA lock.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_tpa_lock.TPALock`
+        """
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
@@ -481,6 +779,13 @@ class ObjectBrowserPanel(QWidget):
         obj.set_treeitem(treeitem)
 
     def add_transition(self, obj: _transition.Transition):
+        """Add a transition.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_transition.Transition`
+        """
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
@@ -512,6 +817,13 @@ class ObjectBrowserPanel(QWidget):
         obj.set_treeitem(treeitem)
 
     def add_wire(self, obj: _wire.Wire):
+        """Add a wire.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_wire.Wire`
+        """
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
@@ -545,6 +857,13 @@ class ObjectBrowserPanel(QWidget):
         obj.set_treeitem(treeitem)
 
     def add_wire_marker(self, obj: _wire_marker.WireMarker):
+        """Add a wire marker.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_wire_marker.WireMarker`
+        """
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
@@ -558,6 +877,13 @@ class ObjectBrowserPanel(QWidget):
         self._set_data(child, ref2)
 
     def add_wire_service_loop(self, obj: _wire_service_loop.WireServiceLoop):
+        """Add a wire service loop.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_wire_service_loop.WireServiceLoop`
+        """
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
@@ -586,15 +912,36 @@ class ObjectBrowserPanel(QWidget):
             self._set_data(child, ref2)
 
     def set_selected(self, obj):
+        """Set the selected.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
         if obj is not None:
             treeitem = obj.get_treeitem()
             if treeitem is not None:
                 self._treectrl.scrollToItem(treeitem)
 
     def add_object(self, obj):
+        """Add an object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
         self._objects.append(obj)
 
     def remove_object(self, obj):
+        """Remove the object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
         try:
             self._objects.remove(obj)
         except ValueError:

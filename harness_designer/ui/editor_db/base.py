@@ -46,27 +46,56 @@ def _inject_where_placeholder(query: str) -> str:
 
 
 class EditorDBConfig(metaclass=_config.ConfigDB):
+    """Represent an editor database config in :mod:`harness_designer.ui.editor_db.base`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     pass
 
 
 class ScrollTracker:
+    """Represent a scroll tracker in :mod:`harness_designer.ui.editor_db.base`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     min_buffer = 10
     max_buffer = 500
 
     def __init__(self):
+        """Initialise the :class:`ScrollTracker` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.last_row = 0
         self.last_time = time.monotonic_ns()
         self._start_query = time.monotonic_ns()
         self._query_elapsed = 0
 
     def start_query(self):
+        """Start the query.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self._start_query = time.monotonic_ns()
 
     def stop_query(self):
+        """Stop the query.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         now = time.monotonic_ns()
         self._query_elapsed += (now - self._start_query) * 1e-9
 
     def get_buffer_size(self, current_row):
+        """Return the buffer size.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param current_row: Value for ``current_row``.
+        :type current_row: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         now = time.monotonic_ns()
         elapsed = (now - self.last_time) * 1e-9
         elapsed -= self._query_elapsed
@@ -94,16 +123,41 @@ class _EditorModel(QAbstractTableModel):
     """
 
     def __init__(self, editor_list):
+        """Initialise the :class:`_EditorModel` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param editor_list: Value for ``editor_list``.
+        :type editor_list: UNKNOWN
+        """
         super().__init__()
         self._list = editor_list
 
     def rowCount(self, parent=QModelIndex()):
+        """Execute the row count operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         if parent.isValid():
             return 0
 
         return self._list._row_count  # NOQA
 
     def columnCount(self, parent=QModelIndex()):
+        """Execute the column count operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         if parent.isValid():
             return 0
 
@@ -111,6 +165,19 @@ class _EditorModel(QAbstractTableModel):
         return len(self._list.column_mapping) + 1
 
     def headerData(self, section, orientation, role=Qt.ItemDataRole.DisplayRole):
+        """Execute the header data operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param section: Value for ``section``.
+        :type section: UNKNOWN
+        :param orientation: Value for ``orientation``.
+        :type orientation: UNKNOWN
+        :param role: Value for ``role``.
+        :type role: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         if (
             orientation != Qt.Orientation.Horizontal or
             role != Qt.ItemDataRole.DisplayRole
@@ -143,6 +210,17 @@ class _EditorModel(QAbstractTableModel):
         return label
 
     def data(self, index, role=Qt.ItemDataRole.DisplayRole):
+        """Execute the data operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param index: Index value.
+        :type index: UNKNOWN
+        :param role: Value for ``role``.
+        :type role: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         if not index.isValid():
             return
 
@@ -168,15 +246,30 @@ class _EditorModel(QAbstractTableModel):
             return Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
 
     def invalidate_row(self, row_id):
+        """Execute the invalidate row operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param row_id: Identifier for the row.
+        :type row_id: UNKNOWN
+        """
         self.dataChanged.emit(self.index(row_id, 0),
                               self.index(row_id, self.columnCount() - 1))
 
     def reset_all(self):
+        """Execute the reset all operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.beginResetModel()
         self.endResetModel()
 
 
 class EditorList(QTableView):
+    """Represent an editor list in :mod:`harness_designer.ui.editor_db.base`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     _has_image = True
     _has_model_3d = True
     __table_name__ = ''
@@ -191,9 +284,23 @@ class EditorList(QTableView):
     # ------------------------------------------------------------------
 
     def GetLabel(self):
+        """Execute the get label operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self._label
 
     def GetSelection(self):
+        """Execute the get selection operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         indexes = self.selectedIndexes()
         if not indexes:
             return None
@@ -218,6 +325,13 @@ class EditorList(QTableView):
 
     @property
     def record_count(self):
+        """Return the record count.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         sql = f'SELECT COUNT(*) FROM {self.table_name} AS t'
         if self._where_clause:
             sql += f' WHERE {self._where_clause}'
@@ -310,6 +424,15 @@ class EditorList(QTableView):
     # ------------------------------------------------------------------
 
     def get_obj_id(self, row):
+        """Return the obj ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param row: Value for ``row``.
+        :type row: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         if self._where_clause:
             where_sql = f'WHERE {self._where_clause}'
         else:
@@ -331,6 +454,15 @@ class EditorList(QTableView):
             return rows[0][1]
 
     def get_row(self, row):
+        """Return the row.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param row: Value for ``row``.
+        :type row: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         if row not in self.rows:
             self.buffer_size = self.scroll_tracker.get_buffer_size(row)
             start_row = max(0, row - self.buffer_size // 2)
@@ -342,6 +474,15 @@ class EditorList(QTableView):
         return self.rows.get(row, None)
 
     def get_rows(self, start, stop):
+        """Return the rows.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param start: Value for ``start``.
+        :type start: UNKNOWN
+        :param stop: Value for ``stop``.
+        :type stop: UNKNOWN
+        """
         self.scroll_tracker.start_query()
 
         if self._where_clause:
@@ -366,6 +507,15 @@ class EditorList(QTableView):
         self.scroll_tracker.stop_query()
 
     def prune_cache(self, current_row, buffer_size):
+        """Execute the prune cache operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param current_row: Value for ``current_row``.
+        :type current_row: UNKNOWN
+        :param buffer_size: Value for ``buffer_size``.
+        :type buffer_size: UNKNOWN
+        """
         keep_range = buffer_size * 2
         min_row = current_row - keep_range
         max_row = current_row + keep_range
@@ -378,6 +528,17 @@ class EditorList(QTableView):
     # ------------------------------------------------------------------
 
     def _get_cell_text(self, row_id, col_id):
+        """Return the cell text.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param row_id: Identifier for the row.
+        :type row_id: UNKNOWN
+        :param col_id: Identifier for the col.
+        :type col_id: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         if row_id < 0:
             return ''
 
@@ -397,6 +558,15 @@ class EditorList(QTableView):
         return str(row[col_id])
 
     def _get_icon(self, row_id):
+        """Return the icon.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param row_id: Identifier for the row.
+        :type row_id: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         if row_id < 0:
             return None
 
@@ -444,9 +614,20 @@ class EditorList(QTableView):
     # ------------------------------------------------------------------
 
     def resizeEvent(self, event):
+        """Execute the resize event operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param event: Event object.
+        :type event: UNKNOWN
+        """
         super().resizeEvent(event)
 
         def _do():
+            """Execute the do operation.
+
+            UNKNOWN details are inferred from the callable name and signature.
+            """
             count = self.rowsPerPage()
             if count > 0:
                 ScrollTracker.min_buffer = (count + 1) * 2
@@ -455,6 +636,13 @@ class EditorList(QTableView):
         QTimer.singleShot(0, _do)
 
     def rowsPerPage(self):
+        """Execute the rows per page operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         if self._row_height > 0:
             row_h = self._row_height
         else:
@@ -463,6 +651,13 @@ class EditorList(QTableView):
         return max(1, self.viewport().height() // row_h)
 
     def contextMenuEvent(self, event):
+        """Execute the context menu event operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param event: Event object.
+        :type event: UNKNOWN
+        """
         # stub; subclasses may override
         pass
 
@@ -471,6 +666,15 @@ class EditorList(QTableView):
     # ------------------------------------------------------------------
 
     def _on_selection_changed(self, selected, deselected):
+        """Handle the selection changed event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param selected: Value for ``selected``.
+        :type selected: UNKNOWN
+        :param deselected: Value for ``deselected``.
+        :type deselected: UNKNOWN
+        """
         indexes = selected.indexes()
 
         if indexes:
@@ -479,6 +683,13 @@ class EditorList(QTableView):
             self.selected = None
 
     def _on_activated(self, index):
+        """Handle the activated event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param index: Index value.
+        :type index: UNKNOWN
+        """
         row_id = index.row()
         self.selected = row_id
         db_id = self.get_obj_id(row_id)
@@ -495,6 +706,13 @@ class EditorList(QTableView):
         self._model.invalidate_row(row_id)
 
     def _on_header_clicked(self, logical_index):
+        """Handle the header clicked event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param logical_index: Value for ``logical_index``.
+        :type logical_index: UNKNOWN
+        """
         if logical_index not in self.column_lookup:
             return
 
@@ -530,6 +748,10 @@ class EditorList(QTableView):
         self._model.reset_all()
 
     def _on_idle(self):
+        """Handle the idle event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         if self.needs_pruning:
             self.prune_cache(self.current_row, self.buffer_size)
             self.needs_pruning = False
@@ -539,6 +761,19 @@ class EditorList(QTableView):
     # ------------------------------------------------------------------
 
     def __init__(self, parent, mainframe, label, table):
+        """Initialise the :class:`EditorList` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param mainframe: Main application frame.
+        :type mainframe: UNKNOWN
+        :param label: Value for ``label``.
+        :type label: UNKNOWN
+        :param table: Value for ``table``.
+        :type table: UNKNOWN
+        """
         self._where_clause = ''
         self._where_params: list = []
         self._effective_query = _inject_where_placeholder(self.__query__)
@@ -626,9 +861,22 @@ class EditorList(QTableView):
     # ------------------------------------------------------------------
 
     def Refresh(self, *_, **__):
+        """Execute the refresh operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        :param __: Value for ``__``.
+        :type __: UNKNOWN
+        """
         self._model.reset_all()
         self.viewport().update()
 
     def Destroy(self):
+        """Execute the destroy operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self._idle_timer.stop()
         self.deleteLater()

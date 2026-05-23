@@ -7,12 +7,34 @@ from ... import logger as _logger
 
 
 def get_setting(con, name):  # NOQA
+    """Return the setting.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param name: Name value.
+    :type name: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
     con.execute(f'SELECT value FROM settings WHERE name="{name}";')
     res = con.fetchall()
     return res[0][0]
 
 
 def add_records(con, splash, appdata):
+    """Add a records.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param splash: Value for ``splash``.
+    :type splash: UNKNOWN
+    :param appdata: Value for ``appdata``.
+    :type appdata: UNKNOWN
+    """
     con.execute('SELECT id FROM settings WHERE id=1;')
     if con.fetchall():
         return
@@ -61,6 +83,21 @@ def add_records(con, splash, appdata):
 
 
 def add_setting(con, key, value, commit=True):
+    """Add a setting.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param key: Lookup key.
+    :type key: UNKNOWN
+    :param value: Value to store or process.
+    :type value: UNKNOWN
+    :param commit: Value for ``commit``.
+    :type commit: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
 
     con.execute(f'INSERT INTO pjt_transition_branches (name, value) VALUES (?, ?);',
                 (key, value))

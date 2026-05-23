@@ -27,11 +27,31 @@ from ... import logger as _logger
 
 
 def add_wires(con, data: tuple[dict] | list[dict]):
+    """Add a wires.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param data: Data payload.
+    :type data: tuple[dict] | list[dict]
+    """
     for line in data:
         add_wire(con, **line)
 
 
 def add_records(con, splash, data_path):
+    """Add a records.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param splash: Value for ``splash``.
+    :type splash: UNKNOWN
+    :param data_path: Value for ``data_path``.
+    :type data_path: UNKNOWN
+    """
     con.execute('SELECT id FROM wires WHERE id=1;')
     if con.fetchall():
         return
@@ -86,6 +106,67 @@ def add_wire(con, part_number, description, mfg=None, family=None, series=None,
              num_conductors=1, shielded=0, tpi=0.0, wire_size_dia=None, wire_size_cross=None,
              wire_size_awg=None, od_mm=0.0, weight_1km=0.0, resistance_1km=0.0, volts=0.0,
              strands=1, commit=True):
+    """Add a wire.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param part_number: Value for ``part_number``.
+    :type part_number: UNKNOWN
+    :param description: Value for ``description``.
+    :type description: UNKNOWN
+    :param mfg: Value for ``mfg``.
+    :type mfg: UNKNOWN
+    :param family: Value for ``family``.
+    :type family: UNKNOWN
+    :param series: Value for ``series``.
+    :type series: UNKNOWN
+    :param color: Value for ``color``.
+    :type color: UNKNOWN
+    :param image: Value for ``image``.
+    :type image: UNKNOWN
+    :param datasheet: Value for ``datasheet``.
+    :type datasheet: UNKNOWN
+    :param cad: Value for ``cad``.
+    :type cad: UNKNOWN
+    :param min_temp: Value for ``min_temp``.
+    :type min_temp: UNKNOWN
+    :param max_temp: Value for ``max_temp``.
+    :type max_temp: UNKNOWN
+    :param material: Value for ``material``.
+    :type material: UNKNOWN
+    :param stripe_color: Value for ``stripe_color``.
+    :type stripe_color: UNKNOWN
+    :param core_material: Value for ``core_material``.
+    :type core_material: UNKNOWN
+    :param num_conductors: Value for ``num_conductors``.
+    :type num_conductors: UNKNOWN
+    :param shielded: Value for ``shielded``.
+    :type shielded: UNKNOWN
+    :param tpi: Value for ``tpi``.
+    :type tpi: UNKNOWN
+    :param wire_size_dia: Value for ``wire_size_dia``.
+    :type wire_size_dia: UNKNOWN
+    :param wire_size_cross: Value for ``wire_size_cross``.
+    :type wire_size_cross: UNKNOWN
+    :param wire_size_awg: Value for ``wire_size_awg``.
+    :type wire_size_awg: UNKNOWN
+    :param od_mm: Value for ``od_mm``.
+    :type od_mm: UNKNOWN
+    :param weight_1km: Value for ``weight_1km``.
+    :type weight_1km: UNKNOWN
+    :param resistance_1km: Value for ``resistance_1km``.
+    :type resistance_1km: UNKNOWN
+    :param volts: Value for ``volts``.
+    :type volts: UNKNOWN
+    :param strands: Value for ``strands``.
+    :type strands: UNKNOWN
+    :param commit: Value for ``commit``.
+    :type commit: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
 
     mfg, family, series = _manufacturers.inspect_mfg_fam_series(mfg, family, series)
 

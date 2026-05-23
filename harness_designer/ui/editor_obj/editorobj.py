@@ -12,8 +12,19 @@ if TYPE_CHECKING:
 
 
 class EditorObj:
+    """Represent an editor obj in :mod:`harness_designer.ui.editor_obj.editorobj`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, mainframe: "_mainframe.MainFrame"):
+        """Initialise the :class:`EditorObj` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mainframe: Main application frame.
+        :type mainframe: :class:`_mainframe.MainFrame`
+        """
         self.editor = EditorObjPanel(mainframe)
         self.mainframe = mainframe
 
@@ -27,10 +38,24 @@ class EditorObj:
         self._dock.show()
 
     def _on_visibility_changed(self, visible):
+        """Handle the visibility changed event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param visible: Value for ``visible``.
+        :type visible: UNKNOWN
+        """
         if not visible:
             self.set_selected(None)
 
     def Show(self, show=True):
+        """Execute the show operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param show: Value for ``show``.
+        :type show: UNKNOWN
+        """
         if show:
             self.set_selected(self.mainframe.get_selected())
             self._dock.show()
@@ -40,22 +65,60 @@ class EditorObj:
             self._dock.hide()
 
     def IsShown(self):
+        """Execute the is shown operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self._dock.isVisible()
 
     def Refresh(self, *args, **kwargs):
+        """Execute the refresh operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param args: Additional positional arguments.
+        :type args: UNKNOWN
+        :param kwargs: Additional keyword arguments.
+        :type kwargs: UNKNOWN
+        """
         self.editor.update()
 
     def Destroy(self):
+        """Execute the destroy operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.editor.deleteLater()
 
     def set_selected(self, obj):
+        """Set the selected.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
         if self.IsShown():
             self.editor.set_selected(obj)
 
 
 class EditorObjPanel(QWidget):
+    """Represent an editor obj panel in :mod:`harness_designer.ui.editor_obj.editorobj`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent: "_mainframe.MainFrame"):
+        """Initialise the :class:`EditorObjPanel` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`_mainframe.MainFrame`
+        """
         QWidget.__init__(self, parent)
         self.mainframe = parent
         self.control = None
@@ -68,6 +131,13 @@ class EditorObjPanel(QWidget):
         self._selected = None
 
     def set_selected(self, obj):
+        """Set the selected.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
         if obj is None:
             if self.control is not None:
                 self.control.hide()

@@ -50,6 +50,15 @@ class Wire(_base2d.Base2D):
     db_obj: "_pjt_wire.PJTWire"
 
     def __init__(self, parent: "_wire.Wire", db_obj: "_pjt_wire.PJTWire"):
+        """Initialise the :class:`Wire` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`_wire.Wire`
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_pjt_wire.PJTWire`
+        """
         _base2d.Base2D.__init__(self, parent, db_obj)
 
         self._part = db_obj.part
@@ -734,8 +743,21 @@ class Wire(_base2d.Base2D):
 #         return len(self._sections)
 
 class WireMenu(QMenu):
+    """Represent a wire menu in :mod:`harness_designer.objects.objects2d.wire`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, canvas, selected):
+        """Initialise the :class:`WireMenu` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param canvas: Canvas instance.
+        :type canvas: UNKNOWN
+        :param selected: Value for ``selected``.
+        :type selected: UNKNOWN
+        """
         QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
@@ -775,31 +797,71 @@ class WireMenu(QMenu):
         action.triggered.connect(self.on_properties)
 
     def on_add_handle(self):
+        """Handle the add handle event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_add_marker(self):
+        """Handle the add marker event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_add_splice(self):
+        """Handle the add splice event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_add_wire(self):
+        """Handle the add wire event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_add_wire_service_loop(self):
+        """Handle the add wire service loop event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_add_to_bundle(self):
+        """Handle the add to bundle event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_trace_circuit(self):
+        """Handle the trace circuit event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_select(self):
+        """Handle the select event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_delete(self):
+        """Handle the delete event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_properties(self):
+        """Handle the properties event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass

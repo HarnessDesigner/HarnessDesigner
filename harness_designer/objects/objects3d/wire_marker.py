@@ -24,11 +24,24 @@ Config = _config.Config.editor3d
 
 
 class WireMarker(_base3d.Base3D):
+    """Represent a wire marker in :mod:`harness_designer.objects.objects3d.wire_marker`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     parent: "_wire_marker.WireMarker" = None
     db_obj: "_pjt_wire_marker.PJTWireMarker" = None
 
     def __init__(self, parent: "_wire_marker.WireMarker",
                  db_obj: "_pjt_wire_marker.PJTWireMarker"):
+        """Initialise the :class:`WireMarker` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`_wire_marker.WireMarker`
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_pjt_wire_marker.PJTWireMarker`
+        """
 
         parent.mainframe.editor3d.context.acquire()
 
@@ -74,6 +87,13 @@ class WireMarker(_base3d.Base3D):
 
 
     def _update_position(self, position: _point.Point):
+        """Update the position.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param position: Position value.
+        :type position: :class:`_point.Point`
+        """
         if position.db_id == self._position.db_id:
             line = _line.Line(self._p1, self._p2)
 
@@ -110,12 +130,32 @@ class WireMarker(_base3d.Base3D):
         self.editor3d.update()
 
     def get_context_menu(self):
+        """Return the context menu.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return WireMarkerMenu(self.mainframe.editor3d.editor, self)
 
 
 class WireMarkerMenu(QMenu):
+    """Represent a wire marker menu in :mod:`harness_designer.objects.objects3d.wire_marker`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, canvas, selected):
+        """Initialise the :class:`WireMarkerMenu` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param canvas: Canvas instance.
+        :type canvas: UNKNOWN
+        :param selected: Value for ``selected``.
+        :type selected: UNKNOWN
+        """
         QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
@@ -143,19 +183,43 @@ class WireMarkerMenu(QMenu):
         action.triggered.connect(self.on_properties)
 
     def on_set_label(self):
+        """Handle the set label event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_flip_label(self):
+        """Handle the flip label event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_select(self):
+        """Handle the select event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_clone(self):
+        """Handle the clone event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_delete(self):
+        """Handle the delete event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_properties(self):
+        """Handle the properties event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass

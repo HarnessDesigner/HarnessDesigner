@@ -32,6 +32,27 @@ class TextCtrl(QtWidgets.QWidget):
                  style: int = 0, apply_button: bool = True, # NOQA
                  hslider: bool = True, readonly: bool = False,
                  multiline: bool = False):
+        """Initialise the :class:`TextCtrl` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param label: Value for ``label``.
+        :type label: str
+        :param size: Value for ``size``.
+        :type size: UNKNOWN
+        :param style: Value for ``style``.
+        :type style: int
+        :param apply_button: Value for ``apply_button``.
+        :type apply_button: bool
+        :param hslider: Value for ``hslider``.
+        :type hslider: bool
+        :param readonly: Value for ``readonly``.
+        :type readonly: bool
+        :param multiline: Value for ``multiline``.
+        :type multiline: bool
+        """
 
         super().__init__(parent)
         self._show_apply_button = apply_button
@@ -98,10 +119,21 @@ class TextCtrl(QtWidgets.QWidget):
     # Internal
     # ------------------------------------------------------------------
     def _on_text_changed(self, text: str):
+        """Handle the text changed event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param text: Text value.
+        :type text: str
+        """
         QtCore.QTimer.singleShot(
             0, lambda: self.apply_button.setEnabled(text != self._original_text))
 
     def _on_text_changed_multi(self):
+        """Handle the text changed multi event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         if isinstance(self.ctrl, QtWidgets.QTextEdit):
             text = self.ctrl.toPlainText()
 
@@ -109,6 +141,10 @@ class TextCtrl(QtWidgets.QWidget):
                 0, lambda: self.apply_button.setEnabled(text != self._original_text))
 
     def _on_enter(self):
+        """Handle the enter event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         if self._show_apply_button:
             # In single-line + apply_button mode, Enter inserts a newline in
             # the original code.  Replicate that behaviour.
@@ -117,12 +153,23 @@ class TextCtrl(QtWidgets.QWidget):
             self.text_committed.emit()
 
     def _on_apply(self):
+        """Handle the apply event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.apply_clicked.emit()
 
     # ------------------------------------------------------------------
     # wx-compatible public API
     # ------------------------------------------------------------------
     def Enable(self, flag: bool = True):
+        """Execute the enable operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param flag: Value for ``flag``.
+        :type flag: bool
+        """
         self.ctrl.setEnabled(flag)
         self.st.setEnabled(flag)
 
@@ -134,12 +181,26 @@ class TextCtrl(QtWidgets.QWidget):
                 self.apply_button.setEnabled(False)
 
     def SetToolTip(self, text: str):
+        """Execute the set tool tip operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param text: Text value.
+        :type text: str
+        """
         self.ctrl.setToolTip(text)
         self.st.setToolTip(text)
 
     SetToolTipString = SetToolTip
 
     def SetValue(self, value: str):
+        """Execute the set value operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: str
+        """
         self._original_text = value
         if isinstance(self.ctrl, QtWidgets.QTextEdit):
             self.ctrl.blockSignals(True)
@@ -154,6 +215,13 @@ class TextCtrl(QtWidgets.QWidget):
             self.apply_button.setEnabled(False)
 
     def GetValue(self) -> str:
+        """Execute the get value operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: str
+        """
         if isinstance(self.ctrl, QtWidgets.QTextEdit):
             return self.ctrl.toPlainText()
 

@@ -5,20 +5,49 @@ from .base import BaseMixin
 
 
 class Visible3DMixin(BaseMixin):
+    """Represent a visible 3dmixin in :mod:`harness_designer.database.project_db.mixins.visible3d`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     @property
     def is_visible3d(self) -> bool:
+        """Return the is visible 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: bool
+        """
         return bool(self._table.select('is_visible3d', id=self._db_id)[0][0])
 
     @is_visible3d.setter
     def is_visible3d(self, value: bool):
+        """Set the is visible 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: bool
+        """
         self._table.update(self._db_id, is_visible3d=int(value))
         self._populate('is_visible3d')
 
 
 class Visible3DControl(_prop_ctrls.BoolProperty):
+    """Represent a visible 3dcontrol in :mod:`harness_designer.database.project_db.mixins.visible3d`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent):
+        """Initialise the :class:`Visible3DControl` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        """
         self.db_obj: Visible3DMixin = None
 
         super().__init__(parent, 'Is Visible 3D')
@@ -26,10 +55,24 @@ class Visible3DControl(_prop_ctrls.BoolProperty):
         self.property_changed.connect(self._on_visible3d)
 
     def _on_visible3d(self, evt):
+        """Handle the visible 3D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         value = evt.GetValue()
         self.db_obj.is_visible3d = value
 
     def set_obj(self, db_obj: Visible3DMixin):
+        """Set the obj.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`Visible3DMixin`
+        """
         self.db_obj = db_obj
 
         if db_obj is None:

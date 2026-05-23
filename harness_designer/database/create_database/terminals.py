@@ -34,6 +34,83 @@ def add_terminal(con, part_number, description, mfg=None, family=None, series=No
                  wire_size_dia_max=None, wire_size_cross_min=None, wire_size_cross_max=None, length=0.0,
                  width=0.0, height=0.0, weight=0.0, compat_housings=None, compat_seals=None,
                  commit=True):
+    """Add a terminal.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param part_number: Value for ``part_number``.
+    :type part_number: UNKNOWN
+    :param description: Value for ``description``.
+    :type description: UNKNOWN
+    :param mfg: Value for ``mfg``.
+    :type mfg: UNKNOWN
+    :param family: Value for ``family``.
+    :type family: UNKNOWN
+    :param series: Value for ``series``.
+    :type series: UNKNOWN
+    :param color: Value for ``color``.
+    :type color: UNKNOWN
+    :param image: Value for ``image``.
+    :type image: UNKNOWN
+    :param datasheet: Value for ``datasheet``.
+    :type datasheet: UNKNOWN
+    :param cad: Value for ``cad``.
+    :type cad: UNKNOWN
+    :param min_temp: Value for ``min_temp``.
+    :type min_temp: UNKNOWN
+    :param max_temp: Value for ``max_temp``.
+    :type max_temp: UNKNOWN
+    :param model3d: Value for ``model3d``.
+    :type model3d: UNKNOWN
+    :param plating: Value for ``plating``.
+    :type plating: UNKNOWN
+    :param gender: Value for ``gender``.
+    :type gender: UNKNOWN
+    :param cavity_lock: Value for ``cavity_lock``.
+    :type cavity_lock: UNKNOWN
+    :param sealing: Value for ``sealing``.
+    :type sealing: UNKNOWN
+    :param blade_size: Value for ``blade_size``.
+    :type blade_size: UNKNOWN
+    :param resistance: Value for ``resistance``.
+    :type resistance: UNKNOWN
+    :param mating_cycles: Value for ``mating_cycles``.
+    :type mating_cycles: UNKNOWN
+    :param max_vibration_g: Value for ``max_vibration_g``.
+    :type max_vibration_g: UNKNOWN
+    :param max_current_ma: Value for ``max_current_ma``.
+    :type max_current_ma: UNKNOWN
+    :param wire_size_awg_min: Value for ``wire_size_awg_min``.
+    :type wire_size_awg_min: UNKNOWN
+    :param wire_size_awg_max: Value for ``wire_size_awg_max``.
+    :type wire_size_awg_max: UNKNOWN
+    :param wire_size_dia_min: Value for ``wire_size_dia_min``.
+    :type wire_size_dia_min: UNKNOWN
+    :param wire_size_dia_max: Value for ``wire_size_dia_max``.
+    :type wire_size_dia_max: UNKNOWN
+    :param wire_size_cross_min: Value for ``wire_size_cross_min``.
+    :type wire_size_cross_min: UNKNOWN
+    :param wire_size_cross_max: Value for ``wire_size_cross_max``.
+    :type wire_size_cross_max: UNKNOWN
+    :param length: Value for ``length``.
+    :type length: UNKNOWN
+    :param width: Value for ``width``.
+    :type width: UNKNOWN
+    :param height: Value for ``height``.
+    :type height: UNKNOWN
+    :param weight: Value for ``weight``.
+    :type weight: UNKNOWN
+    :param compat_housings: Value for ``compat_housings``.
+    :type compat_housings: UNKNOWN
+    :param compat_seals: Value for ``compat_seals``.
+    :type compat_seals: UNKNOWN
+    :param commit: Value for ``commit``.
+    :type commit: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
 
     if compat_housings is None:
         compat_housings = []
@@ -122,6 +199,53 @@ def add_pjt_terminal(con, project_id, part_id, cavity_id=None, circuit_id=None,
                      wire_point2d_id=None, name='', notes='', quat3d=None,
                      angle3d=None, quat2d=None, angle2d=None, is_start=0, volts=0.0,
                      load=0.0, voltage_drop=0.0, is_visible3d=0, is_visible2d=0):
+    """Add a PJT terminal.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param project_id: Identifier for the project.
+    :type project_id: UNKNOWN
+    :param part_id: Identifier for the part.
+    :type part_id: UNKNOWN
+    :param cavity_id: Identifier for the cavity.
+    :type cavity_id: UNKNOWN
+    :param circuit_id: Identifier for the circuit.
+    :type circuit_id: UNKNOWN
+    :param wire_point3d_id: Identifier for the wire point 3D.
+    :type wire_point3d_id: UNKNOWN
+    :param point3d_id: Identifier for the point 3D.
+    :type point3d_id: UNKNOWN
+    :param point2d_id: Identifier for the point 2D.
+    :type point2d_id: UNKNOWN
+    :param wire_point2d_id: Identifier for the wire point 2D.
+    :type wire_point2d_id: UNKNOWN
+    :param name: Name value.
+    :type name: UNKNOWN
+    :param notes: Value for ``notes``.
+    :type notes: UNKNOWN
+    :param quat3d: Value for ``quat3d``.
+    :type quat3d: UNKNOWN
+    :param angle3d: Value for ``angle3d``.
+    :type angle3d: UNKNOWN
+    :param quat2d: Value for ``quat2d``.
+    :type quat2d: UNKNOWN
+    :param angle2d: Value for ``angle2d``.
+    :type angle2d: UNKNOWN
+    :param is_start: Boolean flag for whether start.
+    :type is_start: UNKNOWN
+    :param volts: Value for ``volts``.
+    :type volts: UNKNOWN
+    :param load: Value for ``load``.
+    :type load: UNKNOWN
+    :param voltage_drop: Value for ``voltage_drop``.
+    :type voltage_drop: UNKNOWN
+    :param is_visible3d: Boolean flag for whether visible 3D.
+    :type is_visible3d: UNKNOWN
+    :param is_visible2d: Boolean flag for whether visible 2D.
+    :type is_visible2d: UNKNOWN
+    """
 
     if quat3d is None:
         quat3d = [1.0, 0.0, 0.0, 0.0]
@@ -149,12 +273,32 @@ def add_pjt_terminal(con, project_id, part_id, cavity_id=None, circuit_id=None,
 
 
 def add_terminals(con, data: tuple[dict] | list[dict]):
+    """Add a terminals.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param data: Data payload.
+    :type data: tuple[dict] | list[dict]
+    """
 
     for line in data:
         add_terminal(con, **line)
 
 
 def add_records(con, splash, data_path):
+    """Add a records.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param splash: Value for ``splash``.
+    :type splash: UNKNOWN
+    :param data_path: Value for ``data_path``.
+    :type data_path: UNKNOWN
+    """
     con.execute('SELECT id FROM terminals WHERE id=1;')
     if con.fetchall():
         return

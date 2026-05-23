@@ -15,9 +15,20 @@ if TYPE_CHECKING:
 
 
 class Model3DMixin(BaseMixin):
+    """Represent a model 3dmixin in :mod:`harness_designer.database.global_db.mixins.model3d`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     @property
     def model3d(self) -> "_model3d.Model3D":
+        """Return the model 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_model3d.Model3D`
+        """
         model3d_id = self.model3d_id
         if model3d_id is None:
             return None
@@ -26,17 +37,42 @@ class Model3DMixin(BaseMixin):
 
     @property
     def model3d_id(self) -> int:
+        """Return the model 3D ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         return self._table.select('model3d_id', id=self._db_id)[0][0]
 
     @model3d_id.setter
     def model3d_id(self, value: int):
+        """Set the model 3D ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, model3d_id=value)
         self._populate('model3d_id')
 
 
 class Model3DControl(_prop_ctrls.Category):
+    """Represent a model 3dcontrol in :mod:`harness_designer.database.global_db.mixins.model3d`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def set_obj(self, db_obj: Model3DMixin):
+        """Set the obj.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`Model3DMixin`
+        """
         self.db_obj = db_obj
 
         if db_obj is None:
@@ -145,6 +181,10 @@ class Model3DControl(_prop_ctrls.Category):
                 self.mimetype_ctrl.Enable(True)
 
     def set_preview_model(self):
+        """Set the preview model.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         # if self.db_obj is None:
         #     self.model_preview.set_model(None, None, None)
         # else:
@@ -159,6 +199,13 @@ class Model3DControl(_prop_ctrls.Category):
         pass
 
     def _on_path(self, evt):
+        """Handle the path event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         value = evt.GetValue()
 
         model3d = self.db_obj.table.db.models3d_table.insert(value)
@@ -166,31 +213,73 @@ class Model3DControl(_prop_ctrls.Category):
         self.set_preview_model()
 
     def _on_simplify(self, evt):
+        """Handle the simplify event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         value = evt.GetValue()
         self.db_obj.model3d.simplify = value
         self.set_preview_model()
 
     def _on_target_count(self, evt):
+        """Handle the target count event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         value = evt.GetValue()
         self.db_obj.model3d.target_count = value
         self.set_preview_model()
 
     def _on_update_rate(self, evt):
+        """Handle the update rate event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         value = evt.GetValue()
         self.db_obj.model3d.update_rate = value
         self.set_preview_model()
 
     def _on_iterations(self, evt):
+        """Handle the iterations event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         value = evt.GetValue()
         self.db_obj.model3d.iterations = value
         self.set_preview_model()
 
     def _on_aggressiveness(self, evt):
+        """Handle the aggressiveness event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         value = evt.GetValue()
         self.db_obj.model3d.aggressiveness = value
         self.set_preview_model()
 
     def __init__(self, parent):
+        """Initialise the :class:`Model3DControl` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        """
         self.db_obj: Model3DMixin = None
 
         super().__init__(parent, '3D Model')

@@ -215,10 +215,32 @@ def _walk_bundle_chain(bundle_db_obj, ptables):
     """
 
     def _has_layout(point_id):
+        """Return whether the layout is available.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param point_id: Identifier for the point.
+        :type point_id: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return bool(ptables.pjt_bundle_layouts_table.select(
             'id', position3d_id=point_id))
 
     def _next_section(current_id, from_point_id, visited):
+        """Execute the next section operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param current_id: Identifier for the current.
+        :type current_id: UNKNOWN
+        :param from_point_id: Identifier for the from point.
+        :type from_point_id: UNKNOWN
+        :param visited: Value for ``visited``.
+        :type visited: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         rows = (ptables.pjt_bundles_table.select(
                     'id', start_point3d_id=from_point_id) +
                 ptables.pjt_bundles_table.select(
@@ -230,6 +252,17 @@ def _walk_bundle_chain(bundle_db_obj, ptables):
         return None
 
     def _walk_direction(start_section_id, leaving_point_id):
+        """Walk the direction.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param start_section_id: Identifier for the start section.
+        :type start_section_id: UNKNOWN
+        :param leaving_point_id: Identifier for the leaving point.
+        :type leaving_point_id: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         pts = []
         current_id = start_section_id
         current_pt = leaving_point_id

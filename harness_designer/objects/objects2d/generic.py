@@ -17,8 +17,19 @@ if TYPE_CHECKING:
 
 
 class Generic(_base2d.Base2D):
+    """Represent a generic in :mod:`harness_designer.objects.objects2d.generic`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     _parent: "_generic.Generic" = None
 
     def __init__(self, parent: "_generic.Generic", ):
+        """Initialise the :class:`Generic` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`_generic.Generic`
+        """
 
         _base2d.Base2D.__init__(self, parent, None)

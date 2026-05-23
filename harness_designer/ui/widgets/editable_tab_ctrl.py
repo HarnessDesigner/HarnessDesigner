@@ -6,6 +6,10 @@ from PySide6 import QtGui
 
 
 class EditableTabBar(QtWidgets.QTabBar):
+    """Represent an editable tab bar in :mod:`harness_designer.ui.widgets.editable_tab_ctrl`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     # index, old_name, new_name, widget
     tabRenamed: QtCore.SignalInstance = (
         QtCore.Signal(int, str, str, QtWidgets.QWidget))
@@ -18,6 +22,13 @@ class EditableTabBar(QtWidgets.QTabBar):
     tabAddRequested: QtCore.SignalInstance = QtCore.Signal(int)
 
     def __init__(self, parent: "EditableTabCtrl"):
+        """Initialise the :class:`EditableTabBar` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`EditableTabCtrl`
+        """
         self._tab_widget = parent
         super().__init__(parent)
         self._editor = QtWidgets.QLineEdit(self)
@@ -30,6 +41,13 @@ class EditableTabBar(QtWidgets.QTabBar):
             self.setToolTip(parent.tab_bar_tooltip)
 
     def contextMenuEvent(self, event):
+        """Execute the context menu event operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param event: Event object.
+        :type event: UNKNOWN
+        """
         index = self.tabAt(event.pos())
 
         menu = QtWidgets.QMenu(self)
@@ -72,11 +90,25 @@ class EditableTabBar(QtWidgets.QTabBar):
         menu.exec(event.globalPos())
 
     def mouseDoubleClickEvent(self, event):
+        """Execute the mouse double click event operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param event: Event object.
+        :type event: UNKNOWN
+        """
         index = self.tabAt(event.pos())
         if index >= 0:
             self._start_editing(index)
 
     def _start_editing(self, index):
+        """Start the editing.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param index: Index value.
+        :type index: UNKNOWN
+        """
         self._editing_index = index
         rect = self.tabRect(index)
         self._editor.setGeometry(rect)
@@ -86,6 +118,10 @@ class EditableTabBar(QtWidgets.QTabBar):
         self._editor.setFocus()
 
     def _finish_editing(self):
+        """Execute the finish editing operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         if self._editing_index >= 0:
             old_name = self.tabText(self._editing_index)
             new_name = self._editor.text()
@@ -97,18 +133,36 @@ class EditableTabBar(QtWidgets.QTabBar):
         self._editor.hide()
 
     def _request_delete(self, index):
+        """Execute the request delete operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param index: Index value.
+        :type index: UNKNOWN
+        """
         tab_widget = cast(QtWidgets.QTabWidget, self.parent())
         name = self.tabText(index)
         widget = tab_widget.widget(index)
         self.tabDeleteRequested.emit(index, name, widget)
 
     def _request_add(self, _):
+        """Execute the request add operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        """
         tab_widget = cast(QtWidgets.QTabWidget, self.parent())
         new_index = tab_widget.count()
         self.tabAddRequested.emit(new_index)
 
 
 class EditableTabCtrl(QtWidgets.QTabWidget):
+    """Represent an editable tab ctrl in :mod:`harness_designer.ui.widgets.editable_tab_ctrl`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     # index, old_name, new_name, widget
     tabRenamed: QtCore.SignalInstance = (
         QtCore.Signal(int, str, str, QtWidgets.QWidget))
@@ -130,6 +184,13 @@ class EditableTabCtrl(QtWidgets.QTabWidget):
     tab_bar_tooltip = None
 
     def __init__(self, parent=None):
+        """Initialise the :class:`EditableTabCtrl` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        """
         super().__init__(parent)
         tab_bar = EditableTabBar(self)
         tab_bar.tabRenamed.connect(self.tabRenamed)

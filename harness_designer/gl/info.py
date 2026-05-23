@@ -21,6 +21,15 @@ from PySide6.QtGui import QOffscreenSurface, QOpenGLContext, QSurfaceFormat
 
 
 def _safe_gl_get_string(param) -> str:
+    """Execute the safe GL get string operation.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param param: Value for ``param``.
+    :type param: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: str
+    """
     try:
         result = GL.glGetString(param)
         if result is None:
@@ -31,6 +40,15 @@ def _safe_gl_get_string(param) -> str:
 
 
 def _safe_gl_get_integer(param):
+    """Execute the safe GL get integer operation.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param param: Value for ``param``.
+    :type param: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
     try:
         return GL.glGetInteger(param)
     except Exception:  # noqa: BLE001
@@ -38,6 +56,15 @@ def _safe_gl_get_integer(param):
 
 
 def _safe_gl_get_integerv(param):
+    """Execute the safe GL get integerv operation.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param param: Value for ``param``.
+    :type param: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
     try:
         return GL.glGetIntegerv(param)
     except Exception:  # noqa: BLE001

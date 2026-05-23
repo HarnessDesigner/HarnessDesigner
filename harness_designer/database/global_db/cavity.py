@@ -18,12 +18,24 @@ if TYPE_CHECKING:
 
 
 class CavitiesTable(TableBase):
+    """Represent a cavities table in :mod:`harness_designer.database.global_db.cavity`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     __table_name__ = 'cavities'
 
     _control: "CavityControl" = None
 
     @property
     def control(self) -> "CavityControl":
+        """Return the control.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`CavityControl`
+        :raises RuntimeError: Raised when the operation cannot be completed.
+        """
         if self._control is None:
             raise RuntimeError('sanity check')
 
@@ -31,6 +43,13 @@ class CavitiesTable(TableBase):
 
     @classmethod
     def start_control(cls, mainframe):
+        """Start the control.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mainframe: Main application frame.
+        :type mainframe: UNKNOWN
+        """
         cls._control = CavityControl(mainframe)
         cls._control.hide()
 
@@ -43,6 +62,15 @@ class CavitiesTable(TableBase):
     _controls: list["CavityControl"] = []
 
     def get_control(self, index):
+        """Return the control.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param index: Index value.
+        :type index: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         controls_len = len(self._controls)
 
         if controls_len - 1 < index:
@@ -55,21 +83,50 @@ class CavitiesTable(TableBase):
         return self._controls[index]
 
     def _table_needs_update(self) -> bool:
+        """Execute the table needs update operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
         from ..create_database import cavities
 
         return cavities.table.is_ok(self)
 
     def _add_table_to_db(self, _):
+        """Add a table to database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        """
         from ..create_database import cavities
 
         cavities.table.add_to_db(self)
 
     def _update_table_in_db(self):
+        """Update the table in database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         from ..create_database import cavities
 
         cavities.table.update_fields(self)
 
     def __getitem__(self, item) -> "Cavity":
+        """Return the requested item.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param item: Item identifier or value.
+        :type item: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`Cavity`
+        :raises KeyError: Raised when the operation cannot be completed.
+        :raises IndexError: Raised when the operation cannot be completed.
+        """
         if isinstance(item, int):
             if item in self:
                 return Cavity(self, item)
@@ -78,19 +135,48 @@ class CavitiesTable(TableBase):
         raise KeyError(item)
 
     def __iter__(self) -> _Iterable["Cavity"]:
+        """Iterate over the available items.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Iterator or iterable result. UNKNOWN details.
+        :rtype: _Iterable['Cavity']
+        """
         for db_id in TableBase.__iter__(self):
             yield Cavity(self, db_id)
 
     def insert(self, housing_id: int, idx: int) -> "Cavity":
+        """Execute the insert operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param housing_id: Identifier for the housing.
+        :type housing_id: int
+        :param idx: Value for ``idx``.
+        :type idx: int
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`Cavity`
+        """
         db_id = TableBase.insert(self, housing_id=housing_id, idx=idx)
 
         return Cavity(self, db_id)
 
 
 class Cavity(EntryBase, NameMixin, DimensionMixin):
+    """Represent a cavity in :mod:`harness_designer.database.global_db.cavity`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     _table: CavitiesTable = None
 
     def build_monitor_packet(self):
+        """Build the monitor packet.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         packet = {
             'cavities': [self.db_id]
         }
@@ -101,6 +187,13 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
 
     @property
     def housing(self) -> "_housing.Housing":
+        """Return the housing.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_housing.Housing`
+        """
         from .housing import Housing
 
         housing_id = self.housing_id
@@ -108,23 +201,58 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
 
     @property
     def housing_id(self) -> int:
+        """Return the housing ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         return self._table.select('housing_id', id=self._db_id)[0][0]
 
     @property
     def idx(self) -> int:
+        """Return the idx.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         return self._table.select('idx', id=self._db_id)[0][0]
 
     @idx.setter
     def idx(self, value: int):
+        """Set the idx.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, idx=value)
         self._populate('idx')
 
     @property
     def terminal_sizes(self) -> list[float]:
+        """Return the terminal sizes.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: list[float]
+        """
         return eval(self._table.select('terminal_sizes', id=self._db_id)[0][0])
 
     @terminal_sizes.setter
     def terminal_sizes(self, value: list[float]):
+        """Set the terminal sizes.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: list[float]
+        """
         for i, item in enumerate(value):
             value[i] = round(item, 6)
 
@@ -134,6 +262,13 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     _position3d_id: str = None
 
     def __update_position3d(self, point: _point.Point):
+        """Update the position 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param point: Point value.
+        :type point: :class:`_point.Point`
+        """
         self._table.update(self._db_id, point3d=str(list(point.as_float)))
 
     @property
@@ -153,6 +288,13 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     _position2d_id: str = None
 
     def __update_position2d(self, point: _point.Point):
+        """Update the position 2D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param point: Point value.
+        :type point: :class:`_point.Point`
+        """
         self._table.update(self._db_id, point2d=str(list(point.as_float[:-1])))
 
     @property
@@ -173,6 +315,13 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     _angle3d_id: str = None
 
     def _update_angle3d(self, angle: _angle.Angle):
+        """Update the angle 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param angle: Value for ``angle``.
+        :type angle: :class:`_angle.Angle`
+        """
         euler = list(angle.as_euler_float)
         quat = list(angle.as_quat_float)
         self._table.update(self._db_id, angle3d=str(euler), quat3d=str(quat))
@@ -196,6 +345,13 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     _angle2d_id: str = None
 
     def _update_angle2d(self, angle: _angle.Angle):
+        """Update the angle 2D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param angle: Value for ``angle``.
+        :type angle: :class:`_angle.Angle`
+        """
         euler = [angle.x, angle.y, angle.z]
         quat = angle.as_quat_float
         self._table.update(self._db_id, angle2d=str(euler), quat2d=str(quat))
@@ -218,24 +374,59 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
 
     @property
     def round_terminal(self) -> bool:
+        """Return the round terminal.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: bool
+        """
         return bool(self._table.select('round_terminal', id=self._db_id)[0][0])
 
     @round_terminal.setter
     def round_terminal(self, value: bool):
+        """Set the round terminal.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: bool
+        """
         self._table.update(self._db_id, round_terminal=int(value))
         self._populate('round_terminal')
 
     @property
     def length(self) -> float:
+        """Return the length.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         return self._table.select('length', id=self._db_id)[0][0]
 
     @length.setter
     def length(self, value: float):
+        """Set the length.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: float
+        """
         self._table.update(self._db_id, length=round(value, 6))
         self._populate('length')
 
     @property
     def width(self) -> float:
+        """Return the width.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         if self.round_terminal:
             width, height = self._table.select('width', 'height', id=self._db_id)[0]
             if width != height:
@@ -248,6 +439,13 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
 
     @width.setter
     def width(self, value: float):
+        """Set the width.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: float
+        """
         if self.round_terminal:
             self._table.update(self._db_id, width=round(value, 6), height=round(value, 6))
         else:
@@ -257,6 +455,13 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
 
     @property
     def height(self) -> float:
+        """Return the height.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         if self.round_terminal:
             width, height = self._table.select('width', 'height', id=self._db_id)[0]
             if width != height:
@@ -270,6 +475,13 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
 
     @height.setter
     def height(self, value: float):
+        """Set the height.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: float
+        """
         if self.round_terminal:
             self._table.update(self._db_id, width=round(value, 6), height=round(value, 6))
         else:
@@ -280,6 +492,13 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     _scale_id: str = None
 
     def _update_scale(self, scale: _point.Point):
+        """Update the scale.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param scale: Value for ``scale``.
+        :type scale: :class:`_point.Point`
+        """
         width, height, length = scale.as_float
 
         if self.round_terminal and width != height:
@@ -289,6 +508,13 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
 
     @property
     def scale(self) -> "_point.Point":
+        """Return the scale.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_point.Point`
+        """
         if self._scale_id is None:
             self._scale_id = str(uuid.uuid4())
 
@@ -332,6 +558,13 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
 
     @property
     def compat_terminals(self) -> list["_terminal.Terminal"]:
+        """Return the compat terminals.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: list['_terminal.Terminal']
+        """
         terminal_sizes = self.terminal_sizes
         round_terminal = self.round_terminal
 
@@ -350,11 +583,29 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
 
 
 class CavityControl(_prop_ctrls.Category):
+    """Represent a cavity control in :mod:`harness_designer.database.global_db.cavity`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def SetIndex(self, index):
+        """Execute the set index operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param index: Index value.
+        :type index: UNKNOWN
+        """
         self.SetLabel(f'Cavity {index}')
 
     def set_obj(self, db_obj: Cavity):
+        """Set the obj.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`Cavity`
+        """
         self.db_obj = db_obj
 
         self.dimension_page.set_obj(db_obj)
@@ -385,18 +636,46 @@ class CavityControl(_prop_ctrls.Category):
             self.round_terminal_ctrl.Enable(True)
 
     def _on_round_terminal(self, evt):
+        """Handle the round terminal event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         value = evt.GetValue()
         self.db_obj.round_terminal = value
 
     def _on_terminal_sizes(self, evt):
+        """Handle the terminal sizes event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         value = evt.GetValue()
         self.db_obj.terminal_sizes = value
 
     def _on_index(self, evt):
+        """Handle the index event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         value = evt.GetValue()
         self.db_obj.idx = value
 
     def __init__(self, parent):
+        """Initialise the :class:`CavityControl` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        """
         self.db_obj: Cavity = None
 
         super().__init__(parent, 'Cavity')

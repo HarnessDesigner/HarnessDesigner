@@ -15,6 +15,10 @@ MAX_VDROP_PCT = 5.0   # design-rule voltage-drop limit
 # DRT severity
 # ---------------------------------------------------------------------------
 class Severity(Enum):
+    """Represent a severity in :mod:`harness_designer.ui.editor_ciruit.design_rules`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     OK = auto()
     INFO = auto()
     WARNING = auto()
@@ -33,6 +37,10 @@ SEV_ICO = {Severity.OK: "✓", Severity.INFO: "ℹ",
 
 @dataclass
 class DRTIssue:
+    """Represent a drt issue in :mod:`harness_designer.ui.editor_ciruit.design_rules`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     severity: Severity
     code: str
     message: str
@@ -40,6 +48,10 @@ class DRTIssue:
 
 @dataclass
 class SplitSuggestion:
+    """Represent a split suggestion in :mod:`harness_designer.ui.editor_ciruit.design_rules`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     original_awg: int
     original_mm2: float
     suggested_awg: int
@@ -100,17 +112,44 @@ MM2_TO_AWG: dict[float, int] = {
 # Geometry / wire-size helpers
 # ---------------------------------------------------------------------------
 def awg_to_mm2(awg: int) -> float:
+    """Execute the awg to mm 2 operation.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param awg: Value for ``awg``.
+    :type awg: int
+    :returns: Return value. UNKNOWN details.
+    :rtype: float
+    """
     d_in = 0.005 * (92 ** ((36 - awg) / 39))
     d_mm = d_in * 25.4
     return (math.pi / 4) * (d_mm ** 2)
 
 
 def awg_to_od_mm(awg: int) -> float:
+    """Execute the awg to od mm operation.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param awg: Value for ``awg``.
+    :type awg: int
+    :returns: Return value. UNKNOWN details.
+    :rtype: float
+    """
     d_in = 0.005 * (92 ** ((36 - awg) / 39))
     return d_in * 25.4 + 2.0
 
 
 def nearest_wire_at_least(target_mm2: float) -> tuple[int | None, float | None]:
+    """Execute the nearest wire at least operation.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param target_mm2: Value for ``target_mm2``.
+    :type target_mm2: float
+    :returns: Return value. UNKNOWN details.
+    :rtype: tuple[int | None, float | None]
+    """
     for mm2 in sorted(MM2_TO_AWG):
         if mm2 >= target_mm2 * 0.90:
             return MM2_TO_AWG[mm2], mm2
@@ -119,6 +158,17 @@ def nearest_wire_at_least(target_mm2: float) -> tuple[int | None, float | None]:
 
 
 def resolve_awg(awg, mm2) -> int | None:
+    """Execute the resolve awg operation.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param awg: Value for ``awg``.
+    :type awg: UNKNOWN
+    :param mm2: Value for ``mm2``.
+    :type mm2: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: int | None
+    """
     if awg is not None:
         try:
             return int(awg)
@@ -137,6 +187,15 @@ def resolve_awg(awg, mm2) -> int | None:
 
 
 def worst_severity(issues: list[DRTIssue]) -> Severity:
+    """Execute the worst severity operation.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param issues: Value for ``issues``.
+    :type issues: list[DRTIssue]
+    :returns: Return value. UNKNOWN details.
+    :rtype: :class:`Severity`
+    """
     order = [Severity.OK, Severity.INFO, Severity.WARNING, Severity.ERROR]
     sev = Severity.OK
     for i in issues:
@@ -150,6 +209,15 @@ def worst_severity(issues: list[DRTIssue]) -> Severity:
 # DRT engine
 # ---------------------------------------------------------------------------
 def run_drt(row: "_editor_circuit.CircuitRow") -> list[DRTIssue]:
+    """Execute the run drt operation.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param row: Value for ``row``.
+    :type row: :class:`_editor_circuit.CircuitRow`
+    :returns: Return value. UNKNOWN details.
+    :rtype: list[DRTIssue]
+    """
     issues: list[DRTIssue] = []
     awg = resolve_awg(row.wire_gauge_awg, row.wire_gauge_mm2)
     load = row.total_load_a
@@ -208,6 +276,19 @@ def run_drt(row: "_editor_circuit.CircuitRow") -> list[DRTIssue]:
 
 
 def safe(obj, attr: str, default=None):
+    """Execute the safe operation.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param obj: Object instance to operate on.
+    :type obj: UNKNOWN
+    :param attr: Value for ``attr``.
+    :type attr: str
+    :param default: Value for ``default``.
+    :type default: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
     try:
         return getattr(obj, attr, default)
     except Exception:   # NOQA
@@ -215,6 +296,17 @@ def safe(obj, attr: str, default=None):
 
 
 def find_bundle_by_name(db, name: str):
+    """Find the bundle by name.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param db: Database accessor or connection.
+    :type db: UNKNOWN
+    :param name: Name value.
+    :type name: str
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
     try:
         for b in db.pjt_bundles_table:
             if (safe(b, "name", "") or "") == name:
@@ -225,6 +317,15 @@ def find_bundle_by_name(db, name: str):
 
 
 def bundle_wire_ods(bundle) -> list[float]:
+    """Execute the bundle wire ods operation.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param bundle: Value for ``bundle``.
+    :type bundle: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: list[float]
+    """
     ods = []
     try:
         for bw in (safe(bundle, "wires", []) or []):
@@ -241,6 +342,17 @@ def bundle_wire_ods(bundle) -> list[float]:
 
 def generate_suggestions(row: "_editor_circuit.CircuitRow",
                          project_db) -> list[SplitSuggestion]:
+    """Execute the generate suggestions operation.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param row: Value for ``row``.
+    :type row: :class:`_editor_circuit.CircuitRow`
+    :param project_db: Value for ``project_db``.
+    :type project_db: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: list[SplitSuggestion]
+    """
 
     suggestions: list[SplitSuggestion] = []
 

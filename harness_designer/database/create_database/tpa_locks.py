@@ -26,6 +26,57 @@ def add_tpa_lock(con, part_number, description, mfg=None, family=None, series=No
                  max_temp=None, model3d=None, lock_type='', length=0.0, width=0.0,
                  height=0.0, weight=0.0, pins=0, terminal_size=0.0, compat_housings=None,
                  commit=True):
+    """Add a TPA lock.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param part_number: Value for ``part_number``.
+    :type part_number: UNKNOWN
+    :param description: Value for ``description``.
+    :type description: UNKNOWN
+    :param mfg: Value for ``mfg``.
+    :type mfg: UNKNOWN
+    :param family: Value for ``family``.
+    :type family: UNKNOWN
+    :param series: Value for ``series``.
+    :type series: UNKNOWN
+    :param color: Value for ``color``.
+    :type color: UNKNOWN
+    :param image: Value for ``image``.
+    :type image: UNKNOWN
+    :param datasheet: Value for ``datasheet``.
+    :type datasheet: UNKNOWN
+    :param cad: Value for ``cad``.
+    :type cad: UNKNOWN
+    :param min_temp: Value for ``min_temp``.
+    :type min_temp: UNKNOWN
+    :param max_temp: Value for ``max_temp``.
+    :type max_temp: UNKNOWN
+    :param model3d: Value for ``model3d``.
+    :type model3d: UNKNOWN
+    :param lock_type: Value for ``lock_type``.
+    :type lock_type: UNKNOWN
+    :param length: Value for ``length``.
+    :type length: UNKNOWN
+    :param width: Value for ``width``.
+    :type width: UNKNOWN
+    :param height: Value for ``height``.
+    :type height: UNKNOWN
+    :param weight: Value for ``weight``.
+    :type weight: UNKNOWN
+    :param pins: Value for ``pins``.
+    :type pins: UNKNOWN
+    :param terminal_size: Value for ``terminal_size``.
+    :type terminal_size: UNKNOWN
+    :param compat_housings: Value for ``compat_housings``.
+    :type compat_housings: UNKNOWN
+    :param commit: Value for ``commit``.
+    :type commit: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
 
     if compat_housings is None:
         compat_housings = []
@@ -80,6 +131,31 @@ def add_tpa_lock(con, part_number, description, mfg=None, family=None, series=No
 
 def add_pjt_tpa_lock(con, project_id, part_id, point3d_id=None, housing_id=None,
                      name='', notes='', quat3d=None, angle3d=None, is_visible3d=0):
+    """Add a PJT TPA lock.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param project_id: Identifier for the project.
+    :type project_id: UNKNOWN
+    :param part_id: Identifier for the part.
+    :type part_id: UNKNOWN
+    :param point3d_id: Identifier for the point 3D.
+    :type point3d_id: UNKNOWN
+    :param housing_id: Identifier for the housing.
+    :type housing_id: UNKNOWN
+    :param name: Name value.
+    :type name: UNKNOWN
+    :param notes: Value for ``notes``.
+    :type notes: UNKNOWN
+    :param quat3d: Value for ``quat3d``.
+    :type quat3d: UNKNOWN
+    :param angle3d: Value for ``angle3d``.
+    :type angle3d: UNKNOWN
+    :param is_visible3d: Boolean flag for whether visible 3D.
+    :type is_visible3d: UNKNOWN
+    """
 
     if quat3d is None:
         quat3d = [1.0, 0.0, 0.0, 0.0]
@@ -97,12 +173,32 @@ def add_pjt_tpa_lock(con, project_id, part_id, point3d_id=None, housing_id=None,
 
 
 def add_tpa_locks(con, data: tuple[dict] | list[dict]):
+    """Add a TPA locks.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param data: Data payload.
+    :type data: tuple[dict] | list[dict]
+    """
 
     for line in data:
         add_tpa_lock(con, **line)
 
 
 def add_records(con, splash, data_path):
+    """Add a records.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param splash: Value for ``splash``.
+    :type splash: UNKNOWN
+    :param data_path: Value for ``data_path``.
+    :type data_path: UNKNOWN
+    """
     con.execute('SELECT id FROM tpa_locks WHERE id=1;')
     if con.fetchall():
         return

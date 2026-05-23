@@ -15,6 +15,17 @@ from ... import logger as _logger
 
 
 def add_records(con, splash, _):
+    """Add a records.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param splash: Value for ``splash``.
+    :type splash: UNKNOWN
+    :param _: Value for ``_``.
+    :type _: UNKNOWN
+    """
     con.execute('SELECT id FROM accessories WHERE id=0;')
     if con.fetchall():
         return
@@ -46,6 +57,47 @@ def add_accessory(con, part_number, mfg, description=None, series=None,
                   family=None, color=None, material=None, image=None,
                   datasheet=None, cad=None, model3d=None, length=0.0,
                   width=0.0, height=0.0, weight=0.0, commit=True):
+    """Add an accessory.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param part_number: Value for ``part_number``.
+    :type part_number: UNKNOWN
+    :param mfg: Value for ``mfg``.
+    :type mfg: UNKNOWN
+    :param description: Value for ``description``.
+    :type description: UNKNOWN
+    :param series: Value for ``series``.
+    :type series: UNKNOWN
+    :param family: Value for ``family``.
+    :type family: UNKNOWN
+    :param color: Value for ``color``.
+    :type color: UNKNOWN
+    :param material: Value for ``material``.
+    :type material: UNKNOWN
+    :param image: Value for ``image``.
+    :type image: UNKNOWN
+    :param datasheet: Value for ``datasheet``.
+    :type datasheet: UNKNOWN
+    :param cad: Value for ``cad``.
+    :type cad: UNKNOWN
+    :param model3d: Value for ``model3d``.
+    :type model3d: UNKNOWN
+    :param length: Value for ``length``.
+    :type length: UNKNOWN
+    :param width: Value for ``width``.
+    :type width: UNKNOWN
+    :param height: Value for ``height``.
+    :type height: UNKNOWN
+    :param weight: Value for ``weight``.
+    :type weight: UNKNOWN
+    :param commit: Value for ``commit``.
+    :type commit: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
 
     if color is None:
         color = 'Dark Gray'

@@ -10,6 +10,10 @@ if TYPE_CHECKING:
 
 
 class TPALocksPage(_base.EditorList):
+    """Represent a TPA locks page in :mod:`harness_designer.ui.editor_db.tpa_lock`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     __table_name__ = 'tpa_locks'
     __query__ = f'''\
         SELECT * FROM (

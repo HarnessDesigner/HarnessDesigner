@@ -11,9 +11,30 @@ from ...geometry.decimal import Decimal as _d
 
 
 class FloatProperty(_prop_base.Property):
+    """Represent a float property in :mod:`harness_designer.ui.prop_ctrls.float_prop`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent, label, min_value: float, max_value: float,
                  increment: float, units=None):
+        """Initialise the :class:`FloatProperty` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param label: Value for ``label``.
+        :type label: UNKNOWN
+        :param min_value: Value for ``min_value``.
+        :type min_value: float
+        :param max_value: Value for ``max_value``.
+        :type max_value: float
+        :param increment: Value for ``increment``.
+        :type increment: float
+        :param units: Value for ``units``.
+        :type units: UNKNOWN
+        """
         _prop_base.Property.__init__(self, parent, label)
 
         self._min_val = min_value
@@ -73,6 +94,13 @@ class FloatProperty(_prop_base.Property):
         self._ctrl.valueChanged.connect(self._on_spin_changed)
 
     def SetValue(self, value: float):
+        """Execute the set value operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: float
+        """
         value = round(value, self._precision)
         value = _d(value)
         inc = _d(self._inc)
@@ -94,9 +122,23 @@ class FloatProperty(_prop_base.Property):
         self._slider.blockSignals(False)
 
     def GetValue(self) -> float:
+        """Execute the get value operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: float
+        """
         return self._value
 
     def _on_slider_scroll(self, _):
+        """Handle the slider scroll event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        """
         sv = self._slider.value()
         spin_value = _utils.remap(sv, 0, self._s_max, self._min_val, self._max_val)
         inc = _d(self._inc)
@@ -111,6 +153,13 @@ class FloatProperty(_prop_base.Property):
         self._send_changed_event(float, self._value)
 
     def _on_spin_changed(self, spin_value):
+        """Handle the spin changed event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param spin_value: Value for ``spin_value``.
+        :type spin_value: UNKNOWN
+        """
         sv = _utils.remap(spin_value, self._min_val, self._max_val, 0, self._s_max)
         self._value = spin_value
 

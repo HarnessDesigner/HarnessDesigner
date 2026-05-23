@@ -10,6 +10,10 @@ if TYPE_CHECKING:
 
 
 class SealsPage(_base.EditorList):
+    """Represent a seals page in :mod:`harness_designer.ui.editor_db.seal`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     __table_name__ = 'seals'
     __query__ = f'''\
         SELECT * FROM (

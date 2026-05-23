@@ -9,8 +9,23 @@ from ... import image as _image
 
 
 class Header(QtWidgets.QWidget):
+    """Represent a header in :mod:`harness_designer.ui.dialogs.header`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent, label, size):
+        """Initialise the :class:`Header` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param label: Value for ``label``.
+        :type label: UNKNOWN
+        :param size: Value for ``size``.
+        :type size: UNKNOWN
+        """
         super().__init__(parent)
         self.setMaximumWidth(1920)
         self.setMinimumWidth(200)
@@ -56,6 +71,13 @@ class Header(QtWidgets.QWidget):
         sizer.addLayout(header_sizer)
 
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
+        """Execute the resize event operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param event: Event object.
+        :type event: :class:`QtGui.QResizeEvent`
+        """
         QtWidgets.QWidget.resizeEvent(self, event)
 
         size = self.size()
@@ -69,6 +91,15 @@ class Header(QtWidgets.QWidget):
         self.update()
 
     def _render_bitmap(self, base_pixmap):
+        """Render the bitmap.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param base_pixmap: Value for ``base_pixmap``.
+        :type base_pixmap: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         # Find the best font size so the label fits in roughly 273x25 px.
         font = QtGui.QFont(self.font())
         font.setItalic(True)

@@ -13,12 +13,25 @@ if TYPE_CHECKING:
 
 
 class Wire(_ObjectBase):
+    """Represent a wire in :mod:`harness_designer.objects.wire`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     obj2d: _wire_2d.Wire = None
     obj3d: _wire_3d.Wire = None
     db_obj: "_pjt_wire.PJTWire" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_wire.PJTWire"):
+        """Initialise the :class:`Wire` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mainframe: Main application frame.
+        :type mainframe: :class:`_ui.MainFrame`
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_pjt_wire.PJTWire`
+        """
 
         db_obj.set_object(self)
         db_obj.add_object(self)

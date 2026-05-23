@@ -20,8 +20,21 @@ import requests
 
 
 class FileBrowser(QWidget):
+    """Represent a file browser in :mod:`harness_designer.database.global_db.model3d.model_download`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent: "ModelDownloadDialog", extensions: list[str]):
+        """Initialise the :class:`FileBrowser` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`ModelDownloadDialog`
+        :param extensions: Value for ``extensions``.
+        :type extensions: list[str]
+        """
         QWidget.__init__(self, parent)
         self.parent_dialog = parent
         self.extensions = extensions
@@ -44,9 +57,25 @@ class FileBrowser(QWidget):
         layout.addWidget(self.tree_ctrl)
 
     def GetValues(self):
+        """Execute the get values operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self.file_data, self.file_type
 
     def on_item_selected(self, item: QTreeWidgetItem, _):
+        """Handle the item selected event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param item: Item identifier or value.
+        :type item: :class:`QTreeWidgetItem`
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        """
         if item is None:
             return
         if item.childCount() > 0:
@@ -114,6 +143,13 @@ class FileBrowser(QWidget):
         QApplication.restoreOverrideCursor()
 
     def load_zipfile(self, file: zipfile.ZipFile):
+        """Load the zipfile.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param file: Value for ``file``.
+        :type file: :class:`zipfile.ZipFile`
+        """
         self.zipfile = file
 
         items = {}
@@ -174,13 +210,38 @@ class FileBrowser(QWidget):
                 child.setData(0, Qt.ItemDataRole.UserRole, f)
 
     def load_file(self, filename, data):
+        """Load the file.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param filename: Value for ``filename``.
+        :type filename: UNKNOWN
+        :param data: Data payload.
+        :type data: UNKNOWN
+        """
         child = QTreeWidgetItem(self.root, [filename])
         child.setData(0, Qt.ItemDataRole.UserRole, data)
 
 
 class ModelDownloadDialog(QDialog):
+    """Represent a model download dialog in :mod:`harness_designer.database.global_db.model3d.model_download`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent, url, extensions):
+        """Initialise the :class:`ModelDownloadDialog` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param url: Value for ``url``.
+        :type url: UNKNOWN
+        :param extensions: Value for ``extensions``.
+        :type extensions: UNKNOWN
+        :raises ValueError: Raised when the operation cannot be completed.
+        """
         QDialog.__init__(self, parent,
                          Qt.WindowType.Dialog | Qt.WindowType.WindowCloseButtonHint |
                          Qt.WindowType.WindowTitleHint | Qt.WindowType.WindowStaysOnTopHint)
@@ -251,4 +312,11 @@ class ModelDownloadDialog(QDialog):
         v_layout.addWidget(button_box)
 
     def GetValues(self) -> tuple[bytes, str] | tuple[None, None]:
+        """Execute the get values operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: tuple[bytes, str] | tuple[None, None]
+        """
         return self.browser.GetValues()

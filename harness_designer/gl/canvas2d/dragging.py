@@ -13,8 +13,21 @@ if TYPE_CHECKING:
 
 
 class DragObject:
+    """Represent a drag object in :mod:`harness_designer.gl.canvas2d.dragging`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, canvas: "_canvas.Canvas", selected: "_objects.ObjectBase"):
+        """Initialise the :class:`DragObject` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param canvas: Canvas instance.
+        :type canvas: :class:`_canvas.Canvas`
+        :param selected: Value for ``selected``.
+        :type selected: :class:`_objects.ObjectBase`
+        """
         self.canvas = canvas
         self.selected = selected
 
@@ -27,6 +40,13 @@ class DragObject:
 
     @_debug.logfunc
     def __call__(self, delta):
+        """Call the instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param delta: Value for ``delta``.
+        :type delta: UNKNOWN
+        """
         # Step 1: Project object position to screen space
         anchor_screen = self.canvas.camera.ProjectPoint(self.selected.obj3d.position)
         # Step 2: Use object's anchor_screen.z as the depth reference

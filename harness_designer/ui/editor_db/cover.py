@@ -10,6 +10,10 @@ if TYPE_CHECKING:
 
 
 class CoversPage(_base.EditorList):
+    """Represent a covers page in :mod:`harness_designer.ui.editor_db.cover`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     __table_name__ = 'covers'
     __query__ = f'''\
         SELECT * FROM (

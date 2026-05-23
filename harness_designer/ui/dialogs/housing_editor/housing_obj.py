@@ -21,10 +21,23 @@ if TYPE_CHECKING:
 
 
 class Housing(_objects.ObjectBase):
+    """Represent a housing in :mod:`harness_designer.ui.dialogs.housing_editor.housing_obj`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     obj3d: "Housing3D" = None
 
     def __init__(self, parent: "_housing_editor.HousingEditorDialog",
                  housing: "_housing.Housing"):
+        """Initialise the :class:`Housing` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`_housing_editor.HousingEditorDialog`
+        :param housing: Value for ``housing``.
+        :type housing: :class:`_housing.Housing`
+        """
 
         super().__init__(parent, housing)
         self.dialog = parent
@@ -34,9 +47,22 @@ class Housing(_objects.ObjectBase):
 
 
 class Housing3D(_base3d.Base3D):
+    """Represent a housing 3D in :mod:`harness_designer.ui.dialogs.housing_editor.housing_obj`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     db_obj: "_housing.Housing" = None
 
     def __init__(self, parent: Housing, db_obj: "_housing.Housing"):
+        """Initialise the :class:`Housing3D` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`Housing`
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_housing.Housing`
+        """
         self.dialog: "_housing_editor.HousingEditorDialog" = parent.dialog
         self.db_obj = db_obj
 
@@ -117,5 +143,12 @@ class Housing3D(_base3d.Base3D):
         parent.dialog.context.release()
 
     def _update_position(self, position: _point.Point):
+        """Update the position.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param position: Position value.
+        :type position: :class:`_point.Point`
+        """
         super()._update_position(position)
         self.dialog.canvas.Refresh()

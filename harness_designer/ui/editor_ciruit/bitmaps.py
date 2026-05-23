@@ -29,6 +29,15 @@ CONDUCTOR_MATERIAL_COLORS: dict[str, str] = {
 
 
 def conductor_color(material: str | None) -> str:
+    """Execute the conductor color operation.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param material: Value for ``material``.
+    :type material: str | None
+    :returns: Return value. UNKNOWN details.
+    :rtype: str
+    """
     if not material:
         return CONDUCTOR_MATERIAL_COLORS["default"]
 
@@ -271,6 +280,23 @@ WIRE_PIXMAP_CACHE: dict[tuple, QPixmap] = {}
 def cached_wire_pixmap(primary: str | None, stripe: str | None,
                        material: str | None, width: int,
                        height: int) -> QPixmap:
+    """Execute the cached wire pixmap operation.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param primary: Value for ``primary``.
+    :type primary: str | None
+    :param stripe: Value for ``stripe``.
+    :type stripe: str | None
+    :param material: Value for ``material``.
+    :type material: str | None
+    :param width: Value for ``width``.
+    :type width: int
+    :param height: Value for ``height``.
+    :type height: int
+    :returns: Return value. UNKNOWN details.
+    :rtype: :class:`QPixmap`
+    """
 
     key = (primary, stripe, material, width, height)
 

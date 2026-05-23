@@ -34,6 +34,13 @@ class GLMaterial:
     _cl_ior = 0.5
 
     def __init__(self, color: _color.Color):
+        """Initialise the :class:`GLMaterial` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param color: Value for ``color``.
+        :type color: :class:`_color.Color`
+        """
         self._color = color
 
         a = color.rgba_scalar[-1]
@@ -47,6 +54,13 @@ class GLMaterial:
 
     @property
     def cl_array(self):
+        """Return the cl array.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         r, g, b, a = self._color.rgba_scalar
 
         return np.array(
@@ -56,13 +70,34 @@ class GLMaterial:
 
     @property
     def color_scalar(self):
+        """Return the color scalar.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self._color.rgba_scalar
 
     @property
     def is_opaque(self):
+        """Return the is opaque.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self._is_opaque
 
     def set(self, shader_program):
+        """Execute the set operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param shader_program: Value for ``shader_program``.
+        :type shader_program: UNKNOWN
+        """
         ambient = GL.glGetUniformLocation(shader_program, "materialAmbient")
         diffuse = GL.glGetUniformLocation(shader_program, "materialDiffuse")
         specular = GL.glGetUniformLocation(shader_program, "materialSpecular")

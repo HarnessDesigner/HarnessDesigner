@@ -8,6 +8,17 @@ from ... import logger as _logger
 
 
 def add_records(con, splash, data_path):
+    """Add a records.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param splash: Value for ``splash``.
+    :type splash: UNKNOWN
+    :param data_path: Value for ``data_path``.
+    :type data_path: UNKNOWN
+    """
     con.execute('SELECT id FROM seal_types WHERE id=0;')
     if con.fetchall():
         return
@@ -39,6 +50,21 @@ def add_records(con, splash, data_path):
 
 
 def add_seal_type(con, name, id=None, commit=True):  # NOQA
+    """Add a seal type.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param name: Name value.
+    :type name: UNKNOWN
+    :param id: Identifier for the ID.
+    :type id: UNKNOWN
+    :param commit: Value for ``commit``.
+    :type commit: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
 
     if id is None:
         con.execute(
@@ -59,6 +85,17 @@ def add_seal_type(con, name, id=None, commit=True):  # NOQA
 
 
 def get_seal_type_id(con, name):
+    """Return the seal type ID.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param name: Name value.
+    :type name: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
     if not name:
         return 0
 

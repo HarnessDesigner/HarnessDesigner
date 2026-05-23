@@ -29,6 +29,13 @@ class Camera2D:
     """
 
     def __init__(self, canvas: "_canvas.Canvas2D"):
+        """Initialise the :class:`Camera2D` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param canvas: Canvas instance.
+        :type canvas: :class:`_canvas.Canvas2D`
+        """
         self.canvas = canvas
 
         # Focal position - the point in world coordinates we're looking at (center of view)

@@ -26,12 +26,37 @@ _debug_config = _config.Config.debug.rendering3d
 
 
 class Base3D:
+    """Represent a base 3D in :mod:`harness_designer.objects.objects3d.base3d`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     db_obj: "_project_db.PJTEntryBase"
 
     def __init__(self,  parent: "_ObjectBase", db_obj: "_project_db.PJTEntryBase",
                  vbo: _vbo.VBOHandler, angle: _angle.Angle,
                  position: _point.Point, scale: _point.Point,
                  material: _materials.GLMaterial, data=None):
+        """Initialise the :class:`Base3D` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: _ObjectBase
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_project_db.PJTEntryBase`
+        :param vbo: Value for ``vbo``.
+        :type vbo: :class:`_vbo.VBOHandler`
+        :param angle: Value for ``angle``.
+        :type angle: :class:`_angle.Angle`
+        :param position: Position value.
+        :type position: :class:`_point.Point`
+        :param scale: Value for ``scale``.
+        :type scale: :class:`_point.Point`
+        :param material: Value for ``material``.
+        :type material: :class:`_materials.GLMaterial`
+        :param data: Data payload.
+        :type data: UNKNOWN
+        """
 
         self.parent: "_ObjectBase" = parent
         self.editor3d = parent.mainframe.editor3d
@@ -90,6 +115,10 @@ class Base3D:
         scale.bind(self._update_scale)
 
     def _compute_obb(self):
+        """Compute the OBB.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         if self._vbo is None:
             p1, p2 = _utils.compute_aabb(self._data[0])
 
@@ -100,6 +129,10 @@ class Base3D:
             self._obb = local_obb + self._position
 
     def _compute_aabb(self):
+        """Compute the AABB.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         if self._vbo is None:
             p1, p2 = _utils.compute_aabb(self._data[0])
             aabb = _utils.adjust_aabb(np.array([p1.as_float, p2.as_float], dtype=np.float64))
@@ -128,9 +161,23 @@ class Base3D:
                 self._aabb[i][j] = aabb[i][j]
 
     def identify(self, color: list[float] | None):
+        """Execute the identify operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param color: Value for ``color``.
+        :type color: list[float] | None
+        """
         pass
 
     def _update_position(self, position: _point.Point):
+        """Update the position.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param position: Position value.
+        :type position: :class:`_point.Point`
+        """
         self.editor3d.context.acquire()
 
         self._compute_obb()
@@ -161,6 +208,13 @@ class Base3D:
         self.editor3d.Refresh(False)
 
     def _update_angle(self, angle: _angle.Angle):
+        """Update the angle.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param angle: Value for ``angle``.
+        :type angle: :class:`_angle.Angle`
+        """
         self.editor3d.context.acquire()
 
         if self._vbo is None:
@@ -200,6 +254,13 @@ class Base3D:
         self.editor3d.Refresh(False)
 
     def _update_scale(self, scale: _point.Point):
+        """Update the scale.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param scale: Value for ``scale``.
+        :type scale: :class:`_point.Point`
+        """
         self.editor3d.context.acquire()
 
         self._o_scale = scale.copy()
@@ -224,26 +285,71 @@ class Base3D:
 
     @property
     def position(self) -> _point.Point:
+        """Return the position.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_point.Point`
+        """
         return self._position
 
     @position.setter
     def position(self, _):
+        """Set the position.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        :raises AttributeError: Raised when the operation cannot be completed.
+        """
         raise AttributeError('Position is only able to be modified not set')
 
     @property
     def angle(self) -> _angle.Angle:
+        """Return the angle.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_angle.Angle`
+        """
         return self._angle
 
     @angle.setter
     def angle(self, _):
+        """Set the angle.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        :raises AttributeError: Raised when the operation cannot be completed.
+        """
         raise AttributeError('Angle is only able to be modified not set')
 
     @property
     def scale(self) -> _point.Point:
+        """Return the scale.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_point.Point`
+        """
         return self._angle
 
     @scale.setter
     def scale(self, _):
+        """Set the scale.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        :raises AttributeError: Raised when the operation cannot be completed.
+        """
         raise AttributeError('Scale is only able to be modified not set')
 
     def hit_test_step1(self, ray_origin, ray_direction):
@@ -371,17 +477,45 @@ class Base3D:
 
     @property
     def obb(self) -> np.ndarray:
+        """Return the OBB.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`np.ndarray`
+        """
         return self._obb
 
     @property
     def aabb(self) -> np.ndarray:
+        """Return the AABB.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`np.ndarray`
+        """
         return self._aabb
 
     @property
     def is_selected(self) -> bool:
+        """Return the is selected.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: bool
+        """
         return self._is_selected
 
     def set_selected(self, flag: bool):
+        """Set the selected.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param flag: Value for ``flag``.
+        :type flag: bool
+        """
         if flag:
             self._material = self._selected_material
         else:
@@ -391,10 +525,21 @@ class Base3D:
         self._is_selected = flag
 
     def delete(self):
+        """Execute the delete operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.db_obj.delete()
 
     @property
     def material(self):
+        """Return the material.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         if self._is_selected:
             return self._selected_material
 
@@ -432,6 +577,17 @@ class Base3D:
             self._vbo.render()
 
     def render(self, faces_program, edges_program, vertices_program):
+        """Execute the render operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param faces_program: Value for ``faces_program``.
+        :type faces_program: UNKNOWN
+        :param edges_program: Value for ``edges_program``.
+        :type edges_program: UNKNOWN
+        :param vertices_program: Value for ``vertices_program``.
+        :type vertices_program: UNKNOWN
+        """
         if not self.is_visible:
             return
 
@@ -543,6 +699,10 @@ class Base3D:
             GL.glEnd()
 
     def _render_aabb(self):
+        """Render the AABB.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         aabb = self.aabb
 
         x1, y1, z1 = aabb[0]
@@ -566,6 +726,15 @@ class Base3D:
             ], dtype=np.int32)
 
         def _render_edges(v, e):
+            """Render the edges.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param v: Value for ``v``.
+            :type v: UNKNOWN
+            :param e: Value for ``e``.
+            :type e: UNKNOWN
+            """
             e = v[e].reshape(-1, 3)
             GL.glLineWidth(1.5)
             GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
@@ -580,6 +749,10 @@ class Base3D:
         _render_edges(vertices, edges)
 
     def _render_obb(self):
+        """Render the OBB.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         vertices = self.obb
 
         faces = np.array([
@@ -598,6 +771,15 @@ class Base3D:
             ], dtype=np.int32)
 
         def _render_bb(v, f):
+            """Render the bb.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param v: Value for ``v``.
+            :type v: UNKNOWN
+            :param f: Value for ``f``.
+            :type f: UNKNOWN
+            """
             vers, normals, count = _utils.compute_vertex_normals(v, f)
 
             # Enable vertex arrays
@@ -616,6 +798,15 @@ class Base3D:
             GL.glDisableClientState(GL.GL_VERTEX_ARRAY)
 
         def _render_edges(v, e):
+            """Render the edges.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param v: Value for ``v``.
+            :type v: UNKNOWN
+            :param e: Value for ``e``.
+            :type e: UNKNOWN
+            """
             e = v[e].reshape(-1, 3)
             GL.glLineWidth(1.0)
             GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
@@ -633,10 +824,24 @@ class Base3D:
 
     @property
     def is_visible(self) -> bool:
+        """Return the is visible.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: bool
+        """
         return self._is_visible
 
     @is_visible.setter
     def is_visible(self, value: bool):
+        """Set the is visible.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: bool
+        """
         self._is_visible = value
         try:
             self.db_obj.is_visible3d = value
@@ -645,7 +850,21 @@ class Base3D:
 
     @property
     def is_opaque(self):
+        """Return the is opaque.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self._is_opaque
 
     def get_context_menu(self):
+        """Return the context menu.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return None

@@ -13,12 +13,25 @@ if TYPE_CHECKING:
 
 
 class WireLayout(_ObjectBase):
+    """Represent a wire layout in :mod:`harness_designer.objects.wire_layout`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     obj2d: _wire2d_layout.WireLayout = None
     obj3d: _wire3d_layout.WireLayout = None
     db_obj: "_pjt_wire_layout.PJTWireLayout" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_wire_layout.PJTWireLayout"):
+        """Initialise the :class:`WireLayout` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mainframe: Main application frame.
+        :type mainframe: :class:`_ui.MainFrame`
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_pjt_wire_layout.PJTWireLayout`
+        """
 
         db_obj.set_object(self)
         db_obj.add_object(self)

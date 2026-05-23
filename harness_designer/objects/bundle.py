@@ -13,12 +13,25 @@ if TYPE_CHECKING:
 
 
 class Bundle(_ObjectBase):
+    """Represent a bundle in :mod:`harness_designer.objects.bundle`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     obj2d: _bundle_2d.Bundle = None
     obj3d: _bundle_3d.Bundle = None
     db_obj: "_pjt_bundle.PJTBundle" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_bundle.PJTBundle"):
+        """Initialise the :class:`Bundle` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mainframe: Main application frame.
+        :type mainframe: :class:`_ui.MainFrame`
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_pjt_bundle.PJTBundle`
+        """
         db_obj.set_object(self)
         db_obj.add_object(self)
 

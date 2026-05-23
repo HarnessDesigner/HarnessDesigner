@@ -8,15 +8,33 @@ from ....geometry import point as _point
 
 
 class DimensionMixin(BaseMixin):
+    """Represent a dimension mixin in :mod:`harness_designer.database.global_db.mixins.dimension`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     _scale_id: str = None
 
     def _update_scale(self, scale: _point.Point):
+        """Update the scale.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param scale: Value for ``scale``.
+        :type scale: :class:`_point.Point`
+        """
         width, height, length = scale.as_float
 
         self._table.update(self._db_id, width=width, height=height, length=length)
 
     @property
     def scale(self) -> "_point.Point":
+        """Return the scale.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_point.Point`
+        """
         if self._scale_id is None:
             self._scale_id = str(uuid.uuid4())
 
@@ -42,35 +60,88 @@ class DimensionMixin(BaseMixin):
 
     @property
     def length(self) -> float:
+        """Return the length.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         return self._table.select('length', id=self._db_id)[0][0]
 
     @length.setter
     def length(self, value: float):
+        """Set the length.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: float
+        """
         self._table.update(self._db_id, length=value)
         self._populate('length')
 
     @property
     def width(self) -> float:
+        """Return the width.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         return self._table.select('width', id=self._db_id)[0][0]
 
     @width.setter
     def width(self, value: float):
+        """Set the width.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: float
+        """
         self._table.update(self._db_id, width=value)
         self._populate('width')
 
     @property
     def height(self) -> float:
+        """Return the height.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         return self._table.select('height', id=self._db_id)[0][0]
 
     @height.setter
     def height(self, value: float):
+        """Set the height.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: float
+        """
         self._table.update(self._db_id, height=value)
         self._populate('height')
 
 
 class DimensionControl(_prop_ctrls.Category):
+    """Represent a dimension control in :mod:`harness_designer.database.global_db.mixins.dimension`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent):
+        """Initialise the :class:`DimensionControl` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        """
         self.db_obj: DimensionMixin = None
 
         super().__init__(parent, 'Dimensions')
@@ -89,6 +160,13 @@ class DimensionControl(_prop_ctrls.Category):
         self.height_ctrl.property_changed.connect(self._on_height)
 
     def set_obj(self, db_obj: DimensionMixin):
+        """Set the obj.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`DimensionMixin`
+        """
         self.db_obj = db_obj
 
         if db_obj is None:
@@ -107,10 +185,31 @@ class DimensionControl(_prop_ctrls.Category):
             self.height_ctrl.Enable(True)
 
     def _on_length(self, evt: _prop_ctrls.PropertyEvent):
+        """Handle the length event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_prop_ctrls.PropertyEvent`
+        """
         self.db_obj.length = evt.GetValue()
 
     def _on_width(self, evt: _prop_ctrls.PropertyEvent):
+        """Handle the width event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_prop_ctrls.PropertyEvent`
+        """
         self.db_obj.width = evt.GetValue()
 
     def _on_height(self, evt: _prop_ctrls.PropertyEvent):
+        """Handle the height event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_prop_ctrls.PropertyEvent`
+        """
         self.db_obj.height = evt.GetValue()

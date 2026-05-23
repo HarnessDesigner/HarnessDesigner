@@ -5,6 +5,10 @@ from ... import color as _color
 
 
 class PlasticMaterial(_material.GLMaterial):
+    """Represent a plastic material in :mod:`harness_designer.gl.materials.plastic`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     _ambient = (0.0, 0.0, 0.0)
     _diffuse = (0.0, 0.0, 0.0)
     _specular = (0.898039, 0.898039, 0.898039)
@@ -18,6 +22,13 @@ class PlasticMaterial(_material.GLMaterial):
     _cl_roughness = 0.1
 
     def __init__(self, color: _color.Color):
+        """Initialise the :class:`PlasticMaterial` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param color: Value for ``color``.
+        :type color: :class:`_color.Color`
+        """
         scalar = color.rgb_scalar
 
         self._ambient = scalar
@@ -30,6 +41,10 @@ class PlasticMaterial(_material.GLMaterial):
 
 
 class BlackPlasticMaterial(_material.GLMaterial):
+    """Represent a black plastic material in :mod:`harness_designer.gl.materials.plastic`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     _ambient = (0.0, 0.0, 0.0)
     _diffuse = (0.01, 0.01, 0.01)
     _specular = (0.50, 0.50, 0.50)
@@ -37,6 +52,10 @@ class BlackPlasticMaterial(_material.GLMaterial):
 
 
 class CyanPlasticMaterial(_material.GLMaterial):
+    """Represent a cyan plastic material in :mod:`harness_designer.gl.materials.plastic`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     _ambient = (0.0, 0.1, 0.06)
     _diffuse = (0.0, 0.50980392, 0.50980392)
     _specular = (0.50196078, 0.50196078, 0.50196078)
@@ -44,6 +63,10 @@ class CyanPlasticMaterial(_material.GLMaterial):
 
 
 class GreenPlasticMaterial(_material.GLMaterial):
+    """Represent a green plastic material in :mod:`harness_designer.gl.materials.plastic`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     _ambient = (0.0, 0.0, 0.0)
     _diffuse = (0.1, 0.35, 0.1)
     _specular = (0.45, 0.55, 0.45)
@@ -51,6 +74,10 @@ class GreenPlasticMaterial(_material.GLMaterial):
 
 
 class RedPlasticMaterial(_material.GLMaterial):
+    """Represent a red plastic material in :mod:`harness_designer.gl.materials.plastic`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     _ambient = (0.0, 0.0, 0.0)
     _diffuse = (0.5, 0.0, 0.0)
     _specular = (0.7, 0.6, 0.6)
@@ -58,6 +85,10 @@ class RedPlasticMaterial(_material.GLMaterial):
 
 
 class WhitePlasticMaterial(_material.GLMaterial):
+    """Represent a white plastic material in :mod:`harness_designer.gl.materials.plastic`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     _ambient = (0.0, 0.0, 0.0)
     _diffuse = (0.55, 0.55, 0.55)
     _specular = (0.70, 0.70, 0.70)
@@ -65,6 +96,10 @@ class WhitePlasticMaterial(_material.GLMaterial):
 
 
 class YellowPlasticMaterial(_material.GLMaterial):
+    """Represent a yellow plastic material in :mod:`harness_designer.gl.materials.plastic`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     _ambient = (0.0, 0.0, 0.0)
     _diffuse = (0.5, 0.5, 0.0)
     _specular = (0.60, 0.60, 0.50)

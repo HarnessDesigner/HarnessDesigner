@@ -16,10 +16,21 @@ Generic3D = _generic3d.Generic
 
 
 class Generic(_ObjectBase):
+    """Represent a generic in :mod:`harness_designer.objects.generic`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     obj2d: Generic2D
     obj3d: Generic3D
 
     def __init__(self, mainframe: "_ui.MainFrame"):
+        """Initialise the :class:`Generic` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mainframe: Main application frame.
+        :type mainframe: :class:`_ui.MainFrame`
+        """
 
         super().__init__(mainframe, None)
 

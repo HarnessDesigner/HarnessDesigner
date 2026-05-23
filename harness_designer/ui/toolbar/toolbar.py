@@ -25,6 +25,13 @@ _id_counter = iter(range(1, 1000))
 
 
 def _new_id() -> int:
+    """Execute the new ID operation.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :returns: Return value. UNKNOWN details.
+    :rtype: int
+    """
     return next(_id_counter)
 
 
@@ -70,6 +77,13 @@ class EditorToolbar:
     """
 
     def __init__(self, mainframe: "_mainframe.MainFrame"):
+        """Initialise the :class:`EditorToolbar` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mainframe: Main application frame.
+        :type mainframe: :class:`_mainframe.MainFrame`
+        """
         self.mainframe = mainframe
         self._mode: int | None = None
 
@@ -85,6 +99,19 @@ class EditorToolbar:
         self._mode_group.setExclusive(True)
 
         def _radio(id_: int, label: str, icon: QIcon) -> QAction:
+            """Execute the radio operation.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param id_: Identifier for the ID.
+            :type id_: int
+            :param label: Value for ``label``.
+            :type label: str
+            :param icon: Value for ``icon``.
+            :type icon: :class:`QIcon`
+            :returns: Return value. UNKNOWN details.
+            :rtype: :class:`QAction`
+            """
             act_ = QAction(icon, label, tb)
             act_.setCheckable(True)
             act_.setToolTip(label)
@@ -129,14 +156,35 @@ class EditorToolbar:
     # --- mode ---
 
     def get_mode(self) -> int | None:
+        """Return the mode.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: int | None
+        """
         return self._mode
 
     def _on_mode(self, id_: int):
+        """Handle the mode event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param id_: Identifier for the ID.
+        :type id_: int
+        """
         self._mode = id_
 
     # --- context-sensitive enable/disable ---
 
     def _on_obj_selected(self, evt: "_gl.GLObjectEvent"):
+        """Handle the obj selected event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
         from ...objects import housing as _housing
         from ...objects import wire as _wire
         from ...objects import terminal as _terminal
@@ -165,6 +213,13 @@ class EditorToolbar:
             self._seal.setEnabled(True)
 
     def _on_obj_unselected(self, _: "_gl.GLObjectEvent"):
+        """Handle the obj unselected event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: :class:`_gl.GLObjectEvent`
+        """
         for act in (self._cpa_lock, self._tpa_lock, self._bundle, self._seal,
                     self._transition, self._draw_square, self._draw_circle,
                     self._splice, self._terminal):
@@ -174,9 +229,22 @@ class EditorToolbar:
     # --- passthrough helpers used by mainframe ---
 
     def Refresh(self, *_, **__):
+        """Execute the refresh operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        :param __: Value for ``__``.
+        :type __: UNKNOWN
+        """
         self.toolbar.repaint()
 
     def Destroy(self):
+        """Execute the destroy operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.toolbar.deleteLater()
 
 
@@ -196,6 +264,13 @@ class NoteToolbar:
     ID_ALIGN_VERT_BOTTOM = _new_id()
 
     def __init__(self, mainframe: "_mainframe.MainFrame"):
+        """Initialise the :class:`NoteToolbar` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mainframe: Main application frame.
+        :type mainframe: :class:`_mainframe.MainFrame`
+        """
         self.mainframe = mainframe
 
         tb = QToolBar('Note', mainframe)
@@ -209,6 +284,19 @@ class NoteToolbar:
         group.setExclusive(True)
 
         def _radio(id_: int, label: str, icon: QIcon) -> QAction:
+            """Execute the radio operation.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param id_: Identifier for the ID.
+            :type id_: int
+            :param label: Value for ``label``.
+            :type label: str
+            :param icon: Value for ``icon``.
+            :type icon: :class:`QIcon`
+            :returns: Return value. UNKNOWN details.
+            :rtype: :class:`QAction`
+            """
             act = QAction(icon, label, tb)
             act.setCheckable(True)
             act.setEnabled(False)
@@ -241,6 +329,15 @@ class NoteToolbar:
         #     lambda visible: self._on_editor_visibility('editor3d', visible))
 
     def _on_editor_visibility(self, editor_name: str, visible: bool):
+        """Handle the editor visibility event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param editor_name: Value for ``editor_name``.
+        :type editor_name: str
+        :param visible: Value for ``visible``.
+        :type visible: bool
+        """
         if not visible:
             return
         obj = self.mainframe.get_selected()
@@ -255,6 +352,14 @@ class NoteToolbar:
             self.set_buttons(-1)
 
     def set_buttons(self, align):
+        """Set the buttons.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param align: Value for ``align``.
+        :type align: UNKNOWN
+        :raises RuntimeError: Raised when the operation cannot be completed.
+        """
         if align == -1:
             for act in (self.align_left, self.align_center, self.align_right):
                 act.setEnabled(False)
@@ -273,23 +378,64 @@ class NoteToolbar:
                 raise RuntimeError('sanity check')
 
     def on_obj2d_selected(self, evt: "_gl.GLObjectEvent"):
+        """Handle the obj 2D selected event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
         obj = evt.GetGLObject()
         self.set_buttons(obj.db_obj.h_align2d if isinstance(obj, _note.Note) else -1)
 
     def on_obj2d_unselected(self, _: "_gl.GLObjectEvent"):
+        """Handle the obj 2D unselected event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: :class:`_gl.GLObjectEvent`
+        """
         self.set_buttons(-1)
 
     def on_obj3d_selected(self, evt: "_gl.GLObjectEvent"):
+        """Handle the obj 3D selected event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
         obj = evt.GetGLObject()
         self.set_buttons(obj.db_obj.h_align3d if isinstance(obj, _note.Note) else -1)
 
     def on_obj3d_unselected(self, _: "_gl.GLObjectEvent"):
+        """Handle the obj 3D unselected event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: :class:`_gl.GLObjectEvent`
+        """
         self.set_buttons(-1)
 
     def Refresh(self, *_, **__):
+        """Execute the refresh operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        :param __: Value for ``__``.
+        :type __: UNKNOWN
+        """
         self.toolbar.repaint()
 
     def Destroy(self):
+        """Execute the destroy operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.toolbar.deleteLater()
 
 
@@ -313,6 +459,13 @@ class EditorObjectToolbar:
     ID_MOVE_Z = _new_id()
 
     def __init__(self, mainframe: "_mainframe.MainFrame"):
+        """Initialise the :class:`EditorObjectToolbar` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mainframe: Main application frame.
+        :type mainframe: :class:`_mainframe.MainFrame`
+        """
         self.mainframe = mainframe
 
         tb = QToolBar('Object', mainframe)
@@ -326,6 +479,19 @@ class EditorObjectToolbar:
         group.setExclusive(True)
 
         def _radio(id_: int, label: str, icon: QIcon) -> QAction:
+            """Execute the radio operation.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param id_: Identifier for the ID.
+            :type id_: int
+            :param label: Value for ``label``.
+            :type label: str
+            :param icon: Value for ``icon``.
+            :type icon: :class:`QIcon`
+            :returns: Return value. UNKNOWN details.
+            :rtype: :class:`QAction`
+            """
             act = QAction(icon, label, tb)
             act.setCheckable(True)
             act.setToolTip(label)
@@ -349,12 +515,32 @@ class EditorObjectToolbar:
         mainframe.addToolBar(Qt.ToolBarArea.TopToolBarArea, tb)
 
     def on_tools(self, id_: int):
+        """Handle the tools event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param id_: Identifier for the ID.
+        :type id_: int
+        """
         pass  # future: notify handlers of transform mode change
 
     def Refresh(self, *_, **__):
+        """Execute the refresh operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        :param __: Value for ``__``.
+        :type __: UNKNOWN
+        """
         self.toolbar.repaint()
 
     def Destroy(self):
+        """Execute the destroy operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.toolbar.deleteLater()
 
 
@@ -372,6 +558,13 @@ class Setting3DToolbar:
     ID_SHOW_REFLECTIONS = _new_id()
 
     def __init__(self, mainframe: "_mainframe.MainFrame"):
+        """Initialise the :class:`Setting3DToolbar` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mainframe: Main application frame.
+        :type mainframe: :class:`_mainframe.MainFrame`
+        """
         self.mainframe = mainframe
 
         tb = QToolBar('3D Settings', mainframe)
@@ -382,6 +575,21 @@ class Setting3DToolbar:
         self.toolbar = tb
 
         def _toggle(id_: int, label: str, icon: QIcon, slot) -> QAction:
+            """Execute the toggle operation.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param id_: Identifier for the ID.
+            :type id_: int
+            :param label: Value for ``label``.
+            :type label: str
+            :param icon: Value for ``icon``.
+            :type icon: :class:`QIcon`
+            :param slot: Value for ``slot``.
+            :type slot: UNKNOWN
+            :returns: Return value. UNKNOWN details.
+            :rtype: :class:`QAction`
+            """
             act = QAction(icon, label, tb)
             act.setCheckable(True)
             act.setToolTip(label)
@@ -405,24 +613,72 @@ class Setting3DToolbar:
         mainframe.addToolBar(Qt.ToolBarArea.TopToolBarArea, tb)
 
     def on_show_wireframe(self, checked: bool):
+        """Handle the show wireframe event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param checked: Value for ``checked``.
+        :type checked: bool
+        """
         pass
 
     def on_show_reflections(self, checked: bool):
+        """Handle the show reflections event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param checked: Value for ``checked``.
+        :type checked: bool
+        """
         pass
 
     def on_show_spotlight(self, checked: bool):
+        """Handle the show spotlight event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param checked: Value for ``checked``.
+        :type checked: bool
+        """
         pass
 
     def on_show_normals(self, checked: bool):
+        """Handle the show normals event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param checked: Value for ``checked``.
+        :type checked: bool
+        """
         pass
 
     def on_show_vertices(self, checked: bool):
+        """Handle the show vertices event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param checked: Value for ``checked``.
+        :type checked: bool
+        """
         pass
 
     def Refresh(self, *_, **__):
+        """Execute the refresh operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        :param __: Value for ``__``.
+        :type __: UNKNOWN
+        """
         self.toolbar.repaint()
 
     def Destroy(self):
+        """Execute the destroy operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.toolbar.deleteLater()
 
 
@@ -440,6 +696,13 @@ class GeneralToolbar:
     ID_BOM = _new_id()
 
     def __init__(self, mainframe: "_mainframe.MainFrame"):
+        """Initialise the :class:`GeneralToolbar` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mainframe: Main application frame.
+        :type mainframe: :class:`_mainframe.MainFrame`
+        """
         self.mainframe = mainframe
 
         tb = QToolBar('General', mainframe)
@@ -450,6 +713,21 @@ class GeneralToolbar:
         self.toolbar = tb
 
         def _push(id_: int, label: str, icon: QIcon, slot) -> QAction:
+            """Execute the push operation.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param id_: Identifier for the ID.
+            :type id_: int
+            :param label: Value for ``label``.
+            :type label: str
+            :param icon: Value for ``icon``.
+            :type icon: :class:`QIcon`
+            :param slot: Value for ``slot``.
+            :type slot: UNKNOWN
+            :returns: Return value. UNKNOWN details.
+            :rtype: :class:`QAction`
+            """
             act = QAction(icon, label, tb)
             act.setToolTip(label)
             act.setData(id_)
@@ -467,22 +745,70 @@ class GeneralToolbar:
         mainframe.addToolBar(Qt.ToolBarArea.TopToolBarArea, tb)
 
     def on_browser(self, checked: bool = False):
+        """Handle the browser event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param checked: Value for ``checked``.
+        :type checked: bool
+        """
         pass
 
     def on_settings(self, checked: bool = False):
+        """Handle the settings event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param checked: Value for ``checked``.
+        :type checked: bool
+        """
         pass
 
     def on_tools(self, checked: bool = False):
+        """Handle the tools event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param checked: Value for ``checked``.
+        :type checked: bool
+        """
         pass
 
     def on_database(self, checked: bool = False):
+        """Handle the database event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param checked: Value for ``checked``.
+        :type checked: bool
+        """
         pass
 
     def on_bom(self, checked: bool = False):
+        """Handle the bom event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param checked: Value for ``checked``.
+        :type checked: bool
+        """
         pass
 
     def Refresh(self, *_, **__):
+        """Execute the refresh operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        :param __: Value for ``__``.
+        :type __: UNKNOWN
+        """
         self.toolbar.repaint()
 
     def Destroy(self):
+        """Execute the destroy operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.toolbar.deleteLater()

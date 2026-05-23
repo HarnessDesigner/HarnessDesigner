@@ -18,6 +18,23 @@ class FloatCtrl(QtWidgets.QWidget):
 
     def __init__(self, parent, label: str, min_val: float, max_val: float,
                  inc: float, slider: bool = True):
+        """Initialise the :class:`FloatCtrl` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param label: Value for ``label``.
+        :type label: str
+        :param min_val: Value for ``min_val``.
+        :type min_val: float
+        :param max_val: Value for ``max_val``.
+        :type max_val: float
+        :param inc: Value for ``inc``.
+        :type inc: float
+        :param slider: Value for ``slider``.
+        :type slider: bool
+        """
 
         super().__init__(parent)
 
@@ -87,6 +104,13 @@ class FloatCtrl(QtWidgets.QWidget):
     # Internal
     # ------------------------------------------------------------------
     def _on_slider(self, slider_val: int):
+        """Handle the slider event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param slider_val: Value for ``slider_val``.
+        :type slider_val: int
+        """
         spin_value = _utils.remap(slider_val, 0, self.__s_max,
                                   self.__min_val, self.__max_val)
 
@@ -106,6 +130,13 @@ class FloatCtrl(QtWidgets.QWidget):
         self.value_changed.emit(value)
 
     def _on_spin(self, spin_value: float):
+        """Handle the spin event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param spin_value: Value for ``spin_value``.
+        :type spin_value: float
+        """
         spin_value = round(spin_value, self.__precision)
 
         if self.slider is not None:
@@ -122,6 +153,13 @@ class FloatCtrl(QtWidgets.QWidget):
     # wx-compatible public API
     # ------------------------------------------------------------------
     def Enable(self, flag: bool = True):
+        """Execute the enable operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param flag: Value for ``flag``.
+        :type flag: bool
+        """
         self.ctrl.setEnabled(flag)
         self.st.setEnabled(flag)
 
@@ -129,6 +167,13 @@ class FloatCtrl(QtWidgets.QWidget):
             self.slider.setEnabled(flag)
 
     def SetToolTip(self, text: str):
+        """Execute the set tool tip operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param text: Text value.
+        :type text: str
+        """
         self.ctrl.setToolTip(text)
         self.st.setToolTip(text)
 
@@ -138,6 +183,13 @@ class FloatCtrl(QtWidgets.QWidget):
     SetToolTipString = SetToolTip
 
     def SetValue(self, value: float):
+        """Execute the set value operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: float
+        """
         value = round(value, self.__precision)
         d = _d(str(value))
         d_inc = _d(str(self.__increment))
@@ -161,6 +213,13 @@ class FloatCtrl(QtWidgets.QWidget):
             self.slider.blockSignals(False)
 
     def GetValue(self) -> float:
+        """Execute the get value operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: float
+        """
         value = self.ctrl.value()
         return round(value, self.__precision)
 

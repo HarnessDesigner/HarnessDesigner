@@ -14,9 +14,28 @@ if TYPE_CHECKING:
 
 
 class BaseDialog(QtWidgets.QDialog):
+    """Represent a base dialog in :mod:`harness_designer.ui.dialogs.dialog_base`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent: "_ui.MainFrame", title: str, size=(-1, -1),
                  style=None, button_ids=None):
+        """Initialise the :class:`BaseDialog` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`_ui.MainFrame`
+        :param title: Value for ``title``.
+        :type title: str
+        :param size: Value for ``size``.
+        :type size: UNKNOWN
+        :param style: Value for ``style``.
+        :type style: UNKNOWN
+        :param button_ids: Identifier for the button.
+        :type button_ids: UNKNOWN
+        """
 
         self.mainframe = parent
         self._drag_pos = None
@@ -71,6 +90,10 @@ class BaseDialog(QtWidgets.QDialog):
         self._center_on_parent()
 
     def _center_on_parent(self):
+        """Execute the center on parent operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         if self.parent() is None:
             return
 
@@ -80,9 +103,25 @@ class BaseDialog(QtWidgets.QDialog):
         self.move(geo.topLeft())
 
     def _in_drag_zone(self, pos: QtCore.QPoint) -> bool:
+        """Execute the in drag zone operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param pos: Value for ``pos``.
+        :type pos: :class:`QtCore.QPoint`
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
         return pos.y() < 10
 
     def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:
+        """Execute the mouse move event operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param event: Event object.
+        :type event: :class:`QtGui.QMouseEvent`
+        """
         if self._drag_pos is not None:
             delta = event.globalPosition().toPoint() - self._drag_pos
             self.move(self.pos() + delta)
@@ -95,6 +134,13 @@ class BaseDialog(QtWidgets.QDialog):
         super().mouseMoveEvent(event)
 
     def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:
+        """Execute the mouse press event operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param event: Event object.
+        :type event: :class:`QtGui.QMouseEvent`
+        """
         if (event.button() == QtCore.Qt.MouseButton.LeftButton and
                 self._in_drag_zone(event.position().toPoint())):
             self._drag_pos = event.globalPosition().toPoint()
@@ -103,6 +149,13 @@ class BaseDialog(QtWidgets.QDialog):
         super().mousePressEvent(event)
 
     def mouseReleaseEvent(self, event: QtGui.QMouseEvent) -> None:
+        """Execute the mouse release event operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param event: Event object.
+        :type event: :class:`QtGui.QMouseEvent`
+        """
         if self._drag_pos is not None:
             self._drag_pos = None
             self.unsetCursor()
@@ -110,4 +163,10 @@ class BaseDialog(QtWidgets.QDialog):
         super().mouseReleaseEvent(event)
 
     def GetValue(self):
+        """Execute the get value operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :raises NotImplementedError: Raised when the operation cannot be completed.
+        """
         raise NotImplementedError

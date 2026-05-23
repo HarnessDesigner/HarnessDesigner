@@ -10,8 +10,21 @@ from ... import image as _image
 
 
 class ImageViewer(QWidget):
+    """Represent an image viewer in :mod:`harness_designer.ui.datasheet_viewer.viewer`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent, img):
+        """Initialise the :class:`ImageViewer` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param img: Value for ``img``.
+        :type img: UNKNOWN
+        """
         QWidget.__init__(self, parent)
 
         self.pixmap = QPixmap(img)
@@ -32,6 +45,13 @@ class ImageViewer(QWidget):
         self._dragging = False
 
     def mousePressEvent(self, evt):
+        """Execute the mouse press event operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         if evt.button() == Qt.LeftButton and not self._dragging:
             self._dragging = True
             self.grabMouse()
@@ -39,6 +59,13 @@ class ImageViewer(QWidget):
             self.coords = evt.position().toPoint()
 
     def mouseReleaseEvent(self, evt):
+        """Execute the mouse release event operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         if evt.button() == Qt.LeftButton and self._dragging:
             self._dragging = False
             self.releaseMouse()
@@ -46,6 +73,13 @@ class ImageViewer(QWidget):
             self.coords = QPoint(0, 0)
 
     def mouseMoveEvent(self, evt):
+        """Execute the mouse move event operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         if self._dragging:
             pos = evt.position().toPoint()
             x1, y1 = pos.x(), pos.y()
@@ -76,10 +110,24 @@ class ImageViewer(QWidget):
             QTimer.singleShot(0, self.update)
 
     def wheelEvent(self, evt):
+        """Execute the wheel event operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         self.scale += evt.angleDelta().y() / 8000.0
         QTimer.singleShot(0, self.update)
 
     def paintEvent(self, evt):
+        """Execute the paint event operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         painter = QPainter(self)
         painter.fillRect(self.rect(), Qt.black)
 
@@ -96,14 +144,34 @@ class ImageViewer(QWidget):
         painter.end()
 
     def closeEvent(self, evt):
+        """Execute the close event operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
         if self.filename is not None:
             os.remove(self.filename)
         evt.accept()
 
 
 class PDFViewer(QWidget):
+    """Represent a PDF viewer in :mod:`harness_designer.ui.datasheet_viewer.viewer`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent, pdf_file):
+        """Initialise the :class:`PDFViewer` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param pdf_file: Value for ``pdf_file``.
+        :type pdf_file: UNKNOWN
+        """
         QWidget.__init__(self, parent)
 
         layout = QVBoxLayout(self)
@@ -152,6 +220,13 @@ class PDFViewer(QWidget):
             self._load_with_pymupdf(pdf_file, layout)
 
     def _go_to_page(self, page_number):
+        """Execute the go to page operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param page_number: Value for ``page_number``.
+        :type page_number: UNKNOWN
+        """
         # QPdfView.PageNavigator is available via navigator()
         try:
             self._view.pageNavigator().jump(page_number - 1, QPoint())
@@ -159,6 +234,13 @@ class PDFViewer(QWidget):
             pass
 
     def _zoom(self, factor):
+        """Execute the zoom operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param factor: Value for ``factor``.
+        :type factor: UNKNOWN
+        """
         self._zoom_factor *= factor
         try:
             self._view.setZoomFactor(self._zoom_factor)
@@ -166,6 +248,15 @@ class PDFViewer(QWidget):
             pass
 
     def _load_with_pymupdf(self, pdf_file, layout):
+        """Load the with pymupdf.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param pdf_file: Value for ``pdf_file``.
+        :type pdf_file: UNKNOWN
+        :param layout: Value for ``layout``.
+        :type layout: UNKNOWN
+        """
         try:
             import fitz  # pymupdf
             from PySide6.QtWidgets import QScrollArea
@@ -200,7 +291,20 @@ class PDFViewer(QWidget):
 
 
 class DatasheetViewer(QWidget):
+    """Represent a datasheet viewer in :mod:`harness_designer.ui.datasheet_viewer.viewer`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     def __init__(self, parent, datasheet):
+        """Initialise the :class:`DatasheetViewer` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param datasheet: Value for ``datasheet``.
+        :type datasheet: UNKNOWN
+        """
         QWidget.__init__(self, parent)
 
         layout = QVBoxLayout(self)

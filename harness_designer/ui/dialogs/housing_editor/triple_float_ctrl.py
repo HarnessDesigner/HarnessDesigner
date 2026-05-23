@@ -9,9 +9,26 @@ from ....geometry import point as _point
 
 
 class TripleFloatCtrl(QWidget):
+    """Represent a triple float ctrl in :mod:`harness_designer.ui.dialogs.housing_editor.triple_float_ctrl`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent, position_or_angle: _point.Point | _angle.Angle,
                  color: _color.Color | None = None, register_events: bool = True):
+        """Initialise the :class:`TripleFloatCtrl` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param position_or_angle: Value for ``position_or_angle``.
+        :type position_or_angle: _point.Point | _angle.Angle
+        :param color: Value for ``color``.
+        :type color: _color.Color | None
+        :param register_events: Value for ``register_events``.
+        :type register_events: bool
+        """
 
         super().__init__(parent)
 
@@ -69,6 +86,13 @@ class TripleFloatCtrl(QWidget):
             self.z.value_changed.connect(self.on_z)
 
     def on_position_or_angle(self, p):
+        """Handle the position or angle event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param p: Value for ``p``.
+        :type p: UNKNOWN
+        """
         self.x.SetValue(p.x)
         self.y.SetValue(p.y)
         self.z.SetValue(p.z)
@@ -78,26 +102,61 @@ class TripleFloatCtrl(QWidget):
         self.z.update()
 
     def on_x(self, value):
+        """Handle the x event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: UNKNOWN
+        """
         self.position_or_angle.unbind(self.on_position_or_angle)
         self.position_or_angle.x = value
         self.position_or_angle.bind(self.on_position_or_angle)
 
     def on_y(self, value):
+        """Handle the y event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: UNKNOWN
+        """
         self.position_or_angle.unbind(self.on_position_or_angle)
         self.position_or_angle.y = value
         self.position_or_angle.bind(self.on_position_or_angle)
 
     def on_z(self, value):
+        """Handle the z event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: UNKNOWN
+        """
         self.position_or_angle.unbind(self.on_position_or_angle)
         self.position_or_angle.z = value
         self.position_or_angle.bind(self.on_position_or_angle)
 
     def setEnabled(self, flag):
+        """Execute the set enabled operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param flag: Value for ``flag``.
+        :type flag: UNKNOWN
+        """
         self.x.Enable(flag)
         self.y.Enable(flag)
         self.z.Enable(flag)
 
     def setToolTip(self, tip):
+        """Execute the set tool tip operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param tip: Value for ``tip``.
+        :type tip: UNKNOWN
+        """
         self.x.SetToolTip(tip)
         self.y.SetToolTip(tip)
         self.z.SetToolTip(tip)

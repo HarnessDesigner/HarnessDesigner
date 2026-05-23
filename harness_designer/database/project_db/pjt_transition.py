@@ -25,12 +25,24 @@ if TYPE_CHECKING:
 
 
 class PJTTransitionsTable(PJTTableBase):
+    """Represent a PJT transitions table in :mod:`harness_designer.database.project_db.pjt_transition`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     __table_name__ = 'pjt_transitions'
 
     _control: "PJTTransitionControl" = None
 
     @property
     def control(self) -> "PJTTransitionControl":
+        """Return the control.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`PJTTransitionControl`
+        :raises RuntimeError: Raised when the operation cannot be completed.
+        """
         if self._control is None:
             raise RuntimeError('sanity check')
 
@@ -38,29 +50,69 @@ class PJTTransitionsTable(PJTTableBase):
 
     @classmethod
     def start_control(cls, mainframe):
+        """Start the control.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mainframe: Main application frame.
+        :type mainframe: UNKNOWN
+        """
         cls._control = PJTTransitionControl(mainframe)
         cls._control.hide()
 
     def _table_needs_update(self) -> bool:
+        """Execute the table needs update operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
         from ..create_database import transitions
 
         return transitions.pjt_table.is_ok(self)
 
     def _add_table_to_db(self):
+        """Add a table to database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         from ..create_database import transitions
 
         transitions.pjt_table.add_to_db(self)
 
     def _update_table_in_db(self):
+        """Update the table in database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         from ..create_database import transitions
 
         transitions.pjt_table.update_fields(self)
 
     def __iter__(self) -> _Iterable["PJTTransition"]:
+        """Iterate over the available items.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Iterator or iterable result. UNKNOWN details.
+        :rtype: _Iterable['PJTTransition']
+        """
         for db_id in PJTTableBase.__iter__(self):
             yield PJTTransition(self, db_id, self.project_id)
 
     def __getitem__(self, item) -> "PJTTransition":
+        """Return the requested item.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param item: Item identifier or value.
+        :type item: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`PJTTransition`
+        :raises KeyError: Raised when the operation cannot be completed.
+        :raises IndexError: Raised when the operation cannot be completed.
+        """
         if isinstance(item, int):
             if item in self:
                 return PJTTransition(self, item, self.project_id)
@@ -69,6 +121,21 @@ class PJTTransitionsTable(PJTTableBase):
         raise KeyError(item)
 
     def insert(self, part_id: int, center_id: int, angle: _angle.Angle, name: str) -> "PJTTransition":
+        """Execute the insert operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param part_id: Identifier for the part.
+        :type part_id: int
+        :param center_id: Identifier for the center.
+        :type center_id: int
+        :param angle: Value for ``angle``.
+        :type angle: :class:`_angle.Angle`
+        :param name: Name value.
+        :type name: str
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`PJTTransition`
+        """
 
         db_id = PJTTableBase.insert(self, part_id=part_id, center_id=center_id,
                                     angle=str(list(angle.as_euler_float)), name=name)
@@ -78,10 +145,21 @@ class PJTTransitionsTable(PJTTableBase):
 
 class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin,
                     NameMixin, Visible3DMixin, NotesMixin):
+    """Represent a PJT transition in :mod:`harness_designer.database.project_db.pjt_transition`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     _table: PJTTransitionsTable = None
 
     def build_monitor_packet(self):
+        """Build the monitor packet.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
 
         packet = {
             'pjt_transitions': [self.db_id],
@@ -106,15 +184,36 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin,
         return packet
 
     def get_object(self) -> "_transition_obj.Transition":
+        """Return the object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`_transition_obj.Transition`
+        """
         if self._obj is not None:
             return self._obj()
 
         return self._obj
 
     def __release_obj_ref(self, _):
+        """Release the obj ref.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        """
         self._obj = None
 
     def set_object(self, obj: "_transition_obj.Transition"):
+        """Set the object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_transition_obj.Transition`
+        """
         if obj is not None:
             self._obj = weakref.ref(obj, self.__release_obj_ref)
         else:
@@ -122,10 +221,24 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin,
 
     @property
     def table(self) -> PJTTransitionsTable:
+        """Return the table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`PJTTransitionsTable`
+        """
         return self._table
 
     @property
     def branch1(self) -> "_pjt_transition_branch.PJTTransitionBranch":
+        """Return the branch 1.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_pjt_transition_branch.PJTTransitionBranch`
+        """
         db_ids = self.table.db.pjt_transition_branches_table.select(
             'id', transition_id=self.db_id, branch_id=1)
 
@@ -136,6 +249,13 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin,
 
     @property
     def branch2(self) -> "_pjt_transition_branch.PJTTransitionBranch":
+        """Return the branch 2.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_pjt_transition_branch.PJTTransitionBranch`
+        """
         db_ids = self.table.db.pjt_transition_branches_table.select(
             'id', transition_id=self.db_id, branch_id=2)
 
@@ -146,6 +266,13 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin,
 
     @property
     def branch3(self) -> "_pjt_transition_branch.PJTTransitionBranch":
+        """Return the branch 3.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_pjt_transition_branch.PJTTransitionBranch`
+        """
         db_ids = self.table.db.pjt_transition_branches_table.select(
             'id', transition_id=self.db_id, branch_id=3)
 
@@ -156,6 +283,13 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin,
 
     @property
     def branch4(self) -> "_pjt_transition_branch.PJTTransitionBranch":
+        """Return the branch 4.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_pjt_transition_branch.PJTTransitionBranch`
+        """
         db_ids = self.table.db.pjt_transition_branches_table.select(
             'id', transition_id=self.db_id, branch_id=4)
 
@@ -166,6 +300,13 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin,
 
     @property
     def branch5(self) -> "_pjt_transition_branch.PJTTransitionBranch":
+        """Return the branch 5.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_pjt_transition_branch.PJTTransitionBranch`
+        """
         db_ids = self.table.db.pjt_transition_branches_table.select(
             'id', transition_id=self.db_id, branch_id=5)
 
@@ -176,6 +317,13 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin,
 
     @property
     def branch6(self) -> "_pjt_transition_branch.PJTTransitionBranch":
+        """Return the branch 6.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_pjt_transition_branch.PJTTransitionBranch`
+        """
         db_ids = self.table.db.pjt_transition_branches_table.select(
             'id', transition_id=self.db_id, branch_id=6)
 
@@ -188,6 +336,13 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin,
 
     @property
     def part(self) -> "_transition.Transition":
+        """Return the part.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_transition.Transition`
+        """
         if self._stored_part is None and self._obj is not None:
             part_id = self.part_id
 
@@ -201,8 +356,19 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin,
 
 
 class PJTTransitionControl(QTabWidget):
+    """Represent a PJT transition control in :mod:`harness_designer.database.project_db.pjt_transition`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def set_obj(self, db_obj: PJTTransition):
+        """Set the obj.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`PJTTransition`
+        """
         self.db_obj = db_obj
 
         self.name_ctrl.set_obj(db_obj)
@@ -217,6 +383,13 @@ class PJTTransitionControl(QTabWidget):
             self.transition_ctrl.set_obj(db_obj.part)
 
     def __init__(self, parent):
+        """Initialise the :class:`PJTTransitionControl` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        """
         self.db_obj: PJTTransition = None
 
         QTabWidget.__init__(self, parent)

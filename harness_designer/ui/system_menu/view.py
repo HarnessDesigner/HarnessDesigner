@@ -10,8 +10,19 @@ if TYPE_CHECKING:
 
 
 class ViewMenu(QMenu):
+    """Represent a view menu in :mod:`harness_designer.ui.system_menu.view`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, mainframe: "_ui.MainFrame"):
+        """Initialise the :class:`ViewMenu` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mainframe: Main application frame.
+        :type mainframe: :class:`_ui.MainFrame`
+        """
         super().__init__('View', mainframe)
         self.mainframe = mainframe
 
@@ -26,25 +37,49 @@ class ViewMenu(QMenu):
     # both makes the dock visible and raises it if it is tabbed behind another.
 
     def on_show_editor2d(self):
+        """Handle the show editor 2D event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.mainframe._dock_editor2d.show()
         self.mainframe._dock_editor2d.raise_()
 
     def on_show_editor_obj(self):
+        """Handle the show editor obj event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.mainframe._dock_editor_obj.show()
         self.mainframe._dock_editor_obj.raise_()
 
     def on_show_log_viewer(self):
+        """Handle the show log viewer event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.mainframe._dock_log_viewer.show()
         self.mainframe._dock_log_viewer.raise_()
 
     def on_show_editor_db(self):
+        """Handle the show editor database event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.mainframe._dock_editor_db.show()
         self.mainframe._dock_editor_db.raise_()
 
     def on_show_editor_assembly(self):
+        """Handle the show editor assembly event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.mainframe._dock_editor_assembly.show()
         self.mainframe._dock_editor_assembly.raise_()
 
     def on_show_editor_script(self):
+        """Handle the show editor script event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         # self.mainframe._dock_editor_script.show()
         pass

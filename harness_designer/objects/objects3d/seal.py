@@ -25,6 +25,19 @@ Config = _config.Config.editor3d
 
 
 def _build_sws(length, o_dia, i_dia):
+    """Build the sws.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param length: Value for ``length``.
+    :type length: UNKNOWN
+    :param o_dia: Value for ``o_dia``.
+    :type o_dia: UNKNOWN
+    :param i_dia: Value for ``i_dia``.
+    :type i_dia: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
     o_radius = round(o_dia / 2.0, 6)
     i_radius = round(i_dia / 2.0, 6)
     i_length = round(length * 1.10, 6)
@@ -41,10 +54,23 @@ def _build_sws(length, o_dia, i_dia):
 
 
 class Seal(_base3d.Base3D):
+    """Represent a seal in :mod:`harness_designer.objects.objects3d.seal`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     parent: "_seal.Seal" = None
     db_obj: "_pjt_seal.PJTSeal" = None
 
     def __init__(self, parent: "_seal.Seal", db_obj: "_pjt_seal.PJTSeal"):
+        """Initialise the :class:`Seal` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`_seal.Seal`
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_pjt_seal.PJTSeal`
+        """
         parent.mainframe.editor3d.context.acquire()
 
         self._part = db_obj.part
@@ -102,12 +128,32 @@ class Seal(_base3d.Base3D):
 
 
     def get_context_menu(self):
+        """Return the context menu.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return SealMenu(self.mainframe.editor3d.editor, self)
 
 
 class SealMenu(QMenu):
+    """Represent a seal menu in :mod:`harness_designer.objects.objects3d.seal`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, canvas, selected):
+        """Initialise the :class:`SealMenu` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param canvas: Canvas instance.
+        :type canvas: UNKNOWN
+        :param selected: Value for ``selected``.
+        :type selected: UNKNOWN
+        """
         QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
@@ -134,13 +180,29 @@ class SealMenu(QMenu):
         action.triggered.connect(self.on_properties)
 
     def on_select(self):
+        """Handle the select event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_clone(self):
+        """Handle the clone event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_delete(self):
+        """Handle the delete event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_properties(self):
+        """Handle the properties event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass

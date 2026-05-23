@@ -16,12 +16,25 @@ if TYPE_CHECKING:
 
 
 class Cavity(_ObjectBase):
+    """Represent a cavity in :mod:`harness_designer.objects.cavity`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     obj2d: _cavity_2d.Cavity = None
     obj3d: _cavity_3d.Cavity = None
     db_obj: "_pjt_cavity.PJTCavity" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_cavity.PJTCavity"):
+        """Initialise the :class:`Cavity` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mainframe: Main application frame.
+        :type mainframe: :class:`_ui.MainFrame`
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_pjt_cavity.PJTCavity`
+        """
 
         db_obj.set_object(self)
         db_obj.add_object(self)

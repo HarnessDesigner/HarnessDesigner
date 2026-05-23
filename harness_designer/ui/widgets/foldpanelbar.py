@@ -38,6 +38,15 @@ _COLLAPSED_PNG_B64 = (
 
 
 def _load_icon_pixmap(b64: str) -> QPixmap:
+    """Load the icon pixmap.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param b64: Value for ``b64``.
+    :type b64: str
+    :returns: Return value. UNKNOWN details.
+    :rtype: :class:`QPixmap`
+    """
     data = base64.b64decode(b64)
     img = QImage.fromData(data)
     return QPixmap.fromImage(img)
@@ -48,6 +57,13 @@ _COLLAPSED_PIXMAP: QPixmap | None = None
 
 
 def _get_icons() -> tuple[QPixmap, QPixmap]:
+    """Return the icons.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :returns: Return value. UNKNOWN details.
+    :rtype: tuple[QPixmap, QPixmap]
+    """
     global _EXPANDED_PIXMAP, _COLLAPSED_PIXMAP
 
     if _EXPANDED_PIXMAP is None:
@@ -98,6 +114,10 @@ class CaptionBarStyle:
     """
 
     def __init__(self):
+        """Initialise the :class:`CaptionBarStyle` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self._captionFont: QFont | None = None
         self._textColour:  QColor | None = None
         self._firstColour: QColor | None = None
@@ -111,6 +131,10 @@ class CaptionBarStyle:
         self._captionStyle = CAPTIONBAR_GRADIENT_V
 
     def ResetDefaults(self):
+        """Execute the reset defaults operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self._firstColourUsed = False
         self._secondColourUsed = False
         self._textColourUsed = False
@@ -120,57 +144,162 @@ class CaptionBarStyle:
 
     # Font
     def SetCaptionFont(self, font: QFont):
+        """Execute the set caption font operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param font: Value for ``font``.
+        :type font: :class:`QFont`
+        """
         self._captionFont = font
         self._captionFontUsed = True
 
     def CaptionFontUsed(self) -> bool:
+        """Execute the caption font used operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
         return self._captionFontUsed
 
     def GetCaptionFont(self) -> QFont:
+        """Execute the get caption font operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`QFont`
+        """
         return self._captionFont
 
     # First colour
     def SetFirstColour(self, colour: QColor):
+        """Execute the set first colour operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param colour: Value for ``colour``.
+        :type colour: :class:`QColor`
+        """
         self._firstColour = colour
         self._firstColourUsed = True
 
     def FirstColourUsed(self) -> bool:
+        """Execute the first colour used operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
         return self._firstColourUsed
 
     def GetFirstColour(self) -> QColor:
+        """Execute the get first colour operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`QColor`
+        """
         return self._firstColour
 
     # Second colour
     def SetSecondColour(self, colour: QColor):
+        """Execute the set second colour operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param colour: Value for ``colour``.
+        :type colour: :class:`QColor`
+        """
         self._secondColour = colour
         self._secondColourUsed = True
 
     def SecondColourUsed(self) -> bool:
+        """Execute the second colour used operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
         return self._secondColourUsed
 
     def GetSecondColour(self) -> QColor:
+        """Execute the get second colour operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`QColor`
+        """
         return self._secondColour
 
     # Caption (text) colour
     def SetCaptionColour(self, colour: QColor):
+        """Execute the set caption colour operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param colour: Value for ``colour``.
+        :type colour: :class:`QColor`
+        """
         self._textColour = colour
         self._textColourUsed = True
 
     def CaptionColourUsed(self) -> bool:
+        """Execute the caption colour used operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
         return self._textColourUsed
 
     def GetCaptionColour(self) -> QColor:
+        """Execute the get caption colour operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`QColor`
+        """
         return self._textColour
 
     # Caption style
     def SetCaptionStyle(self, style: int):
+        """Execute the set caption style operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param style: Value for ``style``.
+        :type style: int
+        """
         self._captionStyle = style
         self._captionStyleUsed = True
 
     def CaptionStyleUsed(self) -> bool:
+        """Execute the caption style used operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
         return self._captionStyleUsed
 
     def GetCaptionStyle(self) -> int:
+        """Execute the get caption style operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: int
+        """
         return self._captionStyle
 
 
@@ -193,6 +322,21 @@ class CaptionBar(QWidget):
                  cbstyle: CaptionBarStyle | None = None,
                  rightIndent: int = FPB_BMP_RIGHTSPACE,
                  collapsed: bool = False):
+        """Initialise the :class:`CaptionBar` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`QWidget`
+        :param caption: Value for ``caption``.
+        :type caption: str
+        :param cbstyle: Value for ``cbstyle``.
+        :type cbstyle: CaptionBarStyle | None
+        :param rightIndent: Value for ``rightIndent``.
+        :type rightIndent: int
+        :param collapsed: Value for ``collapsed``.
+        :type collapsed: bool
+        """
 
         super().__init__(parent)
         self.setMinimumSize(20, 20)
@@ -212,6 +356,15 @@ class CaptionBar(QWidget):
     # ------------------------------------------------------------------
     def ApplyCaptionStyle(self, cbstyle: CaptionBarStyle | None = None,
                           applyDefault: bool = True):
+        """Execute the apply caption style operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param cbstyle: Value for ``cbstyle``.
+        :type cbstyle: CaptionBarStyle | None
+        :param applyDefault: Value for ``applyDefault``.
+        :type applyDefault: bool
+        """
         if cbstyle is None:
             cbstyle = EmptyCaptionBarStyle
 
@@ -245,42 +398,95 @@ class CaptionBar(QWidget):
 
     def SetCaptionStyle(self, cbstyle: CaptionBarStyle | None = None,
                         applyDefault: bool = True):
+        """Execute the set caption style operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param cbstyle: Value for ``cbstyle``.
+        :type cbstyle: CaptionBarStyle | None
+        :param applyDefault: Value for ``applyDefault``.
+        :type applyDefault: bool
+        """
 
         self.ApplyCaptionStyle(cbstyle, applyDefault)
 
     def GetCaptionStyle(self) -> CaptionBarStyle:
+        """Execute the get caption style operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`CaptionBarStyle`
+        """
         return self._style
 
     # ------------------------------------------------------------------
     # State
     # ------------------------------------------------------------------
     def IsCollapsed(self) -> bool:
+        """Execute the is collapsed operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
         return self._collapsed
 
     def Collapse(self):
+        """Execute the collapse operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self._collapsed = True
         self.update()
 
     def Expand(self):
+        """Execute the expand operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self._collapsed = False
         self.update()
 
     def SetRightIndent(self, pixels: int):
+        """Execute the set right indent operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param pixels: Value for ``pixels``.
+        :type pixels: int
+        """
         assert pixels >= 0
         self._rightIndent = pixels
         self.update()
 
     def SetBoldFont(self):
+        """Execute the set bold font operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         f = self.font()
         f.setBold(True)
         self.setFont(f)
 
     def SetNormalFont(self):
+        """Execute the set normal font operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         f = self.font()
         f.setBold(False)
         self.setFont(f)
 
     def IsVertical(self) -> bool:
+        """Execute the is vertical operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
         bar = self._fold_panel_bar()
         if bar is not None:
             return bar.IsVertical()
@@ -288,6 +494,13 @@ class CaptionBar(QWidget):
         return True
 
     def _fold_panel_bar(self) -> "FoldPanelBar":
+        """Execute the fold panel bar operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`FoldPanelBar`
+        """
         # CaptionBar -> FoldPanelItem -> (inner panel of) FoldPanelBar
         p = self.parent()
         while p is not None:
@@ -300,6 +513,13 @@ class CaptionBar(QWidget):
     # Painting
     # ------------------------------------------------------------------
     def sizeHint(self) -> QSize:
+        """Execute the size hint operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`QSize`
+        """
         fm = QFontMetrics(self._style.GetCaptionFont() or self.font())
         if self.IsVertical():
             tw = fm.horizontalAdvance(self._caption)
@@ -312,6 +532,13 @@ class CaptionBar(QWidget):
         return QSize(w, h)
 
     def paintEvent(self, event: QPaintEvent):
+        """Execute the paint event operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param event: Event object.
+        :type event: :class:`QPaintEvent`
+        """
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
         rect = self.rect()
@@ -353,6 +580,15 @@ class CaptionBar(QWidget):
         painter.end()
 
     def _fill_background(self, painter: QPainter, rect: QRect):
+        """Execute the fill background operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param painter: Value for ``painter``.
+        :type painter: :class:`QPainter`
+        :param rect: Value for ``rect``.
+        :type rect: :class:`QRect`
+        """
         style = self._style.GetCaptionStyle()
         c1 = self._style.GetFirstColour() or QColor(Qt.GlobalColor.white)
         c2 = self._style.GetSecondColour() or QColor(180, 180, 180)
@@ -396,6 +632,15 @@ class CaptionBar(QWidget):
     # Mouse events
     # ------------------------------------------------------------------
     def _icon_hit(self, pos: QPoint) -> bool:
+        """Execute the icon hit operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param pos: Value for ``pos``.
+        :type pos: :class:`QPoint`
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
         rect = self.rect()
         iw = self._ICON_W
         vertical = self.IsVertical()
@@ -406,6 +651,13 @@ class CaptionBar(QWidget):
         return pos.y() < (self._ICON_H + self._rightIndent)
 
     def mousePressEvent(self, event: QMouseEvent):
+        """Execute the mouse press event operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param event: Event object.
+        :type event: :class:`QMouseEvent`
+        """
         if (
             event.button() == Qt.MouseButton.LeftButton and
             self._icon_hit(event.position().toPoint())
@@ -415,12 +667,26 @@ class CaptionBar(QWidget):
         super().mousePressEvent(event)
 
     def mouseDoubleClickEvent(self, event: QMouseEvent):
+        """Execute the mouse double click event operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param event: Event object.
+        :type event: :class:`QMouseEvent`
+        """
         if event.button() == Qt.MouseButton.LeftButton:
             self.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
             self.caption_toggled.emit(self)
         super().mouseDoubleClickEvent(event)
 
     def mouseMoveEvent(self, event: QMouseEvent):
+        """Execute the mouse move event operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param event: Event object.
+        :type event: :class:`QMouseEvent`
+        """
         if self._icon_hit(event.position().toPoint()):
             self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         else:
@@ -428,6 +694,13 @@ class CaptionBar(QWidget):
         super().mouseMoveEvent(event)
 
     def leaveEvent(self, event):
+        """Execute the leave event operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param event: Event object.
+        :type event: UNKNOWN
+        """
         self.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
         super().leaveEvent(event)
 
@@ -439,6 +712,18 @@ class FoldWindowItem:
     """Tracks a single child (window or separator) inside a FoldPanelItem."""
 
     def __init__(self, parent: 'FoldPanelItem', window: QWidget | None, **kw):
+        """Initialise the :class:`FoldWindowItem` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`FoldPanelItem`
+        :param window: Value for ``window``.
+        :type window: QWidget | None
+        :param kw: Value for ``kw``.
+        :type kw: UNKNOWN
+        :raises ValueError: Raised when the operation cannot be completed.
+        """
         typ = kw.get('Type')
 
         if typ not in ('WINDOW', 'SEPARATOR'):
@@ -457,27 +742,85 @@ class FoldWindowItem:
         self._lineLength = 0
 
     def GetType(self) -> str:
+        """Execute the get type operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: str
+        """
         return self._type
 
     def GetLineY(self) -> int:
+        """Execute the get line y operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: int
+        """
         return self._lineY
 
     def GetLineLength(self) -> int:
+        """Execute the get line length operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: int
+        """
         return self._lineLength
 
     def GetLineColour(self) -> QColor:
+        """Execute the get line colour operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`QColor`
+        """
         return self._sepLineColour
 
     def GetLeftSpacing(self) -> int:
+        """Execute the get left spacing operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: int
+        """
         return self._leftSpacing
 
     def GetRightSpacing(self) -> int:
+        """Execute the get right spacing operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: int
+        """
         return self._rightSpacing
 
     def GetSpacing(self) -> int:
+        """Execute the get spacing operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: int
+        """
         return self._spacing
 
     def GetWindowLength(self, vertical: bool = True) -> int:
+        """Execute the get window length operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param vertical: Value for ``vertical``.
+        :type vertical: bool
+        :returns: Return value. UNKNOWN details.
+        :rtype: int
+        """
         if self._type == 'WINDOW' and self._wnd:
             sz = self._wnd.size()
 
@@ -492,6 +835,15 @@ class FoldWindowItem:
         return 0
 
     def ResizeItem(self, size: int, vertical: bool = True):
+        """Execute the resize item operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param size: Value for ``size``.
+        :type size: int
+        :param vertical: Value for ``vertical``.
+        :type vertical: bool
+        """
         if self._flags & FPB_ALIGN_WIDTH:
             my_size = max(10, size - self._leftSpacing - self._rightSpacing)
 
@@ -513,6 +865,19 @@ class FoldPanelItem(QWidget):
     def __init__(self, parent: QWidget, caption: str = '',
                  cbstyle: CaptionBarStyle | None = None,
                  collapsed: bool = False):
+        """Initialise the :class:`FoldPanelItem` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`QWidget`
+        :param caption: Value for ``caption``.
+        :type caption: str
+        :param cbstyle: Value for ``cbstyle``.
+        :type cbstyle: CaptionBarStyle | None
+        :param collapsed: Value for ``collapsed``.
+        :type collapsed: bool
+        """
 
         super().__init__(parent)
         self.setMinimumSize(1, 1)
@@ -540,6 +905,13 @@ class FoldPanelItem(QWidget):
     # Internal
     # ------------------------------------------------------------------
     def _on_caption_toggle(self, bar: CaptionBar):
+        """Handle the caption toggle event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param bar: Value for ``bar``.
+        :type bar: :class:`CaptionBar`
+        """
         # Bubble up to FoldPanelBar
         fpb = self._fold_panel_bar()
         if fpb is None:
@@ -551,6 +923,13 @@ class FoldPanelItem(QWidget):
             fpb.Collapse(self)
 
     def _fold_panel_bar(self) -> "FoldPanelBar":
+        """Execute the fold panel bar operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`FoldPanelBar`
+        """
         p = self.parent()
         while p is not None:
             if isinstance(p, FoldPanelBar):
@@ -562,6 +941,13 @@ class FoldPanelItem(QWidget):
     # Geometry
     # ------------------------------------------------------------------
     def IsVertical(self) -> bool:
+        """Execute the is vertical operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
         fpb = self._fold_panel_bar()
         if fpb:
             return fpb.IsVertical()
@@ -569,12 +955,33 @@ class FoldPanelItem(QWidget):
         return True
 
     def IsExpanded(self) -> bool:
+        """Execute the is expanded operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
         return not self._captionBar.IsCollapsed()
 
     def GetItemPos(self) -> int:
+        """Execute the get item pos operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: int
+        """
         return self._itemPos
 
     def GetPanelLength(self) -> int:
+        """Execute the get panel length operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: int
+        """
         if self._captionBar.IsCollapsed():
             return self.GetCaptionLength()
 
@@ -584,6 +991,13 @@ class FoldPanelItem(QWidget):
         return self._PanelSize
 
     def GetCaptionLength(self) -> int:
+        """Execute the get caption length operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: int
+        """
         sz = self._captionBar.sizeHint()
 
         if self.IsVertical():
@@ -592,6 +1006,15 @@ class FoldPanelItem(QWidget):
         return sz.width()
 
     def Reposition(self, pos: int) -> int:
+        """Execute the reposition operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param pos: Value for ``pos``.
+        :type pos: int
+        :returns: Return value. UNKNOWN details.
+        :rtype: int
+        """
         vertical = self.IsVertical()
         if vertical:
             self.move(0, pos)
@@ -603,6 +1026,10 @@ class FoldPanelItem(QWidget):
         return self.GetPanelLength()
 
     def ResizePanel(self):
+        """Execute the resize panel operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         vertical = self.IsVertical()
         parent_size = self.parent().size()
 
@@ -656,6 +1083,21 @@ class FoldPanelItem(QWidget):
                   spacing: int = FPB_DEFAULT_SPACING,
                   leftSpacing: int = FPB_DEFAULT_LEFTLINESPACING,
                   rightSpacing: int = FPB_DEFAULT_RIGHTLINESPACING):
+        """Execute the add window operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param window: Value for ``window``.
+        :type window: :class:`QWidget`
+        :param flags: Value for ``flags``.
+        :type flags: int
+        :param spacing: Value for ``spacing``.
+        :type spacing: int
+        :param leftSpacing: Value for ``leftSpacing``.
+        :type leftSpacing: int
+        :param rightSpacing: Value for ``rightSpacing``.
+        :type rightSpacing: int
+        """
 
         wi = FoldWindowItem(self, window, Type='WINDOW', flags=flags,
                             spacing=spacing, leftSpacing=leftSpacing,
@@ -682,6 +1124,19 @@ class FoldPanelItem(QWidget):
     def AddSeparator(self, colour: QColor = None, spacing: int = FPB_DEFAULT_SPACING,
                      leftSpacing: int = FPB_DEFAULT_LEFTSPACING,
                      rightSpacing: int = FPB_DEFAULT_RIGHTSPACING):
+        """Execute the add separator operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param colour: Value for ``colour``.
+        :type colour: :class:`QColor`
+        :param spacing: Value for ``spacing``.
+        :type spacing: int
+        :param leftSpacing: Value for ``leftSpacing``.
+        :type leftSpacing: int
+        :param rightSpacing: Value for ``rightSpacing``.
+        :type rightSpacing: int
+        """
 
         if colour is None:
             colour = QColor(Qt.GlobalColor.black)
@@ -699,19 +1154,41 @@ class FoldPanelItem(QWidget):
     # Style delegation
     # ------------------------------------------------------------------
     def ApplyCaptionStyle(self, cbstyle: CaptionBarStyle):
+        """Execute the apply caption style operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param cbstyle: Value for ``cbstyle``.
+        :type cbstyle: :class:`CaptionBarStyle`
+        """
         self._captionBar.SetCaptionStyle(cbstyle)
 
     def GetCaptionStyle(self) -> CaptionBarStyle:
+        """Execute the get caption style operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`CaptionBarStyle`
+        """
         return self._captionBar.GetCaptionStyle()
 
     # ------------------------------------------------------------------
     # Collapse / Expand (called by FoldPanelBar)
     # ------------------------------------------------------------------
     def Collapse(self):
+        """Execute the collapse operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self._captionBar.Collapse()
         self.ResizePanel()
 
     def Expand(self):
+        """Execute the expand operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self._captionBar.Expand()
         self.ResizePanel()
 
@@ -719,6 +1196,13 @@ class FoldPanelItem(QWidget):
     # Paint separators
     # ------------------------------------------------------------------
     def paintEvent(self, event: QPaintEvent):
+        """Execute the paint event operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param event: Event object.
+        :type event: :class:`QPaintEvent`
+        """
         painter = QPainter(self)
         vertical = self.IsVertical()
 
@@ -750,6 +1234,15 @@ class FoldPanelBar(QWidget):
     """
 
     def __init__(self, parent: QWidget | None = None, agwStyle: int = 0):
+        """Initialise the :class:`FoldPanelBar` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: QWidget | None
+        :param agwStyle: Value for ``agwStyle``.
+        :type agwStyle: int
+        """
         super().__init__(parent)
 
         if not agwStyle & (FPB_HORIZONTAL | FPB_VERTICAL):
@@ -767,11 +1260,33 @@ class FoldPanelBar(QWidget):
     # Public API
     # ------------------------------------------------------------------
     def IsVertical(self) -> bool:
+        """Execute the is vertical operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
         return self._isVertical
 
     def AddFoldPanel(self, caption: str = '', collapsed: bool = False,
                      foldIcons=None,   # NOQA IGNORED
                      cbstyle: CaptionBarStyle | None = None) -> FoldPanelItem:
+        """Execute the add fold panel operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param caption: Value for ``caption``.
+        :type caption: str
+        :param collapsed: Value for ``collapsed``.
+        :type collapsed: bool
+        :param foldIcons: Value for ``foldIcons``.
+        :type foldIcons: UNKNOWN
+        :param cbstyle: Value for ``cbstyle``.
+        :type cbstyle: CaptionBarStyle | None
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`FoldPanelItem`
+        """
 
         if cbstyle is None:
             cbstyle = EmptyCaptionBarStyle
@@ -797,6 +1312,26 @@ class FoldPanelBar(QWidget):
                            spacing: int = FPB_DEFAULT_SPACING,
                            leftSpacing: int = FPB_DEFAULT_LEFTLINESPACING,
                            rightSpacing: int = FPB_DEFAULT_RIGHTLINESPACING) -> int:
+        """Execute the add fold panel window operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param panel: Value for ``panel``.
+        :type panel: :class:`FoldPanelItem`
+        :param window: Value for ``window``.
+        :type window: :class:`QWidget`
+        :param flags: Value for ``flags``.
+        :type flags: int
+        :param spacing: Value for ``spacing``.
+        :type spacing: int
+        :param leftSpacing: Value for ``leftSpacing``.
+        :type leftSpacing: int
+        :param rightSpacing: Value for ``rightSpacing``.
+        :type rightSpacing: int
+        :returns: Return value. UNKNOWN details.
+        :rtype: int
+        :raises ValueError: Raised when the operation cannot be completed.
+        """
 
         if panel not in self._panels:
             raise ValueError(
@@ -810,6 +1345,24 @@ class FoldPanelBar(QWidget):
                               spacing: int = FPB_DEFAULT_SPACING,
                               leftSpacing: int = FPB_DEFAULT_LEFTLINESPACING,
                               rightSpacing: int = FPB_DEFAULT_RIGHTLINESPACING) -> int:
+        """Execute the add fold panel separator operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param panel: Value for ``panel``.
+        :type panel: :class:`FoldPanelItem`
+        :param colour: Value for ``colour``.
+        :type colour: QColor | None
+        :param spacing: Value for ``spacing``.
+        :type spacing: int
+        :param leftSpacing: Value for ``leftSpacing``.
+        :type leftSpacing: int
+        :param rightSpacing: Value for ``rightSpacing``.
+        :type rightSpacing: int
+        :returns: Return value. UNKNOWN details.
+        :rtype: int
+        :raises ValueError: Raised when the operation cannot be completed.
+        """
 
         if panel not in self._panels:
             raise ValueError(
@@ -820,6 +1373,14 @@ class FoldPanelBar(QWidget):
         return 0
 
     def Collapse(self, foldpanel: FoldPanelItem):
+        """Execute the collapse operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param foldpanel: Value for ``foldpanel``.
+        :type foldpanel: :class:`FoldPanelItem`
+        :raises ValueError: Raised when the operation cannot be completed.
+        """
         if foldpanel not in self._panels:
             raise ValueError(
                 f'Invalid panel passed to Collapse: {foldpanel!r}')
@@ -828,6 +1389,14 @@ class FoldPanelBar(QWidget):
         self.RefreshPanelsFrom(foldpanel)
 
     def Expand(self, foldpanel: FoldPanelItem):
+        """Execute the expand operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param foldpanel: Value for ``foldpanel``.
+        :type foldpanel: :class:`FoldPanelItem`
+        :raises ValueError: Raised when the operation cannot be completed.
+        """
         if foldpanel not in self._panels:
             raise ValueError(f'Invalid panel passed to Expand: {foldpanel!r}')
 
@@ -847,19 +1416,54 @@ class FoldPanelBar(QWidget):
 
     def ApplyCaptionStyle(self, foldpanel: FoldPanelItem,  # NOQA
                           cbstyle: CaptionBarStyle):
+        """Execute the apply caption style operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param foldpanel: Value for ``foldpanel``.
+        :type foldpanel: :class:`FoldPanelItem`
+        :param cbstyle: Value for ``cbstyle``.
+        :type cbstyle: :class:`CaptionBarStyle`
+        """
 
         foldpanel.ApplyCaptionStyle(cbstyle)
 
     def ApplyCaptionStyleAll(self, cbstyle: CaptionBarStyle):
+        """Execute the apply caption style all operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param cbstyle: Value for ``cbstyle``.
+        :type cbstyle: :class:`CaptionBarStyle`
+        """
         for p in self._panels:
             self.ApplyCaptionStyle(p, cbstyle)
 
         self._cbstyle = cbstyle
 
     def GetCaptionStyle(self, foldpanel: FoldPanelItem) -> CaptionBarStyle:  # NOQA
+        """Execute the get caption style operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param foldpanel: Value for ``foldpanel``.
+        :type foldpanel: :class:`FoldPanelItem`
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`CaptionBarStyle`
+        """
         return foldpanel.GetCaptionStyle()
 
     def GetFoldPanel(self, item: int) -> FoldPanelItem:
+        """Execute the get fold panel operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param item: Item identifier or value.
+        :type item: int
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`FoldPanelItem`
+        :raises ValueError: Raised when the operation cannot be completed.
+        """
         try:
             return self._panels[item]
         except IndexError:
@@ -867,12 +1471,27 @@ class FoldPanelBar(QWidget):
                 f'Index {item} out of range (0..{len(self._panels)-1})')
 
     def GetCount(self) -> int:
+        """Execute the get count operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: int
+        """
         return len(self._panels)
 
     # ------------------------------------------------------------------
     # Layout
     # ------------------------------------------------------------------
     def RefreshPanelsFrom(self, item: FoldPanelItem):
+        """Execute the refresh panels from operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param item: Item identifier or value.
+        :type item: :class:`FoldPanelItem`
+        :raises ValueError: Raised when the operation cannot be completed.
+        """
         try:
             i = self._panels.index(item)
         except ValueError:
@@ -894,6 +1513,10 @@ class FoldPanelBar(QWidget):
         self.update()
 
     def RepositionCollapsedToBottom(self):
+        """Execute the reposition collapsed to bottom operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         vertical = self._isVertical
         total = self.height() if vertical else self.width()
 
@@ -910,6 +1533,17 @@ class FoldPanelBar(QWidget):
                 offset += p.Reposition(offset)
 
     def GetPanelsLength(self, collapsed: int, expanded: int):
+        """Execute the get panels length operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param collapsed: Value for ``collapsed``.
+        :type collapsed: int
+        :param expanded: Value for ``expanded``.
+        :type expanded: int
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         value = 0
         for p in self._panels:
             length = p.GetPanelLength()
@@ -923,6 +1557,10 @@ class FoldPanelBar(QWidget):
         return collapsed, expanded, value
 
     def RedisplayFoldPanelItems(self):
+        """Execute the redisplay fold panel items operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         for p in self._panels:
             p.ResizePanel()
             p.update()
@@ -931,6 +1569,13 @@ class FoldPanelBar(QWidget):
     # Qt events
     # ------------------------------------------------------------------
     def resizeEvent(self, event: QResizeEvent):
+        """Execute the resize event operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param event: Event object.
+        :type event: :class:`QResizeEvent`
+        """
         super().resizeEvent(event)
 
         if self._agwStyle & (FPB_COLLAPSE_TO_BOTTOM | FPB_EXCLUSIVE_FOLD):

@@ -23,8 +23,21 @@ if TYPE_CHECKING:
 
 
 class CavityGeneral(QWidget):
+    """Represent a cavity general in :mod:`harness_designer.ui.dialogs.housing_editor.cavity_panel`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent: "CavityTab", cavity3d: _cavity_obj.Cavity3D):
+        """Initialise the :class:`CavityGeneral` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`CavityTab`
+        :param cavity3d: Value for ``cavity3d``.
+        :type cavity3d: :class:`_cavity_obj.Cavity3D`
+        """
         self.cavity3d = cavity3d
         super().__init__(parent)
 
@@ -81,6 +94,15 @@ class CavityGeneral(QWidget):
         self.setLayout(outer)
 
     def on_terminal_added(self, _, part_number):
+        """Handle the terminal added event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        :param part_number: Value for ``part_number``.
+        :type part_number: UNKNOWN
+        """
         self.cavity3d.compat_terminals = self.compat_terminal_ctrl.GetValue()
 
         for terminal in self.cavity3d.compat_terminals:
@@ -94,6 +116,17 @@ class CavityGeneral(QWidget):
                 return
 
     def on_terminal_edited(self, _, old_value, new_value):
+        """Handle the terminal edited event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        :param old_value: Value for ``old_value``.
+        :type old_value: UNKNOWN
+        :param new_value: Value for ``new_value``.
+        :type new_value: UNKNOWN
+        """
         if old_value == new_value:
             return
 
@@ -133,6 +166,15 @@ class CavityGeneral(QWidget):
             self.terminal_size_ctrl.add_item(blade_size)
 
     def on_terminal_deleted(self, _, part_number):
+        """Handle the terminal deleted event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        :param part_number: Value for ``part_number``.
+        :type part_number: UNKNOWN
+        """
 
         compat_terminals = self.cavity3d.compat_terminals
 
@@ -165,25 +207,71 @@ class CavityGeneral(QWidget):
                     self.terminal_size_ctrl.add_item(blade_size)
 
     def on_size_added(self, _, __):
+        """Handle the size added event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        :param __: Value for ``__``.
+        :type __: UNKNOWN
+        """
         self.cavity3d.terminal_sizes = self.terminal_size_ctrl.GetValue()
 
     def on_size_edited(self, _, old_value, new_value):
+        """Handle the size edited event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        :param old_value: Value for ``old_value``.
+        :type old_value: UNKNOWN
+        :param new_value: Value for ``new_value``.
+        :type new_value: UNKNOWN
+        """
         if old_value == new_value:
             return
 
         self.cavity3d.terminal_sizes = self.terminal_size_ctrl.GetValue()
 
     def on_size_deleted(self, _, __):
+        """Handle the size deleted event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        :param __: Value for ``__``.
+        :type __: UNKNOWN
+        """
         self.cavity3d.terminal_sizes = self.terminal_size_ctrl.GetValue()
 
     def on_is_round(self):
+        """Handle the is round event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         value = self.is_round_ctrl.GetValue()
         self.cavity3d.is_round = value
 
 
 class CavityTab(QTabWidget):
+    """Represent a cavity tab in :mod:`harness_designer.ui.dialogs.housing_editor.cavity_panel`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent: "CavityPanel", cavity: "_cavity.Cavity"):
+        """Initialise the :class:`CavityTab` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`CavityPanel`
+        :param cavity: Value for ``cavity``.
+        :type cavity: :class:`_cavity.Cavity`
+        """
         super().__init__(parent)
 
         color = [random.randrange(10, 255) / 255.0 for _ in range(3)]
@@ -213,6 +301,13 @@ class CavityTab(QTabWidget):
         self.addTab(self.size_ctrl, 'Size')
 
     def on_size_x(self, value: float) -> None:
+        """Handle the size x event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: float
+        """
         self.size.unbind(self.size_ctrl.on_position_or_angle)
         self.size.x = value
         self.cavity.obj3d.width = value
@@ -226,6 +321,13 @@ class CavityTab(QTabWidget):
         self.size.bind(self.size_ctrl.on_position_or_angle)
 
     def on_size_y(self, value: float) -> None:
+        """Handle the size y event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: float
+        """
         self.size.unbind(self.size_ctrl.on_position_or_angle)
         self.size.y = value
         self.cavity.obj3d.height = value
@@ -239,39 +341,96 @@ class CavityTab(QTabWidget):
         self.size.bind(self.size_ctrl.on_position_or_angle)
 
     def on_size_z(self, value: float) -> None:
+        """Handle the size z event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: float
+        """
         self.size.unbind(self.size_ctrl.on_position_or_angle)
         self.size.z = value
         self.cavity.obj3d.length = value
         self.size.bind(self.size_ctrl.on_position_or_angle)
 
     def set_selected(self, flag: bool) -> None:
+        """Set the selected.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param flag: Value for ``flag``.
+        :type flag: bool
+        """
         self.cavity.obj3d.set_selected(flag)
 
     @property
     def is_selected(self) -> bool:
+        """Return the is selected.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: bool
+        """
         return self.cavity.obj3d.is_selected
 
     @property
     def name(self) -> str:
+        """Return the name.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: str
+        """
         return self.cavity.obj3d.name
 
     @name.setter
     def name(self, value: str):
+        """Set the name.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: str
+        """
         self.cavity.obj3d.name = value
 
     @property
     def index(self) -> int:
+        """Return the index.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         return self.cavity.obj3d.idx
 
     @index.setter
     def index(self, value: int):
+        """Set the index.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self.cavity.obj3d.idx = value
 
     def delete(self):
+        """Execute the delete operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self.cavity.delete()
 
 
 class CavityPanel(_editable_tab_ctrl.EditableTabCtrl):
+    """Represent a cavity panel in :mod:`harness_designer.ui.dialogs.housing_editor.cavity_panel`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     rename_tab_label = 'Rename Cavity'
     add_tab_label = 'Add Cavity'
@@ -283,6 +442,17 @@ class CavityPanel(_editable_tab_ctrl.EditableTabCtrl):
 
     def __init__(self, dialog, panel: "_housing_editor.HousingEditorDialog",
                  housing: "_housing_obj.Housing3D"):
+        """Initialise the :class:`CavityPanel` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param dialog: Value for ``dialog``.
+        :type dialog: UNKNOWN
+        :param panel: Value for ``panel``.
+        :type panel: :class:`_housing_editor.HousingEditorDialog`
+        :param housing: Value for ``housing``.
+        :type housing: :class:`_housing_obj.Housing3D`
+        """
 
         super().__init__(panel)
 
@@ -302,6 +472,17 @@ class CavityPanel(_editable_tab_ctrl.EditableTabCtrl):
             self.dialog.housing_panel.enable_housing_ctrls(True)
 
     def on_cavity_remove(self, idx: int, _: str, cavity: CavityTab):
+        """Handle the cavity remove event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param idx: Value for ``idx``.
+        :type idx: int
+        :param _: Value for ``_``.
+        :type _: str
+        :param cavity: Value for ``cavity``.
+        :type cavity: :class:`CavityTab`
+        """
         self.cavities.pop(idx)
         self.removeTab(idx)
 
@@ -312,6 +493,19 @@ class CavityPanel(_editable_tab_ctrl.EditableTabCtrl):
 
     def on_cavity_name_change(self, _: int, old_name: str,  # NOQA
                               new_name: str, cavity: CavityTab) -> None:
+        """Handle the cavity name change event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: int
+        :param old_name: Value for ``old_name``.
+        :type old_name: str
+        :param new_name: Value for ``new_name``.
+        :type new_name: str
+        :param cavity: Value for ``cavity``.
+        :type cavity: :class:`CavityTab`
+        """
 
         if new_name == old_name:
             return
@@ -319,6 +513,15 @@ class CavityPanel(_editable_tab_ctrl.EditableTabCtrl):
         cavity.name = new_name
 
     def on_add_cavity(self, idx, cavity=None):
+        """Handle the add cavity event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param idx: Value for ``idx``.
+        :type idx: UNKNOWN
+        :param cavity: Value for ``cavity``.
+        :type cavity: UNKNOWN
+        """
         idx += 1
 
         if cavity is None:

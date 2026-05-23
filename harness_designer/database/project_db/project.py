@@ -10,29 +10,66 @@ if TYPE_CHECKING:
 
 
 class ProjectsTable(PJTTableBase):
+    """Represent a projects table in :mod:`harness_designer.database.project_db.project`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     __table_name__ = 'projects'
 
     def _table_needs_update(self) -> bool:
+        """Execute the table needs update operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
         from ..create_database import projects
 
         return projects.pjt_table.is_ok(self)
 
     def _add_table_to_db(self):
+        """Add a table to database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         from ..create_database import projects
 
         projects.pjt_table.add_to_db(self)
 
     def _update_table_in_db(self):
+        """Update the table in database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         from ..create_database import projects
 
         projects.pjt_table.update_fields(self)
 
     def __iter__(self) -> _Iterable["Project"]:
+        """Iterate over the available items.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Iterator or iterable result. UNKNOWN details.
+        :rtype: _Iterable['Project']
+        """
 
         for db_id in PJTTableBase.__iter__(self):
             yield Project(self, db_id, db_id)
 
     def __getitem__(self, item) -> "Project":
+        """Return the requested item.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param item: Item identifier or value.
+        :type item: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`Project`
+        :raises KeyError: Raised when the operation cannot be completed.
+        :raises IndexError: Raised when the operation cannot be completed.
+        """
         if isinstance(item, int):
             if item in self:
                 return Project(self, item, item)
@@ -41,12 +78,43 @@ class ProjectsTable(PJTTableBase):
         raise KeyError(item)
 
     def get_object_count(self, project_id) -> int:
+        """Return the object count.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param project_id: Identifier for the project.
+        :type project_id: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: int
+        """
         return self.select('object_count', id=project_id)[0][0]
 
     def set_object_count(self, project_id, value: int):
+        """Set the object count.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param project_id: Identifier for the project.
+        :type project_id: UNKNOWN
+        :param value: Value to store or process.
+        :type value: int
+        """
         self.update(project_id, object_count=value)
 
     def insert(self, name: str, description: str, creator: str) -> "Project":
+        """Execute the insert operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param name: Name value.
+        :type name: str
+        :param description: Value for ``description``.
+        :type description: str
+        :param creator: Value for ``creator``.
+        :type creator: str
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`Project`
+        """
 
         db_id = PJTTableBase.insert(self, name=name, description=description, creator=creator)
 
@@ -54,47 +122,128 @@ class ProjectsTable(PJTTableBase):
 
 
 class Project(PJTEntryBase):
+    """Represent a project in :mod:`harness_designer.database.project_db.project`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     _table: ProjectsTable = None
 
     def get_object(self) -> "_project_obj.Project":
+        """Return the object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`_project_obj.Project`
+        """
         return self._obj
 
     def set_object(self, obj: "_project_obj.Project"):
+        """Set the object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_project_obj.Project`
+        """
         self._obj = obj
 
     @property
     def table(self) -> ProjectsTable:
+        """Return the table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`ProjectsTable`
+        """
         return self._table
 
     @property
     def name(self) -> str:
+        """Return the name.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: str
+        """
         return self._table.select('name', id=self._db_id)[0][0]
 
     @name.setter
     def name(self, value: str):
+        """Set the name.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: str
+        """
         self._table.update(self._db_id, name=value)
 
     @property
     def description(self) -> str:
+        """Return the description.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: str
+        """
         return self._table.select('description', id=self._db_id)[0][0]
 
     @description.setter
     def description(self, value: str):
+        """Set the description.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: str
+        """
         self._table.update(self._db_id, description=value)
 
     @property
     def creator(self) -> str:
+        """Return the creator.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: str
+        """
         return self._table.select('creator', id=self._db_id)[0][0]
 
     @creator.setter
     def creator(self, value: str):
+        """Set the creator.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: str
+        """
         self._table.update(self._db_id, creator=value)
 
     @property
     def user_model(self) -> str:
+        """Return the user model.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: str
+        """
         return self._table.select('user_model', id=self._db_id)[0][0]
 
     @user_model.setter
     def user_model(self, value: str):
+        """Set the user model.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: str
+        """
         self._table.update(self._db_id, user_model=value)
 

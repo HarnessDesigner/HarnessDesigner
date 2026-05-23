@@ -10,6 +10,10 @@ if TYPE_CHECKING:
 
 
 class AccessoriesPage(_base.EditorList):
+    """Represent an accessories page in :mod:`harness_designer.ui.editor_db.accessory`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     _has_model_3d = False
 
     __table_name__ = 'accessories'

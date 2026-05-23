@@ -28,12 +28,28 @@ class _ColourPickerCtrl(QPushButton):
     """Minimal wx.ColourPickerCtrl replacement."""
 
     def __init__(self, parent, colour: "_color.Color"):
+        """Initialise the :class:`_ColourPickerCtrl` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param colour: Value for ``colour``.
+        :type colour: :class:`_color.Color`
+        """
         super().__init__(parent)
         self._color = colour
         self._apply_color(colour)
         self.clicked.connect(self._pick)
 
     def _apply_color(self, c):
+        """Execute the apply color operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param c: Value for ``c``.
+        :type c: UNKNOWN
+        """
         self._color = c
         try:
             qc = c.to_qcolor()
@@ -44,6 +60,10 @@ class _ColourPickerCtrl(QPushButton):
             f'background-color: {qc.name()}; min-width: 40px; min-height: 20px;')
 
     def _pick(self):
+        """Execute the pick operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         c = self._color
 
         try:
@@ -59,12 +79,30 @@ class _ColourPickerCtrl(QPushButton):
             self._apply_color(new_c)
 
     def GetColour(self):
+        """Execute the get colour operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self._color
 
 
 class DebugSettingsDialog(_dialog_base.BaseDialog):
+    """Represent a debug settings dialog in :mod:`harness_designer.ui.dialogs.debug_settings`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent: "_ui.MainFrame"):
+        """Initialise the :class:`DebugSettingsDialog` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`_ui.MainFrame`
+        """
         self.mainframe = parent
         _dialog_base.BaseDialog.__init__(
             self, parent, 'Debug Settings', size=(-1, 675))
@@ -217,7 +255,23 @@ class DebugSettingsDialog(_dialog_base.BaseDialog):
         vsizer.addWidget(functions_box)
 
     def SetValues(self):
+        """Execute the set values operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         def _get_color(picker):
+            """Return the color.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param picker: Value for ``picker``.
+            :type picker: UNKNOWN
+            :returns: Return value. UNKNOWN details.
+            :rtype: UNKNOWN
+            """
             c = picker.GetColour()
             color = _color.Color(c.GetRed(), c.GetGreen(), c.GetBlue(), 255)
             return color.rgba_scalar[:-1]

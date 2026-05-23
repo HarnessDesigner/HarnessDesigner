@@ -26,10 +26,23 @@ Config = _config.Config.editor3d
 
 
 class Wire(_base3d.Base3D):
+    """Represent a wire in :mod:`harness_designer.objects.objects3d.wire`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     parent: "_wire.Wire" = None
     db_obj: "_pjt_wire.PJTWire" = None
 
     def __init__(self, parent: "_wire.Wire", db_obj: "_pjt_wire.PJTWire"):
+        """Initialise the :class:`Wire` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`_wire.Wire`
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_pjt_wire.PJTWire`
+        """
         parent.mainframe.editor3d.context.acquire()
 
         self._part = db_obj.part
@@ -80,6 +93,13 @@ class Wire(_base3d.Base3D):
         return self._p2
 
     def _update_angle(self, angle: _angle.Angle):
+        """Update the angle.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param angle: Value for ``angle``.
+        :type angle: :class:`_angle.Angle`
+        """
         self._update_position(None)
 
     def _update_position(self, _: _point.Point):
@@ -104,6 +124,13 @@ class Wire(_base3d.Base3D):
         self._compute_aabb()
 
     def set_selected(self, flag: bool):
+        """Set the selected.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param flag: Value for ``flag``.
+        :type flag: bool
+        """
         super().set_selected(flag)
         if self._stripe is not None:
             self._stripe.set_selected(flag)
@@ -145,10 +172,24 @@ class Wire(_base3d.Base3D):
 
     @property
     def is_visible(self) -> bool:
+        """Return the is visible.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: bool
+        """
         return self._is_visible
 
     @is_visible.setter
     def is_visible(self, value: bool) -> None:
+        """Set the is visible.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: bool
+        """
         self._is_visible = value
         self.db_obj.is_visible = value
 
@@ -156,13 +197,41 @@ class Wire(_base3d.Base3D):
             self._stripe.is_visible = value
 
     def get_context_menu(self):
+        """Return the context menu.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return WireMenu(self.mainframe.editor3d.editor, self)
 
 
 class WireStripe(_base3d.Base3D):
+    """Represent a wire stripe in :mod:`harness_designer.objects.objects3d.wire`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent: "_wire.Wire", wire: "Wire", color: _color.Color, scale: _point.Point,
                  angle: _angle.Angle, position: _point.Point):
+        """Initialise the :class:`WireStripe` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`_wire.Wire`
+        :param wire: Value for ``wire``.
+        :type wire: :class:`Wire`
+        :param color: Value for ``color``.
+        :type color: :class:`_color.Color`
+        :param scale: Value for ``scale``.
+        :type scale: :class:`_point.Point`
+        :param angle: Value for ``angle``.
+        :type angle: :class:`_angle.Angle`
+        :param position: Position value.
+        :type position: :class:`_point.Point`
+        """
 
         vbo = _helix.create_vbo()
         material = _materials.Plastic(color)
@@ -177,26 +246,74 @@ class WireStripe(_base3d.Base3D):
         self._aabb = np.array([[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
 
     def _update_position(self, position: _point.Point):
+        """Update the position.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param position: Position value.
+        :type position: :class:`_point.Point`
+        """
         pass
 
     def _update_angle(self, angle: _angle.Angle):
+        """Update the angle.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param angle: Value for ``angle``.
+        :type angle: :class:`_angle.Angle`
+        """
         pass
 
     def _update_scale(self, scale: _point.Point):
+        """Update the scale.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param scale: Value for ``scale``.
+        :type scale: :class:`_point.Point`
+        """
         pass
 
     @property
     def is_visible(self) -> bool:
+        """Return the is visible.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: bool
+        """
         return self._is_visible
 
     @is_visible.setter
     def is_visible(self, value: bool):
+        """Set the is visible.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: bool
+        """
         self._is_visible = value
 
 
 class WireMenu(QMenu):
+    """Represent a wire menu in :mod:`harness_designer.objects.objects3d.wire`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, canvas, selected):
+        """Initialise the :class:`WireMenu` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param canvas: Canvas instance.
+        :type canvas: UNKNOWN
+        :param selected: Value for ``selected``.
+        :type selected: UNKNOWN
+        """
         QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
@@ -236,31 +353,71 @@ class WireMenu(QMenu):
         action.triggered.connect(self.on_properties)
 
     def on_add_handle(self):
+        """Handle the add handle event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_add_marker(self):
+        """Handle the add marker event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_add_splice(self):
+        """Handle the add splice event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_add_wire(self):
+        """Handle the add wire event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_add_wire_service_loop(self):
+        """Handle the add wire service loop event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_add_to_bundle(self):
+        """Handle the add to bundle event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_trace_circuit(self):
+        """Handle the trace circuit event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_select(self):
+        """Handle the select event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_delete(self):
+        """Handle the delete event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_properties(self):
+        """Handle the properties event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass

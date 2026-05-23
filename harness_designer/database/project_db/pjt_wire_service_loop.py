@@ -28,12 +28,24 @@ if TYPE_CHECKING:
 
 
 class PJTWireServiceLoopsTable(PJTTableBase):
+    """Represent a PJT wire service loops table in :mod:`harness_designer.database.project_db.pjt_wire_service_loop`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     __table_name__ = 'pjt_wire_service_loops'
 
     _control: "PJTWireServiceLoopControl" = None
 
     @property
     def control(self) -> "PJTWireServiceLoopControl":
+        """Return the control.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`PJTWireServiceLoopControl`
+        :raises RuntimeError: Raised when the operation cannot be completed.
+        """
         if self._control is None:
             raise RuntimeError('sanity check')
 
@@ -41,29 +53,69 @@ class PJTWireServiceLoopsTable(PJTTableBase):
 
     @classmethod
     def start_control(cls, mainframe):
+        """Start the control.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mainframe: Main application frame.
+        :type mainframe: UNKNOWN
+        """
         cls._control = PJTWireServiceLoopControl(mainframe)
         cls._control.hide()
 
     def _table_needs_update(self) -> bool:
+        """Execute the table needs update operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
         from ..create_database import wire_service_loops
 
         return wire_service_loops.pjt_table.is_ok(self)
 
     def _add_table_to_db(self):
+        """Add a table to database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         from ..create_database import wire_service_loops
 
         wire_service_loops.pjt_table.add_to_db(self)
 
     def _update_table_in_db(self):
+        """Update the table in database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         from ..create_database import wire_service_loops
 
         wire_service_loops.pjt_table.update_fields(self)
 
     def __iter__(self) -> _Iterable["PJTWireServiceLoop"]:
+        """Iterate over the available items.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Iterator or iterable result. UNKNOWN details.
+        :rtype: _Iterable['PJTWireServiceLoop']
+        """
         for db_id in PJTTableBase.__iter__(self):
             yield PJTWireServiceLoop(self, db_id, self.project_id)
 
     def __getitem__(self, item) -> "PJTWireServiceLoop":
+        """Return the requested item.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param item: Item identifier or value.
+        :type item: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`PJTWireServiceLoop`
+        :raises KeyError: Raised when the operation cannot be completed.
+        :raises IndexError: Raised when the operation cannot be completed.
+        """
         if isinstance(item, int):
             if item in self:
                 return PJTWireServiceLoop(self, item, self.project_id)
@@ -73,6 +125,25 @@ class PJTWireServiceLoopsTable(PJTTableBase):
 
     def insert(self, start_point3d_id: int, stop_point3d_id: int, part_id: int,
                circuit_id: int, is_visible: bool, quat: np.ndarray) -> "PJTWireServiceLoop":
+        """Execute the insert operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param start_point3d_id: Identifier for the start point 3D.
+        :type start_point3d_id: int
+        :param stop_point3d_id: Identifier for the stop point 3D.
+        :type stop_point3d_id: int
+        :param part_id: Identifier for the part.
+        :type part_id: int
+        :param circuit_id: Identifier for the circuit.
+        :type circuit_id: int
+        :param is_visible: Boolean flag for whether visible.
+        :type is_visible: bool
+        :param quat: Value for ``quat``.
+        :type quat: :class:`np.ndarray`
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`PJTWireServiceLoop`
+        """
 
         db_id = PJTTableBase.insert(self, part_id=part_id, circuit_id=circuit_id,
                                     start_point3d_id=start_point3d_id,
@@ -85,10 +156,21 @@ class PJTWireServiceLoopsTable(PJTTableBase):
 
 class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
                          PartMixin, Visible3DMixin, NotesMixin, NameMixin):
+    """Represent a PJT wire service loop in :mod:`harness_designer.database.project_db.pjt_wire_service_loop`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     _table: PJTWireServiceLoopsTable = None
 
     def build_monitor_packet(self):
+        """Build the monitor packet.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         circuit = self.circuit
 
         packet = {
@@ -104,15 +186,36 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
         return packet
 
     def get_object(self) -> "_wire_service_loop_obj.WireServiceLoop":
+        """Return the object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`_wire_service_loop_obj.WireServiceLoop`
+        """
         if self._obj is not None:
             return self._obj()
 
         return self._obj
 
     def __release_obj_ref(self, _):
+        """Release the obj ref.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        """
         self._obj = None
 
     def set_object(self, obj: "_wire_service_loop_obj.WireServiceLoop"):
+        """Set the object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_wire_service_loop_obj.WireServiceLoop`
+        """
         if obj is not None:
             self._obj = weakref.ref(obj, self.__release_obj_ref)
         else:
@@ -120,6 +223,13 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
 
     @property
     def terminal(self) -> "_pjt_terminal.PJTTerminal":
+        """Return the terminal.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_pjt_terminal.PJTTerminal`
+        """
         start_position_id = self.start_position3d_id
         stop_position_id = self.stop_position3d_id
 
@@ -137,6 +247,13 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
 
     @property
     def wire(self) -> "_pjt_wire.PJTWire":
+        """Return the wire.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_pjt_wire.PJTWire`
+        """
         start_position_id = self.start_position3d_id
         stop_position_id = self.stop_position3d_id
 
@@ -154,6 +271,13 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
 
     @property
     def length_mm(self) -> float:
+        """Return the length mm.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         diameter = self.part.od_mm
         pitch = diameter + diameter * 0.15
         height = diameter + diameter * 0.15
@@ -167,22 +291,57 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
 
     @property
     def length_m(self) -> float:
+        """Return the length m.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         return self.length_mm / 1000.0
 
     @property
     def length_ft(self) -> float:
+        """Return the length ft.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         return self.length_m * 3.28084
 
     @property
     def weight_g(self) -> float:
+        """Return the weight g.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         return self.part.weight_g_m * self.length_m
 
     @property
     def weight_lb(self) -> float:
+        """Return the weight lb.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         return self.part.weight_lb_ft * self.length_ft
 
     @property
     def resistance(self) -> float:
+        """Return the resistance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         resistance = self.part.resistance_1km
 
         # resistance per millimeter
@@ -192,12 +351,26 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
 
     @property
     def table(self) -> PJTWireServiceLoopsTable:
+        """Return the table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`PJTWireServiceLoopsTable`
+        """
         return self._table
 
     _stored_circuit: "_pjt_circuit.PJTCircuit" = None
 
     @property
     def circuit(self) -> "_pjt_circuit.PJTCircuit":
+        """Return the circuit.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_pjt_circuit.PJTCircuit`
+        """
         if self._stored_circuit is None and self._obj is not None:
             circuit_id = self.circuit_id
 
@@ -211,10 +384,24 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
 
     @property
     def circuit_id(self) -> int | None:
+        """Return the circuit ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int | None
+        """
         return self._table.select('circuit_id', id=self._db_id)[0][0]
 
     @circuit_id.setter
     def circuit_id(self, value: int | None):
+        """Set the circuit ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int | None
+        """
         if value is None:
             self._stored_circuit = None
 
@@ -223,10 +410,24 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
 
     @property
     def is_visible(self) -> bool:
+        """Return the is visible.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: bool
+        """
         return bool(self._table.select('is_visible', id=self._db_id)[0][0])
 
     @is_visible.setter
     def is_visible(self, value: bool):
+        """Set the is visible.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: bool
+        """
         self._table.update(self._db_id, is_visible=int(value))
         self._populate('is_visible')
 
@@ -234,6 +435,13 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
 
     @property
     def part(self) -> "_wire.Wire":
+        """Return the part.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_wire.Wire`
+        """
         if self._stored_part is None and self._obj is not None:
 
             part_id = self.part_id
@@ -248,8 +456,19 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
 
 
 class PJTWireServiceLoopControl(QTabWidget):
+    """Represent a PJT wire service loop control in :mod:`harness_designer.database.project_db.pjt_wire_service_loop`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def set_obj(self, db_obj: PJTWireServiceLoop):
+        """Set the obj.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`PJTWireServiceLoop`
+        """
         self.db_obj = db_obj
 
         self.name_ctrl.set_obj(db_obj)
@@ -267,6 +486,13 @@ class PJTWireServiceLoopControl(QTabWidget):
             self.circuit_ctrl.set_obj(db_obj.circuit)
 
     def __init__(self, parent):
+        """Initialise the :class:`PJTWireServiceLoopControl` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        """
         self.db_obj: PJTWireServiceLoop = None
 
         QTabWidget.__init__(self, parent)

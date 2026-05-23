@@ -8,23 +8,48 @@ from .mixins import (PartNumberMixin, DescriptionMixin, ManufacturerMixin,
 
 
 class AccessoriesTable(TableBase):
+    """Represent an accessories table in :mod:`harness_designer.database.global_db.accessory`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     __table_name__ = 'accessories'
 
     _control: "AccessoryControl" = None
 
     @property
     def control(self) -> "AccessoryControl":
+        """Return the control.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`AccessoryControl`
+        """
         if self._control is None:
             self._conrol = AccessoryControl(self.db.mainframe)
 
         return self._control
 
     def _table_needs_update(self) -> bool:
+        """Execute the table needs update operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
         from ..create_database import accessories
 
         return accessories.table.is_ok(self)
 
     def _add_table_to_db(self, splash):
+        """Add a table to database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param splash: Value for ``splash``.
+        :type splash: UNKNOWN
+        """
         from ..create_database import accessories
 
         accessories.table.add_to_db(self)
@@ -33,15 +58,37 @@ class AccessoriesTable(TableBase):
         accessories.add_records(self._con, splash, data_path)
 
     def _update_table_in_db(self):
+        """Update the table in database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         from ..create_database import accessories
 
         accessories.table.update_fields(self)
 
     def __iter__(self) -> _Iterable["Accessory"]:
+        """Iterate over the available items.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Iterator or iterable result. UNKNOWN details.
+        :rtype: _Iterable['Accessory']
+        """
         for db_id in TableBase.__iter__(self):
             yield Accessory(self, db_id)
 
     def __getitem__(self, item) -> "Accessory":
+        """Return the requested item.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param item: Item identifier or value.
+        :type item: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`Accessory`
+        :raises KeyError: Raised when the operation cannot be completed.
+        :raises IndexError: Raised when the operation cannot be completed.
+        """
         if isinstance(item, int):
             if item in self:
                 return Accessory(self, item)
@@ -55,6 +102,27 @@ class AccessoriesTable(TableBase):
 
     def insert(self, part_number: str, description: str, mfg_id: int, family_id: int,
                series_id: int, material_id: int, color_id: int) -> "Accessory":
+        """Execute the insert operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param part_number: Value for ``part_number``.
+        :type part_number: str
+        :param description: Value for ``description``.
+        :type description: str
+        :param mfg_id: Identifier for the mfg.
+        :type mfg_id: int
+        :param family_id: Identifier for the family.
+        :type family_id: int
+        :param series_id: Identifier for the series.
+        :type series_id: int
+        :param material_id: Identifier for the material.
+        :type material_id: int
+        :param color_id: Identifier for the color.
+        :type color_id: int
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`Accessory`
+        """
 
         db_id = TableBase.insert(self, part_number=part_number, description=description,
                                  mfg_id=mfg_id, family_id=family_id, series_id=series_id,
@@ -64,6 +132,13 @@ class AccessoriesTable(TableBase):
 
     @property
     def search_items(self) -> dict:
+        """Return the search items.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: dict
+        """
         ret = {
             0: {
                 'label': 'Part Number',
@@ -106,10 +181,21 @@ class AccessoriesTable(TableBase):
 
 class Accessory(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
                 FamilyMixin, SeriesMixin, ColorMixin, MaterialMixin):
+    """Represent an accessory in :mod:`harness_designer.database.global_db.accessory`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     _table: AccessoriesTable = None
 
     def build_monitor_packet(self):
+        """Build the monitor packet.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         color = self.color
 
         packet = {

@@ -11,25 +11,61 @@ if TYPE_CHECKING:
 
 
 class ProtectionMixin(BaseMixin):
+    """Represent a protection mixin in :mod:`harness_designer.database.global_db.mixins.protection`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     @property
     def protection_id(self) -> int:
+        """Return the protection ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         return self._table.select('protection_id', id=self._db_id)[0][0]
 
     @protection_id.setter
     def protection_id(self, value: int):
+        """Set the protection ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, protection_id=value)
         self._populate('protection_id')
 
     @property
     def protections(self) -> "_protection.Protection":
+        """Return the protections.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_protection.Protection`
+        """
         protection_id = self.protection_id
         return self.table.db.protections_table[protection_id]
 
 
 class ProtectionControl(_prop_ctrls.AutocompleteStringProperty):
+    """Represent a protection control in :mod:`harness_designer.database.global_db.mixins.protection`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent):
+        """Initialise the :class:`ProtectionControl` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        """
         self.db_obj: ProtectionMixin = None
         self.choices: list[str] = []
 
@@ -38,6 +74,13 @@ class ProtectionControl(_prop_ctrls.AutocompleteStringProperty):
         self.property_changed.connect(self._on_protection)
 
     def set_obj(self, db_obj: ProtectionMixin):
+        """Set the obj.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`ProtectionMixin`
+        """
         self.db_obj = db_obj
 
         if db_obj is None:
@@ -59,6 +102,13 @@ class ProtectionControl(_prop_ctrls.AutocompleteStringProperty):
             self.Enable(True)
 
     def _on_protection(self, evt: _prop_ctrls.PropertyEvent):
+        """Handle the protection event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: :class:`_prop_ctrls.PropertyEvent`
+        """
         protection = evt.GetValue()
 
         self.db_obj.table.execute(f'SELECT id FROM protections WHERE name="{protection}";')

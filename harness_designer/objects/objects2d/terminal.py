@@ -28,6 +28,15 @@ class Terminal(_base2d.Base2D):
 
     def __init__(self, parent: "_terminal.Terminal",
                  db_obj: "_pjt_terminal.PJTTerminal"):
+        """Initialise the :class:`Terminal` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`_terminal.Terminal`
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_pjt_terminal.PJTTerminal`
+        """
 
         _base2d.Base2D.__init__(self, parent, db_obj)
 
@@ -169,8 +178,21 @@ class Terminal(_base2d.Base2D):
 
 
 class TerminalMenu(QMenu):
+    """Represent a terminal menu in :mod:`harness_designer.objects.objects2d.terminal`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, canvas, selected):
+        """Initialise the :class:`TerminalMenu` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param canvas: Canvas instance.
+        :type canvas: UNKNOWN
+        :param selected: Value for ``selected``.
+        :type selected: UNKNOWN
+        """
         QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
@@ -211,25 +233,57 @@ class TerminalMenu(QMenu):
         action.triggered.connect(self.on_properties)
 
     def on_add_wire(self):
+        """Handle the add wire event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_add_wire_service_loop(self):
+        """Handle the add wire service loop event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_add_seal(self):
+        """Handle the add seal event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_trace_circuit(self):
+        """Handle the trace circuit event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_select(self):
+        """Handle the select event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_clone(self):
+        """Handle the clone event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_delete(self):
+        """Handle the delete event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_properties(self):
+        """Handle the properties event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass

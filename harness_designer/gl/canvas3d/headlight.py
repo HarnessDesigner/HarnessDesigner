@@ -12,8 +12,19 @@ if TYPE_CHECKING:
 
 
 class Headlight:
+    """Represent a headlight in :mod:`harness_designer.gl.canvas3d.headlight`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, canvas: "_canvas.Canvas"):
+        """Initialise the :class:`Headlight` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param canvas: Canvas instance.
+        :type canvas: :class:`_canvas.Canvas`
+        """
         self.canvas = canvas
         self.camera = canvas.camera
         self.config = self.canvas.config.headlight
@@ -23,14 +34,32 @@ class Headlight:
         canvas.camera.focal_position.bind(self.__update)
 
     def __update_light(self):
+        """Update the light.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         direction = self.canvas.camera.focal_position - self.canvas.camera.position
         magnitude = math.sqrt(sum(d ** 2 for d in direction))
         self.light_direction = [d / magnitude for d in direction]
 
     def __update(self, _):
+        """Execute the update operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        """
         self.__update_light()
 
     def __call__(self, shader_program):
+        """Call the instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param shader_program: Value for ``shader_program``.
+        :type shader_program: UNKNOWN
+        """
         headlightPosition = GL.glGetUniformLocation(shader_program, "headlightPosition")
         headlightDirection = GL.glGetUniformLocation(shader_program, "headlightDirection")
         headlightDiffuse = GL.glGetUniformLocation(shader_program, "headlightDiffuse")

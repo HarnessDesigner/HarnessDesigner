@@ -37,6 +37,99 @@ def add_housing(con, part_number, description, mfg=None, family=None, series=Non
                 width=0.0, height=0.0, weight=0.0, cover_point3d=None, seal_point3d=None,
                 boot_point3d=None, tpa_lock_1_point3d=None, tpa_lock_2_point3d=None,
                 cpa_lock_point3d=None, commit=True):
+    """Add a housing.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param part_number: Value for ``part_number``.
+    :type part_number: UNKNOWN
+    :param description: Value for ``description``.
+    :type description: UNKNOWN
+    :param mfg: Value for ``mfg``.
+    :type mfg: UNKNOWN
+    :param family: Value for ``family``.
+    :type family: UNKNOWN
+    :param series: Value for ``series``.
+    :type series: UNKNOWN
+    :param color: Value for ``color``.
+    :type color: UNKNOWN
+    :param image: Value for ``image``.
+    :type image: UNKNOWN
+    :param datasheet: Value for ``datasheet``.
+    :type datasheet: UNKNOWN
+    :param cad: Value for ``cad``.
+    :type cad: UNKNOWN
+    :param min_temp: Value for ``min_temp``.
+    :type min_temp: UNKNOWN
+    :param max_temp: Value for ``max_temp``.
+    :type max_temp: UNKNOWN
+    :param model3d: Value for ``model3d``.
+    :type model3d: UNKNOWN
+    :param direction: Value for ``direction``.
+    :type direction: UNKNOWN
+    :param gender: Value for ``gender``.
+    :type gender: UNKNOWN
+    :param cavity_lock: Value for ``cavity_lock``.
+    :type cavity_lock: UNKNOWN
+    :param ip_rating: Value for ``ip_rating``.
+    :type ip_rating: UNKNOWN
+    :param seal_type: Value for ``seal_type``.
+    :type seal_type: UNKNOWN
+    :param cpa_lock_type: Value for ``cpa_lock_type``.
+    :type cpa_lock_type: UNKNOWN
+    :param sealing: Value for ``sealing``.
+    :type sealing: UNKNOWN
+    :param rows: Value for ``rows``.
+    :type rows: UNKNOWN
+    :param num_pins: Value for ``num_pins``.
+    :type num_pins: UNKNOWN
+    :param terminal_sizes: Value for ``terminal_sizes``.
+    :type terminal_sizes: UNKNOWN
+    :param terminal_size_counts: Value for ``terminal_size_counts``.
+    :type terminal_size_counts: UNKNOWN
+    :param centerline: Value for ``centerline``.
+    :type centerline: UNKNOWN
+    :param compat_cpas: Value for ``compat_cpas``.
+    :type compat_cpas: UNKNOWN
+    :param compat_tpas: Value for ``compat_tpas``.
+    :type compat_tpas: UNKNOWN
+    :param compat_covers: Value for ``compat_covers``.
+    :type compat_covers: UNKNOWN
+    :param compat_terminals: Value for ``compat_terminals``.
+    :type compat_terminals: UNKNOWN
+    :param compat_seals: Value for ``compat_seals``.
+    :type compat_seals: UNKNOWN
+    :param compat_housings: Value for ``compat_housings``.
+    :type compat_housings: UNKNOWN
+    :param compat_boots: Value for ``compat_boots``.
+    :type compat_boots: UNKNOWN
+    :param length: Value for ``length``.
+    :type length: UNKNOWN
+    :param width: Value for ``width``.
+    :type width: UNKNOWN
+    :param height: Value for ``height``.
+    :type height: UNKNOWN
+    :param weight: Value for ``weight``.
+    :type weight: UNKNOWN
+    :param cover_point3d: Value for ``cover_point3d``.
+    :type cover_point3d: UNKNOWN
+    :param seal_point3d: Value for ``seal_point3d``.
+    :type seal_point3d: UNKNOWN
+    :param boot_point3d: Value for ``boot_point3d``.
+    :type boot_point3d: UNKNOWN
+    :param tpa_lock_1_point3d: Value for ``tpa_lock_1_point3d``.
+    :type tpa_lock_1_point3d: UNKNOWN
+    :param tpa_lock_2_point3d: Value for ``tpa_lock_2_point3d``.
+    :type tpa_lock_2_point3d: UNKNOWN
+    :param cpa_lock_point3d: Value for ``cpa_lock_point3d``.
+    :type cpa_lock_point3d: UNKNOWN
+    :param commit: Value for ``commit``.
+    :type commit: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
 
     mfg, family, series = _manufacturers.inspect_mfg_fam_series(mfg, family, series)
 
@@ -162,12 +255,32 @@ def add_housing(con, part_number, description, mfg=None, family=None, series=Non
 
 
 def add_housings(con, data: tuple[dict] | list[dict]):
+    """Add a housings.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param data: Data payload.
+    :type data: tuple[dict] | list[dict]
+    """
 
     for line in data:
         add_housing(con, **line)
 
 
 def add_records(con, splash, data_path):
+    """Add a records.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param splash: Value for ``splash``.
+    :type splash: UNKNOWN
+    :param data_path: Value for ``data_path``.
+    :type data_path: UNKNOWN
+    """
     con.execute('SELECT id FROM housings WHERE id=1;')
 
     if con.fetchall():

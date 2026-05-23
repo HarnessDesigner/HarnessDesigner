@@ -22,7 +22,20 @@ _UP_PARALLEL_DOT_THRESHOLD = 0.999
 
 
 class Overlay(QWidget):
+    """Represent an overlay in :mod:`harness_designer.gl.canvas3d.axis_overlay`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     def __init__(self, parent, config: _config.Config.editor3d.axis_overlay):
+        """Initialise the :class:`Overlay` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param config: Value for ``config``.
+        :type config: :class:`_config.Config.editor3d.axis_overlay`
+        """
         self.canvas3d = parent
         QWidget.__init__(self, parent)
         self.setFixedSize(*config.size)
@@ -45,12 +58,30 @@ class Overlay(QWidget):
         ))
 
     def setVisible(self, flag=True):
+        """Execute the set visible operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param flag: Value for ``flag``.
+        :type flag: UNKNOWN
+        """
         self.config.is_visible = flag
         QWidget.setVisible(self, flag)
 
     def resizeEvent(self, event):
+        """Execute the resize event operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param event: Event object.
+        :type event: UNKNOWN
+        """
 
         def _do():
+            """Execute the do operation.
+
+            UNKNOWN details are inferred from the callable name and signature.
+            """
             w = self.width()
             h = self.height()
             self.config.size = (w, h)
@@ -60,8 +91,19 @@ class Overlay(QWidget):
         QWidget.resizeEvent(self, event)
 
     def moveEvent(self, event):
+        """Execute the move event operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param event: Event object.
+        :type event: UNKNOWN
+        """
 
         def _do():
+            """Execute the do operation.
+
+            UNKNOWN details are inferred from the callable name and signature.
+            """
             pos = self.pos()
             self.config.position = (pos.x(), pos.y())
 
@@ -69,9 +111,23 @@ class Overlay(QWidget):
         QWidget.moveEvent(self, event)
 
     def set_angle(self, point: _point.Point):
+        """Set the angle.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param point: Point value.
+        :type point: :class:`_point.Point`
+        """
         self.gl_overlay.set_angle(point)
 
     def SetSize(self, size):
+        """Execute the set size operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param size: Value for ``size``.
+        :type size: UNKNOWN
+        """
         w, h = size
         w = h = min(w, h)
         self.setFixedSize(w, h)
@@ -79,8 +135,21 @@ class Overlay(QWidget):
 
 
 class GLOverlay(QOpenGLWidget):
+    """Represent a GL overlay in :mod:`harness_designer.gl.canvas3d.axis_overlay`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent: Overlay, size=(-1, -1)):
+        """Initialise the :class:`GLOverlay` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`Overlay`
+        :param size: Value for ``size``.
+        :type size: UNKNOWN
+        """
         QOpenGLWidget.__init__(self, parent)
         self.parent_overlay = parent
         self._init = False
@@ -104,21 +173,49 @@ class GLOverlay(QOpenGLWidget):
         self.setMouseTracking(True)
 
     def mousePressEvent(self, event):
+        """Execute the mouse press event operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param event: Event object.
+        :type event: UNKNOWN
+        """
         if event.button() == Qt.LeftButton:
             self._on_left_down(event)
         elif event.button() == Qt.RightButton:
             self._on_right_down(event)
 
     def mouseReleaseEvent(self, event):
+        """Execute the mouse release event operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param event: Event object.
+        :type event: UNKNOWN
+        """
         if event.button() == Qt.LeftButton:
             self._on_left_up(event)
         elif event.button() == Qt.RightButton:
             self._on_right_up(event)
 
     def mouseMoveEvent(self, event):
+        """Execute the mouse move event operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param event: Event object.
+        :type event: UNKNOWN
+        """
         self._on_mouse_motion(event)
 
     def _on_left_down(self, event):
+        """Handle the left down event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param event: Event object.
+        :type event: UNKNOWN
+        """
         x = event.position().x()
         y = event.position().y()
         w = self.parent_overlay.width()
@@ -146,16 +243,44 @@ class GLOverlay(QOpenGLWidget):
         self.grabMouse()
 
     def _on_left_up(self, event):
+        """Handle the left up event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param event: Event object.
+        :type event: UNKNOWN
+        """
         self.releaseMouse()
         self.grab_location = 0
 
     def _on_right_up(self, event):
+        """Handle the right up event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param event: Event object.
+        :type event: UNKNOWN
+        """
         pass
 
     def _on_right_down(self, event):
+        """Handle the right down event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param event: Event object.
+        :type event: UNKNOWN
+        """
         pass
 
     def _on_mouse_motion(self, event):
+        """Handle the mouse motion event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param event: Event object.
+        :type event: UNKNOWN
+        """
         size = self.parent_overlay.size()
         w = size.width()
         h = size.height()
@@ -299,6 +424,13 @@ class GLOverlay(QOpenGLWidget):
             self.setCursor(QCursor(Qt.SizeAllCursor))
 
     def build_model(self, size):
+        """Build the model.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param size: Value for ``size``.
+        :type size: UNKNOWN
+        """
         self.distance = size / 14.0
         size /= 40.0
         r = (size / 22)
@@ -339,6 +471,13 @@ class GLOverlay(QOpenGLWidget):
         ]
 
     def set_angle(self, point: _point.Point):
+        """Set the angle.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param point: Point value.
+        :type point: :class:`_point.Point`
+        """
         self._last_angle = point
 
         camera_pos = self.camera_pos.as_numpy
@@ -364,6 +503,10 @@ class GLOverlay(QOpenGLWidget):
         self.update()
 
     def initializeGL(self):
+        """Execute the initialize GL operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         w = self.width()
         h = self.height()
         GL.glClearColor(0.1, 0.1, 0.1, 1.0)
@@ -403,10 +546,23 @@ class GLOverlay(QOpenGLWidget):
         GLU.gluLookAt(*camera)
 
     def resizeGL(self, width, height):
+        """Execute the resize GL operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param width: Value for ``width``.
+        :type width: UNKNOWN
+        :param height: Value for ``height``.
+        :type height: UNKNOWN
+        """
         self.size = (width, height)
         GL.glViewport(0, 0, width, height)
 
     def paintGL(self):
+        """Execute the paint GL operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
         GL.glMatrixMode(GL.GL_MODELVIEW)
         GL.glLoadIdentity()

@@ -16,11 +16,24 @@ if TYPE_CHECKING:
 
 
 class WireMarker(_base2d.Base2D):
+    """Represent a wire marker in :mod:`harness_designer.objects.objects2d.wire_marker`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     _parent: "_wire_marker.WireMarker" = None
     db_obj: "_pjt_wire_marker.PJTWireMarker"
 
     def __init__(self, parent: "_wire_marker.WireMarker",
                  db_obj: "_pjt_wire_marker.PJTWireMarker"):
+        """Initialise the :class:`WireMarker` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`_wire_marker.WireMarker`
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_pjt_wire_marker.PJTWireMarker`
+        """
 
         _base2d.Base2D.__init__(self, parent, db_obj)
 
@@ -134,8 +147,21 @@ class WireMarker(_base2d.Base2D):
 
 
 class WireMarkerMenu(QMenu):
+    """Represent a wire marker menu in :mod:`harness_designer.objects.objects2d.wire_marker`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, canvas, selected):
+        """Initialise the :class:`WireMarkerMenu` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param canvas: Canvas instance.
+        :type canvas: UNKNOWN
+        :param selected: Value for ``selected``.
+        :type selected: UNKNOWN
+        """
         QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
@@ -163,19 +189,43 @@ class WireMarkerMenu(QMenu):
         action.triggered.connect(self.on_properties)
 
     def on_set_label(self):
+        """Handle the set label event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_flip_label(self):
+        """Handle the flip label event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_select(self):
+        """Handle the select event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_clone(self):
+        """Handle the clone event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_delete(self):
+        """Handle the delete event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass
 
     def on_properties(self):
+        """Handle the properties event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         pass

@@ -31,6 +31,25 @@ def _unproject_from_ndc(ndc, inv_mvp):
 
 # Ray vs AABB (slab method)
 def _ray_intersect_aabb(orig, direc, aabb_min, aabb_max, t0=0.0, t1=inf):
+    """Execute the ray intersect AABB operation.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param orig: Value for ``orig``.
+    :type orig: UNKNOWN
+    :param direc: Value for ``direc``.
+    :type direc: UNKNOWN
+    :param aabb_min: Value for ``aabb_min``.
+    :type aabb_min: UNKNOWN
+    :param aabb_max: Value for ``aabb_max``.
+    :type aabb_max: UNKNOWN
+    :param t0: Value for ``t0``.
+    :type t0: UNKNOWN
+    :param t1: Value for ``t1``.
+    :type t1: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
     tmin_vals = np.full(3, -inf, dtype=np.float64)
     tmax_vals = np.full(3, inf, dtype=np.float64)
 
@@ -145,6 +164,19 @@ def _pick_candidates_at_mouse(mx, my, scene_objects,
 
 @_debug.logfunc
 def find_object(mouse_pos, scene_objects, camera: "_camera.Camera"):
+    """Find the object.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param mouse_pos: Value for ``mouse_pos``.
+    :type mouse_pos: UNKNOWN
+    :param scene_objects: Value for ``scene_objects``.
+    :type scene_objects: UNKNOWN
+    :param camera: Value for ``camera``.
+    :type camera: :class:`_camera.Camera`
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
     mx, my = mouse_pos.as_float[:-1]
 
     pj = camera.projection

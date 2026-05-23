@@ -8,8 +8,21 @@ from ..widgets import bitmap_autocomplete_combobox as _bitmap_autocomplete_combo
 
 
 class BitmapComboBoxProperty(_prop_base.Property):
+    """Represent a bitmap combo box property in :mod:`harness_designer.ui.prop_ctrls.bitmap_combobox_prop`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def __init__(self, parent, label):
+        """Initialise the :class:`BitmapComboBoxProperty` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param label: Value for ``label``.
+        :type label: UNKNOWN
+        """
         self._choices = []
         self._value = ''
         self._units = None
@@ -40,6 +53,13 @@ class BitmapComboBoxProperty(_prop_base.Property):
             self._st.setToolTip(self._tooltip)
 
     def _on_change(self, value=None):
+        """Handle the change event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: UNKNOWN
+        """
         if value is None:
             value = self._ctrl.currentText()
         if value == self._value:
@@ -48,6 +68,13 @@ class BitmapComboBoxProperty(_prop_base.Property):
         self._send_changed_event(str, value)
 
     def SetValue(self, value: str):
+        """Execute the set value operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: str
+        """
         self._value = value
         self._ctrl.blockSignals(True)
         items = [self._ctrl.itemText(i) for i in range(self._ctrl.count())]
@@ -58,15 +85,40 @@ class BitmapComboBoxProperty(_prop_base.Property):
         self._ctrl.blockSignals(False)
 
     def GetValue(self) -> str:
+        """Execute the get value operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: str
+        """
         return self._ctrl.currentText()
 
     def Clear(self):  # NOQA
+        """Execute the clear operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self._ctrl.clear()
 
     def GetItems(self) -> list:
+        """Execute the get items operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: list
+        """
         return [self._ctrl.itemText(i) for i in range(self._ctrl.count())]
 
     def SetItems(self, items: list):
+        """Execute the set items operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param items: Collection of items to process.
+        :type items: list
+        """
         self._ctrl.blockSignals(True)
         self._ctrl.clear()
         self._ctrl.addItems(items)

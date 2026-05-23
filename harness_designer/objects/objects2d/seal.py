@@ -11,8 +11,21 @@ if TYPE_CHECKING:
 
 
 class Seal(_base2d.Base2D):
+    """Represent a seal in :mod:`harness_designer.objects.objects2d.seal`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     _parent: "_seal.Seal" = None
     db_obj: "_pjt_seal.PJTSeal"
 
     def __init__(self, parent: "_seal.Seal", db_obj: "_pjt_seal.PJTSeal"):
+        """Initialise the :class:`Seal` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`_seal.Seal`
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_pjt_seal.PJTSeal`
+        """
         _base2d.Base2D.__init__(self, parent, db_obj)

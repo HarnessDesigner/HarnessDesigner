@@ -79,6 +79,17 @@ class Canvas(QOpenGLWidget):
     gl_capture_lost = Signal(object)
 
     def __init__(self, parent, config: "_config.Config.editor2d", size: QSize = None):
+        """Initialise the :class:`Canvas` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        :param config: Value for ``config``.
+        :type config: :class:`_config.Config.editor2d`
+        :param size: Value for ``size``.
+        :type size: :class:`QSize`
+        """
         super().__init__(parent)
 
         # Walk up to mainframe
@@ -125,10 +136,28 @@ class Canvas(QOpenGLWidget):
     # ------------------------------------------------------------------
 
     def Zoom(self, dx: float, _=None):
+        """Execute the zoom operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param dx: Value for ``dx``.
+        :type dx: float
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        """
         dx *= self.config.zoom.sensitivity
         self.camera.Zoom(dx)
 
     def Pan(self, dx: float, dy: float) -> None:
+        """Execute the pan operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param dx: Value for ``dx``.
+        :type dx: float
+        :param dy: Value for ``dy``.
+        :type dy: float
+        """
         if self.config.pan.mouse & MOUSE_REVERSE_X_AXIS:
             dx = -dx
 
@@ -143,6 +172,15 @@ class Canvas(QOpenGLWidget):
     # ------------------------------------------------------------------
 
     def snap_to_grid(self, world_pos: _point.Point) -> _point.Point:
+        """Execute the snap to grid operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param world_pos: Value for ``world_pos``.
+        :type world_pos: :class:`_point.Point`
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`_point.Point`
+        """
         if not self.config.grid.snap:
             return world_pos
 
@@ -154,6 +192,17 @@ class Canvas(QOpenGLWidget):
         )
 
     def apply_angle_lock(self, start_pos: _point.Point, end_pos: _point.Point) -> _point.Point:
+        """Execute the apply angle lock operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param start_pos: Value for ``start_pos``.
+        :type start_pos: :class:`_point.Point`
+        :param end_pos: Value for ``end_pos``.
+        :type end_pos: :class:`_point.Point`
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`_point.Point`
+        """
         if not self.config.angle.lock:
             return end_pos
 
@@ -173,12 +222,33 @@ class Canvas(QOpenGLWidget):
         )
 
     def set_grid_snap(self, value):
+        """Set the grid snap.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: UNKNOWN
+        """
         self.config.grid.snap = bool(value)
 
     def set_angle_lock(self, value):
+        """Set the angle lock.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: UNKNOWN
+        """
         self.config.angle.lock = bool(value)
 
     def set_grid_display(self, value):
+        """Set the grid display.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: UNKNOWN
+        """
         self.config.grid.enabled = bool(value)
         self._grid.set(self.config.grid.enabled)
         self.update()
@@ -188,17 +258,45 @@ class Canvas(QOpenGLWidget):
     # ------------------------------------------------------------------
 
     def set_selected(self, obj):
+        """Set the selected.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
         self._selected = obj
 
     def get_selected(self):
+        """Return the selected.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self._selected
 
     def add_object(self, obj):
+        """Add an object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
         if obj not in self._objects:
             self._objects.append(obj)
             self.update()
 
     def remove_object(self, obj):
+        """Remove the object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
         try:
             self._objects.remove(obj)
             if self._selected == obj:
@@ -211,6 +309,13 @@ class Canvas(QOpenGLWidget):
 
     @property
     def objects(self):
+        """Return the objects.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         return self._objects
 
     # ------------------------------------------------------------------
@@ -218,13 +323,37 @@ class Canvas(QOpenGLWidget):
     # ------------------------------------------------------------------
 
     def __enter__(self):
+        """Enter the managed context.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         self._ref_count += 1
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        """Exit the managed context.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param exc_type: Value for ``exc_type``.
+        :type exc_type: UNKNOWN
+        :param exc_val: Value for ``exc_val``.
+        :type exc_val: UNKNOWN
+        :param exc_tb: Value for ``exc_tb``.
+        :type exc_tb: UNKNOWN
+        """
         self._ref_count -= 1
 
     def Refresh(self, *args, **kwargs):
+        """Execute the refresh operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param args: Additional positional arguments.
+        :type args: UNKNOWN
+        :param kwargs: Additional keyword arguments.
+        :type kwargs: UNKNOWN
+        """
         if self._ref_count:
             return
 
@@ -276,6 +405,10 @@ class Canvas(QOpenGLWidget):
     # ------------------------------------------------------------------
 
     def _setup_projection(self):
+        """Execute the setup projection operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         if self.size is None:
             return
         width, height = self.size

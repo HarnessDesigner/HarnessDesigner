@@ -10,6 +10,10 @@ if TYPE_CHECKING:
 
 
 class TerminalsPage(_base.EditorList):
+    """Represent a terminals page in :mod:`harness_designer.ui.editor_db.terminal`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     __table_name__ = 'terminals'
 
     __query__ = f'''\

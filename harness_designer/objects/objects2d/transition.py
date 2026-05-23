@@ -11,10 +11,23 @@ if TYPE_CHECKING:
 
 
 class Transition(_base2d.Base2D):
+    """Represent a transition in :mod:`harness_designer.objects.objects2d.transition`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     _parent: "_transition.Transition" = None
     db_obj: "_pjt_transition.PJTTransition"
 
     def __init__(self, parent: "_transition.Transition",
                  db_obj: "_pjt_transition.PJTTransition"):
+        """Initialise the :class:`Transition` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`_transition.Transition`
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_pjt_transition.PJTTransition`
+        """
 
         _base2d.Base2D.__init__(self, parent, db_obj)

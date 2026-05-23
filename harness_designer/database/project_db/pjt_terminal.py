@@ -31,12 +31,24 @@ if TYPE_CHECKING:
 
 
 class PJTTerminalsTable(PJTTableBase):
+    """Represent a PJT terminals table in :mod:`harness_designer.database.project_db.pjt_terminal`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     __table_name__ = 'pjt_terminals'
 
     _control: "PJTTerminalControl" = None
 
     @property
     def control(self) -> "PJTTerminalControl":
+        """Return the control.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`PJTTerminalControl`
+        :raises RuntimeError: Raised when the operation cannot be completed.
+        """
         if self._control is None:
             raise RuntimeError('sanity check')
 
@@ -44,29 +56,69 @@ class PJTTerminalsTable(PJTTableBase):
 
     @classmethod
     def start_control(cls, mainframe):
+        """Start the control.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mainframe: Main application frame.
+        :type mainframe: UNKNOWN
+        """
         cls._control = PJTTerminalControl(mainframe)
         cls._control.hide()
 
     def _table_needs_update(self) -> bool:
+        """Execute the table needs update operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
         from ..create_database import terminals
 
         return terminals.pjt_table.is_ok(self)
 
     def _add_table_to_db(self):
+        """Add a table to database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         from ..create_database import terminals
 
         terminals.pjt_table.add_to_db(self)
 
     def _update_table_in_db(self):
+        """Update the table in database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         from ..create_database import terminals
 
         terminals.pjt_table.update_fields(self)
 
     def __iter__(self) -> _Iterable["PJTTerminal"]:
+        """Iterate over the available items.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Iterator or iterable result. UNKNOWN details.
+        :rtype: _Iterable['PJTTerminal']
+        """
         for db_id in PJTTableBase.__iter__(self):
             yield PJTTerminal(self, db_id, self.project_id)
 
     def __getitem__(self, item) -> "PJTTerminal":
+        """Return the requested item.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param item: Item identifier or value.
+        :type item: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`PJTTerminal`
+        :raises KeyError: Raised when the operation cannot be completed.
+        :raises IndexError: Raised when the operation cannot be completed.
+        """
         if isinstance(item, int):
             if item in self:
                 return PJTTerminal(self, item, self.project_id)
@@ -75,6 +127,21 @@ class PJTTerminalsTable(PJTTableBase):
         raise KeyError(item)
 
     def insert(self, part_id: int, position2d_id: int, position3d_id: int, cavity_id: int) -> "PJTTerminal":
+        """Execute the insert operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param part_id: Identifier for the part.
+        :type part_id: int
+        :param position2d_id: Identifier for the position 2D.
+        :type position2d_id: int
+        :param position3d_id: Identifier for the position 3D.
+        :type position3d_id: int
+        :param cavity_id: Identifier for the cavity.
+        :type cavity_id: int
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`PJTTerminal`
+        """
 
         db_id = PJTTableBase.insert(self, part_id=part_id, cavity_id=cavity_id,
                                     point2d_id=position2d_id, point3d_id=position3d_id)
@@ -85,10 +152,21 @@ class PJTTerminalsTable(PJTTableBase):
 class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin, NotesMixin,
                   Position2DMixin, PartMixin, Visible3DMixin, Visible2DMixin, NameMixin,
                   HousingMixin):
+    """Represent a PJT terminal in :mod:`harness_designer.database.project_db.pjt_terminal`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     _table: PJTTerminalsTable = None
 
     def build_monitor_packet(self):
+        """Build the monitor packet.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
         circuit = self.circuit
         cavity = self.cavity
 
@@ -109,15 +187,36 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin, Not
         return packet
 
     def get_object(self) -> "_terminal_obj.Terminal":
+        """Return the object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`_terminal_obj.Terminal`
+        """
         if self._obj is not None:
             return self._obj()
 
         return self._obj
 
     def __release_obj_ref(self, _):
+        """Release the obj ref.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        """
         self._obj = None
 
     def set_object(self, obj: "_terminal_obj.Terminal"):
+        """Set the object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_terminal_obj.Terminal`
+        """
         if obj is not None:
             self._obj = weakref.ref(obj, self.__release_obj_ref)
         else:
@@ -125,6 +224,13 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin, Not
 
     @property
     def is_start(self) -> bool:
+        """Return the is start.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: bool
+        """
         value = bool(self._table.select('is_start', id=self._db_id)[0][0])
         if value and self.load:
             _logger.logger.warning('You cannot have a load set for the start terminal of a circuit')
@@ -136,6 +242,14 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin, Not
 
     @is_start.setter
     def is_start(self, value: bool):
+        """Set the is start.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: bool
+        :raises RuntimeError: Raised when the operation cannot be completed.
+        """
         if value and self.load:
             raise RuntimeError('You cannot have a load for '
                                'the start terminal of a circuit')
@@ -147,6 +261,10 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin, Not
         self._populate('is_start')
 
     def __check_for_other_starts(self):
+        """Execute the check for other starts operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         db_ids = self._table.select('db_id', circuit_id=self.circuit_id, is_start=1)
         for db_id in db_ids:
             if db_id[0] != self.db_id:
@@ -157,6 +275,13 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin, Not
 
     @property
     def voltage_drop(self) -> float:
+        """Return the voltage drop.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         if self.is_start:
             return 0.0
 
@@ -164,6 +289,14 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin, Not
 
     @voltage_drop.setter
     def voltage_drop(self, value: float):
+        """Set the voltage drop.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: float
+        :raises RuntimeError: Raised when the operation cannot be completed.
+        """
         if self.is_start:
             raise RuntimeError('voltage from can only be applied '
                                'to the end terminal of a circuit')
@@ -173,10 +306,24 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin, Not
 
     @property
     def resistance(self) -> float:
+        """Return the resistance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         return self.part.resistance
 
     @property
     def volts(self) -> float:
+        """Return the volts.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         if not self.is_start:
             return 0.0
 
@@ -184,6 +331,14 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin, Not
 
     @volts.setter
     def volts(self, value: float):
+        """Set the volts.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: float
+        :raises RuntimeError: Raised when the operation cannot be completed.
+        """
         if self.is_start:
             raise RuntimeError('volts can only be applied to the start terminal '
                                'not the end terminals of a circuit')
@@ -193,6 +348,13 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin, Not
 
     @property
     def load(self) -> float:
+        """Return the load.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         if self.is_start:
             return 0.0
 
@@ -200,6 +362,14 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin, Not
 
     @load.setter
     def load(self, value: float):
+        """Set the load.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: float
+        :raises RuntimeError: Raised when the operation cannot be completed.
+        """
         if self.is_start:
             raise RuntimeError('loads can only be applied to the end terminals '
                                'not the start terminals of a circuit')
@@ -209,12 +379,26 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin, Not
 
     @property
     def table(self) -> PJTTerminalsTable:
+        """Return the table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`PJTTerminalsTable`
+        """
         return self._table
 
     _stored_cavity: "_pjt_cavity.PJTCavity" = None
 
     @property
     def cavity(self) -> "_pjt_cavity.PJTCavity":
+        """Return the cavity.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_pjt_cavity.PJTCavity`
+        """
         if self._stored_cavity is None and self._obj is not None:
             cavity_id = self.cavity_id
 
@@ -228,10 +412,24 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin, Not
 
     @property
     def cavity_id(self) -> int:
+        """Return the cavity ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         return self._table.select('cavity_id', id=self._db_id)[0][0]
 
     @cavity_id.setter
     def cavity_id(self, value: int):
+        """Set the cavity ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._stored_cavity = None
 
         self._table.update(self._db_id, cavity_id=value)
@@ -241,6 +439,13 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin, Not
 
     @property
     def circuit(self) -> "_pjt_circuit.PJTCircuit":
+        """Return the circuit.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_pjt_circuit.PJTCircuit`
+        """
         if self._stored_circuit is None and self._obj is not None:
             circuit_id = self.circuit_id
 
@@ -254,10 +459,24 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin, Not
 
     @property
     def circuit_id(self) -> int:
+        """Return the circuit ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         return self._table.select('circuit_id', id=self._db_id)[0][0]
 
     @circuit_id.setter
     def circuit_id(self, value: int):
+        """Set the circuit ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._stored_circuit = None
 
         self._table.update(self._db_id, circuit_id=value)
@@ -265,6 +484,13 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin, Not
 
     @property
     def seal(self) -> "_pjt_seal.PJTSeal":
+        """Return the seal.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_pjt_seal.PJTSeal`
+        """
         db_ids = self._table.db.pjt_seals_table.select('id', terminal_id=self.db_id)
 
         for db_id in db_ids:
@@ -279,6 +505,13 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin, Not
 
     @property
     def part(self) -> "_terminal.Terminal":
+        """Return the part.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_terminal.Terminal`
+        """
         if self._stored_part is None and self._obj is not None:
             part_id = self.part_id
 
@@ -292,8 +525,19 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin, Not
 
 
 class PJTTerminalControl(QTabWidget):
+    """Represent a PJT terminal control in :mod:`harness_designer.database.project_db.pjt_terminal`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def set_obj(self, db_obj: PJTTerminal):
+        """Set the obj.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`PJTTerminal`
+        """
         self.db_obj = db_obj
 
         self.name_ctrl.set_obj(db_obj)
@@ -351,6 +595,13 @@ class PJTTerminalControl(QTabWidget):
             self.circuit_ctrl.set_obj(db_obj.circuit)
 
     def __init__(self, parent):
+        """Initialise the :class:`PJTTerminalControl` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        """
         self.db_obj: PJTTerminal = None
 
         QTabWidget.__init__(self, parent)

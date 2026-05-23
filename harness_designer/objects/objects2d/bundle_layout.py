@@ -11,10 +11,23 @@ if TYPE_CHECKING:
 
 
 class BundleLayout(_base2d.Base2D):
+    """Represent a bundle layout in :mod:`harness_designer.objects.objects2d.bundle_layout`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     _parent: "_bundle_layout.BundleLayout" = None
     db_obj: "_pjt_bundle_layout.PJTBundleLayout"
 
     def __init__(self, parent: "_bundle_layout.BundleLayout",
                  db_obj: "_pjt_bundle_layout.PJTBundleLayout"):
+        """Initialise the :class:`BundleLayout` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`_bundle_layout.BundleLayout`
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_pjt_bundle_layout.PJTBundleLayout`
+        """
 
         _base2d.Base2D.__init__(self, parent, db_obj)

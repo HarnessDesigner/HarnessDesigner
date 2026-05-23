@@ -12,6 +12,39 @@ from ... import logger as _logger
 def add_transition_branch(con, idx, transition_id, bulb_offset=None, bulb_length=None,
                           min_dia=0.0, max_dia=0.0, length=0.0, offset=None, angle=None,
                           flange_height=None, flange_width=None, commit=True):
+    """Add a transition branch.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param idx: Value for ``idx``.
+    :type idx: UNKNOWN
+    :param transition_id: Identifier for the transition.
+    :type transition_id: UNKNOWN
+    :param bulb_offset: Value for ``bulb_offset``.
+    :type bulb_offset: UNKNOWN
+    :param bulb_length: Value for ``bulb_length``.
+    :type bulb_length: UNKNOWN
+    :param min_dia: Value for ``min_dia``.
+    :type min_dia: UNKNOWN
+    :param max_dia: Value for ``max_dia``.
+    :type max_dia: UNKNOWN
+    :param length: Value for ``length``.
+    :type length: UNKNOWN
+    :param offset: Value for ``offset``.
+    :type offset: UNKNOWN
+    :param angle: Value for ``angle``.
+    :type angle: UNKNOWN
+    :param flange_height: Value for ``flange_height``.
+    :type flange_height: UNKNOWN
+    :param flange_width: Value for ``flange_width``.
+    :type flange_width: UNKNOWN
+    :param commit: Value for ``commit``.
+    :type commit: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
 
     if offset is not None:
         offset = str(offset)
@@ -34,6 +67,25 @@ def add_transition_branch(con, idx, transition_id, bulb_offset=None, bulb_length
 
 def add_pjt_transition_branch(con, project_id, part_id, transition_id,
                               point3d_id=None, diameter=0.0, branch_id=0):
+    """Add a PJT transition branch.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param con: Value for ``con``.
+    :type con: UNKNOWN
+    :param project_id: Identifier for the project.
+    :type project_id: UNKNOWN
+    :param part_id: Identifier for the part.
+    :type part_id: UNKNOWN
+    :param transition_id: Identifier for the transition.
+    :type transition_id: UNKNOWN
+    :param point3d_id: Identifier for the point 3D.
+    :type point3d_id: UNKNOWN
+    :param diameter: Value for ``diameter``.
+    :type diameter: UNKNOWN
+    :param branch_id: Identifier for the branch.
+    :type branch_id: UNKNOWN
+    """
 
     con.execute(f'INSERT INTO pjt_transition_branches (project_id, part_id, transition_id, '
                 f'point3d_id, diameter, branch_id) VALUES (?, ?, ?, ?, ?, ?);',

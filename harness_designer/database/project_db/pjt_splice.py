@@ -33,12 +33,24 @@ if TYPE_CHECKING:
 
 
 class PJTSplicesTable(PJTTableBase):
+    """Represent a PJT splices table in :mod:`harness_designer.database.project_db.pjt_splice`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     __table_name__ = 'pjt_splices'
 
     _control: "PJTSpliceControl" = None
 
     @property
     def control(self) -> "PJTSpliceControl":
+        """Return the control.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`PJTSpliceControl`
+        :raises RuntimeError: Raised when the operation cannot be completed.
+        """
         if self._control is None:
             raise RuntimeError('sanity check')
 
@@ -46,29 +58,69 @@ class PJTSplicesTable(PJTTableBase):
 
     @classmethod
     def start_control(cls, mainframe):
+        """Start the control.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mainframe: Main application frame.
+        :type mainframe: UNKNOWN
+        """
         cls._control = PJTSpliceControl(mainframe)
         cls._control.hide()
 
     def _table_needs_update(self) -> bool:
+        """Execute the table needs update operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
         from ..create_database import splices
 
         return splices.pjt_table.is_ok(self)
 
     def _add_table_to_db(self):
+        """Add a table to database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         from ..create_database import splices
 
         splices.pjt_table.add_to_db(self)
 
     def _update_table_in_db(self):
+        """Update the table in database.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
         from ..create_database import splices
 
         splices.pjt_table.update_fields(self)
 
     def __iter__(self) -> _Iterable["PJTSplice"]:
+        """Iterate over the available items.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Iterator or iterable result. UNKNOWN details.
+        :rtype: _Iterable['PJTSplice']
+        """
         for db_id in PJTTableBase.__iter__(self):
             yield PJTSplice(self, db_id, self.project_id)
 
     def __getitem__(self, item) -> "PJTSplice":
+        """Return the requested item.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param item: Item identifier or value.
+        :type item: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`PJTSplice`
+        :raises KeyError: Raised when the operation cannot be completed.
+        :raises IndexError: Raised when the operation cannot be completed.
+        """
         if isinstance(item, int):
             if item in self:
                 return PJTSplice(self, item, self.project_id)
@@ -78,6 +130,25 @@ class PJTSplicesTable(PJTTableBase):
 
     def insert(self, part_id: int, start_point3d_id: int, stop_point3d_id: int,
                branch_point3d_id: int, point2d_id: int, circuit_id: int) -> "PJTSplice":
+        """Execute the insert operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param part_id: Identifier for the part.
+        :type part_id: int
+        :param start_point3d_id: Identifier for the start point 3D.
+        :type start_point3d_id: int
+        :param stop_point3d_id: Identifier for the stop point 3D.
+        :type stop_point3d_id: int
+        :param branch_point3d_id: Identifier for the branch point 3D.
+        :type branch_point3d_id: int
+        :param point2d_id: Identifier for the point 2D.
+        :type point2d_id: int
+        :param circuit_id: Identifier for the circuit.
+        :type circuit_id: int
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`PJTSplice`
+        """
 
         db_id = PJTTableBase.insert(self, part_id=part_id, circuit_id=circuit_id,
                                     start_point3d_id=start_point3d_id, stop_point3d_id=stop_point3d_id,
@@ -88,10 +159,21 @@ class PJTSplicesTable(PJTTableBase):
 
 class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMixin,
                 Visible3DMixin, Visible2DMixin, NameMixin, NotesMixin):
+    """Represent a PJT splice in :mod:`harness_designer.database.project_db.pjt_splice`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     _table: PJTSplicesTable = None
 
     def build_monitor_packet(self):
+        """Build the monitor packet.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
 
         packet = {
             'pjt_cavities': [self.db_id],
@@ -105,15 +187,36 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         return packet
 
     def get_object(self) -> "_splice_obj.Splice":
+        """Return the object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`_splice_obj.Splice`
+        """
         if self._obj is not None:
             return self._obj()
 
         return self._obj
 
     def __release_obj_ref(self, _):
+        """Release the obj ref.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        """
         self._obj = None
 
     def set_object(self, obj: "_splice_obj.Splice"):
+        """Set the object.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_splice_obj.Splice`
+        """
         if obj is not None:
             self._obj = weakref.ref(obj, self.__release_obj_ref)
         else:
@@ -121,10 +224,24 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
 
     @property
     def table(self) -> PJTSplicesTable:
+        """Return the table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`PJTSplicesTable`
+        """
         return self._table
 
     @property
     def wires(self) -> list[list["_pjt_wire.PJTWire"], list["_pjt_wire.PJTWire"], list["_pjt_wire.PJTWire"]]:
+        """Return the wires.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: list[list['_pjt_wire.PJTWire'], list['_pjt_wire.PJTWire'], list['_pjt_wire.PJTWire']]
+        """
         start_db_ids1 = self._table.db.pjt_wires_table.select('id', stop_point3d_id=self.start_position3d_id)
         start_db_ids2 = self._table.db.pjt_wires_table.select('id', start_point3d_id=self.start_position3d_id)
 
@@ -135,6 +252,15 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         branch_db_ids2 = self._table.db.pjt_wires_table.select('id', start_point3d_id=self.branch_position3d_id)
 
         def _get_wires(rows):
+            """Return the wires.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param rows: Value for ``rows``.
+            :type rows: UNKNOWN
+            :returns: Return value. UNKNOWN details.
+            :rtype: UNKNOWN
+            """
             ret_ = []
             for row in rows:
                 ret_.append(self._table.db.pjt_wires_table[row[0]])
@@ -156,6 +282,13 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
 
     @property
     def branch_position3d(self) -> "_point.Point":
+        """Return the branch position 3D.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_point.Point`
+        """
         if self._stored_branch_position3d is None and self._obj is not None:
 
             point_id = self.branch_position3d_id
@@ -166,6 +299,13 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
 
     @property
     def branch_position3d_id(self) -> int:
+        """Return the branch position 3D ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         point_id = self._table.select('branch_point3d_id', id=self._db_id)[0][0]
         if point_id is None:
             self._table.execute(
@@ -180,29 +320,71 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
 
     @branch_position3d_id.setter
     def branch_position3d_id(self, value: int):
+        """Set the branch position 3D ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, branch_point3d_id=value)
         self._populate('branch_position3d_id')
 
     @property
     def circuit(self) -> "_pjt_circuit.PJTCircuit":
+        """Return the circuit.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_pjt_circuit.PJTCircuit`
+        """
         circuit_id = self.circuit_id
         return self._table.db.pjt_circuits_table[circuit_id]
 
     @property
     def circuit_id(self) -> int:
+        """Return the circuit ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
         return self._table.select('circuit_id', id=self._db_id)[0][0]
 
     @circuit_id.setter
     def circuit_id(self, value: int):
+        """Set the circuit ID.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
         self._table.update(self._db_id, circuit_id=value)
         self._populate('circuit_id')
 
     @property
     def resistance(self) -> float:
+        """Return the resistance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: float
+        """
         return self.part.resistance
 
     @property
     def part(self) -> "_splice.Splice":
+        """Return the part.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_splice.Splice`
+        """
         part_id = self.part_id
         if part_id is None:
             return None
@@ -211,8 +393,19 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
 
 
 class PJTSpliceControl(QTabWidget):
+    """Represent a PJT splice control in :mod:`harness_designer.database.project_db.pjt_splice`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
 
     def set_obj(self, db_obj: PJTSplice):
+        """Set the obj.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`PJTSplice`
+        """
         self.db_obj = db_obj
 
         self.name_ctrl.set_obj(db_obj)
@@ -232,6 +425,13 @@ class PJTSpliceControl(QTabWidget):
             self.circuit_ctrl.set_obj(db_obj.circuit)
 
     def __init__(self, parent):
+        """Initialise the :class:`PJTSpliceControl` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        """
         self.db_obj: PJTSplice = None
 
         QTabWidget.__init__(self, parent)

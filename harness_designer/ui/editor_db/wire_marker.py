@@ -10,6 +10,10 @@ if TYPE_CHECKING:
 
 
 class WireMarkersPage(_base.EditorList):
+    """Represent a wire markers page in :mod:`harness_designer.ui.editor_db.wire_marker`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
     _has_model_3d = False
 
     __table_name__ = 'wire_markers'
