@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""Connector selection utilities for the active database backend."""
+
 from ... import config as _config
 
 CONNECTOR_SQLITE = 0

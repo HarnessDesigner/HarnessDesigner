@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""Persistent application configuration backed by SQLite tables."""
+
 import sqlite3
 import weakref
 import threading
@@ -16,6 +18,11 @@ DEBUG_CONFIG = False
 
 
 def DEBUG(*args):
+    """Print config debug output when :data:`DEBUG_CONFIG` is enabled.
+
+    :param args: Values to print.
+    :type args: tuple
+    """
     if DEBUG_CONFIG:
         args = ' '.join(str(item) for item in args)
         print(args)
@@ -30,10 +37,24 @@ class _ConfigTable:
     """
 
     def __init__(self, con, name):
+        """Initialise a table wrapper.
+
+        :param con: Open SQLite connection.
+        :type con: sqlite3.Connection
+        :param name: Table name.
+        :type name: str
+        """
         self._con = con
         self.name = name
 
     def __contains__(self, item):
+        """Return whether a key exists in the table.
+
+        :param item: Setting key.
+        :type item: str
+        :returns: ``True`` when the key exists.
+        :rtype: bool
+        """
         with _lock:
             with self._con:
                 cur = self._con.cursor()
@@ -48,6 +69,13 @@ class _ConfigTable:
             return False
 
     def __getitem__(self, item):
+        """Fetch and deserialize a stored value.
+
+        :param item: Setting key.
+        :type item: str
+        :returns: Stored value.
+        :rtype: UNKNOWN
+        """
         with _lock:
             with self._con:
                 cur = self._con.cursor()
@@ -64,6 +92,13 @@ class _ConfigTable:
                 return value
 
     def __setitem__(self, key, value):
+        """Insert or update a stored value.
+
+        :param key: Setting key.
+        :type key: str
+        :param value: Value to persist.
+        :type value: UNKNOWN
+        """
         value = str(value)
 
         if key not in self:
@@ -91,6 +126,11 @@ class _ConfigTable:
                     cur.close()
 
     def __delitem__(self, key):
+        """Delete a stored key from the table.
+
+        :param key: Setting key.
+        :type key: str
+        """
         with _lock:
             with self._con:
                 cur = self._con.cursor()
@@ -112,10 +152,17 @@ class _ConfigDB:
     """
 
     def __init__(self):
+        """Initialise the backing database wrapper.
+
+        """
         self._con = None
         self.save_all = False
 
     def open(self):
+        """Open the configuration database file.
+
+        :raises RuntimeError: If the database is already open.
+        """
         if self._con is not None:
             raise RuntimeError('The config database is already open')
 
@@ -125,6 +172,13 @@ class _ConfigDB:
         self._con = sqlite3.connect(path, check_same_thread=False)
 
     def __contains__(self, item):
+        """Return whether a table exists in the database.
+
+        :param item: Table name.
+        :type item: str
+        :returns: ``True`` when the table exists.
+        :rtype: bool
+        """
         with _lock:
             with self._con:
                 cur = self._con.cursor()
@@ -138,6 +192,13 @@ class _ConfigDB:
             return ret
 
     def __getitem__(self, item):
+        """Return a table wrapper, creating the table on demand.
+
+        :param item: Table name.
+        :type item: str
+        :returns: Table wrapper for the requested table.
+        :rtype: _ConfigTable
+        """
         with _lock:
             if item not in self:
                 with self._con:
@@ -155,21 +216,41 @@ class _ConfigDB:
             return _ConfigTable(self._con, item)
 
     def close(self):
+        """Close the configuration database connection.
+
+        """
         with _lock:
             self._con.close()
 
 
 class ConfigDB(type):
+    """Metaclass that persists class attributes to configuration tables."""
     __db__ = _ConfigDB()
     __classes__ = []
     __callbacks__ = {}
 
     def __init__(cls, name, bases, dct):
+        """Register a configuration class with the metaclass registry.
+
+        :param name: Class name.
+        :type name: str
+        :param bases: Base classes.
+        :type bases: tuple[type, ...]
+        :param dct: Class namespace.
+        :type dct: dict
+        """
         super().__init__(name, bases, dct)
         ConfigDB.__classes__.append(cls)
         ConfigDB.__callbacks__[cls] = {}
 
     def bind(cls, callback, setting_name):
+        """Bind a callback to a persisted setting name.
+
+        :param callback: Bound method notified when the setting changes.
+        :type callback: collections.abc.Callable
+        :param setting_name: Setting name to observe.
+        :type setting_name: str
+        """
         if setting_name not in ConfigDB.__callbacks__[cls]:
             ConfigDB.__callbacks__[cls][setting_name] = []
 
@@ -184,12 +265,20 @@ class ConfigDB(type):
             ConfigDB.__callbacks__[cls][setting_name].append(ref)
 
     def _remove_ref(cls, ref):
+        """Remove a dead callback weak reference.
+
+        :param ref: Weak reference to remove.
+        :type ref: weakref.ReferenceType
+        """
         for refs in ConfigDB.__callbacks__[cls].values():
             if ref in refs:
                 refs.remove(ref)
                 return
 
     def _load(cls):
+        """Load persisted values back onto the configuration class.
+
+        """
         for key in dir(cls):
             if key.startswith('_'):
                 continue
@@ -199,6 +288,9 @@ class ConfigDB(type):
                     type.__setattr__(cls, key, cls.__table__[key])
 
     def _save(cls):
+        """Persist current class attributes to the database.
+
+        """
         for key in dir(cls):
             if key.startswith('_'):
                 continue
@@ -212,6 +304,11 @@ class ConfigDB(type):
             DEBUG('_save:', cls.__name__, cls.__table_name__, key, repr(value), '\n\n')
 
     def _process_change(cls, setting_name):
+        """Notify callbacks that a setting changed.
+
+        :param setting_name: Changed setting name.
+        :type setting_name: str
+        """
         if setting_name in ConfigDB.__callbacks__[cls]:
             for ref in ConfigDB.__callbacks__[cls][setting_name][:]:
                 cb = ref()
@@ -222,6 +319,11 @@ class ConfigDB(type):
 
     @property
     def __table_name__(cls):
+        """Return the SQLite table name for this configuration class.
+
+        :returns: Derived table name.
+        :rtype: str
+        """
         name = f'{cls.__module__.split(".", 1)[-1]}_{cls.__qualname__}'
         name = name.replace(".", "_")
         name = name.replace('harness_designer_config_Config_', '')
@@ -230,15 +332,35 @@ class ConfigDB(type):
 
     @property
     def __table__(cls):
+        """Return the table wrapper for this configuration class.
+
+        :returns: Backing table wrapper.
+        :rtype: _ConfigTable
+        """
         return ConfigDB.__db__[cls.__table_name__]
 
     def __getitem__(cls, item):
+        """Return a configuration attribute by key.
+
+        :param item: Setting name.
+        :type item: str
+        :returns: Stored attribute value.
+        :rtype: UNKNOWN
+        """
         DEBUG('__getitem__:', cls.__table_name__, cls.__name__, item)
         value = getattr(cls, item)
 
         return value
 
     def __getattribute__(cls, item):
+        """Fetch an attribute, falling back to persisted table values.
+
+        :param item: Attribute name.
+        :type item: str
+        :returns: Attribute value.
+        :rtype: UNKNOWN
+        :raises AttributeError: If the attribute is not defined anywhere.
+        """
         if item.startswith('_'):
             return type.__getattribute__(cls, item)
 
@@ -258,11 +380,25 @@ class ConfigDB(type):
         raise AttributeError(item)
 
     def __setitem__(cls, key, value):
+        """Assign a configuration attribute by key.
+
+        :param key: Setting name.
+        :type key: str
+        :param value: Value to store.
+        :type value: UNKNOWN
+        """
         DEBUG('__setitem__:', cls.__table_name__, cls.__name__, key, repr(value))
 
         setattr(cls, key, value)
 
     def __setattr__(cls, key, value):
+        """Assign and persist a configuration attribute.
+
+        :param key: Attribute name.
+        :type key: str
+        :param value: Value to store.
+        :type value: UNKNOWN
+        """
         if key.startswith('_'):
             type.__setattr__(cls, key, value)
 
@@ -274,9 +410,19 @@ class ConfigDB(type):
             cls._process_change(key)
 
     def __delitem__(cls, key):
+        """Delete a configuration attribute by key.
+
+        :param key: Setting name.
+        :type key: str
+        """
         delattr(cls, key)
 
     def __delattr__(cls, item):
+        """Delete a configuration attribute and its persisted value.
+
+        :param item: Attribute name.
+        :type item: str
+        """
         if item in cls.__table__:
             del cls.__table__[item]
 
@@ -284,6 +430,9 @@ class ConfigDB(type):
 
     @staticmethod
     def open():
+        """Open the config database and load all registered classes.
+
+        """
         ConfigDB.__db__.open()
 
         for cls in ConfigDB.__classes__:
@@ -291,6 +440,9 @@ class ConfigDB(type):
 
     @staticmethod
     def close():
+        """Save all registered configuration classes and close the database.
+
+        """
         for cls in ConfigDB.__classes__:
             cls._save()
 
@@ -312,8 +464,10 @@ MOUSE_SWAP_AXIS = 0x10000000
 
 
 class Config(metaclass=ConfigDB):
+    """Root container for persisted application settings."""
 
     class ray_trace(metaclass=ConfigDB):
+        """Ray-tracing renderer defaults and quality presets."""
 
         enable_reflections = True
         enable_depth_of_field = True
@@ -364,26 +518,31 @@ class Config(metaclass=ConfigDB):
         default_resolution = '7680x3268 (UW 8K UHD) (21:9)'
 
         class background:
+            """Background colour and gradient settings for ray tracing."""
             color1 = [0.18, 0.20, 0.22]
             color2 = [0.18, 0.20, 0.22]
 
             enable_gradient = True
 
         class environment_map(metaclass=ConfigDB):
+            """Environment-map settings for ray tracing."""
             enable = True
             generate = True
             path = ''
 
         class shadows(metaclass=ConfigDB):
+            """Shadow settings for ray tracing."""
             enable = True
             softness = 1.0
 
         class ambient_occlusion(metaclass=ConfigDB):
+            """Ambient occlusion settings for ray tracing."""
             enable = False
             samples = 8.0
             radius = 0.5
 
         class lighting(metaclass=ConfigDB):
+            """Light source defaults for ray tracing."""
             ambient_intensity = 0.2
             lights = [
                 {
@@ -394,27 +553,33 @@ class Config(metaclass=ConfigDB):
             ]
 
     class editor2d(metaclass=ConfigDB):
+        """2D editor interaction and canvas settings."""
 
         class virtual_canvas(metaclass=ConfigDB):
+            """Virtual canvas size for 2D editing."""
             width = 1920
             height = 1080
 
         class angle(metaclass=ConfigDB):
+            """Angle snapping settings for the 2D editor."""
             lock = False
             lock_increment = 90.0
 
         class grid(metaclass=ConfigDB):
+            """Grid display and snapping settings for the 2D editor."""
             enabled = True
             size = 8000
             snap = False
 
         class zoom(metaclass=ConfigDB):
+            """2D editor zoom control bindings."""
             mouse = MOUSE_WHEEL  # | MOUSE_REVERSE_WHEEL_AXIS
             in_key = 43
             out_key = 45
             sensitivity = 5.0
 
         class pan(metaclass=ConfigDB):
+            """2D editor pan control bindings."""
             mouse = MOUSE_LEFT
             up_key = 16777235
             down_key = 16777237
@@ -423,24 +588,29 @@ class Config(metaclass=ConfigDB):
             sensitivity = 0.4
 
         class reset(metaclass=ConfigDB):
+            """2D editor reset-view bindings."""
             key = 16777232
             mouse = MOUSE_NONE
 
         class canvas(metaclass=ConfigDB):
+            """Export or render canvas size for the 2D editor."""
             width = 3840
             height = 2160
 
     class editor3d(metaclass=ConfigDB):
+        """3D editor rendering and navigation settings."""
         background_color = [0.20, 0.20, 0.20, 1.0]
         selected_color = [0.2, 0.6, 0.2, 0.35]
 
         class lighting(metaclass=ConfigDB):
+            """Default 3D scene lighting values."""
             position = [100.0, 100.0, 100.0]
             ambient = [0.4, 0.4, 0.4, 1.0]
             diffuse = [0.8, 0.8, 0.8, 1.0]
             specular = [1.0, 1.0, 1.0, 1.0]
 
         class renderer(metaclass=ConfigDB):
+            """3D renderer smoothing toggles for supported object types."""
             smooth_covers = True
             smooth_boots = True
             smooth_housings = True
@@ -452,36 +622,43 @@ class Config(metaclass=ConfigDB):
             smooth_terminals = True
 
         class focal_target(metaclass=ConfigDB):
+            """Focal target marker settings in the 3D editor."""
             enable = True
             color = [1.0, 0.4, 0.4, 1.0]
             radius = 0.25
 
         class floor(metaclass=ConfigDB):
+            """Floor plane, grid, and reflection settings for the 3D editor."""
             enable = True
             ground_height = 0.0
             distance = 1000
             enable_floor_lock = True
 
             class grid(metaclass=ConfigDB):
+                """Floor grid appearance settings."""
                 primary_color = [0.2039, 0.2549, 0.2902, 0.8]
                 secondary_color = [0.2925, 0.3430, 0.3430, 0.8]
                 size = 50
                 enable = True
 
             class reflections(metaclass=ConfigDB):
+                """Floor reflection settings in the 3D editor."""
                 enable = True
                 strength = 50.0
 
         class virtual_canvas(metaclass=ConfigDB):
+            """Virtual canvas size for 3D rendering output."""
             width = 1920
             height = 1080
 
         class keyboard_settings(metaclass=ConfigDB):
+            """Keyboard speed scaling settings for the 3D editor."""
             max_speed_factor = 10.0
             speed_factor_increment = 0.1
             start_speed_factor = 1.0
 
         class rotate(metaclass=ConfigDB):
+            """3D rotate control bindings."""
             mouse = MOUSE_MIDDLE
             up_key = ord('w')
             down_key = ord('s')
@@ -490,6 +667,7 @@ class Config(metaclass=ConfigDB):
             sensitivity = 0.4
 
         class pan_tilt(metaclass=ConfigDB):
+            """3D pan/tilt control bindings."""
             mouse = MOUSE_LEFT
             up_key = ord('o')
             down_key = ord('l')
@@ -498,6 +676,7 @@ class Config(metaclass=ConfigDB):
             sensitivity = 0.2
 
         class truck_pedestal(metaclass=ConfigDB):
+            """3D truck and pedestal movement bindings."""
             mouse = MOUSE_RIGHT
             up_key = ord('8')
             down_key = ord('2')
@@ -507,6 +686,7 @@ class Config(metaclass=ConfigDB):
             speed = 1.0
 
         class walk(metaclass=ConfigDB):
+            """3D walking/navigation bindings."""
             mouse = MOUSE_WHEEL | MOUSE_SWAP_AXIS
             forward_key = 16777235
             backward_key = 16777237
@@ -516,27 +696,32 @@ class Config(metaclass=ConfigDB):
             speed = 5.0
 
         class zoom(metaclass=ConfigDB):
+            """3D zoom control bindings."""
             mouse = MOUSE_NONE  # | MOUSE_REVERSE_WHEEL_AXIS
             in_key = 43
             out_key = 45
             sensitivity = 5.0
 
         class reset(metaclass=ConfigDB):
+            """3D editor reset-view bindings."""
             key = 16777232
             mouse = MOUSE_NONE
 
         class headlight(metaclass=ConfigDB):
+            """Headlight settings for the 3D editor camera."""
             enable = True
             cutoff = 8.0
             dissipate = 50.0
             color = [0.6, 0.6, 0.4, 0.8]
 
         class axis_overlay(metaclass=ConfigDB):
+            """Axis overlay visibility and placement settings."""
             is_visible = True
             size = (150, 150)
             position = (830, 245)
 
     class logging(metaclass=ConfigDB):
+        """Logging destinations and verbosity settings."""
         save_path = os.path.join(_utils.get_appdata(), 'log')
         num_archives = 10
         num_logfiles = 10
@@ -551,11 +736,14 @@ class Config(metaclass=ConfigDB):
         log_file_transfers = True
 
     class debug:
+        """Debug feature toggles used throughout the application."""
         class functions(metaclass=ConfigDB):
+            """Function-call debug logging settings."""
             log_args = False
             log_duration = False
 
         class rendering3d(metaclass=ConfigDB):
+            """3D debug rendering overlays and colours."""
             draw_obb = False
             draw_aabb = False
             draw_normals = False
@@ -569,9 +757,11 @@ class Config(metaclass=ConfigDB):
             normals_color = [1.0, 1.0, 1.0]
 
     class colors(metaclass=ConfigDB):
+        """Colour customisation settings."""
         custom_colors = ''
 
         class add_object(metaclass=ConfigDB):
+            """Highlight colours used while adding objects."""
             preview_color = [0.5, 0.85, 1.0, 0.45]
 
             terminal_highlight = [1.0, 0.8, 0.0, 0.6]
@@ -586,16 +776,20 @@ class Config(metaclass=ConfigDB):
             splice_highlight = [0.0, 0.8, 1.0, 0.6]
 
     class database(metaclass=ConfigDB):
+        """Database backend selection and connection defaults."""
         connector = CONNECTOR_SQLITE
         monitor_duration = 60
 
         class maintenance(metaclass=ConfigDB):
+            """Database maintenance batch settings."""
             point_batch_size = 50
 
         class sqlite(metaclass=ConfigDB):
+            """SQLite backend settings."""
             database_path = os.path.join(_utils.get_appdata(), 'harness_designer.db')
 
         class mysql(metaclass=ConfigDB):
+            """MySQL backend connection settings."""
             host = 'local_host'
             port = 3306
             compress = False
@@ -624,10 +818,12 @@ class Config(metaclass=ConfigDB):
             recent_users = []
 
             class settings_dialog(metaclass=ConfigDB):
+                """Window geometry for the MySQL settings dialog."""
                 size = (950, 950)
                 pos = (0, 0)
 
     class mainframe(metaclass=ConfigDB):
+        """Main window geometry and docking layout settings."""
         position = ()
         size = ()
 
@@ -653,6 +849,7 @@ class Config(metaclass=ConfigDB):
             '|dock_size(2,0,2)=662|')
 
     class project(metaclass=ConfigDB):
+        """Project-level defaults such as recent locations."""
         last_project = None
         model_dir = _utils.get_documents()
 

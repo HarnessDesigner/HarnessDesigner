@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""Line primitives built from :class:`harness_designer.geometry.point.Point`."""
+
 from typing import Iterable as _Iterable
 
 import math
@@ -13,8 +15,25 @@ ZERO_5 = 0.5
 
 
 class Line:
+    """Represent a line segment between two :class:`~.point.Point` objects."""
 
     def __array_ufunc__(self, func, method, inputs, instance, **kwargs):
+        """Handle selected NumPy ufuncs for line translation and rotation.
+
+        :param func: NumPy ufunc being invoked.
+        :type func: object
+        :param method: Ufunc method name.
+        :type method: str
+        :param inputs: Left-hand input supplied by NumPy.
+        :type inputs: object
+        :param instance: Operand instance chosen by NumPy dispatch.
+        :type instance: object
+        :param kwargs: Additional ufunc keyword arguments.
+        :type kwargs: dict
+        :returns: Updated line or NumPy result depending on the operation.
+        :rtype: :class:`Line` | :class:`numpy.ndarray`
+        :raises RuntimeError: If the ufunc is unsupported.
+        """
         if func == np.matmul:
             if isinstance(instance, np.ndarray):
                 arr = self.as_numpy
@@ -73,6 +92,18 @@ class Line:
                  p2: _point.Point | None = None,
                  length: float | None = None,
                  angle: _angle.Angle | None = None):
+        """Create a line segment.
+
+        :param p1: Start point.
+        :type p1: :class:`~.point.Point`
+        :param p2: End point. When omitted, ``length`` and ``angle`` are used to derive it.
+        :type p2: :class:`~.point.Point` | None
+        :param length: Length used when ``p2`` is not supplied.
+        :type length: float | None
+        :param angle: Rotation applied to the generated end point when ``p2`` is omitted.
+        :type angle: :class:`~.angle.Angle` | None
+        :raises ValueError: If ``p2`` is omitted without both ``length`` and ``angle``.
+        """
 
         self._p1 = p1
 
@@ -89,6 +120,11 @@ class Line:
 
     @property
     def as_numpy(self) -> np.ndarray:
+        """Return the endpoints as a ``2 x 3`` :class:`numpy.ndarray`.
+
+        :returns: Start and end coordinates as floats.
+        :rtype: :class:`numpy.ndarray`
+        """
         p1 = self._p1.as_float
         p2 = self._p2.as_float
 
@@ -96,25 +132,50 @@ class Line:
 
     @property
     def as_float(self) -> tuple[list[float, float, float], list[float, float, float]]:
+        """Return the endpoints as float tuples.
+
+        :returns: Start and end coordinates.
+        :rtype: tuple[list[float, float, float], list[float, float, float]]
+        """
         p1 = self._p1.as_float
         p2 = self._p2.as_float
 
         return p1, p2
 
     def copy(self) -> "Line":
+        """Return a detached copy of the line.
+
+        :returns: Copy built from copies of :attr:`p1` and :attr:`p2`.
+        :rtype: :class:`Line`
+        """
         p1 = self._p1.copy()
         p2 = self._p2.copy()
         return Line(p1, p2)
 
     @property
     def p1(self) -> _point.Point:
+        """Return the start point.
+
+        :returns: Line start point.
+        :rtype: :class:`~.point.Point`
+        """
         return self._p1
 
     @property
     def p2(self) -> _point.Point:
+        """Return the end point.
+
+        :returns: Line end point.
+        :rtype: :class:`~.point.Point`
+        """
         return self._p2
 
     def __len__(self) -> int:
+        """Return the rounded segment length.
+
+        :returns: Euclidean line length rounded to the nearest integer.
+        :rtype: int
+        """
         x = self._p2.x - self._p1.x
         y = self._p2.y - self._p1.y
         z = self._p2.z - self._p1.z
@@ -122,6 +183,11 @@ class Line:
         return int(round(res))
 
     def length(self) -> float:
+        """Return the Euclidean segment length.
+
+        :returns: Distance between :attr:`p1` and :attr:`p2`.
+        :rtype: float
+        """
         x = self._p2.x - self._p1.x
         y = self._p2.y - self._p1.y
         z = self._p2.z - self._p1.z
@@ -129,6 +195,13 @@ class Line:
         return math.sqrt(x * x + y * y + z * z)
 
     def get_angle(self, origin: _point.Point) -> _angle.Angle:
+        """Return the line orientation relative to ``origin``.
+
+        :param origin: Pivot point used to evaluate the segment direction.
+        :type origin: :class:`~.point.Point`
+        :returns: Angle derived from the translated endpoints.
+        :rtype: :class:`~.angle.Angle`
+        """
         temp_p1 = self._p1.copy()
         temp_p2 = self._p2.copy()
 
@@ -145,6 +218,15 @@ class Line:
         return _angle.Angle.from_points(temp_p1, temp_p2)
 
     def set_angle(self, angle: _angle.Angle, origin: _point.Point) -> None:
+        """Rotate the line around ``origin`` in place.
+
+        :param angle: Rotation to apply.
+        :type angle: :class:`~.angle.Angle`
+        :param origin: Pivot used for the rotation.
+        :type origin: :class:`~.point.Point`
+        :returns: ``None``
+        :rtype: None
+        """
         if origin == self._p1:
             temp_p2 = self._p2.copy()
             temp_p2 -= origin
@@ -215,48 +297,104 @@ class Line:
         return _point.Point(p3[0], p3[1], p3[2])
 
     def __isub__(self, other: _point.Point | np.ndarray) -> "Line":
+        """Translate the line in place by subtracting ``other`` from both endpoints.
+
+        :param other: Offset to subtract.
+        :type other: :class:`~.point.Point` | :class:`numpy.ndarray`
+        :returns: This line instance.
+        :rtype: :class:`Line`
+        """
         self._p1 -= other
         self._p2 -= other
 
         return self
 
     def __sub__(self, other: _point.Point | np.ndarray) -> "Line":
+        """Return a translated copy of the line.
+
+        :param other: Offset to subtract.
+        :type other: :class:`~.point.Point` | :class:`numpy.ndarray`
+        :returns: New translated line.
+        :rtype: :class:`Line`
+        """
         p1 = self._p1 - other
         p2 = self._p2 - other
 
         return Line(p1, p2)
 
     def __iadd__(self, other: _point.Point | np.ndarray) -> "Line":
+        """Translate the line in place by adding ``other`` to both endpoints.
+
+        :param other: Offset to add.
+        :type other: :class:`~.point.Point` | :class:`numpy.ndarray`
+        :returns: This line instance.
+        :rtype: :class:`Line`
+        """
         self._p1 += other
         self._p2 += other
 
         return self
 
     def __add__(self, other: _point.Point | np.ndarray) -> "Line":
+        """Return a translated copy of the line.
+
+        :param other: Offset to add.
+        :type other: :class:`~.point.Point` | :class:`numpy.ndarray`
+        :returns: New translated line.
+        :rtype: :class:`Line`
+        """
         p1 = self._p1 + other
         p2 = self._p2 + other
 
         return Line(p1, p2)
 
     def __imul__(self, other: _point.Point | np.ndarray) -> "Line":
+        """Scale the line in place component-wise.
+
+        :param other: Scale factors.
+        :type other: :class:`~.point.Point` | :class:`numpy.ndarray`
+        :returns: This line instance.
+        :rtype: :class:`Line`
+        """
         self._p1 *= other
         self._p2 *= other
 
         return self
 
     def __mul__(self, other: _point.Point | np.ndarray) -> "Line":
+        """Return a component-wise scaled copy of the line.
+
+        :param other: Scale factors.
+        :type other: :class:`~.point.Point` | :class:`numpy.ndarray`
+        :returns: New scaled line.
+        :rtype: :class:`Line`
+        """
         p1 = self._p1 * other
         p2 = self._p2 * other
 
         return Line(p1, p2)
 
     def __imatmul__(self, other: _angle.Angle | np.ndarray) -> "Line":
+        """Rotate the line in place.
+
+        :param other: Rotation represented by an :class:`~.angle.Angle` or compatible array.
+        :type other: :class:`~.angle.Angle` | :class:`numpy.ndarray`
+        :returns: This line instance.
+        :rtype: :class:`Line`
+        """
         self._p1 @= other
         self._p2 @= other
 
         return self
 
     def __matmul__(self, other: _angle.Angle | np.ndarray) -> "Line":
+        """Return a rotated copy of the line.
+
+        :param other: Rotation represented by an :class:`~.angle.Angle` or compatible array.
+        :type other: :class:`~.angle.Angle` | :class:`numpy.ndarray`
+        :returns: New rotated line.
+        :rtype: :class:`Line`
+        """
         p1 = self._p1 @ other
         p2 = self._p2 @ other
 
@@ -264,15 +402,34 @@ class Line:
 
     @property
     def center(self) -> _point.Point:
+        """Return the midpoint of the segment.
+
+        :returns: Midpoint between :attr:`p1` and :attr:`p2`.
+        :rtype: :class:`~.point.Point`
+        """
         x = (self._p1.x + self._p2.x) * ZERO_5
         y = (self._p1.y + self._p2.y) * ZERO_5
         z = (self._p1.z + self._p2.z) * ZERO_5
         return _point.Point(x, y, z)
 
     def __iter__(self) -> _Iterable[_point.Point]:
+        """Iterate over the two endpoints.
+
+        :returns: Iterator yielding :attr:`p1` then :attr:`p2`.
+        :rtype: collections.abc.Iterable[:class:`~.point.Point`]
+        """
         return iter([self._p1, self._p2])
 
     def get_rotated_line(self, angle: _angle.Angle, pivot: _point.Point) -> "Line":
+        """Return a rotated copy of the line around ``pivot``.
+
+        :param angle: Rotation to apply.
+        :type angle: :class:`~.angle.Angle`
+        :param pivot: Rotation origin. When ``None``, :attr:`center` is used.
+        :type pivot: :class:`~.point.Point` | None
+        :returns: New rotated line.
+        :rtype: :class:`Line`
+        """
 
         if pivot is None:
             pivot = self.center

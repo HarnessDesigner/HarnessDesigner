@@ -1,11 +1,21 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""NVIDIA GPU memory collection helpers for :mod:`harness_designer.gpu_mem`."""
+
 import pynvml
 
 from . import gpu_base as _gpu_base
 
 
 def collect():
+    """Populate :class:`.gpu_base.GPU` with metrics from the first NVIDIA GPU.
+
+    The function initializes :mod:`pynvml`, queries device index ``0``, copies
+    available metrics into the shared :class:`.gpu_base.GPU` container, and
+    then shuts NVML down.
+
+    :raises Exception: Propagates NVML errors raised while collecting data.
+    """
     GPU = _gpu_base.GPU
 
     pynvml.nvmlInit()

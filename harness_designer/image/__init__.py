@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""Lazy image and cursor loading helpers for :mod:`harness_designer.image`."""
+
 from typing import TYPE_CHECKING
 
 import sys
@@ -15,14 +17,38 @@ BASE_PATH = os.path.dirname(__file__)
 
 
 class Image:
+    """Represent a PNG-backed asset that can be converted on demand.
+
+    :param name: Logical asset name.
+    :type name: str
+    :param path: Optional filesystem path to a PNG asset.
+    :type path: str | None
+    :param png_data: Optional in-memory PNG bytes.
+    :type png_data: bytes | None
+    """
 
     def __init__(self, name, path=None, png_data=None):
+        """Initialize an image wrapper.
+
+        :param name: Logical asset name.
+        :type name: str
+        :param path: Optional filesystem path to a PNG asset.
+        :type path: str | None
+        :param png_data: Optional in-memory PNG bytes.
+        :type png_data: bytes | None
+        """
         self._path = path
         self._png_data = png_data
         self.name = name
 
     @property
     def png_data(self):
+        """Return the PNG bytes for the image.
+
+        :returns: Cached PNG data or bytes read from :attr:`_path`.
+        :rtype: bytes
+        :raises OSError: Raised when the backing file cannot be read.
+        """
         if self._png_data is not None:
             return self._png_data
 
@@ -31,19 +57,39 @@ class Image:
 
     @property
     def pil(self) -> _Image.Image:
+        """Return the image as a PIL ``RGBA`` image.
+
+        :returns: PIL image decoded from :attr:`png_data`.
+        :rtype: PIL.Image.Image
+        """
         return utils.bytes_data_2_pil_image(self.png_data)
 
     # Kept for any callers that still use .pil_image (alias)
     @property
     def pil_image(self) -> _Image.Image:
+        """Return the image as a PIL image alias.
+
+        :returns: Same value as :attr:`pil`.
+        :rtype: PIL.Image.Image
+        """
         return self.pil
 
     @property
     def pixmap(self) -> QPixmap:
+        """Return the image as a Qt pixmap.
+
+        :returns: Pixmap created from :attr:`png_data`.
+        :rtype: :class:`PySide6.QtGui.QPixmap`
+        """
         return utils.bytes_data_2_qpixmap(self.png_data)
 
     @property
     def disabled_pixmap(self) -> QPixmap:
+        """Return a greyscale, lower-opacity pixmap for disabled UI states.
+
+        :returns: Disabled-state pixmap.
+        :rtype: :class:`PySide6.QtGui.QPixmap`
+        """
         pil = self.pil.convert('RGBA')
         r, g, b, a = pil.split()
 
@@ -58,22 +104,69 @@ class Image:
 
     @property
     def cursor(self) -> QCursor:
+        """Return the image as a centered Qt cursor.
+
+        :returns: Cursor created from :attr:`pil`.
+        :rtype: :class:`PySide6.QtGui.QCursor`
+        """
         return utils.pil_image_2_qcursor(self.pil)
 
     def crop(self, x1, y1, x2, y2):
+        """Return a cropped copy of the image.
+
+        :param x1: Left crop coordinate.
+        :type x1: int
+        :param y1: Top crop coordinate.
+        :type y1: int
+        :param x2: Right crop coordinate.
+        :type x2: int
+        :param y2: Bottom crop coordinate.
+        :type y2: int
+        :returns: New image containing the cropped region.
+        :rtype: :class:`Image`
+        """
         pil = self.pil.convert('RGBA')
         pil = pil.crop((x1, y1, x2, y2))
         return Image(self.name, png_data=utils.pil_image_2_png_bytes(pil))
 
     def resize(self, w: int, h: int) -> "Image":
+        """Return a resized copy of the image.
+
+        :param w: Target width in pixels.
+        :type w: int
+        :param h: Target height in pixels.
+        :type h: int
+        :returns: New resized image.
+        :rtype: :class:`Image`
+        """
         pil = utils.resize_pil_image(self.pil, w, h)
         return Image(self.name, png_data=utils.pil_image_2_png_bytes(pil))
 
     def rotate(self, angle: int | float) -> "Image":
+        """Return a rotated copy of the image.
+
+        :param angle: Rotation angle in degrees.
+        :type angle: int | float
+        :returns: New rotated image.
+        :rtype: :class:`Image`
+        """
         pil = utils.rotate_pil_image(self.pil, angle)
         return Image(self.name, png_data=utils.pil_image_2_png_bytes(pil))
 
     def recolor(self, r, g, b):
+        """Return a copy of the image with RGB channels replaced.
+
+        The alpha channel of each pixel is preserved.
+
+        :param r: Red channel value.
+        :type r: int
+        :param g: Green channel value.
+        :type g: int
+        :param b: Blue channel value.
+        :type b: int
+        :returns: Recolored image.
+        :rtype: :class:`Image`
+        """
         img = utils.bytes_data_2_pil_image(self.png_data)
 
         w, h = img.size
@@ -87,6 +180,17 @@ class Image:
         return res
 
     def __or__(self, other: "Image"):
+        """Combine two images using the current ``|`` composition logic.
+
+        A new transparent canvas is created and both images are pasted using the
+        method's existing offset calculations. The exact intended layout is
+        UNKNOWN beyond the operations implemented here.
+
+        :param other: Image to combine with this image.
+        :type other: :class:`Image`
+        :returns: Combined image.
+        :rtype: :class:`Image`
+        """
         img1 = self.pil
         img2 = other.pil
 
@@ -142,8 +246,21 @@ class Image:
 # This is a dynamic loader that acts like a module.
 # Done to save memory by only loading icons/images that are actually used.
 class ImageLoader:
+    """Lazily expose subdirectories and PNG assets as attributes.
+
+    :param path: Base directory to expose.
+    :type path: str
+    """
 
     def __init__(self, path):
+        """Initialize the lazy image loader.
+
+        When ``path`` matches :data:`BASE_PATH`, the loader replaces the module
+        object in :data:`sys.modules` so package attributes resolve lazily.
+
+        :param path: Base directory to expose.
+        :type path: str
+        """
         mod = sys.modules[__name__]
 
         if path == BASE_PATH:
@@ -165,6 +282,14 @@ class ImageLoader:
         self.__base_path__ = path
 
     def __getattr__(self, item):
+        """Load a sub-loader or :class:`Image` on first attribute access.
+
+        :param item: Attribute name to resolve.
+        :type item: str
+        :returns: Existing module attribute, nested :class:`ImageLoader`, or :class:`Image`.
+        :rtype: object
+        :raises AttributeError: Raised when no matching directory or PNG exists.
+        """
         if item in self.__dict__:
             return self.__dict__[item]
 
@@ -194,6 +319,7 @@ __base = ImageLoader(BASE_PATH)
 if TYPE_CHECKING:
 
     class ip:
+        """Type-checking namespace for IP rating images."""
         IP1X: Image = ...
         IP2X: Image = ...
         IP3X: Image = ...
@@ -213,6 +339,7 @@ if TYPE_CHECKING:
         IPX9K: Image = ...
 
     class cursors(ImageLoader):
+        """Type-checking namespace for cursor images."""
         back_angle: Image = ...
         forward_angle: Image = ...
         left_bottom_corner_rotate: Image = ...
@@ -226,6 +353,7 @@ if TYPE_CHECKING:
         up_down: Image = ...
 
     class icons(ImageLoader):
+        """Type-checking namespace for icon assets."""
         align_horizontal_center: Image = ...
         align_left_edge: Image = ...
         align_right_edge: Image = ...
@@ -300,5 +428,6 @@ if TYPE_CHECKING:
         zoom_out: Image = ...
 
     class images(ImageLoader):
+        """Type-checking namespace for general image assets."""
         header_600x80: Image = ...
         no_image: Image = ...

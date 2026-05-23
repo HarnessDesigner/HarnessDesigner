@@ -1,4 +1,11 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
+"""Threaded helpers for building per-object BVH data.
+
+This module coordinates worker threads that transform object geometry and then
+build acceleration structures with :mod:`bvh_fast`.
+"""
+
 # threaded_bvh_processor.py
 import threading
 import queue
@@ -40,6 +47,17 @@ class BVHWorkerThread(threading.Thread):
 
     def __init__(self, thread_id: int, work_queue: queue.Queue,
                  results_queue: queue.Queue, stats_lock: threading.Lock):
+        """Initialize the worker thread.
+
+        :param thread_id: Numeric identifier used in log output.
+        :type thread_id: int
+        :param work_queue: Queue supplying :class:`ObjectData` instances.
+        :type work_queue: :class:`queue.Queue`
+        :param results_queue: Queue receiving :class:`ProcessedObject` values.
+        :type results_queue: :class:`queue.Queue`
+        :param stats_lock: Lock protecting the per-thread statistics counters.
+        :type stats_lock: :class:`threading.Lock`
+        """
         super().__init__(daemon=True)
         self.thread_id = thread_id
         self.work_queue = work_queue
@@ -149,6 +167,11 @@ class ThreadedBVHProcessor:
     """Manages worker threads for parallel BVH processing"""
 
     def __init__(self, num_threads: int = 10):
+        """Initialize the processor.
+
+        :param num_threads: Number of worker threads to launch when started.
+        :type num_threads: int
+        """
         self.num_threads = num_threads
         self.work_queue = queue.Queue()
         self.results_queue = queue.Queue()

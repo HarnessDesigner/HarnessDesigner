@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""Splash screen rendering used during application startup."""
+
 from typing import TYPE_CHECKING
 
 import os
@@ -32,6 +34,13 @@ class Splash:
     """
 
     def __init__(self, args, logger: "_logger.Log"):
+        """Create and display the splash screen.
+
+        :param args: Command-line arguments supplied to the application.
+        :type args: list[str]
+        :param logger: Logger used for startup status messages.
+        :type logger: _logger.Log
+        """
         self.logger = logger
         self.load_database = '--load-database' in args
         self.startup_args = args
@@ -102,6 +111,11 @@ class Splash:
         self._init_event.wait()
 
     def Show(self, show=True):
+        """Show or hide the splash window.
+
+        :param show: ``True`` to show the splash, ``False`` to hide it.
+        :type show: bool
+        """
         if show:
             self._window.show()
         else:
@@ -112,6 +126,9 @@ class Splash:
         QApplication.restoreOverrideCursor()
 
         def _do():
+            """Close and delete the splash widgets on the UI thread.
+
+            """
             with self._draw_lock:
                 self._window.close()
                 self._window.deleteLater()
@@ -123,6 +140,13 @@ class Splash:
             self._signals.refresh_requested.emit()
 
     def SetText(self, text: str, log=True) -> None:
+        """Update the status text shown on the splash screen.
+
+        :param text: Status text to draw.
+        :type text: str
+        :param log: Log the message through the application logger.
+        :type log: bool
+        """
         if log:
             self.logger.info(text)
 
@@ -132,6 +156,9 @@ class Splash:
             event = threading.Event()
 
             def _on_refresh():
+                """Signal that a requested refresh has completed.
+
+                """
                 self._signals.refresh_requested.disconnect(_on_refresh)
                 event.set()
 
@@ -142,6 +169,9 @@ class Splash:
             self._do_refresh()
 
     def flush(self):
+        """Process pending Qt events for the splash screen.
+
+        """
         QApplication.processEvents()
 
     # ------------------------------------------------------------------
@@ -149,6 +179,11 @@ class Splash:
     # ------------------------------------------------------------------
 
     def draw(self, text: str):
+        """Render the splash image and current status text into a pixmap.
+
+        :param text: Status text to draw.
+        :type text: str
+        """
         with self._draw_lock:
             w, h = self._size
             bmp_height = self._img_h - 40

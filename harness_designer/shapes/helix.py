@@ -1,5 +1,11 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""Helical stripe mesh generation helpers.
+
+The stripe is modeled as a swept solid around a cylinder and converted into a
+mesh for use by the OpenGL renderer.
+"""
+
 import build123d
 
 from .. import utils as _utils
@@ -10,6 +16,11 @@ _vbo: _vbo_handler.VBOHandler = None
 
 
 def create_vbo() -> _vbo_handler.VBOHandler:
+    """Create or return the cached helix stripe VBO.
+
+    :returns: Cached VBO data for the default stripe mesh.
+    :rtype: :class:`harness_designer.gl.vbo.VBOHandler`
+    """
     global _vbo
 
     if _vbo is None:
@@ -22,6 +33,15 @@ def create_vbo() -> _vbo_handler.VBOHandler:
 
 
 def create(radius, length):
+    """Create a mesh for a helical stripe wrapped around a cylinder.
+
+    :param radius: Radius of the underlying wire or cylinder.
+    :type radius: float
+    :param length: Length of the stripe sweep.
+    :type length: float
+    :returns: Vertex and face arrays for the stripe mesh.
+    :rtype: tuple[:class:`numpy.ndarray`, :class:`numpy.ndarray`]
+    """
     # Create the wire
     model = build123d.Cylinder(radius, length, align=build123d.Align.NONE)
 

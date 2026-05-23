@@ -1,5 +1,11 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""Box mesh generation helpers.
+
+The functions in this module build axis-aligned cuboid geometry for use by
+:class:`harness_designer.gl.vbo.VBOHandler` instances.
+"""
+
 import numpy as np
 
 from .. import utils as _utils
@@ -10,6 +16,13 @@ _vbo: _vbo_handler.VBOHandler = None
 
 
 def create_vbo() -> _vbo_handler.VBOHandler:
+    """Create or return the cached unit box VBO.
+
+    The cached mesh is built from :func:`create` using unit dimensions.
+
+    :returns: Cached VBO data for a box with dimensions ``1 x 1 x 1``.
+    :rtype: :class:`harness_designer.gl.vbo.VBOHandler`
+    """
     global _vbo
 
     if _vbo is None:
@@ -22,6 +35,19 @@ def create_vbo() -> _vbo_handler.VBOHandler:
 
 
 def create(width, height, depth):
+    """Create vertex and face arrays for an axis-aligned box.
+
+    The generated box is centered on the origin and uses triangle faces.
+
+    :param width: Overall size along the X axis.
+    :type width: float
+    :param height: Overall size along the Y axis.
+    :type height: float
+    :param depth: Overall size along the Z axis.
+    :type depth: float
+    :returns: Vertex and triangle index arrays for the box mesh.
+    :rtype: tuple[:class:`numpy.ndarray`, :class:`numpy.ndarray`]
+    """
 
     depth /= 2.0
     height /= 2.0

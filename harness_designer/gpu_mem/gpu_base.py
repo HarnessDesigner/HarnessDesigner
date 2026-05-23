@@ -1,22 +1,49 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""Shared GPU attribute containers for :mod:`harness_designer.gpu_mem`."""
+
+
 class GPUAttribute:
+    """Store a labeled GPU attribute value for display purposes.
+
+    :param label: Prefix used when rendering the attribute as text.
+    :type label: str
+    """
 
     def __init__(self, label):
+        """Initialize the attribute with a display label.
+
+        :param label: Prefix used when the value is converted to text.
+        :type label: str
+        """
         self.label = label
         self.value = 'Unknown'
 
     def __str__(self):
+        """Return the label and current value as a single string.
+
+        :returns: Human-readable label/value text.
+        :rtype: str
+        """
         return self.label + str(self.value)
 
 
 class GPUMeta(type):
+    """Metaclass that forwards class stringification to :class:`GPU`."""
 
     def __str__(cls):
+        """Render the shared :class:`GPU` state as text.
+
+        :param cls: GPU class being stringified.
+        :type cls: type
+        :returns: Formatted GPU information.
+        :rtype: str
+        """
         return GPU.__str__()
 
 
 class GPU(metaclass=GPUMeta):
+    """Shared container of GPU details collected from vendor-specific APIs."""
 
     driver_name = GPUAttribute('Name: ')
     driver_version = GPUAttribute('Version: ')
@@ -53,6 +80,13 @@ class GPU(metaclass=GPUMeta):
 
     @classmethod
     def is_ok(cls):
+        """Return whether the collected VRAM values look usable.
+
+        :param cls: GPU class containing shared attribute state.
+        :type cls: type
+        :returns: ``True`` when VRAM size and usage are integers and size is positive.
+        :rtype: bool
+        """
         return (
             isinstance(cls.vram_size.value, int) and
             isinstance(cls.vram_use.value, int) and
@@ -60,6 +94,13 @@ class GPU(metaclass=GPUMeta):
 
     @classmethod
     def __str__(cls):
+        """Format the current GPU state as a multi-section report.
+
+        :param cls: GPU class containing shared attribute state.
+        :type cls: type
+        :returns: Multiline summary of driver, GPU, VRAM, clock, PCIe, and fan data.
+        :rtype: str
+        """
         ret = [
             'Driver',
             '===========================================',

@@ -1,11 +1,21 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""AMD GPU memory collection helpers for :mod:`harness_designer.gpu_mem`."""
+
 import amdsmi
 
 from . import gpu_base as _gpu_base
 
 
 def collect():
+    """Populate :class:`.gpu_base.GPU` with metrics from the first AMD device.
+
+    The function initializes :mod:`amdsmi`, queries the first reported GPU,
+    copies the available metrics into the shared :class:`.gpu_base.GPU`
+    container, and then shuts the AMD SMI library down.
+
+    :raises Exception: Propagates AMD SMI errors raised while collecting data.
+    """
     amdsmi.amdsmi_init()
 
     devices = amdsmi.amdsmi_get_processor_handles()

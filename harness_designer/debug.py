@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""Debug logging helpers and decorators for :mod:`harness_designer`."""
+
 from typing import TYPE_CHECKING
 import time
 import sys
@@ -19,10 +21,19 @@ _stack_count = 0
 
 
 class DebugPrinter:
+    """Route debug output either to stdout or the application logger."""
 
     def __init__(self):
+        """Initialise the fallback debug printer.
+
+        """
 
         def log_printer(*args):
+            """Print debug output until a logger becomes available.
+
+            :param args: Positional values to print.
+            :type args: tuple
+            """
             from .ui import mainframe
 
             if mainframe._mainframe is not None:  # NOQA
@@ -34,10 +45,22 @@ class DebugPrinter:
         self._flush = sys.stdout.flush
 
     def set_logger(self, logger: "_logger.Log"):
+        """Send future debug output to the application logger.
+
+        :param logger: Logger instance that exposes ``debug`` and ``log_handler``.
+        :type logger: _logger.Log
+        """
         self._logger = logger.debug
         self._flush = logger.log_handler.flush
 
     def __call__(self, *args, end_stack=False):
+        """Emit debug output.
+
+        :param args: Message parts forwarded to the current sink.
+        :type args: tuple
+        :param end_stack: Flush after logging when ending a stack trace block.
+        :type end_stack: bool
+        """
         self._logger(*args)
 
         if end_stack:
@@ -48,6 +71,13 @@ _print_func = DebugPrinter()
 
 
 def logfunc(func):
+    """Decorate a callable to log arguments and/or duration.
+
+    :param func: Callable to wrap.
+    :type func: collections.abc.Callable
+    :returns: Either the original callable or a wrapped logging proxy.
+    :rtype: collections.abc.Callable
+    """
 
     if True not in (Config.log_args, Config.log_duration):
         return func
@@ -76,6 +106,15 @@ def logfunc(func):
 
     @functools.wraps(func)
     def _wrapper(*args, **kwargs):
+        """Invoke ``func`` while collecting configured debug output.
+
+        :param args: Positional arguments for ``func``.
+        :type args: tuple
+        :param kwargs: Keyword arguments for ``func``.
+        :type kwargs: dict
+        :returns: Return value from ``func``.
+        :rtype: UNKNOWN
+        """
         global _stack_count
 
         if is_static_method:

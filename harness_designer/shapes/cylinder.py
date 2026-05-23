@@ -1,5 +1,11 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+"""Cylinder mesh generation helpers.
+
+The generated mesh is centered around the origin before being converted into a
+cached :class:`harness_designer.gl.vbo.VBOHandler`.
+"""
+
 import math
 import numpy as np
 
@@ -11,6 +17,11 @@ _vbo: _vbo_handler.VBOHandler = None
 
 
 def create_vbo() -> _vbo_handler.VBOHandler:
+    """Create or return the cached cylinder VBO.
+
+    :returns: Cached VBO data for a default cylinder mesh.
+    :rtype: :class:`harness_designer.gl.vbo.VBOHandler`
+    """
     global _vbo
 
     if _vbo is None:
@@ -23,6 +34,24 @@ def create_vbo() -> _vbo_handler.VBOHandler:
 
 
 def create(radius, length, resolution=None, split=None) -> tuple[np.ndarray, np.ndarray]:
+    """Create vertices and faces for a cylindrical side wall.
+
+    The current implementation generates only the curved surface; end caps are
+    not added.
+
+    :param radius: Cylinder radius.
+    :type radius: float
+    :param length: Cylinder length along the Z axis.
+    :type length: float
+    :param resolution: Number of samples around each ring. If ``None``, a value
+        derived from ``radius`` is used.
+    :type resolution: int or None
+    :param split: Number of axial subdivisions. If ``None``, a value derived
+        from ``length`` is used.
+    :type split: int or None
+    :returns: Vertex and triangle index arrays for the cylindrical mesh.
+    :rtype: tuple[:class:`numpy.ndarray`, :class:`numpy.ndarray`]
+    """
     if resolution is None:
         resolution = int(max(15.0, _utils.remap(radius, 0.0, 2.0, 0.0, 20.0)))
 
@@ -59,5 +88,5 @@ def create(radius, length, resolution=None, split=None) -> tuple[np.ndarray, np.
             faces.append([base2 + j, base2 + j1, base1 + j1])
 
     faces = np.array(faces, dtype=np.int32)
-    
+
     return vertices, faces
