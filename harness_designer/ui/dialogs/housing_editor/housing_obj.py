@@ -113,19 +113,13 @@ class Housing3D(_base3d.Base3D):
             position3d = _point.Point(0.0, 0.0, 0.0)
             angle3d = _angle.Angle.from_euler(0.0, 0.0, 0.0)
         else:
-            uuid = model.uuid
             scale = model.scale
             angle3d = model.angle3d
             position3d = model.position3d
-
-            if uuid in _vbo.VBOHandler:
-                vbo = _vbo.VBOHandler(uuid)
-            else:
-                vertices, faces = model.load()
-                verts, nrmls, count = (
-                    _utils.compute_smooth_normals(vertices, faces))
-
-                vbo = _vbo.VBOHandler(uuid, verts, nrmls, count)
+            vbo = _vbo.create_model_vbo(model)
+            if vbo is None:
+                vbo = _box.create_vbo()
+                scale = _point.Point(1.0, 1.0, 1.0)
 
         vbo.acquire()
 

@@ -482,7 +482,11 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
             message['step'] = 8
             out_queue.put(json.dumps(message))
 
-            model_data = _model_data.ModelData(vertices, smooth_normals, face_normals)
+            model_data = _model_data.ModelData(
+                vertices,
+                face_normals=face_normals,
+                smooth_normals=smooth_normals
+            )
 
             uuid = model_data.uuid
             model_data.source_location = path

@@ -35,7 +35,7 @@ class Base3D:
     def __init__(self,  parent: "_ObjectBase", db_obj: "_project_db.PJTEntryBase",
                  vbo: _vbo.VBOHandler, angle: _angle.Angle,
                  position: _point.Point, scale: _point.Point,
-                 material: _materials.GLMaterial, data=None):
+                 material: _materials.GLMaterial, data=None, normal_mode: int = 0):
         """Initialise the :class:`Base3D` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -97,6 +97,7 @@ class Base3D:
         self._obb: np.ndarray = None
 
         self._data = data
+        self._normal_mode = int(normal_mode)
 
         self._compute_obb()
         self._compute_aabb()
@@ -393,7 +394,7 @@ class Base3D:
         ray_object = ray_origin - self._position
 
         # Scale vertices to match object instance
-        verts = ((self._vbo.vertices * self._scale) @ self._angle)[self._vbo.faces]
+        verts = ((self._vbo.vertices * self._scale) @ self._angle).reshape(-1, 3, 3)
 
         # Vectorized ray-triangle intersection
         hit = self._ray_triangles_intersect_vectorized(ray_object, ray_dir, verts)
@@ -545,7 +546,7 @@ class Base3D:
 
         return self._material
 
-    def _render_geometry(self, _, pos_loc, rot_loc, scale_loc):
+    def _render_geometry(self, _, pos_loc, rot_loc, scale_loc, normal_mode_loc=None, normal_mode=None):
         """Render the object geometry using the active shader program.
 
         Called by render() for each rendering pass (faces, edges, normals, vertices).
@@ -556,23 +557,34 @@ class Base3D:
             GL.glUniform3f(pos_loc, 0.0, 0.0, 0.0)
             GL.glUniform4f(rot_loc, 1.0, 0.0, 0.0, 0.0)
             GL.glUniform3f(scale_loc, 1.0, 1.0, 1.0)
+            if normal_mode_loc is not None:
+                GL.glUniform1i(normal_mode_loc, self._normal_mode if normal_mode is None else int(normal_mode))
 
             verts, nrmls, count = self._data
 
             GL.glEnableVertexAttribArray(0)
             GL.glEnableVertexAttribArray(1)
+            GL.glEnableVertexAttribArray(2)
 
             GL.glVertexAttribPointer(0, 3, GL.GL_FLOAT, GL.GL_FALSE, 0, verts)
             GL.glVertexAttribPointer(1, 3, GL.GL_FLOAT, GL.GL_FALSE, 0, nrmls)
+            GL.glVertexAttribPointer(2, 3, GL.GL_FLOAT, GL.GL_FALSE, 0, nrmls)
 
-            GL.glDrawArrays(GL.GL_TRIANGLES, 0, count)
+            vert_len = len(verts)
+            draw_count = count
+            if isinstance(verts, np.ndarray) and verts.ndim == 1 and count == vert_len:
+                draw_count = count // 3
+            GL.glDrawArrays(GL.GL_TRIANGLES, 0, draw_count)
 
             GL.glDisableVertexAttribArray(0)
             GL.glDisableVertexAttribArray(1)
+            GL.glDisableVertexAttribArray(2)
         else:
             GL.glUniform3f(pos_loc, *self._position.as_float)
             GL.glUniform4f(rot_loc, *self._angle.as_quat_numpy.tolist())
             GL.glUniform3f(scale_loc, *self._scale.as_float)
+            if normal_mode_loc is not None:
+                GL.glUniform1i(normal_mode_loc, self._normal_mode if normal_mode is None else int(normal_mode))
 
             self._vbo.render()
 
@@ -600,8 +612,9 @@ class Base3D:
             pos_loc = GL.glGetUniformLocation(faces_program, "objectPosition")
             rot_loc = GL.glGetUniformLocation(faces_program, "objectRotation")
             scale_loc = GL.glGetUniformLocation(faces_program, "objectScale")
+            normal_mode_loc = GL.glGetUniformLocation(faces_program, "normalMode")
 
-            self._render_geometry(faces_program, pos_loc, rot_loc, scale_loc)
+            self._render_geometry(faces_program, pos_loc, rot_loc, scale_loc, normal_mode_loc)
 
         if _debug_config.draw_edges:
             material_color = self.material.diffuse[:3]  # Get RGB
@@ -627,10 +640,11 @@ class Base3D:
             rot_loc = GL.glGetUniformLocation(edges_program, "objectRotation")
             scale_loc = GL.glGetUniformLocation(edges_program, "objectScale")
             render_mode_loc = GL.glGetUniformLocation(edges_program, "renderMode")
+            normal_mode_loc = GL.glGetUniformLocation(edges_program, "normalMode")
 
             GL.glUniform1i(render_mode_loc, 0)
 
-            self._render_geometry(edges_program, pos_loc, rot_loc, scale_loc)
+            self._render_geometry(edges_program, pos_loc, rot_loc, scale_loc, normal_mode_loc)
 
         if _debug_config.draw_normals:
             p1, p2 = self.aabb
@@ -651,11 +665,19 @@ class Base3D:
             scale_loc = GL.glGetUniformLocation(edges_program, "objectScale")
             render_mode_loc = GL.glGetUniformLocation(edges_program, "renderMode")
             normal_length_loc = GL.glGetUniformLocation(edges_program, "normalLength")
+            normal_mode_loc = GL.glGetUniformLocation(edges_program, "normalMode")
 
             GL.glUniform1i(render_mode_loc, 1)
             GL.glUniform1f(normal_length_loc, dynamic_normal_length)
 
-            self._render_geometry(edges_program, pos_loc, rot_loc, scale_loc)
+            self._render_geometry(
+                edges_program,
+                pos_loc,
+                rot_loc,
+                scale_loc,
+                normal_mode_loc,
+                normal_mode=1
+            )
 
         if _debug_config.draw_vertices:
             GL.glUseProgram(vertices_program)

@@ -45,25 +45,16 @@ class CPALock(_base3d.Base3D):
         self._part = db_obj.part
 
         model = self._part.model3d
+        vbo = None
         if model is not None:
-            uuid = model.uuid
             scale = _point.Point(1.0, 1.0, 1.0)
             color = self._part.color.ui
             material = _materials.Plastic(color)
             angle = db_obj.angle3d
 
-            if uuid in _vbo.VBOHandler:
-                vbo = _vbo.VBOHandler(uuid)
-            else:
-                vertices, faces = model.load()
+            vbo = _vbo.create_model_vbo(model)
 
-                if Config.renderer.smooth_cpa_locks:
-                    verts, nrmls, count = _utils.compute_smooth_normals(vertices, faces)
-                else:
-                    verts, nrmls, count = _utils.compute_face_normals(vertices, faces)
-
-                vbo = _vbo.VBOHandler(uuid, verts, nrmls, count)
-        else:
+        if vbo is None:
             vbo = _sphere.create_vbo()
             scale = _point.Point(3.0, 3.0, 3.0)
             angle = _angle.Angle()
@@ -71,7 +62,18 @@ class CPALock(_base3d.Base3D):
             material = _materials.Metallic([0.2, 0.6, 0.6, 1.0])
 
         vbo.acquire()
-        _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, db_obj.position3d, scale, material)
+        normal_mode = 0 if Config.renderer.smooth_cpa_locks else 1
+        _base3d.Base3D.__init__(
+            self,
+            parent,
+            db_obj,
+            vbo,
+            angle,
+            db_obj.position3d,
+            scale,
+            material,
+            normal_mode=normal_mode
+        )
         parent.mainframe.editor3d.context.release()
 
 
