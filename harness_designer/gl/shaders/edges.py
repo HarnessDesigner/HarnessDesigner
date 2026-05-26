@@ -7,13 +7,15 @@ VERTEX_SHADER = """
 #version 330 core
 
 layout(location = 0) in vec3 in_vertexLocal;
-layout(location = 1) in vec3 in_normalLocal;
+layout(location = 1) in vec3 in_smoothNormalLocal;
+layout(location = 2) in vec3 in_faceNormalLocal;
 
 uniform mat4 projection;
 uniform mat4 view;
 uniform vec3 objectPosition;
 uniform vec4 objectRotation;
 uniform vec3 objectScale;
+uniform int normalMode;
 
 out vec3 fragPositionWorld;
 out vec3 fragNormalWorld;
@@ -47,6 +49,7 @@ void main() {
     vec3 rotatedVertex = rotationMatrix * scaledVertex;
     vec3 worldPosition = rotatedVertex + objectPosition;
 
+    vec3 in_normalLocal = normalMode == 0 ? in_smoothNormalLocal : in_faceNormalLocal;
     vec3 scaledNormal = in_normalLocal / objectScale;
     vec3 worldNormal = rotationMatrix * scaledNormal;
 

@@ -80,22 +80,12 @@ class Seal(_base3d.Base3D):
         angle = db_obj.angle3d
 
         model = self._part.model3d
+        vbo = None
         if model is not None:
-            uuid = model.uuid
             scale = _point.Point(1.0, 1.0, 1.0)
+            vbo = _vbo.create_model_vbo(model)
 
-            if uuid in _vbo.VBOHandler:
-                vbo = _vbo.VBOHandler(uuid)
-            else:
-                vertices, faces = model.load()
-
-                if Config.renderer.smooth_covers:
-                    verts, nrmls, count = _utils.compute_smooth_normals(vertices, faces)
-                else:
-                    verts, nrmls, count = _utils.compute_face_normals(vertices, faces)
-
-                vbo = _vbo.VBOHandler(uuid, verts, nrmls, count)
-        else:
+        if vbo is None:
             type_ = self._part.type.name
             scale = self._part.scale
 
@@ -123,7 +113,18 @@ class Seal(_base3d.Base3D):
                 vbo = _box.create_vbo()
 
         vbo.acquire()
-        _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, db_obj.position3d, scale, material)
+        normal_mode = 0 if Config.renderer.smooth_seals else 1
+        _base3d.Base3D.__init__(
+            self,
+            parent,
+            db_obj,
+            vbo,
+            angle,
+            db_obj.position3d,
+            scale,
+            material,
+            normal_mode=normal_mode
+        )
         parent.mainframe.editor3d.context.release()
 
 
