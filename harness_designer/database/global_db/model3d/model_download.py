@@ -117,8 +117,8 @@ class FileBrowser(QWidget):
             mdata = _loader.load(temp_file)
             triangles = []
             for vertices, faces in mdata:
-                tris, _, nrmls, count = _utils.compute_normals(vertices, faces)
-                triangles.append([tris, nrmls, count])
+                tris, smooth_nrmls, _, count = _utils.compute_normals(vertices, faces)
+                triangles.append([tris, smooth_nrmls, count])
 
             QApplication.restoreOverrideCursor()
         except:  # NOQA

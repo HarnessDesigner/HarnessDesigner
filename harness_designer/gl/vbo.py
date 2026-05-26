@@ -11,8 +11,11 @@ from .. import utils as _utils
 from ..geometry import point as _point
 
 
+# Maximum triangle-soup vertices managed in the imported-model arena.
 MODEL_ARENA_CAPACITY_VERTICES = 4_000_000
+# Compaction threshold: rebuild arena when free-space fragmentation reaches this ratio.
 MODEL_ARENA_FRAGMENTATION_THRESHOLD = 0.35
+# Avoid rebuilding for tiny holes until at least this many vertices are reclaimable.
 MODEL_ARENA_MIN_FREE_VERTICES = 4096
 
 
@@ -90,7 +93,13 @@ class _MeshArena:
             return alloc
 
         if self._tail + needed > self.capacity_vertices:
-            raise RuntimeError('model mesh arena is full')
+            available = self.capacity_vertices - self._tail
+            raise RuntimeError(
+                'model mesh arena is full: '
+                f'requested {needed} vertices, '
+                f'available {available}, '
+                f'capacity {self.capacity_vertices}'
+            )
 
         alloc = _ArenaAllocation(start=self._tail, count=needed)
         self._allocations[key] = alloc
@@ -256,11 +265,7 @@ class VBOSingleton(type):
         else:
             return
 
-        instance = value()
-        if instance is not None and getattr(instance, '_arena_kind', None) == 'model':
-            arena_owner = globals().get('VBOHandler')
-            if arena_owner is not None:
-                arena_owner.release_model_allocation(key)
+        VBOHandler.release_model_allocation(key)
 
         del cls._instances[key]
 
@@ -289,7 +294,7 @@ class VBOHandler(metaclass=VBOSingleton):
         id_: str,
         vertices: np.ndarray | None = None,
         normals: np.ndarray | None = None,
-        faces_or_count: np.ndarray | int | None = None,
+        count_or_legacy_faces: np.ndarray | int | None = None,
         count: int = 0,
         endpoint: _point.Point | None = None,
         *,
@@ -299,10 +304,6 @@ class VBOHandler(metaclass=VBOSingleton):
         ctx = QOpenGLContext.currentContext()
         if ctx is None:
             raise RuntimeError('context has not been acquired')
-
-        if isinstance(count, _point.Point) and endpoint is None:
-            endpoint = count
-            count = 0
 
         self.id = id_
         self.endpoint = endpoint
@@ -323,8 +324,8 @@ class VBOHandler(metaclass=VBOSingleton):
             return
 
         vertex_count_hint = count
-        if isinstance(faces_or_count, (int, np.integer)) and count == 0:
-            vertex_count_hint = int(faces_or_count)
+        if isinstance(count_or_legacy_faces, (int, np.integer)) and count == 0:
+            vertex_count_hint = int(count_or_legacy_faces)
 
         self.__vertices = self._normalize_array(vertices)
         self.__smooth_normals = self._normalize_array(normals)
@@ -364,10 +365,6 @@ class VBOHandler(metaclass=VBOSingleton):
         self.local_obb = _utils.compute_obb(*local_aabb)
         p1, p2 = local_aabb
         self.local_aabb = np.array([p1.as_numpy, p2.as_numpy], dtype=np.float64)
-
-    def __del__(self):
-        if getattr(self, '_arena_kind', None) == 'model':
-            self.release_model_allocation(self.id)
 
     @staticmethod
     def _normalize_array(data: np.ndarray | None) -> np.ndarray | None:
@@ -588,7 +585,8 @@ class VBOHandler(metaclass=VBOSingleton):
         if not arena.compact():
             return False
 
-        for ref in VBOSingleton._instances.values():
+        refs = list(VBOSingleton._instances.values())
+        for ref in refs:
             instance = ref()
             if instance is None or instance._arena_kind != 'model':
                 continue
@@ -640,6 +638,10 @@ class VBOHandler(metaclass=VBOSingleton):
 
 
 def create_model_vbo(model):
+    """Create or return a shared arena-backed model VBO for a model record.
+
+    Returns ``None`` when the model has no UUID or no cached mesh payload.
+    """
     if model is None:
         return None
 

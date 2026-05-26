@@ -97,6 +97,17 @@ class Base3D:
         self._obb: np.ndarray = None
 
         self._data = data
+        if self._data is not None and len(self._data) in (3, 4):
+            if len(self._data) == 3:
+                verts, nrmls, count = self._data
+                face_nrmls = nrmls
+            else:
+                verts, nrmls, face_nrmls, count = self._data
+
+            if isinstance(verts, np.ndarray) and verts.ndim == 1 and count == len(verts):
+                count //= 3
+            self._data = [verts, nrmls, face_nrmls, count]
+
         self._normal_mode = int(normal_mode)
 
         self._compute_obb()
@@ -394,7 +405,10 @@ class Base3D:
         ray_object = ray_origin - self._position
 
         # Scale vertices to match object instance
-        verts = ((self._vbo.vertices * self._scale) @ self._angle).reshape(-1, 3, 3)
+        vertices = (self._vbo.vertices * self._scale) @ self._angle
+        if len(vertices) % 3:
+            return False
+        verts = vertices.reshape(-1, 3, 3)
 
         # Vectorized ray-triangle intersection
         hit = self._ray_triangles_intersect_vectorized(ray_object, ray_dir, verts)
@@ -560,21 +574,17 @@ class Base3D:
             if normal_mode_loc is not None:
                 GL.glUniform1i(normal_mode_loc, self._normal_mode if normal_mode is None else int(normal_mode))
 
-            verts, nrmls, count = self._data
+            verts, smooth_nrmls, face_nrmls, count = self._data
 
             GL.glEnableVertexAttribArray(0)
             GL.glEnableVertexAttribArray(1)
             GL.glEnableVertexAttribArray(2)
 
             GL.glVertexAttribPointer(0, 3, GL.GL_FLOAT, GL.GL_FALSE, 0, verts)
-            GL.glVertexAttribPointer(1, 3, GL.GL_FLOAT, GL.GL_FALSE, 0, nrmls)
-            GL.glVertexAttribPointer(2, 3, GL.GL_FLOAT, GL.GL_FALSE, 0, nrmls)
+            GL.glVertexAttribPointer(1, 3, GL.GL_FLOAT, GL.GL_FALSE, 0, smooth_nrmls)
+            GL.glVertexAttribPointer(2, 3, GL.GL_FLOAT, GL.GL_FALSE, 0, face_nrmls)
 
-            vert_len = len(verts)
-            draw_count = count
-            if isinstance(verts, np.ndarray) and verts.ndim == 1 and count == vert_len:
-                draw_count = count // 3
-            GL.glDrawArrays(GL.GL_TRIANGLES, 0, draw_count)
+            GL.glDrawArrays(GL.GL_TRIANGLES, 0, count)
 
             GL.glDisableVertexAttribArray(0)
             GL.glDisableVertexAttribArray(1)

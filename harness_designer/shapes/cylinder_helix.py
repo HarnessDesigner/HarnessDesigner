@@ -201,6 +201,12 @@ def create_vbo():
     vertices, faces = _utils.convert_model_to_mesh(cyl)
     vertices, normals, count = _utils.compute_smooth_normals(vertices, faces)
 
-    _vbo = _vbo_handler.VBOHandler('cylinder_helix', vertices, normals, count, cn)
+    _vbo = _vbo_handler.VBOHandler(
+        'cylinder_helix',
+        vertices,
+        normals,
+        count=count,
+        endpoint=cn
+    )
 
     return _vbo
