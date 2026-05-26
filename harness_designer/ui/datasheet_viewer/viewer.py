@@ -230,7 +230,7 @@ class PDFViewer(QWidget):
         # QPdfView.PageNavigator is available via navigator()
         try:
             self._view.pageNavigator().jump(page_number - 1, QPoint())
-        except Exception:
+        except Exception:  # NOQA
             pass
 
     def _zoom(self, factor):
@@ -244,7 +244,7 @@ class PDFViewer(QWidget):
         self._zoom_factor *= factor
         try:
             self._view.setZoomFactor(self._zoom_factor)
-        except Exception:
+        except Exception:  # NOQA
             pass
 
     def _load_with_pymupdf(self, pdf_file, layout):

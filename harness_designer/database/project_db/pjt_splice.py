@@ -22,7 +22,8 @@ from .mixins import (
     Visible3DMixin, Visible3DControl,
     Visible2DMixin, Visible2DControl,
     NameMixin, NameControl,
-    NotesMixin, NotesControl
+    NotesMixin, NotesControl,
+    SmoothMixin, SmoothControl
 )
 
 
@@ -158,7 +159,7 @@ class PJTSplicesTable(PJTTableBase):
 
 
 class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMixin,
-                Visible3DMixin, Visible2DMixin, NameMixin, NotesMixin):
+                Visible3DMixin, Visible2DMixin, NameMixin, NotesMixin, SmoothMixin):
     """Represent a PJT splice in :mod:`harness_designer.database.project_db.pjt_splice`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -410,6 +411,7 @@ class PJTSpliceControl(QTabWidget):
 
         self.name_ctrl.set_obj(db_obj)
         self.note_ctrl.set_obj(db_obj)
+        self.smooth_ctrl.set_obj(db_obj)
         self.position2d_ctrl.set_obj(db_obj)
         self.position3d_ctrl.set_obj(db_obj)
         self.visible2d_ctrl.set_obj(db_obj)
@@ -441,6 +443,7 @@ class PJTSpliceControl(QTabWidget):
         general_page = _prop_ctrls.Category(self, 'General')
         self.name_ctrl = NameControl(general_page)
         self.note_ctrl = NotesControl(general_page)
+        self.smooth_ctrl = SmoothControl(general_page)
 
         position_page = _prop_ctrls.Category(self, 'Position')
 

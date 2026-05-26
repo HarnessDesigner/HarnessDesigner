@@ -13,7 +13,8 @@ from .mixins import (
     StartStopPosition3DMixin, StartStopPosition3DControl,
     Visible3DMixin, Visible3DControl,
     NameMixin, NameControl,
-    NotesMixin, NotesControl
+    NotesMixin, NotesControl,
+    SmoothMixin, SmoothControl
 )
 
 
@@ -137,7 +138,7 @@ class PJTBundlesTable(PJTTableBase):
 
 
 class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
-                Visible3DMixin, NameMixin, NotesMixin):
+                Visible3DMixin, NameMixin, NotesMixin, SmoothMixin):
     """Represent a PJT bundle in :mod:`harness_designer.database.project_db.pjt_bundle`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -303,6 +304,7 @@ class PJTBundleControl(QTabWidget):
 
         self.name_ctrl.set_obj(db_obj)
         self.notes_ctrl.set_obj(db_obj)
+        self.smooth_ctrl.set_obj(db_obj)
         self.visible_ctrl.set_obj(db_obj)
         self.start_stop_ctrl.set_obj(db_obj)
         self.part_ctrl.set_obj(db_obj)
@@ -324,6 +326,7 @@ class PJTBundleControl(QTabWidget):
 
         self.name_ctrl = NameControl(general_page)
         self.notes_ctrl = NotesControl(general_page)
+        self.smooth_ctrl = SmoothControl(general_page)
 
         visible_page = _prop_ctrls.Category(self, 'Visible')
         self.visible_ctrl = Visible3DControl(visible_page)

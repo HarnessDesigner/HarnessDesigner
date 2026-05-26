@@ -17,7 +17,8 @@ from .mixins import (
     PartMixin,
     Visible3DMixin, Visible3DControl,
     NameMixin, NameControl,
-    NotesMixin,  NotesControl
+    NotesMixin,  NotesControl,
+    SmoothMixin, SmoothControl
 )
 
 
@@ -155,7 +156,7 @@ class PJTWireServiceLoopsTable(PJTTableBase):
 
 
 class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
-                         PartMixin, Visible3DMixin, NotesMixin, NameMixin):
+                         PartMixin, Visible3DMixin, NotesMixin, NameMixin, SmoothMixin):
     """Represent a PJT wire service loop in :mod:`harness_designer.database.project_db.pjt_wire_service_loop`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -473,6 +474,7 @@ class PJTWireServiceLoopControl(QTabWidget):
 
         self.name_ctrl.set_obj(db_obj)
         self.note_ctrl.set_obj(db_obj)
+        self.smooth_ctrl.set_obj(db_obj)
         self.angle3d_ctrl.set_obj(db_obj)
         self.position3d_ctrl.set_obj(db_obj)
         self.visible3d_ctrl.set_obj(db_obj)
@@ -480,7 +482,6 @@ class PJTWireServiceLoopControl(QTabWidget):
         if db_obj is None:
             self.wire_ctrl.set_obj(None)
             self.circuit_ctrl.set_obj(None)
-
         else:
             self.wire_ctrl.set_obj(db_obj.part)
             self.circuit_ctrl.set_obj(db_obj.circuit)
@@ -502,6 +503,7 @@ class PJTWireServiceLoopControl(QTabWidget):
         general_page = _prop_ctrls.Category(self, 'General')
         self.name_ctrl = NameControl(general_page)
         self.note_ctrl = NotesControl(general_page)
+        self.smooth_ctrl = SmoothControl(general_page)
 
         angle_page = _prop_ctrls.Category(self, 'Angle')
         self.angle3d_ctrl = Angle3DControl(angle_page)

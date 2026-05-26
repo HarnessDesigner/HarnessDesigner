@@ -371,7 +371,7 @@ class VBOHandler(metaclass=VBOSingleton):
             raise RuntimeError(f"OpenGL error creating faces buffer: {err}")
 
         GL.glBindVertexArray(0)
-        return vbo_vertices, vbo_normals, vbo_faces, int(count / 3)
+        return vbo_vertices, vbo_normals, vbo_faces, count
 
     def get_aspect(self) -> tuple[float, float]:
         """Return the aspect.
@@ -404,8 +404,6 @@ class VBOHandler(metaclass=VBOSingleton):
         :raises RuntimeError: Raised when the operation cannot be completed.
         """
         # Get or create VAO for the current context
-        print('vbo render:', self.id)
-
         ctx = QOpenGLContext.currentContext()
         if ctx is None:
             raise RuntimeError('context has not been acquired')

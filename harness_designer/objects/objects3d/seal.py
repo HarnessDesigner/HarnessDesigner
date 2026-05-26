@@ -90,11 +90,11 @@ class Seal(_base3d.Base3D):
                 vertices, faces = model.load()
 
                 if Config.renderer.smooth_covers:
-                    verts, nrmls, faces, count = _utils.compute_vbo_smoothed_vertex_normals(vertices, faces)
+                    verts, nrmls, count = _utils.compute_smooth_normals(vertices, faces)
                 else:
-                    verts, nrmls, faces, count = _utils.compute_vbo_vertex_normals(vertices, faces)
+                    verts, nrmls, count = _utils.compute_face_normals(vertices, faces)
 
-                vbo = _vbo.VBOHandler(uuid, verts, nrmls, faces, count)
+                vbo = _vbo.VBOHandler(uuid, verts, nrmls, count)
         else:
             type_ = self._part.type.name
             scale = self._part.scale
@@ -112,11 +112,11 @@ class Seal(_base3d.Base3D):
                     vertices, faces = _build_sws(length, o_dia, i_dia)
 
                     if Config.renderer.smooth_seals:
-                        vertices, normals, faces, count = _utils.compute_vbo_smoothed_vertex_normals(vertices, faces)
+                        vertices, normals, count = _utils.compute_smooth_normals(vertices, faces)
                     else:
-                        vertices, normals, faces, count = _utils.compute_vbo_vertex_normals(vertices, faces)
+                        vertices, normals, count = _utils.compute_face_normals(vertices, faces)
 
-                    vbo = _vbo.VBOHandler(vbo_id, vertices, normals, faces, count)
+                    vbo = _vbo.VBOHandler(vbo_id, vertices, normals, count)
             elif type_.lower() == 'plug':
                 vbo = _cylinder.create_vbo()
             else:

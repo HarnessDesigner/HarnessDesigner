@@ -280,7 +280,7 @@ class Line:
             self._p1 += diff_p1
             self._p2 += diff_p2
 
-    def point_from_start(self, distance: float | int | _d) -> _point.Point:
+    def point_from_start(self, distance: float | int) -> _point.Point:
         """
         Calculate point on the line at a specific distance from the start point.
 

@@ -21,6 +21,7 @@ from .mixins import (
     Visible2DMixin, Visible2DControl,
     NameMixin, NameControl,
     NotesMixin, NotesControl,
+    SmoothMixin, SmoothControl,
     HousingMixin
 )
 
@@ -151,7 +152,7 @@ class PJTTerminalsTable(PJTTableBase):
 
 class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin, NotesMixin,
                   Position2DMixin, PartMixin, Visible3DMixin, Visible2DMixin, NameMixin,
-                  HousingMixin):
+                  HousingMixin, SmoothMixin):
     """Represent a PJT terminal in :mod:`harness_designer.database.project_db.pjt_terminal`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -542,7 +543,7 @@ class PJTTerminalControl(QTabWidget):
 
         self.name_ctrl.set_obj(db_obj)
         self.note_ctrl.set_obj(db_obj)
-
+        self.smooth_ctrl.set_obj(db_obj)
         self.angle2d_ctrl.set_obj(db_obj)
         self.angle3d_ctrl.set_obj(db_obj)
 
@@ -611,6 +612,7 @@ class PJTTerminalControl(QTabWidget):
         general_page = _prop_ctrls.Category(self, 'General')
         self.name_ctrl = NameControl(general_page)
         self.note_ctrl = NotesControl(general_page)
+        self.smooth_ctrl = SmoothControl(general_page)
 
         self.is_start_ctrl = _prop_ctrls.BoolProperty(general_page, 'Is Start')
         self.voltage_drop_ctrl = _prop_ctrls.FloatProperty(general_page, 'Allowed Voltage Drop', min_value=0.0, max_value=9999.99, increment=0.01, units='VDC/VAC')

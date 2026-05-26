@@ -17,22 +17,19 @@ TWO = _d(2.0)
 class Quaternion:
     """Represent a normalized quaternion used for 3D rotations."""
 
-    def __array_ufunc__(self, func, method, inputs, instance, out=None, **kwargs):  # NOQA
+    def __array_ufunc__(self, func, _, inputs,
+                        instance, out=None, **__):
         """
         Handle selected NumPy ufuncs for quaternion operations.
 
         :param func: NumPy ufunc being invoked.
         :type func: object
-        :param method: Ufunc method name.
-        :type method: str
         :param inputs: Left-hand NumPy input.
         :type inputs: :class:`numpy.ndarray` | None
         :param instance: Operand instance chosen by NumPy dispatch.
         :type instance: :class:`numpy.ndarray` | None
         :param out: Optional output array.
         :type out: tuple[:class:`numpy.ndarray`] | None
-        :param kwargs: Additional ufunc keyword arguments.
-        :type kwargs: dict
         :returns: Quaternion or array result for the supported ufunc.
         :rtype: :class:`Quaternion` | :class:`numpy.ndarray`
         :raises RuntimeError: If the ufunc is unsupported.
@@ -143,6 +140,7 @@ class Quaternion:
         :returns: ``None``
         :rtype: None
         """
+
         self.__normalize()
 
     def __init__(self, w=None, x=None, y=None, z=None, q=None):
@@ -292,7 +290,10 @@ class Quaternion:
         Return the quaternion components as decimals.
 
         :returns: Decimal ``(w, x, y, z)`` values.
-        :rtype: tuple[:class:`~harness_designer.geometry.decimal.Decimal`, :class:`~harness_designer.geometry.decimal.Decimal`, :class:`~harness_designer.geometry.decimal.Decimal`, :class:`~harness_designer.geometry.decimal.Decimal`]
+        :rtype: tuple[:class:`~harness_designer.geometry.decimal.Decimal`,
+                      :class:`~harness_designer.geometry.decimal.Decimal`,
+                      :class:`~harness_designer.geometry.decimal.Decimal`,
+                      :class:`~harness_designer.geometry.decimal.Decimal`]
         """
 
         w, x, y, z = self.as_float
@@ -412,7 +413,9 @@ class Quaternion:
         """
 
         if isinstance(other, (int, float)):
-            other = np.array([other, other, other, other], dtype=np.float64)
+            other = np.array(
+                [other, other, other, other], dtype=np.float64)
+
         elif not isinstance(other, Quaternion):
             raise TypeError
         else:
@@ -491,14 +494,20 @@ class Quaternion:
 
         return Quaternion(w, x, y, z)
 
-    def __matmul__(self, other: _point.Point | np.ndarray) -> _point.Point | np.ndarray:
+    def __matmul__(
+        self,
+        other: _point.Point | np.ndarray
+    ) -> _point.Point | np.ndarray:
+
         """
         Return ``other`` rotated by this quaternion.
 
         :param other: Point or vector to rotate.
-        :type other: :class:`~harness_designer.geometry.point.Point` | :class:`numpy.ndarray`
+        :type other: :class:`~harness_designer.geometry.point.Point` |
+                     :class:`numpy.ndarray`
         :returns: Rotated copy of ``other``.
-        :rtype: :class:`~harness_designer.geometry.point.Point` | :class:`numpy.ndarray`
+        :rtype: :class:`~harness_designer.geometry.point.Point` |
+                :class:`numpy.ndarray`
         """
 
         w, x, y, z = self.as_float
@@ -518,14 +527,20 @@ class Quaternion:
             result = other + 2.0 * w * t + 2.0 * np.cross(qvec, t)
             return result
 
-    def __rmatmul__(self, other: _point.Point | np.ndarray) -> _point.Point | np.ndarray:
+    def __rmatmul__(
+        self,
+        other: _point.Point | np.ndarray
+    ) -> _point.Point | np.ndarray:
+
         """
         Rotate ``other`` in place when possible.
 
         :param other: Point or vector to rotate.
-        :type other: :class:`~harness_designer.geometry.point.Point` | :class:`numpy.ndarray`
+        :type other: :class:`~harness_designer.geometry.point.Point` |
+                     :class:`numpy.ndarray`
         :returns: Mutated operand.
-        :rtype: :class:`~harness_designer.geometry.point.Point` | :class:`numpy.ndarray`
+        :rtype: :class:`~harness_designer.geometry.point.Point` |
+                :class:`numpy.ndarray`
         """
 
         w, x, y, z = self.as_float
@@ -673,7 +688,8 @@ class Quaternion:
 
 
         :param axis: Rotation axis.
-        :type axis: list[int | float, int | float, int | float] | :class:`numpy.ndarray`
+        :type axis: list[int | float, int | float, int | float] |
+                    :class:`numpy.ndarray`
         :param angle: Rotation angle in radians.
         :type angle: float
 

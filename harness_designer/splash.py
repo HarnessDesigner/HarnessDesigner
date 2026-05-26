@@ -168,7 +168,7 @@ class Splash:
         else:
             self._do_refresh()
 
-    def flush(self):
+    def flush(self):  # NOQA
         """Process pending Qt events for the splash screen.
 
         """

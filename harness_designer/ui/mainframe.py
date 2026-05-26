@@ -381,9 +381,17 @@ class MainFrame(QMainWindow):
         self._idle_timer.start()
         self._splash = splash
 
+        splash.SetText('Loading Process Manager...')
+        from .. import process as _process
+
+        self.process_manager: _process.Manager = _process.Manager(self)
+
     # ------------------------------------------------------------------
     # Dock widget factory
     # ------------------------------------------------------------------
+
+    def end_progress_bar(self):
+        self.progress_bar.hide()
 
     def set_progress(self, value, label=None):
         """Set the progress.
@@ -628,6 +636,9 @@ class MainFrame(QMainWindow):
         UNKNOWN details are inferred from the callable name and signature.
         """
         self.logger.info('Harness Designer shutting down')
+
+        self.logger.info('Stopping Process Manager...')
+        self.process_manager.stop()
 
         self.logger.info('Saving UI layout...')
         # saveState() returns QByteArray; store as bytes for Config
@@ -1838,7 +1849,7 @@ class MainFrame(QMainWindow):
         self.editor2d.set_selected(obj)
         self.editor_obj.set_selected(obj)
 
-    def set_selected(self, obj: "_objects.ObjectBase"):
+    def set_selected(self, obj: "_objects.ObjectBase"):  # NOQA
         """Set the selected.
 
         UNKNOWN details are inferred from the callable name and signature.

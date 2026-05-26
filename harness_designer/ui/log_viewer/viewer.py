@@ -129,7 +129,7 @@ class _LogModel(QtCore.QAbstractTableModel):
 
         return None
 
-    def _ensure_timestamp_str(self, df: pd.DataFrame) -> pd.DataFrame:
+    def _ensure_timestamp_str(self, df: pd.DataFrame) -> pd.DataFrame:  # NOQA
         """Ensure the timestamp str.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -331,7 +331,7 @@ class LogViewerPanel(QtWidgets.QSplitter):
         self.log_list.Destroy()
         self.deleteLater()
 
-    def _run_callback(self, fn):
+    def _run_callback(self, fn):  # NOQA
         """Slot that executes a callable posted from a worker thread."""
         fn()
 

@@ -127,4 +127,4 @@ class FocalPoint3D(_generic.Generic3D):
         faces = np.array(faces, dtype=np.int32)
         vertices = vertices.reshape(-1, 3)
 
-        return list(_utils.compute_smoothed_vertex_normals(vertices, faces))
+        return list(_utils.compute_smooth_normals(vertices, faces))

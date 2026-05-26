@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 """Helpers for downloading and normalising external resource files."""
+import tempfile
 
 import requests
 import time
@@ -85,15 +86,13 @@ def requests_get(url, **kwargs):
     return response, content_type
 
 
-def _download_model(con, url, model_path):
+def _download_model(con, url):
     """Download a model resource and store it with a generated filename.
 
     :param con: Database cursor or cursor-like object.
     :type con: UNKNOWN
     :param url: Source URL.
     :type url: str
-    :param model_path: Destination directory.
-    :type model_path: str
     :returns: Saved file path, or ``None`` when the download cannot be mapped to
         a supported model type.
     :rtype: str | None
@@ -148,8 +147,7 @@ def _download_model(con, url, model_path):
         data = response.content
 
     uuid_ = str(uuid.uuid4())
-
-    model_path = os.path.join(model_path, uuid_ + ext)
+    model_path = os.path.join(tempfile.gettempdir(), uuid_ + ext)
 
     with open(model_path, 'wb') as f:
         f.write(data)

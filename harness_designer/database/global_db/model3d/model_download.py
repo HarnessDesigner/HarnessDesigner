@@ -117,7 +117,7 @@ class FileBrowser(QWidget):
             mdata = _loader.load(temp_file)
             triangles = []
             for vertices, faces in mdata:
-                tris, nrmls, count = _utils.compute_vertex_normals(vertices, faces)
+                tris, nrmls, _, count = _utils.compute_face_normals(vertices, faces)
                 triangles.append([tris, nrmls, count])
 
             QApplication.restoreOverrideCursor()

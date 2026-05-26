@@ -186,7 +186,7 @@ class Wire(_base2d.Base2D):
         self._draw_endpoint_handle(self._p1.x, self._p1.y)
         self._draw_endpoint_handle(self._p2.x, self._p2.y)
 
-    def _draw_endpoint_handle(self, x, y):
+    def _draw_endpoint_handle(self, x, y):  # NOQA
         """Draw a handle at an endpoint"""
         size = 4.0
 
@@ -219,7 +219,7 @@ class Wire(_base2d.Base2D):
 
         return distance <= tolerance_world
 
-    def _point_to_line_distance(self, px, py, x1, y1, x2, y2):
+    def _point_to_line_distance(self, px, py, x1, y1, x2, y2):  # NOQA
         """Calculate minimum distance from point to line segment"""
         # Vector from start to end
         dx = x2 - x1
@@ -249,7 +249,7 @@ class Wire(_base2d.Base2D):
         min_y = min(self._p1.y, self._p2.y)
         max_y = max(self._p1.y, self._p2.y)
 
-        return (min_x, min_y, max_x, max_y)
+        return min_x, min_y, max_x, max_y
 
     def move_to(self, world_x: float, world_y: float):
         """
@@ -288,7 +288,7 @@ class Wire(_base2d.Base2D):
                 return WIRE_COLOR_MAP[color_name.lower()]
 
         # Default color
-        return (0.8, 0.8, 0.8)  # Light gray
+        return 0.8, 0.8, 0.8  # Light gray
 
     def _get_wire_stripe_color(self):
         """Get wire stripe color from part or None"""

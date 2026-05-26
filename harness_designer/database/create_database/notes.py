@@ -41,5 +41,6 @@ pjt_table = _con.SQLTable(
     _con.IntField('h_align3d', no_null=True),
     _con.IntField('v_align3d', no_null=True),
     _con.IntField('style3d', no_null=True),
-    _con.IntField('is_visible3d', default='1', no_null=True)
+    _con.IntField('is_visible3d', default='1', no_null=True),
+    _con.IntField('smooth', default='NULL')
 )

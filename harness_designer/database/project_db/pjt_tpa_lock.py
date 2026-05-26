@@ -15,7 +15,8 @@ from .mixins import (
     HousingMixin,
     Visible3DMixin, Visible3DControl,
     NameMixin, NameControl,
-    NotesMixin, NotesControl
+    NotesMixin, NotesControl,
+    SmoothMixin, SmoothControl
 )
 
 
@@ -146,7 +147,7 @@ class PJTTPALocksTable(PJTTableBase):
 
 
 class PJTTPALock(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin,
-                 HousingMixin, Visible3DMixin, NameMixin, NotesMixin):
+                 HousingMixin, Visible3DMixin, NameMixin, NotesMixin, SmoothMixin):
     """Represent a pjttpa lock in :mod:`harness_designer.database.project_db.pjt_tpa_lock`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -283,6 +284,7 @@ class PJTTPALockControl(QTabWidget):
 
         self.name_ctrl.set_obj(db_obj)
         self.note_ctrl.set_obj(db_obj)
+        self.smooth_ctrl.set_obj(db_obj)
         self.angle3d_ctrl.set_obj(db_obj)
         self.position3d_ctrl.set_obj(db_obj)
         self.visible3d_ctrl.set_obj(db_obj)
@@ -309,6 +311,7 @@ class PJTTPALockControl(QTabWidget):
         general_page = _prop_ctrls.Category(self, 'General')
         self.name_ctrl = NameControl(general_page)
         self.note_ctrl = NotesControl(general_page)
+        self.smooth_ctrl = SmoothControl(general_page)
 
         angle_page = _prop_ctrls.Category(self, 'Angle')
         self.angle3d_ctrl = Angle3DControl(angle_page)

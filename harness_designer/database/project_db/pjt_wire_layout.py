@@ -11,7 +11,8 @@ from .mixins import (
     Position3DMixin, Position3DControl,
     Position2DMixin, Position2DControl,
     Visible3DMixin, Visible2DControl,
-    Visible2DMixin, Visible3DControl
+    Visible2DMixin, Visible3DControl,
+    SmoothMixin, SmoothControl
 )
 
 
@@ -131,7 +132,7 @@ class PJTWireLayoutsTable(PJTTableBase):
 
 
 class PJTWireLayout(PJTEntryBase, Position3DMixin, Position2DMixin,
-                    Visible3DMixin, Visible2DMixin):
+                    Visible3DMixin, Visible2DMixin, SmoothMixin):
     """Represent a PJT wire layout in :mod:`harness_designer.database.project_db.pjt_wire_layout`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -243,6 +244,7 @@ class PJTWireLayoutControl(QTabWidget):
         """
         self.db_obj = db_obj
 
+        self.smooth_ctrl.set_obj(db_obj)
         self.position2d_ctrl.set_obj(db_obj)
         self.position3d_ctrl.set_obj(db_obj)
         self.visible2d_ctrl.set_obj(db_obj)
@@ -262,6 +264,9 @@ class PJTWireLayoutControl(QTabWidget):
         self.setTabPosition(QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
+        general_page = _prop_ctrls.Category(self, 'General')
+        self.smooth_ctrl = SmoothControl(general_page)
+
         position_page = _prop_ctrls.Category(self, 'Position')
         self.position2d_ctrl = Position2DControl(position_page)
         self.position3d_ctrl = Position3DControl(position_page)
@@ -271,6 +276,7 @@ class PJTWireLayoutControl(QTabWidget):
         self.visible3d_ctrl = Visible3DControl(visible_page)
 
         for page in (
+            general_page,
             position_page,
             visible_page,
         ):

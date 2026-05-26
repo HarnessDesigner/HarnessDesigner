@@ -62,7 +62,7 @@ class Note(_base3d.Base3D):
         model = build123d.Text(self.db_obj.note, font_size=self.db_obj.size3d, font_style=self.db_obj.style3d)
         model = build123d.extrude(model, 0.25)
         vertices, faces = _utils.convert_model_to_mesh(model)
-        vertices, normals, count = _utils.compute_vertex_normals(vertices, faces)
+        vertices, normals, count = _utils.compute_face_normals(vertices, faces)
 
         vertices @= self.angle
         normals @= self.angle

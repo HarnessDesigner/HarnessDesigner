@@ -51,7 +51,7 @@ def _safe_gl_get_integer(param):
     """
     try:
         return GL.glGetInteger(param)
-    except Exception:  # noqa: BLE001
+    except Exception:  # NOQA
         return None
 
 
@@ -67,7 +67,7 @@ def _safe_gl_get_integerv(param):
     """
     try:
         return GL.glGetIntegerv(param)
-    except Exception:  # noqa: BLE001
+    except Exception:  # NOQA
         return None
 
 

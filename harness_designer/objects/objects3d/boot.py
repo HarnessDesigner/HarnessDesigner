@@ -59,12 +59,13 @@ class Boot(_base3d.Base3D):
             else:
                 vertices, faces = model.load()
 
-                if Config.renderer.smooth_boots:
-                    verts, nrmls, faces, count = _utils.compute_vbo_smoothed_vertex_normals(vertices, faces)
-                else:
-                    verts, nrmls, faces, count = _utils.compute_vbo_vertex_normals(vertices, faces)
 
-                vbo = _vbo.VBOHandler(uuid, verts, nrmls, faces, count)
+                if Config.renderer.smooth_boots:
+                    verts, nrmls, count = _utils.compute_smooth_normals(vertices, faces)
+                else:
+                    verts, nrmls, count = _utils.compute_face_normals(vertices, faces)
+
+                vbo = _vbo.VBOHandler(uuid, verts, nrmls, count)
         else:
             vbo = _sphere.create_vbo()
             scale = _point.Point(3.0, 3.0, 3.0)
@@ -76,6 +77,14 @@ class Boot(_base3d.Base3D):
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, db_obj.position3d, scale, material)
 
         parent.mainframe.editor3d.context.release()
+
+    @property
+    def smooth(self) -> bool:
+        smooth = self.db_obj.smooth
+        if smooth is None:
+            smooth = Config.renderer.smooth_boots
+
+        return smooth
 
     def get_context_menu(self):
         """Return the context menu.

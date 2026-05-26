@@ -238,7 +238,7 @@ class Color(metaclass=ColorMeta):
         """Returns a single packed 32-bit RGBA integer (r<<24|g<<16|b<<8|a)."""
         return (self._r << 24) | (self._g << 16) | (self._b << 8) | self._a
 
-    def IsOk(self) -> bool:
+    def IsOk(self) -> bool:  # NOQA
         """Report whether this colour instance is valid.
 
         :returns: Always ``True`` for this implementation.

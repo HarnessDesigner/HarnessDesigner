@@ -102,7 +102,7 @@ class BaseDialog(QtWidgets.QDialog):
         geo.moveCenter(parent_geo.center())
         self.move(geo.topLeft())
 
-    def _in_drag_zone(self, pos: QtCore.QPoint) -> bool:
+    def _in_drag_zone(self, pos: QtCore.QPoint) -> bool:  # NOQA
         """Execute the in drag zone operation.
 
         UNKNOWN details are inferred from the callable name and signature.

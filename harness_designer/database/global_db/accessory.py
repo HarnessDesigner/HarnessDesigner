@@ -26,7 +26,7 @@ class AccessoriesTable(TableBase):
         :rtype: :class:`AccessoryControl`
         """
         if self._control is None:
-            self._conrol = AccessoryControl(self.db.mainframe)
+            self._control = AccessoryControl(self.db.mainframe)
 
         return self._control
 

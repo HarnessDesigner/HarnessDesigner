@@ -793,8 +793,8 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         dpr = self.devicePixelRatio()
         w = int(width * dpr)
         h = int(height * dpr)
-        self._virtual_w = w
-        self._virtual_h = h
+        self._virtual_w = w  # NOQA
+        self._virtual_h = h  # NOQA
         self.size = (w, h)
 
         with self.context:
@@ -822,8 +822,8 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         if not self._init:
             # Record initial size; initializeGL will apply the viewport.
             dpr = self.devicePixelRatio()
-            self._virtual_w = int(width * dpr)
-            self._virtual_h = int(height * dpr)
+            self._virtual_w = int(width * dpr)  # NOQA
+            self._virtual_h = int(height * dpr)  # NOQA
             self.size = (self._virtual_w, self._virtual_h)
         # else: ignore — virtual size is managed by notify_virtual_size_changed
 

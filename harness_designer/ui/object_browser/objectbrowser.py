@@ -327,7 +327,7 @@ class ObjectBrowserPanel(QWidget):
         self._wire_markers: QTreeWidgetItem = None
         self._weakrefs = []
 
-    def _append_item(self, parent: QTreeWidgetItem, label: str,
+    def _append_item(self, parent: QTreeWidgetItem, label: str,  # NOQA
                      has_children: bool = False) -> QTreeWidgetItem:
         """Execute the append item operation.
 
@@ -412,7 +412,7 @@ class ObjectBrowserPanel(QWidget):
         except ValueError:
             pass
 
-    def _set_data(self, item: QTreeWidgetItem, ref):
+    def _set_data(self, item: QTreeWidgetItem, ref):  # NOQA
         """Set the data.
 
         UNKNOWN details are inferred from the callable name and signature.

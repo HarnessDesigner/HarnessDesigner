@@ -2,58 +2,53 @@
 
 """MySQL connector dialogs and connection management classes."""
 
-from typing import (
-    Optional as _Optional,
-    Union as _Union,
-    Generator as _Generator,
-)
+from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import (
-    QDialog, QDialogButtonBox, QVBoxLayout, QHBoxLayout,
-    QLabel, QLineEdit, QPushButton
-)
-from PySide6.QtCore import Qt
-
-from datetime import (
-    date as _date,
-    datetime as _datetime,
-    time as _time,
-    timedelta as _timedelta
-)
-
-from decimal import Decimal as _Decimal
-from time import struct_time as _struct_time
-from mysql.connector.cursor import MySQLCursor as _MySQLCursor
-
+import threading
 import mysql.connector
 from mysql.connector import errorcode
+from mysql.connector.cursor import MySQLCursor as _MySQLCursor
+from decimal import Decimal as _Decimal
+from time import struct_time as _struct_time
 import mysql.connector.constants
+from typing import (Optional as _Optional,
+                    Union as _Union,
+                    Generator as _Generator)
+from datetime import (date as _date,
+                      datetime as _datetime,
+                      time as _time,
+                      timedelta as _timedelta)
+
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QVBoxLayout,
+                               QHBoxLayout, QLabel, QLineEdit, QPushButton)
 
 from .. import base as _base
-from ... import update_monitor as _update_monitor
-
-from .... import config as _config
-
 from ....ui.widgets import auto_complete
 from .... import logger as _logger
+from .... process import manager as _manager
+from .... import config as _config
+
+
+if TYPE_CHECKING:
+    from .... import ui as _ui
+
 
 Config = _config.Config.database.mysql
+
 
 if Config.client_flags is None:
     Config.client_flags = mysql.connector.constants.ClientFlag.get_default()
 
 
 _StrOrBytes = _Union[str, bytes]
-
 _ToMysqlInputTypes = _Optional[_Union[int, float, _Decimal, _StrOrBytes, bool,
                                       _datetime, _date, _time, _struct_time, _timedelta]]
-
 _ToPythonOutputTypes = _Optional[_Union[float, int, _Decimal, _StrOrBytes, _date,
                                         _timedelta, _datetime, set[str]]]
 _ParamsSequenceType = list[_ToMysqlInputTypes] | tuple[_ToMysqlInputTypes]
 _ParamsDictType = dict[str, _ToMysqlInputTypes]
 _ParamsSequenceOrDictType = _Union[_ParamsDictType, _ParamsSequenceType]
-
 _RowType = tuple[_ToPythonOutputTypes, ...]
 
 
@@ -139,31 +134,31 @@ class LoginDialog(QDialog):
 
 class SQLConnector(_base.ConnectorBase):
 
-    """Implement database access through :mod:`mysql.connector`.
     """
-    def __init__(self, mainframe, splash, args):
-        """Initialize the MySQL connector state.
+    Implement database access through :mod:`mysql.connector`.
+    """
+    def __init__(self, mainframe: "_ui.MainFrame"):
+        """
+        Initialize the MySQL connector state.
 
         :param mainframe: Main application frame that owns the connector.
-        :type mainframe: UNKNOWN
-        :param splash: UNKNOWN.
-        :type splash: UNKNOWN
-        :param args: UNKNOWN.
-        :type args: UNKNOWN
+        :type mainframe: :class:`_ui.Mainframe`
         """
+
         super().__init__(mainframe, Config.database_name)
         self._connection: mysql.connector.MySQLConnection = None
         self._cursor: _MySQLCursor = None
-        self.cred_manager: _update_monitor.Manager = None
-        self.update_monitor: _update_monitor.Monitor = None
+        self.cred_manager: _manager.CredManager = None
 
     def connect(self):
-        """Prompt for credentials and connect to the configured MySQL database.
+        """
+        Prompt for credentials and connect to the configured MySQL database.
 
         :returns: ``True`` when the connection succeeds; otherwise ``False``.
         :rtype: bool
         :raises RuntimeError: Raised when the connector or worker enters an unexpected state.
         """
+
         dlg = LoginDialog(self.mainframe)
         try:
             if dlg.exec() == QDialog.DialogCode.Accepted:
@@ -219,25 +214,27 @@ class SQLConnector(_base.ConnectorBase):
 
         self._cursor = self._connection.cursor()
 
-        self.cred_manager = _update_monitor.Manager()
-
         from .. import CONNECTOR_MYSQL
 
+        printlock = threading.Lock()
+        self.cred_manager = _manager.CredManager(printlock)
+
         self.cred_manager.store_credentials(
-            CONNECTOR_MYSQL, host=Config.host, port=Config.port, user=username,
-            password=password, database=self.db_name)
+            printlock, CONNECTOR_MYSQL, host=Config.host, port=Config.port,
+            user=username, password=password, database=self.db_name)
 
-        self.update_monitor = _update_monitor.Monitor(self.mainframe)
+        self.mainframe.process_manager.start()
 
-        self.update_monitor.start()
         return True
 
     def get_tables(self) -> list[str]:
-        """Return the tables present in the configured MySQL schema.
+        """
+        Return the tables present in the configured MySQL schema.
 
         :returns: A list of table names.
         :rtype: list[str]
         """
+
         self.execute(f'SELECT table_name FROM information_schema.tables WHERE table_schema = "{self.db_name}";')
         res = self.fetchall()
 
@@ -246,7 +243,9 @@ class SQLConnector(_base.ConnectorBase):
     def execute(self, operation: _StrOrBytes,
                 params: _Optional[_ParamsSequenceOrDictType] = None,
                 multi: bool = False) -> _Optional[_Generator[_MySQLCursor, None, None]]:
-        """Execute a MySQL operation using the active cursor.
+
+        """
+        Execute a MySQL operation using the active cursor.
 
         :param operation: SQL statement to execute.
         :type operation: _StrOrBytes
@@ -256,15 +255,17 @@ class SQLConnector(_base.ConnectorBase):
         :type multi: bool
 
         :returns: The connector-specific cursor result, if one is returned.
-        :rtype: UNKNOWN
+        :rtype: _Generator[_MySQLCursor, None, None] | None
         """
+
         self._cursor.execute(operation, params, multi)
 
     def executemany(
         self, operation: str, seq_params: list[_ParamsSequenceOrDictType] | tuple[_ParamsSequenceOrDictType]
     ) -> _Optional[_Generator[_MySQLCursor, None, None]]:
 
-        """Execute a MySQL operation for multiple parameter sets.
+        """
+        Execute a MySQL operation for multiple parameter sets.
 
         :param operation: SQL statement to execute.
         :type operation: str
@@ -272,60 +273,74 @@ class SQLConnector(_base.ConnectorBase):
         :type seq_params: list[_ParamsSequenceOrDictType] | tuple[_ParamsSequenceOrDictType]
 
         :returns: The connector-specific cursor result, if one is returned.
-        :rtype: UNKNOWN
+        :rtype: _Generator[_MySQLCursor, None, None] | None
         """
+
         self._cursor.executemany(operation, seq_params)
 
     @property
     def lastrowid(self) -> _Optional[int]:
-        """Return the last inserted MySQL row identifier.
+
+        """
+        Return the last inserted MySQL row identifier.
 
         :returns: The row identifier reported by the active cursor.
         :rtype: int | None
         """
+
         return self._cursor.lastrowid
 
     def fetchone(self) -> _Optional[_RowType]:
-        """Fetch a single row from the MySQL cursor.
+        """
+        Fetch a single row from the MySQL cursor.
 
         :returns: The next row from the cursor, if available.
-        :rtype: UNKNOWN
+        :rtype: _RowType | None
         """
+
         return self._cursor.fetchone()
 
     def fetchmany(self, size: _Optional[int] = None) -> list[_RowType]:
-        """Fetch multiple rows from the MySQL cursor.
+        """
+        Fetch multiple rows from the MySQL cursor.
 
         :param size: Maximum number of rows to fetch.
         :type size: _Optional[int]
 
         :returns: A list of fetched rows.
-        :rtype: list[tuple]
+        :rtype: list[_RowType]
         """
+
         return self._cursor.fetchmany(size)
 
     def fetchall(self) -> list[_RowType]:
-        """Fetch all remaining rows from the MySQL cursor.
+        """
+        Fetch all remaining rows from the MySQL cursor.
 
         :returns: All remaining rows from the cursor.
-        :rtype: list[tuple]
+        :rtype: list[_RowType]
         """
+
         return self._cursor.fetchall()
 
     def commit(self):
-        """Commit the active MySQL transaction.
+        """
+        Commit the active MySQL transaction.
 
         :returns: ``None``.
         :rtype: None
         """
+
         self._connection.commit()
 
     def close(self):
-        """Close the MySQL connector and stop related monitors.
+        """
+        Close the MySQL connector and stop related monitors.
 
         :returns: ``None``.
         :rtype: None
         """
+
         self.commit()
 
         self._cursor.close()
@@ -333,6 +348,3 @@ class SQLConnector(_base.ConnectorBase):
 
         self._cursor = None
         self._connection = None
-
-        self.update_monitor.stop()
-        self.cred_manager.cleanup()

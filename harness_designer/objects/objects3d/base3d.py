@@ -780,7 +780,7 @@ class Base3D:
             :param f: Value for ``f``.
             :type f: UNKNOWN
             """
-            vers, normals, count = _utils.compute_vertex_normals(v, f)
+            vers, normals, count = _utils.compute_face_normals(v, f)
 
             # Enable vertex arrays
             GL.glEnableClientState(GL.GL_VERTEX_ARRAY)

@@ -122,10 +122,10 @@ class Housing3D(_base3d.Base3D):
                 vbo = _vbo.VBOHandler(uuid)
             else:
                 vertices, faces = model.load()
-                verts, nrmls, faces, count = (
-                    _utils.compute_vbo_smoothed_vertex_normals(vertices, faces))
+                verts, nrmls, count = (
+                    _utils.compute_smooth_normals(vertices, faces))
 
-                vbo = _vbo.VBOHandler(uuid, verts, nrmls, faces, count)
+                vbo = _vbo.VBOHandler(uuid, verts, nrmls, count)
 
         vbo.acquire()
 

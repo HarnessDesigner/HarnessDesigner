@@ -10,7 +10,8 @@ from .pjt_bases import PJTEntryBase, PJTTableBase
 from .mixins import (
     Position3DMixin, Position3DControl,
     Visible3DMixin, Visible3DControl,
-    NotesMixin, NotesControl
+    NotesMixin, NotesControl,
+    SmoothMixin, SmoothControl
 )
 
 
@@ -147,7 +148,7 @@ class PJTBundleLayoutsTable(PJTTableBase):
         return PJTBundleLayout(self, db_id, self.project_id)
 
 
-class PJTBundleLayout(PJTEntryBase, Position3DMixin, Visible3DMixin, NotesMixin):
+class PJTBundleLayout(PJTEntryBase, Position3DMixin, Visible3DMixin, NotesMixin, SmoothMixin):
     """Represent a PJT bundle layout in :mod:`harness_designer.database.project_db.pjt_bundle_layout`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -277,6 +278,7 @@ class PJTBundleLayoutControl(QTabWidget):
         self.visible_ctrl.set_obj(db_obj)
         self.position_ctrl.set_obj(db_obj)
         self.notes_ctrl.set_obj(db_obj)
+        self.smooth_ctrl.set_obj(db_obj)
 
         if db_obj is None:
             self.diameter_ctrl.SetValue('')
@@ -298,6 +300,8 @@ class PJTBundleLayoutControl(QTabWidget):
 
         general_page = _prop_ctrls.Category(self, 'General')
         self.notes_ctrl = NotesControl(general_page)
+        self.smooth_ctrl = SmoothControl(general_page)
+
         self.diameter_ctrl = _prop_ctrls.StringProperty(general_page, 'Diameter', read_only=True)
 
         position_page = _prop_ctrls.Category(self, 'Position')

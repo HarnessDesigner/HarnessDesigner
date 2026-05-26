@@ -23,5 +23,6 @@ pjt_table = _con.SQLTable(
                                                     on_delete=_con.REFERENCE_CASCADE,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.TextField('notes', default='""', no_null=True),
-    _con.IntField('is_visible3d', default='1', no_null=True)
+    _con.IntField('is_visible3d', default='1', no_null=True),
+    _con.IntField('smooth', default='NULL')
 )

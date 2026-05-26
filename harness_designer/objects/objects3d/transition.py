@@ -235,7 +235,7 @@ class Transition(_base3d.Base3D):
         self._model = _build_model(self._part, branches)
 
         self._vertices, self._faces = _utils.convert_model_to_mesh(self._model)
-        tris, normals, count = _utils.compute_smoothed_vertex_normals(self._vertices, self._faces)
+        tris, normals, count = _utils.compute_smooth_normals(self._vertices, self._faces)
 
         for branch in branches:
             with branch.position:
@@ -276,7 +276,7 @@ class Transition(_base3d.Base3D):
             branch.position += self._position
 
         self._vertices, self._faces = _utils.convert_model_to_mesh(self._model)
-        tris, normals, count = _utils.compute_smoothed_vertex_normals(self._vertices, self._faces)
+        tris, normals, count = _utils.compute_smooth_normals(self._vertices, self._faces)
 
         tris @= self._angle
         normals @= self._angle

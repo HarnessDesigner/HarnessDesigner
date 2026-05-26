@@ -28,8 +28,8 @@ def create_vbo() -> _vbo_handler.VBOHandler:
     if _vbo is None:
         vertices, faces = create(1.0, 1.0, 1.0)
 
-        verts, nrmls, faces, count = _utils.compute_vbo_vertex_normals(vertices, faces)
-        _vbo = _vbo_handler.VBOHandler('box', verts, nrmls, faces, count)
+        verts, nrmls, count = _utils.compute_face_normals(vertices, faces)
+        _vbo = _vbo_handler.VBOHandler('box', verts, nrmls, count)
 
     return _vbo
 

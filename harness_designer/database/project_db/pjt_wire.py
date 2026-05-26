@@ -17,7 +17,8 @@ from .mixins import (
     Visible3DMixin, Visible3DControl,
     Visible2DMixin, Visible2DControl,
     NameMixin, NameControl,
-    NotesMixin, NotesControl
+    NotesMixin, NotesControl,
+    SmoothMixin, SmoothControl
 )
 
 
@@ -169,7 +170,7 @@ class PJTWiresTable(PJTTableBase):
 
 
 class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPosition2DMixin,
-              Visible3DMixin, Visible2DMixin, NameMixin, NotesMixin):
+              Visible3DMixin, Visible2DMixin, NameMixin, NotesMixin, SmoothMixin):
     """Represent a PJT wire in :mod:`harness_designer.database.project_db.pjt_wire`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -560,6 +561,7 @@ class PJTWireControl(QTabWidget):
 
         self.name_ctrl.set_obj(db_obj)
         self.note_ctrl.set_obj(db_obj)
+        self.smooth_ctrl.set_obj(db_obj)
         self.position2d_ctrl.set_obj(db_obj)
         self.position3d_ctrl.set_obj(db_obj)
         self.visible2d_ctrl.set_obj(db_obj)
@@ -611,6 +613,7 @@ class PJTWireControl(QTabWidget):
         general_page = _prop_ctrls.Category(self, 'General')
         self.name_ctrl = NameControl(general_page)
         self.note_ctrl = NotesControl(general_page)
+        self.smooth_ctrl = SmoothControl(general_page)
 
         self.is_filler_wire_ctrl = _prop_ctrls.BoolProperty(general_page, 'Is Filler Wire')
 

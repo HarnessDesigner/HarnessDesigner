@@ -1182,7 +1182,7 @@ class HousingEditor(QWidget):
         self._selected_obj = obj
         self.canvas.set_selected(obj)
 
-    def set_selected(self, obj):
+    def set_selected(self, obj):  # NOQA
         """Set the selected.
 
         UNKNOWN details are inferred from the callable name and signature.

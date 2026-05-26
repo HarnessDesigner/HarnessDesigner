@@ -450,131 +450,6 @@ def compute_edges(faces: np.ndarray) -> np.ndarray:
     return edges
 
 
-def compute_smoothed_vertex_normals(
-    vertices: np.ndarray,
-    faces: np.ndarray
-) -> list[np.ndarray, np.ndarray, int]:
-
-    """
-    Compute smoothed vertex normals by averaging face normals at each vertex.
-    Works for both triangles and quads.
-
-    Args:
-        vertices: numpy array of shape (N, 3) - vertex coordinates
-        faces: numpy array of shape (F, K) where K is 3 for triangles or 4 for quads
-
-    Returns:
-        tuple of (expanded_vertices, smoothed_normals, total_vertex_count)
-    """
-    # Get number of vertices per face (3 for triangles, 4 for quads)
-    verts_per_face = faces.shape[1]  # NOQA
-
-    # Expand vertices according to face indices (F, K, 3)
-    expanded_verts = vertices[faces]
-
-    # Compute two edges per face (using first 3 vertices)
-    v0 = expanded_verts[:, 0, :]
-    v1 = expanded_verts[:, 1, :]
-    v2 = expanded_verts[:, 2, :]
-
-    e1 = v1 - v0
-    e2 = v2 - v0
-
-    # Raw face normal (not normalized): proportional to area * 2
-    face_normals_raw = np.cross(e1, e2)  # shape (F, 3)  # NOQA
-
-    # Normalize face normals to unit vectors,
-    # but keep zeros for degenerate faces
-    norm = np.linalg.norm(face_normals_raw, axis=1, keepdims=True)
-
-    # Avoid dividing by zero
-    safe_norm = np.maximum(norm, 1e-6)
-    face_normals = face_normals_raw / safe_norm
-
-    # Optionally set truly tiny normals to zero to avoid adding noise
-    tiny = (norm.squeeze() < 1e-6)
-
-    if np.any(tiny):
-        face_normals[tiny] = 0.0
-
-    # Accumulate face normals into per-vertex sum
-    V = len(vertices)
-    vertex_normal_sum = np.zeros((V, 3), dtype=float)
-
-    # Add each face's normal to all its vertices
-    # (np.add.at handles repeated indices)
-    # Repeat face normals K times (3 for triangles, 4 for quads)
-    repeated_face_normals = np.repeat(
-        face_normals, verts_per_face, axis=0)  # shape (F*K, 3)
-
-    vertex_indices = faces.ravel()  # shape (F*K,)
-    np.add.at(vertex_normal_sum, vertex_indices, repeated_face_normals)
-
-    # Normalize per-vertex summed normals
-    vn_norm = np.linalg.norm(vertex_normal_sum, axis=1, keepdims=True)
-    safe_vn_norm = np.maximum(vn_norm, 1e-6)
-    vertex_normals = vertex_normal_sum / safe_vn_norm
-
-    # Set zero normals where there was no contribution
-    # (degenerate isolated vertices)
-    isolated = (vn_norm.squeeze() < 1e-6)
-    if np.any(isolated):
-        vertex_normals[isolated] = 0.0
-
-    # Produce per-face per-vertex normals by indexing smoothed vertex normals
-    normals = vertex_normals[faces].reshape(-1, 3)  # shape (F*K, 3)
-
-    verts = expanded_verts.reshape(-1, 3)
-
-    return [verts, normals, len(expanded_verts) * verts_per_face]
-
-
-def compute_vertex_normals(
-    vertices: np.ndarray,
-    faces: np.ndarray
-) -> list[np.ndarray, np.ndarray, int]:
-
-    """
-    Compute face normals duplicated per vertex for triangles or quads.
-
-    Args:
-        vertices: numpy array of shape (N, 3) - vertex coordinates
-        faces: numpy array of shape (F, K) where K is 3 for triangles or 4 for quads
-
-    Returns:
-        tuple of (expanded_vertices, normals, total_vertex_count)
-    """
-    # Get number of vertices per face (3 for triangles, 4 for quads)
-    verts_per_face = faces.shape[1]  # NOQA
-
-    # Expand vertices according to face indices
-    expanded_verts = vertices[faces]  # (F, K, 3)
-    v0 = expanded_verts[:, 0, :]
-    v1 = expanded_verts[:, 1, :]
-    v2 = expanded_verts[:, 2, :]
-
-    # Calculate face normals using first 3 vertices
-    e1 = v1 - v0
-    e2 = v2 - v0
-    face_normals_raw = np.cross(e1, e2)  # (F, 3) # NOQA
-
-    # Normalize safely
-    norms = np.linalg.norm(face_normals_raw, axis=1, keepdims=True)
-    safe = np.maximum(norms, 1e-6)
-    face_normals = face_normals_raw / safe
-
-    # Set exact-degenerate faces to zero if extremely small
-    degenerate = (norms.squeeze() < 1e-6)
-    if np.any(degenerate):
-        face_normals[degenerate] = 0.0
-
-    # Duplicate each face normal K times (once per vertex in the face)
-    # Changed from hardcoded 3 to verts_per_face
-    normals = np.repeat(face_normals[:, np.newaxis, :], verts_per_face, axis=1)
-
-    return [expanded_verts.reshape(-1, 3), normals.reshape(-1, 3), len(expanded_verts) * verts_per_face]
-
-
 def compute_aabb(verts):
     """Compute an axis-aligned bounding box from vertex positions.
 
@@ -671,25 +546,12 @@ def adjust_aabb(aabb: np.ndarray) -> np.ndarray:
     return np.array([aabb.min(axis=0), aabb.max(axis=0)], dtype=np.float64)
 
 
-def compute_vbo_smoothed_vertex_normals(
-    vertices: np.ndarray, faces: np.ndarray
-) -> list[np.ndarray, np.ndarray, np.ndarray, int]:
+def _process_verts_for_normals(
+    vertices: np.ndarray,
+    faces: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
 
-    """
-    Compute smoothed vertex normals by averaging face normals at each vertex.
-
-    Args:
-        vertices: numpy array of shape (V, 3) - unique vertex positions
-        faces: numpy array of shape (F, 3) - triangle indices into vertices array
-
-    Returns:
-        tuple: (vertices_array, normals_array, indices_array)
-            - vertices_array: flattened array of vertex positions (V*3,)
-            - normals_array: flattened array of vertex normals (V*3,)
-            - indices_array: flattened array of triangle indices (F*3,)
-    """
-    # triangle coordinates (F, 3, 3)
-    triangles = vertices[faces]
+    triangles = vertices[faces]  # (F, 3, 3)
 
     # compute two edges per triangle
     v0 = triangles[:, 0, :]
@@ -700,21 +562,43 @@ def compute_vbo_smoothed_vertex_normals(
     e2 = v2 - v0
 
     # raw face normal (not normalized): proportional to area * 2
-    face_normals_raw = np.cross(e1, e2)  # NOQA
+    face_normals_raw = np.cross(e1, e2)  # (F, 3)  # NOQA
 
     # normalize face normals to unit vectors,
     # but keep zeros for degenerate faces
-    norm = np.linalg.norm(face_normals_raw, axis=1, keepdims=True)
+    norms = np.linalg.norm(face_normals_raw, axis=1, keepdims=True)
 
     # avoid dividing by zero
-    safe_norm = np.maximum(norm, 1e-6)
-    face_normals = face_normals_raw / safe_norm
+    safe = np.maximum(norms, 1e-6)
+    face_normals = face_normals_raw / safe
 
-    # optionally set truly tiny normals to zero to avoid adding noise
-    tiny = (norm.squeeze() < 1e-6)
+    # set exact-degenerate faces to zero if extremely small
+    degenerate = (norms.squeeze() < 1e-6)
+    if np.any(degenerate):
+        face_normals[degenerate] = 0.0
 
-    if np.any(tiny):
-        face_normals[tiny] = 0.0
+    return triangles, face_normals
+
+
+def compute_smooth_normals(
+    vertices: np.ndarray,
+    faces: np.ndarray
+) -> list[np.ndarray, np.ndarray, int]:
+
+    """
+    Compute smoothed vertex normals by averaging face normals at each vertex.
+
+    Args:
+        vertices: numpy array of shape (V, 3) - unique vertex positions
+        faces: numpy array of shape (F, 3) - triangle indices into vertices array
+
+    Returns:
+        tuple: (vertices_array, normals_array, length_of_arrays)
+            - vertices_array: flattened array of vertex positions (F*9,)
+            - normals_array: flattened array of vertex normals (F*9,)
+            - length_of_arrays: length of the arrays as an integer
+    """
+    triangles, face_normals = _process_verts_for_normals(vertices, faces)
 
     # accumulate face normals into per-vertex sum
     V = len(vertices)
@@ -736,20 +620,19 @@ def compute_vbo_smoothed_vertex_normals(
     if np.any(isolated):
         vertex_normals[isolated] = 0.0
 
-    # Return arrays suitable for VBO:
-    # - vertices: flattened unique vertex positions
-    # - normals: per-vertex normals (one per vertex, smoothed across faces)
-    # - indices: triangle indices into the vertices array
-    vertices_array = vertices.astype(np.float32).ravel()  # (V*3,)
-    normals_array = vertex_normals.astype(np.float32).ravel()  # (V*3,)
-    indices_array = faces.astype(np.uint32).ravel()  # (F*3,)
+    # (F*9,) - all triangle vertices expanded (no sharing)
+    vertices_array = triangles.astype(np.float32).ravel()
 
-    return [vertices_array, normals_array, indices_array, len(indices_array) * 3]
+    # Look up the smoothed normal for each vertex of each triangle, then flatten
+    # vertex_normals[faces] has shape (F, 3, 3)
+    normals_array = vertex_normals[faces].astype(np.float32).ravel()  # (F*9,)
+
+    return [vertices_array, normals_array, len(vertices_array)]
 
 
-def compute_vbo_vertex_normals(
+def compute_face_normals(
     vertices: np.ndarray, faces: np.ndarray
-) -> list[np.ndarray, np.ndarray, np.ndarray, int]:
+) -> list[np.ndarray, np.ndarray, int]:
 
     """
     Compute flat-shaded vertex normals (face normals replicated per vertex).
@@ -760,36 +643,16 @@ def compute_vbo_vertex_normals(
         faces: numpy array of shape (F, 3) - triangle indices into vertices array
 
     Returns:
-        tuple: (vertices_array, normals_array, indices_array)
+        tuple: (vertices_array, normals_array, length_of_arrays)
             - vertices_array: flattened array of vertex positions (F*9,)
             - normals_array: flattened array of face normals (F*9,)
-            - indices_array: flattened array of sequential indices (F*3,)
+            - length_of_arrays: length of the arrays as an integer
     """
 
-    triangles = vertices[faces]  # (F, 3, 3)
-    v0 = triangles[:, 0, :]
-    v1 = triangles[:, 1, :]
-    v2 = triangles[:, 2, :]
-
-    e1 = v1 - v0
-    e2 = v2 - v0
-    face_normals_raw = np.cross(e1, e2)  # (F, 3)  # NOQA
-
-    norms = np.linalg.norm(face_normals_raw, axis=1, keepdims=True)
-    safe = np.maximum(norms, 1e-6)
-    face_normals = face_normals_raw / safe
-
-    # set exact-degenerate faces to zero if extremely small
-    degenerate = (norms.squeeze() < 1e-6)
-    if np.any(degenerate):
-        face_normals[degenerate] = 0.0
+    triangles, face_normals = _process_verts_for_normals(vertices, faces)
 
     # Replicate each face normal to the 3 vertices of the triangle
     normals = np.repeat(face_normals[:, np.newaxis, :], 3, axis=1)
-
-    # For flat shading, we need unique vertices per triangle (no sharing)
-    # So we expand triangles and create sequential indices
-    num_triangles = len(triangles)
 
     # (F*9,) - all triangle vertices
     vertices_array = triangles.astype(np.float32).ravel()
@@ -797,10 +660,70 @@ def compute_vbo_vertex_normals(
     # (F*9,) - replicated face normals
     normals_array = normals.astype(np.float32).ravel()
 
-    # (F*3,) - sequential 0,1,2,3,4,5...
-    indices_array = np.arange(num_triangles * 3, dtype=np.uint32)
+    return [vertices_array, normals_array, len(vertices_array)]
 
-    return [vertices_array, normals_array, indices_array, len(indices_array) * 3]
+
+def compute_normals(
+    vertices: np.ndarray,
+    faces: np.ndarray
+) -> list[np.ndarray, np.ndarray, np.ndarray, int]:
+
+    """
+    Compute both smooth and face normals.
+
+    Args:
+        vertices: numpy array of shape (V, 3) - original vertex positions
+        faces: numpy array of shape (F, 3) - triangle indices into vertices array
+
+    Returns:
+        tuple: (vertices_array, smooth_normals_array, normals_array, length_of_arrays)
+            - vertices_array: flattened array of vertex positions (F*9,)
+            - smooth_normals_array: flattened array of smooth normals (F*9,)
+            - normals_array: flattened array of face normals (F*9,)
+            - length_of_arrays: length of the arrays as an integer
+    """
+
+    triangles, face_normals = _process_verts_for_normals(vertices, faces)
+
+    # accumulate face normals into per-vertex sum
+    V = len(vertices)
+    vertex_normal_sum = np.zeros((V, 3), dtype=float)
+
+    # Add each face's normal to its three vertices (np.add.at handles repeated indices)
+    # Repeat face normals 3 times so they match faces.ravel()
+    repeated_face_normals = np.repeat(face_normals, 3, axis=0)
+    vertex_indices = faces.ravel()  # shape (F*3,)
+    np.add.at(vertex_normal_sum, vertex_indices, repeated_face_normals)
+
+    # normalize per-vertex summed normals
+    vn_norm = np.linalg.norm(vertex_normal_sum, axis=1, keepdims=True)
+    safe_vn_norm = np.maximum(vn_norm, 1e-6)
+    smooth_normals = vertex_normal_sum / safe_vn_norm
+
+    # set zero normals where there was no contribution (degenerate isolated vertices)
+    isolated = (vn_norm.squeeze() < 1e-6)
+    if np.any(isolated):
+        smooth_normals[isolated] = 0.0
+
+    # Look up the smoothed normal for each vertex of each triangle, then flatten
+    # vertex_normals[faces] has shape (F, 3, 3)
+    smooth_normals_array = smooth_normals[faces].astype(np.float32).ravel()  # (F*9,)
+
+    # Replicate each face normal to the 3 vertices of the triangle
+    normals = np.repeat(face_normals[:, np.newaxis, :], 3, axis=1)
+
+    # (F*9,) - replicated face normals
+    normals_array = normals.astype(np.float32).ravel()
+
+    # (F*9,) - all triangle vertices
+    vertices_array = triangles.astype(np.float32).ravel()
+
+    return [vertices_array, smooth_normals_array, normals_array, len(vertices_array)]
+
+
+def compute_face_indexes(vertices):
+    indices_array = np.arange(len(vertices), dtype=np.uint32)
+    return indices_array
 
 
 def unproject_from_ndc(ndc, inv_mvp):

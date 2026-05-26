@@ -3,7 +3,7 @@
 """Cone mesh generation helpers.
 
 These helpers build triangle meshes suitable for smooth normal generation by
-:func:`harness_designer.utils.compute_vbo_smoothed_vertex_normals`.
+:func:`harness_designer.utils.compute_smooth_normals`.
 """
 
 import math
@@ -26,9 +26,9 @@ def create_vbo() -> _vbo_handler.VBOHandler:
 
     if _vbo is None:
         vertices, faces = create(0.5, 1.0, 360, 1)
-        verts, nrmls, faces, count = _utils.compute_vbo_smoothed_vertex_normals(vertices, faces)
+        verts, nrmls, count = _utils.compute_smooth_normals(vertices, faces)
 
-        _vbo = _vbo_handler.VBOHandler('cone', verts, nrmls, faces, count)
+        _vbo = _vbo_handler.VBOHandler('cone', verts, nrmls, count)
 
     return _vbo
 

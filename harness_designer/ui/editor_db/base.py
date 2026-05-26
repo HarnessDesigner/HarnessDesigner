@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QTableView, QAbstractItemView, QHeaderView
 
 from . import edit_dialog as _edit_dialog
 from ... import config as _config
+from ... import image as _image
 
 
 def _inject_where_placeholder(query: str) -> str:
@@ -110,7 +111,10 @@ class ScrollTracker:
         self.last_row = current_row
         self.last_time = now
 
-        return int(min(self.max_buffer, max(self.min_buffer, velocity * 1.5)))
+        res = int(min(self.max_buffer, max(self.min_buffer, velocity * 1.5) * 5))
+        print(res)
+
+        return res
 
 
 class _EditorModel(QAbstractTableModel):
@@ -270,6 +274,7 @@ class EditorList(QTableView):
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
+    _no_image: QIcon = None
     _has_image = True
     _has_model_3d = True
     __table_name__ = ''
@@ -583,8 +588,8 @@ class EditorList(QTableView):
 
             image_id = row[-1]
             if image_id is None:
-                self.bitmap_indexes[db_id] = None
-                return None
+                self.bitmap_indexes[db_id] = EditorList._no_image
+                return EditorList._no_image
 
             image = self.table.db.images_table[image_id]
             if image.uuid is None:
@@ -631,7 +636,7 @@ class EditorList(QTableView):
             count = self.rowsPerPage()
             if count > 0:
                 ScrollTracker.min_buffer = (count + 1) * 2
-                ScrollTracker.max_buffer = (count + 1) * 2 * 20
+                ScrollTracker.max_buffer = (count + 1) * 2 * 60
 
         QTimer.singleShot(0, _do)
 
@@ -855,6 +860,10 @@ class EditorList(QTableView):
         self._idle_timer.setInterval(200)
         self._idle_timer.timeout.connect(self._on_idle)
         self._idle_timer.start()
+
+        if EditorList._no_image is None:
+            img = _image.images.no_image.resize(64, 64)
+            EditorList._no_image = QIcon(img.pixmap)
 
     # ------------------------------------------------------------------
     # Compatibility shims

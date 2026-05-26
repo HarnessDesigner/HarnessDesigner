@@ -17,6 +17,7 @@ from OCP.TopAbs import TopAbs_FACE
 from OCP.TopoDS import TopoDS
 
 from .... import debug as _debug
+from .... import utils as _utils
 
 
 os.environ['PATH'] = os.path.dirname(__file__) + ';' + os.environ['PATH']
@@ -202,16 +203,19 @@ def load(file: str) -> tuple[np.ndarray, np.ndarray]:
     :raises ModelLoadError: Raised when the operation cannot be completed.
     """
     if file.endswith('.vrml') or file.endswith('wrl'):
-        return _load_vrml(file)
+        vertices, faces = _load_vrml(file)
     elif file.endswith('.iges') or file.endswith('.igs'):
-        return _load_iges(file)
+        vertices, faces = _load_iges(file)
     elif file.endswith('.step') or file.endswith('stp'):
-        return _load_step(file)
+        vertices, faces = _load_step(file)
     else:
         try:
-            return _load_with_assimp(file)
+            vertices, faces = _load_with_assimp(file)
         except Exception as err:
             raise ModelLoadError from err
+
+    return vertices, faces
+
 
 
 @_debug.logfunc

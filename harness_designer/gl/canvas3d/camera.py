@@ -205,16 +205,12 @@ ZERO_POINT = _point.ZERO_POINT
 
 
 class Camera:
-    """Represent a camera in :mod:`harness_designer.gl.canvas3d.camera`.
 
-    UNKNOWN details are inferred from the class name and surrounding code.
-    """
     __doc__ = __doc__
 
     def __init__(self, canvas: "_canvas.Canvas"):
-        """Initialise the :class:`Camera` instance.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Initialise the :class:`Camera` instance.
 
         :param canvas: Canvas instance.
         :type canvas: :class:`_canvas.Canvas`
@@ -254,11 +250,9 @@ class Camera:
 
     @property
     def field_of_view(self) -> float:
-        """Return the field of view.
+        """
+        Return the field of view.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
         :rtype: float
         """
         if self._projection is None:
@@ -303,22 +297,16 @@ class Camera:
 
     @property
     def objects_in_view(self):
-        """Return the objects in view.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
-        :rtype: UNKNOWN
+        """
+        Return the objects in view.
         """
         return self.canvas.objects_in_view
 
     @property
     def aspect_ratio(self) -> float:
-        """Return the aspect ratio.
+        """
+        Return the aspect ratio.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
         :rtype: float
         """
         if self._viewport is None or self._viewport[3] == 0:
@@ -327,42 +315,39 @@ class Camera:
         return float(self._viewport[2]) / float(self._viewport[3])
 
     @property
-    def up(self):
-        """Return the up.
+    def up(self) -> np.ndarray:
+        """
+        Return the up direction vector.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
-        :rtype: UNKNOWN
+        :rtype: :class:`np.ndarray`
         """
         return self._up
 
     @property
-    def position(self):
-        """Return the position.
+    def position(self) -> _point.Point:
+        """
+        Return the camera position.
 
-        UNKNOWN details are inferred from the callable name and signature.
+        This is known as the camera "eye"
 
-        :returns: Property value. UNKNOWN details.
-        :rtype: UNKNOWN
+        :rtype: :class:`_point.Point`
         """
         return self._position
 
     @property
-    def focal_position(self):
-        """Return the focal position.
+    def focal_position(self) -> _point.Point:
+        """
+        Return the focal position.
 
-        UNKNOWN details are inferred from the callable name and signature.
+        This is also known as the "position" or "center"
 
-        :returns: Property value. UNKNOWN details.
-        :rtype: UNKNOWN
+        :rtype: :class:`_point.Point`
         """
         return self._focal_position
 
     def Reset(self):
-        """Execute the reset operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Reset the camers back to it's home position.
         """
         with self._position and self._focal_position:
             self._focal_position.x = 0.0
@@ -376,12 +361,10 @@ class Camera:
         self._update_camera(None)
 
     def _update_camera(self, _=None):
-        """Update the camera.
+        """
+        Update the camera.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param _: Value for ``_``.
-        :type _: UNKNOWN
+        :type _: None
         """
         self._camera_moved_since_last_cull = True
 
@@ -396,23 +379,20 @@ class Camera:
         QTimer.singleShot(0, self.canvas.update)
 
     @property
-    def orthonormalized_axes(self):  # NOQA
-        """Return the orthonormalized axes.
+    def orthonormalized_axes(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:  # NOQA
+        """
+        Return the orthonormalized axes.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
-        :rtype: UNKNOWN
+        :returns:
+        :rtype: tuple[:class:`np.ndarray`, :class:`np.ndarray`, :class:`np.ndarray`]
         """
         def normalize(v):
-            """Execute the normalize operation.
+            """
+            Execute the normalize operation.
 
-            UNKNOWN details are inferred from the callable name and signature.
-
-            :param v: Value for ``v``.
-            :type v: UNKNOWN
-            :returns: Return value. UNKNOWN details.
-            :rtype: UNKNOWN
+            :type v: :class:`np.ndarray`
+            :returns: Normalized value
+            :rtype: :class:`np.ndarray`
             """
             v = np.array(v, dtype=float)
             n = np.linalg.norm(v)
@@ -425,13 +405,12 @@ class Camera:
         return f, r, u
 
     @property
-    def has_camera_moved(self):
-        """Return the has camera moved.
+    def has_camera_moved(self) -> bool:
+        """
+        Has the camera moved.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
-        :rtype: UNKNOWN
+        :returns: If the camera has moved
+        :rtype: bool
         """
         res = self._camera_moved_since_last_cull
         self._camera_moved_since_last_cull = False
@@ -441,10 +420,16 @@ class Camera:
     def _extract_frustum_planes(view_proj: np.ndarray) -> np.ndarray:
         """
         Returns planes as an array shape (6,4): [A,B,C,D] per plane.
+
         Planes are normalized (A,B,C length = 1).
 
         Order: left, right, bottom, top, near, far
+
+        :type view_proj: :class:`np.ndarray`
+
+        :rtype: :class:`np.ndarray`
         """
+
         m = np.asarray(view_proj, dtype=np.float64)
 
         # rows
@@ -468,10 +453,10 @@ class Camera:
         return planes
 
     def Set(self):
-        """Execute the set operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
         """
+        Set the camera positon.
+        """
+
         self._calculate_camera()
         camera = self._position.as_float + self._focal_position.as_float + tuple(self._up.tolist())
         GLU.gluLookAt(*camera)
@@ -479,10 +464,10 @@ class Camera:
 
     @_debug.logfunc
     def _calculate_camera(self):
-        """Calculate the camera.
-
-        UNKNOWN details are inferred from the callable name and signature.
         """
+        Calculate the camera.
+        """
+
         pos = self._position.as_numpy
         fp = self._focal_position.as_numpy
 
@@ -555,43 +540,40 @@ class Camera:
 
     @property
     def projection(self) -> np.ndarray:
-        """Return the projection.
+        """
+        Return the projection.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
         :rtype: :class:`np.ndarray`
         """
+
         return self._projection
 
     @property
     def modelview(self) -> np.ndarray:
-        """Return the modelview.
+        """
+        Return the modelview.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
         :rtype: :class:`np.ndarray`
         """
+
         return self._modelview
 
     @property
     def viewport(self) -> np.ndarray:
-        """Return the viewport.
+        """
+        Return the viewport.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
         :rtype: :class:`np.ndarray`
         """
+
         return self._viewport
 
     @_debug.logfunc
     def _update_views(self):
-        """Update the views.
-
-        UNKNOWN details are inferred from the callable name and signature.
         """
+        Update the views.
+        """
+
         if not self._is_dirty:
             return
 
@@ -615,31 +597,36 @@ class Camera:
 
     @property
     def frustum_normals(self) -> np.ndarray:
-        """Return the frustum normals.
+        """
+        Return the frustum normals.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
         :rtype: :class:`np.ndarray`
         """
+
         return self._frustum_normals
 
     @property
     def frustum_distances(self) -> np.ndarray:
-        """Return the frustum distances.
+        """
+        Return the frustum distances.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
         :rtype: :class:`np.ndarray`
         """
+
         return self._frustum_distances
 
     @_debug.logfunc
-    def Rotate(self, dx, dy):
+    def Rotate(self, dx: int, dy: int):
         """
         Moves the camera position keeping the focused point locked.
+
+        :param dx: Mouse delta X coordinate.
+        :type dx: int
+
+        :param dy: Mouse delta Y coordinate.
+        :type dy: int
         """
+
         self._is_dirty = True
         position = self._rotate_about(dx, dy, self._position, self._focal_position)
         self._position += position - self._position
@@ -651,6 +638,7 @@ class Camera:
         """
         Moves the camera position keeping the focused point locked.
         """
+
         # This is a constant that can be adjusted. This is a hard limit
         # to prevent gimbal lock from occuring when looking straight up or
         # straight down. You can set it to a smaller number but do not increase
@@ -669,19 +657,17 @@ class Camera:
         up = np.array([0.0, 1.0, 0.0], dtype=np.float64)
 
         def _rodrigues(v, k, angle_rad):
-            """Execute the rodrigues operation.
+            """
+            Execute the rodrigues operation.
 
             UNKNOWN details are inferred from the callable name and signature.
 
             :param v: Value for ``v``.
-            :type v: UNKNOWN
             :param k: Value for ``k``.
-            :type k: UNKNOWN
             :param angle_rad: Value for ``angle_rad``.
-            :type angle_rad: UNKNOWN
             :returns: Return value. UNKNOWN details.
-            :rtype: UNKNOWN
             """
+
             k = k / np.linalg.norm(k)
 
             cos_a = math.cos(angle_rad)
@@ -732,12 +718,19 @@ class Camera:
         return _point.Point(new_point[0], new_point[1], new_point[2])
 
     @_debug.logfunc
-    def PanTilt(self, dx, dy):
+    def PanTilt(self, dx: int, dy: int):
         """
+        Pan and Tilt camera movements.
+
         Moves the camera center keeping the camera eye locked in place.
 
-        Pan and Tilt camera movements.
+        :param dx: Mouse delta X coordinate.
+        :type dx: int
+
+        :param dy: Mouse delta Y coordinate.
+        :type dy: int
         """
+
         self._is_dirty = True
         focal_point = self._rotate_about(dx, dy, self._focal_position, self._position)
         self._focal_position += focal_point - self._focal_position
@@ -749,7 +742,11 @@ class Camera:
         limits as to how far it is able to move where as Dolly does not.
         This also doesn't change the camera position at all. It simply shinks
         or expands the distance between the focal point and the camera eye.
+
+        :param delta: Amount to zoom.
+        :type delta: float
         """
+
         min_distance = 0.1
         max_distance = 500.0
 
@@ -776,7 +773,7 @@ class Camera:
         self._position += move
 
     @_debug.logfunc
-    def Walk(self, dx, dy, speed):
+    def Walk(self, dx: int, dy: int, speed: float):
         """
         This movement is a bit tricky to explain in terms of camera movement.
         If you think about what you do as a person when you walk this will
@@ -791,6 +788,15 @@ class Camera:
         If you hold left or right and press up or down at the same time you get
         a combination of the 2 above movements. kind of like what it would be
         like when you walk in an arc to either left or right.
+
+        :param dx: Mouse delta X coordinate.
+        :type dx: int
+
+        :param dy: Mouse delta Y coordinate.
+        :type dy: int
+
+        :param speed: Speed to move.
+        :type speed: float
         """
 
         # Build desired move from input
@@ -815,10 +821,18 @@ class Camera:
             self._position += move
 
     @_debug.logfunc
-    def TruckPedestal(self, dx, dy, speed):
+    def TruckPedestal(self, dx: int, dy: int, speed: float):
         """
-        this is as the function name states. It is a Truck (left right)
-        and a Pedestal (up down) movement
+        Truck (left right) and Pedestal (up down).
+
+        :param dx: Mouse delta X coordinate.
+        :type dx: int
+
+        :param dy: Mouse delta Y coordinate.
+        :type dy: int
+
+        :param speed: Speed to move.
+        :type speed: float
         """
 
         # Build desired move from input
@@ -845,13 +859,10 @@ class Camera:
 
     @_debug.logfunc
     def ProjectPoint(self, point: _point.Point | np.ndarray) -> _point.Point:
-        """Execute the project point operation.
+        """
+        Projects a 2D screen coordinate to a 3D world coordinate.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param point: Point value.
         :type point: _point.Point | np.ndarray
-        :returns: Return value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         """
 
@@ -894,16 +905,14 @@ class Camera:
 
     @_debug.logfunc
     def UnprojectPoint(self, point: _point.Point) -> _point.Point:
-        """Execute the unproject point operation.
+        """
+        Projects a 3D world coordinate to a 2D screen coordinate.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param point: Point value.
         :type point: :class:`_point.Point`
-        :returns: Return value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         :raises ValueError: Raised when the operation cannot be completed.
         """
+
         # Step 1: Map screen space [x, y, z] to normalized device coordinates (NDC)
         ndc_x = ((point.x - self._viewport[0]) /
                  self._viewport[2] * 2.0 - 1.0)

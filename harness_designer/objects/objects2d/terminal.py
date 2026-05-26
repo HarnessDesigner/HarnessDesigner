@@ -128,7 +128,7 @@ class Terminal(_base2d.Base2D):
 
         GL.glPopMatrix()
 
-    def _draw_circle(self, x, y, radius, filled=True, segments=16):
+    def _draw_circle(self, x, y, radius, filled=True, segments=16):  # NOQA
         """Draw a circle using OpenGL"""
         if filled:
             GL.glBegin(GL.GL_TRIANGLE_FAN)

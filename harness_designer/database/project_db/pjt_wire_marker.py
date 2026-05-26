@@ -15,7 +15,8 @@ from .mixins import (
     Visible3DMixin, Visible3DControl,
     Visible2DMixin, Visible2DControl,
     NameMixin, NameControl,
-    NotesMixin, NotesControl
+    NotesMixin, NotesControl,
+    SmoothMixin, SmoothControl
 )
 
 
@@ -147,7 +148,7 @@ class PJTWireMarkersTable(PJTTableBase):
 
 
 class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PartMixin,
-                    Visible3DMixin, Visible2DMixin, NameMixin, NotesMixin):
+                    Visible3DMixin, Visible2DMixin, NameMixin, NotesMixin, SmoothMixin):
     """Represent a PJT wire marker in :mod:`harness_designer.database.project_db.pjt_wire_marker`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -325,6 +326,7 @@ class PJTWireMarkerControl(QTabWidget):
 
         self.name_ctrl.set_obj(db_obj)
         self.note_ctrl.set_obj(db_obj)
+        self.smooth_ctrl.set_obj(db_obj)
         self.position2d_ctrl.set_obj(db_obj)
         self.position3d_ctrl.set_obj(db_obj)
         self.visible2d_ctrl.set_obj(db_obj)
@@ -352,6 +354,7 @@ class PJTWireMarkerControl(QTabWidget):
         general_page = _prop_ctrls.Category(self, 'General')
         self.name_ctrl = NameControl(general_page)
         self.note_ctrl = NotesControl(general_page)
+        self.smooth_ctrl = SmoothControl(general_page)
 
         position_page = _prop_ctrls.Category(self, 'Position')
         self.position2d_ctrl = Position2DControl(position_page)

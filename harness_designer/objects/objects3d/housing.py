@@ -67,11 +67,11 @@ class Housing(_base3d.Base3D):
                 vertices, faces = model.load()
 
                 if Config.renderer.smooth_housings:
-                    verts, nrmls, faces, count = _utils.compute_vbo_smoothed_vertex_normals(vertices, faces)
+                    verts, nrmls, count = _utils.compute_smooth_normals(vertices, faces)
                 else:
-                    verts, nrmls, faces, count = _utils.compute_vbo_vertex_normals(vertices, faces)
+                    verts, nrmls, count = _utils.compute_face_normals(vertices, faces)
 
-                vbo = _vbo.VBOHandler(uuid, verts, nrmls, faces, count)
+                vbo = _vbo.VBOHandler(uuid, verts, nrmls, count)
 
         else:
             vbo = _box.create_vbo()

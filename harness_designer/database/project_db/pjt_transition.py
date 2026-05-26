@@ -15,7 +15,8 @@ from .mixins import (
     PartMixin,
     NameMixin, NameControl,
     NotesMixin, NotesControl,
-    Visible3DMixin, Visible3DControl
+    Visible3DMixin, Visible3DControl,
+    SmoothMixin, SmoothControl
 )
 
 
@@ -144,7 +145,7 @@ class PJTTransitionsTable(PJTTableBase):
 
 
 class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin,
-                    NameMixin, Visible3DMixin, NotesMixin):
+                    NameMixin, Visible3DMixin, NotesMixin, SmoothMixin):
     """Represent a PJT transition in :mod:`harness_designer.database.project_db.pjt_transition`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -373,6 +374,7 @@ class PJTTransitionControl(QTabWidget):
 
         self.name_ctrl.set_obj(db_obj)
         self.note_ctrl.set_obj(db_obj)
+        self.smooth_ctrl.set_obj(db_obj)
         self.angle3d_ctrl.set_obj(db_obj)
         self.position3d_ctrl.set_obj(db_obj)
         self.visible3d_ctrl.set_obj(db_obj)
@@ -399,6 +401,7 @@ class PJTTransitionControl(QTabWidget):
         general_page = _prop_ctrls.Category(self, 'General')
         self.name_ctrl = NameControl(general_page)
         self.note_ctrl = NotesControl(general_page)
+        self.smooth_ctrl = SmoothControl(general_page)
 
         angle_page = _prop_ctrls.Category(self, 'Angle')
         self.angle3d_ctrl = Angle3DControl(angle_page)

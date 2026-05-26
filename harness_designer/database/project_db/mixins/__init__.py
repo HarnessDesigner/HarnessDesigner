@@ -12,6 +12,7 @@ from . import start_stop_position3d as _start_stop_position3d
 from . import visible2d as _visible2d
 from . import visible3d as _visible3d
 from . import notes as _notes
+from . import smooth as _smooth
 
 
 Angle3DMixin = _angle3d.Angle3DMixin
@@ -47,6 +48,9 @@ Visible3DControl = _visible3d.Visible3DControl
 NotesMixin = _notes.NotesMixin
 NotesControl = _notes.NotesControl
 
+SmoothMixin = _smooth.SmoothMixin
+SmoothControl = _smooth.SmoothControl
+
 
 del _angle3d
 del _angle2d
@@ -60,3 +64,4 @@ del _start_stop_position3d
 del _visible3d
 del _visible2d
 del _notes
+del _smooth

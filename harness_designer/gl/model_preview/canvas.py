@@ -166,7 +166,7 @@ class Canvas(QOpenGLWidget):
             self.center, self.extents, self.corners = _calculate_obb(vertices)
             self.corner_pos, self.view_dir = _find_best_corner_view(
                 self.center, self.corners)
-            self.data = _utils.compute_smoothed_vertex_normals(vertices, faces)
+            self.data = _utils.compute_smooth_normals(vertices, faces)
 
         self.update()
 

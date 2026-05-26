@@ -100,7 +100,7 @@ class BVHWorkerThread(threading.Thread):
             except queue.Empty:
                 # No work available, loop continues
                 continue
-            except Exception as e:
+            except Exception as e:  # NOQA
                 import traceback
                 traceback.print_exc()
                 self.work_queue.task_done()
@@ -109,7 +109,7 @@ class BVHWorkerThread(threading.Thread):
               f"(processed {self.objects_processed} objects, "
               f"avg {self.total_time / max(1, self.objects_processed):.1f}ms/object)")
 
-    def _process_object(self, obj_data: ObjectData) -> ProcessedObject:
+    def _process_object(self, obj_data: ObjectData) -> ProcessedObject:  # NOQA
         """Process a single object: transform + BVH build"""
 
         # 1. Apply transforms (if not identity)

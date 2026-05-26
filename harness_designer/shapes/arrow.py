@@ -60,7 +60,7 @@ def create_vbo() -> _vbo_handler.VBOHandler:
     arrow = arrow.move(build123d.Location((2.5, 0.0, 0.0)))
 
     vertices, faces = _utils.convert_model_to_mesh(arrow)
-    vertices, normals, faces, count = _utils.compute_vbo_vertex_normals(vertices, faces)
-    _vbo = _vbo_handler.VBOHandler('move_arrow', vertices, normals, faces, count)
+    vertices, normals, count = _utils.compute_face_normals(vertices, faces)
+    _vbo = _vbo_handler.VBOHandler('move_arrow', vertices, normals, count)
 
     return _vbo

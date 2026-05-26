@@ -15,7 +15,8 @@ from .mixins import (
     Position2DMixin, Position2DControl,
     Visible3DMixin, Visible3DControl,
     Visible2DMixin, Visible2DControl,
-    NotesMixin, NotesControl
+    NotesMixin, NotesControl,
+    SmoothMixin, SmoothControl
 )
 
 
@@ -144,7 +145,7 @@ class PJTNotesTable(PJTTableBase):
 
 
 class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin,
-              Position3DMixin, Position2DMixin, Visible3DMixin, Visible2DMixin):
+              Position3DMixin, Position2DMixin, Visible3DMixin, Visible2DMixin, SmoothMixin):
     """Represent a PJT note in :mod:`harness_designer.database.project_db.pjt_note`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -473,7 +474,7 @@ class PJTNoteControl(QTabWidget):
         self.db_obj = db_obj
 
         self.note_ctrl.set_obj(db_obj)
-
+        self.smooth_ctrl.set_obj(db_obj)
         self.angle2d_ctrl.set_obj(db_obj)
         self.angle3d_ctrl.set_obj(db_obj)
 
@@ -589,6 +590,7 @@ class PJTNoteControl(QTabWidget):
 
         general_page = _prop_ctrls.Category(self, 'General')
         self.note_ctrl = NotesControl(general_page)
+        self.smooth_ctrl = SmoothControl(general_page)
 
         style_page = _prop_ctrls.Category(self, 'Style')
         self.style_2d_ctrl = _prop_ctrls.EnumProperty(style_page, '2D Style')

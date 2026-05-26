@@ -299,5 +299,6 @@ pjt_table = _con.SQLTable(
     _con.TextField('notes', default='""', no_null=True),
     _con.TextField('quat3d', default='"[1.0, 0.0, 0.0, 0.0]"', no_null=True),
     _con.TextField('angle3d', default='"[0.0, 0.0, 0.0]"', no_null=True),
-    _con.IntField('is_visible3d', default='1', no_null=True)
+    _con.IntField('is_visible3d', default='1', no_null=True),
+    _con.IntField('smooth', default='NULL')
 )

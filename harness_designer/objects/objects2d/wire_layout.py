@@ -92,7 +92,7 @@ class WireLayout(_base2d.Base2D):
         GL.glLineWidth(3.0)
         self._draw_circle(x, y, self._radius + 2.0, filled=False)
 
-    def _draw_circle(self, x, y, radius, filled=True, segments=20):
+    def _draw_circle(self, x, y, radius, filled=True, segments=20):  # NOQA
         """Draw a circle using OpenGL"""
         import math
 

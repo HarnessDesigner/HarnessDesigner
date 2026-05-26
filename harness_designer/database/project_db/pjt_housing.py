@@ -25,7 +25,8 @@ from .mixins import (
     Position2DMixin, Position2DControl,
     Position3DMixin, Position3DControl,
     Angle2DMixin, Angle2DControl,
-    Angle3DMixin, Angle3DControl
+    Angle3DMixin, Angle3DControl,
+    SmoothMixin, SmoothControl
 )
 
 
@@ -205,7 +206,7 @@ class PJTHousingsTable(PJTTableBase):
 
 
 class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3DMixin,
-                 Visible3DMixin, Visible2DMixin, NotesMixin, Angle2DMixin, Angle3DMixin):
+                 Visible3DMixin, Visible2DMixin, NotesMixin, Angle2DMixin, Angle3DMixin, SmoothMixin):
     """Represent a PJT housing in :mod:`harness_designer.database.project_db.pjt_housing`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -1088,7 +1089,7 @@ class PJTHousingControl(QTabWidget):
 
         self.name_ctrl.set_obj(db_obj)
         self.note_ctrl.set_obj(db_obj)
-
+        self.smooth_ctrl.set_obj(db_obj)
         self.visible3d_ctrl.set_obj(db_obj)
         self.visible2d_ctrl.set_obj(db_obj)
 
@@ -1143,6 +1144,7 @@ class PJTHousingControl(QTabWidget):
 
         self.name_ctrl = NameControl(general_page)
         self.note_ctrl = NotesControl(general_page)
+        self.smooth_ctrl = SmoothControl(general_page)
 
         visible_page = _prop_ctrls.Category(self, 'Visible')
         self.visible2d_ctrl = Visible2DControl(visible_page)

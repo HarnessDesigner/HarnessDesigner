@@ -169,7 +169,7 @@ class ImageCtrl(QWidget):
             img = Image.open(path).convert('RGBA').resize(
                 (100, 100), Image.Resampling.LANCZOS)
             self._set_pixmap(_pil_to_pixmap(img))
-        except Exception:
+        except Exception:  # NOQA
             self._set_pixmap(_no_image_pixmap())
 
     def get_image(self, path) -> bool:
@@ -189,7 +189,7 @@ class ImageCtrl(QWidget):
             time.sleep(0.01)
             try:
                 response, content_type = _resources.requests_get(path, timeout=1000)
-            except Exception:
+            except Exception:  # NOQA
                 self._set_pixmap(_no_image_pixmap())
                 return False
 
@@ -240,7 +240,7 @@ class ImageCtrl(QWidget):
 
         try:
             img = Image.open(image_path)
-        except Exception:
+        except Exception:  # NOQA
             self._set_pixmap(_no_image_pixmap())
             return False
 
