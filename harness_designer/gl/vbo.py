@@ -392,7 +392,7 @@ class VBOHandler(metaclass=VBOSingleton):
         vao = GL.glGenVertexArrays(1)
         GL.glBindVertexArray(vao)
 
-        if self._arena_kind == 'model':
+        if self._arena_kind == VBO_TYPE_MODEL:
             arena = self._get_model_arena()
             vbo_vertices = arena.pos_buffer
             vbo_smooth = arena.smooth_buffer
@@ -437,7 +437,7 @@ class VBOHandler(metaclass=VBOSingleton):
         if self.__vaos:
             return
 
-        if self._arena_kind != 'model':
+        if self._arena_kind != VBO_TYPE_MODEL:
             self._release_vbos(self.__vbo_vertices, self.__vbo_smooth_normals, self.__vbo_face_normals)
             self.__vbo_vertices = None
             self.__vbo_smooth_normals = None
@@ -513,17 +513,13 @@ class VBOHandler(metaclass=VBOSingleton):
         if self.__vert_count == 0:
             return
 
-        vertices = self._normalize_array(vertices) if vertices is not None else self.__vertices
+        vertices = vertices if vertices is not None else self.__vertices
         smooth_normals = (
-            self._normalize_array(smooth_normals)
-            if smooth_normals is not None else self.__smooth_normals
-        )
+            smooth_normals if smooth_normals is not None else self.__smooth_normals)
         face_normals = (
-            self._normalize_array(face_normals)
-            if face_normals is not None else self.__face_normals
-        )
+            face_normals if face_normals is not None else self.__face_normals)
 
-        if self._arena_kind == 'model':
+        if self._arena_kind == VBO_TYPE_MODEL:
             arena = self._get_model_arena()
             arena.upload(self.id, vertices, smooth_normals, face_normals, vertex_offset=vertex_offset)
             return
@@ -560,6 +556,7 @@ class VBOHandler(metaclass=VBOSingleton):
             instance = ref()
             if instance is None or instance._arena_kind != 'model':
                 continue
+
             instance._clear_vaos()
 
         return True
@@ -595,10 +592,11 @@ class VBOHandler(metaclass=VBOSingleton):
             self.acquire()
 
         first = self.__first
-        if self._arena_kind == 'model':
+        if self._arena_kind == VBO_TYPE_MODEL:
             alloc = self._get_model_arena().get_allocation(self.id)
             if alloc is None:
                 return
+
             first = alloc.start
 
         vao = self.__vaos[ctx_id]
@@ -632,5 +630,5 @@ def create_model_vbo(model):
         model_data.smooth_normals,
         count=model_data.vertex_count,
         face_normals=model_data.face_normals,
-        arena_kind='model',
+        arena_kind=VBO_TYPE_MODEL,
     )
