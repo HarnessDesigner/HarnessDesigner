@@ -44,10 +44,40 @@ import numpy as np
 SPEC_VERSION = '1.0.0'
 
 
-# ---------------------------------------------------------------------------
-# Read
-# ---------------------------------------------------------------------------
-class ModelDataV100:
+class ModelDataMeta(type):
+
+    def __call__(cls, *args, **kwargs):
+        if 'version' not in kwargs:
+            kwargs['version'] = SPEC_VERSION
+
+        if len(args) == 1:
+            path = args[0]
+            if not os.path.isfile(path):
+                raise FileNotFoundError(f'Model cache not found: {path}')
+
+            with zipfile.ZipFile(path, 'r') as zf:
+                if 'metadata' not in zf.namelist():
+                    raise RuntimeError('invalid file format')
+
+                with zf.open('metadata') as f:
+                    metadata = json.loads(f.read().decode('utf-8'))
+
+                if 'version' not in metadata:
+                    raise RuntimeError('invalid file format')
+
+                version = metadata['version']
+                read_func = globals()[f'_read_hdz_v{version.replace(".", "")}']
+
+                data = read_func(zf, metadata)
+
+        else:
+            version = kwargs['version']
+            data = globals()[f'ModelDataV{version.replace(".", "")}'](*args, **kwargs)
+
+        return data
+
+
+class ModelDataV100(metaclass=ModelDataMeta):
     """
     Container returned by :func:`read`.
 
@@ -61,9 +91,9 @@ class ModelDataV100:
     """
 
     def __init__(self, vertices, face_normals=None, smooth_normals=None, /, **metadata):
-        self._vertices = vertices
-        self._face_normals = face_normals
-        self._smooth_normals = smooth_normals
+        self._vertices = np.ascontiguousarray(np.asarray(vertices, dtype=np.float32))
+        self._face_normals = np.ascontiguousarray(np.asarray(face_normals, dtype=np.float32))
+        self._smooth_normals = np.ascontiguousarray(np.asarray(smooth_normals, dtype=np.float32))
         self._metadata = metadata
         self._metadata['version'] = '1.0.0'
         self._metadata['vertex_count'] = len(vertices) // 3
@@ -160,41 +190,8 @@ def _read_hdz_v100(zf, metadata) -> ModelDataV100:
     return ModelData(positions, flat_normals, smooth_normals, **metadata)
 
 
-class ModelDataMeta(type):
-
-    def __call__(cls, *args, **kwargs):
-        if 'version' not in kwargs:
-            kwargs['version'] = SPEC_VERSION
-
-        if len(args) == 1:
-            path = args[0]
-            if not os.path.isfile(path):
-                raise FileNotFoundError(f'Model cache not found: {path}')
-
-            with zipfile.ZipFile(path, 'r') as zf:
-                if 'metadata' not in zf.namelist():
-                    raise RuntimeError('invalid file format')
-
-                with zf.open('metadata') as f:
-                    metadata = json.loads(f.read().decode('utf-8'))
-
-                if 'version' not in metadata:
-                    raise RuntimeError('invalid file format')
-
-                version = metadata['version']
-                read_func = globals()[f'_read_hdz_v{version.replace(".", "")}']
-
-                data = read_func(zf, metadata)
-
-        else:
-            version = kwargs['version']
-            data = globals()[f'ModelDataV{version.replace(".", "")}'](*args, **kwargs)
-
-        return data
-
-
 # There is some vood doo magic code that runs for this class.
 # Either a file path can be passed to load a file or data is able
 # to be fed to it to create the instance.
-class ModelData(ModelDataV100, metaclass=ModelDataMeta):
+class ModelData(ModelDataV100):
     pass

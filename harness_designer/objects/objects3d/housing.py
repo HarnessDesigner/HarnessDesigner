@@ -46,40 +46,28 @@ class Housing(_base3d.Base3D):
         :param db_obj: Database-backed object.
         :type db_obj: :class:`_pjt_housing.PJTHousing`
         """
-
         parent.mainframe.editor3d.context.acquire()
 
         self._part = db_obj.part
 
-        angle = db_obj.angle3d
-        color = self._part.color.ui
-        material = _materials.Plastic(color)
-
         model = self._part.model3d
 
-        if model is not None:
-            uuid = model.uuid
-            scale = _point.Point(1.0, 1.0, 1.0)
-
-            if uuid in _vbo.VBOHandler:
-                vbo = _vbo.VBOHandler(uuid)
-            else:
-                vertices, faces = model.load()
-
-                if Config.renderer.smooth_housings:
-                    verts, nrmls, count = _utils.compute_smooth_normals(vertices, faces)
-                else:
-                    verts, nrmls, count = _utils.compute_face_normals(vertices, faces)
-
-                vbo = _vbo.VBOHandler(uuid, verts, nrmls, count)
-
-        else:
-            vbo = _box.create_vbo()
-            scale = self._part.scale
-
+        vbo = _box.create_vbo()
         vbo.acquire()
-        _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, db_obj.position3d, scale, material)
+
+        scale = _point.Point(self._part.width, self._part.height, self._part.length)
+        material = _materials.Plastic(self._part.color.ui)
+        angle = db_obj.angle3d
+
+        _base3d.Base3D.__init__(
+            self, parent, db_obj, vbo, angle, db_obj.position3d,
+            scale, material)
+
         parent.mainframe.editor3d.context.release()
+
+        if model is not None:
+            model.load(self._part.manufacturer.name,
+                       self._part.part_number, self._set_model)
 
     @property
     def seal_position(self) -> _point.Point:

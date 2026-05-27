@@ -26,8 +26,12 @@ def create_vbo() -> _vbo_handler.VBOHandler:
 
     if _vbo is None:
         vertices, faces = create(0.5, resolution=40)
-        verts, nrmls, count = _utils.compute_smooth_normals(vertices, faces)
-        _vbo = _vbo_handler.VBOHandler('sphere', verts, nrmls, count)
+
+        vertices, smooth_normals, face_normals, count = _utils.compute_normals(vertices, faces)
+
+        _vbo = _vbo_handler.VBOHandler(
+            'sphere', vertices, smooth_normals, face_normals, count,
+            arena_kind=_vbo_handler.VBO_TYPE_PRIMITIVE)
 
     return _vbo
 

@@ -384,7 +384,7 @@ class MainFrame(QMainWindow):
         splash.SetText('Loading Process Manager...')
         from .. import process as _process
 
-        self.process_manager: _process.Manager = _process.Manager(self)
+        self.process_manager: _process.ProcessManager = _process.ProcessManager(self)
 
     # ------------------------------------------------------------------
     # Dock widget factory

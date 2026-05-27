@@ -47,7 +47,6 @@ class Terminal(_base3d.Base3D):
         parent.mainframe.editor3d.context.acquire()
 
         self._part = db_obj.part
-
         symbol = self._part.plating.symbol
 
         if symbol.startswith('Sn'):
@@ -73,36 +72,29 @@ class Terminal(_base3d.Base3D):
         self._color = color.ui
         material = _materials.Polished(color.ui)
 
-        angle = db_obj.angle3d
-
         model = self._part.model3d
-        if model is not None:
-            uuid = model.uuid
-            scale = _point.Point(1.0, 1.0, 1.0)
 
-            if uuid in _vbo.VBOHandler:
-                vbo = _vbo.VBOHandler(uuid)
-            else:
-                vertices, faces = model.load()
+        is_round = self._part.round_terminal
 
-                if Config.renderer.smooth_terminals:
-                    verts, nrmls, count = _utils.compute_smooth_normals(vertices, faces)
-                else:
-                    verts, nrmls, count = _utils.compute_face_normals(vertices, faces)
-
-                vbo = _vbo.VBOHandler(uuid, verts, nrmls, count)
+        if is_round:
+            vbo = _cylinder.create_vbo()
         else:
-            is_round = self._part.round_terminal
-            scale = self._part.scale
-
-            if is_round:
-                vbo = _cylinder.create_vbo()
-            else:
-                vbo = _box.create_vbo()
+            vbo = _box.create_vbo()
 
         vbo.acquire()
-        _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, db_obj.position3d, scale, material)
+
+        scale = _point.Point(self._part.width, self._part.height, self._part.length)
+        angle = db_obj.angle3d
+
+        _base3d.Base3D.__init__(
+            self, parent, db_obj, vbo, angle, db_obj.position3d,
+            scale, material)
+
         parent.mainframe.editor3d.context.release()
+
+        if model is not None:
+            model.load(self._part.manufacturer.name,
+                       self._part.part_number, self._set_model)
 
     def _update_position(self, position: _point.Point):
         """Update the position.

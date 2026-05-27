@@ -11,7 +11,6 @@ from ...geometry import angle as _angle
 from ...geometry import line as _line
 from . import base3d as _base3d
 from ...shapes import cylinder as _cylinder
-from ...shapes import box as _box
 from ...gl import vbo as _vbo
 from ...gl import materials as _materials
 from ... import config as _config
@@ -83,71 +82,63 @@ class Splice(_base3d.Base3D):
         self._p2 = db_obj.stop_position3d
         self._p3 = db_obj.branch_position3d
 
-        color = self._part.color.ui
-        material = _materials.Rubber(color)
         angle = _angle.Angle.from_points(self._p1, self._p2)
 
         model = self._part.model3d
-        if model is not None:
-            uuid = model.uuid
-            scale = _point.Point(1.0, 1.0, 1.0)
 
-            if uuid in _vbo.VBOHandler:
-                vbo = _vbo.VBOHandler(uuid)
-            else:
-                vertices, faces = model.load()
+        length = self._part.length
 
-                if Config.renderer.smooth_covers:
-                    verts, nrmls, count = _utils.compute_smooth_normals(vertices, faces)
-                else:
-                    verts, nrmls, count = _utils.compute_face_normals(vertices, faces)
+        wires = db_obj.wires
 
-                vbo = _vbo.VBOHandler(uuid, verts, nrmls, count)
+        area1 = [0.0]
+        area2 = [0.0]
+
+        for wire in wires[0]:
+            dia = wire.od_mm
+            area = math.pi * ((dia / 2.0) ** 2.0)
+            area1.append(area)
+
+        for wire in wires[-1]:
+            dia = wire.od_mm
+            area = math.pi * ((dia / 2.0) ** 2.0)
+            area2.append(area)
+
+        area1 = sum(area1)
+        area2 = sum(area2)
+
+        if area1:
+            dia1 = 2.0 * math.sqrt(area1 / math.pi)
         else:
-            length = self._part.length
+            dia1 = 0.0
 
-            wires = db_obj.wires
+        if area2:
+            dia2 = 2.0 * math.sqrt(area2 / math.pi)
+        else:
+            dia2 = 0.0
 
-            area1 = [0.0]
-            area2 = [0.0]
+        if dia2 > dia1:
+            dia = dia2
+        else:
+            dia = dia1
 
-            for wire in wires[0]:
-                dia = wire.od_mm
-                area = math.pi * ((dia / 2.0) ** 2.0)
-                area1.append(area)
-
-            for wire in wires[-1]:
-                dia = wire.od_mm
-                area = math.pi * ((dia / 2.0) ** 2.0)
-                area2.append(area)
-
-            area1 = sum(area1)
-            area2 = sum(area2)
-
-            if area1:
-                dia1 = 2.0 * math.sqrt(area1 / math.pi)
-            else:
-                dia1 = 0.0
-
-            if area2:
-                dia2 = 2.0 * math.sqrt(area2 / math.pi)
-            else:
-                dia2 = 0.0
-
-            if dia2 > dia1:
-                dia = dia2
-            else:
-                dia = dia1
-
-            scale = _point.Point(dia, dia, length)
-            vbo = _cylinder.create_vbo()
+        scale = _point.Point(dia, dia, length)
+        vbo = _cylinder.create_vbo()
 
         position = self._p1
+
         vbo.acquire()
-        _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
+
+        material = _materials.Rubber(self._part.color.ui)
+
+        _base3d.Base3D.__init__(
+            self, parent, db_obj, vbo, angle, position,
+            scale, material)
 
         parent.mainframe.editor3d.context.release()
 
+        if model is not None:
+            model.load(self._part.manufacturer.name,
+                       self._part.part_number, self._set_model)
 
     def get_context_menu(self):
         """Return the context menu.

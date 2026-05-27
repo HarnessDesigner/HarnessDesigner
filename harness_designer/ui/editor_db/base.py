@@ -594,7 +594,7 @@ class EditorList(QTableView):
             image = self.table.db.images_table[image_id]
             if image.uuid is None:
                 if image_id not in self.downloading_images:
-                    self.mainframe.db_connector.update_monitor.get_image(image_id)
+                    self.mainframe.process_manager.get_image(image_id)
                     self.downloading_images.append(image_id)
 
                 return None

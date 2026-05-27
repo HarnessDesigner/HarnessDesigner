@@ -75,57 +75,50 @@ class Seal(_base3d.Base3D):
 
         self._part = db_obj.part
 
-        color = self._part.color.ui
-        material = _materials.Rubber(color)
-        angle = db_obj.angle3d
-
         model = self._part.model3d
-        if model is not None:
-            uuid = model.uuid
-            scale = _point.Point(1.0, 1.0, 1.0)
+        type_ = self._part.type.name
 
-            if uuid in _vbo.VBOHandler:
-                vbo = _vbo.VBOHandler(uuid)
+        if type_.lower() in ('sws', 'single wire seal'):
+            vbo_id = self._part.manufacturer.name
+            vbo_id += ':' + self._part.part_number
+
+            length = self._part.length
+            o_dia = self._part.o_dia
+            scale = _point.Point(o_dia, o_dia, length)
+
+            if vbo_id in _vbo.VBOHandler:
+                vbo = _vbo.VBOHandler(vbo_id)
             else:
-                vertices, faces = model.load()
+                i_dia = self._part.i_dia
+                vertices, faces = _build_sws(length, o_dia, i_dia)
 
-                if Config.renderer.smooth_covers:
-                    verts, nrmls, count = _utils.compute_smooth_normals(vertices, faces)
-                else:
-                    verts, nrmls, count = _utils.compute_face_normals(vertices, faces)
+                vertices, smooth_normals, face_normals, count = (
+                    _utils.compute_normals(vertices, faces))
 
-                vbo = _vbo.VBOHandler(uuid, verts, nrmls, count)
+                vbo = _vbo.VBOHandler(vbo_id, vertices, smooth_normals, face_normals, count)
+        elif type_.lower() == 'plug':
+            vbo = _cylinder.create_vbo()
+            length = self._part.length
+            o_dia = self._part.o_dia
+            scale = _point.Point(o_dia, o_dia, length)
         else:
-            type_ = self._part.type.name
-            scale = self._part.scale
-
-            if type_.lower() in ('sws', 'single wire seal'):
-                vbo_id = self._part.manufacturer.name
-                vbo_id += ':' + self._part.part_number
-
-                if vbo_id in _vbo.VBOHandler:
-                    vbo = _vbo.VBOHandler(vbo_id)
-                else:
-                    length = self._part.length
-                    o_dia = self._part.o_dia
-                    i_dia = self._part.i_dia
-                    vertices, faces = _build_sws(length, o_dia, i_dia)
-
-                    if Config.renderer.smooth_seals:
-                        vertices, normals, count = _utils.compute_smooth_normals(vertices, faces)
-                    else:
-                        vertices, normals, count = _utils.compute_face_normals(vertices, faces)
-
-                    vbo = _vbo.VBOHandler(vbo_id, vertices, normals, count)
-            elif type_.lower() == 'plug':
-                vbo = _cylinder.create_vbo()
-            else:
-                vbo = _box.create_vbo()
+            vbo = _box.create_vbo()
+            scale = _point.Point(self._part.width, self._part.height, self._part.length)
 
         vbo.acquire()
-        _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, db_obj.position3d, scale, material)
+
+        material = _materials.Rubber(self._part.color.ui)
+        angle = db_obj.angle3d
+
+        _base3d.Base3D.__init__(
+            self, parent, db_obj, vbo, angle, db_obj.position3d,
+            scale, material)
+
         parent.mainframe.editor3d.context.release()
 
+        if model is not None:
+            model.load(self._part.manufacturer.name,
+                       self._part.part_number, self._set_model)
 
     def get_context_menu(self):
         """Return the context menu.

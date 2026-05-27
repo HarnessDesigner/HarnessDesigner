@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from ...database import project_db as _project_db
     from .. import ObjectBase as _ObjectBase
     from ... import ui as _ui
+    from ... import model_data as _model_data
 
 
 Config = _config.Config.editor3d
@@ -36,7 +37,9 @@ class Base3D:
                  vbo: _vbo.VBOHandler, angle: _angle.Angle,
                  position: _point.Point, scale: _point.Point,
                  material: _materials.GLMaterial, data=None):
-        """Initialise the :class:`Base3D` instance.
+
+        """
+        Initialise the :class:`Base3D` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
 
@@ -97,6 +100,17 @@ class Base3D:
         self._obb: np.ndarray = None
 
         self._data = data
+        if self._data is not None and len(self._data) in (3, 4):
+            if len(self._data) == 3:
+                verts, nrmls, count = self._data
+                face_nrmls = nrmls
+            else:
+                verts, nrmls, face_nrmls, count = self._data
+
+            if isinstance(verts, np.ndarray) and verts.ndim == 1 and count == len(verts):
+                count //= 3
+
+            self._data = [verts, nrmls, face_nrmls, count]
 
         self._compute_obb()
         self._compute_aabb()
@@ -113,6 +127,41 @@ class Base3D:
         position.bind(self._update_position)
         angle.bind(self._update_angle)
         scale.bind(self._update_scale)
+
+    def _set_model(self, model, data: "_model_data.ModelData"):
+        self.parent.mainframe.editor3d.context.acquire()
+
+        uuid = data.uuid
+
+        if uuid in _vbo.VBOHandler:
+            vbo = _vbo.VBOHandler(uuid)
+        else:
+            position = model.position
+            angle = model.angle
+
+            vertices = data.vertices
+            vertices @= angle
+            vertices += position
+
+            smooth_normals = data.smooth_normals
+            smooth_normals @= angle
+
+            face_normals = data.face_normals
+            face_normals @= angle
+
+            vbo = _vbo.VBOHandler(uuid, vertices, smooth_normals,
+                                  face_normals, data.vertex_count)
+        vbo.acquire()
+
+        self.vbo = vbo
+        self._scale.unbind(self._update_scale)
+        self._scale = _point.Point(1.0, 1.0, 1.0)
+        self._o_scale = self._scale.copy()
+        self._scale.bind(self._update_scale)
+
+        self.parent.mainframe.editor3d.context.release()
+
+        self.editor3d.Refresh()
 
     def _compute_obb(self):
         """Compute the OBB.
@@ -393,7 +442,10 @@ class Base3D:
         ray_object = ray_origin - self._position
 
         # Scale vertices to match object instance
-        verts = ((self._vbo.vertices * self._scale) @ self._angle)[self._vbo.faces]
+        vertices = (self._vbo.vertices * self._scale) @ self._angle
+        if len(vertices) % 3:
+            return False
+        verts = vertices.reshape(-1, 3, 3)
 
         # Vectorized ray-triangle intersection
         hit = self._ray_triangles_intersect_vectorized(ray_object, ray_dir, verts)
@@ -545,34 +597,46 @@ class Base3D:
 
         return self._material
 
-    def _render_geometry(self, _, pos_loc, rot_loc, scale_loc):
+    def _render_geometry(self, _, pos_loc, rot_loc, scale_loc, normal_loc=None):
         """Render the object geometry using the active shader program.
 
         Called by render() for each rendering pass (faces, edges, normals, vertices).
         Sets the per-object transform uniforms (position, rotation, scale) and
         issues the draw call via vertex attribute arrays or the VBO.
         """
+
+        smooth = int(getattr(self, 'smooth', False))
+
         if self._vbo is None:
             GL.glUniform3f(pos_loc, 0.0, 0.0, 0.0)
             GL.glUniform4f(rot_loc, 1.0, 0.0, 0.0, 0.0)
             GL.glUniform3f(scale_loc, 1.0, 1.0, 1.0)
 
-            verts, nrmls, count = self._data
+            if normal_loc is not None:
+                GL.glUniform1i(normal_loc, smooth)
+
+            verts, smooth_nrmls, face_nrmls, count = self._data
 
             GL.glEnableVertexAttribArray(0)
             GL.glEnableVertexAttribArray(1)
+            GL.glEnableVertexAttribArray(2)
 
             GL.glVertexAttribPointer(0, 3, GL.GL_FLOAT, GL.GL_FALSE, 0, verts)
-            GL.glVertexAttribPointer(1, 3, GL.GL_FLOAT, GL.GL_FALSE, 0, nrmls)
+            GL.glVertexAttribPointer(1, 3, GL.GL_FLOAT, GL.GL_FALSE, 0, smooth_nrmls)
+            GL.glVertexAttribPointer(2, 3, GL.GL_FLOAT, GL.GL_FALSE, 0, face_nrmls)
 
             GL.glDrawArrays(GL.GL_TRIANGLES, 0, count)
 
             GL.glDisableVertexAttribArray(0)
             GL.glDisableVertexAttribArray(1)
+            GL.glDisableVertexAttribArray(2)
         else:
             GL.glUniform3f(pos_loc, *self._position.as_float)
             GL.glUniform4f(rot_loc, *self._angle.as_quat_numpy.tolist())
             GL.glUniform3f(scale_loc, *self._scale.as_float)
+
+            if normal_loc is not None:
+                GL.glUniform1i(normal_loc, smooth)
 
             self._vbo.render()
 
@@ -591,6 +655,8 @@ class Base3D:
         if not self.is_visible:
             return
 
+        smooth = int(getattr(self, 'smooth', False))
+
         if _debug_config.draw_faces:
             GL.glUseProgram(faces_program)
 
@@ -600,8 +666,9 @@ class Base3D:
             pos_loc = GL.glGetUniformLocation(faces_program, "objectPosition")
             rot_loc = GL.glGetUniformLocation(faces_program, "objectRotation")
             scale_loc = GL.glGetUniformLocation(faces_program, "objectScale")
+            normal_loc = GL.glGetUniformLocation(faces_program, "normalMode")
 
-            self._render_geometry(faces_program, pos_loc, rot_loc, scale_loc)
+            self._render_geometry(faces_program, pos_loc, rot_loc, scale_loc, normal_loc)
 
         if _debug_config.draw_edges:
             material_color = self.material.diffuse[:3]  # Get RGB
@@ -626,11 +693,12 @@ class Base3D:
             pos_loc = GL.glGetUniformLocation(edges_program, "objectPosition")
             rot_loc = GL.glGetUniformLocation(edges_program, "objectRotation")
             scale_loc = GL.glGetUniformLocation(edges_program, "objectScale")
-            render_mode_loc = GL.glGetUniformLocation(edges_program, "renderMode")
+            render_loc = GL.glGetUniformLocation(edges_program, "renderMode")
+            normal_loc = GL.glGetUniformLocation(edges_program, "normalMode")
 
-            GL.glUniform1i(render_mode_loc, 0)
+            GL.glUniform1i(render_loc, 0)
 
-            self._render_geometry(edges_program, pos_loc, rot_loc, scale_loc)
+            self._render_geometry(edges_program, pos_loc, rot_loc, scale_loc, normal_loc)
 
         if _debug_config.draw_normals:
             p1, p2 = self.aabb
@@ -649,13 +717,14 @@ class Base3D:
             pos_loc = GL.glGetUniformLocation(edges_program, "objectPosition")
             rot_loc = GL.glGetUniformLocation(edges_program, "objectRotation")
             scale_loc = GL.glGetUniformLocation(edges_program, "objectScale")
-            render_mode_loc = GL.glGetUniformLocation(edges_program, "renderMode")
+            render_loc = GL.glGetUniformLocation(edges_program, "renderMode")
             normal_length_loc = GL.glGetUniformLocation(edges_program, "normalLength")
+            normal_loc = GL.glGetUniformLocation(edges_program, "normalMode")
 
-            GL.glUniform1i(render_mode_loc, 1)
+            GL.glUniform1i(render_loc, 1)
             GL.glUniform1f(normal_length_loc, dynamic_normal_length)
 
-            self._render_geometry(edges_program, pos_loc, rot_loc, scale_loc)
+            self._render_geometry(edges_program, pos_loc, rot_loc, scale_loc, normal_loc)
 
         if _debug_config.draw_vertices:
             GL.glUseProgram(vertices_program)

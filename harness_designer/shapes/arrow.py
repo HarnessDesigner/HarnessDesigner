@@ -60,7 +60,10 @@ def create_vbo() -> _vbo_handler.VBOHandler:
     arrow = arrow.move(build123d.Location((2.5, 0.0, 0.0)))
 
     vertices, faces = _utils.convert_model_to_mesh(arrow)
-    vertices, normals, count = _utils.compute_face_normals(vertices, faces)
-    _vbo = _vbo_handler.VBOHandler('move_arrow', vertices, normals, count)
+    vertices, smooth_normals, face_normals, count = _utils.compute_normals(vertices, faces)
+
+    _vbo = _vbo_handler.VBOHandler(
+        'move_arrow', vertices, smooth_normals, face_normals, count,
+        arena_kind=_vbo_handler.VBO_TYPE_PRIMITIVE)
 
     return _vbo

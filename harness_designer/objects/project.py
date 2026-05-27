@@ -63,7 +63,7 @@ class Project:
         self.project_id = project_id
         self.project_name = project_name
         self.ptables = ptables = mainframe.project_db
-        self.connector.update_monitor.reset()
+        self.mainframe.process_manager.reset()
         ptables.load(project_id)
         mainframe.object_browser.reset()
 
@@ -76,7 +76,7 @@ class Project:
 
         for table in project_tables + global_tables:
             kwargs = {'type': f'field_names_{table.table_name}', 'data': table.field_names}
-            self.connector.update_monitor.send(**kwargs)
+            self.mainframe.process_manager.send(**kwargs)
 
         self._boots = {}
         self._bundles = {}
@@ -283,9 +283,13 @@ class Project:
 
         mainframe.set_progress(self._obj_count, 'DONE!')
 
+        print('sending...')
         for table_name, ids in db_ids.items():
             kwargs = {'type': f'add_{table_name}', 'data': ids}
-            self.connector.update_monitor.send(**kwargs)
+            self.mainframe.process_manager.send(**kwargs)
+
+        print('done sending...')
+
 
     def update_objects(self, table_name, db_id):
         """Update the objects.

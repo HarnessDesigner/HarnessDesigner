@@ -445,14 +445,14 @@ class GLOverlay(QOpenGLWidget):
         z_material = _materials.Plastic(_color.Color(0.2, 0.2, 1.0, 1.0))
         s_material = _materials.Plastic(_color.Color(0.1, 0.1, 0.1, 1.0))
 
-        x_tris, x_nrmls, x_count = (
-            _utils.compute_smooth_normals(x_vertices, x_faces))
-        y_tris, y_nrmls, y_count = (
-            _utils.compute_smooth_normals(y_vertices, y_faces))
-        z_tris, z_nrmls, z_count = (
-            _utils.compute_smooth_normals(z_vertices, z_faces))
-        s_tris, s_nrmls, s_count = (
-            _utils.compute_smooth_normals(s_vertices, s_faces))
+        x_tris, x_nrmls, _, x_count = (
+            _utils.compute_normals(x_vertices, x_faces))
+        y_tris, y_nrmls, _, y_count = (
+            _utils.compute_normals(y_vertices, y_faces))
+        z_tris, z_nrmls, _, z_count = (
+            _utils.compute_normals(z_vertices, z_faces))
+        s_tris, s_nrmls, _, s_count = (
+            _utils.compute_normals(s_vertices, s_faces))
 
         x_angle = _angle.Angle.from_euler(0.0, 90.0, 0.0)
         y_angle = _angle.Angle.from_euler(270.0, 0.0, 0.0)

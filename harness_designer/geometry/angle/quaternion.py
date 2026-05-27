@@ -51,8 +51,17 @@ class Quaternion:
                 # __imatmul__
                 else:
                     out = out[0]
+                    shape = out.shape
+                    if len(shape) == 1:
+                        out = out.reshape(-1, 3)
+
+                    print(qvec)
+                    print(out)
+
                     t = np.cross(qvec, out)
                     out += (2.0 * w * t) + (2.0 * np.cross(qvec, t))
+                    if len(shape) == 1:
+                        out = out.reshape(-1)
                     return out
 
         if func == np.add:

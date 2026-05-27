@@ -25,7 +25,7 @@ class Generic(_base3d.Base3D):
 
     def __init__(self, parent: "_generic.Generic", vbo: _vbo.VBOHandler | None,
                  angle: _angle.Angle, position: _point.Point, scale: _point.Point,
-                 material: _materials.GLMaterial, data=list[np.ndarray, np.ndarray, int] | None):
+                 material: _materials.GLMaterial, data=list[np.ndarray, np.ndarray, np.ndarray, int] | None):
         """Initialise the :class:`Generic` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -49,6 +49,7 @@ class Generic(_base3d.Base3D):
         parent.mainframe.editor3d.context.acquire()
         if vbo is not None:
             vbo.acquire()
+        
         _base3d.Base3D.__init__(self, parent, None, vbo, angle, position, scale, material, data)
         parent.mainframe.editor3d.context.release()
 

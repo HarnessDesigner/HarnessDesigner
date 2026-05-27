@@ -418,7 +418,7 @@ class ProcessManager(threading.Thread):
 
                             def _do(cb, db_id):
                                 model3d_obj = self.mainframe.global_db.models3d_table[db_id]
-                                model3d_obj.load(cb)
+                                model3d_obj.load('', '', cb)
 
                             _app.CallAfter(_do, self._model_processes_cb[i - offset], message['id'])
 
@@ -533,6 +533,8 @@ class ProcessManager(threading.Thread):
         :rtype: None
         """
 
+        for process in self._model_processes[:]:
+            process.stop()
+
         self._image_process.stop()
-        self._model_process.stop()
         self._db_process.stop()
