@@ -554,7 +554,7 @@ class VBOHandler(metaclass=VBOSingleton):
         refs = list(VBOSingleton._instances.values())
         for ref in refs:
             instance = ref()
-            if instance is None or instance._arena_kind != 'model':
+            if instance is None or instance._arena_kind != VBO_TYPE_MODEL:
                 continue
 
             instance._clear_vaos()
