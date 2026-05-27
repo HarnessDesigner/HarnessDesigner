@@ -627,7 +627,7 @@ def compute_smooth_normals(
     # vertex_normals[faces] has shape (F, 3, 3)
     normals_array = vertex_normals[faces].astype(np.float32).ravel()  # (F*9,)
 
-    return [vertices_array, normals_array, len(vertices_array)]
+    return [vertices_array, normals_array, vertices_array.size // 3]
 
 
 def compute_face_normals(
@@ -660,7 +660,7 @@ def compute_face_normals(
     # (F*9,) - replicated face normals
     normals_array = normals.astype(np.float32).ravel()
 
-    return [vertices_array, normals_array, len(vertices_array)]
+    return [vertices_array, normals_array, vertices_array.size // 3]
 
 
 def compute_normals(
@@ -718,7 +718,7 @@ def compute_normals(
     # (F*9,) - all triangle vertices
     vertices_array = triangles.astype(np.float32).ravel()
 
-    return [vertices_array, smooth_normals_array, normals_array, len(vertices_array)]
+    return [vertices_array, smooth_normals_array, normals_array, vertices_array.size // 3]
 
 
 def compute_face_indexes(vertices):

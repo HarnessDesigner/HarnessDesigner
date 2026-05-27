@@ -445,14 +445,23 @@ class GLOverlay(QOpenGLWidget):
         z_material = _materials.Plastic(_color.Color(0.2, 0.2, 1.0, 1.0))
         s_material = _materials.Plastic(_color.Color(0.1, 0.1, 0.1, 1.0))
 
-        x_tris, x_nrmls, _, x_count = (
-            _utils.compute_normals(x_vertices, x_faces))
-        y_tris, y_nrmls, _, y_count = (
-            _utils.compute_normals(y_vertices, y_faces))
-        z_tris, z_nrmls, _, z_count = (
-            _utils.compute_normals(z_vertices, z_faces))
-        s_tris, s_nrmls, _, s_count = (
-            _utils.compute_normals(s_vertices, s_faces))
+        x_tris, x_nrmls, _, _ = _utils.compute_normals(x_vertices, x_faces)
+        y_tris, y_nrmls, _, _ = _utils.compute_normals(y_vertices, y_faces)
+        z_tris, z_nrmls, _, _ = _utils.compute_normals(z_vertices, z_faces)
+        s_tris, s_nrmls, _, _ = _utils.compute_normals(s_vertices, s_faces)
+
+        x_tris = np.ascontiguousarray(x_tris.reshape(-1, 3), dtype=np.float32)
+        x_nrmls = np.ascontiguousarray(x_nrmls.reshape(-1, 3), dtype=np.float32)
+        y_tris = np.ascontiguousarray(y_tris.reshape(-1, 3), dtype=np.float32)
+        y_nrmls = np.ascontiguousarray(y_nrmls.reshape(-1, 3), dtype=np.float32)
+        z_tris = np.ascontiguousarray(z_tris.reshape(-1, 3), dtype=np.float32)
+        z_nrmls = np.ascontiguousarray(z_nrmls.reshape(-1, 3), dtype=np.float32)
+        s_tris = np.ascontiguousarray(s_tris.reshape(-1, 3), dtype=np.float32)
+        s_nrmls = np.ascontiguousarray(s_nrmls.reshape(-1, 3), dtype=np.float32)
+        x_count = len(x_tris)
+        y_count = len(y_tris)
+        z_count = len(z_tris)
+        s_count = len(s_tris)
 
         x_angle = _angle.Angle.from_euler(0.0, 90.0, 0.0)
         y_angle = _angle.Angle.from_euler(270.0, 0.0, 0.0)
@@ -619,8 +628,8 @@ class GLOverlay(QOpenGLWidget):
             GL.glMaterialfv(GL.GL_FRONT, GL.GL_SPECULAR, material.specular)
             GL.glMaterialf(GL.GL_FRONT, GL.GL_SHININESS, material.shininess)
 
-            GL.glVertexPointer(3, GL.GL_DOUBLE, 0, tris)
-            GL.glNormalPointer(GL.GL_DOUBLE, 0, nrmls)
+            GL.glVertexPointer(3, GL.GL_FLOAT, 0, tris)
+            GL.glNormalPointer(GL.GL_FLOAT, 0, nrmls)
             GL.glDrawArrays(GL.GL_TRIANGLES, 0, count)
 
         GL.glDisableClientState(GL.GL_VERTEX_ARRAY)

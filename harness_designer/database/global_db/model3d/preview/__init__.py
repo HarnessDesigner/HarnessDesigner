@@ -227,7 +227,11 @@ class Preview(QOpenGLWidget):
         :param plane_size: Value for ``plane_size``.
         :type plane_size: UNKNOWN
         """
-        self._triangles = triangles
+        self._triangles = []
+        for tris, nrmls, _ in triangles:
+            tris = np.ascontiguousarray(tris.reshape(-1, 3), dtype=np.float32)
+            nrmls = np.ascontiguousarray(nrmls.reshape(-1, 3), dtype=np.float32)
+            self._triangles.append([tris, nrmls, len(tris)])
 
         self._plane_size = plane_size
         if plane_size != 0:
@@ -420,8 +424,8 @@ class Preview(QOpenGLWidget):
         GL.glEnableClientState(GL.GL_NORMAL_ARRAY)
 
         for tris, nrmls, count in self._triangles:
-            GL.glVertexPointer(3, GL.GL_DOUBLE, 0, tris)
-            GL.glNormalPointer(GL.GL_DOUBLE, 0, nrmls)
+            GL.glVertexPointer(3, GL.GL_FLOAT, 0, tris)
+            GL.glNormalPointer(GL.GL_FLOAT, 0, nrmls)
             GL.glDrawArrays(GL.GL_TRIANGLES, 0, count)
 
         GL.glDisableClientState(GL.GL_VERTEX_ARRAY)
