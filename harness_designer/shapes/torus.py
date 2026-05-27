@@ -52,7 +52,7 @@ def create(torus_radius=1.0, tube_radius=0.5, radial_resolution=20, tubular_reso
     """
 
     count = radial_resolution * tubular_resolution
-    vertices = np.full((count, 3), [0.0, 0.0, 0.0], dtype=np.float64)
+    vertices = np.full((count, 3), [0.0, 0.0, 0.0], dtype=np.float32)
     faces = np.full((count * 2, 3), [0, 0, 0], dtype=np.int32)
 
     def vert_idx(uidx_, vidx_):
@@ -71,13 +71,13 @@ def create(torus_radius=1.0, tube_radius=0.5, radial_resolution=20, tubular_reso
     v_step = 2.0 * math.pi / float(tubular_resolution)
     for uidx in range(radial_resolution):
         u = uidx * u_step
-        w = np.array([math.cos(u), math.sin(u), 0.0], dtype=np.float64)
+        w = np.array([math.cos(u), math.sin(u), 0.0], dtype=np.float32)
         for vidx in range(tubular_resolution):
             v = vidx * v_step
 
             vertices[vert_idx(uidx, vidx)] = (
                 (torus_radius * w) + ((tube_radius * math.cos(v)) * w) +
-                np.array([0, 0, tube_radius * math.sin(v)], dtype=np.float64)
+                np.array([0, 0, tube_radius * math.sin(v)], dtype=np.float32)
             )
 
             tri_idx = int((uidx * tubular_resolution + vidx) * 2)

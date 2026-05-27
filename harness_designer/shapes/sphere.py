@@ -52,10 +52,10 @@ def create(radius=1.0, resolution=None) -> tuple[np.ndarray, np.ndarray]:
         resolution = int(max(20.0, _utils.remap(radius, 0.35, 19.0, 20.0, 30.0)))
 
     count = 2 * resolution * (resolution - 1) + 2
-    vertices = np.full((count, 3), [0.0, 0.0, 0.0], dtype=np.float64)
+    vertices = np.full((count, 3), [0.0, 0.0, 0.0], dtype=np.float32)
 
-    vertices[0] = np.array([0.0, 0.0, radius], dtype=np.float64)
-    vertices[1] = np.array([0.0, 0.0, -radius], dtype=np.float64)
+    vertices[0] = np.array([0.0, 0.0, radius], dtype=np.float32)
+    vertices[1] = np.array([0.0, 0.0, -radius], dtype=np.float32)
 
     step = math.pi / float(resolution)
 
@@ -73,7 +73,7 @@ def create(radius=1.0, resolution=None) -> tuple[np.ndarray, np.ndarray]:
             vertices[base + j] = np.array(
                 [alpha_sin * theta_cos,
                  alpha_sin * theta_sin,
-                 alpha_cos], dtype=np.float64) * radius
+                 alpha_cos], dtype=np.float32) * radius
 
     # Triangles for poles.
     faces = []

@@ -756,7 +756,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
                 _logger.logger.warning(f"  ! WARNING: Invalid viewport dimensions ({vw}x{vh}), using fallback 1920x1080")
                 vw = 1920
                 vh = 1080
-            
+
             GL.glViewport(0, 0, vw, vh)
             self.size = (vw, vh)
             aspect = vw / float(vh) if vh else 1.0
@@ -772,7 +772,11 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
             self._init = True  # viewport is live; notify_virtual_size_changed may update it
 
             self.set_draw_grid(self.config.floor.enable)
+
             self.set_focal_target(self.config.focal_target.enable)
+
+            self.update()
+            self.repaint()
 
         except Exception as err:  # NOQA
             _logger.logger.traceback(err, 'initializeGL')
@@ -831,6 +835,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         """
         Called by Qt to render a frame. Context is already current here.
         """
+
         self._on_draw()
 
         # Angle-view overlay — rendered via OpenGL pixel blit (same algorithm).
@@ -890,6 +895,8 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         :param flag: Value for ``flag``.
         :type flag: UNKNOWN
         """
+        return
+
         if flag and self._focal_target is None:
             self._focal_target = _focal_target.FocalPoint(self)
         elif not flag and self._focal_target is not None:
@@ -1052,6 +1059,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
         GL.glMatrixMode(GL.GL_PROJECTION)
         GL.glLoadIdentity()
+
         GLU.gluPerspective(65, aspect, 0.1, float(math.sqrt(f_size * f_size)))
 
         GL.glMatrixMode(GL.GL_MODELVIEW)

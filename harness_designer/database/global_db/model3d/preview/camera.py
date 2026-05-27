@@ -169,19 +169,19 @@ class Camera:
 
         gf = np.linalg.norm(forward)
         if gf < 1e-6:
-            forward_ground = np.array([0.0, 0.0, -1.0], dtype=np.float64)
+            forward_ground = np.array([0.0, 0.0, -1.0], dtype=np.float32)
         else:
             forward_ground = forward / gf
 
         self._forward_norm = gf
 
-        world_up = np.array([0.0, 1.0, 0.0], dtype=np.float64)
+        world_up = np.array([0.0, 1.0, 0.0], dtype=np.float32)
 
         right = np.cross(world_up, forward_ground)  # NOQA
 
         rn = np.linalg.norm(right)
         if rn < 1e-6:
-            right = np.array([1.0, 0.0, 0.0], dtype=np.float64)
+            right = np.array([1.0, 0.0, 0.0], dtype=np.float32)
         else:
             right = right / rn
 
@@ -191,7 +191,7 @@ class Camera:
 
         un = np.linalg.norm(up)
         if un < 1e-6:
-            up = np.array([0.0, 1.0, 0.0], dtype=np.float64)
+            up = np.array([0.0, 1.0, 0.0], dtype=np.float32)
         else:
             up = up / un
 
@@ -265,9 +265,9 @@ class Camera:
         dist = np.linalg.norm(offset)
 
         if dist < 1e-6:
-            return np.array([0.0, 0.0, 0.0], dtype=np.float64)
+            return np.array([0.0, 0.0, 0.0], dtype=np.float32)
 
-        up = np.array([0.0, 1.0, 0.0], dtype=np.float64)
+        up = np.array([0.0, 1.0, 0.0], dtype=np.float32)
 
         def _rodrigues(v, k, angle_rad):
             """Execute the rodrigues operation.
@@ -293,7 +293,7 @@ class Camera:
         yaw_offset_n = np.linalg.norm(yaw_offset)
 
         if yaw_offset_n < 1e-6:
-            return np.array([0.0, 0.0, 0.0], dtype=np.float64)
+            return np.array([0.0, 0.0, 0.0], dtype=np.float32)
 
         yaw_dir = yaw_offset / yaw_offset_n
 

@@ -113,7 +113,7 @@ class Angle(metaclass=AngleMeta):
                 if out is None:
                     # euler angle array
                     if inputs.shape == (3,):
-                        # arr = np.array(self.as_float, dtype=np.float64)
+                        # arr = np.array(self.as_float, dtype=np.float32)
                         angle = self.from_euler(*inputs.tolist())
                         angle += self
                         return angle.as_euler_numpy
@@ -133,7 +133,7 @@ class Angle(metaclass=AngleMeta):
 
                     # euler angle array
                     if out.shape == (3,):
-                        # arr = np.array(self.as_float, dtype=np.float64)
+                        # arr = np.array(self.as_float, dtype=np.float32)
                         angle = self.from_euler(*out.tolist())
                         angle += self
                         out[:] = angle.as_euler_numpy
@@ -159,7 +159,7 @@ class Angle(metaclass=AngleMeta):
                 if out is None:
                     # euler angle array
                     if inputs.shape == (3,):
-                        # arr = np.array(self.as_float, dtype=np.float64)
+                        # arr = np.array(self.as_float, dtype=np.float32)
                         angle = self.from_euler(*inputs.tolist())
                         angle -= self
                         return angle.as_euler_numpy
@@ -180,7 +180,7 @@ class Angle(metaclass=AngleMeta):
 
                     # euler angle array
                     if out.shape == (3,):
-                        # arr = np.array(self.as_float, dtype=np.float64)
+                        # arr = np.array(self.as_float, dtype=np.float32)
                         angle = self.from_euler(*out.tolist())
                         angle -= self
                         out[:] = angle.as_euler_numpy
@@ -225,7 +225,7 @@ class Angle(metaclass=AngleMeta):
         if euler_angles is None:
             self.__euler_angles = None
         else:
-            self.__euler_angles = np.array(euler_angles, dtype=np.float64)
+            self.__euler_angles = np.array(euler_angles, dtype=np.float32)
 
         self.__callbacks = []
         self._ref_count = 0
@@ -736,7 +736,7 @@ class Angle(metaclass=AngleMeta):
         :rtype: bool
         """
 
-        arr = np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float64)
+        arr = np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32)
         return not all(np.isclose(self.as_quat_numpy, arr))
 
     def __eq__(self, other: "Angle") -> bool:
@@ -1016,22 +1016,22 @@ class Angle(metaclass=AngleMeta):
         f = f / fn  # world-space direction of the line
 
         local_forward = np.array([0.0, 0.0, -1.0],
-                                 dtype=np.dtypes.Float64DType)
+                                 dtype=np.float32)
 
         nz = np.nonzero(local_forward)[0][0]
         sign = np.sign(local_forward[nz])
         forward_world = f * sign
 
         up = np.asarray((0.0, 1.0, 0.0),
-                        dtype=np.dtypes.Float64DType)
+                        dtype=np.float32)
 
         if np.allclose(np.abs(np.dot(forward_world, up)), 1.0, atol=1e-8):
             up = np.array([0.0, 0.0, 1.0],
-                          dtype=np.dtypes.Float64DType)
+                          dtype=np.float32)
 
             if np.allclose(np.abs(np.dot(forward_world, up)), 1.0, atol=1e-8):
                 up = np.array([1.0, 0.0, 0.0],
-                              dtype=np.dtypes.Float64DType)
+                              dtype=np.float32)
 
         right = np.cross(up, forward_world)  # NOQA
 

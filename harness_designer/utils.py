@@ -529,8 +529,8 @@ def convert_model_to_mesh(model):
 
         offset += node_count
 
-    vertices = np.array(vertices, dtype=np.dtypes.Float64DType)
-    faces = np.array(faces, dtype=np.dtypes.Int32DType)
+    vertices = np.array(vertices, dtype=np.float32)
+    faces = np.array(faces, dtype=np.int32)
 
     return vertices, faces
 
@@ -543,7 +543,7 @@ def adjust_aabb(aabb: np.ndarray) -> np.ndarray:
     :returns: Two-row array containing min and max coordinates.
     :rtype: numpy.ndarray
     """
-    return np.array([aabb.min(axis=0), aabb.max(axis=0)], dtype=np.float64)
+    return np.array([aabb.min(axis=0), aabb.max(axis=0)], dtype=np.float32)
 
 
 def _process_verts_for_normals(
@@ -731,7 +731,7 @@ def unproject_from_ndc(ndc, inv_mvp):
     ndc: (x,y,z) in [-1,1]
     inv_mvp: inverse of P*MV (row-major)
     """
-    clip = np.array([ndc[0], ndc[1], ndc[2], 1.0], dtype=np.float64)
+    clip = np.array([ndc[0], ndc[1], ndc[2], 1.0], dtype=np.float32)
 
     world = inv_mvp.dot(clip)
     if np.isclose(world[3], 0.0):
@@ -775,8 +775,8 @@ def get_position_on_focal_plane(
     if near_world is None or far_world is None:
         return None
 
-    origin = np.array(near_world, dtype=np.float64)
-    direction = np.array(far_world, dtype=np.float64) - origin
+    origin = np.array(near_world, dtype=np.float32)
+    direction = np.array(far_world, dtype=np.float32) - origin
     direction /= np.linalg.norm(direction)
 
     # Define plane through focal_position, perpendicular to view direction
@@ -888,8 +888,8 @@ def _point_on_wire(mouse_pos: _point.Point, p1, p2, camera):
     if near_world is None or far_world is None:
         return None, None
 
-    ray_origin = np.array(near_world, dtype=np.float64)
-    ray_direction = np.array(far_world, dtype=np.float64) - ray_origin
+    ray_origin = np.array(near_world, dtype=np.float32)
+    ray_direction = np.array(far_world, dtype=np.float32) - ray_origin
     ray_direction /= np.linalg.norm(ray_direction)
 
     # Find closest point on wire line segment to the ray

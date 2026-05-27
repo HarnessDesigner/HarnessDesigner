@@ -42,7 +42,7 @@ class Arcball:
         matrix = selected.obj3d.angle.as_matrix_numpy
         matrix = [row.tolist() + [0] for row in matrix]
         matrix.append([0.0, 0.0, 0.0, 1.0])
-        self.rotation_matrix = np.array(matrix, dtype=np.float64)
+        self.rotation_matrix = np.array(matrix, dtype=np.float32)
         canvas.set_angle_view(*self._get_euler_angles())
 
         self.rotation_matrix = np.identity(4)

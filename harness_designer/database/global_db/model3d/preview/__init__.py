@@ -420,8 +420,8 @@ class Preview(QOpenGLWidget):
         GL.glEnableClientState(GL.GL_NORMAL_ARRAY)
 
         for tris, nrmls, count in self._triangles:
-            GL.glVertexPointer(3, GL.GL_DOUBLE, 0, tris)
-            GL.glNormalPointer(GL.GL_DOUBLE, 0, nrmls)
+            GL.glVertexPointer(3, GL.GL_FLOAT, 0, tris)
+            GL.glNormalPointer(GL.GL_FLOAT, 0, nrmls)
             GL.glDrawArrays(GL.GL_TRIANGLES, 0, count)
 
         GL.glDisableClientState(GL.GL_VERTEX_ARRAY)

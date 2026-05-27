@@ -90,7 +90,7 @@ def _ocp_read_shape(shape):
         offset += node_count
         anExpSF.Next()
 
-    vertices = np.array(vertices, dtype=np.float64)
+    vertices = np.array(vertices, dtype=np.float32)
     faces = np.array(faces, dtype=np.int32)
 
     return vertices, faces
@@ -121,7 +121,7 @@ def _load_with_assimp(path):
             faces.append(mesh.faces.copy() + offset)
             offset += len(v)
 
-    vertices = np.array(vertices, dtype=np.float64).reshape(-1, 3)
+    vertices = np.array(vertices, dtype=np.float32).reshape(-1, 3)
     faces = np.array(faces, dtype=np.int32).reshape(-1, 3)
 
     return vertices, faces

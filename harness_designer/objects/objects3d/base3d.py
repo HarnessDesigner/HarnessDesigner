@@ -95,7 +95,7 @@ class Base3D:
 
         self._is_opaque = np.array([int(material.is_opaque)], dtype=np.uint8)
         self._aabb: np.ndarray = np.ascontiguousarray(np.array(
-            [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype=np.float64))
+            [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype=np.float32))
 
         self._obb: np.ndarray = None
 
@@ -184,7 +184,7 @@ class Base3D:
         """
         if self._vbo is None:
             p1, p2 = _utils.compute_aabb(self._data[0])
-            aabb = _utils.adjust_aabb(np.array([p1.as_float, p2.as_float], dtype=np.float64))
+            aabb = _utils.adjust_aabb(np.array([p1.as_float, p2.as_float], dtype=np.float32))
         else:
             local_min = self._vbo.local_aabb[0]
             local_max = self._vbo.local_aabb[1]
@@ -197,7 +197,7 @@ class Base3D:
                 [x1, y2, z1], [x1, y2, z2],
                 [x2, y1, z1], [x2, y1, z2],
                 [x2, y2, z1], [x2, y2, z2]
-            ], dtype=np.float64)
+            ], dtype=np.float32)
 
             corners *= self._scale.as_numpy
             corners @= self._angle

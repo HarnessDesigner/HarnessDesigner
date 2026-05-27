@@ -376,7 +376,7 @@ class Point(metaclass=PointMeta):
         else:
             self.is2d = False
 
-        self._data = np.ascontiguousarray(np.array([x, y, z], dtype=np.float64))
+        self._data = np.ascontiguousarray(np.array([x, y, z], dtype=np.float32))
 
         self._callbacks = []
         self._ref_count = 0
@@ -854,7 +854,7 @@ class Point(metaclass=PointMeta):
         from genuine zero-coordinates.
         """
 
-        arr = np.array([0.0, 0.0, 0.0], dtype=np.float64)
+        arr = np.array([0.0, 0.0, 0.0], dtype=np.float32)
         return not all(np.isclose(self._data, arr))
 
     def __eq__(self, other: "Point") -> bool:

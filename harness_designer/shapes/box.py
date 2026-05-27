@@ -55,16 +55,16 @@ def create(width, height, depth):
     height /= 2.0
     width /= 2.0
 
-    vertices = np.full((8, 3), [0.0, 0.0, 0.0], dtype=np.float64)
-    vertices[0] = np.array([width, height, depth], dtype=np.float64)
-    vertices[1] = np.array([width, height, -depth], dtype=np.float64)
-    vertices[2] = np.array([width, -height, depth], dtype=np.float64)
-    vertices[3] = np.array([width, -height, -depth], dtype=np.float64)
+    vertices = np.full((8, 3), [0.0, 0.0, 0.0], dtype=np.float32)
+    vertices[0] = np.array([width, height, depth], dtype=np.float32)
+    vertices[1] = np.array([width, height, -depth], dtype=np.float32)
+    vertices[2] = np.array([width, -height, depth], dtype=np.float32)
+    vertices[3] = np.array([width, -height, -depth], dtype=np.float32)
 
-    vertices[4] = np.array([-width, height, depth], dtype=np.float64)
-    vertices[5] = np.array([-width, height, -depth], dtype=np.float64)
-    vertices[6] = np.array([-width, -height, depth], dtype=np.float64)
-    vertices[7] = np.array([-width, -height, -depth], dtype=np.float64)
+    vertices[4] = np.array([-width, height, depth], dtype=np.float32)
+    vertices[5] = np.array([-width, height, -depth], dtype=np.float32)
+    vertices[6] = np.array([-width, -height, depth], dtype=np.float32)
+    vertices[7] = np.array([-width, -height, -depth], dtype=np.float32)
 
     # Triangles.
     faces = np.array([[4, 7, 5], [4, 6, 7], [0, 2, 4], [2, 6, 4],

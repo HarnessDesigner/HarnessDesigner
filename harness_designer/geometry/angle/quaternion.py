@@ -40,7 +40,7 @@ class Quaternion:
                 w, x, y, z = self.as_float
 
                 # Vectorized quaternion rotation formula
-                qvec = np.array([x, y, z], dtype=np.float64)
+                qvec = np.array([x, y, z], dtype=np.float32)
                 # __matmul__
                 if out is None:
                     t = np.cross(qvec, inputs)
@@ -51,17 +51,17 @@ class Quaternion:
                 # __imatmul__
                 else:
                     out = out[0]
+                    
                     shape = out.shape
                     if len(shape) == 1:
                         out = out.reshape(-1, 3)
 
-                    print(qvec)
-                    print(out)
-
                     t = np.cross(qvec, out)
                     out += (2.0 * w * t) + (2.0 * np.cross(qvec, t))
+
                     if len(shape) == 1:
                         out = out.reshape(-1)
+
                     return out
 
         if func == np.add:
@@ -169,7 +169,7 @@ class Quaternion:
         """
 
         if q is None:
-            self._data = np.array([w, x, y, z], dtype=np.float64)
+            self._data = np.array([w, x, y, z], dtype=np.float32)
         else:
             self._data = q
 
@@ -423,7 +423,7 @@ class Quaternion:
 
         if isinstance(other, (int, float)):
             other = np.array(
-                [other, other, other, other], dtype=np.float64)
+                [other, other, other, other], dtype=np.float32)
 
         elif not isinstance(other, Quaternion):
             raise TypeError
@@ -470,7 +470,7 @@ class Quaternion:
         """
 
         if isinstance(other, (int, float)):
-            other = np.array([other, other, other, other], dtype=np.float64)
+            other = np.array([other, other, other, other], dtype=np.float32)
         elif not isinstance(other, Quaternion):
             raise TypeError
         else:
@@ -522,7 +522,7 @@ class Quaternion:
         w, x, y, z = self.as_float
 
         # Vectorized quaternion rotation formula
-        qvec = np.array([x, y, z], dtype=np.float64)
+        qvec = np.array([x, y, z], dtype=np.float32)
 
         if isinstance(other, _point.Point):
             array = other.as_numpy
@@ -555,7 +555,7 @@ class Quaternion:
         w, x, y, z = self.as_float
 
         # Vectorized quaternion rotation formula
-        qvec = np.array([x, y, z], dtype=np.float64)
+        qvec = np.array([x, y, z], dtype=np.float32)
 
         if isinstance(other, _point.Point):
             array = other.as_numpy
@@ -688,7 +688,7 @@ class Quaternion:
         return np.array([[float(item) for item in m1],
                          [float(item) for item in m2],
                          [float(item) for item in m3]
-                         ], dtype=np.float64)
+                         ], dtype=np.float32)
 
     @classmethod
     def from_axis_angle(cls, axis, angle):

@@ -430,7 +430,7 @@ class Camera:
         :rtype: :class:`np.ndarray`
         """
 
-        m = np.asarray(view_proj, dtype=np.float64)
+        m = np.asarray(view_proj, dtype=np.float32)
 
         # rows
         r0 = m[0, :]
@@ -479,7 +479,7 @@ class Camera:
 
         forward = forward / focal_distance
 
-        world_up = np.array([0.0, 1.0, 0.0], dtype=np.float64)
+        world_up = np.array([0.0, 1.0, 0.0], dtype=np.float32)
         dot = float(np.dot(forward, world_up))
 
         # When the view direction gets too close to the world-up vector the
@@ -487,7 +487,7 @@ class Camera:
         # vector in that case so zooming through very small focal distances does
         # not cause a sudden 90° roll.
         if abs(dot) > 0.9999 and self._up is not None:
-            up = np.array(self._up, dtype=np.float64)
+            up = np.array(self._up, dtype=np.float32)
             un = np.linalg.norm(up)
             if un < 1e-6:
                 up = world_up.copy()
@@ -498,9 +498,9 @@ class Camera:
             right = np.cross(forward, up)  # NOQA
             rn = np.linalg.norm(right)
             if rn < 1e-6:
-                fallback_axis = np.array([1.0, 0.0, 0.0], dtype=np.float64)
+                fallback_axis = np.array([1.0, 0.0, 0.0], dtype=np.float32)
                 if abs(float(np.dot(forward, fallback_axis))) > 0.9999:
-                    fallback_axis = np.array([0.0, 0.0, 1.0], dtype=np.float64)
+                    fallback_axis = np.array([0.0, 0.0, 1.0], dtype=np.float32)
 
                 right = np.cross(fallback_axis, forward)  # NOQA
                 rn = np.linalg.norm(right)
@@ -514,7 +514,7 @@ class Camera:
 
             rn = np.linalg.norm(right)
             if rn < 1e-6:
-                right = np.array([1.0, 0.0, 0.0], dtype=np.float64)
+                right = np.array([1.0, 0.0, 0.0], dtype=np.float32)
                 rn = 1.0
             else:
                 right = right / rn
@@ -588,7 +588,7 @@ class Camera:
             self._modelview = np.ascontiguousarray(np.array(
                 GL.glGetDoublev(GL.GL_MODELVIEW_MATRIX)).reshape((4, 4), order="F").T)
 
-            self._clip = (self._projection @ self._modelview).astype(np.float64)
+            self._clip = (self._projection @ self._modelview).astype(np.float32)
             self._frustum_planes = self._extract_frustum_planes(self._clip)
             # Pre-extract normals and distances for faster AABB checking
 
@@ -652,9 +652,9 @@ class Camera:
         dist = np.linalg.norm(offset)
 
         if dist < 1e-6:
-            return np.array([0.0, 0.0, 0.0], dtype=np.float64)
+            return np.array([0.0, 0.0, 0.0], dtype=np.float32)
 
-        up = np.array([0.0, 1.0, 0.0], dtype=np.float64)
+        up = np.array([0.0, 1.0, 0.0], dtype=np.float32)
 
         def _rodrigues(v, k, angle_rad):
             """
@@ -680,7 +680,7 @@ class Camera:
         yaw_offset_n = np.linalg.norm(yaw_offset)
 
         if yaw_offset_n < 1e-6:
-            return np.array([0.0, 0.0, 0.0], dtype=np.float64)
+            return np.array([0.0, 0.0, 0.0], dtype=np.float32)
 
         yaw_dir = yaw_offset / yaw_offset_n
 

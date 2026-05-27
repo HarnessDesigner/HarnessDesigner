@@ -18,7 +18,7 @@ def _unproject_from_ndc(ndc, inv_mvp):
     inv_mvp: inverse of P*MV (row-major)
     """
 
-    clip = np.array([ndc[0], ndc[1], ndc[2], 1.0], dtype=np.float64)
+    clip = np.array([ndc[0], ndc[1], ndc[2], 1.0], dtype=np.float32)
 
     world = inv_mvp.dot(clip)
     if np.isclose(world[3], 0.0):
@@ -50,8 +50,8 @@ def _ray_intersect_aabb(orig, direc, aabb_min, aabb_max, t0=0.0, t1=inf):
     :returns: Return value. UNKNOWN details.
     :rtype: UNKNOWN
     """
-    tmin_vals = np.full(3, -inf, dtype=np.float64)
-    tmax_vals = np.full(3, inf, dtype=np.float64)
+    tmin_vals = np.full(3, -inf, dtype=np.float32)
+    tmax_vals = np.full(3, inf, dtype=np.float32)
 
     for i in range(3):
         if np.abs(direc[i]) > 1e-8:  # not parallel to this slab
@@ -91,7 +91,7 @@ def _aabb_screen_bbox_and_depth(bboxes, camera: "_camera.Camera"):
 
     for corner in bboxes:
 
-        v = np.array([corner[0], corner[1], corner[2], 1.0], dtype=np.float64)
+        v = np.array([corner[0], corner[1], corner[2], 1.0], dtype=np.float32)
         eye = mv.dot(v)
         clip = pj.dot(eye)
 
@@ -209,8 +209,8 @@ def find_object(mouse_pos, scene_objects, camera: "_camera.Camera"):
     if near_world is None or far_world is None:
         origin = direc = None
     else:
-        origin = np.array(near_world, dtype=np.float64)
-        direc = np.array(far_world, dtype=np.float64) - origin
+        origin = np.array(near_world, dtype=np.float32)
+        direc = np.array(far_world, dtype=np.float32) - origin
         direc /= np.linalg.norm(direc)
 
     # Build ray once

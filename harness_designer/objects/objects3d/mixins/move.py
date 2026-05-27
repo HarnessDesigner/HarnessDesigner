@@ -101,8 +101,8 @@
 #         a2_tris @= opposite_angle
 #         a2_nrmls @= opposite_angle
 #
-#         tris = np.array([a1_tris, a2_tris], dtype=np.float64).reshape(-1, 3, 3)
-#         nrmls = np.array([a1_nrmls, a2_nrmls], dtype=np.float64).reshape(-1, 3)
+#         tris = np.array([a1_tris, a2_tris], dtype=np.float32).reshape(-1, 3, 3)
+#         nrmls = np.array([a1_nrmls, a2_nrmls], dtype=np.float32).reshape(-1, 3)
 #         count = a1_count + a2_count
 #
 #         tris += position

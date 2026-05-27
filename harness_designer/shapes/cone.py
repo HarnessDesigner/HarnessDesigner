@@ -62,10 +62,10 @@ def create(radius=1.0, height=2.0, resolution=None, split=None):
         split = int(max(3.0, _utils.remap(height, 0.0, 2.0, 0.0, 10.0)))
 
     count = resolution * split + 2
-    vertices = np.full((count, 3), [0.0, 0.0, 0.0], dtype=np.float64)
+    vertices = np.full((count, 3), [0.0, 0.0, 0.0], dtype=np.float32)
 
-    vertices[0] = np.array([0.0, 0.0, 0.0], dtype=np.float64)
-    vertices[1] = np.array([0.0, 0.0, height], dtype=np.float64)
+    vertices[0] = np.array([0.0, 0.0, 0.0], dtype=np.float32)
+    vertices[1] = np.array([0.0, 0.0, height], dtype=np.float32)
 
     step = math.pi * 2.0 / float(resolution)
     h_step = height / float(split)
@@ -79,7 +79,7 @@ def create(radius=1.0, height=2.0, resolution=None, split=None):
             vertices[base + j] = np.array(
                 [math.cos(theta) * r,
                  math.sin(theta) * r,
-                 h_step * i], dtype=np.float64)
+                 h_step * i], dtype=np.float32)
 
     faces = []
     for j in range(resolution):

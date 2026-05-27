@@ -445,29 +445,31 @@ class GLOverlay(QOpenGLWidget):
         z_material = _materials.Plastic(_color.Color(0.2, 0.2, 1.0, 1.0))
         s_material = _materials.Plastic(_color.Color(0.1, 0.1, 0.1, 1.0))
 
-        x_tris, x_nrmls, _, x_count = (
+        x_tris, x_smooth_nrmls, x_face_nrmls, x_count = (
             _utils.compute_normals(x_vertices, x_faces))
-        y_tris, y_nrmls, _, y_count = (
+        y_tris, y_smooth_nrmls, y_face_nrmls, y_count = (
             _utils.compute_normals(y_vertices, y_faces))
-        z_tris, z_nrmls, _, z_count = (
+        z_tris, z_smooth_nrmls, z_face_nrmls, z_count = (
             _utils.compute_normals(z_vertices, z_faces))
-        s_tris, s_nrmls, _, s_count = (
+        s_tris, s_smooth_nrmls, s_face_nrmls, s_count = (
             _utils.compute_normals(s_vertices, s_faces))
 
         x_angle = _angle.Angle.from_euler(0.0, 90.0, 0.0)
         y_angle = _angle.Angle.from_euler(270.0, 0.0, 0.0)
 
         x_tris @= x_angle
-        x_nrmls @= x_angle
+        x_smooth_nrmls @= x_angle
+        x_face_nrmls @= x_angle
 
         y_tris @= y_angle
-        y_nrmls @= y_angle
+        y_smooth_nrmls @= y_angle
+        y_face_nrmls @= y_angle
 
         self._triangles = [
-            [s_tris, s_nrmls, s_count, s_material],
-            [x_tris, x_nrmls, x_count, x_material],
-            [y_tris, y_nrmls, y_count, y_material],
-            [z_tris, z_nrmls, z_count, z_material]
+            [s_tris, s_smooth_nrmls, s_face_nrmls, s_count, s_material],
+            [x_tris, x_smooth_nrmls, x_face_nrmls, x_count, x_material],
+            [y_tris, y_smooth_nrmls, y_face_nrmls, y_count, y_material],
+            [z_tris, z_smooth_nrmls, z_face_nrmls, z_count, z_material]
         ]
 
     def set_angle(self, point: _point.Point):
@@ -489,7 +491,7 @@ class GLOverlay(QOpenGLWidget):
             distance = np.linalg.norm(forward)
 
             if distance < 1e-6:
-                forward = np.array([0.0, 0.0, -1.0], dtype=np.float64)
+                forward = np.array([0.0, 0.0, -1.0], dtype=np.float32)
             else:
                 forward = forward / distance
         else:
@@ -573,14 +575,14 @@ class GLOverlay(QOpenGLWidget):
         if fn < 1e-6:
             forward = np.array(
                 [0.0, 0.0, -1.0],
-                dtype=np.dtypes.Float64DType
+                dtype=np.float32
                 )
         else:
             forward = forward / fn
 
-        temp_up = np.array([0.0, 1.0, 0.0], dtype=np.float64)
+        temp_up = np.array([0.0, 1.0, 0.0], dtype=np.float32)
         if abs(np.dot(forward, temp_up)) > _UP_PARALLEL_DOT_THRESHOLD:
-            temp_up = np.array([0.0, 0.0, 1.0], dtype=np.float64)
+            temp_up = np.array([0.0, 0.0, 1.0], dtype=np.float32)
 
         right = np.cross(temp_up, forward)  # NOQA
 
@@ -588,7 +590,7 @@ class GLOverlay(QOpenGLWidget):
         if rn < 1e-6:
             right = np.array(
                 [1.0, 0.0, 0.0],
-                dtype=np.dtypes.Float64DType
+                dtype=np.float32
                 )
         else:
             right = right / rn
@@ -599,7 +601,7 @@ class GLOverlay(QOpenGLWidget):
         if un < 1e-6:
             up = np.array(
                 [0.0, 1.0, 0.0],
-                dtype=np.dtypes.Float64DType
+                dtype=np.float32
                 )
         else:
             up = up / un
@@ -612,16 +614,16 @@ class GLOverlay(QOpenGLWidget):
         GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
         GL.glEnableClientState(GL.GL_NORMAL_ARRAY)
 
-        for tris, nrmls, count, material in self._triangles:
+        for tris, nrmls, _, count, material in self._triangles:
             GL.glColor4f(*material.color_scalar)
             GL.glMaterialfv(GL.GL_FRONT, GL.GL_AMBIENT, material.ambient)
             GL.glMaterialfv(GL.GL_FRONT, GL.GL_DIFFUSE, material.diffuse)
             GL.glMaterialfv(GL.GL_FRONT, GL.GL_SPECULAR, material.specular)
             GL.glMaterialf(GL.GL_FRONT, GL.GL_SHININESS, material.shininess)
 
-            GL.glVertexPointer(3, GL.GL_DOUBLE, 0, tris)
-            GL.glNormalPointer(GL.GL_DOUBLE, 0, nrmls)
-            GL.glDrawArrays(GL.GL_TRIANGLES, 0, count)
+            GL.glVertexPointer(3, GL.GL_FLOAT, 0, tris.reshape(-1, 3))
+            GL.glNormalPointer(GL.GL_FLOAT, 0, nrmls.reshape(-1, 3))
+            GL.glDrawArrays(GL.GL_TRIANGLES, 0, count // 3)
 
         GL.glDisableClientState(GL.GL_VERTEX_ARRAY)
         GL.glDisableClientState(GL.GL_NORMAL_ARRAY)

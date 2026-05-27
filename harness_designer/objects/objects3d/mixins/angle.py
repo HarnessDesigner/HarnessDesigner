@@ -91,8 +91,8 @@
 #         arrow1_tris, arrow1_nrmls, arrow1_count = self._compute_smoothed_vertex_normals(arrow1_verts, arrow1_faces)
 #         arrow2_tris, arrow2_nrmls, arrow2_count = self._compute_smoothed_vertex_normals(arrow2_verts, arrow2_faces)
 #
-#         arrow_tris = np.array([arrow1_tris, arrow2_tris], dtype=np.float64).reshape(-1, 3, 3)
-#         arrow_nrmls = np.array([arrow1_nrmls, arrow2_nrmls], dtype=np.float64).reshape(-1, 3)
+#         arrow_tris = np.array([arrow1_tris, arrow2_tris], dtype=np.float32).reshape(-1, 3, 3)
+#         arrow_nrmls = np.array([arrow1_nrmls, arrow2_nrmls], dtype=np.float32).reshape(-1, 3)
 #         arrow_count = arrow1_count + arrow2_count
 #         ring_tris, ring_nrmls, ring_count = self._compute_smoothed_vertex_normals(ring_verts, ring_faces)
 #
@@ -206,14 +206,14 @@
 #         q = np.array([w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
 #                      w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
 #                      w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
-#                      w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2], dtype=np.float64)
+#                      w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2], dtype=np.float32)
 #
 #         n = math.sqrt((q * q).sum())
 #
 #         if n == 0.0:
-#             quat = np.array([0.0, 0.0, 0.0, 1.0], dtype=np.float64)
+#             quat = np.array([0.0, 0.0, 0.0, 1.0], dtype=np.float32)
 #         else:
-#             quat = (q / n).astype(np.float64)
+#             quat = (q / n).astype(np.float32)
 #
 #         new_angle = _angle.Angle.from_quat(quat)
 #         delta = new_angle - angle

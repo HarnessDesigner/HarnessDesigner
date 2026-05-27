@@ -62,10 +62,10 @@ def create(radius, length, resolution=None, split=None) -> tuple[np.ndarray, np.
         split = int(max(1.0, _utils.remap(length, 0.0, 10.0, 0.0, 10.0)))
 
     count = resolution * (split + 1) + 2
-    vertices = np.full((count, 3), [0.0, 0.0, 0.0], dtype=np.float64)
+    vertices = np.full((count, 3), [0.0, 0.0, 0.0], dtype=np.float32)
 
-    vertices[0] = np.array([0.0, 0.0, length * 0.5], dtype=np.float64)
-    vertices[1] = np.array([0.0, 0.0, -length * 0.5], dtype=np.float64)
+    vertices[0] = np.array([0.0, 0.0, length * 0.5], dtype=np.float32)
+    vertices[1] = np.array([0.0, 0.0, -length * 0.5], dtype=np.float32)
 
     step = math.pi * 2.0 / float(resolution)
     h_step = length / float(split)
@@ -76,9 +76,9 @@ def create(radius, length, resolution=None, split=None) -> tuple[np.ndarray, np.
             vertices[2 + resolution * i + j] = np.array(
                 [math.cos(theta) * radius,
                  math.sin(theta) * radius,
-                 length * 0.5 - h_step * i], dtype=np.float64)
+                 length * 0.5 - h_step * i], dtype=np.float32)
 
-    vertices += np.array([0.0, 0.0, length / 2.0], dtype=np.float64)
+    vertices += np.array([0.0, 0.0, length / 2.0], dtype=np.float32)
 
     faces = []
     for i in range(split):

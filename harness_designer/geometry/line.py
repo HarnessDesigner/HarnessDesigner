@@ -131,7 +131,7 @@ class Line:
         p1 = self._p1.as_float
         p2 = self._p2.as_float
 
-        return np.array([p1, p2], dtype=np.dtypes.Float64DType)
+        return np.array([p1, p2], dtype=np.float32)
 
     @property
     def as_float(self) -> tuple[list[float, float, float], list[float, float, float]]:

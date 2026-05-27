@@ -969,21 +969,21 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
             # Get all cavity centers: shape (N, 3)
             centers = np.array(
                 [cavity.position3d.as_numpy for cavity in cavities],
-                dtype=np.float64)
+                dtype=np.float32)
 
             # Create reference offset vector for all cavities
-            reference_vector = np.array([0.0, 0.0, 10.0], dtype=np.float64)
+            reference_vector = np.array([0.0, 0.0, 10.0], dtype=np.float32)
 
             # Rotate reference vector by each cavity's current angle to get offset
             # Then add to centers to get reference points
             offsets = np.array(
                 [cavity.angle3d @ reference_vector for cavity in cavities],
-                dtype=np.float64)
+                dtype=np.float32)
 
             references = centers + offsets
 
             # Stack centers and references: shape (N*2, 3)
-            all_points = np.empty((len(cavities) * 2, 3), dtype=np.float64)
+            all_points = np.empty((len(cavities) * 2, 3), dtype=np.float32)
             all_points[0::2] = centers      # Even indices: centers
             all_points[1::2] = references   # Odd indices: references
 

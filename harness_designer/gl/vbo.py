@@ -351,7 +351,7 @@ class VBOHandler(metaclass=VBOSingleton):
         local_aabb = _utils.compute_aabb(self.__vertices.reshape(-1, 3))
         self.local_obb = _utils.compute_obb(*local_aabb)
         p1, p2 = local_aabb
-        self.local_aabb = np.array([p1.as_numpy, p2.as_numpy], dtype=np.float64)
+        self.local_aabb = np.array([p1.as_numpy, p2.as_numpy], dtype=np.float32)
 
     @staticmethod
     def _normalize_vertex_count(count: int, array_len: int) -> int:
