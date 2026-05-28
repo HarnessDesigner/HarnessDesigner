@@ -291,6 +291,7 @@ class ProcessManager(threading.Thread):
         self._wait_event = threading.Event()
         self._core_count = os.cpu_count()
         self.wait_duration = Config.monitor_duration
+        self._model_process_active = 0
 
         if self._core_count < 4:
             from ..ui.dialogs import error as _error
@@ -357,7 +358,6 @@ class ProcessManager(threading.Thread):
         start_progress = False
 
         while not self._exit_event.is_set():
-            recvd_message = False
 
             with self._model_lock:
                 offset = 0
@@ -367,7 +367,6 @@ class ProcessManager(threading.Thread):
                     if message is None:
                         continue
 
-                    recvd_message = True
                     with self._print_lock:
                         print('thread loop:', message)
 
@@ -389,6 +388,7 @@ class ProcessManager(threading.Thread):
                             dlg.exec()
 
                         _app.CallAfter(_do, message)
+                        self._model_process_active -= 1
                         self._model_processes_cb[i - offset] = None
                         del self._model_progress[message['part_number']]
 
@@ -400,12 +400,13 @@ class ProcessManager(threading.Thread):
 
                             curr_progresses.remove(part_number)
 
-                        if not self._model_progress:
+                        if not self._model_process_active:
                             def _do():
                                 self.mainframe.end_progress_bar()
 
                             _app.CallAfter(_do)
                             start_progress = False
+
                     else:
                         step = message['step']
                         part_number = message['part_number']
@@ -439,36 +440,30 @@ class ProcessManager(threading.Thread):
 
                             self._model_processes_cb[i - offset] = None
 
-                            if self._model_progress:
+                            self._model_process_active -= 1
+
+                            if self._model_process_active:
                                 start_progress = True
 
                         _app.CallAfter(_do, step, part_number, start_progress)
 
                         start_progress = False
 
-            if recvd_message:
-                self.wait_duration = 0
-
-            elif self._model_progress:
+            if self._model_process_active:
                 self.wait_duration = 5
-                wait_count += 1
                 curr_progress_index += 1
 
-                if curr_progress_index >= len(curr_progresses):
+                if curr_progress_index > len(curr_progresses) - 1:
                     curr_progress_index = 0
+                    
+                if curr_progresses:
+                    part_number = curr_progresses[curr_progress_index]
+                    step = self._model_progress[part_number]
 
-                part_number = curr_progresses[curr_progress_index]
-                step = self._model_progress[part_number]
+                    def _do(pn, stp):
+                        self.mainframe.set_progress(stp, pn)
 
-                def _do(pn, stp):
-                    self.mainframe.set_progress(stp, pn)
-
-                _app.CallAfter(_do, part_number, step)
-
-                if wait_count < 5 and not self._wait_event.is_set():
-                    continue
-
-                wait_count = 0
+                    _app.CallAfter(_do, part_number, step)
             else:
                 self.wait_duration = Config.monitor_duration
 
@@ -509,6 +504,7 @@ class ProcessManager(threading.Thread):
                     continue
 
                 if self._model_processes_cb[i] is None:
+                    self._model_process_active += 1
                     process.send(message)
                     self._model_processes_cb[i] = callback
                     break
@@ -527,6 +523,7 @@ class ProcessManager(threading.Thread):
 
                 from . import model_process
 
+                self._model_process_active += 1
                 process = model_process.ProcessWorker(self, self._print_lock)
                 process.start(False)
 

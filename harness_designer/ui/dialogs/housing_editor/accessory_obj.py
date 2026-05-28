@@ -71,7 +71,7 @@ class HousingAccessory3D(_base3d.Base3D):
         angle = _angle.Angle.from_euler(0.0, 0.0, 0.0)
         scale = _point.Point(3.0, 3.0, 3.0)
 
-        parent.dialog.context.acquire()
+        parent.dialog.mainframe.editor3d.context.acquire()
         vbo = _sphere.create_vbo()
         vbo.acquire()
 
@@ -85,7 +85,7 @@ class HousingAccessory3D(_base3d.Base3D):
 
         self._is_visible = True
         self.editor3d.Refresh(False)
-        parent.dialog.context.release()
+        parent.dialog.mainframe.editor3d.context.release()
 
     def _update_position(self, position: _point.Point):
         """Update the position.

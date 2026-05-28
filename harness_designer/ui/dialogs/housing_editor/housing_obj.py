@@ -64,6 +64,8 @@ class Housing3D(_base3d.Base3D):
         self.dialog: "_housing_editor.HousingEditorDialog" = parent.dialog
         self.db_obj = db_obj
 
+        parent.dialog.mainframe.editor3d.context.acquire()
+
         parent.dialog.context.acquire()
 
         self._angle = db_obj.angle3d
@@ -102,7 +104,7 @@ class Housing3D(_base3d.Base3D):
 
         self._is_visible = True
         self.editor3d.Refresh(False)
-        parent.dialog.context.release()
+        parent.dialog.mainframe.editor3d.context.release()
 
     def _update_position(self, position: _point.Point):
         """Update the position.
