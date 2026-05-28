@@ -71,8 +71,7 @@ class ModelDataMeta(type):
                 data = read_func(zf, metadata)
 
         else:
-            version = kwargs['version']
-            data = globals()[f'ModelDataV{version.replace(".", "")}'](*args, **kwargs)
+            data = super().__call__(*args, **kwargs)
 
         return data
 

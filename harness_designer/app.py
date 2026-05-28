@@ -60,6 +60,9 @@ class App(QObject):
 
         _call_on_main = self._signals.call_on_main
 
+    def setStyleSheet(self, style_sheet):
+        self._qt_app.setStyleSheet(style_sheet)
+
     # ------------------------------------------------------------------
     # Qt signal dispatch — runs on main thread
     # ------------------------------------------------------------------
@@ -84,6 +87,10 @@ class App(QObject):
         """Runs on the main thread before the event loop starts."""
 
         import harness_designer as _hd
+        from . import themes as _themes
+        from . import config as _config
+
+        _themes.load_theme(_config.Config.mainframe.theme)
 
         # Set default QSurfaceFormat for shared OpenGL contexts
         # This MUST be called before ANY OpenGL context is created (including GL info query)

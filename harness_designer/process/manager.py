@@ -290,6 +290,7 @@ class ProcessManager(threading.Thread):
         self._db_queue = []
         self._wait_event = threading.Event()
         self._core_count = os.cpu_count()
+        self.wait_duration = Config.monitor_duration
 
         if self._core_count < 4:
             from ..ui.dialogs import error as _error
@@ -311,7 +312,7 @@ class ProcessManager(threading.Thread):
         self._db_process = db_process.ProcessWorker(self, self._print_lock)
         self._image_process = image_process.ProcessWorker(self, self._print_lock)
         self._model_processes = [model_process.ProcessWorker(self, self._print_lock)]
-        self._model_processes_cb = []
+        self._model_processes_cb = [None]
         self._model_progress = {}
 
         threading.Thread.__init__(self, name='process_monitor_thread')
@@ -356,6 +357,8 @@ class ProcessManager(threading.Thread):
         start_progress = False
 
         while not self._exit_event.is_set():
+            recvd_message = False
+
             with self._model_lock:
                 offset = 0
                 for i, process in enumerate(self._model_processes[:]):
@@ -363,6 +366,10 @@ class ProcessManager(threading.Thread):
 
                     if message is None:
                         continue
+
+                    recvd_message = True
+                    with self._print_lock:
+                        print('thread loop:', message)
 
                     if 'exit_loop' in message:
                         self._model_processes.remove(process)
@@ -385,6 +392,14 @@ class ProcessManager(threading.Thread):
                         self._model_processes_cb[i - offset] = None
                         del self._model_progress[message['part_number']]
 
+                        if part_number in curr_progresses:
+                            index = curr_progresses.index(part_number)
+
+                            if curr_progress_index >= index:
+                                curr_progress_index -= 1
+
+                            curr_progresses.remove(part_number)
+
                         if not self._model_progress:
                             def _do():
                                 self.mainframe.end_progress_bar()
@@ -395,7 +410,7 @@ class ProcessManager(threading.Thread):
                         step = message['step']
                         part_number = message['part_number']
 
-                        def _do(pn, stp, start):
+                        def _do(stp, pn, start):
                             if start:
                                 self.mainframe.start_progress('', 10)
 
@@ -416,27 +431,30 @@ class ProcessManager(threading.Thread):
                             curr_progresses.remove(part_number)
                             del self._model_progress[part_number]
 
-                            def _do(cb, db_id):
+                            def _do2(cb, db_id):
                                 model3d_obj = self.mainframe.global_db.models3d_table[db_id]
                                 model3d_obj.load('', '', cb)
 
-                            _app.CallAfter(_do, self._model_processes_cb[i - offset], message['id'])
+                            _app.CallAfter(_do2, self._model_processes_cb[i - offset], message['id'])
 
                             self._model_processes_cb[i - offset] = None
 
                             if self._model_progress:
                                 start_progress = True
 
-                        _app.CallAfter(_do, part_number, step, start_progress)
+                        _app.CallAfter(_do, step, part_number, start_progress)
 
                         start_progress = False
 
-            if self._model_progress:
-                self._wait_event.wait(5)
+            if recvd_message:
+                self.wait_duration = 0
+
+            elif self._model_progress:
+                self.wait_duration = 5
                 wait_count += 1
                 curr_progress_index += 1
 
-                if curr_progress_index == len(curr_progresses):
+                if curr_progress_index >= len(curr_progresses):
                     curr_progress_index = 0
 
                 part_number = curr_progresses[curr_progress_index]
@@ -452,8 +470,9 @@ class ProcessManager(threading.Thread):
 
                 wait_count = 0
             else:
-                self._wait_event.wait(Config.monitor_duration)
+                self.wait_duration = Config.monitor_duration
 
+            self._wait_event.wait(self.wait_duration)
             self._wait_event.clear()
 
             args = self._db_process.recv()
@@ -479,6 +498,10 @@ class ProcessManager(threading.Thread):
 
     def get_model(self, callback, **model_info):
         message = json.dumps(model_info)
+
+        print('getting model')
+        print(message)
+        print()
 
         with self._model_lock:
             for i, process in enumerate(self._model_processes[:]):
@@ -510,6 +533,9 @@ class ProcessManager(threading.Thread):
                 process.send(message)
                 self._model_processes.append(process)
                 self._model_processes_cb.append(callback)
+
+            self.wait_duration = 5
+            self._wait_event.set()
 
     def send(self, **kwargs):
         """Queue a message for delivery to the worker process.

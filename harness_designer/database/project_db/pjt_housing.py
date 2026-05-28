@@ -316,10 +316,12 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         """
-        if self._stored_cover_position3d is None and self._obj is not None:
+        if self._stored_cover_position3d is None:
             point_id = self.cover_position3d_id
 
             self._stored_cover_position3d = self._table.db.pjt_points3d_table[point_id]
+
+        if self._obj is not None:
             self._stored_cover_position3d.add_object(self._obj())
 
         return self._stored_cover_position3d.point
@@ -367,11 +369,15 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         """
-        if self._stored_seal_position3d is None and self._obj is not None:
-
+        if self._stored_seal_position3d is None:
             point_id = self.seal_position3d_id
 
+            if point_id is None:
+                point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
+
             self._stored_seal_position3d = self._table.db.pjt_points3d_table[point_id]
+
+        if self._obj is not None:
             self._stored_seal_position3d.add_object(self._obj())
 
         return self._stored_seal_position3d.point
@@ -419,11 +425,16 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         """
-        if self._stored_boot_position3d is None and self._obj is not None:
 
+        if self._stored_boot_position3d is None:
             point_id = self.boot_position3d_id
 
+            if point_id is None:
+                point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
+
             self._stored_boot_position3d = self._table.db.pjt_points3d_table[point_id]
+
+        if self._obj is not None:
             self._stored_boot_position3d.add_object(self._obj())
 
         return self._stored_boot_position3d.point
@@ -471,14 +482,20 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         """
-        if self._stored_tpa_lock_1_position3d is None and self._obj is not None:
 
+        if self._stored_tpa_lock_1_position3d is None:
             point_id = self.tpa_lock_1_position3d_id
 
+            if point_id is None:
+                point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
+
             self._stored_tpa_lock_1_position3d = self._table.db.pjt_points3d_table[point_id]
+
+        if self._obj is not None:
             self._stored_tpa_lock_1_position3d.add_object(self._obj())
 
         return self._stored_tpa_lock_1_position3d.point
+
 
     @property
     def tpa_lock_1_position3d_id(self) -> int:
@@ -523,11 +540,16 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         """
-        if self._stored_tpa_lock_2_position3d is None and self._obj is not None:
 
+        if self._stored_tpa_lock_2_position3d is None:
             point_id = self.tpa_lock_2_position3d_id
 
+            if point_id is None:
+                point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
+
             self._stored_tpa_lock_2_position3d = self._table.db.pjt_points3d_table[point_id]
+
+        if self._obj is not None:
             self._stored_tpa_lock_2_position3d.add_object(self._obj())
 
         return self._stored_tpa_lock_2_position3d.point
@@ -575,11 +597,16 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         """
-        if self._stored_cpa_lock_position3d is None and self._obj is not None:
 
+        if self._stored_cpa_lock_position3d is None:
             point_id = self.cpa_lock_position3d_id
 
+            if point_id is None:
+                point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
+
             self._stored_cpa_lock_position3d = self._table.db.pjt_points3d_table[point_id]
+
+        if self._obj is not None:
             self._stored_cpa_lock_position3d.add_object(self._obj())
 
         return self._stored_cpa_lock_position3d.point
@@ -653,8 +680,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_seal.PJTSeal`
         """
-        db_ids = self._table.db.pjt_seals_table.select('id',
-                                                       housing_id=self.db_id)
+        db_ids = self._table.db.pjt_seals_table.select('id', housing_id=self.db_id)
 
         for db_id in db_ids:
             try:
@@ -804,13 +830,15 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_housing.Housing`
         """
-        if self._stored_part is None and self._obj is not None:
+        if self._stored_part is None:
             part_id = self.part_id
 
             if part_id is None:
                 return None
 
             self._stored_part = self._table.db.global_db.housings_table[part_id]
+
+        if self._obj is not None:
             self._stored_part.add_object(self._obj())
 
         return self._stored_part

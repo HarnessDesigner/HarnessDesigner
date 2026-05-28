@@ -7,21 +7,20 @@ from PySide6.QtCore import QTimer, Qt
 
 from ...ui.widgets import context_menus as _context_menus
 from ...geometry import point as _point
-from ...geometry import angle as _angle
-from ...geometry.decimal import Decimal as _d
 from ...ui.dialogs import housing_editor as _housing_editor
+from ...ui.widgets import float_ctrl as _float_ctrl
+from ...ui.dialogs import error as _error_dialog
 from . import base3d as _base3d
 from ...shapes import box as _box
-from ...gl import vbo as _vbo
 from ...gl import materials as _materials
 from ... import config as _config
-from ... import utils as _utils
 
 
 if TYPE_CHECKING:
     from ...database.project_db import pjt_housing as _pjt_housing
     from .. import housing as _housing
     from ... import ui as _ui
+    from ... import model_data as _model_data
 
 
 Config = _config.Config.editor3d
@@ -55,6 +54,39 @@ class Housing(_base3d.Base3D):
         vbo = _box.create_vbo()
         vbo.acquire()
 
+        width = self._part.width
+        height = self._part.height
+        length = self._part.length
+
+        if 0.0 in (length, width, height):
+            length_ctrl = _float_ctrl.FloatCtrl(
+                None, 'Length', 0.01, 500.0, 0.01)
+
+            width_ctrl = _float_ctrl.FloatCtrl(
+                None, 'Width', 0.01, 500.0, 0.01)
+
+            height_ctrl = _float_ctrl.FloatCtrl(
+                None, 'Height', 0.01, 500.0, 0.01)
+
+            length_ctrl.SetValue(length)
+            width_ctrl.SetValue(width)
+            height_ctrl.SetValue(height)
+
+            dlg = _error_dialog.ErrorDialog(
+                parent.mainframe,
+                'Dimensions are not valid.\n\nPlease set correct dimensions.',
+                'Dimension Error', length_ctrl, width_ctrl, height_ctrl)
+
+            while 0.0 in (length, width, height):
+                dlg.exec()
+                length = length_ctrl.GetValue()
+                width = width_ctrl.GetValue()
+                height = height_ctrl.GetValue()
+
+            db_obj.length = length
+            db_obj.width = width
+            db_obj.height = height
+
         scale = _point.Point(self._part.width, self._part.height, self._part.length)
         material = _materials.Plastic(self._part.color.ui)
         angle = db_obj.angle3d
@@ -68,6 +100,20 @@ class Housing(_base3d.Base3D):
         if model is not None:
             model.load(self._part.manufacturer.name,
                        self._part.part_number, self._set_model)
+
+    def _set_model(self, model, data: "_model_data.ModelData"):
+        super()._set_model(model, data)
+
+        for cavity in self._part.cavities:
+            if cavity is not None:
+                break
+        else:
+            from ...ui.dialogs import housing_editor
+
+            dlg = housing_editor.HousingEditorDialog(self.parent.mainframe)
+            dlg.SetValue(self._part)
+            dlg.exec()
+            dlg.deleteLater()
 
     @property
     def seal_position(self) -> _point.Point:

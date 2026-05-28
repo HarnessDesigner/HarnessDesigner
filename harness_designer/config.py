@@ -824,6 +824,7 @@ class Config(metaclass=ConfigDB):
 
     class mainframe(metaclass=ConfigDB):
         """Main window geometry and docking layout settings."""
+        theme = 'Dark'
         position = ()
         size = ()
 

@@ -139,6 +139,7 @@ class Model3D(EntryBase):
         """
 
         file_id = self.uuid
+
         if file_id is None:
             return None
 
@@ -146,10 +147,16 @@ class Model3D(EntryBase):
         path = os.path.join(model_path, f'{file_id}.hdz')
 
         if not os.path.exists(path):
+            file_type = self.file_type
+            path = os.path.join(model_path, f'{file_id}.{file_type.extension}')
+
+            if os.path.exists(path):
+                print(path)
+                self._table.update(self._db_id, path=path)
+
             return None
 
-        from .... import model_data as _model_data
-        return _model_data.ModelData(path)
+        return path
 
     @property
     def path(self) -> str:
@@ -442,6 +449,8 @@ class Model3D(EntryBase):
         """
 
         file = self.data_path
+        print(file)
+
         if file is None:
             model_dir = self._table.db.settings_table['model_path']
 

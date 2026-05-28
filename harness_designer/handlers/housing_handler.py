@@ -37,6 +37,8 @@ class AddHousingHandler(_handler_base.HandlerBase):
         """
         part_id = mainframe.editor_db.editor.housings.GetSelection()
 
+        print(part_id)
+
         if part_id is None:
             dlg = _part_search.SearchDialog(
                 mainframe, _editor_db.HousingsPage, title='Add Housing',
@@ -58,20 +60,6 @@ class AddHousingHandler(_handler_base.HandlerBase):
 
         self.part = mainframe.project.gtables.housings_table[part_id]
 
-        for cavity in self.part.cavities:
-            if cavity is not None:
-                break
-        else:
-            from ..ui.dialogs import housing_editor
-
-            dlg = housing_editor.HousingEditorDialog(mainframe, self.part)
-            if dlg.exec() != QDialog.DialogCode.Accepted:
-                dlg.deleteLater()
-                self._finalized = True
-                return
-
-            dlg.deleteLater()
-
     def hover(self, mouse_pos: _point.Point):
         """Update preview or highlight state for the supplied mouse position.
 
@@ -92,10 +80,7 @@ class AddHousingHandler(_handler_base.HandlerBase):
 
         position3d = _utils.get_position_on_focal_plane(mouse_pos, self.camera)
 
-        position3d = self.ptables.pjt_points3d_table.insert(*position3d.as_float)
-        position3d_id = position3d.db_id
-
-        db_obj = self.ptables.pjt_housings_table.insert(self.part_id, position3d_id)
+        db_obj = self.ptables.pjt_housings_table.insert(self.part_id, position3d)
 
         obj = _housing.Housing(self.mainframe, db_obj)
         self.mainframe.project.add_housing(obj)

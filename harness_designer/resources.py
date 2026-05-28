@@ -126,7 +126,6 @@ def _download_model(con, url):
             zf.close()
             buf.close()
         else:
-
             if content_type in mime_types:
                 ext = mime_types[content_type]
             else:
@@ -307,7 +306,7 @@ def collect_resource(con, image_type, in_path):
 
     if in_path.startswith('http'):
         if image_type == IMAGE_TYPE_MODEL:
-            image_path = _download_model(con, in_path, image_path)
+            image_path = _download_model(con, in_path)
         else:
             image_path = _download_image(con, in_path, image_path)
 
@@ -320,6 +319,9 @@ def collect_resource(con, image_type, in_path):
             ext = row[0]
             if in_path.endswith('.' + ext):
                 uuid_ = str(uuid.uuid4())
+
+                if image_type == IMAGE_TYPE_MODEL:
+                    image_path = tempfile.gettempdir()
 
                 image_path = os.path.join(image_path, uuid_ + '.' + ext)
 
@@ -359,6 +361,9 @@ def collect_resource(con, image_type, in_path):
 
     con.execute(f'SELECT id FROM file_types WHERE is_model={int(image_type == IMAGE_TYPE_MODEL)} AND extension="{ext[1:]}";')
     file_type_id = con.fetchall()[0][0]
+
+    if image_type == IMAGE_TYPE_MODEL:
+        return image_path, file_type_id
 
     _image_cache[in_path] = (uuid_, file_type_id)
 

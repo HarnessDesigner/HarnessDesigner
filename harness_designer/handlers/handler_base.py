@@ -30,7 +30,7 @@ class HandlerBase:
         self.part_id = part_id
         self.obj = None
         self.is_active = False
-        self.camera = self.mainframe.editor3d
+        self.camera = self.mainframe.editor3d.camera
         self.ptables = mainframe.project.ptables
         self._captured_position: "_point.Point" = None
         self._finalized = False

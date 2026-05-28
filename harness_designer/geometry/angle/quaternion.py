@@ -51,7 +51,7 @@ class Quaternion:
                 # __imatmul__
                 else:
                     out = out[0]
-                    
+
                     shape = out.shape
                     if len(shape) == 1:
                         out = out.reshape(-1, 3)
@@ -74,13 +74,16 @@ class Quaternion:
                         q = Quaternion(q=inputs)
                         q += self
                         return q.as_numpy
+
                 # __iadd__
                 else:
                     out = out[0]
+
                     if out.shape == (4,):
                         q = Quaternion(q=out)
                         q += self
                         out[:] = q.as_numpy
+
                         return out
 
         if func == np.subtract:
@@ -472,7 +475,7 @@ class Quaternion:
         if isinstance(other, (int, float)):
             other = np.array([other, other, other, other], dtype=np.float32)
         elif not isinstance(other, Quaternion):
-            raise TypeError
+            raise TypeError(type(other))
         else:
             other = other.as_numpy
 
@@ -606,7 +609,7 @@ class Quaternion:
 
         q = self._data
 
-        return Quaternion(*[float(item) for item in self.conj() / np.dot(q, q)])
+        return Quaternion(*[float(item) for item in self.conj() / float(np.dot(q, q))])
 
     @classmethod
     def from_euler(cls, x: float, y: float, z: float) -> "Quaternion":

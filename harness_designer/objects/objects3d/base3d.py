@@ -136,8 +136,8 @@ class Base3D:
         if uuid in _vbo.VBOHandler:
             vbo = _vbo.VBOHandler(uuid)
         else:
-            position = model.position
-            angle = model.angle
+            position = model.position3d
+            angle = model.angle3d
 
             vertices = data.vertices
             vertices @= angle
@@ -153,11 +153,29 @@ class Base3D:
                                   face_normals, data.vertex_count)
         vbo.acquire()
 
-        self.vbo = vbo
+        self._vbo = vbo
         self._scale.unbind(self._update_scale)
         self._scale = _point.Point(1.0, 1.0, 1.0)
         self._o_scale = self._scale.copy()
         self._scale.bind(self._update_scale)
+
+        self.position.unbind(self._update_position)
+        self.angle.unbind(self._update_angle)
+
+        self._compute_obb()
+        self._compute_aabb()
+
+        if (
+            self.editor3d.config.floor.enable_floor_lock and
+            self._aabb[0][1] < Config.floor.ground_height
+        ):
+            y = _d(self.position.y)
+            y += _d(Config.floor.ground_height) - _d(float(self._aabb[0][1]))
+
+            self.position.y = float(y)
+
+        self.position.bind(self._update_position)
+        self.angle.bind(self._update_angle)
 
         self.parent.mainframe.editor3d.context.release()
 

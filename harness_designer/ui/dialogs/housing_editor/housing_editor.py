@@ -26,7 +26,7 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
-    def __init__(self, parent: "_ui.MainFrame", db_obj):
+    def __init__(self, parent: "_ui.MainFrame"):
         """Initialise the :class:`HousingEditorDialog` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -36,7 +36,7 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         :param db_obj: Database-backed object.
         :type db_obj: UNKNOWN
         """
-        self.db_obj = db_obj
+        self.db_obj = None
 
         _dialog_base.BaseDialog.__init__(self, parent, 'Edit Housing', size=(1200, 900))
 
@@ -48,6 +48,21 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
 
         self.controls = QTabWidget(self.panel)
         self.controls.setMaximumHeight(250)
+        self.housing: _housing_obj.Housing = None
+        self.housing_panel: _housing_panel.HousingPanel = None
+        self.cavity_panel: _cavity_panel.CavityPanel = None
+        self.accessory_panel: _accessory_panel.AccessoryPanel = None
+
+        v_layout = QVBoxLayout(self.panel)
+        h_layout = QHBoxLayout()
+        h_layout.addWidget(self.canvas, 1)
+        v_layout.addLayout(h_layout, 1)
+        v_layout.addSpacing(5)
+        v_layout.addWidget(self.controls)
+
+    def SetValue(self, db_obj):
+        self.db_obj = db_obj
+
         self.housing = _housing_obj.Housing(self, db_obj)
         self.housing_panel = _housing_panel.HousingPanel(self, self.controls, self.housing.obj3d)
         self.cavity_panel = _cavity_panel.CavityPanel(self, self.controls, self.housing.obj3d)
@@ -57,12 +72,7 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         self.controls.addTab(self.accessory_panel, 'Accessories')
         self.controls.addTab(self.cavity_panel, 'Cavities')
 
-        v_layout = QVBoxLayout(self.panel)
-        h_layout = QHBoxLayout()
-        h_layout.addWidget(self.canvas, 1)
-        v_layout.addLayout(h_layout, 1)
-        v_layout.addSpacing(5)
-        v_layout.addWidget(self.controls)
+        self.update()
 
     def closeEvent(self, event):
         """Clean up the dialog's GL canvas before the window is destroyed."""

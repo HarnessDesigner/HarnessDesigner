@@ -773,7 +773,7 @@ def get_position_on_focal_plane(
     far_world = unproject_from_ndc((ndc_x, ndc_y, 1.0), inv_mvp)
 
     if near_world is None or far_world is None:
-        return None
+        return camera.focal_position.copy()
 
     origin = np.array(near_world, dtype=np.float32)
     direction = np.array(far_world, dtype=np.float32) - origin

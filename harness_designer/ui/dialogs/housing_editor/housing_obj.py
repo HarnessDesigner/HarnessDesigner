@@ -6,8 +6,6 @@ from .... import objects as _objects
 from ....objects.objects3d import base3d as _base3d
 from ....geometry import point as _point
 from ....geometry import angle as _angle
-from ...widgets import float_ctrl as _float_ctrl
-from .. import error as _error_dialog
 from ....shapes import box as _box
 from ....gl import vbo as _vbo
 from ....gl import materials as _materials
@@ -38,8 +36,8 @@ class Housing(_objects.ObjectBase):
         :param housing: Value for ``housing``.
         :type housing: :class:`_housing.Housing`
         """
-
         super().__init__(parent, housing)
+
         self.dialog = parent
         self.obj3d = Housing3D(self, housing)
 
@@ -77,36 +75,7 @@ class Housing3D(_base3d.Base3D):
             width = db_obj.width
             height = db_obj.height
 
-            parent.dialog.mainframe.status_bar.showMessage()
-
-            if 0.0 in (length, width, height):
-                length_ctrl = _float_ctrl.FloatCtrl(None, 'Length',
-                                                    0.01, 500.0, 0.01)
-
-                width_ctrl = _float_ctrl.FloatCtrl(None, 'Width',
-                                                   0.01, 500.0, 0.01)
-
-                height_ctrl = _float_ctrl.FloatCtrl(None, 'Height',
-                                                    0.01, 500.0, 0.01)
-
-                length_ctrl.SetValue(length)
-                width_ctrl.SetValue(width)
-                height_ctrl.SetValue(height)
-
-                dlg = _error_dialog.ErrorDialog(
-                    parent.dialog.mainframe,
-                    'Dimensions are not valid.\n\nPlease set correct dimensions.',
-                    'Dimension Error', length_ctrl, width_ctrl, height_ctrl)
-
-                while 0.0 in (length, width, height):
-                    dlg.exec()
-                    length = length_ctrl.GetValue()
-                    width = width_ctrl.GetValue()
-                    height = height_ctrl.GetValue()
-
-                db_obj.length = length
-                db_obj.width = width
-                db_obj.height = height
+            # parent.dialog.mainframe.status_bar.showMessage()
 
             scale = _point.Point(width, height, length)
             vbo = _box.create_vbo()
@@ -118,14 +87,7 @@ class Housing3D(_base3d.Base3D):
             angle3d = model.angle3d
             position3d = model.position3d
 
-            if uuid in _vbo.VBOHandler:
-                vbo = _vbo.VBOHandler(uuid)
-            else:
-                vertices, faces = model.load()
-                verts, nrmls, count = (
-                    _utils.compute_smooth_normals(vertices, faces))
-
-                vbo = _vbo.VBOHandler(uuid, verts, nrmls, count)
+            vbo = _vbo.VBOHandler(uuid)
 
         vbo.acquire()
 

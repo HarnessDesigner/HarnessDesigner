@@ -279,7 +279,16 @@ class Point(metaclass=PointMeta):
                     return inputs @ self._data
                 else:
                     out = out[0]
+                    shape = out.shape
+
+                    if len(shape) == 1:
+                        out = out.reshape(-1, 3)
+
                     out @= self._data
+
+                    if len(shape) == 1:
+                        out = out.reshape(-1)
+
                     return out
 
             # class instance is left hand and numpy array is right hand
@@ -296,7 +305,16 @@ class Point(metaclass=PointMeta):
                     return inputs + self._data
                 else:
                     out = out[0]
+                    shape = out.shape
+
+                    if len(shape) == 1:
+                        out = out.reshape(-1, 3)
+
                     out += self._data
+
+                    if len(shape) == 1:
+                        out = out.reshape(-1)
+
                     return out
 
             # class instance is left hand and numpy array is right hand
@@ -313,7 +331,16 @@ class Point(metaclass=PointMeta):
                     return inputs - self._data
                 else:
                     out = out[0]
+                    shape = out.shape
+
+                    if len(shape) == 1:
+                        out = out.reshape(-1, 3)
+
                     out -= self._data
+
+                    if len(shape) == 1:
+                        out = out.reshape(-1)
+
                     return out
 
             # class instance is left hand and numpy array is right hand
@@ -330,7 +357,16 @@ class Point(metaclass=PointMeta):
                     return inputs * self._data
                 else:
                     out = out[0]
+                    shape = out.shape
+
+                    if len(shape) == 1:
+                        out = out.reshape(-1, 3)
+
                     out *= self._data
+
+                    if len(shape) == 1:
+                        out = out.reshape(-1)
+
                     return out
 
             # class instance is left hand and numpy array is right hand

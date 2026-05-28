@@ -1018,6 +1018,7 @@ class MainFrame(QMainWindow):
                 self._obj_handler = None
 
             evt.StopPropagation()
+            return
         else:
             evt.Skip()
 
@@ -1028,6 +1029,8 @@ class MainFrame(QMainWindow):
         elif mode == _toolbar.ID_CONNECTOR:
             evt.StopPropagation()
             self.add_housing(position3d=evt.GetPosition())
+
+
         elif mode == _toolbar.ID_TERMINAL:
             evt.StopPropagation()
             self.add_terminal(position3d=evt.GetWorldPosition())
@@ -1887,8 +1890,9 @@ class MainFrame(QMainWindow):
         """
 
         if position3d is not None:
-            self._housing_handler = _handlers.AddHousingHandler(self)
-            self._housing_handler.capture_position(position3d)
+            housing_handler = _handlers.AddHousingHandler(self)
+            housing_handler.capture_position(position3d)
+            housing_handler.release_capture()
 
     def add_terminal(self, position2d: "_point.Point" = None,
                      position3d: "_point.Point" = None, part_id: int = None) -> None:

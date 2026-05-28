@@ -376,12 +376,15 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
             in_message = in_queue.get_nowait()
             in_message = json.loads(in_message)
 
+            with print_lock:
+                print('loop message:', in_message)
+
             model_id = in_message['id']
             mfg = in_message['mfg']
             part_number = in_message['part_number']
             model_dir = in_message['model_dir']
 
-            message = {'step': 1, 'id': model_id, 'mfg': mfg, 'part_number': part_number}
+            message = {'step': 0, 'id': model_id, 'mfg': mfg, 'part_number': part_number}
             out_queue.put(json.dumps(message))
 
             if exit_event.is_set():
@@ -401,7 +404,7 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
             if exit_event.is_set():
                 break
 
-            message['step'] = 2
+            message['step'] = 1
             out_queue.put(json.dumps(message))
 
             target_count, aggressiveness, update_rate, iterations, simplify, path = model_data[0]
@@ -414,7 +417,7 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
             if exit_event.is_set():
                 break
 
-            message['step'] = 3
+            message['step'] = 2
             out_queue.put(json.dumps(message))
 
             file_path = _resources.collect_resource(connector, _resources.IMAGE_TYPE_MODEL, path)
@@ -427,28 +430,34 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
             if exit_event.is_set():
                 break
 
-            message['step'] = 4
+            message['step'] = 3
             out_queue.put(json.dumps(message))
 
-            ext = os.path.splitext(file_path)[-1]
+            model_path, file_type_id = file_path
 
-            connector.execute(f'SELECT id, extension FROM file_types WHERE extension={ext[1:]};')
-            file_type = connector.fetchall()
-            if not file_type:
-                message['err'] = f'unsupported file type ("{ext[1:]}")'
+            connector.execute(f'SELECT extension FROM file_types WHERE id={file_type_id};')
+            rows = connector.fetchall()
+            if not rows:
+                message['err'] = f'unsupported file type'
                 out_queue.put(json.dumps(message))
                 continue
+
+            ext = rows[0][0]
 
             if exit_event.is_set():
                 break
 
-            file_type_id, ext = file_type[0]
-
-            message['step'] = 5
+            message['step'] = 4
             out_queue.put(json.dumps(message))
 
+            if not os.path.exists(model_path):
+                message['err'] = f'file does not exist ("{model_path}")'
+
+                out_queue.put(json.dumps(message))
+                continue
+
             try:
-                vertices, faces = _load(file_path)
+                vertices, faces = _load(model_path)
             except Exception:  # NOQA
 
                 import traceback
@@ -464,13 +473,13 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
             vertices = _center_model(vertices)
 
             if simplify:
-                message['step'] = 6
+                message['step'] = 5
                 out_queue.put(json.dumps(message))
 
                 vertices, faces = _reduce_triangles(
                     vertices, faces, target_count, aggressiveness, iterations)
 
-            message['step'] = 7
+            message['step'] = 6
             out_queue.put(json.dumps(message))
 
             vertices, smooth_normals, face_normals, _ = (
@@ -479,7 +488,7 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
             if exit_event.is_set():
                 break
 
-            message['step'] = 8
+            message['step'] = 7
             out_queue.put(json.dumps(message))
 
             model_data = _model_data.ModelData(vertices, smooth_normals, face_normals)
@@ -495,11 +504,16 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
 
             model_data.save(model_dir)
 
+            message['step'] = 8
+            out_queue.put(json.dumps(message))
+
+            connector.execute(f'UPDATE models3d SET file_type_id={file_type_id}, uuid="{uuid}" WHERE id={model_id};')
+            connector.commit()
+
             message['step'] = 9
             out_queue.put(json.dumps(message))
 
-            connector.execute(f'UPDATE model3d SET file_type_id={file_type_id}, uuid="{uuid}" WHERE id={model_id};')
-            connector.commit()
+            os.remove(model_path)
 
             message['step'] = 10
             out_queue.put(json.dumps(message))
@@ -558,7 +572,7 @@ class ProcessWorker:
         :returns: ``None``.
         :rtype: None
         """
-        self.out_queue.put(message)
+        self.out_queue.put_nowait(message)
         self.sleep_event.set()
 
     def recv(self):  # NOQA

@@ -84,13 +84,6 @@ class Color(metaclass=ColorMeta):
         to_qcolor()          — new helper, returns a QColor for Qt widgets
     """
 
-    __slots__ = (
-        'db_id',
-        '_r', '_g', '_b', '_a',
-        '_callbacks',
-        '_ref_count',
-    )
-
     def __init__(self, r: int | float, g: int | float,
                  b: int | float, a: int | float = 255,
                  db_id: str | None = None):
