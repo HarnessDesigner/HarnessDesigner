@@ -26,14 +26,14 @@ cdef bint aabb_in_frustum_nogil(float* frustum_normals, float* frustum_distances
     cdef int i, idx
 
     # Center
-    cx = (aabb_min[0] + aabb_max[0]) * 0.5f
-    cy = (aabb_min[1] + aabb_max[1]) * 0.5f
-    cz = (aabb_min[2] + aabb_max[2]) * 0.5f
+    cx = (aabb_min[0] + aabb_max[0]) * <float>0.5
+    cy = (aabb_min[1] + aabb_max[1]) * <float>0.5
+    cz = (aabb_min[2] + aabb_max[2]) * <float>0.5
 
     # Extents
-    ex = (aabb_max[0] - aabb_min[0]) * 0.5f
-    ey = (aabb_max[1] - aabb_min[1]) * 0.5f
-    ez = (aabb_max[2] - aabb_min[2]) * 0.5f
+    ex = (aabb_max[0] - aabb_min[0]) * <float>0.5
+    ey = (aabb_max[1] - aabb_min[1]) * <float>0.5
+    ez = (aabb_max[2] - aabb_min[2]) * <float>0.5
 
     # Test each frustum plane
     for i in range(6):
@@ -48,7 +48,7 @@ cdef bint aabb_in_frustum_nogil(float* frustum_normals, float* frustum_distances
              fabsf(frustum_normals[idx + 1]) * ey +
              fabsf(frustum_normals[idx + 2]) * ez)
 
-        if s + r < 0.0f:
+        if s + r < <float>0.0:
             return False
 
     return True
@@ -132,7 +132,7 @@ def cull_batch(list object_rows, float[:, ::1] frustum_normals_2d,
                 dist_sq[i] = dx * dx + dy * dy + dz * dz
             else:
                 visible[i] = 0
-                dist_sq[i] = 0.0f
+                dist_sq[i] = <float>0.0
 
     # Gather results (WITH GIL) - keep ORIGINAL row objects!
     cdef list opaque = []
