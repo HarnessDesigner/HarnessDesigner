@@ -19,16 +19,46 @@ Photos of the work in progress...
 
 Latest Additions...
 
-The Schematic Editor is starting to take shape. I am using OpenGL to handle the
-rendering for this as well. I have the mouse controls sorted out as well as snap 
-to grid and angle snap. The grid properly displays.
+OK so where I am at now...
 
-I also added a log file manager. I still have to add the ability to delete logfiles.
-I did add archiving of the log filesonce they get to a size the user is able to 
-define. The user is also able to set the number of archives as well.
+I changed UI frameworks from wxPython to PySide6 (QT). There were too many little
+glitches and things in wxPython I was not willing to contend with. It was also 
+horribly slow which made is super annoying when doing things like scrolling through
+70K parts in the database.
 
-Somewhere along the line I seem to have lost the axis indicator. I am going to have 
-to add that back in.
+I changed the "database editor" to be more of a viewer. you cannot directly edit
+in it and I have not decided if I want to add the ability to directly edit or to open
+a dialog to edit. 
+
+The database viewer now has a multi stage sorting feature. If you click on the colum n header
+it will sort based on that header. click once sorts ascending clock twice and it dorts 
+descending and click a third time and it turns off the sorting for that column. The multi stage part
+is if you click a second column to sort and a third and so on and so forth. There is an inficator
+to show the sort direction and if more than one column is being sorted there will be a number in ()'s 
+after the inficator. That number is the sorting order. you can remove a sorted column that is not 
+the last column in the sort order by clicking on it x times where x is the number of clicks needed to 
+get to the disable click. 
+
+
+I now have the first system requirement in place. The machine needs to have at least a 4 core CPU
+in order to run the application. This is because of running multiple process. You have the main 
+process and 3 child processes that run. The first child process looks at the database for any changes 
+that may have occurred. the second process downloads images for use in the database viewer and the third 
+process handles downloading the models. 
+
+The handling of the models has changed. This change was needed because of the length of time it would take
+to load and convert the models to a form that I can use with opengl. I didn't want to have
+the user not be able to work while this was happening. That is the reason why this is done
+in a child process. Once the model is converted the converted data gets saved to a file with the extension ".hdz"
+This file is simply a zip file that contains a binary representation of numpy arrays
+and it also contains a metadata file. This streamlines the loading process so no conversion
+needs to be done once the file has loaded the first time around. This should make
+loading a project leaps and bounds faster. 
+
+I added a theme manager. currently there is only a dark and a light theme but user if they want can 
+create their own themes and add them to the manager. Currently there is no ui to do this and it would 
+need to be done via QT style sheets.
+
 
 
 Things I still have to do...
