@@ -1,4 +1,4 @@
-# distutils: include_dirs = c:\python3.11.14\Lib\site-packages\numpy\_core\include
+# distutils: include_dirs = C:\Python3.11.14\Lib\site-packages\numpy\_core\include
 # culling_nogil.pyx
 # cython: language_level=3
 # cython: boundscheck=False
@@ -9,7 +9,7 @@
 import numpy as np
 cimport numpy as np
 from libc.stdlib cimport malloc, free
-from libc.math cimport fabs
+from libc.math cimport fabsf
 import threading
 from queue import Queue, Empty
 import ctypes
@@ -17,23 +17,23 @@ cimport cython
 
 
 # Fast AABB-frustum test (pure C, no GIL)
-cdef bint aabb_in_frustum_nogil(double* frustum_normals, double* frustum_distances,
-                                double* aabb_min, double* aabb_max) nogil:
+cdef bint aabb_in_frustum_nogil(float* frustum_normals, float* frustum_distances,
+                                float* aabb_min, float* aabb_max) nogil:
 
     """Test if AABB intersects frustum."""
-    cdef double cx, cy, cz, ex, ey, ez
-    cdef double s, r
+    cdef float cx, cy, cz, ex, ey, ez
+    cdef float s, r
     cdef int i, idx
 
     # Center
-    cx = (aabb_min[0] + aabb_max[0]) * 0.5
-    cy = (aabb_min[1] + aabb_max[1]) * 0.5
-    cz = (aabb_min[2] + aabb_max[2]) * 0.5
+    cx = (aabb_min[0] + aabb_max[0]) * <float>0.5
+    cy = (aabb_min[1] + aabb_max[1]) * <float>0.5
+    cz = (aabb_min[2] + aabb_max[2]) * <float>0.5
 
     # Extents
-    ex = (aabb_max[0] - aabb_min[0]) * 0.5
-    ey = (aabb_max[1] - aabb_min[1]) * 0.5
-    ez = (aabb_max[2] - aabb_min[2]) * 0.5
+    ex = (aabb_max[0] - aabb_min[0]) * <float>0.5
+    ey = (aabb_max[1] - aabb_min[1]) * <float>0.5
+    ez = (aabb_max[2] - aabb_min[2]) * <float>0.5
 
     # Test each frustum plane
     for i in range(6):
@@ -44,11 +44,11 @@ cdef bint aabb_in_frustum_nogil(double* frustum_normals, double* frustum_distanc
              frustum_normals[idx + 2] * cz +
              frustum_distances[i])
 
-        r = (fabs(frustum_normals[idx + 0]) * ex +
-             fabs(frustum_normals[idx + 1]) * ey +
-             fabs(frustum_normals[idx + 2]) * ez)
+        r = (fabsf(frustum_normals[idx + 0]) * ex +
+             fabsf(frustum_normals[idx + 1]) * ey +
+             fabsf(frustum_normals[idx + 2]) * ez)
 
-        if s + r < 0.0:
+        if s + r < <float>0.0:
             return False
 
     return True
@@ -56,8 +56,8 @@ cdef bint aabb_in_frustum_nogil(double* frustum_normals, double* frustum_distanc
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def cull_batch(list object_rows, double[:, ::1] frustum_normals_2d,
-                      double[::1] frustum_distances, double[::1] camera_pos):
+def cull_batch(list object_rows, float[:, ::1] frustum_normals_2d,
+                      float[::1] frustum_distances, float[::1] camera_pos):
     """
     Python-facing function that unpacks object rows and calls nogil culling.
 
@@ -67,29 +67,29 @@ def cull_batch(list object_rows, double[:, ::1] frustum_normals_2d,
     Returns list of ORIGINAL row objects that are visible, sorted for rendering.
     """
 
-    cdef int n = len(object_rows)
+    cdef int n = <int>len(object_rows)
 
     if n == 0:
         return []
 
     cdef int i, idx
-    cdef double* frustum_normals = &frustum_normals_2d[0, 0]
-    cdef double cam_x = camera_pos[0]
-    cdef double cam_y = camera_pos[1]
-    cdef double cam_z = camera_pos[2]
+    cdef float* frustum_normals = &frustum_normals_2d[0, 0]
+    cdef float cam_x = camera_pos[0]
+    cdef float cam_y = camera_pos[1]
+    cdef float cam_z = camera_pos[2]
 
     # Allocate output arrays
     cdef int* visible = <int*>malloc(n * sizeof(int))
-    cdef double* dist_sq = <double*>malloc(n * sizeof(double))
+    cdef float* dist_sq = <float*>malloc(n * sizeof(float))
     cdef int* is_opaque_arr = <int*>malloc(n * sizeof(int))
 
     # Temporary storage for numpy array pointers
-    cdef double** aabb_mins = <double**>malloc(n * sizeof(double*))
-    cdef double** aabb_maxs = <double**>malloc(n * sizeof(double*))
-    cdef double** positions = <double**>malloc(n * sizeof(double*))
+    cdef float** aabb_mins = <float**>malloc(n * sizeof(float*))
+    cdef float** aabb_maxs = <float**>malloc(n * sizeof(float*))
+    cdef float** positions = <float**>malloc(n * sizeof(float*))
 
     # Unpack object rows (WITH GIL - but minimal work)
-    cdef double[::1] aabb_min_view, aabb_max_view, pos_view
+    cdef float[::1] aabb_min_view, aabb_max_view, pos_view
     cdef object row, is_opaque_obj
 
     for i in range(n):
@@ -116,7 +116,7 @@ def cull_batch(list object_rows, double[:, ::1] frustum_normals_2d,
             is_opaque_arr[i] = <int>is_opaque_obj
 
     # CULLING WITH NO GIL!
-    cdef double dx, dy, dz
+    cdef float dx, dy, dz
 
     with nogil:
         for i in range(n):
@@ -132,7 +132,7 @@ def cull_batch(list object_rows, double[:, ::1] frustum_normals_2d,
                 dist_sq[i] = dx * dx + dy * dy + dz * dz
             else:
                 visible[i] = 0
-                dist_sq[i] = 0.0
+                dist_sq[i] = <float>0.0
 
     # Gather results (WITH GIL) - keep ORIGINAL row objects!
     cdef list opaque = []
