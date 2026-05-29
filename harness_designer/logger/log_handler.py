@@ -392,12 +392,9 @@ class Log(object):
             self.error(msg)
 
         if Config.log_traceback:
-            lines = traceback.format_exception(exception)
-
-            for line in lines:
-                line = line.rstrip()
-                log_entry = build_message(TRACEBACK, [line])
-                self.log_handler.write(log_entry)
+            block = ''.join(traceback.format_exception(exception)).rstrip()
+            if block:
+                self._write_block(TRACEBACK, block)
                 self.log_handler.flush()
 
     def database(self, *args):
