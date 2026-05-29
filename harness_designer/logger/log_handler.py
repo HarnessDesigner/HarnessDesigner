@@ -91,10 +91,10 @@ class LogHandler:
             last_log = os.path.join(Config.save_path, 'log-1.csv')
             # Create empty CSV with headers
             df = pd.DataFrame(columns=['timestamp', 'level', 'message'])
-            df.to_csv(last_log, index=False)
+            df.to_csv(last_log, index=False, encoding='utf-8', lineterminator='\n')
 
         self._logfile_path = last_log
-        self._logfile = open(last_log, 'a')
+        self._logfile = open(last_log, 'a', encoding='utf-8', newline='')
         self._index = index
 
         # Track current file size
@@ -129,10 +129,10 @@ class LogHandler:
 
         # Create new CSV file with headers
         df = pd.DataFrame(columns=['timestamp', 'level', 'message'])
-        df.to_csv(log, index=False)
+        df.to_csv(log, index=False, encoding='utf-8', lineterminator='\n')
 
         self._current_size = os.path.getsize(log)
-        self._logfile = open(log, 'a')
+        self._logfile = open(log, 'a', encoding='utf-8', newline='')
         self._callback()
 
     def _archive_files(self):
@@ -192,11 +192,11 @@ class LogHandler:
             df = pd.DataFrame([log_entry])
 
             # Append to CSV file
-            data = df.to_csv(header=False, index=False)
-            self._logfile.write(data.strip() + '\n')
+            data = df.to_csv(header=False, index=False, encoding='utf-8', lineterminator='\n')
+            self._logfile.write(data)
 
             # Update file size
-            self._current_size += len(data)
+            self._current_size += len(data.encode('utf-8'))
 
             # Notify callback
             self._callback(df)
@@ -234,8 +234,8 @@ class LogHandler:
         :returns: ``None``.
         :rtype: None
         """
-        # No buffering to flush
-        pass
+        if self._logfile is not None:
+            self._logfile.flush()
 
 
 class Log(object):
@@ -250,53 +250,79 @@ class Log(object):
 
         from ..gl import info as _gl_info
 
-        self.info('----------------------------------------')
-        self.info('        Harness Designer started')
-        self.info('----------------------------------------')
-        self.info('')
-        self.info('Harness Designer Version:', __version__.string)
-        self.info('\n')
-        self.info('--------------    GL     ---------------')
+        startup_block = [
+            '----------------------------------------',
+            '        Harness Designer started',
+            '----------------------------------------',
+            '',
+            f'Harness Designer Version: {__version__.string}',
+            '',
+            '--------------    GL     ---------------'
+        ]
 
         data = _gl_info.get()
         for header, items in data.items():
-
             if isinstance(items, dict):
                 pre_suf_count = int((40 - (len(header) + 4)) / 2)
-
                 pre_suf = '=' * pre_suf_count
-
-                header = f'{pre_suf}  {header}  '
+                header_line = f'{pre_suf}  {header}  '
 
                 if pre_suf_count % 2:
                     pre_suf = f' {pre_suf}'
 
-                self.info(header + pre_suf)
+                startup_block.append(header_line + pre_suf)
 
                 for label, value in items.items():
-                    self.info(f'{label}:', value)
+                    startup_block.append(f'{label}: {value}')
 
-                self.info('\n')
+                startup_block.append('')
             else:
-                self.info(f'{header}:', items)
-        self.info('\n', '----------------------------------------', '\n')
+                startup_block.append(f'{header}: {items}')
 
-        self.info('--------------  Machine  ---------------', '\n')
-        self.info('Machine type:', platform.machine())
-        self.info('Processor:', platform.processor())
-        self.info('Architecture:', platform.architecture())
-        self.info(
-            'Python:',
-            platform.python_branch(),
-            platform.python_version(),
-            platform.python_implementation(),
-            platform.python_build(),
-            f'[{platform.python_compiler()}]'
-        )
-        self.info('\n', '----------------------------------------', '\n')
+        startup_block.extend([
+            '',
+            '----------------------------------------',
+            '',
+            '--------------  Machine  ---------------',
+            '',
+            f'Machine type: {platform.machine()}',
+            f'Processor: {platform.processor()}',
+            f'Architecture: {platform.architecture()}',
+            (
+                'Python: '
+                f'{platform.python_branch()} '
+                f'{platform.python_version()} '
+                f'{platform.python_implementation()} '
+                f'{platform.python_build()} '
+                f'[{platform.python_compiler()}]'
+            ),
+            '',
+            '----------------------------------------',
+            ''
+        ])
+
+        self.info_block('\n'.join(startup_block))
 
         from ..import logger as _logger
         _logger.logger = self
+
+    def _write_lines(self, msg_type, *args):
+        args = list(args)
+
+        for arg in args[:]:
+            if isinstance(arg, str) and '\n' in arg:
+                for line in arg.split('\n'):
+                    log_entry = build_message(msg_type, [line])
+                    self.log_handler.write(log_entry)
+                args.remove(arg)
+
+        if args:
+            log_entry = build_message(msg_type, args)
+            self.log_handler.write(log_entry)
+
+    def _write_block(self, msg_type, *args):
+        log_entry = build_message(msg_type, args)
+        self.log_handler.write(log_entry)
 
     def flush(self):
         """Flush the underlying :class:`LogHandler`.
@@ -307,140 +333,50 @@ class Log(object):
         self.log_handler.flush()
 
     def print(self, *args, msg_type=INFO):
-        """Write a message with an explicit log level.
+        self._write_lines(msg_type, *args)
 
-        Embedded newline characters are split into separate log entries.
-
-        :param args: Message parts to stringify and join.
-        :type args: tuple
-        :param msg_type: Numeric log level constant.
-        :type msg_type: int
-        :returns: ``None``.
-        :rtype: None
-        """
-        args = list(args)
-
-        for arg in args[:]:
-            if isinstance(arg, str) and '\n' in arg:
-                for line in arg.split('\n'):
-                    log_entry = build_message(msg_type, line)
-                    self.log_handler.write(log_entry)
-                args.remove(arg)
-
-        if args:
-            log_entry = build_message(msg_type, args)
-            self.log_handler.write(log_entry)
+    def print_block(self, *args, msg_type=INFO):
+        self._write_block(msg_type, *args)
 
     def info(self, *args):
-        """Write an informational message.
+        self._write_lines(INFO, *args)
 
-        :param args: Message parts to stringify and join.
-        :type args: tuple
-        :returns: ``None``.
-        :rtype: None
-        """
-        args = list(args)
-
-        for arg in args[:]:
-            if isinstance(arg, str) and '\n' in arg:
-                for line in arg.split('\n'):
-                    log_entry = build_message(INFO, line)
-                    self.log_handler.write(log_entry)
-                args.remove(arg)
-
-        if args:
-            log_entry = build_message(INFO, args)
-            self.log_handler.write(log_entry)
+    def info_block(self, *args):
+        self._write_block(INFO, *args)
 
     def debug(self, *args):
-        """Write a debug message when debug logging is enabled.
-
-        :param args: Message parts to stringify and join.
-        :type args: tuple
-        :returns: ``None``.
-        :rtype: None
-        """
         if Config.log_debug:
-            args = list(args)
+            self._write_lines(DEBUG, *args)
 
-            for arg in args[:]:
-                if isinstance(arg, str) and '\n' in arg:
-                    for line in arg.split('\n'):
-                        log_entry = build_message(DEBUG, line)
-                        self.log_handler.write(log_entry)
-                    args.remove(arg)
-
-            if args:
-                log_entry = build_message(DEBUG, args)
-                self.log_handler.write(log_entry)
+    def debug_block(self, *args):
+        if Config.log_debug:
+            self._write_block(DEBUG, *args)
 
     def notice(self, *args):
-        """Write a notice message when notice logging is enabled.
-
-        :param args: Message parts to stringify and join.
-        :type args: tuple
-        :returns: ``None``.
-        :rtype: None
-        """
         if Config.log_notice:
-            args = list(args)
+            self._write_lines(NOTICE, *args)
 
-            for arg in args[:]:
-                if isinstance(arg, str) and '\n' in arg:
-                    for line in arg.split('\n'):
-                        log_entry = build_message(NOTICE, line)
-                        self.log_handler.write(log_entry)
-                    args.remove(arg)
-
-            if args:
-                log_entry = build_message(NOTICE, args)
-                self.log_handler.write(log_entry)
+    def notice_block(self, *args):
+        if Config.log_notice:
+            self._write_block(NOTICE, *args)
 
     def warning(self, *args):
-        """Write a warning message when warning logging is enabled.
-
-        :param args: Message parts to stringify and join.
-        :type args: tuple
-        :returns: ``None``.
-        :rtype: None
-        """
         if Config.log_warning:
-            args = list(args)
+            self._write_lines(WARNING, *args)
 
-            for arg in args[:]:
-                if isinstance(arg, str) and '\n' in arg:
-                    for line in arg.split('\n'):
-                        log_entry = build_message(WARNING, line)
-                        self.log_handler.write(log_entry)
-                    args.remove(arg)
-
-            if args:
-                log_entry = build_message(WARNING, args)
-                self.log_handler.write(log_entry)
+    def warning_block(self, *args):
+        if Config.log_warning:
+            self._write_block(WARNING, *args)
 
     def error(self, *args):
-        """Write an error message when error logging is enabled.
-
-        :param args: Message parts to stringify and join.
-        :type args: tuple
-        :returns: ``None``.
-        :rtype: None
-        """
         if Config.log_error:
-            args = list(args)
+            self._write_lines(ERROR, *args)
+            self.log_handler.flush()
 
-            for arg in args[:]:
-                if isinstance(arg, str) and '\n' in arg:
-                    for line in arg.split('\n'):
-                        log_entry = build_message(ERROR, line)
-                        self.log_handler.write(log_entry)
-                        self.log_handler.flush()
-                    args.remove(arg)
-
-            if args:
-                log_entry = build_message(ERROR, args)
-                self.log_handler.write(log_entry)
-                self.log_handler.flush()
+    def error_block(self, *args):
+        if Config.log_error:
+            self._write_block(ERROR, *args)
+            self.log_handler.flush()
 
     def traceback(self, exception, msg=None):
         """Write an exception traceback and optional message.
@@ -456,35 +392,17 @@ class Log(object):
             self.error(msg)
 
         if Config.log_traceback:
-            lines = traceback.format_exception(exception)
-
-            for line in lines:
-                line = line.rstrip()
-                log_entry = build_message(TRACEBACK, [line])
-                self.log_handler.write(log_entry)
+            block = ''.join(traceback.format_exception(exception)).rstrip()
+            if block:
+                self._write_block(TRACEBACK, block)
                 self.log_handler.flush()
 
     def database(self, *args):
-        """Write a database log message when database logging is enabled.
-
-        :param args: Message parts to stringify and join.
-        :type args: tuple
-        :returns: ``None``.
-        :rtype: None
-        """
         if Config.log_database:
-            args = list(args)
+            self._write_lines(DATABASE, *args)
+            self.log_handler.flush()
 
-            for arg in args[:]:
-                if isinstance(arg, str) and '\n' in arg:
-                    for line in arg.split('\n'):
-                        log_entry = build_message(DATABASE, line)
-                        self.log_handler.write(log_entry)
-                        self.log_handler.flush()
-
-                    args.remove(arg)
-
-            if args:
-                log_entry = build_message(DATABASE, args)
-                self.log_handler.write(log_entry)
-                self.log_handler.flush()
+    def database_block(self, *args):
+        if Config.log_database:
+            self._write_block(DATABASE, *args)
+            self.log_handler.flush()
