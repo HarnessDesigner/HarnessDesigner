@@ -660,15 +660,13 @@ class MouseHandler:
         if step_distance < _EPSILON:
             return
 
-        max_step_angle = math.degrees(math.atan2(step_distance, current_norm))
-        max_delta = max(abs(yaw_delta), abs(pitch_delta))
+        angular_step_size = math.degrees(math.atan2(step_distance, current_norm))
+        largest_rotation_component = max(abs(yaw_delta), abs(pitch_delta))
 
-        if max_delta > max_step_angle and max_step_angle > _EPSILON:
-            scale = max_step_angle / max_delta
+        if largest_rotation_component > angular_step_size and angular_step_size > _EPSILON:
+            scale = angular_step_size / largest_rotation_component
             yaw_delta *= scale
             pitch_delta *= scale
-        elif max_step_angle <= _EPSILON:
-            return
 
         camera.PanTilt(yaw_delta, pitch_delta)
 
