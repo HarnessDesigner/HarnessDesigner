@@ -351,13 +351,12 @@ class ProcessManager(threading.Thread):
         """
         from harness_designer import app as _app
 
-        wait_count = 0
-
         curr_progress_index = 0
         curr_progresses = []
         start_progress = False
 
         while not self._exit_event.is_set():
+            got_message = False
 
             with self._model_lock:
                 offset = 0
@@ -366,9 +365,6 @@ class ProcessManager(threading.Thread):
 
                     if message is None:
                         continue
-
-                    with self._print_lock:
-                        print('thread loop:', message)
 
                     if 'exit_loop' in message:
                         self._model_processes.remove(process)
@@ -407,6 +403,7 @@ class ProcessManager(threading.Thread):
                             _app.CallAfter(_do)
                             start_progress = False
 
+                        continue
                     else:
                         step = message['step']
                         part_number = message['part_number']
@@ -448,6 +445,10 @@ class ProcessManager(threading.Thread):
                         _app.CallAfter(_do, step, part_number, start_progress)
 
                         start_progress = False
+                        got_message = True
+
+            if got_message:
+                continue
 
             if self._model_process_active:
                 self.wait_duration = 5

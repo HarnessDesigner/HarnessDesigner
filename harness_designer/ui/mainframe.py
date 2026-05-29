@@ -617,6 +617,9 @@ class MainFrame(QMainWindow):
         it fires continuously while running — so there is no explicit
         restart needed when new work arrives.
         """
+
+        return
+
         if self.project is None:
             return
 
