@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+import math
+
 from PySide6 import QtCore
 
 from . import canvas as _canvas
@@ -9,6 +11,7 @@ from . import arcball as _arcball
 from ...geometry import point as _point
 from ...shapes import sphere as _sphere
 from ... import config as _config
+from ... import utils as _utils
 from .. import events as _events
 from ... import handlers as _handlers
 
@@ -593,8 +596,61 @@ class MouseHandler:
         :type evt: UNKNOWN
         """
         delta = 1.0 if evt.angleDelta().y() > 0 else -1.0
+
+        if self.canvas.config.walk.mouse & MOUSE_WHEEL:
+            self._orient_to_mouse_on_focal_plane(_qt_pos(evt))
+
         self._process_mouse(MOUSE_WHEEL)(delta, 0.0)
         self.canvas.update()
+
+    def _orient_to_mouse_on_focal_plane(self, mouse_pos: _point.Point) -> None:
+        camera = self.canvas.camera
+        target = _utils.get_position_on_focal_plane(mouse_pos, camera)
+        camera_pos = camera.position
+        focal_pos = camera.focal_position
+
+        current_forward = (
+            focal_pos.x - camera_pos.x,
+            focal_pos.y - camera_pos.y,
+            focal_pos.z - camera_pos.z
+        )
+        desired_forward = (
+            target.x - camera_pos.x,
+            target.y - camera_pos.y,
+            target.z - camera_pos.z
+        )
+
+        current_norm = math.sqrt(sum(v * v for v in current_forward))
+        desired_norm = math.sqrt(sum(v * v for v in desired_forward))
+
+        if current_norm < 1e-6 or desired_norm < 1e-6:
+            return
+
+        current_forward = tuple(v / current_norm for v in current_forward)
+        desired_forward = tuple(v / desired_norm for v in desired_forward)
+
+        current_xz = (current_forward[0], current_forward[2])
+        desired_xz = (desired_forward[0], desired_forward[2])
+
+        current_xz_norm = math.sqrt((current_xz[0] * current_xz[0]) + (current_xz[1] * current_xz[1]))
+        desired_xz_norm = math.sqrt((desired_xz[0] * desired_xz[0]) + (desired_xz[1] * desired_xz[1]))
+
+        yaw_delta = 0.0
+        if current_xz_norm > 1e-6 and desired_xz_norm > 1e-6:
+            current_xz = tuple(v / current_xz_norm for v in current_xz)
+            desired_xz = tuple(v / desired_xz_norm for v in desired_xz)
+            dot = max(-1.0, min(1.0, (current_xz[0] * desired_xz[0]) + (current_xz[1] * desired_xz[1])))
+            cross = (current_xz[0] * desired_xz[1]) - (current_xz[1] * desired_xz[0])
+            yaw_delta = -math.degrees(math.atan2(cross, dot))
+
+        current_pitch = math.degrees(math.atan2(current_forward[1], current_xz_norm))
+        desired_pitch = math.degrees(math.atan2(desired_forward[1], desired_xz_norm))
+        pitch_delta = desired_pitch - current_pitch
+
+        if abs(yaw_delta) < 1e-6 and abs(pitch_delta) < 1e-6:
+            return
+
+        camera.PanTilt(yaw_delta, pitch_delta)
 
     def on_mouse_motion(self, evt):
         """Handle the mouse motion event.
