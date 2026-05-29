@@ -130,11 +130,11 @@ class _MeshArena:
 
         self._free_ranges = merged
 
-    def _upload_to_buffer(self, buffer_id: int, start: int, data: np.ndarray):
+    def _upload_to_buffer(self, buffer_id: int, start_vertex: int, data: np.ndarray):
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, buffer_id)
         GL.glBufferSubData(
             GL.GL_ARRAY_BUFFER,
-            start * 3 * np.dtype(np.float32).itemsize,
+            start_vertex * 3 * np.dtype(np.float32).itemsize,
             data.nbytes,
             data,
         )
@@ -153,9 +153,18 @@ class _MeshArena:
         if offset < 0:
             raise ValueError('vertex_offset cannot be negative')
 
-        chunk_count = len(vertices)
+        chunk_count = len(vertices) // 3
         if chunk_count == 0:
             return
+
+        if len(vertices) % 3 != 0:
+            raise ValueError('vertex array length must be divisible by 3')
+
+        if len(smooth_normals) != len(vertices):
+            raise ValueError('smooth_normals length must match vertices length')
+
+        if len(face_normals) != len(vertices):
+            raise ValueError('face_normals length must match vertices length')
 
         if offset + chunk_count > alloc.count:
             raise ValueError('partial upload exceeds allocation size')
@@ -330,8 +339,6 @@ class VBOHandler(metaclass=VBOSingleton):
         self.__vbo_face_normals = None
         self.__vaos: dict[int, int] = {}
 
-        vertex_count_hint = count
-
         self.__vertices = vertices
         self.__smooth_normals = smooth_normals
         self.__face_normals = face_normals
@@ -345,7 +352,7 @@ class VBOHandler(metaclass=VBOSingleton):
         if self.__face_normals is None:
             self.__face_normals = self.__smooth_normals.copy()
 
-        self.__vert_count = len(self.__vertices)
+        self.__vert_count = self._normalize_vertex_count(count, len(self.__vertices))
 
         if self._arena_kind == VBO_TYPE_MODEL:
             arena = self._allocate_model_arena(self.id, self.__vert_count)
@@ -367,16 +374,13 @@ class VBOHandler(metaclass=VBOSingleton):
 
     @staticmethod
     def _normalize_vertex_count(count: int, array_len: int) -> int:
-        if count <= 0:
-            return int(array_len)
+        if count > 0:
+            return int(count)
 
-        if count == array_len * 3:
-            return int(array_len)
+        if array_len % 3 != 0:
+            raise ValueError('flattened vertex array length must be divisible by 3')
 
-        if count > array_len:
-            return int(array_len)
-
-        return int(count)
+        return int(array_len // 3)
 
     @classmethod
     def _allocate_model_arena(cls, key: str, vertex_count: int) -> _MeshArena:
