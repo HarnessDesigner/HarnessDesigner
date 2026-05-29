@@ -91,10 +91,10 @@ class LogHandler:
             last_log = os.path.join(Config.save_path, 'log-1.csv')
             # Create empty CSV with headers
             df = pd.DataFrame(columns=['timestamp', 'level', 'message'])
-            df.to_csv(last_log, index=False)
+            df.to_csv(last_log, index=False, encoding='utf-8', lineterminator='\n')
 
         self._logfile_path = last_log
-        self._logfile = open(last_log, 'a')
+        self._logfile = open(last_log, 'a', encoding='utf-8', newline='')
         self._index = index
 
         # Track current file size
@@ -129,10 +129,10 @@ class LogHandler:
 
         # Create new CSV file with headers
         df = pd.DataFrame(columns=['timestamp', 'level', 'message'])
-        df.to_csv(log, index=False)
+        df.to_csv(log, index=False, encoding='utf-8', lineterminator='\n')
 
         self._current_size = os.path.getsize(log)
-        self._logfile = open(log, 'a')
+        self._logfile = open(log, 'a', encoding='utf-8', newline='')
         self._callback()
 
     def _archive_files(self):
@@ -192,11 +192,11 @@ class LogHandler:
             df = pd.DataFrame([log_entry])
 
             # Append to CSV file
-            data = df.to_csv(header=False, index=False)
-            self._logfile.write(data.strip() + '\n')
+            data = df.to_csv(header=False, index=False, encoding='utf-8', lineterminator='\n')
+            self._logfile.write(data)
 
             # Update file size
-            self._current_size += len(data)
+            self._current_size += len(data.encode('utf-8'))
 
             # Notify callback
             self._callback(df)
@@ -234,8 +234,8 @@ class LogHandler:
         :returns: ``None``.
         :rtype: None
         """
-        # No buffering to flush
-        pass
+        if self._logfile is not None:
+            self._logfile.flush()
 
 
 class Log(object):
