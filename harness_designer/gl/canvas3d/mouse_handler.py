@@ -29,6 +29,8 @@ MOUSE_REVERSE_Y_AXIS = _config.MOUSE_REVERSE_Y_AXIS
 MOUSE_REVERSE_WHEEL_AXIS = _config.MOUSE_REVERSE_WHEEL_AXIS
 MOUSE_SWAP_AXIS = _config.MOUSE_SWAP_AXIS
 
+_EPSILON = 1e-6
+
 
 def _qt_pos(qt_event) -> _point.Point:
     """Execute the qt pos operation.
@@ -604,6 +606,9 @@ class MouseHandler:
         self.canvas.update()
 
     def _orient_to_mouse_on_focal_plane(self, mouse_pos: _point.Point) -> None:
+        def _norm(values) -> float:
+            return math.sqrt(sum(v * v for v in values))
+
         camera = self.canvas.camera
         target = _utils.get_position_on_focal_plane(mouse_pos, camera)
         camera_pos = camera.position
@@ -620,10 +625,10 @@ class MouseHandler:
             target.z - camera_pos.z
         )
 
-        current_norm = math.sqrt(sum(v * v for v in current_forward))
-        desired_norm = math.sqrt(sum(v * v for v in desired_forward))
+        current_norm = _norm(current_forward)
+        desired_norm = _norm(desired_forward)
 
-        if current_norm < 1e-6 or desired_norm < 1e-6:
+        if current_norm < _EPSILON or desired_norm < _EPSILON:
             return
 
         current_forward = tuple(v / current_norm for v in current_forward)
@@ -632,11 +637,11 @@ class MouseHandler:
         current_xz = (current_forward[0], current_forward[2])
         desired_xz = (desired_forward[0], desired_forward[2])
 
-        current_xz_norm = math.sqrt((current_xz[0] * current_xz[0]) + (current_xz[1] * current_xz[1]))
-        desired_xz_norm = math.sqrt((desired_xz[0] * desired_xz[0]) + (desired_xz[1] * desired_xz[1]))
+        current_xz_norm = _norm(current_xz)
+        desired_xz_norm = _norm(desired_xz)
 
         yaw_delta = 0.0
-        if current_xz_norm > 1e-6 and desired_xz_norm > 1e-6:
+        if current_xz_norm > _EPSILON and desired_xz_norm > _EPSILON:
             current_xz = tuple(v / current_xz_norm for v in current_xz)
             desired_xz = tuple(v / desired_xz_norm for v in desired_xz)
             dot = max(-1.0, min(1.0, (current_xz[0] * desired_xz[0]) + (current_xz[1] * desired_xz[1])))
@@ -647,7 +652,7 @@ class MouseHandler:
         desired_pitch = math.degrees(math.atan2(desired_forward[1], desired_xz_norm))
         pitch_delta = desired_pitch - current_pitch
 
-        if abs(yaw_delta) < 1e-6 and abs(pitch_delta) < 1e-6:
+        if abs(yaw_delta) < _EPSILON and abs(pitch_delta) < _EPSILON:
             return
 
         camera.PanTilt(yaw_delta, pitch_delta)
