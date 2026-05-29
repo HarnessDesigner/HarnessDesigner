@@ -600,12 +600,12 @@ class MouseHandler:
         delta = 1.0 if evt.angleDelta().y() > 0 else -1.0
 
         if self.canvas.config.walk.mouse & MOUSE_WHEEL:
-            self._orient_to_mouse_on_focal_plane(_qt_pos(evt))
+            self._orient_to_mouse_on_focal_plane(_qt_pos(evt), delta)
 
         self._process_mouse(MOUSE_WHEEL)(delta, 0.0)
         self.canvas.update()
 
-    def _orient_to_mouse_on_focal_plane(self, mouse_pos: _point.Point) -> None:
+    def _orient_to_mouse_on_focal_plane(self, mouse_pos: _point.Point, wheel_delta: float) -> None:
         def _norm(values) -> float:
             return math.sqrt(sum(v * v for v in values))
 
@@ -653,6 +653,21 @@ class MouseHandler:
         pitch_delta = desired_pitch - current_pitch
 
         if abs(yaw_delta) < _EPSILON and abs(pitch_delta) < _EPSILON:
+            return
+
+        walk_cfg = self.canvas.config.walk
+        step_distance = abs(wheel_delta) * walk_cfg.sensitivity * walk_cfg.speed
+        if step_distance < _EPSILON:
+            return
+
+        max_step_angle = math.degrees(math.atan2(step_distance, current_norm))
+        max_delta = max(abs(yaw_delta), abs(pitch_delta))
+
+        if max_delta > max_step_angle and max_step_angle > _EPSILON:
+            scale = max_step_angle / max_delta
+            yaw_delta *= scale
+            pitch_delta *= scale
+        elif max_step_angle <= _EPSILON:
             return
 
         camera.PanTilt(yaw_delta, pitch_delta)
