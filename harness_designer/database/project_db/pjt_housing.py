@@ -959,7 +959,6 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
             self._o_position2d = point.copy()
 
         elif self._stored_position2d is None:
-            print('This should not be happening')
             point = None
         else:
             point = self._stored_position2d.point

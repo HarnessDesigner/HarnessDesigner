@@ -42,25 +42,22 @@ class AddProjectDialog(_dialog_base.BaseDialog):
         """
         self.table = table
 
-        _dialog_base.BaseDialog.__init__(self, parent, 'Add Project', size=(-1, 475))
-
-        fm = self.fontMetrics()
-        height = int(fm.height() * 2.5)
+        _dialog_base.BaseDialog.__init__(self, parent, 'Add Project', size=(600, 475))
 
         self.name_ctrl = _text_ctrl.TextCtrl(
-            self.panel, 'Project Name:', (-1, int(height / 1.5)),
+            self.panel, 'Project Name:',
             apply_button=False, hslider=False)
 
         self.creator_ctrl = _text_ctrl.TextCtrl(
-            self.panel, 'Creator:', (-1, int(height / 1.5)),
+            self.panel, 'Creator:',
             apply_button=False, hslider=False)
 
         self.desc_ctrl = _text_ctrl.TextCtrl(
-            self.panel, 'Description:', (-1, height * 4),
+            self.panel, 'Description:',
             multiline=True, apply_button=False)
 
         self.user_model_ctrl = _text_ctrl.TextCtrl(
-            self.panel, 'User Model:', (-1, height),
+            self.panel, 'User Model:',
             apply_button=False)
 
         self.user_model_button = QtWidgets.QPushButton('Open File', self.panel)
@@ -78,7 +75,7 @@ class AddProjectDialog(_dialog_base.BaseDialog):
         self._path_completer.setCompletionMode(
             QtWidgets.QCompleter.CompletionMode.InlineCompletion)
 
-        self._path_completer.setCaseSensitivity(False)
+        self._path_completer.setCaseSensitivity(QtCore.Qt.CaseSensitivity.CaseInsensitive)
         self.user_model_ctrl.setCompleter(self._path_completer)
 
         hsizer = QtWidgets.QHBoxLayout()

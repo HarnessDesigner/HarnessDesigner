@@ -112,7 +112,6 @@ class ScrollTracker:
         self.last_time = now
 
         res = int(min(self.max_buffer, max(self.min_buffer, velocity * 1.5) * 5))
-        print(res)
 
         return res
 

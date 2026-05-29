@@ -21,6 +21,7 @@ from . import dialogs as _dialogs
 from . import toolbar as _toolbar
 from .. import gl as _gl
 from .. import handlers as _handlers
+from .. import utils as _utils
 
 
 if TYPE_CHECKING:
@@ -507,9 +508,34 @@ class MainFrame(QMainWindow):
             (_gl.EVT_GL_AUX2_DOWN,           self._on_aux2_down_3d),
             (_gl.EVT_GL_AUX2_UP,             self._on_aux2_up_3d),
             (_gl.EVT_GL_AUX2_DCLICK,         self._on_aux2_dclick_3d),
+
+            (_gl.EVT_GL_CAMERA_ZOOM, self._on_camera_zoom_3d),
+            (_gl.EVT_GL_CAMERA_ORBIT, self._on_camera_orbit_3d),
+            (_gl.EVT_GL_CAMERA_WALK, self._on_camera_walk_3d),
+            (_gl.EVT_GL_CAMERA_TRUCKPEDISTAL, self._on_camera_truckpedistal_3d),
+            (_gl.EVT_GL_CAMERA_ROTATE, self._on_camera_rotate_3d),
+            (_gl.EVT_GL_CAMERA_RESET, self._on_camera_reset_3d),
         ]
         for evt_type, handler in pairs:
             self.editor3d.bind(evt_type, handler)
+
+    def _on_camera_zoom_3d(self, evt: _gl.GLCameraEvent):
+        self.Set3DCoordinates(evt)
+
+    def _on_camera_orbit_3d(self, evt: _gl.GLCameraEvent):
+        self.Set3DCoordinates(evt)
+
+    def _on_camera_walk_3d(self, evt: _gl.GLCameraEvent):
+        self.Set3DCoordinates(evt)
+
+    def _on_camera_truckpedistal_3d(self, evt: _gl.GLCameraEvent):
+        self.Set3DCoordinates(evt)
+
+    def _on_camera_rotate_3d(self, evt: _gl.GLCameraEvent):
+        self.Set3DCoordinates(evt)
+
+    def _on_camera_reset_3d(self, evt: _gl.GLCameraEvent):
+        self.Set3DCoordinates(evt)
 
     def _connect_editor2d_signals(self):
         """Wire all EVT_GL_* signal sentinels to their mainframe 2D handlers."""
@@ -702,18 +728,22 @@ class MainFrame(QMainWindow):
         self._status_y.setText(f'Y: {round(float(y), 4)}')
         self._status_z.setText('')
 
-    def Set3DCoordinates(self, x, y, z):
+    def Set3DCoordinates(self, evt: _gl.GLEvent | _gl.GLCameraEvent):
         """Execute the set 3dcoordinates operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
-        :param x: X-coordinate value.
-        :type x: UNKNOWN
-        :param y: Y-coordinate value.
-        :type y: UNKNOWN
-        :param z: Z-coordinate value.
-        :type z: UNKNOWN
+        :param evt: event.
+        :type evt: UNKNOWN
         """
+        if isinstance(evt, _gl.GLObjectEvent):
+            obj = evt.GetEventObject()
+            position = obj.position
+        else:
+            mouse_pos = evt.GetPosition()
+            position = _utils.get_position_on_focal_plane(mouse_pos, self.editor3d.camera)
+
+        x, y, z = position.as_float
         self._status_x.setText(f'X: {round(float(x), 4)}')
         self._status_y.setText(f'Y: {round(float(y), 4)}')
         self._status_z.setText(f'Z: {round(float(z), 4)}')
@@ -893,6 +923,11 @@ class MainFrame(QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
+        obj = evt.GetEventObject()
+
+        self.Set3DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -906,6 +941,9 @@ class MainFrame(QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
+        self.Set3DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -962,12 +1000,13 @@ class MainFrame(QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
+        self.Set3DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
             evt.Skip()
-
-        mouse_pos = evt.GetPosition()
 
         if self._add_handler is not None:
             self._add_handler.hover(mouse_pos)
@@ -997,6 +1036,9 @@ class MainFrame(QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
+        self.Set3DCoordinates(evt)
+
         if self._obj_handler is not None:
             position = evt.GetPosition()
             self._obj_handler.capture_position(position)
@@ -1014,6 +1056,9 @@ class MainFrame(QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
+        self.Set3DCoordinates(evt)
+
         if self._obj_handler is not None:
             self._obj_handler.release_capture()
 
@@ -1032,7 +1077,6 @@ class MainFrame(QMainWindow):
         elif mode == _toolbar.ID_CONNECTOR:
             evt.StopPropagation()
             self.add_housing(position3d=evt.GetPosition())
-
 
         elif mode == _toolbar.ID_TERMINAL:
             evt.StopPropagation()
@@ -1090,6 +1134,9 @@ class MainFrame(QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
+        self.Set3DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1103,6 +1150,9 @@ class MainFrame(QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
+        self.Set3DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1116,6 +1166,9 @@ class MainFrame(QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
+        self.Set3DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1129,6 +1182,9 @@ class MainFrame(QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
+        self.Set3DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1142,6 +1198,9 @@ class MainFrame(QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
+        self.Set3DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1155,6 +1214,9 @@ class MainFrame(QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
+        self.Set3DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1168,6 +1230,9 @@ class MainFrame(QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
+        self.Set3DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1181,6 +1246,9 @@ class MainFrame(QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
+        self.Set3DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1194,6 +1262,9 @@ class MainFrame(QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
+        self.Set3DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1220,6 +1291,9 @@ class MainFrame(QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
+        self.Set3DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1233,6 +1307,9 @@ class MainFrame(QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
+        self.Set3DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1246,6 +1323,9 @@ class MainFrame(QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
+        self.Set3DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1265,6 +1345,7 @@ class MainFrame(QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:

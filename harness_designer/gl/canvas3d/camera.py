@@ -186,6 +186,8 @@ understand what is happening with the camera.
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QTimer
+
+
 import math
 from OpenGL import GL
 from OpenGL import GLU
@@ -196,6 +198,7 @@ from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ...geometry import line as _line
 from ... import debug as _debug
+from .. import events as _events
 
 if TYPE_CHECKING:
     from . import canvas as _canvas
@@ -247,6 +250,14 @@ class Camera:
         self._calculate_camera()
         self._position.bind(self._update_camera)
         self._focal_position.bind(self._update_camera)
+
+    def _send_event(self, type_):
+        event = _events.GLCameraEvent.from_canvas(type_, self.canvas)
+
+        if event is None:
+            return
+
+        getattr(self.canvas, event.GetType()).emit(event)
 
     @property
     def field_of_view(self) -> float:
@@ -359,6 +370,7 @@ class Camera:
             self._position.z = 75.0
 
         self._update_camera(None)
+        self._send_event(_events.EVT_GL_CAMERA_RESET)
 
     def _update_camera(self, _=None):
         """
@@ -630,6 +642,7 @@ class Camera:
         self._is_dirty = True
         position = self._rotate_about(dx, dy, self._position, self._focal_position)
         self._position += position - self._position
+        self._send_event(_events.EVT_GL_CAMERA_ORBIT)
 
     @staticmethod
     @_debug.logfunc
@@ -734,6 +747,7 @@ class Camera:
         self._is_dirty = True
         focal_point = self._rotate_about(dx, dy, self._focal_position, self._position)
         self._focal_position += focal_point - self._focal_position
+        self._send_event(_events.EVT_GL_CAMERA_ROTATE)
 
     @_debug.logfunc
     def Zoom(self, delta, *_):
@@ -771,6 +785,8 @@ class Camera:
 
         self._is_dirty = True
         self._position += move
+
+        self._send_event(_events.EVT_GL_CAMERA_ZOOM)
 
     @_debug.logfunc
     def Walk(self, dx: int, dy: int, speed: float):
@@ -820,6 +836,8 @@ class Camera:
             self._focal_position += move
             self._position += move
 
+        self._send_event(_events.EVT_GL_CAMERA_WALK)
+
     @_debug.logfunc
     def TruckPedestal(self, dx: int, dy: int, speed: float):
         """
@@ -856,6 +874,8 @@ class Camera:
 
         self._is_dirty = True
         self._focal_position += move
+
+        self._send_event(_events.EVT_GL_CAMERA_TRUCKPEDISTAL)
 
     @_debug.logfunc
     def ProjectPoint(self, point: _point.Point | np.ndarray) -> _point.Point:

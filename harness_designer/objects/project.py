@@ -283,13 +283,9 @@ class Project:
 
         mainframe.set_progress(self._obj_count, 'DONE!')
 
-        print('sending...')
         for table_name, ids in db_ids.items():
             kwargs = {'type': f'add_{table_name}', 'data': ids}
             self.mainframe.process_manager.send(**kwargs)
-
-        print('done sending...')
-
 
     def update_objects(self, table_name, db_id):
         """Update the objects.

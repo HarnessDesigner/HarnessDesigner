@@ -1019,7 +1019,7 @@ class CircuitDetailPanel(QtWidgets.QWidget):
             QtCore.Qt.AlignmentFlag.AlignVCenter)
 
         self._wire_preview.setStyleSheet(
-            "background:#121212; border-radius:4px; adding:4px;")
+            "background:#121212; border-radius:4px; padding:4px;")
 
         layout.addWidget(self._wire_preview)
 

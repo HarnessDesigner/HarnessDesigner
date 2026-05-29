@@ -75,19 +75,11 @@ class TextCtrl(QtWidgets.QWidget):
                 self.ctrl.setLineWrapMode(
                     QtWidgets.QTextEdit.LineWrapMode.NoWrap)
 
-            if size:
-                w, h = size
-                self.ctrl.setFixedSize(w, h)
-
             layout.addWidget(self.st, 1, QtCore.Qt.AlignmentFlag.AlignTop)
             layout.addWidget(self.ctrl, 4)
         else:
             self.ctrl = QtWidgets.QLineEdit(self)
             self.ctrl.setReadOnly(readonly)
-
-            if size and size[0] > 0:
-
-                self.ctrl.setFixedWidth(size[0])
 
             layout.addWidget(self.st, 1)
             layout.addWidget(self.ctrl, 4)
@@ -106,6 +98,14 @@ class TextCtrl(QtWidgets.QWidget):
 
         else:
             self.apply_button = None
+
+        if size is not None:
+            w, h = size
+
+            if w > -1:
+                self.ctrl.setFixedWidth(w)
+            if h > -1:
+                self.ctrl.setFixedHeight(w)
 
         # Always forward the inner control's text-change to our public signal
         # so callers never need to reach inside via .ctrl

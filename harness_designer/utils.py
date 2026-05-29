@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 from PySide6.QtWidgets import QHBoxLayout, QLabel
+
 import sys
 import os
 import math
@@ -16,7 +17,7 @@ from OCP.TopLoc import TopLoc_Location
 
 from .geometry import point as _point
 from .geometry.decimal import Decimal as _d
-
+from .gl import events as _gl_events
 
 if TYPE_CHECKING:
     from .gl.canvas3d import camera as _camera

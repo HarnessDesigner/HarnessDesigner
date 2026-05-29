@@ -16,12 +16,19 @@ to the handler.  They are emitted through the matching Qt Signal and
 received directly by the connected handler — no conversion step needed.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
+
+from PySide6.QtGui import QCursor
+from PySide6.QtWidgets import QApplication
+from PySide6 import QtCore
+
+from ..geometry import point as _point
 
 
 if TYPE_CHECKING:
     from .. import objects as _objects
-    from ..geometry import point as _point
+    from .canvas3d import camera as _camera3d
+    from .canvas2d import camera as _camera2d
 
 
 # ---------------------------------------------------------------------------
@@ -29,59 +36,66 @@ if TYPE_CHECKING:
 # Pass directly to editor.connect() / canvas.connect().
 # ---------------------------------------------------------------------------
 
-EVT_GL_OBJECT_SELECTED      = 'gl_object_selected'
-EVT_GL_OBJECT_UNSELECTED    = 'gl_object_unselected'
-EVT_GL_OBJECT_ACTIVATED     = 'gl_object_activated'
-EVT_GL_OBJECT_RIGHT_CLICK   = 'gl_object_right_click'
-EVT_GL_OBJECT_RIGHT_DCLICK  = 'gl_object_right_dclick'
-EVT_GL_OBJECT_MIDDLE_CLICK  = 'gl_object_middle_click'
+EVT_GL_OBJECT_SELECTED = 'gl_object_selected'
+EVT_GL_OBJECT_UNSELECTED = 'gl_object_unselected'
+EVT_GL_OBJECT_ACTIVATED = 'gl_object_activated'
+EVT_GL_OBJECT_RIGHT_CLICK = 'gl_object_right_click'
+EVT_GL_OBJECT_RIGHT_DCLICK = 'gl_object_right_dclick'
+EVT_GL_OBJECT_MIDDLE_CLICK = 'gl_object_middle_click'
 EVT_GL_OBJECT_MIDDLE_DCLICK = 'gl_object_middle_dclick'
-EVT_GL_OBJECT_AUX1_CLICK    = 'gl_object_aux1_click'
-EVT_GL_OBJECT_AUX1_DCLICK   = 'gl_object_aux1_dclick'
-EVT_GL_OBJECT_AUX2_CLICK    = 'gl_object_aux2_click'
-EVT_GL_OBJECT_AUX2_DCLICK   = 'gl_object_aux2_dclick'
-EVT_GL_OBJECT_DRAG          = 'gl_object_drag'
+EVT_GL_OBJECT_AUX1_CLICK = 'gl_object_aux1_click'
+EVT_GL_OBJECT_AUX1_DCLICK = 'gl_object_aux1_dclick'
+EVT_GL_OBJECT_AUX2_CLICK = 'gl_object_aux2_click'
+EVT_GL_OBJECT_AUX2_DCLICK = 'gl_object_aux2_dclick'
+EVT_GL_OBJECT_DRAG = 'gl_object_drag'
 
-EVT_GL_KEY_DOWN    = 'gl_key_down'
-EVT_GL_KEY_UP      = 'gl_key_up'
+EVT_GL_KEY_DOWN = 'gl_key_down'
+EVT_GL_KEY_UP = 'gl_key_up'
 
-EVT_GL_MOUSE_MOVE   = 'gl_mouse_move'
+EVT_GL_MOUSE_MOVE = 'gl_mouse_move'
 
 EVT_GL_CAPTURE_LOST = 'gl_capture_lost'
 
-EVT_GL_LEFT_DOWN    = 'gl_left_down'
-EVT_GL_LEFT_UP      = 'gl_left_up'
-EVT_GL_LEFT_DCLICK  = 'gl_left_dclick'
+EVT_GL_LEFT_DOWN = 'gl_left_down'
+EVT_GL_LEFT_UP = 'gl_left_up'
+EVT_GL_LEFT_DCLICK = 'gl_left_dclick'
 
-EVT_GL_RIGHT_DOWN   = 'gl_right_down'
-EVT_GL_RIGHT_UP     = 'gl_right_up'
+EVT_GL_RIGHT_DOWN = 'gl_right_down'
+EVT_GL_RIGHT_UP = 'gl_right_up'
 EVT_GL_RIGHT_DCLICK = 'gl_right_dclick'
 
-EVT_GL_MIDDLE_DOWN   = 'gl_middle_down'
-EVT_GL_MIDDLE_UP     = 'gl_middle_up'
+EVT_GL_MIDDLE_DOWN = 'gl_middle_down'
+EVT_GL_MIDDLE_UP = 'gl_middle_up'
 EVT_GL_MIDDLE_DCLICK = 'gl_middle_dclick'
 
-EVT_GL_AUX1_DOWN   = 'gl_aux1_down'
-EVT_GL_AUX1_UP     = 'gl_aux1_up'
+EVT_GL_AUX1_DOWN = 'gl_aux1_down'
+EVT_GL_AUX1_UP = 'gl_aux1_up'
 EVT_GL_AUX1_DCLICK = 'gl_aux1_dclick'
 
-EVT_GL_AUX2_DOWN   = 'gl_aux2_down'
-EVT_GL_AUX2_UP     = 'gl_aux2_up'
+EVT_GL_AUX2_DOWN = 'gl_aux2_down'
+EVT_GL_AUX2_UP = 'gl_aux2_up'
 EVT_GL_AUX2_DCLICK = 'gl_aux2_dclick'
 
 EVT_GL_DRAG = 'gl_drag'
+
+EVT_GL_CAMERA_ZOOM = 'gl_camera_zoom'
+EVT_GL_CAMERA_ORBIT = 'gl_camera_orbit'
+EVT_GL_CAMERA_WALK = 'gl_camera_walk'
+EVT_GL_CAMERA_TRUCKPEDISTAL = 'gl_camera_truckpedistal'
+EVT_GL_CAMERA_ROTATE = 'gl_camera_rotate'
+EVT_GL_CAMERA_RESET = 'gl_camera_reset'
 
 
 # ---------------------------------------------------------------------------
 # Mouse-button bitmask constants (previously wx.MOUSE_BTN_*)
 # ---------------------------------------------------------------------------
 
-BTN_NONE   = 0x00
-BTN_LEFT   = 0x01
-BTN_RIGHT  = 0x02
+BTN_NONE = 0x00
+BTN_LEFT = 0x01
+BTN_RIGHT = 0x02
 BTN_MIDDLE = 0x04
-BTN_AUX1   = 0x08
-BTN_AUX2   = 0x10
+BTN_AUX1 = 0x08
+BTN_AUX2 = 0x10
 
 
 # ---------------------------------------------------------------------------
@@ -106,7 +120,8 @@ class _GLEventBase:
         self._stop_prop = False
 
     def GetType(self):
-        """Execute the get type operation.
+        """
+        Execute the get type operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
@@ -116,21 +131,24 @@ class _GLEventBase:
         return self._type
 
     def Skip(self):
-        """Execute the skip operation.
+        """
+        Execute the skip operation.
 
         UNKNOWN details are inferred from the callable name and signature.
         """
         self._skipped = True
 
     def StopPropagation(self):
-        """Execute the stop propagation operation.
+        """
+        Execute the stop propagation operation.
 
         UNKNOWN details are inferred from the callable name and signature.
         """
         self._stop_prop = True
 
     def ShouldPropagate(self):
-        """Execute the should propagate operation.
+        """
+        Execute the should propagate operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
@@ -140,7 +158,8 @@ class _GLEventBase:
         return not self._stop_prop
 
     def SetId(self, id_):
-        """Execute the set ID operation.
+        """
+        Execute the set ID operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
@@ -150,7 +169,8 @@ class _GLEventBase:
         self._id = id_
 
     def GetId(self):
-        """Execute the get ID operation.
+        """
+        Execute the get ID operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
@@ -160,7 +180,8 @@ class _GLEventBase:
         return self._id
 
     def SetEventObject(self, obj):
-        """Execute the set event object operation.
+        """
+        Execute the set event object operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
@@ -170,7 +191,8 @@ class _GLEventBase:
         self._obj = obj
 
     def GetEventObject(self):
-        """Execute the get event object operation.
+        """
+        Execute the get event object operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
@@ -181,7 +203,8 @@ class _GLEventBase:
 
     @property
     def GetSkipped(self) -> bool:
-        """Return the get skipped.
+        """
+        Return the get skipped.
 
         UNKNOWN details are inferred from the callable name and signature.
 
@@ -194,6 +217,151 @@ class _GLEventBase:
 class GLCaptureLostEvent(_GLEventBase):
     """Emitted when the canvas loses mouse capture."""
     pass
+
+
+class GLCameraEvent(_GLEventBase):
+    """Emitted when the camera moves."""
+
+    @classmethod
+    def from_canvas(cls, type_, canvas):
+        global_pos = QCursor.pos()
+        local_pos = canvas.mapFromGlobal(global_pos)
+
+        if not canvas.rect().contains(local_pos):
+            return None
+
+        instance = cls(type_)
+
+        instance.SetEventObject(canvas)
+        instance.SetCamera(canvas.camera)
+        instance.SetId(id(canvas))
+
+        mouse_pos = _point.Point(local_pos.x(), local_pos.y())
+        instance.SetPosition(mouse_pos)
+
+        btns = QApplication.mouseButtons()
+        flags = BTN_NONE
+
+        if btns & QtCore.Qt.MouseButton.LeftButton:
+            flags |= BTN_LEFT
+
+        if btns & QtCore.Qt.MouseButton.MiddleButton:
+            flags |= BTN_MIDDLE
+
+        if btns & QtCore.Qt.MouseButton.RightButton:
+            flags |= BTN_RIGHT
+
+        if btns & QtCore.Qt.MouseButton.XButton1:
+            flags |= BTN_AUX1
+
+        if btns & QtCore.Qt.MouseButton.XButton2:
+            flags |= BTN_AUX2
+
+        instance.SetMouseButtons(flags)
+
+        return instance
+
+    def __init__(self, type_):
+        super().__init__(type_)
+        self._mouse_pos = None
+        self._mouse_buttons: int = BTN_NONE
+        self._camera = None
+
+    def GetCamera(self) -> Union["_camera2d.Camera", "_camera3d.Camera"]:
+        return self._camera
+
+    def SetCamera(self, value: Union["_camera2d.Camera", "_camera3d.Camera"]):
+        self._camera = value
+
+    def RightIsDown(self) -> bool:
+        """Execute the right is down operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
+        return bool(self._mouse_buttons & BTN_RIGHT)
+
+    def LeftIsDown(self) -> bool:
+        """Execute the left is down operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
+        return bool(self._mouse_buttons & BTN_LEFT)
+
+    def MiddleIsDown(self) -> bool:
+        """Execute the middle is down operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
+        return bool(self._mouse_buttons & BTN_MIDDLE)
+
+    def Aux1IsDown(self) -> bool:
+        """Execute the aux 1isdown operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
+        return bool(self._mouse_buttons & BTN_AUX1)
+
+    def Aux2IsDown(self) -> bool:
+        """Execute the aux 2isdown operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
+        return bool(self._mouse_buttons & BTN_AUX2)
+
+    def SetMouseButtons(self, buttons: int) -> None:
+        """Execute the set mouse buttons operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param buttons: Value for ``buttons``.
+        :type buttons: int
+        """
+        self._mouse_buttons = buttons
+
+    def GetMouseButtons(self) -> int:
+        """Execute the get mouse buttons operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: int
+        """
+        return self._mouse_buttons
+
+    def GetPosition(self) -> "_point.Point":
+        """Execute the get position operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`_point.Point`
+        """
+        return self._mouse_pos
+
+    def SetPosition(self, pos: "_point.Point") -> None:
+        """Execute the set position operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param pos: Value for ``pos``.
+        :type pos: :class:`_point.Point`
+        """
+        self._mouse_pos = pos
 
 
 class GLEvent(_GLEventBase):

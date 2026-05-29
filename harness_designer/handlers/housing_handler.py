@@ -37,8 +37,6 @@ class AddHousingHandler(_handler_base.HandlerBase):
         """
         part_id = mainframe.editor_db.editor.housings.GetSelection()
 
-        print(part_id)
-
         if part_id is None:
             dlg = _part_search.SearchDialog(
                 mainframe, _editor_db.HousingsPage, title='Add Housing',

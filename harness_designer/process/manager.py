@@ -495,10 +495,6 @@ class ProcessManager(threading.Thread):
     def get_model(self, callback, **model_info):
         message = json.dumps(model_info)
 
-        print('getting model')
-        print(message)
-        print()
-
         with self._model_lock:
             for i, process in enumerate(self._model_processes[:]):
                 if not process.is_alive():

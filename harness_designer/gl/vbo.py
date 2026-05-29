@@ -399,16 +399,8 @@ class VBOHandler(metaclass=VBOSingleton):
 
     @classmethod
     def _log_debug(cls, *args):
-        logger = getattr(_logger, 'logger', None)
-        if logger is not None:
-            if hasattr(logger, 'debug_block'):
-                logger.debug_block(*args)
-            else:
-                logger.debug(*args)
-
-            return
-
-        print(*args)
+        logger = _logger.logger
+        logger.debug_block(*args)
 
     @staticmethod
     def _is_vbo_debug_enabled() -> bool:

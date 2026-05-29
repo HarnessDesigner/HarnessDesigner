@@ -54,9 +54,9 @@ class BaseDialog(QtWidgets.QDialog):
 
         w, h = size
 
-        if w == -1:
+        if w < 0:
             w = self.sizeHint().width()
-        if h == -1:
+        if h < 0:
             h = self.sizeHint().height()
 
         self.panel = QtWidgets.QWidget(self)

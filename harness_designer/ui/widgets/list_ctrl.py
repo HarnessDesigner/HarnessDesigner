@@ -528,34 +528,3 @@ class ListCtrl(QWidget):
         :rtype: int
         """
         return self._list.count()
-
-
-if __name__ == "__main__":
-    import sys
-
-    app = QApplication(sys.argv)
-
-    window = QWidget()
-    window.setWindowTitle("ListCtrl Demo")
-    window.resize(380, 280)
-
-    from PySide6.QtWidgets import QVBoxLayout as VBox
-    layout = VBox(window)
-
-    widget = ListCtrl(
-        window,
-        items=[1.26, 3.24, 7.69, 5.64, 8.32, 9.21, 15.78, 19.25],
-        unique=True,
-        item_type=float,
-    )
-    layout.addWidget(widget)
-
-    widget.itemAdded.connect(
-        lambda idx, val: print(f"[ADDED]   index={idx}  value={val!r}"))
-    widget.itemRemoved.connect(
-        lambda idx, val: print(f"[REMOVED] index={idx}  value={val!r}"))
-    widget.itemChanged.connect(
-        lambda idx, new, old: print(f"[CHANGED] index={idx}  old={old!r}  new={new!r}"))
-
-    window.show()
-    sys.exit(app.exec())

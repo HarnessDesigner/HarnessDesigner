@@ -376,9 +376,6 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
             in_message = in_queue.get_nowait()
             in_message = json.loads(in_message)
 
-            with print_lock:
-                print('loop message:', in_message)
-
             model_id = in_message['id']
             mfg = in_message['mfg']
             part_number = in_message['part_number']
