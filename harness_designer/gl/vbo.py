@@ -14,7 +14,7 @@ from ..geometry import point as _point
 
 
 # Maximum triangle-soup vertices managed in the imported-model arena.
-MODEL_ARENA_CAPACITY_VERTICES = 4_000_000
+MODEL_ARENA_CAPACITY_VERTICES = 4000000
 # Compaction threshold: rebuild arena when free-space fragmentation reaches this ratio.
 MODEL_ARENA_FRAGMENTATION_THRESHOLD = 0.35
 # Avoid rebuilding for tiny holes until at least this many vertices are reclaimable.
@@ -57,12 +57,11 @@ class _MeshArena:
     def _create_empty_array_buffer(self) -> int:
         buffer_id = GL.glGenBuffers(1)
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, buffer_id)
-        GL.glBufferData(
-            GL.GL_ARRAY_BUFFER,
-            self.capacity_vertices * 3 * np.dtype(np.float32).itemsize,
-            None,
-            GL.GL_DYNAMIC_DRAW,
-        )
+
+        GL.glBufferData(GL.GL_ARRAY_BUFFER,
+                        self.capacity_vertices * 3 * np.dtype(np.float32).itemsize,
+                        None, GL.GL_DYNAMIC_DRAW)
+
         return buffer_id
 
     def _create_buffers(self):
@@ -109,8 +108,7 @@ class _MeshArena:
             f'requested {needed} vertices, '
             f'largest hole {self.largest_free_range}, '
             f'total free {free_total}, '
-            f'capacity {self.capacity_vertices}'
-        )
+            f'capacity {self.capacity_vertices}')
 
     def free(self, key: str):
         alloc = self._allocations.pop(key, None)
@@ -135,23 +133,16 @@ class _MeshArena:
 
         self._free_ranges = merged
 
-    def _upload_to_buffer(self, buffer_id: int, start_vertex: int, data: np.ndarray):
+    @staticmethod
+    def _upload_to_buffer(buffer_id: int, start_vertex: int, data: np.ndarray):
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, buffer_id)
-        GL.glBufferSubData(
-            GL.GL_ARRAY_BUFFER,
-            start_vertex * 3 * np.dtype(np.float32).itemsize,
-            data.nbytes,
-            data,
-        )
+        GL.glBufferSubData(GL.GL_ARRAY_BUFFER,
+                           start_vertex * 3 * np.dtype(np.float32).itemsize,
+                           data.nbytes, data)
 
-    def upload(
-        self,
-        key: str,
-        vertices: np.ndarray,
-        smooth_normals: np.ndarray,
-        face_normals: np.ndarray,
-        vertex_offset: int = 0,
-    ):
+    def upload(self, key: str, vertices: np.ndarray, smooth_normals: np.ndarray,
+               face_normals: np.ndarray, vertex_offset: int = 0):
+
         alloc = self._allocations[key]
         offset = int(vertex_offset)
 
@@ -210,54 +201,42 @@ class _MeshArena:
 
     def debug_metrics(self) -> dict:
         free_ranges = list(self._free_ranges)
-        return {
-            'buffer_id': self._pos_buffer,
-            'capacity_vertices': self.capacity_vertices,
-            'used_vertices': self.used_vertices,
-            'free_vertices': self.free_vertices,
-            'allocation_count': len(self._allocations),
-            'free_range_count': len(free_ranges),
-            'largest_free_range': self.largest_free_range,
-            'fragmentation': self.fragmentation,
-            'free_ranges': free_ranges,
-        }
 
-    def should_compact(
-        self,
-        threshold: float = MODEL_ARENA_FRAGMENTATION_THRESHOLD,
-        min_free_vertices: int = MODEL_ARENA_MIN_FREE_VERTICES,
-        needed_vertices: int = 0,
-    ) -> bool:
+        return dict(buffer_id=self._pos_buffer,
+                    capacity_vertices=self.capacity_vertices,
+                    used_vertices=self.used_vertices,
+                    free_vertices=self.free_vertices,
+                    allocation_count=len(self._allocations),
+                    free_range_count=len(free_ranges),
+                    largest_free_range=self.largest_free_range,
+                    fragmentation=self.fragmentation,
+                    free_ranges=free_ranges)
+
+    def should_compact(self, threshold: float = MODEL_ARENA_FRAGMENTATION_THRESHOLD,
+                       min_free_vertices: int = MODEL_ARENA_MIN_FREE_VERTICES,
+                       needed_vertices: int = 0) -> bool:
+
         needed = int(needed_vertices)
-        if needed > 0 and self.largest_free_range >= needed:
+
+        if 0 < needed <= self.largest_free_range:
             return False
 
-        return (
-            self.free_vertices >= int(min_free_vertices)
-            and self.fragmentation >= float(threshold)
-        )
+        return (self.free_vertices >= int(min_free_vertices) and
+                self.fragmentation >= float(threshold))
 
-    def _gpu_copy(
-        self,
-        src_buffer: int,
-        dst_buffer: int,
-        src_vertex: int,
-        dst_vertex: int,
-        vertex_count: int,
-    ):
+    @staticmethod
+    def _gpu_copy(src_buffer: int, dst_buffer: int, src_vertex: int,
+                  dst_vertex: int, vertex_count: int):
+
         size = vertex_count * 3 * np.dtype(np.float32).itemsize
         read_offset = src_vertex * 3 * np.dtype(np.float32).itemsize
         write_offset = dst_vertex * 3 * np.dtype(np.float32).itemsize
 
         GL.glBindBuffer(GL.GL_COPY_READ_BUFFER, src_buffer)
         GL.glBindBuffer(GL.GL_COPY_WRITE_BUFFER, dst_buffer)
-        GL.glCopyBufferSubData(
-            GL.GL_COPY_READ_BUFFER,
-            GL.GL_COPY_WRITE_BUFFER,
-            read_offset,
-            write_offset,
-            size,
-        )
+
+        GL.glCopyBufferSubData(GL.GL_COPY_READ_BUFFER, GL.GL_COPY_WRITE_BUFFER,
+                               read_offset, write_offset, size)
 
     def compact(self) -> bool:
         if not self._allocations:
@@ -268,14 +247,23 @@ class _MeshArena:
         new_smooth = self._create_empty_array_buffer()
         new_face = self._create_empty_array_buffer()
 
-        sorted_items = sorted(self._allocations.items(), key=lambda item: item[1].start)
+        sorted_items = sorted(
+            self._allocations.items(), key=lambda item: item[1].start)
+
         cursor = 0
         for key, alloc in sorted_items:
-            self._gpu_copy(self._pos_buffer, new_pos, alloc.start, cursor, alloc.count)
-            self._gpu_copy(self._smooth_buffer, new_smooth, alloc.start, cursor, alloc.count)
-            self._gpu_copy(self._face_buffer, new_face, alloc.start, cursor, alloc.count)
+            self._gpu_copy(
+                self._pos_buffer, new_pos, alloc.start, cursor, alloc.count)
 
-            self._allocations[key] = _ArenaAllocation(start=cursor, count=alloc.count)
+            self._gpu_copy(
+                self._smooth_buffer, new_smooth, alloc.start, cursor, alloc.count)
+
+            self._gpu_copy(
+                self._face_buffer, new_face, alloc.start, cursor, alloc.count)
+
+            self._allocations[key] = _ArenaAllocation(start=cursor,
+                                                      count=alloc.count)
+
             cursor += alloc.count
 
         GL.glDeleteBuffers(1, [self._pos_buffer])
@@ -335,16 +323,12 @@ VBO_TYPE_MODEL = 1
 class VBOHandler(metaclass=VBOSingleton):
     _model_arenas: list[_MeshArena] = []
 
-    def __init__(
-        self,
-        id_: str,
-        vertices: np.ndarray | None = None,
-        smooth_normals: np.ndarray | None = None,
-        face_normals: np.ndarray | None = None,
-        count: int = 0,
-        endpoint: _point.Point | None = None,
-        arena_kind: int = VBO_TYPE_MODEL
-    ):
+    def __init__(self, id_: str, vertices: np.ndarray | None = None,
+                 smooth_normals: np.ndarray | None = None,
+                 face_normals: np.ndarray | None = None,
+                 count: int = 0, endpoint: _point.Point | None = None,
+                 arena_kind: int = VBO_TYPE_MODEL):
+
         ctx = QOpenGLContext.currentContext()
         if ctx is None:
             raise RuntimeError('context has not been acquired')
@@ -375,11 +359,15 @@ class VBOHandler(metaclass=VBOSingleton):
         if self.__face_normals is None:
             self.__face_normals = self.__smooth_normals.copy()
 
-        self.__vert_count = self._normalize_vertex_count(count, len(self.__vertices))
+        self.__vert_count = self._normalize_vertex_count(
+            count, len(self.__vertices))
 
         if self._arena_kind == VBO_TYPE_MODEL:
             arena = self._allocate_model_arena(self.id, self.__vert_count)
-            arena.upload(self.id, self.__vertices, self.__smooth_normals, self.__face_normals)
+
+            arena.upload(self.id, self.__vertices,
+                         self.__smooth_normals, self.__face_normals)
+
             alloc = arena.get_allocation(self.id)
             self.__model_arena = arena
             self.__first = alloc.start
@@ -388,12 +376,15 @@ class VBOHandler(metaclass=VBOSingleton):
                 self.__vbo_vertices,
                 self.__vbo_smooth_normals,
                 self.__vbo_face_normals,
-            ) = self._create_vbo(self.__vertices, self.__smooth_normals, self.__face_normals)
+            ) = self._create_vbo(
+                self.__vertices, self.__smooth_normals, self.__face_normals)
 
         local_aabb = _utils.compute_aabb(self.__vertices.reshape(-1, 3))
         self.local_obb = _utils.compute_obb(*local_aabb)
         p1, p2 = local_aabb
-        self.local_aabb = np.array([p1.as_numpy, p2.as_numpy], dtype=np.float32)
+
+        self.local_aabb = np.array(
+            [p1.as_numpy, p2.as_numpy], dtype=np.float32)
 
     @staticmethod
     def _normalize_vertex_count(count: int, array_len: int) -> int:
@@ -401,7 +392,8 @@ class VBOHandler(metaclass=VBOSingleton):
             return int(count)
 
         if array_len % 3 != 0:
-            raise ValueError('flattened vertex array length must be divisible by 3')
+            raise ValueError(
+                'flattened vertex array length must be divisible by 3')
 
         return int(array_len // 3)
 
@@ -413,6 +405,7 @@ class VBOHandler(metaclass=VBOSingleton):
                 logger.debug_block(*args)
             else:
                 logger.debug(*args)
+
             return
 
         print(*args)
@@ -421,35 +414,33 @@ class VBOHandler(metaclass=VBOSingleton):
     def _is_vbo_debug_enabled() -> bool:
         try:
             return bool(Config.logging.log_debug)
-        except Exception:
+        except Exception:  # NOQA
             return False
 
     @staticmethod
     def _format_arena_metrics(title: str, metrics: dict) -> str:
-        free_ranges = metrics['free_ranges']
-        return '\n'.join([
-            title,
-            f"  buffer_id: {metrics['buffer_id']}",
-            f"  capacity_vertices: {metrics['capacity_vertices']}",
-            f"  used_vertices: {metrics['used_vertices']}",
-            f"  free_vertices: {metrics['free_vertices']}",
-            f"  allocation_count: {metrics['allocation_count']}",
-            f"  free_range_count: {metrics['free_range_count']}",
-            f"  largest_free_range: {metrics['largest_free_range']}",
-            f"  fragmentation: {metrics['fragmentation']:.4f}",
-            f"  free_ranges: {free_ranges}",
-        ])
+        res = [title,
+               f"  buffer_id: {metrics['buffer_id']}",
+               f"  capacity_vertices: {metrics['capacity_vertices']}",
+               f"  used_vertices: {metrics['used_vertices']}",
+               f"  free_vertices: {metrics['free_vertices']}",
+               f"  allocation_count: {metrics['allocation_count']}",
+               f"  free_range_count: {metrics['free_range_count']}",
+               f"  largest_free_range: {metrics['largest_free_range']}",
+               f"  fragmentation: {metrics['fragmentation']:.4f}",
+               f"  free_ranges: {metrics['free_ranges']}"]
+
+        return '\n'.join(res)
 
     @classmethod
     def _debug_print_new_buffer_allocation(cls, requested_vertices: int):
         if not cls._is_vbo_debug_enabled():
             return
 
-        lines = [
-            '[VBO] allocating new model arena',
-            f'  requested_vertices: {requested_vertices}',
-            f'  existing_buffers: {len(cls._model_arenas)}',
-        ]
+        lines = ['[VBO] allocating new model arena',
+                 f'  requested_vertices: {requested_vertices}',
+                 f'  existing_buffers: {len(cls._model_arenas)}']
+
         for index, arena in enumerate(cls._model_arenas):
             metrics = arena.debug_metrics()
             lines.append(cls._format_arena_metrics(f'  arena[{index}]', metrics))
@@ -461,13 +452,12 @@ class VBOHandler(metaclass=VBOSingleton):
         if not cls._is_vbo_debug_enabled():
             return
 
-        lines = [
-            '[VBO] compacted arena',
-            f"  buffer_before: {before['buffer_id']}",
-            f"  buffer_after: {after['buffer_id']}",
-            cls._format_arena_metrics('  before', before),
-            cls._format_arena_metrics('  after', after),
-        ]
+        lines = ['[VBO] compacted arena',
+                 f"  buffer_before: {before['buffer_id']}",
+                 f"  buffer_after: {after['buffer_id']}",
+                 cls._format_arena_metrics('  before', before),
+                 cls._format_arena_metrics('  after', after)]
+
         cls._log_debug('\n'.join(lines))
 
     @classmethod
@@ -488,39 +478,46 @@ class VBOHandler(metaclass=VBOSingleton):
         for arena in cls._model_arenas:
             if arena.should_compact(needed_vertices=needed):
                 before = arena.debug_metrics()
+
                 if arena.compact() and arena.can_fit(needed):
                     after = arena.debug_metrics()
                     cls._debug_print_compaction(before, after)
                     arena.allocate(key, needed)
                     cls._clear_model_vaos_for_arena(arena)
+
                     return arena
 
         cls._debug_print_new_buffer_allocation(needed)
         capacity = max(MODEL_ARENA_CAPACITY_VERTICES, needed)
         arena = _MeshArena(capacity)
         cls._model_arenas.append(arena)
+
         if cls._is_vbo_debug_enabled():
-            cls._log_debug('\n'.join([
-                '[VBO] created model arena',
-                f'  buffer_id: {arena.pos_buffer}',
-                f'  capacity_vertices: {capacity}',
-                f'  total_buffers: {len(cls._model_arenas)}',
-                f'  allocation_key: {key}',
-                f'  requested_vertices: {needed}',
-            ]))
+            msg = ['[VBO] created model arena',
+                   f'  buffer_id: {arena.pos_buffer}',
+                   f'  capacity_vertices: {capacity}',
+                   f'  total_buffers: {len(cls._model_arenas)}',
+                   f'  allocation_key: {key}',
+                   f'  requested_vertices: {needed}']
+
+            cls._log_debug('\n'.join(msg))
+
         arena.allocate(key, needed)
         return arena
 
     @classmethod
     def _clear_model_vaos_for_arena(cls, arena: _MeshArena):
-        refs = list(VBOSingleton._instances.values())
+        refs = list(VBOSingleton._instances.values())  # NOQA
         for ref in refs:
             instance = ref()
-            if instance is None or instance._arena_kind != VBO_TYPE_MODEL:
+            if (
+                instance is None or
+                instance._arena_kind != VBO_TYPE_MODEL  # NOQA
+            ):
                 continue
 
             if instance.__model_arena is arena:
-                instance._clear_vaos()
+                instance._clear_vaos()  # NOQA
 
     @property
     def vertices(self):
@@ -590,7 +587,9 @@ class VBOHandler(metaclass=VBOSingleton):
             return
 
         if self._arena_kind != VBO_TYPE_MODEL:
-            self._release_vbos(self.__vbo_vertices, self.__vbo_smooth_normals, self.__vbo_face_normals)
+            self._release_vbos(self.__vbo_vertices, self.__vbo_smooth_normals,
+                               self.__vbo_face_normals)
+
             self.__vbo_vertices = None
             self.__vbo_smooth_normals = None
             self.__vbo_face_normals = None
@@ -604,7 +603,9 @@ class VBOHandler(metaclass=VBOSingleton):
                 pass
 
     @staticmethod
-    def _release_vbos(vbo_vertices=None, vbo_smooth_normals=None, vbo_face_normals=None):
+    def _release_vbos(vbo_vertices=None, vbo_smooth_normals=None,
+                      vbo_face_normals=None):
+
         if vbo_vertices is not None:
             try:
                 GL.glDeleteBuffers(1, [vbo_vertices])
@@ -627,77 +628,101 @@ class VBOHandler(metaclass=VBOSingleton):
     def _create_vbo(cls, vertices, smooth_normals, face_normals):
         vbo_vertices = GL.glGenBuffers(1)
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, vbo_vertices)
-        GL.glBufferData(GL.GL_ARRAY_BUFFER, vertices.nbytes, vertices, GL.GL_STATIC_DRAW)
+
+        GL.glBufferData(GL.GL_ARRAY_BUFFER, vertices.nbytes,
+                        vertices, GL.GL_STATIC_DRAW)
 
         err = GL.glGetError()
         if err != GL.GL_NO_ERROR:
             cls._release_vbos(vbo_vertices)
+
             raise RuntimeError(f"OpenGL error creating vertex buffer: {err}")
 
         vbo_smooth_normals = GL.glGenBuffers(1)
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, vbo_smooth_normals)
-        GL.glBufferData(GL.GL_ARRAY_BUFFER, smooth_normals.nbytes, smooth_normals, GL.GL_STATIC_DRAW)
+
+        GL.glBufferData(GL.GL_ARRAY_BUFFER, smooth_normals.nbytes,
+                        smooth_normals, GL.GL_STATIC_DRAW)
 
         err = GL.glGetError()
         if err != GL.GL_NO_ERROR:
             cls._release_vbos(vbo_vertices, vbo_smooth_normals)
-            raise RuntimeError(f"OpenGL error creating smooth normals buffer: {err}")
+
+            raise RuntimeError(
+                f"OpenGL error creating smooth normals buffer: {err}")
 
         vbo_face_normals = GL.glGenBuffers(1)
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, vbo_face_normals)
-        GL.glBufferData(GL.GL_ARRAY_BUFFER, face_normals.nbytes, face_normals, GL.GL_STATIC_DRAW)
+
+        GL.glBufferData(GL.GL_ARRAY_BUFFER, face_normals.nbytes,
+                        face_normals, GL.GL_STATIC_DRAW)
 
         err = GL.glGetError()
         if err != GL.GL_NO_ERROR:
             cls._release_vbos(vbo_vertices, vbo_smooth_normals, vbo_face_normals)
-            raise RuntimeError(f"OpenGL error creating face normals buffer: {err}")
+
+            raise RuntimeError(
+                f"OpenGL error creating face normals buffer: {err}")
 
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+
         return vbo_vertices, vbo_smooth_normals, vbo_face_normals
 
-    def update_data(
-        self,
-        vertices: np.ndarray | None = None,
-        smooth_normals: np.ndarray | None = None,
-        face_normals: np.ndarray | None = None,
-        vertex_offset: int = 0,
-    ):
+    def update_data(self, vertices: np.ndarray | None = None,
+                    smooth_normals: np.ndarray | None = None,
+                    face_normals: np.ndarray | None = None,
+                    vertex_offset: int = 0):
+
         if self.__vert_count == 0:
             return
 
         vertices = vertices if vertices is not None else self.__vertices
+
         smooth_normals = (
             smooth_normals if smooth_normals is not None else self.__smooth_normals)
+
         face_normals = (
             face_normals if face_normals is not None else self.__face_normals)
 
         if self._arena_kind == VBO_TYPE_MODEL:
             arena = self.__model_arena
+
             if arena is None:
                 raise RuntimeError('model arena allocation is missing')
-            arena.upload(self.id, vertices, smooth_normals, face_normals, vertex_offset=vertex_offset)
+
+            arena.upload(self.id, vertices, smooth_normals,
+                         face_normals, vertex_offset=vertex_offset)
+
             return
 
         offset_bytes = int(vertex_offset) * 3 * np.dtype(np.float32).itemsize
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.__vbo_vertices)
-        GL.glBufferSubData(GL.GL_ARRAY_BUFFER, offset_bytes, vertices.nbytes, vertices)
+        GL.glBufferSubData(GL.GL_ARRAY_BUFFER, offset_bytes,
+                           vertices.nbytes, vertices)
 
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.__vbo_smooth_normals)
-        GL.glBufferSubData(GL.GL_ARRAY_BUFFER, offset_bytes, smooth_normals.nbytes, smooth_normals)
+        GL.glBufferSubData(GL.GL_ARRAY_BUFFER, offset_bytes,
+                           smooth_normals.nbytes, smooth_normals)
 
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.__vbo_face_normals)
-        GL.glBufferSubData(GL.GL_ARRAY_BUFFER, offset_bytes, face_normals.nbytes, face_normals)
+        GL.glBufferSubData(GL.GL_ARRAY_BUFFER, offset_bytes,
+                           face_normals.nbytes, face_normals)
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
 
     @classmethod
     def maintain_model_arena(
         cls,
         threshold: float = MODEL_ARENA_FRAGMENTATION_THRESHOLD,
-        min_free_vertices: int = MODEL_ARENA_MIN_FREE_VERTICES,
+        min_free_vertices: int = MODEL_ARENA_MIN_FREE_VERTICES
     ) -> bool:
+
         compacted = False
         for arena in cls._model_arenas:
-            if not arena.should_compact(threshold=threshold, min_free_vertices=min_free_vertices):
+
+            if not arena.should_compact(
+                threshold=threshold,
+                min_free_vertices=min_free_vertices
+            ):
                 continue
 
             before = arena.debug_metrics()
@@ -783,11 +808,7 @@ def create_model_vbo(model):
     if model_data is None:
         return None
 
-    return VBOHandler(
-        uuid,
-        model_data.vertices,
-        model_data.smooth_normals,
-        count=model_data.vertex_count,
-        face_normals=model_data.face_normals,
-        arena_kind=VBO_TYPE_MODEL,
-    )
+    return VBOHandler(uuid, model_data.vertices, model_data.smooth_normals,
+                      count=model_data.vertex_count,
+                      face_normals=model_data.face_normals,
+                      arena_kind=VBO_TYPE_MODEL)
