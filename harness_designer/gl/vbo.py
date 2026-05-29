@@ -7,6 +7,8 @@ import numpy as np
 from OpenGL import GL
 from PySide6.QtGui import QOpenGLContext
 
+from .. import config as _config
+from .. import logger as _logger
 from .. import utils as _utils
 from ..geometry import point as _point
 
@@ -17,6 +19,9 @@ MODEL_ARENA_CAPACITY_VERTICES = 4_000_000
 MODEL_ARENA_FRAGMENTATION_THRESHOLD = 0.35
 # Avoid rebuilding for tiny holes until at least this many vertices are reclaimable.
 MODEL_ARENA_MIN_FREE_VERTICES = 4096
+
+
+Config = _config.Config
 
 
 @dataclass
@@ -401,55 +406,77 @@ class VBOHandler(metaclass=VBOSingleton):
         return int(array_len // 3)
 
     @classmethod
+    def _log_debug(cls, *args):
+        logger = getattr(_logger, 'logger', None)
+        if logger is not None:
+            logger.debug(*args)
+            return
+
+        print(*args)
+
+    @staticmethod
+    def _is_vbo_debug_enabled() -> bool:
+        try:
+            return bool(Config.logging.log_debug)
+        except Exception:
+            return False
+
+    @classmethod
     def _debug_print_new_buffer_allocation(cls, requested_vertices: int):
-        print(
-            '[VBO] allocating new model arena: '
-            f'requested_vertices={requested_vertices}, '
+        if not cls._is_vbo_debug_enabled():
+            return
+
+        cls._log_debug(
+            '[VBO] allocating new model arena:',
+            f'requested_vertices={requested_vertices}',
             f'existing_buffers={len(cls._model_arenas)}'
         )
         for index, arena in enumerate(cls._model_arenas):
             metrics = arena.debug_metrics()
-            print(
-                '[VBO] arena '
-                f'index={index}, '
-                f'buffer_id={metrics["buffer_id"]}, '
-                f'capacity_vertices={metrics["capacity_vertices"]}, '
-                f'used_vertices={metrics["used_vertices"]}, '
-                f'free_vertices={metrics["free_vertices"]}, '
-                f'allocation_count={metrics["allocation_count"]}, '
-                f'free_range_count={metrics["free_range_count"]}, '
-                f'largest_free_range={metrics["largest_free_range"]}, '
-                f'fragmentation={metrics["fragmentation"]:.4f}, '
+            cls._log_debug(
+                '[VBO] arena',
+                f'index={index}',
+                f'buffer_id={metrics["buffer_id"]}',
+                f'capacity_vertices={metrics["capacity_vertices"]}',
+                f'used_vertices={metrics["used_vertices"]}',
+                f'free_vertices={metrics["free_vertices"]}',
+                f'allocation_count={metrics["allocation_count"]}',
+                f'free_range_count={metrics["free_range_count"]}',
+                f'largest_free_range={metrics["largest_free_range"]}',
+                f'fragmentation={metrics["fragmentation"]:.4f}',
                 f'free_ranges={metrics["free_ranges"]}'
             )
 
-    @staticmethod
-    def _debug_print_compaction(arena: _MeshArena, before: dict, after: dict):
-        print(
-            '[VBO] compacted arena: '
-            f'buffer_before={before["buffer_id"]}, '
+    @classmethod
+    def _debug_print_compaction(cls, before: dict, after: dict):
+        if not cls._is_vbo_debug_enabled():
+            return
+
+        cls._log_debug(
+            '[VBO] compacted arena:',
+            f'buffer_before={before["buffer_id"]}',
             f'buffer_after={after["buffer_id"]}'
         )
-        print(
-            '[VBO] arena before: '
-            f'capacity_vertices={before["capacity_vertices"]}, '
-            f'used_vertices={before["used_vertices"]}, '
-            f'free_vertices={before["free_vertices"]}, '
-            f'allocation_count={before["allocation_count"]}, '
-            f'free_range_count={before["free_range_count"]}, '
-            f'largest_free_range={before["largest_free_range"]}, '
-            f'fragmentation={before["fragmentation"]:.4f}, '
+        cls._log_debug(
+            '[VBO] arena before:',
+            f'capacity_vertices={before["capacity_vertices"]}',
+            f'used_vertices={before["used_vertices"]}',
+            f'free_vertices={before["free_vertices"]}',
+            f'allocation_count={before["allocation_count"]}',
+            f'free_range_count={before["free_range_count"]}',
+            f'largest_free_range={before["largest_free_range"]}',
+            f'fragmentation={before["fragmentation"]:.4f}',
             f'free_ranges={before["free_ranges"]}'
         )
-        print(
-            '[VBO] arena after: '
-            f'capacity_vertices={after["capacity_vertices"]}, '
-            f'used_vertices={after["used_vertices"]}, '
-            f'free_vertices={after["free_vertices"]}, '
-            f'allocation_count={after["allocation_count"]}, '
-            f'free_range_count={after["free_range_count"]}, '
-            f'largest_free_range={after["largest_free_range"]}, '
-            f'fragmentation={after["fragmentation"]:.4f}, '
+        cls._log_debug(
+            '[VBO] arena after:',
+            f'capacity_vertices={after["capacity_vertices"]}',
+            f'used_vertices={after["used_vertices"]}',
+            f'free_vertices={after["free_vertices"]}',
+            f'allocation_count={after["allocation_count"]}',
+            f'free_range_count={after["free_range_count"]}',
+            f'largest_free_range={after["largest_free_range"]}',
+            f'fragmentation={after["fragmentation"]:.4f}',
             f'free_ranges={after["free_ranges"]}'
         )
 
@@ -473,7 +500,7 @@ class VBOHandler(metaclass=VBOSingleton):
                 before = arena.debug_metrics()
                 if arena.compact() and arena.can_fit(needed):
                     after = arena.debug_metrics()
-                    cls._debug_print_compaction(arena, before, after)
+                    cls._debug_print_compaction(before, after)
                     arena.allocate(key, needed)
                     cls._clear_model_vaos_for_arena(arena)
                     return arena
@@ -482,10 +509,10 @@ class VBOHandler(metaclass=VBOSingleton):
         capacity = max(MODEL_ARENA_CAPACITY_VERTICES, needed)
         arena = _MeshArena(capacity)
         cls._model_arenas.append(arena)
-        print(
-            '[VBO] created model arena: '
-            f'buffer_id={arena.pos_buffer}, '
-            f'capacity_vertices={capacity}, '
+        cls._log_debug(
+            '[VBO] created model arena:',
+            f'buffer_id={arena.pos_buffer}',
+            f'capacity_vertices={capacity}',
             f'total_buffers={len(cls._model_arenas)}'
         )
         arena.allocate(key, needed)
@@ -685,7 +712,7 @@ class VBOHandler(metaclass=VBOSingleton):
                 continue
 
             after = arena.debug_metrics()
-            cls._debug_print_compaction(arena, before, after)
+            cls._debug_print_compaction(before, after)
             cls._clear_model_vaos_for_arena(arena)
             compacted = True
 
