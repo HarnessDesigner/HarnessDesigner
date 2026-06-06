@@ -73,7 +73,7 @@ pjt_table = _con.SQLTable(
                                                     _points3d.pjt_id_field,
                                                     on_delete=_con.REFERENCE_CASCADE,
                                                     on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('circuit_id', no_null=True,
+    _con.IntField('circuit_id', default='NULL',
                   references=_con.SQLFieldReference(_circuits.pjt_table,
                                                     _circuits.pjt_id_field,
                                                     on_delete=_con.REFERENCE_CASCADE,

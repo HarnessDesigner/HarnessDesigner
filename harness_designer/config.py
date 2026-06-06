@@ -631,14 +631,26 @@ class Config(metaclass=ConfigDB):
             """Floor plane, grid, and reflection settings for the 3D editor."""
             enable = True
             ground_height = 0.0
-            distance = 1000
+            size = 2000
             enable_floor_lock = True
 
             class grid(metaclass=ConfigDB):
                 """Floor grid appearance settings."""
                 primary_color = [0.2039, 0.2549, 0.2902, 0.8]
                 secondary_color = [0.2925, 0.3430, 0.3430, 0.8]
-                size = 50
+
+                primary_line_color = [0.87, 0.88, 0.92, 1.0]
+                secondary_line_color = [0.57, 0.59, 0.65, 1.0]
+                primary_line_width = 0.8
+                secondary_line_width = 0.25
+
+                secondary_lines_per_tile = 4
+
+                secondary_line_pattern = 0x0B2664D0
+                # 0000 1011 0010 0110 0110 0100 1101 0000
+                secondary_line_shift = False
+
+                size = 80
                 enable = True
 
             class reflections(metaclass=ConfigDB):
@@ -774,6 +786,9 @@ class Config(metaclass=ConfigDB):
             cavity_highlight = [0.0, 0.8, 1.0, 0.6]
 
             splice_highlight = [0.0, 0.8, 1.0, 0.6]
+
+    class resources(metaclass=ConfigDB):
+        model_watchdog_timeout = 120
 
     class database(metaclass=ConfigDB):
         """Database backend selection and connection defaults."""

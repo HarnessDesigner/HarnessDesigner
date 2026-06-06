@@ -3,6 +3,8 @@
 from typing import TYPE_CHECKING
 
 from . import base2d as _base2d
+from ...geometry import point as _point
+from ...geometry import angle as _angle
 
 
 if TYPE_CHECKING:
@@ -28,4 +30,5 @@ class Seal(_base2d.Base2D):
         :param db_obj: Database-backed object.
         :type db_obj: :class:`_pjt_seal.PJTSeal`
         """
-        _base2d.Base2D.__init__(self, parent, db_obj)
+
+        _base2d.Base2D.__init__(self, parent, db_obj, None, None)

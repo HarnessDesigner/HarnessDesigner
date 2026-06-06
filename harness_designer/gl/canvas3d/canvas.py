@@ -741,10 +741,8 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
             self._vertices_program = _shaders.compile_vertices_program()
             self._floor_program = _shaders.compile_floor_program()
 
-            self.floor = _floor.Floor(self, self._floor_program)
-
-            GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
             GL.glEnable(GL.GL_BLEND)
+            GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
 
             # Initialize OpenGL matrix stacks BEFORE doing anything else
             GL.glMatrixMode(GL.GL_PROJECTION)
@@ -777,9 +775,15 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
             self.camera.Set()
 
             self._init = True  # viewport is live; notify_virtual_size_changed may update it
+            try:
+                self.floor = _floor.Floor(self, self._floor_program)
+            except:
+                import traceback
+
+                traceback.print_exc()
+                raise
 
             self.set_draw_grid(self.config.floor.enable)
-
             self.set_focal_target(self.config.focal_target.enable)
 
             self.update()
@@ -917,7 +921,12 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         :param flag: Value for ``flag``.
         :type flag: UNKNOWN
         """
-        self.floor.set(flag)
+        try:
+            self.floor.set(flag)
+        except:
+            import traceback
+            traceback.print_exc()
+            raise
 
     @_debug.logfunc
     def _draw_scene(self, obj_data):
@@ -1058,8 +1067,6 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         f_size = self.config.floor.grid.size ** 2
 
         GL.glEnable(GL.GL_DEPTH_TEST)
-        GL.glEnable(GL.GL_BLEND)
-        GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
         GL.glEnable(GL.GL_PROGRAM_POINT_SIZE)
         GL.glLineWidth(2.0)
 
@@ -1086,7 +1093,12 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
                 self._faces_program, self._edges_program, self._vertices_program)
             GL.glUseProgram(0)
 
-        self.floor.render(self._floor_program)
+        try:
+            self.floor.render(self._floor_program)
+        except:
+            import traceback
+            traceback.print_exc()
+            raise
 
         if self._axis_overlay is not None:
             self._axis_overlay.set_angle(

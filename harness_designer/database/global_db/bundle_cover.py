@@ -320,7 +320,7 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
             'covers': [self.db_id],
             'families': [self.family_id],
             'series': [self.series_id],
-            'temperatures': [self.min_temp_id, self.max_temp],
+            'temperatures': [self.min_temp_id, self.max_temp_id],
             'colors': [color.db_id],
             'datasheets': [self.datasheet_id],
             'cads': [self.cad_id],

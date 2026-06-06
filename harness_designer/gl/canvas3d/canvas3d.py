@@ -269,8 +269,11 @@ class Canvas3D(QWidget):
         :param __: Value for ``__``.
         :type __: UNKNOWN
         """
+
+        print('refreshing')
         if self._ref_count:
             return
+
         self._canvas.update()
 
     def Truck(self, delta) -> None:

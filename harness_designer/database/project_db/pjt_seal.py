@@ -16,7 +16,8 @@ from .mixins import (
     Visible3DMixin, Visible3DControl,
     NameMixin, NameControl,
     NotesMixin, NotesControl,
-    SmoothMixin, SmoothControl
+    SmoothMixin, SmoothControl,
+    Scale3DMixin, Scale3DControl
 )
 
 
@@ -149,7 +150,7 @@ class PJTSealsTable(PJTTableBase):
         return PJTSeal(self, db_id, self.project_id)
 
 
-class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin,
+class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DMixin,
               PartMixin, HousingMixin, Visible3DMixin, NameMixin, SmoothMixin):
     """Represent a PJT seal in :mod:`harness_designer.database.project_db.pjt_seal`.
 

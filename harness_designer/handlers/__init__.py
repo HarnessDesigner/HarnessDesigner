@@ -17,6 +17,7 @@ from . import wire_handler as _wire_handler
 from . import wire_layout_handler as _wire_layout_handler
 from . import wire_service_loop_handler as _wire_service_loop_handler
 from . import handler_base as _handler_base
+from . import note_handler as _note_handler
 
 
 HandlerBase = _handler_base.HandlerBase
@@ -33,7 +34,7 @@ AddTransitionHandler = _transition_handler.AddTransitionHandler
 AddWireHandler = _wire_handler.AddWireHandler
 AddWireLayoutHandler = _wire_layout_handler.AddWireLayoutHandler
 AddWireServiceLoopHandler = _wire_service_loop_handler.AddWireServiceLoopHandler
-
+AddNoteHandler = _note_handler.AddNoteHandler
 
 del _handler_base
 del _bundle_handler
@@ -49,3 +50,4 @@ del _transition_handler
 del _wire_handler
 del _wire_layout_handler
 del _wire_service_loop_handler
+del _note_handler

@@ -182,11 +182,11 @@ class HousingsTable(TableBase):
 
         elif cpa_lock is not None:
             part_number = cpa_lock
-            field_name = 'compat_cpa_locks'
+            field_name = 'compat_cpas'
 
         elif tpa_lock is not None:
             part_number = tpa_lock
-            field_name = 'compat_tpa_locks'
+            field_name = 'compat_tpas'
 
         elif cover is not None:
             part_number = cover
@@ -194,7 +194,7 @@ class HousingsTable(TableBase):
         else:
             return []
 
-        self.execute(f'SELECT id, {field_name} FROM housings WHERE {field_name} LIKE "%{part_number}%;')
+        self.execute(f'SELECT id, {field_name} FROM housings WHERE {field_name} LIKE "%{part_number}%";')
         rows = self.fetchall()
         for db_id, compat in rows:
             compat = compat[1:-1].split(', ')

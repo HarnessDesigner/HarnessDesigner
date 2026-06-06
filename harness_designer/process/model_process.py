@@ -1,4 +1,5 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
 import multiprocessing
@@ -48,20 +49,12 @@ class ModelLoadError(ModelException):
 
 
 def _ocp_read_shape(shape):
-    """Execute the ocp read shape operation.
-
-    UNKNOWN details are inferred from the callable name and signature.
-
-    :param shape: Value for ``shape``.
-    :type shape: UNKNOWN
-    :returns: Return value. UNKNOWN details.
-    :rtype: UNKNOWN
-    """
+    print('tesselating model')
 
     BRepMesh_IncrementalMesh(
         theShape=shape, theLinDeflection=0.001,
         isRelative=True, theAngDeflection=0.1, isInParallel=True
-        )
+    )
 
     vertices = []
     faces = []
@@ -69,33 +62,28 @@ def _ocp_read_shape(shape):
 
     anExpSF = TopExp_Explorer(shape, TopAbs_FACE)
     while anExpSF.More():
-        if anExpSF.Current().ShapeType() != TopAbs_FACE:
-            continue
-
         aLoc = TopLoc_Location()
-
-        poly_triangulation = (
-            BRep_Tool.Triangulation_s(
-                TopoDS.Face_s(anExpSF.Current()),
-                aLoc
-                ))  # NOQA
+        poly_triangulation = BRep_Tool.Triangulation_s(
+            TopoDS.Face_s(anExpSF.Current()), aLoc)
 
         if not poly_triangulation:
+            anExpSF.Next()   # ← must advance before skipping
             continue
 
         trsf = aLoc.Transformation()
-
         node_count = poly_triangulation.NbNodes()
+
         for i in range(1, node_count + 1):
             gp_pnt = poly_triangulation.Node(i).Transformed(trsf)
-            pnt = (gp_pnt.X(), gp_pnt.Y(), gp_pnt.Z())
-            vertices.append(pnt)
+            vertices.append((gp_pnt.X(), gp_pnt.Y(), gp_pnt.Z()))
 
         facet_reversed = anExpSF.Current().Orientation() == TopAbs_REVERSED
-
         order = [1, 3, 2] if facet_reversed else [1, 2, 3]
-        for tri in poly_triangulation.Triangles():
-            faces.append([tri.Value(i) + offset - 1 for i in order])
+
+        # Use index access instead of Triangles() iterator — more reliable across OCP versions
+        for i in range(1, poly_triangulation.NbTriangles() + 1):
+            tri = poly_triangulation.Triangle(i)
+            faces.append([tri.Value(j) + offset - 1 for j in order])
 
         offset += node_count
         anExpSF.Next()
@@ -103,6 +91,7 @@ def _ocp_read_shape(shape):
     vertices = np.array(vertices, dtype=np.float32)
     faces = np.array(faces, dtype=np.int32)
 
+    print('finished tesselating')
     return vertices, faces
 
 
@@ -166,6 +155,8 @@ def _load_step(file):
     :returns: Return value. UNKNOWN details.
     :rtype: UNKNOWN
     """
+
+    print('loading step file:', file)
     step_reader = STEPControl_Reader()
     step_reader.ReadFile(file)
     step_reader.TransferRoots()  # NOQA
@@ -299,6 +290,27 @@ def _reduce_triangles(
     return vertices, faces
 
 
+import threading
+
+
+class ThreadWorker(threading.Thread):
+
+    def __init__(self, func, *args):
+        self.func = func
+        self.args = args
+
+        threading.Thread.__init__(self)
+        self.daemon = True
+        self.result = None
+        self.exception = None
+
+    def run(self):
+        try:
+            self.result = self.func(*self.args)
+        except Exception as err:  # NOQA
+            self.exception = err
+
+
 def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.Queue,
                     exit_event: multiprocessing.Event, print_lock: multiprocessing.Lock,
                     sleep_event: multiprocessing.Event):
@@ -349,14 +361,8 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
 
     from . import db_broker
 
-    connector = db_broker.connect_to_database(credentials)
-
-    if connector is None:
-        with print_lock:
-            print('MODEL DOWNLOADER: unknown database type')
-        return
-
     from .. import resources as _resources
+    from .. import config as _config
 
     while not exit_event.is_set():
         if is_primary:
@@ -373,152 +379,199 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
             if exit_event.is_set():
                 break
 
-            in_message = in_queue.get_nowait()
-            in_message = json.loads(in_message)
+            in_message_ = in_queue.get_nowait()
+            in_message_ = json.loads(in_message_)
 
-            model_id = in_message['id']
-            mfg = in_message['mfg']
-            part_number = in_message['part_number']
-            model_dir = in_message['model_dir']
+            def _do(in_message):
+                connector = db_broker.connect_to_database(credentials)
 
-            message = {'step': 0, 'id': model_id, 'mfg': mfg, 'part_number': part_number}
-            out_queue.put(json.dumps(message))
+                if connector is None:
+                    raise RuntimeError('database connection error')
 
-            if exit_event.is_set():
-                break
+                model_id = in_message['id']
+                mfg = in_message['mfg']
+                part_number = in_message['part_number']
+                model_dir = in_message['model_dir']
 
-            connector.execute(f'SELECT target_count, aggressiveness, update_rate, iterations, simplify, path FROM models3d WHERE id={model_id};')
-            model_data = connector.fetchall()
-
-            if not model_data:
-                message = {'err': 'invalid database row',
-                           'id': model_id,
-                           'mfg': mfg, 'part_number': part_number}
-
+                message = {'step': 0, 'id': model_id, 'mfg': mfg, 'part_number': part_number}
                 out_queue.put(json.dumps(message))
-                continue
 
-            if exit_event.is_set():
-                break
+                if exit_event.is_set():
+                    connector.close()
+                    return
 
-            message['step'] = 1
-            out_queue.put(json.dumps(message))
+                connector.execute(f'SELECT target_count, aggressiveness, update_rate, iterations, simplify, path FROM models3d WHERE id={model_id};')
+                model_data = connector.fetchall()
 
-            target_count, aggressiveness, update_rate, iterations, simplify, path = model_data[0]
+                if not model_data:
+                    message = {'err': 'invalid database row',
+                               'id': model_id,
+                               'mfg': mfg, 'part_number': part_number}
 
-            if not path:
-                message['err'] = 'invalid model url/path'
+                    out_queue.put(json.dumps(message))
+                    connector.close()
+                    return
+
+                message['step'] = 1
                 out_queue.put(json.dumps(message))
-                continue
 
-            if exit_event.is_set():
-                break
+                if exit_event.is_set():
+                    connector.close()
+                    return
 
-            message['step'] = 2
-            out_queue.put(json.dumps(message))
+                target_count, aggressiveness, update_rate, iterations, simplify, path = model_data[0]
 
-            file_path = _resources.collect_resource(connector, _resources.IMAGE_TYPE_MODEL, path)
+                if not path:
+                    message['err'] = 'invalid model url/path'
+                    out_queue.put(json.dumps(message))
+                    connector.close()
+                    return
 
-            if file_path is None:
-                message['err'] = 'unable to load model'
+                message['step'] = 2
                 out_queue.put(json.dumps(message))
-                continue
 
-            if exit_event.is_set():
-                break
+                if exit_event.is_set():
+                    connector.close()
+                    return
 
-            message['step'] = 3
-            out_queue.put(json.dumps(message))
+                file_path = _resources.collect_resource(connector, _resources.IMAGE_TYPE_MODEL, path)
 
-            model_path, file_type_id = file_path
+                if file_path is None:
+                    message['err'] = 'unable to load model'
+                    out_queue.put(json.dumps(message))
+                    connector.close()
+                    return
 
-            connector.execute(f'SELECT extension FROM file_types WHERE id={file_type_id};')
-            rows = connector.fetchall()
-            if not rows:
-                message['err'] = f'unsupported file type'
+                message['step'] = 3
                 out_queue.put(json.dumps(message))
-                continue
 
-            ext = rows[0][0]
+                if exit_event.is_set():
+                    connector.close()
+                    return
 
-            if exit_event.is_set():
-                break
+                model_path, file_type_id = file_path
 
-            message['step'] = 4
-            out_queue.put(json.dumps(message))
+                connector.execute(f'SELECT extension FROM file_types WHERE id={file_type_id};')
+                rows = connector.fetchall()
 
-            if not os.path.exists(model_path):
-                message['err'] = f'file does not exist ("{model_path}")'
+                if not rows:
+                    message['err'] = f'unsupported file type'
+                    out_queue.put(json.dumps(message))
+                    connector.close()
+                    return
 
+                ext = rows[0][0]
+
+                message['step'] = 4
                 out_queue.put(json.dumps(message))
-                continue
 
-            try:
+                if exit_event.is_set():
+                    connector.close()
+                    return
+
+                if not os.path.exists(model_path):
+                    message['err'] = f'file does not exist ("{model_path}")'
+                    out_queue.put(json.dumps(message))
+                    connector.close()
+                    return
+
                 vertices, faces = _load(model_path)
-            except Exception:  # NOQA
 
-                import traceback
-                err = ''.join(traceback.format_exc())
-                message['err'] = err
+                vertices = _center_model(vertices)
 
+                if simplify:
+                    message['step'] = 5
+                    out_queue.put(json.dumps(message))
+
+                    if exit_event.is_set():
+                        connector.close()
+                        return
+
+                    vertices, faces = _reduce_triangles(vertices, faces, target_count, aggressiveness, iterations)
+
+                message['step'] = 6
                 out_queue.put(json.dumps(message))
+
+                if exit_event.is_set():
+                    connector.close()
+                    return
+
+                vertices, smooth_normals, face_normals, _ = (
+                    _utils.compute_normals(vertices, faces))
+
+                message['step'] = 7
+                out_queue.put(json.dumps(message))
+
+                if exit_event.is_set():
+                    connector.close()
+                    return
+
+                model_data = _model_data.ModelData(vertices, smooth_normals, face_normals)
+
+                uuid = model_data.uuid
+                model_data.source_location = path
+                model_data.source_type = ext
+                model_data.part_number = part_number
+                model_data.manufacturer = mfg
+
+                model_data.save(model_dir)
+
+                message['step'] = 8
+                out_queue.put(json.dumps(message))
+
+                if exit_event.is_set():
+                    connector.close()
+                    return
+
+                connector.execute(f'UPDATE models3d SET file_type_id={file_type_id}, uuid="{uuid}" WHERE id={model_id};')
+                connector.commit()
+
+                message['step'] = 9
+                out_queue.put(json.dumps(message))
+
+                os.remove(model_path)
+
+                message['step'] = 10
+                out_queue.put(json.dumps(message))
+
+            timeout = _config.Config.resources.model_watchdog_timeout
+            import time
+
+            thread = ThreadWorker(_do, in_message_)
+            start_time = time.time()
+
+            thread.start()
+
+            stop_time = time.time()
+            while stop_time - start_time <= timeout:
+                if exit_event.is_set():
+                    break
+
+                if thread.is_alive():
+                    exit_event.wait(1)
+                else:
+                    break
+
+                stop_time = time.time()
+
+            if exit_event.is_set():
+                break
+
+            if thread.exception is not None:
+                in_message_['err'] = str(thread.exception)
+                out_queue.put(json.dumps(in_message_))
                 continue
 
-            if exit_event.is_set():
-                break
+            if stop_time - start_time > timeout:
+                in_message_['in_message'] = json.dumps(in_message_)
+                in_message_['watchdog_restart'] = True
+                in_message_['is_primary'] = is_primary
 
-            vertices = _center_model(vertices)
+                out_queue.put(json.dumps(in_message_))
+                exit_event.set()
 
-            if simplify:
-                message['step'] = 5
-                out_queue.put(json.dumps(message))
-
-                vertices, faces = _reduce_triangles(
-                    vertices, faces, target_count, aggressiveness, iterations)
-
-            message['step'] = 6
-            out_queue.put(json.dumps(message))
-
-            vertices, smooth_normals, face_normals, _ = (
-                _utils.compute_normals(vertices, faces))
-
-            if exit_event.is_set():
-                break
-
-            message['step'] = 7
-            out_queue.put(json.dumps(message))
-
-            model_data = _model_data.ModelData(vertices, smooth_normals, face_normals)
-
-            uuid = model_data.uuid
-            model_data.source_location = path
-            model_data.source_type = ext
-            model_data.part_number = part_number
-            model_data.manufacturer = mfg
-
-            if exit_event.is_set():
-                break
-
-            model_data.save(model_dir)
-
-            message['step'] = 8
-            out_queue.put(json.dumps(message))
-
-            connector.execute(f'UPDATE models3d SET file_type_id={file_type_id}, uuid="{uuid}" WHERE id={model_id};')
-            connector.commit()
-
-            message['step'] = 9
-            out_queue.put(json.dumps(message))
-
-            os.remove(model_path)
-
-            message['step'] = 10
-            out_queue.put(json.dumps(message))
-
-    message = {'exit_loop': 1}
-    out_queue.put(json.dumps(message))
-
-    connector.close()
+    message_ = {'exit_loop': 1}
+    out_queue.put(json.dumps(message_))
 
 
 class ProcessWorker:

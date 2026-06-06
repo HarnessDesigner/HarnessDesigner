@@ -10,7 +10,7 @@ from .base import BaseMixin
 
 
 if TYPE_CHECKING:
-    from .. import color as _color
+    from .... import color as _color
 
 
 class ColorMixin(BaseMixin):

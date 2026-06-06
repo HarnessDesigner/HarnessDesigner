@@ -366,6 +366,55 @@ class ProcessManager(threading.Thread):
                     if message is None:
                         continue
 
+                    got_message = True
+
+                    if 'watchdog_restart' in message:
+                        with self._print_lock:
+                            print('MODEL PROCESS MESSAGE:', message)
+
+                        self._model_processes_cb[i - offset] = None
+                        is_primary = message['is_primary']
+
+                        from ..ui.dialogs import error as _error
+
+                        def _do(msg):
+                            dlg = _error.ErrorDialog(
+                                self.mainframe,
+                                json.dumps(msg, indent=4),
+                                '3D Model Conversion Watchdog timeout')
+
+                            dlg.exec()
+
+                        _app.CallAfter(_do, message)
+
+                        del self._model_progress[message['part_number']]
+                        self._model_process_active -= 1
+                        if part_number in curr_progresses:
+                            index = curr_progresses.index(part_number)
+
+                            if curr_progress_index >= index:
+                                curr_progress_index -= 1
+
+                            curr_progresses.remove(part_number)
+
+                        if not self._model_process_active:
+                            def _do():
+                                self.mainframe.end_progress_bar()
+
+                            _app.CallAfter(_do)
+
+                        if is_primary:
+                            from . import model_process
+
+                            self._model_processes[i - offset] = model_process.ProcessWorker(self, self._print_lock)
+                            self._model_processes[i - offset].start(True)
+                        else:
+                            self._model_processes.remove(process)
+                            self._model_processes_cb.pop(i - offset)
+                            offset += 1
+
+                        continue
+
                     if 'exit_loop' in message:
                         self._model_processes.remove(process)
                         self._model_processes_cb.pop(i - offset)
@@ -373,6 +422,9 @@ class ProcessManager(threading.Thread):
                         continue
 
                     if 'err' in message:
+                        with self._print_lock:
+                            print('MODEL PROCESS MESSAGE:', message)
+
                         from ..ui.dialogs import error as _error
 
                         def _do(msg):
@@ -445,7 +497,6 @@ class ProcessManager(threading.Thread):
                         _app.CallAfter(_do, step, part_number, start_progress)
 
                         start_progress = False
-                        got_message = True
 
             if got_message:
                 continue
@@ -497,6 +548,7 @@ class ProcessManager(threading.Thread):
 
         with self._model_lock:
             for i, process in enumerate(self._model_processes[:]):
+
                 if not process.is_alive():
                     continue
 

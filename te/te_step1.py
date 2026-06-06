@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 '''
 automotive-parts: 883095
 automotive-connectors: 883096

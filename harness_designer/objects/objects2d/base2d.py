@@ -46,22 +46,33 @@ class Base2D:
             return
 
         self._position = position
-        self._o_position = position.copy()
-        self._angle = angle
-        self._o_angle = angle.copy()
+
+        if position is None:
+            self._o_position = None
+            self._angle = None
+            self._o_angle = None
+        else:
+            self._o_position = position.copy()
+            self._angle = angle
+            self._o_angle = angle.copy()
+
+            self._position.bind(self._on_position)
+            self._angle.bind(self._on_angle)
 
         self._is_selected = False
+        self._is_deleted = False
 
-        self._position.bind(self._on_position)
-        self._angle.bind(self._on_angle)
+    def delete(self):
+        self._is_deleted = True
+        self.editor2d.Refresh()
 
-    def identify(self, color: list[float] | None):
+    def identify(self, material: list[float] | None):
         """Execute the identify operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
-        :param color: Value for ``color``.
-        :type color: list[float] | None
+        :param material: Value for ``color``.
+        :type material: list[float] | None
         """
         pass
 

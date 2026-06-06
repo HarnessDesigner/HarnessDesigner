@@ -582,8 +582,8 @@ class EditorList(QTableView):
         db_id = row[1]
         if db_id not in self.bitmap_indexes:
             if not self._has_image:
-                self.bitmap_indexes[db_id] = None
-                return None
+                self.bitmap_indexes[db_id] = EditorList._no_image
+                return EditorList._no_image
 
             image_id = row[-1]
             if image_id is None:
@@ -603,8 +603,8 @@ class EditorList(QTableView):
 
             image_path = image.data_path
             if image_path is None:
-                self.bitmap_indexes[db_id] = None
-                return None
+                self.bitmap_indexes[db_id] = EditorList._no_image
+                return EditorList._no_image
 
             pixmap = QPixmap(image_path).scaled(
                 64, 64, Qt.KeepAspectRatio, Qt.SmoothTransformation

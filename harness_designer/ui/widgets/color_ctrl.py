@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from PySide6 import QtWidgets
 from PySide6 import QtGui
 from PySide6 import QtCore
@@ -15,7 +17,7 @@ class ColorCtrl(QtWidgets.QWidget):
     EVT_COLOURPICKER_CHANGED on the old sizer-based widget.
     """
 
-    colour_changed: QtCore.SignalInstance = QtCore.Signal(object)
+    colorChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
     def __init__(self, parent=None, label: str = '', table=None):
         """Initialise the :class:`ColorCtrl` instance.
@@ -30,6 +32,8 @@ class ColorCtrl(QtWidgets.QWidget):
         :type table: UNKNOWN
         """
         super().__init__(parent)
+
+        self._table = table
 
         table.execute('SELECT id, name, rgb FROM colors;')
         rows = table.fetchall()
@@ -109,7 +113,7 @@ class ColorCtrl(QtWidgets.QWidget):
             self.ctrl.SetValue(name)
             self.ctrl.blockSignals(False)
 
-        self.colour_changed.emit(self.GetColour())
+        self.colorChanged.emit(self.GetColor())
 
     def _on_combobox(self, value: str):
         """Handle the combobox event.
@@ -130,7 +134,7 @@ class ColorCtrl(QtWidgets.QWidget):
             qc = QtGui.QColor(r, g, b, a)
             self._update_button_colour(qc)
 
-        self.colour_changed.emit(self.GetColour())
+        self.colorChanged.emit(self.GetColor())
 
     # ------------------------------------------------------------------
     # wx-compatible public API
@@ -159,7 +163,7 @@ class ColorCtrl(QtWidgets.QWidget):
 
     SetToolTipString = SetToolTip
 
-    def GetColour(self) -> '_color.Color':
+    def GetColor(self) -> '_color.Color':
         """Execute the get colour operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -170,12 +174,16 @@ class ColorCtrl(QtWidgets.QWidget):
         qc = self._current_qcolor
         name = self.GetValue()
 
+        self._table.execute(f'SELECT id FROM colors WHERE name="{name}";')
+        rows = self._table.fetchall()
+        db_id = rows[0][0]
+
         if name in ('None', 'Transparent'):
             a = 0
         else:
             a = 255
 
-        return _color.Color(qc.red(), qc.green(), qc.blue(), a)
+        return _color.Color(qc.red(), qc.green(), qc.blue(), a, db_id=str(db_id))
 
     def GetValue(self) -> str:
         """Execute the get value operation.

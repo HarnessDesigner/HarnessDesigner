@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from PySide6 import QtWidgets
 from PySide6 import QtCore
 from PySide6 import QtGui

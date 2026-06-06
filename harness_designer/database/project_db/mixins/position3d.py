@@ -23,16 +23,16 @@ class Position3DMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         """
-        if self._stored_position3d is None and self._obj is not None:
+        if self._stored_position3d is None:
             point_id = self.position3d_id
 
             self._stored_position3d = self._table.db.pjt_points3d_table[point_id]
-            self._stored_position3d.add_object(self._obj())
             point = self._stored_position3d.point
-        elif self._stored_position3d is None:
-            point = None
         else:
             point = self._stored_position3d.point
+
+        if self._obj is not None:
+            self._stored_position3d.add_object(self._obj())
 
         return point
 

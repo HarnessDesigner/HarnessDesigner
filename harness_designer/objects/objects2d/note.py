@@ -33,16 +33,11 @@ class Note(_base2d.Base2D):
         :param db_obj: Database-backed object.
         :type db_obj: :class:`_pjt_note.PJTNote`
         """
-        _base2d.Base2D.__init__(self, parent, db_obj)
 
-        self._position = db_obj.point3d.point
-        self._o_position = self._position.copy()
-        self._angle = db_obj.angle2d
+        position = db_obj.position2d
+        angle = db_obj.angle2d
 
-        self._color = db_obj.color.ui
-
-        self._position.bind(self._update_position)
-        self._angle.bind(self._update_angle)
+        _base2d.Base2D.__init__(self, parent, db_obj, position=position, angle=angle)
 
 
 class NoteMenu(QMenu):

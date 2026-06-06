@@ -16,7 +16,8 @@ from .mixins import (
     Visible3DMixin, Visible3DControl,
     NameMixin, NameControl,
     NotesMixin, NotesControl,
-    SmoothMixin, SmoothControl
+    SmoothMixin, SmoothControl,
+    Scale3DMixin, Scale3DControl
 )
 
 
@@ -134,19 +135,13 @@ class PJTTPALocksTable(PJTTableBase):
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`PJTTPALock`
         """
-        if housing_id is None:
-            self.execute(f'SELECT id FROM pjt_housings WHERE tpa_lock_1_point3d_id={position3d_id} OR tpa_lock_2_point3d_id={position3d_id};')
-            rows = self.fetchall()
-
-            housing_id = rows[0][0]
-
         db_id = PJTTableBase.insert(
-            self, part_id=part_id, position3d_id=position3d_id, housing_id=housing_id)
+            self, part_id=part_id, point3d_id=position3d_id, housing_id=housing_id)
 
         return PJTTPALock(self, db_id, self.project_id)
 
 
-class PJTTPALock(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin,
+class PJTTPALock(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin, Scale3DMixin,
                  HousingMixin, Visible3DMixin, NameMixin, NotesMixin, SmoothMixin):
     """Represent a pjttpa lock in :mod:`harness_designer.database.project_db.pjt_tpa_lock`.
 

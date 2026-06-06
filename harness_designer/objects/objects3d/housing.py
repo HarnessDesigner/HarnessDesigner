@@ -60,13 +60,13 @@ class Housing(_base3d.Base3D):
 
         if 0.0 in (length, width, height):
             length_ctrl = _float_ctrl.FloatCtrl(
-                None, 'Length', 0.01, 500.0, 0.01)
+                None, 'Length', 0.00, 500.0, 0.01)
 
             width_ctrl = _float_ctrl.FloatCtrl(
-                None, 'Width', 0.01, 500.0, 0.01)
+                None, 'Width', 0.00, 500.0, 0.01)
 
             height_ctrl = _float_ctrl.FloatCtrl(
-                None, 'Height', 0.01, 500.0, 0.01)
+                None, 'Height', 0.00, 500.0, 0.01)
 
             length_ctrl.SetValue(length)
             width_ctrl.SetValue(width)
@@ -87,7 +87,7 @@ class Housing(_base3d.Base3D):
             db_obj.width = width
             db_obj.height = height
 
-        scale = _point.Point(self._part.width, self._part.height, self._part.length)
+        scale = _point.Point(width, height, length)
         material = _materials.Plastic(self._part.color.ui)
         angle = db_obj.angle3d
 

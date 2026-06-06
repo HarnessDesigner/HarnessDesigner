@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from PySide6 import QtWidgets
 from PySide6 import QtCore
 
@@ -79,7 +81,6 @@ class FloatCtrl(QtWidgets.QWidget):
         self.ctrl.setSingleStep(inc)
         self.ctrl.setRange(min_val, max_val)
         self.ctrl.setValue(initial)
-
         top.addWidget(self.st, 1)
         top.addWidget(self.ctrl, 1)
         outer.addLayout(top)

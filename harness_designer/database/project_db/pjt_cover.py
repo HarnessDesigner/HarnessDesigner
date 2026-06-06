@@ -16,7 +16,8 @@ from .mixins import (
     Visible3DMixin, Visible3DControl,
     NameMixin, NameControl,
     NotesMixin, NotesControl,
-    SmoothMixin, SmoothControl
+    SmoothMixin, SmoothControl,
+    Scale3DMixin, Scale3DControl
 )
 
 
@@ -134,12 +135,12 @@ class PJTCoversTable(PJTTableBase):
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`PJTCover`
         """
-        db_id = PJTTableBase.insert(self, part_id=part_id, position3d_id=position3d_id, housing_id=housing_id)
+        db_id = PJTTableBase.insert(self, part_id=part_id, point3d_id=position3d_id, housing_id=housing_id)
 
         return PJTCover(self, db_id, self.project_id)
 
 
-class PJTCover(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin,
+class PJTCover(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DMixin,
                PartMixin, HousingMixin, Visible3DMixin, NameMixin, SmoothMixin):
     """Represent a PJT cover in :mod:`harness_designer.database.project_db.pjt_cover`.
 
@@ -163,7 +164,10 @@ class PJTCover(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin,
         }
 
         self.merge_packet_data(self.part.build_monitor_packet(), packet)
-        self.merge_packet_data(self.housing.build_monitor_packet(), packet)
+
+        housing = self.housing
+        if housing is not None:
+            self.merge_packet_data(housing.build_monitor_packet(), packet)
 
         return packet
 

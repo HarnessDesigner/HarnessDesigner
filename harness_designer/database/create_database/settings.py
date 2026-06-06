@@ -59,6 +59,13 @@ def add_records(con, splash, appdata):
     if not os.path.exists(datasheet_path):
         os.makedirs(datasheet_path)
 
+    for i in range(0x00, 0x100):
+        i = f'{i:02x}'
+        for pth in (model_path, image_path, cad_path, datasheet_path):
+            pth = os.path.join(pth, i)
+            if not os.path.exists(pth):
+                os.mkdir(pth)
+
     splash.SetText(f'Adding setting to db [1 | 4]...')
     splash.flush()
 

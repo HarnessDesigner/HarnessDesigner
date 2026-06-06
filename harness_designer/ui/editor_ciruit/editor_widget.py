@@ -1,5 +1,5 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
-#
+
 # circuit_spreadsheet.py  — v3
 #
 # Enhanced Circuit Spreadsheet with:

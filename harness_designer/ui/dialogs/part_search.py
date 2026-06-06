@@ -1,4 +1,4 @@
-# © 2025-2026 Kevin G. Schksloser <kevin.g.schlosser@gmail.com>
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
@@ -654,7 +654,7 @@ class SearchDialog(_dialog_base.BaseDialog):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
-    def __init__(self, parent: "_ui.MainFrame", page_class, table, title: str):
+    def __init__(self, parent: "_ui.MainFrame", page_class, table, title: str, initial_results=[]):
         """Initialise the :class:`SearchDialog` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -667,6 +667,8 @@ class SearchDialog(_dialog_base.BaseDialog):
         :type table: UNKNOWN
         :param title: Value for ``title``.
         :type title: str
+        :param initial_results: List of part numbers
+        :type initial_results: list[str]
         """
         super().__init__(parent, title=title)
 

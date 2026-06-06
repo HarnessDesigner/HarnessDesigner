@@ -23,6 +23,7 @@ from . import enum_prop as _enum_prop
 from . import events as _events
 from . import category as _category
 from . import tri_state_checkbox_prop as _tri_state_checkbox_prop
+from . import scale3d_prop as _scale3d_prop
 
 
 EVT_PROPERTY_CHANGED = _events.EVT_PROPERTY_CHANGED
@@ -49,6 +50,7 @@ Position3DProperty = _position3d_prop.Position3DProperty
 PathProperty = _path_prop.PathProperty
 EnumProperty = _enum_prop.EnumProperty
 TriStateCheckboxProperty = _tri_state_checkbox_prop.TriStateCheckboxProperty
+Scale3DProperty = _scale3d_prop.Scale3DProperty
 
 
 del _string_prop
@@ -74,3 +76,4 @@ del _enum_prop
 del _events
 del _category
 del _tri_state_checkbox_prop
+del _scale3d_prop

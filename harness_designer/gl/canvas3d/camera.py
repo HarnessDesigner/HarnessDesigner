@@ -193,18 +193,27 @@ from OpenGL import GL
 from OpenGL import GLU
 
 import numpy as np
+from harness_designer import app as _app
 
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ...geometry import line as _line
 from ... import debug as _debug
 from .. import events as _events
+from ... import utils as _utils
+
 
 if TYPE_CHECKING:
     from . import canvas as _canvas
 
 
 ZERO_POINT = _point.ZERO_POINT
+
+
+# Pre-allocated world-up constant — avoids repeated array allocation in
+# _calculate_camera() and _rotate_about() which are called on every frame
+# and every mouse-drag event respectively.
+_WORLD_UP = np.array([0.0, 1.0, 0.0], dtype=np.float32)
 
 
 class Camera:
@@ -227,13 +236,15 @@ class Camera:
         self._modelview = None
         self._viewport = None
         self._clip = None
+        self._inv_clip = None
+        self._fov = None
         self._up = None
         self._right = None
         self._forward = None
 
-        self._up_norm = None
-        self._right_norm = None
-        self._forward_norm = None
+        # self._up_norm = None
+        # self._right_norm = None
+        # self._forward_norm = None
         self._frustum_planes = None
         self._frustum_normals = None
         self._frustum_distances = None
@@ -251,79 +262,56 @@ class Camera:
         self._position.bind(self._update_camera)
         self._focal_position.bind(self._update_camera)
 
-    def _send_event(self, type_):
-        event = _events.GLCameraEvent.from_canvas(type_, self.canvas)
-
-        if event is None:
-            return
-
-        getattr(self.canvas, event.GetType()).emit(event)
-
     @property
     def field_of_view(self) -> float:
         """
         Return the field of view.
 
+        Value is cached in _update_views() and only recomputed when the
+        projection matrix changes.
+
         :rtype: float
         """
-        if self._projection is None:
+        if self._fov is None:
             self._is_dirty = True
             self._update_views()
 
-        # The projection matrix element [1,1] contains: cot(fov_y / 2)
-        # where fov_y is the vertical field of view
-        cot_half_fov = self._projection[1, 1]
-
-        if cot_half_fov == 0.0:
-            return 0.0
-
-        # tan(fov/2) = 1 / cot(fov/2)
-        tan_half_fov = 1.0 / cot_half_fov
-
-        # fov/2 = atan(tan(fov/2))
-        half_fov_radians = math.atan(tan_half_fov)
-
-        # Convert to full FOV in degrees
-        fov_degrees = math.degrees(half_fov_radians * 2.0)
-
-        return fov_degrees
-    #
-    # @property
-    # def horizontal_field_of_view(self) -> float:
-    #     if self._projection is None:
-    #         return 0.0
-    #
-    #     # The projection matrix element [0,0] contains: cot(fov_x / 2) / aspect_ratio
-    #     # For horizontal FOV, we need to account for the aspect ratio
-    #     cot_half_fov = self._projection[0, 0]
-    #
-    #     if cot_half_fov == 0.0:
-    #         return 0.0
-    #
-    #     tan_half_fov = 1.0 / cot_half_fov
-    #     half_fov_radians = math.atan(tan_half_fov)
-    #     fov_degrees = math.degrees(half_fov_radians * 2.0)
-    #
-    #     return fov_degrees
+        return self._fov
 
     @property
-    def objects_in_view(self):
-        """
-        Return the objects in view.
-        """
-        return self.canvas.objects_in_view
+    def clip(self) -> np.ndarray:
+        return self._clip
 
     @property
-    def aspect_ratio(self) -> float:
+    def inv_clip(self) -> np.ndarray:
         """
-        Return the aspect ratio.
+        Return the cached inverse of the clip (projection × modelview) matrix.
+
+        Computed once per dirty frame in _update_views(); safe to use in
+        hot paths such as mouse-ray unprojection.
+
+        :rtype: :class:`np.ndarray`
+        """
+        return self._inv_clip
+
+    @property
+    def forward(self) -> np.ndarray:
+        """
+        Return the normalised unit vector pointing from the camera position
+        toward the focal position.
+
+        :rtype: :class:`np.ndarray`
+        """
+        return self._forward
+
+    @property
+    def focal_distance(self) -> float:
+        """
+        Return the distance from the camera position to the focal point.
 
         :rtype: float
         """
-        if self._viewport is None or self._viewport[3] == 0:
-            return 1.0
-
-        return float(self._viewport[2]) / float(self._viewport[3])
+        return self._focal_distance
 
     @property
     def up(self) -> np.ndarray:
@@ -356,9 +344,118 @@ class Camera:
         """
         return self._focal_position
 
+    @property
+    def projection(self) -> np.ndarray:
+        """
+        Return the projection.
+
+        :rtype: :class:`np.ndarray`
+        """
+
+        return self._projection
+
+    @property
+    def modelview(self) -> np.ndarray:
+        """
+        Return the modelview.
+
+        :rtype: :class:`np.ndarray`
+        """
+
+        return self._modelview
+
+    @property
+    def viewport(self) -> np.ndarray:
+        """
+        Return the viewport.
+
+        :rtype: :class:`np.ndarray`
+        """
+
+        return self._viewport
+
+    @property
+    def frustum_normals(self) -> np.ndarray:
+        """
+        Return the frustum normals.
+
+        :rtype: :class:`np.ndarray`
+        """
+
+        return self._frustum_normals
+
+    @property
+    def frustum_distances(self) -> np.ndarray:
+        """
+        Return the frustum distances.
+
+        :rtype: :class:`np.ndarray`
+        """
+
+        return self._frustum_distances
+
+    @property
+    def objects_in_view(self):
+        """
+        Return the objects in view.
+        """
+        return self.canvas.objects_in_view
+
+    @property
+    def orthonormalized_axes(self) -> tuple[
+        np.ndarray, np.ndarray, np.ndarray]:  # NOQA
+        """
+        Return the orthonormalized axes.
+
+        Returns the forward, right and up unit vectors as already computed
+        and stored by _calculate_camera() — no redundant recalculation.
+
+        :returns: (forward, right, up)
+        :rtype: tuple[:class:`np.ndarray`, :class:`np.ndarray`, :class:`np.ndarray`]
+        """
+        return self._forward, self._right, self._up
+
+    def _send_event(self, type_):
+        event = _events.GLCameraEvent.from_canvas(type_, self.canvas)
+
+        if event is None:
+            return
+
+        getattr(self.canvas, event.GetType()).emit(event)
+
+    # @property
+    # def horizontal_field_of_view(self) -> float:
+    #     if self._projection is None:
+    #         return 0.0
+    #
+    #     # The projection matrix element [0,0] contains: cot(fov_x / 2) / aspect_ratio
+    #     # For horizontal FOV, we need to account for the aspect ratio
+    #     cot_half_fov = self._projection[0, 0]
+    #
+    #     if cot_half_fov == 0.0:
+    #         return 0.0
+    #
+    #     tan_half_fov = 1.0 / cot_half_fov
+    #     half_fov_radians = math.atan(tan_half_fov)
+    #     fov_degrees = math.degrees(half_fov_radians * 2.0)
+    #
+    #     return fov_degrees
+
+    @property
+    def aspect_ratio(self) -> float:
+        """
+        Return the aspect ratio.
+
+        :rtype: float
+        """
+        if self._viewport is None or self._viewport[3] == 0:
+            return 1.0
+
+        return float(self._viewport[2]) / float(self._viewport[3])
+
     def Reset(self):
         """
-        Reset the camers back to it's home position.
+        Reset the camers back to its home position.
         """
         with self._position and self._focal_position:
             self._focal_position.x = 0.0
@@ -388,33 +485,8 @@ class Camera:
                 self._position.y = self.canvas.config.floor.ground_height + 0.25
 
         self._is_dirty = True
-        QTimer.singleShot(0, self.canvas.update)
 
-    @property
-    def orthonormalized_axes(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:  # NOQA
-        """
-        Return the orthonormalized axes.
-
-        :returns:
-        :rtype: tuple[:class:`np.ndarray`, :class:`np.ndarray`, :class:`np.ndarray`]
-        """
-        def normalize(v):
-            """
-            Execute the normalize operation.
-
-            :type v: :class:`np.ndarray`
-            :returns: Normalized value
-            :rtype: :class:`np.ndarray`
-            """
-            v = np.array(v, dtype=float)
-            n = np.linalg.norm(v)
-            return v / (n if n != 0 else 1.0)
-
-        # Returns forward, right, up (all unit) with forward pointing from eye -> center
-        f = normalize((self._focal_position - self._position).as_numpy)
-        r = normalize(np.cross(f, self._up))  # camera right  # NOQA
-        u = np.cross(r, f)  # camera up re-orthonormalized  # NOQA
-        return f, r, u
+        _app.CallAfter(self.canvas.update)
 
     @property
     def has_camera_moved(self) -> bool:
@@ -470,7 +542,11 @@ class Camera:
         """
 
         self._calculate_camera()
-        camera = self._position.as_float + self._focal_position.as_float + tuple(self._up.tolist())
+
+        camera = (self._position.as_float +
+                  self._focal_position.as_float +
+                  tuple(self._up.tolist()))
+
         GLU.gluLookAt(*camera)
         self._update_views()
 
@@ -491,7 +567,7 @@ class Camera:
 
         forward = forward / focal_distance
 
-        world_up = np.array([0.0, 1.0, 0.0], dtype=np.float32)
+        world_up = _WORLD_UP.copy()
         dot = float(np.dot(forward, world_up))
 
         # When the view direction gets too close to the world-up vector the
@@ -503,7 +579,7 @@ class Camera:
             un = np.linalg.norm(up)
             if un < 1e-6:
                 up = world_up.copy()
-                un = 1.0
+                # un = 1.0
             else:
                 up = up / un
 
@@ -527,7 +603,7 @@ class Camera:
             rn = np.linalg.norm(right)
             if rn < 1e-6:
                 right = np.array([1.0, 0.0, 0.0], dtype=np.float32)
-                rn = 1.0
+                # rn = 1.0
             else:
                 right = right / rn
 
@@ -536,49 +612,19 @@ class Camera:
             un = np.linalg.norm(up)
             if un < 1e-6:
                 up = world_up.copy()
-                un = 1.0
+                # un = 1.0
             else:
                 up = up / un
 
-        self._forward_norm = focal_distance
-        self._right_norm = rn
-        self._up_norm = un
+        # self._forward_norm = focal_distance
+        # self._right_norm = rn
+        # self._up_norm = un
 
         self._up = up
         self._right = right
         self._forward = forward
 
         self._focal_distance = focal_distance
-
-    @property
-    def projection(self) -> np.ndarray:
-        """
-        Return the projection.
-
-        :rtype: :class:`np.ndarray`
-        """
-
-        return self._projection
-
-    @property
-    def modelview(self) -> np.ndarray:
-        """
-        Return the modelview.
-
-        :rtype: :class:`np.ndarray`
-        """
-
-        return self._modelview
-
-    @property
-    def viewport(self) -> np.ndarray:
-        """
-        Return the viewport.
-
-        :rtype: :class:`np.ndarray`
-        """
-
-        return self._viewport
 
     @_debug.logfunc
     def _update_views(self):
@@ -601,31 +647,26 @@ class Camera:
                 GL.glGetDoublev(GL.GL_MODELVIEW_MATRIX)).reshape((4, 4), order="F").T)
 
             self._clip = (self._projection @ self._modelview).astype(np.float32)
+
+            # Cache the inverse once per dirty frame — avoids recomputing it
+            # in every UnprojectPoint / get_position_on_focal_plane call.
+            self._inv_clip = np.linalg.inv(self._clip)
+
             self._frustum_planes = self._extract_frustum_planes(self._clip)
+
             # Pre-extract normals and distances for faster AABB checking
+            self._frustum_normals = np.ascontiguousarray(
+                self._frustum_planes[:, 0:3])
 
-            self._frustum_normals = np.ascontiguousarray(self._frustum_planes[:, 0:3])
-            self._frustum_distances = np.ascontiguousarray(self._frustum_planes[:, 3])
+            self._frustum_distances = np.ascontiguousarray(
+                self._frustum_planes[:, 3])
 
-    @property
-    def frustum_normals(self) -> np.ndarray:
-        """
-        Return the frustum normals.
-
-        :rtype: :class:`np.ndarray`
-        """
-
-        return self._frustum_normals
-
-    @property
-    def frustum_distances(self) -> np.ndarray:
-        """
-        Return the frustum distances.
-
-        :rtype: :class:`np.ndarray`
-        """
-
-        return self._frustum_distances
+            # Cache field of view — projection matrix only changes on resize.
+            cot_half_fov = self._projection[1, 1]
+            if cot_half_fov != 0.0:
+                self._fov = math.degrees(math.atan(1.0 / cot_half_fov) * 2.0)
+            else:
+                self._fov = 0.0
 
     @_debug.logfunc
     def Rotate(self, dx: int, dy: int):
@@ -640,7 +681,9 @@ class Camera:
         """
 
         self._is_dirty = True
-        position = self._rotate_about(dx, dy, self._position, self._focal_position)
+        position = self._rotate_about(
+            dx, dy, self._position, self._focal_position)
+
         self._position += position - self._position
         self._send_event(_events.EVT_GL_CAMERA_ORBIT)
 
@@ -667,7 +710,7 @@ class Camera:
         if dist < 1e-6:
             return np.array([0.0, 0.0, 0.0], dtype=np.float32)
 
-        up = np.array([0.0, 1.0, 0.0], dtype=np.float32)
+        up = _WORLD_UP.copy()
 
         def _rodrigues(v, k, angle_rad):
             """
@@ -687,7 +730,7 @@ class Camera:
             sin_a = math.sin(angle_rad)  # NOQA
 
             return ((v * cos_a) + (np.cross(k, v) * sin_a) +  # NOQA
-                    (k * (np.dot(k, v)) * (1.0 - cos_a)))
+                    (k * np.dot(k, v) * (1.0 - cos_a)))
 
         yaw_offset = _rodrigues(offset, up, math.radians(dx))
         yaw_offset_n = np.linalg.norm(yaw_offset)
@@ -745,7 +788,9 @@ class Camera:
         """
 
         self._is_dirty = True
-        focal_point = self._rotate_about(dx, dy, self._focal_position, self._position)
+        focal_point = self._rotate_about(
+            dx, dy, self._focal_position, self._position)
+
         self._focal_position += focal_point - self._focal_position
         self._send_event(_events.EVT_GL_CAMERA_ROTATE)
 
@@ -769,7 +814,6 @@ class Camera:
         if current_distance < 1e-6:
             return
 
-        direction = offset / current_distance
         target_distance = current_distance - float(delta)
 
         if target_distance < min_distance:
@@ -781,7 +825,7 @@ class Camera:
         if abs(move_distance) < 1e-9:
             return
 
-        move = direction * move_distance
+        move = self._forward * move_distance
 
         self._is_dirty = True
         self._position += move
@@ -816,7 +860,8 @@ class Camera:
         """
 
         # Build desired move from input
-        input_mag = math.sqrt((dx * dx) + (dy * dy))
+        # input_mag = math.sqrt((dx * dx) + (dy * dy))
+        input_mag = math.hypot(dx, dy)
 
         if input_mag == 0:
             return
@@ -854,7 +899,8 @@ class Camera:
         """
 
         # Build desired move from input
-        input_mag = math.sqrt((dx * dx) + (dy * dy))
+        # input_mag = math.sqrt((dx * dx) + (dy * dy))
+        input_mag = math.hypot(dx, dy)
 
         if input_mag == 0:
             return
@@ -880,91 +926,66 @@ class Camera:
     @_debug.logfunc
     def ProjectPoint(self, point: _point.Point | np.ndarray) -> _point.Point:
         """
-        Projects a 2D screen coordinate to a 3D world coordinate.
+        Projects a 3D world coordinate to a 2D screen coordinate.
+
+        Uses the cached self._clip matrix (projection × modelview) rather
+        than performing two separate matrix multiplications.
 
         :type point: _point.Point | np.ndarray
         :rtype: :class:`_point.Point`
         """
 
-        # Step 1: Convert to homogeneous world position (4D vector)
-        # Add W=1 for homogeneous coords
         if isinstance(point, _point.Point):
-            world_point = np.array([point.x, point.y, point.z, 1.0])
+            world_point = np.array(
+                [point.x, point.y, point.z, 1.0], dtype=np.float32)
         else:
-            world_point = np.array([point[0], point[0], point[0], 1.0])
+            world_point = np.array(
+                [point[0], point[1], point[2], 1.0], dtype=np.float32)
 
-        # Step 2: Transform to view space using the modelview matrix
-        view_point = np.dot(self._modelview, world_point)  # World space → View space
+        # One matrix multiply instead of two (modelview then projection).
+        clip_point = self._clip @ world_point
 
-        # Step 3: Transform to clip space using the projection matrix
-        clip_point = np.dot(self._projection, view_point)  # View space → Clip space
-
-        # Perspective division: Normalize by the W component
         if clip_point[3] == 0.0:
             return None
 
-        # Normalize X, Y, Z by W in clip space
-        ndc_point = clip_point[:3] / clip_point[3]
+        ndc = clip_point[:3] / clip_point[3]
 
-        # Step 4: Map from NDC [-1, 1] to screen space (viewport mapping)
-        # Map X
-        screen_x = (self._viewport[0] +
-                    ((ndc_point[0] + 1.0) *
-                     0.5 * self._viewport[2]))
+        screen_x = self._viewport[0] + (ndc[0] + 1.0) * 0.5 * self._viewport[2]
+        screen_y = self._viewport[1] + (1.0 - ndc[1]) * 0.5 * self._viewport[3]
 
-        # Map Y
-        screen_y = (self._viewport[1] +
-                    ((1.0 - ndc_point[1]) *
-                     0.5 * self._viewport[3]))
+        # screen_x = self._viewport[0] + ((ndc[0] + 1.0) * 0.5 * self._viewport[2])
+        # screen_y = self._viewport[1] + ((1.0 - ndc[1]) * 0.5 * self._viewport[3])
+        screen_z = (ndc[2] + 1.0) * 0.5
 
-        # Map Z from [-1, 1] to [0, 1]
-        screen_z = (ndc_point[2] + 1.0) * 0.5
-
-        # Step 5: Return the screen-space coordinates
         return _point.Point(screen_x, screen_y, screen_z)
 
     @_debug.logfunc
     def UnprojectPoint(self, point: _point.Point) -> _point.Point:
         """
-        Projects a 3D world coordinate to a 2D screen coordinate.
+        Projects a 2D screen coordinate to a 3D world coordinate.
+
+        Uses the cached self._inv_clip matrix rather than recomputing the
+        inverse on every call.
 
         :type point: :class:`_point.Point`
         :rtype: :class:`_point.Point`
         :raises ValueError: Raised when the operation cannot be completed.
         """
 
-        # Step 1: Map screen space [x, y, z] to normalized device coordinates (NDC)
-        ndc_x = ((point.x - self._viewport[0]) /
-                 self._viewport[2] * 2.0 - 1.0)
+        ndc_x = (point.x - self._viewport[0]) / self._viewport[2] * 2.0 - 1.0
+        ndc_y = (
+            (self._viewport[3] - point.y - self._viewport[1]) /
+            self._viewport[3] * 2.0 - 1.0)
 
-        # ndc_y = ((_decimal(point.y) - _decimal(self._viewport[1])) /
-        #          _decimal(self._viewport[3]) * _decimal(2.0) - _decimal(1.0))
-        ndc_y = ((self._viewport[3] - point.y -
-                  self._viewport[1]) / self._viewport[3] *
-                 2.0 - 1.0)
-
-        # Depth is mapped [0, 1] → [-1, 1]
         ndc_z = point.z * 2.0 - 1.0
 
-        # Homogeneous NDC
-        ndc_point = np.array([ndc_x, ndc_y, ndc_z, 1.0])
+        ndc_point = np.array([ndc_x, ndc_y, ndc_z, 1.0], dtype=np.float32)
+        clip_point = self._inv_clip @ ndc_point
 
-        # Step 2: Compute the inverse of the projection * modelview matrix
-        # Combine projection and modelview
-        clip_matrix = np.dot(self._projection, self._modelview)
-
-        # Invert the combined matrix
-        inverse_clip_matrix = np.linalg.inv(clip_matrix)
-
-        # Step 3: Transform from NDC to clip space
-        clip_point = np.dot(inverse_clip_matrix, ndc_point)
-
-        # Step 4: Perspective division to get world-space coordinates
         if clip_point[3] == 0.0:
             raise ValueError("Perspective division failed (W=0 in clip space).")
 
-        # Normalize by W in homogeneous space
-        world_coords = clip_point[:3] / clip_point[3]
+        return _point.Point(*(clip_point[:3] / clip_point[3]))
 
-        # Return unprojected world-space coordinates
-        return _point.Point(*world_coords)
+    def get_position_on_focal_plane(self, point: _point.Point) -> _point.Point:
+        return _utils.get_position_on_focal_plane(point, self)

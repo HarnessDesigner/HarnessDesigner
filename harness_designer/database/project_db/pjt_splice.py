@@ -23,7 +23,8 @@ from .mixins import (
     Visible2DMixin, Visible2DControl,
     NameMixin, NameControl,
     NotesMixin, NotesControl,
-    SmoothMixin, SmoothControl
+    SmoothMixin, SmoothControl,
+    Scale3DMixin, Scale3DControl
 )
 
 
@@ -159,7 +160,7 @@ class PJTSplicesTable(PJTTableBase):
 
 
 class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMixin,
-                Visible3DMixin, Visible2DMixin, NameMixin, NotesMixin, SmoothMixin):
+                Visible3DMixin, Visible2DMixin, NameMixin, NotesMixin, SmoothMixin, Scale3DMixin):
     """Represent a PJT splice in :mod:`harness_designer.database.project_db.pjt_splice`.
 
     UNKNOWN details are inferred from the class name and surrounding code.

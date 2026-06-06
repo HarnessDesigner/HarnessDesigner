@@ -1,3 +1,4 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from PySide6.QtGui import (
     QColor, QBrush, QPainter, QPen, QLinearGradient,

@@ -34,7 +34,6 @@ te_header = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:148.0) Gecko/20100101 Firefox/148.0"
 }
 
-
 def handle_te_cookie(response):
     """Merge TE response cookies into the module-level ``te_header``.
 
@@ -69,7 +68,12 @@ def requests_get(url, **kwargs):
     :returns: Response object and simplified content type.
     :rtype: tuple[requests.Response, str | None]
     """
-    if 'www.te.com' in url:
+    if 'api.te.com' in url or 'www.te.com' in url:
+        if 'api.te.com' in url:
+            te_header["Host"] = "api.te.com"
+        else:
+            te_header["Host"] = "www.te.com"
+
         response = requests.get(url, headers=te_header, **kwargs)
         handle_te_cookie(response)
     else:
@@ -253,7 +257,7 @@ def _download_image(con, url, image_path):
             return None
 
     uuid_ = str(uuid.uuid4())
-    image_path = os.path.join(image_path, uuid_ + ext)
+    image_path = os.path.join(image_path, uuid_[:2], uuid_ + ext)
 
     with open(image_path, 'wb') as f:
         f.write(data)

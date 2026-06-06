@@ -745,67 +745,33 @@ def unproject_from_ndc(ndc, inv_mvp):
 def get_position_on_focal_plane(
     mouse_pos: _point.Point,
     camera: "_camera.Camera"
-):
+) -> "_point.Point":
+    vx, vy, vw, vh = camera.viewport
 
-    """
-    Get the intersection point where the mouse ray hits a plane
-    passing through the camera's focal_position.
+    ndc_x = (2.0 * (mouse_pos.x - vx) / vw) - 1.0
+    ndc_y = (2.0 * (vh - mouse_pos.y - vy) / vh) - 1.0
 
-    The plane is perpendicular to the view direction (camera forward vector).
-    """
-
-    # Build ray from mouse position
-    pj = camera.projection
-    mv = camera.modelview
-    viewport = camera.viewport
-
-    mvp = pj.dot(mv)
-    inv_mvp = np.linalg.inv(mvp)
-    vx, vy, vw, vh = viewport
-
-    wx_ = mouse_pos.x
-    wy_ = (vh - mouse_pos.y)
-
-    ndc_x = (2.0 * (wx_ - vx) / vw) - 1.0
-    ndc_y = (2.0 * (wy_ - vy) / vh) - 1.0
-
-    # Unproject to get ray
-    near_world = unproject_from_ndc((ndc_x, ndc_y, -1.0), inv_mvp)
-    far_world = unproject_from_ndc((ndc_x, ndc_y, 1.0), inv_mvp)
-
-    if near_world is None or far_world is None:
+    # One unproject — ray origin is the camera position itself
+    far_world = unproject_from_ndc((ndc_x, ndc_y, 1.0), camera.inv_clip)
+    if far_world is None:
         return camera.focal_position.copy()
 
-    origin = np.array(near_world, dtype=np.float32)
-    direction = np.array(far_world, dtype=np.float32) - origin
+    origin = camera.position.as_numpy.astype(np.float32)
+    direction = np.asarray(far_world, dtype=np.float32) - origin
     direction /= np.linalg.norm(direction)
 
-    # Define plane through focal_position, perpendicular to view direction
-    plane_point = camera.focal_position.as_numpy
-
-    # Plane normal is the view direction (from camera to focal point)
-    plane_normal = camera.focal_position.as_numpy - camera.position.as_numpy
-    plane_normal /= np.linalg.norm(plane_normal)
-
-    # Ray-plane intersection
-    # Formula: t = dot(plane_point - origin, plane_normal) / dot(direction, plane_normal)
-    denom = np.dot(direction, plane_normal)
-
+    # camera.forward  == plane normal (already normalised)
+    # camera.focal_distance == dot(focal_pos - origin, plane_normal)
+    #                          because forward is the unit vec between them
+    denom = np.dot(direction, camera.forward)
     if abs(denom) < 1e-6:
-        # Ray is nearly parallel to plane - shouldn't happen in practice
-        # Fall back to placing at focal position
         return camera.focal_position.copy()
 
-    t = np.dot(plane_point - origin, plane_normal) / denom
-
+    t = camera.focal_distance / denom
     if t < 0:
-        # Intersection is behind the camera - shouldn't happen
         return camera.focal_position.copy()
 
-    # Calculate intersection point
-    intersection = origin + t * direction
-
-    return _point.Point(*intersection)
+    return _point.Point(*(origin + t * direction))
 
 
 def closest_point_on_segment_to_ray(seg_p1, seg_p2, ray_origin, ray_dir):
@@ -1062,3 +1028,23 @@ MODEL_FILE_WILDCARDS = (
     "Extensible 3D (x3d; x3db; x3dz; x3dbz)|*.x3d;*.x3db;*.x3dz;*.x3dbz|"
     "MikuMikuDance Format (pmd; pmx)|*.pmd;*.pmx"
 )
+
+
+class SnapPool:
+
+    def __init__(self, objects: list, snap_points: list[_point.Point],
+                 threshold: float = 5.00):
+
+        self.objects = objects
+        self.numpy_points = np.array([point.as_float for point in snap_points], dtype=np.float32)
+        self.threshold_sq = threshold ** 2
+
+    def query(self, pos: _point.Point):
+        world_pos = pos.as_numpy
+
+        diff = self.numpy_points - world_pos
+        dist_sq = (diff * diff).sum(axis=1)
+        idx = int(dist_sq.argmin())
+
+        if dist_sq[idx] <= self.threshold_sq:
+            return self.objects[idx]

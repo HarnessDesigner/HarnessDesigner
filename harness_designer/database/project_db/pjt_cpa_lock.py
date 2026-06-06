@@ -16,7 +16,8 @@ from .mixins import (
     Visible3DMixin, Visible3DControl,
     NameMixin, NameControl,
     NotesMixin, NotesControl,
-    SmoothMixin, SmoothControl
+    SmoothMixin, SmoothControl,
+    Scale3DMixin, Scale3DControl
 )
 
 
@@ -135,12 +136,12 @@ class PJTCPALocksTable(PJTTableBase):
         :rtype: :class:`PJTCPALock`
         """
         db_id = PJTTableBase.insert(
-            self, part_id=part_id, position3d_id=position3d_id, housing_id=housing_id)
+            self, part_id=part_id, point3d_id=position3d_id, housing_id=housing_id)
 
         return PJTCPALock(self, db_id, self.project_id)
 
 
-class PJTCPALock(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin,
+class PJTCPALock(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DMixin,
                  PartMixin, HousingMixin, Visible3DMixin, NameMixin, SmoothMixin):
     """Represent a pjtcpa lock in :mod:`harness_designer.database.project_db.pjt_cpa_lock`.
 

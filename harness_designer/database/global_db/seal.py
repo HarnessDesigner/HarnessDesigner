@@ -350,7 +350,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         packet = {
             'seals': [self.db_id],
             'series': [self.series_id],
-            'temperatures': [self.min_temp_id, self.max_temp],
+            'temperatures': [self.min_temp_id, self.max_temp_id],
             'colors': [color.db_id],
             'datasheets': [self.datasheet_id],
             'cads': [self.cad_id],

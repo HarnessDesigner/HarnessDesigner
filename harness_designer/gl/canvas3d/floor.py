@@ -6,271 +6,190 @@ from OpenGL import GL
 import numpy as np
 import ctypes
 
-
 if TYPE_CHECKING:
     from . import canvas as _canvas
 
 
-class Floor:
-    """Represent a floor in :mod:`harness_designer.gl.canvas3d.floor`.
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Geometry
+# ═══════════════════════════════════════════════════════════════════════════════
 
-    UNKNOWN details are inferred from the class name and surrounding code.
+def _build_floor_quad(floor_size, floor_height):
+    """Return a single quad that covers the entire floor area.
+
+    The procedural fragment shader computes every visual detail
+    (tiles, major lines, minor dashed lines) from world coordinates,
+    so only position is required as a vertex attribute.
+    """
+    h = floor_size / 2.0
+    y = float(floor_height)
+
+    verts = np.array([
+        -h, y, -h,   # front-left
+        h, y, -h,   # front-right
+        h, y, h,   # back-right
+        -h, y, h,   # back-left
+    ], dtype=np.float32)
+
+    idx = np.array([0, 1, 2,  0, 2, 3], dtype=np.uint32)
+
+    return verts, idx
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Floor class
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class Floor:
+    """Procedural floor grid.
+
+    Renders checkerboard tiles, major solid lines, and minor dashed lines
+    entirely inside one fragment shader on a single large quad.
+
+    This approach eliminates the orientation-dependent moiré that occurs
+    when thin geometry quads are rasterised at sub-pixel widths, because
+    the shader computes every line analytically using screen-space
+    derivatives (fwidth) rather than relying on the rasteriser to hit
+    thin geometry.
+
+    Interface change vs the previous version
+    ─────────────────────────────────────────
+    __init__ and render now accept a single *program* instead of the
+    previous (program_solid, program_dashed) pair.  Update call sites
+    accordingly, and note that compile_program() in shader.py now also
+    returns a single program object.
     """
 
-    def __init__(self, canvas: "_canvas.Canvas", floor_program):
-        """Initialise the :class:`Floor` instance.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param canvas: Canvas instance.
-        :type canvas: :class:`_canvas.Canvas`
-        :param floor_program: Value for ``floor_program``.
-        :type floor_program: UNKNOWN
-        """
+    def __init__(self, canvas: '_canvas.Canvas', program):
         self.canvas = canvas
 
-        self.grid_vbo = None
-        self.grid_vertex_count = 0
+        with self.canvas.context:
+            self._loc_mvp = GL.glGetUniformLocation(program, 'uMVP')
+            self._loc_tile_sz = GL.glGetUniformLocation(program, 'uTileSize')
+            self._loc_minor_sz = GL.glGetUniformLocation(program, 'uMinorSpacing')
+            self._loc_color_a = GL.glGetUniformLocation(program, 'uColorA')
+            self._loc_color_b = GL.glGetUniformLocation(program, 'uColorB')
+            self._loc_maj_col = GL.glGetUniformLocation(program, 'uMajorColor')
+            self._loc_min_col = GL.glGetUniformLocation(program, 'uMinorColor')
+            self._loc_maj_w = GL.glGetUniformLocation(program, 'uMajorWidth')
+            self._loc_min_w = GL.glGetUniformLocation(program, 'uMinorWidth')
+            self._loc_stipple = GL.glGetUniformLocation(program, 'uStipplePattern')
+            self._loc_has_minor = GL.glGetUniformLocation(program, 'uHasMinorGrid')
+            self._loc_stipple_phase = GL.glGetUniformLocation(program, 'uStipplePhase')
 
-        self.stipple_vbo = None
-        self.stipple_vertex_count = 0
+        self._vao = None
+        self._vbo = None
+        self._ebo = None
+        self._n = None
 
-        self.solid_vbo = None
-        self.solid_vertex_count = 0
+        self.config = canvas.config.floor
 
-        self.projection_loc = GL.glGetUniformLocation(floor_program, "projection")
-        self.view_loc = GL.glGetUniformLocation(floor_program, "view")
-
-        self.config = canvas.config
+    # ─────────────────────────────────────────────────────────────────────────
 
     def _initialize_grid(self):
-        """
-        Compute the "Floor" and store it in the graphics adapter memory.
+        verts, idx = _build_floor_quad(
+            self.config.size, self.config.ground_height)
 
-        This allows for a super fast render of the floor.
+        vao = GL.glGenVertexArrays(1)
+        vbo, ebo = GL.glGenBuffers(2)
 
-        :return:
-        """
-        even_color = self.config.floor.grid.primary_color
-        ground_height = self.config.floor.ground_height
-        size = self.config.floor.distance
-        step = self.config.floor.grid.size
+        GL.glBindVertexArray(vao)
 
-        def _frange(start, stop, inc):
-            """Execute the frange operation.
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, vbo)
+        GL.glBufferData(
+            GL.GL_ARRAY_BUFFER, verts.nbytes, verts, GL.GL_STATIC_DRAW)
 
-            UNKNOWN details are inferred from the callable name and signature.
+        GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, ebo)
+        GL.glBufferData(
+            GL.GL_ELEMENT_ARRAY_BUFFER, idx.nbytes, idx, GL.GL_STATIC_DRAW)
 
-            :param start: Value for ``start``.
-            :type start: UNKNOWN
-            :param stop: Value for ``stop``.
-            :type stop: UNKNOWN
-            :param inc: Value for ``inc``.
-            :type inc: UNKNOWN
-            :returns: Return value. UNKNOWN details.
-            :rtype: UNKNOWN
-            """
-            value = start
-            while value < stop:
-                yield value
-                value += inc
+        # Position only — stride = 3 floats × 4 bytes
+        GL.glEnableVertexAttribArray(0)
+        GL.glVertexAttribPointer(
+            0, 3, GL.GL_FLOAT, GL.GL_FALSE, 3 * 4, ctypes.c_void_p(0))
 
-        def _get_vbo(verts, clrs):
-            """Return the VBO.
+        GL.glBindVertexArray(0)
 
-            UNKNOWN details are inferred from the callable name and signature.
+        return vao, vbo, ebo, len(idx)
 
-            :param verts: Value for ``verts``.
-            :type verts: UNKNOWN
-            :param clrs: Value for ``clrs``.
-            :type clrs: UNKNOWN
-            :returns: Return value. UNKNOWN details.
-            :rtype: UNKNOWN
-            """
-            # Flatten the data
-            verts = np.array(verts, dtype=np.float32).flatten()
-            clrs = np.array(clrs, dtype=np.float32).flatten()
-
-            # Combine vertices and colors into one array to pass to OpenGL
-            v_data = np.concatenate((verts, clrs))
-
-            # Calculate the number of vertices (for rendering)
-            verts_count = len(verts) / 3
-
-            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)  # Unbind the VBO
-
-            vbo = GL.glGenBuffers(1)
-            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, vbo)
-            GL.glBufferData(GL.GL_ARRAY_BUFFER, v_data.nbytes,
-                            v_data, GL.GL_STATIC_DRAW)
-
-            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)  # Unbind the VBO
-
-            return vbo, int(verts_count)
-
-        with self.canvas.context:
-            if self.config.floor.grid.enable:
-                # Grid configuration
-
-                odd_color = self.config.floor.grid.secondary_color
-
-                # Precompute vertices and colors
-                vertices = []
-                colors = []
-
-                for x in range(-size, size, step):
-                    for y in range(-size, size, step):
-                        # Alternate coloring for checkerboard effect
-                        is_even = ((x // step) + (y // step)) % 2 == 0
-                        color = even_color if is_even else odd_color
-
-                        # Each quad consists of 4 vertices
-                        vertices.extend([
-                            [x, ground_height, y], [x, ground_height, y + step],
-                            [x + step, ground_height, y + step], [x + step, ground_height, y]])
-
-                        # Each vertex has the same color for the quad
-                        colors.extend([color] * 4)
-            else:
-                vertices = [[size, ground_height, size], [size, ground_height, -size],
-                            [-size, ground_height, -size], [-size, ground_height, size]]
-
-                colors = [even_color] * 4
-
-            grid_vbo, grid_vertex_count = _get_vbo(vertices, colors)
-
-            sstep = step / 5.0
-            y1 = ground_height + 0.1
-            y2 = ground_height + 0.15
-
-            stipple_lines = []
-            solid_lines = []
-
-            stipple_colors = []
-            solid_colors = []
-
-            for i in _frange(-size, size + 1, sstep):
-                if not i % step:
-                    solid_colors.extend([0.65, 0.65, 0.65, 1.0] * 4)
-                    solid_lines.extend([[i, y2, size], [i, y2, -size],
-                                        [size, y2, i], [-size, y2, i]])
-                else:
-                    stipple_colors.extend([0.35, 0.35, 0.35, 1.0] * 4)
-                    stipple_lines.extend([[i, y1, size], [i, y1, -size],
-                                          [size, y1, i], [-size, y1, i]])
-
-            stipple_vbo, stipple_vertex_count = _get_vbo(stipple_lines, stipple_colors)
-            solid_vbo, solid_vertex_count = _get_vbo(solid_lines, solid_colors)
-
-            return (grid_vbo, grid_vertex_count,
-                    stipple_vbo, stipple_vertex_count,
-                    solid_vbo, solid_vertex_count)
+    # ─────────────────────────────────────────────────────────────────────────
 
     def set(self, flag):
-        """Execute the set operation.
+        """Enable or disable the floor, rebuilding GPU resources as needed."""
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param flag: Value for ``flag``.
-        :type flag: UNKNOWN
-        """
-        if self.grid_vbo is not None:
+        if self._vao is not None:
             with self.canvas.context:
                 try:
-                    GL.glDeleteVertexArrays(1, [self.grid_vbo])
-                except:  # NOQA
+                    GL.glDeleteVertexArrays(1, [self._vao])
+                except Exception:  # NOQA
                     pass
-
                 try:
-                    GL.glDeleteBuffers(1, [self.stipple_vbo])
-                except:  # NOQA
+                    GL.glDeleteBuffers(2, [self._vbo, self._ebo])
+                except Exception:  # NOQA
                     pass
-
-                try:
-                    GL.glDeleteBuffers(1, [self.solid_vbo])
-                except:  # NOQA
-                    pass
-
-                self.grid_vbo = None
-                self.stipple_vbo = None
-                self.solid_vbo = None
+                self._vao = None
+                self._vbo = None
+                self._ebo = None
+                self._n = None
 
         if flag:
-            (
-                self.grid_vbo, self.grid_vertex_count,
-                self.stipple_vbo, self.stipple_vertex_count,
-                self.solid_vbo, self.solid_vertex_count
-            ) = self._initialize_grid()
+            with self.canvas.context:
+                self._vao, self._vbo, self._ebo, self._n = self._initialize_grid()
 
         self.canvas.Refresh(False)
 
-    def render(self, floor_program):
-        """Render the precomputed grid using the VBO."""
+    # ─────────────────────────────────────────────────────────────────────────
 
-        if not self.config.floor.enable:
+    def render(self, program):
+        """Draw the procedural floor in a single pass."""
+
+        if not self.config.enable or self._vao is None:
             return
-
-        projection_matrix = GL.glGetFloatv(GL.GL_PROJECTION_MATRIX)
-        view_matrix = GL.glGetFloatv(GL.GL_MODELVIEW_MATRIX)
-
-        GL.glUseProgram(floor_program)
-
-        GL.glUniformMatrix4fv(self.projection_loc, 1, GL.GL_FALSE, projection_matrix)
-        GL.glUniformMatrix4fv(self.view_loc, 1, GL.GL_FALSE, view_matrix)
-
-        # type_ is either GL.GL_LINES or GL.GL_QUADS
-        def _draw_vbo(vbo, count, type_):
-            """Draw the VBO.
-
-            UNKNOWN details are inferred from the callable name and signature.
-
-            :param vbo: Value for ``vbo``.
-            :type vbo: UNKNOWN
-            :param count: Count value.
-            :type count: UNKNOWN
-            :param type_: Value for ``type_``.
-            :type type_: UNKNOWN
-            """
-            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, vbo)
-
-            # Colors start immediately after all position data: count vertices × 3 position floats × 4 bytes per float
-            color_offset = count * 3 * 4  # byte offset to the color block
-
-            # Layout 0: position (vec3)
-            GL.glEnableVertexAttribArray(0)
-            GL.glVertexAttribPointer(0, 3, GL.GL_FLOAT, GL.GL_FALSE, 0, ctypes.c_void_p(0))
-
-            # Layout 1: color (vec4)
-            GL.glEnableVertexAttribArray(1)
-            GL.glVertexAttribPointer(1, 4, GL.GL_FLOAT, GL.GL_FALSE, 0, ctypes.c_void_p(color_offset))
-
-            GL.glDrawArrays(type_, 0, count)
-
-            GL.glDisableVertexAttribArray(1)
-            GL.glDisableVertexAttribArray(0)
-
-            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-
-        # enable blending and disable the depth mask to remove the moiré that
-        # occurs from the grid lines.
-        # https://en.wikipedia.org/wiki/Moir%C3%A9_pattern
 
         GL.glEnable(GL.GL_BLEND)
         GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
+        GL.glEnable(GL.GL_MULTISAMPLE)
         GL.glDepthMask(GL.GL_FALSE)
+        GL.glUseProgram(program)
 
-        # draw grid floor
-        _draw_vbo(self.grid_vbo, self.grid_vertex_count, GL.GL_QUADS)
+        # MVP ─────────────────────────────────────────────────────────────────
+        GL.glUniformMatrix4fv(
+            self._loc_mvp, 1, GL.GL_TRUE, self.canvas.camera.clip)
 
-        if self.config.floor.grid.enable:
-            # draw grid dashed lines
-            GL.glLineStipple(1, 0xFF00)
-            GL.glEnable(GL.GL_LINE_STIPPLE)
-            _draw_vbo(self.stipple_vbo, self.stipple_vertex_count, GL.GL_LINES)
-            GL.glDisable(GL.GL_LINE_STIPPLE)
+        # Grid dimensions ─────────────────────────────────────────────────────
+        cfg = self.config.grid
+        has_minor = 1 if cfg.enable else 0
+        tile_size = cfg.size
+        minor_sz = tile_size / (cfg.secondary_lines_per_tile + 1)
 
-            # draw grid solid lines
-            _draw_vbo(self.solid_vbo, self.solid_vertex_count, GL.GL_LINES)
+        GL.glUniform1f(self._loc_tile_sz,   tile_size)
+        GL.glUniform1f(self._loc_minor_sz,  minor_sz)
+        GL.glUniform1ui(self._loc_has_minor, has_minor)
+
+        # Tile colours ────────────────────────────────────────────────────────
+        pc = cfg.primary_color
+        sc = cfg.secondary_color
+        GL.glUniform4f(self._loc_color_a, *pc)
+        GL.glUniform4f(self._loc_color_b, *sc)
+
+        # Line colours ────────────────────────────────────────────────────────
+        plc = cfg.primary_line_color
+        slc = cfg.secondary_line_color
+        GL.glUniform4f(self._loc_maj_col, *plc)
+        GL.glUniform4f(self._loc_min_col, *slc)
+
+        # Line widths ─────────────────────────────────────────────────────────
+        GL.glUniform1f(self._loc_maj_w, cfg.primary_line_width)
+        GL.glUniform1f(self._loc_min_w, cfg.secondary_line_width)
+
+        # Dash parameters ─────────────────────────────────────────────────────
+        GL.glUniform1ui(self._loc_stipple, int(cfg.secondary_line_pattern) & 0xFFFFFFFF)
+        GL.glUniform1ui(self._loc_stipple_phase, int(cfg.secondary_line_shift))
+
+        # Draw ────────────────────────────────────────────────────────────────
+        GL.glBindVertexArray(self._vao)
+        GL.glDrawElements(GL.GL_TRIANGLES, self._n, GL.GL_UNSIGNED_INT, None)
+        GL.glBindVertexArray(0)
 
         GL.glDepthMask(GL.GL_TRUE)
-        GL.glUseProgram(0)
+        GL.glDisable(GL.GL_MULTISAMPLE)

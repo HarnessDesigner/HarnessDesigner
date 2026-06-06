@@ -36,19 +36,19 @@ class ObjectBase:
         self._treeitem = None
         self.db_obj = db_obj
 
-    def identify(self, color: list[float] | None):
+    def identify(self, material: list[float] | None):
         """Execute the identify operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
-        :param color: Value for ``color``.
-        :type color: list[float] | None
+        :param material: Value for ``color``.
+        :type material: list[float] | None
         """
         if self.obj2d is not None:
-            self.obj2d.identify(color)
+            self.obj2d.identify(material)
 
         if self.obj3d is not None:
-            self.obj3d.identify(color)
+            self.obj3d.identify(material)
 
     def set_treeitem(self, treeitem):
         """Set the treeitem.
@@ -84,6 +84,8 @@ class ObjectBase:
 
         if self.obj3d is not None:
             self.obj3d.delete()
+
+        self.db_obj.delete()
 
     def close(self):
         """Execute the close operation.
@@ -143,20 +145,9 @@ class ObjectBase:
             self.obj3d.set_selected(value)
 
     @property
-    def propgrid(self):
-        """Return the propgrid.
+    def is_in_3dview(self) -> bool:
+        return self in self.mainframe.editor3d.camera.objects_in_view
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
-        if self.obj3d is not None:
-            if self.obj3d.db_obj is not None:
-                return self.obj3d.db_obj.propgrid
-
-        if self.obj2d is not None:
-            if self.obj2d.db_obj is not None:
-                return self.obj2d.db_obj.propgrid
-
-        return []
+    @property
+    def is_in_2dview(self) -> bool:
+        return self in self.mainframe.editor2d.camera.objects_in_view

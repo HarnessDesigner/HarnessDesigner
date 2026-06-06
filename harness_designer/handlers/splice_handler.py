@@ -4,12 +4,15 @@
 """
 
 from typing import TYPE_CHECKING
+from PySide6.QtWidgets import QDialog
 
 from . import handler_base as _handler_base
-
 from ..geometry import point as _point
 from ..geometry import angle as _angle
+from ..geometry import line as _line
 from ..gl.canvas3d import object_picker as _object_picker
+from ..ui.dialogs import part_search as _part_search
+from ..ui import editor_db as _editor_db
 from ..objects import wire as _wire
 from ..objects import splice as _splice
 from .. import utils as _utils
@@ -21,6 +24,7 @@ from .. import color as _color
 if TYPE_CHECKING:
     from ..gl.canvas3d import camera as _camera
     from .. import ui as _ui
+    from ..database.global_db import splice as _db_splice
 
 
 Config = _config.Config.colors
@@ -50,151 +54,115 @@ class AddSpliceHandler(_handler_base.HandlerBase):
     """
     obj: _splice.Splice = None
 
-    def __init__(self, mainframe: "_ui.MainFrame", part_id: int):
+    def __init__(self, mainframe: "_ui.MainFrame", wire: _wire.Wire = None):
         """Initialize the object and capture the state required for later interaction.
 
         :param mainframe: Main application frame that owns the editor and project state.
         :type mainframe: "_ui.MainFrame"
-        :param part_id: Identifier of the selected part definition.
-        :type part_id: int
         """
+        self.wire = wire
+        part_id = mainframe.editor_db.splices.GetValue()
+
+        if wire is None:
+            compat_splices = []
+        else:
+            size = wire.db_obj.part.conductor_dia_mm
+            mainframe.global_db.splices_table.execute(
+                'SELECT part_number FROM splices WHERE wire_size_cross_min <= ?;',
+                (size,))
+
+            rows = mainframe.global_db.splices_table.fetchall()
+            compat_splices = [row[0] for row in rows]
+
+        if part_id is None:
+            dlg = _part_search.SearchDialog(
+                mainframe, _editor_db.SplicesPage, title='Add Splice',
+                table=mainframe.global_db.splices_table, initial_results=compat_splices)
+
+            if dlg.exec() == QDialog.DialogCode.Accepted:
+                part_id = dlg.GetValue()
+
+            dlg.deleteLater()
+
         super().__init__(mainframe, part_id)
-        self.wire = None
 
         self._preview_material = _materials.Plastic(
             _color.Color(*Config.add_object.preview_color))
-        self._highlight_material = _materials.Plastic(
+
+        self._compat_material = _materials.Plastic(
             _color.Color(*Config.add_object.wire_highlight))
 
-    def release_capture(self) -> None:
-        """Handle release of the captured position and complete any deferred placement work.
+        self._highlight_material = _materials.Plastic(
+            _color.Color(*Config.add_object.splice_highlight))
 
-        :raises NotImplementedError: Raised by handlers that require a subclass implementation.
-        """
-        raise NotImplementedError
+        self.part: "_db_splice.Splice" = None
+        self._attached_wire: _wire.Wire = wire
+        if part_id is None:
+            self._finalized = True
+        else:
+            self.set_part(part_id)
 
-    def _get_splice_length(self) -> float:
-        """Return the splice length used for preview and insertion.
+    def set_part(self, part_id):
+        self.part = self.mainframe.global_db.splices_table[part_id]
 
-        :returns: The splice length in the current project units.
-        :rtype: float
-        """
-        part = self.mainframe.project.gtables.splices_table[self.part_id]
-        return float(part.length) if part.length else 5.0
+        size = self.part.wire_size_cross_min
 
-    def _make_preview_splice(
-        self,
-        position: _point.Point,
-        wire_angle: _angle.Angle,
-        circuit_id: int | None
-    ) -> _splice.Splice:
-        """
-        Create a temporary preview splice at the given position and angle.
-        Uses independent temporary points — the wire is NOT broken here.
-        """
-        splice_length = self._get_splice_length()
-        direction = wire_angle.as_matrix_numpy[:, 2]
-        half_length = splice_length / 2.0
+        for wire in self.mainframe.project.wires:
+            if wire.db_obj.part.size_mm2 >= size:
+                wire.identify(self._compat_material)
+            else:
+                wire.identify(self._highlight_material)
 
-        start_xyz = position.as_numpy - direction * half_length
-        stop_xyz = position.as_numpy + direction * half_length
-        branch_xyz = position.as_numpy
-
-        start_p3d = self.ptables.pjt_points3d_table.insert(*start_xyz)
-        stop_p3d = self.ptables.pjt_points3d_table.insert(*stop_xyz)
-        branch_p3d = self.ptables.pjt_points3d_table.insert(*branch_xyz)
-
-        db_obj = self.ptables.pjt_splices_table.insert(
-            self.part_id,
-            start_p3d.db_id,
-            stop_p3d.db_id,
-            branch_p3d.db_id,
-            point2d_id=None,
-            circuit_id=circuit_id
-        )
-
-        preview = _splice.Splice(self.mainframe, db_obj)
-        preview.obj3d._material = self._preview_material
-
-        self.mainframe.add_object(preview)
-
-        return preview
-
-    def _update_preview_position(
-        self,
-        position: _point.Point,
-        wire_angle: _angle.Angle
-    ):
-        """
-        Move the preview splice to a new position along the wire.
-        Updates all three points without touching the wire geometry.
-        """
-        if self.obj is None:
-            return
-
-        splice_length = self._get_splice_length()
-        direction = wire_angle.as_matrix_numpy[:, 2]
-        half_length = splice_length / 2.0
-
-        new_start = position.as_numpy - direction * half_length
-        new_stop = position.as_numpy + direction * half_length
-        new_branch = position.as_numpy
-
-        cur_start = self.obj.obj3d.start_position
-        cur_start += _point.Point(*new_start.tolist()) - cur_start
-
-        cur_stop = self.obj.obj3d.stop_position
-        cur_stop += _point.Point(*new_stop.tolist()) - cur_stop
-
-        cur_branch = self.obj.obj3d.branch_position
-        cur_branch += _point.Point(*new_branch.tolist()) - cur_branch
-
-    def _delete_preview(self):
-        """Remove the preview splice and its temporary DB rows."""
         if self.obj is not None:
             self.obj.delete()
-            self.obj = None
+
+        if self.wire is not None:
+            self.wire.identify(self._highlight_material)
+
+            line = _line.Line(self.wire.db_obj.start_position3d, self.wire.db_obj.stop_position3d)
+            stop_point = line.point_from_start(self.part.length)
+            branch_point = line.point_from_start(self.part.length / 2)
+
+            x, y, z = self.wire.db_obj.start_position3d.as_float
+            start_point_db = self.ptables.pjt_points3d_table.insert(x, y, z)
+            stop_point_db = self.ptables.pjt_points3d_table.insert(*stop_point.as_float)
+            branch_point_db = self.ptables.pjt_points3d_table.insert(*branch_point.as_float)
+
+            db_obj = self.ptables.pjt_splices_table.insert(
+                part_id, start_point_db.db_id, stop_point_db.db_id,
+                branch_point_db.db_id, None, None)
+
+            self.obj = _splice.Splice(self.mainframe, db_obj)
+            self.obj.identify(self._preview_material)
 
     def hover(self, mouse_pos: _point.Point):
         """
         Track mouse over wires — highlight wire and show/update preview splice.
         The wire is never modified here.
         """
-        wire = _get_wire_at_mouse(mouse_pos, self.camera)
+
+        if self.wire is None:
+            wire = _get_wire_at_mouse(mouse_pos, self.camera)
+            self._attached_wire = wire
+        else:
+            wire = self.wire
 
         if wire is None:
-            if self.wire is not None:
-                self.wire.identify(None)
-                self.wire = None
-
-            self._delete_preview()
             return
 
-        position, wire_angle = _utils.get_closest_point_on_wire(
-            mouse_pos, self.camera, wire)
+        point, angle = _utils.get_closest_point_on_wire(mouse_pos, self.camera, wire)
 
-        if None in (position, wire_angle):
-            if self.wire is not None:
-                self.wire.identify(None)
-                self.wire = None
+        point_delta = point - self.obj.db_obj.start_position3d
 
-            self._delete_preview()
-            return
+        start_position3d = self.obj.db_obj.start_position3d
+        stop_position3d = self.obj.db_obj.stop_position3d
+        branch_position3d = self.obj.db_obj.branch_position3d
 
-        if wire != self.wire:
-            if self.wire is not None:
-                self.wire.identify(None)
+        start_position3d += point_delta
+        stop_position3d += point_delta
+        branch_position3d += point_delta
 
-            wire.identify(self.WIRE_HIGHLIGHT)
-            self.wire = wire
-
-        if self.obj is None:
-            self.obj = self._make_preview_splice(
-                position, wire_angle, wire.db_obj.circuit_id)
-        else:
-            self._update_preview_position(position, wire_angle)
-
-    def finalize(self, mouse_pos: _point.Point):
+    def release_capture(self):
         """
         Place the splice on click.
 
@@ -202,35 +170,36 @@ class AddSpliceHandler(_handler_base.HandlerBase):
         and creates the real splice whose start/stop points share the wire
         segment boundary Points so the callback chain stays intact.
         """
-        if not self.is_active:
+        if self._finalized:
             return
 
-        self.hover(mouse_pos)
-
-        if self.wire is None:
-            self._delete_preview()
+        if self._captured_position is None:
             return
 
-        wire = self.wire
+        if self._attached_wire is None:
+            return
+
+        for wire in self.mainframe.project.wires:
+            wire.identify(None)
+
+        self._finalized = True
+
+        wire = self._attached_wire
         position, wire_angle = _utils.get_closest_point_on_wire(
-            mouse_pos, self.camera, wire)
+            self._captured_position, self.camera, wire)
 
         if None in (position, wire_angle):
-            self._delete_preview()
-            if self.wire is not None:
-                self.wire.identify(None)
-                self.wire = None
+            self.obj.delete()
             return
 
-        # Remove the preview before creating the real object
-        self._delete_preview()
+        splice_start_p3d = self.obj.db_obj.start_position3d
+        splice_stop_p3d = self.obj.db_obj.stop_position3d
+        branch_p3d = self.obj.db_obj.branch_position3d
 
-        if self.wire is not None:
-            self.wire.identify(None)
-            self.wire = None
+        line = _line.Line(splice_start_p3d, splice_stop_p3d)
+        splice_length = line.length()
 
         # ── Compute splice endpoint positions ────────────────────────────
-        splice_length = self._get_splice_length()
         direction = wire_angle.as_matrix_numpy[:, 2]
         half_length = splice_length / 2.0
 
@@ -248,12 +217,9 @@ class AddSpliceHandler(_handler_base.HandlerBase):
         # start and stop are the wire-facing stubs — they become shared
         # boundary points with the two new wire segments so the callback
         # system keeps the splice pinned to the wire ends when moved
-        splice_start_p3d = self.ptables.pjt_points3d_table.insert(*start_xyz)
-        splice_stop_p3d = self.ptables.pjt_points3d_table.insert(*stop_xyz)
-        branch_p3d = self.ptables.pjt_points3d_table.insert(*branch_xyz)
 
-        splice_start_db_id = splice_start_p3d.db_id
-        splice_stop_db_id = splice_stop_p3d.db_id
+        splice_start_db_id = splice_start_p3d.db_id[:-2]
+        splice_stop_db_id = splice_stop_p3d.db_id[:-2]
 
         # ── Create first wire segment: original start → splice start ─────
         wire1_db = self.ptables.pjt_wires_table.insert(
@@ -293,26 +259,5 @@ class AddSpliceHandler(_handler_base.HandlerBase):
 
         wire.delete()
 
-        # ── Create the real splice referencing the shared boundary points ─
-        db_obj = self.ptables.pjt_splices_table.insert(
-            self.part_id,
-            splice_start_db_id,
-            splice_stop_db_id,
-            branch_p3d.db_id,
-            point2d_id=None,
-            circuit_id=circuit_id
-        )
-
-        splice = _splice.Splice(self.mainframe, db_obj)
-        self.mainframe.project.add_splice(splice)
-
-        self.is_active = False
-
-    def start(self, mouse_pos: _point.Point):
-        """First click activates placement; second click (finalize) places it."""
-        if not self.is_active:
-            wire = _get_wire_at_mouse(mouse_pos, self.camera)
-            if wire is not None:
-                self.is_active = True
-        else:
-            self.finalize(mouse_pos)
+        self.obj.db_obj.circuit_id = circuit_id
+        self.mainframe.project.add_splice(self.obj)

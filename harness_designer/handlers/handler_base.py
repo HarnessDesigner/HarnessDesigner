@@ -31,7 +31,7 @@ class HandlerBase:
         self.obj = None
         self.is_active = False
         self.camera = self.mainframe.editor3d.camera
-        self.ptables = mainframe.project.ptables
+        self.ptables = self.mainframe.project.ptables
         self._captured_position: "_point.Point" = None
         self._finalized = False
 
@@ -50,23 +50,11 @@ class HandlerBase:
         """
         raise NotImplementedError
 
-    def finalize(self, mouse_pos: _point.Point):
-        """Finalize the active operation using the supplied mouse position.
-
-        :param mouse_pos: Mouse position used for picking or preview updates.
-        :type mouse_pos: _point.Point
-        :raises NotImplementedError: Raised when the base handler hook is called directly.
+    def ignore_next_input(self):
         """
-        raise NotImplementedError
-
-    def start(self, mouse_pos: _point.Point):
-        """Start the handler operation for the supplied mouse position.
-
-        :param mouse_pos: Mouse position used for picking or preview updates.
-        :type mouse_pos: _point.Point
-        :raises NotImplementedError: Raised when the base handler hook is called directly.
+        Removes a current mouse capture if any.
         """
-        raise NotImplementedError
+        self._captured_position = None
 
     def hover(self, mouse_pos: _point.Point):
         """Update preview or highlight state for the supplied mouse position.

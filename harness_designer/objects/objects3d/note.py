@@ -19,6 +19,12 @@ if TYPE_CHECKING:
     from .. import note as _note
 
 
+_ALIGN_MAPPING = {
+    build123d.TextAlign.LEFT.value: build123d.TextAlign.LEFT,
+    build123d.TextAlign.CENTER.value: build123d.TextAlign.CENTER,
+    build123d.TextAlign.RIGHT.value: build123d.TextAlign.RIGHT,
+}
+
 class Note(_base3d.Base3D):
     """Represent a note in :mod:`harness_designer.objects.objects3d.note`.
 
@@ -38,18 +44,16 @@ class Note(_base3d.Base3D):
         :type db_obj: :class:`_pjt_note.PJTNote`
         """
         self.db_obj = db_obj
-        self.angle = db_obj.angle3d
-        self.position = db_obj.position3d
+        self._angle = db_obj.angle3d
+        self._position = db_obj.position3d
         color = db_obj.color.ui
-        scale = _point.Point(0.0, 0.0, 0.0)
+        scale = _point.Point(1.0, 1.0, 1.0)
         data = self._build()
 
         material = _materials.Plastic(color)
-        # db_obj.h_align3d
-        # db_obj.v_align3d
 
-        _base3d.Base3D.__init__(self, parent, db_obj, None, self.angle,
-                                self.position, scale, material, data)
+        _base3d.Base3D.__init__(self, parent, db_obj, None, self._angle,
+                                self._position, scale, material, data)
 
     def _build(self):
         """Execute the build operation.
@@ -59,16 +63,21 @@ class Note(_base3d.Base3D):
         :returns: Return value. UNKNOWN details.
         :rtype: UNKNOWN
         """
-        model = build123d.Text(self.db_obj.note, font_size=self.db_obj.size3d, font_style=self.db_obj.style3d)
+        model = build123d.Text(
+            self.db_obj.notes, font_size=self.db_obj.size3d,
+            font_style=build123d.FontStyle(self.db_obj.style3d),
+            text_align=[build123d.TextAlign(self.db_obj.h_align3d), build123d.TextAlign.CENTER])
+
         model = build123d.extrude(model, 0.25)
         vertices, faces = _utils.convert_model_to_mesh(model)
-        vertices, normals, count = _utils.compute_face_normals(vertices, faces)
+        vertices, smooth_normals, face_normals, count = _utils.compute_normals(vertices, faces)
 
-        vertices @= self.angle
-        normals @= self.angle
-        vertices += self.position
+        vertices @= self._angle
+        smooth_normals @= self._angle
+        face_normals @= self._angle
+        vertices += self._position
 
-        return vertices, normals, count
+        return vertices, smooth_normals, face_normals, count
 
     def get_context_menu(self):
         """Return the context menu.

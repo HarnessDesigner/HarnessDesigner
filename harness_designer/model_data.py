@@ -164,7 +164,7 @@ class ModelDataV100(metaclass=ModelDataMeta):
             np.save(buf, arr)
             return buf.getvalue()
 
-        path = os.path.join(model_dir, f'{self.uuid}.hdz')
+        path = os.path.join(model_dir, self.uuid[:2], f'{self.uuid}.hdz')
 
         with zipfile.ZipFile(path, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
             zf.writestr('positions', _npy_bytes(self._vertices))

@@ -8,7 +8,9 @@ from ...ui.widgets import context_menus as _context_menus
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from . import base3d as _base3d
-from ...shapes import sphere as _sphere
+from ...shapes import box as _box
+from ...ui.widgets import float_ctrl as _float_ctrl
+from ...ui.dialogs import error as _error_dialog
 from ...gl import vbo as _vbo
 from ...gl import materials as _materials
 from ... import config as _config
@@ -47,10 +49,43 @@ class Cover(_base3d.Base3D):
 
         model = self._part.model3d
 
-        vbo = _sphere.create_vbo()
+        vbo = _box.create_vbo()
         vbo.acquire()
 
-        scale = _point.Point(3.0, 3.0, 3.0)
+        width = self._part.width
+        height = self._part.height
+        length = self._part.length
+
+        if 0.0 in (length, width, height):
+            length_ctrl = _float_ctrl.FloatCtrl(
+                None, 'Length', 0.00, 500.0, 0.01)
+
+            width_ctrl = _float_ctrl.FloatCtrl(
+                None, 'Width', 0.00, 500.0, 0.01)
+
+            height_ctrl = _float_ctrl.FloatCtrl(
+                None, 'Height', 0.00, 500.0, 0.01)
+
+            length_ctrl.SetValue(length)
+            width_ctrl.SetValue(width)
+            height_ctrl.SetValue(height)
+
+            dlg = _error_dialog.ErrorDialog(
+                parent.mainframe,
+                'Dimensions are not valid.\n\nPlease set correct dimensions.',
+                'Dimension Error', length_ctrl, width_ctrl, height_ctrl)
+
+            while 0.0 in (length, width, height):
+                dlg.exec()
+                length = length_ctrl.GetValue()
+                width = width_ctrl.GetValue()
+                height = height_ctrl.GetValue()
+
+            db_obj.length = length
+            db_obj.width = width
+            db_obj.height = height
+
+        scale = _point.Point(width, height, length)
         material = _materials.Plastic(self._part.color.ui)
         angle = db_obj.angle3d
 

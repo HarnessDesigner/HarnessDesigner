@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from typing import TYPE_CHECKING
 
 import multiprocessing
@@ -78,16 +80,22 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
 
             message = json.loads(in_queue.get_nowait())
 
+            print(message)
+
             if message['type'].startswith('field_names_'):
                 table_name = message['type'].replace('field_names_', '')
                 field_names[table_name] = message['data']
 
             elif message['type'].startswith('add_'):
                 table_name = message['type'].replace('add_', '')
+
                 if table_name not in records:
                     records[table_name] = {}
 
                 data = message['data']
+                while None in data:
+                    data.remove(None)
+
                 if not data:
                     continue
 
@@ -134,6 +142,9 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
             fields = ', '.join(fields)
 
             if table_name not in records:
+                continue
+
+            if not records[table_name]:
                 continue
 
             db_ids = [f'id={db_id}' for db_id in records[table_name].keys()]

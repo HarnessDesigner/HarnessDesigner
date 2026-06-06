@@ -52,11 +52,25 @@ class AddHousingHandler(_handler_base.HandlerBase):
         self._preview_material = _materials.Plastic(
             _color.Color(*Config.add_object.preview_color))
 
+        self.part = None
+
         if part_id is None:
             self._finalized = True
+        else:
+            self.set_part(part_id)
+
+    def set_part(self, part_id):
+        if self._finalized:
             return
 
-        self.part = mainframe.project.gtables.housings_table[part_id]
+        if self.obj is not None:
+            self.obj.delete()
+
+        self.part = self.mainframe.project.gtables.housings_table[part_id]
+
+        position = self.ptables.pjt_points3d_table.insert(0, 0, 0)
+        db_obj = self.ptables.pjt_housings_table.insert(self.part_id, position.db_id)
+        self.obj = _housing.Housing(self.mainframe, db_obj)
 
     def hover(self, mouse_pos: _point.Point):
         """Update preview or highlight state for the supplied mouse position.
@@ -64,7 +78,17 @@ class AddHousingHandler(_handler_base.HandlerBase):
         :param mouse_pos: Mouse position used for picking or preview updates.
         :type mouse_pos: _point.Point
         """
-        pass
+        if self._finalized:
+            return
+
+        if self.obj is None:
+            return
+
+        position = self.obj.db_obj.position3d
+        focal_position = _utils.get_position_on_focal_plane(mouse_pos, self.camera)
+
+        delta = focal_position - position
+        position += delta
 
     def release_capture(self) -> None:
         """Handle release of the captured position and complete any deferred placement work.
@@ -72,13 +96,18 @@ class AddHousingHandler(_handler_base.HandlerBase):
         if self._finalized:
             return
 
+        if self._captured_position is None:
+            return
+
         self._finalized = True
 
         mouse_pos = self._captured_position
 
-        position3d = _utils.get_position_on_focal_plane(mouse_pos, self.camera)
+        position = self.obj.db_obj.position3d
+        focal_position = _utils.get_position_on_focal_plane(mouse_pos, self.camera)
 
-        db_obj = self.ptables.pjt_housings_table.insert(self.part_id, position3d)
+        delta = focal_position - position
+        position += delta
 
-        obj = _housing.Housing(self.mainframe, db_obj)
-        self.mainframe.project.add_housing(obj)
+        self.mainframe.project.add_housing(self.obj)
+        self.obj = None

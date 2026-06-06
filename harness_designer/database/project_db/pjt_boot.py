@@ -16,7 +16,8 @@ from .mixins import (
     Visible3DMixin, Visible3DControl,
     NameMixin, NameControl,
     NotesMixin, NotesControl,
-    SmoothMixin, SmoothControl
+    SmoothMixin, SmoothControl,
+    Scale3DMixin, Scale3DControl
 )
 
 
@@ -154,7 +155,7 @@ class PJTBootsTable(PJTTableBase):
         return PJTBoot(self, db_id, self.project_id)
 
 
-class PJTBoot(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin,
+class PJTBoot(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin, Scale3DMixin,
               HousingMixin, Visible3DMixin, NameMixin, NotesMixin, SmoothMixin):
     """Represent a PJT boot in :mod:`harness_designer.database.project_db.pjt_boot`.
 

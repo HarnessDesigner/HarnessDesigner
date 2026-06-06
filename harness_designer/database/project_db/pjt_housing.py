@@ -26,7 +26,8 @@ from .mixins import (
     Position3DMixin, Position3DControl,
     Angle2DMixin, Angle2DControl,
     Angle3DMixin, Angle3DControl,
-    SmoothMixin, SmoothControl
+    SmoothMixin, SmoothControl,
+    Scale3DMixin, Scale3DControl
 )
 
 
@@ -134,41 +135,34 @@ class PJTHousingsTable(PJTTableBase):
 
         raise KeyError(item)
 
-    def insert(self, part_id: int, position3d: "_point.Point" = None,
-               position2d: "_point.Point" = None) -> "PJTHousing":
+    def insert(self, part_id: int, position3d_id: int = None,
+               position2d_id: int = None) -> "PJTHousing":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param part_id: Identifier for the part.
         :type part_id: int
-        :param position3d: 3D position value.
-        :type position3d: :class:`_point.Point`
-        :param position2d: 2D position value.
-        :type position2d: :class:`_point.Point`
+        :param position3d_id: 3D position id.
+        :type position3d_id: int | None
+        :param position2d_id: 2D position id.
+        :type position2d_id: int | None
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`PJTHousing`
         """
 
-        if position2d is None:
-            position2d = _point.Point(0, 0)
+        if position2d_id is None:
+            position2d_id = self.db.pjt_points2d_table.insert(0.0, 0.0).db_id
+        if position3d_id is None:
+            position3d_id = self.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
 
-        if position3d is None:
-            position3d = _point.Point(0.0, 0.0, 0.0)
-
-        x, y = position2d.as_float[:-1]
-        pos2d = self.db.pjt_points2d_table.insert(x, y)
-
-        x, y, z = position3d.as_float
-        pos3d = self.db.pjt_points3d_table.insert(x, y, z)
-
-        db_id = PJTTableBase.insert(self, point3d_id=pos3d.db_id,
-                                    point2d_id=pos2d.db_id, part_id=part_id)
+        db_id = PJTTableBase.insert(self, point3d_id=position3d_id,
+                                    point2d_id=position2d_id, part_id=part_id)
 
         db_obj = PJTHousing(self, db_id, self.project_id)
 
-        pos3d = pos3d.point
-        pos2d = pos2d.point
+        pos3d = db_obj.position3d
+        pos2d = db_obj.position2d
 
         # add the cavities from the part to the project
         for cavity in db_obj.part.cavities:
@@ -206,7 +200,8 @@ class PJTHousingsTable(PJTTableBase):
 
 
 class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3DMixin,
-                 Visible3DMixin, Visible2DMixin, NotesMixin, Angle2DMixin, Angle3DMixin, SmoothMixin):
+                 Visible3DMixin, Visible2DMixin, NotesMixin, Angle2DMixin, Angle3DMixin,
+                 SmoothMixin, Scale3DMixin):
     """Represent a PJT housing in :mod:`harness_designer.database.project_db.pjt_housing`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -901,20 +896,19 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         """
-        if self._stored_position3d is None and self._obj is not None:
+        if self._stored_position3d is None:
             point_id = self.position3d_id
 
             self._stored_position3d = self._table.db.pjt_points3d_table[point_id]
-            self._stored_position3d.add_object(self._obj())
 
             point = self._stored_position3d.point
             point.bind(self._update_position3d)
             self._o_position3d = point.copy()
-
-        elif self._stored_position3d is None:
-            point = None
         else:
             point = self._stored_position3d.point
+
+        if self._obj is not None:
+            self._stored_position3d.add_object(self._obj())
 
         return point
 

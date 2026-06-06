@@ -83,6 +83,10 @@ class Housing(_base2d.Base2D):
 
     def render_gl(self):
         """Render housing using OpenGL with rotation support"""
+
+        if self._is_deleted:
+            return
+
         if self._position is None:
             return
 

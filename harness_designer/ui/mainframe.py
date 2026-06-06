@@ -73,7 +73,6 @@ class MainFrame(QMainWindow):
 
         self.logger = logger
         self._clone_obj = None
-        self._add_handler: _handlers.HandlerBase = None
 
         if not Config.size:
             screen = self.screen()
@@ -367,6 +366,8 @@ class MainFrame(QMainWindow):
         self._connect_editor3d_signals()
         self._connect_editor2d_signals()
 
+        self.editor_toolbar.modeChanged.connect(self._on_tool_mode_change)
+
         # ------------------------------------------------------------------
         # Idle processing — replaces wx.EVT_IDLE.
         # A zero-interval QTimer fires as fast as the event loop allows when
@@ -476,48 +477,44 @@ class MainFrame(QMainWindow):
 
     def _connect_editor3d_signals(self):
         """Wire all EVT_GL_* signal sentinels to their mainframe handlers."""
-        pairs = [
-            (_gl.EVT_GL_OBJECT_SELECTED,      self._on_obj_selected_3d),
-            (_gl.EVT_GL_OBJECT_UNSELECTED,    self._on_obj_unselected_3d),
-            (_gl.EVT_GL_OBJECT_ACTIVATED,     self._on_obj_activated_3d),
-            (_gl.EVT_GL_OBJECT_RIGHT_CLICK,   self._on_obj_right_click_3d),
-            (_gl.EVT_GL_OBJECT_RIGHT_DCLICK,  self._on_obj_right_dclick_3d),
-            (_gl.EVT_GL_OBJECT_MIDDLE_CLICK,  self._on_obj_middle_click_3d),
-            (_gl.EVT_GL_OBJECT_MIDDLE_DCLICK, self._on_obj_middle_dclick_3d),
-            (_gl.EVT_GL_OBJECT_AUX1_CLICK,   self._on_obj_aux1_click_3d),
-            (_gl.EVT_GL_OBJECT_AUX1_DCLICK,  self._on_obj_aux1_dclick_3d),
-            (_gl.EVT_GL_OBJECT_AUX2_CLICK,   self._on_obj_aux2_click_3d),
-            (_gl.EVT_GL_OBJECT_AUX2_DCLICK,  self._on_obj_aux2_dclick_3d),
-            (_gl.EVT_GL_OBJECT_DRAG,         self._on_obj_drag_3d),
-            (_gl.EVT_GL_KEY_DOWN,            self._on_key_down_3d),
-            (_gl.EVT_GL_KEY_UP,              self._on_key_up_3d),
-            (_gl.EVT_GL_MOUSE_MOVE,          self._on_mouse_move_3d),
-            (_gl.EVT_GL_CAPTURE_LOST,        self._on_capture_lost_3d),
-            (_gl.EVT_GL_LEFT_DOWN,           self._on_left_down_3d),
-            (_gl.EVT_GL_LEFT_UP,             self._on_left_up_3d),
-            (_gl.EVT_GL_LEFT_DCLICK,         self._on_left_dclick_3d),
-            (_gl.EVT_GL_RIGHT_DOWN,          self._on_right_down_3d),
-            (_gl.EVT_GL_RIGHT_UP,            self._on_right_up_3d),
-            (_gl.EVT_GL_RIGHT_DCLICK,        self._on_right_dclick_3d),
-            (_gl.EVT_GL_MIDDLE_DOWN,         self._on_middle_down_3d),
-            (_gl.EVT_GL_MIDDLE_UP,           self._on_middle_up_3d),
-            (_gl.EVT_GL_MIDDLE_DCLICK,       self._on_middle_dclick_3d),
-            (_gl.EVT_GL_AUX1_DOWN,           self._on_aux1_down_3d),
-            (_gl.EVT_GL_AUX1_UP,             self._on_aux1_up_3d),
-            (_gl.EVT_GL_AUX1_DCLICK,         self._on_aux1_dclick_3d),
-            (_gl.EVT_GL_AUX2_DOWN,           self._on_aux2_down_3d),
-            (_gl.EVT_GL_AUX2_UP,             self._on_aux2_up_3d),
-            (_gl.EVT_GL_AUX2_DCLICK,         self._on_aux2_dclick_3d),
 
-            (_gl.EVT_GL_CAMERA_ZOOM, self._on_camera_zoom_3d),
-            (_gl.EVT_GL_CAMERA_ORBIT, self._on_camera_orbit_3d),
-            (_gl.EVT_GL_CAMERA_WALK, self._on_camera_walk_3d),
-            (_gl.EVT_GL_CAMERA_TRUCKPEDISTAL, self._on_camera_truckpedistal_3d),
-            (_gl.EVT_GL_CAMERA_ROTATE, self._on_camera_rotate_3d),
-            (_gl.EVT_GL_CAMERA_RESET, self._on_camera_reset_3d),
-        ]
-        for evt_type, handler in pairs:
-            self.editor3d.bind(evt_type, handler)
+        self.editor3d.bind(_gl.EVT_GL_OBJECT_SELECTED, self._on_obj_selected_3d)
+        self.editor3d.bind(_gl.EVT_GL_OBJECT_UNSELECTED, self._on_obj_unselected_3d)
+        self.editor3d.bind(_gl.EVT_GL_OBJECT_ACTIVATED, self._on_obj_activated_3d)
+        self.editor3d.bind(_gl.EVT_GL_OBJECT_RIGHT_CLICK, self._on_obj_right_click_3d)
+        self.editor3d.bind(_gl.EVT_GL_OBJECT_RIGHT_DCLICK, self._on_obj_right_dclick_3d)
+        self.editor3d.bind(_gl.EVT_GL_OBJECT_MIDDLE_CLICK, self._on_obj_middle_click_3d)
+        self.editor3d.bind(_gl.EVT_GL_OBJECT_MIDDLE_DCLICK, self._on_obj_middle_dclick_3d)
+        self.editor3d.bind(_gl.EVT_GL_OBJECT_AUX1_CLICK, self._on_obj_aux1_click_3d)
+        self.editor3d.bind(_gl.EVT_GL_OBJECT_AUX1_DCLICK, self._on_obj_aux1_dclick_3d)
+        self.editor3d.bind(_gl.EVT_GL_OBJECT_AUX2_CLICK, self._on_obj_aux2_click_3d)
+        self.editor3d.bind(_gl.EVT_GL_OBJECT_AUX2_DCLICK, self._on_obj_aux2_dclick_3d)
+        self.editor3d.bind(_gl.EVT_GL_OBJECT_DRAG, self._on_obj_drag_3d)
+        self.editor3d.bind(_gl.EVT_GL_KEY_DOWN, self._on_key_down_3d)
+        self.editor3d.bind(_gl.EVT_GL_KEY_UP, self._on_key_up_3d)
+        self.editor3d.bind(_gl.EVT_GL_MOUSE_MOVE, self._on_mouse_move_3d)
+        self.editor3d.bind(_gl.EVT_GL_CAPTURE_LOST, self._on_capture_lost_3d)
+        self.editor3d.bind(_gl.EVT_GL_LEFT_DOWN, self._on_left_down_3d)
+        self.editor3d.bind(_gl.EVT_GL_LEFT_UP, self._on_left_up_3d)
+        self.editor3d.bind(_gl.EVT_GL_LEFT_DCLICK, self._on_left_dclick_3d)
+        self.editor3d.bind(_gl.EVT_GL_RIGHT_DOWN, self._on_right_down_3d)
+        self.editor3d.bind(_gl.EVT_GL_RIGHT_UP, self._on_right_up_3d)
+        self.editor3d.bind(_gl.EVT_GL_RIGHT_DCLICK, self._on_right_dclick_3d)
+        self.editor3d.bind(_gl.EVT_GL_MIDDLE_DOWN, self._on_middle_down_3d)
+        self.editor3d.bind(_gl.EVT_GL_MIDDLE_UP, self._on_middle_up_3d)
+        self.editor3d.bind(_gl.EVT_GL_MIDDLE_DCLICK, self._on_middle_dclick_3d)
+        self.editor3d.bind(_gl.EVT_GL_AUX1_DOWN, self._on_aux1_down_3d)
+        self.editor3d.bind(_gl.EVT_GL_AUX1_UP, self._on_aux1_up_3d)
+        self.editor3d.bind(_gl.EVT_GL_AUX1_DCLICK, self._on_aux1_dclick_3d)
+        self.editor3d.bind(_gl.EVT_GL_AUX2_DOWN, self._on_aux2_down_3d)
+        self.editor3d.bind(_gl.EVT_GL_AUX2_UP, self._on_aux2_up_3d)
+        self.editor3d.bind(_gl.EVT_GL_AUX2_DCLICK, self._on_aux2_dclick_3d)
+        self.editor3d.bind(_gl.EVT_GL_CAMERA_ZOOM, self._on_camera_zoom_3d)
+        self.editor3d.bind(_gl.EVT_GL_CAMERA_ORBIT, self._on_camera_orbit_3d)
+        self.editor3d.bind(_gl.EVT_GL_CAMERA_WALK, self._on_camera_walk_3d)
+        self.editor3d.bind(_gl.EVT_GL_CAMERA_TRUCKPEDISTAL, self._on_camera_truckpedistal_3d)
+        self.editor3d.bind(_gl.EVT_GL_CAMERA_ROTATE, self._on_camera_rotate_3d)
+        self.editor3d.bind(_gl.EVT_GL_CAMERA_RESET, self._on_camera_reset_3d)
 
     def _on_camera_zoom_3d(self, evt: _gl.GLCameraEvent):
         self.Set3DCoordinates(evt)
@@ -538,42 +535,36 @@ class MainFrame(QMainWindow):
         self.Set3DCoordinates(evt)
 
     def _connect_editor2d_signals(self):
-        """Wire all EVT_GL_* signal sentinels to their mainframe 2D handlers."""
-        pairs = [
-            (_gl.EVT_GL_OBJECT_SELECTED,      self._on_obj_selected_2d),
-            (_gl.EVT_GL_OBJECT_UNSELECTED,    self._on_obj_unselected_2d),
-            (_gl.EVT_GL_OBJECT_ACTIVATED,     self._on_obj_activated_2d),
-            (_gl.EVT_GL_OBJECT_RIGHT_CLICK,   self._on_obj_right_click_2d),
-            (_gl.EVT_GL_OBJECT_RIGHT_DCLICK,  self._on_obj_right_dclick_2d),
-            (_gl.EVT_GL_OBJECT_MIDDLE_CLICK,  self._on_obj_middle_click_2d),
-            (_gl.EVT_GL_OBJECT_MIDDLE_DCLICK, self._on_obj_middle_dclick_2d),
-            (_gl.EVT_GL_OBJECT_AUX1_CLICK,   self._on_obj_aux1_click_2d),
-            (_gl.EVT_GL_OBJECT_AUX1_DCLICK,  self._on_obj_aux1_dclick_2d),
-            (_gl.EVT_GL_OBJECT_AUX2_CLICK,   self._on_obj_aux2_click_2d),
-            (_gl.EVT_GL_OBJECT_AUX2_DCLICK,  self._on_obj_aux2_dclick_2d),
-            (_gl.EVT_GL_OBJECT_DRAG,         self._on_obj_drag_2d),
-            (_gl.EVT_GL_KEY_DOWN,            self._on_key_down_2d),
-            (_gl.EVT_GL_KEY_UP,              self._on_key_up_2d),
-            (_gl.EVT_GL_MOUSE_MOVE,          self._on_mouse_move_2d),
-            (_gl.EVT_GL_CAPTURE_LOST,        self._on_capture_lost_2d),
-            (_gl.EVT_GL_LEFT_DOWN,           self._on_left_down_2d),
-            (_gl.EVT_GL_LEFT_UP,             self._on_left_up_2d),
-            (_gl.EVT_GL_LEFT_DCLICK,         self._on_left_dclick_2d),
-            (_gl.EVT_GL_RIGHT_DOWN,          self._on_right_down_2d),
-            (_gl.EVT_GL_RIGHT_UP,            self._on_right_up_2d),
-            (_gl.EVT_GL_RIGHT_DCLICK,        self._on_right_dclick_2d),
-            (_gl.EVT_GL_MIDDLE_DOWN,         self._on_middle_down_2d),
-            (_gl.EVT_GL_MIDDLE_UP,           self._on_middle_up_2d),
-            (_gl.EVT_GL_MIDDLE_DCLICK,       self._on_middle_dclick_2d),
-            (_gl.EVT_GL_AUX1_DOWN,           self._on_aux1_down_2d),
-            (_gl.EVT_GL_AUX1_UP,             self._on_aux1_up_2d),
-            (_gl.EVT_GL_AUX1_DCLICK,         self._on_aux1_dclick_2d),
-            (_gl.EVT_GL_AUX2_DOWN,           self._on_aux2_down_2d),
-            (_gl.EVT_GL_AUX2_UP,             self._on_aux2_up_2d),
-            (_gl.EVT_GL_AUX2_DCLICK,         self._on_aux2_dclick_2d),
-        ]
-        for evt_type, handler in pairs:
-            self.editor2d.bind(evt_type, handler)
+        self.editor2d.bind(_gl.EVT_GL_OBJECT_SELECTED,      self._on_obj_selected_2d)
+        self.editor2d.bind(_gl.EVT_GL_OBJECT_UNSELECTED, self._on_obj_unselected_2d)
+        self.editor2d.bind(_gl.EVT_GL_OBJECT_ACTIVATED, self._on_obj_activated_2d)
+        self.editor2d.bind(_gl.EVT_GL_OBJECT_RIGHT_CLICK, self._on_obj_right_click_2d)
+        self.editor2d.bind(_gl.EVT_GL_OBJECT_MIDDLE_CLICK, self._on_obj_middle_click_2d)
+        self.editor2d.bind(_gl.EVT_GL_OBJECT_MIDDLE_DCLICK, self._on_obj_middle_dclick_2d)
+        self.editor2d.bind(_gl.EVT_GL_OBJECT_AUX1_CLICK, self._on_obj_aux1_click_2d)
+        self.editor2d.bind(_gl.EVT_GL_OBJECT_AUX1_DCLICK, self._on_obj_aux1_dclick_2d)
+        self.editor2d.bind(_gl.EVT_GL_OBJECT_AUX2_CLICK, self._on_obj_aux2_click_2d)
+        self.editor2d.bind(_gl.EVT_GL_OBJECT_AUX2_DCLICK, self._on_obj_aux2_dclick_2d)
+        self.editor2d.bind(_gl.EVT_GL_OBJECT_DRAG, self._on_obj_drag_2d)
+        self.editor2d.bind(_gl.EVT_GL_KEY_DOWN, self._on_key_down_2d)
+        self.editor2d.bind(_gl.EVT_GL_KEY_UP, self._on_key_up_2d)
+        self.editor2d.bind(_gl.EVT_GL_MOUSE_MOVE, self._on_mouse_move_2d)
+        self.editor2d.bind(_gl.EVT_GL_CAPTURE_LOST, self._on_capture_lost_2d)
+        self.editor2d.bind(_gl.EVT_GL_LEFT_DOWN, self._on_left_down_2d)
+        self.editor2d.bind(_gl.EVT_GL_LEFT_UP, self._on_left_up_2d)
+        self.editor2d.bind(_gl.EVT_GL_LEFT_DCLICK, self._on_left_dclick_2d)
+        self.editor2d.bind(_gl.EVT_GL_RIGHT_DOWN, self._on_right_down_2d)
+        self.editor2d.bind(_gl.EVT_GL_RIGHT_UP, self._on_right_up_2d)
+        self.editor2d.bind(_gl.EVT_GL_RIGHT_DCLICK, self._on_right_dclick_2d)
+        self.editor2d.bind(_gl.EVT_GL_MIDDLE_DOWN, self._on_middle_down_2d)
+        self.editor2d.bind(_gl.EVT_GL_MIDDLE_UP, self._on_middle_up_2d)
+        self.editor2d.bind(_gl.EVT_GL_MIDDLE_DCLICK, self._on_middle_dclick_2d)
+        self.editor2d.bind(_gl.EVT_GL_AUX1_DOWN, self._on_aux1_down_2d)
+        self.editor2d.bind(_gl.EVT_GL_AUX1_UP, self._on_aux1_up_2d)
+        self.editor2d.bind(_gl.EVT_GL_AUX1_DCLICK, self._on_aux1_dclick_2d)
+        self.editor2d.bind(_gl.EVT_GL_AUX2_DOWN, self._on_aux2_down_2d)
+        self.editor2d.bind(_gl.EVT_GL_AUX2_UP, self._on_aux2_up_2d)
+        self.editor2d.bind(_gl.EVT_GL_AUX2_DCLICK, self._on_aux2_dclick_2d)
 
     # ------------------------------------------------------------------
     # QMainWindow event overrides (replace wx.EVT_* bindings)
@@ -924,8 +915,6 @@ class MainFrame(QMainWindow):
         :type evt: :class:`_gl.GLObjectEvent`
         """
 
-        obj = evt.GetEventObject()
-
         self.Set3DCoordinates(evt)
 
         if self._obj_handler is not None:
@@ -1004,12 +993,7 @@ class MainFrame(QMainWindow):
         self.Set3DCoordinates(evt)
 
         if self._obj_handler is not None:
-            evt.StopPropagation()
-        else:
-            evt.Skip()
-
-        if self._add_handler is not None:
-            self._add_handler.hover(mouse_pos)
+            self._obj_handler.hover(evt.GetPosition())
             evt.StopPropagation()
         else:
             evt.Skip()
@@ -1023,7 +1007,6 @@ class MainFrame(QMainWindow):
         :type evt: :class:`_gl.GLCaptureLostEvent`
         """
         if self._obj_handler is not None:
-            self._obj_handler.veto_position()
             evt.StopPropagation()
         else:
             evt.Skip()
@@ -1072,59 +1055,12 @@ class MainFrame(QMainWindow):
 
         mode = self.editor_toolbar.get_mode()
 
-        if mode == _toolbar.ID_SELECT:
-            return
-        elif mode == _toolbar.ID_CONNECTOR:
-            evt.StopPropagation()
-            self.add_housing(position3d=evt.GetPosition())
-
-        elif mode == _toolbar.ID_TERMINAL:
-            evt.StopPropagation()
-            self.add_terminal(position3d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_WIRE:
-            evt.StopPropagation()
-            self.add_wire(position3d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_WIRE_SERVICE_LOOP:
-            evt.StopPropagation()
-            self.add_wire_service_loop(position3d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_SPLICE:
-            evt.StopPropagation()
-            self.add_splice(position3d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_NOTE:
-            evt.StopPropagation()
-            self.add_note(position3d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_CIRCLE:
-            evt.StopPropagation()
-            self.add_circle(position3d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_SQUARE:
-            evt.StopPropagation()
-            self.add_square(position3d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_TRANSITION:
-            evt.StopPropagation()
-            self.add_transition(position3d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_SEAL:
-            evt.StopPropagation()
-            self.add_seal(position3d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_BUNDLE_COVER:
-            evt.StopPropagation()
-            self.add_bundle(position3d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_TPA_LOCK:
-            evt.StopPropagation()
-            self.add_tpa_lock(position3d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_CPA_LOCK:
-            evt.StopPropagation()
-            self.add_cpa_lock(position3d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_COVER:
-            evt.StopPropagation()
-            self.add_cover(position3d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_ZOOM_IN:
+        if mode == _toolbar.ID_ZOOM_IN:
             evt.StopPropagation()
             self.editor3d.editor.Zoom(1.0)
         elif mode == _toolbar.ID_ZOOM_OUT:
             evt.StopPropagation()
             self.editor3d.editor.Zoom(-1.0)
-
-        evt.Skip()
 
     def _on_left_dclick_3d(self, evt: _gl.GLEvent) -> None:
         """Handle the left dclick 3D event.
@@ -1389,16 +1325,16 @@ class MainFrame(QMainWindow):
             evt.StopPropagation()
         else:
             evt.Skip()
-            obj = evt.GetGLObject()
+            # obj = evt.GetGLObject()
 
-            context_menu = obj.obj2d.get_context_menu()
-            if context_menu is not None:
-                x, y, _ = evt.GetPosition().as_int
-                canvas_widget = self.editor2d.editor
-                global_pos = canvas_widget.mapToGlobal(
-                    canvas_widget.rect().topLeft().__class__(x, y)
-                )
-                context_menu.exec(global_pos)
+            # context_menu = obj.obj2d.get_context_menu()
+            # if context_menu is not None:
+            #     x, y, _ = evt.GetPosition().as_int
+            #     canvas_widget = self.editor2d.editor
+            #     global_pos = canvas_widget.mapToGlobal(
+            #         canvas_widget.rect().topLeft().__class__(x, y)
+            #     )
+            #     context_menu.exec(global_pos)
 
     def _on_obj_right_dclick_2d(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj right dclick 2D event.
@@ -1562,13 +1498,13 @@ class MainFrame(QMainWindow):
         else:
             evt.Skip()
 
-        mouse_pos = evt.GetPosition()
+        # mouse_pos = evt.GetPosition()
 
-        if self._add_handler is not None:
-            self._add_handler.hover(mouse_pos)
-            evt.StopPropagation()
-        else:
-            evt.Skip()
+        # if self._add_handler is not None:
+        #     self._add_handler.hover(mouse_pos)
+        #     evt.StopPropagation()
+        # else:
+        #     evt.Skip()
 
     def _on_capture_lost_2d(self, evt: _gl.GLCaptureLostEvent) -> None:
         """Handle the capture lost 2D event.
@@ -1579,7 +1515,6 @@ class MainFrame(QMainWindow):
         :type evt: :class:`_gl.GLCaptureLostEvent`
         """
         if self._obj_handler is not None:
-            self._obj_handler.veto_position()
             evt.StopPropagation()
         else:
             evt.Skip()
@@ -1600,67 +1535,67 @@ class MainFrame(QMainWindow):
             evt.StopPropagation()
         else:
             evt.Skip()
-
-        mode = self.editor_toolbar.get_mode()
-
-        if mode == _toolbar.ID_SELECT:
-            return
-        elif mode == _toolbar.ID_CONNECTOR:
-            evt.StopPropagation()
-
-            if (
-                self._housing_handler is not None and
-                not self._housing_handler.is_finalized
-            ):
-                raise RuntimeError('sanity check')
-
-            self.add_housing(position2d=evt.GetPosition())
-
-        elif mode == _toolbar.ID_TERMINAL:
-            evt.StopPropagation()
-            self.add_terminal(position2d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_WIRE:
-            evt.StopPropagation()
-            self.add_wire(position2d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_WIRE_SERVICE_LOOP:
-            evt.StopPropagation()
-            self.add_wire_service_loop(position2d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_SPLICE:
-            evt.StopPropagation()
-            self.add_splice(position2d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_NOTE:
-            evt.StopPropagation()
-            self.add_note(position2d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_CIRCLE:
-            evt.StopPropagation()
-            self.add_circle(position2d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_SQUARE:
-            evt.StopPropagation()
-            self.add_square(position2d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_TRANSITION:
-            evt.StopPropagation()
-            self.add_transition(position2d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_SEAL:
-            evt.StopPropagation()
-            self.add_seal(position2d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_BUNDLE_COVER:
-            evt.StopPropagation()
-            self.add_bundle(position2d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_TPA_LOCK:
-            evt.StopPropagation()
-            self.add_tpa_lock(position2d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_CPA_LOCK:
-            evt.StopPropagation()
-            self.add_cpa_lock(position2d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_COVER:
-            evt.StopPropagation()
-            self.add_cover(position2d=evt.GetWorldPosition())
-        elif mode == _toolbar.ID_ZOOM_IN:
-            evt.StopPropagation()
-            self.editor2d.editor.camera.zoom_at_point(evt.GetPosition(), 1.0)
-        elif mode == _toolbar.ID_ZOOM_OUT:
-            evt.StopPropagation()
-            self.editor2d.editor.camera.zoom_at_point(evt.GetPosition(), -1.0)
+        #
+        # mode = self.editor_toolbar.get_mode()
+        #
+        # if mode == _toolbar.ID_SELECT:
+        #     return
+        # elif mode == _toolbar.ID_CONNECTOR:
+        #     evt.StopPropagation()
+        #
+        #     if (
+        #         self._housing_handler is not None and
+        #         not self._housing_handler.is_finalized
+        #     ):
+        #         raise RuntimeError('sanity check')
+        #
+        #     self.add_housing(position2d=evt.GetPosition())
+        #
+        # elif mode == _toolbar.ID_TERMINAL:
+        #     evt.StopPropagation()
+        #     self.add_terminal(position2d=evt.GetWorldPosition())
+        # elif mode == _toolbar.ID_WIRE:
+        #     evt.StopPropagation()
+        #     self.add_wire(position2d=evt.GetWorldPosition())
+        # elif mode == _toolbar.ID_WIRE_SERVICE_LOOP:
+        #     evt.StopPropagation()
+        #     self.add_wire_service_loop(position2d=evt.GetWorldPosition())
+        # elif mode == _toolbar.ID_SPLICE:
+        #     evt.StopPropagation()
+        #     self.add_splice(position2d=evt.GetWorldPosition())
+        # elif mode == _toolbar.ID_NOTE:
+        #     evt.StopPropagation()
+        #     self.add_note(position2d=evt.GetWorldPosition())
+        # elif mode == _toolbar.ID_CIRCLE:
+        #     evt.StopPropagation()
+        #     self.add_circle(position2d=evt.GetWorldPosition())
+        # elif mode == _toolbar.ID_SQUARE:
+        #     evt.StopPropagation()
+        #     self.add_square(position2d=evt.GetWorldPosition())
+        # elif mode == _toolbar.ID_TRANSITION:
+        #     evt.StopPropagation()
+        #     self.add_transition(position2d=evt.GetWorldPosition())
+        # elif mode == _toolbar.ID_SEAL:
+        #     evt.StopPropagation()
+        #     self.add_seal(position2d=evt.GetWorldPosition())
+        # elif mode == _toolbar.ID_BUNDLE_COVER:
+        #     evt.StopPropagation()
+        #     self.add_bundle(position2d=evt.GetWorldPosition())
+        # elif mode == _toolbar.ID_TPA_LOCK:
+        #     evt.StopPropagation()
+        #     self.add_tpa_lock(position2d=evt.GetWorldPosition())
+        # elif mode == _toolbar.ID_CPA_LOCK:
+        #     evt.StopPropagation()
+        #     self.add_cpa_lock(position2d=evt.GetWorldPosition())
+        # elif mode == _toolbar.ID_COVER:
+        #     evt.StopPropagation()
+        #     self.add_cover(position2d=evt.GetWorldPosition())
+        # elif mode == _toolbar.ID_ZOOM_IN:
+        #     evt.StopPropagation()
+        #     self.editor2d.editor.camera.zoom_at_point(evt.GetPosition(), 1.0)
+        # elif mode == _toolbar.ID_ZOOM_OUT:
+        #     evt.StopPropagation()
+        #     self.editor2d.editor.camera.zoom_at_point(evt.GetPosition(), -1.0)
 
         evt.Skip()
 
@@ -1961,286 +1896,89 @@ class MainFrame(QMainWindow):
     # Add-object helpers
     # ------------------------------------------------------------------
 
-    def add_housing(self, position2d: "_point.Point" = None,
-                    position3d: "_point.Point" = None) -> None:
-        """Add a housing.
+    def _on_tool_mode_change(self, mode: int) -> None:
+        if self._obj_handler is not None:
+            if not self._obj_handler.is_finalized:
+                self._obj_handler.cancel()
 
-        UNKNOWN details are inferred from the callable name and signature.
+            self._obj_handler = None
 
-        :param position2d: 2D position value.
-        :type position2d: :class:`_point.Point`
-        :param position3d: 3D position value.
-        :type position3d: :class:`_point.Point`
-        """
-
-        if position3d is not None:
-            housing_handler = _handlers.AddHousingHandler(self)
-            housing_handler.capture_position(position3d)
-            housing_handler.release_capture()
-
-    def add_terminal(self, position2d: "_point.Point" = None,
-                     position3d: "_point.Point" = None, part_id: int = None) -> None:
-        """Add a terminal.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param position2d: 2D position value.
-        :type position2d: :class:`_point.Point`
-        :param position3d: 3D position value.
-        :type position3d: :class:`_point.Point`
-        :param part_id: Identifier for the part.
-        :type part_id: int
-        """
-
-        if part_id is None:
-            part_id = self.editor_db.terminals.GetSelection()
-
-        if part_id is None:
+        if mode == _toolbar.ID_SELECT:
             return
-
-        self.project.add_terminal(part_id, position2d, position3d)
-
-    def add_wire(self, position2d: "_point.Point" = None,
-                 position3d: "_point.Point" = None, part_id: int = None) -> None:
-        """Add a wire.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param position2d: 2D position value.
-        :type position2d: :class:`_point.Point`
-        :param position3d: 3D position value.
-        :type position3d: :class:`_point.Point`
-        :param part_id: Identifier for the part.
-        :type part_id: int
-        """
-
-        if part_id is None:
-            part_id = self.editor_db.wires.GetSelection()
-
-        if part_id is None:
-            return
-
-        self.project.add_wire(part_id, position2d, position3d)
-
-    def add_wire_service_loop(self, position3d: "_point.Point",
-                              part_id: int = None) -> None:
-        """Add a wire service loop.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param position3d: 3D position value.
-        :type position3d: :class:`_point.Point`
-        :param part_id: Identifier for the part.
-        :type part_id: int
-        """
-
-        if part_id is None:
-            part_id = self.editor_db.wires.GetSelection()
-
-        if part_id is None:
-            return
-
-        self.project.add_wire_service_loop(part_id, position3d)
-
-    def add_wire_marker(self, position2d: "_point.Point" = None,
-                        position3d: "_point.Point" = None, part_id: int = None) -> None:
-        """Add a wire marker.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param position2d: 2D position value.
-        :type position2d: :class:`_point.Point`
-        :param position3d: 3D position value.
-        :type position3d: :class:`_point.Point`
-        :param part_id: Identifier for the part.
-        :type part_id: int
-        """
-
-        if part_id is None:
-            part_id = self.editor_db.wire_markers.GetSelection()
-
-        if part_id is None:
-            return
-
-        self.project.add_wire_marker(part_id, position2d, position3d)
-
-    def add_splice(self, position2d: "_point.Point" = None,
-                   position3d: "_point.Point" = None, part_id: int = None) -> None:
-        """Add a splice.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param position2d: 2D position value.
-        :type position2d: :class:`_point.Point`
-        :param position3d: 3D position value.
-        :type position3d: :class:`_point.Point`
-        :param part_id: Identifier for the part.
-        :type part_id: int
-        """
-
-        if part_id is None:
-            part_id = self.editor_db.splices.GetSelection()
-
-        if part_id is None:
-            return
-
-        self.project.add_splice(part_id, position2d, position3d)
-
-    def add_note(self, position2d: "_point.Point" = None,
-                 position3d: "_point.Point" = None, note: str = '') -> None:
-        """Add a note.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param position2d: 2D position value.
-        :type position2d: :class:`_point.Point`
-        :param position3d: 3D position value.
-        :type position3d: :class:`_point.Point`
-        :param note: Value for ``note``.
-        :type note: str
-        """
-
-        self.project.add_note(note, position2d, position3d)
-
-    def add_transition(self, position3d: "_point.Point",
-                       part_id: int = None) -> None:
-        """Add a transition.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param position3d: 3D position value.
-        :type position3d: :class:`_point.Point`
-        :param part_id: Identifier for the part.
-        :type part_id: int
-        """
-
-        if part_id is None:
-            part_id = self.editor_db.transitions.GetSelection()
-
-        if part_id is None:
-            return
-
-        self.project.add_transition(part_id, position3d)
-
-    def add_seal(self, position3d: "_point.Point",
-                 part_id: int = None) -> None:
-        """Add a seal.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param position3d: 3D position value.
-        :type position3d: :class:`_point.Point`
-        :param part_id: Identifier for the part.
-        :type part_id: int
-        """
-
-        if part_id is None:
-            part_id = self.editor_db.seals.GetSelection()
-
-        if part_id is None:
-            return
-
-        self.project.add_seal(part_id, position3d)
-
-    def add_bundle(self, position3d: "_point.Point",
-                   part_id: int = None) -> None:
-        """Add a bundle.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param position3d: 3D position value.
-        :type position3d: :class:`_point.Point`
-        :param part_id: Identifier for the part.
-        :type part_id: int
-        """
-
-        if part_id is None:
-            part_id = self.editor_db.bundle_covers.GetSelection()
-
-        if part_id is None:
-            return
-
-        self.project.add_bundle(part_id, position3d)
-
-    def add_tpa_lock(self, position3d: "_point.Point",
-                     part_id: int = None) -> None:
-        """Add a TPA lock.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param position3d: 3D position value.
-        :type position3d: :class:`_point.Point`
-        :param part_id: Identifier for the part.
-        :type part_id: int
-        """
-
-        if part_id is None:
-            part_id = self.editor_db.tpa_locks.GetSelection()
-
-        if part_id is None:
-            return
-
-        self.project.add_tpa_lock(part_id, position3d)
-
-    def add_cpa_lock(self, position3d: "_point.Point",
-                     part_id: int = None) -> None:
-        """Add a CPA lock.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param position3d: 3D position value.
-        :type position3d: :class:`_point.Point`
-        :param part_id: Identifier for the part.
-        :type part_id: int
-        """
-
-        if part_id is None:
-            part_id = self.editor_db.cpa_locks.GetSelection()
-
-        if part_id is None:
-            return
-
-        self.project.add_cpa_lock(part_id, position3d)
-
-    def add_boot(self, position3d: "_point.Point",
-                 part_id: int = None) -> None:
-        """Add a boot.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param position3d: 3D position value.
-        :type position3d: :class:`_point.Point`
-        :param part_id: Identifier for the part.
-        :type part_id: int
-        """
-
-        if part_id is None:
-            part_id = self.editor_db.boots.GetSelection()
-
-        if part_id is None:
-            return
-
-        self.project.add_boot(part_id, position3d)
-
-    def add_cover(self, position3d: "_point.Point",
-                  part_id: int = None) -> None:
-        """Add a cover.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param position3d: 3D position value.
-        :type position3d: :class:`_point.Point`
-        :param part_id: Identifier for the part.
-        :type part_id: int
-        """
-
-        if part_id is None:
-            part_id = self.editor_db.covers.GetSelection()
-
-        if part_id is None:
-            return
-
-        self.project.add_cover(part_id, position3d)
+        elif mode == _toolbar.ID_CONNECTOR:
+            self._obj_handler = _handlers.AddHousingHandler(self)
+        elif mode == _toolbar.ID_TERMINAL:
+            if self.editor_toolbar.is_selected:
+                selected = self.get_selected()
+            else:
+                selected = None
+
+            self._obj_handler = _handlers.AddTerminalHandler(self, selected)
+        elif mode == _toolbar.ID_WIRE:
+            if self.editor_toolbar.is_selected:
+                selected = self.get_selected()
+            else:
+                selected = None
+
+            self._obj_handler = _handlers.AddWireHandler(self, selected)
+        elif mode == _toolbar.ID_WIRE_SERVICE_LOOP:
+            if self.editor_toolbar.is_selected:
+                selected = self.get_selected()
+            else:
+                selected = None
+
+            self._obj_handler = _handlers.AddWireServiceLoopHandler(self, selected)
+        elif mode == _toolbar.ID_SPLICE:
+            if self.editor_toolbar.is_selected:
+                selected = self.get_selected()
+            else:
+                selected = None
+
+            self._obj_handler = _handlers.AddSpliceHandler(self, selected)
+        elif mode == _toolbar.ID_NOTE:
+            self._obj_handler = _handlers.AddNoteHandler(self)
+        elif mode == _toolbar.ID_TRANSITION:
+            if self.editor_toolbar.is_selected:
+                selected = self.get_selected()
+            else:
+                selected = None
+
+            self._obj_handler = _handlers.AddTransitionHandler(self, selected)
+        elif mode == _toolbar.ID_SEAL:
+            if self.editor_toolbar.is_selected:
+                selected = self.get_selected()
+            else:
+                selected = None
+
+            self._obj_handler = _handlers.AddSealHandler(self, selected)
+        elif mode == _toolbar.ID_BUNDLE_COVER:
+            if self.editor_toolbar.is_selected:
+                selected = self.get_selected()
+            else:
+                selected = None
+
+            self._obj_handler = _handlers.AddBundleHandler(self, selected)
+        elif mode == _toolbar.ID_TPA_LOCK:
+            if self.editor_toolbar.is_selected:
+                selected = self.get_selected()
+            else:
+                selected = None
+
+            self._obj_handler = _handlers.AddTPALockHandler(self, selected)
+        elif mode == _toolbar.ID_CPA_LOCK:
+            if self.editor_toolbar.is_selected:
+                selected = self.get_selected()
+            else:
+                selected = None
+
+            self._obj_handler = _handlers.AddCPALockHandler(self, selected)
+        elif mode == _toolbar.ID_COVER:
+            if self.editor_toolbar.is_selected:
+                selected = self.get_selected()
+            else:
+                selected = None
+
+            self._obj_handler = _handlers.AddCoverHandler(self, selected)
 
     def unload(self):
         """Execute the unload operation.

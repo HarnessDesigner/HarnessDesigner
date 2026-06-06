@@ -12,6 +12,7 @@ from ...gl import canvas3d as _canvas3d
 
 if TYPE_CHECKING:
     from .. import mainframe as _mainframe
+    from ...gl.canvas3d import camera as _camera
 
 
 Config = _config.Config.editor3d
@@ -54,13 +55,13 @@ class Editor3D:
         return self.editor.context
 
     @property
-    def camera(self):
+    def camera(self) -> "_camera.Camera":
         """Return the camera.
 
         UNKNOWN details are inferred from the callable name and signature.
 
-        :returns: Property value. UNKNOWN details.
-        :rtype: UNKNOWN
+        :returns: Camera instance
+        :rtype: :class:`harness_designer.gl.canvas3d.camera.Camera`
         """
         return self.editor.camera
 
@@ -105,7 +106,7 @@ class Editor3D:
         """
         self.editor.remove_object(obj)
 
-    def Refresh(self, *args, **kwargs):
+    def Refresh(self, *_, **__):
         """Execute the refresh operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -115,7 +116,7 @@ class Editor3D:
         :param kwargs: Additional keyword arguments.
         :type kwargs: UNKNOWN
         """
-        self.editor.update()
+        self.editor.Refresh()
 
     def Destroy(self):
         """Execute the destroy operation.

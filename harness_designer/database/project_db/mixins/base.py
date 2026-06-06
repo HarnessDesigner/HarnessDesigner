@@ -12,6 +12,17 @@ class BaseMixin:
     _db_id: int = None
     _obj = None
 
+    @property
+    def table(self):
+        """Return the table.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
+        return self._table
+
     def _populate(self, tag):
         """Execute the populate operation.
 

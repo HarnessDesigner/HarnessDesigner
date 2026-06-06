@@ -284,8 +284,13 @@ class _MeshArena:
         return True
 
 
+VBO_TYPE_PRIMITIVE = 0
+VBO_TYPE_MODEL = 1
+
+
 class VBOSingleton(type):
     _instances = {}
+    _primitives = {}
 
     @classmethod
     def _remove_ref(cls, ref):
@@ -300,24 +305,36 @@ class VBOSingleton(type):
         del cls._instances[key]
 
     def __contains__(cls, item):
-        return item in cls._instances
+        if item in item in cls._instances:
+            return True
 
-    def __call__(cls, id_: str, *args, **kwargs) -> "VBOHandler":
-        if id_ not in cls._instances:
-            instance = super().__call__(id_, *args, **kwargs)
+        return item in cls._primitives
+
+    def __call__(cls, id_: str, vertices: np.ndarray | None = None,
+                 smooth_normals: np.ndarray | None = None,
+                 face_normals: np.ndarray | None = None,
+                 count: int = 0, endpoint: _point.Point | None = None,
+                 arena_kind: int = VBO_TYPE_MODEL) -> "VBOHandler":
+
+        if arena_kind == VBO_TYPE_PRIMITIVE:
+            if id_ not in cls._primitives:
+                instance = super().__call__(
+                    id_, vertices, smooth_normals, face_normals, count, arena_kind)
+
+                cls._primitives[id_] = instance
+            else:
+                instance = cls._primitives[id_]
+
+        elif id_ not in cls._instances or cls._instances[id_]() is None:
+            instance = super().__call__(
+                id_, vertices, smooth_normals, face_normals, count, arena_kind)
+
             cls._instances[id_] = weakref.ref(instance, cls._remove_ref)
-        elif cls._instances[id_]() is None:
-            del cls._instances[id_]
-            instance = super().__call__(id_, *args, **kwargs)
-            cls._instances[id_] = weakref.ref(instance, cls._remove_ref)
+
         else:
             instance = cls._instances[id_]()
 
         return instance
-
-
-VBO_TYPE_PRIMITIVE = 0
-VBO_TYPE_MODEL = 1
 
 
 class VBOHandler(metaclass=VBOSingleton):

@@ -136,6 +136,7 @@ class Image(EntryBase):
         file_id = self.uuid
         if file_id is None:
             values = _resources.collect_resource(self._table, _resources.IMAGE_TYPE_IMAGE, self.path)
+
             if values is None:
                 return None
 
@@ -147,7 +148,7 @@ class Image(EntryBase):
         file_type = self.file_type
 
         image_path = self._table.db.settings_table['image_path']
-        return os.path.join(image_path, f'{file_id}.{file_type.extension}')
+        return os.path.join(image_path, file_id[:2], f'{file_id}.{file_type.extension}')
 
     @property
     def path(self) -> str:

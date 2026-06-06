@@ -13,6 +13,8 @@ from . import visible2d as _visible2d
 from . import visible3d as _visible3d
 from . import notes as _notes
 from . import smooth as _smooth
+from . import scale3d as _scale3d
+from . import color as _color
 
 
 Angle3DMixin = _angle3d.Angle3DMixin
@@ -51,6 +53,12 @@ NotesControl = _notes.NotesControl
 SmoothMixin = _smooth.SmoothMixin
 SmoothControl = _smooth.SmoothControl
 
+Scale3DMixin = _scale3d.Scale3DMixin
+Scale3DControl = _scale3d.Scale3DControl
+
+ColorMixin = _color.ColorMixin
+ColorControl = _color.ColorControl
+
 
 del _angle3d
 del _angle2d
@@ -65,3 +73,5 @@ del _visible3d
 del _visible2d
 del _notes
 del _smooth
+del _scale3d
+del _color

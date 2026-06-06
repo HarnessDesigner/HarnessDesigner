@@ -22,7 +22,8 @@ from .mixins import (
     NameMixin, NameControl,
     NotesMixin, NotesControl,
     SmoothMixin, SmoothControl,
-    HousingMixin
+    HousingMixin,
+    Scale3DMixin, Scale3DControl
 )
 
 
@@ -152,7 +153,7 @@ class PJTTerminalsTable(PJTTableBase):
 
 class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin, NotesMixin,
                   Position2DMixin, PartMixin, Visible3DMixin, Visible2DMixin, NameMixin,
-                  HousingMixin, SmoothMixin):
+                  HousingMixin, SmoothMixin, Scale3DMixin):
     """Represent a PJT terminal in :mod:`harness_designer.database.project_db.pjt_terminal`.
 
     UNKNOWN details are inferred from the class name and surrounding code.

@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from PySide6 import QtWidgets
 
 
@@ -114,61 +116,86 @@ class Rotate3DMenu(QtWidgets.QMenu):
         self.selected = selected
         self.canvas = canvas
 
-        for label, slot in [('X +90\u00b0', self.on_x_pos_90),
-                            ('X -90\u00b0', self.on_x_neg_90),
-                            None,
-                            ('Y +90\u00b0', self.on_y_pos_90),
-                            ('Y -90\u00b0', self.on_y_neg_90),
-                            None,
-                            ('Z +90\u00b0', self.on_z_pos_90),
-                            ('Z -90\u00b0', self.on_z_neg_90)]:
-
-            if label is None:
-                self.addSeparator()
-            else:
-                self.addAction(label).triggered.connect(slot)
+        self.addAction('X +90\u00b0').triggered.connect(self.on_x_pos_90)
+        self.addAction('X -90\u00b0').triggered.connect(self.on_x_neg_90)
+        self.addSeparator()
+        self.addAction('Y +90\u00b0').triggered.connect(self.on_y_pos_90)
+        self.addAction('Y -90\u00b0').triggered.connect(self.on_y_neg_90)
+        self.addSeparator()
+        self.addAction('Z +90\u00b0').triggered.connect(self.on_z_pos_90)
+        self.addAction('Z -90\u00b0').triggered.connect(self.on_z_neg_90)
 
     def on_x_pos_90(self):
         """Handle the x pos 90 event.
 
         UNKNOWN details are inferred from the callable name and signature.
         """
-        pass
+        x = self.selected.obj3d.angle.x
+        x += 90.0
+        if x > 180.0:
+            x -= 360.0
+
+        self.selected.obj3d.angle.x = x
 
     def on_x_neg_90(self):
         """Handle the x neg 90 event.
 
         UNKNOWN details are inferred from the callable name and signature.
         """
-        pass
+        x = self.selected.obj3d.angle.x
+        x -= 90.0
+        if x < -180.0:
+            x += 360.0
+
+        self.selected.obj3d.angle.x = x
 
     def on_y_pos_90(self):
         """Handle the y pos 90 event.
 
         UNKNOWN details are inferred from the callable name and signature.
         """
-        pass
+        y = self.selected.obj3d.angle.y
+        y += 90.0
+        if y > 180.0:
+            y -= 360.0
+
+        self.selected.obj3d.angle.y = y
 
     def on_y_neg_90(self):
         """Handle the y neg 90 event.
 
         UNKNOWN details are inferred from the callable name and signature.
         """
-        pass
+        y = self.selected.obj3d.angle.y
+        y -= 90.0
+        if y < -180.0:
+            y += 360.0
+
+        self.selected.obj3d.angle.y = y
 
     def on_z_pos_90(self):
         """Handle the z pos 90 event.
 
         UNKNOWN details are inferred from the callable name and signature.
         """
-        pass
+        z = self.selected.obj3d.angle.z
+        z += 90.0
+        if z > 180.0:
+            z -= 360.0
+
+        self.selected.obj3d.angle.z = z
 
     def on_z_neg_90(self):
         """Handle the z neg 90 event.
 
         UNKNOWN details are inferred from the callable name and signature.
         """
-        pass
+        z = self.selected.obj3d.angle.z
+        z -= 90.0
+        if z < -180.0:
+            z += 360.0
+
+        self.selected.obj3d.angle.z = z
 
 
 class Mirror3DMenu(QtWidgets.QMenu):
@@ -190,31 +217,43 @@ class Mirror3DMenu(QtWidgets.QMenu):
         super().__init__(canvas)
         self.selected = selected
         self.canvas = canvas
-
-        for label, slot in [
-            ('X', self.on_x),
-            ('Y', self.on_y),
-            ('Z', self.on_z),
-        ]:
-            self.addAction(label).triggered.connect(slot)
+        self.addAction('X').triggered.connect(self.on_x)
+        self.addAction('Y').triggered.connect(self.on_y)
+        self.addAction('Z').triggered.connect(self.on_z)
 
     def on_x(self):
         """Handle the x event.
 
         UNKNOWN details are inferred from the callable name and signature.
         """
-        pass
+
+        x = self.selected.obj3d.angle.x
+        x += 180.0
+        if x > 180.0:
+            x -= 360.0
+
+        self.selected.obj3d.angle.x = x
 
     def on_y(self):
         """Handle the y event.
 
         UNKNOWN details are inferred from the callable name and signature.
         """
-        pass
+        y = self.selected.obj3d.angle.y
+        y += 180.0
+        if y > 180.0:
+            y -= 360.0
+
+        self.selected.obj3d.angle.y = y
 
     def on_z(self):
         """Handle the z event.
 
         UNKNOWN details are inferred from the callable name and signature.
         """
-        pass
+        z = self.selected.obj3d.angle.z
+        z += 180.0
+        if z > 180.0:
+            z -= 360.0
+
+        self.selected.obj3d.angle.z = z

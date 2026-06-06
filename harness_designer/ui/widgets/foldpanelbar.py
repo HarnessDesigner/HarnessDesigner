@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 """
 FoldPanelBar — PySide6 port of the wxPython AGW FoldPanelBar widget.
 

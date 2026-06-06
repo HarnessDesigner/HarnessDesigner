@@ -278,7 +278,7 @@ class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyM
             'series': [self.series_id],
             'shapes': [self.shape_id],
             'materials': [self.material_id],
-            'temperatures': [self.min_temp_id, self.max_temp],
+            'temperatures': [self.min_temp_id, self.max_temp_id],
             'colors': [color.db_id],
             'datasheets': [self.datasheet_id],
             'cads': [self.cad_id],

@@ -136,6 +136,7 @@ class CAD(EntryBase):
         file_id = self.uuid
         if file_id is None:
             values = _resources.collect_resource(self._table, _resources.IMAGE_TYPE_CAD, self.path)
+
             if values is None:
                 return None
 
@@ -147,7 +148,7 @@ class CAD(EntryBase):
         file_type = self.file_type
 
         cad_path = self._table.db.settings_table['cad_path']
-        return os.path.join(cad_path, f'{file_id}.{file_type.extension}')
+        return os.path.join(cad_path, file_id[:2], f'{file_id}.{file_type.extension}')
 
     @property
     def path(self) -> str:

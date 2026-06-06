@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 """
 ListCtrl — A reusable PySide6 widget for managing a list of items.
 

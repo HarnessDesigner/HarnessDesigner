@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 from . import vertices as _vertices
 from . import faces as _faces
 from . import edges as _edges

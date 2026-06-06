@@ -136,28 +136,20 @@ class Base3D:
         if uuid in _vbo.VBOHandler:
             vbo = _vbo.VBOHandler(uuid)
         else:
-            position = model.position3d
-            angle = model.angle3d
-
-            vertices = data.vertices
-            vertices @= angle
-            vertices += position
-
-            smooth_normals = data.smooth_normals
-            smooth_normals @= angle
-
-            face_normals = data.face_normals
-            face_normals @= angle
-
-            vbo = _vbo.VBOHandler(uuid, vertices, smooth_normals,
-                                  face_normals, data.vertex_count)
+            vbo = _vbo.VBOHandler(uuid, data.vertices, data.smooth_normals,
+                                  data.face_normals, data.vertex_count)
         vbo.acquire()
 
         self._vbo = vbo
-        self._scale.unbind(self._update_scale)
-        self._scale = _point.Point(1.0, 1.0, 1.0)
-        self._o_scale = self._scale.copy()
-        self._scale.bind(self._update_scale)
+        try:
+            scale = self.db_obj.scale3d
+            self._scale.unbind(self._update_scale)
+            self._scale = scale
+            self._o_scale = self._scale.copy()
+            self._scale.bind(self._update_scale)
+
+        except AttributeError:
+            pass
 
         self.position.unbind(self._update_position)
         self.angle.unbind(self._update_angle)
@@ -187,7 +179,7 @@ class Base3D:
         UNKNOWN details are inferred from the callable name and signature.
         """
         if self._vbo is None:
-            p1, p2 = _utils.compute_aabb(self._data[0])
+            p1, p2 = _utils.compute_aabb(self._data[0].reshape(-1, 3))
 
             self._obb = _utils.compute_obb(p1, p2)
         else:
@@ -201,7 +193,7 @@ class Base3D:
         UNKNOWN details are inferred from the callable name and signature.
         """
         if self._vbo is None:
-            p1, p2 = _utils.compute_aabb(self._data[0])
+            p1, p2 = _utils.compute_aabb(self._data[0].reshape(-1, 3))
             aabb = _utils.adjust_aabb(np.array([p1.as_float, p2.as_float], dtype=np.float32))
         else:
             local_min = self._vbo.local_aabb[0]
@@ -227,13 +219,13 @@ class Base3D:
             for j in range(3):
                 self._aabb[i][j] = aabb[i][j]
 
-    def identify(self, color: list[float] | None):
+    def identify(self, material: list[float] | None):
         """Execute the identify operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
-        :param color: Value for ``color``.
-        :type color: list[float] | None
+        :param material: Value for ``color``.
+        :type material: list[float] | None
         """
         pass
 
@@ -362,39 +354,49 @@ class Base3D:
         return self._position
 
     @position.setter
-    def position(self, _):
+    def position(self, value: _point.Point):
         """Set the position.
 
         UNKNOWN details are inferred from the callable name and signature.
 
-        :param _: Value for ``_``.
-        :type _: UNKNOWN
+        :param value: Value for ``_``.
+        :type value: :class:`_point.Point`
         :raises AttributeError: Raised when the operation cannot be completed.
         """
-        raise AttributeError('Position is only able to be modified not set')
+        if id(value) != id(self._position):
+            raise AttributeError('Position is only able to be modified not set')
+
+        self._position = value
 
     @property
     def angle(self) -> _angle.Angle:
-        """Return the angle.
+        """
+        Return the angle.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_angle.Angle`
         """
+
         return self._angle
 
     @angle.setter
-    def angle(self, _):
-        """Set the angle.
+    def angle(self, value: _angle.Angle):
+        """
+        Set the angle.
 
         UNKNOWN details are inferred from the callable name and signature.
 
-        :param _: Value for ``_``.
-        :type _: UNKNOWN
+        :param value: Value for ``_``.
+        :type value: :class:`_angle.Angle`
         :raises AttributeError: Raised when the operation cannot be completed.
         """
-        raise AttributeError('Angle is only able to be modified not set')
+
+        if id(value) != id(self._angle):
+            raise AttributeError('Angle is only able to be modified not set')
+
+        self._angle = value
 
     @property
     def scale(self) -> _point.Point:
@@ -405,19 +407,23 @@ class Base3D:
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         """
-        return self._angle
+        return self._scale
 
     @scale.setter
-    def scale(self, _):
+    def scale(self, value: _point.Point):
         """Set the scale.
 
         UNKNOWN details are inferred from the callable name and signature.
 
-        :param _: Value for ``_``.
-        :type _: UNKNOWN
+        :param value: Value for ``_``.
+        :type value: :class:`_point.Point`
         :raises AttributeError: Raised when the operation cannot be completed.
         """
-        raise AttributeError('Scale is only able to be modified not set')
+
+        if id(value) != id(self._scale):
+            raise AttributeError('Scale is only able to be modified not set')
+
+        self._scale = value
 
     def hit_test_step1(self, ray_origin, ray_direction):
         """

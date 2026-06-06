@@ -320,7 +320,7 @@ class Cover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, Dir
             'families': [self.family_id],
             'series': [self.series_id],
             'directions': [self.direction_id],
-            'temperatures': [self.min_temp_id, self.max_temp],
+            'temperatures': [self.min_temp_id, self.max_temp_id],
             'colors': [color.db_id],
             'datasheets': [self.datasheet_id],
             'cads': [self.cad_id],

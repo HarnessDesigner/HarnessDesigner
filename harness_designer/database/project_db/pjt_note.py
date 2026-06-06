@@ -16,7 +16,8 @@ from .mixins import (
     Visible3DMixin, Visible3DControl,
     Visible2DMixin, Visible2DControl,
     NotesMixin, NotesControl,
-    SmoothMixin, SmoothControl
+    SmoothMixin, SmoothControl,
+    ColorMixin, ColorControl
 )
 
 
@@ -120,8 +121,8 @@ class PJTNotesTable(PJTTableBase):
 
         raise KeyError(item)
 
-    def insert(self, point2d_id: int | None, point3d_id: int | None,
-               note: str, size: int) -> "PJTNote":
+    def insert(self, point3d_id: int | None, point2d_id: int | None,
+               notes: str, size: int, align: int, style: int, color_id: int = 0) -> "PJTNote":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -130,21 +131,36 @@ class PJTNotesTable(PJTTableBase):
         :type point2d_id: int | None
         :param point3d_id: Identifier for the point 3D.
         :type point3d_id: int | None
-        :param note: Value for ``note``.
-        :type note: str
+        :param notes: Value for ``note``.
+        :type notes: str
         :param size: Value for ``size``.
         :type size: int
+        :param align: Value for ``align``.
+        :type align: int
+        :param style: Value for ``style``.
+        :type style: int
+        :param color_id: Value for ``color_id``.
+        :type color_id: int
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`PJTNote`
         """
 
-        db_id = PJTTableBase.insert(self, point2d_id=point2d_id,
-                                    point3d_id=point3d_id, note=note, size=size)
+        if point3d_id is None:
+            db_id = PJTTableBase.insert(self, point2d_id=point2d_id,
+                                        point3d_id=point3d_id, notes=notes,
+                                        size2d=size, h_align2d=align, style2d=style,
+                                        is_visible2d=1, is_visible3d=0, color_id=color_id)
+
+        else:
+            db_id = PJTTableBase.insert(self, point2d_id=point2d_id,
+                                        point3d_id=point3d_id, notes=notes,
+                                        size3d=size, h_align3d=align, style3d=style,
+                                        is_visible2d=0, is_visible3d=1, color_id=color_id)
 
         return PJTNote(self, db_id, self.project_id)
 
 
-class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin,
+class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
               Position3DMixin, Position2DMixin, Visible3DMixin, Visible2DMixin, SmoothMixin):
     """Represent a PJT note in :mod:`harness_designer.database.project_db.pjt_note`.
 
@@ -483,6 +499,7 @@ class PJTNoteControl(QTabWidget):
 
         self.visible2d_ctrl.set_obj(db_obj)
         self.visible3d_ctrl.set_obj(db_obj)
+        self.color_control.set_obj(db_obj)
 
         if db_obj is None:
             self.align_2d_ctrl.Enable(False)
@@ -591,6 +608,7 @@ class PJTNoteControl(QTabWidget):
         general_page = _prop_ctrls.Category(self, 'General')
         self.note_ctrl = NotesControl(general_page)
         self.smooth_ctrl = SmoothControl(general_page)
+        self.color_control = ColorControl(general_page)
 
         style_page = _prop_ctrls.Category(self, 'Style')
         self.style_2d_ctrl = _prop_ctrls.EnumProperty(style_page, '2D Style')

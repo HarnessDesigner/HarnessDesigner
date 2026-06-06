@@ -44,30 +44,32 @@ class Config:
             height = 1080
 
         class floor:
-            """Represent a floor in :mod:`harness_designer.ui.dialogs.housing_editor.config`.
-
-            UNKNOWN details are inferred from the class name and surrounding code.
-            """
+            """Floor plane, grid, and reflection settings for the 3D editor."""
             enable = True
             ground_height = 0.0
-            distance = 300
+            size = 2000
             enable_floor_lock = False
 
             class grid:
-                """Represent a grid in :mod:`harness_designer.ui.dialogs.housing_editor.config`.
+                """Floor grid appearance settings."""
+                primary_color = [0.2039, 0.2549, 0.2902, 0.8]
+                secondary_color = [0.2925, 0.3430, 0.3430, 0.8]
 
-                UNKNOWN details are inferred from the class name and surrounding code.
-                """
-                primary_color = [0.8, 0.1, 0.1, 0.3]
-                secondary_color = [0.2925, 0.3430, 0.3430, 0.3]
-                size = 50
+                primary_line_color = [0.87, 0.88, 0.92, 1.0]
+                secondary_line_color = [0.57, 0.59, 0.65, 1.0]
+                primary_line_width = 0.5
+                secondary_line_width = 0.3
+
+                secondary_lines_per_tile = 5
+
+                secondary_dashes = 4.0
+                secondary_dashes_duty = 0.55
+
+                size = 80
                 enable = False
 
             class reflections:
-                """Represent a reflections in :mod:`harness_designer.ui.dialogs.housing_editor.config`.
-
-                UNKNOWN details are inferred from the class name and surrounding code.
-                """
+                """Floor reflection settings in the 3D editor."""
                 enable = False
                 strength = 50.0
 

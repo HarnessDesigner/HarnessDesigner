@@ -144,11 +144,14 @@ class Model3D(EntryBase):
             return None
 
         model_path = self._table.db.settings_table['model_path']
-        path = os.path.join(model_path, f'{file_id}.hdz')
+
+        hex_path = file_id[:2]
+
+        path = os.path.join(model_path, hex_path, f'{file_id}.hdz')
 
         if not os.path.exists(path):
             file_type = self.file_type
-            path = os.path.join(model_path, f'{file_id}.{file_type.extension}')
+            path = os.path.join(model_path, hex_path, f'{file_id}.{file_type.extension}')
 
             if os.path.exists(path):
                 self._table.update(self._db_id, path=path)
@@ -257,7 +260,7 @@ class Model3D(EntryBase):
         :type offset: :class:`_point.Point`
         """
 
-        self._table.update(self._db_id, offset=str(list(offset.as_float)))
+        self._table.update(self._db_id, point3d=str(list(offset.as_float)))
 
     @property
     def position3d(self) -> _point.Point:
