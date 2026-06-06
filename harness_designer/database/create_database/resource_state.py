@@ -86,8 +86,16 @@ def _add_unique_index(db_cursor):
     swallows duplicate-data errors gracefully so that pre-existing databases
     are not hard-failed.
 
-    :param db_cursor: Database cursor or connector wrapper used to execute SQL.
-    :type db_cursor: UNKNOWN
+    .. note::
+        ``db_cursor`` here is a :class:`TableBase` instance (passed from
+        ``ResourceStateTable._add_table_to_db`` / ``_update_table_in_db``).
+        Its ``._con`` attribute is the underlying SQL connector.  This matches
+        the pattern used by :func:`sql_table.SQLTable.add_to_db` and is
+        intentionally different from the child-process helpers below, which
+        receive a raw connector directly.
+
+    :param db_cursor: TableBase instance whose ``_con`` attribute exposes
+        ``execute`` and ``commit``.
     :returns: ``None``.
     :rtype: None
     """
@@ -115,7 +123,34 @@ def _add_unique_index(db_cursor):
 #
 # They deliberately avoid parameterised queries so that the simplified
 # db_broker.BaseConnector used inside child processes is compatible.
+#
+# resource_type must be one of the RESOURCE_TYPE_* constants, and
+# resource_id must be a plain integer.  Both are validated on entry to
+# prevent accidental SQL injection from caller bugs.
 # ---------------------------------------------------------------------------
+
+_VALID_RESOURCE_TYPES = frozenset({
+    RESOURCE_TYPE_MODEL,
+    RESOURCE_TYPE_IMAGE,
+    RESOURCE_TYPE_DATASHEET,
+    RESOURCE_TYPE_CAD,
+})
+
+
+def _validate_args(resource_type: str, resource_id: int) -> None:
+    """Raise ``ValueError`` for unexpected resource_type or resource_id.
+
+    These values are embedded directly into SQL f-strings, so validating them
+    here guards against accidental injection from caller bugs.
+
+    :param resource_type: Must be one of the ``RESOURCE_TYPE_*`` constants.
+    :param resource_id: Must be a non-negative integer.
+    :raises ValueError: When either argument is outside the expected domain.
+    """
+    if resource_type not in _VALID_RESOURCE_TYPES:
+        raise ValueError(f'resource_state: unexpected resource_type {resource_type!r}')
+    if not isinstance(resource_id, int) or resource_id < 0:
+        raise ValueError(f'resource_state: resource_id must be a non-negative int, got {resource_id!r}')
 
 def _now_iso() -> str:
     """Return the current UTC timestamp as an ISO-8601 string."""
@@ -140,6 +175,7 @@ def ensure_row(connector, resource_type: str, resource_id: int) -> None:
     :param resource_type: One of the ``RESOURCE_TYPE_*`` constants.
     :param resource_id: Primary-key value from the domain table.
     """
+    _validate_args(resource_type, resource_id)
     connector.execute(
         f"INSERT OR IGNORE INTO resource_state "
         f"(resource_type, resource_id, progress, retry_count, blocking_issue) "
@@ -158,6 +194,7 @@ def get_state(connector, resource_type: str, resource_id: int) -> dict | None:
         exists.
     :rtype: dict | None
     """
+    _validate_args(resource_type, resource_id)
     connector.execute(
         f"SELECT progress, claimed_by_host, claimed_at, updated_at, "
         f"retry_count, last_error_key, last_error_at, last_error_host, "
@@ -196,6 +233,7 @@ def try_claim(connector, resource_type: str, resource_id: int) -> bool:
     :returns: ``True`` when this seat successfully claimed the resource.
     :rtype: bool
     """
+    _validate_args(resource_type, resource_id)
     host = _hostname()
     now = _now_iso()
 
@@ -225,6 +263,7 @@ def update_progress(connector, resource_type: str, resource_id: int,
 
     :param step: Positive integer representing the current pipeline step.
     """
+    _validate_args(resource_type, resource_id)
     now = _now_iso()
     connector.execute(
         f"UPDATE resource_state "
@@ -240,6 +279,7 @@ def release_claim(connector, resource_type: str, resource_id: int) -> None:
     Called after a recoverable error so another seat (or the same seat on
     restart) can pick up the work.
     """
+    _validate_args(resource_type, resource_id)
     now = _now_iso()
     connector.execute(
         f"UPDATE resource_state "
@@ -268,6 +308,7 @@ def persist_error(connector, resource_type: str, resource_id: int,
     :param blocking: When ``True`` the ``blocking_issue`` flag is set so no
         seat will auto-retry (e.g. after a watchdog timeout).
     """
+    _validate_args(resource_type, resource_id)
     host = _hostname()
     now = _now_iso()
 

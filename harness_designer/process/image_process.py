@@ -104,7 +104,7 @@ def _process_worker(in_queue: multiprocessing.Queue,
                 _rs.release_claim(connector, _rs.RESOURCE_TYPE_IMAGE, image_id)
                 continue
             except Exception as err:  # NOQA
-                err_key = 'step_1'
+                err_key = type(err).__name__
                 err_blob = {'message': str(err), 'image_id': image_id, 'path': path}
                 _rs.persist_error(connector, _rs.RESOURCE_TYPE_IMAGE, image_id, err_key, err_blob)
                 _rs.release_claim(connector, _rs.RESOURCE_TYPE_IMAGE, image_id)

@@ -469,8 +469,10 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
                     err_blob = {'message': str(req_err), 'model_id': model_id, 'mfg': mfg, 'part_number': part_number, 'step': 2}
                     _rs.persist_error(connector, _rs.RESOURCE_TYPE_MODEL, model_id, err_key, err_blob)
                     _rs.release_claim(connector, _rs.RESOURCE_TYPE_MODEL, model_id)
+                    message['err'] = str(req_err)
+                    out_queue.put(json.dumps(message))
                     connector.close()
-                    raise
+                    return
 
                 if file_path is None:
                     err_key = 'step_2'
