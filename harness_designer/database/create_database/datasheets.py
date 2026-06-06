@@ -2,6 +2,7 @@
 
 from .. import db_connectors as _con
 from . import file_types as _file_types
+from . import resource_state as _resource_state
 from ... import resources as _resources
 from ... import logger as _logger
 
@@ -42,6 +43,8 @@ def get_datasheet_id(con, path: str):  # NOQA
 
         _logger.logger.database(f'datasheet added "{path}" = {db_id}')
 
+        _resource_state.ensure_row(con, _resource_state.RESOURCE_TYPE_DATASHEET, db_id)
+
         return db_id
     else:
         return res[0][0]
@@ -57,5 +60,6 @@ table = _con.SQLTable(
                   references=_con.SQLFieldReference(_file_types.table,
                                                     _file_types.id_field)),
     _con.BlobField('data', default='NULL'),
-    _con.TextField('path', no_null=True)
+    _con.TextField('path', no_null=True, is_unique=True)
 )
+

@@ -781,6 +781,7 @@ from .cad import CADsTable  # NOQA
 from .image import ImagesTable  # NOQA
 from .datasheet import DatasheetsTable  # NOQA
 from .cpa_lock_type import CPALockTypesTable  # NOQA
+from .resource_state import ResourceStateTable  # NOQA
 
 
 class GLBTables:
@@ -808,6 +809,7 @@ class GLBTables:
         load_database = splash.load_database
         self._settings_table = SettingsTable(self, tables, splash, load_database)
         self._file_types_table = FileTypesTable(self, tables, splash, load_database)
+        self._resource_state_table = ResourceStateTable(self, tables, splash, load_database)
         self._images_table = ImagesTable(self, tables, splash, load_database)
         self._datasheets_table = DatasheetsTable(self, tables, splash, load_database)
         self._cads_table = CADsTable(self, tables, splash, load_database)
@@ -860,6 +862,15 @@ class GLBTables:
         :rtype: :class:`CPALockTypesTable`
         """
         return self._cpa_lock_types_table
+
+    @property
+    def resource_state_table(self) -> ResourceStateTable:
+        """Return the resource state coordination table.
+
+        :returns: The shared resource state table.
+        :rtype: :class:`ResourceStateTable`
+        """
+        return self._resource_state_table
 
     @property
     def images_table(self) -> ImagesTable:

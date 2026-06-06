@@ -60,6 +60,8 @@ def _process_worker(in_queue: multiprocessing.Queue,
         return
 
     from .. import resources as _resources
+    from ..database.create_database import resource_state as _rs
+    import requests.exceptions as _req_exc
 
     while not exit_event.is_set():
         sleep_event.wait()
@@ -82,19 +84,54 @@ def _process_worker(in_queue: multiprocessing.Queue,
             if uuid is not None or not path:
                 continue
 
-            values = _resources.collect_resource(connector, _resources.IMAGE_TYPE_IMAGE, path)
+            # --- Resource-state coordination ---
+            _rs.ensure_row(connector, _rs.RESOURCE_TYPE_IMAGE, image_id)
+
+            if not _rs.try_claim(connector, _rs.RESOURCE_TYPE_IMAGE, image_id):
+                # Another seat is already downloading this image – skip.
+                with print_lock:
+                    print(f'IMAGE DOWNLOADER: image {image_id} already claimed, skipping')
+                continue
+
+            _rs.update_progress(connector, _rs.RESOURCE_TYPE_IMAGE, image_id, 1)
+
+            try:
+                values = _resources.collect_resource(connector, _resources.IMAGE_TYPE_IMAGE, path)
+            except _req_exc.RequestException as req_err:
+                err_key = type(req_err).__name__
+                err_blob = {'message': str(req_err), 'image_id': image_id, 'path': path}
+                _rs.persist_error(connector, _rs.RESOURCE_TYPE_IMAGE, image_id, err_key, err_blob)
+                _rs.release_claim(connector, _rs.RESOURCE_TYPE_IMAGE, image_id)
+                continue
+            except Exception as err:  # NOQA
+                err_key = 'step_1'
+                err_blob = {'message': str(err), 'image_id': image_id, 'path': path}
+                _rs.persist_error(connector, _rs.RESOURCE_TYPE_IMAGE, image_id, err_key, err_blob)
+                _rs.release_claim(connector, _rs.RESOURCE_TYPE_IMAGE, image_id)
+                continue
 
             if values is None:
+                err_key = 'step_1'
+                err_blob = {'message': 'collect_resource returned None', 'image_id': image_id, 'path': path}
+                _rs.persist_error(connector, _rs.RESOURCE_TYPE_IMAGE, image_id, err_key, err_blob)
+                _rs.release_claim(connector, _rs.RESOURCE_TYPE_IMAGE, image_id)
                 continue
 
             file_id, file_type_id = values
 
+            _rs.update_progress(connector, _rs.RESOURCE_TYPE_IMAGE, image_id, 2)
+
             connector.execute(f'UPDATE images SET file_type_id={file_type_id}, uuid="{file_id}" WHERE id={image_id};')
             connector.commit()
+
+            # Final success: advance to step 3; error data is preserved
+            # intentionally so admins can detect client-specific failures.
+            _rs.update_progress(connector, _rs.RESOURCE_TYPE_IMAGE, image_id, 3)
 
             sleep_event.wait(2.0)
 
     connector.close()
+
 
 
 class ProcessWorker:
