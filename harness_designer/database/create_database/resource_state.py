@@ -154,7 +154,7 @@ def _validate_args(resource_type: str, resource_id: int) -> None:
 
 def _now_iso() -> str:
     """Return the current UTC timestamp as an ISO-8601 string."""
-    return datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S')
+    return datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S')
 
 
 def _hostname() -> str:

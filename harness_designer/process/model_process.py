@@ -469,7 +469,7 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
                     err_blob = {'message': str(req_err), 'model_id': model_id, 'mfg': mfg, 'part_number': part_number, 'step': 2}
                     _rs.persist_error(connector, _rs.RESOURCE_TYPE_MODEL, model_id, err_key, err_blob)
                     _rs.release_claim(connector, _rs.RESOURCE_TYPE_MODEL, model_id)
-                    message['err'] = str(req_err)
+                    message['err'] = f'{err_key}: {req_err}'
                     out_queue.put(json.dumps(message))
                     connector.close()
                     return
@@ -627,15 +627,10 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
                 # Classify and persist the unhandled error; then release so
                 # another seat (or this seat on restart) can retry.
                 try:
-                    import requests.exceptions as _req_exc
-
                     wdog_connector = db_broker.connect_to_database(credentials)
                     if wdog_connector is not None:
                         model_id = in_message_['id']
-                        if isinstance(thread.exception, _req_exc.RequestException):
-                            err_key = type(thread.exception).__name__
-                        else:
-                            err_key = 'step_unknown'
+                        err_key = type(thread.exception).__name__
 
                         err_blob = {
                             'message': str(thread.exception),
