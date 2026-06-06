@@ -60,6 +60,6 @@ table = _con.SQLTable(
                   references=_con.SQLFieldReference(_file_types.table,
                                                     _file_types.id_field)),
     _con.BlobField('data', default='NULL'),
-    _con.TextField('path', no_null=True, is_unique=True)
+    _con.TextField('path', no_null=True)
 )
 

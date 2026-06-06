@@ -403,10 +403,16 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
                 _rs.ensure_row(connector, _rs.RESOURCE_TYPE_MODEL, model_id)
 
                 if not _rs.try_claim(connector, _rs.RESOURCE_TYPE_MODEL, model_id):
-                    # Another seat has already claimed this model – skip without
-                    # doing duplicate work.
+                    # Another seat has already claimed this model – report its
+                    # current progress to the parent so the progress indicator
+                    # can be updated, then exit this worker.
+                    state = _rs.get_state(connector, _rs.RESOURCE_TYPE_MODEL, model_id)
+                    current_step = state['progress'] if state else _rs.PROGRESS_CLAIMED
+                    message['step'] = current_step
+                    out_queue.put(json.dumps(message))
                     with print_lock:
-                        print(f'MODEL DOWNLOADER: model {model_id} already claimed, skipping')
+                        print(f'MODEL DOWNLOADER: model {model_id} already claimed '
+                              f'(step {current_step}), reporting progress')
                     connector.close()
                     return
 
@@ -465,8 +471,13 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
                 try:
                     file_path = _resources.collect_resource(connector, _resources.IMAGE_TYPE_MODEL, path)
                 except _req_exc.RequestException as req_err:
-                    err_key = type(req_err).__name__
-                    err_blob = {'message': str(req_err), 'model_id': model_id, 'mfg': mfg, 'part_number': part_number, 'step': 2}
+                    _errno = getattr(req_err, 'errno', None)
+                    if _errno is None:
+                        _cause = getattr(req_err, '__cause__', None) or getattr(req_err, '__context__', None)
+                        _errno = getattr(_cause, 'errno', None) if _cause is not None else None
+                    err_key = (f'{type(req_err).__name__}:{_errno}'
+                               if _errno is not None else type(req_err).__name__)
+                    err_blob = {'message': str(req_err), 'errno': _errno, 'model_id': model_id, 'mfg': mfg, 'part_number': part_number, 'step': 2}
                     _rs.persist_error(connector, _rs.RESOURCE_TYPE_MODEL, model_id, err_key, err_blob)
                     _rs.release_claim(connector, _rs.RESOURCE_TYPE_MODEL, model_id)
                     message['err'] = f'{err_key}: {req_err}'

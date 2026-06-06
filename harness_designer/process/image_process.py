@@ -10,6 +10,7 @@ if TYPE_CHECKING:
 
 
 def _process_worker(in_queue: multiprocessing.Queue,
+                    out_queue: multiprocessing.Queue,
                     exit_event: multiprocessing.Event,
                     print_lock: multiprocessing.Lock,
                     sleep_event: multiprocessing.Event):
@@ -18,6 +19,8 @@ def _process_worker(in_queue: multiprocessing.Queue,
 
     :param in_queue: Queue containing image identifiers to process.
     :type in_queue: multiprocessing.Queue
+    :param out_queue: Queue used to send progress messages back to the parent.
+    :type out_queue: multiprocessing.Queue
     :param exit_event: Process event used to coordinate startup and shutdown.
     :type exit_event: multiprocessing.Event
     :param print_lock: Lock used when printing diagnostics.
@@ -62,6 +65,7 @@ def _process_worker(in_queue: multiprocessing.Queue,
     from .. import resources as _resources
     from ..database.create_database import resource_state as _rs
     import requests.exceptions as _req_exc
+    import json as _json
 
     while not exit_event.is_set():
         sleep_event.wait()
@@ -88,24 +92,43 @@ def _process_worker(in_queue: multiprocessing.Queue,
             _rs.ensure_row(connector, _rs.RESOURCE_TYPE_IMAGE, image_id)
 
             if not _rs.try_claim(connector, _rs.RESOURCE_TYPE_IMAGE, image_id):
-                # Another seat is already downloading this image – skip.
+                # Another seat is already downloading this image – report its
+                # current progress to the parent so the progress indicator
+                # can be updated, then move on.
+                state = _rs.get_state(connector, _rs.RESOURCE_TYPE_IMAGE, image_id)
+                current_step = state['progress'] if state else _rs.PROGRESS_CLAIMED
+                out_queue.put(_json.dumps({'id': image_id, 'step': current_step}))
                 with print_lock:
-                    print(f'IMAGE DOWNLOADER: image {image_id} already claimed, skipping')
+                    print(f'IMAGE DOWNLOADER: image {image_id} already claimed '
+                          f'(step {current_step}), reporting progress')
                 continue
 
             _rs.update_progress(connector, _rs.RESOURCE_TYPE_IMAGE, image_id, 1)
+            out_queue.put(_json.dumps({'id': image_id, 'step': 1}))
 
             try:
                 values = _resources.collect_resource(connector, _resources.IMAGE_TYPE_IMAGE, path)
             except _req_exc.RequestException as req_err:
-                err_key = type(req_err).__name__
-                err_blob = {'message': str(req_err), 'image_id': image_id, 'path': path}
+                _errno = getattr(req_err, 'errno', None)
+                if _errno is None:
+                    _cause = getattr(req_err, '__cause__', None) or getattr(req_err, '__context__', None)
+                    _errno = getattr(_cause, 'errno', None) if _cause is not None else None
+                err_key = (f'{type(req_err).__name__}:{_errno}'
+                           if _errno is not None else type(req_err).__name__)
+                err_blob = {'message': str(req_err), 'errno': _errno,
+                            'image_id': image_id, 'path': path}
                 _rs.persist_error(connector, _rs.RESOURCE_TYPE_IMAGE, image_id, err_key, err_blob)
                 _rs.release_claim(connector, _rs.RESOURCE_TYPE_IMAGE, image_id)
                 continue
             except Exception as err:  # NOQA
-                err_key = type(err).__name__
-                err_blob = {'message': str(err), 'image_id': image_id, 'path': path}
+                _errno = getattr(err, 'errno', None)
+                if _errno is None:
+                    _cause = getattr(err, '__cause__', None) or getattr(err, '__context__', None)
+                    _errno = getattr(_cause, 'errno', None) if _cause is not None else None
+                err_key = (f'{type(err).__name__}:{_errno}'
+                           if _errno is not None else type(err).__name__)
+                err_blob = {'message': str(err), 'errno': _errno,
+                            'image_id': image_id, 'path': path}
                 _rs.persist_error(connector, _rs.RESOURCE_TYPE_IMAGE, image_id, err_key, err_blob)
                 _rs.release_claim(connector, _rs.RESOURCE_TYPE_IMAGE, image_id)
                 continue
@@ -120,6 +143,7 @@ def _process_worker(in_queue: multiprocessing.Queue,
             file_id, file_type_id = values
 
             _rs.update_progress(connector, _rs.RESOURCE_TYPE_IMAGE, image_id, 2)
+            out_queue.put(_json.dumps({'id': image_id, 'step': 2}))
 
             connector.execute(f'UPDATE images SET file_type_id={file_type_id}, uuid="{file_id}" WHERE id={image_id};')
             connector.commit()
@@ -127,6 +151,7 @@ def _process_worker(in_queue: multiprocessing.Queue,
             # Final success: advance to step 3; error data is preserved
             # intentionally so admins can detect client-specific failures.
             _rs.update_progress(connector, _rs.RESOURCE_TYPE_IMAGE, image_id, 3)
+            out_queue.put(_json.dumps({'id': image_id, 'step': 3}))
 
             sleep_event.wait(2.0)
 
@@ -147,7 +172,7 @@ class ProcessWorker:
 
         self.process = multiprocessing.Process(
             target=_process_worker,
-            args=(self.out_queue, self.exit_event, print_lock, self.sleep_event))
+            args=(self.out_queue, self.in_queue, self.exit_event, print_lock, self.sleep_event))
 
         self.process.daemon = True
 
@@ -182,6 +207,10 @@ class ProcessWorker:
         self.sleep_event.set()
 
     def recv(self):  # NOQA
+        if not self.in_queue.empty():
+            import json
+            message = self.in_queue.get_nowait()
+            return json.loads(message)
         return None
 
     def reset(self):
