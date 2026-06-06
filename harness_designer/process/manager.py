@@ -23,6 +23,8 @@ import secrets
 import uuid
 
 from .. import config as _config
+from .. import logger as _logger
+from ..database.create_database import resource_state as _rs
 
 
 if TYPE_CHECKING:
@@ -341,6 +343,15 @@ class ProcessManager(threading.Thread):
         :returns: ``None``.
         :rtype: None
         """
+        rs_con = self.mainframe.global_db.resource_state_table._con
+        _rs.ensure_row(rs_con, _rs.RESOURCE_TYPE_IMAGE, image_id)
+        if not _rs.try_claim(rs_con, _rs.RESOURCE_TYPE_IMAGE, image_id):
+            state = _rs.get_state(rs_con, _rs.RESOURCE_TYPE_IMAGE, image_id)
+            current_step = state['progress'] if state else _rs.PROGRESS_CLAIMED
+            _logger.logger.info(
+                f'IMAGE: image {image_id} already claimed (step {current_step})'
+            )
+            return
         self._image_process.send(image_id)
 
     def run(self):
@@ -358,6 +369,33 @@ class ProcessManager(threading.Thread):
         while not self._exit_event.is_set():
             got_message = False
 
+            # --- Image process messages ---
+            image_message = self._image_process.recv()
+            while image_message is not None:
+                got_message = True
+                rs_con = self.mainframe.global_db.resource_state_table._con
+                image_id = image_message.get('id')
+
+                if 'log' in image_message:
+                    _logger.logger.info(image_message['log'])
+
+                elif 'err_key' in image_message and image_id is not None:
+                    _rs.persist_error(
+                        rs_con, _rs.RESOURCE_TYPE_IMAGE, image_id,
+                        image_message['err_key'], image_message['err_blob'],
+                    )
+                    if image_message.get('release'):
+                        _rs.release_claim(rs_con, _rs.RESOURCE_TYPE_IMAGE, image_id)
+
+                elif 'step' in image_message and image_id is not None:
+                    _rs.update_progress(
+                        rs_con, _rs.RESOURCE_TYPE_IMAGE, image_id,
+                        image_message['step'],
+                    )
+
+                image_message = self._image_process.recv()
+
+            # --- Model process messages ---
             with self._model_lock:
                 offset = 0
                 for i, process in enumerate(self._model_processes[:]):
@@ -368,9 +406,23 @@ class ProcessManager(threading.Thread):
 
                     got_message = True
 
+                    rs_con = self.mainframe.global_db.resource_state_table._con
+                    model_id = message.get('id')
+
+                    if 'log' in message:
+                        _logger.logger.info(message['log'])
+                        continue
+
                     if 'watchdog_restart' in message:
-                        with self._print_lock:
-                            print('MODEL PROCESS MESSAGE:', message)
+                        _logger.logger.info(f'MODEL PROCESS MESSAGE: {message}')
+
+                        # Persist blocking error to resource_state.
+                        if model_id is not None and 'err_key' in message:
+                            _rs.persist_error(
+                                rs_con, _rs.RESOURCE_TYPE_MODEL, model_id,
+                                message['err_key'], message['err_blob'],
+                                blocking=message.get('blocking', False),
+                            )
 
                         self._model_processes_cb[i - offset] = None
                         is_primary = message['is_primary']
@@ -422,8 +474,16 @@ class ProcessManager(threading.Thread):
                         continue
 
                     if 'err' in message:
-                        with self._print_lock:
-                            print('MODEL PROCESS MESSAGE:', message)
+                        _logger.logger.info(f'MODEL PROCESS MESSAGE: {message}')
+
+                        # Persist error and optionally release claim.
+                        if model_id is not None and 'err_key' in message:
+                            _rs.persist_error(
+                                rs_con, _rs.RESOURCE_TYPE_MODEL, model_id,
+                                message['err_key'], message['err_blob'],
+                            )
+                            if message.get('release'):
+                                _rs.release_claim(rs_con, _rs.RESOURCE_TYPE_MODEL, model_id)
 
                         from ..ui.dialogs import error as _error
 
@@ -459,6 +519,12 @@ class ProcessManager(threading.Thread):
                     else:
                         step = message['step']
                         part_number = message['part_number']
+
+                        # Update resource_state progress in parent.
+                        if model_id is not None and step > 0:
+                            _rs.update_progress(
+                                rs_con, _rs.RESOURCE_TYPE_MODEL, model_id, step,
+                            )
 
                         def _do(stp, pn, start):
                             if start:
@@ -544,6 +610,18 @@ class ProcessManager(threading.Thread):
         self.send(type='reset_storage')
 
     def get_model(self, callback, **model_info):
+        model_id = model_info.get('id')
+        if model_id is not None:
+            rs_con = self.mainframe.global_db.resource_state_table._con
+            _rs.ensure_row(rs_con, _rs.RESOURCE_TYPE_MODEL, model_id)
+            if not _rs.try_claim(rs_con, _rs.RESOURCE_TYPE_MODEL, model_id):
+                state = _rs.get_state(rs_con, _rs.RESOURCE_TYPE_MODEL, model_id)
+                current_step = state['progress'] if state else _rs.PROGRESS_CLAIMED
+                _logger.logger.info(
+                    f'MODEL: model {model_id} already claimed (step {current_step})'
+                )
+                return
+
         message = json.dumps(model_info)
 
         with self._model_lock:

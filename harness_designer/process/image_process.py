@@ -4,12 +4,16 @@ from typing import TYPE_CHECKING
 
 import multiprocessing
 import os
+import json
+
+import requests.exceptions as _req_exc
 
 if TYPE_CHECKING:
     from . import manager as _manager
 
 
 def _process_worker(in_queue: multiprocessing.Queue,
+                    out_queue: multiprocessing.Queue,
                     exit_event: multiprocessing.Event,
                     print_lock: multiprocessing.Lock,
                     sleep_event: multiprocessing.Event):
@@ -18,6 +22,8 @@ def _process_worker(in_queue: multiprocessing.Queue,
 
     :param in_queue: Queue containing image identifiers to process.
     :type in_queue: multiprocessing.Queue
+    :param out_queue: Queue used to send progress messages back to the parent.
+    :type out_queue: multiprocessing.Queue
     :param exit_event: Process event used to coordinate startup and shutdown.
     :type exit_event: multiprocessing.Event
     :param print_lock: Lock used when printing diagnostics.
@@ -45,9 +51,7 @@ def _process_worker(in_queue: multiprocessing.Queue,
 
     credentials = cred_manager.retrieve_credentials(print_lock)
     if credentials is None:
-        with print_lock:
-            print('IMAGE DOWNLOADER: error collecting credentials')
-
+        out_queue.put(json.dumps({'log': 'IMAGE DOWNLOADER: error collecting credentials'}))
         return
 
     from . import db_broker
@@ -55,8 +59,7 @@ def _process_worker(in_queue: multiprocessing.Queue,
     connector = db_broker.connect_to_database(credentials)
 
     if connector is None:
-        with print_lock:
-            print('IMAGE DOWNLOADER: unknown database type')
+        out_queue.put(json.dumps({'log': 'IMAGE DOWNLOADER: unknown database type'}))
         return
 
     from .. import resources as _resources
@@ -82,19 +85,70 @@ def _process_worker(in_queue: multiprocessing.Queue,
             if uuid is not None or not path:
                 continue
 
-            values = _resources.collect_resource(connector, _resources.IMAGE_TYPE_IMAGE, path)
+            # Step 1: notify parent that work has started; parent already
+            # holds the claim and will call update_progress on the DB.
+            out_queue.put(json.dumps({'id': image_id, 'step': 1}))
+
+            try:
+                values = _resources.collect_resource(connector, _resources.IMAGE_TYPE_IMAGE, path)
+            except _req_exc.RequestException as req_err:
+                _errno = getattr(req_err, 'errno', None)
+                if _errno is None:
+                    _cause = (getattr(req_err, '__cause__', None) or
+                              getattr(req_err, '__context__', None))
+                    _errno = getattr(_cause, 'errno', None) if _cause is not None else None
+                err_key = (f'{type(req_err).__name__}:{_errno}'
+                           if _errno is not None else type(req_err).__name__)
+                err_blob = {'message': str(req_err), 'errno': _errno,
+                            'image_id': image_id, 'path': path}
+                out_queue.put(json.dumps({
+                    'id': image_id, 'err_key': err_key, 'err_blob': err_blob,
+                    'release': True,
+                }))
+                continue
+            except Exception as err:  # NOQA
+                _errno = getattr(err, 'errno', None)
+                if _errno is None:
+                    _cause = (getattr(err, '__cause__', None) or
+                              getattr(err, '__context__', None))
+                    _errno = getattr(_cause, 'errno', None) if _cause is not None else None
+                err_key = (f'{type(err).__name__}:{_errno}'
+                           if _errno is not None else type(err).__name__)
+                err_blob = {'message': str(err), 'errno': _errno,
+                            'image_id': image_id, 'path': path}
+                out_queue.put(json.dumps({
+                    'id': image_id, 'err_key': err_key, 'err_blob': err_blob,
+                    'release': True,
+                }))
+                continue
 
             if values is None:
+                out_queue.put(json.dumps({
+                    'id': image_id,
+                    'err_key': 'step_1',
+                    'err_blob': {'message': 'collect_resource returned None',
+                                 'image_id': image_id, 'path': path},
+                    'release': True,
+                }))
                 continue
 
             file_id, file_type_id = values
 
-            connector.execute(f'UPDATE images SET file_type_id={file_type_id}, uuid="{file_id}" WHERE id={image_id};')
+            out_queue.put(json.dumps({'id': image_id, 'step': 2}))
+
+            # Only DB write permitted from child: uuid and file_type_id.
+            connector.execute(
+                f'UPDATE images SET file_type_id={file_type_id}, uuid="{file_id}" '
+                f'WHERE id={image_id};')
             connector.commit()
+
+            # Step 3: final success; parent updates progress in resource_state.
+            out_queue.put(json.dumps({'id': image_id, 'step': 3}))
 
             sleep_event.wait(2.0)
 
     connector.close()
+
 
 
 class ProcessWorker:
@@ -110,7 +164,7 @@ class ProcessWorker:
 
         self.process = multiprocessing.Process(
             target=_process_worker,
-            args=(self.out_queue, self.exit_event, print_lock, self.sleep_event))
+            args=(self.out_queue, self.in_queue, self.exit_event, print_lock, self.sleep_event))
 
         self.process.daemon = True
 
@@ -145,6 +199,9 @@ class ProcessWorker:
         self.sleep_event.set()
 
     def recv(self):  # NOQA
+        if not self.in_queue.empty():
+            message = self.in_queue.get_nowait()
+            return json.loads(message)
         return None
 
     def reset(self):

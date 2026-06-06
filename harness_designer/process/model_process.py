@@ -5,6 +5,9 @@ from typing import TYPE_CHECKING
 import multiprocessing
 import os
 import json
+import time
+
+import requests.exceptions as _req_exc
 import numpy as np
 
 import pyfqmr
@@ -354,9 +357,7 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
 
     credentials = cred_manager.retrieve_credentials(print_lock)
     if credentials is None:
-        with print_lock:
-            print('MODEL DOWNLOADER: error collecting credentials')
-
+        out_queue.put(json.dumps({'log': 'MODEL DOWNLOADER: error collecting credentials'}))
         return
 
     from . import db_broker
@@ -394,6 +395,8 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
                 model_dir = in_message['model_dir']
 
                 message = {'step': 0, 'id': model_id, 'mfg': mfg, 'part_number': part_number}
+
+                # Step 0: parent already holds the claim; just report start.
                 out_queue.put(json.dumps(message))
 
                 if exit_event.is_set():
@@ -404,10 +407,16 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
                 model_data = connector.fetchall()
 
                 if not model_data:
-                    message = {'err': 'invalid database row',
-                               'id': model_id,
-                               'mfg': mfg, 'part_number': part_number}
-
+                    message = {
+                        'err': 'invalid database row',
+                        'err_key': 'step_0',
+                        'err_blob': {'message': 'invalid database row',
+                                     'model_id': model_id, 'mfg': mfg,
+                                     'part_number': part_number, 'step': 0},
+                        'release': True,
+                        'id': model_id,
+                        'mfg': mfg, 'part_number': part_number,
+                    }
                     out_queue.put(json.dumps(message))
                     connector.close()
                     return
@@ -423,6 +432,11 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
 
                 if not path:
                     message['err'] = 'invalid model url/path'
+                    message['err_key'] = 'step_1'
+                    message['err_blob'] = {'message': 'invalid model url/path',
+                                           'model_id': model_id, 'mfg': mfg,
+                                           'part_number': part_number, 'step': 1}
+                    message['release'] = True
                     out_queue.put(json.dumps(message))
                     connector.close()
                     return
@@ -434,10 +448,34 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
                     connector.close()
                     return
 
-                file_path = _resources.collect_resource(connector, _resources.IMAGE_TYPE_MODEL, path)
+                try:
+                    file_path = _resources.collect_resource(connector, _resources.IMAGE_TYPE_MODEL, path)
+                except _req_exc.RequestException as req_err:
+                    _errno = getattr(req_err, 'errno', None)
+                    if _errno is None:
+                        _cause = (getattr(req_err, '__cause__', None) or
+                                  getattr(req_err, '__context__', None))
+                        _errno = getattr(_cause, 'errno', None) if _cause is not None else None
+                    err_key = (f'{type(req_err).__name__}:{_errno}'
+                               if _errno is not None else type(req_err).__name__)
+                    err_blob = {'message': str(req_err), 'errno': _errno,
+                                'model_id': model_id, 'mfg': mfg,
+                                'part_number': part_number, 'step': 2}
+                    message['err'] = f'{err_key}: {req_err}'
+                    message['err_key'] = err_key
+                    message['err_blob'] = err_blob
+                    message['release'] = True
+                    out_queue.put(json.dumps(message))
+                    connector.close()
+                    return
 
                 if file_path is None:
                     message['err'] = 'unable to load model'
+                    message['err_key'] = 'step_2'
+                    message['err_blob'] = {'message': 'unable to load model',
+                                           'model_id': model_id, 'mfg': mfg,
+                                           'part_number': part_number, 'step': 2}
+                    message['release'] = True
                     out_queue.put(json.dumps(message))
                     connector.close()
                     return
@@ -455,7 +493,12 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
                 rows = connector.fetchall()
 
                 if not rows:
-                    message['err'] = f'unsupported file type'
+                    message['err'] = 'unsupported file type'
+                    message['err_key'] = 'step_3'
+                    message['err_blob'] = {'message': 'unsupported file type',
+                                           'model_id': model_id, 'mfg': mfg,
+                                           'part_number': part_number, 'step': 3}
+                    message['release'] = True
                     out_queue.put(json.dumps(message))
                     connector.close()
                     return
@@ -471,6 +514,13 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
 
                 if not os.path.exists(model_path):
                     message['err'] = f'file does not exist ("{model_path}")'
+                    message['err_key'] = 'step_4'
+                    message['err_blob'] = {
+                        'message': f'file does not exist ("{model_path}")',
+                        'model_id': model_id, 'mfg': mfg,
+                        'part_number': part_number, 'step': 4,
+                    }
+                    message['release'] = True
                     out_queue.put(json.dumps(message))
                     connector.close()
                     return
@@ -523,6 +573,7 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
                     connector.close()
                     return
 
+                # Only DB write permitted from child: uuid and file_type_id.
                 connector.execute(f'UPDATE models3d SET file_type_id={file_type_id}, uuid="{uuid}" WHERE id={model_id};')
                 connector.commit()
 
@@ -531,11 +582,13 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
 
                 os.remove(model_path)
 
+                # Step 10: final success; parent updates resource_state.
                 message['step'] = 10
                 out_queue.put(json.dumps(message))
 
+                connector.close()
+
             timeout = _config.Config.resources.model_watchdog_timeout
-            import time
 
             thread = ThreadWorker(_do, in_message_)
             start_time = time.time()
@@ -558,15 +611,33 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
                 break
 
             if thread.exception is not None:
+                # Unhandled exception: pass error info to parent for DB update.
+                err_key = type(thread.exception).__name__
                 in_message_['err'] = str(thread.exception)
+                in_message_['err_key'] = err_key
+                in_message_['err_blob'] = {
+                    'message': str(thread.exception),
+                    'model_id': in_message_.get('id'),
+                    'mfg': in_message_.get('mfg'),
+                    'part_number': in_message_.get('part_number'),
+                }
+                in_message_['release'] = True
                 out_queue.put(json.dumps(in_message_))
                 continue
 
             if stop_time - start_time > timeout:
-                in_message_['in_message'] = json.dumps(in_message_)
+                # Watchdog timeout: parent will persist as a blocking issue.
                 in_message_['watchdog_restart'] = True
                 in_message_['is_primary'] = is_primary
-
+                in_message_['err_key'] = 'watchdog_timeout'
+                in_message_['err_blob'] = {
+                    'message': 'watchdog timeout',
+                    'model_id': in_message_.get('id'),
+                    'mfg': in_message_.get('mfg'),
+                    'part_number': in_message_.get('part_number'),
+                    'timeout_seconds': timeout,
+                }
+                in_message_['blocking'] = True
                 out_queue.put(json.dumps(in_message_))
                 exit_event.set()
 
