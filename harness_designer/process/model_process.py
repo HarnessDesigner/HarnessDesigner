@@ -5,6 +5,9 @@ from typing import TYPE_CHECKING
 import multiprocessing
 import os
 import json
+import time
+
+import requests.exceptions as _req_exc
 import numpy as np
 
 import pyfqmr
@@ -354,16 +357,13 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
 
     credentials = cred_manager.retrieve_credentials(print_lock)
     if credentials is None:
-        with print_lock:
-            print('MODEL DOWNLOADER: error collecting credentials')
-
+        out_queue.put(json.dumps({'log': 'MODEL DOWNLOADER: error collecting credentials'}))
         return
 
     from . import db_broker
 
     from .. import resources as _resources
     from .. import config as _config
-    from ..database.create_database import resource_state as _rs
 
     while not exit_event.is_set():
         if is_primary:
@@ -384,8 +384,6 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
             in_message_ = json.loads(in_message_)
 
             def _do(in_message):
-                import requests.exceptions as _req_exc
-
                 connector = db_broker.connect_to_database(credentials)
 
                 if connector is None:
@@ -398,24 +396,7 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
 
                 message = {'step': 0, 'id': model_id, 'mfg': mfg, 'part_number': part_number}
 
-                # --- Resource-state coordination ---
-                # Guarantee a state row exists (idempotent on existing rows).
-                _rs.ensure_row(connector, _rs.RESOURCE_TYPE_MODEL, model_id)
-
-                if not _rs.try_claim(connector, _rs.RESOURCE_TYPE_MODEL, model_id):
-                    # Another seat has already claimed this model – report its
-                    # current progress to the parent so the progress indicator
-                    # can be updated, then exit this worker.
-                    state = _rs.get_state(connector, _rs.RESOURCE_TYPE_MODEL, model_id)
-                    current_step = state['progress'] if state else _rs.PROGRESS_CLAIMED
-                    message['step'] = current_step
-                    out_queue.put(json.dumps(message))
-                    with print_lock:
-                        print(f'MODEL DOWNLOADER: model {model_id} already claimed '
-                              f'(step {current_step}), reporting progress')
-                    connector.close()
-                    return
-
+                # Step 0: parent already holds the claim; just report start.
                 out_queue.put(json.dumps(message))
 
                 if exit_event.is_set():
@@ -426,20 +407,20 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
                 model_data = connector.fetchall()
 
                 if not model_data:
-                    err_key = 'step_0'
-                    err_blob = {'message': 'invalid database row', 'model_id': model_id, 'mfg': mfg, 'part_number': part_number, 'step': 0}
-                    _rs.persist_error(connector, _rs.RESOURCE_TYPE_MODEL, model_id, err_key, err_blob)
-                    _rs.release_claim(connector, _rs.RESOURCE_TYPE_MODEL, model_id)
-
-                    message = {'err': 'invalid database row',
-                               'id': model_id,
-                               'mfg': mfg, 'part_number': part_number}
-
+                    message = {
+                        'err': 'invalid database row',
+                        'err_key': 'step_0',
+                        'err_blob': {'message': 'invalid database row',
+                                     'model_id': model_id, 'mfg': mfg,
+                                     'part_number': part_number, 'step': 0},
+                        'release': True,
+                        'id': model_id,
+                        'mfg': mfg, 'part_number': part_number,
+                    }
                     out_queue.put(json.dumps(message))
                     connector.close()
                     return
 
-                _rs.update_progress(connector, _rs.RESOURCE_TYPE_MODEL, model_id, 1)
                 message['step'] = 1
                 out_queue.put(json.dumps(message))
 
@@ -450,17 +431,16 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
                 target_count, aggressiveness, update_rate, iterations, simplify, path = model_data[0]
 
                 if not path:
-                    err_key = 'step_1'
-                    err_blob = {'message': 'invalid model url/path', 'model_id': model_id, 'mfg': mfg, 'part_number': part_number, 'step': 1}
-                    _rs.persist_error(connector, _rs.RESOURCE_TYPE_MODEL, model_id, err_key, err_blob)
-                    _rs.release_claim(connector, _rs.RESOURCE_TYPE_MODEL, model_id)
-
                     message['err'] = 'invalid model url/path'
+                    message['err_key'] = 'step_1'
+                    message['err_blob'] = {'message': 'invalid model url/path',
+                                           'model_id': model_id, 'mfg': mfg,
+                                           'part_number': part_number, 'step': 1}
+                    message['release'] = True
                     out_queue.put(json.dumps(message))
                     connector.close()
                     return
 
-                _rs.update_progress(connector, _rs.RESOURCE_TYPE_MODEL, model_id, 2)
                 message['step'] = 2
                 out_queue.put(json.dumps(message))
 
@@ -473,30 +453,33 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
                 except _req_exc.RequestException as req_err:
                     _errno = getattr(req_err, 'errno', None)
                     if _errno is None:
-                        _cause = getattr(req_err, '__cause__', None) or getattr(req_err, '__context__', None)
+                        _cause = (getattr(req_err, '__cause__', None) or
+                                  getattr(req_err, '__context__', None))
                         _errno = getattr(_cause, 'errno', None) if _cause is not None else None
                     err_key = (f'{type(req_err).__name__}:{_errno}'
                                if _errno is not None else type(req_err).__name__)
-                    err_blob = {'message': str(req_err), 'errno': _errno, 'model_id': model_id, 'mfg': mfg, 'part_number': part_number, 'step': 2}
-                    _rs.persist_error(connector, _rs.RESOURCE_TYPE_MODEL, model_id, err_key, err_blob)
-                    _rs.release_claim(connector, _rs.RESOURCE_TYPE_MODEL, model_id)
+                    err_blob = {'message': str(req_err), 'errno': _errno,
+                                'model_id': model_id, 'mfg': mfg,
+                                'part_number': part_number, 'step': 2}
                     message['err'] = f'{err_key}: {req_err}'
+                    message['err_key'] = err_key
+                    message['err_blob'] = err_blob
+                    message['release'] = True
                     out_queue.put(json.dumps(message))
                     connector.close()
                     return
 
                 if file_path is None:
-                    err_key = 'step_2'
-                    err_blob = {'message': 'unable to load model', 'model_id': model_id, 'mfg': mfg, 'part_number': part_number, 'step': 2}
-                    _rs.persist_error(connector, _rs.RESOURCE_TYPE_MODEL, model_id, err_key, err_blob)
-                    _rs.release_claim(connector, _rs.RESOURCE_TYPE_MODEL, model_id)
-
                     message['err'] = 'unable to load model'
+                    message['err_key'] = 'step_2'
+                    message['err_blob'] = {'message': 'unable to load model',
+                                           'model_id': model_id, 'mfg': mfg,
+                                           'part_number': part_number, 'step': 2}
+                    message['release'] = True
                     out_queue.put(json.dumps(message))
                     connector.close()
                     return
 
-                _rs.update_progress(connector, _rs.RESOURCE_TYPE_MODEL, model_id, 3)
                 message['step'] = 3
                 out_queue.put(json.dumps(message))
 
@@ -510,19 +493,18 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
                 rows = connector.fetchall()
 
                 if not rows:
-                    err_key = 'step_3'
-                    err_blob = {'message': 'unsupported file type', 'model_id': model_id, 'mfg': mfg, 'part_number': part_number, 'step': 3}
-                    _rs.persist_error(connector, _rs.RESOURCE_TYPE_MODEL, model_id, err_key, err_blob)
-                    _rs.release_claim(connector, _rs.RESOURCE_TYPE_MODEL, model_id)
-
-                    message['err'] = f'unsupported file type'
+                    message['err'] = 'unsupported file type'
+                    message['err_key'] = 'step_3'
+                    message['err_blob'] = {'message': 'unsupported file type',
+                                           'model_id': model_id, 'mfg': mfg,
+                                           'part_number': part_number, 'step': 3}
+                    message['release'] = True
                     out_queue.put(json.dumps(message))
                     connector.close()
                     return
 
                 ext = rows[0][0]
 
-                _rs.update_progress(connector, _rs.RESOURCE_TYPE_MODEL, model_id, 4)
                 message['step'] = 4
                 out_queue.put(json.dumps(message))
 
@@ -531,12 +513,14 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
                     return
 
                 if not os.path.exists(model_path):
-                    err_key = 'step_4'
-                    err_blob = {'message': f'file does not exist ("{model_path}")', 'model_id': model_id, 'mfg': mfg, 'part_number': part_number, 'step': 4}
-                    _rs.persist_error(connector, _rs.RESOURCE_TYPE_MODEL, model_id, err_key, err_blob)
-                    _rs.release_claim(connector, _rs.RESOURCE_TYPE_MODEL, model_id)
-
                     message['err'] = f'file does not exist ("{model_path}")'
+                    message['err_key'] = 'step_4'
+                    message['err_blob'] = {
+                        'message': f'file does not exist ("{model_path}")',
+                        'model_id': model_id, 'mfg': mfg,
+                        'part_number': part_number, 'step': 4,
+                    }
+                    message['release'] = True
                     out_queue.put(json.dumps(message))
                     connector.close()
                     return
@@ -546,7 +530,6 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
                 vertices = _center_model(vertices)
 
                 if simplify:
-                    _rs.update_progress(connector, _rs.RESOURCE_TYPE_MODEL, model_id, 5)
                     message['step'] = 5
                     out_queue.put(json.dumps(message))
 
@@ -556,7 +539,6 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
 
                     vertices, faces = _reduce_triangles(vertices, faces, target_count, aggressiveness, iterations)
 
-                _rs.update_progress(connector, _rs.RESOURCE_TYPE_MODEL, model_id, 6)
                 message['step'] = 6
                 out_queue.put(json.dumps(message))
 
@@ -567,7 +549,6 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
                 vertices, smooth_normals, face_normals, _ = (
                     _utils.compute_normals(vertices, faces))
 
-                _rs.update_progress(connector, _rs.RESOURCE_TYPE_MODEL, model_id, 7)
                 message['step'] = 7
                 out_queue.put(json.dumps(message))
 
@@ -585,7 +566,6 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
 
                 model_data.save(model_dir)
 
-                _rs.update_progress(connector, _rs.RESOURCE_TYPE_MODEL, model_id, 8)
                 message['step'] = 8
                 out_queue.put(json.dumps(message))
 
@@ -593,26 +573,22 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
                     connector.close()
                     return
 
+                # Only DB write permitted from child: uuid and file_type_id.
                 connector.execute(f'UPDATE models3d SET file_type_id={file_type_id}, uuid="{uuid}" WHERE id={model_id};')
                 connector.commit()
 
-                _rs.update_progress(connector, _rs.RESOURCE_TYPE_MODEL, model_id, 9)
                 message['step'] = 9
                 out_queue.put(json.dumps(message))
 
                 os.remove(model_path)
 
-                # Final success: advance to step 10; error data is preserved
-                # intentionally so admins can detect client-specific failures
-                # even when another seat later succeeded.
-                _rs.update_progress(connector, _rs.RESOURCE_TYPE_MODEL, model_id, 10)
+                # Step 10: final success; parent updates resource_state.
                 message['step'] = 10
                 out_queue.put(json.dumps(message))
 
                 connector.close()
 
             timeout = _config.Config.resources.model_watchdog_timeout
-            import time
 
             thread = ThreadWorker(_do, in_message_)
             start_time = time.time()
@@ -635,53 +611,33 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
                 break
 
             if thread.exception is not None:
-                # Classify and persist the unhandled error; then release so
-                # another seat (or this seat on restart) can retry.
-                try:
-                    wdog_connector = db_broker.connect_to_database(credentials)
-                    if wdog_connector is not None:
-                        model_id = in_message_['id']
-                        err_key = type(thread.exception).__name__
-
-                        err_blob = {
-                            'message': str(thread.exception),
-                            'model_id': model_id,
-                            'mfg': in_message_.get('mfg'),
-                            'part_number': in_message_.get('part_number'),
-                        }
-                        _rs.persist_error(wdog_connector, _rs.RESOURCE_TYPE_MODEL, model_id, err_key, err_blob)
-                        _rs.release_claim(wdog_connector, _rs.RESOURCE_TYPE_MODEL, model_id)
-                        wdog_connector.close()
-                except Exception:  # NOQA
-                    pass
-
+                # Unhandled exception: pass error info to parent for DB update.
+                err_key = type(thread.exception).__name__
                 in_message_['err'] = str(thread.exception)
+                in_message_['err_key'] = err_key
+                in_message_['err_blob'] = {
+                    'message': str(thread.exception),
+                    'model_id': in_message_.get('id'),
+                    'mfg': in_message_.get('mfg'),
+                    'part_number': in_message_.get('part_number'),
+                }
+                in_message_['release'] = True
                 out_queue.put(json.dumps(in_message_))
                 continue
 
             if stop_time - start_time > timeout:
-                # Watchdog timeout: persist as a blocking issue so no seat
-                # auto-retries until an admin clears blocking_issue.
-                try:
-                    wdog_connector = db_broker.connect_to_database(credentials)
-                    if wdog_connector is not None:
-                        model_id = in_message_['id']
-                        err_blob = {
-                            'message': 'watchdog timeout',
-                            'model_id': model_id,
-                            'mfg': in_message_.get('mfg'),
-                            'part_number': in_message_.get('part_number'),
-                            'timeout_seconds': timeout,
-                        }
-                        _rs.persist_error(wdog_connector, _rs.RESOURCE_TYPE_MODEL, model_id, 'watchdog_timeout', err_blob, blocking=True)
-                        wdog_connector.close()
-                except Exception:  # NOQA
-                    pass
-
-                in_message_['in_message'] = json.dumps(in_message_)
+                # Watchdog timeout: parent will persist as a blocking issue.
                 in_message_['watchdog_restart'] = True
                 in_message_['is_primary'] = is_primary
-
+                in_message_['err_key'] = 'watchdog_timeout'
+                in_message_['err_blob'] = {
+                    'message': 'watchdog timeout',
+                    'model_id': in_message_.get('id'),
+                    'mfg': in_message_.get('mfg'),
+                    'part_number': in_message_.get('part_number'),
+                    'timeout_seconds': timeout,
+                }
+                in_message_['blocking'] = True
                 out_queue.put(json.dumps(in_message_))
                 exit_event.set()
 
