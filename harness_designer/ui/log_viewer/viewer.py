@@ -39,6 +39,9 @@ _LEVEL_COLOURS = {
 class _LogMessageDelegate(QtWidgets.QStyledItemDelegate):
     """Paint explicit multiline log messages without soft wrapping."""
 
+    _TEXT_HORIZONTAL_PADDING = 6
+    _TEXT_VERTICAL_PADDING = 4
+
     def paint(self, painter, option, index):
         if index.column() != 2:
             super().paint(painter, option, index)
@@ -60,6 +63,10 @@ class _LogMessageDelegate(QtWidgets.QStyledItemDelegate):
 
         text_rect = style.subElementRect(
             QtWidgets.QStyle.SubElement.SE_ItemViewItemText, opt, opt.widget)
+        text_rect.adjust(self._TEXT_HORIZONTAL_PADDING,
+                         self._TEXT_VERTICAL_PADDING,
+                         -self._TEXT_HORIZONTAL_PADDING,
+                         -self._TEXT_VERTICAL_PADDING)
 
         painter.save()
         painter.setFont(opt.font)
@@ -76,7 +83,7 @@ class _LogMessageDelegate(QtWidgets.QStyledItemDelegate):
                 painter.setPen(opt.palette.color(QtGui.QPalette.ColorRole.Text))
 
         flags = (QtCore.Qt.AlignmentFlag.AlignLeft |
-                 QtCore.Qt.AlignmentFlag.AlignVCenter |
+                 QtCore.Qt.AlignmentFlag.AlignTop |
                  QtCore.Qt.TextFlag.TextExpandTabs |
                  QtCore.Qt.TextFlag.TextDontClip)
 
@@ -95,12 +102,18 @@ class _LogMessageDelegate(QtWidgets.QStyledItemDelegate):
         font_metrics = option.fontMetrics
         lines = str(text).splitlines() or ['']
         line_count = max(1, len(lines))
-        margins = 8
-        height = (font_metrics.lineSpacing() * line_count) + margins
+        height = (
+            font_metrics.lineSpacing() * line_count +
+            (self._TEXT_VERTICAL_PADDING * 2)
+        )
         width = size.width()
 
         longest_line = max(lines, key=len, default='')
-        width = max(width, font_metrics.horizontalAdvance(longest_line) + margins)
+        width = max(
+            width,
+            font_metrics.horizontalAdvance(longest_line) +
+            (self._TEXT_HORIZONTAL_PADDING * 2)
+        )
 
         return QtCore.QSize(width, height)
 
@@ -335,7 +348,7 @@ class VirtualLogListCtrl(QtWidgets.QTableView):
         font_metrics = self.fontMetrics()
         lines = str(text).splitlines() or ['']
         line_count = max(1, len(lines))
-        top_bottom_margins = 10
+        top_bottom_margins = 8
         return (font_metrics.lineSpacing() * line_count) + top_bottom_margins
 
     def _resize_row_heights(self, first_row: int = 0,
@@ -353,18 +366,22 @@ class VirtualLogListCtrl(QtWidgets.QTableView):
         if last_row < first_row:
             return
 
-        default_height = max(self.fontMetrics().height() + 10,
+        default_height = max(self.fontMetrics().height() + 8,
                              self.verticalHeader().defaultSectionSize())
 
-        for row in range(first_row, last_row + 1):
-            index = self._model.index(row, 2)
-            text = index.data(QtCore.Qt.ItemDataRole.DisplayRole)
-            if text is None:
-                self.setRowHeight(row, default_height)
-                continue
+        self.setUpdatesEnabled(False)
+        try:
+            for row in range(first_row, last_row + 1):
+                index = self._model.index(row, 2)
+                text = index.data(QtCore.Qt.ItemDataRole.DisplayRole)
+                if text is None:
+                    self.setRowHeight(row, default_height)
+                    continue
 
-            self.setRowHeight(
-                row, max(default_height, self._row_height_for_text(text)))
+                self.setRowHeight(
+                    row, max(default_height, self._row_height_for_text(text)))
+        finally:
+            self.setUpdatesEnabled(True)
 
     def _do_append(self, new_data: pd.DataFrame):
         """
@@ -412,8 +429,9 @@ class VirtualLogListCtrl(QtWidgets.QTableView):
     def _on_section_resized(self, logical_index: int,
                             _old_size: int, _new_size: int):
 
-        if logical_index == 2:
-            self._resize_row_heights()
+        # Row height depends only on explicit newline count, not column width.
+        # Recomputing every row while the splitter is dragged causes severe lag.
+        return
 
 
 # ---------------------------------------------------------------------------
