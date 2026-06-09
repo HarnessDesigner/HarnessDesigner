@@ -4,6 +4,13 @@ Wiring Harness design software (WIP)
 This project is currently being developed. I don't have a time frame as to when 
 it will be completed but I am hoping within the next couple of months maybe sooner.
 
+I wanted to give you guys an updated screen shot of the progress...
+
+![img_3.png](img_3.png)
+
+<br>
+
+
 Photos of the work in progress...
 
 ![img.png](img.png)
