@@ -50,6 +50,10 @@ class _LogMessageDelegate(QtWidgets.QStyledItemDelegate):
         opt = QtWidgets.QStyleOptionViewItem(option)
         self.initStyleOption(opt, index)
 
+        view = opt.widget
+        if view is not None and hasattr(view, '_ensure_row_height_for_index'):
+            view._ensure_row_height_for_index(index)
+
         text = opt.text
         opt.text = ''
 
@@ -334,6 +338,14 @@ class VirtualLogListCtrl(QtWidgets.QTableView):
         self._append_ready.connect(
             self._do_append, QtCore.Qt.ConnectionType.QueuedConnection)
 
+        self._default_row_height = max(
+            self.fontMetrics().height() + 8,
+            self.verticalHeader().defaultSectionSize()
+        )
+        self.verticalHeader().setDefaultSectionSize(self._default_row_height)
+        self._multiline_height_cache: dict[int, int] = {}
+        self._height_update_guard = False
+
     def Destroy(self):
         """
         Execute the destroy operation.
@@ -351,37 +363,31 @@ class VirtualLogListCtrl(QtWidgets.QTableView):
         top_bottom_margins = 8
         return (font_metrics.lineSpacing() * line_count) + top_bottom_margins
 
-    def _resize_row_heights(self, first_row: int = 0,
-                            last_row: int | None = None):
-
-        row_count = self._model.rowCount()
-        if row_count <= 0:
+    def _ensure_row_height_for_index(self, index: QtCore.QModelIndex):
+        if self._height_update_guard or not index.isValid():
             return
 
-        if last_row is None:
-            last_row = row_count - 1
-
-        first_row = max(0, int(first_row))
-        last_row = min(int(last_row), row_count - 1)
-        if last_row < first_row:
+        row = index.row()
+        if row < 0:
             return
 
-        default_height = max(self.fontMetrics().height() + 8,
-                             self.verticalHeader().defaultSectionSize())
+        text = index.data(QtCore.Qt.ItemDataRole.DisplayRole)
+        if not text or '\n' not in text:
+            return
 
-        self.setUpdatesEnabled(False)
+        height = self._multiline_height_cache.get(row)
+        if height is None:
+            height = max(self._default_row_height, self._row_height_for_text(text))
+            self._multiline_height_cache[row] = height
+
+        if self.rowHeight(row) == height:
+            return
+
+        self._height_update_guard = True
         try:
-            for row in range(first_row, last_row + 1):
-                index = self._model.index(row, 2)
-                text = index.data(QtCore.Qt.ItemDataRole.DisplayRole)
-                if text is None:
-                    self.setRowHeight(row, default_height)
-                    continue
-
-                self.setRowHeight(
-                    row, max(default_height, self._row_height_for_text(text)))
+            self.setRowHeight(row, height)
         finally:
-            self.setUpdatesEnabled(True)
+            self._height_update_guard = False
 
     def _do_append(self, new_data: pd.DataFrame):
         """
@@ -394,10 +400,8 @@ class VirtualLogListCtrl(QtWidgets.QTableView):
         """
 
         if not self._is_destroyed:
-            first_row = self._model.rowCount()
             self._model.append_data(new_data)
-            last_row = self._model.rowCount() - 1
-            self._resize_row_heights(first_row, last_row)
+            self.viewport().update()
 
     def AppendData(self, data: pd.DataFrame):
         """
@@ -423,14 +427,14 @@ class VirtualLogListCtrl(QtWidgets.QTableView):
         :type df: :class:`pd.DataFrame`
         """
 
+        self._multiline_height_cache.clear()
         self._model.set_data(df)
-        self._resize_row_heights()
+        self.viewport().update()
 
     def _on_section_resized(self, logical_index: int,
                             _old_size: int, _new_size: int):
 
         # Row height depends only on explicit newline count, not column width.
-        # Recomputing every row while the splitter is dragged causes severe lag.
         return
 
 
