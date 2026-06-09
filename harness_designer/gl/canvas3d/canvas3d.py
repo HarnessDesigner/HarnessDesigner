@@ -270,7 +270,6 @@ class Canvas3D(QWidget):
         :type __: UNKNOWN
         """
 
-        print('refreshing')
         if self._ref_count:
             return
 

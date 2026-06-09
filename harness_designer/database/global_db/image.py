@@ -3,6 +3,8 @@
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
 import os
+from PySide6 import QtGui
+import weakref
 
 from ... import resources as _resources
 from ..create_database import images as _images
@@ -105,6 +107,7 @@ class Image(EntryBase):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
     _table: ImagesTable = None
+    _download_callbacks = {}
 
     def build_monitor_packet(self):
         """Build the monitor packet.
@@ -124,6 +127,94 @@ class Image(EntryBase):
 
         return packet
 
+    def download_complete(self):
+        if self.db_id not in self._download_callbacks:
+            return
+
+        file_ = self.data_path
+        if file_ is not None:
+            pixmap_ = QtGui.QPixmap(file_)
+
+            for ref_, _ in self._download_callbacks[self.db_id]:
+                cb_ = ref_()
+                if cb_ is None:
+                    continue
+
+                cb_(self, pixmap_)
+
+            del self._download_callbacks[self.db_id]
+
+    def set_progress(self, step):
+
+        if self.db_id not in self._download_callbacks:
+            return
+
+        for _, ref_ in self._download_callbacks[self.db_id]:
+            cb_ = ref_()
+            if cb_ is None:
+                continue
+
+            cb_(self, step)
+
+    def load(self, mfg, part_number, done_callback, progress_callback):
+        """
+        Load an image.
+
+        This function schedules the loading to take place using a child process.
+        The reason why this is done is for multi seat environments and not
+        duplicating image downloads and also to provide a way to audit failed
+        downloads so a system administrator can fix what is wrong.
+
+        :param mfg: Manufacturer of the part.
+        :type mfg: str
+
+        :param part_number: Part number of part that uses this model.
+        :type part_number: str
+
+        :param done_callback: callback that takes :class:`Image` and
+                         :class:`QtGui.QPixmap` instances as parameters.
+        :type done_callback: callable
+
+        :param progress_callback: callback that takes :class:`Image` and `int`
+                                  as parameters.
+        :type progress_callback: callable
+
+        :returns: ``None``.
+        :rtype: None
+        """
+        file = self.data_path
+
+        if file is None:
+            if (_resources.RESOURCE_TYPE_IMAGE, self.db_id) in self._table.db.resource_state_table:
+                resource_state = self._table.db.resource_state_table[(_resources.RESOURCE_TYPE_IMAGE, self.db_id)]
+            else:
+                resource_state = self._table.db.resource_state_table.insert(_resources.RESOURCE_TYPE_IMAGE, self.db_id)
+
+            if resource_state.allow_retry:
+                if resource_state.progress == -1:
+                    resource_state.progress = 0
+
+                if self.db_id not in self._download_callbacks:
+                    self._download_callbacks[self.db_id] = []
+
+                self._download_callbacks[self.db_id].append((
+                    weakref.WeakMethod(done_callback),
+                    weakref.WeakMethod(progress_callback)))
+
+                image_path = self._table.db.settings_table['image_path']
+
+                self._table.db.mainframe.process_manager.get_image(
+                    10, self, resource_state, mfg, part_number, image_path)
+        else:
+            if self.db_id not in self._download_callbacks:
+                self._download_callbacks[self.db_id] = []
+
+            self._download_callbacks[self.db_id].append((
+                weakref.WeakMethod(done_callback),
+                weakref.WeakMethod(progress_callback)))
+            self.set_progress(5)
+            self.download_complete()
+
     @property
     def data_path(self) -> str | None:
         """Return the data path.
@@ -133,22 +224,21 @@ class Image(EntryBase):
         :returns: Property value. UNKNOWN details.
         :rtype: str | None
         """
+
         file_id = self.uuid
+
         if file_id is None:
-            values = _resources.collect_resource(self._table, _resources.IMAGE_TYPE_IMAGE, self.path)
-
-            if values is None:
-                return None
-
-            file_id, file_type_id = values
-
-            self._table.update(self._db_id, file_type_id=file_type_id)
-            self._table.update(self._db_id, uuid=file_id)
-
-        file_type = self.file_type
+            return None
 
         image_path = self._table.db.settings_table['image_path']
-        return os.path.join(image_path, file_id[:2], f'{file_id}.{file_type.extension}')
+
+        hex_path = file_id[:2]
+        path = os.path.join(image_path, hex_path, f'{file_id}.png')
+
+        if not os.path.exists(path):
+            return None
+
+        return path
 
     @property
     def path(self) -> str:

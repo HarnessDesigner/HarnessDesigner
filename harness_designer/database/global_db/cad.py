@@ -3,6 +3,12 @@
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
 import os
+from PySide6 import QtGui
+from PySide6 import QtPdf
+from PySide6 import QtSvg
+import ezdxf
+
+import weakref
 
 from ... import resources as _resources
 from ..create_database import cads as _cads
@@ -105,6 +111,7 @@ class CAD(EntryBase):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
     _table: CADsTable = None
+    _callbacks = {}
 
     def build_monitor_packet(self):
         """Build the monitor packet.
@@ -124,6 +131,109 @@ class CAD(EntryBase):
 
         return packet
 
+    def load(self, mfg, part_number, callback) -> QtGui.QPixmap:
+        """
+        Load a CAD file.
+
+        This function schedules the loading to take place using a child process.
+        The reason why this is done is for multi seat environments and not
+        duplicating image downloads and also to provide a way to audit failed
+        downloads so a system administrator can fix what is wrong.
+
+        :param mfg: Manufacturer of the part.
+        :type mfg: str
+
+        :param part_number: Part number of part that uses this model.
+        :type part_number: str
+
+        :param callback: callback that takes :class:`Image` and
+                         :class:`QtPdf.QPdfDocument` |
+                         :class:`ezdxf.Drawing` |
+                         :class:`QtSvg.QSvgRenderer` |
+                         :class:`QtGui.QPixmap`
+                         instances as parameters.
+
+        :type callback: callable
+
+        :returns: ``None``.
+        :rtype: None
+        """
+
+        file = self.data_path
+
+        if file is None:
+
+            if (_resources.RESOURCE_TYPE_CAD, self.db_id) in self._table.db.resource_state_table:
+                resource_state = self._table.db.resource_state_table[(_resources.RESOURCE_TYPE_CAD, self.db_id)]
+            else:
+                resource_state = self._table.db.resource_state_table.insert(_resources.RESOURCE_TYPE_CAD, self.db_id)
+
+            if resource_state.allow_retry:
+                if resource_state.progress == -1:
+                    resource_state.progress = 0
+
+                def _do():
+                    # ensures the callbacks only get called a simgle time
+                    if self.db_id not in self._callbacks:
+                        return
+
+                    file_ = self.data_path
+                    if file_ is not None:
+                        # we need to determine the type of
+                        # file type that is being used
+                        if file_.endswith('.pdf'):
+                            data_ = QtPdf.QPdfDocument()
+                            data_.load(file_)
+                        elif file_.endswith('.dxf'):
+                            data_ = ezdxf.readfile(file_)
+                        elif file_.endswith('.svg'):
+                            data_ = QtSvg.QSvgRenderer(file_)
+                        else:
+                            data_ = QtGui.QPixmap(file_)
+
+                        for ref_ in self._callbacks[self.db_id]:
+                            cb_ = ref_()
+                            if cb_ is None:
+                                continue
+
+                            cb_(self, data_)
+
+                        del self._callbacks[self.db_id]
+
+                if self.db_id not in self._callbacks:
+                    self._callbacks[self.db_id] = []
+
+                self._callbacks[self.db_id].append(weakref.WeakMethod(callback))
+
+                cad_path = self._table.db.settings_table['cad_path']
+
+                self._table.db.mainframe.process_manager.get_cad(
+                    self, resource_state, mfg, part_number, cad_path, _do)
+        else:
+            # we need to determine the type of file type that is being used
+
+            if file.endswith('.pdf'):
+                data = QtPdf.QPdfDocument()
+                data.load(file)
+            elif file.endswith('.dxf'):
+                data = ezdxf.readfile(file)
+            elif file.endswith('.svg'):
+                data = QtSvg.QSvgRenderer(file)
+            else:
+                data = QtGui.QPixmap(file)
+
+            if self.db_id in self._callbacks:
+                for ref in self._callbacks[self.db_id]:
+                    cb = ref()
+                    if cb is None:
+                        continue
+
+                    cb(self, data)
+
+                del self._callbacks[self.db_id]
+
+            callback(self, data)
+
     @property
     def data_path(self) -> str | None:
         """Return the data path.
@@ -135,20 +245,15 @@ class CAD(EntryBase):
         """
         file_id = self.uuid
         if file_id is None:
-            values = _resources.collect_resource(self._table, _resources.IMAGE_TYPE_CAD, self.path)
-
-            if values is None:
-                return None
-
-            file_id, file_type_id = values
-
-            self._table.update(self._db_id, file_type_id=file_type_id)
-            self._table.update(self._db_id, uuid=file_id)
+            return None
 
         file_type = self.file_type
 
         cad_path = self._table.db.settings_table['cad_path']
-        return os.path.join(cad_path, file_id[:2], f'{file_id}.{file_type.extension}')
+        path = os.path.join(cad_path, file_id[:2], f'{file_id}.{file_type.extension}')
+
+        if os.path.exists(path):
+            return path
 
     @property
     def path(self) -> str:

@@ -48,7 +48,7 @@ class Config:
             enable = True
             ground_height = 0.0
             size = 2000
-            enable_floor_lock = False
+            enable_floor_lock = True
 
             class grid:
                 """Floor grid appearance settings."""
@@ -57,13 +57,14 @@ class Config:
 
                 primary_line_color = [0.87, 0.88, 0.92, 1.0]
                 secondary_line_color = [0.57, 0.59, 0.65, 1.0]
-                primary_line_width = 0.5
-                secondary_line_width = 0.3
+                primary_line_width = 0.8
+                secondary_line_width = 0.25
 
-                secondary_lines_per_tile = 5
+                secondary_lines_per_tile = 4
 
-                secondary_dashes = 4.0
-                secondary_dashes_duty = 0.55
+                secondary_line_pattern = 0x0B2664D0
+                # 0000 1011 0010 0110 0110 0100 1101 0000
+                secondary_line_shift = False
 
                 size = 80
                 enable = False

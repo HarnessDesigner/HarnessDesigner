@@ -10,74 +10,171 @@ import os
 import io
 import shutil
 import zipfile
-from PIL import Image, ImageFilter
-import numpy as np
+from PIL import Image
+import requests.exceptions
+from urllib.parse import urlsplit
+import http.cookiejar
 
-from . import logger as _logger
+COOKIES = {}
 
-
-# TE specific handling to be able to download the models and images..
-
-te_header = {
+header = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Encoding": "gzip, deflate, br, zstd",
     "Accept-Language": "en-US,en;q=0.9",
     "Connection": "keep-alive",
-    "Cookie": "AMCV_A638776A5245AFE50A490D44%40AdobeOrg=-432600572%7CMCIDTS%7C20535%7CMCMID%7C37036414041189707455185991421694069091%7CMCAID%7CNONE%7CMCOPTOUT-1774225132s%7CNONE%7CvVersion%7C4.5.2; mbox=PC#beb9df17c300479ca08ccf13ef8a58b2.35_0#1833504047|session#f1a88b24f80e4eac984ed4c8d2b1ab12#1770261107; ak_bmsc=EDE5568E0F944C7D10F5E9D3BB81A486~000000000000000000000000000000~YAAQ0QbSF0nv4hGdAQAAmPWOFx/QxbuHgmvOTSkZeF2WgI5DgMnePuKWJkLWu96ednjORM+KGCQuxWt/VfdAKVyUb7jhrKfk/ysmIoPLS73kSKjt03p6vhxjoIXts/xe4HI9XNeKQYYaxA8Gke3fXpWQktCj3eXk734nt0tY8EPujA+H0PLCtzoJBDfTrUX4HZ9P7G6c5Vgby7TCiYWFmlsJoiiQQblLv0maa+yYdsSbEI8OPY+tXCaMDRjFV4cuziaJ3qANqqw4w5QEODFPbCp4+M9zuG8PhNxa68KjzE9knJOfynWUZRS5Tk1tlbTUML+A1oblhsGxc/PJqUxJBwMe0IPBMf9R2V8laytGwHIx8VyCpvnirDAGRynqGVn0ZdDxiwWNmsc=; bm_sv=39302999CCFF0E2A80E2D5C20F724A28~YAAQkBLfF6XbEPycAQAASeuoFx/0WDxPsXYsTvEb+DseTSMVAjTBISB2WvxdMzdl0oqOd29IAeomR6rxRZWtBL7uUNP6jHaKGlRyGAflfQb7/5jkoBLnjqTtuoSUKzOw7ZiUpb+u6fzpNR9QueNVPGuTaqXU/d0SgJkhNHnG7MYBHLT0YGQfNGNW/9K/FY9eqPL6ZygEcr1YLZbL3hQo/49BNgUyEoQUD8iF5FLN1zKtf/Esi0MFBXLlbtYU~1; AKA_A2=A; PIM-SESSION-ID=NMR1iHrXLmHDeDi4; SSO=guestusr@te.com; SMIDENTITY=InRxrBAYZz8g7rTGTOYCnIoLgg3gV4I0i/kiE813fMLg3oNT4xuFEng+DWhlVp3kfeunacUQWugx9g61BCwuWIenxjPqdwIAyBe4Pn2onUkx9VGkTpnvaHLGLb+FkBWGKgVILK8yaNx2W86nIJ1cdoGjeVjfo+p+2ralcv2kWKM1OYjBLZq5RetbpQ8uebkRCfYGJCqc4M6U71Fm6n4TfynF+KGaaBZBZP4GxoUgPZqqegiYcyHcxnJN2/fB3w+JvmvhFTUOlpbMOVkBG+n29PemJV3zxVuOUvIrfQpGPHbWKWVluvmQM4FE0RTkHpFZTHTya6+AZ976Nfyq2DWNKS2W+zSg9bwyAM85xAGAN5mqoFKmI1adSTxVmZOl9rShPr+XtOACeL9fbBdkCaxRp0uS7oIo4PQUXPhq0CJQssMQ+K8asroHOkwbfPm6++ObanVIpmuIB4gzns6jGUFeDQqLdOnvpyq6KE1ZLtqXRh2PtZBoEGNDcEzLh5Ep+HG2KnnL/4t0IoSSjxNabCla9LFUNjmLhJ3JVahuPmNf8jYX2eUvDmN6C0GFkGCjDRMA; AMCVS_A638776A5245AFE50A490D44%40AdobeOrg=1; dtCookie=v_4_srv_1_sn_57988F6CE361C9761D87B0C01E4EE007_perc_100000_ol_0_mul_1_app-3A619a1bcb124cd83e_1",
-    "Host": "api.te.com",
+    "Priority": "u=0, i",
     "Sec-Fetch-Dest": "document",
     "Sec-Fetch-Mode": "navigate",
     "Sec-Fetch-Site": "none",
-    "Sec-Fetch-User": "?1",
     "Sec-GPC": "1",
     "Upgrade-Insecure-Requests": "1",
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:148.0) Gecko/20100101 Firefox/148.0"
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:151.0) Gecko/20100101 Firefox/151.0"
 }
 
-def handle_te_cookie(response):
-    """Merge TE response cookies into the module-level ``te_header``.
+
+class ResourceException(Exception):
+    __msg__ = 'Resource Base Exception'
+
+    def __init__(self):
+        super().__init__(self.__msg__)
+
+
+class RequestsError(ResourceException):
+    __msg__ = ''
+
+    def __init__(self, msg, code, url):
+        self.__msg__ = msg
+        self.code = code
+        self.url = url
+        super().__init__()
+
+
+class ImageReadError(ResourceException):
+
+    __msg__ = 'Image Read Error'
+
+    def __init__(self, path):
+        self.path = path
+        self.code = -10
+        super().__init__()
+
+
+class SaveFileError(ResourceException):
+
+    __msg__ = 'Save File Error'
+
+    def __init__(self, path, code):
+        self.path = path
+        self.code = code
+        super().__init__()
+
+
+class RemoveFileError(ResourceException):
+
+    __msg__ = 'Remove File Error'
+
+    def __init__(self, path, code):
+        self.path = path
+        self.code = code
+        super().__init__()
+
+
+class FileTypeNotSupportedError(ResourceException):
+
+    __msg__ = 'File Type Not Supported'
+
+    def __init__(self, path):
+        self.path = path
+        self.code = -20
+        super().__init__()
+
+
+class ExistingFileNotFoundError(ResourceException):
+
+    __msg__ = 'File Not Found'
+
+    def __init__(self, path):
+        self.path = path
+        self.code = -30
+        super().__init__()
+
+
+def handle_cookie(response):
+    """
+    Extract cookie data from a requests response.
 
     :param response: HTTP response returned by :mod:`requests`.
     :type response: requests.Response
     """
-    if 'Set-Cookie' in response.headers:
-        cur_cookie = te_header['Cookie']
 
-        cur_cookie = [item.strip() for item in cur_cookie.split(';')]
-        cookie = {item.split('=', 1)[0]: item.split('=', 1)[1] for item in cur_cookie}
+    for cookie in response.cookies:
+        if not cookie.domain_specified:
+            continue
 
-        new_cookie = [item.strip() for item in response.headers['Set-Cookie'].split(';')]
-        new_cookie = {item.split('=', 1)[0]: item.split('=', 1)[1] for item in new_cookie if '=' in item}
+        domain = cookie.domain
+        if domain:
+            if cookie.domain.startswith('.'):
+                domain = domain[1:]
 
-        for key, value in new_cookie.items():
-            if key in cookie:
-                cookie[key] = value
-
-        cookie = [key + '=' + value for key, value in cookie.items()]
-        cookie = '; '.join(cookie)
-        te_header['Cookie'] = cookie
+            COOKIES[domain] = cookie
 
 
-def requests_get(url, **kwargs):
+def requests_get(url, is_retry=False, **kwargs):
     """Fetch a URL and normalise its content type.
 
     :param url: Resource URL to request.
     :type url: str
+    :param is_retry: If this is a second attempt.
+                     This is used internally for requests to TE
+                     because of needing to set the cookie.
+    :type is_retry: bool
+
     :param kwargs: Extra keyword arguments forwarded to :func:`requests.get`.
     :type kwargs: dict
     :returns: Response object and simplified content type.
     :rtype: tuple[requests.Response, str | None]
     """
     if 'api.te.com' in url or 'www.te.com' in url:
-        if 'api.te.com' in url:
-            te_header["Host"] = "api.te.com"
-        else:
-            te_header["Host"] = "www.te.com"
+        url = url.replace('//content', '/content')
 
-        response = requests.get(url, headers=te_header, **kwargs)
-        handle_te_cookie(response)
-    else:
-        response = requests.get(url, **kwargs)
+    split_url = urlsplit(url)
+
+    cookies = http.cookiejar.CookieJar()
+    domain = split_url.netloc
+    path = split_url.path
+
+    for cookie_domain in COOKIES.keys():
+        if domain.endswith(cookie_domain):
+            cookie = COOKIES[cookie_domain]
+            if cookie.path_specified:
+                if path.startswith(cookie.path):
+                    cookies.set_cookie(cookie)
+            else:
+                cookies.set_cookie(cookie)
+
+    try:
+        response = requests.get(url, headers=header, cookies=cookies, **kwargs)
+
+        if response.status_code == 503:
+            if 'api.te.com' in url:
+                url = url.replace('api.te.com', 'www.te.com')
+                return requests_get(url, is_retry=False, **kwargs)
+
+    except requests.exceptions.RequestException as err:
+        if err.response.status_code == 503:
+            if 'api.te.com' in url:
+                url = url.replace('api.te.com', 'www.te.com')
+                return requests_get(url, is_retry=False, **kwargs)
+
+        if is_retry:
+            new_err = RequestsError(
+                err.response.reason, err.response.status_code, url)
+
+            raise new_err from err
+        else:
+            return requests_get(url, is_retry=True, **kwargs)
+
+    handle_cookie(response)
 
     content_type = response.headers.get(
         'content-type', response.headers.get('Content-Type', ''))
@@ -87,10 +184,10 @@ def requests_get(url, **kwargs):
     else:
         content_type = None
 
-    return response, content_type
+    return response, content_type, url
 
 
-def _download_model(con, url):
+def _download_model(con, url, is_type):
     """Download a model resource and store it with a generated filename.
 
     :param con: Database cursor or cursor-like object.
@@ -101,13 +198,13 @@ def _download_model(con, url):
         a supported model type.
     :rtype: str | None
     """
-    con.execute('SELECT mimetype, extension FROM file_types WHERE is_model=1;')
+    con.execute(f'SELECT mimetype, extension FROM file_types WHERE {is_type};')
     rows = con.fetchall()
     mime_types = {k: '.' + v for k, v in rows}
     extensions = ['.' + row[1] for row in rows]
 
-    time.sleep(0.01)
-    response, content_type = requests_get(url)
+    response, content_type, used_url = requests_get(url)
+
     if content_type is not None:
         if content_type in (
             'application/zip',
@@ -124,7 +221,7 @@ def _download_model(con, url):
             else:
                 zf.close()
                 buf.close()
-                return None
+                raise FileTypeNotSupportedError(used_url)
 
             data = zf.read(file_name)
             zf.close()
@@ -133,27 +230,30 @@ def _download_model(con, url):
             if content_type in mime_types:
                 ext = mime_types[content_type]
             else:
-                ext = [e for e in extensions if e in url]
+                ext = [e for e in extensions if e in used_url]
                 if ext:
                     ext = ext[0]
                 else:
-                    return None
+                    raise FileTypeNotSupportedError(used_url)
 
             data = response.content
     else:
-        ext = [e for e in extensions if e in url]
+        ext = [e for e in extensions if e in used_url]
         if ext:
             ext = ext[0]
         else:
-            return None
+            raise FileTypeNotSupportedError(used_url)
 
         data = response.content
 
     uuid_ = str(uuid.uuid4())
     model_path = os.path.join(tempfile.gettempdir(), uuid_ + ext)
 
-    with open(model_path, 'wb') as f:
-        f.write(data)
+    try:
+        with open(model_path, 'wb') as f:
+            f.write(data)
+    except OSError as err:
+        raise SaveFileError(model_path, err.errno)
 
     return model_path
 
@@ -193,7 +293,7 @@ def _reformat_image(img: Image.Image):
     return new_img
 
 
-def _download_image(con, url, image_path):
+def _download_image(con, url, image_path, is_type):
     """Download an image-like resource and save it locally.
 
     :param con: Database cursor or cursor-like object.
@@ -215,17 +315,12 @@ def _download_image(con, url, image_path):
     # one image into a zip file and in those cases the file extension is available
     # and that is what gets used.
 
-    con.execute('SELECT mimetype, extension FROM file_types WHERE is_model=0;')
+    con.execute(f'SELECT mimetype, extension FROM file_types WHERE {is_type};')
     rows = con.fetchall()
     mime_types = {k: '.' + v for k, v in rows}
     extensions = ['.' + row[1] for row in rows]
 
-    time.sleep(0.01)
-    try:
-        response, content_type = requests_get(url, timeout=1000)
-    except Exception as err:  # NOQA
-        _logger.logger.traceback(err, 'REQUESTS ERROR')
-        return None
+    response, content_type, used_url = requests_get(url, timeout=1000)
 
     if content_type is not None:
         if content_type in ('application/zip', 'application/x-zip-compressed'):
@@ -239,7 +334,7 @@ def _download_image(con, url, image_path):
             else:
                 zf.close()
                 buf.close()
-                return None
+                raise FileTypeNotSupportedError(used_url)
 
             data = zf.read(file_name)
 
@@ -247,31 +342,31 @@ def _download_image(con, url, image_path):
             ext = mime_types[content_type]
             data = response.content
         else:
-            return None
+            raise FileTypeNotSupportedError(used_url)
     else:
-        ext = [e for e in extensions if e in url]
+        ext = [e for e in extensions if e in used_url]
         if ext:
             ext = ext[0]
             data = response.content
         else:
-            return None
+            raise FileTypeNotSupportedError(used_url)
 
     uuid_ = str(uuid.uuid4())
     image_path = os.path.join(image_path, uuid_[:2], uuid_ + ext)
 
-    with open(image_path, 'wb') as f:
-        f.write(data)
+    try:
+        with open(image_path, 'wb') as f:
+            f.write(data)
+    except OSError as err:
+        raise SaveFileError(image_path, err.errno)
 
     return image_path
 
 
-_image_cache = {}
-
-
-IMAGE_TYPE_IMAGE = 1
-IMAGE_TYPE_DATASHEET = 2
-IMAGE_TYPE_CAD = 3
-IMAGE_TYPE_MODEL = 4
+RESOURCE_TYPE_IMAGE = 1
+RESOURCE_TYPE_DATASHEET = 2
+RESOURCE_TYPE_CAD = 3
+RESOURCE_TYPE_MODEL = 4
 
 
 def collect_resource(con, image_type, in_path):
@@ -279,7 +374,7 @@ def collect_resource(con, image_type, in_path):
 
     :param con: Database cursor or cursor-like object.
     :type con: UNKNOWN
-    :param image_type: Resource category constant such as :data:`IMAGE_TYPE_IMAGE`.
+    :param image_type: Resource category constant such as :data:`RESOURCE_TYPE_IMAGE`.
     :type image_type: int
     :param in_path: Local path or URL for the resource.
     :type in_path: str | None
@@ -291,17 +386,18 @@ def collect_resource(con, image_type, in_path):
     if not in_path:
         return None
 
-    if in_path in _image_cache:
-        return _image_cache[in_path]
-
-    if image_type == IMAGE_TYPE_IMAGE:
+    if image_type == RESOURCE_TYPE_IMAGE:
         path_name = 'image_path'
-    elif image_type == IMAGE_TYPE_DATASHEET:
+        is_type = 'is_image=1'
+    elif image_type == RESOURCE_TYPE_DATASHEET:
         path_name = 'datasheet_path'
-    elif image_type == IMAGE_TYPE_CAD:
+        is_type = 'is_datasheet=1'
+    elif image_type == RESOURCE_TYPE_CAD:
         path_name = 'cad_path'
-    elif image_type == IMAGE_TYPE_MODEL:
+        is_type = 'is_cad=1'
+    elif image_type == RESOURCE_TYPE_MODEL:
         path_name = 'model_path'
+        is_type = 'is_model=1'
     else:
         return None
 
@@ -309,35 +405,35 @@ def collect_resource(con, image_type, in_path):
     image_path = con.fetchall()[0][0]
 
     if in_path.startswith('http'):
-        if image_type == IMAGE_TYPE_MODEL:
-            image_path = _download_model(con, in_path)
+        if image_type == RESOURCE_TYPE_MODEL:
+            image_path = _download_model(con, in_path, is_type)
         else:
-            image_path = _download_image(con, in_path, image_path)
+            image_path = _download_image(con, in_path, image_path, is_type)
 
         if image_path is None:
             return None
     else:
-        con.execute(f'SELECT extension FROM file_types WHERE is_model={int(image_type == IMAGE_TYPE_MODEL)};')
+        con.execute(f'SELECT extension FROM file_types WHERE {is_type};')
         rows = con.fetchall()
         for row in rows:
             ext = row[0]
             if in_path.endswith('.' + ext):
                 uuid_ = str(uuid.uuid4())
 
-                if image_type == IMAGE_TYPE_MODEL:
+                if image_type == RESOURCE_TYPE_MODEL:
                     image_path = tempfile.gettempdir()
 
                 image_path = os.path.join(image_path, uuid_ + '.' + ext)
 
                 if not os.path.exists(in_path):
-                    raise RuntimeError(in_path)
+                    raise ExistingFileNotFoundError(in_path)
 
                 shutil.copyfile(in_path, image_path)
                 break
         else:
-            return None
+            raise FileTypeNotSupportedError(in_path)
 
-    if image_type == IMAGE_TYPE_IMAGE:
+    if image_type == RESOURCE_TYPE_IMAGE:
         # we want to resize the image to fit into a 256, 256 preview so to do that
         # the aspect ratio needs to be calculate. we have to first determine
         # the long "side" and then set that one to 256 and using the aspect ratio
@@ -347,28 +443,33 @@ def collect_resource(con, image_type, in_path):
 
         try:
             img = Image.open(image_path)
-        except:  # NOQA
-            return None
+        except Exception as err:  # NOQA
+            raise ImageReadError(image_path) from err
 
         img = _reformat_image(img)
 
         new_image_path = os.path.splitext(image_path)[0] + '.png'
-        img.save(new_image_path)
+
+        try:
+            img.save(new_image_path)
+        except Exception as err:  # NOQA
+            raise SaveFileError(new_image_path, -50)
 
         if image_path != new_image_path:
-            os.remove(image_path)
+            try:
+                os.remove(image_path)
+            except OSError as err:
+                raise RemoveFileError(image_path, err.errno) from err
 
         image_path = new_image_path
 
     filename = os.path.split(image_path)[-1]
     uuid_, ext = os.path.splitext(filename)
 
-    con.execute(f'SELECT id FROM file_types WHERE is_model={int(image_type == IMAGE_TYPE_MODEL)} AND extension="{ext[1:]}";')
+    con.execute(f'SELECT id FROM file_types WHERE {is_type} AND extension="{ext[1:]}";')
     file_type_id = con.fetchall()[0][0]
 
-    if image_type == IMAGE_TYPE_MODEL:
+    if image_type == RESOURCE_TYPE_MODEL:
         return image_path, file_type_id
-
-    _image_cache[in_path] = (uuid_, file_type_id)
 
     return uuid_, file_type_id

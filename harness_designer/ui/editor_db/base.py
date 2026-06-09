@@ -274,6 +274,12 @@ class EditorList(QTableView):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
     _no_image: QIcon = None
+    _download_0: QIcon = None
+    _download_1: QIcon = None
+    _download_2: QIcon = None
+    _download_3: QIcon = None
+    _download_4: QIcon = None
+    _download_5: QIcon = None
     _has_image = True
     _has_model_3d = True
     __table_name__ = ''
@@ -561,6 +567,25 @@ class EditorList(QTableView):
         # the icon column, so net index is col_id.
         return str(row[col_id])
 
+    def __update_progress(self, image, step):
+        db_id = image.db_id
+        if db_id not in self.downloading_images:
+            return
+
+        self.downloading_images[db_id][0] = getattr(self, f'_download_{step}')
+
+    def __load_icon(self, image, pixmap: QPixmap):
+        db_id = image.db_id
+        pixmap = pixmap.scaled(64, 64, Qt.AspectRatioMode.KeepAspectRatio,
+                               Qt.TransformationMode.SmoothTransformation)
+
+        self.bitmap_indexes[db_id] = QIcon(pixmap)
+        row_id = self.downloading_images[db_id][1]
+        del self.downloading_images[db_id]
+
+        # from ... import app
+        # app.CallAfter(self._model.invalidate_row, row_id)
+
     def _get_icon(self, row_id):
         """Return the icon.
 
@@ -580,38 +605,28 @@ class EditorList(QTableView):
 
         # row[0] is RowNum; actual id is at index 1
         db_id = row[1]
-        if db_id not in self.bitmap_indexes:
-            if not self._has_image:
-                self.bitmap_indexes[db_id] = EditorList._no_image
-                return EditorList._no_image
 
-            image_id = row[-1]
-            if image_id is None:
-                self.bitmap_indexes[db_id] = EditorList._no_image
-                return EditorList._no_image
+        if db_id in self.downloading_images:
+            return self.downloading_images[db_id][0]
 
+        if db_id in self.bitmap_indexes:
+            return self.bitmap_indexes[db_id]
+
+        if not self._has_image:
+            self.bitmap_indexes[db_id] = EditorList._no_image
+            return EditorList._no_image
+
+        image_id = row[-1]
+        if image_id is None:
+            self.bitmap_indexes[db_id] = EditorList._no_image
+            return EditorList._no_image
+
+        if image_id not in self.downloading_images:
+            self.downloading_images[image_id] = [self._download_0, row_id]
             image = self.table.db.images_table[image_id]
-            if image.uuid is None:
-                if image_id not in self.downloading_images:
-                    self.mainframe.process_manager.get_image(image_id)
-                    self.downloading_images.append(image_id)
+            image.load(row[4], row[2], self.__load_icon, self.__update_progress)
 
-                return None
-
-            if image_id in self.downloading_images:
-                self.downloading_images.remove(image_id)
-
-            image_path = image.data_path
-            if image_path is None:
-                self.bitmap_indexes[db_id] = EditorList._no_image
-                return EditorList._no_image
-
-            pixmap = QPixmap(image_path).scaled(
-                64, 64, Qt.KeepAspectRatio, Qt.SmoothTransformation
-            )
-            self.bitmap_indexes[db_id] = QIcon(pixmap)
-
-        return self.bitmap_indexes[db_id]
+        return self.downloading_images.get(image_id, [self.bitmap_indexes.get(image_id, EditorList._no_image)])[0]
 
     # ------------------------------------------------------------------
     # Qt event overrides
@@ -791,7 +806,7 @@ class EditorList(QTableView):
         self.rows = {}
         self.selected = None
         self.mainframe = mainframe
-        self.downloading_images = []
+        self.downloading_images = {}
 
         # [(col_name, 'ASC'|'DESC'), ...]
         self.sort_columns: list[tuple[str, str]] = []
@@ -806,11 +821,11 @@ class EditorList(QTableView):
         self._model = _EditorModel(self)
         self.setModel(self._model)
 
-        self.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.setShowGrid(True)
         self.setAlternatingRowColors(True)
-        self.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
 
         # manual sort via header click
         self.setSortingEnabled(False)
@@ -829,7 +844,7 @@ class EditorList(QTableView):
 
         # icon column
         self.setColumnWidth(0, 72)
-        header.setSectionResizeMode(0, QHeaderView.Fixed)
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
 
         fm = self.fontMetrics()
         for i in sorted(self.column_mapping.keys()):
@@ -840,9 +855,9 @@ class EditorList(QTableView):
             self.column_lookup[logical] = column_name
 
             if column_name == 'model3d_id':
-                header.setSectionResizeMode(logical, QHeaderView.Fixed)
+                header.setSectionResizeMode(logical, QHeaderView.ResizeMode.Fixed)
             else:
-                header.setSectionResizeMode(logical, QHeaderView.Interactive)
+                header.setSectionResizeMode(logical, QHeaderView.ResizeMode.Interactive)
 
             offset = 100 if label_text == 'Description' else 25
             self.setColumnWidth(
@@ -863,6 +878,24 @@ class EditorList(QTableView):
         if EditorList._no_image is None:
             img = _image.images.no_image.resize(64, 64)
             EditorList._no_image = QIcon(img.pixmap)
+
+            img = _image.images.download_0.resize(64, 64)
+            EditorList._download_0 = QIcon(img.pixmap)
+
+            img = _image.images.download_1.resize(64, 64)
+            EditorList._download_1 = QIcon(img.pixmap)
+
+            img = _image.images.download_2.resize(64, 64)
+            EditorList._download_2 = QIcon(img.pixmap)
+
+            img = _image.images.download_3.resize(64, 64)
+            EditorList._download_3 = QIcon(img.pixmap)
+
+            img = _image.images.download_4.resize(64, 64)
+            EditorList._download_4 = QIcon(img.pixmap)
+
+            img = _image.images.download_5.resize(64, 64)
+            EditorList._download_5 = QIcon(img.pixmap)
 
     # ------------------------------------------------------------------
     # Compatibility shims

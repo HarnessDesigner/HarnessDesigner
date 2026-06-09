@@ -4,13 +4,12 @@ from typing import TYPE_CHECKING
 
 import multiprocessing
 import os
-import json
 import time
-
-import requests.exceptions as _req_exc
+import threading
 import numpy as np
-
+import queue
 import pyfqmr
+import traceback
 from OCP.TopAbs import TopAbs_REVERSED
 from OCP.BRep import BRep_Tool
 from OCP.BRepMesh import BRepMesh_IncrementalMesh
@@ -23,6 +22,7 @@ from OCP.TopAbs import TopAbs_FACE
 from OCP.TopoDS import TopoDS
 
 from .. import utils as _utils
+from .. import resources as _resources
 from .. import model_data as _model_data
 
 
@@ -52,8 +52,6 @@ class ModelLoadError(ModelException):
 
 
 def _ocp_read_shape(shape):
-    print('tesselating model')
-
     BRepMesh_IncrementalMesh(
         theShape=shape, theLinDeflection=0.001,
         isRelative=True, theAngDeflection=0.1, isInParallel=True
@@ -67,7 +65,7 @@ def _ocp_read_shape(shape):
     while anExpSF.More():
         aLoc = TopLoc_Location()
         poly_triangulation = BRep_Tool.Triangulation_s(
-            TopoDS.Face_s(anExpSF.Current()), aLoc)
+            TopoDS.Face_s(anExpSF.Current()), aLoc)  # NOQA
 
         if not poly_triangulation:
             anExpSF.Next()   # ← must advance before skipping
@@ -94,7 +92,6 @@ def _ocp_read_shape(shape):
     vertices = np.array(vertices, dtype=np.float32)
     faces = np.array(faces, dtype=np.int32)
 
-    print('finished tesselating')
     return vertices, faces
 
 
@@ -159,7 +156,6 @@ def _load_step(file):
     :rtype: UNKNOWN
     """
 
-    print('loading step file:', file)
     step_reader = STEPControl_Reader()
     step_reader.ReadFile(file)
     step_reader.TransferRoots()  # NOQA
@@ -293,14 +289,16 @@ def _reduce_triangles(
     return vertices, faces
 
 
-import threading
 
 
 class ThreadWorker(threading.Thread):
 
-    def __init__(self, func, *args):
-        self.func = func
-        self.args = args
+    def __init__(self, db_broker, credentials, message, out_queue, exit_event):
+        self.db_broker = db_broker
+        self.credentials = credentials
+        self.message = message
+        self.exit_event = exit_event
+        self.out_queue = out_queue
 
         threading.Thread.__init__(self)
         self.daemon = True
@@ -308,15 +306,225 @@ class ThreadWorker(threading.Thread):
         self.exception = None
 
     def run(self):
+        connector = None
+
         try:
-            self.result = self.func(*self.args)
+            connector = self.db_broker.connect_to_database(self.credentials)
+            if connector is None:
+                raise RuntimeError('database connection error')
+
+            message = self.message
+
+            model_id = message['id']
+            mfg = message['mfg']
+            part_number = message['part_number']
+            model_dir = message['model_dir']
+
+            message['step'] = 1
+
+            self.out_queue.put(message)
+
+            if self.exit_event.is_set():
+                connector.close()
+                return
+
+            connector.execute(f'SELECT target_count, aggressiveness, '
+                              f'update_rate, iterations, simplify, '
+                              f'path FROM models3d WHERE id={model_id};')
+
+            model_data = connector.fetchall()
+
+            if not model_data:
+                message['err_msg'] = 'invalid database row'
+                message['err_no'] = -10001
+                message['allow_retry'] = True,
+
+                self.out_queue.put(message)
+                connector.close()
+                return
+
+            message['step'] = 2
+            self.out_queue.put(message)
+
+            if self.exit_event.is_set():
+                connector.close()
+                return
+
+            (target_count, aggressiveness, update_rate,
+             iterations, simplify, path) = model_data[0]
+
+            if not path:
+                message['err_msg'] = 'invalid model url/path'
+                message['err_no'] = -10002
+                message['allow_retry'] = True
+
+                self.out_queue.put(message)
+                connector.close()
+                return
+
+            message['step'] = 3
+            self.out_queue.put(message)
+
+            if self.exit_event.is_set():
+                connector.close()
+                return
+
+            try:
+                file_path = _resources.collect_resource(
+                    connector, _resources.RESOURCE_TYPE_MODEL, path)
+            except _resources.RequestsError as err:
+                message['err_no'] = err.code
+                message['err_msg'] = err.__msg__
+                tb = traceback.format_exception(err)
+                message['traceback'] = ''.join(tb)
+                self.out_queue.put(message)
+                connector.close()
+
+                return
+            # catchall for all other resource exceptions
+            except _resources.ResourceException as err:
+                message['err_no'] = err.code  # NOQA
+                message['err_msg'] = err.__msg__
+                message['err_path'] = err.path  # NOQA
+                tb = traceback.format_exception(err)
+                message['traceback'] = ''.join(tb)
+                self.out_queue.put(message)
+                connector.close()
+
+                return
+            except Exception as err:
+                tb = traceback.format_exception(err)
+                message['traceback'] = ''.join(tb)
+                self.out_queue.put(message)
+                self.out_queue.put(message)
+                connector.close()
+
+                return
+
+            if file_path is None:
+                message['err_no'] = -10003
+                message['err_msg'] = f'This should not occur "models3d" ({model_id})'
+                self.out_queue.put(message)
+                self.out_queue.put(message)
+                connector.close()
+
+                return
+
+            message['step'] = 4
+            self.out_queue.put(message)
+
+            if self.exit_event.is_set():
+                connector.close()
+                return
+
+            model_path, file_type_id = file_path
+
+            connector.execute(
+                f'SELECT extension FROM file_types WHERE id={file_type_id};')
+
+            rows = connector.fetchall()
+
+            if not rows:
+                message['err_msg'] = 'unsupported file type'
+                message['err_no'] = -10004
+
+                self.out_queue.put(message)
+                connector.close()
+                return
+
+            ext = rows[0][0]
+
+            message['step'] = 5
+            self.out_queue.put(message)
+
+            if self.exit_event.is_set():
+                connector.close()
+                return
+
+            if not os.path.exists(model_path):
+                message['err_msg'] = f'file does not exist ("{model_path}")'
+                message['err_no'] = -10005
+
+                self.out_queue.put(message)
+                connector.close()
+                return
+
+            vertices, faces = _load(model_path)
+
+            vertices = _center_model(vertices)
+
+            if simplify:
+                message['step'] = 6
+                self.out_queue.put(message)
+
+                if self.exit_event.is_set():
+                    connector.close()
+                    return
+
+                vertices, faces = _reduce_triangles(
+                    vertices, faces, target_count, aggressiveness, iterations
+                )
+
+            message['step'] = 7
+            self.out_queue.put(message)
+
+            if self.exit_event.is_set():
+                connector.close()
+                return
+
+            vertices, smooth_normals, face_normals, _ = (
+                _utils.compute_normals(vertices, faces))
+
+            message['step'] = 8
+            self.out_queue.put(message)
+
+            if self.exit_event.is_set():
+                connector.close()
+                return
+
+            model_data = _model_data.ModelData(
+                vertices, smooth_normals, face_normals
+            )
+
+            uuid = model_data.uuid
+            model_data.source_location = path
+            model_data.source_type = ext
+            model_data.part_number = part_number
+            model_data.manufacturer = mfg
+
+            model_data.save(model_dir)
+
+            message['step'] = 9
+            self.out_queue.put(message)
+
+            if self.exit_event.is_set():
+                connector.close()
+                return
+
+            # Only DB write permitted from child: uuid and file_type_id.
+            connector.execute(f'UPDATE models3d SET file_type_id={file_type_id}, '
+                              f'uuid="{uuid}" WHERE id={model_id};')
+
+            connector.commit()
+
+            message['step'] = 10
+            self.out_queue.put(message)
+
+            os.remove(model_path)
+
+            # Step 10: final success; parent updates resource_state.
+            message['step'] = 11
+            self.out_queue.put(message)
+
+            connector.close()
         except Exception as err:  # NOQA
             self.exception = err
+            if connector is not None:
+                connector.close()
 
 
 def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.Queue,
-                    exit_event: multiprocessing.Event, print_lock: multiprocessing.Lock,
-                    sleep_event: multiprocessing.Event):
+                    exit_event: multiprocessing.Event, print_lock: multiprocessing.Lock):
 
     """
     Downloads and converts the models
@@ -329,8 +537,6 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
     :type exit_event: multiprocessing.Event
     :param print_lock: Lock used when printing diagnostics.
     :type print_lock: multiprocessing.Lock
-    :param sleep_event: Event used to wake the worker before the next polling interval.
-    :type sleep_event: multiprocessing.Event
 
     :returns: ``None``.
     :rtype: None
@@ -357,292 +563,69 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
 
     credentials = cred_manager.retrieve_credentials(print_lock)
     if credentials is None:
-        out_queue.put(json.dumps({'log': 'MODEL DOWNLOADER: error collecting credentials'}))
+        out_queue.put({'log': 'MODEL DOWNLOADER: error collecting credentials'})
         return
 
     from . import db_broker
-
-    from .. import resources as _resources
     from .. import config as _config
 
     while not exit_event.is_set():
         if is_primary:
-            sleep_event.wait()
+            message = in_queue.get()
         else:
-            sleep_event.wait(120)
+            try:
+                message = in_queue.get(120)
+            except queue.Empty:
+                break
 
-        if not sleep_event.is_set():
-            break
+        if message is None:
+            continue
 
-        sleep_event.clear()
+        timeout = _config.Config.resources.model_watchdog_timeout
 
-        while not in_queue.empty():
+        thread = ThreadWorker(db_broker, credentials, message, out_queue, exit_event)
+        start_time = time.time()
+
+        thread.start()
+
+        stop_time = time.time()
+        while stop_time - start_time <= timeout:
             if exit_event.is_set():
                 break
 
-            in_message_ = in_queue.get_nowait()
-            in_message_ = json.loads(in_message_)
-
-            def _do(in_message):
-                connector = db_broker.connect_to_database(credentials)
-
-                if connector is None:
-                    raise RuntimeError('database connection error')
-
-                model_id = in_message['id']
-                mfg = in_message['mfg']
-                part_number = in_message['part_number']
-                model_dir = in_message['model_dir']
-
-                message = {'step': 0, 'id': model_id, 'mfg': mfg, 'part_number': part_number}
-
-                # Step 0: parent already holds the claim; just report start.
-                out_queue.put(json.dumps(message))
-
-                if exit_event.is_set():
-                    connector.close()
-                    return
-
-                connector.execute(f'SELECT target_count, aggressiveness, update_rate, iterations, simplify, path FROM models3d WHERE id={model_id};')
-                model_data = connector.fetchall()
-
-                if not model_data:
-                    message = {
-                        'err': 'invalid database row',
-                        'err_key': 'step_0',
-                        'err_blob': {'message': 'invalid database row',
-                                     'model_id': model_id, 'mfg': mfg,
-                                     'part_number': part_number, 'step': 0},
-                        'release': True,
-                        'id': model_id,
-                        'mfg': mfg, 'part_number': part_number,
-                    }
-                    out_queue.put(json.dumps(message))
-                    connector.close()
-                    return
-
-                message['step'] = 1
-                out_queue.put(json.dumps(message))
-
-                if exit_event.is_set():
-                    connector.close()
-                    return
-
-                target_count, aggressiveness, update_rate, iterations, simplify, path = model_data[0]
-
-                if not path:
-                    message['err'] = 'invalid model url/path'
-                    message['err_key'] = 'step_1'
-                    message['err_blob'] = {'message': 'invalid model url/path',
-                                           'model_id': model_id, 'mfg': mfg,
-                                           'part_number': part_number, 'step': 1}
-                    message['release'] = True
-                    out_queue.put(json.dumps(message))
-                    connector.close()
-                    return
-
-                message['step'] = 2
-                out_queue.put(json.dumps(message))
-
-                if exit_event.is_set():
-                    connector.close()
-                    return
-
-                try:
-                    file_path = _resources.collect_resource(connector, _resources.IMAGE_TYPE_MODEL, path)
-                except _req_exc.RequestException as req_err:
-                    _errno = getattr(req_err, 'errno', None)
-                    if _errno is None:
-                        _cause = (getattr(req_err, '__cause__', None) or
-                                  getattr(req_err, '__context__', None))
-                        _errno = getattr(_cause, 'errno', None) if _cause is not None else None
-                    err_key = (f'{type(req_err).__name__}:{_errno}'
-                               if _errno is not None else type(req_err).__name__)
-                    err_blob = {'message': str(req_err), 'errno': _errno,
-                                'model_id': model_id, 'mfg': mfg,
-                                'part_number': part_number, 'step': 2}
-                    message['err'] = f'{err_key}: {req_err}'
-                    message['err_key'] = err_key
-                    message['err_blob'] = err_blob
-                    message['release'] = True
-                    out_queue.put(json.dumps(message))
-                    connector.close()
-                    return
-
-                if file_path is None:
-                    message['err'] = 'unable to load model'
-                    message['err_key'] = 'step_2'
-                    message['err_blob'] = {'message': 'unable to load model',
-                                           'model_id': model_id, 'mfg': mfg,
-                                           'part_number': part_number, 'step': 2}
-                    message['release'] = True
-                    out_queue.put(json.dumps(message))
-                    connector.close()
-                    return
-
-                message['step'] = 3
-                out_queue.put(json.dumps(message))
-
-                if exit_event.is_set():
-                    connector.close()
-                    return
-
-                model_path, file_type_id = file_path
-
-                connector.execute(f'SELECT extension FROM file_types WHERE id={file_type_id};')
-                rows = connector.fetchall()
-
-                if not rows:
-                    message['err'] = 'unsupported file type'
-                    message['err_key'] = 'step_3'
-                    message['err_blob'] = {'message': 'unsupported file type',
-                                           'model_id': model_id, 'mfg': mfg,
-                                           'part_number': part_number, 'step': 3}
-                    message['release'] = True
-                    out_queue.put(json.dumps(message))
-                    connector.close()
-                    return
-
-                ext = rows[0][0]
-
-                message['step'] = 4
-                out_queue.put(json.dumps(message))
-
-                if exit_event.is_set():
-                    connector.close()
-                    return
-
-                if not os.path.exists(model_path):
-                    message['err'] = f'file does not exist ("{model_path}")'
-                    message['err_key'] = 'step_4'
-                    message['err_blob'] = {
-                        'message': f'file does not exist ("{model_path}")',
-                        'model_id': model_id, 'mfg': mfg,
-                        'part_number': part_number, 'step': 4,
-                    }
-                    message['release'] = True
-                    out_queue.put(json.dumps(message))
-                    connector.close()
-                    return
-
-                vertices, faces = _load(model_path)
-
-                vertices = _center_model(vertices)
-
-                if simplify:
-                    message['step'] = 5
-                    out_queue.put(json.dumps(message))
-
-                    if exit_event.is_set():
-                        connector.close()
-                        return
-
-                    vertices, faces = _reduce_triangles(vertices, faces, target_count, aggressiveness, iterations)
-
-                message['step'] = 6
-                out_queue.put(json.dumps(message))
-
-                if exit_event.is_set():
-                    connector.close()
-                    return
-
-                vertices, smooth_normals, face_normals, _ = (
-                    _utils.compute_normals(vertices, faces))
-
-                message['step'] = 7
-                out_queue.put(json.dumps(message))
-
-                if exit_event.is_set():
-                    connector.close()
-                    return
-
-                model_data = _model_data.ModelData(vertices, smooth_normals, face_normals)
-
-                uuid = model_data.uuid
-                model_data.source_location = path
-                model_data.source_type = ext
-                model_data.part_number = part_number
-                model_data.manufacturer = mfg
-
-                model_data.save(model_dir)
-
-                message['step'] = 8
-                out_queue.put(json.dumps(message))
-
-                if exit_event.is_set():
-                    connector.close()
-                    return
-
-                # Only DB write permitted from child: uuid and file_type_id.
-                connector.execute(f'UPDATE models3d SET file_type_id={file_type_id}, uuid="{uuid}" WHERE id={model_id};')
-                connector.commit()
-
-                message['step'] = 9
-                out_queue.put(json.dumps(message))
-
-                os.remove(model_path)
-
-                # Step 10: final success; parent updates resource_state.
-                message['step'] = 10
-                out_queue.put(json.dumps(message))
-
-                connector.close()
-
-            timeout = _config.Config.resources.model_watchdog_timeout
-
-            thread = ThreadWorker(_do, in_message_)
-            start_time = time.time()
-
-            thread.start()
+            if thread.is_alive():
+                exit_event.wait(1)
+            else:
+                break
 
             stop_time = time.time()
-            while stop_time - start_time <= timeout:
-                if exit_event.is_set():
-                    break
 
-                if thread.is_alive():
-                    exit_event.wait(1)
-                else:
-                    break
+        if exit_event.is_set():
+            break
 
-                stop_time = time.time()
+        if thread.exception is not None:
+            # Unhandled exception: pass error info to parent for DB update.
+            message['err_no'] = -10000
+            message['err_msg'] = 'Unknown Error'
+            message['allow_retry'] = False
+            tb = traceback.format_exception(thread.exception)
+            message['tb'] = ''.join(tb)
 
-            if exit_event.is_set():
-                break
+            out_queue.put(message)
+            continue
 
-            if thread.exception is not None:
-                # Unhandled exception: pass error info to parent for DB update.
-                err_key = type(thread.exception).__name__
-                in_message_['err'] = str(thread.exception)
-                in_message_['err_key'] = err_key
-                in_message_['err_blob'] = {
-                    'message': str(thread.exception),
-                    'model_id': in_message_.get('id'),
-                    'mfg': in_message_.get('mfg'),
-                    'part_number': in_message_.get('part_number'),
-                }
-                in_message_['release'] = True
-                out_queue.put(json.dumps(in_message_))
-                continue
+        if stop_time - start_time > timeout:
+            # Watchdog timeout: parent will persist as a blocking issue.
+            message['watchdog_restart'] = True
+            message['is_primary'] = is_primary
+            message['err_msg'] = 'watchdog timeout'
+            message['err_no'] = -10100
+            message['allow_retry'] = False
+            out_queue.put(message)
+            exit_event.set()
 
-            if stop_time - start_time > timeout:
-                # Watchdog timeout: parent will persist as a blocking issue.
-                in_message_['watchdog_restart'] = True
-                in_message_['is_primary'] = is_primary
-                in_message_['err_key'] = 'watchdog_timeout'
-                in_message_['err_blob'] = {
-                    'message': 'watchdog timeout',
-                    'model_id': in_message_.get('id'),
-                    'mfg': in_message_.get('mfg'),
-                    'part_number': in_message_.get('part_number'),
-                    'timeout_seconds': timeout,
-                }
-                in_message_['blocking'] = True
-                out_queue.put(json.dumps(in_message_))
-                exit_event.set()
-
-    message_ = {'exit_loop': 1}
-    out_queue.put(json.dumps(message_))
+    message = {'exit_loop': 1}
+    out_queue.put(message)
 
 
 class ProcessWorker:
@@ -654,11 +637,10 @@ class ProcessWorker:
         self.exit_event = multiprocessing.Event()
         self.in_queue = multiprocessing.Queue()
         self.out_queue = multiprocessing.Queue()
-        self.sleep_event = multiprocessing.Event()
 
         self.process = multiprocessing.Process(
             target=_process_worker,
-            args=(self.out_queue, self.in_queue, self.exit_event, print_lock, self.sleep_event))
+            args=(self.out_queue, self.in_queue, self.exit_event, print_lock))
 
         self.process.daemon = True
 
@@ -693,13 +675,12 @@ class ProcessWorker:
         :returns: ``None``.
         :rtype: None
         """
-        self.out_queue.put_nowait(message)
-        self.sleep_event.set()
+        self.out_queue.put(message)
 
     def recv(self):  # NOQA
         if not self.in_queue.empty():
             message = self.in_queue.get_nowait()
-            return json.loads(message)
+            return message
 
     def reset(self):
         pass
@@ -712,8 +693,8 @@ class ProcessWorker:
         :rtype: None
         """
         self.exit_event.set()
-        self.sleep_event.set()
+        self.out_queue.put(None)
 
-        self.process.join(3.0)
+        self.process.join(5.0)
         if self.process.is_alive():
             print('model process is stuck')

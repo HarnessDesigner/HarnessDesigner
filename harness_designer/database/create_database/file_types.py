@@ -46,7 +46,9 @@ def add_records(con, splash, data_path):
     con.commit()
 
 
-def add_file_type(con, name, extension, is_model, mimetype='', commit=True):
+def add_file_type(con, name, extension, is_model: bool | int = 0,
+                  is_image: bool | int = 0, is_datasheet: bool | int = 0,
+                  is_cad: bool | int = 0, mimetype: str = '', commit: bool = True):
     """Add a file type.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -59,6 +61,12 @@ def add_file_type(con, name, extension, is_model, mimetype='', commit=True):
     :type extension: UNKNOWN
     :param is_model: Boolean flag for whether model.
     :type is_model: UNKNOWN
+    :param is_image: Boolean flag for whether model.
+    :type is_image: UNKNOWN
+    :param is_datasheet: Boolean flag for whether model.
+    :type is_datasheet: UNKNOWN
+    :param is_cad: Boolean flag for whether model.
+    :type is_cad: UNKNOWN
     :param mimetype: Value for ``mimetype``.
     :type mimetype: UNKNOWN
     :param commit: Value for ``commit``.
@@ -66,8 +74,8 @@ def add_file_type(con, name, extension, is_model, mimetype='', commit=True):
     :returns: Return value. UNKNOWN details.
     :rtype: UNKNOWN
     """
-    con.execute('INSERT INTO file_types (mimetype, extension, name, is_model) '
-                'VALUES (?, ?, ?, ?);', (mimetype, extension, name, is_model))
+    con.execute('INSERT INTO file_types (mimetype, extension, name, is_model, is_image, is_datasheet, is_cad) '
+                'VALUES (?, ?, ?, ?, ?, ?, ?);', (mimetype, extension, name, int(is_model), int(is_image), int(is_datasheet), int(is_cad)))
 
     _logger.logger.database(f'file type added "{extension}"')
 
@@ -147,6 +155,8 @@ table = _con.SQLTable(
     _con.TextField('extension', no_null=True),
     _con.TextField('name', default='""', no_null=True),
     _con.TextField('mimetype', default='""', no_null=True),
-    _con.IntField('is_model', default='1', no_null=True)
-
+    _con.IntField('is_model', default='0', no_null=True),
+    _con.IntField('is_image', default='0', no_null=True),
+    _con.IntField('is_datasheet', default='0', no_null=True),
+    _con.IntField('is_cad', default='0', no_null=True)
 )

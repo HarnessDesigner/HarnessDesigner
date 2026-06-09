@@ -161,7 +161,6 @@ class Project:
 
                 obj = _cover.Cover(mainframe, cover)
                 cover_packet = cover.build_monitor_packet()
-                print('COVER PACKET:', cover_packet)
                 cover.merge_packet_data(cover_packet, db_ids)
                 self._covers[cover.db_id] = obj
 
@@ -223,7 +222,6 @@ class Project:
 
                 obj = _housing.Housing(mainframe, housing)
                 housing_packet = housing.build_monitor_packet()
-                print('HOUSING PACKET:', housing_packet)
                 housing.merge_packet_data(housing_packet, db_ids)
                 self._housings[housing.db_id] = obj
 
@@ -290,7 +288,7 @@ class Project:
         for table_name, ids in db_ids.items():
             while None in ids:
                 ids.remove(None)
-            
+
             kwargs = {'type': f'add_{table_name}', 'data': ids}
             self.mainframe.process_manager.send(**kwargs)
 

@@ -3,6 +3,9 @@
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
 import os
+from PySide6 import QtGui
+from PySide6 import QtPdf
+import weakref
 
 from ... import resources as _resources
 from ..create_database import datasheets as _datasheets
@@ -124,6 +127,99 @@ class Datasheet(EntryBase):
 
         return packet
 
+    def load(self, mfg, part_number, callback) -> QtGui.QPixmap:
+        """
+        Load a datacheet.
+
+        This function schedules the loading to take place using a child process.
+        The reason why this is done is for multi seat environments and not
+        duplicating image downloads and also to provide a way to audit failed
+        downloads so a system administrator can fix what is wrong.
+
+        :param mfg: Manufacturer of the part.
+        :type mfg: str
+
+        :param part_number: Part number of part that uses this model.
+        :type part_number: str
+
+        :param callback: callback that takes :class:`Image` and
+                         :class:`QtPdf.QPdfDocument` |
+                         :class:`QtGui.QPixmap`
+                         instances as parameters.
+
+        :type callback: callable
+
+        :returns: ``None``.
+        :rtype: None
+        """
+
+        file = self.data_path
+
+        if file is None:
+
+            if (_resources.RESOURCE_TYPE_DATASHEET, self.db_id) in self._table.db.resource_state_table:
+                resource_state = self._table.db.resource_state_table[(_resources.RESOURCE_TYPE_DATASHEET, self.db_id)]
+            else:
+                resource_state = self._table.db.resource_state_table.insert(_resources.RESOURCE_TYPE_DATASHEET, self.db_id)
+
+            if resource_state.allow_retry:
+                if resource_state.progress == -1:
+                    resource_state.progress = 0
+
+                def _do():
+                    # ensures the callbacks only get called a simgle time
+                    if self.db_id not in self._callbacks:
+                        return
+
+                    file_ = self.data_path
+                    if file_ is not None:
+                        # we need to determine the type of
+                        # file type that is being used
+                        if file_.endswith('.pdf'):
+                            data_ = QtPdf.QPdfDocument()
+                            data_.load(file_)
+                        else:
+                            data_ = QtGui.QPixmap(file_)
+
+                        for ref_ in self._callbacks[self.db_id]:
+                            cb_ = ref_()
+                            if cb_ is None:
+                                continue
+
+                            cb_(self, data_)
+
+                        del self._callbacks[self.db_id]
+
+                if self.db_id not in self._callbacks:
+                    self._callbacks[self.db_id] = []
+
+                self._callbacks[self.db_id].append(weakref.WeakMethod(callback))
+
+                datasheet_path = self._table.db.settings_table['datasheet_path']
+
+                self._table.db.mainframe.process_manager.get_datasheet(
+                    self, resource_state, mfg, part_number, datasheet_path, _do)
+        else:
+            # we need to determine the type of file type that is being used
+
+            if file.endswith('.pdf'):
+                data = QtPdf.QPdfDocument()
+                data.load(file)
+            else:
+                data = QtGui.QPixmap(file)
+
+            if self.db_id in self._callbacks:
+                for ref in self._callbacks[self.db_id]:
+                    cb = ref()
+                    if cb is None:
+                        continue
+
+                    cb(self, data)
+
+                del self._callbacks[self.db_id]
+
+            callback(self, data)
+
     @property
     def data_path(self) -> str | None:
         """Return the data path.
@@ -133,22 +229,18 @@ class Datasheet(EntryBase):
         :returns: Property value. UNKNOWN details.
         :rtype: str | None
         """
+
         file_id = self.uuid
         if file_id is None:
-            values = _resources.collect_resource(self._table, _resources.IMAGE_TYPE_DATASHEET, self.path)
-
-            if values is None:
-                return None
-
-            file_id, file_type_id = values
-
-            self._table.update(self._db_id, file_type_id=file_type_id)
-            self._table.update(self._db_id, uuid=file_id)
+            return None
 
         file_type = self.file_type
 
-        datasheet_path = self._table.db.settings_table['datasheet_path']
-        return os.path.join(datasheet_path, file_id[:2], f'{file_id}.{file_type.extension}')
+        cad_path = self._table.db.settings_table['datasheet_path']
+        path = os.path.join(cad_path, file_id[:2], f'{file_id}.{file_type.extension}')
+
+        if os.path.exists(path):
+            return path
 
     @property
     def path(self) -> str:

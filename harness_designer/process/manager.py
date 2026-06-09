@@ -24,11 +24,16 @@ import uuid
 
 from .. import config as _config
 from .. import logger as _logger
-from ..database.create_database import resource_state as _rs
+from .. import resources as _resources
 
 
 if TYPE_CHECKING:
     from .. import ui as _ui
+    from ..database.global_db import image as _image
+    from ..database.global_db import resource_state as _resource_state
+    from ..database.global_db import datasheet as _datasheet
+    from ..database.global_db import cad as _cad
+    from ..database.global_db import model3d as _model3d
 
 
 Config = _config.Config.database
@@ -315,7 +320,7 @@ class ProcessManager(threading.Thread):
         self._db_process = db_process.ProcessWorker(self, self._print_lock)
         self._image_process = image_process.ProcessWorker(self, self._print_lock)
         self._model_processes = [model_process.ProcessWorker(self, self._print_lock)]
-        self._model_processes_cb = [None]
+        self._model_processes_running = [None]
         self._model_progress = {}
 
         threading.Thread.__init__(self, name='process_monitor_thread')
@@ -334,25 +339,98 @@ class ProcessManager(threading.Thread):
 
         threading.Thread.start(self)
 
-    def get_image(self, image_id):
-        """Queue an image identifier for background resource collection.
+    def get_image(self, priority: int, image_db: "_image.Image",
+                  resource_db: "_resource_state.ResourceState", mfg: str,
+                  part_number: str, path: str):
+        """
+        Queue an image identifier for background resource collection.
 
-        :param image_id: Identifier of the image row to process.
-        :type image_id: UNKNOWN
+        :param priority:
+        :type priority: UNKNOWN
+
+        :param image_db:
+        :type image_db: UNKNOWN
+
+        :param resource_db:
+        :type resource_db: UNKNOWN
+
+        :param mfg:
+        :type mfg: UNKNOWN
+
+        :param part_number:
+        :type part_number: UNKNOWN
+
+        :param path:
+        :type path: UNKNOWN
 
         :returns: ``None``.
         :rtype: None
         """
-        rs_con = self.mainframe.global_db.resource_state_table._con
-        _rs.ensure_row(rs_con, _rs.RESOURCE_TYPE_IMAGE, image_id)
-        if not _rs.try_claim(rs_con, _rs.RESOURCE_TYPE_IMAGE, image_id):
-            state = _rs.get_state(rs_con, _rs.RESOURCE_TYPE_IMAGE, image_id)
-            current_step = state['progress'] if state else _rs.PROGRESS_CLAIMED
-            _logger.logger.info(
-                f'IMAGE: image {image_id} already claimed (step {current_step})'
-            )
-            return
-        self._image_process.send(image_id)
+
+        self._image_process.add(priority, _resources.RESOURCE_TYPE_IMAGE,
+                                image_db, resource_db, mfg, part_number, path)
+
+    def get_datasheet(self, priority: int, datasheet_db: "_datasheet.Datasheet",
+                      resource_db: "_resource_state.ResourceState", mfg: str,
+                      part_number: str, path: str):
+        """
+        Queue an image identifier for background resource collection.
+
+        :param priority:
+        :type priority: UNKNOWN
+
+        :param datasheet_db:
+        :type datasheet_db: UNKNOWN
+
+        :param resource_db:
+        :type resource_db: UNKNOWN
+
+        :param mfg:
+        :type mfg: UNKNOWN
+
+        :param part_number:
+        :type part_number: UNKNOWN
+
+        :param path:
+        :type path: UNKNOWN
+
+        :returns: ``None``.
+        :rtype: None
+        """
+
+        self._image_process.add(priority, _resources.RESOURCE_TYPE_DATASHEET,
+                                datasheet_db, resource_db, mfg, part_number, path)
+
+    def get_cad(self, priority: int, cad_db: "_cad.CAD",
+                resource_db: "_resource_state.ResourceState", mfg: str,
+                part_number: str, path: str):
+        """
+        Queue an image identifier for background resource collection.
+
+        :param priority:
+        :type priority: UNKNOWN
+
+        :param cad_db:
+        :type cad_db: UNKNOWN
+
+        :param resource_db:
+        :type resource_db: UNKNOWN
+
+        :param mfg:
+        :type mfg: UNKNOWN
+
+        :param part_number:
+        :type part_number: UNKNOWN
+
+        :param path:
+        :type path: UNKNOWN
+
+        :returns: ``None``.
+        :rtype: None
+        """
+
+        self._image_process.add(priority, _resources.RESOURCE_TYPE_CAD,
+                                cad_db, resource_db, mfg, part_number, path)
 
     def run(self):
         """Forward monitor subprocess messages back to the UI thread.
@@ -367,33 +445,10 @@ class ProcessManager(threading.Thread):
         start_progress = False
 
         while not self._exit_event.is_set():
+            self._image_process.recv()
+            self._image_process.send()
+
             got_message = False
-
-            # --- Image process messages ---
-            image_message = self._image_process.recv()
-            while image_message is not None:
-                got_message = True
-                rs_con = self.mainframe.global_db.resource_state_table._con
-                image_id = image_message.get('id')
-
-                if 'log' in image_message:
-                    _logger.logger.info(image_message['log'])
-
-                elif 'err_key' in image_message and image_id is not None:
-                    _rs.persist_error(
-                        rs_con, _rs.RESOURCE_TYPE_IMAGE, image_id,
-                        image_message['err_key'], image_message['err_blob'],
-                    )
-                    if image_message.get('release'):
-                        _rs.release_claim(rs_con, _rs.RESOURCE_TYPE_IMAGE, image_id)
-
-                elif 'step' in image_message and image_id is not None:
-                    _rs.update_progress(
-                        rs_con, _rs.RESOURCE_TYPE_IMAGE, image_id,
-                        image_message['step'],
-                    )
-
-                image_message = self._image_process.recv()
 
             # --- Model process messages ---
             with self._model_lock:
@@ -406,7 +461,6 @@ class ProcessManager(threading.Thread):
 
                     got_message = True
 
-                    rs_con = self.mainframe.global_db.resource_state_table._con
                     model_id = message.get('id')
 
                     if 'log' in message:
@@ -417,14 +471,11 @@ class ProcessManager(threading.Thread):
                         _logger.logger.info(f'MODEL PROCESS MESSAGE: {message}')
 
                         # Persist blocking error to resource_state.
-                        if model_id is not None and 'err_key' in message:
-                            _rs.persist_error(
-                                rs_con, _rs.RESOURCE_TYPE_MODEL, model_id,
-                                message['err_key'], message['err_blob'],
-                                blocking=message.get('blocking', False),
-                            )
+                        model_db, resource_db = self._model_processes_running
+                        self._model_processes_running[i - offset] = None
 
-                        self._model_processes_cb[i - offset] = None
+                        resource_db.set_error(**message)
+
                         is_primary = message['is_primary']
 
                         from ..ui.dialogs import error as _error
@@ -462,28 +513,25 @@ class ProcessManager(threading.Thread):
                             self._model_processes[i - offset].start(True)
                         else:
                             self._model_processes.remove(process)
-                            self._model_processes_cb.pop(i - offset)
+                            self._model_processes_running.pop(i - offset)
                             offset += 1
 
                         continue
 
                     if 'exit_loop' in message:
                         self._model_processes.remove(process)
-                        self._model_processes_cb.pop(i - offset)
+                        self._model_processes_running.pop(i - offset)
                         offset += 1
                         continue
 
                     if 'err' in message:
                         _logger.logger.info(f'MODEL PROCESS MESSAGE: {message}')
 
+                        model_db, resource_db = self._model_processes_running[i - offset]
+
                         # Persist error and optionally release claim.
-                        if model_id is not None and 'err_key' in message:
-                            _rs.persist_error(
-                                rs_con, _rs.RESOURCE_TYPE_MODEL, model_id,
-                                message['err_key'], message['err_blob'],
-                            )
-                            if message.get('release'):
-                                _rs.release_claim(rs_con, _rs.RESOURCE_TYPE_MODEL, model_id)
+                        if model_id is not None and 'err_msg' in message:
+                            resource_db.set_error(**message)
 
                         from ..ui.dialogs import error as _error
 
@@ -497,7 +545,7 @@ class ProcessManager(threading.Thread):
 
                         _app.CallAfter(_do, message)
                         self._model_process_active -= 1
-                        self._model_processes_cb[i - offset] = None
+                        self._model_processes_running[i - offset] = None
                         del self._model_progress[message['part_number']]
 
                         if part_number in curr_progresses:
@@ -520,26 +568,25 @@ class ProcessManager(threading.Thread):
                         step = message['step']
                         part_number = message['part_number']
 
+                        model_db, resource_db = self._model_processes_running[i - offset]
+
                         # Update resource_state progress in parent.
-                        if model_id is not None and step > 0:
-                            _rs.update_progress(
-                                rs_con, _rs.RESOURCE_TYPE_MODEL, model_id, step,
-                            )
+                        resource_db.set_progress(step)
 
                         def _do(stp, pn, start):
                             if start:
-                                self.mainframe.start_progress('', 10)
+                                self.mainframe.start_progress('', 11)
 
                             self.mainframe.set_progress(stp, pn)
 
-                        if step == 0:
+                        if step == 1:
                             curr_progresses.insert(curr_progress_index, part_number)
                             if not self._model_progress:
                                 start_progress = True
 
                         self._model_progress[part_number] = step
 
-                        if step == 10:
+                        if step == 11:
                             index = curr_progresses.index(part_number)
                             if curr_progress_index >= index:
                                 curr_progress_index -= 1
@@ -547,13 +594,13 @@ class ProcessManager(threading.Thread):
                             curr_progresses.remove(part_number)
                             del self._model_progress[part_number]
 
-                            def _do2(cb, db_id):
-                                model3d_obj = self.mainframe.global_db.models3d_table[db_id]
-                                model3d_obj.load('', '', cb)
+                            def _do2(model_db_, resource_db_):
+                                resource_db_.delete()
+                                model_db_.download_finished()
 
-                            _app.CallAfter(_do2, self._model_processes_cb[i - offset], message['id'])
+                            _app.CallAfter(_do2, *self._model_processes_running[i - offset])
 
-                            self._model_processes_cb[i - offset] = None
+                            self._model_processes_running[i - offset] = None
 
                             self._model_process_active -= 1
 
@@ -568,7 +615,7 @@ class ProcessManager(threading.Thread):
                 continue
 
             if self._model_process_active:
-                self.wait_duration = 5
+                self.wait_duration = 1
                 curr_progress_index += 1
 
                 if curr_progress_index > len(curr_progresses) - 1:
@@ -585,7 +632,7 @@ class ProcessManager(threading.Thread):
             else:
                 self.wait_duration = Config.monitor_duration
 
-            self._wait_event.wait(self.wait_duration)
+            self._wait_event.wait(0.05)
             self._wait_event.clear()
 
             args = self._db_process.recv()
@@ -609,20 +656,15 @@ class ProcessManager(threading.Thread):
         """
         self.send(type='reset_storage')
 
-    def get_model(self, callback, **model_info):
-        model_id = model_info.get('id')
-        if model_id is not None:
-            rs_con = self.mainframe.global_db.resource_state_table._con
-            _rs.ensure_row(rs_con, _rs.RESOURCE_TYPE_MODEL, model_id)
-            if not _rs.try_claim(rs_con, _rs.RESOURCE_TYPE_MODEL, model_id):
-                state = _rs.get_state(rs_con, _rs.RESOURCE_TYPE_MODEL, model_id)
-                current_step = state['progress'] if state else _rs.PROGRESS_CLAIMED
-                _logger.logger.info(
-                    f'MODEL: model {model_id} already claimed (step {current_step})'
-                )
-                return
+    def get_model(self, model_db: "_model3d.Model3D", resource_db: "_resource_state.ResourceState",
+                  mfg: str, part_number: str, path: str):
 
-        message = json.dumps(model_info)
+        message= {
+            'id': model_db.db_id,
+            'mfg': mfg,
+            'part_number': part_number,
+            'path': path
+        }
 
         with self._model_lock:
             for i, process in enumerate(self._model_processes[:]):
@@ -630,10 +672,10 @@ class ProcessManager(threading.Thread):
                 if not process.is_alive():
                     continue
 
-                if self._model_processes_cb[i] is None:
+                if self._model_processes_running[i] is None:
                     self._model_process_active += 1
                     process.send(message)
-                    self._model_processes_cb[i] = callback
+                    self._model_processes_running[i] = (model_db, resource_db)
                     break
             else:
                 if len(self._model_processes) == self._core_count:
@@ -656,9 +698,9 @@ class ProcessManager(threading.Thread):
 
                 process.send(message)
                 self._model_processes.append(process)
-                self._model_processes_cb.append(callback)
+                self._model_processes_running.append((model_db, resource_db))
 
-            self.wait_duration = 5
+            self.wait_duration = 1
             self._wait_event.set()
 
     def send(self, **kwargs):

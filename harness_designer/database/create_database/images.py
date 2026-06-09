@@ -2,7 +2,6 @@
 
 from .. import db_connectors as _con
 from . import file_types as _file_types
-from . import resource_state as _resource_state
 from ... import resources as _resources
 from ... import logger as _logger
 
@@ -31,7 +30,7 @@ def get_image_id(con, path: str):  # NOQA
         if path.startswith('http'):
             con.execute('INSERT INTO images (path) VALUES (?);', (path,))
         else:
-            values = _resources.collect_resource(con, _resources.IMAGE_TYPE_IMAGE, path)
+            values = _resources.collect_resource(con, _resources.RESOURCE_TYPE_IMAGE, path)
             if values is None:
                 return None
 
@@ -42,8 +41,6 @@ def get_image_id(con, path: str):  # NOQA
         db_id = con.lastrowid
 
         _logger.logger.database(f'image added "{path}" = {db_id}')
-
-        _resource_state.ensure_row(con, _resource_state.RESOURCE_TYPE_IMAGE, db_id)
 
         return db_id
     else:
