@@ -116,7 +116,10 @@ def handle_cookie(response):
             if cookie.domain.startswith('.'):
                 domain = domain[1:]
 
-            COOKIES[domain] = cookie
+            if domain not in COOKIES:
+                COOKIES[domain] = {}
+
+            COOKIES[domain][cookie.name] = cookie
 
 
 def requests_get(url, is_retry=False, **kwargs):
@@ -145,13 +148,13 @@ def requests_get(url, is_retry=False, **kwargs):
 
     for cookie_domain in COOKIES.keys():
         if domain.endswith(cookie_domain):
-            cookie = COOKIES[cookie_domain]
-            if cookie.path_specified:
-                if path.startswith(cookie.path):
+            domain_cookies = COOKIES[cookie_domain]
+            for cookie in domain_cookies.values():
+                if cookie.path_specified:
+                    if path.startswith(cookie.path):
+                        cookies.set_cookie(cookie)
+                else:
                     cookies.set_cookie(cookie)
-            else:
-                cookies.set_cookie(cookie)
-
     try:
         response = requests.get(url, headers=header, cookies=cookies, **kwargs)
 
