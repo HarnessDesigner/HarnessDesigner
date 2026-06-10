@@ -77,8 +77,11 @@ class PlatingControl(_prop_ctrls.Category):
         self.symbol_ctrl = _prop_ctrls.ComboBoxProperty(self, 'Symbol')
         self.desc_ctrl = _prop_ctrls.LongStringProperty(self, 'Description')
 
-        self.symbol_ctrl.property_changed.connect(self._on_symbol)
-        self.desc_ctrl.property_changed.connect(self._on_desc)
+        self.addWidget(self.symbol_ctrl)
+        self.addWidget(self.desc_ctrl)
+
+        self.symbol_ctrl.propertyChanged.connect(self._on_symbol)
+        self.desc_ctrl.propertyChanged.connect(self._on_desc)
 
     def set_obj(self, db_obj: PlatingMixin):
         """Set the obj.
@@ -97,8 +100,8 @@ class PlatingControl(_prop_ctrls.Category):
             self.symbol_ctrl.SetValue('')
             self.desc_ctrl.SetValue('')
 
-            self.symbol_ctrl.Enable(False)
-            self.desc_ctrl.Enable(False)
+            self.symbol_ctrl.setEnabled(False)
+            self.desc_ctrl.setEnabled(False)
         else:
             plating = getattr(db_obj, self.attribute_name)
 
@@ -112,8 +115,8 @@ class PlatingControl(_prop_ctrls.Category):
             self.symbol_ctrl.SetValue(plating.symbol)
             self.desc_ctrl.SetValue(plating.description)
 
-            self.symbol_ctrl.Enable(True)
-            self.desc_ctrl.Enable(True)
+            self.symbol_ctrl.setEnabled(True)
+            self.desc_ctrl.setEnabled(True)
 
     def _on_symbol(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the symbol event.

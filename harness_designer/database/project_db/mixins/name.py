@@ -52,7 +52,7 @@ class NameControl(_prop_ctrls.StringProperty):
 
         super().__init__(parent, 'Name')
 
-        self.property_changed.connect(self._on_name)
+        self.propertyChanged.connect(self._on_name)
 
     def _on_name(self, evt):
         """Handle the name event.
@@ -77,7 +77,7 @@ class NameControl(_prop_ctrls.StringProperty):
 
         if db_obj is None:
             self.SetValue('')
-            self.Enable(False)
+            self.setEnabled(False)
         else:
             self.SetValue(db_obj.name)
-            self.Enable(True)
+            self.setEnabled(True)

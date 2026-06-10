@@ -299,20 +299,32 @@ class PJTBootControl(QTabWidget):
         self.note_ctrl = NotesControl(general_page)
         self.smooth_ctrl = SmoothControl(general_page)
 
+        general_page.addWidget(self.name_ctrl)
+        general_page.addWidget(self.note_ctrl)
+        general_page.addWidget(self.smooth_ctrl)
+
         angle_page = _prop_ctrls.Category(self, 'Angle')
         self.angle3d_ctrl = Angle3DControl(angle_page)
+
+        angle_page.addWidget(self.angle3d_ctrl)
 
         position_page = _prop_ctrls.Category(self, 'Position')
         self.position3d_ctrl = Position3DControl(position_page)
 
+        position_page.addWidget(self.position3d_ctrl)
+
         visible_page = _prop_ctrls.Category(self, 'Visible')
         self.visible3d_ctrl = Visible3DControl(visible_page)
+
+        visible_page.addWidget(self.visible3d_ctrl)
 
         part_page = _prop_ctrls.Category(self, 'Part')
 
         from ..global_db import boot as _boot  # NOQA
 
         self.boot_ctrl = _boot.BootControl(part_page)
+
+        part_page.addWidget(self.boot_ctrl)
 
         for page in (
             general_page,
@@ -322,4 +334,3 @@ class PJTBootControl(QTabWidget):
             part_page
         ):
             self.addTab(page, page.GetLabel())
-            page.Realize()

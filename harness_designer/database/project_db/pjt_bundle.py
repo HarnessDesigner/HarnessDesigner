@@ -328,14 +328,24 @@ class PJTBundleControl(QTabWidget):
         self.notes_ctrl = NotesControl(general_page)
         self.smooth_ctrl = SmoothControl(general_page)
 
+        general_page.addWidget(self.name_ctrl)
+        general_page.addWidget(self.notes_ctrl)
+        general_page.addWidget(self.smooth_ctrl)
+
         visible_page = _prop_ctrls.Category(self, 'Visible')
         self.visible_ctrl = Visible3DControl(visible_page)
+
+        visible_page.addWidget(self.visible_ctrl)
 
         position_page = _prop_ctrls.Category(self, 'Position')
         self.start_stop_ctrl = StartStopPosition3DControl(position_page)
 
+        position_page.addWidget(self.start_stop_ctrl)
+
         part_page = _prop_ctrls.Category(self, 'Part')
         self.part_ctrl = _bundle_cover.BundleCoverControl(part_page)
+
+        part_page.addWidget(self.part_ctrl)
 
         for page in (
             general_page,
@@ -344,4 +354,3 @@ class PJTBundleControl(QTabWidget):
             part_page
         ):
             self.addTab(page, page.GetLabel())
-            page.Realize()

@@ -189,14 +189,14 @@ class WireSizeControl(_prop_ctrls.Category):
             self.min_mm2_ctrl.SetValue(0.0507)
             self.max_mm2_ctrl.SetValue(0.0507)
 
-            self.min_dia_ctrl.Enable(False)
-            self.max_dia_ctrl.Enable(False)
+            self.min_dia_ctrl.setEnabled(False)
+            self.max_dia_ctrl.setEnabled(False)
 
-            self.min_awg_ctrl.Enable(False)
-            self.max_awg_ctrl.Enable(False)
+            self.min_awg_ctrl.setEnabled(False)
+            self.max_awg_ctrl.setEnabled(False)
 
-            self.min_mm2_ctrl.Enable(False)
-            self.max_mm2_ctrl.Enable(False)
+            self.min_mm2_ctrl.setEnabled(False)
+            self.max_mm2_ctrl.setEnabled(False)
         else:
             self.min_dia_ctrl.SetValue(db_obj.wire_size_dia_min)
             self.max_dia_ctrl.SetValue(db_obj.wire_size_dia_max)
@@ -207,14 +207,14 @@ class WireSizeControl(_prop_ctrls.Category):
             self.min_mm2_ctrl.SetValue(db_obj.wire_size_cross_min)
             self.max_mm2_ctrl.SetValue(db_obj.wire_size_cross_max)
 
-            self.min_dia_ctrl.Enable(True)
-            self.max_dia_ctrl.Enable(True)
+            self.min_dia_ctrl.setEnabled(True)
+            self.max_dia_ctrl.setEnabled(True)
 
-            self.min_awg_ctrl.Enable(True)
-            self.max_awg_ctrl.Enable(True)
+            self.min_awg_ctrl.setEnabled(True)
+            self.max_awg_ctrl.setEnabled(True)
 
-            self.min_mm2_ctrl.Enable(True)
-            self.max_mm2_ctrl.Enable(True)
+            self.min_mm2_ctrl.setEnabled(True)
+            self.max_mm2_ctrl.setEnabled(True)
 
     def _on_min_mm2(self, evt):
         """Handle the min mm 2 event.
@@ -331,11 +331,20 @@ class WireSizeControl(_prop_ctrls.Category):
         self.max_dia_ctrl = _prop_ctrls.FloatProperty(
             self, 'Maximum Diameter', min_value=0.254, max_value=13.1191, increment=0.0001, units='mm')
 
-        self.min_mm2_ctrl.property_changed.connect(self._on_min_mm2)
-        self.max_mm2_ctrl.property_changed.connect(self._on_max_mm2)
+        self.addWidget(self.min_mm2_ctrl)
+        self.addWidget(self.max_mm2_ctrl)
 
-        self.min_awg_ctrl.property_changed.connect(self._on_min_awg)
-        self.max_awg_ctrl.property_changed.connect(self._on_max_awg)
+        self.min_mm2_ctrl.propertyChanged.connect(self._on_min_mm2)
+        self.max_mm2_ctrl.propertyChanged.connect(self._on_max_mm2)
 
-        self.min_dia_ctrl.property_changed.connect(self._on_min_dia)
-        self.max_dia_ctrl.property_changed.connect(self._on_max_dia)
+        self.addWidget(self.min_awg_ctrl)
+        self.addWidget(self.max_awg_ctrl)
+
+        self.min_awg_ctrl.propertyChanged.connect(self._on_min_awg)
+        self.max_awg_ctrl.propertyChanged.connect(self._on_max_awg)
+
+        self.addWidget(self.min_dia_ctrl)
+        self.addWidget(self.max_dia_ctrl)
+
+        self.min_dia_ctrl.propertyChanged.connect(self._on_min_dia)
+        self.max_dia_ctrl.propertyChanged.connect(self._on_max_dia)

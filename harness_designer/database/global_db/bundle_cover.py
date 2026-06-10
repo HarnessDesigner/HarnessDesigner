@@ -525,12 +525,12 @@ class BundleCoverControl(QTabWidget):
             self.min_dia_ctrl.SetValue(0.0)
             self.max_dia_ctrl.SetValue(0.0)
 
-            self.shrink_temp_ctrl.Enable(False)
-            self.rigidity_ctrl.Enable(False)
-            self.shrink_ratio_ctrl.Enable(False)
-            self.wall_ctrl.Enable(False)
-            self.min_dia_ctrl.Enable(False)
-            self.max_dia_ctrl.Enable(False)
+            self.shrink_temp_ctrl.setEnabled(False)
+            self.rigidity_ctrl.setEnabled(False)
+            self.shrink_ratio_ctrl.setEnabled(False)
+            self.wall_ctrl.setEnabled(False)
+            self.min_dia_ctrl.setEnabled(False)
+            self.max_dia_ctrl.setEnabled(False)
         else:
             db_obj.table.execute(f'SELECT name FROM temperatures;')
             rows = db_obj.table.fetchall()
@@ -545,12 +545,12 @@ class BundleCoverControl(QTabWidget):
             self.min_dia_ctrl.SetValue(db_obj.min_dia)
             self.max_dia_ctrl.SetValue(db_obj.max_dia)
 
-            self.shrink_temp_ctrl.Enable(True)
-            self.rigidity_ctrl.Enable(True)
-            self.shrink_ratio_ctrl.Enable(True)
-            self.wall_ctrl.Enable(True)
-            self.min_dia_ctrl.Enable(True)
-            self.max_dia_ctrl.Enable(True)
+            self.shrink_temp_ctrl.setEnabled(True)
+            self.rigidity_ctrl.setEnabled(True)
+            self.shrink_ratio_ctrl.setEnabled(True)
+            self.wall_ctrl.setEnabled(True)
+            self.min_dia_ctrl.setEnabled(True)
+            self.max_dia_ctrl.setEnabled(True)
 
     def _on_rigidity(self, evt):
         """Handle the rigidity event.
@@ -661,13 +661,25 @@ class BundleCoverControl(QTabWidget):
         self.weight_ctrl = WeightControl(general_page)
         self.protection_ctrl = ProtectionControl(general_page)
 
+        general_page.addWidget(self.part_number_ctrl)
+        general_page.addWidget(self.description_ctrl)
+        general_page.addWidget(self.color_ctrl)
+        general_page.addWidget(self.material_ctrl)
+        general_page.addWidget(self.adhesive_ctrl)
+        general_page.addWidget(self.weight_ctrl)
+        general_page.addWidget(self.protection_ctrl)
+
         self.rigidity_ctrl = _prop_ctrls.StringProperty(general_page, 'Rigidity')
         self.shrink_ratio_ctrl = _prop_ctrls.StringProperty(general_page, 'Shrink Ratio')
         self.wall_ctrl = _prop_ctrls.StringProperty(general_page, 'Wall')
 
-        self.rigidity_ctrl.property_changed.connect(self._on_rigidity)
-        self.shrink_ratio_ctrl.property_changed.connect(self._on_shrink_ratio)
-        self.wall_ctrl.property_changed.connect(self._on_wall)
+        general_page.addWidget(self.rigidity_ctrl)
+        general_page.addWidget(self.shrink_ratio_ctrl)
+        general_page.addWidget(self.wall_ctrl)
+
+        self.rigidity_ctrl.propertyChanged.connect(self._on_rigidity)
+        self.shrink_ratio_ctrl.propertyChanged.connect(self._on_shrink_ratio)
+        self.wall_ctrl.propertyChanged.connect(self._on_wall)
 
         self.diameter_page = _prop_ctrls.Property(self, 'Diameter')
 
@@ -679,8 +691,11 @@ class BundleCoverControl(QTabWidget):
             self.diameter_page, 'Maximum', min_value=0.00,
             max_value=999.9, increment=0.01, units='mm')
 
-        self.min_dia_ctrl.property_changed.connect(self._on_min_dia)
-        self.max_dia_ctrl.property_changed.connect(self._on_max_dia)
+        self.diameter_page.addWidget(self.min_dia_ctrl)
+        self.diameter_page.addWidget(self.max_dia_ctrl)
+
+        self.min_dia_ctrl.propertyChanged.connect(self._on_min_dia)
+        self.max_dia_ctrl.propertyChanged.connect(self._on_max_dia)
 
         self.mfg_page = ManufacturerControl(self)
         self.family_page = FamilyControl(self)
@@ -690,7 +705,10 @@ class BundleCoverControl(QTabWidget):
 
         self.shrink_temp_choices: list[str] = []
         self.shrink_temp_ctrl = _prop_ctrls.ComboBoxProperty(self.temperature_page, 'Shrink Temperature')
-        self.shrink_temp_ctrl.property_changed.connect(self._on_shrink_temp)
+
+        self.temperature_page.addWidget(self.shrink_temp_ctrl)
+
+        self.shrink_temp_ctrl.propertyChanged.connect(self._on_shrink_temp)
 
         for page in (
             general_page,
@@ -701,4 +719,3 @@ class BundleCoverControl(QTabWidget):
             self.resources_page,
         ):
             self.addTab(page, page.GetLabel())
-            page.Realize()

@@ -1,21 +1,22 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from PySide6.QtWidgets import (
-    QGroupBox, QHBoxLayout, QVBoxLayout, QRadioButton, QButtonGroup, QTabWidget
-)
-from PySide6.QtCore import Qt
+from PySide6 import QtWidgets
+from PySide6 import QtCore
 
-from . import prop_base as _prop_base
+from . import events as _events
 
 
-class EnumProperty(_prop_base.Property):
-    """Represent an enum property in :mod:`harness_designer.ui.prop_ctrls.enum_prop`.
-
-    UNKNOWN details are inferred from the class name and surrounding code.
+class EnumProperty(QtWidgets.QWidget):
+    """
+    Represent an enum property in
+    :mod:`harness_designer.ui.prop_ctrls.enum_prop`.
     """
 
+    propertyChanged: QtCore.SignalInstance = QtCore.Signal(object)
+
     def __init__(self, parent, label):
-        """Initialise the :class:`EnumProperty` instance.
+        """
+        Initialise the :class:`EnumProperty` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
 
@@ -24,142 +25,188 @@ class EnumProperty(_prop_base.Property):
         :param label: Value for ``label``.
         :type label: UNKNOWN
         """
-        _prop_base.Property.__init__(self, parent, label)
+
+        super().__init__(parent)
+        self._label = label
+
         self._choices = []
         self._value = 0
         self._labels = []
         self._button_group = None
         self._radio_box = None
+        self._sizer = None
+        self._label = label
 
-    def _on_change(self, button_id):
-        """Handle the change event.
+    def _on_change(self, button_id: int) -> None:
+        """
+        Handle the change event.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param button_id: Identifier for the button.
-        :type button_id: UNKNOWN
+        :type button_id: `int`
         """
+
         value = self._choices[button_id]
         if value == self._value:
             return
-        self._value = value
-        self._send_changed_event(int, value)
 
-    def SetValue(self, value: int):
-        """Execute the set value operation.
+        self._value = value
+
+        evt = _events.PropertyEvent()
+        evt.SetValue(self._value)
+        evt.SetPropertyType(int)
+        evt.SetProperty(self)
+        self.propertyChanged.emit(evt)
+
+    def SetValue(self, value: int) -> None:
+        """
+        Execute the set value operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: `int`
         """
+
         if value not in self._choices:
             return
+
         index = self._choices.index(value)
         self._value = value
+
         if self._button_group is not None:
             btn = self._button_group.button(index)
             if btn is not None:
                 btn.blockSignals(True)
+
                 btn.setChecked(True)
+
                 btn.blockSignals(False)
 
     def GetValue(self) -> int:
-        """Execute the get value operation.
+        """
+        Execute the get value operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Return value. UNKNOWN details.
-        :rtype: int
+        :rtype: `int`
         """
+
         return self._value
 
-    def Enable(self, flag=True):
-        """Execute the enable operation.
+    def Enable(self, flag: bool = True) -> None:
+        """
+        Execute the enable operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param flag: Value for ``flag``.
-        :type flag: UNKNOWN
+        :type flag: `bool`
         """
+
         if self._radio_box is not None:
             self._radio_box.setEnabled(flag)
 
-    def SetLabels(self, labels):
-        """Execute the set labels operation.
+    def SetLabels(self, labels: list[str]) -> None:
+        """
+        Execute the set labels operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param labels: Value for ``labels``.
-        :type labels: UNKNOWN
+        :type labels: `list[str]`
         """
+
         self._labels = labels
 
         # Remove old radio box if present
         if self._radio_box is not None:
-            self._sizer.removeWidget(self._radio_box)
             self._radio_box.deleteLater()
-            self._radio_box = None
 
-        box = QGroupBox(self.GetLabel(), self)
-        grid = QHBoxLayout()
-        grid.setContentsMargins(4, 4, 4, 4)
+        self._radio_box = QtWidgets.QGroupBox(self._label, self)
+        self._sizer = QtWidgets.QVBoxLayout()
+        self._sizer.setContentsMargins(4, 4, 4, 4)
+        self._radio_box.setLayout(self._sizer)
 
-        bg = QButtonGroup(self)
+        bg = QtWidgets.QButtonGroup(self._radio_box)
         bg.setExclusive(True)
 
-        for i, lbl in enumerate(labels):
-            rb = QRadioButton(lbl, box)
-            bg.addButton(rb, i)
-            grid.addWidget(rb)
+        rows = len(labels) // 3
 
-        box.setLayout(grid)
+        for i in range(rows):
+            sizer = QtWidgets.QHBoxLayout()
+            for j in range(3):
+                index = j * (i + 1)
+                lbl = labels[index]
+
+                rb = QtWidgets.QRadioButton(lbl, self._radio_box)
+                bg.addButton(rb, index)
+                sizer.addWidget(rb)
+
+            self._sizer.addLayout(sizer)
+
         bg.idClicked.connect(self._on_change)
 
         self._button_group = bg
-        self._radio_box = box
-        self._sizer.addWidget(box)
 
         # Re-apply current selection
         if self._value in self._choices:
             index = self._choices.index(self._value)
+
             btn = bg.button(index)
             if btn is not None:
                 btn.setChecked(True)
 
         # Trigger parent relayout
         parent = self.parent()
-        while parent is not None and not isinstance(parent, QTabWidget):
+        while parent is not None and not isinstance(parent, QtWidgets.QTabWidget):
             parent = parent.parent()
+
         if parent is not None:
             parent.adjustSize()
 
-    def GetLabels(self) -> list:
-        """Execute the get labels operation.
+    def GetLabels(self) -> list[str]:
+        """
+        Execute the get labels operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Return value. UNKNOWN details.
-        :rtype: list
+        :rtype: `list[str]`
         """
+
         return self._labels
 
-    def GetItems(self) -> list:
-        """Execute the get items operation.
+    def GetItems(self) -> list[int]:
+        """
+        Execute the get items operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Return value. UNKNOWN details.
-        :rtype: list
+        :rtype: `list[int]`
         """
+
         return self._choices
 
-    def SetItems(self, items: list):
-        """Execute the set items operation.
+    def SetItems(self, items: list[int]):
+        """
+        Execute the set items operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param items: Collection of items to process.
-        :type items: list
+        :type items: `list[int]`
         """
+
         self._choices = items
+
+    def SetLabel(self, value: str):
+        self._label = value
+        if self._radio_box is not None:
+            self._radio_box.setTitle(value)
+
+    def GetLabel(self) -> str:
+        return self._label

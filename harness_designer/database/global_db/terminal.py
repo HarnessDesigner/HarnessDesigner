@@ -816,12 +816,12 @@ class TerminalControl(QTabWidget):
             self.max_vibration_g_ctrl.SetValue(0)
             self.max_current_ma_ctrl.SetValue(0)
 
-            self.sealing_ctrl.Enable(False)
-            self.blade_size_ctrl.Enable(False)
-            self.resistance_ctrl.Enable(False)
-            self.mating_cycles_ctrl.Enable(False)
-            self.max_vibration_g_ctrl.Enable(False)
-            self.max_current_ma_ctrl.Enable(False)
+            self.sealing_ctrl.setEnabled(False)
+            self.blade_size_ctrl.setEnabled(False)
+            self.resistance_ctrl.setEnabled(False)
+            self.mating_cycles_ctrl.setEnabled(False)
+            self.max_vibration_g_ctrl.setEnabled(False)
+            self.max_current_ma_ctrl.setEnabled(False)
         else:
             self.sealing_ctrl.SetValue(db_obj.sealing)
             self.blade_size_ctrl.SetValue(db_obj.blade_size)
@@ -830,12 +830,12 @@ class TerminalControl(QTabWidget):
             self.max_vibration_g_ctrl.SetValue(db_obj.max_vibration_g)
             self.max_current_ma_ctrl.SetValue(db_obj.max_current_ma)
 
-            self.sealing_ctrl.Enable(True)
-            self.blade_size_ctrl.Enable(True)
-            self.resistance_ctrl.Enable(True)
-            self.mating_cycles_ctrl.Enable(True)
-            self.max_vibration_g_ctrl.Enable(True)
-            self.max_current_ma_ctrl.Enable(True)
+            self.sealing_ctrl.setEnabled(True)
+            self.blade_size_ctrl.setEnabled(True)
+            self.resistance_ctrl.setEnabled(True)
+            self.mating_cycles_ctrl.setEnabled(True)
+            self.max_vibration_g_ctrl.setEnabled(True)
+            self.max_current_ma_ctrl.setEnabled(True)
 
     def _on_sealing(self, evt):
         """Handle the sealing event.
@@ -947,12 +947,24 @@ class TerminalControl(QTabWidget):
             general_page, 'Maximum Current',
             min_value=0, max_value=100000, units='ma')
 
-        self.sealing_ctrl.property_changed.connect(self._on_sealing)
-        self.blade_size_ctrl.property_changed.connect(self._on_blade_size)
-        self.resistance_ctrl.property_changed.connect(self._on_resistance)
-        self.mating_cycles_ctrl.property_changed.connect(self._on_mating_cycles)
-        self.max_vibration_g_ctrl.property_changed.connect(self._on_vibration)
-        self.max_current_ma_ctrl.property_changed.connect(self._on_current)
+        general_page.addWidget(self.part_number_ctrl)
+        general_page.addWidget(self.description_ctrl)
+        general_page.addWidget(self.color_ctrl)
+        general_page.addWidget(self.gender_ctrl)
+        general_page.addWidget(self.cavity_lock_ctrl)
+        general_page.addWidget(self.sealing_ctrl)
+        general_page.addWidget(self.blade_size_ctrl)
+        general_page.addWidget(self.resistance_ctrl)
+        general_page.addWidget(self.mating_cycles_ctrl)
+        general_page.addWidget(self.max_vibration_g_ctrl)
+        general_page.addWidget(self.max_current_ma_ctrl)
+
+        self.sealing_ctrl.propertyChanged.connect(self._on_sealing)
+        self.blade_size_ctrl.propertyChanged.connect(self._on_blade_size)
+        self.resistance_ctrl.propertyChanged.connect(self._on_resistance)
+        self.mating_cycles_ctrl.propertyChanged.connect(self._on_mating_cycles)
+        self.max_vibration_g_ctrl.propertyChanged.connect(self._on_vibration)
+        self.max_current_ma_ctrl.propertyChanged.connect(self._on_current)
 
         self.mfg_page = ManufacturerControl(self)
         self.family_page = FamilyControl(self)
@@ -962,6 +974,8 @@ class TerminalControl(QTabWidget):
         self.dimension_page = DimensionControl(self)
         self.weight_ctrl = WeightControl(self.dimension_page)
 
+        self.dimension_page.addWidget(self.weight_ctrl)
+
         self.plating_page = PlatingControl(self)
 
         self.resources_page = ResourcesControl(self)
@@ -969,6 +983,9 @@ class TerminalControl(QTabWidget):
         compat_parts_page = _prop_ctrls.Category(self, 'Compatible Parts')
         self.compat_housing_ctrl = CompatHousingsControl(compat_parts_page)
         self.compat_seal_ctrl = CompatSealsControl(compat_parts_page)
+
+        compat_parts_page.addWidget(self.compat_housing_ctrl)
+        compat_parts_page.addWidget(self.compat_seal_ctrl)
 
         self.model3d_page = Model3DControl(self)
 
@@ -988,4 +1005,3 @@ class TerminalControl(QTabWidget):
             self.model3d_page
         ):
             self.addTab(page, page.GetLabel())
-            page.Realize()

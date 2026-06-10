@@ -113,8 +113,11 @@ class TemperatureControl(_prop_ctrls.Category):
         self.min_temp_ctrl = _prop_ctrls.ComboBoxProperty(self, 'Minimum')
         self.max_temp_ctrl = _prop_ctrls.ComboBoxProperty(self, 'Maximum')
 
-        self.min_temp_ctrl.property_changed.connect(self._on_min_temp)
-        self.max_temp_ctrl.property_changed.connect(self._on_max_temp)
+        self.addWidget(self.min_temp_ctrl)
+        self.addWidget(self.max_temp_ctrl)
+
+        self.min_temp_ctrl.propertyChanged.connect(self._on_min_temp)
+        self.max_temp_ctrl.propertyChanged.connect(self._on_max_temp)
 
     def set_obj(self, db_obj: TemperatureMixin):
         """Set the obj.
@@ -133,8 +136,8 @@ class TemperatureControl(_prop_ctrls.Category):
             self.min_temp_ctrl.SetValue('')
             self.max_temp_ctrl.SetItems(self.choices)
             self.max_temp_ctrl.SetValue('')
-            self.min_temp_ctrl.Enable(False)
-            self.max_temp_ctrl.Enable(False)
+            self.min_temp_ctrl.setEnabled(False)
+            self.max_temp_ctrl.setEnabled(False)
         else:
             min_temp = db_obj.min_temp
             max_temp = db_obj.max_temp
@@ -148,8 +151,8 @@ class TemperatureControl(_prop_ctrls.Category):
             self.max_temp_ctrl.SetItems(self.choices)
             self.max_temp_ctrl.SetValue(max_temp.name)
 
-            self.min_temp_ctrl.Enable(True)
-            self.max_temp_ctrl.Enable(True)
+            self.min_temp_ctrl.setEnabled(True)
+            self.max_temp_ctrl.setEnabled(True)
 
     def _on_min_temp(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the min temp event.

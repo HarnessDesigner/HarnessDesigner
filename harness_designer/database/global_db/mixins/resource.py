@@ -206,9 +206,13 @@ class ResourcesControl(_prop_ctrls.Category):
         self.datasheet_ctrl = _prop_ctrls.DatasheetCADProperty(self, 'Datasheet')
         self.cad_ctrl = _prop_ctrls.DatasheetCADProperty(self, 'CAD')
 
-        self.image_ctrl.property_changed.connect(self._on_image)
-        self.datasheet_ctrl.property_changed.connect(self._on_datasheet)
-        self.cad_ctrl.property_changed.connect(self._on_cad)
+        self.addWidget(self.image_ctrl)
+        self.addWidget(self.datasheet_ctrl)
+        self.addWidget(self.cad_ctrl)
+
+        self.image_ctrl.propertyChanged.connect(self._on_image)
+        self.datasheet_ctrl.propertyChanged.connect(self._on_datasheet)
+        self.cad_ctrl.propertyChanged.connect(self._on_cad)
 
     def set_obj(self, db_obj: ResourceMixin):
         """Set the obj.
@@ -225,9 +229,9 @@ class ResourcesControl(_prop_ctrls.Category):
             self.datasheet_ctrl.SetValue(['', None])
             self.cad_ctrl.SetValue(['', None])
 
-            self.image_ctrl.Enable(False)
-            self.datasheet_ctrl.Enable(False)
-            self.cad_ctrl.Enable(False)
+            self.image_ctrl.setEnabled(False)
+            self.datasheet_ctrl.setEnabled(False)
+            self.cad_ctrl.setEnabled(False)
 
         else:
             db_obj.table.execute('SELECT mimetype, extension FROM file_types WHERE is_model=0;')
@@ -263,9 +267,9 @@ class ResourcesControl(_prop_ctrls.Category):
 
                 self.datasheet_ctrl.SetValue([image.path, image.data_path])
 
-            self.image_ctrl.Enable(True)
-            self.datasheet_ctrl.Enable(True)
-            self.cad_ctrl.Enable(True)
+            self.image_ctrl.setEnabled(True)
+            self.datasheet_ctrl.setEnabled(True)
+            self.cad_ctrl.setEnabled(True)
 
     def _on_image(self, evt):
         """Handle the image event.

@@ -57,7 +57,7 @@ class SmoothControl(_prop_ctrls.TriStateCheckboxProperty):
 
         super().__init__(parent, 'Smooth')
 
-        self.property_changed.connect(self._on_smooth)
+        self.propertyChanged.connect(self._on_smooth)
 
     def _on_smooth(self, evt):
         """
@@ -83,7 +83,7 @@ class SmoothControl(_prop_ctrls.TriStateCheckboxProperty):
 
         if db_obj is None:
             self.SetValue(False)
-            self.Enable(False)
+            self.setEnabled(False)
         else:
             self.SetValue(db_obj.smooth)
-            self.Enable(True)
+            self.setEnabled(True)

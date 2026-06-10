@@ -619,9 +619,9 @@ class CavityControl(_prop_ctrls.Category):
             self.position2d_ctrl.SetValue(None)
             self.angle3d_ctrl.SetValue(None)
 
-            self.index_ctrl.Enable(False)
-            self.terminal_sizes_ctrl.Enable(False)
-            self.round_terminal_ctrl.Enable(False)
+            self.index_ctrl.setEnabled(False)
+            self.terminal_sizes_ctrl.setEnabled(False)
+            self.round_terminal_ctrl.setEnabled(False)
         else:
             self.index_ctrl.SetValue(db_obj.idx)
             self.terminal_sizes_ctrl.SetValue(db_obj.terminal_sizes)
@@ -631,9 +631,9 @@ class CavityControl(_prop_ctrls.Category):
             self.position2d_ctrl.SetValue(db_obj.position2d)
             self.angle3d_ctrl.SetValue(db_obj.angle3d)
 
-            self.index_ctrl.Enable(True)
-            self.terminal_sizes_ctrl.Enable(True)
-            self.round_terminal_ctrl.Enable(True)
+            self.index_ctrl.setEnabled(True)
+            self.terminal_sizes_ctrl.setEnabled(True)
+            self.round_terminal_ctrl.setEnabled(True)
 
     def _on_round_terminal(self, evt):
         """Handle the round terminal event.
@@ -690,18 +690,27 @@ class CavityControl(_prop_ctrls.Category):
         self.round_terminal_ctrl = _prop_ctrls.BoolProperty(general_page, 'Is Round')
         self.terminal_sizes_ctrl = _prop_ctrls.ArrayFloatProperty(general_page, 'Terminal sizes')
 
+        general_page.addWidget(self.index_ctrl)
+        general_page.addWidget(self.round_terminal_ctrl)
+        general_page.addWidget(self.terminal_sizes_ctrl)
+
         self.dimension_page = DimensionControl(self.nb)
 
         position_page = _prop_ctrls.Category(self.nb, 'Position')
         self.position2d_ctrl = _prop_ctrls.Position2DProperty(position_page, '2D Position')
         self.position3d_ctrl = _prop_ctrls.Position3DProperty(position_page, '3D Position')
 
+        position_page.addWidget(self.position2d_ctrl)
+        position_page.addWidget(self.position3d_ctrl)
+
         angle_page = _prop_ctrls.Category(self.nb, 'Angle')
         self.angle3d_ctrl = _prop_ctrls.Angle3DProperty(angle_page, '3D Angle')
 
-        self.round_terminal_ctrl.property_changed.connect(self._on_round_terminal)
-        self.index_ctrl.property_changed.connect(self._on_index)
-        self.terminal_sizes_ctrl.property_changed.connect(self._on_terminal_sizes)
+        angle_page.addWidget(self.angle3d_ctrl)
+
+        self.round_terminal_ctrl.propertyChanged.connect(self._on_round_terminal)
+        self.index_ctrl.propertyChanged.connect(self._on_index)
+        self.terminal_sizes_ctrl.propertyChanged.connect(self._on_terminal_sizes)
 
         for page in (
             general_page,
@@ -710,4 +719,3 @@ class CavityControl(_prop_ctrls.Category):
             angle_page
         ):
             self.nb.addTab(page, page.GetLabel())
-            page.Realize()

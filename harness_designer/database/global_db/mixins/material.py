@@ -71,7 +71,7 @@ class MaterialControl(_prop_ctrls.ComboBoxProperty):
         self.choices: list[str] = []
 
         super().__init__(parent, 'Material')
-        self.property_changed.connect(self._on_material)
+        self.propertyChanged.connect(self._on_material)
 
     def set_obj(self, db_obj: MaterialMixin):
         """Set the obj.
@@ -87,7 +87,7 @@ class MaterialControl(_prop_ctrls.ComboBoxProperty):
             self.choices = []
             self.SetItems(self.choices)
             self.SetValue('')
-            self.Enable(False)
+            self.setEnabled(False)
         else:
             db_obj.table.execute('SELECT name FROM materials;')
             rows = db_obj.table.fetchall()
@@ -95,7 +95,7 @@ class MaterialControl(_prop_ctrls.ComboBoxProperty):
             self.choices = sorted([row[0] for row in rows])
             self.SetItems(self.choices)
             self.SetValue(db_obj.material.name)
-            self.Enable(True)
+            self.setEnabled(True)
 
     def _on_material(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the material event.

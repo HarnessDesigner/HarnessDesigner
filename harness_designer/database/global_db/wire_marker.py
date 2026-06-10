@@ -404,20 +404,20 @@ class WireMarkerControl(QTabWidget):
             self.max_diameter_ctrl.SetValue(0.05)
             self.label_ctrl.SetValue(False)
 
-            self.length_ctrl.Enable(False)
-            self.min_diameter_ctrl.Enable(False)
-            self.max_diameter_ctrl.Enable(False)
-            self.label_ctrl.Enable(False)
+            self.length_ctrl.setEnabled(False)
+            self.min_diameter_ctrl.setEnabled(False)
+            self.max_diameter_ctrl.setEnabled(False)
+            self.label_ctrl.setEnabled(False)
         else:
             self.length_ctrl.SetValue(db_obj.length)
             self.min_diameter_ctrl.SetValue(db_obj.min_diameter)
             self.max_diameter_ctrl.SetValue(db_obj.max_diameter)
             self.label_ctrl.SetValue(db_obj.has_label)
 
-            self.length_ctrl.Enable(True)
-            self.min_diameter_ctrl.Enable(True)
-            self.max_diameter_ctrl.Enable(True)
-            self.label_ctrl.Enable(True)
+            self.length_ctrl.setEnabled(True)
+            self.min_diameter_ctrl.setEnabled(True)
+            self.max_diameter_ctrl.setEnabled(True)
+            self.label_ctrl.setEnabled(True)
 
     def _on_min_diameter(self, evt):
         """Handle the min diameter event.
@@ -492,6 +492,13 @@ class WireMarkerControl(QTabWidget):
         self.label_ctrl = _prop_ctrls.BoolProperty(
             general_page, 'Has Label')
 
+        general_page.addWidget(self.part_number_ctrl)
+        general_page.addWidget(self.description_ctrl)
+        general_page.addWidget(self.color_ctrl)
+        general_page.addWidget(self.weight_ctrl)
+        general_page.addWidget(self.length_ctrl)
+        general_page.addWidget(self.label_ctrl)
+
         self.mfg_page = ManufacturerControl(self)
         self.family_page = FamilyControl(self)
         self.series_page = SeriesControl(self)
@@ -509,13 +516,16 @@ class WireMarkerControl(QTabWidget):
             diameter_page, 'Maximum', min_value=0.05,
             max_value=60.0, increment=0.01, units='mm')
 
+        diameter_page.addWidget(self.min_diameter_ctrl)
+        diameter_page.addWidget(self.max_diameter_ctrl)
+
         self.wire_size_page = WireSizeControl(self)
 
-        self.min_diameter_ctrl.property_changed.connect(self._on_min_diameter)
-        self.max_diameter_ctrl.property_changed.connect(self._on_max_diameter)
+        self.min_diameter_ctrl.propertyChanged.connect(self._on_min_diameter)
+        self.max_diameter_ctrl.propertyChanged.connect(self._on_max_diameter)
 
-        self.length_ctrl.property_changed.connect(self._on_length)
-        self.label_ctrl.property_changed.connect(self._on_label)
+        self.length_ctrl.propertyChanged.connect(self._on_length)
+        self.label_ctrl.propertyChanged.connect(self._on_label)
 
         for page in (
             general_page,
@@ -528,4 +538,3 @@ class WireMarkerControl(QTabWidget):
             diameter_page
         ):
             self.addTab(page, page.GetLabel())
-            page.Realize()

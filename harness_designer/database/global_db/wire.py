@@ -992,16 +992,16 @@ class WireControl(QTabWidget):
             self.size_awg_ctrl.SetValue(30.0)
             self.od_mm_ctrl.SetValue(0.05)
 
-            self.tpi_ctrl.Enable(False)
-            self.weight_1km_ctrl.Enable(False)
-            self.volts_ctrl.Enable(False)
-            self.resistance_1km_ctrl.Enable(False)
-            self.num_conductors_ctrl.Enable(False)
-            self.shielded_ctrl.Enable(False)
-            self.conductor_dia_mm_ctrl.Enable(False)
-            self.size_mm2_ctrl.Enable(False)
-            self.size_awg_ctrl.Enable(False)
-            self.od_mm_ctrl.Enable(False)
+            self.tpi_ctrl.setEnabled(False)
+            self.weight_1km_ctrl.setEnabled(False)
+            self.volts_ctrl.setEnabled(False)
+            self.resistance_1km_ctrl.setEnabled(False)
+            self.num_conductors_ctrl.setEnabled(False)
+            self.shielded_ctrl.setEnabled(False)
+            self.conductor_dia_mm_ctrl.setEnabled(False)
+            self.size_mm2_ctrl.setEnabled(False)
+            self.size_awg_ctrl.setEnabled(False)
+            self.od_mm_ctrl.setEnabled(False)
 
         else:
             self.tpi_ctrl.SetValue(db_obj.tpi)
@@ -1015,16 +1015,16 @@ class WireControl(QTabWidget):
             self.size_awg_ctrl.SetValue(db_obj.size_awg)
             self.od_mm_ctrl.SetValue(db_obj.od_mm)
 
-            self.tpi_ctrl.Enable(True)
-            self.weight_1km_ctrl.Enable(True)
-            self.volts_ctrl.Enable(True)
-            self.resistance_1km_ctrl.Enable(True)
-            self.num_conductors_ctrl.Enable(True)
-            self.shielded_ctrl.Enable(True)
-            self.conductor_dia_mm_ctrl.Enable(True)
-            self.size_mm2_ctrl.Enable(True)
-            self.size_awg_ctrl.Enable(True)
-            self.od_mm_ctrl.Enable(True)
+            self.tpi_ctrl.setEnabled(True)
+            self.weight_1km_ctrl.setEnabled(True)
+            self.volts_ctrl.setEnabled(True)
+            self.resistance_1km_ctrl.setEnabled(True)
+            self.num_conductors_ctrl.setEnabled(True)
+            self.shielded_ctrl.setEnabled(True)
+            self.conductor_dia_mm_ctrl.setEnabled(True)
+            self.size_mm2_ctrl.setEnabled(True)
+            self.size_awg_ctrl.setEnabled(True)
+            self.od_mm_ctrl.setEnabled(True)
 
     def _on_tpi(self, evt):
         """Handle the tpi event.
@@ -1203,6 +1203,16 @@ class WireControl(QTabWidget):
         self.shielded_ctrl = _prop_ctrls.BoolProperty(
             general_page, 'Shielded')
 
+        general_page.addWidget(self.part_number_ctrl)
+        general_page.addWidget(self.description_ctrl)
+        general_page.addWidget(self.tpi_ctrl)
+        general_page.addWidget(self.weight_1km_ctrl)
+        general_page.addWidget(self.volts_ctrl)
+        general_page.addWidget(self.resistance_1km_ctrl)
+        general_page.addWidget(self.num_conductors_ctrl)
+        general_page.addWidget(self.strands_ctrl)
+        general_page.addWidget(self.shielded_ctrl)
+
         color_page = _prop_ctrls.Category(self, 'Color')
         self.color_ctrl = ColorControl(color_page)
         self.color_ctrl.SetLabel('Primary')
@@ -1210,6 +1220,9 @@ class WireControl(QTabWidget):
         self.stripe_color_ctrl = ColorControl(color_page)
         self.stripe_color_ctrl.SetLabel('Stripe')
         self.stripe_color_ctrl.SetAttributeName('stripe_color')
+
+        color_page.addWidget(self.color_ctrl)
+        color_page.addWidget(self.stripe_color_ctrl)
 
         self.mfg_page = ManufacturerControl(self)
         self.family_page = FamilyControl(self)
@@ -1226,10 +1239,13 @@ class WireControl(QTabWidget):
         self.core_material_ctrl.SetLabel('Core')
         self.core_material_ctrl.SetAttributeName('core_material')
 
+        materials_page.addWidget(self.material_ctrl)
+        materials_page.addWidget(self.core_material_ctrl)
+
         size_page = _prop_ctrls.Category(self, 'Size')
 
         self.conductor_dia_mm_ctrl = _prop_ctrls.FloatProperty(
-            general_page, 'Conductor Diameter',
+            size_page, 'Conductor Diameter',
             min_value=0.05, max_value=60.0, increment=0.01, units='mm')
 
         self.size_mm2_ctrl = _prop_ctrls.FloatProperty(
@@ -1244,17 +1260,22 @@ class WireControl(QTabWidget):
             size_page, 'Outside Diameter',
             min_value=0.0, max_value=99.9999, increment=0.0001, units='mm')
 
-        self.tpi_ctrl.property_changed.connect(self._on_tpi)
-        self.weight_1km_ctrl.property_changed.connect(self._on_weight_1km)
-        self.volts_ctrl.property_changed.connect(self._on_volts)
-        self.resistance_1km_ctrl.property_changed.connect(self._on_resistance_1km)
-        self.num_conductors_ctrl.property_changed.connect(self._on_num_conductors)
-        self.strands_ctrl.property_changed.connect(self._on_strands)
-        self.shielded_ctrl.property_changed.connect(self._on_shielded)
-        self.conductor_dia_mm_ctrl.property_changed.connect(self._on_conductor_dia_mm)
-        self.size_mm2_ctrl.property_changed.connect(self._on_size_mm2)
-        self.size_awg_ctrl.property_changed.connect(self._on_size_awg)
-        self.od_mm_ctrl.property_changed.connect(self._on_od_mm)
+        size_page.addWidget(self.conductor_dia_mm_ctrl)
+        size_page.addWidget(self.size_mm2_ctrl)
+        size_page.addWidget(self.size_awg_ctrl)
+        size_page.addWidget(self.od_mm_ctrl)
+
+        self.tpi_ctrl.propertyChanged.connect(self._on_tpi)
+        self.weight_1km_ctrl.propertyChanged.connect(self._on_weight_1km)
+        self.volts_ctrl.propertyChanged.connect(self._on_volts)
+        self.resistance_1km_ctrl.propertyChanged.connect(self._on_resistance_1km)
+        self.num_conductors_ctrl.propertyChanged.connect(self._on_num_conductors)
+        self.strands_ctrl.propertyChanged.connect(self._on_strands)
+        self.shielded_ctrl.propertyChanged.connect(self._on_shielded)
+        self.conductor_dia_mm_ctrl.propertyChanged.connect(self._on_conductor_dia_mm)
+        self.size_mm2_ctrl.propertyChanged.connect(self._on_size_mm2)
+        self.size_awg_ctrl.propertyChanged.connect(self._on_size_awg)
+        self.od_mm_ctrl.propertyChanged.connect(self._on_od_mm)
 
         for page in (
             general_page,
@@ -1268,4 +1289,3 @@ class WireControl(QTabWidget):
             materials_page
         ):
             self.addTab(page, page.GetLabel())
-            page.Realize()

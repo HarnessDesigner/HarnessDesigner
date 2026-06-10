@@ -78,7 +78,7 @@ class CompatHousingsControl(_prop_ctrls.ArrayStringProperty):
         self.db_obj: CompatHousingsMixin = None
         super().__init__(parent, 'Compatible Housings')
 
-        self.property_changed.connect(self._on_compat_housings)
+        self.propertyChanged.connect(self._on_compat_housings)
 
     def set_obj(self, db_obj: CompatHousingsMixin):
         """Set the obj.
@@ -91,10 +91,10 @@ class CompatHousingsControl(_prop_ctrls.ArrayStringProperty):
         self.db_obj = db_obj
         if db_obj is None:
             self.SetValue([])
-            self.Enable(False)
+            self.setEnabled(False)
         else:
             self.SetValue(db_obj.compat_housings_array)
-            self.Enable(True)
+            self.setEnabled(True)
 
     def _on_compat_housings(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the compat housings event.

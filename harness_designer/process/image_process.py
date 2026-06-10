@@ -316,10 +316,12 @@ class ProcessWorker:
                 else:
                     message['allow_retry'] = True
 
-                def _do(rs, msg):
+                def _do(rs, db_obj, msg):
+                    db_obj.set_progress(-1)
                     rs.set_error(**msg)
 
-                self.app.CallAfter(_do, resource_state, message)
+                self.app.CallAfter(_do, resource_state, self.running['db_obj'], message)
+                self.running = None
 
             else:
                 if message['step'] == 5:

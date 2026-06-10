@@ -610,31 +610,50 @@ class PJTNoteControl(QTabWidget):
         self.smooth_ctrl = SmoothControl(general_page)
         self.color_control = ColorControl(general_page)
 
+        general_page.addWidget(self.note_ctrl)
+        general_page.addWidget(self.smooth_ctrl)
+        general_page.addWidget(self.color_control)
+
         style_page = _prop_ctrls.Category(self, 'Style')
         self.style_2d_ctrl = _prop_ctrls.EnumProperty(style_page, '2D Style')
         self.style_3d_ctrl = _prop_ctrls.EnumProperty(style_page, '3D Style')
+
+        style_page.addWidget(self.style_2d_ctrl)
+        style_page.addWidget(self.style_3d_ctrl)
 
         align_page = _prop_ctrls.Category(self, 'Align')
         self.align_2d_ctrl = _prop_ctrls.EnumProperty(align_page, '2D Align')
         self.align_3d_ctrl = _prop_ctrls.EnumProperty(align_page, '3D Align')
 
-        self.style_2d_ctrl.property_changed.connect(self._on_style2d)
-        self.style_3d_ctrl.property_changed.connect(self._on_style3d)
+        align_page.addWidget(self.align_2d_ctrl)
+        align_page.addWidget(self.align_3d_ctrl)
 
-        self.align_2d_ctrl.property_changed.connect(self._on_align2d)
-        self.align_3d_ctrl.property_changed.connect(self._on_align3d)
+        self.style_2d_ctrl.propertyChanged.connect(self._on_style2d)
+        self.style_3d_ctrl.propertyChanged.connect(self._on_style3d)
+
+        self.align_2d_ctrl.propertyChanged.connect(self._on_align2d)
+        self.align_3d_ctrl.propertyChanged.connect(self._on_align3d)
 
         angle_page = _prop_ctrls.Category(self, 'Angle')
         self.angle2d_ctrl = Angle2DControl(angle_page)
         self.angle3d_ctrl = Angle3DControl(angle_page)
 
+        angle_page.addWidget(self.angle2d_ctrl)
+        angle_page.addWidget(self.angle3d_ctrl)
+
         position_page = _prop_ctrls.Category(self, 'Position')
         self.position2d_ctrl = Position2DControl(position_page)
         self.position3d_ctrl = Position3DControl(position_page)
 
+        position_page.addWidget(self.position2d_ctrl)
+        position_page.addWidget(self.position3d_ctrl)
+
         visible_page = _prop_ctrls.Category(self, 'Visible')
         self.visible2d_ctrl = Visible2DControl(visible_page)
         self.visible3d_ctrl = Visible3DControl(visible_page)
+
+        visible_page.addWidget(self.visible2d_ctrl)
+        visible_page.addWidget(self.visible3d_ctrl)
 
         for page in (
             general_page,
@@ -645,4 +664,3 @@ class PJTNoteControl(QTabWidget):
             align_page
         ):
             self.addTab(page, page.GetLabel())
-            page.Realize()

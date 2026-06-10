@@ -76,7 +76,7 @@ class ColorControl(_prop_ctrls.ColorProperty):
 
         super().__init__(parent, 'Color')
 
-        self.property_changed.connect(self._on_color)
+        self.propertyChanged.connect(self._on_color)
 
     def SetAttributeName(self, name):
         """Execute the set attribute name operation.
@@ -103,7 +103,7 @@ class ColorControl(_prop_ctrls.ColorProperty):
 
             self.SetItems(self.choices)
             self.SetValue(['', QColor(0, 0, 0)])
-            self.Enable(False)
+            self.setEnabled(False)
         else:
             color = getattr(db_obj, self.attribute_name)
 
@@ -113,7 +113,7 @@ class ColorControl(_prop_ctrls.ColorProperty):
 
             self.SetItems(self.choices)
             self.SetValue([color.name, color.ui])
-            self.Enable(True)
+            self.setEnabled(True)
 
     def _on_color(self, evt):
         """Handle the color event.

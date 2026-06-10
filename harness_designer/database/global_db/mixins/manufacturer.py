@@ -83,14 +83,23 @@ class ManufacturerControl(_prop_ctrls.Category):
         self.email_ctrl = _prop_ctrls.StringProperty(self, 'Email')
         self.website_ctrl = _prop_ctrls.StringProperty(self, 'Website')
 
-        self.website_ctrl.property_changed.connect(self._on_website_change)
-        self.email_ctrl.property_changed.connect(self._on_email_change)
-        self.ext_ctrl.property_changed.connect(self._on_ext_change)
-        self.phone_ctrl.property_changed.connect(self._on_phone_change)
-        self.contact_ctrl.property_changed.connect(self._on_contact_change)
-        self.address_ctrl.property_changed.connect(self._on_addr_change)
-        self.desc_ctrl.property_changed.connect(self._on_desc_change)
-        self.name_ctrl.property_changed.connect(self._on_name_change)
+        self.addWidget(self.name_ctrl)
+        self.addWidget(self.desc_ctrl)
+        self.addWidget(self.address_ctrl)
+        self.addWidget(self.contact_ctrl)
+        self.addWidget(self.phone_ctrl)
+        self.addWidget(self.ext_ctrl)
+        self.addWidget(self.email_ctrl)
+        self.addWidget(self.website_ctrl)
+
+        self.website_ctrl.propertyChanged.connect(self._on_website_change)
+        self.email_ctrl.propertyChanged.connect(self._on_email_change)
+        self.ext_ctrl.propertyChanged.connect(self._on_ext_change)
+        self.phone_ctrl.propertyChanged.connect(self._on_phone_change)
+        self.contact_ctrl.propertyChanged.connect(self._on_contact_change)
+        self.address_ctrl.propertyChanged.connect(self._on_addr_change)
+        self.desc_ctrl.propertyChanged.connect(self._on_desc_change)
+        self.name_ctrl.propertyChanged.connect(self._on_name_change)
 
     def set_obj(self, db_obj: ManufacturerMixin):
         """Set the obj.
@@ -116,14 +125,14 @@ class ManufacturerControl(_prop_ctrls.Category):
             self.email_ctrl.SetValue('')
             self.website_ctrl.SetValue('')
 
-            self.name_ctrl.Enable(False)
-            self.desc_ctrl.Enable(False)
-            self.address_ctrl.Enable(False)
-            self.contact_ctrl.Enable(False)
-            self.phone_ctrl.Enable(False)
-            self.ext_ctrl.Enable(False)
-            self.email_ctrl.Enable(False)
-            self.website_ctrl.Enable(False)
+            self.name_ctrl.setEnabled(False)
+            self.desc_ctrl.setEnabled(False)
+            self.address_ctrl.setEnabled(False)
+            self.contact_ctrl.setEnabled(False)
+            self.phone_ctrl.setEnabled(False)
+            self.ext_ctrl.setEnabled(False)
+            self.email_ctrl.setEnabled(False)
+            self.website_ctrl.setEnabled(False)
 
         else:
             mfg = db_obj.manufacturer
@@ -148,14 +157,14 @@ class ManufacturerControl(_prop_ctrls.Category):
             self.email_ctrl.SetValue(email)
             self.website_ctrl.SetValue(website)
 
-            self.name_ctrl.Enable(True)
-            self.desc_ctrl.Enable(True)
-            self.address_ctrl.Enable(True)
-            self.contact_ctrl.Enable(True)
-            self.phone_ctrl.Enable(True)
-            self.ext_ctrl.Enable(True)
-            self.email_ctrl.Enable(True)
-            self.website_ctrl.Enable(True)
+            self.name_ctrl.setEnabled(True)
+            self.desc_ctrl.setEnabled(True)
+            self.address_ctrl.setEnabled(True)
+            self.contact_ctrl.setEnabled(True)
+            self.phone_ctrl.setEnabled(True)
+            self.ext_ctrl.setEnabled(True)
+            self.email_ctrl.setEnabled(True)
+            self.website_ctrl.setEnabled(True)
 
     def _on_name_change(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the name change event.

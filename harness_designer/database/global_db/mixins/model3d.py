@@ -94,25 +94,25 @@ class Model3DControl(_prop_ctrls.Category):
             self.extension_ctrl.SetValue('')
             self.mimetype_ctrl.SetValue('')
 
-            self.path_ctrl.Enable(False)
-            self.data_path_ctrl.Enable(False)
-            self.uuid_ctrl.Enable(False)
+            self.path_ctrl.setEnabled(False)
+            self.data_path_ctrl.setEnabled(False)
+            self.uuid_ctrl.setEnabled(False)
 
-            self.simplify_ctrl.Enable(False)
-            self.target_count_ctrl.Enable(False)
-            self.update_rate_ctrl.Enable(False)
-            self.iterations_ctrl.Enable(False)
-            self.aggressiveness_ctrl.Enable(False)
+            self.simplify_ctrl.setEnabled(False)
+            self.target_count_ctrl.setEnabled(False)
+            self.update_rate_ctrl.setEnabled(False)
+            self.iterations_ctrl.setEnabled(False)
+            self.aggressiveness_ctrl.setEnabled(False)
 
-            self.name_ctrl.Enable(False)
-            self.extension_ctrl.Enable(False)
-            self.mimetype_ctrl.Enable(False)
+            self.name_ctrl.setEnabled(False)
+            self.extension_ctrl.setEnabled(False)
+            self.mimetype_ctrl.setEnabled(False)
             self.set_preview_model()
 
         else:
             model3d = db_obj.model3d
 
-            self.path_ctrl.Enable(True)
+            self.path_ctrl.setEnabled(True)
             self.path_ctrl.SetWildcards(_utils.MODEL_FILE_WILDCARDS)
 
             if model3d is None:
@@ -133,18 +133,18 @@ class Model3DControl(_prop_ctrls.Category):
                 self.extension_ctrl.SetValue('')
                 self.mimetype_ctrl.SetValue('')
 
-                self.data_path_ctrl.Enable(False)
-                self.uuid_ctrl.Enable(False)
+                self.data_path_ctrl.setEnabled(False)
+                self.uuid_ctrl.setEnabled(False)
 
-                self.simplify_ctrl.Enable(False)
-                self.target_count_ctrl.Enable(False)
-                self.update_rate_ctrl.Enable(False)
-                self.iterations_ctrl.Enable(False)
-                self.aggressiveness_ctrl.Enable(False)
+                self.simplify_ctrl.setEnabled(False)
+                self.target_count_ctrl.setEnabled(False)
+                self.update_rate_ctrl.setEnabled(False)
+                self.iterations_ctrl.setEnabled(False)
+                self.aggressiveness_ctrl.setEnabled(False)
 
-                self.name_ctrl.Enable(False)
-                self.extension_ctrl.Enable(False)
-                self.mimetype_ctrl.Enable(False)
+                self.name_ctrl.setEnabled(False)
+                self.extension_ctrl.setEnabled(False)
+                self.mimetype_ctrl.setEnabled(False)
                 self.set_preview_model()
             else:
                 self.set_preview_model()
@@ -167,18 +167,18 @@ class Model3DControl(_prop_ctrls.Category):
                 self.extension_ctrl.SetValue(filetype.extension)
                 self.mimetype_ctrl.SetValue(filetype.mimetype)
 
-                self.data_path_ctrl.Enable(True)
-                self.uuid_ctrl.Enable(True)
+                self.data_path_ctrl.setEnabled(True)
+                self.uuid_ctrl.setEnabled(True)
 
-                self.simplify_ctrl.Enable(True)
-                self.target_count_ctrl.Enable(True)
-                self.update_rate_ctrl.Enable(True)
-                self.iterations_ctrl.Enable(True)
-                self.aggressiveness_ctrl.Enable(True)
+                self.simplify_ctrl.setEnabled(True)
+                self.target_count_ctrl.setEnabled(True)
+                self.update_rate_ctrl.setEnabled(True)
+                self.iterations_ctrl.setEnabled(True)
+                self.aggressiveness_ctrl.setEnabled(True)
 
-                self.name_ctrl.Enable(True)
-                self.extension_ctrl.Enable(True)
-                self.mimetype_ctrl.Enable(True)
+                self.name_ctrl.setEnabled(True)
+                self.extension_ctrl.setEnabled(True)
+                self.mimetype_ctrl.setEnabled(True)
 
     def set_preview_model(self):
         """Set the preview model.
@@ -288,12 +288,18 @@ class Model3DControl(_prop_ctrls.Category):
         self.nb.setTabPosition(QTabWidget.TabPosition.North)
         self.nb.setUsesScrollButtons(True)
 
+        self.addWidget(self.nb)
+
         general_page = _prop_ctrls.Category(self.nb, 'General')
         self.path_ctrl = _prop_ctrls.PathProperty(general_page, 'Model Location')
         self.data_path_ctrl = _prop_ctrls.StringProperty(general_page, 'DB Path', read_only=True)
         self.uuid_ctrl = _prop_ctrls.StringProperty(general_page, 'DB Path', read_only=True)
 
-        self.path_ctrl.property_changed.connect(self._on_path)
+        general_page.addWidget(self.path_ctrl)
+        general_page.addWidget(self.data_path_ctrl)
+        general_page.addWidget(self.uuid_ctrl)
+
+        self.path_ctrl.propertyChanged.connect(self._on_path)
 
         simplify_page = _prop_ctrls.Category(self.nb, 'Simplify')
         self.simplify_ctrl = _prop_ctrls.BoolProperty(general_page, 'Enable')
@@ -302,22 +308,33 @@ class Model3DControl(_prop_ctrls.Category):
         self.iterations_ctrl = _prop_ctrls.IntProperty(simplify_page, 'Iterations', min_value=1, max_value=100)
         self.aggressiveness_ctrl = _prop_ctrls.FloatProperty(simplify_page, 'Aggressiveness', min_value=1.0, max_value=100.0, increment=0.1)
 
-        self.simplify_ctrl.property_changed.connect(self._on_simplify)
-        self.target_count_ctrl.property_changed.connect(self._on_target_count)
-        self.update_rate_ctrl.property_changed.connect(self._on_update_rate)
-        self.iterations_ctrl.property_changed.connect(self._on_iterations)
-        self.aggressiveness_ctrl.property_changed.connect(self._on_aggressiveness)
+        simplify_page.addWidget(self.simplify_ctrl)
+        simplify_page.addWidget(self.target_count_ctrl)
+        simplify_page.addWidget(self.update_rate_ctrl)
+        simplify_page.addWidget(self.iterations_ctrl)
+        simplify_page.addWidget(self.aggressiveness_ctrl)
+
+        self.simplify_ctrl.propertyChanged.connect(self._on_simplify)
+        self.target_count_ctrl.propertyChanged.connect(self._on_target_count)
+        self.update_rate_ctrl.propertyChanged.connect(self._on_update_rate)
+        self.iterations_ctrl.propertyChanged.connect(self._on_iterations)
+        self.aggressiveness_ctrl.propertyChanged.connect(self._on_aggressiveness)
 
         file_type_page = _prop_ctrls.Category(self.nb, 'File Type')
         self.name_ctrl = _prop_ctrls.StringProperty(file_type_page, 'Name', read_only=True)
         self.extension_ctrl = _prop_ctrls.StringProperty(file_type_page, 'File Extension', read_only=True)
         self.mimetype_ctrl = _prop_ctrls.StringProperty(file_type_page, 'Minetype', read_only=True)
 
+        file_type_page.addWidget(self.name_ctrl)
+        file_type_page.addWidget(self.extension_ctrl)
+        file_type_page.addWidget(self.mimetype_ctrl)
+
         self.angle3d_page = _prop_ctrls.Angle3DProperty(self.nb, '3D Angle')
         self.position3d_page = _prop_ctrls.Angle3DProperty(self.nb, '3D Position')
 
         preview_page = _prop_ctrls.Category(self.nb, 'Model Preview')
         # self.model_preview = _model_preview.PreviewCanvas(preview_page)
+        # preview_page.addWidget(self.model_preview)
 
         for page in (
             general_page,
@@ -328,4 +345,3 @@ class Model3DControl(_prop_ctrls.Category):
             preview_page
         ):
             self.nb.addTab(page, page.GetLabel())
-            page.Realize()

@@ -74,7 +74,7 @@ class GenderControl(_prop_ctrls.ComboBoxProperty):
         self.db_obj: GenderMixin = None
 
         super().__init__(parent, 'Gender')
-        self.property_changed.connect(self._on_gender)
+        self.propertyChanged.connect(self._on_gender)
 
     def set_obj(self, db_obj: GenderMixin):
         """Set the obj.
@@ -90,7 +90,7 @@ class GenderControl(_prop_ctrls.ComboBoxProperty):
             self.choices = []
             self.SetItems(self.choices)
             self.SetValue('')
-            self.Enable(False)
+            self.setEnabled(False)
         else:
             db_obj.table.execute('SELECT name FROM genders;')
             rows = db_obj.table.fetchall()
@@ -98,7 +98,7 @@ class GenderControl(_prop_ctrls.ComboBoxProperty):
             self.choices = sorted([row[0] for row in rows])
             self.SetItems(self.choices)
             self.SetValue(db_obj.gender.name)
-            self.Enable(True)
+            self.setEnabled(True)
 
     def _on_gender(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the gender event.

@@ -1167,17 +1167,30 @@ class PJTHousingControl(QTabWidget):
         self.note_ctrl = NotesControl(general_page)
         self.smooth_ctrl = SmoothControl(general_page)
 
+        general_page.addWidget(self.name_ctrl)
+        general_page.addWidget(self.note_ctrl)
+        general_page.addWidget(self.smooth_ctrl)
+
         visible_page = _prop_ctrls.Category(self, 'Visible')
         self.visible2d_ctrl = Visible2DControl(visible_page)
         self.visible3d_ctrl = Visible3DControl(visible_page)
+
+        visible_page.addWidget(self.visible2d_ctrl)
+        visible_page.addWidget(self.visible3d_ctrl)
 
         angle_page = _prop_ctrls.Category(self, 'Angle')
         self.angle2d_ctrl = Angle2DControl(angle_page)
         self.angle3d_ctrl = Angle3DControl(angle_page)
 
+        angle_page.addWidget(self.angle2d_ctrl)
+        angle_page.addWidget(self.angle3d_ctrl)
+
         position_page = _prop_ctrls.Category(self, 'Position')
         self.position2d_ctrl = Position2DControl(position_page)
         self.position3d_ctrl = Position3DControl(position_page)
+
+        position_page.addWidget(self.position2d_ctrl)
+        position_page.addWidget(self.position3d_ctrl)
 
         cavities_page = _prop_ctrls.Category(self, 'Cavities')
         self.cavities_notebook = QTabWidget(cavities_page)
@@ -1185,26 +1198,42 @@ class PJTHousingControl(QTabWidget):
         self.cavities_notebook.setUsesScrollButtons(True)
         self.cavity_pages = []
 
+        cavities_page.addWidget(self.cavities_notebook)
+
         cover_page = _prop_ctrls.Category(self, 'Cover')
         self.cover_ctrl = _pjt_cover.PJTCoverControl(cover_page)
+
+        cover_page.addWidget(self.cover_ctrl)
 
         boot_page = _prop_ctrls.Category(self, 'Boot')
         self.boot_ctrl = _pjt_boot.PJTBootControl(boot_page)
 
+        boot_page.addWidget(self.boot_ctrl)
+
         cpa_lock_page = _prop_ctrls.Category(self, 'CPA Lock')
         self.cpa_lock_ctrl = _pjt_cpa_lock.PJTCPALockControl(cpa_lock_page)
+
+        cpa_lock_page.addWidget(self.cpa_lock_ctrl)
 
         tpa_lock1_page = _prop_ctrls.Category(self, 'TPA Lock 1')
         self.tpa_lock1_ctrl = _pjt_tpa_lock.PJTTPALockControl(tpa_lock1_page)
 
+        tpa_lock1_page.addWidget(self.tpa_lock1_ctrl)
+
         tpa_lock2_page = _prop_ctrls.Category(self, 'TPA Lock 2')
         self.tpa_lock2_ctrl = _pjt_tpa_lock.PJTTPALockControl(tpa_lock2_page)
+
+        tpa_lock2_page.addWidget(self.tpa_lock2_ctrl)
 
         seal_page = _prop_ctrls.Category(self, 'Seal')
         self.seal_ctrl = _pjt_seal.PJTSealControl(seal_page)
 
+        seal_page.addWidget(self.seal_ctrl)
+
         part_page = _prop_ctrls.Category(self, 'Part')
         self.part_ctrl = _housing.HousingControl(part_page)
+
+        part_page.addWidget(self.part_ctrl)
 
         for page in (
             general_page,
@@ -1221,4 +1250,3 @@ class PJTHousingControl(QTabWidget):
             part_page
         ):
             self.addTab(page, page.GetLabel())
-            page.Realize()

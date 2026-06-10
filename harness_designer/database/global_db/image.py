@@ -205,6 +205,8 @@ class Image(EntryBase):
 
                 self._table.db.mainframe.process_manager.get_image(
                     10, self, resource_state, mfg, part_number, image_path)
+            else:
+                progress_callback(self, -1)
         else:
             if self.db_id not in self._download_callbacks:
                 self._download_callbacks[self.db_id] = []

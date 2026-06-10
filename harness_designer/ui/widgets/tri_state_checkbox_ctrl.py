@@ -315,6 +315,12 @@ class TriStateCheckboxCtrl(QtWidgets.QWidget):
         layout.addWidget(self.st, 1)
         layout.addWidget(self.ctrl, 1)
 
+    def SetLabel(self, value: str) -> None:
+        self.st.setText(value)
+
+    def GetLabel(self) -> str:
+        return self.st.text()
+
     # ------------------------------------------------------------------
     # wx-compatible API
     # ------------------------------------------------------------------

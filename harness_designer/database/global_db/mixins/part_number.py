@@ -53,7 +53,7 @@ class PartNumberControl(_prop_ctrls.StringProperty):
 
         super().__init__(parent, 'Part Number')
 
-        self.property_changed.connect(self._on_part_number)
+        self.propertyChanged.connect(self._on_part_number)
 
     def set_obj(self, db_obj: PartNumberMixin):
         """Set the obj.
@@ -67,10 +67,10 @@ class PartNumberControl(_prop_ctrls.StringProperty):
 
         if db_obj is None:
             self.SetValue('')
-            self.Enable(False)
+            self.setEnabled(False)
         else:
             self.SetValue(db_obj.part_number)
-            self.Enable(True)
+            self.setEnabled(True)
 
     def _on_part_number(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the part number event.

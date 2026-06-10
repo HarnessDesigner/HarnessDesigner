@@ -408,6 +408,11 @@ class CoverControl(QTabWidget):
         self.color_ctrl = ColorControl(general_page)
         self.direction_ctrl = DirectionControl(general_page)
 
+        general_page.addWidget(self.part_number_ctrl)
+        general_page.addWidget(self.description_ctrl)
+        general_page.addWidget(self.color_ctrl)
+        general_page.addWidget(self.direction_ctrl)
+
         self.mfg_page = ManufacturerControl(self)
         self.family_page = FamilyControl(self)
         self.series_page = SeriesControl(self)
@@ -416,10 +421,14 @@ class CoverControl(QTabWidget):
         self.dimension_page = DimensionControl(self)
         self.weight_ctrl = WeightControl(self.dimension_page)
 
+        self.dimension_page.addWidget(self.weight_ctrl)
+
         self.resources_page = ResourcesControl(self)
 
         compat_parts_page = _prop_ctrls.Category(self, 'Compatible Parts')
         self.compat_housing_ctrl = CompatHousingsControl(compat_parts_page)
+
+        compat_parts_page.addWidget(self.compat_housing_ctrl)
 
         self.model3d_page = Model3DControl(self)
 
@@ -435,4 +444,3 @@ class CoverControl(QTabWidget):
             self.model3d_page
         ):
             self.addTab(page, page.GetLabel())
-            page.Realize()

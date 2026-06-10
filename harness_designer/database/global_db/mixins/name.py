@@ -53,10 +53,10 @@ class NameControl(_prop_ctrls.StringProperty):
 
         if db_obj is None:
             self.SetValue('')
-            self.Enable(False)
+            self.setEnabled(False)
         else:
             self.SetValue(db_obj.name)
-            self.Enable(True)
+            self.setEnabled(True)
 
     def _on_name(self, evt):
         """Handle the name event.

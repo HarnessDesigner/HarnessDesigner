@@ -1,11 +1,14 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from . import prop_base as _prop_base
+from PySide6 import QtWidgets
+
+
 from . import float_prop as _float_prop
 
 
-class Angle3DProperty(_prop_base.Property):
-    """Represent an angle 3dproperty in :mod:`harness_designer.ui.prop_ctrls.angle3d_prop`.
+class Angle3DProperty(QtWidgets.QGroupBox):
+    """
+    Represent an angle 3dproperty in :mod:`harness_designer.ui.prop_ctrls.angle3d_prop`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
@@ -20,9 +23,12 @@ class Angle3DProperty(_prop_base.Property):
         :param label: Value for ``label``.
         :type label: UNKNOWN
         """
-        _prop_base.Property.__init__(self, parent, label, orientation='vertical')
+
+        super().__init__(label, parent)
 
         self._angle = None
+        self._label = label
+
         self.x_ctrl = _float_prop.FloatProperty(
             self, 'X', min_value=-180.0, max_value=180.0, increment=0.01, units='°')
         self.y_ctrl = _float_prop.FloatProperty(
@@ -30,13 +36,16 @@ class Angle3DProperty(_prop_base.Property):
         self.z_ctrl = _float_prop.FloatProperty(
             self, 'Z', min_value=-180.0, max_value=180.0, increment=0.01, units='°')
 
-        self._sizer.addWidget(self.x_ctrl)
-        self._sizer.addWidget(self.y_ctrl)
-        self._sizer.addWidget(self.z_ctrl)
+        sizer = QtWidgets.QVBoxLayout()
+        sizer.addWidget(self.x_ctrl)
+        sizer.addWidget(self.y_ctrl)
+        sizer.addWidget(self.z_ctrl)
 
-        self.x_ctrl.property_changed.connect(self._on_x)
-        self.y_ctrl.property_changed.connect(self._on_y)
-        self.z_ctrl.property_changed.connect(self._on_z)
+        self.setLayout(sizer)
+
+        self.x_ctrl.propertyChanged.connect(self._on_x)
+        self.y_ctrl.propertyChanged.connect(self._on_y)
+        self.z_ctrl.propertyChanged.connect(self._on_z)
 
     def SetValue(self, angle):
         """Execute the set value operation.
@@ -84,3 +93,10 @@ class Angle3DProperty(_prop_base.Property):
         :type evt: UNKNOWN
         """
         self._angle.z = evt.GetValue()
+
+    def SetLabel(self, value: str):
+        self._label = value
+        self.setTitle(value)
+
+    def GetLabel(self) -> str:
+        return self._label

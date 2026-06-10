@@ -560,10 +560,10 @@ class PJTTerminalControl(QTabWidget):
             self.volts_ctrl.SetValue(0.0)
             self.load_ctrl.SetValue(0.0)
 
-            self.is_start_ctrl.Enable(False)
-            self.voltage_drop_ctrl.Enable(False)
-            self.volts_ctrl.Enable(False)
-            self.load_ctrl.Enable(False)
+            self.is_start_ctrl.setEnabled(False)
+            self.voltage_drop_ctrl.setEnabled(False)
+            self.volts_ctrl.setEnabled(False)
+            self.load_ctrl.setEnabled(False)
 
             self.seal_ctrl.set_obj(None)
             self.terminal_ctrl.set_obj(None)
@@ -576,20 +576,20 @@ class PJTTerminalControl(QTabWidget):
             self.is_start_ctrl.SetValue(is_start)
 
             if is_start:
-                self.voltage_drop_ctrl.Enable(True)
-                self.volts_ctrl.Enable(True)
+                self.voltage_drop_ctrl.setEnabled(True)
+                self.volts_ctrl.setEnabled(True)
                 self.voltage_drop_ctrl.SetValue(db_obj.voltage_drop)
                 self.volts_ctrl.SetValue(db_obj.volts)
 
-                self.load_ctrl.Enable(False)
+                self.load_ctrl.setEnabled(False)
                 self.load_ctrl.SetValue(0.0)
             else:
-                self.voltage_drop_ctrl.Enable(False)
-                self.volts_ctrl.Enable(False)
+                self.voltage_drop_ctrl.setEnabled(False)
+                self.volts_ctrl.setEnabled(False)
                 self.voltage_drop_ctrl.SetValue(0.0)
                 self.volts_ctrl.SetValue(0.0)
 
-                self.load_ctrl.Enable(True)
+                self.load_ctrl.setEnabled(True)
                 self.load_ctrl.SetValue(db_obj.load)
 
             self.seal_ctrl.set_obj(db_obj.seal)
@@ -615,31 +615,55 @@ class PJTTerminalControl(QTabWidget):
         self.note_ctrl = NotesControl(general_page)
         self.smooth_ctrl = SmoothControl(general_page)
 
+        general_page.addWidget(self.name_ctrl)
+        general_page.addWidget(self.note_ctrl)
+        general_page.addWidget(self.smooth_ctrl)
+
         self.is_start_ctrl = _prop_ctrls.BoolProperty(general_page, 'Is Start')
         self.voltage_drop_ctrl = _prop_ctrls.FloatProperty(general_page, 'Allowed Voltage Drop', min_value=0.0, max_value=9999.99, increment=0.01, units='VDC/VAC')
         self.volts_ctrl = _prop_ctrls.FloatProperty(general_page, 'Volts', min_value=0.0, max_value=44000.00, increment=0.01, units='VDC/VAC')
         self.load_ctrl = _prop_ctrls.FloatProperty(general_page, 'Load', min_value=0.0, max_value=9999.99, increment=0.01, units='A')
 
+        general_page.addWidget(self.is_start_ctrl)
+        general_page.addWidget(self.voltage_drop_ctrl)
+        general_page.addWidget(self.volts_ctrl)
+        general_page.addWidget(self.load_ctrl)
+
         angle_page = _prop_ctrls.Category(self, 'Angle')
         self.angle2d_ctrl = Angle2DControl(angle_page)
         self.angle3d_ctrl = Angle3DControl(angle_page)
+
+        angle_page.addWidget(self.angle2d_ctrl)
+        angle_page.addWidget(self.angle3d_ctrl)
 
         position_page = _prop_ctrls.Category(self, 'Position')
         self.position2d_ctrl = Position2DControl(position_page)
         self.position3d_ctrl = Position3DControl(position_page)
 
+        position_page.addWidget(self.position2d_ctrl)
+        position_page.addWidget(self.position3d_ctrl)
+
         visible_page = _prop_ctrls.Category(self, 'Visible')
         self.visible2d_ctrl = Visible2DControl(visible_page)
         self.visible3d_ctrl = Visible3DControl(visible_page)
 
+        visible_page.addWidget(self.visible2d_ctrl)
+        visible_page.addWidget(self.visible3d_ctrl)
+
         seal_page = _prop_ctrls.Category(self, 'Seal')
         self.seal_ctrl = _pjt_seal.PJTSealControl(seal_page)
+
+        seal_page.addWidget(self.seal_ctrl)
 
         circuit_page = _prop_ctrls.Category(self, 'Circuit')
         self.circuit_ctrl = _pjt_circuit.PJTCircuitControl(circuit_page)
 
+        circuit_page.addWidget(self.circuit_ctrl)
+
         part_page = _prop_ctrls.Category(self, 'Part')
         self.terminal_ctrl = _terminal.TerminalControl(part_page)
+
+        part_page.addWidget(self.terminal_ctrl)
 
         for page in (
             general_page,
@@ -651,4 +675,3 @@ class PJTTerminalControl(QTabWidget):
             part_page
         ):
             self.addTab(page, page.GetLabel())
-            page.Realize()

@@ -52,7 +52,7 @@ class NotesControl(_prop_ctrls.LongStringProperty):
 
         super().__init__(parent, 'Notes')
 
-        self.property_changed.connect(self._on_notes)
+        self.propertyChanged.connect(self._on_notes)
 
     def _on_notes(self, evt):
         """Handle the notes event.
@@ -76,7 +76,7 @@ class NotesControl(_prop_ctrls.LongStringProperty):
         self.db_obj = db_obj
         if db_obj is None:
             self.SetValue('')
-            self.Enable(False)
+            self.setEnabled(False)
         else:
             self.SetValue(db_obj.notes)
-            self.Enable(True)
+            self.setEnabled(True)

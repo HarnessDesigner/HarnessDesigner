@@ -1,17 +1,21 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from PySide6.QtWidgets import QPushButton, QLabel, QHBoxLayout, QVBoxLayout, QColorDialog
-from PySide6.QtGui import QColor
 
-from . import prop_base as _prop_base
+from PySide6 import QtGui
+from PySide6 import QtWidgets
+from PySide6 import QtCore
+
 from ..widgets import autocomplete_combobox as _autocomplete_combobox
+from . import events as _events
 
 
-class ColorProperty(_prop_base.Property):
+class ColorProperty(QtWidgets.QWidget):
     """Represent a color property in :mod:`harness_designer.ui.prop_ctrls.color_prop`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
+
+    propertyChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
     def __init__(self, parent, label):
         """Initialise the :class:`ColorProperty` instance.
@@ -23,37 +27,33 @@ class ColorProperty(_prop_base.Property):
         :param label: Value for ``label``.
         :type label: UNKNOWN
         """
-        _prop_base.Property.__init__(self, parent, label)
-        self._value = ['None', QColor(0, 0, 0)]
-        self._choices = []
 
-        self._st = QLabel(label + ':', self)
+        super().__init__(parent)
+
+        self._value = ['None', QtGui.QColor(0, 0, 0)]
+        self._choices = []
+        self._label = label
+
+        self._st = QtWidgets.QLabel(label + ':', self)
         self._ctrl = _autocomplete_combobox.AutoCompleteComboBox(self)
         self._ctrl.lineEdit().setText('None')
 
-        self._button = QPushButton(self)
+        self._button = QtWidgets.QPushButton(self)
         self._button.setFixedSize(24, 24)
         self._button.setStyleSheet('background-color: black;')
 
-        row = QHBoxLayout()
-        row.setContentsMargins(5, 2, 5, 2)
-        row.addWidget(self._st)
-
-        col = QVBoxLayout()
-        col.setContentsMargins(0, 0, 0, 0)
-
-        inner = QHBoxLayout()
-        inner.setContentsMargins(0, 0, 0, 0)
-        inner.addWidget(self._ctrl, stretch=1)
-        inner.addWidget(self._button)
-        col.addLayout(inner)
-
-        row.addLayout(col, stretch=1)
-        self._sizer.addLayout(row)
+        sizer = QtWidgets.QHBoxLayout()
+        sizer.setContentsMargins(5, 2, 5, 2)
+        sizer.addWidget(self._st)
+        sizer.addWidget(self._ctrl, stretch=1)
+        sizer.addWidget(self._button)
+        self.setLayout(sizer)
 
         self._ctrl.currentTextChanged.connect(self._on_change)
+
         self._ctrl.lineEdit().returnPressed.connect(
             lambda: self._on_change(self._ctrl.currentText()))
+
         self._button.clicked.connect(self._on_colour)
 
     def _on_colour(self):
@@ -61,8 +61,8 @@ class ColorProperty(_prop_base.Property):
 
         UNKNOWN details are inferred from the callable name and signature.
         """
-        current = self._value[1] if isinstance(self._value[1], QColor) else QColor(0, 0, 0)
-        color = QColorDialog.getColor(current, self, 'Select Colour')
+        current = self._value[1] if isinstance(self._value[1], QtGui.QColor) else QtGui.QColor(0, 0, 0)
+        color = QtWidgets.QColorDialog.getColor(current, self, 'Select Colour')
         if not color.isValid():
             return
 
@@ -76,14 +76,20 @@ class ColorProperty(_prop_base.Property):
             index = colors.index(rgba)
             name = self._choices[index][0]
             self._ctrl.blockSignals(True)
+
             self._ctrl.setCurrentText(name)
+
             self._ctrl.blockSignals(False)
             self._value = [name, color]
         else:
             name = self._ctrl.currentText()
             self._value = [name, color]
 
-        self._send_changed_event(list, self._value)
+        evt = _events.PropertyEvent()
+        evt.SetValue(self._value)
+        evt.SetPropertyType(list)
+        evt.SetProperty(self)
+        self.propertyChanged.emit(evt)
 
     def _on_change(self, value):
         """Handle the change event.
@@ -101,14 +107,18 @@ class ColorProperty(_prop_base.Property):
             g = (rgba >> 16) & 0xFF
             b = (rgba >> 8) & 0xFF
             a = rgba & 0xFF
-            color = QColor(r, g, b, a)
+            color = QtGui.QColor(r, g, b, a)
             self._button.setStyleSheet(f'background-color: {color.name()};')
             self._value = [value, color]
         else:
             self._button.setStyleSheet('background-color: black;')
-            self._value = [value, QColor(0, 0, 0)]
+            self._value = [value, QtGui.QColor(0, 0, 0)]
 
-        self._send_changed_event(list, self._value)
+        evt = _events.PropertyEvent()
+        evt.SetValue(self._value)
+        evt.SetPropertyType(list)
+        evt.SetProperty(self)
+        self.propertyChanged.emit(evt)
 
     def SetValue(self, value):
         """Execute the set value operation.
@@ -120,14 +130,16 @@ class ColorProperty(_prop_base.Property):
         """
         values = [item[0] for item in self._choices]
         self._ctrl.blockSignals(True)
+
         if value[0] in values:
             self._ctrl.setCurrentText(value[0])
         else:
             self._ctrl.lineEdit().setText(value[0])
 
         color = value[1]
-        if isinstance(color, QColor):
+        if isinstance(color, QtGui.QColor):
             self._button.setStyleSheet(f'background-color: {color.name()};')
+
         self._ctrl.blockSignals(False)
         self._value = list(value)
 
@@ -169,6 +181,15 @@ class ColorProperty(_prop_base.Property):
         """
         self._choices = items
         self._ctrl.blockSignals(True)
+
         self._ctrl.clear()
         self._ctrl.addItems([item[0] for item in items])
+
         self._ctrl.blockSignals(False)
+
+    def SetLabel(self, value: str):
+        self._label = value
+        self._st.setText(value)
+
+    def GetLabel(self) -> str:
+        return self._label

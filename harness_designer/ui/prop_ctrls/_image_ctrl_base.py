@@ -8,24 +8,24 @@ import zipfile
 
 from PIL import Image
 
-from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout, QFrame
-from PySide6.QtGui import QPixmap, QImage
-from PySide6.QtCore import Qt
+from PySide6 import QtWidgets
+from PySide6 import QtCore
+from PySide6 import QtPdf
+from PySide6 import QtGui
 
-from ...image import utils as _image_utils
 from ... import image as _image
 from ... import resources as _resources
 
 
-def _pil_to_pixmap(pil_img) -> QPixmap:
+def _pil_to_pixmap(pil_img) -> QtGui.QPixmap:
     """Convert a PIL RGBA image to QPixmap."""
     pil_img = pil_img.convert('RGBA')
     data = pil_img.tobytes('raw', 'RGBA')
-    qimg = QImage(data, pil_img.width, pil_img.height, QImage.Format_RGBA8888)
-    return QPixmap.fromImage(qimg)
+    qimg = QtGui.QImage(data, pil_img.width, pil_img.height, QtGui.QImage.Format.Format_RGBA8888)
+    return QtGui.QPixmap.fromImage(qimg)
 
 
-def _no_image_pixmap() -> QPixmap:
+def _no_image_pixmap() -> QtGui.QPixmap:
     """Execute the no image pixmap operation.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -36,7 +36,7 @@ def _no_image_pixmap() -> QPixmap:
     return _pil_to_pixmap(_image.images.no_image.resize(100, 100).pil_image)
 
 
-class ImageCtrl(QWidget):
+class ImageCtrl(QtWidgets.QWidget):
     """Represent an image ctrl in :mod:`harness_designer.ui.prop_ctrls._image_ctrl_base`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -59,22 +59,22 @@ class ImageCtrl(QWidget):
         :param support_pdf: Value for ``support_pdf``.
         :type support_pdf: UNKNOWN
         """
-        QWidget.__init__(self, parent)
+        super().__init__(parent)
         self._support_pdf = support_pdf
         self.file_types = file_types
 
         self._pdf_widget = None  # populated lazily if PDF support needed
         self._path = original_path or ''
 
-        self._image_label = QLabel(self)
-        self._image_label.setFrameShape(QFrame.Panel)
-        self._image_label.setFrameShadow(QFrame.Sunken)
-        self._image_label.setAlignment(Qt.AlignCenter)
+        self._image_label = QtWidgets.QLabel(self)
+        self._image_label.setFrameShape(QtWidgets.QFrame.Shape.Panel)
+        self._image_label.setFrameShadow(QtWidgets.QFrame.Shadow.Sunken)
+        self._image_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self._image_label.setFixedSize(100, 100)
         self._image_label.setPixmap(_no_image_pixmap())
 
-        layout = QVBoxLayout(self)
-        row = QHBoxLayout()
+        layout = QtWidgets.QVBoxLayout()
+        row = QtWidgets.QHBoxLayout()
         row.addWidget(self._image_label, stretch=1)
         layout.addLayout(row, stretch=1)
         self.setLayout(layout)
@@ -94,7 +94,7 @@ class ImageCtrl(QWidget):
         """
         self.file_types = file_types
 
-    def _set_pixmap(self, pixmap: QPixmap):
+    def _set_pixmap(self, pixmap: QtGui.QPixmap):
         """Set the pixmap.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -103,7 +103,8 @@ class ImageCtrl(QWidget):
         :type pixmap: :class:`QPixmap`
         """
         self._image_label.setPixmap(
-            pixmap.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            pixmap.scaled(100, 100, QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                          QtCore.Qt.TransformationMode.SmoothTransformation))
 
     def _set_pdf(self, path):
         """Render the first page of a PDF as a thumbnail in the image label."""
@@ -111,48 +112,23 @@ class ImageCtrl(QWidget):
 
         # Primary: QPdfDocument (Qt 6.4+)
         try:
-            from PySide6.QtPdf import QPdfDocument
-            from PySide6.QtCore import QSizeF
-
-            doc = QPdfDocument(None)
+            doc = QtPdf.QPdfDocument(None)
             doc.load(path)
             if doc.pageCount() > 0:
                 page_size = doc.pagePointSize(0)
                 if page_size.width() > 0 and page_size.height() > 0:
                     scale = min(100 / page_size.width(), 100 / page_size.height())
-                    render_size = QSizeF(
-                        page_size.width() * scale,
-                        page_size.height() * scale
-                    ).toSize()
-                    from PySide6.QtGui import QImage
+
+                    render_size = QtCore.QSizeF(page_size.width() * scale,
+                                                page_size.height() * scale).toSize()
+
                     img = doc.render(0, render_size)
                     if not img.isNull():
-                        from PySide6.QtGui import QPixmap
-                        self._set_pixmap(QPixmap.fromImage(img))
+                        self._set_pixmap(QtGui.QPixmap.fromImage(img))
                         rendered = True
             doc.close()
         except (ImportError, Exception):
             pass
-
-        # Fallback: pymupdf
-        if not rendered:
-            try:
-                import fitz
-                from PySide6.QtGui import QImage, QPixmap
-
-                doc = fitz.open(path)
-                if doc.page_count > 0:
-                    page = doc[0]
-                    mat = fitz.Matrix(100 / max(page.rect.width, 1),
-                                      100 / max(page.rect.height, 1))
-                    pix = page.get_pixmap(matrix=mat)
-                    img = QImage(pix.samples, pix.width, pix.height,
-                                 pix.stride, QImage.Format.Format_RGB888)
-                    self._set_pixmap(QPixmap.fromImage(img))
-                    rendered = True
-                doc.close()
-            except (ImportError, Exception):
-                pass
 
         if not rendered:
             self._image_label.setText(f'PDF\n{os.path.basename(path)}')
@@ -168,6 +144,7 @@ class ImageCtrl(QWidget):
         try:
             img = Image.open(path).convert('RGBA').resize(
                 (100, 100), Image.Resampling.LANCZOS)
+
             self._set_pixmap(_pil_to_pixmap(img))
         except Exception:  # NOQA
             self._set_pixmap(_no_image_pixmap())
@@ -204,6 +181,7 @@ class ImageCtrl(QWidget):
                     else:
                         self._set_pixmap(_no_image_pixmap())
                         return False
+
                     data = zf.read(file_name)
                 elif content_type in mime_types:
                     ext = mime_types[content_type]

@@ -53,7 +53,7 @@ class WeightControl(_prop_ctrls.FloatProperty):
 
         super().__init__(parent, 'Weight', min_value=0.01, max_value=999.99, increment=0.01, units='g')
 
-        self.property_changed.connect(self._on_weight)
+        self.propertyChanged.connect(self._on_weight)
 
     def set_obj(self, db_obj: WeightMixin):
         """Set the obj.
@@ -66,10 +66,10 @@ class WeightControl(_prop_ctrls.FloatProperty):
         self.db_obj = db_obj
         if db_obj is None:
             self.SetValue(0.0)
-            self.Enable(False)
+            self.setEnabled(False)
         else:
             self.SetValue(db_obj.weight)
-            self.Enable(True)
+            self.setEnabled(True)
 
     def _on_weight(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the weight event.

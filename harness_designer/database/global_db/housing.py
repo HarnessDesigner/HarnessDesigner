@@ -1390,6 +1390,8 @@ class HousingControl(QTabWidget):
 
         self.weight_ctrl = WeightControl(self.dimensions_page)
 
+        self.dimensions_page.addWidget(self.weight_ctrl)
+
         general_page = _prop_ctrls.Category(self, 'General')
         self.part_number_ctrl = PartNumberControl(general_page)
         self.description_ctrl = DescriptionControl(general_page)
@@ -1398,80 +1400,140 @@ class HousingControl(QTabWidget):
         self.direction_ctrl = DirectionControl(general_page)
         self.angle_ctrl = _prop_ctrls.Angle3DProperty(general_page, '3D Angle')
 
+        general_page.addWidget(self.part_number_ctrl)
+        general_page.addWidget(self.description_ctrl)
+        general_page.addWidget(self.gender_ctrl)
+        general_page.addWidget(self.color_ctrl)
+        general_page.addWidget(self.direction_ctrl)
+        general_page.addWidget(self.angle_ctrl)
+
         housings_page = _prop_ctrls.Category(self, 'Housings')
         self.compat_housings_ctrl = CompatHousingsControl(housings_page)
+
+        housings_page.addWidget(self.compat_housings_ctrl)
 
         terminal_page = _prop_ctrls.Category(self, 'Terminals')
         self.compat_terminals_ctrl = CompatTerminalsControl(terminal_page)
 
+        terminal_page.addWidget(self.compat_terminals_ctrl)
+
         self.terminal_sizes_ctrl = _prop_ctrls.ArrayFloatProperty(
             terminal_page, 'Terminal Sizes')
-        self.terminal_sizes_ctrl.property_changed.connect(self._on_terminal_sizes)
+
+        terminal_page.addWidget(self.terminal_sizes_ctrl)
+
+        self.terminal_sizes_ctrl.propertyChanged.connect(self._on_terminal_sizes)
 
         self.terminal_size_count_ctrl = _prop_ctrls.ArrayIntProperty(
             terminal_page, 'Terminal Size Counts')
-        self.terminal_size_count_ctrl.property_changed.connect(self._on_terminal_size_count)
+
+        terminal_page.addWidget(self.terminal_size_count_ctrl)
+
+        self.terminal_size_count_ctrl.propertyChanged.connect(self._on_terminal_size_count)
 
         self.pitch_ctrl = _prop_ctrls.FloatProperty(
             terminal_page, 'Pitch', min_value=0.01,
             max_value=999.9, increment=0.01, units='mm')
-        self.pitch_ctrl.property_changed.connect(self._on_pitch)
+
+        terminal_page.addWidget(self.pitch_ctrl)
+
+        self.pitch_ctrl.propertyChanged.connect(self._on_pitch)
 
         self.rows_ctrl = _prop_ctrls.IntProperty(
             terminal_page, 'Rows', min_value=1, max_value=999)
-        self.rows_ctrl.property_changed.connect(self._on_rows)
+
+        terminal_page.addWidget(self.rows_ctrl)
+
+        self.rows_ctrl.propertyChanged.connect(self._on_rows)
 
         self.pin_count_ctrl = _prop_ctrls.IntProperty(
             terminal_page, 'Pin Count', min_value=1, max_value=999)
 
-        self.pin_count_ctrl.property_changed.connect(self._on_pin_count)
+        terminal_page.addWidget(self.pin_count_ctrl)
+
+        self.pin_count_ctrl.propertyChanged.connect(self._on_pin_count)
 
         seals_page = _prop_ctrls.Category(self, 'Seals')
 
         self.compat_seals_ctrl = CompatSealsControl(seals_page)
 
+        seals_page.addWidget(self.compat_seals_ctrl)
+
         self.sealing_ctrl = _prop_ctrls.BoolProperty(seals_page, 'Sealing')
-        self.sealing_ctrl.property_changed.connect(self._on_sealing)
+
+        seals_page.addWidget(self.sealing_ctrl)
+
+        self.sealing_ctrl.propertyChanged.connect(self._on_sealing)
 
         self.seal_type_choices: list[str] = []
         self.seal_type_ctrl = _prop_ctrls.ComboBoxProperty(
             seals_page, 'Seal Type')
-        self.seal_type_ctrl.property_changed.connect(self._on_seal_type)
+
+        seals_page.addWidget(self.seal_type_ctrl)
+
+        self.seal_type_ctrl.propertyChanged.connect(self._on_seal_type)
 
         self.seal_ctrl = _prop_ctrls.Position3DProperty(seals_page, 'Seal')
+
+        seals_page.addWidget(self.seal_ctrl)
 
         tpas_page = _prop_ctrls.Category(self, 'TPA Locks')
 
         self.compat_tpas_ctrl = _prop_ctrls.ArrayStringProperty(tpas_page, 'Compatible TPA Locks')
-        self.compat_tpas_ctrl.property_changed.connect(self._on_compat_tpas)
+
+        tpas_page.addWidget(self.compat_tpas_ctrl)
+
+        self.compat_tpas_ctrl.propertyChanged.connect(self._on_compat_tpas)
 
         self.tpa_lock_1_ctrl = _prop_ctrls.Position3DProperty(tpas_page, 'TPA Lock 1')
+
+        tpas_page.addWidget(self.tpa_lock_1_ctrl)
+
         self.tpa_lock_2_ctrl = _prop_ctrls.Position3DProperty(tpas_page, 'TPA Lock 2')
+
+        tpas_page.addWidget(self.tpa_lock_2_ctrl)
 
         cpas_page = _prop_ctrls.Category(self, 'CPA Locks')
 
         self.compat_cpas_ctrl = _prop_ctrls.ArrayStringProperty(cpas_page, 'Compatible CPA Locks')
-        self.compat_cpas_ctrl.property_changed.connect(self._on_compat_cpas)
+
+        cpas_page.addWidget(self.compat_cpas_ctrl)
+
+        self.compat_cpas_ctrl.propertyChanged.connect(self._on_compat_cpas)
 
         self.cpa_lock_ctrl = _prop_ctrls.Position3DProperty(cpas_page, 'CPA Lock')
+
+        cpas_page.addWidget(self.cpa_lock_ctrl)
 
         boots_page = _prop_ctrls.Category(self, 'Boots')
 
         self.compat_boots_ctrl = _prop_ctrls.ArrayStringProperty(boots_page, 'Compatible Boots')
-        self.compat_boots_ctrl.property_changed.connect(self._on_compat_boots)
+
+        boots_page.addWidget(self.compat_boots_ctrl)
+
+        self.compat_boots_ctrl.propertyChanged.connect(self._on_compat_boots)
         self.boot_ctrl = _prop_ctrls.Position3DProperty(boots_page, 'Boot')
+
+        boots_page.addWidget(self.boot_ctrl)
 
         covers_page = _prop_ctrls.Category(self, 'Covers')
 
         self.compat_covers_ctrl = _prop_ctrls.ArrayStringProperty(covers_page, 'Compatible Covers')
-        self.compat_covers_ctrl.property_changed.connect(self._on_compat_covers)
+
+        covers_page.addWidget(self.compat_covers_ctrl)
+
+        self.compat_covers_ctrl.propertyChanged.connect(self._on_compat_covers)
         self.cover_ctrl = _prop_ctrls.Position3DProperty(covers_page, 'Cover')
+
+        covers_page.addWidget(self.cover_ctrl)
 
         cavities_page = _prop_ctrls.Category(self, 'Cavities')
         self.cavities_notebook = QTabWidget(cavities_page)
         self.cavities_notebook.setTabPosition(QTabWidget.TabPosition.North)
         self.cavities_notebook.setUsesScrollButtons(True)
         self.cavity_pages = []
+
+        cavities_page.addWidget(self.cavities_notebook)
 
         self.model3d_page = Model3DControl(self)
 
@@ -1496,4 +1558,3 @@ class HousingControl(QTabWidget):
         ):
 
             self.addTab(page, page.GetLabel())
-            page.Realize()

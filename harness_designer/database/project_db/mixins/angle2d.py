@@ -68,7 +68,7 @@ class Angle2DControl(_prop_ctrls.FloatProperty):
 
         super().__init__(parent, '2D Angle', min_value=-180.0, max_value=180.0, increment=0.01, units='°')
 
-        self.property_changed.connect(self._on_angle)
+        self.propertyChanged.connect(self._on_angle)
 
     def _on_angle(self, evt):
         """Handle the angle event.
@@ -91,7 +91,7 @@ class Angle2DControl(_prop_ctrls.FloatProperty):
         self.db_obj = db_obj
         if db_obj is None:
             self.SetValue(0.0)
-            self.Enable(False)
+            self.setEnabled(False)
         else:
             self.SetValue(db_obj.angle2d.z)
-            self.Enable(True)
+            self.setEnabled(True)

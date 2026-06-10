@@ -259,6 +259,10 @@ class _EditorModel(QAbstractTableModel):
         self.dataChanged.emit(self.index(row_id, 0),
                               self.index(row_id, self.columnCount() - 1))
 
+    def invalidate_icon(self, row_id):
+        idx = self.index(row_id, 0)
+        self.dataChanged.emit(idx, idx, [Qt.ItemDataRole.DecorationRole])
+
     def reset_all(self):
         """Execute the reset all operation.
 
@@ -567,14 +571,21 @@ class EditorList(QTableView):
         # the icon column, so net index is col_id.
         return str(row[col_id])
 
-    def __update_progress(self, image, step):
+    def _update_progress(self, image, step):
         db_id = image.db_id
         if db_id not in self.downloading_images:
             return
 
-        self.downloading_images[db_id][0] = getattr(self, f'_download_{step}')
+        row_id = self.downloading_images[db_id][1]
 
-    def __load_icon(self, image, pixmap: QPixmap):
+        if step == -1:
+            self.downloading_images[db_id][0] = EditorList._no_image
+        else:
+            self.downloading_images[db_id][0] = getattr(self, f'_download_{step}')
+
+        QTimer.singleShot(0, lambda row=row_id: self._model.invalidate_icon(row))
+
+    def _load_icon(self, image, pixmap: QPixmap):
         db_id = image.db_id
         pixmap = pixmap.scaled(64, 64, Qt.AspectRatioMode.KeepAspectRatio,
                                Qt.TransformationMode.SmoothTransformation)
@@ -582,6 +593,8 @@ class EditorList(QTableView):
         self.bitmap_indexes[db_id] = QIcon(pixmap)
         row_id = self.downloading_images[db_id][1]
         del self.downloading_images[db_id]
+
+        QTimer.singleShot(0, lambda row=row_id: self._model.invalidate_icon(row))
 
         # from ... import app
         # app.CallAfter(self._model.invalidate_row, row_id)
@@ -624,7 +637,7 @@ class EditorList(QTableView):
         if image_id not in self.downloading_images:
             self.downloading_images[image_id] = [self._download_0, row_id]
             image = self.table.db.images_table[image_id]
-            image.load(row[4], row[2], self.__load_icon, self.__update_progress)
+            image.load(row[4], row[2], self._load_icon, self._update_progress)
 
         return self.downloading_images.get(image_id, [self.bitmap_indexes.get(image_id, EditorList._no_image)])[0]
 

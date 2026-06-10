@@ -74,7 +74,7 @@ class DirectionControl(_prop_ctrls.ComboBoxProperty):
         self.db_obj: DirectionMixin = None
 
         super().__init__(parent, 'Direction')
-        self.property_changed.connect(self._on_direction)
+        self.propertyChanged.connect(self._on_direction)
 
     def set_obj(self, db_obj: DirectionMixin):
         """Set the obj.
@@ -90,7 +90,7 @@ class DirectionControl(_prop_ctrls.ComboBoxProperty):
             self.choices = []
             self.SetItems([])
             self.SetValue('')
-            self.Enable(False)
+            self.setEnabled(False)
         else:
             db_obj.table.execute('SELECT name FROM directions;')
             rows = db_obj.table.fetchall()
@@ -98,8 +98,7 @@ class DirectionControl(_prop_ctrls.ComboBoxProperty):
             self.choices = sorted([row[0] for row in rows])
             self.SetItems(self.choices)
             self.SetValue(db_obj.direction.name)
-            self.Enable(True)
-
+            self.setEnabled(True)
 
     def _on_direction(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the direction event.

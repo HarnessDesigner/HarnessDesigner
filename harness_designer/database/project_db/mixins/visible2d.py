@@ -52,7 +52,7 @@ class Visible2DControl(_prop_ctrls.BoolProperty):
 
         super().__init__(parent, 'Is Visible 2D')
 
-        self.property_changed.connect(self._on_visible2d)
+        self.propertyChanged.connect(self._on_visible2d)
 
     def _on_visible2d(self, evt):
         """Handle the visible 2D event.
@@ -77,7 +77,7 @@ class Visible2DControl(_prop_ctrls.BoolProperty):
 
         if db_obj is None:
             self.SetValue(False)
-            self.Enable(False)
+            self.setEnabled(False)
         else:
             self.SetValue(db_obj.is_visible2d)
-            self.Enable(True)
+            self.setEnabled(True)

@@ -23,30 +23,12 @@ class Category(QScrollArea):
         self._label = label
 
         self._container = QWidget()
-        self._sizer = QVBoxLayout(self._container)
-        self._sizer.setContentsMargins(0, 0, 0, 0)
+        self._sizer = QVBoxLayout()
+        self._sizer.setContentsMargins(3, 3, 3, 3)
         self._container.setLayout(self._sizer)
 
         self.setWidget(self._container)
         self.setWidgetResizable(True)
-
-    def Realize(self):
-        """Execute the realize operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        for i in range(self._sizer.count()):
-            item = self._sizer.itemAt(i)
-            if item is None:
-                continue
-            widget = item.widget()
-            if widget is None:
-                continue
-            if hasattr(widget, 'Realize'):
-                widget.Realize()
-
-        self._container.adjustSize()
-        self.update()
 
     def GetLabel(self):
         """Execute the get label operation.
@@ -68,7 +50,7 @@ class Category(QScrollArea):
         """
         self._label = value
 
-    def addChild(self, widget):
+    def addWidget(self, widget):
         """Add a property widget to this category."""
         if isinstance(widget, QTabWidget):
             self._sizer.addWidget(widget, stretch=1)

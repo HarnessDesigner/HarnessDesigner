@@ -636,20 +636,20 @@ class SealControl(QTabWidget):
             self.o_dia_ctrl.SetValue(0.0)
             self.i_dia_ctrl.SetValue(0.0)
 
-            self.hardness_ctrl.Enable(False)
-            self.lubricant_ctrl.Enable(False)
-            self.o_dia_ctrl.Enable(False)
-            self.i_dia_ctrl.Enable(False)
+            self.hardness_ctrl.setEnabled(False)
+            self.lubricant_ctrl.setEnabled(False)
+            self.o_dia_ctrl.setEnabled(False)
+            self.i_dia_ctrl.setEnabled(False)
         else:
             self.hardness_ctrl.SetValue(db_obj.hardness)
             self.lubricant_ctrl.SetValue(db_obj.lubricant)
             self.o_dia_ctrl.SetValue(db_obj.o_dia)
             self.i_dia_ctrl.SetValue(db_obj.i_dia)
 
-            self.hardness_ctrl.Enable(True)
-            self.lubricant_ctrl.Enable(True)
-            self.o_dia_ctrl.Enable(True)
-            self.i_dia_ctrl.Enable(True)
+            self.hardness_ctrl.setEnabled(True)
+            self.lubricant_ctrl.setEnabled(True)
+            self.o_dia_ctrl.setEnabled(True)
+            self.i_dia_ctrl.setEnabled(True)
 
     def _on_hardness(self, evt):
         """Handle the hardness event.
@@ -728,10 +728,18 @@ class SealControl(QTabWidget):
             general_page, 'Inside Diameter', min_value=0.00,
             max_value=99.9, increment=0.01, units='mm')
 
-        self.hardness_ctrl.property_changed.connect(self._on_hardness)
-        self.lubricant_ctrl.property_changed.connect(self._on_lubricant)
-        self.o_dia_ctrl.property_changed.connect(self._on_o_dia)
-        self.i_dia_ctrl.property_changed.connect(self._on_i_dia)
+        general_page.addWidget(self.part_number_ctrl)
+        general_page.addWidget(self.description_ctrl)
+        general_page.addWidget(self.color_ctrl)
+        general_page.addWidget(self.hardness_ctrl)
+        general_page.addWidget(self.lubricant_ctrl)
+        general_page.addWidget(self.o_dia_ctrl)
+        general_page.addWidget(self.i_dia_ctrl)
+
+        self.hardness_ctrl.propertyChanged.connect(self._on_hardness)
+        self.lubricant_ctrl.propertyChanged.connect(self._on_lubricant)
+        self.o_dia_ctrl.propertyChanged.connect(self._on_o_dia)
+        self.i_dia_ctrl.propertyChanged.connect(self._on_i_dia)
 
         self.mfg_page = ManufacturerControl(self)
         self.family_page = FamilyControl(self)
@@ -741,11 +749,16 @@ class SealControl(QTabWidget):
         self.dimension_page = DimensionControl(self)
         self.weight_ctrl = WeightControl(self.dimension_page)
 
+        self.dimension_page.addWidget(self.weight_ctrl)
+
         self.resources_page = ResourcesControl(self)
 
         compat_parts_page = _prop_ctrls.Category(self, 'Compatible Parts')
         self.compat_housing_ctrl = CompatHousingsControl(compat_parts_page)
         self.compat_terminals_ctrl = CompatTerminalsControl(compat_parts_page)
+
+        compat_parts_page.addWidget(self.compat_housing_ctrl)
+        compat_parts_page.addWidget(self.compat_terminals_ctrl)
 
         self.model3d_page = Model3DControl(self)
         self.wire_size_page = WireSizeControl(self)
@@ -763,4 +776,3 @@ class SealControl(QTabWidget):
             self.model3d_page
         ):
             self.addTab(page, page.GetLabel())
-            page.Realize()

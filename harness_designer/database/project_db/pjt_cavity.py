@@ -569,17 +569,29 @@ class PJTCavityControl(_prop_ctrls.Category):
         self.name_ctrl = NameControl(general_page)
         self.notes_ctrl = NotesControl(general_page)
 
+        general_page.addWidget(self.name_ctrl)
+        general_page.addWidget(self.notes_ctrl)
+
         angle_page = _prop_ctrls.Category(self.nb, 'Angle')
         self.angle2d_ctrl = Angle2DControl(angle_page)
         self.angle3d_ctrl = Angle3DControl(angle_page)
+
+        angle_page.addWidget(self.angle2d_ctrl)
+        angle_page.addWidget(self.angle3d_ctrl)
 
         position_page = _prop_ctrls.Category(self.nb, 'Position')
         self.position2d_ctrl = Position2DControl(position_page)
         self.position3d_ctrl = Position3DControl(position_page)
 
+        position_page.addWidget(self.position2d_ctrl)
+        position_page.addWidget(self.position3d_ctrl)
+
         visible_page = _prop_ctrls.Category(self.nb, 'Visible')
         self.visible2d_ctrl = Visible2DControl(visible_page)
         self.visible3d_ctrl = Visible3DControl(visible_page)
+
+        visible_page.addWidget(self.visible2d_ctrl)
+        visible_page.addWidget(self.visible3d_ctrl)
 
         terminal_page = _prop_ctrls.Category(self.nb, 'Terminal')
 
@@ -587,16 +599,22 @@ class PJTCavityControl(_prop_ctrls.Category):
 
         self.terminal_ctrl = _pjt_terminal.PJTTerminalControl(terminal_page)
 
+        terminal_page.addWidget(self.terminal_ctrl)
+
         seal_page = _prop_ctrls.Category(self.nb, 'Seal')
 
         from . import pjt_seal as _pjt_seal  # NOQA
 
         self.seal_ctrl = _pjt_seal.PJTSealControl(seal_page)
 
+        seal_page.addWidget(self.seal_ctrl)
+
         part_page = _prop_ctrls.Category(self.nb, 'Part')
         from ..global_db import cavity as _cavity  # NOQA
 
         self.part_ctrl = _cavity.CavityControl(part_page)
+
+        part_page.addWidget(self.part_ctrl)
 
         for page in (
             general_page,
@@ -608,7 +626,6 @@ class PJTCavityControl(_prop_ctrls.Category):
             part_page
         ):
             self.nb.addTab(page, page.GetLabel())
-            page.Realize()
 
     def set_obj(self, db_obj: PJTCavity):
         """Set the obj.

@@ -52,7 +52,7 @@ class Visible3DControl(_prop_ctrls.BoolProperty):
 
         super().__init__(parent, 'Is Visible 3D')
 
-        self.property_changed.connect(self._on_visible3d)
+        self.propertyChanged.connect(self._on_visible3d)
 
     def _on_visible3d(self, evt):
         """Handle the visible 3D event.
@@ -77,7 +77,7 @@ class Visible3DControl(_prop_ctrls.BoolProperty):
 
         if db_obj is None:
             self.SetValue(False)
-            self.Enable(False)
+            self.setEnabled(False)
         else:
             self.SetValue(db_obj.is_visible3d)
-            self.Enable(True)
+            self.setEnabled(True)

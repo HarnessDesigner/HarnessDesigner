@@ -411,17 +411,16 @@ class TransitionControl(QTabWidget):
 
         if db_obj is None:
             self.branch_count_ctrl.SetValue(1)
-            self.branch_count_ctrl.Enable(False)
+            self.branch_count_ctrl.setEnabled(False)
         else:
             self.branch_count_ctrl.SetValue(db_obj.branch_count)
-            self.branch_count_ctrl.Enable(True)
+            self.branch_count_ctrl.setEnabled(True)
 
             for i, branch in enumerate(db_obj.branches):
                 branch_ctrl = db_obj.table.db.transition_branches_table.get_control(i)
                 branch_ctrl.set_obj(branch)
                 branch_ctrl.setParent(self.branch_page)
                 self.branch_page.addTab(branch_ctrl, branch_ctrl.GetLabel())
-                branch_ctrl.Realize()
                 self.branches.append(branch_ctrl)
 
     def _on_branch_count(self, evt):
@@ -452,7 +451,6 @@ class TransitionControl(QTabWidget):
             branch_ctrl.set_obj(branch)
             branch_ctrl.setParent(self.branch_page)
             self.branch_page.addTab(branch_ctrl, branch_ctrl.GetLabel())
-            branch_ctrl.Realize()
             self.branches.append(branch_ctrl)
         else:
             branch_ctrl = self.branches.pop(-1)
@@ -487,6 +485,14 @@ class TransitionControl(QTabWidget):
         self.protection_ctrl = ProtectionControl(general_page)
         self.adhesive_ctrl = AdhesiveControl(general_page)
 
+        general_page.addWidget(self.part_number_ctrl)
+        general_page.addWidget(self.description_ctrl)
+        general_page.addWidget(self.color_ctrl)
+        general_page.addWidget(self.weight_ctrl)
+        general_page.addWidget(self.material_ctrl)
+        general_page.addWidget(self.protection_ctrl)
+        general_page.addWidget(self.adhesive_ctrl)
+
         branch_page = _prop_ctrls.Category(self, 'Branches')
 
         self.branch_count_ctrl = _prop_ctrls.IntProperty(
@@ -496,7 +502,10 @@ class TransitionControl(QTabWidget):
         self.branch_page.setTabPosition(QTabWidget.TabPosition.North)
         self.branch_page.setUsesScrollButtons(True)
 
-        self.branch_count_ctrl.property_changed.connect(self._on_branch_count)
+        branch_page.addWidget(self.branch_count_ctrl)
+        branch_page.addWidget(self.branch_page)
+
+        self.branch_count_ctrl.propertyChanged.connect(self._on_branch_count)
 
         self.mfg_page = ManufacturerControl(self)
         self.family_page = FamilyControl(self)
@@ -515,4 +524,3 @@ class TransitionControl(QTabWidget):
             branch_page
         ):
             self.addTab(page, page.GetLabel())
-            page.Realize()

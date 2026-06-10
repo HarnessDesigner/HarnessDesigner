@@ -78,8 +78,12 @@ class SeriesControl(_prop_ctrls.Category):
         self.desc_ctrl = _prop_ctrls.LongStringProperty(self, 'Description')
         self.mfg_ctrl = _prop_ctrls.StringProperty(self, 'Manufacturer', read_only=True)
 
-        self.name_ctrl.property_changed.connect(self._on_name)
-        self.desc_ctrl.property_changed.connect(self._on_desc)
+        self.addWidget(self.name_ctrl)
+        self.addWidget(self.desc_ctrl)
+        self.addWidget(self.mfg_ctrl)
+
+        self.name_ctrl.propertyChanged.connect(self._on_name)
+        self.desc_ctrl.propertyChanged.connect(self._on_desc)
 
     def set_obj(self, db_obj: SeriesMixin):
         """Set the obj.
@@ -98,9 +102,9 @@ class SeriesControl(_prop_ctrls.Category):
             self.name_ctrl.SetValue('')
             self.mfg_ctrl.SetValue('')
             self.desc_ctrl.SetValue('')
-            self.name_ctrl.Enable(False)
-            self.mfg_ctrl.Enable(False)
-            self.desc_ctrl.Enable(False)
+            self.name_ctrl.setEnabled(False)
+            self.mfg_ctrl.setEnabled(False)
+            self.desc_ctrl.setEnabled(False)
         else:
             series = db_obj.series
             mfg_id = series.manufacturer.db_id
@@ -116,9 +120,9 @@ class SeriesControl(_prop_ctrls.Category):
             self.mfg_ctrl.SetValue(series.manufacturer.name)
             self.desc_ctrl.SetValue(series.description)
 
-            self.name_ctrl.Enable(True)
-            self.mfg_ctrl.Enable(True)
-            self.desc_ctrl.Enable(True)
+            self.name_ctrl.setEnabled(True)
+            self.mfg_ctrl.setEnabled(True)
+            self.desc_ctrl.setEnabled(True)
 
     def _on_name(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the name event.

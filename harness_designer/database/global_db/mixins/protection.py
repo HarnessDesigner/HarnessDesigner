@@ -71,7 +71,7 @@ class ProtectionControl(_prop_ctrls.AutocompleteStringProperty):
 
         super().__init__(parent, 'Protections')
 
-        self.property_changed.connect(self._on_protection)
+        self.propertyChanged.connect(self._on_protection)
 
     def set_obj(self, db_obj: ProtectionMixin):
         """Set the obj.
@@ -89,7 +89,7 @@ class ProtectionControl(_prop_ctrls.AutocompleteStringProperty):
             self.SetItems(self.choices)
             self.SetValue('')
 
-            self.Enable(False)
+            self.setEnabled(False)
         else:
             db_obj.table.execute('SELECT name FROM protections;')
             rows = db_obj.table.fetchall()
@@ -99,7 +99,7 @@ class ProtectionControl(_prop_ctrls.AutocompleteStringProperty):
             self.SetItems(self.choices)
             self.SetValue(db_obj.protections.name)
 
-            self.Enable(True)
+            self.setEnabled(True)
 
     def _on_protection(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the protection event.

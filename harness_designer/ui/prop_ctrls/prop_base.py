@@ -14,7 +14,7 @@ class Property(QWidget):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
-    property_changed = Signal(object)
+    propertyChanged = Signal(object)
 
     def __init__(self, parent, label, orientation=None):
         """Initialise the :class:`Property` instance.
@@ -45,15 +45,30 @@ class Property(QWidget):
             self.setLayout(self._sizer)
         else:
             self._static_box = QGroupBox(label, self)
-            inner = QVBoxLayout() if orientation == 'vertical' else QHBoxLayout()
-            inner.setContentsMargins(4, 4, 4, 4)
-            self._static_box.setLayout(inner)
-            self._sizer = inner
 
-            outer = QHBoxLayout() if orientation == 'vertical' else QVBoxLayout()
-            outer.setContentsMargins(5, 5, 5, 5)
-            outer.addWidget(self._static_box)
-            self.setLayout(outer)
+            if orientation == 'vertical':
+                self._sizer = QVBoxLayout()
+                self._sizer.setContentsMargins(4, 4, 4, 4)
+                self._static_box.setLayout(self._sizer)
+
+                sizer = QHBoxLayout()
+                sizer.addWidget(self._static_box, 1)
+                self.setLayout(sizer)
+
+            else:
+                self._sizer = QHBoxLayout()
+                self._sizer.setContentsMargins(5, 5, 5, 5)
+                self._static_box.setLayout(self._sizer)
+
+                sizer = QVBoxLayout()
+                sizer.addWidget(self._static_box)
+                self.setLayout(sizer)
+
+    def addWidget(self, widget):
+        if isinstance(self._sizer, QHBoxLayout):
+            self._sizer.addWidget(widget, 1)
+        else:
+            self._sizer.addWidget(widget)
 
     def SetToolTip(self, text):
         """Execute the set tool tip operation.
@@ -69,15 +84,6 @@ class Property(QWidget):
             self._ctrl.setToolTip(text)
         else:
             QWidget.setToolTip(self, text)
-
-    def Realize(self):
-        """Execute the realize operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        # In Qt the children are already parented and the layout is set during
-        # __init__; Realize() is a no-op hook kept for call-site compatibility.
-        self.update()
 
     def GetLabel(self) -> str:
         """Execute the get label operation.
@@ -103,17 +109,6 @@ class Property(QWidget):
         elif self._st is not None:
             self._st.setText(value + ':')
 
-    def Enable(self, flag=True):
-        """Execute the enable operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param flag: Value for ``flag``.
-        :type flag: UNKNOWN
-        """
-        for child in self.findChildren(QWidget):
-            child.setEnabled(flag)
-
     def _send_changed_event(self, value_type, value):
         """Execute the send changed event operation.
 
@@ -128,4 +123,5 @@ class Property(QWidget):
         evt.SetValue(value)
         evt.SetPropertyType(value_type)
         evt.SetProperty(self)
-        self.property_changed.emit(evt)
+        self.propertyChanged.emit(evt)
+

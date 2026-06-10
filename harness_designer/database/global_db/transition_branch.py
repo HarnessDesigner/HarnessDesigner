@@ -480,15 +480,15 @@ class TransitionBranchControl(_prop_ctrls.Category):
             self.flange_height_ctrl.SetValue(0.0)
             self.flange_width_ctrl.SetValue(0.0)
 
-            self.length_ctrl.Enable(False)
-            self.angle_ctrl.Enable(False)
-            self.offset_ctrl.Enable(False)
-            self.bulb_offset_ctrl.Enable(False)
-            self.bulb_length_ctrl.Enable(False)
-            self.min_dia_ctrl.Enable(False)
-            self.max_dia_ctrl.Enable(False)
-            self.flange_height_ctrl.Enable(False)
-            self.flange_width_ctrl.Enable(False)
+            self.length_ctrl.setEnabled(False)
+            self.angle_ctrl.setEnabled(False)
+            self.offset_ctrl.setEnabled(False)
+            self.bulb_offset_ctrl.setEnabled(False)
+            self.bulb_length_ctrl.setEnabled(False)
+            self.min_dia_ctrl.setEnabled(False)
+            self.max_dia_ctrl.setEnabled(False)
+            self.flange_height_ctrl.setEnabled(False)
+            self.flange_width_ctrl.setEnabled(False)
         else:
             self.length_ctrl.SetValue(db_obj.length)
             self.angle_ctrl.SetValue(db_obj.angle)
@@ -500,15 +500,15 @@ class TransitionBranchControl(_prop_ctrls.Category):
             self.flange_height_ctrl.SetValue(db_obj.flange_height)
             self.flange_width_ctrl.SetValue(db_obj.flange_width)
 
-            self.length_ctrl.Enable(True)
-            self.angle_ctrl.Enable(True)
-            self.offset_ctrl.Enable(True)
-            self.bulb_offset_ctrl.Enable(True)
-            self.bulb_length_ctrl.Enable(True)
-            self.min_dia_ctrl.Enable(True)
-            self.max_dia_ctrl.Enable(True)
-            self.flange_height_ctrl.Enable(True)
-            self.flange_width_ctrl.Enable(True)
+            self.length_ctrl.setEnabled(True)
+            self.angle_ctrl.setEnabled(True)
+            self.offset_ctrl.setEnabled(True)
+            self.bulb_offset_ctrl.setEnabled(True)
+            self.bulb_length_ctrl.setEnabled(True)
+            self.min_dia_ctrl.setEnabled(True)
+            self.max_dia_ctrl.setEnabled(True)
+            self.flange_height_ctrl.setEnabled(True)
+            self.flange_width_ctrl.setEnabled(True)
 
     def _on_length(self, evt):
         """Handle the length event.
@@ -610,34 +610,56 @@ class TransitionBranchControl(_prop_ctrls.Category):
 
         self.name_ctrl = NameControl(self)
 
+        self.addWidget(self.name_ctrl)
+
         self.length_ctrl = _prop_ctrls.FloatProperty(
             self, 'Length',
             min_value=0.01, max_value=999.9, increment=0.01, units='mm')
+
+        self.addWidget(self.length_ctrl)
 
         self.angle_ctrl = _prop_ctrls.FloatProperty(
             self, 'Angle', min_value=-180.0,
             max_value=180.0, increment=0.1, units='°')
 
+        self.addWidget(self.angle_ctrl)
+
         self.offset_ctrl = _prop_ctrls.Position2DProperty(self, 'Offset')
+
+        self.addWidget(self.offset_ctrl)
 
         bulb_group = _prop_ctrls.Property(self, f'Bulb', orientation='vertical')
 
+        self.addWidget(bulb_group)
+
         self.bulb_offset_ctrl = _prop_ctrls.Position2DProperty(bulb_group, 'Offset')
+        bulb_group.addWidget(self.bulb_offset_ctrl)
+
         self.bulb_length_ctrl = _prop_ctrls.FloatProperty(
             bulb_group, 'Length',
             min_value=0.00, max_value=999.9, increment=0.01, units='mm')
 
+        bulb_group.addWidget(self.bulb_length_ctrl)
+
         size_group = _prop_ctrls.Property(bulb_group, 'Diameter', orientation='vertical')
+
+        self.addWidget(size_group)
 
         self.min_dia_ctrl = _prop_ctrls.FloatProperty(
             size_group, 'Minimum',
             min_value=0.01, max_value=999.9, increment=0.01, units='mm')
 
+        size_group.addWidget(self.min_dia_ctrl)
+
         self.max_dia_ctrl = _prop_ctrls.FloatProperty(
             size_group, 'Maximum',
             min_value=0.01, max_value=999.9, increment=0.01, units='mm')
 
+        size_group.addWidget(self.max_dia_ctrl)
+
         flange_group = _prop_ctrls.Property(self, 'Flange', orientation='vertical')
+
+        self.addWidget(flange_group)
 
         self.flange_height_ctrl = _prop_ctrls.FloatProperty(
             flange_group, 'Height',
@@ -647,10 +669,13 @@ class TransitionBranchControl(_prop_ctrls.Category):
             flange_group, 'Width',
             min_value=0.00, max_value=999.9, increment=0.01, units='mm')
 
-        self.length_ctrl.property_changed.connect(self._on_length)
-        self.angle_ctrl.property_changed.connect(self._on_angle)
-        self.bulb_length_ctrl.property_changed.connect(self._on_bulb_length)
-        self.min_dia_ctrl.property_changed.connect(self._on_min_dia)
-        self.max_dia_ctrl.property_changed.connect(self._on_max_dia)
-        self.flange_height_ctrl.property_changed.connect(self._on_flange_height)
-        self.flange_width_ctrl.property_changed.connect(self._on_flange_width)
+        flange_group.addWidget(self.flange_height_ctrl)
+        flange_group.addWidget(self.flange_width_ctrl)
+
+        self.length_ctrl.propertyChanged.connect(self._on_length)
+        self.angle_ctrl.propertyChanged.connect(self._on_angle)
+        self.bulb_length_ctrl.propertyChanged.connect(self._on_bulb_length)
+        self.min_dia_ctrl.propertyChanged.connect(self._on_min_dia)
+        self.max_dia_ctrl.propertyChanged.connect(self._on_max_dia)
+        self.flange_height_ctrl.propertyChanged.connect(self._on_flange_height)
+        self.flange_width_ctrl.propertyChanged.connect(self._on_flange_width)

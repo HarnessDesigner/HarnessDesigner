@@ -572,7 +572,7 @@ class PJTWireControl(QTabWidget):
             self.circuit_ctrl.set_obj(None)
 
             self.is_filler_wire_ctrl.SetValue(False)
-            self.is_filler_wire_ctrl.Enable(False)
+            self.is_filler_wire_ctrl.setEnabled(False)
 
             self.length_mm_ctrl.SetValue('')
             self.length_m_ctrl.SetValue('')
@@ -585,7 +585,7 @@ class PJTWireControl(QTabWidget):
             self.wire_ctrl.set_obj(db_obj.part)
             self.circuit_ctrl.set_obj(db_obj.circuit)
             self.is_filler_wire_ctrl.SetValue(db_obj.is_filler_wire)
-            self.is_filler_wire_ctrl.Enable(True)
+            self.is_filler_wire_ctrl.setEnabled(True)
             self.length_mm_ctrl.SetValue(str(db_obj.length_mm))
             self.length_m_ctrl.SetValue(str(db_obj.length_m))
             self.length_ft_ctrl.SetValue(str(db_obj.length_ft))
@@ -615,39 +615,65 @@ class PJTWireControl(QTabWidget):
         self.note_ctrl = NotesControl(general_page)
         self.smooth_ctrl = SmoothControl(general_page)
 
+        general_page.addWidget(self.name_ctrl)
+        general_page.addWidget(self.note_ctrl)
+        general_page.addWidget(self.smooth_ctrl)
+
         self.is_filler_wire_ctrl = _prop_ctrls.BoolProperty(general_page, 'Is Filler Wire')
+
+        general_page.addWidget(self.is_filler_wire_ctrl)
 
         position_page = _prop_ctrls.Category(self, 'Position')
 
         self.position2d_ctrl = StartStopPosition2DControl(position_page)
         self.position3d_ctrl = StartStopPosition3DControl(position_page)
 
+        general_page.addWidget(self.is_filler_wire_ctrl)
+        general_page.addWidget(self.is_filler_wire_ctrl)
+
         visible_page = _prop_ctrls.Category(self, 'Visible')
         self.visible2d_ctrl = Visible2DControl(visible_page)
         self.visible3d_ctrl = Visible3DControl(visible_page)
+
+        general_page.addWidget(self.is_filler_wire_ctrl)
+        general_page.addWidget(self.is_filler_wire_ctrl)
 
         info_page = _prop_ctrls.Category(self, 'Info')
 
         length_group = _prop_ctrls.Property(info_page, 'Length', orientation='vertical')
 
+        info_page.addWidget(length_group)
+
         self.length_mm_ctrl = _prop_ctrls.StringProperty(length_group, 'Millimeter', read_only=True)
         self.length_m_ctrl = _prop_ctrls.StringProperty(length_group, 'Meter', read_only=True)
         self.length_ft_ctrl = _prop_ctrls.StringProperty(length_group, 'Foot', read_only=True)
 
+        info_page.addWidget(self.length_mm_ctrl)
+        info_page.addWidget(self.length_m_ctrl)
+        info_page.addWidget(self.length_ft_ctrl)
+
         weight_group = _prop_ctrls.Property(info_page, 'Weight', orientation='vertical')
+
+        info_page.addWidget(weight_group)
 
         self.weight_g_ctrl = _prop_ctrls.StringProperty(weight_group, 'Gram', read_only=True)
         self.weight_lb_ctrl = _prop_ctrls.StringProperty(weight_group, 'Pound', read_only=True)
 
         electrical_group = _prop_ctrls.Property(info_page, 'Electrical', orientation='vertical')
 
+        info_page.addWidget(electrical_group)
+
         self.resistance_ctrl = _prop_ctrls.StringProperty(electrical_group, 'Resistance', units='Ω', read_only=True)
 
         circuit_page = _prop_ctrls.Category(self, 'Circuit')
         self.circuit_ctrl = _pjt_circuit.PJTCircuitControl(circuit_page)
 
+        circuit_page.addWidget(self.circuit_ctrl)
+
         part_page = _prop_ctrls.Category(self, 'Part')
         self.wire_ctrl = _wire.WireControl(part_page)
+
+        part_page.addWidget(self.wire_ctrl)
 
         for page in (
             general_page,
@@ -658,4 +684,3 @@ class PJTWireControl(QTabWidget):
             part_page
         ):
             self.addTab(page, page.GetLabel())
-            page.Realize()

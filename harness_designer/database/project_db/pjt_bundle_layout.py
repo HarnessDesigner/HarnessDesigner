@@ -304,11 +304,19 @@ class PJTBundleLayoutControl(QTabWidget):
 
         self.diameter_ctrl = _prop_ctrls.StringProperty(general_page, 'Diameter', read_only=True)
 
+        general_page.addWidget(self.notes_ctrl)
+        general_page.addWidget(self.smooth_ctrl)
+        general_page.addWidget(self.diameter_ctrl)
+
         position_page = _prop_ctrls.Category(self, 'Position')
         self.position_ctrl = Position3DControl(position_page)
 
+        position_page.addWidget(self.position_ctrl)
+
         visible_page = _prop_ctrls.Category(self, 'Visible')
         self.visible_ctrl = Visible3DControl(visible_page)
+
+        visible_page.addWidget(self.visible_ctrl)
 
         for page in (
             general_page,
@@ -316,4 +324,3 @@ class PJTBundleLayoutControl(QTabWidget):
             position_page
         ):
             self.addTab(page, page.GetLabel())
-            page.Realize()

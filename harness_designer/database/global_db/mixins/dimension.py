@@ -155,9 +155,13 @@ class DimensionControl(_prop_ctrls.Category):
         self.height_ctrl = _prop_ctrls.FloatProperty(
             self, 'Height', min_value=0.01, max_value=999.0, increment=0.01, units='mm')
 
-        self.length_ctrl.property_changed.connect(self._on_length)
-        self.width_ctrl.property_changed.connect(self._on_width)
-        self.height_ctrl.property_changed.connect(self._on_height)
+        self.addWidget(self.length_ctrl)
+        self.addWidget(self.width_ctrl)
+        self.addWidget(self.height_ctrl)
+
+        self.length_ctrl.propertyChanged.connect(self._on_length)
+        self.width_ctrl.propertyChanged.connect(self._on_width)
+        self.height_ctrl.propertyChanged.connect(self._on_height)
 
     def set_obj(self, db_obj: DimensionMixin):
         """Set the obj.
@@ -173,16 +177,16 @@ class DimensionControl(_prop_ctrls.Category):
             self.length_ctrl.SetValue(0.0)
             self.width_ctrl.SetValue(0.0)
             self.height_ctrl.SetValue(0.0)
-            self.length_ctrl.Enable(False)
-            self.width_ctrl.Enable(False)
-            self.height_ctrl.Enable(False)
+            self.length_ctrl.setEnabled(False)
+            self.width_ctrl.setEnabled(False)
+            self.height_ctrl.setEnabled(False)
         else:
             self.length_ctrl.SetValue(db_obj.length)
             self.width_ctrl.SetValue(db_obj.width)
             self.height_ctrl.SetValue(db_obj.height)
-            self.length_ctrl.Enable(True)
-            self.width_ctrl.Enable(True)
-            self.height_ctrl.Enable(True)
+            self.length_ctrl.setEnabled(True)
+            self.width_ctrl.setEnabled(True)
+            self.height_ctrl.setEnabled(True)
 
     def _on_length(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the length event.

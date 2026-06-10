@@ -75,8 +75,11 @@ class CavityLockControl(_prop_ctrls.Property):
 
         self.name_ctrl = _prop_ctrls.ComboBoxProperty(self, 'Name')
         self.desc_ctrl = _prop_ctrls.StringProperty(self, 'Description')
-        self.name_ctrl.property_changed.connect(self._on_name)
-        self.desc_ctrl.property_changed.connect(self._on_desc)
+
+        self.addWidget(self.name_ctrl)
+        self.addWidget(self.desc_ctrl)
+        self.name_ctrl.propertyChanged.connect(self._on_name)
+        self.desc_ctrl.propertyChanged.connect(self._on_desc)
 
     def set_obj(self, db_obj: CavityLockMixin):
         """Set the obj.
@@ -93,8 +96,8 @@ class CavityLockControl(_prop_ctrls.Property):
             self.name_ctrl.SetItems(self.choices)
             self.name_ctrl.SetValue('')
             self.desc_ctrl.SetValue('')
-            self.name_ctrl.Enable(False)
-            self.desc_ctrl.Enable(False)
+            self.name_ctrl.setEnabled(False)
+            self.desc_ctrl.setEnabled(False)
         else:
             db_obj.table.execute(f'SELECT name FROM cavity_locks;')
             rows = db_obj.table.fetchall()
@@ -103,8 +106,8 @@ class CavityLockControl(_prop_ctrls.Property):
             self.name_ctrl.SetItems(self.choices)
             self.name_ctrl.SetValue(db_obj.cavity_lock.name)
             self.desc_ctrl.SetValue(db_obj.cavity_lock.description)
-            self.name_ctrl.Enable(True)
-            self.desc_ctrl.Enable(True)
+            self.name_ctrl.setEnabled(True)
+            self.desc_ctrl.setEnabled(True)
 
     def _on_name(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the name event.

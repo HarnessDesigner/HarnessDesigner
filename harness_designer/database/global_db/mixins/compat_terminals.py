@@ -82,7 +82,7 @@ class CompatTerminalsControl(_prop_ctrls.ArrayStringProperty):
         self.db_obj: CompatTerminalsMixin = None
         super().__init__(parent, 'Compatible Terminals')
 
-        self.property_changed.connect(self._on_compat_housings)
+        self.propertyChanged.connect(self._on_compat_housings)
 
     def set_obj(self, db_obj: CompatTerminalsMixin):
         """Set the obj.
@@ -96,10 +96,10 @@ class CompatTerminalsControl(_prop_ctrls.ArrayStringProperty):
 
         if db_obj is None:
             self.SetValue([])
-            self.Enable(False)
+            self.setEnabled(False)
         else:
             self.SetValue(db_obj.compat_terminals_array)
-            self.Enable(True)
+            self.setEnabled(True)
 
     def _on_compat_housings(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the compat housings event.

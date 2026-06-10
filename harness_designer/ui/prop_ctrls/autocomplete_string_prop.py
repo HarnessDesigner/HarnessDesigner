@@ -1,20 +1,23 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from PySide6.QtWidgets import QLabel, QHBoxLayout, QVBoxLayout
-from PySide6.QtCore import Qt
+from PySide6 import QtWidgets
+from PySide6 import QtCore
 
-from . import prop_base as _prop_base
 from ..widgets import autocomplete_textctrl as _autocomplete_textctrl
+from . import events as _events
 
 
-class AutocompleteStringProperty(_prop_base.Property):
+class AutocompleteStringProperty(QtWidgets.QWidget):
     """Represent an autocomplete string property in :mod:`harness_designer.ui.prop_ctrls.autocomplete_string_prop`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    propertyChanged: QtCore.SignalInstance = QtCore.Signal(object)
+
     def __init__(self, parent, label, style=0, units=None):
-        """Initialise the :class:`AutocompleteStringProperty` instance.
+        """
+        Initialise the :class:`AutocompleteStringProperty` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
 
@@ -30,28 +33,30 @@ class AutocompleteStringProperty(_prop_base.Property):
         self._choices = []
         self._value = ''
         self._units_st = None
+        self._label = label
 
-        _prop_base.Property.__init__(self, parent, label)
+        super().__init__(parent)
 
-        self._st = QLabel(label + ':', self)
+        self._st = QtWidgets.QLabel(label + ':', self)
         self._ctrl = _autocomplete_textctrl.AutoCompleteTextCtrl(self, choices=[])
 
         if units is not None:
-            self._units_st = QLabel(units, self)
+            self._units_st = QtWidgets.QLabel(units, self)
 
-        row = QHBoxLayout()
-        row.setContentsMargins(5, 2, 5, 2)
-        row.addWidget(self._st)
+        sizer = QtWidgets.QHBoxLayout()
+        sizer.setContentsMargins(5, 2, 5, 2)
+        sizer.addWidget(self._st)
 
-        col = QVBoxLayout()
+        col = QtWidgets.QVBoxLayout()
         col.setContentsMargins(0, 0, 0, 0)
         col.addWidget(self._ctrl)
-        row.addLayout(col, stretch=1)
+        sizer.addLayout(col, stretch=1)
 
         if self._units_st:
-            row.addWidget(self._units_st, alignment=Qt.AlignBottom)
+            sizer.addWidget(
+                self._units_st, alignment=QtCore.Qt.AlignmentFlag.AlignBottom)
 
-        self._sizer.addLayout(row)
+        self.setLayout(sizer)
         self._ctrl.returnPressed.connect(self._on_enter)
 
     def GetValue(self) -> str:
@@ -74,7 +79,9 @@ class AutocompleteStringProperty(_prop_base.Property):
         """
         self._value = value
         self._ctrl.blockSignals(True)
+
         self._ctrl.setText(value)
+
         self._ctrl.blockSignals(False)
 
     def SetItems(self, items: list) -> None:
@@ -103,6 +110,18 @@ class AutocompleteStringProperty(_prop_base.Property):
             self._ctrl.blockSignals(True)
             self._ctrl.setText(self._value)
             self._ctrl.blockSignals(False)
-            self._send_changed_event(str, self._value)
+
+            evt = _events.PropertyEvent()
+            evt.SetValue(self._value)
+            evt.SetPropertyType(str)
+            evt.SetProperty(self)
+            self.propertyChanged.emit(evt)
         else:
             self._value = text
+
+    def SetLabel(self, value: str):
+        self._label = value
+        self._st.setText(value)
+
+    def GetLabel(self) -> str:
+        return self._label

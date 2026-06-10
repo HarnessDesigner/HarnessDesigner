@@ -53,7 +53,7 @@ class DescriptionControl(_prop_ctrls.LongStringProperty):
 
         super().__init__(parent, 'Description')
 
-        self.property_changed.connect(self._on_desc)
+        self.propertyChanged.connect(self._on_desc)
 
     def set_obj(self, db_obj: DescriptionMixin):
         """Set the obj.
@@ -67,10 +67,10 @@ class DescriptionControl(_prop_ctrls.LongStringProperty):
 
         if db_obj is None:
             self.SetValue('')
-            self.Enable(False)
+            self.setEnabled(False)
         else:
             self.SetValue(db_obj.description)
-            self.Enable(True)
+            self.setEnabled(True)
 
     def _on_desc(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the desc event.

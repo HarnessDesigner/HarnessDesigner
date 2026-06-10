@@ -452,10 +452,10 @@ class SpliceControl(QTabWidget):
             self.min_dia_ctrl.SetValue(0.0)
             self.max_dia_ctrl.SetValue(0.0)
 
-            self.splice_type_ctrl.Enable(False)
-            self.resistance_ctrl.Enable(False)
-            self.min_dia_ctrl.Enable(False)
-            self.max_dia_ctrl.Enable(False)
+            self.splice_type_ctrl.setEnabled(False)
+            self.resistance_ctrl.setEnabled(False)
+            self.min_dia_ctrl.setEnabled(False)
+            self.max_dia_ctrl.setEnabled(False)
         else:
             self.db_obj.table.execute(f'SELECT name FROM splice_types;')
             rows = self.db_obj.table.fetchall()
@@ -469,10 +469,10 @@ class SpliceControl(QTabWidget):
             self.min_dia_ctrl.SetValue(db_obj.min_dia)
             self.max_dia_ctrl.SetValue(db_obj.max_dia)
 
-            self.splice_type_ctrl.Enable(True)
-            self.resistance_ctrl.Enable(True)
-            self.min_dia_ctrl.Enable(True)
-            self.max_dia_ctrl.Enable(True)
+            self.splice_type_ctrl.setEnabled(True)
+            self.resistance_ctrl.setEnabled(True)
+            self.min_dia_ctrl.setEnabled(True)
+            self.max_dia_ctrl.setEnabled(True)
 
     def _on_resistance(self, evt):
         """Handle the resistance event.
@@ -563,6 +563,13 @@ class SpliceControl(QTabWidget):
         self.splice_type_choices: list[str] = []
         self.splice_type_ctrl = _prop_ctrls.ComboBoxProperty(general_page, 'Type')
 
+        general_page.addWidget(self.part_number_ctrl)
+        general_page.addWidget(self.description_ctrl)
+        general_page.addWidget(self.color_ctrl)
+        general_page.addWidget(self.resistance_ctrl)
+        general_page.addWidget(self.material_ctrl)
+        general_page.addWidget(self.splice_type_ctrl)
+
         self.plating_page = PlatingControl(self)
 
         diameter_page = _prop_ctrls.Category(self, 'Diameter')
@@ -574,10 +581,13 @@ class SpliceControl(QTabWidget):
             general_page, 'Maximum', min_value=0.00,
             max_value=99.9, increment=0.01, units='mm')
 
-        self.splice_type_ctrl.property_changed.connect(self._on_splice_type)
-        self.resistance_ctrl.property_changed.connect(self._on_resistance)
-        self.min_dia_ctrl.property_changed.connect(self._on_min_dia)
-        self.max_dia_ctrl.property_changed.connect(self._on_max_dia)
+        diameter_page.addWidget(self.min_dia_ctrl)
+        diameter_page.addWidget(self.max_dia_ctrl)
+
+        self.splice_type_ctrl.propertyChanged.connect(self._on_splice_type)
+        self.resistance_ctrl.propertyChanged.connect(self._on_resistance)
+        self.min_dia_ctrl.propertyChanged.connect(self._on_min_dia)
+        self.max_dia_ctrl.propertyChanged.connect(self._on_max_dia)
 
         self.mfg_page = ManufacturerControl(self)
         self.family_page = FamilyControl(self)
@@ -586,6 +596,8 @@ class SpliceControl(QTabWidget):
 
         self.dimension_page = DimensionControl(self)
         self.weight_ctrl = WeightControl(self.dimension_page)
+
+        self.dimension_page.addWidget(self.weight_ctrl)
 
         self.resources_page = ResourcesControl(self)
 
@@ -607,4 +619,3 @@ class SpliceControl(QTabWidget):
             self.wire_size_page
         ):
             self.addTab(page, page.GetLabel())
-            page.Realize()

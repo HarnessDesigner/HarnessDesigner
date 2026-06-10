@@ -147,6 +147,9 @@ class StartStopPosition3DControl(_prop_ctrls.Property):
         self.start_ctrl = _prop_ctrls.Position3DProperty(self, 'Start')
         self.stop_ctrl = _prop_ctrls.Position3DProperty(self, 'Stop')
 
+        self.addWidget(self.start_ctrl)
+        self.addWidget(self.stop_ctrl)
+
     def set_obj(self, db_obj: StartStopPosition3DMixin):
         """Set the obj.
 

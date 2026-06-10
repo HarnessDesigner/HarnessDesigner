@@ -279,7 +279,9 @@ class EditorToolbar(QtWidgets.QToolBar):
 # ---------------------------------------------------------------------------
 
 class NoteToolbar(QtWidgets.QToolBar):
-    """Text-alignment toolbar, visible when a Note object is selected."""
+    """
+    Text-alignment toolbar, visible when a Note object is selected.
+    """
 
     ID_ALIGN_HORIZ_CENTER = _new_id()
     ID_ALIGN_HORIZ_LEFT = _new_id()
@@ -290,13 +292,13 @@ class NoteToolbar(QtWidgets.QToolBar):
     ID_ALIGN_VERT_BOTTOM = _new_id()
 
     def __init__(self, mainframe: "_mainframe.MainFrame"):
-        """Initialise the :class:`NoteToolbar` instance.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Initialise the :class:`NoteToolbar` instance.
 
         :param mainframe: Main application frame.
         :type mainframe: :class:`_mainframe.MainFrame`
         """
+
         self.mainframe = mainframe
 
         super().__init__('Note', mainframe)
@@ -309,9 +311,8 @@ class NoteToolbar(QtWidgets.QToolBar):
         group.setExclusive(True)
 
         def _radio(id_: int, label: str, icon: QtGui.QIcon) -> QtGui.QAction:
-            """Execute the radio operation.
-
-            UNKNOWN details are inferred from the callable name and signature.
+            """
+            Execute the radio operation.
 
             :param id_: Identifier for the ID.
             :type id_: int
@@ -322,6 +323,7 @@ class NoteToolbar(QtWidgets.QToolBar):
             :returns: Return value. UNKNOWN details.
             :rtype: :class:`QAction`
             """
+
             act = QtGui.QAction(icon, label, self)
             act.setCheckable(True)
             act.setEnabled(False)
@@ -354,21 +356,23 @@ class NoteToolbar(QtWidgets.QToolBar):
         #     lambda visible: self._on_editor_visibility('editor3d', visible))
 
     def _on_editor_visibility(self, editor_name: str, visible: bool):
-        """Handle the editor visibility event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the editor visibility event.
 
         :param editor_name: Value for ``editor_name``.
         :type editor_name: str
         :param visible: Value for ``visible``.
         :type visible: bool
         """
+
         if not visible:
             return
+
         obj = self.mainframe.get_selected()
         if not isinstance(obj, _note.Note):
             self.set_buttons(-1)
             return
+
         if editor_name == 'editor2d':
             self.set_buttons(obj.db_obj.h_align2d)
         elif editor_name == 'editor3d':
@@ -377,14 +381,14 @@ class NoteToolbar(QtWidgets.QToolBar):
             self.set_buttons(-1)
 
     def set_buttons(self, align):
-        """Set the buttons.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Set the buttons.
 
         :param align: Value for ``align``.
         :type align: UNKNOWN
         :raises RuntimeError: Raised when the operation cannot be completed.
         """
+
         if align == -1:
             for act in (self.align_left, self.align_center, self.align_right):
                 act.setEnabled(False)
@@ -403,64 +407,57 @@ class NoteToolbar(QtWidgets.QToolBar):
                 raise RuntimeError('sanity check')
 
     def on_obj2d_selected(self, evt: "_gl.GLObjectEvent"):
-        """Handle the obj 2D selected event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the obj 2D selected event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
         obj = evt.GetGLObject()
         self.set_buttons(obj.db_obj.h_align2d if isinstance(obj, _note.Note) else -1)
 
     def on_obj2d_unselected(self, _: "_gl.GLObjectEvent"):
-        """Handle the obj 2D unselected event.
+        """
+        Handle the obj 2D unselected event.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param _: Value for ``_``.
         :type _: :class:`_gl.GLObjectEvent`
         """
+
         self.set_buttons(-1)
 
     def on_obj3d_selected(self, evt: "_gl.GLObjectEvent"):
-        """Handle the obj 3D selected event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the obj 3D selected event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
         obj = evt.GetGLObject()
         self.set_buttons(obj.db_obj.h_align3d if isinstance(obj, _note.Note) else -1)
 
     def on_obj3d_unselected(self, _: "_gl.GLObjectEvent"):
-        """Handle the obj 3D unselected event.
+        """
+        Handle the obj 3D unselected event.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param _: Value for ``_``.
         :type _: :class:`_gl.GLObjectEvent`
         """
+
         self.set_buttons(-1)
 
     def Refresh(self, *_, **__):
-        """Execute the refresh operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param _: Value for ``_``.
-        :type _: UNKNOWN
-        :param __: Value for ``__``.
-        :type __: UNKNOWN
         """
+        Execute the refresh operation.
+        """
+
         self.repaint()
 
     def Destroy(self):
-        """Execute the destroy operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
         """
+        Execute the destroy operation.
+        """
+
         self.deleteLater()
 
 
@@ -469,7 +466,9 @@ class NoteToolbar(QtWidgets.QToolBar):
 # ---------------------------------------------------------------------------
 
 class EditorObjectToolbar(QtWidgets.QToolBar):
-    """Transform-mode toolbar (rotate / scale / move on each axis)."""
+    """
+    Transform-mode toolbar (rotate / scale / move on each axis).
+    """
 
     ID_ROTATE_X = _new_id()
     ID_ROTATE_Y = _new_id()
@@ -484,13 +483,13 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
     ID_MOVE_Z = _new_id()
 
     def __init__(self, mainframe: "_mainframe.MainFrame"):
-        """Initialise the :class:`EditorObjectToolbar` instance.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Initialise the :class:`EditorObjectToolbar` instance.
 
         :param mainframe: Main application frame.
         :type mainframe: :class:`_mainframe.MainFrame`
         """
+
         self.mainframe = mainframe
 
         super().__init__('Object', mainframe)
@@ -738,32 +737,27 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
         self.move_z.SetValue(position.z)
 
     def on_tools(self, id_: int):
-        """Handle the tools event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the tools event.
 
         :param id_: Identifier for the ID.
         :type id_: int
         """
+
         pass  # future: notify handlers of transform mode change
 
     def Refresh(self, *_, **__):
-        """Execute the refresh operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param _: Value for ``_``.
-        :type _: UNKNOWN
-        :param __: Value for ``__``.
-        :type __: UNKNOWN
         """
+        Execute the refresh operation.
+        """
+
         self.repaint()
 
     def Destroy(self):
-        """Execute the destroy operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
         """
+        Execute the destroy operation.
+        """
+
         self.deleteLater()
 
 
@@ -884,6 +878,8 @@ class Setting3DToolbar(QtWidgets.QToolBar):
 
         self.show_wireframe.setIcon(icn)
 
+        self.mainframe.editor3d.Refresh()
+
     def on_reflections(self, _: bool):
         """
         Handle the show reflections toggle.
@@ -896,6 +892,8 @@ class Setting3DToolbar(QtWidgets.QToolBar):
 
         self.show_reflections.setIcon(icn)
 
+        self.mainframe.editor3d.Refresh()
+
     def on_spotlight(self, _: bool):
         """
         Handle the show spotlight toggle.
@@ -907,6 +905,8 @@ class Setting3DToolbar(QtWidgets.QToolBar):
             self.mainframe.config.editor3d.headlight.enable, _image.icons.spot_light)
 
         self.show_spotlight.setIcon(icn)
+
+        self.mainframe.editor3d.Refresh()
 
     def on_normals(self, _: bool):
         """
@@ -921,6 +921,8 @@ class Setting3DToolbar(QtWidgets.QToolBar):
 
         self.show_normals.setIcon(icn)
 
+        self.mainframe.editor3d.Refresh()
+
     def on_vertices(self, _: bool):
         """
         Handle the show vertices toggle.
@@ -932,6 +934,8 @@ class Setting3DToolbar(QtWidgets.QToolBar):
             self.mainframe.config.debug.rendering3d.draw_vertices, _image.icons.vertices)
 
         self.show_vertices.setIcon(icn)
+
+        self.mainframe.editor3d.Refresh()
 
     def on_aabb(self, _: bool):
         """
@@ -946,6 +950,8 @@ class Setting3DToolbar(QtWidgets.QToolBar):
 
         self.show_aabb.setIcon(icn)
 
+        self.mainframe.editor3d.Refresh()
+
     def on_faces(self, _: bool):
         """
         Handle the show faces toggle.
@@ -959,6 +965,8 @@ class Setting3DToolbar(QtWidgets.QToolBar):
 
         self.show_faces.setIcon(icn)
 
+        self.mainframe.editor3d.Refresh()
+
     def on_obb(self, _: bool):
         """
         Handle the show obb toggle.
@@ -971,6 +979,8 @@ class Setting3DToolbar(QtWidgets.QToolBar):
             self.mainframe.config.debug.rendering3d.draw_obb, _image.icons.obb)
 
         self.show_obb.setIcon(icn)
+
+        self.mainframe.editor3d.Refresh()
 
     def Refresh(self, *_, **__):
         """Repaint the toolbar."""

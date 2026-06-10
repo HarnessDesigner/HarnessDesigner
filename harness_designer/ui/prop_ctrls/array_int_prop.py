@@ -1,9 +1,11 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from PySide6.QtWidgets import QLineEdit, QPushButton, QLabel, QHBoxLayout, QVBoxLayout, QDialog
 
-from . import prop_base as _prop_base
+from PySide6 import QtWidgets
+from PySide6 import QtCore
+
 from ._array_dialog_base import _ArrayDialog
+from . import events as _events
 
 
 def _int_char_ok(key: int) -> bool:
@@ -57,11 +59,13 @@ class ArrayIntDialog(_ArrayDialog):
         return result
 
 
-class ArrayIntProperty(_prop_base.Property):
+class ArrayIntProperty(QtWidgets.QWidget):
     """Represent an array int property in :mod:`harness_designer.ui.prop_ctrls.array_int_prop`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
+
+    propertyChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
     def __init__(self, parent, label):
         """Initialise the :class:`ArrayIntProperty` instance.
@@ -74,29 +78,23 @@ class ArrayIntProperty(_prop_base.Property):
         :type label: UNKNOWN
         """
         self._dialog_title = 'Enter Integer Values'
-        _prop_base.Property.__init__(self, parent, label)
+        super().__init__(parent)
         self._value = []
+        self._label = label
 
-        self._st = QLabel(label + ':', self)
-        self._ctrl = QLineEdit(self)
+        self._st = QtWidgets.QLabel(label + ':', self)
+        self._ctrl = QtWidgets.QLineEdit(self)
         self._ctrl.setReadOnly(True)
-        self._button = QPushButton('...', self)
+        self._button = QtWidgets.QPushButton('...', self)
         self._button.setFixedWidth(20)
 
-        inner = QHBoxLayout()
-        inner.setContentsMargins(0, 0, 0, 0)
-        inner.addWidget(self._ctrl, stretch=1)
-        inner.addWidget(self._button)
+        sizer = QtWidgets.QHBoxLayout(self)
+        sizer.setContentsMargins(5, 2, 5, 2)
+        sizer.addWidget(self._st)
+        sizer.addWidget(self._ctrl, stretch=1)
+        sizer.addWidget(self._button)
 
-        col = QVBoxLayout()
-        col.setContentsMargins(0, 5, 0, 5)
-        col.addLayout(inner)
-
-        row = QHBoxLayout()
-        row.setContentsMargins(5, 2, 5, 2)
-        row.addWidget(self._st)
-        row.addLayout(col, stretch=1)
-        self._sizer.addLayout(row)
+        self.setLayout(sizer)
 
         self._button.clicked.connect(self._on_dialog_button)
 
@@ -139,10 +137,24 @@ class ArrayIntProperty(_prop_base.Property):
         dlg = ArrayIntDialog(self, self._value, self._dialog_title)
         dlg.adjustSize()
         dlg.move(self.mapToGlobal(self.rect().center()) - dlg.rect().center())
-        if dlg.exec() == QDialog.Accepted:
+        if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
             value = dlg.GetValue()
+
             if value == self._value:
                 return
+
             self._value = value
             self._ctrl.setText(', '.join(str(v) for v in value))
-            self._send_changed_event(list, self._value)
+
+            evt = _events.PropertyEvent()
+            evt.SetValue(self._value)
+            evt.SetPropertyType(list)
+            evt.SetProperty(self)
+            self.propertyChanged.emit(evt)
+
+    def SetLabel(self, value: str):
+        self._label = value
+        self._st.setText(value)
+
+    def GetLabel(self) -> str:
+        return self._label
