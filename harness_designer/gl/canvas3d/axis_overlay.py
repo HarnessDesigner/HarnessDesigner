@@ -445,14 +445,23 @@ class GLOverlay(QOpenGLWidget):
         z_material = _materials.Plastic(_color.Color(0.2, 0.2, 1.0, 1.0))
         s_material = _materials.Plastic(_color.Color(0.1, 0.1, 0.1, 1.0))
 
-        x_tris, x_smooth_nrmls, x_face_nrmls, x_count = (
-            _utils.compute_normals(x_vertices, x_faces))
-        y_tris, y_smooth_nrmls, y_face_nrmls, y_count = (
-            _utils.compute_normals(y_vertices, y_faces))
-        z_tris, z_smooth_nrmls, z_face_nrmls, z_count = (
-            _utils.compute_normals(z_vertices, z_faces))
-        s_tris, s_smooth_nrmls, s_face_nrmls, s_count = (
-            _utils.compute_normals(s_vertices, s_faces))
+        def _unpack(packed, count):
+            # mutable views into the packed array, one block per attribute
+            return (packed[:count * 3],
+                    packed[count * 3:count * 6],
+                    packed[count * 6:])
+
+        x_packed, x_count = _utils.compute_normals(x_vertices, x_faces)
+        x_tris, x_smooth_nrmls, x_face_nrmls = _unpack(x_packed, x_count)
+
+        y_packed, y_count = _utils.compute_normals(y_vertices, y_faces)
+        y_tris, y_smooth_nrmls, y_face_nrmls = _unpack(y_packed, y_count)
+
+        z_packed, z_count = _utils.compute_normals(z_vertices, z_faces)
+        z_tris, z_smooth_nrmls, z_face_nrmls = _unpack(z_packed, z_count)
+
+        s_packed, s_count = _utils.compute_normals(s_vertices, s_faces)
+        s_tris, s_smooth_nrmls, s_face_nrmls = _unpack(s_packed, s_count)
 
         x_angle = _angle.Angle.from_euler(0.0, 90.0, 0.0)
         y_angle = _angle.Angle.from_euler(270.0, 0.0, 0.0)
@@ -623,7 +632,7 @@ class GLOverlay(QOpenGLWidget):
 
             GL.glVertexPointer(3, GL.GL_FLOAT, 0, tris.reshape(-1, 3))
             GL.glNormalPointer(GL.GL_FLOAT, 0, nrmls.reshape(-1, 3))
-            GL.glDrawArrays(GL.GL_TRIANGLES, 0, count // 3)
+            GL.glDrawArrays(GL.GL_TRIANGLES, 0, count)
 
         GL.glDisableClientState(GL.GL_VERTEX_ARRAY)
         GL.glDisableClientState(GL.GL_NORMAL_ARRAY)

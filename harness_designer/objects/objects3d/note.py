@@ -25,6 +25,7 @@ _ALIGN_MAPPING = {
     build123d.TextAlign.RIGHT.value: build123d.TextAlign.RIGHT,
 }
 
+
 class Note(_base3d.Base3D):
     """Represent a note in :mod:`harness_designer.objects.objects3d.note`.
 
@@ -70,7 +71,12 @@ class Note(_base3d.Base3D):
 
         model = build123d.extrude(model, 0.25)
         vertices, faces = _utils.convert_model_to_mesh(model)
-        vertices, smooth_normals, face_normals, count = _utils.compute_normals(vertices, faces)
+        packed, count = _utils.compute_normals(vertices, faces)
+
+        # mutable views into the packed array, one block per attribute
+        vertices = packed[:count * 3]
+        smooth_normals = packed[count * 3:count * 6]
+        face_normals = packed[count * 6:]
 
         vertices @= self._angle
         smooth_normals @= self._angle

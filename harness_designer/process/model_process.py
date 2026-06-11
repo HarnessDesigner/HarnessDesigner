@@ -10,6 +10,7 @@ import numpy as np
 import queue
 import pyfqmr
 import traceback
+import uuid as _uuid
 from OCP.TopAbs import TopAbs_REVERSED
 from OCP.BRep import BRep_Tool
 from OCP.BRepMesh import BRepMesh_IncrementalMesh
@@ -23,7 +24,6 @@ from OCP.TopoDS import TopoDS
 
 from .. import utils as _utils
 from .. import resources as _resources
-from .. import model_data as _model_data
 
 
 os.environ['PATH'] = os.path.dirname(__file__) + ';' + os.environ['PATH']
@@ -472,8 +472,7 @@ class ThreadWorker(threading.Thread):
                 connector.close()
                 return
 
-            vertices, smooth_normals, face_normals, _ = (
-                _utils.compute_normals(vertices, faces))
+            packed, vertex_count = _utils.compute_normals(vertices, faces)
 
             message['step'] = 8
             self.out_queue.put(message)
@@ -482,17 +481,20 @@ class ThreadWorker(threading.Thread):
                 connector.close()
                 return
 
-            model_data = _model_data.ModelData(
-                vertices, smooth_normals, face_normals
-            )
+            # The packed array is saved as a plain uncompressed .npy file.
+            # The parent opens the file as a numpy memory map and streams
+            # it straight into the GPU vertex buffer.
+            unpacked_verts = packed[:vertex_count * 3].reshape(-1, 3)
+            aabb1, aabb2 = _utils.compute_aabb(unpacked_verts)
+            aabb = np.array([aabb1.as_float, aabb2.as_float], dtype=np.float32)
+            obb = _utils.compute_obb(aabb1,  aabb2)
 
-            uuid = model_data.uuid
-            model_data.source_location = path
-            model_data.source_type = ext
-            model_data.part_number = part_number
-            model_data.manufacturer = mfg
+            uuid = str(_uuid.uuid4())
 
-            model_data.save(model_dir)
+            directory = os.path.join(model_dir, uuid[:2])
+            os.makedirs(directory, exist_ok=True)
+
+            np.save(os.path.join(directory, f'{uuid}.npy'), packed)
 
             message['step'] = 9
             self.out_queue.put(message)
@@ -501,9 +503,14 @@ class ThreadWorker(threading.Thread):
                 connector.close()
                 return
 
-            # Only DB write permitted from child: uuid and file_type_id.
+            # Only DB writes permitted from child: uuid, file_type_id and
+            # the model metadata (vertex_count, aabb, obb).
             connector.execute(f'UPDATE models3d SET file_type_id={file_type_id}, '
-                              f'uuid="{uuid}" WHERE id={model_id};')
+                              f'uuid="{uuid}", '
+                              f'vertex_count={vertex_count}, '
+                              f"aabb='{json.dumps(aabb)}', "
+                              f"obb='{json.dumps(obb)}' "
+                              f'WHERE id={model_id};')
 
             connector.commit()
 

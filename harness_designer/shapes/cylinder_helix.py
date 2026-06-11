@@ -7,6 +7,7 @@ stores the result in a cached :class:`harness_designer.gl.vbo.VBOHandler`.
 """
 
 import build123d
+import numpy as np
 
 from .. import utils as _utils
 from ..geometry import point as _point
@@ -200,10 +201,15 @@ def create_vbo():
 
     vertices, faces = _utils.convert_model_to_mesh(cyl)
 
-    vertices, smooth_normals, face_normals, count = _utils.compute_normals(vertices, faces)
+    packed, count = _utils.compute_normals(vertices, faces)
+
+    unpacked_verts = packed[:count * 3].reshape(-1, 3)
+    aabb1, aabb2 = _utils.compute_aabb(unpacked_verts)
+    aabb = np.array([aabb1.as_float, aabb2.as_float], dtype=np.float32)
+    obb = _utils.compute_obb(aabb1, aabb2)
 
     _vbo = _vbo_handler.VBOHandler(
-        'cylinder_helix', vertices, smooth_normals, face_normals, count,
-        endpoint=cn, arena_kind=_vbo_handler.VBO_TYPE_PRIMITIVE)
+        'cylinder_helix', packed, count, aabb=aabb, obb=obb,
+        arena_kind=_vbo_handler.VBO_TYPE_PRIMITIVE, endpoint=cn)
 
     return _vbo

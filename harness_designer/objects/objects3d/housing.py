@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import QMenu, QDialog
 from PySide6.QtCore import QTimer, Qt
+import numpy as np
 
 from ...ui.widgets import context_menus as _context_menus
 from ...geometry import point as _point
@@ -20,7 +21,6 @@ if TYPE_CHECKING:
     from ...database.project_db import pjt_housing as _pjt_housing
     from .. import housing as _housing
     from ... import ui as _ui
-    from ... import model_data as _model_data
 
 
 Config = _config.Config.editor3d
@@ -101,7 +101,7 @@ class Housing(_base3d.Base3D):
             model.load(self._part.manufacturer.name,
                        self._part.part_number, self._set_model)
 
-    def _set_model(self, model, data: "_model_data.ModelData"):
+    def _set_model(self, model, data: np.ndarray):
         super()._set_model(model, data)
 
         for cavity in self._part.cavities:

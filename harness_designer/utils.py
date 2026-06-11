@@ -667,7 +667,7 @@ def compute_face_normals(
 def compute_normals(
     vertices: np.ndarray,
     faces: np.ndarray
-) -> list[np.ndarray, np.ndarray, np.ndarray, int]:
+) -> tuple[np.ndarray, int]:
 
     """
     Compute both smooth and face normals.
@@ -677,11 +677,15 @@ def compute_normals(
         faces: numpy array of shape (F, 3) - triangle indices into vertices array
 
     Returns:
-        tuple: (vertices_array, smooth_normals_array, normals_array, length_of_arrays)
-            - vertices_array: flattened array of vertex positions (F*9,)
-            - smooth_normals_array: flattened array of smooth normals (F*9,)
-            - normals_array: flattened array of face normals (F*9,)
-            - length_of_arrays: length of the arrays as an integer
+        tuple: (packed_array, vertex_count)
+            - packed_array: single flat float32 array holding the expanded
+              vertex positions, smooth normals and face normals packed end
+              to end; every block is vertex_count*3 floats:
+                  [0   : n*3)  positions
+                  [n*3 : n*6)  smooth normals
+                  [n*6 : n*9)  face normals
+            - vertex_count: number of triangle-soup vertices (F*3), pass
+              to glDrawArrays
     """
 
     triangles, face_normals = _process_verts_for_normals(vertices, faces)
@@ -719,7 +723,9 @@ def compute_normals(
     # (F*9,) - all triangle vertices
     vertices_array = triangles.astype(np.float32).ravel()
 
-    return [vertices_array, smooth_normals_array, normals_array, len(vertices_array)]
+    packed = np.concatenate((vertices_array, smooth_normals_array, normals_array))
+
+    return packed, len(vertices_array) // 3
 
 
 def compute_face_indexes(vertices):

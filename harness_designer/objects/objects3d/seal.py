@@ -2,6 +2,7 @@
 
 from typing import TYPE_CHECKING
 
+import numpy as np
 from PySide6.QtWidgets import QMenu
 import build123d
 
@@ -92,10 +93,15 @@ class Seal(_base3d.Base3D):
                 i_dia = self._part.i_dia
                 vertices, faces = _build_sws(length, o_dia, i_dia)
 
-                vertices, smooth_normals, face_normals, count = (
-                    _utils.compute_normals(vertices, faces))
+                packed, count = _utils.compute_normals(vertices, faces)
+                vertices = packed[:count * 3].reshape(-1, 3)
 
-                vbo = _vbo.VBOHandler(vbo_id, vertices, smooth_normals, face_normals, count)
+                aabb1, aabb2 = _utils.compute_aabb(vertices)
+                obb = _utils.compute_obb(aabb1, aabb2)
+                aabb = np.array([aabb1.as_float, aabb2.as_float], dtype=np.float32)
+
+                vbo = _vbo.VBOHandler(vbo_id, packed, count, aabb=aabb, obb=obb)
+
         elif type_.lower() == 'plug':
             vbo = _cylinder.create_vbo()
             length = self._part.length

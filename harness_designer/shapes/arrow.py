@@ -7,6 +7,7 @@ The mesh built here is converted into a cached
 """
 
 import build123d
+import numpy as np
 
 from .. import utils as _utils
 from ..gl import vbo as _vbo_handler
@@ -60,10 +61,15 @@ def create_vbo() -> _vbo_handler.VBOHandler:
     arrow = arrow.move(build123d.Location((2.5, 0.0, 0.0)))
 
     vertices, faces = _utils.convert_model_to_mesh(arrow)
-    vertices, smooth_normals, face_normals, count = _utils.compute_normals(vertices, faces)
+    packed, count = _utils.compute_normals(vertices, faces)
+
+    unpacked_verts = packed[:count * 3].reshape(-1, 3)
+    aabb1, aabb2 = _utils.compute_aabb(unpacked_verts)
+    aabb = np.array([aabb1.as_float, aabb2.as_float], dtype=np.float32)
+    obb = _utils.compute_obb(aabb1, aabb2)
 
     _vbo = _vbo_handler.VBOHandler(
-        'move_arrow', vertices, smooth_normals, face_normals, count,
+        'move_arrow', packed, count, aabb=aabb, obb=obb,
         arena_kind=_vbo_handler.VBO_TYPE_PRIMITIVE)
 
     return _vbo

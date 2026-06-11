@@ -4,11 +4,11 @@ from typing import Iterable as _Iterable, TYPE_CHECKING
 
 import os
 import uuid
+import numpy as np
 
 from ...create_database import models3d as _models3d
 from ....geometry import angle as _angle
 from ....geometry import point as _point
-from .... import model_data as _model_data
 from ..bases import EntryBase, TableBase
 
 
@@ -147,7 +147,7 @@ class Model3D(EntryBase):
 
         hex_path = file_id[:2]
 
-        path = os.path.join(model_path, hex_path, f'{file_id}.hdz')
+        path = os.path.join(model_path, hex_path, f'{file_id}.npy')
 
         if not os.path.exists(path):
             file_type = self.file_type
@@ -182,6 +182,89 @@ class Model3D(EntryBase):
         """
 
         return self._table.select('uuid', id=self._db_id)[0][0]
+
+    @property
+    def vertex_count(self) -> int | None:
+        """
+        Return the cached mesh vertex count (triangle-soup vertices).
+
+        :returns: Property value or ``None`` when the model has not been
+                  converted yet.
+        :rtype: int | None
+        """
+
+        return self._table.select('vertex_count', id=self._db_id)[0][0]
+
+    @vertex_count.setter
+    def vertex_count(self, value: int):
+        """
+        Set the cached mesh vertex count.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
+
+        self._table.update(self._db_id, vertex_count=value)
+
+    @property
+    def aabb(self) -> np.ndarray | None:
+        """
+        Return the cached mesh axis-aligned bounding box.
+
+        Calculated once when the model is converted and stored in the
+        database.
+
+        :returns: (2, 3) float32 array (min, max) or ``None`` when the
+                  model has not been converted yet.
+        :rtype: numpy.ndarray | None
+        """
+
+        value = self._table.select('aabb', id=self._db_id)[0][0]
+        if not value:
+            return None
+
+        return np.asarray(eval(value), dtype=np.float32)
+
+    @aabb.setter
+    def aabb(self, value):
+        """
+        Set the cached mesh axis-aligned bounding box.
+
+        :param value: (2, 3) array-like of floats.
+        :type value: numpy.ndarray | list
+        """
+
+        self._table.update(self._db_id, aabb=str(np.asarray(value).tolist()))
+
+    @property
+    def obb(self) -> np.ndarray | None:
+        """
+        Return the cached mesh bounding-box corner coordinates.
+
+        Calculated once when the model is converted and stored in the
+        database.
+
+        :returns: (8, 3) float32 array or ``None`` when the model has not
+                  been converted yet.
+        :rtype: numpy.ndarray | None
+        """
+
+        value = self._table.select('obb', id=self._db_id)[0][0]
+        if not value:
+            return None
+
+        return np.asarray(eval(value), dtype=np.float32)
+
+    @obb.setter
+    def obb(self, value):
+        """
+        Set the cached mesh bounding-box corner coordinates.
+
+        :param value: (8, 3) array-like of floats.
+        :type value: numpy.ndarray | list
+        """
+
+        self._table.update(self._db_id, obb=str(np.asarray(value).tolist()))
 
     @property
     def file_type(self) -> "_file_types.FileType":
@@ -416,7 +499,7 @@ class Model3D(EntryBase):
 
         self._table.update(self._db_id, iterations=value)
 
-    def load(self, mfg, part_number, callback) -> _model_data.ModelData:
+    def load(self, mfg, part_number, callback) -> None:
         """
         Load a 3d model.
 
@@ -442,8 +525,9 @@ class Model3D(EntryBase):
         :param part_number: Part number of part that uses this model.
         :type part_number: str
 
-        :param callback: callback that takes :class:`Model3D` and
-                         :class:`_model_data.ModelData` instances as parameters.
+        :param callback: callback that takes the :class:`Model3D` instance
+                         and the memory mapped packed geometry array
+                         (:class:`numpy.memmap`) as parameters.
         :type callback: callable
 
         :returns: ``None``.
@@ -459,6 +543,9 @@ class Model3D(EntryBase):
                 callback, id=self.db_id, mfg=mfg,
                 part_number=part_number, model_dir=model_dir)
         else:
-            md = _model_data.ModelData(file)
+            # The packed geometry is opened as a memory mapped array and
+            # handed to the callback as-is; the VBO streams it straight
+            # from the mapping into the GPU vertex buffer.
+            packed = np.load(file, mmap_mode='r')
 
-            callback(self, md)
+            callback(self, packed)
