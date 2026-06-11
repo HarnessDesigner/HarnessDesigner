@@ -65,5 +65,8 @@ table = _con.SQLTable(
     _con.TextField('point3d', default='"[0.0, 0.0, 0.0]"', no_null=True),
     _con.TextField('scale', default='"[1.0, 1.0, 1.0]"', no_null=True),
     _con.IntField('simplify', default='0', no_null=True),
+    _con.IntField('vertex_count', default="NULL"),
+    _con.TextField('aabb', default="NULL"),
+    _con.TextField('obb', default="NULL"),
     _con.TextField('path', no_null=True)
 )
