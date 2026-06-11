@@ -56,11 +56,12 @@ process handles downloading the models.
 The handling of the models has changed. This change was needed because of the length of time it would take
 to load and convert the models to a form that I can use with opengl. I didn't want to have
 the user not be able to work while this was happening. That is the reason why this is done
-in a child process. Once the model is converted the converted data gets saved to a file with the extension ".hdz"
-This file is simply a zip file that contains a binary representation of numpy arrays
-and it also contains a metadata file. This streamlines the loading process so no conversion
-needs to be done once the file has loaded the first time around. This should make
-loading a project leaps and bounds faster. 
+in a child process. Once the model is converted the converted data gets saved to an uncompressed
+numpy ".npy" file that holds the vertex positions, smooth normals and face normals packed end to end
+in a single array. The model metadata is stored in the database. Because the file is uncompressed it
+gets opened as a memory mapped array and that mapping is handed directly to the GPU upload, so no
+conversion or copying needs to be done once the file has been created the first time around.
+This should make loading a project leaps and bounds faster. 
 
 I added a theme manager. currently there is only a dark and a light theme but user if they want can 
 create their own themes and add them to the manager. Currently there is no ui to do this and it would 

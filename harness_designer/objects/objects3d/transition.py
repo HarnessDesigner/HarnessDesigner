@@ -235,7 +235,12 @@ class Transition(_base3d.Base3D):
         self._model = _build_model(self._part, branches)
 
         self._vertices, self._faces = _utils.convert_model_to_mesh(self._model)
-        vertices, smooth_normals, face_normals, count = _utils.compute_normals(self._vertices, self._faces)
+        packed, count = _utils.compute_normals(self._vertices, self._faces)
+
+        # mutable views into the packed array, one block per attribute
+        vertices = packed[:count * 3]
+        smooth_normals = packed[count * 3:count * 6]
+        face_normals = packed[count * 6:]
 
         for branch in branches:
             with branch.position:

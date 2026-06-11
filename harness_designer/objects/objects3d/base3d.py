@@ -19,7 +19,6 @@ if TYPE_CHECKING:
     from ...database import project_db as _project_db
     from .. import ObjectBase as _ObjectBase
     from ... import ui as _ui
-    from ... import model_data as _model_data
 
 
 Config = _config.Config.editor3d
@@ -128,16 +127,16 @@ class Base3D:
         angle.bind(self._update_angle)
         scale.bind(self._update_scale)
 
-    def _set_model(self, model, data: "_model_data.ModelData"):
+    def _set_model(self, model, data: np.ndarray):
         self.parent.mainframe.editor3d.context.acquire()
 
-        uuid = data.uuid
+        uuid = model.uuid
 
         if uuid in _vbo.VBOHandler:
             vbo = _vbo.VBOHandler(uuid)
         else:
-            vbo = _vbo.VBOHandler(uuid, data.vertices, data.smooth_normals,
-                                  data.face_normals, data.vertex_count)
+            vbo = _vbo.VBOHandler(uuid, data,
+                                  aabb=model.aabb, obb=model.obb)
         vbo.acquire()
 
         self._vbo = vbo

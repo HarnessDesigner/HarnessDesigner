@@ -200,10 +200,10 @@ def create_vbo():
 
     vertices, faces = _utils.convert_model_to_mesh(cyl)
 
-    vertices, smooth_normals, face_normals, count = _utils.compute_normals(vertices, faces)
+    packed, count = _utils.compute_normals(vertices, faces)
 
     _vbo = _vbo_handler.VBOHandler(
-        'cylinder_helix', vertices, smooth_normals, face_normals, count,
+        'cylinder_helix', packed, count,
         endpoint=cn, arena_kind=_vbo_handler.VBO_TYPE_PRIMITIVE)
 
     return _vbo

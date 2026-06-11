@@ -2,10 +2,12 @@
 
 from typing import TYPE_CHECKING
 
+import json
 import multiprocessing
 import os
 import time
 import threading
+import uuid as _uuid
 import numpy as np
 import queue
 import pyfqmr
@@ -23,7 +25,6 @@ from OCP.TopoDS import TopoDS
 
 from .. import utils as _utils
 from .. import resources as _resources
-from .. import model_data as _model_data
 
 
 os.environ['PATH'] = os.path.dirname(__file__) + ';' + os.environ['PATH']
@@ -472,8 +473,7 @@ class ThreadWorker(threading.Thread):
                 connector.close()
                 return
 
-            vertices, smooth_normals, face_normals, _ = (
-                _utils.compute_normals(vertices, faces))
+            packed, vertex_count = _utils.compute_normals(vertices, faces)
 
             message['step'] = 8
             self.out_queue.put(message)
@@ -482,17 +482,33 @@ class ThreadWorker(threading.Thread):
                 connector.close()
                 return
 
-            model_data = _model_data.ModelData(
-                vertices, smooth_normals, face_normals
-            )
+            # The packed array is saved as a plain uncompressed .npy file.
+            # The parent opens the file as a numpy memory map and streams
+            # it straight into the GPU vertex buffer.
+            positions = packed[:vertex_count * 3].reshape(-1, 3)
+            (x1, y1, z1) = positions.min(axis=0).tolist()
+            (x2, y2, z2) = positions.max(axis=0).tolist()
 
-            uuid = model_data.uuid
-            model_data.source_location = path
-            model_data.source_type = ext
-            model_data.part_number = part_number
-            model_data.manufacturer = mfg
+            aabb = [[x1, y1, z1], [x2, y2, z2]]
 
-            model_data.save(model_dir)
+            # corner ordering matches harness_designer.utils.compute_obb
+            obb = [
+                [x1, y1, z1],  # 0: bottom-left-front
+                [x2, y1, z1],  # 1: bottom-right-front
+                [x2, y2, z1],  # 2: top-right-front
+                [x1, y2, z1],  # 3: top-left-front
+                [x1, y1, z2],  # 4: bottom-left-back
+                [x2, y1, z2],  # 5: bottom-right-back
+                [x2, y2, z2],  # 6: top-right-back
+                [x1, y2, z2],  # 7: top-left-back
+            ]
+
+            uuid = str(_uuid.uuid4())
+
+            directory = os.path.join(model_dir, uuid[:2])
+            os.makedirs(directory, exist_ok=True)
+
+            np.save(os.path.join(directory, f'{uuid}.npy'), packed)
 
             message['step'] = 9
             self.out_queue.put(message)
@@ -501,9 +517,14 @@ class ThreadWorker(threading.Thread):
                 connector.close()
                 return
 
-            # Only DB write permitted from child: uuid and file_type_id.
+            # Only DB writes permitted from child: uuid, file_type_id and
+            # the model metadata (vertex_count, aabb, obb).
             connector.execute(f'UPDATE models3d SET file_type_id={file_type_id}, '
-                              f'uuid="{uuid}" WHERE id={model_id};')
+                              f'uuid="{uuid}", '
+                              f'vertex_count={vertex_count}, '
+                              f"aabb='{json.dumps(aabb)}', "
+                              f"obb='{json.dumps(obb)}' "
+                              f'WHERE id={model_id};')
 
             connector.commit()
 

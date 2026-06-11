@@ -92,10 +92,9 @@ class Seal(_base3d.Base3D):
                 i_dia = self._part.i_dia
                 vertices, faces = _build_sws(length, o_dia, i_dia)
 
-                vertices, smooth_normals, face_normals, count = (
-                    _utils.compute_normals(vertices, faces))
+                packed, count = _utils.compute_normals(vertices, faces)
 
-                vbo = _vbo.VBOHandler(vbo_id, vertices, smooth_normals, face_normals, count)
+                vbo = _vbo.VBOHandler(vbo_id, packed, count)
         elif type_.lower() == 'plug':
             vbo = _cylinder.create_vbo()
             length = self._part.length
