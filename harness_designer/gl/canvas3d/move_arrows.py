@@ -270,6 +270,13 @@ class Arrows3D(_base3d.Base3D):
         rot_loc = GL.glGetUniformLocation(faces_program, "objectRotation")
         scale_loc = GL.glGetUniformLocation(faces_program, "objectScale")
 
+        # The arrows are a UI element, not part of the scene — suppress the
+        # floor reflection for them, then restore the global config value so
+        # objects rendered after the arrows keep theirs.
+        reflect_loc = GL.glGetUniformLocation(faces_program, "objectHasReflection")
+        if reflect_loc != -1:
+            GL.glUniform1i(reflect_loc, 0)
+
         GL.glUniform3f(pos_loc, *(self._position + self._arrow1_offset).as_float)
         GL.glUniform3f(scale_loc, *self._scale.as_float)
 
@@ -281,3 +288,9 @@ class Arrows3D(_base3d.Base3D):
         # Render second arrow (negative direction - 180° flipped)
         GL.glUniform4f(rot_loc, *self._flip_angle.as_quat_numpy.tolist())
         self._vbo.render()
+
+        if reflect_loc != -1:
+            config = self.editor3d.config
+            GL.glUniform1i(reflect_loc, int(
+                config.floor.reflections.enable and
+                config.floor.enable_floor_lock))

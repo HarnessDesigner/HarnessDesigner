@@ -7,7 +7,7 @@ from PySide6 import QtCore
 from . import canvas as _canvas
 from . import dragging as _dragging
 from . import object_picker as _object_picker
-from . import arcball as _arcball
+from . import rotation_rings as _rotation_rings
 from ...geometry import point as _point
 from ...shapes import sphere as _sphere
 from ... import config as _config
@@ -82,7 +82,14 @@ class MouseHandler:
         self._drag_obj: _dragging.DragObject = None
         self._is_motion = False
         self._mouse_pos = None
-        self._arcball: _arcball.Arcball = None
+
+        # Angle mode: rotation ring gizmo + active handle drag.
+        # NOTE: the previous arcball rotation (arcball.py) is no longer wired
+        # up — pending a decision to either expose it as a user choice or
+        # remove it entirely.
+        self._rotation_rings: _rotation_rings.RotationRings = None
+        self._rotate_drag: _rotation_rings.DragRotate = None
+
         self._gl_mouse_event: _events.GLEvent | _events.GLObjectEvent = None
 
         self._add_object_handler: _handlers.HandlerBase = None
@@ -178,6 +185,23 @@ class MouseHandler:
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+
+    def _pick_object(self, mouse_pos):
+        """Pick a scene object, ignoring the rotation ring gizmo."""
+        objects = self.canvas.objects_in_view
+
+        if self._rotation_rings is not None:
+            objects = [o for o in objects if o is not self._rotation_rings]
+
+        return _object_picker.find_object(mouse_pos, objects, self.canvas.camera)
+
+    def _exit_angle_mode(self):
+        """Remove the rotation rings and end any active rotation drag."""
+        self._rotate_drag = None
+
+        if self._rotation_rings is not None:
+            self._rotation_rings.delete()
+            self._rotation_rings = None
 
     def _process_mouse(self, code):
         """Execute the process mouse operation.
@@ -305,7 +329,7 @@ class MouseHandler:
             self._drag_obj.delete()
             self._drag_obj = None
 
-        self._arcball = None
+        self._exit_angle_mode()
         self._is_motion = False
         if self.canvas.hasMouseTracking():   # if grab was active, release
             pass  # grab is released by Qt automatically on button release
@@ -325,6 +349,18 @@ class MouseHandler:
         mouse_pos = _qt_pos(evt)
         self._mouse_pos = mouse_pos
         self._is_motion = False
+
+        if self._rotation_rings is not None:
+            selected = self.canvas.get_selected()
+            if selected is None:
+                # Selection vanished out from under angle mode (e.g. via the
+                # object browser) — drop the rings.
+                self._exit_angle_mode()
+            else:
+                axis = self._rotation_rings.pick_handle(mouse_pos, self.canvas.camera)
+                if axis is not None:
+                    self._rotate_drag = _rotation_rings.DragRotate(
+                        self.canvas, selected, axis, self._rotation_rings)
 
         event = _events.GLEvent(_events.EVT_GL_LEFT_DOWN)
         if self._send_event(event, evt):
@@ -348,10 +384,27 @@ class MouseHandler:
             mouse_pos = _qt_pos(evt)
             self._mouse_pos = mouse_pos
 
+            if self._rotation_rings is not None:
+                # Angle mode consumes left clicks: ending a handle drag keeps
+                # the rings; a click (no motion) anywhere that is not a grab
+                # handle exits angle mode. Selection is left untouched.
+                if self._rotate_drag is not None:
+                    self._rotate_drag = None
+                elif not self._is_motion:
+                    axis = self._rotation_rings.pick_handle(
+                        mouse_pos, self.canvas.camera)
+                    if axis is None:
+                        self._exit_angle_mode()
+
+                self._mouse_pos = None
+                self._is_motion = False
+                self.canvas.releaseMouse()
+                self.canvas.update()
+                return
+
             cur_selected = self.canvas.get_selected()
 
-            selected = _object_picker.find_object(
-                mouse_pos, self.canvas.objects_in_view, self.canvas.camera)
+            selected = self._pick_object(mouse_pos)
 
             if not self._is_motion:
                 if cur_selected is None and selected is not None:
@@ -519,23 +572,19 @@ class MouseHandler:
         if self._send_event(event, evt):
 
             with self.canvas:
-                if self._is_motion:
-                    if self._arcball is not None:
-                        self._arcball = None
-                        refresh = True
-                else:
+                if not self._is_motion:
                     mouse_pos = _qt_pos(evt)
 
-                    selected = _object_picker.find_object(
-                        mouse_pos, self.canvas.objects_in_view, self.canvas.camera)
+                    selected = self._pick_object(mouse_pos)
 
-                    if self._arcball is None:
-                        if selected:
-                            event = _events.GLObjectEvent(_events.EVT_GL_OBJECT_RIGHT_CLICK)
-                            event.SetGLObject(selected)
-                            self._send_event(event, evt)
+                    if selected and selected != self.canvas.get_selected():
+                        # Context menu only for objects that are not the
+                        # current selection — right-clicking the selected
+                        # object is the angle-mode gesture (on_right_down).
+                        event = _events.GLObjectEvent(_events.EVT_GL_OBJECT_RIGHT_CLICK)
+                        event.SetGLObject(selected)
+                        self._send_event(event, evt)
                     else:
-                        self._arcball = None
                         refresh = True
 
         self.canvas.releaseMouse()
@@ -558,12 +607,15 @@ class MouseHandler:
 
         event = _events.GLEvent(_events.EVT_GL_RIGHT_DOWN)
         if self._send_event(event, evt):
-            selected = _object_picker.find_object(
-                mouse_pos, self.canvas.objects_in_view, self.canvas.camera)
+            selected = self._pick_object(mouse_pos)
 
+            # Right-click on the selected object enters angle mode; the
+            # context menu (on_right_up) is reserved for unselected objects.
             if selected and self.canvas.get_selected() == selected:
-                self._arcball = _arcball.Arcball(self.canvas, selected)
-                self.canvas.update()
+                if self._rotation_rings is None:
+                    self._rotation_rings = _rotation_rings.RotationRings(
+                        self.canvas, selected)
+                    self.canvas.update()
 
         self.canvas.grabMouse()
 
@@ -696,14 +748,21 @@ class MouseHandler:
 
             cur_selected = self.canvas.get_selected()
 
-            selected = _object_picker.find_object(
-                mouse_pos, self.canvas.objects_in_view, self.canvas.camera)
+            selected = self._pick_object(mouse_pos)
 
             with self.canvas:
                 if btns & QtCore.Qt.MouseButton.LeftButton:
                     self._is_motion = True
 
-                    if self._drag_obj is None:
+                    if self._rotate_drag is not None:
+                        self._rotate_drag(mouse_pos)
+                        refresh = True
+                    elif self._rotation_rings is not None:
+                        # Angle mode: a drag not on a grab handle moves the
+                        # camera; object move-dragging is disabled.
+                        self._process_mouse(MOUSE_LEFT)(*list(delta)[:-1])
+                        refresh = True
+                    elif self._drag_obj is None:
                         if (
                             selected is not None and
                             cur_selected is not None and
@@ -725,10 +784,7 @@ class MouseHandler:
                 if btns & QtCore.Qt.MouseButton.RightButton:
                     self._is_motion = True
 
-                    if self._arcball is not None:
-                        self._arcball(mouse_pos)
-                    else:
-                        self._process_mouse(MOUSE_RIGHT)(*list(delta)[:-1])
+                    self._process_mouse(MOUSE_RIGHT)(*list(delta)[:-1])
 
                     refresh = True
 

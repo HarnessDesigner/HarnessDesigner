@@ -177,7 +177,7 @@ class PDFViewer(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(5, 5, 5, 5)
 
-        # Try native QPdfView first (Qt 6.4+), fall back to pymupdf rendering
+        # Native QPdfView (Qt 6.4+)
         try:
             from PySide6.QtPdf import QPdfDocument
             from PySide6.QtPdfWidgets import QPdfView
@@ -216,8 +216,10 @@ class PDFViewer(QWidget):
             self._zoom_factor = 1.0
 
         except ImportError:
-            # Fall back to pymupdf page rendering into a scrollable label
-            self._load_with_pymupdf(pdf_file, layout)
+            lbl = QLabel(f"PDF viewer unavailable.\nInstall PySide6-QtPdf to view:\n{pdf_file}", self)
+            lbl.setAlignment(Qt.AlignCenter)
+            lbl.setWordWrap(True)
+            layout.addWidget(lbl, 1)
 
     def _go_to_page(self, page_number):
         """Execute the go to page operation.
@@ -246,48 +248,6 @@ class PDFViewer(QWidget):
             self._view.setZoomFactor(self._zoom_factor)
         except Exception:  # NOQA
             pass
-
-    def _load_with_pymupdf(self, pdf_file, layout):
-        """Load the with pymupdf.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param pdf_file: Value for ``pdf_file``.
-        :type pdf_file: UNKNOWN
-        :param layout: Value for ``layout``.
-        :type layout: UNKNOWN
-        """
-        try:
-            import fitz  # pymupdf
-            from PySide6.QtWidgets import QScrollArea
-            from PySide6.QtGui import QImage
-
-            doc = fitz.open(pdf_file)
-            scroll = QScrollArea(self)
-            scroll.setWidgetResizable(True)
-            container = QWidget()
-            vbox = QVBoxLayout(container)
-            vbox.setSpacing(4)
-
-            for page in doc:
-                mat = fitz.Matrix(1.5, 1.5)
-                pix = page.get_pixmap(matrix=mat)
-                img = QImage(pix.samples, pix.width, pix.height,
-                             pix.stride, QImage.Format.Format_RGB888)
-                lbl = QLabel()
-                lbl.setPixmap(QPixmap.fromImage(img))
-                lbl.setAlignment(Qt.AlignCenter)
-                vbox.addWidget(lbl)
-
-            scroll.setWidget(container)
-            layout.addWidget(scroll, 1)
-
-        except ImportError:
-            # Last resort: plain label
-            lbl = QLabel(f"PDF viewer unavailable.\nInstall PySide6-QtPdf or pymupdf to view:\n{pdf_file}", self)
-            lbl.setAlignment(Qt.AlignCenter)
-            lbl.setWordWrap(True)
-            layout.addWidget(lbl, 1)
 
 
 class DatasheetViewer(QWidget):

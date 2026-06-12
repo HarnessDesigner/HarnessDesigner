@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QMenu
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from . import base3d as _base3d
+from . import menu_ops as _menu_ops
 from ...gl import materials as _materials
 from ... import config as _config
 from ...shapes import cylinder_helix as _cylinder_helix
@@ -136,43 +137,33 @@ class WireServiceLoopMenu(QMenu):
         action.triggered.connect(self.on_properties)
 
     def on_add_wire(self):
-        """Handle the add wire event.
+        """Start placing a wire using this service loop's part type."""
+        from ... import handlers as _handlers
 
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        mainframe = self.selected.mainframe
+        part_id = self.selected.db_obj.part_id
+
+        _menu_ops.start_handler(
+            mainframe, lambda: _handlers.AddWireHandler(mainframe, part_id))
 
     def on_trace_circuit(self):
-        """Handle the trace circuit event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        """Highlight every object on this service loop's circuit."""
+        _menu_ops.trace_circuit(self.selected)
 
     def on_select(self):
-        """Handle the select event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        """Make this wire service loop the active selection."""
+        _menu_ops.select_object(self.selected)
 
     def on_clone(self):
-        """Handle the clone event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        """Arm clone mode using this wire service loop as the template."""
+        _menu_ops.clone_object(self.selected)
 
     def on_delete(self):
-        """Handle the delete event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        """Delete this wire service loop from the project."""
+        _menu_ops.delete_object(
+            self.selected,
+            self.selected.mainframe.project.delete_wire_service_loop)
 
     def on_properties(self):
-        """Handle the properties event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        """Show this wire service loop's properties in the object editor."""
+        _menu_ops.show_properties(self.selected)

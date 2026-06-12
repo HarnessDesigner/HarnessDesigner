@@ -97,6 +97,10 @@ class App(QObject):
         from PySide6.QtGui import QSurfaceFormat
         fmt = QSurfaceFormat()
         fmt.setDepthBufferSize(24)
+        # 4x MSAA — QOpenGLWidget renders into a multisampled FBO and
+        # resolves it automatically. Framebuffer readbacks must go through
+        # grabFramebuffer() (resolved), not raw glReadPixels.
+        fmt.setSamples(4)
         # fmt.setSwapBehavior(QSurfaceFormat.SwapBehavior.DoubleBuffer)
         fmt.setVersion(3, 3)
         # fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CoreProfile)

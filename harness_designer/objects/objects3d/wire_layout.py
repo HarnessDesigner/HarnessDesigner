@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QMenu
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from . import base3d as _base3d
+from . import menu_ops as _menu_ops
 from ...shapes import sphere as _sphere
 from ...gl import materials as _materials
 from ... import config as _config
@@ -179,29 +180,26 @@ class WireLayoutMenu(QMenu):
         action.triggered.connect(self.on_delete)
 
     def on_add_splice(self):
-        """Handle the add splice event.
+        """Start the interactive splice placement flow."""
+        from ... import handlers as _handlers
 
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        mainframe = self.selected.mainframe
+
+        _menu_ops.start_handler(
+            mainframe, lambda: _handlers.AddSpliceHandler(mainframe))
 
     def on_trace_circuit(self):
-        """Handle the trace circuit event.
+        """Highlight every object on the circuit of an attached wire."""
+        wires = self.selected.db_obj.attached_wires
 
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        if wires:
+            _menu_ops.trace_circuit(self.selected, wires[0])
 
     def on_select(self):
-        """Handle the select event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        """Make this wire layout the active selection."""
+        _menu_ops.select_object(self.selected)
 
     def on_delete(self):
-        """Handle the delete event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        """Delete this wire layout from the project."""
+        _menu_ops.delete_object(
+            self.selected, self.selected.mainframe.project.delete_wire_layout)

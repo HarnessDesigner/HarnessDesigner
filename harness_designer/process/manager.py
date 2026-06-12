@@ -461,11 +461,18 @@ class ProcessManager(threading.Thread):
 
                     got_message = True
 
-                    model_id = message.get('id')
+                    if 'exit_loop' in message:
+                        self._model_processes.remove(process)
+                        self._model_processes_running.pop(i - offset)
+                        offset += 1
+                        continue
 
                     if 'log' in message:
                         _logger.logger.info(message['log'])
                         continue
+
+                    model_id = message['id']
+                    part_number = message['part_number']
 
                     if 'watchdog_restart' in message:
                         _logger.logger.info(f'MODEL PROCESS MESSAGE: {message}')
@@ -480,6 +487,13 @@ class ProcessManager(threading.Thread):
 
                         from ..ui.dialogs import error as _error
 
+                        if 'step' not in message:
+                            if part_number in self._model_progress:
+                                step = self._model_progress[part_number]
+                                message['step'] = step
+                            else:
+                                message['step'] = 0
+
                         def _do(msg):
                             dlg = _error.ErrorDialog(
                                 self.mainframe,
@@ -490,8 +504,11 @@ class ProcessManager(threading.Thread):
 
                         _app.CallAfter(_do, message)
 
-                        del self._model_progress[message['part_number']]
+                        if part_number in self._model_progress:
+                            del self._model_progress[part_number]
+
                         self._model_process_active -= 1
+
                         if part_number in curr_progresses:
                             index = curr_progresses.index(part_number)
 
@@ -518,14 +535,15 @@ class ProcessManager(threading.Thread):
 
                         continue
 
-                    if 'exit_loop' in message:
-                        self._model_processes.remove(process)
-                        self._model_processes_running.pop(i - offset)
-                        offset += 1
-                        continue
-
-                    if 'err' in message:
+                    if 'err_no' in message:
                         _logger.logger.info(f'MODEL PROCESS MESSAGE: {message}')
+
+                        if 'step' not in message:
+                            if part_number in self._model_progress:
+                                step = self._model_progress[part_number]
+                                message['step'] = step
+                            else:
+                                message['step'] = 0
 
                         model_db, resource_db = self._model_processes_running[i - offset]
 
@@ -546,7 +564,9 @@ class ProcessManager(threading.Thread):
                         _app.CallAfter(_do, message)
                         self._model_process_active -= 1
                         self._model_processes_running[i - offset] = None
-                        del self._model_progress[message['part_number']]
+
+                        if part_number in self._model_progress:
+                            del self._model_progress[part_number]
 
                         if part_number in curr_progresses:
                             index = curr_progresses.index(part_number)
@@ -566,12 +586,11 @@ class ProcessManager(threading.Thread):
                         continue
                     else:
                         step = message['step']
-                        part_number = message['part_number']
 
                         model_db, resource_db = self._model_processes_running[i - offset]
 
                         # Update resource_state progress in parent.
-                        resource_db.set_progress(step)
+                        resource_db.update_progress(step)
 
                         def _do(stp, pn, start):
                             if start:
@@ -596,7 +615,7 @@ class ProcessManager(threading.Thread):
 
                             def _do2(model_db_, resource_db_):
                                 resource_db_.delete()
-                                model_db_.download_finished()
+                                model_db_.download_complete()
 
                             _app.CallAfter(_do2, *self._model_processes_running[i - offset])
 
@@ -659,7 +678,7 @@ class ProcessManager(threading.Thread):
     def get_model(self, model_db: "_model3d.Model3D", resource_db: "_resource_state.ResourceState",
                   mfg: str, part_number: str, path: str):
 
-        message= {
+        message = {
             'id': model_db.db_id,
             'mfg': mfg,
             'part_number': part_number,

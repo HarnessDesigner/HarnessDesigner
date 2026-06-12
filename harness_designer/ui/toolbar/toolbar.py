@@ -636,8 +636,8 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
 
             x, y, z = self._angle3d.as_euler_float
             self.rotate_x.SetValue(x)
-            self.rotate_y.SetValue(x)
-            self.rotate_z.SetValue(x)
+            self.rotate_y.SetValue(y)
+            self.rotate_z.SetValue(z)
 
             x, y, z = self._scale3d.as_float
             self.scale_x.SetValue(x)

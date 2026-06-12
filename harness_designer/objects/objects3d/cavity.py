@@ -3,8 +3,10 @@
 from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import QMenu
+from PySide6.QtCore import QTimer
 
 from . import base3d as _base3d
+from . import menu_ops as _menu_ops
 from ...ui.widgets import context_menus as _context_menus
 from ...shapes import cylinder as _cylinder
 from ...shapes import box as _box
@@ -125,5 +127,71 @@ class CavityMenu(QMenu):
         :type obj: UNKNOWN
         """
         QMenu.__init__(self)
+        self.canvas = editor
+        self.selected = obj
 
-        pass
+        action = self.addAction('Add Terminal')
+        action.triggered.connect(self.on_add_terminal)
+
+        action = self.addAction('Add Seal')
+        action.triggered.connect(self.on_add_seal)
+
+        self.addSeparator()
+        action = self.addAction('Select')
+        action.triggered.connect(self.on_select)
+
+        self.addSeparator()
+        action = self.addAction('Properties')
+        action.triggered.connect(self.on_properties)
+
+    def on_add_terminal(self):
+        """Add a terminal into this cavity."""
+        def _do():
+            from .. import terminal as _terminal_obj
+
+            mainframe = self.selected.mainframe
+            cavity = self.selected.db_obj
+
+            try:
+                compat_terminals = cavity.part.compat_terminals_array
+            except AttributeError:
+                compat_terminals = []
+
+            part_id = _menu_ops.get_part_id(
+                mainframe, 'terminals',
+                mainframe.global_db.terminals_table, 'Add Terminal',
+                initial_results=compat_terminals)
+
+            if part_id is None:
+                return
+
+            position = cavity.position3d
+            ptables = mainframe.project.ptables
+
+            p3d = ptables.pjt_points3d_table.insert(*position.as_float)
+
+            terminal_db = ptables.pjt_terminals_table.insert(
+                part_id, None, p3d.db_id, cavity.db_id)
+
+            terminal = _terminal_obj.Terminal(mainframe, terminal_db)
+            mainframe.project.add_terminal(terminal)
+
+        QTimer.singleShot(0, _do)
+
+    def on_add_seal(self):
+        """Attach a cavity plug seal to this cavity."""
+        from ... import handlers as _handlers
+
+        mainframe = self.selected.mainframe
+        cavity = self.selected.parent
+
+        _menu_ops.run_attached_handler(
+            lambda: _handlers.AddSealHandler(mainframe, cavity))
+
+    def on_select(self):
+        """Make this cavity the active selection."""
+        _menu_ops.select_object(self.selected)
+
+    def on_properties(self):
+        """Show this cavity's properties in the object editor."""
+        _menu_ops.show_properties(self.selected)

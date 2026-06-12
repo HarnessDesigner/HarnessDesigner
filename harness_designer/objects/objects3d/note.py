@@ -4,12 +4,14 @@ from typing import TYPE_CHECKING
 
 import weakref
 from PySide6.QtWidgets import QMenu
+from PySide6.QtCore import QTimer
 import build123d
 
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ...ui.widgets import context_menus as _context_menus
 from . import base3d as _base3d
+from . import menu_ops as _menu_ops
 from ...gl import materials as _materials
 from ... import utils as _utils
 
@@ -85,6 +87,20 @@ class Note(_base3d.Base3D):
 
         return vertices, smooth_normals, face_normals, count
 
+    def set_text(self, text: str):
+        """Set the note text and rebuild the 3d geometry."""
+        self.db_obj.notes = text
+
+        self.editor3d.context.acquire()
+
+        self._data = list(self._build())
+
+        self._compute_obb()
+        self._compute_aabb()
+
+        self.editor3d.context.release()
+        self.editor3d.Refresh()
+
     def get_context_menu(self):
         """Return the context menu.
 
@@ -116,10 +132,10 @@ class NoteMenu(QMenu):
         self.canvas = canvas
         self.selected = selected
 
-        rotate_menu = _context_menus.Rotate3DMenu(canvas, selected)
+        rotate_menu = _context_menus.Rotate3DMenu(canvas, selected.parent)
         self.addMenu(rotate_menu)
 
-        mirror_menu = _context_menus.Mirror3DMenu(canvas, selected)
+        mirror_menu = _context_menus.Mirror3DMenu(canvas, selected.parent)
         self.addMenu(mirror_menu)
 
         action = self.addAction('Set Text')
@@ -139,29 +155,32 @@ class NoteMenu(QMenu):
         action.triggered.connect(self.on_properties)
 
     def on_set_text(self):
-        """Handle the set text event.
+        """Edit the note text."""
+        def _do():
+            from PySide6.QtWidgets import QInputDialog
 
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+            mainframe = self.selected.mainframe
+            current = self.selected.db_obj.notes
+
+            text, ok = QInputDialog.getMultiLineText(
+                mainframe, 'Set Text', 'Note:', current)
+
+            if not ok or not text or text == current:
+                return
+
+            self.selected.set_text(text)
+
+        QTimer.singleShot(0, _do)
 
     def on_clone(self):
-        """Handle the clone event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        """Arm clone mode using this note as the template."""
+        _menu_ops.clone_object(self.selected)
 
     def on_delete(self):
-        """Handle the delete event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        """Delete this note from the project."""
+        _menu_ops.delete_object(
+            self.selected, self.selected.mainframe.project.delete_note)
 
     def on_properties(self):
-        """Handle the properties event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        """Show this note's properties in the object editor."""
+        _menu_ops.show_properties(self.selected)

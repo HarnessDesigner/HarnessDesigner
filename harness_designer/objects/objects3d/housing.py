@@ -2,8 +2,8 @@
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import QMenu, QDialog
-from PySide6.QtCore import QTimer, Qt
+from PySide6.QtWidgets import QMenu
+from PySide6.QtCore import QTimer
 import numpy as np
 
 from ...ui.widgets import context_menus as _context_menus
@@ -12,6 +12,7 @@ from ...ui.dialogs import housing_editor as _housing_editor
 from ...ui.widgets import float_ctrl as _float_ctrl
 from ...ui.dialogs import error as _error_dialog
 from . import base3d as _base3d
+from . import menu_ops as _menu_ops
 from ...shapes import box as _box
 from ...gl import materials as _materials
 from ... import config as _config
@@ -178,10 +179,10 @@ class HousingMenu(QMenu):
 
         self.addSeparator()
 
-        rotate_menu = _context_menus.Rotate3DMenu(self.canvas, obj)
+        rotate_menu = _context_menus.Rotate3DMenu(self.canvas, obj.parent)
         self.addMenu(rotate_menu)
 
-        mirror_menu = _context_menus.Mirror3DMenu(self.canvas, obj)
+        mirror_menu = _context_menus.Mirror3DMenu(self.canvas, obj.parent)
         self.addMenu(mirror_menu)
 
         self.addSeparator()
@@ -221,172 +222,107 @@ class HousingMenu(QMenu):
         QTimer.singleShot(0, lambda: _do(self.obj.db_obj.part))
 
     def on_add_seal(self):
-        """Handle the add seal event.
+        """Attach a seal to this housing."""
+        from ... import handlers as _handlers
 
-        UNKNOWN details are inferred from the callable name and signature.
+        housing = self.obj.parent
 
-        :raises RuntimeError: Raised when the operation cannot be completed.
-        """
-        def _do(housing: "_pjt_housing.PJTHousing"):
-            """Execute the do operation.
-
-            UNKNOWN details are inferred from the callable name and signature.
-
-            :param housing: Value for ``housing``.
-            :type housing: :class:`_pjt_housing.PJTHousing`
-            :raises RuntimeError: Raised when the operation cannot be completed.
-            """
-            dlg = _pjt_add_seal.AddSealDialog(self.mainframe, housing)
-            if dlg.exec() == QDialog.Accepted:
-                part_id, db_id = dlg.GetValue()
-                obj_type = dlg.GetObjectType()
-
-                if obj_type == _pjt_add_seal.CAVITY:
-                    self.mainframe.project.add_seal(part_id, cavity_id=db_id)
-                elif obj_type == _pjt_add_seal.TERMINAL:
-                    self.mainframe.project.add_seal(part_id, terminal_id=db_id)
-                elif obj_type == _pjt_add_seal.HOUSING:
-                    self.mainframe.project.add_seal(part_id, housing_id=db_id)
-                else:
-                    raise RuntimeError('sanity check')
-
-        QTimer.singleShot(0, lambda: _do(self.obj.db_obj))
+        _menu_ops.run_attached_handler(
+            lambda: _handlers.AddSealHandler(self.mainframe, housing))
 
     def on_add_terminal(self):
-        """Handle the add terminal event.
+        """Add a terminal to this housing."""
+        def _do():
+            from .. import terminal as _terminal_obj
 
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        def _do(housing: "_pjt_housing.PJTHousing"):
-            """Execute the do operation.
+            part_id = _menu_ops.get_part_id(
+                self.mainframe, 'terminals',
+                self.mainframe.global_db.terminals_table, 'Add Terminal')
 
-            UNKNOWN details are inferred from the callable name and signature.
+            if part_id is None:
+                return
 
-            :param housing: Value for ``housing``.
-            :type housing: :class:`_pjt_housing.PJTHousing`
-            """
-            dlg = _pjt_add_terminal.AddTerminalDialog(self.mainframe, housing)
+            position = self.obj.db_obj.position3d
+            ptables = self.mainframe.project.ptables
 
-            if dlg.exec() == QDialog.Accepted:
-                part_id, db_id = dlg.GetValue()
-                self.mainframe.project.add_terminal(part_id, cavity_id=db_id)
+            p3d = ptables.pjt_points3d_table.insert(*position.as_float)
 
-        QTimer.singleShot(0, lambda: _do(self.obj.db_obj))
+            terminal_db = ptables.pjt_terminals_table.insert(
+                part_id, None, p3d.db_id, None)
+
+            terminal = _terminal_obj.Terminal(self.mainframe, terminal_db)
+            self.mainframe.project.add_terminal(terminal)
+
+        QTimer.singleShot(0, _do)
 
     def on_add_cpa_lock(self):
-        """Handle the add CPA lock event.
+        """Attach a CPA lock to this housing."""
+        from ... import handlers as _handlers
 
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        def _do(housing: "_pjt_housing.PJTHousing"):
-            """Execute the do operation.
+        housing = self.obj.parent
 
-            UNKNOWN details are inferred from the callable name and signature.
-
-            :param housing: Value for ``housing``.
-            :type housing: :class:`_pjt_housing.PJTHousing`
-            """
-            dlg = _pjt_add_cpa_lock.AddCPALockDialog(self.mainframe, housing)
-
-            if dlg.exec() == QDialog.Accepted:
-                part_id = dlg.GetValue()
-                self.mainframe.project.add_cpa_lock(part_id, housing_id=housing.db_id)
-
-        QTimer.singleShot(0, lambda: _do(self.obj.db_obj))
+        _menu_ops.run_attached_handler(
+            lambda: _handlers.AddCPALockHandler(self.mainframe, housing))
 
     def on_add_tpa_lock(self):
-        """Handle the add TPA lock event.
+        """Attach a TPA lock to this housing."""
+        from ... import handlers as _handlers
 
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        def _do(housing: "_pjt_housing.PJTHousing"):
-            """Execute the do operation.
+        housing = self.obj.parent
 
-            UNKNOWN details are inferred from the callable name and signature.
-
-            :param housing: Value for ``housing``.
-            :type housing: :class:`_pjt_housing.PJTHousing`
-            """
-            dlg = _pjt_add_tpa_lock.AddTPALockDialog(self.mainframe, housing)
-
-            if dlg.exec() == QDialog.Accepted:
-                part_id, idx = dlg.GetValue()
-                self.mainframe.project.add_tpa_lock(part_id, idx=idx, housing_id=housing.db_id)
-
-        QTimer.singleShot(0, lambda: _do(self.obj.db_obj))
+        _menu_ops.run_attached_handler(
+            lambda: _handlers.AddTPALockHandler(self.mainframe, housing))
 
     def on_add_cover(self):
-        """Handle the add cover event.
+        """Attach a cover to this housing."""
+        from ... import handlers as _handlers
 
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        def _do(housing: "_pjt_housing.PJTHousing"):
-            """Execute the do operation.
+        housing = self.obj.parent
 
-            UNKNOWN details are inferred from the callable name and signature.
-
-            :param housing: Value for ``housing``.
-            :type housing: :class:`_pjt_housing.PJTHousing`
-            """
-            dlg = _pjt_add_cover.AddCoverDialog(self.mainframe, housing)
-
-            if dlg.exec() == QDialog.Accepted:
-                part_id = dlg.GetValue()
-                self.mainframe.project.add_cover(part_id, housing_id=housing.db_id)
-
-        QTimer.singleShot(0, lambda: _do(self.obj.db_obj))
+        _menu_ops.run_attached_handler(
+            lambda: _handlers.AddCoverHandler(self.mainframe, housing))
 
     def on_add_boot(self):
-        """Handle the add boot event.
+        """Attach a boot to this housing."""
+        def _do():
+            from .. import boot as _boot_obj
 
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        def _do(housing: "_pjt_housing.PJTHousing"):
-            """Execute the do operation.
+            housing = self.obj.db_obj
 
-            UNKNOWN details are inferred from the callable name and signature.
+            try:
+                compat_boots = housing.part.compat_boots_array
+            except AttributeError:
+                compat_boots = []
 
-            :param housing: Value for ``housing``.
-            :type housing: :class:`_pjt_housing.PJTHousing`
-            """
-            dlg = _pjt_add_boot.AddBootDialog(self.mainframe, housing)
+            part_id = _menu_ops.get_part_id(
+                self.mainframe, 'boots',
+                self.mainframe.global_db.boots_table, 'Add Boot',
+                initial_results=compat_boots)
 
-            if dlg.exec() == QDialog.Accepted:
-                part_id = dlg.GetValue()
-                self.mainframe.project.add_boot(part_id, housing_id=housing.db_id)
+            if part_id is None:
+                return
 
-        QTimer.singleShot(0, lambda: _do(self.obj.db_obj))
+            db_obj = self.mainframe.project.ptables.pjt_boots_table.insert(
+                part_id, housing.boot_position3d_id, housing.db_id)
+
+            boot = _boot_obj.Boot(self.mainframe, db_obj)
+            self.mainframe.project.add_boot(boot)
+
+        QTimer.singleShot(0, _do)
 
     def on_select(self):
-        """Handle the select event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        selected = self.mainframe.get_selected()
-
-        if selected is not None:
-            selected.set_selected(False)
-
-        self.obj.set_selected(True)
+        """Make this housing the active selection."""
+        _menu_ops.select_object(self.obj)
 
     def on_clone(self):
-        """Handle the clone event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        self.mainframe.editor3d.setCursor(Qt.CursorShape.CrossCursor)
-        self.mainframe.set_clone_obj(self.obj.parent)
+        """Arm clone mode using this housing as the template."""
+        _menu_ops.clone_object(self.obj)
 
     def on_delete(self):
-        """Handle the delete event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        self.obj.delete()
+        """Delete this housing from the project."""
+        _menu_ops.delete_object(
+            self.obj, self.mainframe.project.delete_housing)
 
     def on_properties(self):
-        """Handle the properties event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        """Show this housing's properties in the object editor."""
+        _menu_ops.show_properties(self.obj)

@@ -51,6 +51,9 @@ class Position3DProperty(QtWidgets.QGroupBox):
         :type position: UNKNOWN
         """
 
+        if self._position is not None:
+            self._position.unbind(self._on_position)
+
         self._position = position
         enabled = position is not None
         self.x_ctrl.SetValue(position.x if position else 0.0)
@@ -60,6 +63,15 @@ class Position3DProperty(QtWidgets.QGroupBox):
         self.y_ctrl.setEnabled(enabled)
         self.z_ctrl.setEnabled(enabled)
 
+        if position is not None:
+            position.bind(self._on_position)
+
+    def _on_position(self, position):
+        x, y, z = position.as_float
+        self.x_ctrl.SetValue(x)
+        self.y_ctrl.SetValue(y)
+        self.z_ctrl.SetValue(z)
+
     def _on_x(self, evt):
         """
         Handle the x event.
@@ -67,8 +79,9 @@ class Position3DProperty(QtWidgets.QGroupBox):
         :param evt: Event object.
         :type evt: UNKNOWN
         """
-
+        self._position.unbind(self._on_position)
         self._position.x = evt.GetValue()
+        self._position.bind(self._on_position)
 
     def _on_y(self, evt):
         """
@@ -77,8 +90,9 @@ class Position3DProperty(QtWidgets.QGroupBox):
         :param evt: Event object.
         :type evt: UNKNOWN
         """
-
+        self._position.unbind(self._on_position)
         self._position.y = evt.GetValue()
+        self._position.bind(self._on_position)
 
     def _on_z(self, evt):
         """
@@ -87,8 +101,9 @@ class Position3DProperty(QtWidgets.QGroupBox):
         :param evt: Event object.
         :type evt: UNKNOWN
         """
-
+        self._position.unbind(self._on_position)
         self._position.z = evt.GetValue()
+        self._position.bind(self._on_position)
 
     def SetLabel(self, value: str):
         self._label = value

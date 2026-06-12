@@ -4,7 +4,28 @@ Wiring Harness design software (WIP)
 This project is currently being developed. I don't have a time frame as to when 
 it will be completed but I am hoping within the next couple of months maybe sooner.
 
-I wanted to give you guys an updated screen shot of the progress...
+OK so latest updates..
+Did some more work on the VBO handling of the 3d models. I streamlined the process so
+there is as close to a direct line from file to the GPU as I could make. The model data 
+doesn't get stored in the systems RAM, it is only stored in the GPU's RAM.
+
+What is done is the file that holds the data has a memorymapped address created for it, 
+kind of like a virtual RAM address where it points to the file instead of an actual 
+location in memory.
+
+The child processes that handle the downloading of resources now handles multi seat environments.
+This means that a model that is beig downloaded and converted on one client doesn't end up doing 
+the same thing on the second client. Once the download and conversion is complete both clients get 
+notified and the model gets loaded. The application doesn't sit there and wait for the conversion. 
+The user is able to keep on working.  
+
+WE HAVE RINGS!!!
+I finally got the code for handling object rotation finished and running properly.
+This was a tough thing to crack because of gimbal lock occuring when displaying angles 
+to the user.
+![img_4.png](img_4.png)
+
+<br>
 
 ![img_3.png](img_3.png)
 

@@ -289,8 +289,6 @@ def _reduce_triangles(
     return vertices, faces
 
 
-
-
 class ThreadWorker(threading.Thread):
 
     def __init__(self, db_broker, credentials, message, out_queue, exit_event):
@@ -316,9 +314,7 @@ class ThreadWorker(threading.Thread):
             message = self.message
 
             model_id = message['id']
-            mfg = message['mfg']
-            part_number = message['part_number']
-            model_dir = message['model_dir']
+            model_dir = message['path']
 
             message['step'] = 1
 
@@ -337,7 +333,7 @@ class ThreadWorker(threading.Thread):
             if not model_data:
                 message['err_msg'] = 'invalid database row'
                 message['err_no'] = -10001
-                message['allow_retry'] = True,
+                message['allow_retry'] = False,
 
                 self.out_queue.put(message)
                 connector.close()
@@ -377,6 +373,7 @@ class ThreadWorker(threading.Thread):
                 message['err_msg'] = err.__msg__
                 tb = traceback.format_exception(err)
                 message['traceback'] = ''.join(tb)
+                message['allow_retry'] = True
                 self.out_queue.put(message)
                 connector.close()
 
@@ -388,6 +385,7 @@ class ThreadWorker(threading.Thread):
                 message['err_path'] = err.path  # NOQA
                 tb = traceback.format_exception(err)
                 message['traceback'] = ''.join(tb)
+                message['allow_retry'] = False
                 self.out_queue.put(message)
                 connector.close()
 
@@ -395,6 +393,7 @@ class ThreadWorker(threading.Thread):
             except Exception as err:
                 tb = traceback.format_exception(err)
                 message['traceback'] = ''.join(tb)
+                message['allow_retry'] = False
                 self.out_queue.put(message)
                 self.out_queue.put(message)
                 connector.close()
@@ -404,6 +403,7 @@ class ThreadWorker(threading.Thread):
             if file_path is None:
                 message['err_no'] = -10003
                 message['err_msg'] = f'This should not occur "models3d" ({model_id})'
+                message['allow_retry'] = False
                 self.out_queue.put(message)
                 self.out_queue.put(message)
                 connector.close()
@@ -427,7 +427,7 @@ class ThreadWorker(threading.Thread):
             if not rows:
                 message['err_msg'] = 'unsupported file type'
                 message['err_no'] = -10004
-
+                message['allow_retry'] = False
                 self.out_queue.put(message)
                 connector.close()
                 return
@@ -444,6 +444,7 @@ class ThreadWorker(threading.Thread):
             if not os.path.exists(model_path):
                 message['err_msg'] = f'file does not exist ("{model_path}")'
                 message['err_no'] = -10005
+                message['allow_retry'] = False
 
                 self.out_queue.put(message)
                 connector.close()
@@ -487,7 +488,9 @@ class ThreadWorker(threading.Thread):
             unpacked_verts = packed[:vertex_count * 3].reshape(-1, 3)
             aabb1, aabb2 = _utils.compute_aabb(unpacked_verts)
             aabb = np.array([aabb1.as_float, aabb2.as_float], dtype=np.float32)
+            aabb = [[float(str(item2)) for item2 in item1] for item1 in aabb.tolist()]
             obb = _utils.compute_obb(aabb1,  aabb2)
+            obb = [[float(str(item2)) for item2 in item1] for item1 in obb.tolist()]
 
             uuid = str(_uuid.uuid4())
 
@@ -508,8 +511,8 @@ class ThreadWorker(threading.Thread):
             connector.execute(f'UPDATE models3d SET file_type_id={file_type_id}, '
                               f'uuid="{uuid}", '
                               f'vertex_count={vertex_count}, '
-                              f"aabb='{json.dumps(aabb)}', "
-                              f"obb='{json.dumps(obb)}' "
+                              f"aabb='{str(aabb)}', "
+                              f"obb='{str(obb)}' "
                               f'WHERE id={model_id};')
 
             connector.commit()
@@ -601,7 +604,7 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
                 break
 
             if thread.is_alive():
-                exit_event.wait(1)
+                exit_event.wait(0.1)
             else:
                 break
 

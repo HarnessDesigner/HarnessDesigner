@@ -10,6 +10,7 @@ from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ...geometry import line as _line
 from . import base3d as _base3d
+from . import menu_ops as _menu_ops
 from ...shapes import cylinder as _cylinder
 from ...gl import vbo as _vbo
 from ...gl import materials as _materials
@@ -219,43 +220,40 @@ class SpliceMenu(QMenu):
         action.triggered.connect(self.on_properties)
 
     def on_add_wire(self):
-        """Handle the add wire event.
+        """Start the interactive wire placement flow from this splice."""
+        from ... import handlers as _handlers
 
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        mainframe = self.selected.mainframe
+
+        def _factory():
+            part_id = _menu_ops.get_part_id(
+                mainframe, 'wires', mainframe.global_db.wires_table,
+                'Add Wire')
+
+            if part_id is None:
+                return None
+
+            return _handlers.AddWireHandler(mainframe, part_id)
+
+        _menu_ops.start_handler(mainframe, _factory)
 
     def on_trace_circuit(self):
-        """Handle the trace circuit event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        """Highlight every object on this splice's circuit."""
+        _menu_ops.trace_circuit(self.selected)
 
     def on_select(self):
-        """Handle the select event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        """Make this splice the active selection."""
+        _menu_ops.select_object(self.selected)
 
     def on_clone(self):
-        """Handle the clone event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        """Arm clone mode using this splice as the template."""
+        _menu_ops.clone_object(self.selected)
 
     def on_delete(self):
-        """Handle the delete event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        """Delete this splice from the project."""
+        _menu_ops.delete_object(
+            self.selected, self.selected.mainframe.project.delete_splice)
 
     def on_properties(self):
-        """Handle the properties event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        """Show this splice's properties in the object editor."""
+        _menu_ops.show_properties(self.selected)

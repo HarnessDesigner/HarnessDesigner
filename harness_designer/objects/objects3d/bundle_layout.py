@@ -8,6 +8,7 @@ from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ...gl import materials as _materials
 from . import base3d as _base3d
+from . import menu_ops as _menu_ops
 from ...shapes import sphere as _sphere
 from ... import config as _config
 
@@ -122,15 +123,25 @@ class BundleLayoutMenu(QMenu):
         action.triggered.connect(self.on_delete)
 
     def on_add_transition(self):
-        """Handle the add transition event.
+        """Start the interactive transition placement flow."""
+        from ... import handlers as _handlers
 
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        mainframe = self.selected.mainframe
+
+        def _factory():
+            part_id = _menu_ops.get_part_id(
+                mainframe, 'transitions',
+                mainframe.global_db.transitions_table, 'Add Transition')
+
+            if part_id is None:
+                return None
+
+            return _handlers.AddTransitionHandler(mainframe, part_id)
+
+        _menu_ops.start_handler(mainframe, _factory)
 
     def on_delete(self):
-        """Handle the delete event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        """Delete this bundle layout from the project."""
+        _menu_ops.delete_object(
+            self.selected,
+            self.selected.mainframe.project.delete_bundle_layout)

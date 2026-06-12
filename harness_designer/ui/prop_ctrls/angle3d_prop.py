@@ -47,6 +47,12 @@ class Angle3DProperty(QtWidgets.QGroupBox):
         self.y_ctrl.propertyChanged.connect(self._on_y)
         self.z_ctrl.propertyChanged.connect(self._on_z)
 
+    def _on_angle(self, angle):
+        x, y, z = angle.as_euler_float
+        self.x_ctrl.SetValue(x)
+        self.y_ctrl.SetValue(y)
+        self.z_ctrl.SetValue(z)
+
     def SetValue(self, angle):
         """Execute the set value operation.
 
@@ -55,6 +61,10 @@ class Angle3DProperty(QtWidgets.QGroupBox):
         :param angle: Value for ``angle``.
         :type angle: UNKNOWN
         """
+
+        if self._angle is not None:
+            self._angle.unbind(self._on_angle)
+
         self._angle = angle
         enabled = angle is not None
         for ctrl, val in zip(
@@ -64,6 +74,9 @@ class Angle3DProperty(QtWidgets.QGroupBox):
             ctrl.SetValue(val)
             ctrl.setEnabled(enabled)
 
+        if angle is not None:
+            angle.bind(self._on_angle)
+
     def _on_x(self, evt):
         """Handle the x event.
 
@@ -72,7 +85,9 @@ class Angle3DProperty(QtWidgets.QGroupBox):
         :param evt: Event object.
         :type evt: UNKNOWN
         """
+        self._angle.unbind(self._on_angle)
         self._angle.x = evt.GetValue()
+        self._angle.bind(self._on_angle)
 
     def _on_y(self, evt):
         """Handle the y event.
@@ -82,7 +97,9 @@ class Angle3DProperty(QtWidgets.QGroupBox):
         :param evt: Event object.
         :type evt: UNKNOWN
         """
+        self._angle.unbind(self._on_angle)
         self._angle.y = evt.GetValue()
+        self._angle.bind(self._on_angle)
 
     def _on_z(self, evt):
         """Handle the z event.
@@ -92,7 +109,9 @@ class Angle3DProperty(QtWidgets.QGroupBox):
         :param evt: Event object.
         :type evt: UNKNOWN
         """
+        self._angle.unbind(self._on_angle)
         self._angle.z = evt.GetValue()
+        self._angle.bind(self._on_angle)
 
     def SetLabel(self, value: str):
         self._label = value

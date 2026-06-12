@@ -627,6 +627,28 @@ class Config(metaclass=ConfigDB):
             color = [1.0, 0.4, 0.4, 1.0]
             radius = 0.25
 
+        class rotation_rings(metaclass=ConfigDB):
+            """Rotation ring gizmo settings in the 3D editor."""
+            # Ring diameter as a multiple of the object's AABB space diagonal
+            # (the largest distance between two corners of the bounding box)
+            diameter_scale = 1.1
+            # Grab handle diameter as a fraction of the ring diameter
+            handle_diameter_scale = 0.08
+            # Ring tube diameter as a fraction of the ring diameter
+            tube_diameter_scale = 0.02
+            # Ring/handle colors as scalar RGBA (0.0 - 1.0)
+            x_color = [0.782, 0.135, 0.135, 0.8]
+            y_color = [0.135, 0.684, 0.135, 0.8]
+            z_color = [0.175, 0.331, 0.822, 0.8]
+            # Drag snap increment in degrees. 0.0 disables snapping.
+            # Must have at most 2 decimal places and divide the 360 degree
+            # range evenly (15, 22.5, 0.45, ...) — invalid values are
+            # ignored (treated as 0.0)
+            snap_angle = 0.0
+            # Half-width in degrees of the detent at 0 — the dragged angle
+            # sticks at exactly 0.0 until the cursor moves past this
+            detent_width = 3.0
+
         class floor(metaclass=ConfigDB):
             """Floor plane, grid, and reflection settings for the 3D editor."""
             enable = True

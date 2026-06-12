@@ -1120,13 +1120,22 @@ class PJTHousingControl(QTabWidget):
         self.position2d_ctrl.set_obj(db_obj)
         self.position3d_ctrl.set_obj(db_obj)
 
-        self.cover_ctrl.set_obj(db_obj.cover)
-        self.boot_ctrl.set_obj(db_obj.boot)
-        self.cpa_lock_ctrl.set_obj(db_obj.cpa_lock)
-        self.tpa_lock1_ctrl.set_obj(db_obj.tpa_lock1)
-        self.tpa_lock2_ctrl.set_obj(db_obj.tpa_lock2)
-        self.seal_ctrl.set_obj(db_obj.seal)
-        self.part_ctrl.set_obj(db_obj.part)
+        if db_obj is None:
+            self.cover_ctrl.set_obj(None)
+            self.boot_ctrl.set_obj(None)
+            self.cpa_lock_ctrl.set_obj(None)
+            self.tpa_lock1_ctrl.set_obj(None)
+            self.tpa_lock2_ctrl.set_obj(None)
+            self.seal_ctrl.set_obj(None)
+            self.part_ctrl.set_obj(None)
+        else:
+            self.cover_ctrl.set_obj(db_obj.cover)
+            self.boot_ctrl.set_obj(db_obj.boot)
+            self.cpa_lock_ctrl.set_obj(db_obj.cpa_lock)
+            self.tpa_lock1_ctrl.set_obj(db_obj.tpa_lock1)
+            self.tpa_lock2_ctrl.set_obj(db_obj.tpa_lock2)
+            self.seal_ctrl.set_obj(db_obj.seal)
+            self.part_ctrl.set_obj(db_obj.part)
 
         while self.cavities_notebook.count():
             self.cavities_notebook.removeTab(0)
@@ -1137,15 +1146,16 @@ class PJTHousingControl(QTabWidget):
 
         self.cavity_pages = []
 
-        for i, cavity in enumerate(db_obj.cavities):
-            if cavity is None:
-                continue
+        if db_obj is not None:
+            for i, cavity in enumerate(db_obj.cavities):
+                if cavity is None:
+                    continue
 
-            ctrl = db_obj.table.db.pjt_cavities_table.get_control(i)
-            ctrl.setParent(self.cavities_notebook)
-            self.cavities_notebook.addTab(ctrl, ctrl.GetLabel())
-            ctrl.set_obj(cavity)
-            self.cavity_pages.append(ctrl)
+                ctrl = db_obj.table.db.pjt_cavities_table.get_control(i)
+                ctrl.setParent(self.cavities_notebook)
+                self.cavities_notebook.addTab(ctrl, ctrl.GetLabel())
+                ctrl.set_obj(cavity)
+                self.cavity_pages.append(ctrl)
 
     def __init__(self, parent):
         """Initialise the :class:`PJTHousingControl` instance.

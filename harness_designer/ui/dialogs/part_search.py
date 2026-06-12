@@ -654,7 +654,7 @@ class SearchDialog(_dialog_base.BaseDialog):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
-    def __init__(self, parent: "_ui.MainFrame", page_class, table, title: str, initial_results=[]):
+    def __init__(self, parent: "_ui.MainFrame", page_class, table, title: str, initial_results=None):
         """Initialise the :class:`SearchDialog` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -667,12 +667,15 @@ class SearchDialog(_dialog_base.BaseDialog):
         :type table: UNKNOWN
         :param title: Value for ``title``.
         :type title: str
-        :param initial_results: List of part numbers
+        :param initial_results: Part numbers shown as the default result set
+            while no keyword or filters are active (e.g. parts compatible
+            with the part being attached to).
         :type initial_results: list[str]
         """
         super().__init__(parent, title=title)
 
         self.table = table
+        self.initial_results: List[str] = list(initial_results or [])
         self.conn = parent.db_connector
         self.page_class = page_class
         self.mainframe = parent
@@ -762,20 +765,16 @@ class SearchDialog(_dialog_base.BaseDialog):
 
         self.results = self.page_class(self, self.mainframe, '', self.table)
 
-        # Replace editor-mode list selection handlers with search-mode ones.
-        # The page class connects these via standard Qt list signals.
+        # The page class is an EditorList (QTableView). It already keeps
+        # ``results.selected`` in sync via its own selection handler, but
+        # its activation handler opens the editor's edit dialog — replace
+        # that with search-mode accept.
         try:
-            self.results.itemSelectionChanged.disconnect()
+            self.results.activated.disconnect()
         except Exception:  # NOQA
             pass
 
-        try:
-            self.results.itemActivated.disconnect()
-        except Exception:  # NOQA
-            pass
-
-        self.results.itemSelectionChanged.connect(self._on_selection_changed)
-        self.results.itemActivated.connect(self._on_row_activated)
+        self.results.activated.connect(self._on_row_activated)
 
         outer.addWidget(self.results, 1)
 
@@ -1015,6 +1014,17 @@ class SearchDialog(_dialog_base.BaseDialog):
         """
         clauses, params = self._build_predicates()
 
+        # With no keyword or filters active, default to the compatible-part
+        # list supplied by the caller; any user input searches as normal.
+        if (
+            not clauses and
+            self.initial_results and
+            "part_number" in self.info.columns
+        ):
+            placeholders = ",".join(["?"] * len(self.initial_results))
+            clauses.append(f't.part_number IN ({placeholders})')
+            params.extend(self.initial_results)
+
         if clauses:
             where_clause = " AND ".join(clauses)
         else:
@@ -1025,25 +1035,14 @@ class SearchDialog(_dialog_base.BaseDialog):
         total = self.results.record_count
         self.status.setText(f"{total:,} result{'s' if total != 1 else ''}")
 
-    def _on_selection_changed(self) -> None:
-        """Handle the selection changed event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        sel = self.results.selectedItems()
-        if sel:
-            self.results.selected = self.results.row(sel[0])
-        else:
-            self.results.selected = None
-
-    def _on_row_activated(self, item) -> None:
+    def _on_row_activated(self, index) -> None:
         """Handle the row activated event.
 
         UNKNOWN details are inferred from the callable name and signature.
 
-        :param item: Item identifier or value.
-        :type item: UNKNOWN
+        :param index: Model index of the activated row.
+        :type index: :class:`QtCore.QModelIndex`
         """
-        self.results.selected = self.results.row(item)
+        self.results.selected = index.row()
         if self.GetValue() is not None:
             self.accept()

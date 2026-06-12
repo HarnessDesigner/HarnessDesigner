@@ -1836,6 +1836,20 @@ class MainFrame(QMainWindow):
         """
         return self._clone_obj
 
+    def set_obj_handler(self, handler):
+        """Install an interactive placement handler.
+
+        Cancels any handler that is currently active. Used by the editor
+        context menus to start the same add-object flows as the toolbar.
+
+        :param handler: Handler to install.
+        :type handler: :class:`_handlers.HandlerBase`
+        """
+        if self._obj_handler is not None and not self._obj_handler.is_finalized:
+            self._obj_handler.cancel()
+
+        self._obj_handler = handler
+
     def add_object(self, obj):
         """Add an object.
 

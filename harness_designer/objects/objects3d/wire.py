@@ -3,12 +3,15 @@
 from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import QMenu
+from PySide6.QtCore import QTimer
 import numpy as np
 import math
 
 from ...geometry import point as _point
 from ...geometry import angle as _angle
+from ...geometry import line as _line
 from . import base3d as _base3d
+from . import menu_ops as _menu_ops
 from ...shapes import cylinder as _cylinder
 from ...shapes import helix as _helix
 from ...gl import materials as _materials
@@ -352,72 +355,127 @@ class WireMenu(QMenu):
         action = self.addAction('Properties')
         action.triggered.connect(self.on_properties)
 
-    def on_add_handle(self):
-        """Handle the add handle event.
+    def _midpoint(self) -> _point.Point:
+        """Return the world space midpoint of the wire."""
+        line = _line.Line(self.selected.start_position,
+                          self.selected.stop_position)
 
-        UNKNOWN details are inferred from the callable name and signature.
+        return line.point_from_start(line.length() / 2.0)
+
+    def on_add_handle(self):
+        """Insert a wire layout (drag handle) at the middle of the wire.
+
+        The wire is split into two segments that share the layout point.
         """
-        pass
+        from ...handlers import wire_layout_handler as _wire_layout_handler
+
+        wire = self.selected.parent
+        project = self.selected.mainframe.project
+        midpoint = self._midpoint()
+
+        _wire_layout_handler._create_wire_layout_on_wire(  # NOQA
+            project, wire, midpoint)
+
+        self.selected.editor3d.Refresh()
 
     def on_add_marker(self):
-        """Handle the add marker event.
+        """Add a wire marker at the middle of the wire."""
+        def _do():
+            from .. import wire_marker as _wire_marker_obj
 
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+            mainframe = self.selected.mainframe
+
+            part_id = _menu_ops.get_part_id(
+                mainframe, 'wire_markers',
+                mainframe.global_db.wire_markers_table, 'Add Wire Marker')
+
+            if part_id is None:
+                return
+
+            midpoint = self._midpoint()
+
+            ptables = mainframe.project.ptables
+            p3d = ptables.pjt_points3d_table.insert(*midpoint.as_float)
+
+            db_obj = ptables.pjt_wire_markers_table.insert(
+                None, p3d.db_id, self.selected.db_obj.db_id, part_id, '')
+
+            marker = _wire_marker_obj.WireMarker(mainframe, db_obj)
+            mainframe.project.add_wire_marker(marker)
+
+        QTimer.singleShot(0, _do)
 
     def on_add_splice(self):
-        """Handle the add splice event.
+        """Start the interactive splice placement flow on this wire."""
+        from ... import handlers as _handlers
 
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        mainframe = self.selected.mainframe
+        wire = self.selected.parent
+
+        _menu_ops.start_handler(
+            mainframe, lambda: _handlers.AddSpliceHandler(mainframe, wire))
 
     def on_add_wire(self):
-        """Handle the add wire event.
+        """Start placing another wire of the same part type."""
+        from ... import handlers as _handlers
 
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        mainframe = self.selected.mainframe
+        part_id = self.selected.db_obj.part_id
+
+        _menu_ops.start_handler(
+            mainframe, lambda: _handlers.AddWireHandler(mainframe, part_id))
 
     def on_add_wire_service_loop(self):
-        """Handle the add wire service loop event.
+        """Start placing a service loop using this wire's part type."""
+        from ... import handlers as _handlers
 
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        mainframe = self.selected.mainframe
+        part_id = self.selected.db_obj.part_id
+
+        _menu_ops.start_handler(
+            mainframe,
+            lambda: _handlers.AddWireServiceLoopHandler(mainframe, part_id))
 
     def on_add_to_bundle(self):
-        """Handle the add to bundle event.
+        """Add this wire to the closest bundle in the project."""
+        mainframe = self.selected.mainframe
+        midpoint = self._midpoint()
 
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        closest = None
+        closest_distance = None
+
+        for bundle in mainframe.project.bundles:
+            b_line = _line.Line(bundle.obj3d.start_position,
+                                bundle.obj3d.stop_position)
+            b_mid = b_line.point_from_start(b_line.length() / 2.0)
+
+            distance = _line.Line(midpoint, b_mid).length()
+
+            if closest_distance is None or distance < closest_distance:
+                closest_distance = distance
+                closest = bundle
+
+        if closest is None:
+            return
+
+        closest.obj3d.add_wire(self.selected)
+        self.selected.bundle = closest.obj3d
+
+        mainframe.editor3d.Refresh()
 
     def on_trace_circuit(self):
-        """Handle the trace circuit event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        """Highlight every object on this wire's circuit."""
+        _menu_ops.trace_circuit(self.selected)
 
     def on_select(self):
-        """Handle the select event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        """Make this wire the active selection."""
+        _menu_ops.select_object(self.selected)
 
     def on_delete(self):
-        """Handle the delete event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        """Delete this wire from the project."""
+        _menu_ops.delete_object(
+            self.selected, self.selected.mainframe.project.delete_wire)
 
     def on_properties(self):
-        """Handle the properties event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        """Show this wire's properties in the object editor."""
+        _menu_ops.show_properties(self.selected)

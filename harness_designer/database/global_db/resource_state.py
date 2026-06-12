@@ -41,7 +41,7 @@ _TYPE_TO_FIELD = {
     _resources.RESOURCE_TYPE_CAD: 'cad_id',
     _resources.RESOURCE_TYPE_DATASHEET: 'datasheet_id',
     _resources.RESOURCE_TYPE_IMAGE: 'image_id',
-    _resources.RESOURCE_TYPE_MODEL: 'model_id'
+    _resources.RESOURCE_TYPE_MODEL: 'model3d_id'
 }
 
 

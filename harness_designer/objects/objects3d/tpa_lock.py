@@ -8,6 +8,7 @@ from ...ui.widgets import context_menus as _context_menus
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from . import base3d as _base3d
+from . import menu_ops as _menu_ops
 from ...shapes import sphere as _sphere
 from ...gl import vbo as _vbo
 from ...gl import materials as _materials
@@ -97,10 +98,10 @@ class TPALockMenu(QMenu):
         self.canvas = canvas
         self.selected = selected
 
-        rotate_menu = _context_menus.Rotate3DMenu(canvas, selected)
+        rotate_menu = _context_menus.Rotate3DMenu(canvas, selected.parent)
         self.addMenu(rotate_menu)
 
-        mirror_menu = _context_menus.Mirror3DMenu(canvas, selected)
+        mirror_menu = _context_menus.Mirror3DMenu(canvas, selected.parent)
         self.addMenu(mirror_menu)
 
         self.addSeparator()
@@ -119,29 +120,18 @@ class TPALockMenu(QMenu):
         action.triggered.connect(self.on_properties)
 
     def on_select(self):
-        """Handle the select event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        """Make this TPA lock the active selection."""
+        _menu_ops.select_object(self.selected)
 
     def on_clone(self):
-        """Handle the clone event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        """Arm clone mode using this TPA lock as the template."""
+        _menu_ops.clone_object(self.selected)
 
     def on_delete(self):
-        """Handle the delete event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        """Delete this TPA lock from the project."""
+        _menu_ops.delete_object(
+            self.selected, self.selected.mainframe.project.delete_tpa_lock)
 
     def on_properties(self):
-        """Handle the properties event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        """Show this TPA lock's properties in the object editor."""
+        _menu_ops.show_properties(self.selected)

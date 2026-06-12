@@ -10,7 +10,7 @@ from ...create_database import models3d as _models3d
 from ....geometry import angle as _angle
 from ....geometry import point as _point
 from ..bases import EntryBase, TableBase
-
+from .... import resources as _resources
 
 if TYPE_CHECKING:
     from .. import file_types as _file_types
@@ -110,6 +110,8 @@ class Model3D(EntryBase):
     _table: Models3DTable = None
     _angle3d_id: str = None
     _position3d_id: str = None
+
+    _download_callbacks = {}
 
     def build_monitor_packet(self):
         """
@@ -499,6 +501,27 @@ class Model3D(EntryBase):
 
         self._table.update(self._db_id, iterations=value)
 
+    def download_complete(self):
+        if self.db_id not in self._download_callbacks:
+            return
+
+        file = self.data_path
+        if file is not None:
+            # The packed geometry is opened as a memory mapped array and
+            # handed to the callback as-is; the VBO streams it straight
+            # from the mapping into the GPU vertex buffer.
+            packed = np.load(file, mmap_mode='r')
+
+            for ref in self._download_callbacks[self.db_id]:
+                cb = ref()
+
+                if cb is None:
+                    continue
+
+                cb(self, packed)
+
+            del self._download_callbacks[self.db_id]
+
     def load(self, mfg, part_number, callback) -> None:
         """
         Load a 3d model.
@@ -537,15 +560,27 @@ class Model3D(EntryBase):
         file = self.data_path
 
         if file is None:
-            model_dir = self._table.db.settings_table['model_path']
+            if (_resources.RESOURCE_TYPE_MODEL, self.db_id) in self._table.db.resource_state_table:
+                resource_state = self._table.db.resource_state_table[(_resources.RESOURCE_TYPE_MODEL, self.db_id)]
+            else:
+                resource_state = self._table.db.resource_state_table.insert(_resources.RESOURCE_TYPE_MODEL, self.db_id)
 
-            self._table.db.mainframe.process_manager.get_model(
-                callback, id=self.db_id, mfg=mfg,
-                part_number=part_number, model_dir=model_dir)
+            if resource_state.allow_retry:
+                if resource_state.progress == -1:
+                    resource_state.progress = 0
+
+                if self.db_id not in self._download_callbacks:
+                    self._download_callbacks[self.db_id] = []
+
+                self._download_callbacks[self.db_id].append(weakref.WeakMethod(callback))
+
+                model_dir = self._table.db.settings_table['model_path']
+
+                self._table.db.mainframe.process_manager.get_model(
+                    self, resource_state, mfg, part_number, model_dir)
         else:
-            # The packed geometry is opened as a memory mapped array and
-            # handed to the callback as-is; the VBO streams it straight
-            # from the mapping into the GPU vertex buffer.
-            packed = np.load(file, mmap_mode='r')
+            if self.db_id not in self._download_callbacks:
+                self._download_callbacks[self.db_id] = []
 
-            callback(self, packed)
+            self._download_callbacks[self.db_id].append(weakref.WeakMethod(callback))
+            self.download_complete()

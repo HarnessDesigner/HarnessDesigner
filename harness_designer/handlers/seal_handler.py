@@ -49,19 +49,21 @@ class AddSealHandler(_handler_base.HandlerBase):
             compat_seals = selected.db_obj.part.compat_seals_array
 
         elif isinstance(selected, _cavity.Cavity):
-            self.ptables.global_db.seals_table.execute(
+            # self.ptables is not available until HandlerBase.__init__ runs,
+            # so the global database is reached through the mainframe here.
+            mainframe.global_db.seals_table.execute(
                 'SELECT id FROM seal_types WHERE UPPER(name) = "PLUG";')
-            rows = self.ptables.global_db.seals_table.fetchall()
+            rows = mainframe.global_db.seals_table.fetchall()
             if rows:
                 type_id = rows[0][0]
 
                 height = selected.db_obj.part.height
                 width = selected.db_obj.part.width
 
-                self.ptables.global_db.seals_table.execute(
+                mainframe.global_db.seals_table.execute(
                     'SELECT part_number FROM seals WHERE type_id=? AND width=? AND height=?;',
                     (type_id, width, height))
-                rows = self.ptables.global_db.seals_table.fetchall()
+                rows = mainframe.global_db.seals_table.fetchall()
                 compat_seals = [row[0] for row in rows]
             else:
                 compat_seals = []

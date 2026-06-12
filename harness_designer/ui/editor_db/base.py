@@ -1,9 +1,13 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 import time
-from PySide6.QtCore import Qt, QAbstractTableModel, QModelIndex, QTimer, QSize
+from collections import deque
+
+from PySide6.QtCore import (Qt, QAbstractTableModel, QModelIndex, QTimer,
+                            QSize, Signal)
 from PySide6.QtGui import QPixmap, QIcon
-from PySide6.QtWidgets import QTableView, QAbstractItemView, QHeaderView
+from PySide6.QtWidgets import (QTableView, QAbstractItemView, QHeaderView,
+                               QApplication)
 
 from . import edit_dialog as _edit_dialog
 from ... import config as _config
@@ -51,7 +55,10 @@ class EditorDBConfig(metaclass=_config.ConfigDB):
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
-    pass
+
+    # Learned average gap (ms) between the two presses of the user's
+    # double clicks. 0 means nothing has been learned yet.
+    double_click_average = 0
 
 
 class ScrollTracker:
@@ -277,6 +284,25 @@ class EditorList(QTableView):
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
+
+    # Emitted with the visible row index whenever a row becomes selected,
+    # including when the selection moves from one row to another.
+    itemSelected = Signal(int)
+
+    # Emitted only when the state changes from a row being selected to
+    # nothing being selected.
+    itemUnselected = Signal()
+
+    # Rolling sample of measured double-click gaps (ms), shared by every
+    # list so all pages contribute to the same learned average.
+    _dc_samples: deque = deque(maxlen=5)
+
+    # The deselect wait is the learned average plus headroom for the
+    # user's slower-than-average double clicks, never below the floor
+    # and never above the OS interval.
+    _DESELECT_MARGIN = 1.5
+    _DESELECT_MIN_MS = 150
+
     _no_image: QIcon = None
     _download_0: QIcon = None
     _download_1: QIcon = None
@@ -329,7 +355,7 @@ class EditorList(QTableView):
         self._where_params = list(where_params or [])
         self.rows.clear()
         self.bitmap_indexes.clear()
-        self.selected = None
+        self._clear_selection_state()
         self._row_count = self.record_count
         self._model.reset_all()
 
@@ -693,6 +719,136 @@ class EditorList(QTableView):
         # stub; subclasses may override
         pass
 
+    def mousePressEvent(self, event):
+        """Handle mouse presses, adding deselect behaviour.
+
+        A left click on the row that is already selected, or on the empty
+        area below the rows, clears the selection.
+
+        A double click is delivered by Qt as a normal press first, so a
+        click on the selected row only schedules the deselect; it is
+        carried out after the double-click interval elapses with no second
+        click. :meth:`mouseDoubleClickEvent` cancels it so a double click
+        keeps the row selected and activates it.
+
+        :param event: Mouse event.
+        :type event: :class:`QtGui.QMouseEvent`
+        """
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._deselect_timer.stop()
+            self._pending_deselect_row = None
+            self._last_press_ns = time.monotonic_ns()
+
+            index = self.indexAt(event.position().toPoint())
+
+            if not index.isValid():
+                self.clearSelection()
+                event.accept()
+                return
+
+            if self.selected is not None and index.row() == self.selected:
+                self._pending_deselect_row = index.row()
+                self._deselect_timer.start(self._deselect_wait_ms())
+                event.accept()
+                return
+
+        super().mousePressEvent(event)
+
+    def mouseDoubleClickEvent(self, event):
+        """Handle double clicks, cancelling any pending deselect.
+
+        Double-clicking an already-selected row keeps it selected and lets
+        the default activation behaviour run. The gap between the two
+        presses is also sampled to refine the learned double-click speed.
+
+        :param event: Mouse event.
+        :type event: :class:`QtGui.QMouseEvent`
+        """
+        if (
+            event.button() == Qt.MouseButton.LeftButton and
+            self._last_press_ns is not None
+        ):
+            gap_ms = (time.monotonic_ns() - self._last_press_ns) * 1e-6
+            if 0 < gap_ms <= QApplication.doubleClickInterval():
+                self._record_double_click_gap(gap_ms)
+
+        self._deselect_timer.stop()
+        self._pending_deselect_row = None
+
+        super().mouseDoubleClickEvent(event)
+
+    @classmethod
+    def _record_double_click_gap(cls, gap_ms):
+        """Fold a measured double-click gap into the learned average.
+
+        The newest gap joins a rolling window of 5 samples. The highest
+        and lowest samples are discarded, the previously stored average
+        (when one exists) is added back in, and the mean of what remains
+        becomes the new persisted average.
+
+        :param gap_ms: Milliseconds between the two presses.
+        :type gap_ms: float
+        """
+        cls._dc_samples.append(gap_ms)
+
+        samples = sorted(cls._dc_samples)
+        if len(samples) >= 3:
+            samples = samples[1:-1]
+
+        stored = EditorDBConfig.double_click_average
+        if stored:
+            samples.append(stored)
+
+        EditorDBConfig.double_click_average = int(
+            round(sum(samples) / len(samples)))
+
+    def _deselect_wait_ms(self) -> int:
+        """Return how long a click on the selected row should wait for a
+        possible second click before deselecting.
+
+        Uses the learned double-click average plus margin, clamped between
+        :attr:`_DESELECT_MIN_MS` and the OS double-click interval. Falls
+        back to the OS interval until an average has been learned.
+
+        :returns: Wait time in milliseconds.
+        :rtype: int
+        """
+        os_interval = QApplication.doubleClickInterval()
+        avg = EditorDBConfig.double_click_average
+
+        if not avg:
+            return os_interval
+
+        return int(min(os_interval,
+                       max(self._DESELECT_MIN_MS,
+                           avg * self._DESELECT_MARGIN)))
+
+    def _on_deselect_timeout(self):
+        """Carry out a deselect scheduled by :meth:`mousePressEvent` once
+        the double-click interval has passed with no second click.
+        """
+        row = self._pending_deselect_row
+        self._pending_deselect_row = None
+
+        if row is not None and self.selected == row:
+            self.clearSelection()
+
+    def keyPressEvent(self, event):
+        """Handle key presses, clearing the selection on Escape.
+
+        :param event: Key event.
+        :type event: :class:`QtGui.QKeyEvent`
+        """
+        if (
+            event.key() == Qt.Key.Key_Escape and
+            self.selectionModel().hasSelection()
+        ):
+            self.clearSelection()
+            event.accept()
+            return
+
+        super().keyPressEvent(event)
+
     # ------------------------------------------------------------------
     # Slot handlers
     # ------------------------------------------------------------------
@@ -700,19 +856,33 @@ class EditorList(QTableView):
     def _on_selection_changed(self, selected, deselected):
         """Handle the selection changed event.
 
-        UNKNOWN details are inferred from the callable name and signature.
+        Keeps :attr:`selected` in sync with the selection model and emits
+        :attr:`itemSelected` / :attr:`itemUnselected`.
 
-        :param selected: Value for ``selected``.
-        :type selected: UNKNOWN
-        :param deselected: Value for ``deselected``.
-        :type deselected: UNKNOWN
+        :param selected: Newly selected items.
+        :type selected: :class:`QtCore.QItemSelection`
+        :param deselected: Newly deselected items.
+        :type deselected: :class:`QtCore.QItemSelection`
         """
-        indexes = selected.indexes()
+        indexes = self.selectionModel().selectedIndexes()
+        previous = self.selected
 
         if indexes:
             self.selected = indexes[0].row()
+            self.itemSelected.emit(self.selected)
         else:
             self.selected = None
+            if previous is not None:
+                self.itemUnselected.emit()
+
+    def _clear_selection_state(self):
+        """Clear :attr:`selected`, emitting ``itemUnselected`` when a row
+        was selected beforehand. Used by programmatic resets that bypass
+        the selection model (filter changes, sort changes).
+        """
+        if self.selected is not None:
+            self.selected = None
+            self.itemUnselected.emit()
 
     def _on_activated(self, index):
         """Handle the activated event.
@@ -776,7 +946,7 @@ class EditorList(QTableView):
 
         self._rebuild_sort_indicators()
         self.rows.clear()
-        self.selected = None
+        self._clear_selection_state()
         self._model.reset_all()
 
     def _on_idle(self):
@@ -887,6 +1057,13 @@ class EditorList(QTableView):
         self._idle_timer.setInterval(200)
         self._idle_timer.timeout.connect(self._on_idle)
         self._idle_timer.start()
+
+        # Deferred click-to-deselect; see mousePressEvent.
+        self._pending_deselect_row = None
+        self._last_press_ns = None
+        self._deselect_timer = QTimer(self)
+        self._deselect_timer.setSingleShot(True)
+        self._deselect_timer.timeout.connect(self._on_deselect_timeout)
 
         if EditorList._no_image is None:
             img = _image.images.no_image.resize(64, 64)

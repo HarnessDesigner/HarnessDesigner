@@ -3,11 +3,13 @@
 from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import QMenu
+from PySide6.QtCore import QTimer
 
 from ...geometry import point as _point
 from ...geometry import line as _line
 from ...geometry import angle as _angle
 from . import base3d as _base3d
+from . import menu_ops as _menu_ops
 from ...shapes import cylinder as _cylinder
 from ...gl import materials as _materials
 from ... import config as _config
@@ -129,6 +131,18 @@ class WireMarker(_base3d.Base3D):
 
         self.editor3d.update()
 
+    def flip(self):
+        """Flip the marker so the label reads in the opposite direction."""
+        self._p1, self._p2 = self._p2, self._p1
+
+        angle = _angle.Angle.from_points(self._p1, self._p2)
+        self._angle._q = angle._q  # NOQA
+
+        self._compute_obb()
+        self._compute_aabb()
+
+        self.editor3d.Refresh()
+
     def get_context_menu(self):
         """Return the context menu.
 
@@ -183,43 +197,41 @@ class WireMarkerMenu(QMenu):
         action.triggered.connect(self.on_properties)
 
     def on_set_label(self):
-        """Handle the set label event.
+        """Edit the marker label."""
+        def _do():
+            from PySide6.QtWidgets import QInputDialog
 
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+            mainframe = self.selected.mainframe
+            current = self.selected.db_obj.label or ''
+
+            label, ok = QInputDialog.getText(
+                mainframe, 'Set Label', 'Label:', text=current)
+
+            if not ok or label == current:
+                return
+
+            self.selected.db_obj.label = label
+            self.selected.editor3d.Refresh()
+
+        QTimer.singleShot(0, _do)
 
     def on_flip_label(self):
-        """Handle the flip label event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        """Flip the marker label so it reads in the opposite direction."""
+        self.selected.flip()
 
     def on_select(self):
-        """Handle the select event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        """Make this wire marker the active selection."""
+        _menu_ops.select_object(self.selected)
 
     def on_clone(self):
-        """Handle the clone event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        """Arm clone mode using this wire marker as the template."""
+        _menu_ops.clone_object(self.selected)
 
     def on_delete(self):
-        """Handle the delete event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        """Delete this wire marker from the project."""
+        _menu_ops.delete_object(
+            self.selected, self.selected.mainframe.project.delete_wire_marker)
 
     def on_properties(self):
-        """Handle the properties event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        """Show this wire marker's properties in the object editor."""
+        _menu_ops.show_properties(self.selected)

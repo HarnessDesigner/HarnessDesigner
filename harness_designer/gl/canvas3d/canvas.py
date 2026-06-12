@@ -1118,20 +1118,11 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`QtGui.QImage`
         """
-        # take_snapshot is called outside of paintGL so we must acquire
-        # the context explicitly via the context manager.
-        with self.context:
-            w = self.width()
-            h = self.height()
-
-            GL.glPixelStorei(GL.GL_PACK_ALIGNMENT, 1)
-            data = GL.glReadPixels(0, 0, w, h, GL.GL_RGB, GL.GL_UNSIGNED_BYTE)
-
-            arr = np.frombuffer(data, dtype=np.uint8).reshape((h, w, 3))
-            arr = np.flipud(arr)
-
-            img = QtGui.QImage(arr.tobytes(), w, h, w * 3, QtGui.QImage.Format.Format_RGB888)
-            return img.copy()   # copy so the buffer outlives arr
+        # grabFramebuffer() renders a frame and resolves the (multisampled)
+        # widget FBO into a plain image — raw glReadPixels would be invalid
+        # against the MSAA framebuffer.
+        return self.grabFramebuffer().convertToFormat(
+            QtGui.QImage.Format.Format_RGB888)
 
     def cleanup(self):
         """Clean up GL resources before widget destruction."""
