@@ -245,9 +245,40 @@ class Arrows3D(_base3d.Base3D):
         self._obj_position = obj_position
         self._o_obj_position = obj_position.copy()
 
+        # _floor_guard defeats Base3D.__init__'s inline floor-lock check —
+        # the arrows are a UI element and must never be pushed off their
+        # anchor by the ground plane
+        self._floor_guard = True
+
         _base3d.Base3D.__init__(self, parent, None, vbo,
                                 arrow_angle, position, scale, material)
+
+        self._floor_guard = False
+        self._compute_aabb()
+
         self._is_visible = True
+
+    def _update_position(self, position: _point.Point):
+        """Track position changes WITHOUT Base3D's floor-lock logic.
+
+        The base implementation re-applies the floor lock on every position
+        write, which pushes the arrows off their anchor whenever the dragged
+        object nears the ground plane.
+        """
+        self._o_position = position.copy()
+        self.numpy_position[:] = position.as_numpy
+
+        self._compute_obb()
+        self._compute_aabb()
+
+    def _compute_aabb(self):
+        """Compute the AABB, clamped during init so floor-lock never fires."""
+        _base3d.Base3D._compute_aabb(self)
+
+        if getattr(self, '_floor_guard', False):
+            ground = float(self.editor3d.config.floor.ground_height)
+            if self._aabb[0][1] < ground:
+                self._aabb[0][1] = ground
 
     def _on_obj_position(self, position: _point.Point):
         """Update arrow position when the dragged object moves."""

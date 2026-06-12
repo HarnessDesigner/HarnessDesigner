@@ -11,6 +11,8 @@ from ... import gl as _gl
 from ... import image as _image
 from ...objects import note as _note
 from . import float_spin_button as _fsb
+from . import snap_angle_button as _sab
+from ... import config as _config
 
 
 if TYPE_CHECKING:
@@ -529,6 +531,23 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
         self.addWidget(self.rotate_z)
         self.rotate_z.setEnabled(False)
 
+        # Rotation-drag snap: left click toggles (checkbox overlay shows the
+        # state), right click opens the angle popup. Always enabled — it is
+        # a mode setting, not an object property.
+        ring_config = _config.Config.editor3d.rotation_rings
+
+        self.snap_angle = _sab.SnapAngleButton(
+            self, 'Rotation Snap',
+            _make_icon(icons.rotation_snap + icons.checkbox),
+            _make_icon(icons.rotation_snap + icons.uncheckbox))
+
+        self.snap_angle.SetValue(ring_config.snap_angle)
+        self.snap_angle.SetSnapEnabled(ring_config.snap_enable)
+
+        self.snap_angle.snapEnabledChanged.connect(self._on_snap_enabled)
+        self.snap_angle.snapAngleChanged.connect(self._on_snap_angle)
+        self.addWidget(self.snap_angle)
+
         self.scale_x = _fsb.FloatSpinButton(
             self, 'X Axis', _make_icon(icons.scale_x),
             0.01, 10.0, 0.01, 2, 'x')
@@ -666,6 +685,14 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
 
             act.setEnabled(False)
             act.SetValue(0.0)
+
+    @staticmethod
+    def _on_snap_enabled(enabled: bool) -> None:
+        _config.Config.editor3d.rotation_rings.snap_enable = bool(enabled)
+
+    @staticmethod
+    def _on_snap_angle(value: float) -> None:
+        _config.Config.editor3d.rotation_rings.snap_angle = float(value)
 
     def on_rotate_x(self, value: float) -> None:
         if self._angle3d is not None:
