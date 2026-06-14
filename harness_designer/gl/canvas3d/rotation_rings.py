@@ -100,7 +100,7 @@ class _GizmoBuffer:
     The shader pipeline reads all three vertex attributes from ONE buffer
     at byte offsets (positions / smooth normals / face normals packed end
     to end), with the offsets baked into a VAO — the same layout
-    :class:`gl.vbo.VBOHandler` uses. The gizmo owns its own small buffer
+    :class:`gl.vbo.PooledVBOHandler` uses. The gizmo owns its own small buffer
     instead of an arena allocation so dimension config changes can
     re-upload the mesh in real time without buffer-pool management.
 

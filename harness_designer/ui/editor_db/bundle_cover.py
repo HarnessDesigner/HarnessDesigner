@@ -10,71 +10,31 @@ if TYPE_CHECKING:
 
 
 class BundleCoversPage(_base.EditorList):
-    """Represent a bundle covers page in :mod:`harness_designer.ui.editor_db.bundle_cover`.
-
-    UNKNOWN details are inferred from the class name and surrounding code.
-    """
     _has_model_3d = False
     _has_image = False
 
     __table_name__ = 'bundle_covers'
-    __query__ = f'''\
-        SELECT * FROM (
-        SELECT Row_Number() OVER (ORDER BY {{sort_clause}}) AS RowNum, *
-        FROM (
-            SELECT
-                t.id AS id,
-                t.part_number AS part_number,
-                t.description AS description,
-                mfg.name AS mfg_name,
-                family.name AS family_name,
-                series.name AS series_name,
-                color.name AS color_name,
-                min_temp.name AS min_temp_name,
-                max_temp.name AS max_temp_name,
-                shrink_temp.name AS shrink_temp_name,
-                material.name AS material_name,
-                protection.name AS protection_name,
-                t.rigidity AS rigidity,
-                t.shrink_ratio AS shrink_ratio,
-                t.wall AS wall,
-                t.min_dia AS min_dia,
-                t.max_dia AS max_dia,
-                t.adhesive_ids AS adhesive_ids,
-                t.weight AS weight
-            FROM {__table_name__} AS t
-            LEFT JOIN manufacturers AS mfg ON mfg.id = t.mfg_id
-            LEFT JOIN families AS family ON family.id = t.family_id
-            LEFT JOIN series AS series ON series.id = t.series_id
-            LEFT JOIN colors AS color ON color.id = t.color_id
-            LEFT JOIN materials AS material ON material.id = t.material_id
-            LEFT JOIN temperatures AS shrink_temp ON shrink_temp.id = t.shrink_temp_id
-            LEFT JOIN temperatures AS min_temp ON min_temp.id = t.min_temp_id
-            LEFT JOIN temperatures AS max_temp ON max_temp.id = t.max_temp_id
-            LEFT JOIN protections AS protection ON protection.id = t.protection_id
-            )
-        ) WHERE RowNum BETWEEN {{start_row}} AND {{end_row}};
-        '''
 
     column_mapping = {
-        0: ('DB ID', 'id', True),
-        1: ('Part Number', 'part_number', True),
-        2: ('Description', 'description'),
-        3: ('Manufacturer', 'mfg_name'),
-        4: ('Family', 'family_name'),
-        5: ('Series', 'series_name'),
-        6: ('Color', 'color_name'),
-        7: ('Temperature (min)', 'min_temp_name'),
-        8: ('Temperature (max)', 'max_temp_name'),
-        9: ('Shrink Temperature', 'shrink_temp_name'),
-        10: ('Material', 'material_name'),
-        11: ('Protections', 'protection_name'),
-        12: ('Rigidity', 'rigidity'),
-        13: ('Shrink Ratio', 'shrink_ratio'),
-        14: ('Wall', 'wall'),
-        15: ('Diameter (mm)(min)', 'min_dia'),
-        16: ('Diameter (mm)(max)', 'max_dia'),
-        17: ('Adhesive Codes', 'adhesive_ids'),
-        18: ('Weight (g/m)', 'weight'),
+        0: ('DB ID', {'alias': 'id', 'field_name': 'id'}, True),
+        1: ('Part Number', {'alias': 'part_number', 'field_name': 'part_number'}, True),
+        2: ('Description', {'alias': 'description', 'field_name': 'description'}),
+        3: ('Manufacturer', {'alias': 'mfg_name', 'field_name': 'mfg_id', 'ref_table': 'manufacturers', 'ref_field': 'name'}),
+        4: ('Family', {'alias': 'family_name', 'field_name': 'family_id', 'ref_table': 'families', 'ref_field': 'name'}),
+        5: ('Series', {'alias': 'series_name', 'field_name': 'series_id', 'ref_table': 'series', 'ref_field': 'name'}),
+        6: ('Color', {'alias': 'color_name', 'field_name': 'color_id', 'ref_table': 'colors', 'ref_field': 'name'}),
+        7: ('Temperature (min)', {'alias': 'min_temp_name', 'field_name': 'min_temp_id', 'ref_table': 'temperatures', 'ref_field': 'name'}),
+        8: ('Temperature (max)', {'alias': 'max_temp_name', 'field_name': 'max_temp_id', 'ref_table': 'temperatures', 'ref_field': 'name'}),
+        9: ('Shrink Temperature', {'alias': 'shrink_temp_name', 'field_name': 'shrink_temp_id', 'ref_table': 'temperatures', 'ref_field': 'name'}),
+        10: ('Material', {'alias': 'material_name', 'field_name': 'material_id', 'ref_table': 'materials', 'ref_field': 'name'}),
+        11: ('Protections', {'alias': 'protection_name', 'field_name': 'protection_id', 'ref_table': 'protections', 'ref_field': 'name'}),
+        12: ('Rigidity', {'alias': 'rigidity', 'field_name': 'rigidity'}),
+        13: ('Shrink Ratio', {'alias': 'shrink_ratio', 'field_name': 'shrink_ratio'}),
+        14: ('Wall', {'alias': 'wall', 'field_name': 'wall'}),
+        15: ('Diameter (mm)(min)', {'alias': 'min_dia', 'field_name': 'min_dia'}),
+        16: ('Diameter (mm)(max)', {'alias': 'max_dia', 'field_name': 'max_dia'}),
+        17: ('Adhesive Codes', {'alias': 'adhesive_ids', 'field_name': 'adhesive_ids'}),
+        18: ('Weight (g/m)', {'alias': 'weight', 'field_name': 'weight'}),
     }
+
     table: "_bundle_cover.BundleCoversTable" = None

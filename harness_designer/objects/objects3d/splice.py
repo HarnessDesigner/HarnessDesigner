@@ -123,6 +123,7 @@ class Splice(_base3d.Base3D):
             dia = dia1
 
         scale = _point.Point(dia, dia, length)
+
         vbo = _cylinder.create_vbo()
 
         position = self._p1

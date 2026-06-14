@@ -4,13 +4,23 @@
 
 from ....import logger as _logger
 
-FIELD_TYPE_REAL = 'REAL'
-FIELD_TYPE_TEXT = 'TEXT'
-FIELD_TYPE_INT = 'INTEGER'
-FIELD_TYPE_BLOB = 'BLOB'
+FIELD_TYPE_REAL = 'DOUBLE'
+FIELD_TYPE_TEXT = 'LONGTEXT'
+FIELD_TYPE_INT = 'INT'
+FIELD_TYPE_BLOB = 'LONGBLOB'
 
 REFERENCE_CASCADE = 'CASCADE'
-REFERENCE_DEFAULT = 'SET DEFAULT'
+REFERENCE_DEFAULT = 'RESTRICT'
+
+_EXPRESSION_DEFAULT_TYPES = ('LONGTEXT', 'TEXT', 'LONGBLOB', 'BLOB')
+
+
+def _get_column_names(db_cursor, table_name: str) -> list:
+    db_cursor._con.execute(
+        f"SELECT COLUMN_NAME FROM information_schema.COLUMNS "
+        f"WHERE TABLE_SCHEMA = '{db_cursor._con.db_name}' AND TABLE_NAME = '{table_name}';"
+    )
+    return [row[0] for row in db_cursor._con.fetchall()]
 
 
 class SQLTable:
@@ -37,15 +47,15 @@ class SQLTable:
         :returns: ``True`` when the table exists; otherwise ``False``.
         :rtype: bool
         """
-        db_cursor._con.execute(f'SELECT table_name FROM information_schema.tables WHERE table_schema={db_cursor.database_name};')
+        db_cursor._con.execute(
+            f"SELECT TABLE_NAME FROM information_schema.TABLES "
+            f"WHERE TABLE_SCHEMA = '{db_cursor._con.db_name}';"
+        )
         rows = db_cursor._con.fetchall()
-
         table_names = [row[0] for row in rows]
-
         return self.name in table_names
 
     def is_ok(self, db_cursor) -> bool:
-        # TODO: Correct the sql expression so it will work with MySQL
         """Return whether the existing table still needs field updates.
 
         :param db_cursor: Database cursor or connector wrapper used to execute SQL.
@@ -54,10 +64,7 @@ class SQLTable:
         :returns: ``True`` when the table requires updates; otherwise ``False``.
         :rtype: bool
         """
-        db_cursor._con.execute(f'SELECT "(\'" || group_concat(name, "\', \'") || "\')" from '
-                               f'pragma_table_info("{self.name}");')
-
-        column_names = eval(db_cursor._con.fetchall()[0][0])
+        column_names = _get_column_names(db_cursor, self.name)
 
         for field in self.fields:
             if field.name not in column_names:
@@ -66,7 +73,6 @@ class SQLTable:
         return False
 
     def update_fields(self, db_cursor):
-        # TODO: Correct the sql expression so it will work with MySQL
         """Add any missing fields to an existing table.
 
         :param db_cursor: Database cursor or connector wrapper used to execute SQL.
@@ -75,10 +81,7 @@ class SQLTable:
         :returns: ``None``.
         :rtype: None
         """
-        db_cursor._con.execute(f'SELECT "(\'" || group_concat(name, "\', \'") || "\')" from '
-                               f'pragma_table_info("{self.name}");')
-
-        column_names = eval(db_cursor._con.fetchall()[0][0])
+        column_names = _get_column_names(db_cursor, self.name)
 
         for field in self.fields:
             if field.name not in column_names:
@@ -98,8 +101,8 @@ class SQLTable:
         for i, field in enumerate(fields[:]):
             if 'FOREIGN KEY' in field:
                 field, foreign_key = field.rsplit(',', 1)
-                fields[i] = field
-                fields.append(foreign_key)
+                fields[i] = field.rstrip()
+                fields.append(foreign_key.lstrip())
 
         fields = ', '.join(fields)
 
@@ -188,10 +191,10 @@ class SQLField:
         :rtype: str
         """
         if self.is_primary:
-            primary = ' PRIMARY KEY AUTOINCREMENT'
-
+            primary = ' AUTO_INCREMENT PRIMARY KEY'
         else:
             primary = ''
+
         if self.is_unique:
             unique = ' UNIQUE'
         else:
@@ -205,7 +208,15 @@ class SQLField:
         if self.default is None:
             default = ''
         else:
-            default = f' DEFAULT {self.default}'
+            default_val = self.default
+            # SQLite uses double-quoted string literals; MySQL requires single quotes
+            if len(default_val) >= 2 and default_val[0] == '"' and default_val[-1] == '"':
+                default_val = "'" + default_val[1:-1] + "'"
+            # MySQL 8.0.13+ requires expression syntax for TEXT/BLOB defaults
+            if self.type in _EXPRESSION_DEFAULT_TYPES:
+                default = f' DEFAULT ({default_val})'
+            else:
+                default = f' DEFAULT {default_val}'
 
         res = [f'{self.name} {self.type}{primary}{unique}{default}{null}']
 
@@ -225,15 +236,9 @@ class SQLField:
         :returns: ``True`` when the field exists; otherwise ``False``.
         :rtype: bool
         """
-        db_cursor._con.execute(f'SELECT "(\'" || group_concat(name, "\', \'") || "\')" from '
-                  f'pragma_table_info("{table_name}");')
-
-        column_names = eval(db_cursor._con.fetchall()[0][0])
-
-        return self.name in column_names
+        return self.name in _get_column_names(db_cursor, table_name)
 
     def add_to_table(self, db_cursor, table_name: str):
-
         """Add this field definition to an existing table.
 
         :param db_cursor: Database cursor or connector wrapper used to execute SQL.
@@ -244,16 +249,22 @@ class SQLField:
         :returns: ``None``.
         :rtype: None
         """
+
         field = str(self)
 
         if 'FOREIGN KEY' in field:
-            field, foreign_key = field.rsplit(',', 1)
-            foreign_key = foreign_key.split(') ', 1)[-1]
-            field = field.rstrip()
-            foreign_key = foreign_key.lstrip()
-            field += ' ' + foreign_key
+            col_def, fk_def = field.rsplit(',', 1)
+            col_def = col_def.rstrip()
+            fk_def = fk_def.lstrip()
+        else:
+            col_def = field
+            fk_def = None
 
-        db_cursor._con.execute(f'ALTER TABLE {table_name} ADD COLUMN {field}')
+        db_cursor._con.execute(f'ALTER TABLE {table_name} ADD COLUMN {col_def}')
+
+        if fk_def is not None:
+            db_cursor._con.execute(f'ALTER TABLE {table_name} ADD {fk_def}')
+
         db_cursor._con.commit()
 
 

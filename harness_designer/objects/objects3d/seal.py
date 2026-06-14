@@ -88,8 +88,8 @@ class Seal(_base3d.Base3D):
             o_dia = self._part.o_dia
             scale = _point.Point(o_dia, o_dia, length)
 
-            if vbo_id in _vbo.VBOHandler:
-                vbo = _vbo.VBOHandler(vbo_id)
+            if vbo_id in _vbo.PooledVBOHandler:
+                vbo = _vbo.PooledVBOHandler(vbo_id)
             else:
                 i_dia = self._part.i_dia
                 vertices, faces = _build_sws(length, o_dia, i_dia)
@@ -101,7 +101,7 @@ class Seal(_base3d.Base3D):
                 obb = _utils.compute_obb(aabb1, aabb2)
                 aabb = np.array([aabb1.as_float, aabb2.as_float], dtype=np.float32)
 
-                vbo = _vbo.VBOHandler(vbo_id, packed, count, aabb=aabb, obb=obb)
+                vbo = _vbo.PooledVBOHandler(vbo_id, packed, count, aabb=aabb, obb=obb)
 
         elif type_.lower() == 'plug':
             vbo = _cylinder.create_vbo()

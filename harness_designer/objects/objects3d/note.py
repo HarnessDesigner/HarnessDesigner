@@ -47,16 +47,16 @@ class Note(_base3d.Base3D):
         :type db_obj: :class:`_pjt_note.PJTNote`
         """
         self.db_obj = db_obj
-        self._angle = db_obj.angle3d
-        self._position = db_obj.position3d
+        angle = db_obj.angle3d
+        position = db_obj.position3d
         color = db_obj.color.ui
         scale = _point.Point(1.0, 1.0, 1.0)
         data = self._build()
 
         material = _materials.Plastic(color)
 
-        _base3d.Base3D.__init__(self, parent, db_obj, None, self._angle,
-                                self._position, scale, material, data)
+        _base3d.Base3D.__init__(self, parent, db_obj, None, angle,
+                                position, scale, material, data)
 
     def _build(self):
         """Execute the build operation.
@@ -75,17 +75,7 @@ class Note(_base3d.Base3D):
         vertices, faces = _utils.convert_model_to_mesh(model)
         packed, count = _utils.compute_normals(vertices, faces)
 
-        # mutable views into the packed array, one block per attribute
-        vertices = packed[:count * 3]
-        smooth_normals = packed[count * 3:count * 6]
-        face_normals = packed[count * 6:]
-
-        vertices @= self._angle
-        smooth_normals @= self._angle
-        face_normals @= self._angle
-        vertices += self._position
-
-        return vertices, smooth_normals, face_normals, count
+        return packed, count
 
     def set_text(self, text: str):
         """Set the note text and rebuild the 3d geometry."""
@@ -93,7 +83,7 @@ class Note(_base3d.Base3D):
 
         self.editor3d.context.acquire()
 
-        self._data = list(self._build())
+        self._gl_buf.update(*self._build())
 
         self._compute_obb()
         self._compute_aabb()

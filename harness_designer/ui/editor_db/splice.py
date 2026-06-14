@@ -10,81 +10,34 @@ if TYPE_CHECKING:
 
 
 class SplicesPage(_base.EditorList):
-    """Represent a splices page in :mod:`harness_designer.ui.editor_db.splice`.
-
-    UNKNOWN details are inferred from the class name and surrounding code.
-    """
     __table_name__ = 'splices'
-    __query__ = f'''\
-        SELECT * FROM (
-        SELECT Row_Number() OVER (ORDER BY {{sort_clause}}) AS RowNum, *
-        FROM (
-            SELECT
-                t.id AS id,
-                t.part_number AS part_number,
-                t.description AS description,
-                mfg.name AS mfg_name,
-                family.name AS family_name,
-                series.name AS series_name,
-                color.name AS color_name,
-                min_temp.name AS min_temp_name,
-                max_temp.name AS max_temp_name,
-                material.name AS material_name,
-                plating.description AS plating_description,
-                type.name AS type_name,
-                t.min_dia AS min_dia,
-                t.max_dia AS max_dia,
-                t.resistance AS resistance,
-                t.length AS length,
-                t.weight AS weight,
-                t.wire_size_dia_min AS wire_size_dia_min,
-                t.wire_size_dia_max AS wire_size_dia_max,
-                t.wire_size_cross_min AS wire_size_cross_min,
-                t.wire_size_cross_max AS wire_size_cross_max,
-                t.wire_size_awg_min AS wire_size_awg_min,
-                t.wire_size_awg_max AS wire_size_awg_max,
-                t.num_wires AS num_wires,
-                t.model3d_id AS model3d_id,
-                t.image_id AS image_id
-            FROM {__table_name__} AS t
-            LEFT JOIN manufacturers AS mfg ON mfg.id = t.mfg_id
-            LEFT JOIN families AS family ON family.id = t.family_id
-            LEFT JOIN series AS series ON series.id = t.series_id
-            LEFT JOIN colors AS color ON color.id = t.color_id
-            LEFT JOIN temperatures AS min_temp ON min_temp.id = t.min_temp_id
-            LEFT JOIN temperatures AS max_temp ON max_temp.id = t.max_temp_id
-            LEFT JOIN materials AS material ON material.id = t.material_id
-            LEFT JOIN platings AS plating ON plating.id = t.plating_id
-            LEFT JOIN splice_types AS type ON type.id = t.type_id
-            )
-        ) WHERE RowNum BETWEEN {{start_row}} AND {{end_row}};
-        '''
 
     column_mapping = {
-        0: ('DB ID', 'id', True),
-        1: ('Part Number', 'part_number', True),
-        2: ('Description', 'description'),
-        3: ('Manufacturer', 'mfg_name'),
-        4: ('Family', 'family_name'),
-        5: ('Series', 'series_name'),
-        6: ('Color', 'color_name'),
-        7: ('Temperature (min)', 'min_temp_name'),
-        8: ('Temperature (max)', 'max_temp_name'),
-        9: ('Material', 'material_name'),
-        10: ('Plating', 'plating_description'),
-        11: ('Type', 'type_name'),
-        12: ('Diameter (mm)(min)', 'min_dia'),
-        13: ('Diameter (mm)(max)', 'max_dia'),
-        14: ('Resistance (Ω)', 'resistance'),
-        15: ('Length (mm)', 'length'),
-        16: ('Weight (g)', 'weight'),
-        17: ('Wire AWG (min)', 'wire_size_awg_min'),
-        18: ('Wire AWG (max)', 'wire_size_awg_max'),
-        19: ('Wire Dia (mm)(min)', 'wire_size_dia_min'),
-        20: ('Wire Dia (mm)(max)', 'wire_size_dia_max'),
-        21: ('Wire Cross (mm²)(min)', 'wire_size_cross_min'),
-        22: ('Wire Cross (mm²)(max)', 'wire_size_cross_max'),
-        23: ('Wire Count', 'num_wires'),
-        24: ('3D Model', 'model3d_id'),
+        0: ('DB ID', {'alias': 'id', 'field_name': 'id'}, True),
+        1: ('Part Number', {'alias': 'part_number', 'field_name': 'part_number'}, True),
+        2: ('Description', {'alias': 'description', 'field_name': 'description'}),
+        3: ('Manufacturer', {'alias': 'mfg_name', 'field_name': 'mfg_id', 'ref_table': 'manufacturers', 'ref_field': 'name'}),
+        4: ('Family', {'alias': 'family_name', 'field_name': 'family_id', 'ref_table': 'families', 'ref_field': 'name'}),
+        5: ('Series', {'alias': 'series_name', 'field_name': 'series_id', 'ref_table': 'series', 'ref_field': 'name'}),
+        6: ('Color', {'alias': 'color_name', 'field_name': 'color_id', 'ref_table': 'colors', 'ref_field': 'name'}),
+        7: ('Temperature (min)', {'alias': 'min_temp_name', 'field_name': 'min_temp_id', 'ref_table': 'temperatures', 'ref_field': 'name'}),
+        8: ('Temperature (max)', {'alias': 'max_temp_name', 'field_name': 'max_temp_id', 'ref_table': 'temperatures', 'ref_field': 'name'}),
+        9: ('Material', {'alias': 'material_name', 'field_name': 'material_id', 'ref_table': 'materials', 'ref_field': 'name'}),
+        10: ('Plating', {'alias': 'plating_description', 'field_name': 'plating_id', 'ref_table': 'platings', 'ref_field': 'description'}),
+        11: ('Type', {'alias': 'type_name', 'field_name': 'type_id', 'ref_table': 'splice_types', 'ref_field': 'name'}),
+        12: ('Diameter (mm)(min)', {'alias': 'min_dia', 'field_name': 'min_dia'}),
+        13: ('Diameter (mm)(max)', {'alias': 'max_dia', 'field_name': 'max_dia'}),
+        14: ('Resistance (Ω)', {'alias': 'resistance', 'field_name': 'resistance'}),
+        15: ('Length (mm)', {'alias': 'length', 'field_name': 'length'}),
+        16: ('Weight (g)', {'alias': 'weight', 'field_name': 'weight'}),
+        17: ('Wire AWG (min)', {'alias': 'wire_size_awg_min', 'field_name': 'wire_size_awg_min'}),
+        18: ('Wire AWG (max)', {'alias': 'wire_size_awg_max', 'field_name': 'wire_size_awg_max'}),
+        19: ('Wire Dia (mm)(min)', {'alias': 'wire_size_dia_min', 'field_name': 'wire_size_dia_min'}),
+        20: ('Wire Dia (mm)(max)', {'alias': 'wire_size_dia_max', 'field_name': 'wire_size_dia_max'}),
+        21: ('Wire Cross (mm²)(min)', {'alias': 'wire_size_cross_min', 'field_name': 'wire_size_cross_min'}),
+        22: ('Wire Cross (mm²)(max)', {'alias': 'wire_size_cross_max', 'field_name': 'wire_size_cross_max'}),
+        23: ('Wire Count', {'alias': 'num_wires', 'field_name': 'num_wires'}),
+        24: ('3D Model', {'alias': 'model3d_id', 'field_name': 'model3d_id'}),
     }
+
     table: "_splice.SplicesTable" = None

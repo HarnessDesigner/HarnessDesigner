@@ -13,14 +13,14 @@ from .. import utils as _utils
 from ..gl import vbo as _vbo_handler
 
 
-_vbo: _vbo_handler.VBOHandler = None
+_vbo: _vbo_handler.PooledVBOHandler = None
 
 
-def create_vbo() -> _vbo_handler.VBOHandler:
+def create_vbo() -> _vbo_handler.PooledVBOHandler:
     """Create or return the cached cone VBO.
 
     :returns: Cached VBO data for a default cone mesh.
-    :rtype: :class:`harness_designer.gl.vbo.VBOHandler`
+    :rtype: :class:`harness_designer.gl.vbo.PooledVBOHandler`
     """
     global _vbo
 
@@ -34,7 +34,7 @@ def create_vbo() -> _vbo_handler.VBOHandler:
         aabb = np.array([aabb1.as_float, aabb2.as_float], dtype=np.float32)
         obb = _utils.compute_obb(aabb1, aabb2)
 
-        _vbo = _vbo_handler.VBOHandler(
+        _vbo = _vbo_handler.PooledVBOHandler(
             'cone', packed, count, aabb=aabb, obb=obb,
             arena_kind=_vbo_handler.VBO_TYPE_PRIMITIVE)
 

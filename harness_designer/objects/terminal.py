@@ -41,6 +41,7 @@ class Terminal(_ObjectBase):
 
         self.obj2d = _terminal_2d.Terminal(self, db_obj)
         self.obj3d = _terminal_3d.Terminal(self, db_obj)
+        self.mainframe.add_object(self)
 
     @property
     def wire_position(self) -> _point.Point:

@@ -39,3 +39,4 @@ class TPALock(_ObjectBase):
 
         self.obj2d = _tpa_lock_2d.TPALock(self, db_obj)
         self.obj3d = _tpa_lock_3d.TPALock(self, db_obj)
+        self.mainframe.add_object(self)

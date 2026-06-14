@@ -3,7 +3,7 @@
 """Composite cylinder-and-helix mesh generation helpers.
 
 This module builds a more complex part from :mod:`build123d` primitives and
-stores the result in a cached :class:`harness_designer.gl.vbo.VBOHandler`.
+stores the result in a cached :class:`harness_designer.gl.vbo.PooledVBOHandler`.
 """
 
 import build123d
@@ -14,7 +14,7 @@ from ..geometry import point as _point
 from ..gl import vbo as _vbo_handler
 
 
-_vbo: _vbo_handler.VBOHandler = None
+_vbo: _vbo_handler.PooledVBOHandler = None
 
 
 def create_vbo():
@@ -25,7 +25,7 @@ def create_vbo():
     internal tracking sphere.
 
     :returns: Cached VBO for the composite cylinder/helix part.
-    :rtype: :class:`harness_designer.gl.vbo.VBOHandler`
+    :rtype: :class:`harness_designer.gl.vbo.PooledVBOHandler`
     """
     global _vbo
 
@@ -208,7 +208,7 @@ def create_vbo():
     aabb = np.array([aabb1.as_float, aabb2.as_float], dtype=np.float32)
     obb = _utils.compute_obb(aabb1, aabb2)
 
-    _vbo = _vbo_handler.VBOHandler(
+    _vbo = _vbo_handler.PooledVBOHandler(
         'cylinder_helix', packed, count, aabb=aabb, obb=obb,
         arena_kind=_vbo_handler.VBO_TYPE_PRIMITIVE, endpoint=cn)
 

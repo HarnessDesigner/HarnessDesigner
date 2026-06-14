@@ -259,7 +259,7 @@ class VBOSingleton(type):
         else:
             return
 
-        VBOHandler.release_model_allocation(key)
+        PooledVBOHandler.release_model_allocation(key)
 
         del cls._instances[key]
 
@@ -270,15 +270,17 @@ class VBOSingleton(type):
         return item in cls._primitives
 
     def __call__(cls, id_: str, data: np.ndarray | None = None,
-                 count: int = 0, endpoint: _point.Point | None = None,
-                 arena_kind: int = VBO_TYPE_MODEL,
+                 count: int = 0,
                  aabb: np.ndarray | None = None,
-                 obb: np.ndarray | None = None) -> "VBOHandler":
+                 obb: np.ndarray | None = None,
+                 *, endpoint: _point.Point | None = None,
+                 arena_kind: int = VBO_TYPE_MODEL) -> "PooledVBOHandler":
 
         if arena_kind == VBO_TYPE_PRIMITIVE:
             if id_ not in cls._primitives:
                 instance = super().__call__(
-                    id_, data, count, endpoint, arena_kind, aabb, obb)
+                    id_, data, count, aabb, obb,
+                    endpoint=endpoint, arena_kind=arena_kind)
 
                 cls._primitives[id_] = instance
             else:
@@ -286,7 +288,8 @@ class VBOSingleton(type):
 
         elif id_ not in cls._instances or cls._instances[id_]() is None:
             instance = super().__call__(
-                id_, data, count, endpoint, arena_kind, aabb, obb)
+                    id_, data, count, aabb, obb,
+                    endpoint=endpoint, arena_kind=arena_kind)
 
             cls._instances[id_] = weakref.ref(instance, cls._remove_ref)
 
@@ -296,62 +299,53 @@ class VBOSingleton(type):
         return instance
 
 
-class VBOHandler(metaclass=VBOSingleton):
-    _model_arenas: list[_MeshArena] = []
+class VBOHandlerBase:
 
-    def __init__(self, id_: str, data: np.ndarray | None = None,
-                 count: int = 0, endpoint: _point.Point | None = None,
-                 arena_kind: int = VBO_TYPE_MODEL,
+    def __init__(self, data: np.ndarray | None = None,
+                 count: int = 0,
                  aabb: np.ndarray | None = None,
-                 obb: np.ndarray | None = None):
-
-        ctx = QOpenGLContext.currentContext()
-        if ctx is None:
-            raise RuntimeError('context has not been acquired')
+                 obb: np.ndarray | None = None,
+                 *, endpoint: _point.Point | None = None):
+        _ = self.ctx
 
         if data is None:
             raise ValueError('packed mesh data is required')
 
-        self.id = id_
+        self._vbo = None
+
         self.endpoint = endpoint
-        self._arena_kind = arena_kind
 
-        self.__model_arena: _MeshArena | None = None
+        self._vaos: dict[int, int] = {}
+        self._data = data
+        self._vert_count = self._normalize_vertex_count(count, len(data))
 
-        self.__vbo = None
-        self.__vaos: dict[int, int] = {}
-
-        self.__data = data
-        self.__vert_count = self._normalize_vertex_count(count, len(data))
-
-        if self._arena_kind == VBO_TYPE_MODEL:
-            arena = self._allocate_model_arena(self.id, self.__vert_count)
-
-            arena.upload(self.id, self.__data)
-
-            self.__model_arena = arena
+        if aabb is None:
+            self.local_aabb = self._compute_local_aabb()
         else:
-            self.__vbo = self._create_vbo(self.__data)
+            self.local_aabb = np.asarray(aabb, dtype=np.float32).reshape(2, 3)
 
+        if obb is None:
+            self.local_obb = self._compute_local_aabb()
+        else:
+            self.local_obb = np.asarray(obb, dtype=np.float32).reshape(8, 3)
+
+    def _compute_local_aabb(self):
         # Bounding volumes are calculated once when a model is converted
         # and stored in the database; only primitives (and legacy rows
         # without stored bounds) compute them from the mesh here.
-        if aabb is None:
-            p1, p2 = _utils.compute_aabb(self.vertices.reshape(-1, 3))
+        p1, p2 = _utils.compute_aabb(self.vertices.reshape(-1, 3))
 
-            self.local_aabb = np.array(
-                [p1.as_numpy, p2.as_numpy], dtype=np.float32)
-        else:
-            self.local_aabb = np.asarray(
-                aabb, dtype=np.float32).reshape(2, 3)
+        local_aabb = np.array([p1.as_numpy, p2.as_numpy], dtype=np.float32)
+        return local_aabb
 
-            p1 = _point.Point(*self.local_aabb[0].tolist())
-            p2 = _point.Point(*self.local_aabb[1].tolist())
+    def _compute_local_obb(self):
+        local_aabb = self._compute_local_aabb().reshape(2, 3)
+        p1 = _point.Point(*[float(str(item)) for item in local_aabb[0].tolist()])
+        p2 = _point.Point(*[float(str(item)) for item in local_aabb[1].tolist()])
 
-        if obb is None:
-            self.local_obb = _utils.compute_obb(p1, p2)
-        else:
-            self.local_obb = np.asarray(obb, dtype=np.float32).reshape(8, 3)
+        local_obb = _utils.compute_obb(p1, p2)
+
+        return local_obb
 
     @staticmethod
     def _normalize_vertex_count(count: int, array_len: int) -> int:
@@ -383,6 +377,287 @@ class VBOHandler(metaclass=VBOSingleton):
             return bool(Config.logging.log_debug)
         except Exception:  # NOQA
             return False
+
+    @property
+    def is_dirty(self):
+        return False
+
+    def _attribute_offsets(self) -> tuple[int, int, int, int]:
+        raise NotImplementedError
+
+    @classmethod
+    def _create_vbo(cls, data):
+        raise NotImplementedError
+
+    def _clear_vaos(self):
+        for vao in self._vaos.values():
+            self._release_vao(vao)
+
+        self._vaos.clear()
+
+    @property
+    def ctx(self):
+        ctx = QOpenGLContext.currentContext()
+        if ctx is None:
+            raise RuntimeError('context has not been acquired')
+
+        return ctx
+
+    def release(self):
+        ctx = self.ctx
+        ctx_id = id(ctx)
+
+        vao = self._vaos.pop(ctx_id, None)
+        if vao is not None:
+            self._release_vao(vao)
+
+    @staticmethod
+    def _release_vao(vao):
+        if vao is not None:
+            try:
+                GL.glDeleteVertexArrays(1, [vao])
+            except Exception:  # NOQA
+                pass
+
+    @staticmethod
+    def _release_vbo(vbo=None):
+        if vbo is not None:
+            try:
+                GL.glDeleteBuffers(1, [vbo])
+            except Exception:  # NOQA
+                pass
+
+    def get_aspect(self) -> tuple[float, float]:
+        p1, p2 = self.local_aabb
+
+        x1, y1, z1 = float(p1[0]), float(p1[1]), float(p1[2])
+        x2, y2, z2 = float(p2[0]), float(p2[1]), float(p2[2])
+
+        width = x2 - x1
+        height = y2 - y1
+        length = z2 - z1
+
+        w_h_aspect = width / height
+        w_l_aspect = width / length
+        h_l_aspect = height / length
+
+        return w_h_aspect, w_l_aspect, h_l_aspect
+
+    @property
+    def data(self):
+        return self._data
+
+    @property
+    def vertices(self):
+        return self._data[:self._vert_count * 3]
+
+    @property
+    def smooth_normals(self):
+        return self._data[self._vert_count * 3:self._vert_count * 6]
+
+    @property
+    def face_normals(self):
+        return self._data[self._vert_count * 6:]
+
+    @property
+    def vertex_count(self) -> int:
+        return self._vert_count
+
+    @property
+    def faces(self):
+        return None
+
+    def render(self):
+        ctx = self.ctx
+        ctx_id = id(ctx)
+        if ctx_id not in self._vaos:
+            self.acquire()
+
+        # Attribute offsets (including the arena allocation base) are baked
+        # into the VAO, so drawing always starts at vertex 0.  Compaction
+        # moves allocations but also clears the affected VAOs, which forces
+        # a re-acquire with fresh offsets.
+        vao = self._vaos[ctx_id]
+        GL.glBindVertexArray(vao)
+        GL.glDrawArrays(GL.GL_TRIANGLES, 0, self._vert_count)
+        GL.glBindVertexArray(0)
+
+    def acquire(self):
+        ctx = self.ctx
+
+        ctx_id = id(ctx)
+        if ctx_id in self._vaos:
+            return
+
+        (buffer_id, pos_offset, smooth_offset, face_offset) = self._attribute_offsets()
+
+        vao = GL.glGenVertexArrays(1)
+        GL.glBindVertexArray(vao)
+
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, buffer_id)
+
+        GL.glEnableVertexAttribArray(0)
+        GL.glVertexAttribPointer(0, 3, GL.GL_FLOAT, GL.GL_FALSE, 0,
+                                 ctypes.c_void_p(pos_offset))
+
+        GL.glEnableVertexAttribArray(1)
+        GL.glVertexAttribPointer(1, 3, GL.GL_FLOAT, GL.GL_FALSE, 0,
+                                 ctypes.c_void_p(smooth_offset))
+
+        GL.glEnableVertexAttribArray(2)
+        GL.glVertexAttribPointer(2, 3, GL.GL_FLOAT, GL.GL_FALSE, 0,
+                                 ctypes.c_void_p(face_offset))
+
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+        GL.glBindVertexArray(0)
+
+        self._vaos[ctx_id] = vao
+
+
+class NonPooledVBOHandler(VBOHandlerBase):
+    def __init__(self, data: np.ndarray | None = None,
+                 count: int = 0,
+                 aabb: np.ndarray | None = None,
+                 obb: np.ndarray | None = None,
+                 *, endpoint: _point.Point | None = None):
+
+        super().__init__(data, count, aabb, obb, endpoint=endpoint)
+        self._vbo = self._create_vbo(self._data)
+        self._dirty_vaos = {}
+
+    def release(self):
+        super().release()
+
+        if self._vaos:
+            return
+
+        self._release_vbo(self._vbo)
+        self._vbo = None
+
+    def _attribute_offsets(self) -> tuple[int, int, int, int]:
+        """Return (buffer id, position/smooth/face byte offsets)."""
+        count = self._vert_count
+        buffer_id = self._vbo
+        base = 0
+
+        block_size = count * 3 * _FLOAT_SIZE
+
+        return buffer_id, base, base + block_size, base + 2 * block_size
+
+    def acquire(self):
+        ctx = self.ctx
+        ctx_id = id(ctx)
+
+        if ctx_id not in self._vaos:
+            self._dirty_vaos[ctx_id] = False
+
+        super().acquire()
+
+    @classmethod
+    def _create_vbo(cls, data, vbo=None):
+        if vbo is None:
+            vbo = GL.glGenBuffers(1)
+
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, vbo)
+
+        GL.glBufferData(GL.GL_ARRAY_BUFFER, data.nbytes, data, GL.GL_DYNAMIC_DRAW)
+
+        err = GL.glGetError()
+        if err != GL.GL_NO_ERROR:
+            cls._release_vbo(vbo)
+
+            raise RuntimeError(f"OpenGL error creating mesh buffer: {err}")
+
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+
+        return vbo
+
+    def update(self, data: np.ndarray, count: int) -> None:
+        self._data = data
+        self._vert_count = self._normalize_vertex_count(count, len(data))
+
+        self._create_vbo(data, self._vbo)
+
+        for ctx_id in list(self._dirty_vaos.keys())[:]:
+            self._dirty_vaos[ctx_id] = True
+
+        self.local_aabb = self._compute_local_aabb()
+        self.local_obb = self._compute_local_obb()
+
+    def _rebuild(self):
+        ctx = self.ctx
+        ctx_id = id(ctx)
+
+        if ctx_id not in self._dirty_vaos:
+            self.acquire()
+
+        if not self._dirty_vaos[ctx_id]:
+            return
+
+        (buffer_id, pos_offset,
+         smooth_offset, face_offset) = self._attribute_offsets()
+
+        vao = self._vaos[ctx_id]
+
+        GL.glBindVertexArray(vao)
+
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, buffer_id)
+
+        GL.glEnableVertexAttribArray(0)
+        GL.glVertexAttribPointer(0, 3, GL.GL_FLOAT, GL.GL_FALSE, 0,
+                                 ctypes.c_void_p(pos_offset))
+
+        GL.glEnableVertexAttribArray(1)
+        GL.glVertexAttribPointer(1, 3, GL.GL_FLOAT, GL.GL_FALSE, 0,
+                                 ctypes.c_void_p(smooth_offset))
+
+        GL.glEnableVertexAttribArray(2)
+        GL.glVertexAttribPointer(2, 3, GL.GL_FLOAT, GL.GL_FALSE, 0,
+                                 ctypes.c_void_p(face_offset))
+
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+        GL.glBindVertexArray(0)
+
+        self._dirty_vaos[ctx_id] = False
+
+    @property
+    def is_dirty(self):
+        ctx = self.ctx
+
+        ctx_id = id(ctx)
+        return self._dirty_vaos.get(ctx_id, True)
+
+    def render(self):
+        self._rebuild()
+
+        super().render()
+
+
+class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
+    _model_arenas: list[_MeshArena] = []
+
+    def __init__(self, id_: str, data: np.ndarray | None = None,
+                 count: int = 0,
+                 aabb: np.ndarray | None = None,
+                 obb: np.ndarray | None = None,
+                 *, endpoint: _point.Point | None = None,
+                 arena_kind: int = VBO_TYPE_MODEL):
+
+        super().__init__(data, count, aabb, obb, endpoint=endpoint)
+
+        self.id = id_
+        self._arena_kind = arena_kind
+
+        self._model_arena: _MeshArena | None = None
+
+        if self._arena_kind == VBO_TYPE_MODEL:
+            arena = self._allocate_model_arena(self.id, self._vert_count)
+
+            arena.upload(self.id, self._data)
+
+            self._model_arena = arena
+        else:
+            self._vbo = self._create_vbo(self._data)
 
     @staticmethod
     def _format_arena_metrics(title: str, metrics: dict) -> str:
@@ -483,39 +758,15 @@ class VBOHandler(metaclass=VBOSingleton):
             if instance is None or instance._arena_kind != VBO_TYPE_MODEL:  # NOQA
                 continue
 
-            if instance.__model_arena is arena:
+            if instance._model_arena is arena:  # NOQA
                 instance._clear_vaos()  # NOQA
-
-    @property
-    def data(self):
-        return self.__data
-
-    @property
-    def vertices(self):
-        return self.__data[:self.__vert_count * 3]
-
-    @property
-    def smooth_normals(self):
-        return self.__data[self.__vert_count * 3:self.__vert_count * 6]
-
-    @property
-    def face_normals(self):
-        return self.__data[self.__vert_count * 6:]
-
-    @property
-    def vertex_count(self) -> int:
-        return self.__vert_count
-
-    @property
-    def faces(self):
-        return None
 
     def _attribute_offsets(self) -> tuple[int, int, int, int]:
         """Return (buffer id, position/smooth/face byte offsets)."""
-        count = self.__vert_count
+        count = self._vert_count
 
         if self._arena_kind == VBO_TYPE_MODEL:
-            arena = self.__model_arena
+            arena = self._model_arena
             if arena is None:
                 raise RuntimeError('model arena allocation is missing')
 
@@ -526,127 +777,42 @@ class VBOHandler(metaclass=VBOSingleton):
             buffer_id = arena.buffer
             base = alloc.start * VERTEX_STRIDE_BYTES
         else:
-            buffer_id = self.__vbo
+            buffer_id = self._vbo
             base = 0
 
         block_size = count * 3 * _FLOAT_SIZE
 
         return buffer_id, base, base + block_size, base + 2 * block_size
 
-    def acquire(self):
-        ctx = QOpenGLContext.currentContext()
-        if ctx is None:
-            raise RuntimeError('context has not been acquired')
-
-        ctx_id = id(ctx)
-        if ctx_id in self.__vaos:
-            return
-
-        (buffer_id, pos_offset,
-         smooth_offset, face_offset) = self._attribute_offsets()
-
-        vao = GL.glGenVertexArrays(1)
-        GL.glBindVertexArray(vao)
-
-        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, buffer_id)
-
-        GL.glEnableVertexAttribArray(0)
-        GL.glVertexAttribPointer(0, 3, GL.GL_FLOAT, GL.GL_FALSE, 0,
-                                 ctypes.c_void_p(pos_offset))
-
-        GL.glEnableVertexAttribArray(1)
-        GL.glVertexAttribPointer(1, 3, GL.GL_FLOAT, GL.GL_FALSE, 0,
-                                 ctypes.c_void_p(smooth_offset))
-
-        GL.glEnableVertexAttribArray(2)
-        GL.glVertexAttribPointer(2, 3, GL.GL_FLOAT, GL.GL_FALSE, 0,
-                                 ctypes.c_void_p(face_offset))
-
-        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-        GL.glBindVertexArray(0)
-
-        self.__vaos[ctx_id] = vao
-
-    def _clear_vaos(self):
-        for vao in self.__vaos.values():
-            self._release_vao(vao)
-        self.__vaos.clear()
-
-    def release(self):
-        ctx = QOpenGLContext.currentContext()
-        if ctx is None:
-            raise RuntimeError('context has not been acquired')
-
-        ctx_id = id(ctx)
-        vao = self.__vaos.pop(ctx_id, None)
-        if vao is not None:
-            self._release_vao(vao)
-
-        if self.__vaos:
-            return
-
-        if self._arena_kind != VBO_TYPE_MODEL:
-            self._release_vbo(self.__vbo)
-            self.__vbo = None
-
-    @staticmethod
-    def _release_vao(vao):
-        if vao is not None:
-            try:
-                GL.glDeleteVertexArrays(1, [vao])
-            except Exception:  # NOQA
-                pass
-
-    @staticmethod
-    def _release_vbo(vbo=None):
-        if vbo is not None:
-            try:
-                GL.glDeleteBuffers(1, [vbo])
-            except Exception:  # NOQA
-                pass
-
-    @classmethod
-    def _create_vbo(cls, data):
-        vbo = GL.glGenBuffers(1)
-        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, vbo)
-
-        GL.glBufferData(GL.GL_ARRAY_BUFFER, data.nbytes,
-                        data, GL.GL_STATIC_DRAW)
-
-        err = GL.glGetError()
-        if err != GL.GL_NO_ERROR:
-            cls._release_vbo(vbo)
-
-            raise RuntimeError(f"OpenGL error creating mesh buffer: {err}")
-
-        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-
-        return vbo
-
-    def update_data(self, data: np.ndarray | None = None):
-        if self.__vert_count == 0:
-            return
-
-        data = data if data is not None else self.__data
-
-        if len(data) != self.__vert_count * FLOATS_PER_VERTEX:
-            raise ValueError(
-                'packed array length does not match the vertex count')
-
-        self.__data = data
-
-        if self._arena_kind == VBO_TYPE_MODEL:
-            arena = self.__model_arena
-
-            if arena is None:
-                raise RuntimeError('model arena allocation is missing')
-
-            arena.upload(self.id, data)
-            return
-
-        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.__vbo)
-        GL.glBufferSubData(GL.GL_ARRAY_BUFFER, 0, data.nbytes, data)
-        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+    def update(self, data: np.ndarray, count: int):
+        # I do not believe the original function `update_data` was being used
+        # anywhere in the application. To keep the API consistant between the
+        # pooled and he non pooled I am amking this a do nothing function
+        #
+        # if self._vert_count == 0:
+        #     return
+        #
+        # data = data if data is not None else self._data
+        #
+        # if len(data) != self._vert_count * FLOATS_PER_VERTEX:
+        #     raise ValueError(
+        #         'packed array length does not match the vertex count')
+        #
+        # self._data = data
+        #
+        # if self._arena_kind == VBO_TYPE_MODEL:
+        #     arena = self._model_arena
+        #
+        #     if arena is None:
+        #         raise RuntimeError('model arena allocation is missing')
+        #
+        #     arena.upload(self.id, data)
+        #     return
+        #
+        # GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self._vbo)
+        # GL.glBufferSubData(GL.GL_ARRAY_BUFFER, 0, data.nbytes, data)
+        # GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+        pass
 
     @classmethod
     def maintain_model_arena(
@@ -658,10 +824,9 @@ class VBOHandler(metaclass=VBOSingleton):
         compacted = False
         for arena in cls._model_arenas:
 
-            if not arena.should_compact(
-                threshold=threshold,
-                min_free_vertices=min_free_vertices
-            ):
+            if not arena.should_compact(threshold=threshold,
+                                        min_free_vertices=min_free_vertices):
+
                 continue
 
             before = arena.debug_metrics()
@@ -684,39 +849,32 @@ class VBOHandler(metaclass=VBOSingleton):
             arena.free(key)
             break
 
-    def get_aspect(self) -> tuple[float, float]:
-        p1, p2 = self.local_aabb
+    def release(self):
+        super().release()
 
-        x1, y1, z1 = float(p1[0]), float(p1[1]), float(p1[2])
-        x2, y2, z2 = float(p2[0]), float(p2[1]), float(p2[2])
+        if self._vaos:
+            return
 
-        width = x2 - x1
-        height = y2 - y1
-        length = z2 - z1
+        if self._arena_kind != VBO_TYPE_MODEL:
+            self._release_vbo(self._vbo)
+            self._vbo = None
 
-        w_h_aspect = width / height
-        w_l_aspect = width / length
-        h_l_aspect = height / length
+    @classmethod
+    def _create_vbo(cls, data):
+        vbo = GL.glGenBuffers(1)
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, vbo)
 
-        return w_h_aspect, w_l_aspect, h_l_aspect
+        GL.glBufferData(GL.GL_ARRAY_BUFFER, data.nbytes, data, GL.GL_STATIC_DRAW)
 
-    def render(self):
-        ctx = QOpenGLContext.currentContext()
-        if ctx is None:
-            raise RuntimeError('context has not been acquired')
+        err = GL.glGetError()
+        if err != GL.GL_NO_ERROR:
+            cls._release_vbo(vbo)
 
-        ctx_id = id(ctx)
-        if ctx_id not in self.__vaos:
-            self.acquire()
+            raise RuntimeError(f"OpenGL error creating mesh buffer: {err}")
 
-        # Attribute offsets (including the arena allocation base) are baked
-        # into the VAO, so drawing always starts at vertex 0.  Compaction
-        # moves allocations but also clears the affected VAOs, which forces
-        # a re-acquire with fresh offsets.
-        vao = self.__vaos[ctx_id]
-        GL.glBindVertexArray(vao)
-        GL.glDrawArrays(GL.GL_TRIANGLES, 0, self.__vert_count)
-        GL.glBindVertexArray(0)
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+
+        return vbo
 
 
 def create_model_vbo(model):
@@ -731,8 +889,8 @@ def create_model_vbo(model):
     if not uuid:
         return None
 
-    if uuid in VBOHandler:
-        return VBOHandler(uuid)
+    if uuid in PooledVBOHandler:
+        return PooledVBOHandler(uuid)
 
     data_path = model.data_path
     if data_path is None:
@@ -740,7 +898,7 @@ def create_model_vbo(model):
 
     packed = np.load(data_path, mmap_mode='r')
 
-    return VBOHandler(uuid, packed,
-                      arena_kind=VBO_TYPE_MODEL,
-                      aabb=getattr(model, 'aabb', None),
-                      obb=getattr(model, 'obb', None))
+    return PooledVBOHandler(uuid, packed, len(packed),
+                            aabb=getattr(model, 'aabb', None),
+                            obb=getattr(model, 'obb', None),
+                            arena_kind=VBO_TYPE_MODEL)

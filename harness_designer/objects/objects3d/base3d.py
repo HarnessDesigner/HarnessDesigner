@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 from OpenGL import GL
+import ctypes
 
 from ... import color as _color
 from ...geometry import point as _point
@@ -25,6 +26,99 @@ Config = _config.Config.editor3d
 _debug_config = _config.Config.debug.rendering3d
 
 
+class GLBuffer:
+    """
+    A private single-buffer mesh outside the managed VBO arena.
+
+    The shader pipeline reads all three vertex attributes from ONE buffer
+    at byte offsets (positions / smooth normals / face normals packed end
+    to end), with the offsets baked into a VAO — the same layout
+    :class:`gl.vbo.PooledVBOHandler` uses. The gizmo owns its own small buffer
+    instead of an arena allocation so dimension config changes can
+    re-upload the mesh in real time without buffer-pool management.
+
+    GL objects are created lazily inside ``draw()`` (the context is current
+    during rendering) and re-created after every mesh update.
+    """
+
+    def __init__(self, packed: np.ndarray, count: int):
+        # full copy — _data views into the same array are exposed to Base3D
+        # bookkeeping and must never alias the upload data
+        self.packed = np.array(packed, dtype=np.float32, copy=True)
+        self.count = int(count)
+
+        self._buffer = None
+        self._vao = None
+        self._dirty = True
+
+    def update(self, packed: np.ndarray, count: int):
+        """Replace the mesh; the GPU re-upload happens on the next draw."""
+        self.packed = np.array(packed, dtype=np.float32, copy=True)
+        self.count = int(count)
+        self._dirty = True
+
+    def upload(self):
+        """(Re)upload the packed mesh and bake the VAO offsets."""
+        if self._buffer is None:
+            self._buffer = GL.glGenBuffers(1)
+
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self._buffer)
+        GL.glBufferData(GL.GL_ARRAY_BUFFER, self.packed.nbytes,
+                        self.packed, GL.GL_DYNAMIC_DRAW)
+
+        if self._vao is None:
+            self._vao = GL.glGenVertexArrays(1)
+
+        block = self.count * 3 * self.packed.itemsize
+
+        GL.glBindVertexArray(self._vao)
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self._buffer)
+
+        GL.glEnableVertexAttribArray(0)
+        GL.glVertexAttribPointer(0, 3, GL.GL_FLOAT, GL.GL_FALSE, 0,
+                                 ctypes.c_void_p(0))
+
+        GL.glEnableVertexAttribArray(1)
+        GL.glVertexAttribPointer(1, 3, GL.GL_FLOAT, GL.GL_FALSE, 0,
+                                 ctypes.c_void_p(block))
+
+        GL.glEnableVertexAttribArray(2)
+        GL.glVertexAttribPointer(2, 3, GL.GL_FLOAT, GL.GL_FALSE, 0,
+                                 ctypes.c_void_p(2 * block))
+
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+        GL.glBindVertexArray(0)
+
+        self._dirty = False
+
+    def draw(self):
+        """Bind the VAO and issue the draw call (GL context must be current)."""
+        if self._dirty:
+            self.upload()
+
+        GL.glBindVertexArray(self._vao)
+        GL.glDrawArrays(GL.GL_TRIANGLES, 0, self.count)
+        GL.glBindVertexArray(0)
+
+    def delete(self):
+        """Free the GL objects (GL context must be current)."""
+        if self._vao is not None:
+            try:
+                GL.glDeleteVertexArrays(1, [self._vao])
+            except Exception:  # NOQA
+                pass
+            self._vao = None
+
+        if self._buffer is not None:
+            try:
+                GL.glDeleteBuffers(1, [self._buffer])
+            except Exception:  # NOQA
+                pass
+            self._buffer = None
+
+        self._dirty = True
+
+
 class Base3D:
     """Represent a base 3D in :mod:`harness_designer.objects.objects3d.base3d`.
 
@@ -33,7 +127,7 @@ class Base3D:
     db_obj: "_project_db.PJTEntryBase"
 
     def __init__(self,  parent: "_ObjectBase", db_obj: "_project_db.PJTEntryBase",
-                 vbo: _vbo.VBOHandler, angle: _angle.Angle,
+                 vbo: _vbo.PooledVBOHandler, angle: _angle.Angle,
                  position: _point.Point, scale: _point.Point,
                  material: _materials.GLMaterial, data=None):
 
@@ -47,7 +141,7 @@ class Base3D:
         :param db_obj: Database-backed object.
         :type db_obj: :class:`_project_db.PJTEntryBase`
         :param vbo: Value for ``vbo``.
-        :type vbo: :class:`_vbo.VBOHandler`
+        :type vbo: :class:`_vbo.PooledVBOHandler`
         :param angle: Value for ``angle``.
         :type angle: :class:`_angle.Angle`
         :param position: Position value.
@@ -99,17 +193,27 @@ class Base3D:
         self._obb: np.ndarray = None
 
         self._data = data
-        if self._data is not None and len(self._data) in (3, 4):
-            if len(self._data) == 3:
-                verts, nrmls, count = self._data
-                face_nrmls = nrmls
+
+        if self._data is not None:
+            if len(self._data) == 2:
+                self._gl_buf = GLBuffer(*data)
+                self._data = None
+            elif len(self._data) in (3, 4):
+                self._gl_buf = None
+                if len(self._data) == 3:
+                    verts, nrmls, count = self._data
+                    face_nrmls = nrmls
+                else:
+                    verts, nrmls, face_nrmls, count = self._data
+
+                if isinstance(verts, np.ndarray) and verts.ndim == 1 and count == len(verts):
+                    count //= 3
+
+                self._data = [verts, nrmls, face_nrmls, count]
             else:
-                verts, nrmls, face_nrmls, count = self._data
-
-            if isinstance(verts, np.ndarray) and verts.ndim == 1 and count == len(verts):
-                count //= 3
-
-            self._data = [verts, nrmls, face_nrmls, count]
+                self._gl_buf = None
+        else:
+            self._gl_buf = None
 
         self._compute_obb()
         self._compute_aabb()
@@ -132,10 +236,10 @@ class Base3D:
 
         uuid = model.uuid
 
-        if uuid in _vbo.VBOHandler:
-            vbo = _vbo.VBOHandler(uuid)
+        if uuid in _vbo.PooledVBOHandler:
+            vbo = _vbo.PooledVBOHandler(uuid)
         else:
-            vbo = _vbo.VBOHandler(uuid, data, model.vertex_count,
+            vbo = _vbo.PooledVBOHandler(uuid, data, model.vertex_count,
                                   aabb=model.aabb, obb=model.obb)
         vbo.acquire()
 
@@ -178,9 +282,18 @@ class Base3D:
         UNKNOWN details are inferred from the callable name and signature.
         """
         if self._vbo is None:
-            p1, p2 = _utils.compute_aabb(self._data[0].reshape(-1, 3))
+            if self._gl_buf is None:
+                verts = self._data[0]
+                p1, p2 = _utils.compute_aabb(verts.reshape(-1, 3))
 
-            self._obb = _utils.compute_obb(p1, p2)
+                self._obb = _utils.compute_obb(p1, p2)
+            else:
+                verts = self._gl_buf.packed[:self._gl_buf.count * 3]
+                p1, p2 = _utils.compute_aabb(verts.reshape(-1, 3))
+
+                local_obb = _utils.compute_obb(p1, p2)
+                local_obb @= self._angle
+                self._obb = local_obb + self._position
         else:
             local_obb = self._vbo.local_obb * self._scale
             local_obb @= self._angle
@@ -192,8 +305,29 @@ class Base3D:
         UNKNOWN details are inferred from the callable name and signature.
         """
         if self._vbo is None:
-            p1, p2 = _utils.compute_aabb(self._data[0].reshape(-1, 3))
-            aabb = _utils.adjust_aabb(np.array([p1.as_float, p2.as_float], dtype=np.float32))
+            if self._gl_buf is None:
+                verts = self._data[0]
+                p1, p2 = _utils.compute_aabb(verts.reshape(-1, 3))
+                aabb = _utils.adjust_aabb(np.array([p1.as_float, p2.as_float], dtype=np.float32))
+            else:
+                verts = self._gl_buf.packed[:self._gl_buf.count * 3]
+                p1, p2 = _utils.compute_aabb(verts.reshape(-1, 3))
+
+                x1, y1, z1 = p1.as_float
+                x2, y2, z2 = p2.as_float
+
+                corners = np.array([[x1, y1, z1], [x1, y1, z2],
+                                    [x1, y2, z1], [x1, y2, z2],
+                                    [x2, y1, z1], [x2, y1, z2],
+                                    [x2, y2, z1], [x2, y2, z2]
+                                    ], dtype=np.float32)
+
+                corners *= self._scale.as_numpy
+                corners @= self._angle
+                corners += self._position.as_numpy
+
+                aabb = _utils.adjust_aabb(corners)
+
         else:
             local_min = self._vbo.local_aabb[0]
             local_max = self._vbo.local_aabb[1]
@@ -252,7 +386,7 @@ class Base3D:
             position.y = float(y)
             position.bind(self._update_position)
 
-        if self._vbo is None:
+        if self._vbo is None and self._gl_buf is None:
             delta = position - self._o_position
             self._data[0] += delta
 
@@ -275,7 +409,7 @@ class Base3D:
         """
         self.editor3d.context.acquire()
 
-        if self._vbo is None:
+        if self._vbo is None and self._gl_buf is None:
             inverse = self._o_angle.inverse
 
             verts, nrmls = self._data[:-1]
@@ -307,6 +441,7 @@ class Base3D:
             self.editor3d.context.release()
 
             return
+
         self.editor3d.context.release()
 
         self.editor3d.Refresh(False)
@@ -447,7 +582,30 @@ class Base3D:
         local_direction = ray_direction @ self._angle_inverse
 
         inv_dir = 1.0 / (local_direction + 1e-8)
-        t = (self._vbo.local_aabb - local_origin) * inv_dir
+
+        if self._vbo is None:
+            if self._gl_buf is None:
+                verts = self._data[0].reshape(-1, 3)
+                verts -= self.position
+                p1, p2 = _utils.compute_aabb(verts.reshape(-1, 3))
+
+            else:
+                verts = self._gl_buf.packed[:self._gl_buf.count * 3]
+                p1, p2 = _utils.compute_aabb(verts.reshape(-1, 3))
+
+            x1, y1, z1 = p1.as_float
+            x2, y2, z2 = p2.as_float
+
+            corners = np.array([[x1, y1, z1], [x1, y1, z2],
+                                [x1, y2, z1], [x1, y2, z2],
+                                [x2, y1, z1], [x2, y1, z2],
+                                [x2, y2, z1], [x2, y2, z2]
+                                ], dtype=np.float32)
+            local_aabb = _utils.adjust_aabb(corners)
+
+            t = (local_aabb - local_origin) * inv_dir
+        else:
+            t = (self._vbo.local_aabb - local_origin) * inv_dir
 
         tmin = np.minimum(t)
         tmax = np.maximum(t)
@@ -465,9 +623,21 @@ class Base3D:
         ray_object = ray_origin - self._position
 
         # Scale vertices to match object instance
-        vertices = (self._vbo.vertices * self._scale) @ self._angle
+
+        if self._vbo is None and self._gl_buf is None:
+            vertices = self._data[0].reshape(-1, 3)
+
+        else:
+            if self._gl_buf is None:
+                vertices = self._vbo.vertices
+            else:
+                vertices = self._gl_buf.packed[:self._gl_buf.count * 3]
+
+            vertices = (vertices.reshape(-1, 3) * self._scale) @ self._angle
+
         if len(vertices) % 3:
             return False
+
         verts = vertices.reshape(-1, 3, 3)
 
         # Vectorized ray-triangle intersection
@@ -631,28 +801,40 @@ class Base3D:
         smooth = int(getattr(self, 'smooth', False))
 
         if self._vbo is None:
-            GL.glUniform3f(pos_loc, 0.0, 0.0, 0.0)
-            GL.glUniform4f(rot_loc, 1.0, 0.0, 0.0, 0.0)
-            GL.glUniform3f(scale_loc, 1.0, 1.0, 1.0)
-
             if normal_loc is not None:
                 GL.glUniform1i(normal_loc, smooth)
 
-            verts, smooth_nrmls, face_nrmls, count = self._data
+            if self._gl_buf is None:
+                GL.glUniform3f(pos_loc, 0.0, 0.0, 0.0)
+                GL.glUniform4f(rot_loc, 1.0, 0.0, 0.0, 0.0)
+                GL.glUniform3f(scale_loc, 1.0, 1.0, 1.0)
 
-            GL.glEnableVertexAttribArray(0)
-            GL.glEnableVertexAttribArray(1)
-            GL.glEnableVertexAttribArray(2)
+                verts, smooth_nrmls, face_nrmls, count = self._data
 
-            GL.glVertexAttribPointer(0, 3, GL.GL_FLOAT, GL.GL_FALSE, 0, verts)
-            GL.glVertexAttribPointer(1, 3, GL.GL_FLOAT, GL.GL_FALSE, 0, smooth_nrmls)
-            GL.glVertexAttribPointer(2, 3, GL.GL_FLOAT, GL.GL_FALSE, 0, face_nrmls)
+                GL.glEnableVertexAttribArray(0)
+                GL.glEnableVertexAttribArray(1)
+                GL.glEnableVertexAttribArray(2)
 
-            GL.glDrawArrays(GL.GL_TRIANGLES, 0, count)
+                GL.glVertexAttribPointer(0, 3, GL.GL_FLOAT, GL.GL_FALSE, 0, verts)
+                GL.glVertexAttribPointer(1, 3, GL.GL_FLOAT, GL.GL_FALSE, 0, smooth_nrmls)
+                GL.glVertexAttribPointer(2, 3, GL.GL_FLOAT, GL.GL_FALSE, 0, face_nrmls)
 
-            GL.glDisableVertexAttribArray(0)
-            GL.glDisableVertexAttribArray(1)
-            GL.glDisableVertexAttribArray(2)
+                GL.glDrawArrays(GL.GL_TRIANGLES, 0, count)
+
+                GL.glDisableVertexAttribArray(0)
+                GL.glDisableVertexAttribArray(1)
+                GL.glDisableVertexAttribArray(2)
+
+            else:
+                position = self._position.as_float
+                angle = self._angle.as_quat_float
+                scale = self._scale.as_float
+
+                GL.glUniform3f(pos_loc, *position)
+                GL.glUniform4f(rot_loc, *angle)
+                GL.glUniform3f(scale_loc, *scale)
+
+                self._gl_buf.draw()
         else:
             GL.glUniform3f(pos_loc, *self._position.as_float)
             GL.glUniform4f(rot_loc, *self._angle.as_quat_numpy.tolist())

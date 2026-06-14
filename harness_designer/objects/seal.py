@@ -40,3 +40,4 @@ class Seal(_ObjectBase):
 
         self.obj2d = _seal_2d.Seal(self, db_obj)
         self.obj3d = _seal_3d.Seal(self, db_obj)
+        self.mainframe.add_object(self)

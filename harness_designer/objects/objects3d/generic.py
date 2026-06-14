@@ -23,7 +23,7 @@ class Generic(_base3d.Base3D):
     """
     parent: "_generic.Generic" = None
 
-    def __init__(self, parent: "_generic.Generic", vbo: _vbo.VBOHandler | None,
+    def __init__(self, parent: "_generic.Generic", vbo: _vbo.PooledVBOHandler | None,
                  angle: _angle.Angle, position: _point.Point, scale: _point.Point,
                  material: _materials.GLMaterial, data=list[np.ndarray, np.ndarray, np.ndarray, int] | None):
         """Initialise the :class:`Generic` instance.
@@ -33,7 +33,7 @@ class Generic(_base3d.Base3D):
         :param parent: Parent object.
         :type parent: :class:`_generic.Generic`
         :param vbo: Value for ``vbo``.
-        :type vbo: _vbo.VBOHandler | None
+        :type vbo: _vbo.PooledVBOHandler | None
         :param angle: Value for ``angle``.
         :type angle: :class:`_angle.Angle`
         :param position: Position value.

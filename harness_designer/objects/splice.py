@@ -40,3 +40,4 @@ class Splice(_ObjectBase):
 
         self.obj2d = _splice_2d.Splice(self, db_obj)
         self.obj3d = _splice_3d.Splice(self, db_obj)
+        self.mainframe.add_object(self)

@@ -39,3 +39,4 @@ class Bundle(_ObjectBase):
 
         self.obj2d = _bundle_2d.Bundle(self, db_obj)
         self.obj3d = _bundle_3d.Bundle(self, db_obj)
+        self.mainframe.add_object(self)

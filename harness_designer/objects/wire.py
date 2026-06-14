@@ -40,3 +40,4 @@ class Wire(_ObjectBase):
 
         self.obj2d = _wire_2d.Wire(self, db_obj)
         self.obj3d = _wire_3d.Wire(self, db_obj)
+        self.mainframe.add_object(self)

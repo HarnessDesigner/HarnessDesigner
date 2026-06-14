@@ -3,7 +3,7 @@
 """Box mesh generation helpers.
 
 The functions in this module build axis-aligned cuboid geometry for use by
-:class:`harness_designer.gl.vbo.VBOHandler` instances.
+:class:`harness_designer.gl.vbo.PooledVBOHandler` instances.
 """
 
 import numpy as np
@@ -12,16 +12,16 @@ from .. import utils as _utils
 from ..gl import vbo as _vbo_handler
 
 
-_vbo: _vbo_handler.VBOHandler = None
+_vbo: _vbo_handler.PooledVBOHandler = None
 
 
-def create_vbo() -> _vbo_handler.VBOHandler:
+def create_vbo() -> _vbo_handler.PooledVBOHandler:
     """Create or return the cached unit box VBO.
 
     The cached mesh is built from :func:`create` using unit dimensions.
 
     :returns: Cached VBO data for a box with dimensions ``1 x 1 x 1``.
-    :rtype: :class:`harness_designer.gl.vbo.VBOHandler`
+    :rtype: :class:`harness_designer.gl.vbo.PooledVBOHandler`
     """
     global _vbo
 
@@ -35,7 +35,7 @@ def create_vbo() -> _vbo_handler.VBOHandler:
         aabb = np.array([aabb1.as_float, aabb2.as_float], dtype=np.float32)
         obb = _utils.compute_obb(aabb1, aabb2)
 
-        _vbo = _vbo_handler.VBOHandler(
+        _vbo = _vbo_handler.PooledVBOHandler(
             'box', packed, count, aabb=aabb, obb=obb,
             arena_kind=_vbo_handler.VBO_TYPE_PRIMITIVE)
 

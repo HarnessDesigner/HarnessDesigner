@@ -7,18 +7,21 @@ from typing import TYPE_CHECKING
 import os
 import threading
 from PIL import Image
-from PySide6.QtWidgets import QApplication
-from PySide6.QtGui import QPixmap, QPainter, QColor, QFont, QBrush, QPen
-from PySide6.QtCore import Qt, QTimer, Signal, QObject
+from PySide6 import QtWidgets
+from PySide6 import QtGui
+from PySide6 import QtCore
 
 
 if TYPE_CHECKING:
     from . import logger as _logger
 
 
-class _SplashSignals(QObject):
-    """Signals must live on a QObject; we separate them so Splash stays clean."""
-    refresh_requested = Signal()
+class _SplashSignals(QtCore.QObject):
+    """
+    Signals must live on a QObject; we separate them so Splash stays clean.
+    """
+
+    refreshRequested: QtCore.SignalInstance = QtCore.Signal()
 
 
 class Splash:
@@ -34,13 +37,15 @@ class Splash:
     """
 
     def __init__(self, args, logger: "_logger.Log"):
-        """Create and display the splash screen.
+        """
+        Create and display the splash screen.
 
         :param args: Command-line arguments supplied to the application.
         :type args: list[str]
         :param logger: Logger used for startup status messages.
         :type logger: _logger.Log
         """
+
         self.logger = logger
         self.load_database = '--load-database' in args
         self.startup_args = args
@@ -50,23 +55,28 @@ class Splash:
 
         # Load splash image via Pillow (same as wx version)
         base_path = os.path.dirname(__file__)
-        img = Image.open(os.path.join(base_path, 'image/small_splash.png'))
+
+        img = Image.open(
+            os.path.join(base_path, 'image/images/small_splash.png'))
+
         img = img.convert('RGBA')
         self._img_w, self._img_h = img.size
 
         # Convert PIL image → QPixmap
-        from PySide6.QtGui import QImage
         raw = img.tobytes('raw', 'RGBA')
-        qimage = QImage(raw, self._img_w, self._img_h, QImage.Format_RGBA8888)
-        self._splash_pixmap = QPixmap.fromImage(qimage.copy())
+
+        qimage = QtGui.QImage(
+            raw, self._img_w, self._img_h, QtGui.QImage.Format.Format_RGBA8888)
+
+        self._splash_pixmap = QtGui.QPixmap.fromImage(qimage.copy())
         img.close()
 
         # The visible window area matches the original sizing
         self._size = (self._img_w - 65, self._img_h)
 
         # Build the composite render pixmap (splash + status bar)
-        self._render_pixmap = QPixmap(self._size[0], self._size[1])
-        self._render_pixmap.fill(Qt.transparent)
+        self._render_pixmap = QtGui.QPixmap(self._size[0], self._size[1])
+        self._render_pixmap.fill(QtCore.Qt.GlobalColor.transparent)
 
         # Signals (cross-thread repaint)
         self._signals = _SplashSignals()
@@ -74,61 +84,65 @@ class Splash:
         # Build the actual Qt window — must happen on the main thread.
         # We create it immediately since __init__ is called from OnInit
         # (which is already on the main thread).
-        from PySide6.QtWidgets import QLabel
-        from PySide6.QtCore import QPoint
+        self._window = QtWidgets.QLabel()
+        self._window.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint |
+                                    QtCore.Qt.WindowType.WindowStaysOnTopHint |
+                                    QtCore.Qt.WindowType.SplashScreen |
+                                    # keeps it off the taskbar
+                                    QtCore.Qt.WindowType.Tool)
 
-        self._window = QLabel()
-        self._window.setWindowFlags(
-            Qt.FramelessWindowHint |
-            Qt.WindowStaysOnTopHint |
-            Qt.SplashScreen |
-            Qt.Tool                  # keeps it off the taskbar
-        )
-        self._window.setAttribute(Qt.WA_TranslucentBackground)
+        self._window.setAttribute(
+            QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
         self._window.setFixedSize(self._size[0], self._size[1])
 
         # Connect refresh signal so worker threads can trigger a repaint
-        self._signals.refresh_requested.connect(self._do_refresh)
+        self._signals.refreshRequested.connect(self._do_refresh)
 
         # Draw initial frame
         self.draw('Loading...')
         self._window.setPixmap(self._render_pixmap)
-        self._window.move(
-            (QApplication.primaryScreen().availableGeometry().center() -
-             self._window.rect().center())
-        )
-        self._window.show()
-        QApplication.processEvents()
 
-        self._init_event.set()   # splash is visible; background thread may proceed
+        center = QtWidgets.QApplication.primaryScreen().availableGeometry().center()
+        self._window.move(center - self._window.rect().center())
+
+        self._window.show()
+        QtWidgets.QApplication.processEvents()
+
+        # splash is visible; background thread may proceed
+        self._init_event.set()
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
     def wait(self):
-        """Block until the splash window is visible."""
+        """
+        Block until the splash window is visible.
+        """
+
         self._init_event.wait()
 
     def Show(self, show=True):
-        """Show or hide the splash window.
+        """
+        Show or hide the splash window.
 
         :param show: ``True`` to show the splash, ``False`` to hide it.
         :type show: bool
         """
+
         if show:
             self._window.show()
         else:
             self._window.hide()
 
     def Destroy(self):
-        """Close and delete the splash window.  Mirrors wx.Frame.Destroy()."""
-        QApplication.restoreOverrideCursor()
+        """
+        Close and delete the splash window.
+        """
+
+        QtWidgets.QApplication.restoreOverrideCursor()
 
         def _do():
-            """Close and delete the splash widgets on the UI thread.
-
-            """
             with self._draw_lock:
                 self._window.close()
                 self._window.deleteLater()
@@ -136,17 +150,19 @@ class Splash:
         if threading.main_thread() == threading.current_thread():
             _do()
         else:
-            self._signals.refresh_requested.connect(lambda: _do())
-            self._signals.refresh_requested.emit()
+            self._signals.refreshRequested.connect(lambda: _do())
+            self._signals.refreshRequested.emit()
 
     def SetText(self, text: str, log=True) -> None:
-        """Update the status text shown on the splash screen.
+        """
+        Update the status text shown on the splash screen.
 
         :param text: Status text to draw.
         :type text: str
         :param log: Log the message through the application logger.
         :type log: bool
         """
+
         if log:
             self.logger.info(text)
 
@@ -156,56 +172,56 @@ class Splash:
             event = threading.Event()
 
             def _on_refresh():
-                """Signal that a requested refresh has completed.
-
-                """
-                self._signals.refresh_requested.disconnect(_on_refresh)
+                self._signals.refreshRequested.disconnect(_on_refresh)
                 event.set()
 
-            self._signals.refresh_requested.connect(_on_refresh)
-            self._signals.refresh_requested.emit()
+            self._signals.refreshRequested.connect(_on_refresh)
+            self._signals.refreshRequested.emit()
             event.wait()
         else:
             self._do_refresh()
 
     def flush(self):  # NOQA
-        """Process pending Qt events for the splash screen.
-
         """
-        QApplication.processEvents()
+        Process pending Qt events for the splash screen.
+        """
+
+        QtWidgets.QApplication.processEvents()
 
     # ------------------------------------------------------------------
     # Internal drawing
     # ------------------------------------------------------------------
 
     def draw(self, text: str):
-        """Render the splash image and current status text into a pixmap.
+        """
+        Render the splash image and current status text into a pixmap.
 
         :param text: Status text to draw.
         :type text: str
         """
+
         with self._draw_lock:
             w, h = self._size
             bmp_height = self._img_h - 40
             bar_height = h - bmp_height
 
-            pixmap = QPixmap(w, h)
-            pixmap.fill(Qt.transparent)
+            pixmap = QtGui.QPixmap(w, h)
+            pixmap.fill(QtCore.Qt.GlobalColor.transparent)
 
-            painter = QPainter(pixmap)
-            painter.setRenderHint(QPainter.Antialiasing)
+            painter = QtGui.QPainter(pixmap)
+            painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
 
             # Draw the splash image (offset -30, -20 as in wx version)
             painter.drawPixmap(-30, -20, self._splash_pixmap)
 
             # Draw the status bar background
-            painter.setBrush(QBrush(QColor(0, 0, 0, 255)))
-            painter.setPen(QPen(Qt.NoPen))
+            painter.setBrush(QtGui.QBrush(QtGui.QColor(0, 0, 0, 255)))
+            painter.setPen(QtGui.QPen(QtCore.Qt.PenStyle.NoPen))
             painter.drawRect(0, bmp_height, w, bar_height)
 
             # Draw status text centred in the bar
-            painter.setPen(QColor(190, 190, 190, 255))
-            font = QFont()
+            painter.setPen(QtGui.QColor(190, 190, 190, 255))
+            font = QtGui.QFont()
             font.setPointSize(9)
             painter.setFont(font)
 
@@ -221,8 +237,12 @@ class Splash:
             self._render_pixmap = pixmap
 
     def _do_refresh(self):
-        """Must be called on the main thread."""
+        """
+        Must be called on the main thread.
+        """
+
         with self._draw_lock:
             self._window.setPixmap(self._render_pixmap)
             self._window.repaint()
-        QApplication.processEvents()
+
+        QtWidgets.QApplication.processEvents()

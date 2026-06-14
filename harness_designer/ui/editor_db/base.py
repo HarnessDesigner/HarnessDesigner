@@ -14,40 +14,6 @@ from ... import config as _config
 from ... import image as _image
 
 
-def _inject_where_placeholder(query: str) -> str:
-    """
-    Insert a ``{where_clause}`` format placeholder into one of the
-    EditorList page query templates, immediately before the close-paren
-    that terminates the innermost SELECT.
-
-    Every page template in this module has the shape::
-
-        SELECT * FROM (
-            SELECT Row_Number() OVER (ORDER BY ...) AS RowNum, *
-            FROM (
-                SELECT t.id, t.part_number, ...
-                FROM <table> AS t
-                LEFT JOIN ...
-                LEFT JOIN ...
-            )                              <-- innermost close
-        ) WHERE RowNum BETWEEN ... AND ...;
-
-    The injection point is right before that innermost close-paren so a
-    WHERE clause is applied BEFORE pagination.
-    """
-    pos = query.find('WHERE RowNum BETWEEN')
-    if pos == -1:
-        return query
-
-    outer_close = query.rfind(')', 0, pos)
-    if outer_close == -1:
-        return query
-
-    inner_close = query.rfind(')', 0, outer_close)
-    if inner_close == -1:
-        return query
-
-    return query[:inner_close] + '{where_clause}\n        ' + query[inner_close:]
 
 
 class EditorDBConfig(metaclass=_config.ConfigDB):
@@ -204,7 +170,7 @@ class _EditorModel(QAbstractTableModel):
         label = self._list.column_mapping[col_key][0]
 
         # Find this column in the sort stack and annotate the label.
-        col_name = self._list.column_mapping[col_key][1]
+        col_name = self._list.column_mapping[col_key][1]['alias']
 
         enumerated_data = enumerate(self._list.sort_columns, start=1)
         for priority, (sort_col, direction) in enumerated_data:
@@ -249,7 +215,7 @@ class _EditorModel(QAbstractTableModel):
         if role == Qt.ItemDataRole.TextAlignmentRole:
             col_key = col_id - 1
             if col_key in self._list.column_mapping:
-                _, col_name = self._list.column_mapping[col_key][:2]
+                col_name = self._list.column_mapping[col_key][1]['alias']
                 if col_name == 'model3d_id':
                     return Qt.AlignmentFlag.AlignCenter
 
@@ -363,6 +329,43 @@ class EditorList(QTableView):
     # DB helpers
     # ------------------------------------------------------------------
 
+    def _build_query(self) -> str:
+        """Build the paginated SELECT template from ``column_mapping``.
+
+        Called once at construction.  The static parts (column list, JOIN
+        clauses, table name) are baked in; the dynamic parts are left as
+        ``str.format`` placeholders: ``{sort_clause}``, ``{start_row}``,
+        ``{end_row}``, and ``{where_clause}``.
+        """
+        select_cols = []
+        joins = []
+
+        for entry in self.column_mapping.values():
+            info = entry[1]
+            alias = info['alias']
+            field_name = info['field_name']
+
+            if 'ref_table' in info:
+                select_cols.append(f'{alias}.{info["ref_field"]} AS {alias}')
+                joins.append(
+                    f'LEFT JOIN {info["ref_table"]} AS {alias}'
+                    f' ON {alias}.id = t.{field_name}'
+                )
+            else:
+                select_cols.append(f't.{field_name} AS {alias}')
+
+        if self._has_image:
+            select_cols.append('t.image_id AS image_id')
+
+        query = (f'SELECT * FROM (SELECT ROW_NUMBER() OVER '
+                 f'(ORDER BY {{sort_clause}}) AS RowNum, * '
+                 f'FROM (SELECT {", ".join(select_cols)} '
+                 f'FROM {self.__table_name__} AS t '
+                 f'{" ".join(joins)} {{where_clause}}) AS base) AS paged '
+                 f'WHERE RowNum BETWEEN {{start_row}} AND {{end_row}};')
+
+        return query
+
     @property
     def record_count(self):
         """Return the record count.
@@ -409,7 +412,7 @@ class EditorList(QTableView):
         """
 
         for entry in self.column_mapping.values():
-            if entry[1] != column_name:
+            if entry[1]['alias'] != column_name:
                 continue
 
             if len(entry) == 3:
@@ -978,7 +981,7 @@ class EditorList(QTableView):
         """
         self._where_clause = ''
         self._where_params: list = []
-        self._effective_query = _inject_where_placeholder(self.__query__)
+        self._effective_query = self._build_query()
 
         self._label = label
         self.table_name = table.__table_name__
@@ -1031,7 +1034,8 @@ class EditorList(QTableView):
 
         fm = self.fontMetrics()
         for i in sorted(self.column_mapping.keys()):
-            label_text, column_name = self.column_mapping[i][:2]
+            label_text = self.column_mapping[i][0]
+            column_name = self.column_mapping[i][1]['alias']
 
             # offset for icon column
             logical = i + 1

@@ -10,94 +10,40 @@ if TYPE_CHECKING:
 
 
 class TerminalsPage(_base.EditorList):
-    """Represent a terminals page in :mod:`harness_designer.ui.editor_db.terminal`.
-
-    UNKNOWN details are inferred from the class name and surrounding code.
-    """
     __table_name__ = 'terminals'
 
-    __query__ = f'''\
-        SELECT * FROM (
-        SELECT Row_Number() OVER (ORDER BY {{sort_clause}}) AS RowNum, *
-        FROM (
-            SELECT
-                t.id AS id,
-                t.part_number AS part_number,
-                t.description AS description,
-                mfg.name AS mfg_name,
-                family.name AS family_name,
-                series.name AS series_name,
-                color.name AS color_name,
-                min_temp.name AS min_temp_name,
-                max_temp.name AS max_temp_name,
-                plating.description AS plating_description,
-                gender.name AS gender_name,
-                cavity_lock.name AS cavity_lock_name,
-                t.sealing AS sealing,
-                t.blade_size AS blade_size,
-                t.resistance AS resistance,
-                t.mating_cycles AS mating_cycles,
-                t.max_vibration_g AS max_vibration_g,
-                t.max_current_ma AS max_current_ma,
-                t.wire_size_awg_min AS wire_size_awg_min,
-                t.wire_size_awg_max AS wire_size_awg_max,
-                t.wire_size_dia_min AS wire_size_dia_min,
-                t.wire_size_dia_max AS wire_size_dia_max,
-                t.wire_size_cross_min AS wire_size_cross_min,
-                t.wire_size_cross_max AS wire_size_cross_max,
-                t.length AS length,
-                t.width AS width,
-                t.height AS height,
-                t.weight AS weight,
-                t.compat_housings AS compat_housings,
-                t.compat_seals AS compat_seals,
-                t.model3d_id AS model3d_id,
-                t.image_id AS image_id
-            FROM {__table_name__} AS t
-            LEFT JOIN manufacturers AS mfg ON mfg.id = t.mfg_id
-            LEFT JOIN families AS family ON family.id = t.family_id
-            LEFT JOIN series AS series ON series.id = t.series_id
-            LEFT JOIN colors AS color ON color.id = t.color_id
-            LEFT JOIN temperatures AS min_temp ON min_temp.id = t.min_temp_id
-            LEFT JOIN temperatures AS max_temp ON max_temp.id = t.max_temp_id
-            LEFT JOIN platings AS plating ON plating.id = t.plating_id
-            LEFT JOIN genders AS gender ON gender.id = t.gender_id
-            LEFT JOIN cavity_locks AS cavity_lock ON cavity_lock.id = t.cavity_lock_id
-            )
-        ) WHERE RowNum BETWEEN {{start_row}} AND {{end_row}};
-        '''
-
     column_mapping = {
-        0: ('DB ID', 'id', True),
-        1: ('Part Number', 'part_number', True),
-        2: ('Description', 'description'),
-        3: ('Manufacturer', 'mfg_name'),
-        4: ('Family', 'family_name'),
-        5: ('Series', 'series_name'),
-        6: ('Color', 'color_name'),
-        7: ('Temperature (min)', 'min_temp_name'),
-        8: ('Temperature (max)', 'max_temp_name'),
-        9: ('Plating', 'plating_description'),
-        10: ('Gender', 'gender_name'),
-        11: ('Cavity Lock', 'cavity_lock_name'),
-        12: ('Sealing', 'sealing'),
-        13: ('Blade Size (mm)', 'blade_size'),
-        14: ('Resistance (Ω)', 'resistance'),
-        15: ('Mating Cycles', 'mating_cycles'),
-        16: ('Max Vibration (G)', 'max_vibration_g'),
-        17: ('Max Current (ma)', 'max_current_ma'),
-        18: ('Wire AWG (min)', 'wire_size_awg_min'),
-        19: ('Wire AWG (max)', 'wire_size_awg_max'),
-        20: ('Wire Dia (mm)(min)', 'wire_size_dia_min'),
-        21: ('Wire Dia (mm)(max)', 'wire_size_dia_max'),
-        22: ('Wire Cross (mm²)(min)', 'wire_size_cross_min'),
-        23: ('Wire Cross (mm²)(max)', 'wire_size_cross_max'),
-        24: ('Length (mm)', 'length'),
-        25: ('Width (mm)', 'width'),
-        26: ('Height (mm)', 'height'),
-        27: ('Weight (g)', 'weight'),
-        28: ('Compat Housings', 'compat_housings'),
-        29: ('Compat Seals', 'compat_seals'),
-        30: ('3D Model', 'model3d_id'),
+        0: ('DB ID', {'alias': 'id', 'field_name': 'id'}, True),
+        1: ('Part Number', {'alias': 'part_number', 'field_name': 'part_number'}, True),
+        2: ('Description', {'alias': 'description', 'field_name': 'description'}),
+        3: ('Manufacturer', {'alias': 'mfg_name', 'field_name': 'mfg_id', 'ref_table': 'manufacturers', 'ref_field': 'name'}),
+        4: ('Family', {'alias': 'family_name', 'field_name': 'family_id', 'ref_table': 'families', 'ref_field': 'name'}),
+        5: ('Series', {'alias': 'series_name', 'field_name': 'series_id', 'ref_table': 'series', 'ref_field': 'name'}),
+        6: ('Color', {'alias': 'color_name', 'field_name': 'color_id', 'ref_table': 'colors', 'ref_field': 'name'}),
+        7: ('Temperature (min)', {'alias': 'min_temp_name', 'field_name': 'min_temp_id', 'ref_table': 'temperatures', 'ref_field': 'name'}),
+        8: ('Temperature (max)', {'alias': 'max_temp_name', 'field_name': 'max_temp_id', 'ref_table': 'temperatures', 'ref_field': 'name'}),
+        9: ('Plating', {'alias': 'plating_description', 'field_name': 'plating_id', 'ref_table': 'platings', 'ref_field': 'description'}),
+        10: ('Gender', {'alias': 'gender_name', 'field_name': 'gender_id', 'ref_table': 'genders', 'ref_field': 'name'}),
+        11: ('Cavity Lock', {'alias': 'cavity_lock_name', 'field_name': 'cavity_lock_id', 'ref_table': 'cavity_locks', 'ref_field': 'name'}),
+        12: ('Sealing', {'alias': 'sealing', 'field_name': 'sealing'}),
+        13: ('Blade Size (mm)', {'alias': 'blade_size', 'field_name': 'blade_size'}),
+        14: ('Resistance (Ω)', {'alias': 'resistance', 'field_name': 'resistance'}),
+        15: ('Mating Cycles', {'alias': 'mating_cycles', 'field_name': 'mating_cycles'}),
+        16: ('Max Vibration (G)', {'alias': 'max_vibration_g', 'field_name': 'max_vibration_g'}),
+        17: ('Max Current (ma)', {'alias': 'max_current_ma', 'field_name': 'max_current_ma'}),
+        18: ('Wire AWG (min)', {'alias': 'wire_size_awg_min', 'field_name': 'wire_size_awg_min'}),
+        19: ('Wire AWG (max)', {'alias': 'wire_size_awg_max', 'field_name': 'wire_size_awg_max'}),
+        20: ('Wire Dia (mm)(min)', {'alias': 'wire_size_dia_min', 'field_name': 'wire_size_dia_min'}),
+        21: ('Wire Dia (mm)(max)', {'alias': 'wire_size_dia_max', 'field_name': 'wire_size_dia_max'}),
+        22: ('Wire Cross (mm²)(min)', {'alias': 'wire_size_cross_min', 'field_name': 'wire_size_cross_min'}),
+        23: ('Wire Cross (mm²)(max)', {'alias': 'wire_size_cross_max', 'field_name': 'wire_size_cross_max'}),
+        24: ('Length (mm)', {'alias': 'length', 'field_name': 'length'}),
+        25: ('Width (mm)', {'alias': 'width', 'field_name': 'width'}),
+        26: ('Height (mm)', {'alias': 'height', 'field_name': 'height'}),
+        27: ('Weight (g)', {'alias': 'weight', 'field_name': 'weight'}),
+        28: ('Compat Housings', {'alias': 'compat_housings', 'field_name': 'compat_housings'}),
+        29: ('Compat Seals', {'alias': 'compat_seals', 'field_name': 'compat_seals'}),
+        30: ('3D Model', {'alias': 'model3d_id', 'field_name': 'model3d_id'}),
     }
+
     table: "_terminal.TerminalsTable" = None

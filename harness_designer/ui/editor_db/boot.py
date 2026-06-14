@@ -10,72 +10,29 @@ if TYPE_CHECKING:
 
 
 class BootsPage(_base.EditorList):
-    """Represent a boots page in :mod:`harness_designer.ui.editor_db.boot`.
-
-    UNKNOWN details are inferred from the class name and surrounding code.
-    """
     __table_name__ = 'boots'
-    __query__ = f'''\
-        SELECT * FROM (
-        SELECT Row_Number() OVER (ORDER BY {{sort_clause}}) AS RowNum, *
-        FROM (
-            SELECT
-                t.id AS id,
-                t.part_number AS part_number,
-                t.description AS description,
-                mfg.name AS mfg_name,
-                family.name AS family_name,
-                series.name AS series_name,
-                color.name AS color_name,
-                material.name AS material_name,
-                direction.name AS direction_name,
-                min_temp.name AS min_temp_name,
-                max_temp.name AS max_temp_name,
-                protection.name AS protection_name,
-                t.min_dia AS min_dia,
-                t.max_dia AS max_dia,
-                t.length AS length,
-                t.width AS width,
-                t.height AS height,
-                t.weight AS weight,
-                t.compat_housings AS compat_housings,
-                t.model3d_id AS model3d_id,
-                t.image_id AS image_id
-            FROM {__table_name__} AS t
-            LEFT JOIN manufacturers AS mfg ON mfg.id = t.mfg_id
-            LEFT JOIN families AS family ON family.id = t.family_id
-            LEFT JOIN series AS series ON series.id = t.series_id
-            LEFT JOIN colors AS color ON color.id = t.color_id
-            LEFT JOIN materials AS material ON material.id = t.material_id
-            LEFT JOIN directions AS direction ON direction.id = t.direction_id
-            LEFT JOIN temperatures AS min_temp ON min_temp.id = t.min_temp_id
-            LEFT JOIN temperatures AS max_temp ON max_temp.id = t.max_temp_id
-            LEFT JOIN protections AS protection ON protection.id = t.protection_id
-            )
-        ) WHERE RowNum BETWEEN {{start_row}} AND {{end_row}};
-    '''
 
     column_mapping = {
-        0: ('DB ID', 'id', True),
-        1: ('Part Number', 'part_number', True),
-        2: ('Description', 'description'),
-        3: ('Manufacturer', 'mfg_name'),
-        4: ('Family', 'family_name'),
-        5: ('Series', 'series_name'),
-        6: ('Color', 'color_name'),
-        7: ('Material', 'material_name'),
-        8: ('Direction', 'direction_name'),
-        9: ('Temperature (min)', 'min_temp_name'),
-        10: ('Temperature (max)', 'max_temp_name'),
-        11: ('Protections', 'protection_name'),
-        12: ('Diameter (mm)(min)', 'min_dia'),
-        13: ('Diameter (mm)(max)', 'max_dia'),
-        14: ('Length (mm)', 'length'),
-        15: ('Width (mm)', 'width'),
-        16: ('Height (mm)', 'height'),
-        17: ('Weight (g)', 'weight'),
-        18: ('Compat Housings', 'compat_housings'),
-        19: ('3D Model', 'model3d_id'),
+        0: ('DB ID', {'alias': 'id', 'field_name': 'id'}, True),
+        1: ('Part Number', {'alias': 'part_number', 'field_name': 'part_number'}, True),
+        2: ('Description', {'alias': 'description', 'field_name': 'description'}),
+        3: ('Manufacturer', {'alias': 'mfg_name', 'field_name': 'mfg_id', 'ref_table': 'manufacturers', 'ref_field': 'name'}),
+        4: ('Family', {'alias': 'family_name', 'field_name': 'family_id', 'ref_table': 'families', 'ref_field': 'name'}),
+        5: ('Series', {'alias': 'series_name', 'field_name': 'series_id', 'ref_table': 'series', 'ref_field': 'name'}),
+        6: ('Color', {'alias': 'color_name', 'field_name': 'color_id', 'ref_table': 'colors', 'ref_field': 'name'}),
+        7: ('Material', {'alias': 'material_name', 'field_name': 'material_id', 'ref_table': 'materials', 'ref_field': 'name'}),
+        8: ('Direction', {'alias': 'direction_name', 'field_name': 'direction_id', 'ref_table': 'directions', 'ref_field': 'name'}),
+        9: ('Temperature (min)', {'alias': 'min_temp_name', 'field_name': 'min_temp_id', 'ref_table': 'temperatures', 'ref_field': 'name'}),
+        10: ('Temperature (max)', {'alias': 'max_temp_name', 'field_name': 'max_temp_id', 'ref_table': 'temperatures', 'ref_field': 'name'}),
+        11: ('Protections', {'alias': 'protection_name', 'field_name': 'protection_id', 'ref_table': 'protections', 'ref_field': 'name'}),
+        12: ('Diameter (mm)(min)', {'alias': 'min_dia', 'field_name': 'min_dia'}),
+        13: ('Diameter (mm)(max)', {'alias': 'max_dia', 'field_name': 'max_dia'}),
+        14: ('Length (mm)', {'alias': 'length', 'field_name': 'length'}),
+        15: ('Width (mm)', {'alias': 'width', 'field_name': 'width'}),
+        16: ('Height (mm)', {'alias': 'height', 'field_name': 'height'}),
+        17: ('Weight (g)', {'alias': 'weight', 'field_name': 'weight'}),
+        18: ('Compat Housings', {'alias': 'compat_housings', 'field_name': 'compat_housings'}),
+        19: ('3D Model', {'alias': 'model3d_id', 'field_name': 'model3d_id'}),
     }
 
     table: "_boot.BootsTable" = None

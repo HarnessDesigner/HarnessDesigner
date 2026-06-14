@@ -39,3 +39,4 @@ class Transition(_ObjectBase):
 
         self.obj2d = _transition_2d.Transition(self, db_obj)
         self.obj3d = _transition_3d.Transition(self, db_obj)
+        self.mainframe.add_object(self)

@@ -238,21 +238,11 @@ class Transition(_base3d.Base3D):
         self._vertices, self._faces = _utils.convert_model_to_mesh(self._model)
         packed, count = _utils.compute_normals(self._vertices, self._faces)
 
-        # mutable views into the packed array, one block per attribute
-        vertices = packed[:count * 3]
-        smooth_normals = packed[count * 3:count * 6]
-        face_normals = packed[count * 6:]
-
         for branch in branches:
             with branch.position:
                 branch.position @= angle
 
             branch.position += position
-
-        vertices @= angle
-        smooth_normals @= angle
-        face_normals @= angle
-        vertices += position
 
         self._branches = branches
         self._branch_points = branch_points
@@ -260,7 +250,7 @@ class Transition(_base3d.Base3D):
 
         scale = _point.Point(1.0, 1.0, 1.0)
         _base3d.Base3D.__init__(self, parent, db_obj, None, angle, db_obj.position3d,
-                                scale, material, [vertices, smooth_normals, face_normals, count])
+                                scale, material, [packed, count])
 
     def build(self):
         """Execute the build operation.
@@ -283,13 +273,9 @@ class Transition(_base3d.Base3D):
             branch.position += self._position
 
         self._vertices, self._faces = _utils.convert_model_to_mesh(self._model)
-        tris, normals, count = _utils.compute_smooth_normals(self._vertices, self._faces)
+        packed, count = _utils.compute_smooth_normals(self._vertices, self._faces)
 
-        tris @= self._angle
-        normals @= self._angle
-        tris += self._position
-
-        self._data = [tris, normals, count]
+        self._gl_buf.update(packed, count)
 
         self.editor3d.update()
 

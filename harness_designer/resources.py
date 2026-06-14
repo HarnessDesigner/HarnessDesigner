@@ -123,7 +123,8 @@ def handle_cookie(response):
 
 
 def requests_get(url, is_retry=False, **kwargs):
-    """Fetch a URL and normalise its content type.
+    """
+    Fetch a URL and normalise its content type.
 
     :param url: Resource URL to request.
     :type url: str
@@ -137,6 +138,7 @@ def requests_get(url, is_retry=False, **kwargs):
     :returns: Response object and simplified content type.
     :rtype: tuple[requests.Response, str | None]
     """
+
     if 'api.te.com' in url or 'www.te.com' in url:
         url = url.replace('//content', '/content')
 
@@ -191,7 +193,8 @@ def requests_get(url, is_retry=False, **kwargs):
 
 
 def _download_model(con, url, is_type):
-    """Download a model resource and store it with a generated filename.
+    """
+    Download a model resource and store it with a generated filename.
 
     :param con: Database cursor or cursor-like object.
     :type con: UNKNOWN
@@ -201,6 +204,7 @@ def _download_model(con, url, is_type):
         a supported model type.
     :rtype: str | None
     """
+
     con.execute(f'SELECT mimetype, extension FROM file_types WHERE {is_type};')
     rows = con.fetchall()
     mime_types = {k: '.' + v for k, v in rows}
@@ -262,13 +266,15 @@ def _download_model(con, url, is_type):
 
 
 def _reformat_image(img: Image.Image):
-    """Resize and pad an image into a 256x256 RGBA preview.
+    """
+    Resize and pad an image into a 256x256 RGBA preview.
 
     :param img: Source image.
     :type img: PIL.Image.Image
     :returns: Reformatted preview image.
     :rtype: PIL.Image.Image
     """
+
     img = img.convert('RGBA')
     o_w, o_h = img.size
 
@@ -297,7 +303,8 @@ def _reformat_image(img: Image.Image):
 
 
 def _download_image(con, url, image_path, is_type):
-    """Download an image-like resource and save it locally.
+    """
+    Download an image-like resource and save it locally.
 
     :param con: Database cursor or cursor-like object.
     :type con: UNKNOWN
@@ -309,6 +316,7 @@ def _download_image(con, url, image_path, is_type):
         or the request fails.
     :rtype: str | None
     """
+
     # Downloading an image is not a trivial thing to do. This is because of
     # manufacturers handling images differently. Some there is a single image and
     # the link contains the extension of the image and that is used to determine
@@ -373,7 +381,8 @@ RESOURCE_TYPE_MODEL = 4
 
 
 def collect_resource(con, image_type, in_path):
-    """Collect a local or remote resource into managed storage.
+    """
+    Collect a local or remote resource into managed storage.
 
     :param con: Database cursor or cursor-like object.
     :type con: UNKNOWN
@@ -386,6 +395,7 @@ def collect_resource(con, image_type, in_path):
     :rtype: tuple[str, int] | None
     :raises RuntimeError: If a referenced local file does not exist.
     """
+
     if not in_path:
         return None
 

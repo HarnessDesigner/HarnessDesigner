@@ -40,3 +40,4 @@ class WireServiceLoop(_ObjectBase):
 
         self.obj2d = _wire_service_loop_2d.WireServiceLoop(self, db_obj)
         self.obj3d = _wire_service_loop_3d.WireServiceLoop(self, db_obj)
+        self.mainframe.add_object(self)

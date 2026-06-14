@@ -3,7 +3,7 @@
 """Arrow mesh generation helpers.
 
 The mesh built here is converted into a cached
-:class:`harness_designer.gl.vbo.VBOHandler` for reuse by the OpenGL layer.
+:class:`harness_designer.gl.vbo.PooledVBOHandler` for reuse by the OpenGL layer.
 """
 
 import build123d
@@ -13,18 +13,18 @@ from .. import utils as _utils
 from ..gl import vbo as _vbo_handler
 
 
-_vbo: _vbo_handler.VBOHandler = None
+_vbo: _vbo_handler.PooledVBOHandler = None
 
 
-def create_vbo() -> _vbo_handler.VBOHandler:
+def create_vbo() -> _vbo_handler.PooledVBOHandler:
     """Create or return the cached arrow VBO.
 
     The geometry is assembled with :mod:`build123d`, converted to a mesh with
     :func:`harness_designer.utils.convert_model_to_mesh`, and then wrapped in a
-    :class:`harness_designer.gl.vbo.VBOHandler`.
+    :class:`harness_designer.gl.vbo.PooledVBOHandler`.
 
     :returns: Cached vertex-buffer object data for the move arrow mesh.
-    :rtype: :class:`harness_designer.gl.vbo.VBOHandler`
+    :rtype: :class:`harness_designer.gl.vbo.PooledVBOHandler`
     """
     global _vbo
 
@@ -68,7 +68,7 @@ def create_vbo() -> _vbo_handler.VBOHandler:
     aabb = np.array([aabb1.as_float, aabb2.as_float], dtype=np.float32)
     obb = _utils.compute_obb(aabb1, aabb2)
 
-    _vbo = _vbo_handler.VBOHandler(
+    _vbo = _vbo_handler.PooledVBOHandler(
         'move_arrow', packed, count, aabb=aabb, obb=obb,
         arena_kind=_vbo_handler.VBO_TYPE_PRIMITIVE)
 

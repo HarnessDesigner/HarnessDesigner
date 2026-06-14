@@ -43,3 +43,4 @@ class Cavity(_ObjectBase):
 
         self.obj2d = _cavity_2d.Cavity(self, db_obj)
         self.obj3d = _cavity_3d.Cavity(self, db_obj)
+        self.mainframe.add_object(self)

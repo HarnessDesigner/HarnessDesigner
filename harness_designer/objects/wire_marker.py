@@ -40,6 +40,7 @@ class WireMarker(_ObjectBase):
 
         self.obj2d = _wire_marker_2d.WireMarker(self, db_obj)
         self.obj3d = _wire_marker_3d.WireMarker(self, db_obj)
+        self.mainframe.add_object(self)
 
     def select2d(self, evt):
         """Execute the select 2D operation.

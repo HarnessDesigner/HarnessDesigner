@@ -87,7 +87,6 @@ class WireMarker(_base3d.Base3D):
 
         parent.mainframe.editor3d.context.release()
 
-
     def _update_position(self, position: _point.Point):
         """Update the position.
 

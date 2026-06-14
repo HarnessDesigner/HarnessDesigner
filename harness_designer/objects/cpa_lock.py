@@ -40,3 +40,4 @@ class CPALock(_ObjectBase):
 
         self.obj2d = _cpa_lock_2d.CPALock(self, db_obj)
         self.obj3d = _cpa_lock_3d.CPALock(self, db_obj)
+        self.mainframe.add_object(self)

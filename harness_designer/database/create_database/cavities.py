@@ -30,7 +30,7 @@ table = _con.SQLTable(
     _con.FloatField('height', default='1.0', no_null=True),
     _con.FloatField('length', default='3.0', no_null=True),
     _con.IntField('round_terminal', default='0', no_null=True),
-    _con.TextField('terminal_sizes', default='"[]"', no_null=True)
+    _con.TextField('terminal_sizes', default='""', no_null=True)
 )
 
 

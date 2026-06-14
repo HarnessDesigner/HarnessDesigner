@@ -39,3 +39,4 @@ class Note(_ObjectBase):
 
         self.obj2d = _note_2d.Note(self, db_obj)
         self.obj3d = _note_3d.Note(self, db_obj)
+        self.mainframe.add_object(self)

@@ -40,6 +40,7 @@ class Boot(_ObjectBase):
 
         self.obj2d = _boot_2d.Boot(self, db_obj)
         self.obj3d = _boot_3d.Boot(self, db_obj)
+        self.mainframe.add_object(self)
 
 
 

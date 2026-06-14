@@ -40,3 +40,4 @@ class Cover(_ObjectBase):
 
         self.obj2d = _cover_2d.Cover(self, db_obj)
         self.obj3d = _cover_3d.Cover(self, db_obj)
+        self.mainframe.add_object(self)

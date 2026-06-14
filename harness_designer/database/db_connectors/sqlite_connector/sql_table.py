@@ -129,6 +129,11 @@ class SQLFieldReference:
         self.on_delete = on_delete
         self.on_update = on_update
 
+    def __str__(self):
+        return (f' REFERENCES {self.table.name}({self.field.name}) '
+                f'ON DELETE {self.on_delete} '
+                f'ON UPDATE {self.on_update}')
+
     def format(self, field_name):
         """Return the SQL fragment for the foreign-key constraint.
 
@@ -138,8 +143,7 @@ class SQLFieldReference:
         :returns: The formatted foreign-key clause.
         :rtype: str
         """
-        return (f'FOREIGN KEY ({field_name}) '
-                f'REFERENCES {self.table.name}({self.field.name}) '
+        return (f'REFERENCES {self.table.name}({self.field.name}) '
                 f'ON DELETE {self.on_delete} '
                 f'ON UPDATE {self.on_update}')
 
@@ -206,12 +210,12 @@ class SQLField:
         else:
             default = f' DEFAULT {self.default}'
 
-        res = [f'{self.name} {self.type}{primary}{unique}{default}{null}']
+        res = f'{self.name} {self.type}{primary}{unique}{default}{null}'
 
         if self.references is not None:
-            res.append(self.references.format(self.name))
+            res += str(self.references)
 
-        return ', '.join(res)
+        return res
 
     def is_field_in_table(self, db_cursor, table_name: str):
         """Return whether this field exists in the named table.
@@ -225,7 +229,7 @@ class SQLField:
         :rtype: bool
         """
         db_cursor._con.execute(f'SELECT "(\'" || group_concat(name, "\', \'") || "\')" from '
-                  f'pragma_table_info("{table_name}");')
+                               f'pragma_table_info("{table_name}");')
 
         column_names = eval(db_cursor._con.fetchall()[0][0])
 
@@ -244,13 +248,6 @@ class SQLField:
         :rtype: None
         """
         field = str(self)
-
-        if 'FOREIGN KEY' in field:
-            field, foreign_key = field.rsplit(',', 1)
-            foreign_key = foreign_key.split(') ', 1)[-1]
-            field = field.rstrip()
-            foreign_key = foreign_key.lstrip()
-            field += ' ' + foreign_key
 
         db_cursor._con.execute(f'ALTER TABLE {table_name} ADD COLUMN {field}')
         db_cursor._con.commit()

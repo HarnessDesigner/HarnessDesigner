@@ -27,7 +27,6 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 # Unit conversion constant
 # ---------------------------------------------------------------------------
-
 MM2_PER_IN2 = 645.16
 
 
@@ -92,7 +91,8 @@ _PACKING_FACTOR = {
 
 
 def _get_strand_count(awg: int | _d, strands: int | _d) -> int:
-    """Resolve the strand count used for diameter calculations.
+    """
+    Resolve the strand count used for diameter calculations.
 
     :param awg: Wire gauge used when ``strands`` is ``0``.
     :type awg: int | _d
@@ -101,37 +101,47 @@ def _get_strand_count(awg: int | _d, strands: int | _d) -> int:
     :returns: Effective strand count.
     :rtype: int
     """
+
     strands = int(strands)
     if strands == 1:
         return 1
+
     if strands == 0:
         return _AWG_STRAND_COUNT.get(int(awg), 19)
+
     return strands
 
 
 def _get_packing_factor(strand_count: int | _d) -> float:
-    """Return or interpolate the bundle packing factor for a strand count.
+    """
+    Return or interpolate the bundle packing factor for a strand count.
 
     :param strand_count: Number of strands in the conductor bundle.
     :type strand_count: int | _d
     :returns: Packing factor used to approximate bundle diameter.
     :rtype: float
     """
+
     if strand_count in _PACKING_FACTOR:
         return _PACKING_FACTOR[strand_count]
+
     known = sorted(_PACKING_FACTOR.keys())
     for i, k in enumerate(known):
         if strand_count < k:
             if i == 0:
                 return _PACKING_FACTOR[k]
+
             lo, hi = known[i - 1], k
             t = (strand_count - lo) / (hi - lo)
-            return _PACKING_FACTOR[lo] + t * (_PACKING_FACTOR[hi] - _PACKING_FACTOR[lo])
+            return _PACKING_FACTOR[lo] + t * (
+                _PACKING_FACTOR[hi] - _PACKING_FACTOR[lo])
+
     return _PACKING_FACTOR[known[-1]]
 
 
 def _solid_to_bundle(solid_d_mm: float | _d, strand_count: int | _d) -> float:
-    """Convert a solid-conductor diameter to an approximate bundle diameter.
+    """
+    Convert a solid-conductor diameter to an approximate bundle diameter.
 
     :param solid_d_mm: Equivalent solid diameter in millimetres.
     :type solid_d_mm: float | _d
@@ -140,13 +150,16 @@ def _solid_to_bundle(solid_d_mm: float | _d, strand_count: int | _d) -> float:
     :returns: Approximate stranded bundle diameter in millimetres.
     :rtype: float
     """
+
     if strand_count == 1:
         return solid_d_mm
+
     return solid_d_mm / math.sqrt(_get_packing_factor(strand_count))
 
 
 def _bundle_to_solid(bundle_d_mm: float | _d, strand_count: int | _d) -> float:
-    """Convert a bundle diameter back to an equivalent solid diameter.
+    """
+    Convert a bundle diameter back to an equivalent solid diameter.
 
     :param bundle_d_mm: Stranded bundle diameter in millimetres.
     :type bundle_d_mm: float | _d
@@ -155,8 +168,10 @@ def _bundle_to_solid(bundle_d_mm: float | _d, strand_count: int | _d) -> float:
     :returns: Equivalent solid diameter in millimetres.
     :rtype: float
     """
+
     if strand_count == 1:
         return bundle_d_mm
+
     return bundle_d_mm * math.sqrt(_get_packing_factor(strand_count))
 
 
@@ -165,7 +180,8 @@ def _bundle_to_solid(bundle_d_mm: float | _d, strand_count: int | _d) -> float:
 # ---------------------------------------------------------------------------
 
 def mm2_to_awg(mm2: float | _d, strands: int | _d = 1) -> int:
-    """Convert cross-sectional area in mm² to AWG.
+    """
+    Convert cross-sectional area in mm² to AWG.
 
     :param mm2: Conductor area in square millimetres.
     :type mm2: float | _d
@@ -174,13 +190,16 @@ def mm2_to_awg(mm2: float | _d, strands: int | _d = 1) -> int:
     :returns: Rounded AWG value.
     :rtype: int
     """
+
     d_in = mm2_to_d_in(mm2, strands)
     awg = 36 - 39 * math.log(float(d_in / 0.005), 92)
+
     return int(round(awg))
 
 
 def awg_to_mm2(awg: int | _d, strands: int | _d = 1) -> float:  # NOQA
-    """Convert AWG to electrical cross-sectional area in mm².
+    """
+    Convert AWG to electrical cross-sectional area in mm².
 
     :param awg: Wire gauge.
     :type awg: int | _d
@@ -189,14 +208,17 @@ def awg_to_mm2(awg: int | _d, strands: int | _d = 1) -> float:  # NOQA
     :returns: Conductor area in square millimetres.
     :rtype: float
     """
+
     # mm² is always the electrical equivalent cross-section — stranding doesn't change it
     d_in = float(round(0.005 * 92 ** ((36 - int(awg)) / 39), 6))
     d_mm = d_in * 25.4
+
     return float(round(math.pi / 4 * d_mm ** 2, 4))
 
 
 def awg_to_d_in(awg: int | _d, strands: int | _d = 1) -> float:
-    """Convert AWG to approximate conductor diameter in inches.
+    """
+    Convert AWG to approximate conductor diameter in inches.
 
     :param awg: Wire gauge.
     :type awg: int | _d
@@ -205,14 +227,17 @@ def awg_to_d_in(awg: int | _d, strands: int | _d = 1) -> float:
     :returns: Diameter in inches.
     :rtype: float
     """
+
     d_in = float(round(0.005 * 92 ** ((36 - int(awg)) / 39), 6))
     strand_count = _get_strand_count(awg, strands)
     d_mm = _solid_to_bundle(d_in * 25.4, strand_count)
+
     return float(round(d_mm / 25.4, 4))
 
 
 def awg_to_d_mm(awg: int | _d, strands: int | _d = 1) -> float:
-    """Convert AWG to approximate conductor diameter in millimetres.
+    """
+    Convert AWG to approximate conductor diameter in millimetres.
 
     :param awg: Wire gauge.
     :type awg: int | _d
@@ -221,13 +246,16 @@ def awg_to_d_mm(awg: int | _d, strands: int | _d = 1) -> float:
     :returns: Diameter in millimetres.
     :rtype: float
     """
+
     d_in = float(round(0.005 * 92 ** ((36 - int(awg)) / 39), 6))
     strand_count = _get_strand_count(awg, strands)
+
     return float(round(_solid_to_bundle(d_in * 25.4, strand_count), 4))
 
 
 def d_in_to_d_mm(d_in: float | _d, strands: int | _d = 1) -> float:  # NOQA
-    """Convert diameter in inches to millimetres.
+    """
+    Convert diameter in inches to millimetres.
 
     :param d_in: Diameter in inches.
     :type d_in: float | _d
@@ -236,11 +264,13 @@ def d_in_to_d_mm(d_in: float | _d, strands: int | _d = 1) -> float:  # NOQA
     :returns: Diameter in millimetres.
     :rtype: float
     """
+
     return float(round(float(d_in) * 25.4, 4))
 
 
 def d_mm_to_mm2(d_mm: float | _d, strands: int | _d = 1) -> float:  # NOQA
-    """Convert diameter in millimetres to area in mm².
+    """
+    Convert diameter in millimetres to area in mm².
 
     :param d_mm: Diameter in millimetres.
     :type d_mm: float | _d
@@ -249,11 +279,13 @@ def d_mm_to_mm2(d_mm: float | _d, strands: int | _d = 1) -> float:  # NOQA
     :returns: Cross-sectional area in mm².
     :rtype: float
     """
+
     return float(round(math.pi / 4 * float(d_mm) ** 2, 4))
 
 
 def mm2_to_d_mm(mm2: float | _d, strands: int | _d = 1) -> float:
-    """Convert area in mm² to approximate conductor diameter in millimetres.
+    """
+    Convert area in mm² to approximate conductor diameter in millimetres.
 
     :param mm2: Conductor area in square millimetres.
     :type mm2: float | _d
@@ -262,13 +294,16 @@ def mm2_to_d_mm(mm2: float | _d, strands: int | _d = 1) -> float:
     :returns: Approximate diameter in millimetres.
     :rtype: float
     """
+
     solid_d_mm = 2 * math.sqrt(float(mm2 / math.pi))
     strand_count = _get_strand_count(mm2_to_awg(mm2, strands=1), strands)
+
     return float(round(_solid_to_bundle(solid_d_mm, strand_count), 4))
 
 
 def mm2_to_d_in(mm2: float | _d, strands: int | _d = 1) -> float:
-    """Convert area in mm² to approximate conductor diameter in inches.
+    """
+    Convert area in mm² to approximate conductor diameter in inches.
 
     :param mm2: Conductor area in square millimetres.
     :type mm2: float | _d
@@ -277,11 +312,13 @@ def mm2_to_d_in(mm2: float | _d, strands: int | _d = 1) -> float:
     :returns: Approximate diameter in inches.
     :rtype: float
     """
+
     return float(round(mm2_to_d_mm(mm2, strands) / 25.4, 4))
 
 
 def d_mm_to_awg(d_mm: float | _d, strands: int | _d = 1) -> int:
-    """Convert diameter in millimetres to AWG.
+    """
+    Convert diameter in millimetres to AWG.
 
     :param d_mm: Diameter in millimetres.
     :type d_mm: float | _d
@@ -290,15 +327,18 @@ def d_mm_to_awg(d_mm: float | _d, strands: int | _d = 1) -> int:
     :returns: Rounded AWG value.
     :rtype: int
     """
+
     # Convert bundle diameter back to solid equivalent, then derive AWG
     approx_awg = mm2_to_awg(d_mm_to_mm2(float(d_mm), strands), strands=1)
     strand_count = _get_strand_count(approx_awg, strands)
     solid_d_mm = _bundle_to_solid(float(d_mm), strand_count)
+
     return mm2_to_awg(d_mm_to_mm2(solid_d_mm, strands), strands=1)
 
 
 def mm2_to_in2(mm2: float | _d, strands: int | _d = 1) -> float:  # NOQA
-    """Convert area in mm² to square inches.
+    """
+    Convert area in mm² to square inches.
 
     :param mm2: Area in square millimetres.
     :type mm2: float | _d
@@ -307,11 +347,13 @@ def mm2_to_in2(mm2: float | _d, strands: int | _d = 1) -> float:  # NOQA
     :returns: Area in square inches.
     :rtype: float
     """
+
     return float(round(mm2 / MM2_PER_IN2, 4))
 
 
 def in2_to_mm2(in2: float | _d, strands: int | _d = 1) -> float:  # NOQA
-    """Convert area in square inches to mm².
+    """
+    Convert area in square inches to mm².
 
     :param in2: Area in square inches.
     :type in2: float | _d
@@ -320,15 +362,18 @@ def in2_to_mm2(in2: float | _d, strands: int | _d = 1) -> float:  # NOQA
     :returns: Area in square millimetres.
     :rtype: float
     """
+
     return float(round(in2 * MM2_PER_IN2, 4))
 
 
 def get_appdata():
-    """Return the ``harness_designer`` application-data directory, creating it if needed.
+    """
+    Return the ``harness_designer`` application-data directory, creating it if needed.
 
     :returns: Absolute path to the per-user application-data directory.
     :rtype: str
     """
+
     user_profile = os.path.expanduser('~')
 
     if sys.platform.startswith('win'):
@@ -344,11 +389,13 @@ def get_appdata():
 
 
 def get_documents():
-    """Return the user's default documents directory.
+    """
+    Return the user's default documents directory.
 
     :returns: Absolute path to the documents directory.
     :rtype: str
     """
+
     documents = os.path.expanduser('~')
 
     if sys.platform.startswith('win'):
@@ -358,7 +405,8 @@ def get_documents():
 
 
 def HSizer(parent, label, ctrl) -> QHBoxLayout:
-    """Create a horizontal layout containing a label and control.
+    """
+    Create a horizontal layout containing a label and control.
 
     :param parent: Parent widget for the label.
     :type parent: PySide6.QtWidgets.QWidget
@@ -369,10 +417,12 @@ def HSizer(parent, label, ctrl) -> QHBoxLayout:
     :returns: Populated horizontal layout.
     :rtype: QHBoxLayout
     """
+
     layout = QHBoxLayout()
     lbl = QLabel(label, parent)
     layout.addWidget(lbl)
     layout.addWidget(ctrl)
+
     return layout
 
 
@@ -400,6 +450,7 @@ def remap(
     :param type_: what type to return the value as; `int`, `float` or `Decimal`
     :return: The new value mapped to the new range
     """
+
     value = _d(value)
     old_min = _d(old_min)
     old_max = _d(old_max)
@@ -431,6 +482,7 @@ def compute_edges(faces: np.ndarray) -> np.ndarray:
         Array of unique edges with shape (E, 2) where E is the number of edges.
         Each edge contains two vertex indices.
     """
+
     # Extract all edges from faces
     # Each triangle has 3 edges: (v0,v1), (v1,v2), (v2,v0)
     edges = np.concatenate(
@@ -452,20 +504,23 @@ def compute_edges(faces: np.ndarray) -> np.ndarray:
 
 
 def compute_aabb(verts):
-    """Compute an axis-aligned bounding box from vertex positions.
+    """
+    Compute an axis-aligned bounding box from vertex positions.
 
     :param verts: Vertex positions.
     :type verts: numpy.ndarray
     :returns: Minimum and maximum corner points.
     :rtype: tuple[_point.Point, _point.Point]
     """
+
     p1 = _point.Point(*verts.min(axis=0))
     p2 = _point.Point(*verts.max(axis=0))
     return p1, p2
 
 
 def compute_obb(p1, p2):
-    """Construct bounding-box corner coordinates from two opposite points.
+    """
+    Construct bounding-box corner coordinates from two opposite points.
 
     :param p1: Minimum corner.
     :type p1: _point.Point
@@ -474,6 +529,7 @@ def compute_obb(p1, p2):
     :returns: Eight corner coordinates.
     :rtype: numpy.ndarray
     """
+
     x1, y1, z1 = p1.as_float
     x2, y2, z2 = p2.as_float
 
@@ -491,13 +547,15 @@ def compute_obb(p1, p2):
 
 
 def convert_model_to_mesh(model):
-    """Triangulate a CAD model into vertex and face arrays.
+    """
+    Triangulate a CAD model into vertex and face arrays.
 
     :param model: Build123d/OCP model wrapper exposing ``wrapped`` and ``faces``.
     :type model: UNKNOWN
     :returns: Vertex and face arrays suitable for mesh processing.
     :rtype: tuple[numpy.ndarray, numpy.ndarray]
     """
+
     loc = TopLoc_Location()
     BRepMesh_IncrementalMesh(theShape=model.wrapped, theLinDeflection=0.001,
                              isRelative=True, theAngDeflection=0.1, isInParallel=True)
@@ -537,13 +595,15 @@ def convert_model_to_mesh(model):
 
 
 def adjust_aabb(aabb: np.ndarray) -> np.ndarray:
-    """Normalise an AABB array to explicit min/max rows.
+    """
+    Normalise an AABB array to explicit min/max rows.
 
     :param aabb: Bounding-box coordinates.
     :type aabb: numpy.ndarray
     :returns: Two-row array containing min and max coordinates.
     :rtype: numpy.ndarray
     """
+
     return np.array([aabb.min(axis=0), aabb.max(axis=0)], dtype=np.float32)
 
 
@@ -585,7 +645,6 @@ def compute_smooth_normals(
     vertices: np.ndarray,
     faces: np.ndarray
 ) -> list[np.ndarray, np.ndarray, int]:
-
     """
     Compute smoothed vertex normals by averaging face normals at each vertex.
 
@@ -634,7 +693,6 @@ def compute_smooth_normals(
 def compute_face_normals(
     vertices: np.ndarray, faces: np.ndarray
 ) -> list[np.ndarray, np.ndarray, int]:
-
     """
     Compute flat-shaded vertex normals (face normals replicated per vertex).
     For flat shading, each triangle gets its own vertices (no sharing).
@@ -730,6 +788,7 @@ def compute_normals(
 
 def compute_face_indexes(vertices):
     indices_array = np.arange(len(vertices), dtype=np.uint32)
+
     return indices_array
 
 
@@ -738,6 +797,7 @@ def unproject_from_ndc(ndc, inv_mvp):
     ndc: (x,y,z) in [-1,1]
     inv_mvp: inverse of P*MV (row-major)
     """
+
     clip = np.array([ndc[0], ndc[1], ndc[2], 1.0], dtype=np.float32)
 
     world = inv_mvp.dot(clip)
@@ -752,6 +812,7 @@ def get_position_on_focal_plane(
     mouse_pos: _point.Point,
     camera: "_camera.Camera"
 ) -> "_point.Point":
+
     vx, vy, vw, vh = camera.viewport
 
     ndc_x = (2.0 * (mouse_pos.x - vx) / vw) - 1.0
@@ -787,6 +848,7 @@ def closest_point_on_segment_to_ray(seg_p1, seg_p2, ray_origin, ray_dir):
     Uses the parametric formula for closest points between two 3D lines,
     then clamps the result to the line segment.
     """
+
     # Wire segment direction
     w = seg_p2 - seg_p1
     w_len = np.linalg.norm(w)
@@ -824,7 +886,8 @@ def closest_point_on_segment_to_ray(seg_p1, seg_p2, ray_origin, ray_dir):
 
 
 def _point_on_wire(mouse_pos: _point.Point, p1, p2, camera):
-    """Project a mouse ray onto the closest point along a wire segment.
+    """
+    Project a mouse ray onto the closest point along a wire segment.
 
     :param mouse_pos: Mouse position in viewport coordinates.
     :type mouse_pos: _point.Point
@@ -882,7 +945,6 @@ def get_closest_point_on_wire(
     camera: "_camera.Camera",
     wire: "_wire.Wire"
 ):
-
     """
     Find the closest point on a wire to where the user clicked.
 
@@ -894,6 +956,7 @@ def get_closest_point_on_wire(
     Returns:
         tuple: (closest_point, wire_angle) or (None, None)
     """
+
     # Get wire endpoints
     p1 = wire.obj3d.start_position.as_numpy
     p2 = wire.obj3d.stop_position.as_numpy
@@ -923,7 +986,8 @@ def get_closest_point_on_wire_endpoint(
     wire: "_wire.Wire",
     endpoint_tolerance=5.0
 ):
-    """Find whether a picked wire location lands on an existing endpoint.
+    """
+    Find whether a picked wire location lands on an existing endpoint.
 
     :param mouse_pos: Mouse position in viewport coordinates.
     :type mouse_pos: _point.Point

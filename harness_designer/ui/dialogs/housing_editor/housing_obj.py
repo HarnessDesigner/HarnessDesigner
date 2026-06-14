@@ -89,7 +89,7 @@ class Housing3D(_base3d.Base3D):
             angle3d = model.angle3d
             position3d = model.position3d
 
-            vbo = _vbo.VBOHandler(uuid)
+            vbo = _vbo.PooledVBOHandler(uuid)
 
         vbo.acquire()
 
