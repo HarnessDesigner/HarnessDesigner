@@ -73,7 +73,6 @@ class HousingAccessory3D(_base3d.Base3D):
 
         parent.dialog.mainframe.editor3d.context.acquire()
         vbo = _sphere.create_vbo()
-        vbo.acquire()
 
         material = _materials.Plastic(color)
 

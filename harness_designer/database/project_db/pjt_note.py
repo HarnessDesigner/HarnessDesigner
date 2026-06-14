@@ -280,29 +280,6 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
         self._populate('h_align2d')
 
     @property
-    def v_align2d(self) -> int:
-        """Return the v align 2D.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
-        :rtype: int
-        """
-        return self._table.select('v_align2d', id=self._db_id)[0][0]
-
-    @v_align2d.setter
-    def v_align2d(self, value: int):
-        """Set the v align 2D.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param value: Value to store or process.
-        :type value: int
-        """
-        self._table.update(self._db_id, v_align2d=value)
-        self._populate('v_align2d')
-
-    @property
     def style2d(self) -> int:
         """Return the style 2D.
 
@@ -393,29 +370,6 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
         """
         self._table.update(self._db_id, h_align3d=value)
         self._populate('h_align3d')
-
-    @property
-    def v_align3d(self) -> int:
-        """Return the v align 3D.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
-        :rtype: int
-        """
-        return self._table.select('v_align3d', id=self._db_id)[0][0]
-
-    @v_align3d.setter
-    def v_align3d(self, value: int):
-        """Set the v align 3D.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param value: Value to store or process.
-        :type value: int
-        """
-        self._table.update(self._db_id, v_align3d=value)
-        self._populate('v_align3d')
 
     @property
     def style3d(self) -> int:

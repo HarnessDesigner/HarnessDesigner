@@ -13,6 +13,7 @@ from ...ui.widgets import context_menus as _context_menus
 from . import base3d as _base3d
 from . import menu_ops as _menu_ops
 from ...gl import materials as _materials
+from ...gl import vbo as _vbo
 from ... import utils as _utils
 
 
@@ -51,12 +52,13 @@ class Note(_base3d.Base3D):
         position = db_obj.position3d
         color = db_obj.color.ui
         scale = _point.Point(1.0, 1.0, 1.0)
-        data = self._build()
-
         material = _materials.Plastic(color)
 
-        _base3d.Base3D.__init__(self, parent, db_obj, None, angle,
-                                position, scale, material, data)
+        parent.mainframe.editor3d.context.acquire()
+        packed, count = self._build()
+        vbo = _vbo.NonPooledVBOHandler(packed, count)
+        _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
+        parent.mainframe.editor3d.context.release()
 
     def _build(self):
         """Execute the build operation.
@@ -82,12 +84,7 @@ class Note(_base3d.Base3D):
         self.db_obj.notes = text
 
         self.editor3d.context.acquire()
-
-        self._gl_buf.update(*self._build())
-
-        self._compute_obb()
-        self._compute_aabb()
-
+        self._vbo.update(*self._build())
         self.editor3d.context.release()
         self.editor3d.Refresh()
 

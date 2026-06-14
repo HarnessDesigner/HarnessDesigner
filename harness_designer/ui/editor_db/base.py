@@ -197,29 +197,35 @@ class _EditorModel(QAbstractTableModel):
         :returns: Return value. UNKNOWN details.
         :rtype: UNKNOWN
         """
-        if not index.isValid():
-            return
 
-        row_id = index.row()
-        col_id = index.column()
-
-        if role == Qt.ItemDataRole.DecorationRole and col_id == 0:
-            return self._list._get_icon(row_id)  # NOQA
-
-        if role == Qt.ItemDataRole.DisplayRole:
-            if col_id == 0:
+        try:
+            if not index.isValid():
                 return
 
-            return self._list._get_cell_text(row_id, col_id)  # NOQA
+            row_id = index.row()
+            col_id = index.column()
 
-        if role == Qt.ItemDataRole.TextAlignmentRole:
-            col_key = col_id - 1
-            if col_key in self._list.column_mapping:
-                col_name = self._list.column_mapping[col_key][1]['alias']
-                if col_name == 'model3d_id':
-                    return Qt.AlignmentFlag.AlignCenter
+            if role == Qt.ItemDataRole.DecorationRole and col_id == 0:
+                return self._list._get_icon(row_id)  # NOQA
 
-            return Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+            if role == Qt.ItemDataRole.DisplayRole:
+                if col_id == 0:
+                    return
+
+                return self._list._get_cell_text(row_id, col_id)  # NOQA
+
+            if role == Qt.ItemDataRole.TextAlignmentRole:
+                col_key = col_id - 1
+                if col_key in self._list.column_mapping:
+                    col_name = self._list.column_mapping[col_key][1]['alias']
+                    if col_name == 'model3d_id':
+                        return Qt.AlignmentFlag.AlignCenter
+
+                return Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+        except:
+            import traceback
+            traceback.print_exc()
+            raise
 
     def invalidate_row(self, row_id):
         """Execute the invalidate row operation.

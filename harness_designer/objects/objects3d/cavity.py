@@ -63,7 +63,6 @@ class Cavity(_base3d.Base3D):
         else:
             vbo = _box.create_vbo()
 
-        vbo.acquire()
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
         parent.mainframe.editor3d.context.release()
 

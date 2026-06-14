@@ -442,7 +442,6 @@ class ProcessManager(threading.Thread):
 
         curr_progress_index = 0
         curr_progresses = []
-        start_progress = False
 
         while not self._exit_event.is_set():
             self._image_process.recv()
@@ -471,7 +470,6 @@ class ProcessManager(threading.Thread):
                         _logger.logger.info(message['log'])
                         continue
 
-                    model_id = message['id']
                     part_number = message['part_number']
 
                     if 'watchdog_restart' in message:
@@ -480,8 +478,6 @@ class ProcessManager(threading.Thread):
                         # Persist blocking error to resource_state.
                         model_db, resource_db = self._model_processes_running
                         self._model_processes_running[i - offset] = None
-
-                        resource_db.set_error(**message)
 
                         is_primary = message['is_primary']
 
@@ -494,7 +490,9 @@ class ProcessManager(threading.Thread):
                             else:
                                 message['step'] = 0
 
-                        def _do(msg):
+                        def _do(msg, rdb):
+                            rdb.set_error(**msg)
+
                             dlg = _error.ErrorDialog(
                                 self.mainframe,
                                 json.dumps(msg, indent=4),
@@ -502,7 +500,7 @@ class ProcessManager(threading.Thread):
 
                             dlg.exec()
 
-                        _app.CallAfter(_do, message)
+                        _app.CallAfter(_do, message, resource_db)
 
                         if part_number in self._model_progress:
                             del self._model_progress[part_number]
@@ -547,13 +545,11 @@ class ProcessManager(threading.Thread):
 
                         model_db, resource_db = self._model_processes_running[i - offset]
 
-                        # Persist error and optionally release claim.
-                        if model_id is not None and 'err_msg' in message:
-                            resource_db.set_error(**message)
-
                         from ..ui.dialogs import error as _error
 
-                        def _do(msg):
+                        def _do(msg, rdb):
+                            rdb.set_error(**msg)
+
                             dlg = _error.ErrorDialog(
                                 self.mainframe,
                                 json.dumps(msg, indent=4),
@@ -561,7 +557,7 @@ class ProcessManager(threading.Thread):
 
                             dlg.exec()
 
-                        _app.CallAfter(_do, message)
+                        _app.CallAfter(_do, message, resource_db)
                         self._model_process_active -= 1
                         self._model_processes_running[i - offset] = None
 
@@ -581,54 +577,50 @@ class ProcessManager(threading.Thread):
                                 self.mainframe.end_progress_bar()
 
                             _app.CallAfter(_do)
-                            start_progress = False
 
                         continue
-                    else:
-                        step = message['step']
 
-                        model_db, resource_db = self._model_processes_running[i - offset]
+                    step = message['step']
 
-                        # Update resource_state progress in parent.
-                        resource_db.update_progress(step)
+                    model_db, resource_db = self._model_processes_running[i - offset]
+                    start_progress = False
 
-                        def _do(stp, pn, start):
-                            if start:
-                                self.mainframe.start_progress('', 11)
+                    def _do(stp, mdb, rdb, pn, start):
+                        if start:
+                            self.mainframe.start_progress('', 11)
 
+                        if stp == 11:
+                            rdb.delete()
+                            mdb.download_complete()
+                        else:
                             self.mainframe.set_progress(stp, pn)
 
-                        if step == 1:
-                            curr_progresses.insert(curr_progress_index, part_number)
-                            if not self._model_progress:
-                                start_progress = True
+                            # Update resource_state progress in parent.
+                            rdb.update_progress(stp)
 
+                    if step == 1:
+                        curr_progresses.insert(curr_progress_index, part_number)
+                        if not self._model_progress:
+                            start_progress = True
+
+                    if step == 11:
+                        index = curr_progresses.index(part_number)
+                        if curr_progress_index >= index:
+                            curr_progress_index -= 1
+
+                        curr_progresses.remove(part_number)
+                        del self._model_progress[part_number]
+
+                        self._model_processes_running[i - offset] = None
+                        self._model_process_active -= 1
+
+                        if self._model_process_active:
+                            start_progress = True
+
+                    else:
                         self._model_progress[part_number] = step
 
-                        if step == 11:
-                            index = curr_progresses.index(part_number)
-                            if curr_progress_index >= index:
-                                curr_progress_index -= 1
-
-                            curr_progresses.remove(part_number)
-                            del self._model_progress[part_number]
-
-                            def _do2(model_db_, resource_db_):
-                                resource_db_.delete()
-                                model_db_.download_complete()
-
-                            _app.CallAfter(_do2, *self._model_processes_running[i - offset])
-
-                            self._model_processes_running[i - offset] = None
-
-                            self._model_process_active -= 1
-
-                            if self._model_process_active:
-                                start_progress = True
-
-                        _app.CallAfter(_do, step, part_number, start_progress)
-
-                        start_progress = False
+                    _app.CallAfter(_do, step, model_db, resource_db, part_number, start_progress)
 
             if got_message:
                 continue

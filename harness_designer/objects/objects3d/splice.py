@@ -128,8 +128,6 @@ class Splice(_base3d.Base3D):
 
         position = self._p1
 
-        vbo.acquire()
-
         material = _materials.Rubber(self._part.color.ui)
 
         _base3d.Base3D.__init__(

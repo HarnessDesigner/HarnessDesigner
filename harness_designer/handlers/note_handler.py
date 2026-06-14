@@ -51,7 +51,7 @@ class AddNoteHandler(_handler_base.HandlerBase):
         position = self.ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
 
         db_obj = self.ptables.pjt_notes_table.insert(
-            position.db_id, None, note, size, style, align, color_id)
+            position.db_id, None, note, size, align, style, color_id)
 
         self.obj = _note.Note(mainframe, db_obj)
         self.obj.identify(self._preview_material)

@@ -53,7 +53,6 @@ class BundleLayout(_base3d.Base3D):
 
         scale = _point.Point(self._diameter, self._diameter, self._diameter)
         vbo = _sphere.create_vbo()
-        vbo.acquire()
         angle = _angle.Angle()
         position = db_obj.position3d
 

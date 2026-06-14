@@ -189,11 +189,6 @@ class Arrows3D(_base3d.Base3D):
             mainframe: MainFrame reference
             aabb: The object's axis-aligned bounding box for sizing calculations
         """
-        # CRITICAL: Set OpenGL context before creating VBO
-        with mainframe.editor3d.context:
-            vbo = _arrow.create_vbo()
-            vbo.acquire()
-
         # Create cyan material
         color = _color.Color(0, 170, 170, 255)
         material = _materials.Glowing(color)
@@ -250,8 +245,11 @@ class Arrows3D(_base3d.Base3D):
         # anchor by the ground plane
         self._floor_guard = True
 
+        mainframe.editor3d.context.acquire()
+        vbo = _arrow.create_vbo()
         _base3d.Base3D.__init__(self, parent, None, vbo,
                                 arrow_angle, position, scale, material)
+        mainframe.editor3d.context.release()
 
         self._floor_guard = False
         self._compute_aabb()

@@ -57,7 +57,6 @@ class WireLayout(_base3d.Base3D):
         vbo = _sphere.create_vbo()
         angle = _angle.Angle()
         position = db_obj.position3d
-        vbo.acquire()
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
         parent.mainframe.editor3d.context.acquire()
 

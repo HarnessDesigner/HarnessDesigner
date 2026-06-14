@@ -112,8 +112,6 @@ class Seal(_base3d.Base3D):
             vbo = _box.create_vbo()
             scale = _point.Point(self._part.width, self._part.height, self._part.length)
 
-        vbo.acquire()
-
         material = _materials.Rubber(self._part.color.ui)
         angle = db_obj.angle3d
 

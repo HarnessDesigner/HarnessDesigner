@@ -91,8 +91,6 @@ class Housing3D(_base3d.Base3D):
 
             vbo = _vbo.PooledVBOHandler(uuid)
 
-        vbo.acquire()
-
         material = _materials.Plastic(
             _color.Color(0.6, 0.6, 0.8, 1.0))
 

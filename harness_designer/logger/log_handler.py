@@ -194,7 +194,7 @@ class LogHandler:
             # Append to CSV file
             data = df.to_csv(header=False, index=False, encoding='utf-8', lineterminator='\n')
             self._logfile.write(data)
-
+            self._logfile.flush()
             # Update file size
             self._current_size += len(data.encode('utf-8'))
 

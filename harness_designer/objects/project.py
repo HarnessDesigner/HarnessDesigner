@@ -25,6 +25,7 @@ from . import wire_layout as _wire_layout
 from . import wire_marker as _wire_marker
 from . import wire_service_loop as _wire_service_loop
 from .. import config as _config
+from .. import logger as _logger
 
 
 if TYPE_CHECKING:
@@ -55,6 +56,8 @@ class Project:
         :param project_id: Identifier for the project.
         :type project_id: int
         """
+
+        _logger.logger.info(f'project loading - db_id: {project_id}, name: {project_name}')
         self.db_obj = db_obj
 
         self.mainframe = mainframe
@@ -104,186 +107,130 @@ class Project:
         db_ids = {}
         count = 0
 
-        with self.mainframe.editor3d.context:
-            for wire_service_loop in ptables.pjt_wire_service_loops_table:
-                count += 1
-                mainframe.set_progress(count, 'Loading Wire Service Loop...')
+        def _load_objects(table_, label, obj_cls, ids_, container,
+                          add_func, cur_count, max_count):
+            # helper function for loading a project
 
-                obj = _wire_service_loop.WireServiceLoop(mainframe, wire_service_loop)
-                wire_service_loop.merge_packet_data(wire_service_loop.build_monitor_packet(), db_ids)
-                self._wire_service_loops[wire_service_loop.db_id] = obj
+            for db_obj_ in table_:
+                cur_count += 1
+                if cur_count < max_count:
+                    mainframe.set_progress(cur_count, f'Loading {label}...')
+                else:
+                    mainframe.set_progress(max_count - 1, f'Loading {label}...')
 
-                mainframe.object_browser.add_wire_service_loop(obj)
+                gui_obj = obj_cls(mainframe, db_obj_)
+                db_obj_.merge_packet_data(db_obj_.build_monitor_packet(), ids_)
+                container[db_obj_.db_id] = gui_obj
 
-            for wire_marker in ptables.pjt_wire_markers_table:
-                count += 1
-                mainframe.set_progress(count, 'Loading Wire Marker...')
+                if add_func is not None:
+                    add_func(gui_obj)
 
-                obj = _wire_marker.WireMarker(mainframe, wire_marker)
-                wire_marker.merge_packet_data(wire_marker.build_monitor_packet(), db_ids)
-                self._wire_markers[wire_marker.db_id] = obj
+                _logger.logger.info(f'{label} Loaded - db_id: {db_obj_.db_id}')
 
-                mainframe.object_browser.add_wire_marker(obj)
+            return cur_count
 
-            for note in ptables.pjt_notes_table:
-                count += 1
-                mainframe.set_progress(count, 'Loading Note...')
+        count = _load_objects(
+            ptables.pjt_wire_service_loops_table, 'Wire Service Loop',
+            _wire_service_loop.WireServiceLoop, db_ids, self._wire_service_loops,
+            mainframe.object_browser.add_wire_service_loop, count, self._obj_count)
 
-                obj = _note.Note(mainframe, note)
-                note.merge_packet_data(note.build_monitor_packet(), db_ids)
-                self._notes[note.db_id] = obj
+        count = _load_objects(
+            ptables.pjt_wire_markers_table, 'Wire Marker',
+            _wire_marker.WireMarker, db_ids, self._wire_markers,
+            mainframe.object_browser.add_wire_marker, count, self._obj_count)
 
-                mainframe.object_browser.add_note(obj)
+        count = _load_objects(
+            ptables.pjt_notes_table, 'Note',
+            _note.Note, db_ids, self._notes,
+            mainframe.object_browser.add_note, count, self._obj_count)
 
-            for circuit in ptables.pjt_circuits_table:
-                count += 1
-                mainframe.set_progress(count, 'Loading Circuit...')
+        count = _load_objects(
+            ptables.pjt_circuits_table, 'Circuit',
+            _circuit.Circuit, db_ids, self._circuits,
+            mainframe.object_browser.add_circuit, count, self._obj_count)
 
-                obj = _circuit.Circuit(mainframe, circuit)
-                circuit.merge_packet_data(circuit.build_monitor_packet(), db_ids)
-                self._circuits[circuit.db_id] = obj
+        count = _load_objects(
+            ptables.pjt_boots_table, 'Boot',
+            _boot.Boot, db_ids, self._boots,
+            mainframe.object_browser.add_boot, count, self._obj_count)
 
-                mainframe.object_browser.add_circuit(obj)
+        count = _load_objects(
+            ptables.pjt_covers_table, 'Cover',
+            _cover.Cover, db_ids, self._covers,
+            mainframe.object_browser.add_cover, count, self._obj_count)
 
-            for boot in ptables.pjt_boots_table:
-                count += 1
-                mainframe.set_progress(count, 'Loading Boot...')
+        count = _load_objects(
+            ptables.pjt_cpa_locks_table, 'CPA Lock',
+            _cpa_lock.CPALock, db_ids, self._cpa_locks,
+            mainframe.object_browser.add_cpa_lock, count, self._obj_count)
 
-                obj = _boot.Boot(mainframe, boot)
-                boot.merge_packet_data(boot.build_monitor_packet(), db_ids)
-                self._boots[boot.db_id] = obj
+        count = _load_objects(
+            ptables.pjt_tpa_locks_table, 'TPA Lock',
+            _tpa_lock.TPALock, db_ids, self._tpa_locks,
+            mainframe.object_browser.add_tpa_lock, count, self._obj_count)
 
-                mainframe.object_browser.add_boot(obj)
+        count = _load_objects(
+            ptables.pjt_seals_table, 'Seal',
+            _seal.Seal, db_ids, self._seals,
+            mainframe.object_browser.add_seal,
+            count, self._obj_count)
 
-            for cover in ptables.pjt_covers_table:
-                count += 1
-                mainframe.set_progress(count, 'Loading Cover...')
+        count = _load_objects(
+            ptables.pjt_terminals_table, 'Terminal',
+            _terminal.Terminal, db_ids, self._terminals,
+            mainframe.object_browser.add_terminal, count, self._obj_count)
 
-                obj = _cover.Cover(mainframe, cover)
-                cover_packet = cover.build_monitor_packet()
-                cover.merge_packet_data(cover_packet, db_ids)
-                self._covers[cover.db_id] = obj
+        count = _load_objects(
+            ptables.pjt_transitions_table, 'Transition',
+            _transition.Transition, db_ids, self._transitions,
+            mainframe.object_browser.add_transition, count, self._obj_count)
 
-                mainframe.object_browser.add_cover(obj)
+        count = _load_objects(
+            ptables.pjt_housings_table, 'Housing',
+            _housing.Housing, db_ids, self._housings,
+            mainframe.object_browser.add_housing, count, self._obj_count)
 
-            for cpa_lock in ptables.pjt_cpa_locks_table:
-                count += 1
-                mainframe.set_progress(count, 'Loading CPA Lock...')
+        count = _load_objects(
+            ptables.pjt_cavities_table, 'Cavity',
+            _cavity.Cavity, db_ids, self._cavities,
+            mainframe.object_browser.add_cavity, count, self._obj_count)
 
-                obj = _cpa_lock.CPALock(mainframe, cpa_lock)
-                cpa_lock.merge_packet_data(cpa_lock.build_monitor_packet(), db_ids)
-                self._cpa_locks[cpa_lock.db_id] = obj
+        count = _load_objects(
+            ptables.pjt_splices_table, 'Splice',
+            _splice.Splice, db_ids, self._splices,
+            mainframe.object_browser.add_splice, count, self._obj_count)
 
-                mainframe.object_browser.add_cpa_lock(obj)
+        count = _load_objects(
+            ptables.pjt_wires_table, 'Wire',
+            _wire.Wire, db_ids, self._wires,
+            mainframe.object_browser.add_wire, count, self._obj_count)
 
-            for tpa_lock in ptables.pjt_tpa_locks_table:
-                count += 1
-                mainframe.set_progress(count, 'Loading TPA Lock...')
+        count = _load_objects(
+            ptables.pjt_wire_layouts_table, 'Wire Layout',
+            _wire_layout.WireLayout, db_ids, self._wire_layouts,
+            None, count, self._obj_count)
 
-                obj = _tpa_lock.TPALock(mainframe, tpa_lock)
-                tpa_lock.merge_packet_data(tpa_lock.build_monitor_packet(), db_ids)
-                self._tpa_locks[tpa_lock.db_id] = obj
+        count = _load_objects(
+            ptables.pjt_bundles_table, 'Bundle',
+            _bundle.Bundle, db_ids, self._bundles,
+            mainframe.object_browser.add_bundle, count, self._obj_count)
 
-                mainframe.object_browser.add_tpa_lock(obj)
-
-            for seal in ptables.pjt_seals_table:
-                count += 1
-                mainframe.set_progress(count, 'Loading Seal...')
-
-                obj = _seal.Seal(mainframe, seal)
-                seal.merge_packet_data(seal.build_monitor_packet(), db_ids)
-                self._seals[seal.db_id] = obj
-
-                mainframe.object_browser.add_seal(obj)
-
-            for terminal in ptables.pjt_terminals_table:
-                count += 1
-                mainframe.set_progress(count, 'Loading Terminal...')
-
-                obj = _terminal.Terminal(mainframe, terminal)
-                terminal.merge_packet_data(terminal.build_monitor_packet(), db_ids)
-                self._terminals[terminal.db_id] = obj
-
-                mainframe.object_browser.add_terminal(obj)
-
-            for transition in ptables.pjt_transitions_table:
-                count += 1
-                mainframe.set_progress(count, 'Loading Transition...')
-
-                obj = _transition.Transition(mainframe, transition)
-                transition.merge_packet_data(transition.build_monitor_packet(), db_ids)
-                self._transitions[transition.db_id] = obj
-
-                mainframe.object_browser.add_transition(obj)
-
-            for housing in ptables.pjt_housings_table:
-                count += 1
-                mainframe.set_progress(count, 'Loading Housing...')
-
-                obj = _housing.Housing(mainframe, housing)
-                housing_packet = housing.build_monitor_packet()
-                housing.merge_packet_data(housing_packet, db_ids)
-                self._housings[housing.db_id] = obj
-
-                mainframe.object_browser.add_housing(obj)
-
-            for cavity in ptables.pjt_cavities_table:
-                count += 1
-                mainframe.set_progress(count, 'Loading Cavity...')
-
-                obj = _cavity.Cavity(mainframe, cavity)
-                housing.merge_packet_data(cavity.build_monitor_packet(), db_ids)
-                self._cavities[cavity.db_id] = obj
-
-                mainframe.object_browser.add_cavity(obj)
-
-            for splice in ptables.pjt_splices_table:
-                count += 1
-                mainframe.set_progress(count, 'Loading Splice...')
-
-                obj = _splice.Splice(mainframe, splice)
-                splice.merge_packet_data(splice.build_monitor_packet(), db_ids)
-                self._splices[splice.db_id] = obj
-
-                mainframe.object_browser.add_splice(obj)
-
-            for wire in ptables.pjt_wires_table:
-                count += 1
-                mainframe.set_progress(count, 'Loading Wire...')
-
-                obj = _wire.Wire(mainframe, wire)
-                wire.merge_packet_data(wire.build_monitor_packet(), db_ids)
-                self._wires[wire.db_id] = obj
-
-                mainframe.object_browser.add_wire(obj)
-
-            for layout in ptables.pjt_wire_layouts_table:
-                count += 1
-                mainframe.set_progress(count, 'Loading Wire Layout...')
-
-                obj = _wire_layout.WireLayout(mainframe, layout)
-                layout.merge_packet_data(layout.build_monitor_packet(), db_ids)
-                self._wire_layouts[layout.db_id] = obj
-
-            for bundle in ptables.pjt_bundles_table:
-                count += 1
-                mainframe.set_progress(count, 'Loading Bundle...')
-
-                obj = _bundle.Bundle(mainframe, bundle)
-                bundle.merge_packet_data(bundle.build_monitor_packet(), db_ids)
-                self._bundles[bundle.db_id] = obj
-
-                mainframe.object_browser.add_bundle(obj)
-
-            for layout in ptables.pjt_bundle_layouts_table:
-                count += 1
-                mainframe.set_progress(count, 'Loading Bundle Layout...')
-
-                obj = _bundle_layout.BundleLayout(mainframe, layout)
-                layout.merge_packet_data(layout.build_monitor_packet(), db_ids)
-                self._bundle_layouts[layout.db_id] = obj
+        count = _load_objects(
+            ptables.pjt_bundle_layouts_table, 'Bundle Layout',
+            _bundle_layout.BundleLayout, db_ids, self._bundle_layouts,
+            None, count, self._obj_count)
 
         mainframe.set_progress(self._obj_count, 'DONE!')
+
+        if self._obj_count != count:
+            _logger.logger.warning(
+                f'project object count inconsistant, correcting mismatch. '
+                f'stored count: {self._obj_count}  actual count: {count}')
+
+        self._obj_count = count
+        self.obj_count = count
+
+        _logger.logger.info(f'project loaded: object count: {count}')
 
         for table_name, ids in db_ids.items():
             while None in ids:

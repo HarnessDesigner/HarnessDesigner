@@ -70,7 +70,6 @@ class Bundle(_base3d.Base3D):
         angle = _angle.Angle()
         scale = _point.Point(self._diameter, self._diameter, 0.0)
         vbo = _cylinder.create_vbo()
-        vbo.acquire()
 
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
 

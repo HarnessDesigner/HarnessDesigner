@@ -236,7 +236,6 @@ class Transition(_base3d.Base3D):
         self._model = _build_model(self._part, branches)
 
         self._vertices, self._faces = _utils.convert_model_to_mesh(self._model)
-        packed, count = _utils.compute_normals(self._vertices, self._faces)
 
         for branch in branches:
             with branch.position:
@@ -249,8 +248,13 @@ class Transition(_base3d.Base3D):
         self._branch_diams = branch_diams
 
         scale = _point.Point(1.0, 1.0, 1.0)
-        _base3d.Base3D.__init__(self, parent, db_obj, None, angle, db_obj.position3d,
-                                scale, material, [packed, count])
+
+        parent.mainframe.editor3d.context.acquire()
+        packed, count = _utils.compute_normals(self._vertices, self._faces)
+        vbo = _vbo.NonPooledVBOHandler(packed, count)
+        _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, db_obj.position3d,
+                                scale, material)
+        parent.mainframe.editor3d.context.release()
 
     def build(self):
         """Execute the build operation.
@@ -273,10 +277,11 @@ class Transition(_base3d.Base3D):
             branch.position += self._position
 
         self._vertices, self._faces = _utils.convert_model_to_mesh(self._model)
-        packed, count = _utils.compute_smooth_normals(self._vertices, self._faces)
 
-        self._gl_buf.update(packed, count)
-
+        self.editor3d.context.acquire()
+        packed, count = _utils.compute_normals(self._vertices, self._faces)
+        self._vbo.update(packed, count)
+        self.editor3d.context.release()
         self.editor3d.update()
 
     def _update_angle(self, angle: _angle.Angle):
@@ -372,7 +377,6 @@ class Branch(_base3d.Base3D):
         color = _color.Color(1.0, 0.3, 0.3, 1.0)
         material = _materials.Rubber(color)
 
-        vbo.acquire()
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position,
                                 scale, material)
         parent.mainframe.editor3d.context.release()

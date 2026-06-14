@@ -81,7 +81,6 @@ class WireMarker(_base3d.Base3D):
         wire_p1.bind(self._update_position)
         wire_p2.bind(self._update_position)
 
-        vbo.acquire()
         _base3d.Base3D.__init__(
             self, parent, db_obj, vbo, angle, db_obj.position3d, scale, material)
 

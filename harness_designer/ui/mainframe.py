@@ -747,12 +747,15 @@ class MainFrame(QMainWindow):
         :param event: Event object.
         :type event: UNKNOWN
         """
-        # super().showEvent(event)
+        super().showEvent(event)
 
         if self._splash is not None:
             self._splash.Destroy()
             self._splash = None
 
+        QTimer.singleShot(0, self._open_project)
+
+    def _open_project(self):
         from ..objects import project as _proj
 
         self.editor_db.load_db(self.global_db)

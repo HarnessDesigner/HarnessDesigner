@@ -18,7 +18,6 @@ X middle, Y outermost — verified numerically):
 """
 
 import math
-import ctypes
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -32,6 +31,7 @@ from ...objects import object_base as _object_base
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ...gl import materials as _materials
+from ...gl import vbo as _vbo
 from ... import utils as _utils
 from ... import color as _color
 from ... import config as _config
@@ -86,104 +86,6 @@ def _build_handle_mesh() -> tuple[np.ndarray, int]:
     """Build the unit-diameter handle sphere mesh."""
     vertices, faces = _sphere.create(0.5, resolution=HANDLE_RESOLUTION)
     return _utils.compute_normals(vertices, faces)
-
-
-def _data_views(packed: np.ndarray, count: int) -> list:
-    """Slice a packed mesh into the ``Base3D._data`` block layout."""
-    n = count * 3
-    return [packed[0:n], packed[n:2 * n], packed[2 * n:3 * n], count]
-
-
-class _GizmoBuffer:
-    """A private single-buffer mesh outside the managed VBO arena.
-
-    The shader pipeline reads all three vertex attributes from ONE buffer
-    at byte offsets (positions / smooth normals / face normals packed end
-    to end), with the offsets baked into a VAO — the same layout
-    :class:`gl.vbo.PooledVBOHandler` uses. The gizmo owns its own small buffer
-    instead of an arena allocation so dimension config changes can
-    re-upload the mesh in real time without buffer-pool management.
-
-    GL objects are created lazily inside ``draw()`` (the context is current
-    during rendering) and re-created after every mesh update.
-    """
-
-    def __init__(self, packed: np.ndarray, count: int):
-        # full copy — _data views into the same array are exposed to Base3D
-        # bookkeeping and must never alias the upload data
-        self._packed = np.array(packed, dtype=np.float32, copy=True)
-        self.count = int(count)
-
-        self._buffer = None
-        self._vao = None
-        self._dirty = True
-
-    def update(self, packed: np.ndarray, count: int):
-        """Replace the mesh; the GPU re-upload happens on the next draw."""
-        self._packed = np.array(packed, dtype=np.float32, copy=True)
-        self.count = int(count)
-        self._dirty = True
-
-    def _upload(self):
-        """(Re)upload the packed mesh and bake the VAO offsets."""
-        if self._buffer is None:
-            self._buffer = GL.glGenBuffers(1)
-
-        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self._buffer)
-        GL.glBufferData(GL.GL_ARRAY_BUFFER, self._packed.nbytes,
-                        self._packed, GL.GL_DYNAMIC_DRAW)
-
-        if self._vao is None:
-            self._vao = GL.glGenVertexArrays(1)
-
-        block = self.count * 3 * self._packed.itemsize
-
-        GL.glBindVertexArray(self._vao)
-        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self._buffer)
-
-        GL.glEnableVertexAttribArray(0)
-        GL.glVertexAttribPointer(0, 3, GL.GL_FLOAT, GL.GL_FALSE, 0,
-                                 ctypes.c_void_p(0))
-
-        GL.glEnableVertexAttribArray(1)
-        GL.glVertexAttribPointer(1, 3, GL.GL_FLOAT, GL.GL_FALSE, 0,
-                                 ctypes.c_void_p(block))
-
-        GL.glEnableVertexAttribArray(2)
-        GL.glVertexAttribPointer(2, 3, GL.GL_FLOAT, GL.GL_FALSE, 0,
-                                 ctypes.c_void_p(2 * block))
-
-        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-        GL.glBindVertexArray(0)
-
-        self._dirty = False
-
-    def draw(self):
-        """Bind the VAO and issue the draw call (GL context must be current)."""
-        if self._dirty:
-            self._upload()
-
-        GL.glBindVertexArray(self._vao)
-        GL.glDrawArrays(GL.GL_TRIANGLES, 0, self.count)
-        GL.glBindVertexArray(0)
-
-    def delete(self):
-        """Free the GL objects (GL context must be current)."""
-        if self._vao is not None:
-            try:
-                GL.glDeleteVertexArrays(1, [self._vao])
-            except Exception:  # NOQA
-                pass
-            self._vao = None
-
-        if self._buffer is not None:
-            try:
-                GL.glDeleteBuffers(1, [self._buffer])
-            except Exception:  # NOQA
-                pass
-            self._buffer = None
-
-        self._dirty = True
 
 
 def wrap_angle(value: float) -> float:
@@ -418,18 +320,10 @@ class Rings3D(_base3d.Base3D):
         """
         obj3d = selected.obj3d
 
-        # Private single-buffer meshes outside the managed VBO arena — no GL
-        # context required to build them, and dimension config changes can
-        # rebuild + re-upload them in real time
+        # Build mesh data first (CPU only — no context needed yet)
         ring_packed, ring_count = _build_ring_mesh(
             Config.rotation_rings.tube_diameter_scale)
         handle_packed, handle_count = _build_handle_mesh()
-
-        self._ring_buf = _GizmoBuffer(ring_packed, ring_count)
-        self._handle_buf = _GizmoBuffer(handle_packed, handle_count)
-
-        # Base3D uses _data (vbo=None path) for its aabb/obb bookkeeping
-        self._ring_mesh = _data_views(ring_packed, ring_count)
 
         # Plastic is a lit material so the rings shade with the scene
         # lights (Glowing is emissive/flat — fine for arrows, ugly on tubes).
@@ -472,9 +366,19 @@ class Rings3D(_base3d.Base3D):
         # object (and write it to the database)
         self._floor_guard = True
 
+        mainframe.editor3d.context.acquire()
+
+        self._ring_buf = _vbo.NonPooledVBOHandler(ring_packed, ring_count)
+        self._ring_buf.acquire()
+
+        self._handle_buf = _vbo.NonPooledVBOHandler(handle_packed, handle_count)
+        self._handle_buf.acquire()
+
+        # vbo=None: Rings3D overrides render()/_compute_aabb()/_compute_obb()
         _base3d.Base3D.__init__(self, parent, None, None,
-                                angle, obj3d.position, scale, material,
-                                data=self._ring_mesh)
+                                angle, obj3d.position, scale, material)
+
+        mainframe.editor3d.context.release()
 
         self._floor_guard = False
         self._is_visible = True
@@ -515,9 +419,6 @@ class Rings3D(_base3d.Base3D):
         if old_sig[2] != self._config_sig[2]:
             packed, count = _build_ring_mesh(self._config_sig[2])
             self._ring_buf.update(packed, count)
-
-            self._ring_mesh = _data_views(packed, count)
-            self._data = self._ring_mesh
 
         if old_sig[3:] != self._config_sig[3:]:
             self._build_materials()
@@ -575,8 +476,8 @@ class Rings3D(_base3d.Base3D):
 
         try:
             with self.editor3d.context:
-                self._ring_buf.delete()
-                self._handle_buf.delete()
+                self._ring_buf.release()
+                self._handle_buf.release()
         except Exception:  # NOQA
             # Context may be unavailable during shutdown — the buffers die
             # with the context in that case
@@ -696,7 +597,7 @@ class Rings3D(_base3d.Base3D):
             GL.glUniform3f(pos_loc, *position)
             GL.glUniform4f(rot_loc, *self._ring_quats[axis])
             GL.glUniform3f(scale_loc, self._radius, self._radius, self._radius)
-            self._ring_buf.draw()
+            self._ring_buf.render()
 
             # Grab handle
             handle = self.handle_position(axis)
@@ -704,7 +605,7 @@ class Rings3D(_base3d.Base3D):
             GL.glUniform4f(rot_loc, 1.0, 0.0, 0.0, 0.0)
             GL.glUniform3f(scale_loc, self._handle_scale,
                            self._handle_scale, self._handle_scale)
-            self._handle_buf.draw()
+            self._handle_buf.render()
 
         if reflect_loc != -1:
             config = self.editor3d.config

@@ -82,8 +82,6 @@ class Terminal(_base3d.Base3D):
         else:
             vbo = _box.create_vbo()
 
-        vbo.acquire()
-
         scale = _point.Point(self._part.width, self._part.height, self._part.length)
         angle = db_obj.angle3d
 

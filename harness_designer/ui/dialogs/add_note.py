@@ -12,16 +12,16 @@ from . import dialog_base as _dialog_base
 
 
 TEXT_ALIGN = ['Left', 'Center', 'Right']
-TEXT_ALIGN_MAPPING = [build123d.TextAlign.LEFT,
-                      build123d.TextAlign.CENTER,
-                      build123d.TextAlign.RIGHT]
+TEXT_ALIGN_MAPPING = [build123d.TextAlign.LEFT.value,
+                      build123d.TextAlign.CENTER.value,
+                      build123d.TextAlign.RIGHT.value]
 
 
 FONT_STYLE = ['Regular', 'Bold', 'Italic', 'Bold Italic']
-FONT_STYLE_MAPPING = [build123d.FontStyle.REGULAR,
-                      build123d.FontStyle.BOLD,
-                      build123d.FontStyle.ITALIC,
-                      build123d.FontStyle.BOLDITALIC]
+FONT_STYLE_MAPPING = [build123d.FontStyle.REGULAR.value,
+                      build123d.FontStyle.BOLD.value,
+                      build123d.FontStyle.ITALIC.value,
+                      build123d.FontStyle.BOLDITALIC.value]
 
 
 class AddNoteDialog(_dialog_base.BaseDialog):
@@ -86,8 +86,8 @@ class AddNoteDialog(_dialog_base.BaseDialog):
         :returns: note, align, style, size
         :rtype: tuple[str, int, int, int]
         """
-        align = TEXT_ALIGN_MAPPING[self.align_ctrl.GetSelection()].value
-        style = FONT_STYLE_MAPPING[self.style_ctrl.GetSelection()].value
+        align = TEXT_ALIGN_MAPPING[self.align_ctrl.GetSelection()]
+        style = FONT_STYLE_MAPPING[self.style_ctrl.GetSelection()]
 
         color = self.color_ctrl.GetColor()
         color_id = int(color.db_id)

@@ -49,7 +49,6 @@ class CPALock(_base3d.Base3D):
         model = self._part.model3d
 
         vbo = _sphere.create_vbo()
-        vbo.acquire()
 
         scale = _point.Point(3.0, 3.0, 3.0)
         material = _materials.Plastic(self._part.color.ui)

@@ -67,7 +67,6 @@ class WireServiceLoop(_base3d.Base3D):
 
             position2.z = tmp_position.z
 
-        vbo.acquire()
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
 
         self._p1 = position

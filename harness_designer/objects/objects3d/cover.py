@@ -51,7 +51,6 @@ class Cover(_base3d.Base3D):
         model = self._part.model3d
 
         vbo = _box.create_vbo()
-        vbo.acquire()
 
         width = self._part.width
         height = self._part.height

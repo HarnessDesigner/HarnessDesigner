@@ -79,7 +79,6 @@ class Wire(_base3d.Base3D):
         else:
             self._stripe = WireStripe(parent, self, stripe_color.ui, scale, angle, position)
 
-        vbo.acquire()
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
 
         self._update_position(None)

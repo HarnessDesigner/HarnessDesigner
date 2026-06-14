@@ -129,7 +129,7 @@ class Base2D:
         """
         return self._is_selected
 
-    def render_gl(self, program: int, proj, view) -> None:
+    def render_gl(self) -> None:
         """
         Render this object using the schematic2d shader.
 
