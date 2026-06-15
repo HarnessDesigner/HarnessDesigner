@@ -612,15 +612,20 @@ def _process_verts_for_normals(
     faces: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray]:
 
-    triangles = vertices[faces]  # (F, 3, 3)
+    triangles = vertices[faces]  # (F, 3, 3) for triangles, (F, 4, 3) for quads
 
-    # compute two edges per triangle
     v0 = triangles[:, 0, :]
     v1 = triangles[:, 1, :]
     v2 = triangles[:, 2, :]
 
-    e1 = v1 - v0
-    e2 = v2 - v0
+    if faces.shape[1] == 4:
+        # For quads, cross the two diagonals — more accurate for non-planar faces
+        v3 = triangles[:, 3, :]
+        e1 = v2 - v0  # diagonal 1
+        e2 = v3 - v1  # diagonal 2
+    else:
+        e1 = v1 - v0
+        e2 = v2 - v0
 
     # raw face normal (not normalized): proportional to area * 2
     face_normals_raw = np.cross(e1, e2)  # (F, 3)  # NOQA
@@ -660,14 +665,15 @@ def compute_smooth_normals(
     """
     triangles, face_normals = _process_verts_for_normals(vertices, faces)
 
+    verts_per_face = faces.shape[1]  # 3 for triangles, 4 for quads
+
     # accumulate face normals into per-vertex sum
     V = len(vertices)
     vertex_normal_sum = np.zeros((V, 3), dtype=float)
 
-    # Add each face's normal to its three vertices (np.add.at handles repeated indices)
-    # Repeat face normals 3 times so they match faces.ravel()
-    repeated_face_normals = np.repeat(face_normals, 3, axis=0)
-    vertex_indices = faces.ravel()  # shape (F*3,)
+    # Repeat each face normal once per vertex of that face, then scatter-add
+    repeated_face_normals = np.repeat(face_normals, verts_per_face, axis=0)
+    vertex_indices = faces.ravel()  # shape (F*N,)
     np.add.at(vertex_normal_sum, vertex_indices, repeated_face_normals)
 
     # normalize per-vertex summed normals
@@ -680,14 +686,13 @@ def compute_smooth_normals(
     if np.any(isolated):
         vertex_normals[isolated] = 0.0
 
-    # (F*9,) - all triangle vertices expanded (no sharing)
+    # (F*N*3,) - all face vertices expanded (no sharing)
     vertices_array = triangles.astype(np.float32).ravel()
 
-    # Look up the smoothed normal for each vertex of each triangle, then flatten
-    # vertex_normals[faces] has shape (F, 3, 3)
-    normals_array = vertex_normals[faces].astype(np.float32).ravel()  # (F*9,)
+    # Look up the smoothed normal for each vertex of each face, then flatten
+    normals_array = vertex_normals[faces].astype(np.float32).ravel()  # (F*N*3,)
 
-    return [vertices_array, normals_array, len(vertices_array)]
+    return [vertices_array, normals_array, len(vertices_array) // 3]
 
 
 def compute_face_normals(
@@ -710,16 +715,18 @@ def compute_face_normals(
 
     triangles, face_normals = _process_verts_for_normals(vertices, faces)
 
-    # Replicate each face normal to the 3 vertices of the triangle
-    normals = np.repeat(face_normals[:, np.newaxis, :], 3, axis=1)
+    verts_per_face = faces.shape[1]  # 3 for triangles, 4 for quads
 
-    # (F*9,) - all triangle vertices
+    # Replicate each face normal to all vertices of that face
+    normals = np.repeat(face_normals[:, np.newaxis, :], verts_per_face, axis=1)  # (F, N, 3)
+
+    # (F*N*3,) - all face vertices
     vertices_array = triangles.astype(np.float32).ravel()
 
-    # (F*9,) - replicated face normals
+    # (F*N*3,) - replicated face normals
     normals_array = normals.astype(np.float32).ravel()
 
-    return [vertices_array, normals_array, len(vertices_array)]
+    return [vertices_array, normals_array, len(vertices_array) // 3]
 
 
 def compute_normals(

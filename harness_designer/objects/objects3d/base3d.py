@@ -829,10 +829,10 @@ class Base3D:
             GL.glDisableClientState(GL.GL_VERTEX_ARRAY)
 
         GL.glColor4f(0.5, 1.0, 0.5, 0.3)
-        _render_bb(vertices, faces)
+        _render_bb(vertices.reshape(-1, 3), faces)
 
         GL.glColor4f(0.5, 1.0, 0.5, 1.0)
-        _render_edges(vertices, edges)
+        _render_edges(vertices.reshape(-1, 3), edges)
 
     @property
     def is_visible(self) -> bool:

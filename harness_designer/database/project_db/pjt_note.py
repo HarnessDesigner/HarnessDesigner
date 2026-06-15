@@ -17,6 +17,7 @@ from .mixins import (
     Visible2DMixin, Visible2DControl,
     NotesMixin, NotesControl,
     SmoothMixin, SmoothControl,
+    Scale3DMixin, Scale3DControl,
     ColorMixin, ColorControl
 )
 
@@ -161,7 +162,7 @@ class PJTNotesTable(PJTTableBase):
 
 
 class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
-              Position3DMixin, Position2DMixin, Visible3DMixin, Visible2DMixin, SmoothMixin):
+              Position3DMixin, Position2DMixin, Visible3DMixin, Visible2DMixin, Scale3DMixin, SmoothMixin):
     """Represent a PJT note in :mod:`harness_designer.database.project_db.pjt_note`.
 
     UNKNOWN details are inferred from the class name and surrounding code.

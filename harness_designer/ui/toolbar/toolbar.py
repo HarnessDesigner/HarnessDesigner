@@ -399,11 +399,11 @@ class NoteToolbar(QtWidgets.QToolBar):
             for act in (self.align_left, self.align_center, self.align_right):
                 act.setEnabled(True)
 
-            if align == build123d.TextAlign.LEFT:
+            if align == build123d.TextAlign.LEFT.value:
                 self.align_left.setChecked(True)
-            elif align == build123d.TextAlign.CENTER:
+            elif align == build123d.TextAlign.CENTER.value:
                 self.align_center.setChecked(True)
-            elif align == build123d.TextAlign.RIGHT:
+            elif align == build123d.TextAlign.RIGHT.value:
                 self.align_right.setChecked(True)
             else:
                 raise RuntimeError('sanity check')

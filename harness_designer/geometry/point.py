@@ -415,6 +415,7 @@ class Point(metaclass=PointMeta):
         self._data = np.ascontiguousarray(np.array([x, y, z], dtype=np.float32))
 
         self._callbacks = []
+        self._unbound_callbacks = []
         self._ref_count = 0
 
     def __enter__(self):
@@ -513,17 +514,18 @@ class Point(metaclass=PointMeta):
         the owning object still exists.
         """
 
+        ref = weakref.WeakMethod(callback)
+        if ref in self._callbacks:
+            while ref in self._callbacks:
+                self._callbacks.remove(ref)
+        else:
+            self._unbound_callbacks.append(callback)
+
         for ref in self._callbacks[:]:
             cb = ref()
             if cb is None:
-                self._callbacks.remove(ref)
-            elif cb == callback:
-                # we don't return after licating a matching callback in the
-                # event a callback was registered more than one time. duplicates
-                # are also removed aty the time callbacks get called but if an update
-                # to a point never occurs we want to make sure that we explicitly
-                # unbind all callbacks including duplicates.
-                self._callbacks.remove(ref)
+                while ref in self._callbacks:
+                    self._callbacks.remove(ref)
 
     def _process_update(self):
         """
@@ -546,18 +548,35 @@ class Point(metaclass=PointMeta):
         if self._ref_count:
             return
 
+        del self._unbound_callbacks[:]
         used_callbacks = []
+        callbacks = self._callbacks[:]
+        del self._callbacks[:]
+
+        for ref in callbacks:
+            if ref in used_callbacks:
+                continue
+            cb = ref()
+            if cb is None:
+                continue
+            cb(self)
+            used_callbacks.append(ref)
+
         for ref in self._callbacks[:]:
             cb = ref()
             if cb is None:
                 self._callbacks.remove(ref)
-            elif cb not in used_callbacks:
-                cb(self)
-                used_callbacks.append(cb)
-            else:
-                # remove duplicate callbacks since we are
-                # iterating over the callbacks
-                self._callbacks.remove(ref)
+            elif cb in self._unbound_callbacks:
+                self._unbound_callbacks.remove(cb)
+
+        self._callbacks.extend([
+            ref for ref in used_callbacks
+            if ref() is not None
+            and ref not in self._callbacks
+            and ref() not in self._unbound_callbacks
+        ])
+
+        del self._unbound_callbacks[:]
 
     @property
     def x(self) -> _d:

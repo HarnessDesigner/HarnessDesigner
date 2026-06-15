@@ -325,7 +325,7 @@ class VBOHandlerBase:
             self.local_aabb = np.asarray(aabb, dtype=np.float32).reshape(2, 3)
 
         if obb is None:
-            self.local_obb = self._compute_local_aabb()
+            self.local_obb = self._compute_local_obb()
         else:
             self.local_obb = np.asarray(obb, dtype=np.float32).reshape(8, 3)
 
