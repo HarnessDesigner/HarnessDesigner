@@ -25,6 +25,27 @@ This was a tough thing to crack because of gimbal lock occuring when displaying 
 to the user.
 ![img_4.png](img_4.png)
 
+
+<br>
+
+Here is an image of a 64 pin housing with a backshell/cover on it.
+![img_5.png](img_5.png)
+
+The nice thing about how I designe things is the cover is able to be selected
+and positioned in place to the housing and then if the housing is moved or the angle
+changed on the housing the cover moves with it keeping the orientation correct to the 
+housing. This makes it easier to move the housing as an assembly with all the bits and 
+pieces that are attached to it. This happens with terminals, covers, seals, cpa locks, 
+tpa locks and boots. There is a dialog where the default positions can be set for the 
+accessories and there is also a dialog for setting the starting orientation for the 
+various parts. If done properly when adding acover to a housing it will snap right 
+into position when added. I do plan on automating this process in the future so the 
+first time a housing and a cover are plaed into a projec it will save the angle of 
+the cover as well as the position relitive to the housing. Gotta get the application 
+fully functional before adding those kinds of features. at 6 months so fat on the 
+development time I don't think I am doing that bad.   
+
+
 <br>
 
 ![img_3.png](img_3.png)
