@@ -4,7 +4,12 @@
 
 import sys
 
+
 if sys.platform.startswith('win'):
     from . import win as module
 
-run = module.run
+    run = module.run
+
+else:
+    def run():
+        pass

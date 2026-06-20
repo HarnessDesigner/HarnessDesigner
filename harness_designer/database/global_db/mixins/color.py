@@ -125,7 +125,7 @@ class ColorControl(_prop_ctrls.ColorProperty):
         """
         name, color = evt.GetValue()
 
-        self.db_obj.table.execute(f'SELECT id, rgba FROM colors WHERE name="{name}";')
+        self.db_obj.table.execute(f'SELECT id, rgb FROM colors WHERE name="{name}";')
         rows = self.db_obj.table.fetchall()
 
         r = color.GetRed()
@@ -150,3 +150,4 @@ class ColorControl(_prop_ctrls.ColorProperty):
             self.SetValue([name, color])
 
         setattr(self.db_obj, self.attribute_name + '_id', db_id)
+        self.db_obj.table.db.mainframe.editor3d.Refresh()

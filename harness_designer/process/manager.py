@@ -70,9 +70,9 @@ class CredManager:
         :type pid: None
         """
         if pid is None:
-            # from . import clean_creds as _clean_creds
-            #
-            # _clean_creds.run()
+            from . import clean_creds as _clean_creds
+
+            _clean_creds.run()
 
             self.parent_pid = os.getpid()
         else:
@@ -470,7 +470,7 @@ class ProcessManager(threading.Thread):
                         _logger.logger.info(message['log'])
                         continue
 
-                    part_number = message['part_number']
+                    part_number = str(message['part_number'])
 
                     if 'watchdog_restart' in message:
                         _logger.logger.info(f'MODEL PROCESS MESSAGE: {message}')
@@ -593,7 +593,7 @@ class ProcessManager(threading.Thread):
                             rdb.delete()
                             mdb.download_complete()
                         else:
-                            self.mainframe.set_progress(stp, pn)
+                            self.mainframe.set_progress(stp, str(pn))
 
                             # Update resource_state progress in parent.
                             rdb.update_progress(stp)

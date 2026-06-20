@@ -78,7 +78,15 @@ class MoveArrows(_object_base.ObjectBase):
 
         UNKNOWN details are inferred from the callable name and signature.
         """
-        self.delete()
+
+        # we need to avoid an error that can occur when the application closes
+        # and the rings have not yet been removed. Deleting the rings after
+        # the application closes tried to update the canvas after it has already
+        # been deleted and this causes a runtime error to occur
+        try:
+            self.delete()
+        except RuntimeError:
+            pass
 
     def delete(self):
         """Execute the delete operation.
@@ -310,12 +318,12 @@ class Arrows3D(_base3d.Base3D):
         GL.glUniform3f(scale_loc, *self._scale.as_float)
 
         # Render first arrow (positive direction)
-        GL.glUniform4f(rot_loc, *self._angle.as_quat_numpy.tolist())
+        GL.glUniform4f(rot_loc, *[float(str(v)) for v in self._angle.as_quat_numpy.tolist()])
         self._vbo.render()
 
         GL.glUniform3f(pos_loc, *(self._position + self._arrow2_offset).as_float)
         # Render second arrow (negative direction - 180° flipped)
-        GL.glUniform4f(rot_loc, *self._flip_angle.as_quat_numpy.tolist())
+        GL.glUniform4f(rot_loc, *[float(str(v)) for v in self._flip_angle.as_quat_numpy.tolist()])
         self._vbo.render()
 
         if reflect_loc != -1:

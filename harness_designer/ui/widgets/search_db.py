@@ -2,22 +2,18 @@
 
 from typing import TYPE_CHECKING, Union
 
-from PySide6.QtWidgets import (
-    QWidget, QScrollArea, QVBoxLayout, QHBoxLayout, QLabel,
-    QCheckBox, QPushButton, QFrame, QAbstractItemView, QHeaderView,
-    QSizePolicy, QTreeWidget, QTreeWidgetItem
-)
-from PySide6.QtCore import Signal, Qt
-from PySide6.QtGui import QPixmap
+from PySide6 import QtWidgets
+from PySide6 import QtCore
+from PySide6 import QtGui
 
-from ... import config as _config
-from ...gl import canvas3d
-from ...objects.objects3d import base3d as _base3d
-from ... import objects as _objects
-from ...gl import materials as _materials
-from ...geometry import angle as _angle
-from ...geometry import point as _point
-from ... import utils as _utils
+# from ... import config as _config
+# from ...gl import canvas3d
+# from ...objects.objects3d import base3d as _base3d
+# from ... import objects as _objects
+# from ...gl import materials as _materials
+# from ...geometry import angle as _angle
+# from ...geometry import point as _point
+# from ... import utils as _utils
 
 if TYPE_CHECKING:
     from ...database import global_db as _global_db
@@ -32,7 +28,7 @@ if TYPE_CHECKING:
 # events should connect to that signal instead.
 
 
-class _ItemRow(QWidget):
+class _ItemRow(QtWidgets.QWidget):
     """A label + checkbox row inside _ItemsPanel."""
 
     def __init__(self, parent, label: str):
@@ -46,10 +42,10 @@ class _ItemRow(QWidget):
         :type label: str
         """
         super().__init__(parent)
-        layout = QHBoxLayout(self)
+        layout = QtWidgets.QHBoxLayout(self)
         layout.setContentsMargins(2, 2, 2, 2)
-        self.st = QLabel(label, self)
-        self.ctrl = QCheckBox(self)
+        self.st = QtWidgets.QLabel(label, self)
+        self.ctrl = QtWidgets.QCheckBox(self)
         layout.addWidget(self.st, 0)
         layout.addWidget(self.ctrl, 0)
 
@@ -74,7 +70,7 @@ class _ItemRow(QWidget):
         return self.st.text()
 
 
-class _ItemsPanel(QScrollArea):
+class _ItemsPanel(QtWidgets.QScrollArea):
     """Scrollable list of label + checkbox rows."""
 
     def __init__(self, parent, choices: list[str]):
@@ -88,12 +84,12 @@ class _ItemsPanel(QScrollArea):
         :type choices: list[str]
         """
         super().__init__(parent)
-        self.setFrameShape(QFrame.StyledPanel)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setFrameShape(QtWidgets.QFrame.Shape.StyledPanel)
+        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setWidgetResizable(True)
 
-        container = QWidget()
-        self._layout = QVBoxLayout(container)
+        container = QtWidgets.QWidget()
+        self._layout = QtWidgets.QVBoxLayout(container)
         self._layout.setContentsMargins(4, 4, 4, 4)
         self._layout.setSpacing(2)
         self.setWidget(container)
@@ -125,10 +121,10 @@ class _ItemsPanel(QScrollArea):
         return [item for item in self.items if item.GetValue()]
 
 
-class _SearchPanelField(QFrame):
+class _SearchPanelField(QtWidgets.QFrame):
     """A titled, scrollable checkbox list for one search dimension."""
 
-    changed = Signal()
+    changed: QtCore.SignalInstance = QtCore.Signal()
 
     def __init__(self, parent, label: str, params, types):
         """Initialise the :class:`_SearchPanelField` instance.
@@ -145,7 +141,7 @@ class _SearchPanelField(QFrame):
         :type types: UNKNOWN
         """
         super().__init__(parent)
-        self.setFrameShape(QFrame.StyledPanel)
+        self.setFrameShape(QtWidgets.QFrame.Shape.StyledPanel)
         self.parent_panel = parent
         self.params = params
         self.types = types
@@ -156,18 +152,19 @@ class _SearchPanelField(QFrame):
         else:
             choices = [str(value[1]) for value in self.values]
 
-        layout = QVBoxLayout(self)
+        layout = QtWidgets.QVBoxLayout(self)
 
-        st = QLabel(label, self)
-        st.setAlignment(Qt.AlignCenter)
+        st = QtWidgets.QLabel(label, self)
+        st.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(st)
 
         self.items_panel = _ItemsPanel(self, choices)
         layout.addWidget(self.items_panel, 1)
 
-        self.reset_button = QPushButton('Reset', self)
+        self.reset_button = QtWidgets.QPushButton('Reset', self)
         self.reset_button.clicked.connect(self._on_reset)
-        layout.addWidget(self.reset_button, 0, Qt.AlignRight)
+        layout.addWidget(
+            self.reset_button, 0, QtCore.Qt.AlignmentFlag.AlignRight)
 
         # Forward checkbox changes upward
         for row in self.items_panel.items:
@@ -208,7 +205,7 @@ class _SearchPanelField(QFrame):
         return {}
 
 
-class _SearchPanel(QScrollArea):
+class _SearchPanel(QtWidgets.QScrollArea):
     """Horizontal row of _SearchPanelField columns."""
 
     def __init__(self, parent,
@@ -223,8 +220,12 @@ class _SearchPanel(QScrollArea):
         :type db_table: Union['_global_db.TableBase', '_project_db.PJTTableBase']
         """
         super().__init__(parent)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setHorizontalScrollBarPolicy(
+            QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+
+        self.setVerticalScrollBarPolicy(
+            QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
         self.setWidgetResizable(True)
 
         self.parent_panel = parent
@@ -236,8 +237,8 @@ class _SearchPanel(QScrollArea):
         self._search_all_parts = False
         self._compat_parts = ()
 
-        container = QWidget()
-        layout = QHBoxLayout(container)
+        container = QtWidgets.QWidget()
+        layout = QtWidgets.QHBoxLayout(container)
         layout.setContentsMargins(4, 4, 4, 4)
         self.setWidget(container)
 
@@ -296,7 +297,7 @@ class _SearchPanel(QScrollArea):
         self.parent_panel.SetResults(con, results)
 
 
-class _ResultCtrl(QTreeWidget):
+class _ResultCtrl(QtWidgets.QTreeWidget):
     """Virtual list control for lazily-fetched search results."""
 
     def __init__(self, parent, columns: list[str]):
@@ -318,11 +319,13 @@ class _ResultCtrl(QTreeWidget):
 
         self.setRootIsDecorated(False)
         self.setAlternatingRowColors(True)
-        self.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.setSelectionMode(
+            QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
 
         self.setColumnCount(len(columns))
         self.setHeaderLabels(columns)
-        self.header().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.header().setSectionResizeMode(
+            QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
 
         self.itemSelectionChanged.connect(self._on_selection_changed)
         self.itemActivated.connect(self._on_activated)
@@ -346,7 +349,7 @@ class _ResultCtrl(QTreeWidget):
         if not items:
             return
         item = items[0]
-        row = item.data(0, Qt.UserRole)
+        row = item.data(0, QtCore.Qt.ItemDataRole.UserRole)
         if row is None:
             return
         db_id = row[0]
@@ -364,9 +367,10 @@ class _ResultCtrl(QTreeWidget):
         :param _column: Value for ``column``.
         :type _column: UNKNOWN
         """
-        row = item.data(0, Qt.UserRole)
+        row = item.data(0, QtCore.Qt.ItemDataRole.UserRole)
         if row is None:
             return
+
         db_id = row[0]
         self._selected_db_id = db_id
         top = self.window()
@@ -405,8 +409,8 @@ class _ResultCtrl(QTreeWidget):
         :param row: Value for ``row``.
         :type row: UNKNOWN
         """
-        item = QTreeWidgetItem([str(col) for col in row[1:]])
-        item.setData(0, Qt.UserRole, row)
+        item = QtWidgets.QTreeWidgetItem([str(col) for col in row[1:]])
+        item.setData(0, QtCore.Qt.ItemDataRole.UserRole, row)
         self.addTopLevelItem(item)
         self._loaded_results.append(row)
 
@@ -427,13 +431,13 @@ class _ResultCtrl(QTreeWidget):
             self._append_row(line)
 
 
-class SearchPanel(QWidget):
+class SearchPanel(QtWidgets.QWidget):
     """Top-level composite search widget.
 
     Emits search_changed() whenever the result selection changes.
     """
 
-    search_changed = Signal()
+    search_changed: QtCore.SignalInstance = QtCore.Signal()
 
     def __init__(self, parent=None, table=None, *compat_parts):
         """Initialise the :class:`SearchPanel` instance.
@@ -455,11 +459,11 @@ class SearchPanel(QWidget):
 
         self.search_panel = _SearchPanel(self, table)
         self.result_ctrl = _ResultCtrl(self, self.search_panel.columns)
-        self.image_ctrl = QLabel(self)
+        self.image_ctrl = QtWidgets.QLabel(self)
         self.image_ctrl.setFixedSize(600, 480)
-        self.image_ctrl.setAlignment(Qt.AlignCenter)
+        self.image_ctrl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
-        self._search_all_parts = QCheckBox('Search All Parts', self)
+        self._search_all_parts = QtWidgets.QCheckBox('Search All Parts', self)
         self._search_all_parts.stateChanged.connect(self._on_search_all_parts)
 
         if not compat_parts:
@@ -470,15 +474,15 @@ class SearchPanel(QWidget):
             self.search_panel.SetCompatParts(*compat_parts)
             self.search_panel.SetSearchAllParts(False)
 
-        left = QVBoxLayout()
+        left = QtWidgets.QVBoxLayout()
         left.addWidget(self.search_panel)
         left.addWidget(self._search_all_parts)
         left.addWidget(self.result_ctrl)
 
-        right = QVBoxLayout()
+        right = QtWidgets.QVBoxLayout()
         right.addWidget(self.image_ctrl)
 
-        main = QHBoxLayout(self)
+        main = QtWidgets.QHBoxLayout(self)
         main.addLayout(left, 1)
         main.addLayout(right, 1)
 
@@ -504,12 +508,13 @@ class SearchPanel(QWidget):
         :type image: UNKNOWN
         """
         if image is None:
-            self.image_ctrl.setPixmap(QPixmap())
+            self.image_ctrl.setPixmap(QtGui.QPixmap())
         else:
-            pm = QPixmap(image.data_path)
+            pm = QtGui.QPixmap(image.data_path)
             self.image_ctrl.setPixmap(
-                pm.scaled(self.image_ctrl.size(), Qt.KeepAspectRatio,
-                          Qt.SmoothTransformation))
+                pm.scaled(self.image_ctrl.size(),
+                          QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                          QtCore.Qt.TransformationMode.SmoothTransformation))
 
     def SetResults(self, con, results):
         """Execute the set results operation.

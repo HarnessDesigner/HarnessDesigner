@@ -79,6 +79,30 @@ class Note(_base3d.Base3D):
 
         return packed, count
 
+    def set_size(self, size):
+        self.db_obj.size3d = size
+
+        self.editor3d.context.acquire()
+        self._vbo.update(*self._build())
+        self.editor3d.context.release()
+        self.editor3d.Refresh()
+
+    def set_style(self, style):
+        self.db_obj.style3d = style
+
+        self.editor3d.context.acquire()
+        self._vbo.update(*self._build())
+        self.editor3d.context.release()
+        self.editor3d.Refresh()
+
+    def set_alignment(self, alignment):
+        self.db_obj.h_align3d = alignment
+
+        self.editor3d.context.acquire()
+        self._vbo.update(*self._build())
+        self.editor3d.context.release()
+        self.editor3d.Refresh()
+
     def set_text(self, text: str):
         """Set the note text and rebuild the 3d geometry."""
         self.db_obj.notes = text

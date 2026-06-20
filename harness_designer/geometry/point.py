@@ -8,6 +8,7 @@ import weakref
 import numpy as np
 
 from .decimal import Decimal as _d
+from .. import app_mixins as _app_mixins
 
 
 class PointMeta(type):
@@ -120,7 +121,7 @@ class PointMeta(type):
         return instance
 
 
-class Point(metaclass=PointMeta):
+class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
     """
     A 3D (or 2D) position that is the connective tissue of the entire
     harness object graph.
@@ -142,7 +143,7 @@ class Point(metaclass=PointMeta):
         Any object that needs to respond to position changes calls
         ``point.bind(self.update_method)`` to register a callback.  Whenever
         any coordinate component is mutated through the Point API (setters,
-        in-place operators, set_angle), ``_process_update()`` fires every
+        in-place operators, set_angle), ``_process_callbacks()`` fires every
         registered callback.  Because all connected objects share the same
         instance, a single mutation propagates to all of them automatically.
 
@@ -179,7 +180,7 @@ class Point(metaclass=PointMeta):
     CONTEXT MANAGER — BATCHING UPDATES
     -----------------------------------
     ``with point:`` increments ``_ref_count``.  While ``_ref_count > 0``
-    ``_process_update()`` returns immediately without firing callbacks.  On
+    ``_process_callbacks()`` returns immediately without firing callbacks.  On
     ``__exit__`` the count is decremented; the caller is responsible for
     triggering the update itself after the block if needed.
 
@@ -191,7 +192,7 @@ class Point(metaclass=PointMeta):
             point.x = new_x
             point.y = new_y
             point.z = new_z
-        # callbacks fire here, once, via an explicit setter or _process_update
+        # callbacks fire here, once, via an explicit setter or _process_callbacks
 
     CLEANUP — ORPHANED POINT ROWS
     ------------------------------
@@ -414,169 +415,9 @@ class Point(metaclass=PointMeta):
 
         self._data = np.ascontiguousarray(np.array([x, y, z], dtype=np.float32))
 
-        self._callbacks = []
-        self._unbound_callbacks = []
-        self._ref_count = 0
-
-    def __enter__(self):
-        """
-        Begin a batched update.
-
-        Increments the internal ref-count guard so that individual x, y, z
-        setter calls and in-place operators do NOT fire callbacks while the
-        context is active.  This lets you update all three components as a
-        single logical move without triggering intermediate redraws or
-        geometry recalculations::
-
-            with point:
-                point.x = 10.0
-                point.y = 20.0
-                point.z =  5.0
-            # no callbacks fired during the block
-
-        The caller must trigger ``_process_update()`` explicitly after the
-        block if the change should propagate, OR use a final setter outside
-        the block which will fire ``_process_update()`` normally.
-
-        Note: the context manager does NOT automatically fire callbacks on
-        exit.  This is intentional — some callers (e.g. the transition 3D
-        object's __init__) need to update points without triggering redraws
-        until the entire object is ready.
-        """
-
-        self._ref_count += 1
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Decrement the ref-count guard.  See __enter__."""
-
-        self._ref_count -= 1
-
-    def __remove_callback(self, ref):
-        """
-        Drop a dead callback weak reference from the callback list.
-
-        :param ref: Weak method reference scheduled for removal.
-        :type ref: :class:`weakref.WeakMethod`
-        :returns: ``None``
-        :rtype: None
-        """
-
-        try:
-            self._callbacks.remove(ref)
-        except:  # NOQA
-            pass
-
-    def bind(self, callback):
-        """
-        Register a callback to be called whenever this Point's coordinates
-        change.
-
-        The callback receives the Point instance as its only argument.
-        Internally it is stored as a ``WeakMethod`` so that binding a bound
-        method does not prevent the owning object from being garbage-collected.
-        When the owning object is collected the dead weakref is silently
-        removed from the callback list during the next ``_process_update()``.
-
-        Duplicate registrations are tolerated — the first duplicate found
-        during ``_process_update()`` is removed so each unique callback fires
-        at most once per update cycle.
-
-        IMPORTANT — objects must bind their callbacks at the same time they
-        acquire a reference to the Point (i.e. in the ORM mixin property
-        accessor after calling ``add_object``).  If a callback is never bound,
-        the object will not respond to position changes even though it holds a
-        reference to the shared Point.
-        """
-
-        # we don't explicitly check to see if a callback is already registered
-        # what we care about is if a callback is called only one time and that
-        # check is done when the callbacks are being done and if there happend
-        # to be a duplicate the duplicate is then removed at that point in time.
-        ref = weakref.WeakMethod(callback, self.__remove_callback)
-
-        self._callbacks.append(ref)
-
-    def unbind(self, callback):
-        """
-        Remove a previously registered callback.
-
-        Iterates the full callback list removing ALL registrations of the
-        given callback, including any duplicates.  This is intentional: if a
-        callback was accidentally bound more than once, a single unbind call
-        removes all copies.
-
-        IMPORTANT — when an object is deleted or its connection to this Point
-        is severed (e.g. a wire endpoint is reassigned to a different point_id),
-        unbind should be called to avoid the callback firing for a Point the
-        object no longer owns.  Failure to unbind is not fatal — the WeakMethod
-        will eventually be collected — but it can cause spurious updates while
-        the owning object still exists.
-        """
-
-        ref = weakref.WeakMethod(callback)
-        if ref in self._callbacks:
-            while ref in self._callbacks:
-                self._callbacks.remove(ref)
-        else:
-            self._unbound_callbacks.append(callback)
-
-        for ref in self._callbacks[:]:
-            cb = ref()
-            if cb is None:
-                while ref in self._callbacks:
-                    self._callbacks.remove(ref)
-
-    def _process_update(self):
-        """
-        Fire all registered callbacks, unless batching is active.
-
-        Called automatically by every coordinate mutation (x/y/z setters,
-        __iadd__, __isub__, __imul__, __itruediv__, __imatmul__, set_angle).
-
-        If ``_ref_count`` is non-zero (i.e. the caller is inside a ``with
-        point:`` block) this method returns immediately without firing
-        anything.  This is the mechanism that allows multiple coordinate
-        components to be updated atomically.
-
-        Dead weakrefs (callbacks whose owning object has been collected) are
-        silently pruned during iteration.  Duplicate callbacks are detected
-        and removed — each unique callback fires at most once per update cycle
-        even if it was registered more than once.
-        """
-
-        if self._ref_count:
-            return
-
-        del self._unbound_callbacks[:]
-        used_callbacks = []
-        callbacks = self._callbacks[:]
-        del self._callbacks[:]
-
-        for ref in callbacks:
-            if ref in used_callbacks:
-                continue
-            cb = ref()
-            if cb is None:
-                continue
-            cb(self)
-            used_callbacks.append(ref)
-
-        for ref in self._callbacks[:]:
-            cb = ref()
-            if cb is None:
-                self._callbacks.remove(ref)
-            elif cb in self._unbound_callbacks:
-                self._unbound_callbacks.remove(cb)
-
-        self._callbacks.extend([
-            ref for ref in used_callbacks
-            if ref() is not None
-            and ref not in self._callbacks
-            and ref() not in self._unbound_callbacks
-        ])
-
-        del self._unbound_callbacks[:]
+        self.__callbacks__ = []
+        self.__unbound_callbacks__ = []
+        self.__ref_count__ = 0
 
     @property
     def x(self) -> _d:
@@ -598,7 +439,7 @@ class Point(metaclass=PointMeta):
         """
 
         self._data[0] = value
-        self._process_update()
+        self._process_callbacks()
 
     @property
     def y(self) -> _d:
@@ -620,7 +461,7 @@ class Point(metaclass=PointMeta):
         """
 
         self._data[1] = value
-        self._process_update()
+        self._process_callbacks()
 
     @property
     def z(self) -> _d:
@@ -642,7 +483,7 @@ class Point(metaclass=PointMeta):
         """
 
         self._data[2] = value
-        self._process_update()
+        self._process_callbacks()
 
     def copy(self) -> "Point":
         """
@@ -655,7 +496,7 @@ class Point(metaclass=PointMeta):
         singleton for anything that needs to participate in the callback chain.
         """
 
-        return Point(*self._data.tolist())
+        return Point(*[float(str(item)) for item in self._data.tolist()])
 
     @staticmethod
     def __other_to_decimal(other: Union[_d, float, "Point", np.ndarray]) -> tuple[_d, _d, _d]:
@@ -670,7 +511,7 @@ class Point(metaclass=PointMeta):
         """
 
         if isinstance(other, np.ndarray):
-            x, y, z = [_d(item) for item in other.tolist()]
+            x, y, z = [_d(str(item)) for item in other.tolist()]
         elif isinstance(other, Point):
             x, y, z = other.as_decimal
         elif isinstance(other, float):
@@ -703,7 +544,7 @@ class Point(metaclass=PointMeta):
         self._data[1] = y1 + y2
         self._data[2] = z1 + z2
 
-        self._process_update()
+        self._process_callbacks()
 
         return self
 
@@ -735,7 +576,7 @@ class Point(metaclass=PointMeta):
         self._data[1] = y1 - y2
         self._data[2] = z1 - z2
 
-        self._process_update()
+        self._process_callbacks()
 
         return self
 
@@ -766,7 +607,7 @@ class Point(metaclass=PointMeta):
         self._data[1] = y1 * y2
         self._data[2] = z1 * z2
 
-        self._process_update()
+        self._process_callbacks()
 
         return self
 
@@ -788,7 +629,7 @@ class Point(metaclass=PointMeta):
         self._data[1] = y1 / y2
         self._data[2] = z1 / z2
 
-        self._process_update()
+        self._process_callbacks()
 
         return self
 
@@ -814,9 +655,9 @@ class Point(metaclass=PointMeta):
 
         if isinstance(other, np.ndarray):
             if other.shape[0] == 3:
-                angle = _angle.Angle.from_euler(*other.tolist())
+                angle = _angle.Angle.from_euler(*[float(str(v)) for v in other.tolist()])
             elif other.shape[0] == 4:
-                angle = _angle.Angle.from_quat(*other.tolist())
+                angle = _angle.Angle.from_quat(*[float(str(v)) for v in other.tolist()])
             else:
                 raise TypeError
         else:
@@ -825,7 +666,7 @@ class Point(metaclass=PointMeta):
         p = self.as_numpy
         p @= angle._q  # NOQA
 
-        p = Point(*p.tolist())
+        p = Point(*[float(str(item)) for item in p.tolist()])
 
         return p
 
@@ -848,9 +689,9 @@ class Point(metaclass=PointMeta):
 
         if isinstance(other, np.ndarray):
             if other.shape[0] == 3:
-                angle = _angle.Angle.from_euler(*other.tolist())
+                angle = _angle.Angle.from_euler(*[float(str(v)) for v in other.tolist()])
             elif other.shape[0] == 4:
-                angle = _angle.Angle.from_quat(*other.tolist())
+                angle = _angle.Angle.from_quat(*[float(str(v)) for v in other.tolist()])
             else:
                 raise TypeError
         elif isinstance(other, _angle.Angle):
@@ -866,7 +707,7 @@ class Point(metaclass=PointMeta):
         self._data[1] = p[1]
         self._data[2] = p[2]
 
-        self._process_update()
+        self._process_callbacks()
 
         return self
 
@@ -892,7 +733,7 @@ class Point(metaclass=PointMeta):
         self._data[1] = y
         self._data[2] = z
 
-        self._process_update()
+        self._process_callbacks()
 
     def get_angle(self, origin: "Point") -> "_angle.Angle":
         """Return the Angle from *origin* to this Point."""
@@ -945,8 +786,8 @@ class Point(metaclass=PointMeta):
     def as_float(self) -> tuple[float, float, float]:
         """Return (x, y, z) as plain Python floats."""
 
-        x, y, z = self._data.tolist()
-        return float(x), float(y), float(z)
+        x, y, z = [float(str(v)) for v in self._data.tolist()]
+        return x, y, z
 
     @property
     def as_int(self) -> tuple[int, int, int]:
@@ -1023,10 +864,10 @@ class Point(metaclass=PointMeta):
 
         IMPORTANT — never mutate the returned array directly::
 
-            point.as_numpy[0] = 10.0  # WRONG — bypasses _process_update()
+            point.as_numpy[0] = 10.0  # WRONG — bypasses _process_callbacks()
 
         Always use the x/y/z setters or in-place operators, which call
-        ``_process_update()`` after the mutation so that all registered
+        ``_process_callbacks()`` after the mutation so that all registered
         callbacks (geometry recalculation, AABB rebuild, etc.) fire correctly.
         """
         return self._data
@@ -1087,7 +928,7 @@ class Point(metaclass=PointMeta):
         :rtype: :class:`Point`
         """
 
-        x, y, z = self._data.tolist()
+        x, y, z = [float(str(v)) for v in self._data.tolist()]
         return Point(-x, -y, -z)
 
     @property

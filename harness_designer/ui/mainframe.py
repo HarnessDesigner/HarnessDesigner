@@ -22,6 +22,7 @@ from . import toolbar as _toolbar
 from .. import gl as _gl
 from .. import handlers as _handlers
 from .. import utils as _utils
+from .. import app as _app
 
 
 if TYPE_CHECKING:
@@ -681,6 +682,9 @@ class MainFrame(QMainWindow):
 
         self.logger.info('Closing Log Viewer....')
         self.log_viewer.Destroy()
+
+        self.logger.info('Closing Database Connection....')
+        self.db_connector.close()
 
     # ------------------------------------------------------------------
     # Status bar helpers (public API used by canvas handlers)
@@ -1886,7 +1890,7 @@ class MainFrame(QMainWindow):
         self._selected_obj = obj
         self.editor3d.set_selected(obj)
         self.editor2d.set_selected(obj)
-        self.editor_obj.set_selected(obj)
+        _app.CallLater(self.editor_obj.set_selected, obj)
 
     def set_selected(self, obj: "_objects.ObjectBase"):  # NOQA
         """Set the selected.

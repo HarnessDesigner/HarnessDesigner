@@ -349,6 +349,8 @@ class ThreadWorker(threading.Thread):
             (target_count, aggressiveness, update_rate,
              iterations, simplify, path) = model_data[0]
 
+            print('COLLECTING MODEL 1:', path)
+
             if not path:
                 message['err_msg'] = 'invalid model url/path'
                 message['err_no'] = -10002
@@ -399,6 +401,8 @@ class ThreadWorker(threading.Thread):
                 connector.close()
 
                 return
+
+            print('COLLECTING MODEL 2:', file_path)
 
             if file_path is None:
                 message['err_no'] = -10003

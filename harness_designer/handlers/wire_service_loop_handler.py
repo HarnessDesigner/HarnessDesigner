@@ -184,7 +184,7 @@ class AddWireServiceLoopHandler(_handler_base.HandlerBase):
         # Update quaternion to match wire angle at this position
         quat = np.array(wire_angle.as_quat_float)
         self.obj.db_obj.table.update(
-            self.obj.db_obj.db_id, quat=str(quat.tolist()))
+            self.obj.db_obj.db_id, quat=str([float(str(v)) for v in quat.tolist()]))
 
     def _delete_preview(self):
         """Remove the preview loop and clean up its DB rows."""

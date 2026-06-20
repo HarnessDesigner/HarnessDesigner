@@ -585,9 +585,9 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         if obj in self._object_addr_mapping:
             obj_address = self._object_addr_mapping.pop(obj)
             for container in self._object_data:
-                for line in container:
+                for i, line in enumerate(container):
                     if line[-1] == obj_address:
-                        container.remove(line)
+                        container.pop(i)
                         break
                 else:
                     continue
@@ -775,13 +775,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
             self.camera.Set()
 
             self._init = True  # viewport is live; notify_virtual_size_changed may update it
-            try:
-                self.floor = _floor.Floor(self, self._floor_program)
-            except:
-                import traceback
-
-                traceback.print_exc()
-                raise
+            self.floor = _floor.Floor(self, self._floor_program)
 
             self.set_draw_grid(self.config.floor.enable)
             self.set_focal_target(self.config.focal_target.enable)
@@ -923,10 +917,8 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         """
         try:
             self.floor.set(flag)
-        except:
-            import traceback
-            traceback.print_exc()
-            raise
+        except Exception as err:  # NOQA
+            _logger.logger.traceback(err, 'set floor error')
 
     @_debug.logfunc
     def _draw_scene(self, obj_data):
@@ -1014,38 +1006,51 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         GL.glUseProgram(self._faces_program)
 
         # ---------- Faces program set lighting
-        self._scene_light.set(self._faces_program)
-        self._headlight(self._faces_program)
+        try:
+            self._scene_light.set(self._faces_program)
+        except Exception as err:  # NOQA
+            _logger.logger.traceback(err, 'scene light error')
+
+        try:
+            self._headlight(self._faces_program)
+        except Exception as err:  # NOQA
+            _logger.logger.traceback(err, 'headlight error')
 
         removed_objects = []
         objects_in_view = []
 
         for row in obj_data:
-            ref_address = row[-1]
-            obj_ref = ctypes.cast(ref_address, ctypes.py_object).value
-            obj = obj_ref()
+            try:
+                ref_address = row[-1]
+                obj_ref = ctypes.cast(ref_address, ctypes.py_object).value
+                obj = obj_ref()
 
-            if obj is None:
-                try:
-                    self._object_refs.remove(obj_ref)
-                except ValueError:
-                    pass
-                removed_objects.append(row)
-                continue
+                if obj is None:
+                    try:
+                        self._object_refs.remove(obj_ref)
+                    except ValueError:
+                        pass
+                    removed_objects.append(row)
+                    continue
 
-            objects_in_view.append(obj)
-            obj.obj3d.render(self._faces_program, self._edges_program, self._vertices_program)
+                objects_in_view.append(obj)
+                obj.obj3d.render(self._faces_program, self._edges_program, self._vertices_program)
+            except Exception as err:  # NOQA
+                _logger.logger.traceback(err, 'object render error')
 
         GL.glUseProgram(0)
         self._objects_in_view = objects_in_view
 
         for row in removed_objects:
-            for container in self._object_data:
-                try:
-                    container.remove(row)
-                    break
-                except ValueError:
-                    continue
+            try:
+                for container in self._object_data:
+                    try:
+                        container.remove(row)
+                        break
+                    except ValueError:
+                        continue
+            except Exception as err:  # NOQA
+                _logger.logger.traceback(err, 'object render removal error')
 
     @_debug.logfunc
     def _on_draw(self):
@@ -1079,19 +1084,70 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         GL.glMatrixMode(GL.GL_MODELVIEW)
         GL.glLoadIdentity()
 
-        self.camera.Set()
+        try:
+            self.camera.Set()
+        except Exception as err:  # NOQA
+            _logger.logger.traceback(err, 'camera set error')
 
-        objs = self._view_culling.cull(
-            self._object_data, self.camera.frustum_normals,
-            self.camera.frustum_distances, self.camera.position.as_numpy)
+        try:
+            objs = self._view_culling.cull(
+                self._object_data, self.camera.frustum_normals,
+                self.camera.frustum_distances, self.camera.position.as_numpy)
+        except Exception as err:  # NOQA
+            _logger.logger.traceback(err, 'culling error')
+            return
 
         self._draw_scene(objs)
 
+        # Supplemental depth-only pass for selected (semi-transparent) objects.
+        #
+        # Transparent outer shells render with glDepthMask(FALSE) so interior
+        # opaque parts remain visible through them.  That leaves 1.0 (background)
+        # in the depth buffer at the shell's screen position, which lets the floor
+        # pass the depth test and draw over the selected object.
+        #
+        # Fix: before the floor renders, write the outer-shell depth for each
+        # selected object using GL_LESS with no colour output.  The floor then
+        # fails the depth test at those positions and does not occlude the object.
+        # Reflections are disabled for this pass so only above-floor geometry
+        # contributes depth (reflections are deeper than the floor anyway, but
+        # excluding them keeps the depth buffer clean).
+        if self._selected is not None and hasattr(self._selected, 'obj3d'):
+            obj3d = self._selected.obj3d
+            if not obj3d.is_opaque:
+                GL.glColorMask(GL.GL_FALSE, GL.GL_FALSE, GL.GL_FALSE, GL.GL_FALSE)
+                GL.glDepthMask(GL.GL_TRUE)
+                GL.glDepthFunc(GL.GL_LESS)
+
+                GL.glUseProgram(self._faces_program)
+                _no_refl = GL.glGetUniformLocation(self._faces_program, 'objectHasReflection')
+                GL.glUniform1i(_no_refl, 0)
+
+                try:
+                    obj3d.render(self._faces_program, self._edges_program, self._vertices_program)
+                except Exception as err:  # NOQA
+                    _logger.logger.traceback(err, 'selected object render error')
+
+                GL.glUseProgram(self._faces_program)
+
+                # Restore reflection uniform and colour mask before floor render.
+                GL.glUniform1i(
+                    _no_refl,
+                    int(self.config.floor.reflections.enable and
+                        self.config.floor.enable_floor_lock))
+
+                GL.glColorMask(GL.GL_TRUE, GL.GL_TRUE, GL.GL_TRUE, GL.GL_TRUE)
+
         if self.config.focal_target.enable and self._focal_target is not None:
             GL.glUseProgram(self._faces_program)
-            self._focal_target.obj3d.render(
-                self._faces_program, self._edges_program, self._vertices_program)
+            try:
+                self._focal_target.obj3d.render(
+                    self._faces_program, self._edges_program, self._vertices_program)
+            except Exception as err:  # NOQA
+                _logger.logger.traceback(err, 'focal target error')
+
             GL.glUseProgram(0)
+
 
         try:
             self.floor.render(self._floor_program)

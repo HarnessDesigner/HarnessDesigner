@@ -20,21 +20,19 @@ Features:
     - Input validated against item_type before OK is enabled
 """
 
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
-                               QListWidget, QLineEdit, QMenu, QApplication,
-                               QSizePolicy)
-from PySide6.QtCore import Signal, Qt
-from PySide6.QtGui import QColor, QAction
+from PySide6 import QtWidgets
+from PySide6 import QtCore
+from PySide6 import QtGui
 
 
-class ListCtrl(QWidget):
+class ListCtrl(QtWidgets.QWidget):
     """Represent a list ctrl in :mod:`harness_designer.ui.widgets.list_ctrl`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
-    itemAdded = Signal(int, object)
-    itemRemoved = Signal(int, object)
-    itemChanged = Signal(int, object, object)
+    itemAdded: QtCore.SignalInstance = QtCore.Signal(int, object)
+    itemRemoved: QtCore.SignalInstance = QtCore.Signal(int, object)
+    itemChanged: QtCore.SignalInstance = QtCore.Signal(int, object, object)
 
     _MODE_NONE = "none"
     _MODE_ADD = "add"
@@ -42,7 +40,7 @@ class ListCtrl(QWidget):
 
     def __init__(
         self,
-        parent: QWidget,
+        parent: QtWidgets.QWidget,
         items: list[str | float | int] | None = None,
         unique: bool = False,
         item_type: type[str | int | float] = str,
@@ -68,35 +66,43 @@ class ListCtrl(QWidget):
         self._edit_row = -1
         self._edit_original = ""
 
-        root = QVBoxLayout(self)
+        root = QtWidgets.QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(4)
 
         # --- Compact scrollable list ------------------------------------
-        self._list = QListWidget()
+        self._list = QtWidgets.QListWidget()
         self._list.setAlternatingRowColors(True)
-        self._list.setSelectionMode(QListWidget.SelectionMode.SingleSelection)
+
+        self._list.setSelectionMode(
+            QtWidgets.QListWidget.SelectionMode.SingleSelection)
+
         self._list.setSortingEnabled(False)
-        self._list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+
+        self._list.setContextMenuPolicy(
+            QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
+
         self._list.setSpacing(0)
         self._list.setUniformItemSizes(True)
-        self._list.setSizePolicy(QSizePolicy.Policy.Expanding,
-                                 QSizePolicy.Policy.Expanding)
+
+        self._list.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding,
+                                 QtWidgets.QSizePolicy.Policy.Expanding)
+
         self._list.setMinimumHeight(80)
         root.addWidget(self._list, stretch=1)
 
         # --- Inline edit bar (disabled until Add / Edit activated) ------
-        self._edit_bar = QWidget()
-        bar_layout = QHBoxLayout(self._edit_bar)
+        self._edit_bar = QtWidgets.QWidget()
+        bar_layout = QtWidgets.QHBoxLayout(self._edit_bar)
         bar_layout.setContentsMargins(0, 0, 0, 0)
         bar_layout.setSpacing(4)
 
-        self._line_edit = QLineEdit()
+        self._line_edit = QtWidgets.QLineEdit()
         self._line_edit.setPlaceholderText("Enter value…")
         bar_layout.addWidget(self._line_edit)
 
-        self._btn_ok = QPushButton("OK")
-        self._btn_cancel = QPushButton("Cancel")
+        self._btn_ok = QtWidgets.QPushButton("OK")
+        self._btn_cancel = QtWidgets.QPushButton("Cancel")
         self._btn_ok.setFixedWidth(56)
         self._btn_cancel.setFixedWidth(56)
         # Prevent these buttons from stealing Return keypresses that belong
@@ -112,12 +118,12 @@ class ListCtrl(QWidget):
         root.addWidget(self._edit_bar)
 
         # --- Main button bar --------------------------------------------
-        btn_bar = QHBoxLayout()
+        btn_bar = QtWidgets.QHBoxLayout()
         btn_bar.setSpacing(6)
 
-        self._btn_add = QPushButton("Add")
-        self._btn_edit = QPushButton("Edit")
-        self._btn_remove = QPushButton("Remove")
+        self._btn_add = QtWidgets.QPushButton("Add")
+        self._btn_edit = QtWidgets.QPushButton("Edit")
+        self._btn_remove = QtWidgets.QPushButton("Remove")
         self._btn_edit.setEnabled(False)
         self._btn_remove.setEnabled(False)
 
@@ -248,7 +254,7 @@ class ListCtrl(QWidget):
             item = self._list.item(self._edit_row)
             if item:
                 item.setText(self._edit_original)
-                item.setForeground(QColor("black"))
+                item.setForeground(QtGui.QColor("black"))
 
         self._mode = self._MODE_NONE
         self._edit_row = -1
@@ -314,11 +320,11 @@ class ListCtrl(QWidget):
                 item.setText(preview)
 
                 if is_duplicate or not is_valid_type:
-                    item.setForeground(QColor("red"))
+                    item.setForeground(QtGui.QColor("red"))
                 elif is_unchanged or not stripped:
-                    item.setForeground(QColor("gray"))
+                    item.setForeground(QtGui.QColor("gray"))
                 else:
-                    item.setForeground(QColor("black"))
+                    item.setForeground(QtGui.QColor("black"))
 
         self._btn_ok.setEnabled(is_ok)
 
@@ -350,7 +356,7 @@ class ListCtrl(QWidget):
             item = self._list.item(row)
             if item:
                 item.setText(display)
-                item.setForeground(QColor("black"))
+                item.setForeground(QtGui.QColor("black"))
 
             self._exit_edit_mode()
             self.itemChanged.emit(row, typed_value, old_typed)
@@ -407,10 +413,10 @@ class ListCtrl(QWidget):
         item = self._list.itemAt(pos)
         has_item = item is not None
 
-        menu = QMenu(self)
-        act_add = QAction("Add",    self)
-        act_edit = QAction("Edit",   self)
-        act_rem = QAction("Remove", self)
+        menu = QtWidgets.QMenu(self)
+        act_add = QtGui.QAction("Add",    self)
+        act_edit = QtGui.QAction("Edit",   self)
+        act_rem = QtGui.QAction("Remove", self)
 
         act_edit.setEnabled(has_item)
         act_rem.setEnabled(has_item)

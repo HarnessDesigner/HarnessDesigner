@@ -76,6 +76,7 @@ class Floor:
             self._loc_stipple = GL.glGetUniformLocation(program, 'uStipplePattern')
             self._loc_has_minor = GL.glGetUniformLocation(program, 'uHasMinorGrid')
             self._loc_stipple_phase = GL.glGetUniformLocation(program, 'uStipplePhase')
+            self._loc_opaque_pass = GL.glGetUniformLocation(program, 'uOpaquePass')
 
         self._vao = None
         self._vbo = None
@@ -149,7 +150,6 @@ class Floor:
         GL.glEnable(GL.GL_BLEND)
         GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
         GL.glEnable(GL.GL_MULTISAMPLE)
-        GL.glDepthMask(GL.GL_FALSE)
         GL.glUseProgram(program)
 
         # MVP ─────────────────────────────────────────────────────────────────
@@ -186,7 +186,19 @@ class Floor:
         GL.glUniform1ui(self._loc_stipple, int(cfg.secondary_line_pattern) & 0xFFFFFFFF)
         GL.glUniform1ui(self._loc_stipple_phase, int(cfg.secondary_line_shift))
 
-        # Draw ────────────────────────────────────────────────────────────────
+        # Pass 1 — opaque fragments only, depth writes enabled.
+        # The shader discards any fragment whose final alpha < 0.999 so only
+        # fully-opaque tiles and lines write to the depth buffer.
+        GL.glDepthMask(GL.GL_TRUE)
+        GL.glUniform1i(self._loc_opaque_pass, 1)
+        GL.glBindVertexArray(self._vao)
+        GL.glDrawElements(GL.GL_TRIANGLES, self._n, GL.GL_UNSIGNED_INT, None)
+        GL.glBindVertexArray(0)
+
+        # Pass 2 — transparent fragments only, depth writes disabled so they
+        # blend correctly without corrupting the depth buffer.
+        GL.glDepthMask(GL.GL_FALSE)
+        GL.glUniform1i(self._loc_opaque_pass, 0)
         GL.glBindVertexArray(self._vao)
         GL.glDrawElements(GL.GL_TRIANGLES, self._n, GL.GL_UNSIGNED_INT, None)
         GL.glBindVertexArray(0)

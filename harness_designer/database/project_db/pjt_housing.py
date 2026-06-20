@@ -2,6 +2,8 @@
 
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
+import math
+
 import numpy as np
 import weakref
 from PySide6.QtWidgets import QTabWidget
@@ -37,6 +39,50 @@ if TYPE_CHECKING:
     from . import pjt_point3d as _pjt_point3d
     from ..global_db import housing as _housing
     from ...objects import housing as _housing_obj
+
+
+def _obb_face_direction(
+        current_obb: np.ndarray,
+        local_obb: np.ndarray,
+        face_idx: int) -> "np.ndarray | None":
+    """Return the normalized outward normal of *face_idx* using *current_obb*.
+
+    Face membership is determined by sorting *local_obb* corners along the
+    face axis (axis 0 → faces 0/1, axis 1 → 2/3, axis 2 → 4/5).
+    The same corner indices are then read from *current_obb* (fully rotated).
+    """
+    axis = face_idx // 2
+    sign = face_idx % 2
+    sorted_i = np.argsort(local_obb[:, axis])
+    corner_i = sorted_i[:4] if sign == 0 else sorted_i[4:]
+    center = current_obb.mean(axis=0)
+    fc = current_obb[corner_i].mean(axis=0) - center
+    n = float(np.linalg.norm(fc))
+    return (fc / n) if n > 1e-8 else None
+
+
+def _euler_from_matrix_continuous(
+        rot_mat: np.ndarray,
+        prev_euler_deg: "list[float] | None") -> list:
+    """YXZ Euler decomposition matching :meth:`Quaternion.as_euler`.
+
+    *rot_mat* columns are ``[right, up, forward]``.  Each angle is
+    continuity-wrapped to stay within ±180° of the corresponding value in
+    *prev_euler_deg* so the displayed values never jump.
+    """
+    pitch = float(np.degrees(np.arcsin(np.clip(-rot_mat[1, 2], -1.0, 1.0))))
+    yaw   = float(np.degrees(np.arctan2(rot_mat[0, 2], rot_mat[2, 2])))
+    roll  = float(np.degrees(np.arctan2(rot_mat[1, 0], rot_mat[1, 1])))
+    result = [pitch, yaw, roll]
+
+    if prev_euler_deg and not any(math.isnan(v) for v in prev_euler_deg):
+        for i in range(3):
+            while result[i] - prev_euler_deg[i] > 180.0:
+                result[i] -= 360.0
+            while result[i] - prev_euler_deg[i] < -180.0:
+                result[i] += 360.0
+
+    return result
 
 
 class PJTHousingsTable(PJTTableBase):
@@ -162,21 +208,13 @@ class PJTHousingsTable(PJTTableBase):
         db_obj = PJTHousing(self, db_id, self.project_id)
 
         pos3d = db_obj.position3d
-        pos2d = db_obj.position2d
 
         # add the cavities from the part to the project
         for cavity in db_obj.part.cavities:
             if cavity is None:
                 continue
 
-            pjt_cavity = self.db.pjt_cavities_table.insert(cavity.db_id, db_id)
-            cpos3d = pjt_cavity.position3d
-            cpos2d = pjt_cavity.position2d
-
-            cpos3d += pos3d
-            cpos2d += pos2d
-
-            pjt_cavity.name = cavity.name
+            self.db.pjt_cavities_table.insert(cavity.db_id, db_id, cavity.name)
 
         pos = db_obj.cover_position3d
         pos += pos3d
@@ -490,7 +528,6 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
             self._stored_tpa_lock_1_position3d.add_object(self._obj())
 
         return self._stored_tpa_lock_1_position3d.point
-
 
     @property
     def tpa_lock_1_position3d_id(self) -> int:
@@ -967,21 +1004,26 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :param angle: Value for ``angle``.
         :type angle: :class:`_angle.Angle`
         """
-        quat = eval(self._table.select('quat3d',
-                                       id=self._db_id)[0][0])
+        quat = eval(self._table.select('quat3d', id=self._db_id)[0][0])
+        euler = eval(self._table.select('angle3d', id=self._db_id)[0][0])
 
-        euler_angle = eval(self._table.select('angle3d',
-                                              id=self._db_id)[0][0])
+        o_angle = _angle.Angle.from_quat(quat, euler)
+        inverse_angle = o_angle.inverse
 
-        o_angle = _angle.Angle.from_quat(quat, euler_angle)
+        quat = str(list(angle.as_quat_float))
+        euler = str(list(angle.as_euler_float))
 
+        self._table.update(self._db_id, quat3d=quat)
+        self._table.update(self._db_id, angle3d=euler)
+
+        if 'nan' in euler or 'nan' in quat:
+            return
+
+        # Compute the true world-space rotation delta as q_new ⊗ q_old⁻¹.
+        # Using the Euler-path (angle - o_angle) gives a component-wise
+        # difference that is only correct when the non-rotated axes are zero.
+        actual_delta_q = angle._q - o_angle._q
         delta = angle - o_angle
-
-        quat = list(angle.as_quat_float)
-        euler_angle = list(angle.as_euler_float)
-
-        self._table.update(self._db_id, quat3d=str(quat))
-        self._table.update(self._db_id, angle3d=str(euler_angle))
 
         cavities = [c for c in self.cavities if c is not None]
         if cavities:
@@ -989,8 +1031,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
             # Get all cavity centers: shape (N, 3)
             centers = np.array(
-                [cavity.position3d.as_numpy for cavity in cavities],
-                dtype=np.float32)
+                [cavity.position3d.as_numpy for cavity in cavities], dtype=np.float32)
 
             # Create reference offset vector for all cavities
             reference_vector = np.array([0.0, 0.0, 10.0], dtype=np.float32)
@@ -1020,8 +1061,10 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
                 # Update position
                 c_position = cavity.position3d
-                c_position.x = float(rotated_center[0])
-                c_position.y = float(rotated_center[1])
+                with c_position:
+                    c_position.x = float(rotated_center[0])
+                    c_position.y = float(rotated_center[1])
+
                 c_position.z = float(rotated_center[2])
 
                 # Calculate new angle
@@ -1048,32 +1091,78 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         objs = zip(objs, [tpa1_pos, tpa2_pos, cover_pos,
                           cpa_pos, boot_pos, seal_pos])
 
-        reference_vector = _point.Point(0.0, 0.0, 10.0)
-
         for obj, pos in objs:
-            if obj is not None:
-                reference_point = reference_vector @ obj.angle3d
-                reference_point += pos
+            new_pos = pos - position
 
-                reference_point -= position
-                new_pos = pos - position
-                reference_point @= delta
-                new_pos @= delta
-                reference_point += position
-                new_pos += position
-
-                new_angle = _angle.Angle.from_points(new_pos, reference_point)
-
-                obj_angle = obj.angle3d
-                angle_delta = new_angle - obj_angle
-                obj_angle += angle_delta
-            else:
-                new_pos = pos - position
-                new_pos @= delta
-                new_pos += position
-
+            new_pos @= inverse_angle
+            new_pos @= angle
+            new_pos += position
             pos_delta = new_pos - pos
+
+            if obj is not None:
+                obj_angle = obj.angle3d
+                old_euler = obj_angle.as_euler_float
+
+                # world-space composition: q_delta ⊗ q_acc_old
+                q_acc_new = obj_angle._q + actual_delta_q
+
+                new_euler = None
+                part = obj.part
+                if part is not None:
+                    model3d = part.model3d
+                    if model3d is not None:
+                        local_obb = model3d.obb
+                        fwd_face, up_face = model3d.forward_up
+                        if -1 in (fwd_face, up_face):
+                            continue
+
+                        # Full world-space rotation: project angle on top of
+                        # the baked model3d orientation (q_acc_new ⊗ q_model3d).
+                        # forward_up face indices were chosen using model3d.angle3d,
+                        # so we must include it here for consistent face directions.
+                        q_model3d = model3d.angle3d._q
+                        q_obb = q_model3d + q_acc_new  # = q_acc_new ⊗ q_model3d
+                        rotated = np.array(
+                            [q_obb @ c for c in local_obb], dtype=np.float32)
+
+                        fwd = _obb_face_direction(rotated, local_obb, fwd_face)
+                        up = _obb_face_direction(rotated, local_obb, up_face)
+
+                        if None in (fwd, up):
+                            continue
+
+                        right = np.cross(up, fwd)
+                        rn = float(np.linalg.norm(right))
+                        if rn > 1e-8:
+                            right /= rn
+                            up = np.cross(fwd, right)
+                            rot_mat = np.column_stack([right, up, fwd])
+                            new_euler = _euler_from_matrix_continuous(
+                                rot_mat, old_euler)
+
+                # Update quaternion, Euler cache, and matrix in one shot so
+                # only a single DB write fires through _process_callbacks.
+                obj_angle._q.w = q_acc_new.w
+                obj_angle._q.x = q_acc_new.x
+                obj_angle._q.y = q_acc_new.y
+                obj_angle._q.z = q_acc_new.z
+
+                euler_cache = obj_angle._Angle__euler_angles
+                if euler_cache is not None:
+                    if new_euler is None:
+                        euler_cache[0] = float('nan')
+                        euler_cache[1] = float('nan')
+                        euler_cache[2] = float('nan')
+                    else:
+                        euler_cache[0] = new_euler[0]
+                        euler_cache[1] = new_euler[1]
+                        euler_cache[2] = new_euler[2]
+
+                obj_angle._matrix[:] = q_acc_new.as_matrix
+                obj_angle._process_callbacks()
+
             pos += pos_delta
+
         self._populate('angle3d')
 
     def _update_angle2d(self, angle: _angle.Angle):
@@ -1084,11 +1173,14 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :param angle: Value for ``angle``.
         :type angle: :class:`_angle.Angle`
         """
-        quat = list(angle.as_quat_float)
-        euler_angle = list(angle.as_euler_float)
+        quat = str(list(angle.as_quat_float))
+        euler = str(list(angle.as_euler_float))
 
-        self._table.update(self._db_id, quat2d=str(quat))
-        self._table.update(self._db_id, angle2d=str(euler_angle))
+        if 'nan' in euler or 'nan' in quat:
+            return
+
+        self._table.update(self._db_id, quat2d=quat)
+        self._table.update(self._db_id, angle2d=euler)
         self._populate('angle2d')
 
 

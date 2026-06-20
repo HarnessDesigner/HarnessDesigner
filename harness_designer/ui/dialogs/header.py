@@ -4,7 +4,6 @@ import sys
 
 from PySide6 import QtWidgets
 from PySide6 import QtGui
-from PySide6 import QtCore
 
 from ... import image as _image
 
@@ -122,5 +121,3 @@ class Header(QtWidgets.QWidget):
         painter.end()
 
         return pixmap
-
-

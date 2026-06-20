@@ -5,19 +5,19 @@
 from typing import TYPE_CHECKING
 
 import numpy as np
-from PySide6.QtWidgets import QHBoxLayout, QLabel
-
 import sys
 import os
 import math
+from PySide6 import QtWidgets
 from OCP.TopAbs import TopAbs_REVERSED
 from OCP.BRep import BRep_Tool
 from OCP.BRepMesh import BRepMesh_IncrementalMesh
 from OCP.TopLoc import TopLoc_Location
 
-from .geometry import point as _point
 from .geometry.decimal import Decimal as _d
-from .gl import events as _gl_events
+from .geometry import point as _point
+from .geometry import angle as _angle
+
 
 if TYPE_CHECKING:
     from .gl.canvas3d import camera as _camera
@@ -404,7 +404,7 @@ def get_documents():
     return documents
 
 
-def HSizer(parent, label, ctrl) -> QHBoxLayout:
+def HSizer(parent, label, ctrl) -> QtWidgets.QHBoxLayout:
     """
     Create a horizontal layout containing a label and control.
 
@@ -418,8 +418,8 @@ def HSizer(parent, label, ctrl) -> QHBoxLayout:
     :rtype: QHBoxLayout
     """
 
-    layout = QHBoxLayout()
-    lbl = QLabel(label, parent)
+    layout = QtWidgets.QHBoxLayout()
+    lbl = QtWidgets.QLabel(label, parent)
     layout.addWidget(lbl)
     layout.addWidget(ctrl)
 
@@ -816,7 +816,7 @@ def unproject_from_ndc(ndc, inv_mvp):
 
 
 def get_position_on_focal_plane(
-    mouse_pos: _point.Point,
+    mouse_pos: "_point.Point",
     camera: "_camera.Camera"
 ) -> "_point.Point":
 
@@ -892,7 +892,7 @@ def closest_point_on_segment_to_ray(seg_p1, seg_p2, ray_origin, ray_dir):
     return closest
 
 
-def _point_on_wire(mouse_pos: _point.Point, p1, p2, camera):
+def _point_on_wire(mouse_pos: "_point.Point", p1, p2, camera):
     """
     Project a mouse ray onto the closest point along a wire segment.
 
@@ -948,7 +948,7 @@ def _point_on_wire(mouse_pos: _point.Point, p1, p2, camera):
 
 
 def get_closest_point_on_wire(
-    mouse_pos: _point.Point,
+    mouse_pos: "_point.Point",
     camera: "_camera.Camera",
     wire: "_wire.Wire"
 ):
@@ -979,8 +979,6 @@ def get_closest_point_on_wire(
 
     wire_direction /= wire_length
 
-    from . geometry import angle as _angle
-
     # Convert to angle
     wire_angle = _angle.Angle.from_direction(wire_direction)
 
@@ -988,7 +986,7 @@ def get_closest_point_on_wire(
 
 
 def get_closest_point_on_wire_endpoint(
-    mouse_pos: _point.Point,
+    mouse_pos: "_point.Point",
     camera: "_camera.Camera",
     wire: "_wire.Wire",
     endpoint_tolerance=5.0
@@ -1109,14 +1107,14 @@ MODEL_FILE_WILDCARDS = (
 
 class SnapPool:
 
-    def __init__(self, objects: list, snap_points: list[_point.Point],
+    def __init__(self, objects: list, snap_points: list["_point.Point"],
                  threshold: float = 5.00):
 
         self.objects = objects
         self.numpy_points = np.array([point.as_float for point in snap_points], dtype=np.float32)
         self.threshold_sq = threshold ** 2
 
-    def query(self, pos: _point.Point):
+    def query(self, pos: "_point.Point"):
         world_pos = pos.as_numpy
 
         diff = self.numpy_points - world_pos

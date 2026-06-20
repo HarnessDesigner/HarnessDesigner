@@ -194,6 +194,9 @@ class AddSealHandler(_handler_base.HandlerBase):
         self.obj = _seal.Seal(self.mainframe, db_obj)
         self.obj.identify(self._preview_material)
 
+        if isinstance(self._selected, _housing.Housing):
+            _handler_base.set_angle_from_housing(self.obj.db_obj, self._selected.db_obj)
+
     @property
     def snap_pool(self):
         positions = []
@@ -243,6 +246,8 @@ class AddSealHandler(_handler_base.HandlerBase):
         world_pos = self.camera.get_position_on_focal_plane(mouse_pos)
         obj = snap_pool.query(world_pos)
 
+        prev_snapped = self._snapped
+
         if obj is None:
             point = world_pos
             self._snapped = None
@@ -260,6 +265,14 @@ class AddSealHandler(_handler_base.HandlerBase):
                 raise RuntimeError('sanity check')
 
             self._snapped = obj
+
+        snapped_to_housing = isinstance(self._snapped, _housing.Housing)
+        was_snapped_to_housing = isinstance(prev_snapped, _housing.Housing)
+
+        if snapped_to_housing and self._snapped is not prev_snapped:
+            _handler_base.set_angle_from_housing(self.obj.db_obj, self._snapped.db_obj)
+        elif was_snapped_to_housing and not snapped_to_housing:
+            _handler_base.reset_angle(self.obj.db_obj)
 
         position = self.obj.db_obj.position3d
 
@@ -292,6 +305,8 @@ class AddSealHandler(_handler_base.HandlerBase):
                 db_obj = self.ptables.pjt_seals_table.insert(
                     self.part.db_id, self._snapped.db_obj.seal_position3d_id,
                     self._snapped.db_obj.db_id, None, None)
+
+                _handler_base.set_angle_from_housing(db_obj, self._snapped.db_obj)
 
             elif isinstance(self._snapped, _terminal.Terminal):
                 for terminal in self.mainframe.project.terminals:

@@ -14,8 +14,6 @@ from ... import config as _config
 from ... import image as _image
 
 
-
-
 class EditorDBConfig(metaclass=_config.ConfigDB):
     """Represent an editor database config in :mod:`harness_designer.ui.editor_db.base`.
 

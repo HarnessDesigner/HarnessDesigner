@@ -22,11 +22,14 @@ class Angle2DMixin(BaseMixin):
         :param angle: Value for ``angle``.
         :type angle: :class:`_angle.Angle`
         """
-        quat = list(angle.as_quat_float)
-        euler_angle = list(angle.as_euler_float)
+        quat = str(list(angle.as_quat_float))
+        euler = str(list(angle.as_euler_float))
 
-        self._table.update(self._db_id, quat2d=str(quat))
-        self._table.update(self._db_id, angle2d=str(euler_angle))
+        if 'nan' in euler or 'nan' in quat:
+            return
+
+        self._table.update(self._db_id, quat2d=quat)
+        self._table.update(self._db_id, angle2d=euler)
         self._populate('angle2d')
 
     @property
@@ -39,12 +42,12 @@ class Angle2DMixin(BaseMixin):
         :rtype: :class:`_angle.Angle`
         """
         quat = eval(self._table.select('quat2d', id=self._db_id)[0][0])
-        euler_angle = eval(self._table.select('angle2d', id=self._db_id)[0][0])
+        euler = eval(self._table.select('angle2d', id=self._db_id)[0][0])
 
         if self._angle2d_db_id is None:
             self._angle2d_db_id = str(uuid.uuid4())
 
-        angle = _angle.Angle.from_quat(quat, euler_angle, db_id=self._angle2d_db_id)
+        angle = _angle.Angle.from_quat(quat, euler, db_id=self._angle2d_db_id)
         angle.bind(self._update_angle2d)
 
         return angle

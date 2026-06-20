@@ -348,3 +348,5 @@ class SQLConnector(_base.ConnectorBase):
 
         self._cursor = None
         self._connection = None
+
+        self.cred_manager.cleanup()

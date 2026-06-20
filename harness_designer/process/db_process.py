@@ -80,8 +80,6 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
 
             message = json.loads(in_queue.get_nowait())
 
-            print(message)
-
             if message['type'].startswith('field_names_'):
                 table_name = message['type'].replace('field_names_', '')
                 field_names[table_name] = message['data']

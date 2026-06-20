@@ -1,5 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+import os
+import shutil
+
 from .. import db_connectors as _con
 from . import file_types as _file_types
 from ... import resources as _resources
@@ -30,12 +33,21 @@ def get_model3d_id(con, path: str):  # NOQA
         if path.startswith('http'):
             con.execute('INSERT INTO models3d (path) VALUES (?);', (path,))
         else:
-            values = _resources.collect_resource(con, _resources.RESOURCE_TYPE_MODEL, path)
-            if values is None:
-                return None
 
-            uuid, file_type_id = values
-            con.execute('INSERT INTO models3d (uuid, path, file_type_id) VALUES (?, ?, ?);', (uuid, path, file_type_id))
+            con.execute(f'SELECT value FROM settings WHERE name="model_path";')
+            model_path = con.fetchall()[0][0]
+
+            src = path
+            dst = os.path.join(model_path, os.path.split(path)[-1])
+
+            con.execute(f'SELECT id FROM models3d WHERE path="{dst}";')
+            res = con.fetchall()
+
+            if res:
+                return res[0][0]
+
+            shutil.move(src, dst)
+            con.execute('INSERT INTO models3d (path) VALUES (?);', (dst,))
 
         con.commit()
         db_id = con.lastrowid
@@ -60,13 +72,14 @@ table = _con.SQLTable(
     _con.FloatField('aggressiveness', default='"5.0"', no_null=True),
     _con.IntField('update_rate', default='150', no_null=True),
     _con.IntField('iterations', default='1', no_null=True),
-    _con.TextField('quat3d', default='"[1.0, 0.0, 0.0, 0.0]"', no_null=True),
-    _con.TextField('angle3d', default='"[0.0, 0.0, 0.0]"', no_null=True),
-    _con.TextField('point3d', default='"[0.0, 0.0, 0.0]"', no_null=True),
+    _con.TextField('quat3d', default='NULL'),
+    _con.TextField('angle3d', default='NULL'),
+    _con.TextField('point3d', default='NULL'),
     _con.TextField('scale', default='"[1.0, 1.0, 1.0]"', no_null=True),
     _con.IntField('simplify', default='0', no_null=True),
     _con.IntField('vertex_count', default="NULL"),
-    _con.TextField('aabb', default="NULL"),
-    _con.TextField('obb', default="NULL"),
+    _con.TextField('aabb', default='NULL'),
+    _con.TextField('obb', default='NULL'),
+    _con.TextField('forward_up', default='"-1, -1"', no_null=True),
     _con.TextField('path', no_null=True)
 )

@@ -2,18 +2,14 @@
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import (
-    QScrollArea, QWidget, QVBoxLayout, QHBoxLayout,
-    QGroupBox, QPushButton, QTabWidget
-)
-import random
+from PySide6 import QtWidgets
 
 from . import cavity_obj as _cavity_obj
+from . import analysis_panel as _analysis_panel
 from ...widgets import checkbox_ctrl as _checkbox_ctrl
-from . import triple_float_ctrl as _triple_float_ctrl
+from ...widgets import triple_float_ctrl as _triple_float_ctrl
 from ...widgets import editable_tab_ctrl as _editable_tab_ctrl
 from ...widgets import list_ctrl as _list_ctrl
-from .... import color as _color
 
 
 if TYPE_CHECKING:
@@ -22,7 +18,7 @@ if TYPE_CHECKING:
     from ....database.global_db import cavity as _cavity
 
 
-class CavityGeneral(QWidget):
+class CavityGeneral(QtWidgets.QWidget):
     """Represent a cavity general in :mod:`harness_designer.ui.dialogs.housing_editor.cavity_panel`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -41,8 +37,8 @@ class CavityGeneral(QWidget):
         self.cavity3d = cavity3d
         super().__init__(parent)
 
-        outer = QHBoxLayout()
-        left = QVBoxLayout()
+        outer = QtWidgets.QHBoxLayout()
+        left = QtWidgets.QVBoxLayout()
 
         self.is_round_ctrl = _checkbox_ctrl.CheckboxCtrl(self, 'Is Round:')
         self.is_round_ctrl.SetValue(cavity3d.is_round)
@@ -63,8 +59,8 @@ class CavityGeneral(QWidget):
 
             compat_terminals.append(terminal.part_number)
 
-        group = QGroupBox("Compatible Terminal Sizes")
-        group_layout = QVBoxLayout()
+        group = QtWidgets.QGroupBox("Compatible Terminal Sizes")
+        group_layout = QtWidgets.QVBoxLayout()
 
         self.terminal_size_ctrl = _list_ctrl.ListCtrl(
             group, terminal_sizes, item_type=float, unique=True)
@@ -77,8 +73,8 @@ class CavityGeneral(QWidget):
         group.setLayout(group_layout)
         outer.addWidget(group)
 
-        group = QGroupBox("Compatible Terminals")
-        group_layout = QVBoxLayout()
+        group = QtWidgets.QGroupBox("Compatible Terminals")
+        group_layout = QtWidgets.QVBoxLayout()
 
         self.compat_terminal_ctrl = _list_ctrl.ListCtrl(
             group, compat_terminals, item_type=str, unique=True)
@@ -256,7 +252,7 @@ class CavityGeneral(QWidget):
         self.cavity3d.is_round = value
 
 
-class CavityTab(QTabWidget):
+class CavityTab(QtWidgets.QTabWidget):
     """Represent a cavity tab in :mod:`harness_designer.ui.dialogs.housing_editor.cavity_panel`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -274,21 +270,12 @@ class CavityTab(QTabWidget):
         """
         super().__init__(parent)
 
-        color = [random.randrange(10, 255) / 255.0 for _ in range(3)]
-        color.append(1.0)
-
-        color = _color.Color(*color)
-
         self.cavity = _cavity_obj.Cavity(parent.dialog, cavity)
         cavity3d = self.cavity.obj3d
 
-        self.position = cavity3d.position
-        self.angle = cavity3d.angle
         self.size = cavity3d.scale
 
-        self.position_ctrl = _triple_float_ctrl.TripleFloatCtrl(self, self.position, color)
-        self.angle_ctrl = _triple_float_ctrl.TripleFloatCtrl(self, self.angle, color)
-        self.size_ctrl = _triple_float_ctrl.TripleFloatCtrl(self, self.size, color, register_events=False)
+        self.size_ctrl = _triple_float_ctrl.TripleFloatCtrl(self, self.size, register_events=False)
         self.general_ctrl = CavityGeneral(self, cavity3d)
 
         self.size_ctrl.x.value_changed.connect(self.on_size_x)
@@ -296,8 +283,6 @@ class CavityTab(QTabWidget):
         self.size_ctrl.z.value_changed.connect(self.on_size_z)
 
         self.addTab(self.general_ctrl, 'General')
-        self.addTab(self.position_ctrl, 'Position')
-        self.addTab(self.angle_ctrl, 'Angle')
         self.addTab(self.size_ctrl, 'Size')
 
     def on_size_x(self, value: float) -> None:
@@ -433,7 +418,7 @@ class CavityPanel(_editable_tab_ctrl.EditableTabCtrl):
     """
 
     rename_tab_label = 'Rename Cavity'
-    add_tab_label = 'Add Cavity'
+    add_tab_label = None
     delete_tab_label = 'Delete Cavity'
 
     # override this attribute to set a custom tooltip for the tab bar
@@ -458,18 +443,23 @@ class CavityPanel(_editable_tab_ctrl.EditableTabCtrl):
 
         self.__hold_change = False
         self.cavities: list[CavityTab] = []
+        self.housing = housing
+        self.dialog = dialog
+
+        self._num_pins = housing.db_obj.num_pins
+        self._update_pin_count = self._num_pins == 0
+
+        self.tabDeleteRequested.connect(self.on_cavity_remove)
+        self.tabRenamed.connect(self.on_cavity_name_change)
 
         for cavity in housing.db_obj.cavities:
             if cavity is None:
                 continue
 
-            self.on_add_cavity(cavity.idx - 1, cavity)
+            self.on_add_cavity(cavity.idx, cavity)
 
-        self.housing = housing
-        self.dialog = dialog
-
-        if not self.cavities:
-            self.dialog.housing_panel.enable_housing_ctrls(True)
+    def set_cavity(self, cavity):
+        pass
 
     def on_cavity_remove(self, idx: int, _: str, cavity: CavityTab):
         """Handle the cavity remove event.
@@ -489,7 +479,7 @@ class CavityPanel(_editable_tab_ctrl.EditableTabCtrl):
         cavity.delete()
 
         for i, cavity in enumerate(self.cavities):
-            cavity.index = i + 1
+            cavity.index = i
 
     def on_cavity_name_change(self, _: int, old_name: str,  # NOQA
                               new_name: str, cavity: CavityTab) -> None:
@@ -507,46 +497,48 @@ class CavityPanel(_editable_tab_ctrl.EditableTabCtrl):
         :type cavity: :class:`CavityTab`
         """
 
-        if new_name == old_name:
-            return
-
         cavity.name = new_name
 
     def on_add_cavity(self, idx, cavity=None):
-        """Handle the add cavity event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param idx: Value for ``idx``.
-        :type idx: UNKNOWN
-        :param cavity: Value for ``cavity``.
-        :type cavity: UNKNOWN
+        """Add a cavity tab.  ``idx`` is 0-based (matches db ``cavity.idx``).
+        Returns the new :class:`CavityTab`, or ``None`` if the pin-count limit
+        was reached.
         """
-        idx += 1
+        db_idx = idx       # keep 0-based for DB storage
+        idx += 1           # 1-based for display label and pin-count comparison
 
         if cavity is None:
             has_name = False
             name = str(idx)
         else:
             name = cavity.name
+            if not name:
+                name = str(idx)
+                cavity.name = str(idx)
+
             has_name = True
 
         housing_id = self.housing.db_obj.db_id
-        num_pins = self.housing.db_obj.num_pins
         cavities_table = self.housing.db_obj.table.db.cavities_table
 
-        if (num_pins > 0 and idx <= num_pins) or num_pins == 0:
+        num_pins = self._num_pins
+
+        if self._update_pin_count:
+            self.housing.db_obj.num_pins += 1
+            self._num_pins += 1
+            num_pins += 1
+
+        cavity_tab = None
+
+        if idx <= num_pins:   # was strict < — must use <= to allow the Nth pin
             if cavity is None:
-                cavity = cavities_table.insert(housing_id, idx)
+                cavity = cavities_table.insert(housing_id, db_idx)
 
             if not has_name:
                 cavity.name = name
 
             cavity_tab = CavityTab(self, cavity)
             self.addTab(cavity_tab, name)
-
-            if not self.cavities:
-                self.dialog.housing_panel.enable_housing_ctrls(False)
 
             if not has_name:
                 for c in self.cavities:
@@ -557,3 +549,20 @@ class CavityPanel(_editable_tab_ctrl.EditableTabCtrl):
                 cavity_tab.set_selected(True)
 
             self.cavities.append(cavity_tab)
+
+        return cavity_tab
+
+    def commit_cavity(self, idx: int, item: '_analysis_panel.AnalysisItem') -> None:
+        """Commit one analysis result to the DB and create its tab.
+        ``idx`` is 0-based (the next free index after existing cavities).
+        """
+        cavity_tab = self.on_add_cavity(idx)
+        if cavity_tab is None:
+            return
+
+        cavity_tab.cavity.obj3d.apply_analysis(
+            item.kind, item.params, item.d_start, item.d_end)
+
+        if item.name:
+            cavity_tab.name = item.name
+            self.setTabText(self.indexOf(cavity_tab), item.name)

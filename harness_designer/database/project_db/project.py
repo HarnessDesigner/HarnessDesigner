@@ -3,10 +3,11 @@
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
 from .pjt_bases import PJTEntryBase, PJTTableBase
-
+from .mixins import ColorMixin
 
 if TYPE_CHECKING:
     from ...objects import project as _project_obj
+    from ..global_db import model3d as _model3d
 
 
 class ProjectsTable(PJTTableBase):
@@ -101,7 +102,7 @@ class ProjectsTable(PJTTableBase):
         """
         self.update(project_id, object_count=value)
 
-    def insert(self, name: str, description: str, creator: str) -> "Project":
+    def insert(self, name: str, description: str, creator: str, model_id: int | None, color_id: int) -> "Project":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -112,16 +113,22 @@ class ProjectsTable(PJTTableBase):
         :type description: str
         :param creator: Value for ``creator``.
         :type creator: str
+        :param model_id: Value for ``model_id``.
+        :type model_id: int
+        :param color_id: Value for ``color_id``.
+        :type color_id: int
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`Project`
         """
 
-        db_id = PJTTableBase.insert(self, name=name, description=description, creator=creator)
+        db_id = PJTTableBase.insert(self, name=name, description=description,
+                                    creator=creator, model_id=model_id,
+                                    color_id=color_id)
 
         return Project(self, db_id, db_id)
 
 
-class Project(PJTEntryBase):
+class Project(PJTEntryBase, ColorMixin):
     """Represent a project in :mod:`harness_designer.database.project_db.project`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -226,24 +233,17 @@ class Project(PJTEntryBase):
         self._table.update(self._db_id, creator=value)
 
     @property
-    def user_model(self) -> str:
-        """Return the user model.
+    def model_id(self) -> int:
+        return self._table.select('model_id', id=self._db_id)[0][0]
 
-        UNKNOWN details are inferred from the callable name and signature.
+    @model_id.setter
+    def model_id(self, value: int):
+        self._table.update(self._db_id, model_id=value)
 
-        :returns: Property value. UNKNOWN details.
-        :rtype: str
-        """
-        return self._table.select('user_model', id=self._db_id)[0][0]
+    @property
+    def model(self) -> "_model3d.Model3D":
+        model_id = self.model_id
+        if model_id is None:
+            return None
 
-    @user_model.setter
-    def user_model(self, value: str):
-        """Set the user model.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param value: Value to store or process.
-        :type value: str
-        """
-        self._table.update(self._db_id, user_model=value)
-
+        return self.table.db.global_db.models3d_table[model_id]

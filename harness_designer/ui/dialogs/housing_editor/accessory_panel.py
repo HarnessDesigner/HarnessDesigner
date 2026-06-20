@@ -2,19 +2,19 @@
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import QTabWidget
+from PySide6 import QtWidgets
 
 from . import housing_obj as _housing_obj
 from .... import color as _color
 from . import accessory_obj as _accessory_obj
-from . import triple_float_ctrl as _triple_float_ctrl
+from ...widgets import triple_float_ctrl as _triple_float_ctrl
 
 
 if TYPE_CHECKING:
     from . import housing_editor as _housing_editor
 
 
-class AccessoryPanel(QTabWidget):
+class AccessoryPanel(QtWidgets.QTabWidget):
     """Represent an accessory panel in :mod:`harness_designer.ui.dialogs.housing_editor.accessory_panel`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -34,7 +34,7 @@ class AccessoryPanel(QTabWidget):
         :type housing: :class:`_housing_obj.Housing3D`
         """
 
-        QTabWidget.__init__(self, panel)
+        super().__init__(panel)
 
         self.housing = housing
         self.dialog = dialog

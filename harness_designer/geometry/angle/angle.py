@@ -10,6 +10,7 @@ import numpy as np
 from . import quaternion as _quaternion
 from .. import point as _point
 from ..decimal import Decimal as _d
+from ... import app_mixins as _app_mixins
 
 
 ONE = 1.0
@@ -71,7 +72,7 @@ class AngleMeta(type):
         return instance
 
 
-class Angle(metaclass=AngleMeta):
+class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
     """Represent an orientation using quaternion and Euler-angle forms."""
 
     def __array_ufunc__(self, func, method, inputs, instance, out=None, **kwargs):  # NOQA
@@ -114,12 +115,12 @@ class Angle(metaclass=AngleMeta):
                     # euler angle array
                     if inputs.shape == (3,):
                         # arr = np.array(self.as_float, dtype=np.float32)
-                        angle = self.from_euler(*inputs.tolist())
+                        angle = self.from_euler(*[float(str(v)) for v in inputs.tolist()])
                         angle += self
                         return angle.as_euler_numpy
                     # quat array
                     elif inputs.shape == (4,):
-                        angle = self.from_quat(inputs.tolist())
+                        angle = self.from_quat([float(str(v)) for v in inputs.tolist()])
                         angle += self
                         return angle.as_quat_numpy
                     # we assume this is a matrix array
@@ -134,13 +135,13 @@ class Angle(metaclass=AngleMeta):
                     # euler angle array
                     if out.shape == (3,):
                         # arr = np.array(self.as_float, dtype=np.float32)
-                        angle = self.from_euler(*out.tolist())
+                        angle = self.from_euler(*[float(str(v)) for v in out.tolist()])
                         angle += self
                         out[:] = angle.as_euler_numpy
                         return out
                     # quat array
                     elif out.shape == (4,):
-                        angle = self.from_quat(out.tolist())
+                        angle = self.from_quat([float(str(v)) for v in out.tolist()])
                         angle += self
                         out[:] = angle.as_quat_numpy
                         return out
@@ -160,18 +161,18 @@ class Angle(metaclass=AngleMeta):
                     # euler angle array
                     if inputs.shape == (3,):
                         # arr = np.array(self.as_float, dtype=np.float32)
-                        angle = self.from_euler(*inputs.tolist())
+                        angle = self.from_euler(*[float(str(v)) for v in inputs.tolist()])
                         angle -= self
                         return angle.as_euler_numpy
                     # quat array
                     elif inputs.shape == (4,):
-                        angle = self.from_quat(inputs.tolist())
+                        angle = self.from_quat([float(str(v)) for v in inputs.tolist()])
                         angle -= self
                         return angle.as_quat_numpy
                     # we assume this is a matrix array
                     else:
                         angle = self.from_matrix(inputs)
-                        angle += self
+                        angle -= self
                         return angle.as_matrix_numpy
 
                 # __isub__
@@ -181,13 +182,13 @@ class Angle(metaclass=AngleMeta):
                     # euler angle array
                     if out.shape == (3,):
                         # arr = np.array(self.as_float, dtype=np.float32)
-                        angle = self.from_euler(*out.tolist())
+                        angle = self.from_euler(*[float(str(v)) for v in out.tolist()])
                         angle -= self
                         out[:] = angle.as_euler_numpy
                         return out
                     # quat array
                     elif out.shape == (4,):
-                        angle = self.from_quat(out.tolist())
+                        angle = self.from_quat([float(str(v)) for v in out.tolist()])
                         angle -= self
                         out[:] = angle.as_quat_numpy
                         return out
@@ -227,110 +228,11 @@ class Angle(metaclass=AngleMeta):
         else:
             self.__euler_angles = np.array(euler_angles, dtype=np.float32)
 
-        self.__callbacks = []
-        self._ref_count = 0
+        self.__callbacks__ = []
+        self.__unbound_callbacks__ = []
+        self.__ref_count__ = 0
 
         self._matrix = self._q.as_matrix
-
-    def __enter__(self):
-        """
-        Enter a batched update block.
-
-        :returns: This angle instance.
-        :rtype: :class:`Angle`
-        """
-
-        self._ref_count += 1
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """
-        Leave a batched update block.
-
-        :param exc_type: Exception type, if any.
-        :type exc_type: type | None
-        :param exc_val: Exception value, if any.
-        :type exc_val: BaseException | None
-        :param exc_tb: Traceback, if any.
-        :type exc_tb: object
-        :returns: ``None``
-        :rtype: None
-        """
-
-        self._ref_count -= 1
-
-    def __remove_callback(self, ref):
-        """
-        Remove a dead callback reference.
-
-        :param ref: Callback weak reference.
-        :type ref: :class:`weakref.WeakMethod`
-        :returns: ``None``
-        :rtype: None
-        """
-
-        try:
-            self.__callbacks.remove(ref)
-        except:  # NOQA
-            pass
-
-    def bind(self, cb: Callable[["Angle"], None]) -> bool:
-        """
-        Register a callback to run after updates.
-
-        :param cb: Bound method receiving this angle.
-        :type cb: collections.abc.Callable[[ :class:`Angle` ], None]
-        :returns: ``True`` after registration.
-        :rtype: bool
-        """
-
-        # We don't explicitly check to see if a callback is already registered.
-        # What we care about is if a callback is called only one time and that
-        # check is done when the callbacks are being executed. If there happens
-        # to be a duplicate, the duplicate is then removed at that point in time.
-        ref = weakref.WeakMethod(cb, self.__remove_callback)
-        self.__callbacks.append(ref)
-        return True
-
-    def unbind(self, cb: Callable[["Angle"], None]) -> None:
-        """
-        Remove all registrations for a callback.
-
-        :param cb: Previously registered callback.
-        :type cb: collections.abc.Callable[[ :class:`Angle` ], None]
-        :returns: ``None``
-        :rtype: None
-        """
-
-        for ref in self.__callbacks[:]:
-            callback = ref()
-            if callback is None:
-                self.__callbacks.remove(ref)
-            elif callback == cb:
-                # We don't return after locating a matching callback in the
-                # event a callback was registered more than one time. Duplicates
-                # are also removed at the time callbacks get called but if an update
-                # to an angle never occurs we want to make sure that we explicitly
-                # unbind all callbacks including duplicates.
-                self.__callbacks.remove(ref)
-
-    def _process_update(self):
-        """
-        Notify bound callbacks unless batching is active.
-
-        :returns: ``None``
-        :rtype: None
-        """
-
-        if self._ref_count:
-            return
-
-        for ref in self.__callbacks[:]:
-            cb = ref()
-            if cb is None:
-                self.__callbacks.remove(ref)
-            else:
-                cb(self)
 
     @property
     def inverse(self) -> "Angle":
@@ -368,7 +270,7 @@ class Angle(metaclass=AngleMeta):
             # self.__euler_angles = self._q.as_euler
             return math.nan
 
-        return self.__euler_angles.tolist()[0]
+        return float(str(self.__euler_angles[0]))
 
     @x.setter
     def x(self, value: float):
@@ -390,7 +292,7 @@ class Angle(metaclass=AngleMeta):
         q = _quaternion.Quaternion.from_euler(*self.__euler_angles)
         self.__update_quat(q)
 
-        self._process_update()
+        self._process_callbacks()
 
     def __update_quat(self, q):
         """
@@ -421,7 +323,7 @@ class Angle(metaclass=AngleMeta):
             # self.__euler_angles = self._q.as_euler
             return math.nan
 
-        return self.__euler_angles.tolist()[1]
+        return float(str(self.__euler_angles[1]))
 
     @y.setter
     def y(self, value: float):
@@ -442,7 +344,7 @@ class Angle(metaclass=AngleMeta):
         q = _quaternion.Quaternion.from_euler(*self.__euler_angles)
 
         self.__update_quat(q)
-        self._process_update()
+        self._process_callbacks()
 
     @property
     def z(self) -> float:
@@ -457,7 +359,7 @@ class Angle(metaclass=AngleMeta):
             # self.__euler_angles = self._q.as_euler
             return math.nan
 
-        return self.__euler_angles.tolist()[2]
+        return float(str(self.__euler_angles[2]))
 
     @z.setter
     def z(self, value: float):
@@ -476,10 +378,10 @@ class Angle(metaclass=AngleMeta):
 
         self.__euler_angles[2] = value
 
-        q = _quaternion.Quaternion.from_euler(*self.__euler_angles.tolist())
+        q = _quaternion.Quaternion.from_euler(*[float(str(v)) for v in self.__euler_angles.tolist()])
 
         self.__update_quat(q)
-        self._process_update()
+        self._process_callbacks()
 
     def copy(self) -> "Angle":
         """
@@ -490,9 +392,9 @@ class Angle(metaclass=AngleMeta):
         """
 
         if self.__euler_angles is not None:
-            return Angle.from_quat(self._q.as_numpy.tolist(), euler_angles=self.__euler_angles.tolist())
+            return Angle.from_quat([float(str(v)) for v in self._q.as_numpy.tolist()], euler_angles=[float(str(v)) for v in self.__euler_angles.tolist()])
         else:
-            return Angle.from_quat(self._q.as_numpy.tolist())
+            return Angle.from_quat([float(str(v)) for v in self._q.as_numpy.tolist()])
 
     @staticmethod
     def __get_quat_from_other(other: Union["Angle", np.ndarray | _quaternion.Quaternion]) -> _quaternion.Quaternion:
@@ -554,7 +456,7 @@ class Angle(metaclass=AngleMeta):
         if isinstance(other, Angle):
             x2, y2, z2 = other.x, other.y, other.z
             if math.nan not in (x2, y2, z2) and self.__euler_angles is not None:
-                x1, y1, z1 = [_d(item) for item in self.__euler_angles.tolist()]
+                x1, y1, z1 = [_d(str(item)) for item in self.__euler_angles.tolist()]
                 x2, y2, z2 = [_d(item) for item in (x2, y2, z2)]
 
                 x1 += x2
@@ -565,15 +467,15 @@ class Angle(metaclass=AngleMeta):
                 self.__euler_angles[1] = float(y1)
                 self.__euler_angles[2] = float(z1)
 
-                q = _quaternion.Quaternion.from_euler(*self.__euler_angles.tolist())
+                q = _quaternion.Quaternion.from_euler(*[float(str(v)) for v in self.__euler_angles.tolist()])
 
                 self.__update_quat(q)
-                self._process_update()
-                return
+                self._process_callbacks()
+                return self
 
         self._q += self.__get_quat_from_other(other)
         self.__update_matrix()
-        self._process_update()
+        self._process_callbacks()
         return self
 
     def __add__(self, other: Union["Angle", np.ndarray]) -> "Angle":
@@ -589,7 +491,7 @@ class Angle(metaclass=AngleMeta):
         if isinstance(other, Angle):
             x2, y2, z2 = other.x, other.y, other.z
             if math.nan not in (x2, y2, z2) and self.__euler_angles is not None:
-                x1, y1, z1 = [_d(item) for item in self.__euler_angles.tolist()]
+                x1, y1, z1 = [_d(str(item)) for item in self.__euler_angles.tolist()]
                 x2, y2, z2 = [_d(item) for item in (x2, y2, z2)]
 
                 x = x1 + x2
@@ -615,7 +517,7 @@ class Angle(metaclass=AngleMeta):
         if isinstance(other, Angle):
             x2, y2, z2 = other.x, other.y, other.z
             if math.nan not in (x2, y2, z2) and self.__euler_angles is not None:
-                x1, y1, z1 = [_d(item) for item in self.__euler_angles.tolist()]
+                x1, y1, z1 = [_d(str(item)) for item in self.__euler_angles.tolist()]
                 x2, y2, z2 = [_d(item) for item in (x2, y2, z2)]
 
                 x1 -= x2
@@ -626,15 +528,15 @@ class Angle(metaclass=AngleMeta):
                 self.__euler_angles[1] = float(y1)
                 self.__euler_angles[2] = float(z1)
 
-                q = _quaternion.Quaternion.from_euler(*self.__euler_angles.tolist())
+                q = _quaternion.Quaternion.from_euler(*[float(str(v)) for v in self.__euler_angles.tolist()])
 
                 self.__update_quat(q)
-                self._process_update()
-                return
+                self._process_callbacks()
+                return self
 
         self._q -= self.__get_quat_from_other(other)
         self.__update_matrix()
-        self._process_update()
+        self._process_callbacks()
         return self
 
     def __sub__(self, other: Union["Angle", np.ndarray]) -> "Angle":
@@ -650,7 +552,7 @@ class Angle(metaclass=AngleMeta):
         if isinstance(other, Angle):
             x2, y2, z2 = other.x, other.y, other.z
             if math.nan not in (x2, y2, z2) and self.__euler_angles is not None:
-                x1, y1, z1 = [_d(item) for item in self.__euler_angles.tolist()]
+                x1, y1, z1 = [_d(str(item)) for item in self.__euler_angles.tolist()]
                 x2, y2, z2 = [_d(item) for item in (x2, y2, z2)]
 
                 x = x1 - x2
@@ -776,15 +678,17 @@ class Angle(metaclass=AngleMeta):
         return self.__euler_angles
 
     @property
-    def as_euler_float(self) -> list[float, float, float]:
+    def as_euler_float(self) -> tuple[float, float, float]:
         """
         Return cached Euler angles as floats.
 
         :returns: ``[x, y, z]`` Euler values.
-        :rtype: list[float, float, float]
+        :rtype: tuple[float, float, float]
         """
 
-        return self.__euler_angles.tolist()
+        if self.__euler_angles is None:
+            return [math.nan, math.nan, math.nan]
+        return tuple(float(str(item)) for item in self.__euler_angles.tolist())
 
     @property
     def as_quat_numpy(self) -> np.ndarray:
@@ -798,18 +702,18 @@ class Angle(metaclass=AngleMeta):
         return self._q.as_numpy
 
     @property
-    def as_quat_float(self) -> list[float, float, float]:
+    def as_quat_float(self) -> tuple[float, float, float]:
         """
         Return quaternion components as floats.
 
         :returns: Quaternion values.
-        :rtype: list[float, float, float]
+        :rtype: tuple[float, float, float]
         """
 
-        return self._q.as_numpy.tolist()
+        return tuple(float(str(item)) for item in self._q.as_numpy.tolist())
 
     @property
-    def as_euler_int(self) -> tuple[int, int, int]:
+    def as_euler_int(self) -> list[int, int, int]:
         """
         Return cached Euler angles truncated to integers.
 
@@ -817,13 +721,12 @@ class Angle(metaclass=AngleMeta):
         :rtype: tuple[int, int, int]
         """
 
-        x, y, z = self.as_euler_float
-        return int(x), int(y), int(z)
+        return tuple(int(item) for item in self.as_euler_float)
 
     @property
     def as_matrix_float(
         self
-    ) -> list[list[float, float, float], list[float, float, float], list[float, float, float]]:
+    ) -> tuple[list[float, float, float], list[float, float, float], list[float, float, float]]:
         """
         Return the cached rotation matrix as nested float lists.
 
@@ -831,7 +734,7 @@ class Angle(metaclass=AngleMeta):
         :rtype: list[list[float, float, float], list[float, float, float], list[float, float, float]]
         """
 
-        return self._matrix.tolist()
+        return tuple([float(str(item)) for item in row] for row in self._matrix.tolist())
 
     @property
     def as_matrix_numpy(self) -> np.ndarray:
@@ -1045,6 +948,47 @@ class Angle(metaclass=AngleMeta):
 
         rot = np.column_stack((right, true_up, forward_world))
 
+        return cls.from_matrix(rot, db_id)
+
+    @classmethod
+    def from_frame(cls, pos: "_point.Point", fwd_ref: "_point.Point",
+                   up_ref: "_point.Point",
+                   db_id: str | None = None) -> "Angle":
+        """
+        Create an angle from a full orientation frame (position + forward + up).
+
+        Unlike :meth:`from_points`, this method does not assume world Y as the
+        up direction.  Pass the object's local Y axis reference point so that
+        roll is correctly preserved through arbitrary delta rotations.
+
+        :param pos: Object position in world space.
+        :param fwd_ref: Point 10 units along the object's local +Z in world space.
+        :param up_ref: Point 10 units along the object's local +Y in world space.
+        :param db_id: Optional shared-instance identifier.
+        """
+        pos_np = pos.as_numpy
+
+        fwd = fwd_ref.as_numpy - pos_np
+        fwd_n = np.linalg.norm(fwd)
+        if fwd_n < 1e-6:
+            return cls(db_id=db_id)
+        fwd = fwd / fwd_n
+
+        up = up_ref.as_numpy - pos_np
+        up_n = np.linalg.norm(up)
+        if up_n < 1e-6:
+            return cls(db_id=db_id)
+        up = up / up_n
+
+        right = np.cross(up, fwd)
+        rn = np.linalg.norm(right)
+        if rn < 1e-6:
+            return cls.from_points(pos, fwd_ref, db_id=db_id)
+        right = right / rn
+
+        true_up = np.cross(fwd, right)
+
+        rot = np.column_stack((right, true_up, fwd))
         return cls.from_matrix(rot, db_id)
 
     @classmethod

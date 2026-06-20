@@ -121,6 +121,9 @@ class AddCoverHandler(_handler_base.HandlerBase):
         self.obj = _cover.Cover(self.mainframe, db_obj)
         self.obj.identify(self._preview_material)
 
+        if self._housing is not None:
+            _handler_base.set_angle_from_housing(self.obj.db_obj, self._housing.db_obj)
+
     @property
     def snap_pool(self):
         housing_cover_positions = []
@@ -150,12 +153,18 @@ class AddCoverHandler(_handler_base.HandlerBase):
         world_pos = self.camera.get_position_on_focal_plane(mouse_pos)
         housing = snap_pool.query(world_pos)
 
+        prev_snapped = self._snapped
+
         if housing is None:
             point = world_pos
             self._snapped = None
+            if prev_snapped is not None:
+                _handler_base.reset_angle(self.obj.db_obj)
         else:
             point = housing.db_obj.cover_position3d
             self._snapped = housing
+            if prev_snapped is not housing:
+                _handler_base.set_angle_from_housing(self.obj.db_obj, housing.db_obj)
 
         position = self.obj.db_obj.position3d
 
@@ -188,6 +197,7 @@ class AddCoverHandler(_handler_base.HandlerBase):
                 self.part.db_id, self._snapped.db_obj.cover_position3d_id,
                 self._snapped.db_obj.db_id)
 
+            _handler_base.set_angle_from_housing(db_obj, self._snapped.db_obj)
             obj = _cover.Cover(self.mainframe, db_obj)
         else:
             obj = self.obj

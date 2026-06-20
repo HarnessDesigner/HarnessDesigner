@@ -2,8 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout
-from PySide6.QtCore import Qt
+from PySide6 import QtCore
 from PySide6 import QtWidgets
 
 
@@ -28,11 +27,11 @@ class EditorObj:
         self.editor = EditorObjPanel(mainframe)
         self.mainframe = mainframe
 
-        self._dock = mainframe._make_dock(
+        self._dock = mainframe._make_dock(  # NOQA
             title='Object Editor',
             name='editor_obj',
             widget=self.editor,
-            area=Qt.DockWidgetArea.RightDockWidgetArea,
+            area=QtCore.Qt.DockWidgetArea.RightDockWidgetArea,
         )
         # self._dock.visibilityChanged.connect(self._on_visibility_changed)
         self._dock.show()
@@ -74,15 +73,8 @@ class EditorObj:
         """
         return self._dock.isVisible()
 
-    def Refresh(self, *args, **kwargs):
+    def Refresh(self, *_, **__):
         """Execute the refresh operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param args: Additional positional arguments.
-        :type args: UNKNOWN
-        :param kwargs: Additional keyword arguments.
-        :type kwargs: UNKNOWN
         """
         self.editor.update()
 
@@ -102,10 +94,15 @@ class EditorObj:
         :type obj: UNKNOWN
         """
         if self.IsShown():
-            self.editor.set_selected(obj)
+            QtWidgets.QApplication.setOverrideCursor(
+                QtCore.Qt.CursorShape.WaitCursor)
+            try:
+                self.editor.set_selected(obj)
+            finally:
+                QtWidgets.QApplication.restoreOverrideCursor()
 
 
-class EditorObjPanel(QWidget):
+class EditorObjPanel(QtWidgets.QWidget):
     """Represent an editor obj panel in :mod:`harness_designer.ui.editor_obj.editorobj`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -119,12 +116,12 @@ class EditorObjPanel(QWidget):
         :param parent: Parent object.
         :type parent: :class:`_mainframe.MainFrame`
         """
-        QWidget.__init__(self, parent)
+        super().__init__(parent)
         self.mainframe = parent
         self.control = None
 
-        vsizer = QVBoxLayout(self)
-        hsizer = QHBoxLayout()
+        vsizer = QtWidgets.QVBoxLayout(self)
+        hsizer = QtWidgets.QHBoxLayout()
         vsizer.addLayout(hsizer)
 
         self.sizer = hsizer

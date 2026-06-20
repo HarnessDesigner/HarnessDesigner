@@ -31,6 +31,7 @@ from .. import logger as _logger
 if TYPE_CHECKING:
     from .. import ui as _ui
     from ..database.project_db import project as _project
+    from ..database.global_db import model3d as _model3d
 
 
 Config = _config.Config.project
@@ -41,6 +42,34 @@ class Project:
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
+
+    def _set_model(self, model3d: "_model3d.Model3D"):
+        from ..gl import vbo as _vbo_handler
+        import numpy as np
+        from . import project_model as _project_model
+
+        uuid = model3d.uuid
+        project_obj = self.mainframe.project_db.projects_table[self.project_id]
+
+        self.mainframe.editor3d.context.acquire()
+        if uuid in _vbo_handler.PooledVBOHandler:
+            vbo = _vbo_handler.PooledVBOHandler(uuid)
+        else:
+            v_count = model3d.vertex_count
+            obb = model3d.obb
+            aabb = model3d.aabb
+            data_path = model3d.data_path
+            packed = np.load(data_path)
+
+            angle = model3d.angle3d
+            packed @= angle
+            aabb @= angle
+            obb @= angle
+
+            vbo = _vbo_handler.PooledVBOHandler(uuid, packed, v_count, aabb, obb)
+
+        self.mainframe.editor3d.context.release()
+        self._model = _project_model.ProjectModel(self.mainframe, project_obj, vbo)
 
     def __init__(self, mainframe: "_ui.MainFrame", db_obj: "_project.Project", project_name: str, project_id: int):
         """Initialise the :class:`Project` instance.
@@ -69,6 +98,13 @@ class Project:
         self.mainframe.process_manager.reset()
         ptables.load(project_id)
         mainframe.object_browser.reset()
+
+        project_obj = mainframe.project_db.projects_table[project_id]
+        model = project_obj.model
+        self._model = None
+
+        if model is not None:
+            model.load('project', project_id, self._set_model)
 
         from ..database.project_db.cleanup import ProjectCleanup
 
@@ -316,10 +352,18 @@ class Project:
             dlg = _add_project.AddProjectDialog(mainframe, project_name, mainframe.project_db.projects_table)
             if dlg.exec() == QDialog.DialogCode.Accepted:
 
-                project_name, creator, description, model_path = dlg.GetValue()
+                project_name, creator, description, model_path, color_id = dlg.GetValue()
 
-                connector.execute(f'INSERT INTO projects (name, creator, description, user_model) VALUES (?, ?, ?, ?);',
-                                  (project_name, creator, description, model_path))
+                if model_path:
+                    connector.execute(
+                        f'INSERT INTO models3d (path) VALUES (?);', (model_path,))
+                    connector.commit()
+                    model_id = connector.lastrowid
+                else:
+                    model_id = None
+
+                connector.execute(f'INSERT INTO projects (name, creator, description, model_id, color_id) VALUES (?, ?, ?, ?, ?);',
+                                  (project_name, creator, description, model_id, color_id))
                 connector.commit()
                 project_id = connector.lastrowid
             else:

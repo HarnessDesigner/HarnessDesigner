@@ -466,6 +466,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
                 res.append(self._table.db.covers_table[part_number])
             except KeyError:
                 pass
+
         return res
 
     @property
@@ -478,7 +479,11 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :rtype: list[str]
         """
         value = self._table.select('compat_covers', id=self._db_id)[0][0]
-        return value[1:-1].split(', ')
+
+        if value.startswith('['):
+            value = value[1:-1]
+
+        return value.split(', ')
 
     @compat_covers_array.setter
     def compat_covers_array(self, value: list[str]):
@@ -489,7 +494,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param value: Value to store or process.
         :type value: list[str]
         """
-        value = f'[{", ".join(value)}]'
+        value = ", ".join(value)
         self._table.update(self._db_id, compat_covers=value)
         self._populate('compat_covers_array')
 
@@ -521,7 +526,11 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :rtype: list[str]
         """
         value = self._table.select('compat_boots', id=self._db_id)[0][0]
-        return value[1:-1].split(', ')
+
+        if value.startswith('['):
+            value = value[1:-1]
+
+        return value.split(', ')
 
     @compat_boots_array.setter
     def compat_boots_array(self, value: list[str]):
@@ -532,7 +541,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param value: Value to store or process.
         :type value: list[str]
         """
-        value = f'[{", ".join(value)}]'
+        value = ", ".join(value)
         self._table.update(self._db_id, compat_boots=value)
         self._populate('compat_boots_array')
 
@@ -552,6 +561,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
                 res.append(self._table.db.cpa_locks_table[part_number])
             except KeyError:
                 pass
+
         return res
 
     @property
@@ -564,7 +574,11 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :rtype: list[str]
         """
         value = self._table.select('compat_cpas', id=self._db_id)[0][0]
-        return value[1:-1].split(', ')
+
+        if value.startswith('['):
+            value = value[1:-1]
+
+        return value.split(', ')
 
     @compat_cpas_array.setter
     def compat_cpas_array(self, value: list[str]):
@@ -575,8 +589,10 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param value: Value to store or process.
         :type value: list[str]
         """
-        value = f'[{", ".join(value)}]'
+
+        value = ', '.join(value)
         self._table.update(self._db_id, compat_cpas=value)
+
         self._populate('compat_cpas_array')
 
     @property
@@ -588,6 +604,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: list[_tpa_lock.TPALock]
         """
+
         compat_tpas = self.compat_tpas_array
         res = []
         for part_number in compat_tpas:
@@ -595,6 +612,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
                 res.append(self._table.db.tpa_locks_table[part_number])
             except KeyError:
                 pass
+
         return res
 
     @property
@@ -606,6 +624,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: list[str]
         """
+
         value = self._table.select('compat_tpas', id=self._db_id)[0][0]
         return value[1:-1].split(', ')
 
@@ -618,6 +637,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param value: Value to store or process.
         :type value: list[str]
         """
+
         value = f'[{", ".join(value)}]'
         self._table.update(self._db_id, compat_tpas=value)
         self._populate('compat_tpas_array')
@@ -631,6 +651,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_ip.IPRating`
         """
+
         ip_rating_id = self._table.select('ip_rating_id', id=self._db_id)
         return _ip.IPRating(self._table.db.ip_ratings_table, ip_rating_id[0][0])
 
@@ -643,6 +664,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: UNKNOWN
         """
+
         return self._table.select('ip_rating_id', id=self._db_id)[0][0]
 
     @ip_rating_id.setter
@@ -654,6 +676,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param value: Value to store or process.
         :type value: UNKNOWN
         """
+
         self._table.update(self._db_id, ip_rating_id=value)
         self._populate('ip_rating_id')
 
@@ -666,6 +689,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_cavity_lock.CavityLock`
         """
+
         cavity_lock_id = self.cavity_lock_id
         return self._table.db.cavity_locks_table[cavity_lock_id]
 
@@ -678,6 +702,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: UNKNOWN
         """
+
         return self._table.select('cavity_lock_id', id=self._db_id)[0][0]
 
     @cavity_lock_id.setter
@@ -689,6 +714,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param value: Value to store or process.
         :type value: UNKNOWN
         """
+
         self._table.update(self._db_id, cavity_lock_id=value)
         self._populate('cavity_lock_id')
 
@@ -701,6 +727,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_seal_type.SealType`
         """
+
         seal_type_id = self.seal_type_id
         return self._table.db.seal_types_table[seal_type_id]
 
@@ -713,6 +740,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: UNKNOWN
         """
+
         return self._table.select('seal_type_id', id=self._db_id)[0][0]
 
     @seal_type_id.setter
@@ -724,6 +752,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param value: Value to store or process.
         :type value: UNKNOWN
         """
+
         self._table.update(self._db_id, seal_type_id=value)
         self._populate('seal_type_id')
 
@@ -736,6 +765,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_cpa_lock_type.CPALockType`
         """
+
         cpa_lock_type_id = self.cpa_lock_type_id
         return self._table.db.cpa_lock_types_table[cpa_lock_type_id]
 
@@ -748,6 +778,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: UNKNOWN
         """
+
         return self._table.select('cpa_lock_type_id', id=self._db_id)[0][0]
 
     @cpa_lock_type_id.setter
@@ -759,6 +790,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param value: Value to store or process.
         :type value: UNKNOWN
         """
+
         self._table.update(self._db_id, cpa_lock_type_id=value)
         self._populate('cpa_lock_type_id')
 
@@ -771,7 +803,13 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: list[float]
         """
-        return eval(self._table.select('terminal_sizes', id=self._db_id)[0][0])
+
+        value = self._table.select('terminal_sizes', id=self._db_id)[0][0]
+
+        if not value.startswith('['):
+            value = f'[{value}]'
+
+        return eval(value)
 
     @terminal_sizes.setter
     def terminal_sizes(self, value: list[float]):
@@ -782,7 +820,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param value: Value to store or process.
         :type value: list[float]
         """
-        self._table.update(self._db_id, terminal_sizes=str(value))
+        self._table.update(self._db_id, terminal_sizes=str(value)[1:-1])
         self._populate('terminal_sizes')
 
     @property
@@ -794,7 +832,13 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: list[int]
         """
-        return eval(self._table.select('terminal_size_counts', id=self._db_id)[0][0])
+
+        value = self._table.select('terminal_size_counts', id=self._db_id)[0][0]
+
+        if not value.startswith('['):
+            value = f'[{value}]'
+
+        return eval(value)
 
     @terminal_size_counts.setter
     def terminal_size_counts(self, value: list[int]):
@@ -805,7 +849,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param value: Value to store or process.
         :type value: list[int]
         """
-        self._table.update(self._db_id, terminal_size_counts=str(value))
+        self._table.update(self._db_id, terminal_size_counts=str(value)[1:-1])
         self._populate('terminal_size_counts')
 
     @property
@@ -909,13 +953,44 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: list['_cavity.Cavity']
         """
-        res = [None] * self.num_pins
 
-        rows = self._table.db.cavities_table.select("id", "idx",
-                                                    housing_id=self._db_id)
+        num_pins = self.num_pins
+
+        res = [None] * num_pins
+
+        rows = self._table.db.cavities_table.select(
+            "id", "idx", housing_id=self._db_id)
+        #
+        # indexes = [row[1] for row in rows]
+        # high_index = max(indexes)
+        #
+        # cavity_count = len(indexes)
+        #
+        # if high_index > cavity_count < num_pins < high_index:
+        #     inds = [None] * high_index
+        #     for idx in indexes:
+        #         inds[idx] = idx
+        #
+        #     while None in indexes:
+        #         indexes.remove(None)
+        #
+        #     for new_index, old_index in enumerate(inds):
+        #         new_index += 1
+        #         if new_index != old_index:
+        #             for db_id, db_index in rows:
+        #                 if db_index != old_index:
+        #                     continue
+        #
+        #                 self._table.db.cavities_table.update(
+        #                     db_id, idx=new_index, housing_id=self._db_id)
+        #                 break
+        #
+        #     rows = self._table.db.cavities_table.select(
+        #         "id", "idx", housing_id=self._db_id)
 
         for db_id, idx in rows:
             res[idx] = self._table.db.cavities_table[db_id]
+
         return res
 
     _cover_position3d: str = None
@@ -1126,11 +1201,14 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param angle: Value for ``angle``.
         :type angle: :class:`_angle.Angle`
         """
-        quat = list(angle.as_quat_float)
-        euler_angle = list(angle.as_euler_float)
+        quat = str(list(angle.as_quat_float))
+        euler = str(list(angle.as_euler_float))
 
-        self._table.update(self._db_id, quat3d=str(quat))
-        self._table.update(self._db_id, angle3d=str(euler_angle))
+        if 'nan' in euler or 'nan' in quat:
+            return
+
+        self._table.update(self._db_id, quat3d=quat)
+        self._table.update(self._db_id, angle3d=euler)
         self._populate('angle3d')
 
     @property

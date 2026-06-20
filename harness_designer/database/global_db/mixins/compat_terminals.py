@@ -33,6 +33,7 @@ class CompatTerminalsMixin(BaseMixin):
                 res.append(self._table.db.terminals_table[part_number])
             except KeyError:
                 pass
+
         return res
 
     @property
@@ -45,7 +46,8 @@ class CompatTerminalsMixin(BaseMixin):
         :rtype: list[str]
         """
         value = self._table.select('compat_terminals', id=self._db_id)[0][0]
-        if value.startswith('[') and value.endswith(']'):
+
+        if value.startswith('['):
             value = value[1:-1]
 
         return value.split(', ')

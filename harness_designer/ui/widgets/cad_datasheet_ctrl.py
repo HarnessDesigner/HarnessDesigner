@@ -54,23 +54,14 @@ DXF notes
 
 from typing import Any
 
-from PySide6.QtCore import (
-    QEvent, QObject, QPoint, QPointF, QRectF, QSize, Qt, QTimer, Signal, Slot
-)
-from PySide6.QtGui import (
-    QAction, QBrush, QColor, QImage, QIntValidator,
-    QKeySequence, QPainter, QPixmap, QShortcut, QMouseEvent, QWheelEvent
-)
-from PySide6.QtPdf import QPdfDocument
-from PySide6.QtPdfWidgets import QPdfView
-from PySide6.QtSvg import QSvgRenderer
-from PySide6.QtSvgWidgets import QGraphicsSvgItem
-from PySide6.QtWidgets import (
-    QComboBox, QFrame,
-    QGraphicsScene, QGraphicsView, QHBoxLayout, QLabel,
-    QLineEdit, QPushButton, QStackedWidget,
-    QVBoxLayout, QWidget,
-)
+from PySide6 import QtCore
+from PySide6 import QtGui
+
+from PySide6 import QtPdf
+from PySide6 import QtPdfWidgets
+from PySide6 import QtSvg
+from PySide6 import QtSvgWidgets
+from PySide6 import QtWidgets
 
 
 # ── Zoom ──────────────────────────────────────────────────────────────────────
@@ -100,8 +91,8 @@ _PANE_IMAGE = 1   # raster, SVG and DXF all share this pane
 
 # ── Shared helpers ────────────────────────────────────────────────────────────
 
-def _small_btn(text: str, tooltip: str = "") -> QPushButton:
-    btn = QPushButton(text)
+def _small_btn(text: str, tooltip: str = "") -> QtWidgets.QPushButton:
+    btn = QtWidgets.QPushButton(text)
     btn.setFixedWidth(28)
 
     if tooltip:
@@ -110,10 +101,10 @@ def _small_btn(text: str, tooltip: str = "") -> QPushButton:
     return btn
 
 
-def _vline() -> QFrame:
-    sep = QFrame()
-    sep.setFrameShape(QFrame.Shape.VLine)
-    sep.setFrameShadow(QFrame.Shadow.Sunken)
+def _vline() -> QtWidgets.QFrame:
+    sep = QtWidgets.QFrame()
+    sep.setFrameShape(QtWidgets.QFrame.Shape.VLine)
+    sep.setFrameShadow(QtWidgets.QFrame.Shadow.Sunken)
 
     return sep
 
@@ -121,7 +112,7 @@ def _vline() -> QFrame:
 # ══════════════════════════════════════════════════════════════════════════════
 # _ImageView  (internal)
 # ══════════════════════════════════════════════════════════════════════════════
-class _ImageView(QGraphicsView):
+class _ImageView(QtWidgets.QGraphicsView):
     """
     Internal QGraphicsView that renders raster images, SVG, and DXF.
 
@@ -130,40 +121,40 @@ class _ImageView(QGraphicsView):
     • Plain scroll → scroll
     """
 
-    zoom_changed = Signal(float)
+    zoom_changed: QtCore.SignalInstance = QtCore.Signal(float)
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
-        self._scene = QGraphicsScene(self)
-        self._renderer: QSvgRenderer | None = None   # keeps SVG renderer alive
+        self._scene = QtWidgets.QGraphicsScene(self)
+        self._renderer: QtSvg.QSvgRenderer | None = None   # keeps SVG renderer alive
         self._zoom = 1.0
 
         self.setScene(self._scene)
-        self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
-        self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
-        self.setResizeAnchor(QGraphicsView.ViewportAnchor.AnchorViewCenter)
+        self.setDragMode(QtWidgets.QGraphicsView.DragMode.ScrollHandDrag)
+        self.setTransformationAnchor(QtWidgets.QGraphicsView.ViewportAnchor.AnchorUnderMouse)
+        self.setResizeAnchor(QtWidgets.QGraphicsView.ViewportAnchor.AnchorViewCenter)
         self.setRenderHints(
-            QPainter.RenderHint.Antialiasing |
-            QPainter.RenderHint.SmoothPixmapTransform)
+            QtGui.QPainter.RenderHint.Antialiasing |
+            QtGui.QPainter.RenderHint.SmoothPixmapTransform)
 
-        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
     # ── content loaders ───────────────────────────────────────────────────────
 
-    def set_pixmap(self, pixmap: QPixmap) -> None:
+    def set_pixmap(self, pixmap: QtGui.QPixmap) -> None:
         self._clear(reset_bg=True)
         item = self._scene.addPixmap(pixmap)
         self._scene.setSceneRect(item.boundingRect())
         self._reset_zoom()
 
-    def set_svg(self, renderer: QSvgRenderer) -> str | None:
+    def set_svg(self, renderer: QtSvg.QSvgRenderer) -> str | None:
         """Returns None on success or an error string."""
         if not renderer.isValid():
             return "Invalid SVG renderer"
 
         self._clear(reset_bg=True)
         self._renderer = renderer
-        item = QGraphicsSvgItem()
+        item = QtSvgWidgets.QGraphicsSvgItem()
         item.setSharedRenderer(renderer)
         self._scene.addItem(item)
         self._scene.setSceneRect(item.boundingRect())
@@ -184,7 +175,7 @@ class _ImageView(QGraphicsView):
 
         self._clear(reset_bg=False)
         if _DXF_BG:
-            self._scene.setBackgroundBrush(QBrush(QColor(_DXF_BG)))
+            self._scene.setBackgroundBrush(QtGui.QBrush(QtGui.QColor(_DXF_BG)))
 
         try:
             backend = PyQtBackend(scene=self._scene)
@@ -221,7 +212,7 @@ class _ImageView(QGraphicsView):
     def fit_page(self) -> None:
         if not self._scene.items():
             return
-        self.fitInView(self._scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+        self.fitInView(self._scene.sceneRect(), QtCore.Qt.AspectRatioMode.KeepAspectRatio)
         self._zoom = self.transform().m11()
         self.zoom_changed.emit(self._zoom)
 
@@ -245,14 +236,14 @@ class _ImageView(QGraphicsView):
         self._renderer = None
 
         if reset_bg:
-            self._scene.setBackgroundBrush(QBrush())
+            self._scene.setBackgroundBrush(QtGui.QBrush())
 
     def _reset_zoom(self) -> None:
         self.resetTransform()
         self._zoom = 1.0
 
     def wheelEvent(self, event) -> None:
-        if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+        if event.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier:
             delta = event.angleDelta().y()
             if delta:
                 self.zoom_by(_ZOOM_STEP_WHEEL ** (delta / 120.0))
@@ -265,35 +256,35 @@ class _ImageView(QGraphicsView):
 # ══════════════════════════════════════════════════════════════════════════════
 # _PDFPanFilter  (internal)
 # ══════════════════════════════════════════════════════════════════════════════
-class _PDFPanFilter(QObject):
+class _PDFPanFilter(QtCore.QObject):
     """
     Installed on QPdfView.viewport().
     Left-drag → pan.  Ctrl+scroll → zoom (emits zoom_changed).
     Plain scroll passes through to QPdfView unchanged.
     """
 
-    zoom_changed = Signal(float)
+    zoom_changed: QtCore.SignalInstance = QtCore.Signal(float)
 
-    def __init__(self, pdf_view: QPdfView) -> None:
+    def __init__(self, pdf_view: QtPdfWidgets.QPdfView) -> None:
         super().__init__(pdf_view)
         self._view = pdf_view
         self._dragging = False
-        self._last = QPoint()
+        self._last = QtCore.QPoint()
         vp = pdf_view.viewport()
-        vp.setCursor(Qt.CursorShape.OpenHandCursor)
+        vp.setCursor(QtCore.Qt.CursorShape.OpenHandCursor)
         vp.installEventFilter(self)
 
-    def eventFilter(self, obj, event: QMouseEvent | QWheelEvent) -> bool:
+    def eventFilter(self, obj, event: QtGui.QMouseEvent | QtGui.QWheelEvent) -> bool:
         t = event.type()
 
-        if t == QEvent.Type.MouseButtonPress:
-            if event.button() == Qt.MouseButton.LeftButton:
+        if t == QtCore.QEvent.Type.MouseButtonPress:
+            if event.button() == QtCore.Qt.MouseButton.LeftButton:
                 self._dragging = True
                 self._last = event.globalPosition().toPoint()
-                obj.setCursor(Qt.CursorShape.ClosedHandCursor)
+                obj.setCursor(QtCore.Qt.CursorShape.ClosedHandCursor)
                 return True
 
-        elif t == QEvent.Type.MouseMove:
+        elif t == QtCore.QEvent.Type.MouseMove:
             if self._dragging:
                 pos = event.globalPosition().toPoint()
                 delta = pos - self._last
@@ -307,14 +298,14 @@ class _PDFPanFilter(QObject):
 
                 return True
 
-        elif t == QEvent.Type.MouseButtonRelease:
-            if event.button() == Qt.MouseButton.LeftButton and self._dragging:
+        elif t == QtCore.QEvent.Type.MouseButtonRelease:
+            if event.button() == QtCore.Qt.MouseButton.LeftButton and self._dragging:
                 self._dragging = False
-                obj.setCursor(Qt.CursorShape.OpenHandCursor)
+                obj.setCursor(QtCore.Qt.CursorShape.OpenHandCursor)
                 return True
 
-        elif t == QEvent.Type.Wheel:
-            if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+        elif t == QtCore.QEvent.Type.Wheel:
+            if event.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier:
                 delta = event.angleDelta().y()
                 if delta:
                     factor = _ZOOM_STEP_WHEEL ** (delta / 120.0)
@@ -322,7 +313,7 @@ class _PDFPanFilter(QObject):
                     new_f = max(
                         _ZOOM_MIN, min(self._view.zoomFactor() * factor, _ZOOM_MAX))
 
-                    self._view.setZoomMode(QPdfView.ZoomMode.Custom)
+                    self._view.setZoomMode(QtPdfWidgets.QPdfView.ZoomMode.Custom)
                     self._view.setZoomFactor(new_f)
                     self.zoom_changed.emit(new_f)
 
@@ -334,7 +325,7 @@ class _PDFPanFilter(QObject):
 # ══════════════════════════════════════════════════════════════════════════════
 # DocumentViewer
 # ══════════════════════════════════════════════════════════════════════════════
-class CADDatasheetCtrl(QWidget):
+class CADDatasheetCtrl(QtWidgets.QWidget):
     """
     Full-featured document viewer with an integrated toolbar.
 
@@ -356,33 +347,33 @@ class CADDatasheetCtrl(QWidget):
     zoom_changed(factor: float)
     """
 
-    page_changed = Signal(int, int)
-    zoom_changed = Signal(float)
+    page_changed: QtCore.SignalInstance = QtCore.Signal(int, int)
+    zoom_changed: QtCore.SignalInstance = QtCore.Signal(float)
 
     # ── init ──────────────────────────────────────────────────────────────────
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
-        self._pdf_doc: QPdfDocument | None = None
+        self._pdf_doc: QtPdf.QPdfDocument | None = None
         self._mode = _PANE_IMAGE   # start on blank image pane
 
-        root = QVBoxLayout(self)
+        root = QtWidgets.QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
 
-        bar = QWidget()
-        lay = QHBoxLayout(bar)
+        bar = QtWidgets.QWidget()
+        lay = QtWidgets.QHBoxLayout(bar)
         lay.setContentsMargins(8, 6, 8, 6)
         lay.setSpacing(4)
 
         # Page navigation
         self._btn_prev = _small_btn("‹", "Previous page  (←  /  PgUp)")
         self._btn_next = _small_btn("›", "Next page  (→  /  PgDn)")
-        self._page_input = QLineEdit("—")
-        self._page_input.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._page_input = QtWidgets.QLineEdit("—")
+        self._page_input.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self._page_input.setFixedWidth(52)
         self._page_input.setToolTip("Current page — press Enter to jump")
-        self._lbl_total = QLabel("/ —")
+        self._lbl_total = QtWidgets.QLabel("/ —")
         self._lbl_total.setToolTip("Total pages")
 
         for w in (self._btn_prev, self._page_input, self._lbl_total, self._btn_next):
@@ -397,7 +388,7 @@ class CADDatasheetCtrl(QWidget):
         self._btn_zoom_in = _small_btn(
             "+", "Zoom in   (Ctrl++  or  Ctrl+scroll ↑)")
 
-        self._zoom_combo = QComboBox()
+        self._zoom_combo = QtWidgets.QComboBox()
         self._zoom_combo.setEditable(True)
         self._zoom_combo.setFixedWidth(108)
         self._zoom_combo.setToolTip("Zoom — pick a preset or type a percentage")
@@ -407,7 +398,7 @@ class CADDatasheetCtrl(QWidget):
         self._zoom_combo.setCurrentText("100%")
 
         if le := self._zoom_combo.lineEdit():
-            le.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            le.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
         for w in (self._btn_zoom_out, self._zoom_combo, self._btn_zoom_in):
             lay.addWidget(w)
@@ -415,7 +406,7 @@ class CADDatasheetCtrl(QWidget):
         lay.addWidget(_vline())
 
         # Page-mode toggle (PDF only; disabled for other types)
-        self._btn_mode = QPushButton("Continuous")
+        self._btn_mode = QtWidgets.QPushButton("Continuous")
         self._btn_mode.setCheckable(True)
         self._btn_mode.setChecked(True)
         self._btn_mode.setToolTip(
@@ -430,11 +421,11 @@ class CADDatasheetCtrl(QWidget):
 
         root.addWidget(bar)
 
-        self._stack = QStackedWidget(self)
+        self._stack = QtWidgets.QStackedWidget(self)
 
-        self._pdf_view = QPdfView(self)
-        self._pdf_view.setPageMode(QPdfView.PageMode.MultiPage)
-        self._pdf_view.setZoomMode(QPdfView.ZoomMode.Custom)
+        self._pdf_view = QtPdfWidgets.QPdfView(self)
+        self._pdf_view.setPageMode(QtPdfWidgets.QPdfView.PageMode.MultiPage)
+        self._pdf_view.setZoomMode(QtPdfWidgets.QPdfView.ZoomMode.Custom)
         self._pdf_view.setZoomFactor(1.0)
         self._pan_filter = _PDFPanFilter(self._pdf_view)
         self._stack.addWidget(self._pdf_view)  # _PANE_PDF = 0
@@ -468,7 +459,7 @@ class CADDatasheetCtrl(QWidget):
         self._img_view.zoom_changed.connect(self._on_zoom_changed_external)
 
         # Browser-standard keyboard zoom — also catches dedicated mouse zoom buttons
-        _ctx = Qt.ShortcutContext.WidgetWithChildrenShortcut
+        _ctx = QtCore.Qt.ShortcutContext.WidgetWithChildrenShortcut
 
         for seq, slot in (
             ("Ctrl+=", self._zoom_in),
@@ -476,18 +467,18 @@ class CADDatasheetCtrl(QWidget):
             ("Ctrl+-", self._zoom_out),
             ("Ctrl+0", self._zoom_reset),
         ):
-            sc = QShortcut(QKeySequence(seq), self)
+            sc = QtGui.QShortcut(QtGui.QKeySequence(seq), self)
             sc.setContext(_ctx)
             sc.activated.connect(slot)
 
     # ── public API ────────────────────────────────────────────────────────────
 
-    def set_pixmap(self, pixmap: QPixmap) -> None:
+    def set_pixmap(self, pixmap: QtGui.QPixmap) -> None:
         """Display a raster image (QPixmap)."""
         self._img_view.set_pixmap(pixmap)
         self._activate_image_pane()
 
-    def set_pdf(self, document: QPdfDocument) -> None:
+    def set_pdf(self, document: QtPdf.QPdfDocument) -> None:
         """
         Display an already-loaded QPdfDocument.
         The document must be in QPdfDocument.Status.Ready before calling this.
@@ -498,7 +489,7 @@ class CADDatasheetCtrl(QWidget):
         self._stack.setCurrentIndex(_PANE_PDF)
 
         n = document.pageCount()
-        self._page_input.setValidator(QIntValidator(1, max(n, 1), self))
+        self._page_input.setValidator(QtGui.QIntValidator(1, max(n, 1), self))
         self._lbl_total.setText(f"/ {n}")
         self._page_input.setText("1")
         self._set_nav_enabled(True)
@@ -506,7 +497,7 @@ class CADDatasheetCtrl(QWidget):
         self._btn_mode.setEnabled(True)
         self._refresh_pdf_nav()
 
-    def set_svg(self, renderer: QSvgRenderer) -> str | None:
+    def set_svg(self, renderer: QtSvg.QSvgRenderer) -> str | None:
         """
         Display an SVG via a QSvgRenderer.
         Returns None on success or an error string on failure.
@@ -561,18 +552,18 @@ class CADDatasheetCtrl(QWidget):
     def _activate_image_pane(self) -> None:
         self._mode = _PANE_IMAGE
         self._stack.setCurrentIndex(_PANE_IMAGE)
-        self._page_input.setValidator(QIntValidator(1, 1, self))
+        self._page_input.setValidator(QtGui.QIntValidator(1, 1, self))
         self._page_input.setText("1")
         self._lbl_total.setText("/ 1")
         self._set_nav_enabled(False)   # locked to 1 / 1
         self._set_zoom_enabled(True)
         self._btn_mode.setEnabled(False)
-        QTimer.singleShot(0, self._img_view.fit_page)
-        QTimer.singleShot(0, lambda: self._sync_zoom_combo(self._img_view.zoom_factor))
+        QtCore.QTimer.singleShot(0, self._img_view.fit_page)
+        QtCore.QTimer.singleShot(0, lambda: self._sync_zoom_combo(self._img_view.zoom_factor))
 
     # ── private: PDF navigation ───────────────────────────────────────────────
 
-    @Slot(int)
+    @QtCore.Slot(int)
     def _on_pdf_page_changed(self, page: int) -> None:   # 0-based
         if self._mode != _PANE_PDF:
             return
@@ -588,7 +579,7 @@ class CADDatasheetCtrl(QWidget):
         self._btn_prev.setEnabled(page > 0)
         self._btn_next.setEnabled(page < total - 1)
 
-    @Slot()
+    @QtCore.Slot()
     def _go_prev(self) -> None:
         if self._mode != _PANE_PDF:
             return
@@ -597,9 +588,9 @@ class CADDatasheetCtrl(QWidget):
 
         p = nav.currentPage()
         if p > 0:
-            nav.jump(p - 1, QPointF())
+            nav.jump(p - 1, QtCore.QPointF())
 
-    @Slot()
+    @QtCore.Slot()
     def _go_next(self) -> None:
         if self._mode != _PANE_PDF:
             return
@@ -613,9 +604,9 @@ class CADDatasheetCtrl(QWidget):
             total = 0
 
         if p < total - 1:
-            nav.jump(p + 1, QPointF())
+            nav.jump(p + 1, QtCore.QPointF())
 
-    @Slot()
+    @QtCore.Slot()
     def _jump_to_input_page(self) -> None:
         if self._mode != _PANE_PDF or not self._pdf_doc:
             return
@@ -626,55 +617,55 @@ class CADDatasheetCtrl(QWidget):
             return
 
         page = max(0, min(page, self._pdf_doc.pageCount() - 1))
-        self._pdf_view.pageNavigator().jump(page, QPointF())
+        self._pdf_view.pageNavigator().jump(page, QtCore.QPointF())
 
     # ── private: page-mode toggle ─────────────────────────────────────────────
 
-    @Slot(bool)
+    @QtCore.Slot(bool)
     def _toggle_page_mode(self, checked: bool) -> None:
         if checked:
-            self._pdf_view.setPageMode(QPdfView.PageMode.MultiPage)
+            self._pdf_view.setPageMode(QtPdfWidgets.QPdfView.PageMode.MultiPage)
             self._btn_mode.setText("Continuous")
         else:
-            self._pdf_view.setPageMode(QPdfView.PageMode.SinglePage)
+            self._pdf_view.setPageMode(QtPdfWidgets.QPdfView.PageMode.SinglePage)
             self._btn_mode.setText("Single Page")
 
     # ── private: zoom ─────────────────────────────────────────────────────────
 
-    @Slot()
+    @QtCore.Slot()
     def _zoom_in(self) -> None:
         if self._mode == _PANE_PDF:
-            self._pdf_view.setZoomMode(QPdfView.ZoomMode.Custom)
+            self._pdf_view.setZoomMode(QtPdfWidgets.QPdfView.ZoomMode.Custom)
             new_f = min(self._pdf_view.zoomFactor() * _ZOOM_STEP, _ZOOM_MAX)
             self._pdf_view.setZoomFactor(new_f)
             self._sync_zoom_combo(new_f)
         else:
             self._img_view.zoom_by(_ZOOM_STEP)
 
-    @Slot()
+    @QtCore.Slot()
     def _zoom_out(self) -> None:
         if self._mode == _PANE_PDF:
-            self._pdf_view.setZoomMode(QPdfView.ZoomMode.Custom)
+            self._pdf_view.setZoomMode(QtPdfWidgets.QPdfView.ZoomMode.Custom)
             new_f = max(self._pdf_view.zoomFactor() / _ZOOM_STEP, _ZOOM_MIN)
             self._pdf_view.setZoomFactor(new_f)
             self._sync_zoom_combo(new_f)
         else:
             self._img_view.zoom_by(1.0 / _ZOOM_STEP)
 
-    @Slot()
+    @QtCore.Slot()
     def _zoom_reset(self) -> None:
         if self._mode == _PANE_PDF:
-            self._pdf_view.setZoomMode(QPdfView.ZoomMode.Custom)
+            self._pdf_view.setZoomMode(QtPdfWidgets.QPdfView.ZoomMode.Custom)
             self._pdf_view.setZoomFactor(1.0)
             self._sync_zoom_combo(1.0)
         else:
             self._img_view.set_zoom(1.0)
 
-    @Slot(int)
+    @QtCore.Slot(int)
     def _on_zoom_index_changed(self, idx: int) -> None:
         self._apply_zoom_text(self._zoom_combo.itemText(idx))
 
-    @Slot()
+    @QtCore.Slot()
     def _on_zoom_typed(self) -> None:
         if le := self._zoom_combo.lineEdit():
             self._apply_zoom_text(le.text())
@@ -683,7 +674,7 @@ class CADDatasheetCtrl(QWidget):
         text = text.strip()
         if text == _FIT_WIDTH:
             if self._mode == _PANE_PDF:
-                self._pdf_view.setZoomMode(QPdfView.ZoomMode.FitToWidth)
+                self._pdf_view.setZoomMode(QtPdfWidgets.QPdfView.ZoomMode.FitToWidth)
             else:
                 self._img_view.fit_width()
 
@@ -691,7 +682,7 @@ class CADDatasheetCtrl(QWidget):
 
         if text == _FIT_PAGE:
             if self._mode == _PANE_PDF:
-                self._pdf_view.setZoomMode(QPdfView.ZoomMode.FitInView)
+                self._pdf_view.setZoomMode(QtPdfWidgets.QPdfView.ZoomMode.FitInView)
             else:
                 self._img_view.fit_page()
 
@@ -711,12 +702,12 @@ class CADDatasheetCtrl(QWidget):
 
     def _set_zoom_factor(self, factor: float) -> None:
         if self._mode == _PANE_PDF:
-            self._pdf_view.setZoomMode(QPdfView.ZoomMode.Custom)
+            self._pdf_view.setZoomMode(QtPdfWidgets.QPdfView.ZoomMode.Custom)
             self._pdf_view.setZoomFactor(factor)
         else:
             self._img_view.set_zoom(factor)
 
-    @Slot(float)
+    @QtCore.Slot(float)
     def _on_zoom_changed_external(self, factor: float) -> None:
         """Receives zoom_changed from _PDFPanFilter or _ImageView."""
         self._sync_zoom_combo(factor)
@@ -739,7 +730,7 @@ class CADDatasheetCtrl(QWidget):
 # ══════════════════════════════════════════════════════════════════════════════
 # DocumentPreview
 # ══════════════════════════════════════════════════════════════════════════════
-class CADDatasheetPreviewCtrl(QWidget):
+class CADDatasheetPreviewCtrl(QtWidgets.QWidget):
     """
     Read-only thumbnail of a document's first page (or only content).
 
@@ -761,22 +752,22 @@ class CADDatasheetPreviewCtrl(QWidget):
     # px for internal render (change for quality/memory trade-off)
     _RENDER_LONG_EDGE = 1200
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self._pixmap: QPixmap | None = None
+        self.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+        self._pixmap: QtGui.QPixmap | None = None
 
     # ── content setters ───────────────────────────────────────────────────────
 
-    def set_pixmap(self, pixmap: QPixmap) -> None:
+    def set_pixmap(self, pixmap: QtGui.QPixmap) -> None:
         """Display a raster image."""
         self._pixmap = pixmap
         self.update()
 
-    def set_pdf(self, document: QPdfDocument, page: int = 0) -> None:
+    def set_pdf(self, document: QtPdf.QPdfDocument, page: int = 0) -> None:
         """Render *page* (0-based) of an already-loaded QPdfDocument."""
         if (
-            document.status() != QPdfDocument.Status.Ready or
+            document.status() != QtPdf.QPdfDocument.Status.Ready or
             document.pageCount() == 0 or
             page >= document.pageCount()
         ):
@@ -794,13 +785,13 @@ class CADDatasheetPreviewCtrl(QWidget):
         image = document.render(page, render_size)
 
         if not image.isNull():
-            self._pixmap = QPixmap.fromImage(image)
+            self._pixmap = QtGui.QPixmap.fromImage(image)
         else:
             self._pixmap = None
 
         self.update()
 
-    def set_svg(self, renderer: QSvgRenderer) -> str | None:
+    def set_svg(self, renderer: QtSvg.QSvgRenderer) -> str | None:
         """
         Render an SVG thumbnail.
         Returns None on success or an error string on failure.
@@ -817,15 +808,15 @@ class CADDatasheetPreviewCtrl(QWidget):
             return "SVG has no default size"
 
         render_size = self._aspect_size(ds.width(), ds.height())
-        image = QImage(render_size, QImage.Format.Format_ARGB32)
-        image.fill(Qt.GlobalColor.transparent)
-        painter = QPainter(image)
+        image = QtGui.QImage(render_size, QtGui.QImage.Format.Format_ARGB32)
+        image.fill(QtCore.Qt.GlobalColor.transparent)
+        painter = QtGui.QPainter(image)
 
         renderer.render(
-            painter, QRectF(0, 0, render_size.width(), render_size.height()))
+            painter, QtCore.QRectF(0, 0, render_size.width(), render_size.height()))
 
         painter.end()
-        self._pixmap = QPixmap.fromImage(image)
+        self._pixmap = QtGui.QPixmap.fromImage(image)
         self.update()
 
         return None
@@ -844,7 +835,7 @@ class CADDatasheetPreviewCtrl(QWidget):
             return "DXF support requires ezdxf — pip install ezdxf"
 
         try:
-            scene = QGraphicsScene()
+            scene = QtWidgets.QGraphicsScene()
             backend = PyQtBackend(scene=scene)
 
             if _DXF_BG:
@@ -866,18 +857,18 @@ class CADDatasheetPreviewCtrl(QWidget):
         render_size = self._aspect_size(br.width(), br.height())
 
         if _DXF_BG:
-            bg_color = QColor(_DXF_BG)
+            bg_color = QtGui.QColor(_DXF_BG)
         else:
-            bg_color = QColor(Qt.GlobalColor.white)
+            bg_color = QtGui.QColor(QtCore.Qt.GlobalColor.white)
 
-        image = QImage(render_size, QImage.Format.Format_ARGB32)
+        image = QtGui.QImage(render_size, QtGui.QImage.Format.Format_ARGB32)
         image.fill(bg_color)
-        painter = QPainter(image)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        scene.render(painter, QRectF(image.rect()), scene.sceneRect())
+        painter = QtGui.QPainter(image)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+        scene.render(painter, QtCore.QRectF(image.rect()), scene.sceneRect())
         painter.end()
 
-        self._pixmap = QPixmap.fromImage(image)
+        self._pixmap = QtGui.QPixmap.fromImage(image)
         self.update()
 
     def clear(self) -> None:
@@ -891,12 +882,12 @@ class CADDatasheetPreviewCtrl(QWidget):
         if not self._pixmap or self._pixmap.isNull():
             return
 
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        painter = QtGui.QPainter(self)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.SmoothPixmapTransform)
 
         scaled = self._pixmap.scaled(
-            self.size(), Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation)
+            self.size(), QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+            QtCore.Qt.TransformationMode.SmoothTransformation)
 
         x = (self.width() - scaled.width()) // 2
         y = (self.height() - scaled.height()) // 2
@@ -927,14 +918,14 @@ class CADDatasheetPreviewCtrl(QWidget):
 
     # ── private ───────────────────────────────────────────────────────────────
 
-    def _aspect_size(self, w: float, h: float) -> QSize:
+    def _aspect_size(self, w: float, h: float) -> QtCore.QSize:
         """Return a QSize with _RENDER_LONG_EDGE on the longer axis, preserving aspect."""
         if w <= 0 or h <= 0:
-            return QSize(self._RENDER_LONG_EDGE, self._RENDER_LONG_EDGE)
+            return QtCore.QSize(self._RENDER_LONG_EDGE, self._RENDER_LONG_EDGE)
 
         if w >= h:
-            return QSize(self._RENDER_LONG_EDGE,
-                         max(1, int(h / w * self._RENDER_LONG_EDGE)))
+            return QtCore.QSize(self._RENDER_LONG_EDGE,
+                                max(1, int(h / w * self._RENDER_LONG_EDGE)))
 
-        return QSize(max(1, int(w / h * self._RENDER_LONG_EDGE)),
-                     self._RENDER_LONG_EDGE)
+        return QtCore.QSize(max(1, int(w / h * self._RENDER_LONG_EDGE)),
+                            self._RENDER_LONG_EDGE)

@@ -29,6 +29,12 @@ class Cavity(_base3d.Base3D):
     parent: "_cavity.Cavity" = None
     db_obj: "_pjt_cavity.PJTCavity" = None
 
+    def set_selected(self, state: bool) -> None:
+        if not state:
+            from . import housing_cavity_picker as _picker_mod
+            _picker_mod.HousingCavityPicker._set_active(None)
+        super().set_selected(state)
+
     def get_context_menu(self):
         """Return the context menu.
 
@@ -129,11 +135,21 @@ class CavityMenu(QMenu):
         self.canvas = editor
         self.selected = obj
 
-        action = self.addAction('Add Terminal')
-        action.triggered.connect(self.on_add_terminal)
+        db_obj = obj.db_obj
 
-        action = self.addAction('Add Seal')
-        action.triggered.connect(self.on_add_seal)
+        if db_obj.terminal is None:
+            action = self.addAction('Add Terminal')
+            action.triggered.connect(self.on_add_terminal)
+        else:
+            action = self.addAction('Edit Terminal')
+            action.triggered.connect(self.on_edit_terminal)
+
+        if db_obj.seal is None:
+            action = self.addAction('Add Seal')
+            action.triggered.connect(self.on_add_seal)
+        else:
+            action = self.addAction('Edit Seal')
+            action.triggered.connect(self.on_edit_seal)
 
         self.addSeparator()
         action = self.addAction('Select')
@@ -186,6 +202,32 @@ class CavityMenu(QMenu):
 
         _menu_ops.run_attached_handler(
             lambda: _handlers.AddSealHandler(mainframe, cavity))
+
+    def on_edit_terminal(self):
+        """Open the properties dialog for the terminal already in this cavity."""
+        def _do():
+            terminal_db = self.selected.db_obj.terminal
+            if terminal_db is None:
+                return
+            parent = terminal_db.get_object()
+            if parent is None or parent.obj3d is None:
+                return
+            _menu_ops.show_properties(parent.obj3d)
+
+        QTimer.singleShot(0, _do)
+
+    def on_edit_seal(self):
+        """Open the properties dialog for the seal already in this cavity."""
+        def _do():
+            seal_db = self.selected.db_obj.seal
+            if seal_db is None:
+                return
+            parent = seal_db.get_object()
+            if parent is None or parent.obj3d is None:
+                return
+            _menu_ops.show_properties(parent.obj3d)
+
+        QTimer.singleShot(0, _do)
 
     def on_select(self):
         """Make this cavity the active selection."""

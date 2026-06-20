@@ -13,6 +13,7 @@ from ...ui.widgets import float_ctrl as _float_ctrl
 from ...ui.dialogs import error as _error_dialog
 from . import base3d as _base3d
 from . import menu_ops as _menu_ops
+from . import housing_cavity_picker as _housing_cavity_picker
 from ...shapes import box as _box
 from ...gl import materials as _materials
 from ... import config as _config
@@ -97,12 +98,17 @@ class Housing(_base3d.Base3D):
 
         parent.mainframe.editor3d.context.release()
 
+        # Cavity picking is always active — no prior housing selection needed.
+        # Created after context.release() so no GL context is current while
+        # the overlay QWidget and event-filter QObject are constructed.
+        self._cavity_picker = _housing_cavity_picker.HousingCavityPicker(self)
+
         if model is not None:
             model.load(self._part.manufacturer.name,
                        self._part.part_number, self._set_model)
 
-    def _set_model(self, model, data: np.ndarray):
-        super()._set_model(model, data)
+    def _set_model(self, model):
+        super()._set_model(model)
 
         for cavity in self._part.cavities:
             if cavity is not None:
@@ -115,6 +121,10 @@ class Housing(_base3d.Base3D):
             dlg.exec()
             dlg.deleteLater()
 
+        # Rebuild the picker's surface data with the real mesh geometry now
+        # that the 3D model has loaded (replaces the placeholder box surfaces).
+        self._cavity_picker.update_vbo()
+
     @property
     def seal_position(self) -> _point.Point:
         """Return the seal position.
@@ -125,6 +135,58 @@ class Housing(_base3d.Base3D):
         :rtype: :class:`_point.Point`
         """
         return self.db_obj.seal_position3d
+
+    def try_pick_cavity(self, x: int, y: int):
+        """Ray-cast at pixel (x, y) and return (global_cavity, surf_idx).
+
+        Returns (None, -1) when no surface or no matching cavity is found.
+        Does not modify overlay state — callers decide whether to show or clear.
+        """
+        if self._cavity_picker is None:
+            return None, None, -1
+
+        picker = self._cavity_picker
+        origin, direction = picker.compute_ray(x, y)
+
+        if origin is None:
+            return None, None, -1
+
+        idx, hit_point = picker.pick_surface_at_ray(origin, direction)
+        if idx < 0:
+            return None, None, -1
+
+        global_cavity = picker.match_cavity(origin, direction)
+
+        for cavity in self.db_obj.cavities:
+            if cavity.part_id == global_cavity.db_id:
+                break
+        else:
+            raise RuntimeError('sanity check (this should not happen)')
+
+        return cavity, global_cavity, idx
+
+    def show_cavity_overlay(self, surf_idx: int, global_cavity=None) -> None:
+        """Highlight the cavity plane at surf_idx and record global_cavity."""
+
+        self._cavity_picker.selected_surf_idx = surf_idx
+        self._cavity_picker.selected_cavity = global_cavity
+
+        if global_cavity is not None:
+            self._cavity_picker.set_active()
+
+        if self._cavity_picker.overlay is not None:
+            self._cavity_picker.overlay.update()
+
+    def clear_cavity_overlay(self) -> None:
+        """Hide any active cavity-plane highlight for this housing."""
+        if self._cavity_picker is not None:
+            self._cavity_picker.clear_selection()
+
+    def delete(self):
+        """Clean up the cavity picker before delegating to Base3D."""
+        self._cavity_picker.cleanup()
+        self._cavity_picker = None
+        super().delete()
 
     def get_context_menu(self):
         """Return the context menu.
@@ -215,7 +277,10 @@ class HousingMenu(QMenu):
             :param housing: Value for ``housing``.
             :type housing: UNKNOWN
             """
-            dlg = _housing_editor.HousingEditorDialog(self.mainframe, housing)
+            dlg = _housing_editor.HousingEditorDialog(self.mainframe)
+
+            QTimer.singleShot(0, lambda: dlg.SetValue(housing))
+
             dlg.exec()
 
         QTimer.singleShot(0, lambda: _do(self.obj.db_obj.part))
@@ -303,6 +368,9 @@ class HousingMenu(QMenu):
 
             db_obj = self.mainframe.project.ptables.pjt_boots_table.insert(
                 part_id, housing.boot_position3d_id, housing.db_id)
+
+            from ...handlers import handler_base as _handler_base
+            _handler_base.set_angle_from_housing(db_obj, housing)
 
             boot = _boot_obj.Boot(self.mainframe, db_obj)
             self.mainframe.project.add_boot(boot)

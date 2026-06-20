@@ -11,6 +11,7 @@ from PySide6 import QtCore
 from ..widgets import text_ctrl as _text_ctrl
 from ... import config as _config
 from . import dialog_base as _dialog_base
+from ..widgets import color_ctrl as _color_ctrl
 
 
 if TYPE_CHECKING:
@@ -60,6 +61,11 @@ class AddProjectDialog(_dialog_base.BaseDialog):
             self.panel, 'User Model:',
             apply_button=False)
 
+        self.color_ctrl = _color_ctrl.ColorCtrl(
+            self.panel, 'Model Color:', table.db.global_db.colors_table)
+        self.color_ctrl.SetValue('Gray')
+        self.color_ctrl.Enable(False)
+
         self.user_model_button = QtWidgets.QPushButton('Open File', self.panel)
 
         self.name_ctrl.text_changed.connect(self._on_name_text)
@@ -97,10 +103,15 @@ class AddProjectDialog(_dialog_base.BaseDialog):
         :returns: Return value. UNKNOWN details.
         :rtype: UNKNOWN
         """
+
+        color = self.color_ctrl.GetColor()
+
         return (self.name_ctrl.GetValue(),
                 self.creator_ctrl.GetValue(),
                 self.desc_ctrl.GetValue(),
-                self.user_model_ctrl.GetValue())
+                self.user_model_ctrl.GetValue(),
+                int(color.db_id)
+                )
 
     def _on_name_text(self, _text: str = ''):
         """Handle the name text event.
@@ -146,8 +157,10 @@ class AddProjectDialog(_dialog_base.BaseDialog):
             path = self.user_model_ctrl.GetValue()
             if os.path.isfile(path):
                 color = QtGui.QColor(0, 0, 0)
+                self.color_ctrl.Enable(True)
             else:
                 color = QtGui.QColor(255, 0, 0)
+                self.color_ctrl.Enable(False)
 
             palette = self.user_model_ctrl.inputPalette()
             palette.setColor(palette.Text, color)
@@ -172,3 +185,10 @@ class AddProjectDialog(_dialog_base.BaseDialog):
         if chosen:
             Config.project.model_dir = os.path.dirname(chosen)
             self.user_model_ctrl.SetValue(chosen)
+            self.color_ctrl.Enable(True)
+        else:
+            path = self.user_model_ctrl.GetValue()
+            if path and os.path.isfile(path):
+                self.color_ctrl.Enable(True)
+            else:
+                self.color_ctrl.Enable(False)

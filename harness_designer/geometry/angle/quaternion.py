@@ -294,7 +294,7 @@ class Quaternion:
         :rtype: list[float]
         """
 
-        return self._data.tolist()
+        return [float(str(item)) for item in self._data.tolist()]
 
     @property
     def as_decimal(self):
@@ -398,11 +398,14 @@ class Quaternion:
 
     def __add__(self, other: "Quaternion") -> "Quaternion":
         """
-        Compose this quaternion with ``other``.
+        Compose this quaternion with ``other`` (``other ⊗ self``).
+
+        Defined so that ``a + (b - a) == b``, where ``b - a == b ⊗ a⁻¹``.
+        Applying ``other`` in world space before ``self``'s local rotation.
 
         :param other: Quaternion to add.
         :type other: :class:`Quaternion`
-        :returns: Combined quaternion.
+        :returns: Combined quaternion (``other ⊗ self``).
         :rtype: :class:`Quaternion`
         :raises TypeError: If ``other`` is not a :class:`Quaternion`.
         """
@@ -410,8 +413,7 @@ class Quaternion:
         if not isinstance(other, Quaternion):
             raise TypeError
 
-        diff = self.__sub__(other)
-        return self.__mul(diff, self)
+        return self.__mul(self, other)
 
     def __itruediv__(self, other: "Quaternion") -> Self:
         """
@@ -434,7 +436,7 @@ class Quaternion:
             other = other.as_numpy
 
         w1, x1, y1, z1 = self.as_decimal
-        w2, x2, y2, z2 = [_d(item) for item in other.tolist()]
+        w2, x2, y2, z2 = [_d(str(item)) for item in other.tolist()]
 
         def _div(v1, v2):
             """
@@ -480,7 +482,7 @@ class Quaternion:
             other = other.as_numpy
 
         w1, x1, y1, z1 = self.as_decimal
-        w2, x2, y2, z2 = [_d(item) for item in other.tolist()]
+        w2, x2, y2, z2 = [_d(str(item)) for item in other.tolist()]
 
         def _div(v1, v2):
             """
@@ -586,7 +588,7 @@ class Quaternion:
         :rtype: collections.abc.Iterable[float]
         """
 
-        return iter(self._data.tolist())
+        return iter(float(str(item)) for item in self._data.tolist())
 
     def conj(self) -> "Quaternion":
         """
@@ -596,7 +598,7 @@ class Quaternion:
         :rtype: :class:`Quaternion`
         """
 
-        w, x, y, z = self._data.tolist()
+        w, x, y, z = [float(str(item)) for item in self._data.tolist()]
         return Quaternion(w, -x, -y, -z)
 
     def __neg__(self) -> "Quaternion":

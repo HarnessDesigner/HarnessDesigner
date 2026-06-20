@@ -16,13 +16,9 @@ CaptionBarStyle keeps all its setter/getter methods unchanged.
 
 import base64
 
-from PySide6.QtWidgets import QWidget, QSizePolicy
-from PySide6.QtCore import Qt, Signal, QSize, QRect, QPoint
-from PySide6.QtGui import (
-    QPainter, QPen, QBrush, QColor, QFont, QFontMetrics,
-    QLinearGradient, QPixmap, QImage, QPaintEvent,
-    QMouseEvent, QResizeEvent, QCursor
-)
+from PySide6 import QtWidgets
+from PySide6 import QtCore
+from PySide6 import QtGui
 
 # ---------------------------------------------------------------------------
 # Embedded icons (same PNG data as the original, decoded once at import)
@@ -39,7 +35,7 @@ _COLLAPSED_PNG_B64 = (
 )
 
 
-def _load_icon_pixmap(b64: str) -> QPixmap:
+def _load_icon_pixmap(b64: str) -> QtGui.QPixmap:
     """Load the icon pixmap.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -50,15 +46,15 @@ def _load_icon_pixmap(b64: str) -> QPixmap:
     :rtype: :class:`QPixmap`
     """
     data = base64.b64decode(b64)
-    img = QImage.fromData(data)
-    return QPixmap.fromImage(img)
+    img = QtGui.QImage.fromData(data)
+    return QtGui.QPixmap.fromImage(img)
 
 
-_EXPANDED_PIXMAP: QPixmap | None = None
-_COLLAPSED_PIXMAP: QPixmap | None = None
+_EXPANDED_PIXMAP: QtGui.QPixmap | None = None
+_COLLAPSED_PIXMAP: QtGui.QPixmap | None = None
 
 
-def _get_icons() -> tuple[QPixmap, QPixmap]:
+def _get_icons() -> tuple[QtGui.QPixmap, QtGui.QPixmap]:
     """Return the icons.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -120,10 +116,10 @@ class CaptionBarStyle:
 
         UNKNOWN details are inferred from the callable name and signature.
         """
-        self._captionFont: QFont | None = None
-        self._textColour:  QColor | None = None
-        self._firstColour: QColor | None = None
-        self._secondColour: QColor | None = None
+        self._captionFont: QtGui.QFont | None = None
+        self._textColour:  QtGui.QColor | None = None
+        self._firstColour: QtGui.QColor | None = None
+        self._secondColour: QtGui.QColor | None = None
 
         self._captionFontUsed = False
         self._firstColourUsed = False
@@ -145,7 +141,7 @@ class CaptionBarStyle:
         self._captionStyle = CAPTIONBAR_GRADIENT_V
 
     # Font
-    def SetCaptionFont(self, font: QFont):
+    def SetCaptionFont(self, font: QtGui.QFont):
         """Execute the set caption font operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -166,7 +162,7 @@ class CaptionBarStyle:
         """
         return self._captionFontUsed
 
-    def GetCaptionFont(self) -> QFont:
+    def GetCaptionFont(self) -> QtGui.QFont:
         """Execute the get caption font operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -177,7 +173,7 @@ class CaptionBarStyle:
         return self._captionFont
 
     # First colour
-    def SetFirstColour(self, colour: QColor):
+    def SetFirstColour(self, colour: QtGui.QColor):
         """Execute the set first colour operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -198,7 +194,7 @@ class CaptionBarStyle:
         """
         return self._firstColourUsed
 
-    def GetFirstColour(self) -> QColor:
+    def GetFirstColour(self) -> QtGui.QColor:
         """Execute the get first colour operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -209,7 +205,7 @@ class CaptionBarStyle:
         return self._firstColour
 
     # Second colour
-    def SetSecondColour(self, colour: QColor):
+    def SetSecondColour(self, colour: QtGui.QColor):
         """Execute the set second colour operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -230,7 +226,7 @@ class CaptionBarStyle:
         """
         return self._secondColourUsed
 
-    def GetSecondColour(self) -> QColor:
+    def GetSecondColour(self) -> QtGui.QColor:
         """Execute the get second colour operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -241,7 +237,7 @@ class CaptionBarStyle:
         return self._secondColour
 
     # Caption (text) colour
-    def SetCaptionColour(self, colour: QColor):
+    def SetCaptionColour(self, colour: QtGui.QColor):
         """Execute the set caption colour operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -262,7 +258,7 @@ class CaptionBarStyle:
         """
         return self._textColourUsed
 
-    def GetCaptionColour(self) -> QColor:
+    def GetCaptionColour(self) -> QtGui.QColor:
         """Execute the get caption colour operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -311,16 +307,16 @@ EmptyCaptionBarStyle = CaptionBarStyle()
 # ---------------------------------------------------------------------------
 # CaptionBar
 # ---------------------------------------------------------------------------
-class CaptionBar(QWidget):
+class CaptionBar(QtWidgets.QWidget):
     """Clickable gradient caption strip with a collapse/expand arrow."""
 
     # Emitted when the user clicks to collapse or expand
-    caption_toggled = Signal(object)   # passes self (the CaptionBar)
+    caption_toggled: QtCore.SignalInstance = QtCore.Signal(object)   # passes self (the CaptionBar)
 
     _ICON_W = 16
     _ICON_H = 16
 
-    def __init__(self, parent: QWidget, caption: str = '',
+    def __init__(self, parent: QtWidgets.QWidget, caption: str = '',
                  cbstyle: CaptionBarStyle | None = None,
                  rightIndent: int = FPB_BMP_RIGHTSPACE,
                  collapsed: bool = False):
@@ -342,7 +338,7 @@ class CaptionBar(QWidget):
 
         super().__init__(parent)
         self.setMinimumSize(20, 20)
-        self.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
+        self.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.ArrowCursor))
         self.setMouseTracking(True)
 
         self._caption = caption
@@ -372,22 +368,22 @@ class CaptionBar(QWidget):
 
         if applyDefault:
             if not cbstyle.FirstColourUsed():
-                cbstyle.SetFirstColour(QColor(Qt.GlobalColor.white))
+                cbstyle.SetFirstColour(QtGui.QColor(QtCore.Qt.GlobalColor.white))
 
             if not cbstyle.SecondColourUsed():
 
                 if self.parent():
                     bg = self.parent().palette().color(self.parent().backgroundRole())
                 else:
-                    bg = QColor(180, 180, 180)
+                    bg = QtGui.QColor(180, 180, 180)
 
                 r = min(255, (bg.red() >> 1) + 20)
                 g = min(255, (bg.green() >> 1) + 20)
                 b = min(255, (bg.blue() >> 1) + 20)
-                cbstyle.SetSecondColour(QColor(r, g, b))
+                cbstyle.SetSecondColour(QtGui.QColor(r, g, b))
 
             if not cbstyle.CaptionColourUsed():
-                cbstyle.SetCaptionColour(QColor(Qt.GlobalColor.black))
+                cbstyle.SetCaptionColour(QtGui.QColor(QtCore.Qt.GlobalColor.black))
 
             if not cbstyle.CaptionFontUsed():
                 cbstyle.SetCaptionFont(self.font())
@@ -514,7 +510,7 @@ class CaptionBar(QWidget):
     # ------------------------------------------------------------------
     # Painting
     # ------------------------------------------------------------------
-    def sizeHint(self) -> QSize:
+    def sizeHint(self) -> QtCore.QSize:
         """Execute the size hint operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -522,7 +518,7 @@ class CaptionBar(QWidget):
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`QSize`
         """
-        fm = QFontMetrics(self._style.GetCaptionFont() or self.font())
+        fm = QtGui.QFontMetrics(self._style.GetCaptionFont() or self.font())
         if self.IsVertical():
             tw = fm.horizontalAdvance(self._caption)
             th = fm.height()
@@ -531,9 +527,9 @@ class CaptionBar(QWidget):
             tw = fm.height()
         w = max(tw, self._ICON_W) + FPB_EXTRA_X
         h = max(th, self._ICON_H) + FPB_EXTRA_Y
-        return QSize(w, h)
+        return QtCore.QSize(w, h)
 
-    def paintEvent(self, event: QPaintEvent):
+    def paintEvent(self, event: QtGui.QPaintEvent):
         """Execute the paint event operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -541,8 +537,8 @@ class CaptionBar(QWidget):
         :param event: Event object.
         :type event: :class:`QPaintEvent`
         """
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
+        painter = QtGui.QPainter(self)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, False)
         rect = self.rect()
         vertical = self.IsVertical()
 
@@ -552,12 +548,14 @@ class CaptionBar(QWidget):
         font = self._style.GetCaptionFont() or self.font()
         painter.setFont(font)
         painter.setPen(
-            QPen(self._style.GetCaptionColour() or QColor(Qt.GlobalColor.black)))
+            QtGui.QPen(self._style.GetCaptionColour() or
+                       QtGui.QColor(QtCore.Qt.GlobalColor.black)))
 
         if vertical:
             painter.drawText(4, FPB_EXTRA_Y // 2,
                              rect.width(), rect.height(),
-                             Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
+                             QtCore.Qt.AlignmentFlag.AlignVCenter |
+                             QtCore.Qt.AlignmentFlag.AlignLeft,
                              self._caption)
         else:
             painter.save()
@@ -581,7 +579,7 @@ class CaptionBar(QWidget):
 
         painter.end()
 
-    def _fill_background(self, painter: QPainter, rect: QRect):
+    def _fill_background(self, painter: QtGui.QPainter, rect: QtCore.QRect):
         """Execute the fill background operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -592,30 +590,30 @@ class CaptionBar(QWidget):
         :type rect: :class:`QRect`
         """
         style = self._style.GetCaptionStyle()
-        c1 = self._style.GetFirstColour() or QColor(Qt.GlobalColor.white)
-        c2 = self._style.GetSecondColour() or QColor(180, 180, 180)
+        c1 = self._style.GetFirstColour() or QtGui.QColor(QtCore.Qt.GlobalColor.white)
+        c2 = self._style.GetSecondColour() or QtGui.QColor(180, 180, 180)
         vertical = self.IsVertical()
 
         if style == CAPTIONBAR_GRADIENT_V:
-            grad = QLinearGradient(rect.left(), rect.top(),
-                                   rect.left() if vertical else rect.right(),
-                                   rect.bottom() if vertical else rect.top())
+            grad = QtGui.QLinearGradient(rect.left(), rect.top(),
+                                         rect.left() if vertical else rect.right(),
+                                         rect.bottom() if vertical else rect.top())
 
             grad.setColorAt(0.0, c1)
             grad.setColorAt(1.0, c2)
-            painter.fillRect(rect, QBrush(grad))
+            painter.fillRect(rect, QtGui.QBrush(grad))
 
         elif style == CAPTIONBAR_GRADIENT_H:
-            grad = QLinearGradient(rect.left(), rect.top(),
-                                   rect.right() if vertical else rect.left(),
-                                   rect.top() if vertical else rect.bottom())
+            grad = QtGui.QLinearGradient(rect.left(), rect.top(),
+                                         rect.right() if vertical else rect.left(),
+                                         rect.top() if vertical else rect.bottom())
 
             grad.setColorAt(0.0, c1)
             grad.setColorAt(1.0, c2)
-            painter.fillRect(rect, QBrush(grad))
+            painter.fillRect(rect, QtGui.QBrush(grad))
 
         elif style == CAPTIONBAR_SINGLE:
-            painter.fillRect(rect, QBrush(c1))
+            painter.fillRect(rect, QtGui.QBrush(c1))
 
         elif style in (CAPTIONBAR_RECTANGLE, CAPTIONBAR_FILLED_RECTANGLE):
             if style == CAPTIONBAR_RECTANGLE:
@@ -623,17 +621,17 @@ class CaptionBar(QWidget):
             else:
                 fill = c1
 
-            painter.fillRect(rect, QBrush(fill))
-            painter.setPen(QPen(c2))
+            painter.fillRect(rect, QtGui.QBrush(fill))
+            painter.setPen(QtGui.QPen(c2))
             painter.drawRect(rect.adjusted(0, 0, -1, -2))
 
         else:
-            painter.fillRect(rect, QBrush(c1))
+            painter.fillRect(rect, QtGui.QBrush(c1))
 
     # ------------------------------------------------------------------
     # Mouse events
     # ------------------------------------------------------------------
-    def _icon_hit(self, pos: QPoint) -> bool:
+    def _icon_hit(self, pos: QtCore.QPoint) -> bool:
         """Execute the icon hit operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -652,7 +650,7 @@ class CaptionBar(QWidget):
 
         return pos.y() < (self._ICON_H + self._rightIndent)
 
-    def mousePressEvent(self, event: QMouseEvent):
+    def mousePressEvent(self, event: QtGui.QMouseEvent):
         """Execute the mouse press event operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -661,14 +659,14 @@ class CaptionBar(QWidget):
         :type event: :class:`QMouseEvent`
         """
         if (
-            event.button() == Qt.MouseButton.LeftButton and
+            event.button() == QtCore.Qt.MouseButton.LeftButton and
             self._icon_hit(event.position().toPoint())
         ):
             self.caption_toggled.emit(self)
 
         super().mousePressEvent(event)
 
-    def mouseDoubleClickEvent(self, event: QMouseEvent):
+    def mouseDoubleClickEvent(self, event: QtGui.QMouseEvent):
         """Execute the mouse double click event operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -676,12 +674,12 @@ class CaptionBar(QWidget):
         :param event: Event object.
         :type event: :class:`QMouseEvent`
         """
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
+            self.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.ArrowCursor))
             self.caption_toggled.emit(self)
         super().mouseDoubleClickEvent(event)
 
-    def mouseMoveEvent(self, event: QMouseEvent):
+    def mouseMoveEvent(self, event: QtGui.QMouseEvent):
         """Execute the mouse move event operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -690,9 +688,9 @@ class CaptionBar(QWidget):
         :type event: :class:`QMouseEvent`
         """
         if self._icon_hit(event.position().toPoint()):
-            self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+            self.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
         else:
-            self.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
+            self.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.ArrowCursor))
         super().mouseMoveEvent(event)
 
     def leaveEvent(self, event):
@@ -703,7 +701,7 @@ class CaptionBar(QWidget):
         :param event: Event object.
         :type event: UNKNOWN
         """
-        self.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
+        self.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.ArrowCursor))
         super().leaveEvent(event)
 
 
@@ -713,7 +711,7 @@ class CaptionBar(QWidget):
 class FoldWindowItem:
     """Tracks a single child (window or separator) inside a FoldPanelItem."""
 
-    def __init__(self, parent: 'FoldPanelItem', window: QWidget | None, **kw):
+    def __init__(self, parent: 'FoldPanelItem', window: QtWidgets.QWidget | None, **kw):
         """Initialise the :class:`FoldWindowItem` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -740,7 +738,7 @@ class FoldWindowItem:
         self._leftSpacing = kw.get('leftSpacing', FPB_DEFAULT_LEFTSPACING)
         self._rightSpacing = kw.get('rightSpacing', FPB_DEFAULT_RIGHTSPACING)
         self._lineY = kw.get('y',          0)
-        self._sepLineColour = kw.get('colour',  QColor(Qt.GlobalColor.black))
+        self._sepLineColour = kw.get('colour',  QtGui.QColor(QtCore.Qt.GlobalColor.black))
         self._lineLength = 0
 
     def GetType(self) -> str:
@@ -773,7 +771,7 @@ class FoldWindowItem:
         """
         return self._lineLength
 
-    def GetLineColour(self) -> QColor:
+    def GetLineColour(self) -> QtGui.QColor:
         """Execute the get line colour operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -861,10 +859,10 @@ class FoldWindowItem:
 # ---------------------------------------------------------------------------
 # FoldPanelItem
 # ---------------------------------------------------------------------------
-class FoldPanelItem(QWidget):
+class FoldPanelItem(QtWidgets.QWidget):
     """One collapsible section (caption bar + content area)."""
 
-    def __init__(self, parent: QWidget, caption: str = '',
+    def __init__(self, parent: QtWidgets.QWidget, caption: str = '',
                  cbstyle: CaptionBarStyle | None = None,
                  collapsed: bool = False):
         """Initialise the :class:`FoldPanelItem` instance.
@@ -1081,7 +1079,7 @@ class FoldPanelItem(QWidget):
     # ------------------------------------------------------------------
     # Adding content
     # ------------------------------------------------------------------
-    def AddWindow(self, window: QWidget, flags: int = FPB_ALIGN_WIDTH,
+    def AddWindow(self, window: QtWidgets.QWidget, flags: int = FPB_ALIGN_WIDTH,
                   spacing: int = FPB_DEFAULT_SPACING,
                   leftSpacing: int = FPB_DEFAULT_LEFTLINESPACING,
                   rightSpacing: int = FPB_DEFAULT_RIGHTLINESPACING):
@@ -1123,7 +1121,7 @@ class FoldPanelItem(QWidget):
         self._LastInsertPos += wi.GetWindowLength(vertical)
         self.ResizePanel()
 
-    def AddSeparator(self, colour: QColor = None, spacing: int = FPB_DEFAULT_SPACING,
+    def AddSeparator(self, colour: QtGui.QColor = None, spacing: int = FPB_DEFAULT_SPACING,
                      leftSpacing: int = FPB_DEFAULT_LEFTSPACING,
                      rightSpacing: int = FPB_DEFAULT_RIGHTSPACING):
         """Execute the add separator operation.
@@ -1141,7 +1139,7 @@ class FoldPanelItem(QWidget):
         """
 
         if colour is None:
-            colour = QColor(Qt.GlobalColor.black)
+            colour = QtGui.QColor(QtCore.Qt.GlobalColor.black)
 
         wi = FoldWindowItem(self, window=None, Type='SEPARATOR',
                             flags=FPB_ALIGN_WIDTH, y=self._LastInsertPos,
@@ -1197,7 +1195,7 @@ class FoldPanelItem(QWidget):
     # ------------------------------------------------------------------
     # Paint separators
     # ------------------------------------------------------------------
-    def paintEvent(self, event: QPaintEvent):
+    def paintEvent(self, event: QtGui.QPaintEvent):
         """Execute the paint event operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1205,13 +1203,13 @@ class FoldPanelItem(QWidget):
         :param event: Event object.
         :type event: :class:`QPaintEvent`
         """
-        painter = QPainter(self)
+        painter = QtGui.QPainter(self)
         vertical = self.IsVertical()
 
         for item in self._items:
             if item.GetType() == 'SEPARATOR':
                 painter.setPen(
-                    QPen(item.GetLineColour(), 1, Qt.PenStyle.SolidLine))
+                    QtGui.QPen(item.GetLineColour(), 1, QtCore.Qt.PenStyle.SolidLine))
 
                 a = item.GetLeftSpacing()
                 b = item.GetLineY() + item.GetSpacing()
@@ -1229,13 +1227,13 @@ class FoldPanelItem(QWidget):
 # ---------------------------------------------------------------------------
 # FoldPanelBar
 # ---------------------------------------------------------------------------
-class FoldPanelBar(QWidget):
+class FoldPanelBar(QtWidgets.QWidget):
     """Container for multiple collapsible FoldPanelItem sections.
 
     Replacement for wx.lib.agw.foldpanelbar.FoldPanelBar.
     """
 
-    def __init__(self, parent: QWidget | None = None, agwStyle: int = 0):
+    def __init__(self, parent: QtWidgets.QWidget | None = None, agwStyle: int = 0):
         """Initialise the :class:`FoldPanelBar` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1255,8 +1253,8 @@ class FoldPanelBar(QWidget):
         self._panels: list[FoldPanelItem] = []
         self._cbstyle: CaptionBarStyle | None = None
 
-        self.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding,
+                           QtWidgets.QSizePolicy.Policy.Expanding)
 
     # ------------------------------------------------------------------
     # Public API
@@ -1309,7 +1307,7 @@ class FoldPanelBar(QWidget):
 
         return item
 
-    def AddFoldPanelWindow(self, panel: FoldPanelItem, window: QWidget,
+    def AddFoldPanelWindow(self, panel: FoldPanelItem, window: QtWidgets.QWidget,
                            flags: int = FPB_ALIGN_WIDTH,
                            spacing: int = FPB_DEFAULT_SPACING,
                            leftSpacing: int = FPB_DEFAULT_LEFTLINESPACING,
@@ -1343,7 +1341,7 @@ class FoldPanelBar(QWidget):
 
         return 0
 
-    def AddFoldPanelSeparator(self, panel: FoldPanelItem, colour: QColor | None = None,
+    def AddFoldPanelSeparator(self, panel: FoldPanelItem, colour: QtGui.QColor | None = None,
                               spacing: int = FPB_DEFAULT_SPACING,
                               leftSpacing: int = FPB_DEFAULT_LEFTLINESPACING,
                               rightSpacing: int = FPB_DEFAULT_RIGHTLINESPACING) -> int:
@@ -1570,7 +1568,7 @@ class FoldPanelBar(QWidget):
     # ------------------------------------------------------------------
     # Qt events
     # ------------------------------------------------------------------
-    def resizeEvent(self, event: QResizeEvent):
+    def resizeEvent(self, event: QtGui.QResizeEvent):
         """Execute the resize event operation.
 
         UNKNOWN details are inferred from the callable name and signature.

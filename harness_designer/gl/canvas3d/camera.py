@@ -545,7 +545,7 @@ class Camera:
 
         camera = (self._position.as_float +
                   self._focal_position.as_float +
-                  tuple(self._up.tolist()))
+                  tuple(float(str(v)) for v in self._up.tolist()))
 
         GLU.gluLookAt(*camera)
         self._update_views()

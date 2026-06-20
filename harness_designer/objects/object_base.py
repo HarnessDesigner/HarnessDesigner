@@ -108,6 +108,7 @@ class ObjectBase:
 
         if self.obj2d is not None:
             self.obj2d.set_selected(flag)
+
         if self.obj3d is not None:
             self.obj3d.set_selected(flag)
 
@@ -151,3 +152,119 @@ class ObjectBase:
     @property
     def is_in_2dview(self) -> bool:
         return self in self.mainframe.editor2d.camera.objects_in_view
+
+    @property
+    def is_boot(self) -> bool:
+        from . import boot as _boot
+
+        return isinstance(self, _boot.Boot)
+
+    @property
+    def is_bundle(self) -> bool:
+        from . import bundle as _bundle
+
+        return isinstance(self, _bundle.Bundle)
+
+    @property
+    def is_bundle_layout(self) -> bool:
+        from . import bundle_layout as _bundle_layout
+
+        return isinstance(self, _bundle_layout.BundleLayout)
+
+    @property
+    def is_cavity(self) -> bool:
+        from . import cavity as _cavity
+
+        return isinstance(self, _cavity.Cavity)
+
+    @property
+    def is_circuit(self) -> bool:
+        from . import circuit as _circuit
+
+        return isinstance(self, _circuit.Circuit)
+
+    @property
+    def is_cover(self) -> bool:
+        from . import cover as _cover
+
+        return isinstance(self, _cover.Cover)
+
+    @property
+    def is_cpa_lock(self) -> bool:
+        from . import cpa_lock as _cpa_lock
+
+        return isinstance(self, _cpa_lock.CPALock)
+
+    @property
+    def is_housing(self) -> bool:
+        from . import housing as _housing
+
+        return isinstance(self, _housing.Housing)
+
+    @property
+    def is_note(self) -> bool:
+        from . import note as _note
+
+        return isinstance(self, _note.Note)
+
+    @property
+    def is_project(self) -> bool:
+        from . import project as _project
+
+        return isinstance(self, _project.Project)
+
+    @property
+    def is_seal(self) -> bool:
+        from . import seal as _seal
+
+        return isinstance(self, _seal.Seal)
+
+    @property
+    def is_splice(self) -> bool:
+        from . import splice as _splice
+
+        return isinstance(self, _splice.Splice)
+
+    @property
+    def is_terminal(self) -> bool:
+        from . import terminal as _terminal
+
+        return isinstance(self, _terminal.Terminal)
+
+    @property
+    def is_tpa_lock(self) -> bool:
+        from . import tpa_lock as _tpa_lock
+
+        return isinstance(self, _tpa_lock.TPALock)
+
+    @property
+    def is_transition(self) -> bool:
+        from . import transition as _transition
+
+        return isinstance(self, _transition.Transition)
+
+    @property
+    def is_wire(self) -> bool:
+        from . import wire as _wire
+
+        return isinstance(self, _wire.Wire)
+
+    @property
+    def is_wire_layout(self) -> bool:
+        from . import wire_layout as _wire_layout
+
+        return isinstance(self, _wire_layout.WireLayout)
+
+    @property
+    def is_wire_marker(self) -> bool:
+        from . import wire_marker as _wire_marker
+
+        return isinstance(self, _wire_marker.WireMarker)
+
+    @property
+    def is_wire_service_loop(self) -> bool:
+        from . import wire_service_loop as _wire_service_loop
+
+        return isinstance(self, _wire_service_loop.WireServiceLoop)
+
+

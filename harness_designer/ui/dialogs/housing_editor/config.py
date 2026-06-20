@@ -22,8 +22,8 @@ class Config:
         walk = _config.Config.editor3d.walk
         zoom = _config.Config.editor3d.zoom
         reset = _config.Config.editor3d.reset
-        selected_color = [0.2, 0.6, 0.2, 0.35]
-        background_color = [1.0, 0.96, 0.96, 1.0]
+        selected_color = _config.Config.editor3d.selected_color
+        background_color = _config.Config.editor3d.background_color
 
         class headlight:
             """Represent a headlight in :mod:`harness_designer.ui.dialogs.housing_editor.config`.
@@ -48,15 +48,15 @@ class Config:
             enable = True
             ground_height = 0.0
             size = 2000
-            enable_floor_lock = True
+            enable_floor_lock = False
 
             class grid:
                 """Floor grid appearance settings."""
-                primary_color = [0.2039, 0.2549, 0.2902, 0.8]
-                secondary_color = [0.2925, 0.3430, 0.3430, 0.8]
+                primary_color = [0.2039, 0.2549, 0.2902, 0.0]
+                secondary_color = [0.2925, 0.3430, 0.3430, 0.0]
 
-                primary_line_color = [0.87, 0.88, 0.92, 1.0]
-                secondary_line_color = [0.57, 0.59, 0.65, 1.0]
+                primary_line_color = [0.87, 0.88, 0.92, 0.0]
+                secondary_line_color = [0.57, 0.59, 0.65, 0.0]
                 primary_line_width = 0.8
                 secondary_line_width = 0.25
 

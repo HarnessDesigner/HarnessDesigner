@@ -98,6 +98,13 @@ class GLMaterial:
         :param shader_program: Value for ``shader_program``.
         :type shader_program: UNKNOWN
         """
+
+        # if self.is_opaque:
+        #     GL.glDepthMask(GL.GL_TRUE)
+        #
+        # else:
+        #     GL.glDepthMask(GL.GL_FALSE)
+
         ambient = GL.glGetUniformLocation(shader_program, "materialAmbient")
         diffuse = GL.glGetUniformLocation(shader_program, "materialDiffuse")
         specular = GL.glGetUniformLocation(shader_program, "materialSpecular")
@@ -117,8 +124,8 @@ class GLMaterial:
             self.emissive[1] != 0.0 or
             self.emissive[2] != 0.0
         ):
-            GL.glUniform1f(emissive_rim_power, sum(self.emissive[:-1].tolist()) * 2)
-            GL.glUniform1f(emissive_rim_intensity, sum(self.emissive[:-1].tolist()) * 2)
+            GL.glUniform1f(emissive_rim_power, sum(float(str(v)) for v in self.emissive[:-1].tolist()) * 2)
+            GL.glUniform1f(emissive_rim_intensity, sum(float(str(v)) for v in self.emissive[:-1].tolist()) * 2)
         else:
             GL.glUniform1f(emissive_rim_power, 0.0)
             GL.glUniform1f(emissive_rim_intensity, 0.0)

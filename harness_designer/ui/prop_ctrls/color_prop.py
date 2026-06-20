@@ -7,6 +7,7 @@ from PySide6 import QtCore
 
 from ..widgets import autocomplete_combobox as _autocomplete_combobox
 from . import events as _events
+from ... import color as _color
 
 
 class ColorProperty(QtWidgets.QWidget):
@@ -71,6 +72,8 @@ class ColorProperty(QtWidgets.QWidget):
 
         self._button.setStyleSheet(f'background-color: {color.name()};')
 
+        color = _color.Color(r, g, b, a)
+
         colors = [item[1] for item in self._choices]
         if rgba in colors:
             index = colors.index(rgba)
@@ -109,10 +112,13 @@ class ColorProperty(QtWidgets.QWidget):
             a = rgba & 0xFF
             color = QtGui.QColor(r, g, b, a)
             self._button.setStyleSheet(f'background-color: {color.name()};')
+            color = _color.Color(r, g, b, a)
             self._value = [value, color]
         else:
             self._button.setStyleSheet('background-color: black;')
-            self._value = [value, QtGui.QColor(0, 0, 0)]
+
+            color = _color.Color(0, 0, 0, 255)
+            self._value = [value, color]
 
         evt = _events.PropertyEvent()
         evt.SetValue(self._value)
@@ -120,7 +126,7 @@ class ColorProperty(QtWidgets.QWidget):
         evt.SetProperty(self)
         self.propertyChanged.emit(evt)
 
-    def SetValue(self, value):
+    def SetValue(self, value: list[str, _color.Color | QtGui.QColor] | tuple[str, _color.Color | QtGui.QColor]):
         """Execute the set value operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -131,25 +137,43 @@ class ColorProperty(QtWidgets.QWidget):
         values = [item[0] for item in self._choices]
         self._ctrl.blockSignals(True)
 
-        if value[0] in values:
-            self._ctrl.setCurrentText(value[0])
-        else:
-            self._ctrl.lineEdit().setText(value[0])
+        name, color = value
 
-        color = value[1]
-        if isinstance(color, QtGui.QColor):
-            self._button.setStyleSheet(f'background-color: {color.name()};')
+        if isinstance(color, _color.Color):
+            qcolor = color.to_qcolor()
+        elif isinstance(color, QtGui.QColor):
+            qcolor = color
+            color = _color.Color(color.red(), color.green(), color.blue(), 255)
+        else:
+            if name not in values:
+                name = 'Black'
+
+            index = values.index(name)
+            rgba = self._choices[index][1]
+            r = (rgba >> 24) & 0xFF
+            g = (rgba >> 16) & 0xFF
+            b = (rgba >> 8) & 0xFF
+            a = rgba & 0xFF
+            qcolor = QtGui.QColor(r, g, b, a)
+            color = _color.Color(r, g, b, a)
+
+        if name in values:
+            self._ctrl.setCurrentText(name)
+        else:
+            self._ctrl.lineEdit().setText(name)
+
+        self._button.setStyleSheet(f'background-color: {qcolor.name()};')
 
         self._ctrl.blockSignals(False)
-        self._value = list(value)
+        self._value = [name, color]
 
-    def GetValue(self):
+    def GetValue(self) -> list[str, _color.Color]:
         """Execute the get value operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
+        :rtype: list[str, _color.Color]
         """
         return self._value
 

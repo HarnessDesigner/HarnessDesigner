@@ -146,6 +146,9 @@ def _pick_candidates_at_mouse(mx, my, scene_objects,
 
     candidates = []
     for obj in scene_objects:
+        if obj.obj3d.obb is None:
+            continue
+
         for (minx, miny, maxx, maxy), depth in (
             _aabb_screen_bbox_and_depth(obj.obj3d.obb, camera)
         ):

@@ -33,6 +33,7 @@ class CompatSealsMixin(BaseMixin):
                 res.append(self._table.db.seals_table[part_number])
             except KeyError:
                 pass
+
         return res
 
     @property
@@ -45,7 +46,11 @@ class CompatSealsMixin(BaseMixin):
         :rtype: list[str]
         """
         value = self._table.select('compat_seals', id=self._db_id)[0][0]
-        return value[1:-1].split(', ')
+
+        if value.startswith('['):
+            value = value[1:-1]
+
+        return value.split(', ')
 
     @compat_seals_array.setter
     def compat_seals_array(self, value: list[str]):
@@ -56,7 +61,8 @@ class CompatSealsMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: list[str]
         """
-        value = f'[{", ".join(value)}]'
+        value = ", ".join(value)
+
         self._table.update(self._db_id, compat_seals=value)
         self._populate('compat_seals_array')
 

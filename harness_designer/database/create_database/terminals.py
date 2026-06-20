@@ -411,6 +411,7 @@ table = _con.SQLTable(
                                                     _cavity_locks.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('sealing', default='0', no_null=True),
+    _con.IntField('round_terminal', default='0'),
     _con.FloatField('blade_size', default='"0.0"', no_null=True),
     _con.FloatField('resistance', default='"0.0"', no_null=True),
     _con.IntField('mating_cycles', default='0', no_null=True),

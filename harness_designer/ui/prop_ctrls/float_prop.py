@@ -112,17 +112,20 @@ class FloatProperty(QtWidgets.QWidget):
         remaining = value % inc
         if remaining:
             value += inc - remaining
+
+        value = float(value)
+
         if value > self._max_val:
             value = self._max_val
         if value < self._min_val:
             value = self._min_val
 
-        self._value = float(value)
+        self._value = value
 
         self._ctrl.blockSignals(True)
         self._slider.blockSignals(True)
 
-        self._ctrl.setValue(self._value)
+        self._ctrl.setValue(value)
 
         sv = _utils.remap(
             value, self._min_val, self._max_val, 0, self._s_max)

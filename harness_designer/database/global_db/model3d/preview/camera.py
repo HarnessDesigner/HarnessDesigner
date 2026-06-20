@@ -147,7 +147,7 @@ class Camera:
         UNKNOWN details are inferred from the callable name and signature.
         """
         self._calculate_camera()
-        camera = self._eye.as_float + self._position.as_float + tuple(self._up.tolist())
+        camera = self._eye.as_float + self._position.as_float + tuple(float(str(v)) for v in self._up.tolist())
         GLU.gluLookAt(*camera)
         self._update_views()
 

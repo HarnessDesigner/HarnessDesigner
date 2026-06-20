@@ -615,7 +615,7 @@ class GLOverlay(QOpenGLWidget):
         else:
             up = up / un
 
-        camera = self.camera_eye.as_float + self.camera_pos.as_float + tuple(up.tolist())
+        camera = self.camera_eye.as_float + self.camera_pos.as_float + tuple(float(str(v)) for v in up.tolist())
         GLU.gluLookAt(*camera)
 
         GL.glPushMatrix()

@@ -45,6 +45,7 @@ uniform uint uStipplePhase;   // 1 = phase shift on, 0 = off
 
 // ── Feature flags ─────────────────────────────────────────────────────────────
 uniform uint uHasMinorGrid;   // 1 = draw minor dashed lines, 0 = skip
+uniform int  uOpaquePass;     // 1 = opaque pre-pass (discard alpha<threshold), 0 = transparent pass
 
 out vec4 oColor;
 
@@ -132,6 +133,13 @@ void main() {
     alpha = mix(alpha, uMinorColor.a, minA);
     alpha = mix(alpha, uMajorColor.a, majA);
     
+    // Depth-correct compositing: opaque fragments write depth; transparent do not.
+    // This must be handled per-fragment in the shader because glDepthMask cannot
+    // toggle within a single draw call.  We split the draw into two passes via the
+    // uOpaquePass uniform and discard the unwanted tier in each pass.
+    if (uOpaquePass == 1 && alpha < 0.999) discard;
+    if (uOpaquePass == 0 && alpha >= 0.999) discard;
+
     oColor = vec4(color, alpha);
 }
 """

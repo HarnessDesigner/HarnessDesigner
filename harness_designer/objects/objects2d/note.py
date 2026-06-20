@@ -39,6 +39,39 @@ class Note(_base2d.Base2D):
 
         _base2d.Base2D.__init__(self, parent, db_obj, position=position, angle=angle)
 
+    def set_size(self, size):
+        self.db_obj.size2d = size
+
+        self.editor2d.context.acquire()
+        self._vbo.update(*self._build())
+        self.editor2d.context.release()
+        self.editor2d.Refresh()
+
+    def set_style(self, style):
+        self.db_obj.style2d = style
+
+        self.editor2d.context.acquire()
+        self._vbo.update(*self._build())
+        self.editor2d.context.release()
+        self.editor2d.Refresh()
+
+    def set_alignment(self, alignment):
+        self.db_obj.h_align2d = alignment
+
+        self.editor2d.context.acquire()
+        self._vbo.update(*self._build())
+        self.editor2d.context.release()
+        self.editor2d.Refresh()
+
+    def set_text(self, text: str):
+        """Set the note text and rebuild the 3d geometry."""
+        self.db_obj.notes = text
+
+        self.editor2d.context.acquire()
+        self._vbo.update(*self._build())
+        self.editor2d.context.release()
+        self.editor2d.Refresh()
+
 
 class NoteMenu(QMenu):
     """Represent a note menu in :mod:`harness_designer.objects.objects2d.note`.

@@ -1,6 +1,9 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+import math
 from typing import TYPE_CHECKING
+
+import numpy as np
 
 from .... import objects as _objects
 from ....objects.objects3d import base3d as _base3d
@@ -61,23 +64,22 @@ class Cavity3D(_base3d.Base3D):
         :type db_obj: :class:`_cavity.Cavity`
         """
         self.dialog: "_housing_editor.HousingEditorDialog" = parent.dialog
+        self.editor3d = parent.dialog
+        self.db_obj = db_obj
 
-        angle = db_obj.angle3d
-        position = db_obj.position3d.copy()
-
-        self._scale = _point.Point(1.0, 1.0, 1.0)
+        self._angle = db_obj.angle3d
+        self._scale = db_obj.scale
+        self._position = db_obj.position3d
 
         material = _materials.Plastic(
             _color.Color(0.8, 0.3, 0.3, 1.0))
 
-        self.db_obj = db_obj
-
-        parent.dialog.context.acquire()
+        parent.dialog.mainframe.editor3d.context.acquire()
 
         vbo = self.build()
 
         _base3d.Base3D.__init__(self, parent, db_obj, vbo,
-                                angle, position, self._scale,
+                                self._angle, self._position, self._scale,
                                 material)
 
         self._selected_material = _materials.Plastic(
@@ -86,7 +88,7 @@ class Cavity3D(_base3d.Base3D):
         self._is_visible = True
         self.autoplace = False
         self.editor3d.Refresh(False)
-        parent.dialog.context.release()
+        parent.dialog.mainframe.editor3d.context.release()
 
     def set_selected(self, flag: bool):
         """Set the selected.
@@ -283,6 +285,55 @@ class Cavity3D(_base3d.Base3D):
         """
         self.db_obj.idx = value
 
+    def apply_analysis(self, kind: str, params: dict, d_start: float, d_end: float) -> None:
+        """Set position and orientation from surface analysis results."""
+
+        is_round = (kind == 'circle')
+        length = abs(float(d_end) - float(d_start))
+
+        if is_round:
+            width = float(params['radius']) * 2.0
+            height = float(params['radius']) * 2.0
+        else:
+            width = float(params['half_w']) * 2.0
+            height = float(params['half_h']) * 2.0
+
+        self.db_obj.size = (width, height, length)
+
+        n = np.array(params['normal'], dtype=np.float64)
+        n /= np.linalg.norm(n) + 1e-12
+        u = np.array(params['u'], dtype=np.float64)
+        v = np.array(params['v'], dtype=np.float64)
+        center = np.array(params['center'], dtype=np.float64)
+
+        mid_d = (float(d_start) + float(d_end)) / 2.0
+        pos = center + (mid_d - float(d_start)) * n
+
+        # YXZ Euler decomposition matching the engine convention
+        R = np.column_stack([u, v, n])
+        pitch = math.degrees(float(np.arcsin(np.clip(-R[1, 2], -1.0, 1.0))))
+        yaw = math.degrees(float(np.arctan2(R[0, 2], R[2, 2])))
+        roll = math.degrees(float(np.arctan2(R[1, 0], R[1, 1])))
+
+        ctx = self.dialog.context
+        ctx.acquire()
+
+        with self._angle:
+            self._angle.x = pitch
+            self._angle.y = yaw
+
+        self._angle.z = roll
+
+        with self._position:
+            self._position.x = float(pos[0])
+            self._position.y = float(pos[1])
+
+        self._position.z = float(pos[2])
+
+        ctx.release()
+
+        self.is_round = is_round
+
     def build(self):
         """Execute the build operation.
 
@@ -291,27 +342,24 @@ class Cavity3D(_base3d.Base3D):
         :returns: Return value. UNKNOWN details.
         :rtype: UNKNOWN
         """
-        self.editor3d.context.acquire()
+        self.editor3d.mainframe.editor3d.context.acquire()
+
         if self.is_round:
             width = height = float(_d(self.width) / _d(2.0))
-            self.db_obj.width = width
-            self.db_obj.height = height
-
             self._vbo = _cylinder.create_vbo()
-            self._vbo.acquire()
         else:
             width = self.width
             height = self.height
-
             self._vbo = _box.create_vbo()
 
         self._vbo.acquire()
+
         with self._scale:
             self._scale.x = width
             self._scale.y = height
 
         self._scale.z = self.length
 
-        self.editor3d.context.release()
+        self.editor3d.mainframe.editor3d.context.release()
 
         return self._vbo

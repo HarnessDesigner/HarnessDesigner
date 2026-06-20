@@ -1,5 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+import os
+import shutil
+
 from .. import db_connectors as _con
 from . import file_types as _file_types
 from ... import resources as _resources
@@ -35,6 +38,20 @@ def get_cad_id(con, path: str):  # NOQA
                 return None
 
             uuid, file_type_id = values
+            con.execute(f'SELECT value FROM settings WHERE name="cad_path";')
+            cad_path = con.fetchall()[0][0]
+
+            con.execute(f'SELECT extension FROM file_types WHERE id={file_type_id};')
+            ext = con.fetchall()[0][0]
+
+            dst = os.path.join(cad_path, uuid[:2])
+            if not os.path.isdir(dst):
+                os.mkdir(dst)
+
+            dst = os.path.join(dst, f'{uuid}.{ext}')
+            src = os.path.join(cad_path, f'{uuid}.{ext}')
+            shutil.move(src, dst)
+
             con.execute('INSERT INTO cads (uuid, path, file_type_id) VALUES (?, ?, ?);', (uuid, path, file_type_id))
 
         con.commit()

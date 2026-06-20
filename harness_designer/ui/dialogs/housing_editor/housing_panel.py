@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from PySide6.QtWidgets import QTabWidget
 
 from . import housing_obj as _housing_obj
-from . import triple_float_ctrl as _triple_float_ctrl
+from ...widgets import triple_float_ctrl as _triple_float_ctrl
 
 
 if TYPE_CHECKING:

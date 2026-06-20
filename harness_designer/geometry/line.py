@@ -38,7 +38,7 @@ class Line:
             if isinstance(instance, np.ndarray):
                 arr = self.as_numpy
                 arr @= instance
-                p1, p2 = arr.tolist()
+                p1, p2 = [[float(str(item)) for item in row] for row in arr.tolist()]
 
                 self._p1.x = p1[0]
                 self._p1.y = p1[1]
@@ -56,7 +56,7 @@ class Line:
             if isinstance(instance, np.ndarray):
                 arr = self.as_numpy
                 arr += instance
-                p1, p2 = arr.tolist()
+                p1, p2 = [[float(str(item)) for item in row] for row in arr.tolist()]
 
                 self._p1.x = p1[0]
                 self._p1.y = p1[1]
@@ -73,7 +73,7 @@ class Line:
             if isinstance(instance, np.ndarray):
                 arr = self.as_numpy
                 arr -= instance
-                p1, p2 = arr.tolist()
+                p1, p2 = [[float(str(item)) for item in row] for row in arr.tolist()]
 
                 self._p1.x = p1[0]
                 self._p1.y = p1[1]

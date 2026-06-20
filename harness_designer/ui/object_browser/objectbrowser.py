@@ -2,11 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import (
-    QWidget, QTreeWidget, QTreeWidgetItem, QAbstractItemView,
-    QVBoxLayout, QHBoxLayout
-)
-from PySide6.QtCore import Qt
+from PySide6 import QtCore
 from PySide6 import QtWidgets
 
 import weakref
@@ -57,7 +53,7 @@ class ObjectBrowser:
             title='Object Browser',
             name='object_browser',
             widget=self.editor,
-            area=Qt.DockWidgetArea.LeftDockWidgetArea,
+            area=QtCore.Qt.DockWidgetArea.LeftDockWidgetArea,
         )
         self._dock.show()
 
@@ -278,7 +274,7 @@ class ObjectBrowser:
         self.editor.deleteLater()
 
 
-class ObjectBrowserPanel(QWidget):
+class ObjectBrowserPanel(QtWidgets.QWidget):
     """Represent an object browser panel in :mod:`harness_designer.ui.object_browser.objectbrowser`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -292,60 +288,60 @@ class ObjectBrowserPanel(QWidget):
         :param parent: Parent object.
         :type parent: :class:`_mainframe.MainFrame`
         """
-        QWidget.__init__(self, parent)
+        super().__init__(parent)
         self.mainframe = parent
 
         self._objects = []
         self._selected = None
-        self._treectrl = QTreeWidget(self)
+        self._treectrl = QtWidgets.QTreeWidget(self)
         self._treectrl.setHeaderHidden(True)
         self._treectrl.setRootIsDecorated(True)
         self._treectrl.setSelectionMode(
-            QAbstractItemView.SelectionMode.SingleSelection)
+            QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
 
-        h_layout = QHBoxLayout()
-        v_layout = QVBoxLayout(self)
+        h_layout = QtWidgets.QHBoxLayout()
+        v_layout = QtWidgets.QVBoxLayout(self)
 
         h_layout.addWidget(self._treectrl)
         v_layout.addLayout(h_layout)
 
-        self._root: QTreeWidgetItem = None
-        self._boots: QTreeWidgetItem = None
-        self._bundles: QTreeWidgetItem = None
-        self._cavities: QTreeWidgetItem = None
-        self._circuits: QTreeWidgetItem = None
-        self._covers: QTreeWidgetItem = None
-        self._cpa_locks: QTreeWidgetItem = None
-        self._housings: QTreeWidgetItem = None
-        self._notes: QTreeWidgetItem = None
-        self._seals: QTreeWidgetItem = None
-        self._splices: QTreeWidgetItem = None
-        self._terminals: QTreeWidgetItem = None
-        self._tpa_locks: QTreeWidgetItem = None
-        self._transitions: QTreeWidgetItem = None
-        self._wires: QTreeWidgetItem = None
-        self._wire_markers: QTreeWidgetItem = None
+        self._root: QtWidgets.QTreeWidgetItem = None
+        self._boots: QtWidgets.QTreeWidgetItem = None
+        self._bundles: QtWidgets.QTreeWidgetItem = None
+        self._cavities: QtWidgets.QTreeWidgetItem = None
+        self._circuits: QtWidgets.QTreeWidgetItem = None
+        self._covers: QtWidgets.QTreeWidgetItem = None
+        self._cpa_locks: QtWidgets.QTreeWidgetItem = None
+        self._housings: QtWidgets.QTreeWidgetItem = None
+        self._notes: QtWidgets.QTreeWidgetItem = None
+        self._seals: QtWidgets.QTreeWidgetItem = None
+        self._splices: QtWidgets.QTreeWidgetItem = None
+        self._terminals: QtWidgets.QTreeWidgetItem = None
+        self._tpa_locks: QtWidgets.QTreeWidgetItem = None
+        self._transitions: QtWidgets.QTreeWidgetItem = None
+        self._wires: QtWidgets.QTreeWidgetItem = None
+        self._wire_markers: QtWidgets.QTreeWidgetItem = None
         self._weakrefs = []
 
-    def _append_item(self, parent: QTreeWidgetItem, label: str,  # NOQA
-                     has_children: bool = False) -> QTreeWidgetItem:
+    def _append_item(self, parent: QtWidgets.QTreeWidgetItem, label: str,  # NOQA
+                     has_children: bool = False) -> QtWidgets.QTreeWidgetItem:
         """Execute the append item operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param parent: Parent object.
-        :type parent: :class:`QTreeWidgetItem`
+        :type parent: :class:`QtWidgets.QTreeWidgetItem`
         :param label: Value for ``label``.
         :type label: str
         :param has_children: Boolean flag for whether children is available.
         :type has_children: bool
         :returns: Return value. UNKNOWN details.
-        :rtype: :class:`QTreeWidgetItem`
+        :rtype: :class:`QtWidgets.QTreeWidgetItem`
         """
-        item = QTreeWidgetItem(parent, [label])
+        item = QtWidgets.QTreeWidgetItem(parent, [label])
         if has_children:
             item.setChildIndicatorPolicy(
-                QTreeWidgetItem.ChildIndicatorPolicy.ShowIndicator)
+                QtWidgets.QTreeWidgetItem.ChildIndicatorPolicy.ShowIndicator)
         return item
 
     def reset(self):
@@ -354,7 +350,7 @@ class ObjectBrowserPanel(QWidget):
         UNKNOWN details are inferred from the callable name and signature.
         """
         self._treectrl.clear()
-        self._root = QTreeWidgetItem(self._treectrl, ['root'])
+        self._root = QtWidgets.QTreeWidgetItem(self._treectrl, ['root'])
         self._treectrl.addTopLevelItem(self._root)
 
         self._boots = self._append_item(self._root, 'Boots', True)
@@ -383,19 +379,19 @@ class ObjectBrowserPanel(QWidget):
         :param ref: Value for ``ref``.
         :type ref: UNKNOWN
         """
-        def iter_tree(parent: QTreeWidgetItem):
+        def iter_tree(parent: QtWidgets.QTreeWidgetItem):
             """Iterate over the tree.
 
             UNKNOWN details are inferred from the callable name and signature.
 
             :param parent: Parent object.
-            :type parent: :class:`QTreeWidgetItem`
+            :type parent: :class:`QtWidgets.QTreeWidgetItem`
             :returns: Iterator or iterable result. UNKNOWN details.
             :rtype: UNKNOWN
             """
             for i in range(parent.childCount() - 1, -1, -1):
                 child = parent.child(i)
-                d_ref = child.data(0, Qt.ItemDataRole.UserRole)
+                d_ref = child.data(0, QtCore.Qt.ItemDataRole.UserRole)
                 if d_ref is not None:
                     data = d_ref()
                     if data is None:
@@ -412,17 +408,17 @@ class ObjectBrowserPanel(QWidget):
         except ValueError:
             pass
 
-    def _set_data(self, item: QTreeWidgetItem, ref):  # NOQA
+    def _set_data(self, item: QtWidgets.QTreeWidgetItem, ref):  # NOQA
         """Set the data.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param item: Item identifier or value.
-        :type item: :class:`QTreeWidgetItem`
+        :type item: :class:`QtWidgets.QTreeWidgetItem`
         :param ref: Value for ``ref``.
         :type ref: UNKNOWN
         """
-        item.setData(0, Qt.ItemDataRole.UserRole, ref)
+        item.setData(0, QtCore.Qt.ItemDataRole.UserRole, ref)
 
     def add_boot(self, obj: _boot.Boot):
         """Add a boot.

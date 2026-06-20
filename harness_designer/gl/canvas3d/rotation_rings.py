@@ -234,7 +234,15 @@ class RotationRings(_object_base.ObjectBase):
 
     def __del__(self):
         """Execute the del operation."""
-        self.delete()
+
+        # we need to avoid an error that can occur when the application closes
+        # and the rings have not yet been removed. Deleting the rings after
+        # the application closes tried to update the canvas after it has already
+        # been deleted and this causes a runtime error to occur
+        try:
+            self.delete()
+        except RuntimeError:
+            pass
 
     def delete(self):
         """Remove the gizmo from both editors and unbind from the object."""
@@ -332,6 +340,7 @@ class Rings3D(_base3d.Base3D):
         self._build_materials()
 
         self._obj3d = obj3d
+        self._selected = selected
         self._radius = 1e-3
         self._handle_scale = 1e-3
         self._compute_size()
@@ -491,14 +500,53 @@ class Rings3D(_base3d.Base3D):
         the object regardless of its proportions. The tube thickness
         follows automatically: the ring mesh is radius 1.0 with a
         config-driven tube ratio, rendered with a uniform scale.
+
+        For housings the sizing additionally encompasses all attached parts
+        (cover, seal, boot, TPA/CPA locks) so the rings wrap the full
+        assembly rather than just the housing body.
         """
         aabb = self._obj3d.aabb
-        diagonal = float(np.linalg.norm(
-            np.asarray(aabb[1], dtype=np.float64) -
-            np.asarray(aabb[0], dtype=np.float64)))
 
         ring_config = Config.rotation_rings
-        diameter = diagonal * float(ring_config.diameter_scale)
+
+        if self._selected.is_housing:
+            db_obj = self._selected.db_obj
+            attached = [db_obj.cover, db_obj.seal, db_obj.boot,
+                        db_obj.tpa_lock1, db_obj.tpa_lock2, db_obj.cpa_lock]
+
+            # Rings are centered at the housing position, so the radius must
+            # be the maximum distance from that center to any bounding corner
+            # of any part — not half the combined AABB diagonal, which would
+            # be wrong whenever parts are offset from the housing origin.
+            pos = self._obj3d.position
+            housing_pos = np.array(
+                [float(pos.x), float(pos.y), float(pos.z)], dtype=np.float64)
+
+            # Housing's own AABB: pick the farthest corner per axis without
+            # needing to enumerate all 8 combinations.
+            mn = np.asarray(aabb[0], dtype=np.float64)
+            mx = np.asarray(aabb[1], dtype=np.float64)
+            far = np.maximum(np.abs(mn - housing_pos), np.abs(mx - housing_pos))
+            max_reach = float(np.linalg.norm(far))
+
+            for part_db in attached:
+                if part_db is None:
+                    continue
+                part_obj = part_db.get_object()
+                if part_obj is None:
+                    continue
+                obb = part_obj.obj3d.obb
+                if obb is not None:
+                    dists = np.linalg.norm(
+                        np.asarray(obb, dtype=np.float64) - housing_pos, axis=1)
+                    max_reach = max(max_reach, float(dists.max()))
+
+            diameter = max_reach * 2.0 * float(ring_config.diameter_scale)
+        else:
+            diagonal = float(np.linalg.norm(
+                np.asarray(aabb[1], dtype=np.float64) -
+                np.asarray(aabb[0], dtype=np.float64)))
+            diameter = diagonal * float(ring_config.diameter_scale)
 
         self._radius = max(diameter / 2.0, 1e-3)
         # The sphere VBO has a diameter of 1.0, so the scale factor IS the
@@ -543,7 +591,7 @@ class Rings3D(_base3d.Base3D):
 
         for axis in AXES:
             ring_angle = slot_ring_angle(axis, euler)
-            self._ring_quats[axis] = ring_angle.as_quat_numpy.tolist()
+            self._ring_quats[axis] = [float(str(v)) for v in ring_angle.as_quat_numpy.tolist()]
 
             local_dir = HANDLE_LOCAL_DIRS[axis]
             world_dir = ring_angle @ local_dir

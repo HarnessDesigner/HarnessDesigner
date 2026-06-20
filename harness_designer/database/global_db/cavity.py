@@ -242,7 +242,11 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: list[float]
         """
-        return eval(self._table.select('terminal_sizes', id=self._db_id)[0][0])
+        value = self._table.select('terminal_sizes', id=self._db_id)[0][0]
+        if not value.startswith('['):
+            value = f'[{value}]'
+
+        return eval(value)
 
     @terminal_sizes.setter
     def terminal_sizes(self, value: list[float]):
@@ -256,7 +260,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         for i, item in enumerate(value):
             value[i] = round(item, 6)
 
-        self._table.update(self._db_id, terminal_sizes=str(value))
+        self._table.update(self._db_id, terminal_sizes=str(value)[1:-1])
         self._populate('terminal_sizes')
 
     _position3d_id: str = None
@@ -322,9 +326,13 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         :param angle: Value for ``angle``.
         :type angle: :class:`_angle.Angle`
         """
-        euler = list(angle.as_euler_float)
-        quat = list(angle.as_quat_float)
-        self._table.update(self._db_id, angle3d=str(euler), quat3d=str(quat))
+        euler = str(list(angle.as_euler_float))
+        quat = str(list(angle.as_quat_float))
+
+        if 'nan' in euler or 'nan' in quat:
+            return
+
+        self._table.update(self._db_id, angle3d=euler, quat3d=quat)
 
     @property
     def angle3d(self) -> _angle.Angle:
@@ -352,8 +360,12 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         :param angle: Value for ``angle``.
         :type angle: :class:`_angle.Angle`
         """
-        euler = [angle.x, angle.y, angle.z]
-        quat = angle.as_quat_float
+        euler = str(list(angle.as_euler_float))
+        quat = str(list(angle.as_quat_float))
+
+        if 'nan' in euler or 'nan' in quat:
+            return
+
         self._table.update(self._db_id, angle2d=str(euler), quat2d=str(quat))
 
     @property
@@ -415,7 +427,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         :param value: Value to store or process.
         :type value: float
         """
-        self._table.update(self._db_id, length=round(value, 6))
+        self._table.update(self._db_id, length=value)
         self._populate('length')
 
     @property
@@ -447,9 +459,9 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         :type value: float
         """
         if self.round_terminal:
-            self._table.update(self._db_id, width=round(value, 6), height=round(value, 6))
+            self._table.update(self._db_id, width=value, height=value)
         else:
-            self._table.update(self._db_id, width=round(value, 6))
+            self._table.update(self._db_id, width=value)
 
         self._populate('width')
 
@@ -483,9 +495,9 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         :type value: float
         """
         if self.round_terminal:
-            self._table.update(self._db_id, width=round(value, 6), height=round(value, 6))
+            self._table.update(self._db_id, width=value, height=value)
         else:
-            self._table.update(self._db_id, height=round(value, 6))
+            self._table.update(self._db_id, height=value)
 
         self._populate('height')
 

@@ -2,6 +2,8 @@
 
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 from .... import objects as _objects
 from ....objects.objects3d import base3d as _base3d
 from ....geometry import point as _point
@@ -10,7 +12,6 @@ from ....shapes import box as _box
 from ....gl import vbo as _vbo
 from ....gl import materials as _materials
 from .... import color as _color
-from .... import utils as _utils
 
 
 if TYPE_CHECKING:
@@ -43,6 +44,11 @@ class Housing(_objects.ObjectBase):
 
         parent.add_object(self)
 
+    def set_selected(self, flag):
+        pass
+        # if self.dialog.can_select:
+        #     super().set_selected(flag)
+
 
 class Housing3D(_base3d.Base3D):
     """Represent a housing 3D in :mod:`harness_designer.ui.dialogs.housing_editor.housing_obj`.
@@ -65,37 +71,53 @@ class Housing3D(_base3d.Base3D):
         self.db_obj = db_obj
 
         parent.dialog.mainframe.editor3d.context.acquire()
-
-        parent.dialog.context.acquire()
-
-        self._angle = db_obj.angle3d
-        self._position = _point.Point(0.0, 0.0, 0.0)
         model = db_obj.model3d
+
+        angle3d = _angle.Angle.from_euler(0.0, 0.0, 0.0)
+        position3d = _point.Point(0.0, 0.0, 0.0)
 
         if model is None:
             length = db_obj.length
             width = db_obj.width
             height = db_obj.height
 
-            # parent.dialog.mainframe.status_bar.showMessage()
-
-            scale = _point.Point(width, height, length)
+            scale3d = _point.Point(width, height, length)
             vbo = _box.create_vbo()
-            position3d = _point.Point(0.0, 0.0, 0.0)
-            angle3d = _angle.Angle.from_euler(0.0, 0.0, 0.0)
         else:
             uuid = model.uuid
-            scale = model.scale
-            angle3d = model.angle3d
-            position3d = model.position3d
+            scale3d = _point.Point(1.0, 1.0, 1.0)
 
-            vbo = _vbo.PooledVBOHandler(uuid)
+            if uuid in _vbo.PooledVBOHandler:
+                vbo = _vbo.PooledVBOHandler(uuid)
+            else:
+
+                packed = np.load(model.data_path).reshape(-1, 3)
+
+                angle = model.angle3d
+                position = model.position3d
+                count = model.vertex_count
+
+                obb = model.obb
+                aabb = model.aabb
+
+                obb @= angle
+                aabb @= angle
+
+                obb += position
+                aabb += position
+
+                packed @= angle
+                packed[:count] += position
+
+                packed = packed.reshape(-1)
+
+                vbo = _vbo.PooledVBOHandler(uuid, packed, count, aabb=aabb, obb=obb)
 
         material = _materials.Plastic(
-            _color.Color(0.6, 0.6, 0.8, 1.0))
+            _color.Color(0.6, 0.6, 0.8, 0.6))
 
         _base3d.Base3D.__init__(
-            self, parent, db_obj, vbo, angle3d, position3d, scale, material)
+            self, parent, db_obj, vbo, angle3d, position3d, scale3d, material)
 
         self._selected_material = _materials.Plastic(
             _color.Color(0.3, 0.8, 0.3, 1.0))

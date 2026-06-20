@@ -191,7 +191,7 @@ class PJTCavitiesTable(PJTTableBase):
 
         raise KeyError(item)
 
-    def insert(self, part_id: int, housing_id: int) -> "PJTCavity":
+    def insert(self, part_id: int, housing_id: int, name: str) -> "PJTCavity":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -200,20 +200,46 @@ class PJTCavitiesTable(PJTTableBase):
         :type part_id: int
         :param housing_id: Identifier for the housing.
         :type housing_id: int
+        :param name: name of the cavity
+        :type name: str
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`PJTCavity`
         """
 
         g_cavity = self.db.global_db.cavities_table[part_id]
-        p3d = g_cavity.position3d
-        p2d = g_cavity.position2d
+        c_position2d = g_cavity.position2d
+        c_position3d = g_cavity.position3d
 
-        position3d = self.db.pjt_points3d_table.insert(*p3d.as_float)
-        position2d = self.db.pjt_points2d_table.insert(*p2d.as_float[:-1])
+        c_angle2d = g_cavity.angle2d
+        c_angle3d = g_cavity.angle3d
 
-        db_id = PJTTableBase.insert(
-            self, part_id=part_id, housing_id=housing_id,
-            point3d_id=position3d.db_id, point2d_id=position2d.db_id)
+        housing = self.db.pjt_housings_table[housing_id]
+
+        h_angle2d = housing.angle2d
+        h_angle3d = housing.angle3d
+
+        h_position2d = housing.position2d
+        h_position3d = housing.position3d
+
+        position2d = h_position2d + c_position2d
+        position3d = h_position3d + c_position3d
+
+        angle2d = h_angle2d + c_angle2d
+        angle3d = h_angle3d + c_angle3d
+
+        quat2d = list(angle2d.as_quat_float)
+        angle2d = list(angle2d.as_euler_float)
+
+        quat3d = list(angle3d.as_quat_float)
+        angle3d = list(angle3d.as_euler_float)
+
+        position2d = self.db.pjt_points2d_table.insert(*position2d.as_float[:-1])
+        position3d = self.db.pjt_points3d_table.insert(*position3d.as_float)
+
+        db_id = PJTTableBase.insert(self, part_id=part_id, housing_id=housing_id,
+                                    quat2d=quat2d, angle2d=angle2d, quat3d=quat3d,
+                                    angle3d=angle3d, point3d_id=position3d.db_id,
+                                    point2d_id=position2d.db_id)
 
         return PJTCavity(self, db_id, self.project_id)
 
@@ -462,9 +488,18 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
         :type angle: :class:`_angle.Angle`
         """
         quat = eval(self._table.select('quat2d', id=self._db_id)[0][0])
-        euler_angle = eval(self._table.select('angle2d', id=self._db_id)[0][0])
+        euler = eval(self._table.select('angle2d', id=self._db_id)[0][0])
 
-        o_angle = _angle.Angle.from_quat(quat, euler_angle)
+        o_angle = _angle.Angle.from_quat(quat, euler)
+
+        quat = str(list(angle.as_quat_float))
+        euler = str(list(angle.as_euler_float))
+
+        if 'nan' in euler or 'nan' in quat:
+            return
+
+        self._table.update(self._db_id, quat2d=quat)
+        self._table.update(self._db_id, angle2d=euler)
 
         delta = angle - o_angle
 
@@ -473,11 +508,6 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
             t_angle = terminal.angle2d
             t_angle += delta
 
-        quat = list(angle.as_quat_float)
-        euler_angle = list(angle.as_euler_float)
-
-        self._table.update(self._db_id, quat2d=str(quat))
-        self._table.update(self._db_id, angle2d=str(euler_angle))
         self._populate('angle2d')
 
     def _update_angle3d(self, angle: _angle.Angle):
@@ -489,9 +519,18 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
         :type angle: :class:`_angle.Angle`
         """
         quat = eval(self._table.select('quat3d', id=self._db_id)[0][0])
-        euler_angle = eval(self._table.select('angle3d', id=self._db_id)[0][0])
+        euler = eval(self._table.select('angle3d', id=self._db_id)[0][0])
 
-        o_angle = _angle.Angle.from_quat(quat, euler_angle)
+        o_angle = _angle.Angle.from_quat(quat, euler)
+
+        quat = str(list(angle.as_quat_float))
+        euler = str(list(angle.as_euler_float))
+
+        if 'nan' in euler or 'nan' in quat:
+            return
+
+        self._table.update(self._db_id, quat3d=quat)
+        self._table.update(self._db_id, angle3d=euler)
 
         delta = angle - o_angle
 
@@ -505,11 +544,6 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
             s_angle = seal.angle3d
             s_angle += delta
 
-        quat = list(angle.as_quat_float)
-        euler_angle = list(angle.as_euler_float)
-
-        self._table.update(self._db_id, quat3d=str(quat))
-        self._table.update(self._db_id, angle3d=str(euler_angle))
         self._populate('angle3d')
 
     @property
@@ -522,12 +556,12 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
         :rtype: :class:`_angle.Angle`
         """
         quat = eval(self._table.select('quat3d', id=self._db_id)[0][0])
-        euler_angle = eval(self._table.select('angle3d', id=self._db_id)[0][0])
+        euler = eval(self._table.select('angle3d', id=self._db_id)[0][0])
 
         if self._angle3d_db_id is None:
             self._angle3d_db_id = str(uuid.uuid4())
 
-        angle = _angle.Angle.from_quat(quat, euler_angle, db_id=self._angle3d_db_id)
+        angle = _angle.Angle.from_quat(quat, euler, db_id=self._angle3d_db_id)
         angle.bind(self._update_angle3d)
 
         return angle

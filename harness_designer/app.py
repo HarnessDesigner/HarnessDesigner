@@ -7,13 +7,27 @@ import time
 import threading
 
 from PySide6.QtWidgets import QApplication
-from PySide6.QtCore import Signal, QObject
+from PySide6.QtCore import Signal, QObject, QTimer
 
 from PySide6.QtCore import Qt
 
 QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
 
 _call_on_main = None
+
+
+def CallLater(func, *args) -> None:
+    """Schedule a callable to execute after the current event handler returns.
+
+    Unlike :func:`CallAfter`, this always defers ``func`` until the event loop
+    regains control, even when called from the main thread.
+
+    :param func: Callable to invoke.
+    :type func: collections.abc.Callable
+    :param args: Positional arguments passed to ``func``.
+    :type args: tuple
+    """
+    QTimer.singleShot(0, lambda f=func, a=args: f(*a))
 
 
 def CallAfter(func, *args) -> None:

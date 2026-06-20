@@ -3,6 +3,7 @@
 import math
 
 from PySide6 import QtCore
+from PySide6 import QtWidgets
 
 from . import canvas as _canvas
 from . import dragging as _dragging
@@ -14,6 +15,7 @@ from ... import config as _config
 from ... import utils as _utils
 from .. import events as _events
 from ... import handlers as _handlers
+from ...objects import housing as _housing
 
 
 MOUSE_NONE = _config.MOUSE_NONE
@@ -91,6 +93,11 @@ class MouseHandler:
         self._rotate_drag: _rotation_rings.DragRotate = None
 
         self._gl_mouse_event: _events.GLEvent | _events.GLObjectEvent = None
+
+        # Tracks which Housing3D currently has a cavity overlay visible, so
+        # the overlay can be cleared on the next click regardless of what is
+        # clicked.
+        self._active_cavity_housing = None
 
         self._add_object_handler: _handlers.HandlerBase = None
 
@@ -376,11 +383,12 @@ class MouseHandler:
         :param evt: Event object.
         :type evt: UNKNOWN
         """
+
         refresh = False
 
         event = _events.GLEvent(_events.EVT_GL_LEFT_UP)
-        if self._send_event(event, evt):
 
+        if self._send_event(event, evt):
             mouse_pos = _qt_pos(evt)
             self._mouse_pos = mouse_pos
 
@@ -399,25 +407,58 @@ class MouseHandler:
                 self._mouse_pos = None
                 self._is_motion = False
                 self.canvas.releaseMouse()
-                self.canvas.update()
+                self.canvas.repaint()
                 return
 
             cur_selected = self.canvas.get_selected()
-
             selected = self._pick_object(mouse_pos)
 
             if not self._is_motion:
+                # Always clear a stale cavity overlay at the start of each
+                # click cycle so a fresh decision can be made below.
+                if self._active_cavity_housing is not None:
+                    self._active_cavity_housing.clear_cavity_overlay()
+                    self._active_cavity_housing = None
+
+                # If the clicked object is a Housing, check whether the click
+                # landed on a cavity face and route selection accordingly.
+                if isinstance(selected, _housing.Housing):
+                    housing = selected
+
+                    pjt_cavity, global_cavity, surf_idx = (
+                        housing.obj3d.try_pick_cavity(mouse_pos.x, mouse_pos.y))
+
+                    if pjt_cavity is not None:
+                        # Ensure the Cavity parent object (and its obj3d) exist.
+                        cavity_obj = pjt_cavity.get_object()
+
+                        if cavity_obj is None:
+                            from ...objects import cavity as _cavity_obj_mod
+                            cavity_obj = _cavity_obj_mod.Cavity(
+                                self.canvas.mainframe, pjt_cavity)
+
+                        if cur_selected is not cavity_obj:
+                            # New cavity selected — show the highlight.
+                            housing.obj3d.show_cavity_overlay(
+                                surf_idx, global_cavity)
+                            self._active_cavity_housing = housing.obj3d
+
+                        selected = cavity_obj
+
+                    # else: housing face clicked but not a cavity — the overlay
+                    # was cleared at the top; housing will be selected below.
+
                 if cur_selected is None and selected is not None:
                     selected.set_selected(True)
 
                     event = _events.GLObjectEvent(_events.EVT_GL_OBJECT_SELECTED)
                     event.SetGLObject(selected)
-
                     if not self._send_event(event, evt):
                         selected.set_selected(False)
 
                 elif selected is None and cur_selected is not None:
                     cur_selected.set_selected(False)
+
                     event = _events.GLObjectEvent(_events.EVT_GL_OBJECT_UNSELECTED)
                     event.SetGLObject(selected)
 
@@ -442,11 +483,13 @@ class MouseHandler:
                     selected != cur_selected
                 ):
                     cur_selected.set_selected(False)
+
                     event = _events.GLObjectEvent(_events.EVT_GL_OBJECT_UNSELECTED)
                     event.SetGLObject(cur_selected)
 
                     if not self._send_event(event, evt):
                         cur_selected.set_selected(True)
+
                     else:
                         selected.set_selected(True)
 
@@ -468,7 +511,7 @@ class MouseHandler:
         self.canvas.releaseMouse()
 
         if refresh:
-            self.canvas.update()
+            self.canvas.repaint()
 
     def on_left_dclick(self, evt):
         """Handle the left dclick event.
@@ -517,7 +560,7 @@ class MouseHandler:
         self.canvas.releaseMouse()
 
         if refresh:
-            self.canvas.update()
+            self.canvas.repaint()
 
     def on_middle_down(self, evt):
         """Handle the middle down event.
@@ -576,12 +619,26 @@ class MouseHandler:
                     mouse_pos = _qt_pos(evt)
 
                     selected = self._pick_object(mouse_pos)
+                    cur_selected = self.canvas.get_selected()
 
-                    if selected and selected != self.canvas.get_selected():
-                        # Context menu only for objects that are not the
-                        # current selection — right-clicking the selected
-                        # object is the angle-mode gesture (on_right_down).
-                        event = _events.GLObjectEvent(_events.EVT_GL_OBJECT_RIGHT_CLICK)
+                    # If a Housing was right-clicked while one of its Cavity
+                    # objects is currently selected, show the cavity's own
+                    # context menu instead of the housing's.
+                    if (isinstance(selected, _housing.Housing) and
+                            cur_selected is not None and
+                            hasattr(cur_selected, 'db_obj') and
+                            hasattr(cur_selected.db_obj, 'housing') and
+                            cur_selected.db_obj.housing is not None and
+                            cur_selected.db_obj.housing.db_id ==
+                            selected.db_obj.db_id):
+                        event = _events.GLObjectEvent(
+                            _events.EVT_GL_OBJECT_RIGHT_CLICK)
+                        event.SetGLObject(cur_selected)
+                        self._send_event(event, evt)
+                    elif selected and selected != cur_selected:
+                        # Normal case: context menu for the clicked object.
+                        event = _events.GLObjectEvent(
+                            _events.EVT_GL_OBJECT_RIGHT_CLICK)
                         event.SetGLObject(selected)
                         self._send_event(event, evt)
                     else:
@@ -590,7 +647,7 @@ class MouseHandler:
         self.canvas.releaseMouse()
 
         if refresh:
-            self.canvas.update()
+            self.canvas.repaint()
 
     def on_right_down(self, evt):
         """Handle the right down event.
@@ -613,9 +670,10 @@ class MouseHandler:
             # context menu (on_right_up) is reserved for unselected objects.
             if selected and self.canvas.get_selected() == selected:
                 if self._rotation_rings is None:
-                    self._rotation_rings = _rotation_rings.RotationRings(
-                        self.canvas, selected)
-                    self.canvas.update()
+                    self._rotation_rings = (
+                        _rotation_rings.RotationRings(self.canvas, selected))
+
+                    self.canvas.repaint()
 
         self.canvas.grabMouse()
 
@@ -655,7 +713,7 @@ class MouseHandler:
             self._orient_to_mouse_on_focal_plane(_qt_pos(evt), delta)
 
         self._process_mouse(MOUSE_WHEEL)(delta, 0.0)
-        self.canvas.update()
+        self.canvas.repaint()
 
     def _orient_to_mouse_on_focal_plane(self, mouse_pos: _point.Point, wheel_delta: float) -> None:
         def _norm(values) -> float:
@@ -799,7 +857,7 @@ class MouseHandler:
                     refresh = True
 
         if refresh:
-            self.canvas.update()
+            self.canvas.repaint()
 
     def on_aux1_up(self, evt):
         """Handle the aux 1 up event.

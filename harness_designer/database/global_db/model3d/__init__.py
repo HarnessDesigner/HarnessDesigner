@@ -236,7 +236,7 @@ class Model3D(EntryBase):
         :type value: numpy.ndarray | list
         """
 
-        self._table.update(self._db_id, aabb=str(np.asarray(value).tolist()))
+        self._table.update(self._db_id, aabb=str([[float(str(item)) for item in row] for row in np.asarray(value).tolist()]))
 
     @property
     def obb(self) -> np.ndarray | None:
@@ -266,7 +266,7 @@ class Model3D(EntryBase):
         :type value: numpy.ndarray | list
         """
 
-        self._table.update(self._db_id, obb=str(np.asarray(value).tolist()))
+        self._table.update(self._db_id, obb=str([[float(str(item)) for item in row] for row in np.asarray(value).tolist()]))
 
     @property
     def file_type(self) -> "_file_types.FileType":
@@ -312,11 +312,14 @@ class Model3D(EntryBase):
         :type angle: :class:`_angle.Angle`
         """
 
-        quat = list(angle.as_quat_float)
-        euler = list(angle.as_euler_float)
+        quat = str(list(angle.as_quat_float))
+        euler = str(list(angle.as_euler_float))
 
-        self._table.update(self._db_id, angle3d=str(euler))
-        self._table.update(self._db_id, quat3d=str(quat))
+        if 'nan' in euler or 'nan' in quat:
+            return
+
+        self._table.update(self._db_id, angle3d=euler)
+        self._table.update(self._db_id, quat3d=quat)
 
     @property
     def angle3d(self) -> _angle.Angle:
@@ -330,12 +333,32 @@ class Model3D(EntryBase):
         if self._angle3d_id is None:
             self._angle3d_id = str(uuid.uuid4())
 
-        quat = eval(self._table.select('quat3d', id=self._db_id)[0][0])
-        euler_angle = eval(self._table.select('angle3d', id=self._db_id)[0][0])
+        quat = self._table.select('quat3d', id=self._db_id)[0][0]
+        euler_angle = self._table.select('angle3d', id=self._db_id)[0][0]
 
-        angle = _angle.Angle.from_quat(quat, euler_angle, db_id=self._angle3d_id)
+        if quat is None or euler_angle is None:
+            return None
+
+        angle = _angle.Angle.from_quat(eval(quat), eval(euler_angle), db_id=self._angle3d_id)
         angle.bind(self.__update_angle3d)
         return angle
+
+    @angle3d.setter
+    def angle3d(self, value: list[float, float, float] | None):
+        if value is None:
+            quat = None
+            euler = None
+
+        else:
+            angle = _angle.Angle.from_euler(*value)
+            quat = str(list(angle.as_quat_float))
+            euler = str(value)
+
+        if 'nan' in euler or 'nan' in quat:
+            return
+
+        self._table.update(self._db_id, angle3d=euler)
+        self._table.update(self._db_id, quat3d=quat)
 
     def __update_position3d(self, offset: _point.Point):
         """
@@ -359,11 +382,21 @@ class Model3D(EntryBase):
         if self._position3d_id is None:
             self._position3d_id = str(uuid.uuid4())
 
-        value = eval(self._table.select('point3d', id=self._db_id)[0][0])
-        x, y, z = value
+        value = self._table.select('point3d', id=self._db_id)[0][0]
+        if value is None:
+            return None
+
+        x, y, z = eval(value)
         position = _point.Point(x, y, z, db_id=self._position3d_id)
         position.bind(self.__update_position3d)
         return position
+
+    @position3d.setter
+    def position3d(self, value: list[float, float, float] | None):
+        if value is not None:
+            value = str(value)
+
+        self._table.update(self._db_id, point3d=value)
 
     def __update_scale(self, scale: _point.Point):
         """
@@ -390,6 +423,28 @@ class Model3D(EntryBase):
         scale = _point.Point(x, y, z)
         scale.bind(self.__update_scale)
         return scale
+
+    @property
+    def forward_up(self) -> list[int, int]:
+        """
+        Return the forward and up side indexes.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: list[int, int]
+        """
+        value = self._table.select('forward_up', id=self._db_id)[0][0]
+        return eval(f'[{value}]')
+
+    @forward_up.setter
+    def forward_up(self, value: list[int, int]):
+        """
+        Set the forward and up side indexes.
+
+        :param value: Value to store or process.
+        :type value: list[int, int]
+        """
+        value = str(value)[1:-1]
+        self._table.update(self._db_id, forward_up=value)
 
     @property
     def target_count(self) -> int:
@@ -501,6 +556,27 @@ class Model3D(EntryBase):
 
         self._table.update(self._db_id, iterations=value)
 
+    @property
+    def size(self) -> tuple[float, float, float]:
+        """
+        Collects the length, width and height of a model from the obb after
+        applying a user set rotation to the obb
+        """
+        import numpy as np
+
+        obb = self.obb
+        angle = self.angle3d
+        if angle is None:
+            return 0, 0, 0
+
+        obb @= angle
+
+        width = float(np.linalg.norm(obb[1] - obb[0]))  # X axis
+        height = float(np.linalg.norm(obb[3] - obb[0]))  # Y axis
+        length = float(np.linalg.norm(obb[4] - obb[0]))  # Z axis
+
+        return width, height, length
+
     def download_complete(self):
         if self.db_id not in self._download_callbacks:
             return
@@ -510,7 +586,17 @@ class Model3D(EntryBase):
             # The packed geometry is opened as a memory mapped array and
             # handed to the callback as-is; the VBO streams it straight
             # from the mapping into the GPU vertex buffer.
-            packed = np.load(file, mmap_mode='r')
+
+            if self.angle3d is None:
+                from ....ui.dialogs import part_orientation as _part_orientation
+                from .... import app as _app
+
+                self.angle3d = [0.0, 0.0, 0.0]
+                self.position3d = [0.0, 0.0, 0.0]
+
+                dlg = _part_orientation.PartOrientationDialog(self._table.db.mainframe)
+                _app.CallAfter(dlg.SetValue, self)
+                dlg.exec()
 
             for ref in self._download_callbacks[self.db_id]:
                 cb = ref()
@@ -518,7 +604,7 @@ class Model3D(EntryBase):
                 if cb is None:
                     continue
 
-                cb(self, packed)
+                cb(self)
 
             del self._download_callbacks[self.db_id]
 

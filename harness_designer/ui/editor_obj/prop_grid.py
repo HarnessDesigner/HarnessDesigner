@@ -1,9 +1,9 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from PySide6.QtWidgets import QTabWidget
+from PySide6 import QtWidgets
 
 
-class PropertyGrid(QTabWidget):
+class PropertyGrid(QtWidgets.QTabWidget):
     """Represent a property grid in :mod:`harness_designer.ui.editor_obj.prop_grid`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -17,8 +17,8 @@ class PropertyGrid(QTabWidget):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
-        QTabWidget.__init__(self, parent)
-        self.setTabPosition(QTabWidget.North)
+        super().__init__(parent)
+        self.setTabPosition(QtWidgets.QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
     def Clear(self):

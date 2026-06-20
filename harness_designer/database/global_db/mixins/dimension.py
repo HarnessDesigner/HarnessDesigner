@@ -127,6 +127,14 @@ class DimensionMixin(BaseMixin):
         self._table.update(self._db_id, height=value)
         self._populate('height')
 
+    @property
+    def size(self) -> tuple[float, float, float]:
+        return self._table.select('width', 'height', 'length', id=self._db_id)[0]
+
+    @size.setter
+    def size(self, value: tuple[float, float, float]):
+        self._table.update(self._db_id, width=value[0], height=value[1], length=value[2])
+
 
 class DimensionControl(_prop_ctrls.Category):
     """Represent a dimension control in :mod:`harness_designer.database.global_db.mixins.dimension`.

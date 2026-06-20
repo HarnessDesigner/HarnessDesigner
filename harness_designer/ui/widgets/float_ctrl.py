@@ -101,6 +101,40 @@ class FloatCtrl(QtWidgets.QWidget):
             self.slider = None
             self.ctrl.valueChanged.connect(self._on_spin)
 
+    def setRange(self, min_val, max_val):
+        self.__min_val = min_val
+        self.__max_val = max_val
+
+        # Compute a sensible initial value (midpoint snapped to increment)
+        value_range = _d(str(max_val)) - _d(str(min_val))
+        middle = (value_range / _d('2')) + _d(str(min_val))
+        d_inc = _d(str(self.__increment))
+
+        remaining = middle % d_inc
+        if remaining:
+            middle += d_inc - remaining
+
+        initial = float(middle)
+
+        # Slider scale
+        if self.slider is not None:
+            s_inc = _d('10') * _d(str(self.__precision))
+            self.__s_max = int(_d('100') * s_inc)
+
+            slider_val = _utils.remap(middle, min_val, max_val, 0, self.__s_max)
+            self.slider.blockSignals(True)
+            self.slider.setRange(0, self.__s_max)
+            self.slider.setValue(int(slider_val))
+            self.slider.blockSignals(False)
+
+        else:
+            self.__s_max = 0
+
+        self.ctrl.blockSignals(True)
+        self.ctrl.setRange(min_val, max_val)
+        self.ctrl.setValue(initial)
+        self.ctrl.blockSignals(False)
+
     # ------------------------------------------------------------------
     # Internal
     # ------------------------------------------------------------------

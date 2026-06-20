@@ -13,6 +13,7 @@ from ...objects import note as _note
 from . import float_spin_button as _fsb
 from . import snap_angle_button as _sab
 from ... import config as _config
+from ...objects import project_model as _project_model
 
 
 if TYPE_CHECKING:
@@ -181,14 +182,18 @@ class EditorToolbar(QtWidgets.QToolBar):
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
+        obj = evt.GetGLObject()
+        if isinstance(obj, _project_model.ProjectModel):
+            evt.StopPropagation()
+            return
+
         from ...objects import housing as _housing
         from ...objects import wire as _wire
         from ...objects import terminal as _terminal
         from ...objects import bundle as _bundle
         from ...objects import transition as _transition
         from ...objects import splice as _splice
-
-        obj = evt.GetGLObject()
 
         # Reset everything to disabled first, then selectively enable.
         for act in (self._cpa_lock, self._tpa_lock, self._bundle, self._seal,
@@ -309,39 +314,33 @@ class NoteToolbar(QtWidgets.QToolBar):
         self.setFloatable(True)
         self.setIconSize(QtCore.QSize(32, 32))
 
-        group = QtGui.QActionGroup(self)
-        group.setExclusive(True)
-
-        def _radio(id_: int, label: str, icon: QtGui.QIcon) -> QtGui.QAction:
-            """
-            Execute the radio operation.
-
-            :param id_: Identifier for the ID.
-            :type id_: int
-            :param label: Value for ``label``.
-            :type label: str
-            :param icon: Value for ``icon``.
-            :type icon: :class:`QIcon`
-            :returns: Return value. UNKNOWN details.
-            :rtype: :class:`QAction`
-            """
-
-            act = QtGui.QAction(icon, label, self)
-            act.setCheckable(True)
-            act.setEnabled(False)
-            act.setToolTip(label)
-            act.setData(id_)
-            group.addAction(act)
-            self.addAction(act)
-            return act
+        self._obj = None
 
         icons = _image.icons
-        self.align_left = _radio(self.ID_ALIGN_HORIZ_LEFT, 'Align Left',
-                                 _make_icon(icons.align_left_edge))
-        self.align_center = _radio(self.ID_ALIGN_HORIZ_CENTER, 'Align Center',
-                                   _make_icon(icons.align_horizontal_center))
-        self.align_right = _radio(self.ID_ALIGN_HORIZ_RIGHT, 'Align Right',
-                                  _make_icon(icons.align_right_edge))
+
+        icn = self._get_icon(False, icons.align_left_edge)
+
+        self.align_left = QtGui.QAction(icn, 'Align Left', self)
+        self.align_left.setCheckable(False)
+        self.align_left.triggered.connect(self.on_align_left)
+        self.align_left.setEnabled(False)
+        self.addAction(self.align_left)
+
+        icn = self._get_icon(False, icons.align_horizontal_center)
+
+        self.align_center = QtGui.QAction(icn, 'Align Center', self)
+        self.align_center.setCheckable(False)
+        self.align_center.triggered.connect(self.on_align_center)
+        self.align_center.setEnabled(False)
+        self.addAction(self.align_center)
+
+        icn = self._get_icon(False, icons.align_right_edge)
+
+        self.align_right = QtGui.QAction(icn, 'Align Right', self)
+        self.align_right.setCheckable(False)
+        self.align_right.triggered.connect(self.on_align_right)
+        self.align_right.setEnabled(False)
+        self.addAction(self.align_right)
 
         mainframe.addToolBar(QtCore.Qt.ToolBarArea.TopToolBarArea, self)
 
@@ -350,63 +349,51 @@ class NoteToolbar(QtWidgets.QToolBar):
         mainframe.editor3d.bind(_gl.EVT_GL_OBJECT_SELECTED, self.on_obj3d_selected)
         mainframe.editor3d.bind(_gl.EVT_GL_OBJECT_UNSELECTED, self.on_obj3d_unselected)
 
-        # "Pane activated" → QDockWidget.visibilityChanged on the editor docks.
-        # We connect to each dock and check which editor is now on top.
-        # mainframe.editor2d.visibilityChanged.connect(
-        #     lambda visible: self._on_editor_visibility('editor2d', visible))
-        # mainframe.editor3d.connect('visibilityChanged',
-        #     lambda visible: self._on_editor_visibility('editor3d', visible))
-
-    def _on_editor_visibility(self, editor_name: str, visible: bool):
-        """
-        Handle the editor visibility event.
-
-        :param editor_name: Value for ``editor_name``.
-        :type editor_name: str
-        :param visible: Value for ``visible``.
-        :type visible: bool
-        """
-
-        if not visible:
-            return
-
-        obj = self.mainframe.get_selected()
-        if not isinstance(obj, _note.Note):
-            self.set_buttons(-1)
-            return
-
-        if editor_name == 'editor2d':
-            self.set_buttons(obj.db_obj.h_align2d)
-        elif editor_name == 'editor3d':
-            self.set_buttons(obj.db_obj.h_align3d)
-        else:
-            self.set_buttons(-1)
-
     def set_buttons(self, align):
-        """
-        Set the buttons.
+        icons = _image.icons
+        left_icn = self._get_icon(False, icons.align_left_edge)
+        center_icn = self._get_icon(False, icons.align_horizontal_center)
+        right_icn = self._get_icon(False, icons.align_right_edge)
 
-        :param align: Value for ``align``.
-        :type align: UNKNOWN
-        :raises RuntimeError: Raised when the operation cannot be completed.
-        """
+        state = True
 
-        if align == -1:
-            for act in (self.align_left, self.align_center, self.align_right):
-                act.setEnabled(False)
-                act.setChecked(False)
+        if align == build123d.TextAlign.LEFT.value:
+            left_icn = self._get_icon(True, icons.align_left_edge)
+        elif align == build123d.TextAlign.CENTER.value:
+            center_icn = self._get_icon(True, icons.align_horizontal_center)
+        elif align == build123d.TextAlign.RIGHT.value:
+            right_icn = self._get_icon(True, icons.align_right_edge)
         else:
-            for act in (self.align_left, self.align_center, self.align_right):
-                act.setEnabled(True)
+            state = False
 
-            if align == build123d.TextAlign.LEFT.value:
-                self.align_left.setChecked(True)
-            elif align == build123d.TextAlign.CENTER.value:
-                self.align_center.setChecked(True)
-            elif align == build123d.TextAlign.RIGHT.value:
-                self.align_right.setChecked(True)
-            else:
-                raise RuntimeError('sanity check')
+        self.align_left.setIcon(left_icn)
+        self.align_center.setIcon(center_icn)
+        self.align_right.setIcon(right_icn)
+
+        self.align_left.setEnabled(state)
+        self.align_center.setEnabled(state)
+        self.align_right.setEnabled(state)
+
+    def on_align_left(self):
+        self._obj.set_alignment(build123d.TextAlign.LEFT.value)
+        self.set_buttons(build123d.TextAlign.LEFT.value)
+
+    def on_align_center(self):
+        self._obj.set_alignment(build123d.TextAlign.CENTER.value)
+        self.set_buttons(build123d.TextAlign.CENTER.value)
+
+    def on_align_right(self):
+        self._obj.set_alignment(build123d.TextAlign.RIGHT.value)
+        self.set_buttons(build123d.TextAlign.RIGHT.value)
+
+    @staticmethod
+    def _get_icon(state, icon):
+        if state:
+            icon = icon + _image.icons.checkbox
+        else:
+            icon = icon + _image.icons.uncheckbox
+
+        return _make_icon(icon)
 
     def on_obj2d_selected(self, evt: "_gl.GLObjectEvent"):
         """
@@ -417,7 +404,16 @@ class NoteToolbar(QtWidgets.QToolBar):
         """
 
         obj = evt.GetGLObject()
-        self.set_buttons(obj.db_obj.h_align2d if isinstance(obj, _note.Note) else -1)
+        if isinstance(obj, _project_model.ProjectModel):
+            evt.StopPropagation()
+            return
+
+        if isinstance(obj, _note.Note):
+            self._obj = obj.obj2d
+            self.set_buttons(obj.db_obj.h_align2d)
+        else:
+            self._obj = None
+            self.set_buttons(-1)
 
     def on_obj2d_unselected(self, _: "_gl.GLObjectEvent"):
         """
@@ -426,6 +422,7 @@ class NoteToolbar(QtWidgets.QToolBar):
         :type _: :class:`_gl.GLObjectEvent`
         """
 
+        self._obj = None
         self.set_buttons(-1)
 
     def on_obj3d_selected(self, evt: "_gl.GLObjectEvent"):
@@ -437,7 +434,16 @@ class NoteToolbar(QtWidgets.QToolBar):
         """
 
         obj = evt.GetGLObject()
-        self.set_buttons(obj.db_obj.h_align3d if isinstance(obj, _note.Note) else -1)
+        if isinstance(obj, _project_model.ProjectModel):
+            evt.StopPropagation()
+            return
+
+        if isinstance(obj, _note.Note):
+            self._obj = obj.obj3d
+            self.set_buttons(obj.db_obj.h_align3d)
+        else:
+            self._obj = None
+            self.set_buttons(-1)
 
     def on_obj3d_unselected(self, _: "_gl.GLObjectEvent"):
         """
@@ -446,6 +452,7 @@ class NoteToolbar(QtWidgets.QToolBar):
         :type _: :class:`_gl.GLObjectEvent`
         """
 
+        self._obj = None
         self.set_buttons(-1)
 
     def Refresh(self, *_, **__):
@@ -602,11 +609,15 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
         mainframe.editor3d.bind(_gl.EVT_GL_OBJECT_SELECTED, self._on_obj_selected)
         mainframe.editor3d.bind(_gl.EVT_GL_OBJECT_UNSELECTED, self._on_obj_unselected)
 
-    def _on_obj_selected(self, evt):
+    def _on_obj_selected(self, evt: "_gl.GLObjectEvent"):
+        obj = evt.GetGLObject()
+
+        if isinstance(obj, _project_model.ProjectModel):
+            evt.StopPropagation()
+            return
+
         from ...objects import bundle as _bundle
         from ...objects import wire as _wire
-
-        obj = evt.GetGLObject()
 
         if self._position3d is not None:
             self._position3d.unbind(self.on_position)
@@ -629,7 +640,6 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
                         self.move_z):
 
                 act.setEnabled(False)
-
         else:
             for act in (self.rotate_x, self.rotate_y, self.rotate_z, self.scale_x,
                         self.scale_y, self.scale_z, self.move_x, self.move_y,
@@ -639,13 +649,13 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
 
             self._selected = obj
 
-            self._position3d = obj.db_obj.position3d
+            self._position3d = obj.db_obj.position3d  # NOQA
             self._position3d.bind(self.on_position)
 
-            self._angle3d = obj.db_obj.angle3d
+            self._angle3d = obj.db_obj.angle3d  # NOQA
             self._angle3d.bind(self.on_angle)
 
-            self._scale3d = obj.db_obj.scale3d
+            self._scale3d = obj.db_obj.scale3d  # NOQA
             self._scale3d.bind(self.on_scale)
 
             x, y, z = self._position3d.as_float

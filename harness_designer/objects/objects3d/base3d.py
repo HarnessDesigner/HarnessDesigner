@@ -17,6 +17,7 @@ from ...gl import vbo as _vbo
 
 if TYPE_CHECKING:
     from ...database import project_db as _project_db
+    from ...database.global_db import model3d  as _model3d
     from .. import ObjectBase as _ObjectBase
     from ... import ui as _ui
 
@@ -94,21 +95,51 @@ class Base3D:
         angle.bind(self._update_angle)
         scale.bind(self._update_scale)
 
-    def _set_model(self, model, data: np.ndarray):
+    def _set_model(self, model: "_model3d.Model3D"):
         self.parent.mainframe.editor3d.context.acquire()
 
         uuid = model.uuid
 
+        try:
+            # this checks the stored part size against the actual calculated
+            # size of the part using the models obb. This is done with the angle
+            # of the part set beforehand.
+            o_size = self.db_obj.part.size  # NOQA
+            size = model.size
+            if size != o_size:
+                self.db_obj.part.size = size  # NOQA
+        except AttributeError:
+            pass
+
         if uuid in _vbo.PooledVBOHandler:
             vbo = _vbo.PooledVBOHandler(uuid)
         else:
-            vbo = _vbo.PooledVBOHandler(uuid, data, model.vertex_count,
-                                  aabb=model.aabb, obb=model.obb)
+            packed = np.load(model.data_path).reshape(-1, 3)
+
+            angle = model.angle3d
+            position = model.position3d
+            count = model.vertex_count
+
+            obb = model.obb
+            aabb = model.aabb
+
+            obb @= angle
+            aabb @= angle
+
+            obb += position
+            aabb += position
+
+            packed @= angle
+            packed[:count] += position
+
+            packed = packed.reshape(-1)
+
+            vbo = _vbo.PooledVBOHandler(uuid, packed, count, aabb=aabb, obb=obb)
         vbo.acquire()
 
         self._vbo = vbo
         try:
-            scale = self.db_obj.scale3d
+            scale = self.db_obj.scale3d  # NOQA
             self._scale.unbind(self._update_scale)
             self._scale = scale
             self._o_scale = self._scale.copy()
@@ -577,7 +608,7 @@ class Base3D:
         if normal_loc is not None:
             GL.glUniform1i(normal_loc, int(getattr(self, 'smooth', False)))
         GL.glUniform3f(pos_loc, *self._position.as_float)
-        GL.glUniform4f(rot_loc, *self._angle.as_quat_numpy.tolist())
+        GL.glUniform4f(rot_loc, *[float(str(v)) for v in self._angle.as_quat_numpy.tolist()])
         GL.glUniform3f(scale_loc, *self._scale.as_float)
         self._vbo.render()
 

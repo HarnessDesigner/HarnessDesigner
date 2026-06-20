@@ -6,6 +6,8 @@ import weakref
 import colorsys
 from PySide6.QtGui import QColor as _QColor
 
+from . import app_mixins as _app_mixins
+
 
 class ColorMeta(type):
     """Metaclass that caches :class:`Color` instances by database identifier."""
@@ -67,7 +69,7 @@ class ColorMeta(type):
         return instance
 
 
-class Color(metaclass=ColorMeta):
+class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
     """
     A framework-agnostic RGBA colour class with a weak-ref singleton cache
     (keyed by db_id) and an observer/callback system.
@@ -108,92 +110,9 @@ class Color(metaclass=ColorMeta):
             for item in (r, g, b, a)
         ]
 
-        self._callbacks = []
-        self._ref_count = 0
-
-    # ------------------------------------------------------------------
-    # Context manager (ref-counting batched updates)
-    # ------------------------------------------------------------------
-
-    def __enter__(self):
-        """Begin a batched update context for this colour.
-
-        :returns: ``self``.
-        :rtype: Color
-        """
-        self._ref_count += 1
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """End a batched update context without suppressing exceptions.
-
-        :param exc_type: Exception type if the context exits with an error.
-        :type exc_type: type | None
-        :param exc_val: Exception instance if the context exits with an error.
-        :type exc_val: BaseException | None
-        :param exc_tb: Traceback for an exception raised in the context.
-        :type exc_tb: types.TracebackType | None
-        """
-        self._ref_count -= 1
-
-    # ------------------------------------------------------------------
-    # Callback management (mirrors the original bind/unbind interface)
-    # ------------------------------------------------------------------
-
-    def __remove_callback(self, ref):
-        """Remove a dead callback weak reference.
-
-        :param ref: Callback weak reference to discard.
-        :type ref: weakref.ReferenceType
-        """
-        try:
-            self._callbacks.remove(ref)
-        except Exception:  # NOQA
-            pass
-
-    def bind(self, callback):
-        """Register a bound-method callback for colour changes.
-
-        :param callback: Method invoked with this colour after updates.
-        :type callback: collections.abc.Callable
-        """
-        ref = weakref.WeakMethod(callback, self.__remove_callback)
-        self._callbacks.append(ref)
-
-    def unbind(self, callback):
-        """Unregister a previously bound callback.
-
-        :param callback: Bound method to remove.
-        :type callback: collections.abc.Callable
-        """
-        for ref in self._callbacks[:]:
-            cb = ref()
-            if cb is None:
-                self._callbacks.remove(ref)
-            elif cb == callback:
-                self._callbacks.remove(ref)
-
-    def _process_update(self):
-        """Notify active callbacks when the colour changes.
-
-        """
-        if self._ref_count:
-            return
-
-        used_callbacks = []
-        for ref in self._callbacks[:]:
-            cb = ref()
-            if cb is None:
-                self._callbacks.remove(ref)
-            elif cb not in used_callbacks:
-                cb(self)
-                used_callbacks.append(cb)
-            else:
-                self._callbacks.remove(ref)
-
-    # ------------------------------------------------------------------
-    # wx.Colour-compatible getters
-    # ------------------------------------------------------------------
+        self.__callbacks__ = []
+        self.__unbound_callbacks__ = []
+        self.__ref_count__ = 0
 
     def GetRed(self) -> int:
         """Return the red channel.
@@ -256,21 +175,21 @@ class Color(metaclass=ColorMeta):
             self._g = (val >> 16) & 0xFF
             self._b = (val >> 8) & 0xFF
             self._a = val & 0xFF
-            self._process_update()
+            self._process_callbacks()
 
         elif len(RGBA) == 3:
             self._r, self._g, self._b = [
                 int(item * 255) if isinstance(item, float) else int(item)
                 for item in RGBA
             ]
-            self._process_update()
+            self._process_callbacks()
 
         elif len(RGBA) == 4:
             self._r, self._g, self._b, self._a = [
                 int(item * 255) if isinstance(item, float) else int(item)
                 for item in RGBA
             ]
-            self._process_update()
+            self._process_callbacks()
 
         else:
             raise ValueError(f'Set() expects 1, 3 or 4 arguments, got {len(RGBA)}')
@@ -288,14 +207,14 @@ class Color(metaclass=ColorMeta):
             self._g = (val >> 16) & 0xFF
             self._b = (val >> 8) & 0xFF
             self._a = val & 0xFF
-            self._process_update()
+            self._process_callbacks()
 
         elif len(RGBA) == 4:
             self._r, self._g, self._b, self._a = [
                 int(item * 255) if isinstance(item, float) else int(item)
                 for item in RGBA
             ]
-            self._process_update()
+            self._process_callbacks()
 
         else:
             raise ValueError(f'SetRGBA() expects 1 or 4 arguments, got {len(RGBA)}')
@@ -312,14 +231,14 @@ class Color(metaclass=ColorMeta):
             self._r = (val >> 16) & 0xFF
             self._g = (val >> 8) & 0xFF
             self._b = val & 0xFF
-            self._process_update()
+            self._process_callbacks()
 
         elif len(RGB) == 3:
             self._r, self._g, self._b = [
                 int(item * 255) if isinstance(item, float) else int(item)
                 for item in RGB
             ]
-            self._process_update()
+            self._process_callbacks()
 
         else:
             raise ValueError(f'SetRGB() expects 1 or 3 arguments, got {len(RGB)}')
