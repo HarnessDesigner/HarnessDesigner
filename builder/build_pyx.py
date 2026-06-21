@@ -9,21 +9,24 @@ except ImportError:
 
 
 def run(hd_path):
-    pyx_path = os.path.join(hd_path, 'gl/canvas3d/culling.pyx')
+    bvh_path = os.path.join(hd_path, 'ray_tracing/bvh.pyx')
+    culling_path = os.path.join(hd_path, 'gl/canvas3d/culling.pyx')
+    files = [bvh_path, culling_path]
+
     import numpy
 
-    with open(pyx_path, 'r') as f:
+    for path in files:
+        with open(path, 'r') as f:
 
-        data = f.read()
+            data = f.read()
 
-    data = data.split('\n')
+        data = data.split('\n')
 
-    data[0] = f'# distutils: include_dirs = {numpy.get_include()}'
-    data = '\n'.join(data)
-    with open(pyx_path, 'w') as f:
-        f.write(data)
+        data[0] = f'# distutils: include_dirs = {numpy.get_include()}'
+        data = '\n'.join(data)
 
-    files = [os.path.join(hd_path, 'ray_tracing/bvh.pyx'), pyx_path]
+        with open(path, 'w') as f:
+            f.write(data)
 
     from Cython.Build import Cythonize
 
