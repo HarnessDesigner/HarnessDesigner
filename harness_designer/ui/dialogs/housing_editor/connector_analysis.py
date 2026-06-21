@@ -284,7 +284,7 @@ def align_holes(
     holes projected onto the shared plane.
     """
 
-    u, v = _plane_frame(np.asarray(normal, np.float64))
+    u, v = plane_frame(np.asarray(normal, np.float64))
 
     def proj(c):
         c = np.asarray(c, np.float64)
@@ -428,7 +428,7 @@ def inner_loops_only(
     if not loops:
         return []
 
-    u, v = _plane_frame(np.asarray(normal, np.float64))
+    u, v = plane_frame(np.asarray(normal, np.float64))
     areas = [_loop_area_2d(i, u, v) for i in loops]
     max_area = max(areas)
 
@@ -481,6 +481,12 @@ def filter_by_size_consensus(
                    for j in range(len(holes)) if j != i)]
 
 
+
+def _coplanar(s: Surface, ref: Surface, normal_tol: float, dist_tol: float) -> bool:
+    return (float(np.dot(s.normal, ref.normal)) > 1.0 - normal_tol and
+            abs(s.plane_dist - ref.plane_dist) < dist_tol)
+
+
 # ── 8.  Coplanar-surface lookup ──────────────────────────────────────────────
 
 def find_coplanar_surfaces(
@@ -494,11 +500,8 @@ def find_coplanar_surfaces(
     reference (same normal direction within normal_tol, same plane distance
     within dist_tol).  The reference surface itself is included.
     """
-    def coplanar(s: Surface) -> bool:
-        return (float(np.dot(s.normal, reference.normal)) > 1.0 - normal_tol and
-                abs(s.plane_dist - reference.plane_dist) < dist_tol)
-
-    return [s for s in all_surfaces if coplanar(s)]
+    return [s for s in all_surfaces
+            if _coplanar(s, reference, normal_tol, dist_tol)]
 
 
 # ── 9.  Direct terminal-plane approach ───────────────────────────────────────
@@ -590,16 +593,12 @@ def run_analysis(
     Returns list of (kind, params, verts_f32, norms_f32).
     """
 
-    def coplanar(s: Surface, ref: Surface) -> bool:
-        return (float(np.dot(s.normal, ref.normal)) > 1.0 - normal_tol and
-                abs(s.plane_dist - ref.plane_dist) < dist_tol)
-
     pin_tris = [ti for s in all_surfaces
-                if coplanar(s, pin_surface)
+                if _coplanar(s, pin_surface, normal_tol, dist_tol)
                 for ti in s.tri_indices]
 
     wire_tris = [ti for s in all_surfaces
-                 if coplanar(s, wire_surface)
+                 if _coplanar(s, wire_surface, normal_tol, dist_tol)
                  for ti in s.tri_indices]
 
     pin_loops = inner_loops_only(
