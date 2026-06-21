@@ -69,7 +69,7 @@ def calculate_centroids_parallel(
 
     # Parallel loop - OpenMP distributes across CPU cores
     # nogil = releases Python GIL for true parallelism
-    for i in prange(num_faces, nogil=True, schedule='static', num_threads=0):
+    for i in prange(num_faces, nogil=True, schedule='static', num_threads=10):
         v0_idx = faces[i, 0]
         v1_idx = faces[i, 1]
         v2_idx = faces[i, 2]
@@ -122,11 +122,11 @@ cdef class FastBVHBuilder:
             leaf_threshold: Max triangles per leaf node (default: 4)
         """
         if vertices.shape[1] != 3:
-            raise ValueError(f"Vertices must have shape (N, 3), got {vertices.shape}")
+            raise ValueError(f"Vertices must have shape (N, 3)")
         if faces.shape[1] != 3:
-            raise ValueError(f"Faces must have shape (M, 3), got {faces.shape}")
+            raise ValueError(f"Faces must have shape (M, 3)")
         if centroids.shape[1] != 3:
-            raise ValueError(f"Centroids must have shape (M, 3), got {centroids.shape}")
+            raise ValueError(f"Centroids must have shape (M, 3)")
         if faces.shape[0] != centroids.shape[0]:
             raise ValueError(f"Faces and centroids must have same count")
 
@@ -463,7 +463,7 @@ def apply_transform_parallel(
         FLOAT x, y, z, norm
 
     # Transform vertices: v' = R * v + t
-    for i in prange(num_verts, nogil=True, schedule='static', num_threads=0):
+    for i in prange(num_verts, nogil=True, schedule='static', num_threads=10):
         # Matrix multiply: R * v
         x = (rotation_mat[0, 0] * vertices[i, 0] +
              rotation_mat[0, 1] * vertices[i, 1] +
@@ -484,7 +484,7 @@ def apply_transform_parallel(
 
     # Transform normals: n' = normalize(R * n)
     # Note: No translation for normals (they're directions, not points)
-    for i in prange(num_normals, nogil=True, schedule='static', num_threads=0):
+    for i in prange(num_normals, nogil=True, schedule='static', num_threads=10):
         # Matrix multiply: R * n
         x = (rotation_mat[0, 0] * normals[i, 0] +
              rotation_mat[0, 1] * normals[i, 1] +
