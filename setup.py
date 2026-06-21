@@ -18,17 +18,9 @@ def main():
             sys.argv.remove(arg)
             build_installer = True
 
-        if arg == '--no-cython-wx':
-            sys.argv.remove(arg)
-            installer_args.append('--no-cython-wx')
-
         if arg == '--no-cython':
             sys.argv.remove(arg)
             installer_args.append('--no-cython')
-
-        if arg == '--no-pyi-rename':
-            sys.argv.remove(arg)
-            installer_args.append('--no-pyi-rename')
 
     if sys.platform.startswith('win'):
         import ctypes
@@ -117,29 +109,24 @@ def main():
         zip_safe=False,
         setup_requires=[
             "wheel==0.46.3",
-            "wxPython==4.2.5",
             "pyinstaller==6.19.0",
             "pyMSVC@git+https://github.com/kdschlosser/python_msvc ; sys_platform=='win32'",
         ],
         install_requires=[
+            "PySide6",
             "PyOpenGL==3.1.10",
             "PyOpenGL-accelerate==3.1.10",
-            "PyMuPDF==1.26.7",
             "requests==2.32.5",
-            "mysql-connector-python==9.5.0",
             "numpy==2.2.6",
             "pillow==12.1.0",
             "ezdxf==1.4.3",
             "scipy==1.17.0",
             "sympy==1.14.0",
-            "wxPython==4.2.5",
             "opencv-python==4.12.0.88",
             "pyfqmr==0.5.0",
             "meshio==5.3.5",
-            "ifcopenshell==0.8.4.post1",
             "build123d==0.10.0",
             "pyinstaller==6.19.0",
-            "numpy==2.2.6",
             "keyring==25.7.0",
             "pyopencl==2026.1.2",
             "pyassimp"  # @ file:///" + os.path.join(base_path, 'libs/assimp/port/PyAssimp')
@@ -193,15 +180,11 @@ def main():
     iter_harness_designer()
 
     if build_installer:
-
         from builder import build
 
         build.main(installer_args)
-
-    if build_installer:
-        from builder import build
-
         build.build_installer(base_import)
+        build.build_dependency_installer()
 
 
 if __name__ == '__main__':

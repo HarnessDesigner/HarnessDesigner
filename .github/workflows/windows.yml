@@ -2,9 +2,9 @@ name: Windows Build
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [main]
   pull_request:
-    branches: [ "main" ]
+    branches: [main]
 
 permissions:
   contents: read
@@ -14,20 +14,58 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v6
-      - uses: lukka/get-cmake@latest  # <--= Just this one-liner suffices.
-      - uses: actions/setup-python@v6.1.0
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: pip
+          cache-dependency-path: setup.py
 
-      - name: Install Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install setuptools==62.0.0
-          pip install Cython wheel wxPython pyinstaller
-          pip install git+https://github.com/kdschlosser/python_msvc@master
-          git submodule update --init
+      - uses: lukka/get-cmake@latest
 
-      - name: Install
+      # pyMSVC locates and activates the MSVC toolchain so Cython and CMake
+      # can find the compiler.  Must be installed before setup.py runs.
+      - name: Install pyMSVC
+        run: pip install git+https://github.com/kdschlosser/python_msvc@master
+
+      - name: Install build tools
         run: |
-          python setup.py install --installer
+          python -m pip install --upgrade pip setuptools wheel
+          pip install Cython pyinstaller
+
+      - name: Install runtime dependencies
+        run: |
+          pip install ^
+            PyOpenGL PyOpenGL-accelerate ^
+            numpy pillow scipy sympy ^
+            ezdxf matplotlib IPython ^
+            requests keyring ^
+            opencv-python pyfqmr meshio ^
+            pyopencl build123d vtk ^
+            rich lark isodate webcolors ^
+            mdurl markdown-it-py ^
+            shapely svgwrite svgpathtools svgelements ^
+            trianglesolver mpmath ^
+            PySide6
+        shell: cmd
+
+      - name: Build (Cython + PyInstaller + dependency installer)
+        run: python setup.py install --installer
+        shell: cmd
+
+      - name: Upload app artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: harness_designer-windows
+          path: builder/scripts/dist/harness_designer/
+          if-no-files-found: error
+
+      - name: Upload dependency installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: harness_designer-windows-dep-installer
+          path: builder/scripts/dist/installer/
+          if-no-files-found: error

@@ -22,7 +22,7 @@ def iter_mod_path(p, ignore_files=()):
         if os.path.isdir(file_path):
             res.extend(iter_mod_path(file_path, ignore_files))
         else:
-            c = file_path[:2] + 'c'
+            c = file_path[:-2] + 'c'
 
             if os.path.exists(c):
                 os.remove(c)

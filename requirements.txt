@@ -1,7 +1,6 @@
 pyinstaller==6.19.0
 PyOpenGL-accelerate==3.1.10
 PyOpenGL==3.1.10
-PyMuPDF==1.26.7
 requests==2.33.1
 mysql-connector-python==9.5.0
 numpy==2.2.6
@@ -11,10 +10,8 @@ lib3mf==2.4.1.post1
 ezdxf==1.4.3
 scipy==1.17.1
 sympy==1.14.0
-wxPython==4.2.5
 pyfqmr==0.4.0
 meshio==5.3.5
-ifcopenshell==0.8.4.post1
 cadquery-ocp==7.9.3.1
 build123d==0.10.0
 keyring==25.7.0

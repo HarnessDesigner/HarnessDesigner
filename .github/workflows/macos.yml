@@ -2,32 +2,81 @@ name: macOS Build
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [main]
   pull_request:
-    branches: [ "main" ]
+    branches: [main]
 
 permissions:
   contents: read
 
 jobs:
   build:
-    runs-on: macos-15-intel
+    name: Build (macOS ${{ matrix.arch }})
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-13   # Intel x86_64
+            arch: x86_64
+          - os: macos-14   # Apple Silicon arm64
+            arch: arm64
 
     steps:
-      - uses: actions/checkout@v6
-      - uses: lukka/get-cmake@latest  # <--= Just this one-liner suffices.
-      - uses: actions/setup-python@v6.1.0
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: pip
+          cache-dependency-path: setup.py
 
-      - name: Install Dependencies
+      - uses: lukka/get-cmake@latest
+
+      - name: Install Ninja
+        run: brew install ninja
+
+      - name: Install build tools
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install setuptools==62.0.0
+          python -m pip install --upgrade pip setuptools wheel
+          pip install Cython pyinstaller
 
-          pip install Cython wheel wxPython pyinstaller
-          git submodule update --init
-
-      - name: Install
+      - name: Install runtime dependencies
         run: |
-          python setup.py install --installer
+          pip install \
+            PyOpenGL \
+            numpy pillow scipy sympy \
+            ezdxf matplotlib IPython \
+            requests keyring \
+            opencv-python pyfqmr meshio \
+            pyopencl build123d vtk \
+            rich lark isodate webcolors \
+            mdurl markdown-it-py \
+            shapely svgwrite svgpathtools svgelements \
+            trianglesolver mpmath \
+            PySide6
+
+      # OpenGL_accelerate is unreliable on Apple Silicon — skip it on arm64.
+      - name: Install OpenGL accelerate (Intel only)
+        if: matrix.arch == 'x86_64'
+        run: pip install PyOpenGL-accelerate
+
+      - name: Build (Cython + PyInstaller + dependency installer)
+        run: python setup.py install --installer
+
+      - name: Upload app artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: harness_designer-macos-${{ matrix.arch }}
+          path: builder/scripts/dist/harness_designer.app/
+          if-no-files-found: error
+
+      - name: Upload dependency installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: harness_designer-macos-${{ matrix.arch }}-dep-installer
+          path: builder/scripts/dist/installer.app/
+          if-no-files-found: error
