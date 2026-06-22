@@ -88,11 +88,18 @@ def main():
         install_requires=['numpy==2.2.6']
     )
 
+    while base_path in sys.path:
+        sys.path.remove(base_path)
+
+    sys.path.insert(0, base_path)
+
     os.chdir(base_path)
 
     from builder import build_pyx
+    from builder import compile_harness_designer
 
     build_pyx.run('harness_designer')
+    compile_harness_designer.run(False)
 
     from setuptools import find_packages
 
@@ -140,11 +147,6 @@ def main():
         ]
     )
 
-    while base_path in sys.path:
-        sys.path.remove(base_path)
-
-    sys.path.insert(0, base_path)
-
     path = 'harness_designer'
 
     import harness_designer
@@ -184,7 +186,10 @@ def main():
 
                 dst_ = os.path.join(dst_, file_path)
 
-                shutil.copyfile(src_, dst_)
+                try:
+                    shutil.copyfile(src_, dst_)
+                except:  # NOQA
+                    pass
 
     iter_harness_designer()
 
