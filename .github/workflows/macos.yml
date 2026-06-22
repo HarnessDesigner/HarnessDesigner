@@ -52,7 +52,7 @@ jobs:
             "sympy==1.14.0" \
             "pyfqmr==0.4.0" \
             "meshio==5.3.5" \
-            "cadquery-ocp==7.9.3.1" \
+            "cadquery-ocp==7.8.1.1" \
             "build123d==0.10.0" \
             "keyring==25.7.0" \
             "pyopencl==2026.1.2" \
@@ -61,7 +61,7 @@ jobs:
             "PySide6==6.11.1"
 
       - name: Build (Cython + PyInstaller + dependency installer)
-        run: uv run python setup.py install --installer
+        run: .venv/bin/python setup.py install --installer
 
       - name: Upload app artifact
         uses: actions/upload-artifact@v4

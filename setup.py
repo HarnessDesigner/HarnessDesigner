@@ -128,7 +128,7 @@ def main():
             "sympy==1.14.0",
             "pyfqmr==0.4.0",
             "meshio==5.3.5",
-            "cadquery-ocp==7.9.3.1",
+            "cadquery-ocp==7.8.1.1",
             "build123d==0.10.0",
             "keyring==25.7.0",
             "pyopencl==2026.1.2",
