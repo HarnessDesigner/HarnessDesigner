@@ -18,7 +18,7 @@ jobs:
         with:
           submodules: recursive
 
-      - uses: astral-sh/setup-uv@v5
+      - uses: astral-sh/setup-uv@v6
         with:
           python-version: '3.11.14'
           enable-cache: true
@@ -55,14 +55,17 @@ jobs:
             ocl-icd-opencl-dev \
             ocl-icd-libopencl1
 
+      - name: Create virtual environment
+        run: uv venv .venv
+
       - name: Install build tools
         run: |
-          uv pip install --system \
+          uv pip install \
             "setuptools==62.0.0" "Cython==3.2.4" "wheel==0.46.3" "pyinstaller==6.19.0"
 
       - name: Install runtime dependencies
         run: |
-          uv pip install --system \
+          uv pip install \
             "PyOpenGL==3.1.10" \
             "PyOpenGL-accelerate==3.1.10" \
             "requests==2.33.1" \
@@ -85,7 +88,7 @@ jobs:
             "PySide6==6.11.1"
 
       - name: Build (Cython + PyInstaller + dependency installer)
-        run: python setup.py install --installer
+        run: uv run python setup.py install --installer
 
       - name: Upload app artifact
         uses: actions/upload-artifact@v4
