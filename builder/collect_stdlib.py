@@ -12,7 +12,10 @@ def get_modules():
 
             break
     else:
-        raise RuntimeError('error locating the python standard library')
+        python_stdlib = os.path.dirname(os.__file__)
+        print('PYTHON_STDLIB:', python_stdlib)
+        
+        # raise RuntimeError('error locating the python standard library')
 
     std_lib = []
 

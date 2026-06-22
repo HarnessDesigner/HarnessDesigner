@@ -70,7 +70,7 @@ def get_modules():
         except ModuleNotFoundError:
             print('MODULE NOT FOUND:', name)
             continue
-        
+
         if mod.__file__ is None:
             cmd = [f'--hidden-import={name}']
         elif '__init__' in mod.__file__:
