@@ -21,19 +21,20 @@ import sys
 import tarfile
 
 
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-INSTALLER_SCRIPTS_DIR = os.path.join(BASE_DIR, 'installer_scripts')
-BUILD_DIR = os.path.join(BASE_DIR, 'builder', 'scripts', 'dist')
-DIST_DIR = os.path.join(BASE_DIR, 'dist')
-ICON_PNG = os.path.join(BASE_DIR, 'harness_designer', 'image', 'icon_256x256.png')
+BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+INSTALLER_SCRIPTS_DIR = os.path.join(BASE_PATH, 'installer_scripts')
+BUILD_DIR = os.path.join(BASE_PATH, 'builder', 'scripts', 'dist')
+DIST_DIR = os.path.join(BASE_PATH, 'dist')
+ICON_PNG = os.path.join(BASE_PATH, 'harness_designer', 'image', 'icon_256x256.png')
 
+print('BASE_PATH:', BASE_PATH)
 
 # ── Utilities ─────────────────────────────────────────────────────────────────
 
 
 def _read_version():
     """Read the version string from harness_designer/__version__.py."""
-    path = os.path.join(BASE_DIR, 'harness_designer', '__version__.py')
+    path = os.path.join(BASE_PATH, 'harness_designer', '__version__.py')
     spec = importlib.util.spec_from_file_location('__version__', path)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
@@ -98,35 +99,20 @@ def _find_iscc():
 
 def _ensure_icon_ico():
     """Convert icon_256x256.png to icon_256x256.ico; return the .ico path."""
-    ico = os.path.join(BASE_DIR, 'harness_designer', 'image', 'icon_256x256.ico')
+    ico = os.path.join(BASE_PATH, 'harness_designer', 'image', 'icon_256x256.ico')
     if os.path.isfile(ico):
         return ico
 
     print('→ Converting icon PNG → ICO ...')
 
-    try:
-        from PIL import Image
-        img = Image.open(ICON_PNG)
-        img.save(
-            ico,
-            format='ICO',
-            sizes=[(256, 256), (128, 128), (64, 64), (48, 48), (32, 32), (16, 16)],
-        )
-        return ico
-    except ImportError:
-        pass
-
-    for tool in ('magick', 'convert'):
-        exe = shutil.which(tool)
-        if exe:
-            if subprocess.run([exe, ICON_PNG, ico], check=False).returncode == 0:
-                return ico
-            break
-
-    print('Error: cannot convert the icon PNG to ICO.')
-    print('Install Pillow  (pip install Pillow)  or ImageMagick, then re-run.')
-    print(f'Or convert manually:  {ICON_PNG}  →  {ico}')
-    sys.exit(1)
+    from PIL import Image
+    img = Image.open(ICON_PNG)
+    img.save(
+        ico,
+        format='ICO',
+        sizes=[(256, 256), (128, 128), (64, 64), (48, 48), (32, 32), (16, 16)],
+    )
+    return ico
 
 
 def build_windows(version):
@@ -139,7 +125,7 @@ def build_windows(version):
 
     _ensure_icon_ico()
 
-    license_file = os.path.join(BASE_DIR, 'LICENSE')
+    license_file = os.path.join(BASE_PATH, 'LICENSE')
     if not os.path.isfile(license_file):
         print(f'Error: LICENSE file not found at {license_file}')
         print('The Inno Setup script references it — add the file and re-run.')

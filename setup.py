@@ -194,6 +194,8 @@ def main():
     iter_harness_designer()
 
     if build_installer:
+        os.chdir(base_path)
+
         from builder import build
         from builder import installer
 
