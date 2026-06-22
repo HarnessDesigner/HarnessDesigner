@@ -143,6 +143,8 @@ def main():
     while base_path in sys.path:
         sys.path.remove(base_path)
 
+    sys.path.insert(0, base_path)
+
     path = 'harness_designer'
 
     import harness_designer
