@@ -48,6 +48,8 @@ jobs:
           uv pip install "PySide6==6.11.1"
 
       - name: Build (Cython + PyInstaller + dependency installer)
+        env:
+          PYTHONPATH: ${{ github.workspace }}
         run: .venv\Scripts\python.exe setup.py install --installer
 
       - name: Upload app artifact
