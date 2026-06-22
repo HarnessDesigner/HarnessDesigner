@@ -28,7 +28,7 @@ jobs:
         with:
           submodules: recursive
 
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-python@v1
         with:
           python-version: '3.11.14'
           cache: pip
