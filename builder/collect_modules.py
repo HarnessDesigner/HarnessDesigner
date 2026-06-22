@@ -65,7 +65,12 @@ build123d'''
 def get_modules():
     res = []
     for name in MODULE_NAMES.split('\n'):
-        mod = __import__(name)
+        try:
+            mod = __import__(name)
+        except ModuleNotFoundError:
+            print('MODULE NOT FOUND:', name)
+            continue
+        
         if mod.__file__ is None:
             cmd = [f'--hidden-import={name}']
         elif '__init__' in mod.__file__:
