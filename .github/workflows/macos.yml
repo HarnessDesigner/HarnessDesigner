@@ -15,18 +15,18 @@ jobs:
     runs-on: macos-14
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.0
         with:
           submodules: recursive
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6.2.0
         with:
           python-version: '3.11.14'
           check-latest: true
           cache: pip
           cache-dependency-path: requirements.txt
 
-      - uses: lukka/get-cmake@latest
+      - uses: lukka/get-cmake@4.3.3
 
       - name: Install Ninja
         run: brew install ninja
@@ -64,14 +64,14 @@ jobs:
         run: python setup.py install --installer
 
       - name: Upload app artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: harness_designer-macos-arm64
           path: builder/scripts/dist/harness_designer.app/
           if-no-files-found: error
 
       - name: Upload dependency installer artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: harness_designer-macos-arm64-dep-installer
           path: builder/scripts/dist/installer.app/

@@ -14,18 +14,18 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.0
         with:
           submodules: recursive
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6.2.0
         with:
           python-version: '3.11.14'
           check-latest: true
           cache: pip
           cache-dependency-path: requirements.txt
 
-      - uses: lukka/get-cmake@latest
+      - uses: lukka/get-cmake@4.3.3
 
       # pyMSVC locates and activates the MSVC toolchain so Cython and CMake
       # can find the compiler.  Must be installed before setup.py runs.
@@ -53,14 +53,14 @@ jobs:
         run: python setup.py install --installer
 
       - name: Upload app artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: harness_designer-windows
           path: builder/scripts/dist/harness_designer/
           if-no-files-found: error
 
       - name: Upload dependency installer artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: harness_designer-windows-dep-installer
           path: builder/scripts/dist/installer/
