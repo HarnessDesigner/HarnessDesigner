@@ -26,7 +26,7 @@ jobs:
           cache: pip
           cache-dependency-path: requirements.txt
 
-      - uses: lukka/get-cmake@4.3.3
+      - uses: lukka/get-cmake@latest
 
       - name: Install Ninja
         run: brew install ninja
