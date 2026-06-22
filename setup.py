@@ -195,10 +195,20 @@ def main():
 
     if build_installer:
         from builder import build
+        from builder import installer
 
-        build.main(installer_args)
+        from harness_designer import __version__
+
         build.build_installer(base_import)
         build.build_dependency_installer()
+
+        if sys.platform.startswith('win'):
+            installer.build_windows(__version__.string)
+
+        elif sys.platform == 'darwin':
+            installer.build_macos(__version__.string, False)
+        else:
+            installer.build_linux(__version__.string)
 
 
 if __name__ == '__main__':

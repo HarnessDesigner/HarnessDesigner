@@ -21,7 +21,7 @@ import sys
 import tarfile
 
 
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 INSTALLER_SCRIPTS_DIR = os.path.join(BASE_DIR, 'installer_scripts')
 BUILD_DIR = os.path.join(BASE_DIR, 'builder', 'scripts', 'dist')
 DIST_DIR = os.path.join(BASE_DIR, 'dist')

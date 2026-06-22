@@ -1,42 +1,5 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-def main(args):
-    import argparse
-    import sys
-    import platform
-
-    try:
-        from . import compile_harness_designer
-    except ImportError:
-        import compile_harness_designer
-
-    parser = argparse.ArgumentParser('-')
-
-    parser.add_argument(
-        '--no-cython',
-        dest='no_cython',
-        help='do not compile Harness Designer using Cython.',
-        default=False,
-        action='store_true'
-    )
-
-    parser.add_argument(
-        '--no-pyi-rename',
-        dest='no_pyi_rename',
-        help='do not rename the py files to pyi.',
-        default=False,
-        action='store_true'
-    )
-
-    args = parser.parse_args(args)
-
-    cython = not args.no_cython
-    pyi_rename = not args.no_pyi_rename
-
-    if cython:
-        compile_harness_designer.run(pyi_rename)
-
-
 def build_dependency_installer():
     """Build installer.exe — the lightweight GUI that installs external packages."""
     import sys
@@ -125,6 +88,7 @@ def build_installer(base_import):
         arch = platform.machine()   # x86_64 or arm64
         args.extend([f'--target-arch={arch}'])
         args.extend(['--icon=../../harness_designer/image/icon_256x256.png'])
+        args.extend(['--name=harness_designer'])
         args.extend(['--osx-bundle-identifier=com.kevinschlosser.harnessdesigner'])
         info_plist = os.path.join(
             os.path.dirname(base_path), 'installer_scripts', 'macos', 'Info.plist'
@@ -152,7 +116,18 @@ def build_installer(base_import):
 
     cwd = os.getcwd()
 
-    os.chdir(os.path.join(base_path, 'scripts'))
+    scripts_dir = os.path.join(base_path, 'scripts')
+    os.chdir(scripts_dir)
+
+    # --noconfirm overwrites files but os.symlink() raises FileExistsError if a
+    # symlink already exists (common on macOS re-runs in CI).  Remove the old
+    # output directory explicitly so PyInstaller starts with a clean slate.
+    import shutil
+    for candidate in ('harness_designer.app', 'harness_designer'):
+        old_dist = os.path.join(scripts_dir, 'dist', candidate)
+        if os.path.exists(old_dist):
+            shutil.rmtree(old_dist)
+            break
 
     import gc
     gc.collect()
@@ -161,21 +136,3 @@ def build_installer(base_import):
     PyInstaller.__main__.run(args)
 
     os.chdir(cwd)
-
-
-if __name__ == '__main__':
-    import sys
-
-    if sys.platform.startswith('win'):
-        import ctypes
-        import comtypes._safearray  # NOQA
-
-        setattr(comtypes._safearray, 'VARIANT_BOOL', ctypes.c_short)  # NOQA
-
-        import pyMSVC
-
-        environment = pyMSVC.setup_environment()
-        print(environment)
-        print()
-
-    main(sys.argv[1:])
