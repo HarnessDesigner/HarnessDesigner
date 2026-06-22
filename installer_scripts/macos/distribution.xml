@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="2">
+
+    <title>Harness Designer</title>
+    <welcome    file="welcome.html"    mime-type="text/html" />
+    <license    file="license.html"    mime-type="text/html" />
+    <readme     file="readme.html"     mime-type="text/html" />
+    <conclusion file="conclusion.html" mime-type="text/html" />
+
+    <pkg-ref id="com.kevinschlosser.harnessdesigner"/>
+
+    <options
+        customize="never"
+        require-scripts="true"
+        hostArchitectures="x86_64,arm64"
+    />
+
+    <domains enable_localSystem="true" enable_currentUserHome="false" />
+
+    <choices-outline>
+        <line choice="com.kevinschlosser.harnessdesigner"/>
+    </choices-outline>
+
+    <choice
+        id="com.kevinschlosser.harnessdesigner"
+        visible="false"
+        title="Harness Designer"
+        description="Installs Harness Designer into /Applications."
+    >
+        <pkg-ref id="com.kevinschlosser.harnessdesigner"/>
+    </choice>
+
+    <pkg-ref
+        id="com.kevinschlosser.harnessdesigner"
+        version="1.0.0"
+        onConclusion="none"
+    >HarnessDesigner-component.pkg</pkg-ref>
+
+</installer-gui-script>

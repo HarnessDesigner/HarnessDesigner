@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Harness Designer — macOS postinstall script
+# Runs after pkgbuild copies files to their destinations.
+# Invokes the dependency installer as the currently logged-in GUI user
+# so that the tkinter progress window can be displayed.
+
+set -euo pipefail
+
+INSTALL_DIR="/Applications/HarnessDesigner.app"
+DEPENDENCY_INSTALLER="$INSTALL_DIR/Contents/Resources/dependency_installer"
+LIB_DIR="$INSTALL_DIR/Contents/Resources/lib"
+
+# Ensure the embedded installer is executable
+chmod +x "$DEPENDENCY_INSTALLER"
+
+# Identify the logged-in console user (may differ from the user running
+# the installer, which could be root via sudo or the Installer app).
+CONSOLE_USER=$(stat -f "%Su" /dev/console 2>/dev/null || echo "")
+
+if [[ -z "$CONSOLE_USER" || "$CONSOLE_USER" == "root" ]]; then
+    # No GUI user at the console (headless install) — run silently as root.
+    "$DEPENDENCY_INSTALLER" "$LIB_DIR"
+else
+    CONSOLE_UID=$(id -u "$CONSOLE_USER")
+
+    # launchctl asuser runs the command in the user's session so the
+    # tkinter GUI appears on the correct display.
+    launchctl asuser "$CONSOLE_UID" \
+        sudo -u "$CONSOLE_USER" \
+        "$DEPENDENCY_INSTALLER" "$LIB_DIR"
+fi
+
+exit 0
