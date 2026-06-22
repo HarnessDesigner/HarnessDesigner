@@ -19,28 +19,26 @@ jobs:
         with:
           submodules: recursive
 
-      - uses: astral-sh/setup-uv@v8.2.0
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11.14'
-          enable-cache: true
-          cache-dependency-glob: requirements.txt
+          check-latest: true
+          cache: pip
+          cache-dependency-path: requirements.txt
 
       - uses: lukka/get-cmake@latest
 
       - name: Install Ninja
         run: brew install ninja
 
-      - name: Create virtual environment
-        run: uv venv .venv
-
       - name: Install build tools
         run: |
-          uv pip install \
-            "setuptools==62.0.0" "Cython==3.2.4" "wheel==0.46.3" "pyinstaller==6.19.0"
+          python -m pip install "pip==26.0.1"
+          pip install "setuptools==62.0.0" "Cython==3.2.4" "wheel==0.46.3" "pyinstaller==6.19.0"
 
       - name: Install runtime dependencies
         run: |
-          uv pip install \
+          pip install \
             "PyOpenGL==3.1.10" \
             "requests==2.33.1" \
             "numpy==2.2.6" \
@@ -63,7 +61,7 @@ jobs:
       - name: Build (Cython + PyInstaller + dependency installer)
         env:
           PYTHONPATH: ${{ github.workspace }}
-        run: .venv/bin/python setup.py install --installer
+        run: python setup.py install --installer
 
       - name: Upload app artifact
         uses: actions/upload-artifact@v4
