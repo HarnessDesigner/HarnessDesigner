@@ -90,16 +90,9 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}
         run: python setup.py install --installer
 
-      - name: Upload app artifact
+      - name: Upload Linux archive artifact
         uses: actions/upload-artifact@v7.0.1
         with:
           name: harness_designer-linux
-          path: builder/scripts/dist/harness_designer/
-          if-no-files-found: error
-
-      - name: Upload dependency installer artifact
-        uses: actions/upload-artifact@v7.0.1
-        with:
-          name: harness_designer-linux-dep-installer
-          path: builder/scripts/dist/installer
+          path: dist/linux/
           if-no-files-found: error

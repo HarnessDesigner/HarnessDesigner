@@ -81,6 +81,7 @@ def build_installer(base_import):
     ):
         args.extend([f'--exclude-module={mod}'])
 
+    info_plist = None
     if sys.platform.startswith('win'):
         args.extend(['--icon=../../harness_designer/image/icon_256x256.png'])
         args.extend(['--name=harness_designer'])
@@ -90,11 +91,11 @@ def build_installer(base_import):
         args.extend(['--icon=../../harness_designer/image/icon_256x256.png'])
         args.extend(['--name=harness_designer'])
         args.extend(['--osx-bundle-identifier=com.kevinschlosser.harnessdesigner'])
-        info_plist = os.path.join(
+        _candidate = os.path.join(
             os.path.dirname(base_path), 'installer_scripts', 'macos', 'Info.plist'
         )
-        if os.path.exists(info_plist):
-            args.extend([f'--info-plist={info_plist}'])
+        if os.path.exists(_candidate):
+            info_plist = _candidate
 
         # OpenGL_accelerate is unreliable on Apple Silicon.
         if arch == 'arm64':
@@ -134,5 +135,21 @@ def build_installer(base_import):
 
     import PyInstaller.__main__
     PyInstaller.__main__.run(args)
+
+    # --info-plist is not a valid PyInstaller CLI flag; merge custom keys into
+    # the generated Info.plist after the build instead.
+    if info_plist:
+        import plistlib
+        app_plist = os.path.join(
+            scripts_dir, 'dist', 'harness_designer.app', 'Contents', 'Info.plist'
+        )
+        if os.path.exists(app_plist):
+            with open(app_plist, 'rb') as _f:
+                _app_data = plistlib.load(_f)
+            with open(info_plist, 'rb') as _f:
+                _custom = plistlib.load(_f)
+            _app_data.update(_custom)
+            with open(app_plist, 'wb') as _f:
+                plistlib.dump(_app_data, _f)
 
     os.chdir(cwd)
