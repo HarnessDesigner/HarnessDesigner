@@ -14,10 +14,10 @@ class AccessoriesTable(TableBase):
     """
     __table_name__ = 'accessories'
 
-    _control: "AccessoryControl" = None
+    _control = None  # : "AccessoryControl" = None
 
     @property
-    def control(self) -> "AccessoryControl":
+    def control(self):  # -> "AccessoryControl":
         """Return the control.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -25,8 +25,8 @@ class AccessoriesTable(TableBase):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`AccessoryControl`
         """
-        if self._control is None:
-            self._control = AccessoryControl(self.db.mainframe)
+        # if self._control is None:
+        #     self._control = AccessoryControl(self.db.mainframe)
 
         return self._control
 

@@ -68,7 +68,7 @@ class CavityPlaneOverlay(QtWidgets.QWidget):
     def eventFilter(self, obj, event):
         if event.type() == QtCore.QEvent.Type.Resize:
             self.setGeometry(QtCore.QRect(0, 0, obj.width(), obj.height()))
-            
+
         return False
 
     def paintEvent(self, event):
@@ -639,7 +639,7 @@ class HousingCavityPicker:
         if HousingCavityPicker._active is self:
             HousingCavityPicker._active = None
         if self.overlay is not None:
-            self_overlay.update()
+            self.overlay.update()
 
     def _on_right_click(self, global_pos: QtCore.QPoint):
         if self.selected_cavity is None:

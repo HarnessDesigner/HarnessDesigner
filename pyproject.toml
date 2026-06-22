@@ -1,10 +1,15 @@
 [build-system]
-requires = ["setuptools==62.0.0", "wheel==0.46.3", "pyMSVC@git+https://github.com/kdschlosser/python_msvc ; sys_platform=='win32'", "pyinstaller==6.19.0"]
+requires = [
+    "setuptools==62.0.0",
+    "Cython==3.2.4",
+    "wheel==0.46.3",
+    "pyinstaller==6.19.0",
+    "pyMSVC@git+https://github.com/kdschlosser/python_msvc ; sys_platform=='win32'",
+]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 py-modules=[]
-
 
 [project]
 name = "harness_designer"
@@ -17,17 +22,7 @@ authors = [{ name = "Kevin G. Schlosser" }]
 maintainers = [{ name = "Kevin G. Schlosser" }]
 dynamic = ["dependencies"]
 
-
 [project.urls]
 "Homepage" = "https://github.com/HarnessDesigner/HarnessDesigner"
 "Bug Reports" = "https://github.com/HarnessDesigner/HarnessDesigner/issues"
 "Source" = "https://github.com/HarnessDesigner/HarnessDesigner"
-
-
-
-# This is configuration specific to the `setuptools` build backend.
-# If you are using a different build backend, you will need to change this.
-# [tool.setuptools]
-# If there are data files included in your packages that need to be
-# installed, specify them here.
-# package-data = { "sample" = ["*.dat"] }

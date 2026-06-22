@@ -59,7 +59,8 @@ vtk
 vtkmodules
 cadquery_ocp
 ocpsvg
-build123d'''
+build123d
+pandas'''
 
 
 def get_modules():
