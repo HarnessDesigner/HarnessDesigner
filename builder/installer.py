@@ -103,7 +103,7 @@ def _ensure_icon_ico():
     if os.path.isfile(ico):
         return ico
 
-    print('→ Converting icon PNG → ICO ...')
+    print('Converting icon PNG -> ICO ...')
 
     from PIL import Image
     img = Image.open(ICON_PNG)
@@ -134,7 +134,7 @@ def build_windows(version):
     iss = os.path.join(INSTALLER_SCRIPTS_DIR, 'windows', 'harness_designer.iss')
     os.makedirs(os.path.join(DIST_DIR, 'windows'), exist_ok=True)
 
-    print(f'→ Compiling {os.path.basename(iss)} ...')
+    print(f'Compiling {os.path.basename(iss)} ...')
     rc = subprocess.run(
         [iscc, f'/DAppVersion={version}', iss],
         check=False,
@@ -144,7 +144,7 @@ def build_windows(version):
         print(f'Error: ISCC exited with code {rc}')
         sys.exit(rc)
 
-    print(f'\n✓ Windows installer:  {os.path.join(DIST_DIR, "windows")}')
+    print(f'\nWindows installer:  {os.path.join(DIST_DIR, "windows")}')
 
 
 # ── macOS ─────────────────────────────────────────────────────────────────────
@@ -163,13 +163,13 @@ def build_macos(version, sign):
     if sign:
         cmd.append('--sign')
 
-    print('→ Running build_pkg.sh ...')
+    print('Running build_pkg.sh ...')
     rc = subprocess.run(cmd, check=False).returncode
     if rc != 0:
         print(f'Error: build_pkg.sh exited with code {rc}')
         sys.exit(rc)
 
-    print(f'\n✓ macOS package:  {os.path.join(DIST_DIR, "macos")}')
+    print(f'\nmacOS package:  {os.path.join(DIST_DIR, "macos")}')
 
 
 # ── Linux ─────────────────────────────────────────────────────────────────────
@@ -252,7 +252,7 @@ exec "$DIR/installer_scripts/linux/install.sh" "$@"
                 rel = os.path.relpath(fpath, parent).replace(os.sep, '/')
                 yield fpath, f'{arc_prefix}/{rel}'
 
-    print(f'→ Creating {archive_name} ...')
+    print(f'Creating {archive_name} ...')
 
     with tarfile.open(archive_path, 'w:gz') as tar:
         # Root convenience launcher
@@ -277,7 +277,7 @@ exec "$DIR/installer_scripts/linux/install.sh" "$@"
             arcname=f'{stem}/harness_designer/image/icon_256x256.png',
         )
 
-    print(f'\n✓ Linux archive:  {archive_path}')
+    print(f'\nLinux archive:  {archive_path}')
     print()
     print('  To install:')
     print(f'    tar xzf {archive_name}')
