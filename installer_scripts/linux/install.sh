@@ -116,17 +116,17 @@ run mkdir -p "$BIN_DIR"
 run mkdir -p "$DESKTOP_DIR"
 run mkdir -p "$ICON_DIR"
 
-echo "→ Copying application files..."
+echo "Copying application files..."
 run cp -r "$APP_SRC/." "$APP_DIR/"
 run chmod +x "$APP_DIR/$APP_NAME"
 
-echo "→ Installing icon..."
+echo "Installing icon..."
 run cp "$ICON_SRC" "$ICON_DIR/$ICON_NAME.png"
 
-echo "→ Creating launcher symlink..."
+echo "Creating launcher symlink..."
 run ln -sf "$APP_DIR/$APP_NAME" "$BIN_DIR/$APP_NAME"
 
-echo "→ Creating desktop entry..."
+echo "Creating desktop entry..."
 run tee "$DESKTOP_DIR/$APP_NAME.desktop" > /dev/null <<EOF
 [Desktop Entry]
 Version=1.0
@@ -151,7 +151,7 @@ fi
 
 # ── Install dependencies ──────────────────────────────────────────────────────
 
-echo "→ Installing required Python components..."
+echo "Installing required Python components..."
 echo "  A component selection window will appear."
 echo ""
 
@@ -175,7 +175,7 @@ rm -f "$INSTALLER_TMP"
 # ── Done ──────────────────────────────────────────────────────────────────────
 
 echo ""
-echo "✓ $APP_DISPLAY_NAME ${APP_VERSION} installed successfully."
+echo "$APP_DISPLAY_NAME ${APP_VERSION} installed successfully."
 echo ""
 if [[ "$INSTALL_MODE" == "user" && ":$PATH:" != *":$BIN_DIR:"* ]]; then
     echo "  Note: $BIN_DIR is not in your PATH."

@@ -134,7 +134,24 @@ def build_installer(base_import):
     gc.collect()
 
     import PyInstaller.__main__
-    PyInstaller.__main__.run(args)
+
+    # PyInstaller 6.x on macOS can add the Python framework symlink to COLLECT's
+    # TOC twice, causing os.symlink() to fail with FileExistsError on the second
+    # attempt.  Patch os.symlink for the duration of this build to silently
+    # replace duplicate symlinks (removing an existing symlink before recreating
+    # it is always safe; regular files are left alone).
+    _orig_symlink = os.symlink
+    if sys.platform.startswith('darwin'):
+        def _dedup_symlink(src, dst, *_a, **_kw):
+            if os.path.islink(dst):
+                os.unlink(dst)
+            _orig_symlink(src, dst, *_a, **_kw)
+        os.symlink = _dedup_symlink
+
+    try:
+        PyInstaller.__main__.run(args)
+    finally:
+        os.symlink = _orig_symlink
 
     # --info-plist is not a valid PyInstaller CLI flag; merge custom keys into
     # the generated Info.plist after the build instead.

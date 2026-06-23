@@ -1,3 +1,6 @@
+[![Windows Build](https://github.com/HarnessDesigner/HarnessDesigner/actions/workflows/windows.yml/badge.svg)](https://github.com/HarnessDesigner/HarnessDesigner/actions/workflows/windows.yml)
+[![Linux Build](https://github.com/HarnessDesigner/HarnessDesigner/actions/workflows/unix.yml/badge.svg)](https://github.com/HarnessDesigner/HarnessDesigner/actions/workflows/unix.yml)
+[![macOS Build](https://github.com/HarnessDesigner/HarnessDesigner/actions/workflows/macos.yml/badge.svg)](https://github.com/HarnessDesigner/HarnessDesigner/actions/workflows/macos.yml)
 # HarnessDesigner
 Wiring Harness design software (WIP)
 
