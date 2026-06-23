@@ -11,6 +11,7 @@ from . import base3d as _base3d
 from . import menu_ops as _menu_ops
 from ...shapes import sphere as _sphere
 from ... import config as _config
+from ... import color as _color
 
 
 if TYPE_CHECKING:
@@ -44,11 +45,15 @@ class BundleLayout(_base3d.Base3D):
         parent.mainframe.editor3d.context.acquire()
         bundles = db_obj.attached_bundles
 
-        bundle = bundles[-1]
-        layers = bundle.concentric.layers
-        self._diameter = layers[-1].diameter
+        if bundles:
+            bundle = bundles[-1]
+            layers = bundle.concentric.layers
+            self._diameter = layers[-1].diameter
+            color = bundle.part.color.ui
+        else:
+            self._diameter = db_obj.diameter
+            color = _color.Color(0.5, 0.5, 0.5, 1.0)
 
-        color = bundle.part.color.ui
         material = _materials.Rubber(color)
 
         scale = _point.Point(self._diameter, self._diameter, self._diameter)

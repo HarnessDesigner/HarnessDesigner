@@ -2019,7 +2019,7 @@ class MainFrame(QMainWindow):
         from ..database.db_connectors import SQLConnector
 
         self.db_connector = SQLConnector(self)
-        self.db_connector.connect()
+        self.db_connector.connect(splash)
 
         from ..database import global_db
         from ..database import project_db

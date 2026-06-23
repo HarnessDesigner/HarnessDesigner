@@ -21,7 +21,6 @@ from .. import utils as _utils
 from .. import color as _color
 
 
-
 if TYPE_CHECKING:
     from ..gl.canvas3d import camera as _camera
     from .. import ui as _ui
@@ -74,6 +73,7 @@ class AddBundleHandler(_handler_base.HandlerBase):
                 part_id = dlg.GetValue()
 
         super().__init__(mainframe, part_id)
+
         self._preview_material = _materials.Plastic(
             _color.Color(*Config.add_object.preview_color))
         self._transition_highlight_material = _materials.Plastic(
@@ -93,14 +93,13 @@ class AddBundleHandler(_handler_base.HandlerBase):
         if self._finalized:
             return
 
-        if self._start_position is None:
-            self._start_position = self._captured_position
+        if self._captured_position is None:
             return
 
-    def start(self, mouse_pos: _point.Point):
-        """Start wire placement with first click"""
+        if self._start_position is None:
+            self._start_position = self._captured_position
 
-        start_point = _get_world_position_for_wire_endpoint(mouse_pos, self.camera)
+        start_point = _utils.get_world_position_for_wire_endpoint(mouse_pos, self.camera)
 
         if start_point:
             self.is_active = True
@@ -121,9 +120,6 @@ class AddBundleHandler(_handler_base.HandlerBase):
 
             # Mark as preview (semi-transparent)
             self.obj.obj3d.material.alpha = 0.5
-
-            # Add to editors (but not to project's wire dict yet)
-            self.mainframe.add_object(self.obj)
 
     def hover(self, mouse_pos: _point.Point):
         """Update preview wire as mouse moves"""

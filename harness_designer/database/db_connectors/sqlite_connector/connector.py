@@ -1,7 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 """SQLite connector implementation and cursor helpers."""
-
+import io
 from typing import TYPE_CHECKING
 
 import threading
@@ -16,6 +16,9 @@ from datetime import (date as _date,
 
 from decimal import Decimal as _Decimal
 from time import struct_time as _struct_time
+import os
+import requests
+import zipfile
 
 from .. import base as _base
 from .... import config as _config
@@ -93,7 +96,7 @@ class SQLConnector(_base.ConnectorBase):
         column_names = eval(self.fetchall()[0][0])
         return column_names
 
-    def connect(self) -> bool:
+    def connect(self, splash) -> bool:
         """
         Open the configured SQLite database and start update monitoring.
 
@@ -101,8 +104,99 @@ class SQLConnector(_base.ConnectorBase):
         :rtype: bool
         """
 
+        def _download_data(url, label, dst):
+            response = requests.get(url, stream=True)
+
+            block_size = 1048576
+            cur_size = 0
+
+            splash.SetText(f'Downloading {label} {cur_size}')
+            splash.flush()
+
+            buf = io.BytesIO()
+
+            for data in response.iter_content(block_size):
+                if not data:
+                    break
+
+                cur_size += len(data)
+                buf.write(data)
+                splash.SetText(f'Downloading {label} {cur_size}')
+
+            buf.seek(0)
+
+            splash.SetText(f'Decompressing {label}...')
+            splash.flush()
+
+            with zipfile.ZipFile(buf) as zdata:
+                zdata.extractall(dst)
+
+            splash.SetText('Finished Decompressing!')
+            splash.flush()
+
+            buf.close()
+
+        if not os.path.exists(self.db_name):
+            db_path, db_name = os.path.split(self.db_name)
+
+            _download_data(
+                'https://github.com/HarnessDesigner/database/raw/refs/heads/main/prebuilt/harness_designer_database.zip',
+                'Database', db_path)
+            if db_name != 'harness_designer.db':
+                src = os.path.join(db_path, 'harness_designer.db')
+                os.rename(src, self.db_name)
+
+            model_path = os.path.join(db_path, 'models')
+            cad_path = os.path.join(db_path, 'cads')
+
+            items = [
+                ('https://github.com/HarnessDesigner/database/raw/refs/heads/main/prebuilt/cads1.zip', 'CAD 1', cad_path),
+                ('https://github.com/HarnessDesigner/database/raw/refs/heads/main/prebuilt/cads2.zip', 'CAD 2', cad_path),
+                ('https://github.com/HarnessDesigner/database/raw/refs/heads/main/prebuilt/models.zip', 'models', model_path)
+            ]
+
+            for item in items:
+                _download_data(*item)
+
+            downloaded = True
+        else:
+            downloaded = False
+
         self._connection = sqlite3.connect(self.db_name, check_same_thread=False)
         self._cursor = self._connection.cursor()
+
+        if downloaded:
+            db_path = os.path.split(self.db_name)[0]
+
+            model_path = os.path.join(db_path, 'models')
+            cad_path = os.path.join(db_path, 'cads')
+            datasheet_path = os.path.join(db_path, 'datasheets')
+            image_path = os.path.join(db_path, 'images')
+
+            self.execute(f'UPDATE settings SET value="{model_path}" WHERE name="model_path";')
+            self.execute(f'UPDATE settings SET value="{cad_path}" WHERE name="cad_path";')
+            self.execute(f'UPDATE settings SET value="{datasheet_path}" WHERE name="datasheet_path";')
+            self.execute(f'UPDATE settings SET value="{image_path}" WHERE name="image_path";')
+            self.commit()
+
+            if not os.path.exists(model_path):
+                os.makedirs(model_path)
+
+            if not os.path.exists(image_path):
+                os.makedirs(image_path)
+
+            if not os.path.exists(cad_path):
+                os.makedirs(cad_path)
+
+            if not os.path.exists(datasheet_path):
+                os.makedirs(datasheet_path)
+
+            for i in range(0x00, 0x100):
+                i = f'{i:02x}'
+                for pth in (model_path, image_path, cad_path, datasheet_path):
+                    pth = os.path.join(pth, i)
+                    if not os.path.exists(pth):
+                        os.mkdir(pth)
 
         # the cred manager needs to be started before the child processes
         # are started. This is because the child processes use the data from

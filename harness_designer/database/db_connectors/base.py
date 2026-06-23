@@ -22,29 +22,29 @@ class ConnectorBase:
         self.db_name = db_name
         self._db_data = None
 
-    @property
-    def db_data(self):
-        """Return the lazily created database seed-data helper.
+    # @property
+    # def db_data(self):
+    #     """Return the lazily created database seed-data helper.
+    #
+    #     :returns: Return value for this callable. UNKNOWN.
+    #     :rtype: UNKNOWN
+    #     """
+    #     if self._db_data is None:
+    #         self._db_data = _db_data.DBData()
+    #
+    #     return self._db_data
 
-        :returns: Return value for this callable. UNKNOWN.
-        :rtype: UNKNOWN
-        """
-        if self._db_data is None:
-            self._db_data = _db_data.DBData()
-
-        return self._db_data
-
-    @db_data.setter
-    def db_data(self, value):
-        """Clear and close the cached seed-data helper when set to ``None``.
-
-        :param value: Value or state to persist.
-        :type value: UNKNOWN
-        """
-        if value is None:
-            if self._db_data is not None:
-                self._db_data.close()
-                self._db_data = None
+    # @db_data.setter
+    # def db_data(self, value):
+    #     """Clear and close the cached seed-data helper when set to ``None``.
+    #
+    #     :param value: Value or state to persist.
+    #     :type value: UNKNOWN
+    #     """
+    #     if value is None:
+    #         if self._db_data is not None:
+    #             self._db_data.close()
+    #             self._db_data = None
 
     def get_tables(self) -> list[str]:
         """Return the table names available through the connector.
@@ -55,7 +55,7 @@ class ConnectorBase:
         """
         raise NotImplementedError
 
-    def connect(self) -> bool:
+    def connect(self, splash) -> bool:
         """Establish the underlying database connection.
 
         :returns: ``True`` when the connection succeeds; otherwise ``False``.
