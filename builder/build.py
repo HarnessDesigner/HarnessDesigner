@@ -121,14 +121,14 @@ def build_installer(base_import):
     os.chdir(scripts_dir)
 
     # --noconfirm overwrites files but os.symlink() raises FileExistsError if a
-    # symlink already exists (common on macOS re-runs in CI).  Remove the old
-    # output directory explicitly so PyInstaller starts with a clean slate.
+    # symlink already exists.  On macOS, PyInstaller's COLLECT step creates
+    # dist/harness_designer/ and BUNDLE wraps it into dist/harness_designer.app/;
+    # both must be removed so neither leaves stale symlinks for the next build.
     import shutil
     for candidate in ('harness_designer.app', 'harness_designer'):
         old_dist = os.path.join(scripts_dir, 'dist', candidate)
         if os.path.exists(old_dist):
             shutil.rmtree(old_dist)
-            break
 
     import gc
     gc.collect()
