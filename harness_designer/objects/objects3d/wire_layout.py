@@ -11,6 +11,7 @@ from . import menu_ops as _menu_ops
 from ...shapes import sphere as _sphere
 from ...gl import materials as _materials
 from ... import config as _config
+from ... import color as _color
 
 
 if TYPE_CHECKING:
@@ -44,12 +45,15 @@ class WireLayout(_base3d.Base3D):
 
         parent.mainframe.editor3d.context.acquire()
 
+        self._bundle_layout_point_id = None
+
         wires = db_obj.attached_wires
         if wires:
             diameter = wires[0].part.od_mm
             color = wires[0].part.color.ui
         else:
-            raise RuntimeError('sanity check')
+            diameter = 3.0
+            color = _color.Color(0.5, 0.5, 0.5, 1.0)
 
         material = _materials.Plastic(color)
 
@@ -58,7 +62,7 @@ class WireLayout(_base3d.Base3D):
         angle = _angle.Angle()
         position = db_obj.position3d
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
-        parent.mainframe.editor3d.context.acquire()
+        parent.mainframe.editor3d.context.release()
 
 
     @property

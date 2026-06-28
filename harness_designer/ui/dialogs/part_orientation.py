@@ -159,10 +159,27 @@ class PartModel3D(_base3d.Base3D):
         else:
             data_path = model_db.data_path
             if data_path is not None:
-                data = np.load(data_path)
-                vbo = _vbo.PooledVBOHandler(
-                    uuid, data, model_db.vertex_count,
-                    aabb=model_db.aabb, obb=model_db.obb)
+                packed = np.load(model_db.data_path).reshape(-1, 3)
+
+                angle = model_db.angle3d
+                position = model_db.position3d
+                count = model_db.vertex_count
+
+                obb = model_db.obb
+                aabb = model_db.aabb
+
+                obb @= angle
+                aabb @= angle
+
+                obb += position
+                aabb += position
+
+                packed @= angle
+                packed[:count] += position
+
+                packed = packed.reshape(-1)
+
+                vbo = _vbo.PooledVBOHandler(uuid, packed, count, aabb=aabb, obb=obb)
             else:
                 vbo = None
 
@@ -257,6 +274,8 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
         self._part_model: "PartModel | None" = None
         self._mainframe = parent
         self._selected_obj = None
+        self.o_angle: _angle.Angle = None
+        self.o_position: _point.Point = None
 
         self.canvas = _canvas3d.Canvas3D(
             self.panel, _Config, size=(1600, 900))
@@ -345,6 +364,9 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
         self._mainframe.editor3d.context.acquire()
         self._part_model = PartModel(self, model_db)
 
+        self.o_angle = self._model_db.angle3d.copy()
+        self.o_position = self._model_db.position3d.copy()
+
         # Point the ctrl at the working position so slider changes go to the
         # 3D model directly; the DB write happens only on accept().
         working_pos = self._part_model.obj3d._position
@@ -385,6 +407,8 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
             angle -= 360.0
 
         self._part_model.obj3d.angle.y = angle
+        self._model_db.angle3d.y = angle
+
         self._update_forward_up()
 
     def _on_rotate_right(self):
@@ -394,6 +418,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
             angle += 360.0
 
         self._part_model.obj3d.angle.y = angle
+        self._model_db.angle3d.y = angle
         self._update_forward_up()
 
     def _on_flip_forward(self):
@@ -403,6 +428,8 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
             angle -= 360.0
 
         self._part_model.obj3d.angle.x = angle
+        self._model_db.angle3d.x = angle
+
         self._update_forward_up()
 
     def _on_flip_backward(self):
@@ -412,6 +439,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
             angle += 360.0
 
         self._part_model.obj3d.angle.x = angle
+        self._model_db.angle3d.x = angle
         self._update_forward_up()
 
     def _on_roll_left(self):
@@ -421,6 +449,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
             angle += 360.0
 
         self._part_model.obj3d.angle.z = angle
+        self._model_db.angle3d.z = angle
         self._update_forward_up()
 
     def _on_roll_right(self):
@@ -430,14 +459,18 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
             angle -= 360.0
 
         self._part_model.obj3d.angle.z = angle
+        self._model_db.angle3d.z = angle
+
         self._update_forward_up()
 
     def _update_forward_up(self):
         if self._model_db is None or self._part_model is None:
             return
+
         local_obb = self._model_db.obb
         if local_obb is None:
             return
+
         q = self._part_model.obj3d.angle._q
         fwd = _obb_face_for_direction(
             local_obb, q, np.array([0.0, 0.0, 1.0], dtype=np.float32))
@@ -445,7 +478,55 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
             local_obb, q, np.array([0.0, 1.0, 0.0], dtype=np.float32))
         self._model_db.forward_up = [fwd, up]
 
+    def _flush_and_invalidate_vbo(self):
+        """Sync working state to DB and evict the stale VBO from the singleton.
+
+        Must be called before exec() returns so the next user of this model's
+        VBO recreates it from the final DB angle/position rather than reusing
+        the orientation-dialog's initial (pre-rotation) baked data.
+        """
+        if self._part_model is None:
+            return
+
+        with self.context:
+            position = self._part_model.obj3d.position
+            model_position = self._model_db.position3d
+
+            delta = position - model_position
+            model_position += delta
+
+            angle = self._part_model.obj3d.angle
+            model_angle = self._model_db.angle3d
+
+            with model_angle:
+                model_angle.x = angle.x
+                model_angle.y = angle.y
+
+            model_angle.z = angle.z
+
+            vbo = self._part_model.obj3d._vbo
+
+            if vbo is not None and hasattr(vbo, 'id'):
+                uuid = vbo.id
+                if uuid in _vbo.VBOSingleton._instances:  # NOQA
+                    vbo.release()
+                    _vbo.PooledVBOHandler.release_model_allocation(uuid)
+                    del _vbo.VBOSingleton._instances[uuid]  # NOQA
+
+        self._part_model = None
+
+    def accept(self):
+        self._flush_and_invalidate_vbo()
+        self.canvas.cleanup()
+        super().accept()
+
+    def reject(self):
+        self._flush_and_invalidate_vbo()
+        self.canvas.cleanup()
+        super().reject()
+
     def closeEvent(self, event):
+        self._flush_and_invalidate_vbo()
         self.canvas.cleanup()
         super().closeEvent(event)
 

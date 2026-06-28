@@ -22,7 +22,7 @@ class WireServiceLoop(_ObjectBase):
     db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
-                 db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop"):
+                 db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop", project_load=False):
         """Initialise the :class:`WireServiceLoop` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

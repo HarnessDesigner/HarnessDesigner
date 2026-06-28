@@ -1103,43 +1103,31 @@ class PJTCircuitControl(QTabWidget):
         self.circuit_num_ctrl.propertyChanged.connect(self._on_circuit_num)
         self.description_ctrl.propertyChanged.connect(self._on_description)
 
-        info_page = _prop_ctrls.Category(self, 'Info')
+        electrical_page = _prop_ctrls.Category(self, 'Electrical')
 
-        electrical_group = _prop_ctrls.Property(info_page, 'Electrical', orientation='vertical')
-        info_page.addWidget(electrical_group)
+        self.voltage_ctrl = _prop_ctrls.StringProperty(electrical_page, 'Voltage', units='V', read_only=True)
+        self.voltage_drop_ctrl = _prop_ctrls.StringProperty(electrical_page, 'Voltage', units='V', read_only=True)
+        self.total_circuit_load_ctrl = _prop_ctrls.StringProperty(electrical_page, 'Total Circuit Load', units='ma', read_only=True)
+        self.total_circuit_resistance_ctrl = _prop_ctrls.StringProperty(electrical_page, 'Total Circuit Resistance', units='Ω', read_only=True)
 
-        self.voltage_ctrl = _prop_ctrls.StringProperty(electrical_group, 'Voltage', units='V', read_only=True)
-        self.voltage_drop_ctrl = _prop_ctrls.StringProperty(electrical_group, 'Voltage', units='V', read_only=True)
-        self.total_circuit_load_ctrl = _prop_ctrls.StringProperty(electrical_group, 'Total Circuit Load', units='ma', read_only=True)
-        self.total_circuit_resistance_ctrl = _prop_ctrls.StringProperty(electrical_group, 'Total Circuit Resistance', units='Ω', read_only=True)
+        electrical_page.addWidget(self.voltage_ctrl)
+        electrical_page.addWidget(self.voltage_drop_ctrl)
+        electrical_page.addWidget(self.total_circuit_load_ctrl)
+        electrical_page.addWidget(self.total_circuit_resistance_ctrl)
 
-        electrical_group.addWidget(self.voltage_ctrl)
-        electrical_group.addWidget(self.voltage_drop_ctrl)
-        electrical_group.addWidget(self.total_circuit_load_ctrl)
-        electrical_group.addWidget(self.total_circuit_resistance_ctrl)
+        weight_page = _prop_ctrls.Category(self, 'Weight')
 
-        total_weight_group = _prop_ctrls.Property(info_page, 'Total Circuit Weight', orientation='vertical')
-        info_page.addWidget(total_weight_group)
+        circuit_weight_group = _prop_ctrls.Property(weight_page, 'Total Circuit Weight', orientation='vertical')
+        weight_page.addWidget(circuit_weight_group)
 
-        self.total_circuit_weight_g_ctrl = _prop_ctrls.StringProperty(total_weight_group, 'Grams', read_only=True)
-        self.total_circuit_weight_lb_ctrl = _prop_ctrls.StringProperty(total_weight_group, 'Pounds', read_only=True)
+        self.total_circuit_weight_g_ctrl = _prop_ctrls.StringProperty(circuit_weight_group, 'Grams', read_only=True)
+        self.total_circuit_weight_lb_ctrl = _prop_ctrls.StringProperty(circuit_weight_group, 'Pounds', read_only=True)
 
-        total_weight_group.addWidget(self.total_circuit_weight_g_ctrl)
-        total_weight_group.addWidget(self.total_circuit_weight_lb_ctrl)
+        circuit_weight_group.addWidget(self.total_circuit_weight_g_ctrl)
+        circuit_weight_group.addWidget(self.total_circuit_weight_lb_ctrl)
 
-        wire_length_group = _prop_ctrls.Property(info_page, 'Total Wire Length', orientation='vertical')
-        info_page.addWidget(wire_length_group)
-
-        self.wire_length_mm_ctrl = _prop_ctrls.StringProperty(wire_length_group, 'Millimeters', read_only=True)
-        self.wire_length_m_ctrl = _prop_ctrls.StringProperty(wire_length_group, 'Meters', read_only=True)
-        self.wire_length_ft_ctrl = _prop_ctrls.StringProperty(wire_length_group, 'Feet', read_only=True)
-
-        wire_length_group.addWidget(self.wire_length_mm_ctrl)
-        wire_length_group.addWidget(self.wire_length_m_ctrl)
-        wire_length_group.addWidget(self.wire_length_ft_ctrl)
-
-        wire_weight_group = _prop_ctrls.Property(info_page, 'Total Wire Weight', orientation='vertical')
-        info_page.addWidget(wire_weight_group)
+        wire_weight_group = _prop_ctrls.Property(weight_page, 'Total Wire Weight', orientation='vertical')
+        weight_page.addWidget(wire_weight_group)
 
         self.wire_weight_g_ctrl = _prop_ctrls.StringProperty(wire_weight_group, 'Grams', read_only=True)
         self.wire_weight_lb_ctrl = _prop_ctrls.StringProperty(wire_weight_group, 'Pounds', read_only=True)
@@ -1147,8 +1135,8 @@ class PJTCircuitControl(QTabWidget):
         wire_weight_group.addWidget(self.wire_weight_g_ctrl)
         wire_weight_group.addWidget(self.wire_weight_lb_ctrl)
 
-        terminal_weight_group = _prop_ctrls.Property(info_page, 'Total Terminal Weight', orientation='vertical')
-        info_page.addWidget(terminal_weight_group)
+        terminal_weight_group = _prop_ctrls.Property(weight_page, 'Total Terminal Weight', orientation='vertical')
+        weight_page.addWidget(terminal_weight_group)
 
         self.terminal_weight_g_ctrl = _prop_ctrls.StringProperty(terminal_weight_group, 'Grams', read_only=True)
         self.terminal_weight_lb_ctrl = _prop_ctrls.StringProperty(terminal_weight_group, 'Pounds', read_only=True)
@@ -1156,14 +1144,35 @@ class PJTCircuitControl(QTabWidget):
         terminal_weight_group.addWidget(self.terminal_weight_g_ctrl)
         terminal_weight_group.addWidget(self.terminal_weight_lb_ctrl)
 
-        splice_weight_group = _prop_ctrls.Property(info_page, 'Total Splice Weight', orientation='vertical')
-        info_page.addWidget(splice_weight_group)
+        splice_weight_group = _prop_ctrls.Property(weight_page, 'Total Splice Weight', orientation='vertical')
+        weight_page.addWidget(splice_weight_group)
 
         self.splice_weight_g_ctrl = _prop_ctrls.StringProperty(splice_weight_group, 'Grams', read_only=True)
         self.splice_weight_lb_ctrl = _prop_ctrls.StringProperty(splice_weight_group, 'Pounds', read_only=True)
 
         splice_weight_group.addWidget(self.splice_weight_g_ctrl)
         splice_weight_group.addWidget(self.splice_weight_lb_ctrl)
+
+        length_page = _prop_ctrls.Category(self, 'Length')
+
+        total_length_group = _prop_ctrls.Property(weight_page, 'Total Wire Length', orientation='vertical')
+        length_page.addWidget(total_length_group)
+
+        self.wire_length_mm_ctrl = _prop_ctrls.StringProperty(total_length_group, 'Millimeters', read_only=True)
+        self.wire_length_m_ctrl = _prop_ctrls.StringProperty(total_length_group, 'Meters', read_only=True)
+        self.wire_length_ft_ctrl = _prop_ctrls.StringProperty(total_length_group, 'Feet', read_only=True)
+
+        total_length_group.addWidget(self.wire_length_mm_ctrl)
+        total_length_group.addWidget(self.wire_length_m_ctrl)
+        total_length_group.addWidget(self.wire_length_ft_ctrl)
+
+        for page in (
+            general_page,
+            electrical_page,
+            weight_page,
+            length_page
+        ):
+            self.addTab(page, page.GetLabel())
 
 
 from . import pjt_wire as _pjt_wire  # NOQA

@@ -93,9 +93,80 @@ class PJTPoints3DTable(PJTTableBase):
 
 
 class PJTPoint3D(PJTEntryBase):
-    """Represent a PJT point 3D in :mod:`harness_designer.database.project_db.pjt_point3d`.
+    """ORM entry for a single row in ``pjt_points3d``, with a reactive geometry Point.
 
-    UNKNOWN details are inferred from the class name and surrounding code.
+    NORMAL LIFECYCLE
+    ----------------
+    ``PJTPoint3D`` is a singleton keyed by ``(project_id, db_id)`` via
+    ``_PJTEntrySingleton``.  The first call to ``.point`` creates a
+    :class:`~harness_designer.geometry.point.Point` singleton (keyed on
+    ``str(db_id) + '3d'`` via ``PointMeta``) and binds ``_update_point``
+    as a callback.  From that moment on, every coordinate mutation on the
+    geometry Point automatically writes ``x / y / z`` back to the database
+    row — no explicit save call is ever needed::
+
+        pjt = project.points3d[5]
+        pjt.point.x = 10.0   # fires _update_point → UPDATE pjt_points3d SET x=10 WHERE id=5
+
+    ATTACH / CLONE LIFECYCLE (the voodoo part)
+    -------------------------------------------
+    The wire handler creates a *preview* ``PJTPoint3D`` row (e.g. db_id=99)
+    so the user can drag a stop position before committing.  When the user
+    drops the wire onto an existing terminal, the preview geometry Point must
+    be merged with the terminal's real Point (e.g. ``"53d"``).  That merge is
+    done via :meth:`~harness_designer.geometry.point.Point.attach`::
+
+        terminal_point.attach(pjt_preview.point)
+
+    From that moment ``pjt_preview.point.db_id`` returns ``"53d"`` — the root's
+    id — because all ``db_id`` lookups on a delegating Point forward to the
+    root.  ``pjt_preview._db_id`` is still ``99`` at this point.
+
+    SELF-HEALING VIA _update_point
+    --------------------------------
+    The very next time the root moves (or any coordinate change propagates
+    through the delegation chain), ``_update_point`` fires on the preview
+    instance.  At that point it compares::
+
+        db_id = int(point.db_id[:-2])   # → 5  (root's row id)
+        if db_id != self._db_id:        # 5 != 99  → mismatch
+
+    The mismatch branch runs exactly once:
+
+    1. ``point.unbind(self._update_point)`` — removes this callback from the
+       shared root's callback list so it never fires again.
+    2. ``self._stored_point3d = None`` — invalidates the cached geometry Point.
+    3. ``self._db_id = db_id`` — updates this instance's row id to 5.
+    4. ``self._is_clone = True`` — marks this instance permanently as a clone.
+
+    After this, ``pjt_preview`` is effectively an alias for row 5.  Any code
+    that still holds a reference to ``pjt_preview`` (e.g. a wire's cached
+    endpoint entry) will now get the real shared Point on the next ``.point``
+    access, because ``str(self.db_id) + '3d'`` resolves to ``"53d"`` and
+    ``PointMeta`` returns the live root instance.
+
+    CLONE GUARD IN .point
+    ----------------------
+    The ``.point`` property checks ``_is_clone`` before binding
+    ``_update_point``::
+
+        if not self._is_clone:
+            self._stored_point3d.bind(self._update_point)
+
+    This prevents a second DB-write callback from being registered on the
+    real shared Point — the row-5 ``PJTPoint3D`` already has its own
+    ``_update_point`` bound and is the sole writer for that row.
+
+    SINGLETON CACHE CLEANUP
+    ------------------------
+    After the self-heal, ``_PJTEntrySingleton._instances`` still holds a
+    stale entry ``(project_id, 99)`` → ``weakref(pjt_preview)``.  This is
+    harmless: ``pjt_preview`` now reports db_id=5 and ``_is_clone=True``, so
+    everything it exposes is correct.  When the preview DB row is eventually
+    deleted and the last Python reference to ``pjt_preview`` is dropped, the
+    garbage collector collects the instance and the weakref finalizer
+    registered by ``_PJTEntrySingleton.__call__`` removes the stale cache
+    entry automatically.  No manual cache surgery is required.
     """
     _table: PJTPoints3DTable = None
 
@@ -198,11 +269,18 @@ class PJTPoint3D(PJTEntryBase):
         :param point: Point value.
         :type point: :class:`_point.Point`
         """
+        db_id = int(point.db_id[:-2])
+        if db_id != self._db_id:
+            point.unbind(self._update_point)
+            self._stored_point3d = None
+            self._db_id = db_id
+            self._is_clone = True
+            return
         x, y, z = point.as_float
-
         self._table.update(self._db_id, x=x, y=y, z=z)
 
     _stored_point3d: _point.Point = None
+    _is_clone: bool = False
 
     @property
     def point(self) -> _point.Point:
@@ -215,6 +293,7 @@ class PJTPoint3D(PJTEntryBase):
         """
         if self._stored_point3d is None:
             self._stored_point3d = _point.Point(self.x, self.y, self.z, db_id=str(self.db_id) + '3d')
-            self._stored_point3d.bind(self._update_point)
+            if not self._is_clone:
+                self._stored_point3d.bind(self._update_point)
 
         return self._stored_point3d

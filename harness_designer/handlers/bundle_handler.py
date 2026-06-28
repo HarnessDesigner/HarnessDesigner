@@ -1,68 +1,71 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""Interactive handler logic for placing bundle cover objects. UNKNOWN naming details.
+"""Interactive handler logic for placing bundle covers over wires.
+
+Single-click workflow: hovering over a compatible wire shows a preview bundle
+auto-sized from the wire's start point to its stop point.  A click finalises
+placement, creating the bundle DB record and a concentric layer containing the
+covered wire.
 """
 
 from PySide6.QtWidgets import QDialog
 from typing import TYPE_CHECKING
 
-
 from . import handler_base as _handler_base
 from ..geometry import point as _point
 from ..gl.canvas3d import object_picker as _object_picker
-from ..objects import wire_layout as _wire_layout
-from ..objects import transition as _transition
 from ..objects import bundle as _bundle
+from ..objects import wire as _wire
 from ..gl import materials as _materials
 from .. import config as _config
 from ..ui.dialogs import part_search as _part_search
 from ..ui import editor_db as _editor_db
-from .. import utils as _utils
 from .. import color as _color
 
 
 if TYPE_CHECKING:
-    from ..gl.canvas3d import camera as _camera
     from .. import ui as _ui
 
 
 Config = _config.Config.colors
 
 
-def _get_compat_object_at_mouse(
-    mouse_pos: _point.Point,
-    camera: "_camera.Camera"
-) -> _transition.Transition | _wire_layout.WireLayout | None:
-
-    """Return the compatible object currently located beneath the mouse cursor.
-
-    :param mouse_pos: Mouse position used for picking or preview updates.
-    :type mouse_pos: _point.Point
-    :param camera: Active 3D camera used to resolve positions and visible objects.
-    :type camera: "_camera.Camera"
-    :returns: The compatible object under the cursor, or :data:`None` when no compatible object is selected.
-    :rtype: object | None
+def _wire_fits_bundle(bundle_part, wire) -> bool:
     """
-    selected = _object_picker.find_object(mouse_pos, camera.objects_in_view, camera)
+    Return True when the wire's OD falls within the bundle cover's diameter range.
+    """
+    part = wire.db_obj.part
+    if part is None:
+        return False
 
-    if isinstance(selected, (_transition.Transition, _wire_layout.WireLayout)):
-        return selected
+    wire_od = part.od_mm
+    if wire_od is None:
+        return False
 
-    return None
+    min_dia = bundle_part.min_dia
+    max_dia = bundle_part.max_dia
+    if min_dia is not None and wire_od < min_dia:
+        return False
+
+    if max_dia is not None and wire_od > max_dia:
+        return False
+
+    return True
 
 
 class AddBundleHandler(_handler_base.HandlerBase):
-    """Handle interactive placement of a bundle-related object. UNKNOWN placement details because parts of the implementation are incomplete.
+    """Handle interactive placement of a bundle cover over an existing wire.
+
+    Hover snaps to the nearest compatible wire and shows a preview cylinder
+    that auto-sizes to span from the wire's start to its stop point.  A single
+    click finalises the placement.
     """
-    obj: _bundle.Bundle
+    obj: "_bundle.Bundle" = None
+    _preview_conc_db = None
 
     def __init__(self, mainframe: "_ui.MainFrame"):
-        """Initialize the object and capture the state required for later interaction.
-
-        :param mainframe: Main application frame that owns the editor and project state.
-        :type mainframe: "_ui.MainFrame"
-        """
         part_id = mainframe.editor_db.editor.bundle_covers.GetSelection()
+
         if part_id is None:
             dlg = _part_search.SearchDialog(
                 mainframe, _editor_db.BundleCoversPage,
@@ -72,92 +75,128 @@ class AddBundleHandler(_handler_base.HandlerBase):
             if dlg.exec() == QDialog.DialogCode.Accepted:
                 part_id = dlg.GetValue()
 
+            dlg.deleteLater()
+
         super().__init__(mainframe, part_id)
 
         self._preview_material = _materials.Plastic(
             _color.Color(*Config.add_object.preview_color))
-        self._transition_highlight_material = _materials.Plastic(
-            _color.Color(*Config.add_object.transition_highlight))
         self._wire_highlight_material = _materials.Plastic(
             _color.Color(*Config.add_object.wire_highlight))
 
-        self._start_position = None
-        self._stop_position = None
+        self._snapped_wire: "_wire.Wire | None" = None
+        self.part: "_db_bundle_cover.BundleCover | None" = None
 
         if part_id is None:
             self._finalized = True
+            return
 
-    def release_capture(self) -> None:
-        """Handle release of the captured position and complete any deferred placement work.
-        """
+        self.part = mainframe.global_db.bundle_covers_table[part_id]
+        self._highlight_compatible_wires()
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    def _highlight_compatible_wires(self):
+        for w in self.mainframe.project.wires:
+            if _wire_fits_bundle(self.part, w):
+                w.identify(self._wire_highlight_material)
+
+    def _clear_wire_highlights(self):
+        for w in self.mainframe.project.wires:
+            w.identify(None)
+
+    def _bundle_diameter(self, wire: "_wire.Wire") -> float:
+        wire_od = float(wire.db_obj.part.od_mm or 0.0) if wire.db_obj.part else 0.0
+        return max(float(self.part.min_dia), wire_od)
+
+    def _create_preview(self, wire: "_wire.Wire"):
+        """Rebuild the preview bundle sized to *wire*'s full span."""
+        if self.obj is not None:
+            self.obj.delete()
+            self.obj = None
+
+        p1_np = wire.obj3d.start_position.as_numpy
+        p2_np = wire.obj3d.stop_position.as_numpy
+
+        start_db = self.ptables.pjt_points3d_table.insert(*p1_np.tolist())
+        stop_db = self.ptables.pjt_points3d_table.insert(*p2_np.tolist())
+
+        bundle_db = self.ptables.pjt_bundles_table.insert(self.part_id)
+        bundle_db.start_position3d_id = start_db.db_id
+        bundle_db.stop_position3d_id = stop_db.db_id
+
+        # Empty concentric so Bundle 3D __init__ can call concentric.layers safely.
+        self._preview_conc_db = self.ptables.pjt_concentrics_table.insert(
+            bundle_db.db_id, None)
+
+        self.obj = _bundle.Bundle(self.mainframe, bundle_db)
+        self.obj.identify(self._preview_material)
+        self._snapped_wire = wire
+
+        # Override diameter to reflect the actual wire OD.
+        diameter = self._bundle_diameter(wire)
+        self.obj.obj3d._diameter = diameter
+        self.obj.obj3d.scale.x = diameter
+        self.obj.obj3d.scale.y = diameter
+
+    # ------------------------------------------------------------------
+    # Handler protocol
+    # ------------------------------------------------------------------
+
+    def hover(self, mouse_pos: _point.Point):
+        if self._finalized:
+            return
+
+        selected = _object_picker.find_object(
+            mouse_pos, self.camera.objects_in_view, self.camera)
+        wire = selected if isinstance(selected, _wire.Wire) else None
+
+        if wire is None or not _wire_fits_bundle(self.part, wire):
+            if self.obj is not None:
+                self.obj.obj3d.is_visible = False
+            self._snapped_wire = None
+            return
+
+        if wire is not self._snapped_wire:
+            self._create_preview(wire)
+
+        if self.obj is not None:
+            self.obj.obj3d.is_visible = True
+
+    def release_capture(self):
         if self._finalized:
             return
 
         if self._captured_position is None:
             return
 
-        if self._start_position is None:
-            self._start_position = self._captured_position
+        if self._snapped_wire is None or self.obj is None:
+            return
 
-        start_point = _utils.get_world_position_for_wire_endpoint(mouse_pos, self.camera)
+        self._clear_wire_highlights()
+        self._finalized = True
 
-        if start_point:
-            self.is_active = True
+        wire = self._snapped_wire
 
-            # Create points in DB
-            p1_db = self.ptables.pjt_points3d_table.insert(
-                start_point.x, start_point.y, start_point.z)
+        # Attach the wire's real endpoints to the preview's temp points.
+        wire.obj3d.start_position.attach(self.obj.obj3d.start_position)
+        wire.obj3d.stop_position.attach(self.obj.obj3d.stop_position)
 
-            p2_db = self.ptables.pjt_points3d_table.insert(
-                start_point.x, start_point.y, start_point.z)
+        # Add a concentric layer containing the wire to the preview's concentric.
+        diameter = self._bundle_diameter(wire)
+        layer_db = self.ptables.pjt_concentric_layers_table.insert(
+            0, 1, 0, self._preview_conc_db.db_id, diameter)
+        self.ptables.pjt_concentric_wires_table.insert(
+            layer_db.db_id, 0, wire.db_obj.db_id, False)
 
-            # Create temporary wire DB object
-            wire_db = self.ptables.pjt_bundles_table.insert(
-                self.part_id, None, p1_db.db_id, p2_db.db_id,   # No circuit yet
-            )
-
-            self.obj = _wire.Wire(self.mainframe, wire_db)
-
-            # Mark as preview (semi-transparent)
-            self.obj.obj3d.material.alpha = 0.5
-
-    def hover(self, mouse_pos: _point.Point):
-        """Update preview wire as mouse moves"""
-
-        hover_point = _get_compat_object_at_mouse(mouse_pos, self.camera)
-
-
-        if end_point:
-            position = self.obj.obj3d.stop_position
-            delta = end_point - position
-            position += delta
-
-    def finalize(self, mouse_pos: _point.Point):
-        """Finalize wire placement with second click"""
-        if not self.is_active:
-            return None
-
-        end_point = _get_world_position_for_wire_endpoint(mouse_pos, self.camera)
-
-        if end_point:
-            position = self.obj.obj3d.stop_position
-            delta = end_point - position
-            position += delta
-
-            # Reset state
-            self.is_active = False
-            self.mainframe.project.add_wire(self.obj)
+        self.obj.identify(None)
+        self.mainframe.project.add_bundle(self.obj)
+        self.obj = None
 
     def cancel(self):
-        """Cancel wire placement"""
-        if self.obj:
-            # Remove from editors
-            self.mainframe.remove_object(self.obj)
-
-            # Delete from DB
-            self.ptables.pjt_wires_table.delete(
-                self.obj.db_obj.db_id)
-
+        self._clear_wire_highlights()
+        if self.obj is not None:
+            self.obj.delete()
             self.obj = None
-
-        self.is_active = False

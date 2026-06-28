@@ -235,7 +235,10 @@ class PJTEntryBase(_callback.CallbackMixin, metaclass=_PJTEntrySingleton):
         """
         self._table.delete(self.db_id)
 
-        del self.__class__._instances[self.db_id]  # NOQA
+        key = (self.project_id, self.db_id)
+
+        if key in self.__class__._instances:  # NOQA
+            del self.__class__._instances[key]  # NOQA
 
 
 class PJTTableBase:

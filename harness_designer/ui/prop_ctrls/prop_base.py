@@ -52,7 +52,7 @@ class Property(QWidget):
                 self._static_box.setLayout(self._sizer)
 
                 sizer = QHBoxLayout()
-                sizer.addWidget(self._static_box, 1)
+                sizer.addWidget(self._static_box)
                 self.setLayout(sizer)
 
             else:
@@ -61,14 +61,14 @@ class Property(QWidget):
                 self._static_box.setLayout(self._sizer)
 
                 sizer = QVBoxLayout()
-                sizer.addWidget(self._static_box)
+                sizer.addWidget(self._static_box, 1)
                 self.setLayout(sizer)
 
     def addWidget(self, widget):
         if isinstance(self._sizer, QHBoxLayout):
-            self._sizer.addWidget(widget, 1)
-        else:
             self._sizer.addWidget(widget)
+        else:
+            self._sizer.addWidget(widget, 1)
 
     def SetToolTip(self, text):
         """Execute the set tool tip operation.

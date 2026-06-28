@@ -22,7 +22,7 @@ class Splice(_ObjectBase):
     db_obj: "_pjt_splice.PJTSplice" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
-                 db_obj: "_pjt_splice.PJTSplice"):
+                 db_obj: "_pjt_splice.PJTSplice", project_load=False):
         """Initialise the :class:`Splice` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

@@ -22,7 +22,7 @@ class CPALock(_ObjectBase):
     db_obj: "_pjt_cpa_lock.PJTCPALock" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
-                 db_obj: "_pjt_cpa_lock.PJTCPALock"):
+                 db_obj: "_pjt_cpa_lock.PJTCPALock", project_load=False):
         """Initialise the :class:`CPALock` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

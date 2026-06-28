@@ -22,7 +22,7 @@ class WireLayout(_ObjectBase):
     db_obj: "_pjt_wire_layout.PJTWireLayout" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
-                 db_obj: "_pjt_wire_layout.PJTWireLayout"):
+                 db_obj: "_pjt_wire_layout.PJTWireLayout", project_load=False):
         """Initialise the :class:`WireLayout` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -40,3 +40,4 @@ class WireLayout(_ObjectBase):
 
         self.obj2d = _wire2d_layout.WireLayout(self, db_obj)
         self.obj3d = _wire3d_layout.WireLayout(self, db_obj)
+        self.mainframe.add_object(self)

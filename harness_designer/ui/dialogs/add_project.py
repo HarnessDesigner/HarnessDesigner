@@ -94,6 +94,7 @@ class AddProjectDialog(_dialog_base.BaseDialog):
         vsizer.addWidget(self.creator_ctrl)
         vsizer.addWidget(self.desc_ctrl)
         vsizer.addLayout(hsizer)
+        vsizer.addWidget(self.color_ctrl)
 
     def GetValue(self):
         """Execute the get value operation.

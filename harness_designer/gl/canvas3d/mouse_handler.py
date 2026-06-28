@@ -193,14 +193,16 @@ class MouseHandler:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _pick_object(self, mouse_pos):
+    def _pick_object(self, mouse_pos, current_selection=None):
         """Pick a scene object, ignoring the rotation ring gizmo."""
         objects = self.canvas.objects_in_view
 
         if self._rotation_rings is not None:
             objects = [o for o in objects if o is not self._rotation_rings]
 
-        return _object_picker.find_object(mouse_pos, objects, self.canvas.camera)
+        return _object_picker.find_object(
+            mouse_pos, objects, self.canvas.camera,
+            current_selection=current_selection)
 
     def _exit_angle_mode(self):
         """Remove the rotation rings and end any active rotation drag."""
@@ -411,45 +413,33 @@ class MouseHandler:
                 return
 
             cur_selected = self.canvas.get_selected()
-            selected = self._pick_object(mouse_pos)
+            selected = self._pick_object(mouse_pos, current_selection=cur_selected)
+            print(type(selected))
 
             if not self._is_motion:
-                # Always clear a stale cavity overlay at the start of each
-                # click cycle so a fresh decision can be made below.
+                # Clear any stale cavity overlay before processing the new click.
                 if self._active_cavity_housing is not None:
                     self._active_cavity_housing.clear_cavity_overlay()
                     self._active_cavity_housing = None
 
                 # If the clicked object is a Housing, check whether the click
-                # landed on a cavity face and route selection accordingly.
+                # landed on a cavity face and highlight it.  Cavity interaction
+                # is intentionally separate from normal object selection: the
+                # housing itself gets selected; right-click on it (while a
+                # cavity is highlighted) opens the cavity context menu.
                 if isinstance(selected, _housing.Housing):
-                    housing = selected
+                    cavity = selected.obj3d.try_pick_cavity(
+                        mouse_pos.x, mouse_pos.y)
 
-                    pjt_cavity, global_cavity, surf_idx = (
-                        housing.obj3d.try_pick_cavity(mouse_pos.x, mouse_pos.y))
+                    print(type(cavity))
+                    if cavity is not None:
+                        self._active_cavity_housing = selected.obj3d
+                        selected = cavity.parent
 
-                    if pjt_cavity is not None:
-                        # Ensure the Cavity parent object (and its obj3d) exist.
-                        cavity_obj = pjt_cavity.get_object()
-
-                        if cavity_obj is None:
-                            from ...objects import cavity as _cavity_obj_mod
-                            cavity_obj = _cavity_obj_mod.Cavity(
-                                self.canvas.mainframe, pjt_cavity)
-
-                        if cur_selected is not cavity_obj:
-                            # New cavity selected — show the highlight.
-                            housing.obj3d.show_cavity_overlay(
-                                surf_idx, global_cavity)
-                            self._active_cavity_housing = housing.obj3d
-
-                        selected = cavity_obj
-
-                    # else: housing face clicked but not a cavity — the overlay
-                    # was cleared at the top; housing will be selected below.
-
+                print(type(selected))
                 if cur_selected is None and selected is not None:
                     selected.set_selected(True)
+                    print('cur_selected is None and selected is not None')
 
                     event = _events.GLObjectEvent(_events.EVT_GL_OBJECT_SELECTED)
                     event.SetGLObject(selected)
@@ -458,6 +448,7 @@ class MouseHandler:
 
                 elif selected is None and cur_selected is not None:
                     cur_selected.set_selected(False)
+                    print('selected is None and cur_selected is not None')
 
                     event = _events.GLObjectEvent(_events.EVT_GL_OBJECT_UNSELECTED)
                     event.SetGLObject(selected)
@@ -470,6 +461,8 @@ class MouseHandler:
                     cur_selected is not None and
                     selected == cur_selected
                 ):
+                    print('selected is not None and cur_selected is not None and selected == cur_selected')
+
                     selected.set_selected(False)
                     event = _events.GLObjectEvent(_events.EVT_GL_OBJECT_UNSELECTED)
                     event.SetGLObject(selected)
@@ -482,6 +475,7 @@ class MouseHandler:
                     cur_selected is not None and
                     selected != cur_selected
                 ):
+                    print('selected is not None and cur_selected is not None and selected != cur_selected')
                     cur_selected.set_selected(False)
 
                     event = _events.GLObjectEvent(_events.EVT_GL_OBJECT_UNSELECTED)
@@ -621,20 +615,12 @@ class MouseHandler:
                     selected = self._pick_object(mouse_pos)
                     cur_selected = self.canvas.get_selected()
 
-                    # If a Housing was right-clicked while one of its Cavity
-                    # objects is currently selected, show the cavity's own
-                    # context menu instead of the housing's.
+                    # If the right-clicked housing has a highlighted cavity,
+                    # show the cavity context menu via the picker.
                     if (isinstance(selected, _housing.Housing) and
-                            cur_selected is not None and
-                            hasattr(cur_selected, 'db_obj') and
-                            hasattr(cur_selected.db_obj, 'housing') and
-                            cur_selected.db_obj.housing is not None and
-                            cur_selected.db_obj.housing.db_id ==
-                            selected.db_obj.db_id):
-                        event = _events.GLObjectEvent(
-                            _events.EVT_GL_OBJECT_RIGHT_CLICK)
-                        event.SetGLObject(cur_selected)
-                        self._send_event(event, evt)
+                            selected.obj3d._selected_global_cavity is not None):
+                        selected.obj3d._on_right_click(
+                            evt.globalPosition().toPoint())
                     elif selected and selected != cur_selected:
                         # Normal case: context menu for the clicked object.
                         event = _events.GLObjectEvent(
@@ -666,10 +652,16 @@ class MouseHandler:
         if self._send_event(event, evt):
             selected = self._pick_object(mouse_pos)
 
-            # Right-click on the selected object enters angle mode; the
-            # context menu (on_right_up) is reserved for unselected objects.
+            # Right-click on the selected object normally enters angle mode;
+            # the context menu (on_right_up) is reserved for unselected
+            # objects.  Exception: a housing with a highlighted cavity should
+            # show the cavity context menu on right-up, not angle mode.
             if selected and self.canvas.get_selected() == selected:
-                if self._rotation_rings is None:
+                skip_angle = (
+                    isinstance(selected, _housing.Housing) and
+                    selected.obj3d._selected_global_cavity is not None
+                )
+                if not skip_angle and self._rotation_rings is None:
                     self._rotation_rings = (
                         _rotation_rings.RotationRings(self.canvas, selected))
 
@@ -720,7 +712,7 @@ class MouseHandler:
             return math.sqrt(sum(v * v for v in values))
 
         camera = self.canvas.camera
-        target = _utils.get_position_on_focal_plane(mouse_pos, camera)
+        target = camera.get_position_on_focal_plane(mouse_pos)
         camera_pos = camera.position
         focal_pos = camera.focal_position
 

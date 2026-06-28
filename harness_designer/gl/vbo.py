@@ -785,34 +785,39 @@ class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
         return buffer_id, base, base + block_size, base + 2 * block_size
 
     def update(self, data: np.ndarray, count: int):
-        # I do not believe the original function `update_data` was being used
-        # anywhere in the application. To keep the API consistant between the
-        # pooled and he non pooled I am amking this a do nothing function
-        #
-        # if self._vert_count == 0:
-        #     return
-        #
-        # data = data if data is not None else self._data
-        #
-        # if len(data) != self._vert_count * FLOATS_PER_VERTEX:
-        #     raise ValueError(
-        #         'packed array length does not match the vertex count')
-        #
-        # self._data = data
-        #
-        # if self._arena_kind == VBO_TYPE_MODEL:
-        #     arena = self._model_arena
-        #
-        #     if arena is None:
-        #         raise RuntimeError('model arena allocation is missing')
-        #
-        #     arena.upload(self.id, data)
-        #     return
-        #
-        # GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self._vbo)
-        # GL.glBufferSubData(GL.GL_ARRAY_BUFFER, 0, data.nbytes, data)
-        # GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-        pass
+        new_vert_count = self._normalize_vertex_count(count, len(data))
+
+        if self._arena_kind == VBO_TYPE_MODEL:
+            arena = self._model_arena
+
+            if arena is None:
+                raise RuntimeError('model arena allocation is missing')
+
+            alloc = arena.get_allocation(self.id)
+            if alloc is None:
+                raise RuntimeError('model arena allocation is missing')
+
+            if new_vert_count != alloc.count:
+                # Vertex count changed — free old slot and re-allocate.
+                arena.free(self.id)
+                arena = self._allocate_model_arena(self.id, new_vert_count)
+                self._model_arena = arena
+                self._clear_vaos()
+
+            self._data = data
+            self._vert_count = new_vert_count
+            arena.upload(self.id, data)
+            self.local_aabb = self._compute_local_aabb()
+            self.local_obb = self._compute_local_obb()
+            return
+
+        self._data = data
+        self._vert_count = new_vert_count
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self._vbo)
+        GL.glBufferSubData(GL.GL_ARRAY_BUFFER, 0, data.nbytes, data)
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+        self.local_aabb = self._compute_local_aabb()
+        self.local_obb = self._compute_local_obb()
 
     @classmethod
     def maintain_model_arena(
@@ -848,6 +853,21 @@ class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
 
             arena.free(key)
             break
+
+    @classmethod
+    def evict(cls, key: str):
+        """Remove a key from the singleton cache and free its arena slot.
+
+        Call this before re-creating a VBO with the same key but different data.
+        Safe to call even if the key is not present.
+        """
+        cls.release_model_allocation(key)
+        ref = VBOSingleton._instances.pop(key, None)  # NOQA
+        if ref is not None:
+            instance = ref()
+            if instance is not None:
+                instance._clear_vaos()  # NOQA
+                instance._model_arena = None  # NOQA
 
     def release(self):
         super().release()
@@ -889,14 +909,17 @@ def create_model_vbo(model):
     if not uuid:
         return None
 
-    if uuid in PooledVBOHandler:
-        return PooledVBOHandler(uuid)
-
     data_path = model.data_path
     if data_path is None:
         return None
 
     packed = np.load(data_path, mmap_mode='r')
+
+    if uuid in PooledVBOHandler:
+        vbo = PooledVBOHandler(uuid)
+        if len(packed) != len(vbo.data):
+            vbo.update(packed, len(packed))
+        return vbo
 
     return PooledVBOHandler(uuid, packed, len(packed),
                             aabb=getattr(model, 'aabb', None),

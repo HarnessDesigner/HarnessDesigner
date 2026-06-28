@@ -15,6 +15,7 @@ from . import menu_ops as _menu_ops
 from ...shapes import cylinder as _cylinder
 from ... import config as _config
 from ...gl import materials as _materials
+from . import mixins as _mixins
 
 
 if TYPE_CHECKING:
@@ -25,7 +26,7 @@ if TYPE_CHECKING:
 Config = _config.Config.editor3d
 
 
-class Bundle(_base3d.Base3D):
+class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
     """Represent a bundle in :mod:`harness_designer.objects.objects3d.bundle`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -80,6 +81,17 @@ class Bundle(_base3d.Base3D):
         self._p2.bind(self._update_position)
         self._update_position(None)
         parent.mainframe.editor3d.context.release()
+
+    @property
+    def diameter(self) -> float:
+        return self._diameter
+
+    @diameter.setter
+    def diameter(self, value: float):
+        self._diameter = value
+        radius = value / 2
+        self._scale.x = radius
+        self._scale.y = radius
 
     def _update_scale(self, scale: _point.Point):
         """Update the scale.
@@ -297,6 +309,9 @@ class BundleMenu(QMenu):
         action = self.addAction('Add Transition')
         action.triggered.connect(self.on_add_transition)
 
+        action = self.addAction('Wire Contents')
+        action.triggered.connect(self.on_wire_contents)
+
         self.addSeparator()
         action = self.addAction('Select')
         action.triggered.connect(self.on_select)
@@ -345,6 +360,15 @@ class BundleMenu(QMenu):
             return _handlers.AddTransitionHandler(mainframe, part_id)
 
         _menu_ops.start_handler(mainframe, _factory)
+
+    def on_wire_contents(self):
+        """Open the read-only wire-contents dialog for this bundle."""
+        from ...ui.dialogs import bundle_wires_dialog as _dlg
+
+        mainframe = self.selected.mainframe
+        dlg = _dlg.BundleWiresDialog(mainframe, self.selected)
+        dlg.exec()
+        dlg.deleteLater()
 
     def on_select(self):
         """Make this bundle the active selection."""

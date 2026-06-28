@@ -13,14 +13,17 @@ from ...ui.widgets import float_ctrl as _float_ctrl
 from ...ui.dialogs import error as _error_dialog
 from . import base3d as _base3d
 from . import menu_ops as _menu_ops
-from . import housing_cavity_picker as _housing_cavity_picker
 from ...shapes import box as _box
+from ...utils import mesh_surface_picker as _mesh_surface_picker
 from ...gl import materials as _materials
 from ... import config as _config
 
 
 if TYPE_CHECKING:
     from ...database.project_db import pjt_housing as _pjt_housing
+    from .. import cavity as _cavity
+    from . import cavity as _cavity3d
+    from ...database.global_db import cavity as _global_cavity_mod
     from .. import housing as _housing
     from ... import ui as _ui
 
@@ -98,18 +101,21 @@ class Housing(_base3d.Base3D):
 
         parent.mainframe.editor3d.context.release()
 
-        # Cavity picking is always active — no prior housing selection needed.
-        # Created after context.release() so no GL context is current while
-        # the overlay QWidget and event-filter QObject are constructed.
-        self._cavity_picker = _housing_cavity_picker.HousingCavityPicker(self)
+        canvas3d = parent.mainframe.editor3d.editor
+        self._picker = _mesh_surface_picker.MeshSurfacePicker(self, canvas3d)
+        self._selected_global_cavity = None
+        self._surf_to_cavity: dict = {}
 
         if model is not None:
             model.load(self._part.manufacturer.name,
                        self._part.part_number, self._set_model)
 
-    def _set_model(self, model):
-        super()._set_model(model)
+    @property
+    def cavities(self) -> list:
+        return [c.obj3d for c in self.parent.cavities
+                if c is not None and c.obj3d is not None]
 
+    def _set_model(self, model):
         for cavity in self._part.cavities:
             if cavity is not None:
                 break
@@ -121,9 +127,8 @@ class Housing(_base3d.Base3D):
             dlg.exec()
             dlg.deleteLater()
 
-        # Rebuild the picker's surface data with the real mesh geometry now
-        # that the 3D model has loaded (replaces the placeholder box surfaces).
-        self._cavity_picker.update_vbo()
+        super()._set_model(model)
+        self.match_cavity_surfaces()
 
     @property
     def seal_position(self) -> _point.Point:
@@ -136,56 +141,87 @@ class Housing(_base3d.Base3D):
         """
         return self.db_obj.seal_position3d
 
+    def match_cavity_surfaces(self) -> None:
+        self._picker.update_vbo()
+
+        surfaces = self._picker.surfaces
+        cavities = self.cavities
+
+        if not surfaces or not cavities:
+            return
+
+        verts = self._picker.vertices
+        n_surf = len(surfaces)
+        centroids = np.empty((n_surf, 3), dtype=np.float64)
+        surf_normals = np.empty((n_surf, 3), dtype=np.float64)
+        for i, surf in enumerate(surfaces):
+            idxs = [3 * ti + j for ti in surf.tri_indices for j in range(3)]
+            centroids[i] = verts[idxs].mean(axis=0)
+            surf_normals[i] = np.asarray(surf.normal, dtype=np.float64)
+
+        self._surf_to_cavity = {}
+        for cavity_3d in cavities:
+            part = cavity_3d.db_obj.part
+            obb = part.obb if part is not None else None
+
+            angle = part.angle3d
+            position = part.position3d
+
+            if obb is not None:
+                obb @= angle
+                obb += position
+
+                obb_f = obb.astype(np.float64)
+                outer_center = obb_f[4:].mean(axis=0)
+                cav_axis = outer_center - obb_f[:4].mean(axis=0)
+                cav_axis /= np.linalg.norm(cav_axis) + 1e-12
+                dists = np.linalg.norm(centroids - outer_center, axis=1)
+                # prefer surfaces whose normal is parallel to the cavity axis
+                dots = np.abs(surf_normals @ cav_axis)
+                parallel = dots > 0.85
+                if parallel.any():
+                    dists = np.where(parallel, dists, np.inf)
+            else:
+                entry_center = part.position3d.as_numpy.astype(np.float64)
+                dists = np.linalg.norm(centroids - entry_center, axis=1)
+
+            idx = int(np.argmin(dists))
+            cavity_3d.surf_idx = idx
+            self._surf_to_cavity[idx] = cavity_3d
+
+    def on_surface_selected(self, idx: int):
+        cavity_3d = self._surf_to_cavity.get(idx)
+        if cavity_3d is not None:
+            self._picker.select(idx)
+            self._selected_global_cavity = cavity_3d.db_obj.part if cavity_3d else None
+
+        return cavity_3d
+
+    def _on_right_click(self, global_pos) -> None:
+        if self._selected_global_cavity is None:
+            return
+
+        menu = HousingCavityMenu(self, self._selected_global_cavity)
+        menu.exec(global_pos)
+        menu.deleteLater()
+
     def try_pick_cavity(self, x: int, y: int):
-        """Ray-cast at pixel (x, y) and return (global_cavity, surf_idx).
-
-        Returns (None, -1) when no surface or no matching cavity is found.
-        Does not modify overlay state — callers decide whether to show or clear.
-        """
-        if self._cavity_picker is None:
-            return None, None, -1
-
-        picker = self._cavity_picker
-        origin, direction = picker.compute_ray(x, y)
-
-        if origin is None:
-            return None, None, -1
-
-        idx, hit_point = picker.pick_surface_at_ray(origin, direction)
+        """Ray-cast at pixel (x, y); highlight the cavity surface if hit."""
+        idx, _ = self._picker.pick_surface_at(x, y)
         if idx < 0:
-            return None, None, -1
+            return None
 
-        global_cavity = picker.match_cavity(origin, direction)
-
-        for cavity in self.db_obj.cavities:
-            if cavity.part_id == global_cavity.db_id:
-                break
-        else:
-            raise RuntimeError('sanity check (this should not happen)')
-
-        return cavity, global_cavity, idx
-
-    def show_cavity_overlay(self, surf_idx: int, global_cavity=None) -> None:
-        """Highlight the cavity plane at surf_idx and record global_cavity."""
-
-        self._cavity_picker.selected_surf_idx = surf_idx
-        self._cavity_picker.selected_cavity = global_cavity
-
-        if global_cavity is not None:
-            self._cavity_picker.set_active()
-
-        if self._cavity_picker.overlay is not None:
-            self._cavity_picker.overlay.update()
+        return self.on_surface_selected(idx)
 
     def clear_cavity_overlay(self) -> None:
         """Hide any active cavity-plane highlight for this housing."""
-        if self._cavity_picker is not None:
-            self._cavity_picker.clear_selection()
+        self._selected_global_cavity = None
+        self._picker.clear_selection()
 
     def delete(self):
-        """Clean up the cavity picker before delegating to Base3D."""
-        self._cavity_picker.cleanup()
-        self._cavity_picker = None
+        """Clean up the picker before delegating to Base3D."""
+        self._picker.cleanup()
+        self._picker = None
         super().delete()
 
     def get_context_menu(self):
@@ -197,6 +233,178 @@ class Housing(_base3d.Base3D):
         :rtype: UNKNOWN
         """
         return HousingMenu(self.mainframe, self)
+
+
+class HousingCavityMenu(QMenu):
+    """Context menu shown on right-click over a highlighted cavity plane."""
+
+    def __init__(self, housing_3d: "Housing",
+                 global_cavity: "_global_cavity_mod.Cavity"):
+        super().__init__()
+        self._housing_3d = housing_3d
+        self._global_cavity = global_cavity
+        self._pjt_cavity = self._find_pjt_cavity()
+
+        has_terminal = (self._pjt_cavity is not None and
+                        self._pjt_cavity.terminal is not None)
+        has_seal = (self._pjt_cavity is not None and
+                    self._pjt_cavity.seal is not None)
+
+        if has_terminal:
+            act = self.addAction('Edit Terminal')
+            act.triggered.connect(self.on_edit_terminal)
+        else:
+            act = self.addAction('Add Terminal')
+            act.triggered.connect(self.on_add_terminal)
+
+        if has_seal:
+            act = self.addAction('Edit Seal')
+            act.triggered.connect(self.on_edit_seal)
+        else:
+            act = self.addAction('Add Seal')
+            act.triggered.connect(self.on_add_seal)
+
+    def _find_pjt_cavity(self):
+        g_id = self._global_cavity.db_id
+        for pc in self._housing_3d.db_obj.cavities:
+            if pc.part_id == g_id:
+                return pc
+        return None
+
+    def _get_or_create_pjt_cavity(self):
+        if self._pjt_cavity is not None:
+            return self._pjt_cavity
+
+        housing = self._housing_3d
+        g_cavity = self._global_cavity
+        ptables = housing.mainframe.project.ptables
+
+        pjt_cavity = ptables.pjt_cavities_table.insert(
+            g_cavity.db_id, housing.db_obj.db_id, g_cavity.name)
+
+        self._pjt_cavity = pjt_cavity
+        return pjt_cavity
+
+    def _cavity_midpoint(self, pjt_cavity) -> tuple[float, float, float]:
+        cpos_np = pjt_cavity.position3d.as_numpy.astype(np.float64)
+        cav_ang = pjt_cavity.angle3d
+        length = float(self._global_cavity.length)
+
+        ref_local = np.array([[0.0, 0.0, length]], dtype=np.float64)
+        ref_world = np.asarray(ref_local @ cav_ang, dtype=np.float64)[0] + cpos_np
+        mid = (cpos_np + ref_world) / 2.0
+        return float(mid[0]), float(mid[1]), float(mid[2])
+
+    def on_add_terminal(self):
+        def _do():
+            from .. import terminal as _terminal_obj
+            from . import menu_ops as _menu_ops
+
+            housing = self._housing_3d
+            mainframe = housing.mainframe
+            g_cavity = self._global_cavity
+
+            compat_ids = [t.db_id for t in g_cavity.compat_terminals]
+
+            part_id = _menu_ops.get_part_id(
+                mainframe, 'terminals',
+                mainframe.global_db.terminals_table, 'Add Terminal',
+                initial_results=compat_ids)
+
+            if part_id is None:
+                return
+
+            pjt_cavity = self._get_or_create_pjt_cavity()
+
+            g_terminal = mainframe.global_db.terminals_table[part_id]
+            is_male = g_terminal.gender.name.lower() == 'male'
+
+            if is_male:
+                tx, ty, tz = pjt_cavity.position3d.as_float
+            else:
+                tx, ty, tz = self._cavity_midpoint(pjt_cavity)
+
+            ptables = mainframe.project.ptables
+            p3d = ptables.pjt_points3d_table.insert(tx, ty, tz)
+
+            terminal_db = ptables.pjt_terminals_table.insert(
+                part_id, None, p3d.db_id, pjt_cavity.db_id)
+
+            terminal = _terminal_obj.Terminal(mainframe, terminal_db)
+            mainframe.project.add_terminal(terminal)
+
+        QTimer.singleShot(0, _do)
+
+    def on_add_seal(self):
+        def _do():
+            from . import menu_ops as _menu_ops
+            from ...objects import seal as _seal_obj
+
+            housing = self._housing_3d
+            mainframe = housing.mainframe
+            g_cavity = self._global_cavity
+
+            mainframe.global_db.seals_table.execute(
+                'SELECT seals.id FROM seals '
+                'JOIN seal_types ON seals.type_id = seal_types.id '
+                'WHERE UPPER(seal_types.name) = "PLUG" '
+                'AND seals.width = ? AND seals.height = ?;',
+                (g_cavity.width, g_cavity.height))
+            compat_ids = [row[0] for row in mainframe.global_db.seals_table.fetchall()]
+
+            part_id = _menu_ops.get_part_id(
+                mainframe, 'seals',
+                mainframe.global_db.seals_table, 'Add Seal',
+                initial_results=compat_ids)
+
+            if part_id is None:
+                return
+
+            pjt_cavity = self._get_or_create_pjt_cavity()
+            mx, my, mz = self._cavity_midpoint(pjt_cavity)
+
+            ptables = mainframe.project.ptables
+            p3d = ptables.pjt_points3d_table.insert(mx, my, mz)
+
+            seal_db = ptables.pjt_seals_table.insert(
+                part_id, p3d.db_id, None, None, pjt_cavity.db_id)
+
+            seal = _seal_obj.Seal(mainframe, seal_db)
+            mainframe.project.add_seal(seal)
+
+        QTimer.singleShot(0, _do)
+
+    def on_edit_terminal(self):
+        def _do():
+            from . import menu_ops as _menu_ops
+
+            if self._pjt_cavity is None:
+                return
+            terminal_db = self._pjt_cavity.terminal
+            if terminal_db is None:
+                return
+            parent = terminal_db.get_object()
+            if parent is None or parent.obj3d is None:
+                return
+            _menu_ops.show_properties(parent.obj3d)
+
+        QTimer.singleShot(0, _do)
+
+    def on_edit_seal(self):
+        def _do():
+            from . import menu_ops as _menu_ops
+
+            if self._pjt_cavity is None:
+                return
+            seal_db = self._pjt_cavity.seal
+            if seal_db is None:
+                return
+            parent = seal_db.get_object()
+            if parent is None or parent.obj3d is None:
+                return
+            _menu_ops.show_properties(parent.obj3d)
+
+        QTimer.singleShot(0, _do)
 
 
 class HousingMenu(QMenu):

@@ -35,7 +35,6 @@ class AddSealHandler(_handler_base.HandlerBase):
 
     def __init__(self, mainframe: "_ui.MainFrame",
                  selected: _housing.Housing | _terminal.Terminal | _cavity.Cavity = None):
-
         """
         Initialize the object and capture the state required for later interaction.
 
@@ -61,8 +60,10 @@ class AddSealHandler(_handler_base.HandlerBase):
                 width = selected.db_obj.part.width
 
                 mainframe.global_db.seals_table.execute(
-                    'SELECT part_number FROM seals WHERE type_id=? AND width=? AND height=?;',
+                    'SELECT part_number FROM seals WHERE '
+                    'type_id=? AND width=? AND height=?;',
                     (type_id, width, height))
+
                 rows = mainframe.global_db.seals_table.fetchall()
                 compat_seals = [row[0] for row in rows]
             else:
@@ -78,7 +79,8 @@ class AddSealHandler(_handler_base.HandlerBase):
         if part_id is None:
             dlg = _part_search.SearchDialog(
                 mainframe, _editor_db.SealsPage, title='Add Seal',
-                table=mainframe.global_db.seals_table, initial_results=compat_seals)
+                table=mainframe.global_db.seals_table,
+                initial_results=compat_seals)
 
             if dlg.exec() == QDialog.DialogCode.Accepted:
                 part_id = dlg.GetValue()
@@ -123,7 +125,9 @@ class AddSealHandler(_handler_base.HandlerBase):
         if self._selected is None:
             type_name = self.part.type.name.lower()
             if type_name in ('sws', 'single wire seal'):
-                compat_terminals = self.ptables.global_db.terminals_table.get_compat(seal=part_number)
+                compat_terminals = self.ptables.global_db.terminals_table.get_compat(
+                    seal=part_number)
+
                 compat_terminals.extend(self.part.compat_terminals_array)
 
                 self.compat_terminals = list(set(compat_terminals))
@@ -138,7 +142,9 @@ class AddSealHandler(_handler_base.HandlerBase):
                     self.project_terminals.append(terminal)
 
             elif type_name == 'plug':
-                compat_housings = self.ptables.global_db.housings_table.get_compat(seal=part_number)
+                compat_housings = self.ptables.global_db.housings_table.get_compat(
+                    seal=part_number)
+
                 compat_housings.extend(self.part.compat_housings_array)
 
                 self.compat_housings = list(set(compat_housings))
@@ -157,7 +163,9 @@ class AddSealHandler(_handler_base.HandlerBase):
 
                     self.project_cavities[cavity] = housing.get_object()
             else:
-                compat_housings = self.ptables.global_db.housings_table.get_compat(seal=part_number)
+                compat_housings = self.ptables.global_db.housings_table.get_compat(
+                    seal=part_number)
+
                 compat_housings.extend(self.part.compat_housings_array)
 
                 self.compat_housings = list(set(compat_housings))
@@ -179,23 +187,26 @@ class AddSealHandler(_handler_base.HandlerBase):
             if isinstance(self._selected, _housing.Housing):
                 pos_id = self._selected.db_obj.seal_position3d_id
                 db_obj = self.ptables.pjt_seals_table.insert(
-                    part_id, pos_id, self._selected.db_obj.db_id, None, None)
+                    part_id, pos_id, self._selected.db_obj.db_id,
+                    None, None)
 
             elif isinstance(self._selected, _terminal.Terminal):
                 pos_id = self._selected.db_obj.position3d_id
                 db_obj = self.ptables.pjt_seals_table.insert(
-                    part_id, pos_id, None, self._selected.db_obj.db_id, None)
+                    part_id, pos_id, None,
+                    self._selected.db_obj.db_id, None)
             else:
                 pos_id = self._selected.db_obj.terminal_position3d_id
                 db_obj = self.ptables.pjt_seals_table.insert(
-                    part_id, pos_id, None, None, self._selected.db_obj.db_id
+                    part_id, pos_id, None,
+                    None, self._selected.db_obj.db_id
                 )
 
         self.obj = _seal.Seal(self.mainframe, db_obj)
         self.obj.identify(self._preview_material)
 
         if isinstance(self._selected, _housing.Housing):
-            _handler_base.set_angle_from_housing(self.obj.db_obj, self._selected.db_obj)
+            self.set_angle_from_housing(self.obj, self._selected)
 
     @property
     def snap_pool(self):
@@ -270,9 +281,9 @@ class AddSealHandler(_handler_base.HandlerBase):
         was_snapped_to_housing = isinstance(prev_snapped, _housing.Housing)
 
         if snapped_to_housing and self._snapped is not prev_snapped:
-            _handler_base.set_angle_from_housing(self.obj.db_obj, self._snapped.db_obj)
+            self.set_angle_from_housing(self.obj, self._snapped)
         elif was_snapped_to_housing and not snapped_to_housing:
-            _handler_base.reset_angle(self.obj.db_obj)
+            self.reset_angle(self.obj)
 
         position = self.obj.db_obj.position3d
 
@@ -296,39 +307,38 @@ class AddSealHandler(_handler_base.HandlerBase):
             if self._snapped is None:
                 return
 
-            self.obj.delete()
-
             if isinstance(self._snapped, _housing.Housing):
                 for housing in self.mainframe.project.housings:
                     housing.identify(None)
 
-                db_obj = self.ptables.pjt_seals_table.insert(
-                    self.part.db_id, self._snapped.db_obj.seal_position3d_id,
-                    self._snapped.db_obj.db_id, None, None)
+                self._snapped.db_obj.seal_position3d.attach(
+                    self.obj.db_obj.position3d)
 
-                _handler_base.set_angle_from_housing(db_obj, self._snapped.db_obj)
+                self.obj.db_obj.housing_id = self._snapped.db_obj.db_id
+                self.set_angle_from_housing(self.obj, self._snapped)
 
             elif isinstance(self._snapped, _terminal.Terminal):
                 for terminal in self.mainframe.project.terminals:
                     terminal.identify(None)
 
-                db_obj = self.ptables.pjt_seals_table.insert(
-                    self.part.db_id, self._snapped.db_obj.position3d_id,
-                    None, self._snapped.db_obj.db_id, None)
+                self._snapped.db_obj.position3d.attach(
+                    self.obj.db_obj.position3d)
+
+                self.obj.db_obj.terminal_id = self._snapped.db_obj.db_id
 
             elif isinstance(self._snapped, _cavity.Cavity):
                 for cavity in self.mainframe.project.cavities:
                     cavity.identify(None)
 
-                db_obj = self.ptables.pjt_seals_table.insert(
-                    self.part.db_id, self._snapped.db_obj.terminal_position3d_id,
-                    None, None, self._snapped.db_obj.db_id)
+                self._snapped.db_obj.terminal_position3d.attach(
+                    self.obj.db_obj.position3d)
+
+                self.obj.db_obj.cavity_id = self._snapped.db_obj.db_id
 
             else:
                 raise RuntimeError('sanity check')
 
-            obj = _seal.Seal(self.mainframe, db_obj)
-
+            obj = self.obj
         else:
             obj = self.obj
 

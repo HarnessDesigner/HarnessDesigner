@@ -263,8 +263,8 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         start_position_id = self.start_position3d_id
         stop_position_id = self.stop_position3d_id
 
-        start_position_ids = self.table.db.pjt_terminals_table.select('id', wire_point3d_id=start_position_id)[0][0]
-        stop_position_ids = self.table.db.pjt_terminals_table.select('id', wire_point3d_id=stop_position_id)[0][0]
+        start_position_ids = self.table.db.pjt_terminals_table.select('id', wire_point3d_id=start_position_id)
+        stop_position_ids = self.table.db.pjt_terminals_table.select('id', wire_point3d_id=stop_position_id)
 
         res = []
 
@@ -476,6 +476,9 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         :rtype: :class:`_pjt_circuit.PJTCircuit`
         """
         circuit_id = self.circuit_id
+        if circuit_id is None:
+            return None
+
         return self._table.db.pjt_circuits_table[circuit_id]
 
     @property
@@ -614,13 +617,11 @@ class PJTWireControl(QTabWidget):
         self.name_ctrl = NameControl(general_page)
         self.note_ctrl = NotesControl(general_page)
         self.smooth_ctrl = SmoothControl(general_page)
+        self.is_filler_wire_ctrl = _prop_ctrls.BoolProperty(general_page, 'Is Filler Wire')
 
         general_page.addWidget(self.name_ctrl)
         general_page.addWidget(self.note_ctrl)
         general_page.addWidget(self.smooth_ctrl)
-
-        self.is_filler_wire_ctrl = _prop_ctrls.BoolProperty(general_page, 'Is Filler Wire')
-
         general_page.addWidget(self.is_filler_wire_ctrl)
 
         position_page = _prop_ctrls.Category(self, 'Position')
@@ -628,42 +629,44 @@ class PJTWireControl(QTabWidget):
         self.position2d_ctrl = StartStopPosition2DControl(position_page)
         self.position3d_ctrl = StartStopPosition3DControl(position_page)
 
-        general_page.addWidget(self.is_filler_wire_ctrl)
-        general_page.addWidget(self.is_filler_wire_ctrl)
+        position_page.addWidget(self.position2d_ctrl)
+        position_page.addWidget(self.position3d_ctrl)
 
         visible_page = _prop_ctrls.Category(self, 'Visible')
         self.visible2d_ctrl = Visible2DControl(visible_page)
         self.visible3d_ctrl = Visible3DControl(visible_page)
 
-        general_page.addWidget(self.is_filler_wire_ctrl)
-        general_page.addWidget(self.is_filler_wire_ctrl)
+        visible_page.addWidget(self.visible2d_ctrl)
+        visible_page.addWidget(self.visible3d_ctrl)
 
         info_page = _prop_ctrls.Category(self, 'Info')
 
         length_group = _prop_ctrls.Property(info_page, 'Length', orientation='vertical')
-
         info_page.addWidget(length_group)
 
         self.length_mm_ctrl = _prop_ctrls.StringProperty(length_group, 'Millimeter', read_only=True)
         self.length_m_ctrl = _prop_ctrls.StringProperty(length_group, 'Meter', read_only=True)
         self.length_ft_ctrl = _prop_ctrls.StringProperty(length_group, 'Foot', read_only=True)
 
-        info_page.addWidget(self.length_mm_ctrl)
-        info_page.addWidget(self.length_m_ctrl)
-        info_page.addWidget(self.length_ft_ctrl)
+        length_group.addWidget(self.length_mm_ctrl)
+        length_group.addWidget(self.length_m_ctrl)
+        length_group.addWidget(self.length_ft_ctrl)
 
         weight_group = _prop_ctrls.Property(info_page, 'Weight', orientation='vertical')
-
         info_page.addWidget(weight_group)
 
         self.weight_g_ctrl = _prop_ctrls.StringProperty(weight_group, 'Gram', read_only=True)
         self.weight_lb_ctrl = _prop_ctrls.StringProperty(weight_group, 'Pound', read_only=True)
 
-        electrical_group = _prop_ctrls.Property(info_page, 'Electrical', orientation='vertical')
+        weight_group.addWidget(self.weight_g_ctrl)
+        weight_group.addWidget(self.weight_lb_ctrl)
 
+        electrical_group = _prop_ctrls.Property(info_page, 'Electrical', orientation='vertical')
         info_page.addWidget(electrical_group)
 
         self.resistance_ctrl = _prop_ctrls.StringProperty(electrical_group, 'Resistance', units='Ω', read_only=True)
+
+        electrical_group.addWidget(self.resistance_ctrl)
 
         circuit_page = _prop_ctrls.Category(self, 'Circuit')
         self.circuit_ctrl = _pjt_circuit.PJTCircuitControl(circuit_page)

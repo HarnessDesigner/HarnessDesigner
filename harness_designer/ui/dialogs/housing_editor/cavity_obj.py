@@ -332,6 +332,19 @@ class Cavity3D(_base3d.Base3D):
 
         ctx.release()
 
+        w2, h2, l2 = width / 2.0, height / 2.0, length / 2.0
+        local_signs = np.array([
+            [-1.0, -1.0, -1.0], [-1.0,  1.0, -1.0],
+            [ 1.0, -1.0, -1.0], [ 1.0,  1.0, -1.0],
+            [-1.0, -1.0,  1.0], [-1.0,  1.0,  1.0],
+            [ 1.0, -1.0,  1.0], [ 1.0,  1.0,  1.0],
+        ], dtype=np.float64)
+        local_corners = local_signs * np.array([w2, h2, l2], dtype=np.float64)
+        obb_corners = (local_corners @ R.T + pos).astype(np.float32)
+        aabb = np.array([obb_corners.min(axis=0), obb_corners.max(axis=0)], dtype=np.float32)
+        self.db_obj.obb = obb_corners
+        self.db_obj.aabb = aabb
+
         self.is_round = is_round
 
     def build(self):

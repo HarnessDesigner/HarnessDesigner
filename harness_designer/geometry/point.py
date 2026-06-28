@@ -405,7 +405,9 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
             that have no database backing and should never be shared.
         """
 
-        self.db_id = db_id
+        self._db_id = db_id
+        self._root = None      # None  → this instance IS the root
+        self._delegators = []  # only populated on the root instance
 
         if z is None:
             self.is2d = True
@@ -418,6 +420,37 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         self.__callbacks__ = []
         self.__unbound_callbacks__ = []
         self.__ref_count__ = 0
+
+    @property
+    def db_id(self) -> "str | int | None":
+        """
+        Return the canonical database id for this Point.
+
+        When this Point is attached to a root via :meth:`attach`, returns
+        the root's ``_db_id`` directly — one attribute access, no chain
+        walk — so every Point in a group always reports the same id as
+        the root that owns the live database row.
+        """
+        if self._root is not None:
+            return self._root._db_id
+        return self._db_id
+
+    @db_id.setter
+    def db_id(self, value: "str | int | None") -> None:
+        self._db_id = value
+
+    def __enter__(self):
+        if self._root is None:
+            self.__ref_count__ += 1
+        else:
+            self._root.__enter__()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self._root is None:
+            self.__ref_count__ -= 1
+        else:
+            self._root.__exit__(exc_type, exc_val, exc_tb)
 
     @property
     def x(self) -> _d:
@@ -437,6 +470,10 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
 
         Fires callbacks (unless batching).
         """
+
+        if self._root is not None:
+            self._root.x = value
+            return
 
         self._data[0] = value
         self._process_callbacks()
@@ -460,6 +497,10 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         Fires callbacks (unless batching).
         """
 
+        if self._root is not None:
+            self._root.y = value
+            return
+
         self._data[1] = value
         self._process_callbacks()
 
@@ -481,6 +522,10 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
 
         Fires callbacks (unless batching).
         """
+
+        if self._root is not None:
+            self._root.z = value
+            return
 
         self._data[2] = value
         self._process_callbacks()
@@ -537,6 +582,10 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
             position += delta
         """
 
+        if self._root is not None:
+            self._root += other
+            return self
+
         x1, y1, z1 = self.as_decimal
         x2, y2, z2 = self.__other_to_decimal(other)
 
@@ -569,6 +618,10 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         Fires callbacks after the operation.
         """
 
+        if self._root is not None:
+            self._root -= other
+            return self
+
         x1, y1, z1 = self.as_decimal
         x2, y2, z2 = self.__other_to_decimal(other)
 
@@ -600,6 +653,10 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
             stop_local *= scale  # scale is Point(diameter, diameter, diameter)
         """
 
+        if self._root is not None:
+            self._root *= other
+            return self
+
         x1, y1, z1 = self.as_decimal
         x2, y2, z2 = self.__other_to_decimal(other)
 
@@ -621,6 +678,10 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
 
     def __itruediv__(self, other: Union[float, "Point", np.ndarray, _d]) -> Self:
         """In-place component-wise divide.  Fires callbacks after the operation."""
+
+        if self._root is not None:
+            self._root /= other
+            return self
 
         x1, y1, z1 = self.as_decimal
         x2, y2, z2 = self.__other_to_decimal(other)
@@ -687,6 +748,10 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
             # callback fires on the += which is outside the with block
         """
 
+        if self._root is not None:
+            self._root @= other
+            return self
+
         if isinstance(other, np.ndarray):
             if other.shape[0] == 3:
                 angle = _angle.Angle.from_euler(*[float(str(v)) for v in other.tolist()])
@@ -722,6 +787,10 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
             branch_point.set_angle(delta_angle, transition_centre)
         """
 
+        if self._root is not None:
+            self._root.set_angle(angle, origin)
+            return
+
         p = self.copy()
 
         p -= origin
@@ -734,6 +803,112 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         self._data[2] = z
 
         self._process_callbacks()
+
+    def _on_delegate_changed(self, delegate: "Point") -> None:
+        # Sync our buffer from the root's buffer (keeps culling pipeline's
+        # raw numpy alias current) then fire every callback registered on
+        # this Point so all connected 3D objects update their geometry.
+        # Called automatically by the root's _process_callbacks whenever the
+        # root's coordinates change; the root fires its OWN registered
+        # callbacks first, then each delegator receives this call in turn.
+        # Result: one mutation anywhere in the chain fires every callback
+        # on every point in the chain exactly once.
+        np.copyto(self._data, delegate._data)
+        self._process_callbacks()
+
+    def attach(self, other: "Point") -> None:
+        """
+        Attach *other* to this Point as a delegator.
+
+        **``self`` is the parent (root); ``other`` is the child being attached.**
+
+        If ``self`` is itself attached to a root, ``other`` is attached to
+        that root instead — one lookup (``self._root``), no loop.
+
+        After this call:
+
+        * Every mutation on ``other`` is forwarded directly to the root —
+          O(1), no chain traversal.
+        * Whenever the root's coordinates change, two things happen for
+          *every* Point in the group (root fires first, then each delegator):
+
+          1. ``_data`` is updated in-place so raw numpy buffer aliases
+             (e.g. the culling pipeline's ``numpy_position``) stay current.
+          2. ``_process_callbacks()`` fires every callback registered on
+             that Point — geometry callbacks, AABB rebuilds, etc.
+
+          One mutation therefore fires every callback on every Point in
+          the group exactly once.
+
+        * ``other.db_id`` returns ``root._db_id`` directly (one attribute
+          access) so all Points in the group always report the same id.
+
+        **If ``other`` was itself a root with existing delegators**, all of
+        those delegators are lifted onto the new root in a single pass so
+        the structure stays flat — every non-root Point holds a one-hop
+        ``_root`` reference.
+
+        Call ``pjt_point3d.detach()`` on *other*'s DB entry before this
+        call so coordinate changes no longer write back to *other*'s
+        temporary database row::
+
+            pjt_preview.detach()
+            shared_point.attach(pjt_preview.point)
+        """
+        # Actual root: self if standalone/root, else self._root (one lookup)
+        actual_root = self if self._root is None else self._root
+
+        # Guard: other is already part of this chain.
+        # Because the structure is always flat, both conditions are O(1):
+        #   other is actual_root       → would create a self-reference
+        #   other._root is actual_root → other is already a delegator here
+        if other is actual_root or other._root is actual_root:
+            return
+
+        # If other is already a delegator somewhere, remove it cleanly first
+        if other._root is not None:
+            old_root = other._root
+            old_root.unbind(other._on_delegate_changed)
+            old_root._delegators = [r for r in old_root._delegators
+                                     if r() is not other]
+
+        # If other was itself a root with delegators, absorb them all into
+        # actual_root so the structure stays flat after this call.
+        for ref in other._delegators[:]:
+            child = ref()
+            if child is None:
+                continue
+            other.unbind(child._on_delegate_changed)
+            actual_root.bind(child._on_delegate_changed)
+            child._root = actual_root
+            actual_root._delegators.append(ref)
+        other._delegators.clear()
+
+        # Remove other from the PointMeta singleton registry.  actual_root
+        # now owns the canonical entry for this db_id.
+        if other._db_id is not None:
+            PointMeta._instances.pop(other._db_id, None)
+
+        other._root = actual_root
+        np.copyto(other._data, actual_root._data)
+        actual_root.bind(other._on_delegate_changed)
+        actual_root._delegators.append(weakref.ref(other))
+
+    def detach(self) -> None:
+        """
+        Sever this Point's delegation and restore it as a standalone root.
+
+        Restores this Point to the PointMeta singleton registry under its
+        own ``_db_id`` so that future lookups return this instance rather
+        than creating a fresh one.
+        """
+        if self._root is not None:
+            root = self._root
+            root.unbind(self._on_delegate_changed)
+            root._delegators = [r for r in root._delegators if r() is not self]
+            self._root = None
+            if self._db_id is not None:
+                PointMeta._instances[self._db_id] = weakref.ref(self)
 
     def get_angle(self, origin: "Point") -> "_angle.Angle":
         """Return the Angle from *origin* to this Point."""

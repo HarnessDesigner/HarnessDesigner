@@ -154,7 +154,7 @@ class Project:
                 else:
                     mainframe.set_progress(max_count - 1, f'Loading {label}...')
 
-                gui_obj = obj_cls(mainframe, db_obj_)
+                gui_obj = obj_cls(mainframe, db_obj_, project_load=True)
                 db_obj_.merge_packet_data(db_obj_.build_monitor_packet(), ids_)
                 container[db_obj_.db_id] = gui_obj
 
@@ -164,16 +164,6 @@ class Project:
                 _logger.logger.info(f'{label} Loaded - db_id: {db_obj_.db_id}')
 
             return cur_count
-
-        count = _load_objects(
-            ptables.pjt_wire_service_loops_table, 'Wire Service Loop',
-            _wire_service_loop.WireServiceLoop, db_ids, self._wire_service_loops,
-            mainframe.object_browser.add_wire_service_loop, count, self._obj_count)
-
-        count = _load_objects(
-            ptables.pjt_wire_markers_table, 'Wire Marker',
-            _wire_marker.WireMarker, db_ids, self._wire_markers,
-            mainframe.object_browser.add_wire_marker, count, self._obj_count)
 
         count = _load_objects(
             ptables.pjt_notes_table, 'Note',
@@ -186,9 +176,9 @@ class Project:
             mainframe.object_browser.add_circuit, count, self._obj_count)
 
         count = _load_objects(
-            ptables.pjt_boots_table, 'Boot',
-            _boot.Boot, db_ids, self._boots,
-            mainframe.object_browser.add_boot, count, self._obj_count)
+            ptables.pjt_housings_table, 'Housing',
+            _housing.Housing, db_ids, self._housings,
+            mainframe.object_browser.add_housing, count, self._obj_count)
 
         count = _load_objects(
             ptables.pjt_covers_table, 'Cover',
@@ -206,25 +196,9 @@ class Project:
             mainframe.object_browser.add_tpa_lock, count, self._obj_count)
 
         count = _load_objects(
-            ptables.pjt_seals_table, 'Seal',
-            _seal.Seal, db_ids, self._seals,
-            mainframe.object_browser.add_seal,
-            count, self._obj_count)
-
-        count = _load_objects(
-            ptables.pjt_terminals_table, 'Terminal',
-            _terminal.Terminal, db_ids, self._terminals,
-            mainframe.object_browser.add_terminal, count, self._obj_count)
-
-        count = _load_objects(
-            ptables.pjt_transitions_table, 'Transition',
-            _transition.Transition, db_ids, self._transitions,
-            mainframe.object_browser.add_transition, count, self._obj_count)
-
-        count = _load_objects(
-            ptables.pjt_housings_table, 'Housing',
-            _housing.Housing, db_ids, self._housings,
-            mainframe.object_browser.add_housing, count, self._obj_count)
+            ptables.pjt_boots_table, 'Boot',
+            _boot.Boot, db_ids, self._boots,
+            mainframe.object_browser.add_boot, count, self._obj_count)
 
         count = _load_objects(
             ptables.pjt_cavities_table, 'Cavity',
@@ -232,9 +206,18 @@ class Project:
             mainframe.object_browser.add_cavity, count, self._obj_count)
 
         count = _load_objects(
-            ptables.pjt_splices_table, 'Splice',
-            _splice.Splice, db_ids, self._splices,
-            mainframe.object_browser.add_splice, count, self._obj_count)
+            ptables.pjt_terminals_table, 'Terminal',
+            _terminal.Terminal, db_ids, self._terminals,
+            mainframe.object_browser.add_terminal, count, self._obj_count)
+
+        count = _load_objects(
+            ptables.pjt_seals_table, 'Seal',
+            _seal.Seal, db_ids, self._seals,
+            mainframe.object_browser.add_seal,
+            count, self._obj_count)
+
+        for housing in self._housings.values():
+            housing.obj3d.match_cavity_surfaces()
 
         count = _load_objects(
             ptables.pjt_wires_table, 'Wire',
@@ -242,9 +225,24 @@ class Project:
             mainframe.object_browser.add_wire, count, self._obj_count)
 
         count = _load_objects(
+            ptables.pjt_wire_service_loops_table, 'Wire Service Loop',
+            _wire_service_loop.WireServiceLoop, db_ids, self._wire_service_loops,
+            mainframe.object_browser.add_wire_service_loop, count, self._obj_count)
+
+        count = _load_objects(
+            ptables.pjt_wire_markers_table, 'Wire Marker',
+            _wire_marker.WireMarker, db_ids, self._wire_markers,
+            mainframe.object_browser.add_wire_marker, count, self._obj_count)
+
+        count = _load_objects(
             ptables.pjt_wire_layouts_table, 'Wire Layout',
             _wire_layout.WireLayout, db_ids, self._wire_layouts,
             None, count, self._obj_count)
+
+        count = _load_objects(
+            ptables.pjt_splices_table, 'Splice',
+            _splice.Splice, db_ids, self._splices,
+            mainframe.object_browser.add_splice, count, self._obj_count)
 
         count = _load_objects(
             ptables.pjt_bundles_table, 'Bundle',
@@ -255,6 +253,13 @@ class Project:
             ptables.pjt_bundle_layouts_table, 'Bundle Layout',
             _bundle_layout.BundleLayout, db_ids, self._bundle_layouts,
             None, count, self._obj_count)
+
+        count = _load_objects(
+            ptables.pjt_transitions_table, 'Transition',
+            _transition.Transition, db_ids, self._transitions,
+            mainframe.object_browser.add_transition, count, self._obj_count)
+
+
 
         mainframe.set_progress(self._obj_count, 'DONE!')
 

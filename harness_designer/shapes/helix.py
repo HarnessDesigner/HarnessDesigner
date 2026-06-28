@@ -64,8 +64,8 @@ def create(radius, length):
     # A remap of the diameter to a thickness range is done to get a thickness where the
     # bleed through will not occur while keeping the stripe from looking like it is not
     # apart of the wire.
-    stripe_thickness = _utils.remap(
-        radius * 2.0, old_min=0.5, old_max=5.0, new_min=0.005, new_max=0.015)
+    stripe_thickness = float(_utils.remap(
+        radius * 2.0, old_min=0.5, old_max=5.0, new_min=0.005, new_max=0.015))
 
     edges = model.edges().filter_by(build123d.GeomType.CIRCLE)
     edges = edges.sort_by(lambda e: e.distance_to(wire_axis.position))[0]

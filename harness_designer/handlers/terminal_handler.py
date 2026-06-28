@@ -30,8 +30,8 @@ def _get_compat_object_at_mouse(
     mouse_pos: _point.Point,
     camera: "_camera.Camera"
 ) -> _cavity.Cavity | _housing.Housing | None:
-
-    """Return the compatible object currently located beneath the mouse cursor.
+    """
+    Return the compatible object currently located beneath the mouse cursor.
 
     :param mouse_pos: Mouse position used for picking or preview updates.
     :type mouse_pos: _point.Point
@@ -40,7 +40,9 @@ def _get_compat_object_at_mouse(
     :returns: The compatible object under the cursor, or :data:`None` when no compatible object is selected.
     :rtype: object | None
     """
-    selected = _object_picker.find_object(mouse_pos, camera.objects_in_view, camera)
+
+    selected = _object_picker.find_object(
+        mouse_pos, camera.objects_in_view, camera)
 
     if isinstance(selected, (_cavity.Cavity, _housing.Housing)):
         return selected
@@ -49,18 +51,21 @@ def _get_compat_object_at_mouse(
 
 
 class AddTerminalHandler(_handler_base.HandlerBase):
-    """Handle interactive placement of terminals into cavities or housings.
+    """
+    Handle interactive placement of terminals into cavities or housings.
     """
     obj: _terminal.Terminal = None
 
     def __init__(self, mainframe: "_ui.MainFrame", part_id: int):
-        """Initialize the object and capture the state required for later interaction.
+        """
+        Initialize the object and capture the state required for later interaction.
 
         :param mainframe: Main application frame that owns the editor and project state.
         :type mainframe: "_ui.MainFrame"
         :param part_id: Identifier of the selected part definition.
         :type part_id: int
         """
+
         super().__init__(mainframe, part_id)
 
         self.part = mainframe.project.gtables.terminals_table[part_id]
@@ -68,12 +73,16 @@ class AddTerminalHandler(_handler_base.HandlerBase):
 
         self._preview_material = _materials.Plastic(
             _color.Color(*Config.add_object.preview_color))
+
         self._wire_highlight_material = _materials.Plastic(
             _color.Color(*Config.add_object.wire_highlight))
+
         self._cavity_highlight_material = _materials.Plastic(
             _color.Color(*Config.add_object.cavity_highlight))
 
-        compat_housings = mainframe.project.gtables.housings_table.get_compat(terminal=part_number)
+        compat_housings = mainframe.project.gtables.housings_table.get_compat(
+            terminal=part_number)
+
         compat_housings.extend(self.part.compat_housings)
         self.compat_housings = list(set(compat_housings))
 
@@ -87,18 +96,22 @@ class AddTerminalHandler(_handler_base.HandlerBase):
             cavity.identify([0.3, 1.0, 0.3, 1.0])
 
     def release_capture(self) -> None:
-        """Handle release of the captured position and complete any deferred placement work.
+        """
+        Handle release of the captured position and complete any deferred placement work.
 
         :raises NotImplementedError: Raised by handlers that require a subclass implementation.
         """
+
         raise NotImplementedError
 
     def finalize(self, mouse_pos: _point.Point):
-        """Finalize the active operation using the supplied mouse position.
+        """
+        Finalize the active operation using the supplied mouse position.
 
         :param mouse_pos: Mouse position used for picking or preview updates.
         :type mouse_pos: _point.Point
         """
+
         for housing in self.mainframe.project.housings:
             housing.identify(None)
 
@@ -147,9 +160,11 @@ class AddTerminalHandler(_handler_base.HandlerBase):
         self.mainframe.project.add_terminal(terminal)
 
     def start(self, mouse_pos: _point.Point):
-        """Start the handler operation for the supplied mouse position.
+        """
+        Start the handler operation for the supplied mouse position.
 
         :param mouse_pos: Mouse position used for picking or preview updates.
         :type mouse_pos: _point.Point
         """
+
         self.finalize(mouse_pos)

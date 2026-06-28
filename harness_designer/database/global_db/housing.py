@@ -954,12 +954,8 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :rtype: list['_cavity.Cavity']
         """
 
-        num_pins = self.num_pins
-
-        res = [None] * num_pins
-
         rows = self._table.db.cavities_table.select(
-            "id", "idx", housing_id=self._db_id)
+            "id", housing_id=self._db_id)
         #
         # indexes = [row[1] for row in rows]
         # high_index = max(indexes)
@@ -988,8 +984,9 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         #     rows = self._table.db.cavities_table.select(
         #         "id", "idx", housing_id=self._db_id)
 
-        for db_id, idx in rows:
-            res[idx] = self._table.db.cavities_table[db_id]
+        res = []
+        for db_id in rows:
+            res.append(self._table.db.cavities_table[db_id[0]])
 
         return res
 

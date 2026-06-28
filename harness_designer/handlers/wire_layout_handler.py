@@ -3,6 +3,7 @@
 """Interactive handler logic for adding wire layout points.
 """
 
+import numpy as np
 from typing import TYPE_CHECKING
 
 from . import handler_base as _handler_base
@@ -10,7 +11,6 @@ from ..geometry import point as _point
 from ..gl.canvas3d import object_picker as _object_picker
 from ..objects import wire_layout as _wire_layout
 from ..objects import wire as _wire
-from .. import utils as _utils
 from ..gl import materials as _materials
 from .. import config as _config
 from .. import color as _color
@@ -23,125 +23,109 @@ if TYPE_CHECKING:
 
 Config = _config.Config.colors
 
+_SNAP_THRESHOLD = 5.0
+
+
+def _find_wire(
+    mouse_pos: _point.Point,
+    camera: "_camera.Camera",
+    project
+) -> "_wire.Wire | None":
+    """Return the wire under the mouse, or the closest one within the snap threshold."""
+    selected = _object_picker.find_object(
+        mouse_pos, camera.objects_in_view, camera)
+
+    if isinstance(selected, _wire.Wire):
+        return selected
+
+    world_pos = camera.get_position_on_focal_plane(mouse_pos).as_numpy
+    best_wire = None
+    best_dist_sq = _SNAP_THRESHOLD ** 2
+
+    for w in project.wires:
+        if not w.is_in_3dview:
+            continue
+
+        p1 = w.obj3d.start_position.as_numpy
+        p2 = w.obj3d.stop_position.as_numpy
+        seg = p2 - p1
+        seg_len_sq = float(np.dot(seg, seg))
+        if seg_len_sq < 1e-8:
+            continue
+
+        t = max(0.0, min(1.0, float(np.dot(world_pos - p1, seg)) / seg_len_sq))
+        closest = p1 + t * seg
+        dist_sq = float(np.sum((world_pos - closest) ** 2))
+
+        if dist_sq < best_dist_sq:
+            best_dist_sq = dist_sq
+            best_wire = w
+
+    return best_wire
+
 
 def _create_wire_layout_at_endpoint(
     project,
-    position: _point.Point
-) -> _wire_layout.WireLayout:
+    wire: "_wire.Wire",
+    endpoint: str
+) -> "_wire_layout.WireLayout":
+    if endpoint == 'start':
+        point = wire.obj3d.start_position
+    else:
+        point = wire.obj3d.stop_position
 
-    # Extract the actual database ID from the Point's db_id
-    # Point.db_id format is "1233d" or "1232d"
-    # We need to strip the suffix and convert to int
-    """Create a wire layout object that reuses an existing wire endpoint point.
-
-    :param project: Project object that owns the project tables and runtime objects.
-    :type project: object
-    :param position: 3D point used for placement or geometric calculations.
-    :type position: _point.Point
-    :returns: The created wire layout object.
-    :rtype: WireLayout
-    """
-    point_db_id = int(position.db_id[:-2])  # Remove '3d' or '2d' suffix
-
-    # Create wire layout in database, referencing the EXISTING point
-    # This means the layout will share callbacks with the wire endpoint
-    db_obj = project.ptables.pjt_wire_layouts_table.insert(point_id=point_db_id)
-
-    # Create wire layout object
+    coord_id = int(point.db_id[:-2])
+    db_obj = project.ptables.pjt_wire_layouts_table.insert(coord_id)
     layout_obj = _wire_layout.WireLayout(project.mainframe, db_obj)
-
     project.add_wire_layout(layout_obj)
+
     return layout_obj
 
 
 def _create_wire_layout_on_wire(
     project,
-    wire: _wire.Wire,
+    wire: "_wire.Wire",
     position: _point.Point
-) -> _wire_layout.WireLayout:
+) -> "_wire_layout.WireLayout":
+    pos_db = project.ptables.pjt_points3d_table.insert(
+        float(position.x), float(position.y), float(position.z))
+    coord_id = pos_db.db_id
 
-    # Create NEW position point in database (3D)
-    # This point will be shared by the layout and both wire segments
-    """Create a wire layout object on a wire segment and split the wire at that location.
-
-    :param project: Project object that owns the project tables and runtime objects.
-    :type project: object
-    :param wire: Value for the ``wire`` parameter. UNKNOWN semantics.
-    :type wire: _wire.Wire
-    :param position: 3D point used for placement or geometric calculations.
-    :type position: _point.Point
-    :returns: The created wire layout object.
-    :rtype: WireLayout
-    """
-    position_p3d = project.ptables.pjt_points3d_table.insert(
-        position.x, position.y, position.z
-    )
-
-    # Get the actual Point instance from the database
-    # This ensures we're using the same Point object everywhere
-    shared_point = position_p3d.point
-
-    # Extract database ID for creating the layout
-    # Point.db_id is like "4563d", we need just the integer
-    point_db_id = int(position_p3d.db_id)
-
-    # Create wire layout in database, referencing this point
-    db_obj = project.ptables.pjt_wire_layouts_table.insert(point_id=point_db_id)
-
-    # Create wire layout object
+    db_obj = project.ptables.pjt_wire_layouts_table.insert(coord_id)
     layout_obj = _wire_layout.WireLayout(project.mainframe, db_obj)
-
     project.add_wire_layout(layout_obj)
 
-    # Now split the original wire at the layout point
-    # The two new wires will share the same Point instance as the layout
-    _split_wire_at_layout(project, wire, shared_point)
+    _split_wire_at_point(project, wire, coord_id)
 
     return layout_obj
 
 
-def _split_wire_at_layout(
+def _split_wire_at_point(
     project,
-    original_wire: _wire.Wire,
-    position: _point.Point
+    original_wire: "_wire.Wire",
+    shared_coord_id: int
 ):
+    orig = original_wire.db_obj
+    part_id = orig.part_id
+    circuit_id = orig.circuit_id
+    layer_id = orig.layer_id
+    layer_view_point_id = orig.layer_view_position_id
+    is_filler_wire = orig.is_filler_wire
+    is_visible3d = orig.is_visible3d
+    is_visible2d = orig.is_visible2d
 
-    # Get original wire data
-    """Replace one wire with two wire segments that share the supplied layout point.
+    start_id = int(original_wire.obj3d.start_position.db_id[:-2])
+    stop_id = int(original_wire.obj3d.stop_position.db_id[:-2])
 
-    :param project: Project object that owns the project tables and runtime objects.
-    :type project: object
-    :param original_wire: Value for the ``original_wire`` parameter. UNKNOWN semantics.
-    :type original_wire: _wire.Wire
-    :param position: 3D point used for placement or geometric calculations.
-    :type position: _point.Point
-    """
-    original_start_point = original_wire.obj3d.start_position
-    original_stop_point = original_wire.obj3d.stop_position
-    part_id = original_wire.db_obj.part_id
-    circuit_id = original_wire.db_obj.circuit_id
-
-    # Get database IDs for the points
-    # Remember: Point.db_id is "1233d" or "1232d", need to extract integer
-    start_point_db_id = int(original_start_point.db_id[:-2])
-    stop_point_db_id = int(original_stop_point.db_id[:-2])
-    shared_point_db_id = int(position.db_id[:-2])
-
-    # Create first wire segment: original start -> shared_point
     wire1_db = project.ptables.pjt_wires_table.insert(
-        part_id=part_id,
-        start_point3d_id=start_point_db_id,
-        stop_point3d_id=shared_point_db_id,  # Shares same point as layout
-        circuit_id=circuit_id
-    )
+        part_id, circuit_id, start_id, shared_coord_id,
+        None, None, is_visible3d, is_visible2d,
+        None, layer_id, is_filler_wire)
 
-    # Create second wire segment: shared_point -> original stop
     wire2_db = project.ptables.pjt_wires_table.insert(
-        part_id=part_id,
-        start_point3d_id=shared_point_db_id,  # Shares same point as layout
-        stop_point3d_id=stop_point_db_id,
-        circuit_id=circuit_id
-    )
+        part_id, circuit_id, shared_coord_id, stop_id,
+        None, None, is_visible3d, is_visible2d,
+        None, layer_id, is_filler_wire)
 
     wire1_obj = _wire.Wire(project.mainframe, wire1_db)
     wire2_obj = _wire.Wire(project.mainframe, wire2_db)
@@ -149,137 +133,119 @@ def _split_wire_at_layout(
     project.add_wire(wire1_obj)
     project.add_wire(wire2_obj)
 
-    original_wire.delete()
-
-
-def _get_wire_at_mouse(mouse_pos: _point.Point, camera: "_camera.Camera"):
-
-    """
-    Check if mouse is over a wire object.
-
-    Returns:
-        Wire object if found, None otherwise
-    """
-    selected = _object_picker.find_object(
-        mouse_pos, camera.objects_in_view, camera)
-
-    if isinstance(selected, _wire.Wire):
-        return selected
-
-    return None
+    mainframe = project.mainframe
+    db_id = original_wire.db_obj.db_id
+    if mainframe.get_selected() is original_wire:
+        original_wire.set_selected(False)
+    mainframe.remove_object(original_wire)
+    project.delete_wire(db_id)
 
 
 class AddWireLayoutHandler(_handler_base.HandlerBase):
-    """Handle interactive placement of wire layout points along existing wires.
-    """
+    """Handle interactive placement of wire layout points along existing wires."""
     obj: _wire_layout.WireLayout = None
 
     def __init__(self, mainframe: "_ui.MainFrame"):
-        """Initialize the object and capture the state required for later interaction.
+        """Initialize the handler and create the placement preview.
 
         :param mainframe: Main application frame that owns the editor and project state.
         :type mainframe: "_ui.MainFrame"
         """
         super().__init__(mainframe, None)
-        self.wire: _wire.Wire = None
 
-        self._preview_material = _materials.Plastic(
-            _color.Color(*Config.add_object.preview_color))
         self._highlight_material = _materials.Plastic(
             _color.Color(*Config.add_object.wire_highlight))
 
-    def release_capture(self) -> None:
-        """Handle release of the captured position and complete any deferred placement work.
+        self._snapped_wire: "_wire.Wire | None" = None
 
-        :raises NotImplementedError: Raised by handlers that require a subclass implementation.
-        """
-        raise NotImplementedError
+        pos_db = self.ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
+        layout_db = self.ptables.pjt_wire_layouts_table.insert(pos_db.db_id)
+        self.obj = _wire_layout.WireLayout(mainframe, layout_db)
+        self.obj.obj3d.is_visible = False
 
     def hover(self, mouse_pos: _point.Point):
-        """Update preview or highlight state for the supplied mouse position.
+        """Snap the preview to the nearest wire and update its diameter and color.
 
         :param mouse_pos: Mouse position used for picking or preview updates.
         :type mouse_pos: _point.Point
         """
-        wire = _get_wire_at_mouse(mouse_pos, self.camera)
+        wire = _find_wire(mouse_pos, self.camera, self.mainframe.project)
 
         if wire is None:
-            if self.wire is not None:
-                self.wire.identify(None)
-                self.wire = None
-
             self.obj.obj3d.is_visible = False
-        else:
-            new_position = _utils.get_closest_point_on_wire_endpoint(
-                mouse_pos, self.camera, wire)[0]
+            if self._snapped_wire is not None:
+                self._snapped_wire.identify(None)
+                self._snapped_wire = None
 
-            position = self.obj.obj3d.position
-            delta = new_position - position
-            position += delta
-
-            if wire != self.wire:
-                wire.identify([0.3, 1.0, 0.3, 0.5])
-                self.obj.obj3d.diameter = wire.db_obj.part.od_mm
-                self.obj.obj3d.is_visible = True
-
-                if self.wire is not None:
-                    self.wire.identify(None)
-
-                self.wire = wire
-
-    def start(self, mouse_pos: _point.Point):
-        """Start the handler operation for the supplied mouse position.
-
-        :param mouse_pos: Mouse position used for picking or preview updates.
-        :type mouse_pos: _point.Point
-        """
-        if self.is_active:
             return
 
-        position = _utils.get_position_on_focal_plane(mouse_pos, self.camera)
-        position = self.mainframe.project.ptables.pjt_points3d_table.insert(
-            position.x, position.y, position.z)
+        raw_pos, _, _ = wire.obj3d.get_closest_endpoint(mouse_pos)
 
-        position_id = position.db_id
+        if not isinstance(raw_pos, _point.Point):
+            raw_pos = _point.Point(*raw_pos)
 
-        self.obj = self.ptables.pjt_wire_layouts_table.insert(position_id)
+        pos = self.obj.obj3d.position
+        pos += raw_pos - pos
 
-        self.is_active = True
+        if wire is not self._snapped_wire:
+            if self._snapped_wire is not None:
+                self._snapped_wire.identify(None)
 
-    def finalize(self, mouse_pos: _point.Point):
-        """Finalize the active operation using the supplied mouse position.
+            wire.identify(self._highlight_material)
 
-        :param mouse_pos: Mouse position used for picking or preview updates.
-        :type mouse_pos: _point.Point
+            diameter = wire.db_obj.part.od_mm
+            scale = self.obj.obj3d.scale
+            scale += _point.Point(diameter, diameter, diameter) - scale
+
+            color = wire.db_obj.part.color.ui
+            material = _materials.Plastic(color)
+            self.obj.obj3d._material = material
+            self.obj.obj3d._unselected_material = material
+
+            self._snapped_wire = wire
+
+        self.obj.obj3d.is_visible = True
+
+    def release_capture(self) -> None:
+        """Finalize placement: split the wire or attach to an endpoint.
         """
-        if not self.is_active:
+        if self._finalized:
             return
 
-        wire = _get_wire_at_mouse(
-            mouse_pos, self.camera)
+        if self._captured_position is None:
+            return
 
-        self.obj.delete()
-
-        if self.wire is not None:
-            self.wire.identify(None)
-
+        wire = self._snapped_wire
         if wire is None:
             return
 
-        position, is_at_endpoint = _utils.get_closest_point_on_wire_endpoint(
-            mouse_pos, self.camera, wire)
+        self._snapped_wire.identify(None)
+        self._snapped_wire = None
+
+        mouse_pos = self._captured_position
+        raw_pos, is_at_endpoint, endpoint = wire.obj3d.get_closest_endpoint(mouse_pos)
+
+        self._finalized = True
 
         if is_at_endpoint:
-            # Placing at existing endpoint
-            # position is already the Point instance from the wire endpoint
-            # Just create layout, no wire split needed
-            layout = _create_wire_layout_at_endpoint(
-                self.mainframe.project, position)
+            if endpoint == 'start':
+                wire.obj3d.start_position.attach(self.obj.obj3d.position)
+            else:
+                wire.obj3d.stop_position.attach(self.obj.obj3d.position)
         else:
-            # Placing in middle
-            # position contains coordinates for creating a NEW Point
-            # Split wire and create layout sharing the new Point
-            layout = _create_wire_layout_on_wire(
-                self.mainframe.project, wire, position)
+            coord_id = int(self.obj.obj3d.position.db_id[:-2])
+            _split_wire_at_point(self.mainframe.project, wire, coord_id)
 
-        return layout
+        self.obj.obj3d.is_visible = True
+        self.mainframe.project.add_wire_layout(self.obj)
+        self.obj = None
+
+    def cancel(self):
+        """Cancel placement and clean up the preview."""
+        if self._snapped_wire is not None:
+            self._snapped_wire.identify(None)
+            self._snapped_wire = None
+
+        if self.obj is not None:
+            self.obj.delete()
+            self.obj = None

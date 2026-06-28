@@ -23,7 +23,7 @@ class Terminal(_ObjectBase):
     db_obj: "_pjt_terminal.PJTTerminal" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
-                 db_obj: "_pjt_terminal.PJTTerminal"):
+                 db_obj: "_pjt_terminal.PJTTerminal", project_load=False):
         """Initialise the :class:`Terminal` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

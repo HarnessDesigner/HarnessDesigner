@@ -55,7 +55,8 @@ class AddTPALockHandler(_handler_base.HandlerBase):
         if part_id is None:
             dlg = _part_search.SearchDialog(
                 mainframe, _editor_db.CoversPage, title='Add TPA Lock',
-                table=mainframe.global_db.tpa_locks_table, initial_results=compat_tpa_locks)
+                table=mainframe.global_db.tpa_locks_table,
+                initial_results=compat_tpa_locks)
 
             if dlg.exec() == QDialog.DialogCode.Accepted:
                 part_id = dlg.GetValue()
@@ -94,7 +95,8 @@ class AddTPALockHandler(_handler_base.HandlerBase):
 
         if self._housing is None:
 
-            compat_housings = self.ptables.global_db.housings_table.get_compat(tpa_lock=part_number)
+            compat_housings = self.ptables.global_db.housings_table.get_compat(
+                tpa_lock=part_number)
 
             compat_housings.extend(self.part.compat_housings)
 
@@ -115,21 +117,23 @@ class AddTPALockHandler(_handler_base.HandlerBase):
             pos_obj = self.ptables.pjt_points3d_table.insert(0, 0, 0)
             pos_id = pos_obj.db_id
             db_obj = self.ptables.pjt_tpa_locks_table.insert(
-                part_id, pos_id, None)
+                part_id, pos_id, 1, None)
         else:
             if self._housing.db_obj.tpa_lock1 is None:
                 pos_id = self._housing.db_obj.tpa_lock_1_position3d_id
+                idx = 1
             else:
                 pos_id = self._housing.db_obj.tpa_lock_2_position3d_id
+                idx = 2
 
             db_obj = self.ptables.pjt_tpa_locks_table.insert(
-                part_id, pos_id, self._housing.db_obj.db_id)
+                part_id, pos_id, idx, self._housing.db_obj.db_id)
 
         self.obj = _tpa_lock.TPALock(self.mainframe, db_obj)
         self.obj.identify(self._preview_material)
 
         if self._housing is not None:
-            _handler_base.set_angle_from_housing(self.obj.db_obj, self._housing.db_obj)
+            self.set_angle_from_housing(self.obj, self._housing)
 
     @property
     def snap_pool(self):
@@ -148,7 +152,7 @@ class AddTPALockHandler(_handler_base.HandlerBase):
 
             housings.append(housing)
 
-        return _utils.SnapPool(housings, housing_tpa_positions)
+        return _utils.SnapPool(housings, housing_tpa_positions, threshold=10.0)
 
     def hover(self, mouse_pos: _point.Point):
         """
@@ -171,18 +175,18 @@ class AddTPALockHandler(_handler_base.HandlerBase):
             point = world_pos
             self._snapped = None
             if prev_snapped is not None:
-                _handler_base.reset_angle(self.obj.db_obj)
+                self.reset_angle(self.obj)
         else:
-            if housing.db_obj.tpa_lock_1 is None:
+            if housing.db_obj.tpa_lock1 is None:
                 point = housing.db_obj.tpa_lock_1_position3d
             else:
                 point = housing.db_obj.tpa_lock_2_position3d
 
             self._snapped = housing
             if prev_snapped is not housing:
-                _handler_base.set_angle_from_housing(self.obj.db_obj, housing.db_obj)
+                self.set_angle_from_housing(self.obj, housing)
 
-        position = self.obj.db_obj.position3d
+        position = self.obj.obj3d.position
 
         delta = point - position
         position += delta
@@ -207,24 +211,17 @@ class AddTPALockHandler(_handler_base.HandlerBase):
             for housing in self.mainframe.project.housings:
                 housing.identify(None)
 
-            self.obj.delete()
-
-            if self._snapped.db_obj.tpa_lock_1 is None:
-                point_id = self._snapped.db_obj.tpa_lock_1_position3d
+            if self._snapped.db_obj.tpa_lock1 is None:
+                point = self._snapped.db_obj.tpa_lock_1_position3d
+                idx = 1
             else:
-                point_id = self._snapped.db_obj.tpa_lock_2_position3d
+                point = self._snapped.db_obj.tpa_lock_2_position3d
+                idx = 2
 
-            db_obj = self.ptables.pjt_tpa_locks_table.insert(
-                self.part.db_id, point_id,
-                self._snapped.db_obj.db_id)
-
-            _handler_base.set_angle_from_housing(db_obj, self._snapped.db_obj)
-            obj = _tpa_lock.TPALock(self.mainframe, db_obj)
-        else:
-            obj = self.obj
+            self.obj.db_obj.housing_id = self._snapped.db_obj.db_id
+            point.attach(self.obj.obj3d.position)
+            self.obj.db_obj.idx = idx
 
         self._finalized = True
-
-        self.mainframe.project.add_tpa_lock(obj)
-
+        self.mainframe.project.add_tpa_lock(self.obj)
         self.obj = None

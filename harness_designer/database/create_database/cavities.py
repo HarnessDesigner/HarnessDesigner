@@ -30,7 +30,9 @@ table = _con.SQLTable(
     _con.FloatField('height', default='1.0', no_null=True),
     _con.FloatField('length', default='3.0', no_null=True),
     _con.IntField('round_terminal', default='0', no_null=True),
-    _con.TextField('terminal_sizes', default='""', no_null=True)
+    _con.TextField('terminal_sizes', default='""', no_null=True),
+    _con.TextField('aabb', default='NULL'),
+    _con.TextField('obb', default='NULL')
 )
 
 
@@ -77,5 +79,7 @@ pjt_table = _con.SQLTable(
     _con.TextField('quat3d', default='"[1.0, 0.0, 0.0, 0.0]"', no_null=True),
     _con.TextField('angle3d', default='"[0.0, 0.0, 0.0]"', no_null=True),
     _con.IntField('is_visible2d', default='1', no_null=True),
-    _con.IntField('is_visible3d', default='1', no_null=True)
+    _con.IntField('is_visible3d', default='1', no_null=True),
+    _con.TextField('aabb', no_null=True),
+    _con.TextField('obb', no_null=True)
 )

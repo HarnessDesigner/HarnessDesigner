@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import QMenu
 from PySide6.QtCore import QTimer
+from OpenGL import GL
 
 from . import base3d as _base3d
 from . import menu_ops as _menu_ops
@@ -31,8 +32,10 @@ class Cavity(_base3d.Base3D):
 
     def set_selected(self, state: bool) -> None:
         if not state:
-            from . import housing_cavity_picker as _picker_mod
-            _picker_mod.HousingCavityPicker._set_active(None)
+            from ...utils import mesh_surface_picker as _picker_mod
+            active = _picker_mod.MeshSurfacePicker._active
+            if active is not None:
+                active.clear_selection()
         super().set_selected(state)
 
     def get_context_menu(self):
@@ -60,7 +63,10 @@ class Cavity(_base3d.Base3D):
         parent.mainframe.editor3d.context.acquire()
         self._part = db_obj.part
         scale = db_obj.part.scale
-        angle = db_obj.part.angle3d
+        # Use the global part angle for the Base3D binding (drives _update_angle
+        # when the part definition changes). The project-specific world-space
+        # angle is stored separately and used for rendering.
+        angle = db_obj.angle3d
         position = db_obj.position3d
         material = _materials.Metallic(_color.Color(200, 200, 200, 75))
 
@@ -70,39 +76,9 @@ class Cavity(_base3d.Base3D):
             vbo = _box.create_vbo()
 
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
+        self.surf_idx: int = -1
+
         parent.mainframe.editor3d.context.release()
-
-    def _update_position(self, position: _point.Point):
-        """Update the position.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param position: Position value.
-        :type position: :class:`_point.Point`
-        """
-        terminal = self.db_obj.terminal
-        if terminal is not None:
-            delta = position - self._o_position
-            t_position = terminal.position3d
-            t_position += delta
-
-        _base3d.Base3D._update_position(self, position)
-
-    def _update_angle(self, angle: _angle.Angle):
-        """Update the angle.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param angle: Value for ``angle``.
-        :type angle: :class:`_angle.Angle`
-        """
-        terminal = self.db_obj.terminal
-        if terminal is not None:
-            delta = angle - self._o_angle
-            t_angle = terminal.angle3d
-            t_angle += delta
-
-        _base3d.Base3D._update_angle(self, angle)
 
     @property
     def seal_position(self) -> _point.Point:

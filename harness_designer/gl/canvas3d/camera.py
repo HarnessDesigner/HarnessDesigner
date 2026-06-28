@@ -200,7 +200,6 @@ from ...geometry import angle as _angle
 from ...geometry import line as _line
 from ... import debug as _debug
 from .. import events as _events
-from ... import utils as _utils
 
 
 if TYPE_CHECKING:
@@ -987,5 +986,48 @@ class Camera:
 
         return _point.Point(*(clip_point[:3] / clip_point[3]))
 
+    def unproject_from_ndc(self, x, y, z):
+        """
+        ndc: (x,y,z) in [-1,1]
+        """
+
+        clip = np.array([x, y, z, 1.0], dtype=np.float32)
+
+        world = self.inv_clip.dot(clip)
+        if np.isclose(world[3], 0.0):
+            return None
+
+        world /= world[3]
+        return world[:3]
+
     def get_position_on_focal_plane(self, point: _point.Point) -> _point.Point:
-        return _utils.get_position_on_focal_plane(point, self)
+        vx, vy, vw, vh = self.viewport
+
+        ndc_x = (2.0 * (point.x - vx) / vw) - 1.0
+        ndc_y = (2.0 * (vh - point.y - vy) / vh) - 1.0
+
+        # One unproject — ray origin is the camera position itself
+        far_world = self.unproject_from_ndc(ndc_x, ndc_y, 1.0)
+        if far_world is None:
+            return self.focal_position.copy()
+
+        origin = self.position.as_numpy.astype(np.float32)
+        direction = np.asarray(far_world, dtype=np.float32) - origin
+        direction /= np.linalg.norm(direction)
+
+        # camera.forward  == plane normal (already normalised)
+        # camera.focal_distance == dot(focal_pos - origin, plane_normal)
+        #                          because forward is the unit vec between them
+        denom = np.dot(direction, self.forward)
+        if abs(denom) < 1e-6:
+            return self.focal_position.copy()
+
+        t = self.focal_distance / denom
+        if t < 0:
+            return self.focal_position.copy()
+
+        return _point.Point(*(origin + t * direction))
+
+    @property
+    def devicePixelRatio(self) -> float:
+        return self.canvas.devicePixelRatio()

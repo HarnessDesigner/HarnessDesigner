@@ -22,7 +22,7 @@ class Note(_ObjectBase):
     db_obj: "_pjt_note.PJTNote" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
-                 db_obj: "_pjt_note.PJTNote"):
+                 db_obj: "_pjt_note.PJTNote", project_load=False):
         """Initialise the :class:`Note` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

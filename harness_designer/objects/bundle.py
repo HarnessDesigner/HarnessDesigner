@@ -22,7 +22,7 @@ class Bundle(_ObjectBase):
     db_obj: "_pjt_bundle.PJTBundle" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
-                 db_obj: "_pjt_bundle.PJTBundle"):
+                 db_obj: "_pjt_bundle.PJTBundle", project_load=False):
         """Initialise the :class:`Bundle` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

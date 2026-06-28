@@ -33,8 +33,8 @@ class AddCoverHandler(_handler_base.HandlerBase):
     obj: _cover.Cover = None
 
     def __init__(self, mainframe: "_ui.MainFrame", housing: "_housing.Housing" = None):
-
-        """Initialize the object and capture the state required for later interaction.
+        """
+        Initialize the object and capture the state required for later interaction.
 
         :param mainframe: Main application frame that owns the editor and project state.
         :type mainframe: "_ui.MainFrame"
@@ -122,7 +122,7 @@ class AddCoverHandler(_handler_base.HandlerBase):
         self.obj.identify(self._preview_material)
 
         if self._housing is not None:
-            _handler_base.set_angle_from_housing(self.obj.db_obj, self._housing.db_obj)
+            self.set_angle_from_housing(self.obj, self._housing)
 
     @property
     def snap_pool(self):
@@ -159,12 +159,12 @@ class AddCoverHandler(_handler_base.HandlerBase):
             point = world_pos
             self._snapped = None
             if prev_snapped is not None:
-                _handler_base.reset_angle(self.obj.db_obj)
+                self.reset_angle(self.obj)
         else:
             point = housing.db_obj.cover_position3d
             self._snapped = housing
             if prev_snapped is not housing:
-                _handler_base.set_angle_from_housing(self.obj.db_obj, housing.db_obj)
+                self.set_angle_from_housing(self.obj, housing)
 
         position = self.obj.db_obj.position3d
 
@@ -191,14 +191,10 @@ class AddCoverHandler(_handler_base.HandlerBase):
             for housing in self.mainframe.project.housings:
                 housing.identify(None)
 
-            self.obj.delete()
-
-            db_obj = self.ptables.pjt_covers_table.insert(
-                self.part.db_id, self._snapped.db_obj.cover_position3d_id,
-                self._snapped.db_obj.db_id)
-
-            _handler_base.set_angle_from_housing(db_obj, self._snapped.db_obj)
-            obj = _cover.Cover(self.mainframe, db_obj)
+            self._snapped.db_obj.cover_position3d.attach(self.obj.db_obj.position3d)
+            self.obj.db_obj.housing_id = self._snapped.db_obj.db_id
+            self.set_angle_from_housing(self.obj, self._snapped)
+            obj = self.obj
         else:
             obj = self.obj
 

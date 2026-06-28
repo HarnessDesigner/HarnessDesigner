@@ -1,12 +1,13 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""Interactive handler logic for transitions and routed wires.
-"""
+"""Interactive handlers for transitions and routed wire placement."""
 
+import math
+import numpy as np
+from PySide6.QtWidgets import QDialog
 from typing import TYPE_CHECKING
 
 from . import handler_base as _handler_base
-
 from ..geometry import point as _point
 from ..geometry import angle as _angle
 from ..gl.canvas3d import object_picker as _object_picker
@@ -18,6 +19,8 @@ from .. import utils as _utils
 from ..gl import materials as _materials
 from .. import config as _config
 from .. import color as _color
+from ..ui.dialogs import part_search as _part_search
+from ..ui.editor_db import transition as _trans_editor_page
 
 
 if TYPE_CHECKING:
@@ -26,251 +29,96 @@ if TYPE_CHECKING:
 
 
 Config = _config.Config.colors
+_SNAP_THRESHOLD = 5.0
 
-_BRANCH_FIT = [0.3, 1.0, 0.3, 1.0]
-_BRANCH_NO_FIT = [1.0, 0.4, 0.0, 1.0]
+_HOVER_HIGHLIGHT = _materials.Plastic(_color.Color(0.2, 0.6, 1.0, 0.8))
+_BRANCH_FIT = _materials.Plastic(_color.Color(0.3, 1.0, 0.3, 1.0))
+_BRANCH_NO_FIT = _materials.Plastic(_color.Color(1.0, 0.4, 0.0, 1.0))
 
 
-# ── point cleanup helpers ─────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Point / DB helpers
+# ---------------------------------------------------------------------------
 
-# Orphan *deletion* is intentionally NOT done inline here.  Checking every
-# reference column after every drag-and-drop is expensive, and a point that
-# appears temporarily unreferenced between two operations should not be
-# deleted prematurely.
-#
-# Orphan cleanup is deferred to application exit and to an on-demand user
-# action.  See database/project_db/cleanup.py for the full implementation.
-#
-# What IS done inline is repointing — updating every object that still
-# references the old Point ID so that they connect at the new shared Point
-# instead.  This must happen immediately so the object graph stays consistent
-# during the current editing session.
-
-def _repoint_all_references(ptables, old_point_id: int, new_point_id: int):
+def _repoint_all_references(ptables, old_point_id: int, new_point_id: int) -> None:
     """
-    Update every row in every project table that references *old_point_id*
-    so that it references *new_point_id* instead.
-
-    This covers wire segments, wire layouts, bundle segments, splices, and
-    any other object that shared the old Point — they all need to connect at
-    the new shared Point after a drag-and-drop endpoint reassignment.
-
-    Orphan deletion (removing the old Point row from pjt_points3d if nothing
-    now references it) is NOT performed here.  It is handled by the deferred
-    cleanup in database/project_db/cleanup.py, which runs on application exit
-    and on explicit user request.
+    Replace every reference to *old_point_id* with *new_point_id* across all project tables.
     """
+
     from ..database.project_db.cleanup import _POINT3D_REFS
 
     con = ptables.pjt_wires_table._con
-
     for table_name, col in _POINT3D_REFS:
         con.execute(
             f'UPDATE {table_name} SET {col} = ? WHERE {col} = ?;',
-            (new_point_id, old_point_id)
-        )
+            (new_point_id, old_point_id))
 
     con.commit()
 
 
-# ── general helpers ───────────────────────────────────────────────────────────
-
-def _get_wire_or_bundle(mouse_pos, camera):
-    """Return the wire or bundle currently located beneath the mouse cursor.
-
-    :param mouse_pos: Mouse position used for picking or preview updates.
-    :type mouse_pos: Point
-    :param camera: Active 3D camera used to resolve positions and visible objects.
-    :type camera: Camera
-    :returns: The selected wire or bundle, or :data:`None` when neither matches.
-    :rtype: object | None
+def _delete_point_if_orphaned(ptables, point_id: int) -> None:
     """
-    selected = _object_picker.find_object(
-        mouse_pos, camera.objects_in_view, camera)
-    if isinstance(selected, (_wire.Wire, _bundle.Bundle)):
-        return selected
-    return None
-
-
-def _diameter_of(obj) -> float:
-    """Return the effective diameter used when matching a wire or bundle to transition branches.
-
-    :param obj: Object to inspect or add to the current operation.
-    :type obj: object
-    :returns: The effective diameter in millimetres.
-    :rtype: float
+    Delete *point_id* from pjt_points3d if nothing references it.
     """
-    if isinstance(obj, _wire.Wire):
-        od = obj.db_obj.part.od_mm
-        return float(od) if od else 1.0
-    if isinstance(obj, _bundle.Bundle):
-        d = obj.obj3d._diameter
-        return float(d) if d else 1.0
-    return 1.0
+
+    from ..database.project_db.cleanup import _POINT3D_REFS
+
+    con = ptables.pjt_wires_table._con
+    for table_name, col in _POINT3D_REFS:
+        rows = con.execute(
+            f'SELECT id FROM {table_name} WHERE {col} = ? LIMIT 1;',
+            (point_id,)).fetchall()
+
+        if rows:
+            return
+
+    con.execute('DELETE FROM pjt_points3d WHERE id = ?;', (point_id,))
+    con.commit()
 
 
-def _fits(diameter: float, branch) -> bool:
-    """Return whether a branch accepts the supplied diameter.
-
-    :param diameter: Diameter value used for compatibility checks.
-    :type diameter: float
-    :param branch: Transition branch object to test.
-    :type branch: object
-    :returns: :data:`True` when the branch accepts the supplied diameter.
-    :rtype: bool
-    """
-    return branch.min_diameter <= diameter <= branch.max_diameter
-
-
-def _best_fitting_branches(branches, diameter: float):
-    """Return the two transition branches that best fit the supplied diameter.
-
-    :param branches: Iterable of transition branches to evaluate.
-    :type branches: list
-    :param diameter: Diameter value used for compatibility checks.
-    :type diameter: float
-    :returns: The best entry and exit branches, or ``(None, None)`` when fewer than two branches fit.
-    :rtype: tuple
-    """
-    fitting = sorted(
-        [b for b in branches if _fits(diameter, b)],
-        key=lambda b: abs(diameter - (b.min_diameter + b.max_diameter) / 2.0)
-    )
-    if len(fitting) < 2:
-        return None, None
-    return fitting[0], fitting[1]
-
-
-def _insert_wire(ptables, part_id, circuit_id,
-                 start_id, stop_id, visible: bool):
-    """Insert a wire database row with the supplied endpoints and visibility settings.
-
-    :param ptables: Project table collection used to read or update database rows.
-    :type ptables: object
-    :param part_id: Identifier of the selected part definition.
-    :type part_id: int | None
-    :param circuit_id: Identifier of the associated circuit, if any.
-    :type circuit_id: int | None
-    :param start_id: 3D point identifier for the segment start.
-    :type start_id: int
-    :param stop_id: 3D point identifier for the segment end.
-    :type stop_id: int
-    :param visible: Whether the inserted segment should be visible in the 3D editor.
-    :type visible: bool
-    :returns: The inserted wire database row.
-    :rtype: object
-    """
+def _insert_wire(ptables, part_id, circuit_id, start_id, stop_id, visible: bool):
     return ptables.pjt_wires_table.insert(
-        part_id=part_id,
-        circuit_id=circuit_id,
-        start_point3d_id=start_id,
-        stop_point3d_id=stop_id,
-        start_point2d_id=None,
-        stop_point2d_id=None,
-        is_visible3d=visible,
-        is_visible2d=False,
-        layer_view_point_id=None,
-        layer_id=None,
-        is_filler_wire=False
-    )
+        part_id, circuit_id, start_id, stop_id,
+        None, None, visible, False, None, None, False)
 
 
 def _insert_bundle(ptables, part_id, start_id, stop_id):
-    """Insert a bundle database row with the supplied endpoints.
-
-    :param ptables: Project table collection used to read or update database rows.
-    :type ptables: object
-    :param part_id: Identifier of the selected part definition.
-    :type part_id: int | None
-    :param start_id: 3D point identifier for the segment start.
-    :type start_id: int
-    :param stop_id: 3D point identifier for the segment end.
-    :type stop_id: int
-    :returns: The inserted bundle database row.
-    :rtype: object
-    """
-    db = ptables.pjt_bundles_table.insert(part_id=part_id)
+    db = ptables.pjt_bundles_table.insert(part_id)
     db.start_position3d_id = start_id
-    db.stop_position3d_id  = stop_id
+    db.stop_position3d_id = stop_id
+
     return db
 
 
-def _walk_bundle_chain(bundle_db_obj, ptables):
+def _walk_bundle_chain(bundle_db_obj, ptables) -> list:
     """
-    Walk the entire chain of bundle sections connected through shared
-    layout Points, starting from *bundle_db_obj*.
+    Walk the full bundle chain from one free end to the other.
 
-    Returns an ordered list of Point IDs representing every boundary in
-    the chain from one true end to the other:
-
-        [end_A_id, layout_id, layout_id, ..., end_B_id]
-
-    The first and last IDs are free endpoints (no layout attached).
-    Every ID in between is a layout Point shared by two adjacent sections.
-
-    A wire routed through the full bundle needs:
-    - One invisible wire segment per consecutive pair of IDs
-    - One invisible wire layout at each intermediate Point so that wire
-      length calculations follow the actual routed path, not a chord
+    Returns an ordered list of Point IDs:
+        [end_A_id, layout_id, ..., end_B_id]
     """
-
     def _has_layout(point_id):
-        """Return whether the layout is available.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param point_id: Identifier for the point.
-        :type point_id: UNKNOWN
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
         return bool(ptables.pjt_bundle_layouts_table.select(
             'id', position3d_id=point_id))
 
     def _next_section(current_id, from_point_id, visited):
-        """Execute the next section operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param current_id: Identifier for the current.
-        :type current_id: UNKNOWN
-        :param from_point_id: Identifier for the from point.
-        :type from_point_id: UNKNOWN
-        :param visited: Value for ``visited``.
-        :type visited: UNKNOWN
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
         rows = (ptables.pjt_bundles_table.select(
-                    'id', start_point3d_id=from_point_id) +
+            'id', start_point3d_id=from_point_id) +
                 ptables.pjt_bundles_table.select(
                     'id', stop_point3d_id=from_point_id))
+
         for row in rows:
             bid = row[0]
             if bid != current_id and bid not in visited:
                 return bid
+
         return None
 
     def _walk_direction(start_section_id, leaving_point_id):
-        """Walk the direction.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param start_section_id: Identifier for the start section.
-        :type start_section_id: UNKNOWN
-        :param leaving_point_id: Identifier for the leaving point.
-        :type leaving_point_id: UNKNOWN
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
-        pts = []
-        current_id = start_section_id
-        current_pt = leaving_point_id
+        pts, current_id, current_pt = [], start_section_id, leaving_point_id
         visited = {start_section_id}
-
         while True:
             pts.append(current_pt)
-
             if not _has_layout(current_pt):
                 break
 
@@ -282,7 +130,6 @@ def _walk_bundle_chain(bundle_db_obj, ptables):
             next_db = ptables.pjt_bundles_table[next_id]
             next_start = next_db.start_position3d_id
             next_stop = next_db.stop_position3d_id
-
             current_pt = next_stop if next_start == current_pt else next_start
             current_id = next_id
 
@@ -291,296 +138,455 @@ def _walk_bundle_chain(bundle_db_obj, ptables):
     section_id = bundle_db_obj.db_id
     start_id = bundle_db_obj.start_position3d_id
     stop_id = bundle_db_obj.stop_position3d_id
-
     toward_start = _walk_direction(section_id, start_id)
     toward_stop = _walk_direction(section_id, stop_id)
 
     return list(reversed(toward_start)) + toward_stop
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ---------------------------------------------------------------------------
+# Diameter / wire assignment helpers (used by AddTransitionHandler)
+# ---------------------------------------------------------------------------
+
+def _wire_area(conc_wire) -> float:
+    od = conc_wire.wire.part.od_mm
+
+    return math.pi * (od / 2.0) ** 2 if od else 0.0
+
+
+def effective_diameter(conc_wires, global_branch) -> float:
+    """
+    Effective packed diameter with 15% air gap; never below min_dia.
+    """
+
+    if not conc_wires:
+        return float(global_branch.min_dia)
+
+    total_area = sum(_wire_area(cw) for cw in conc_wires)
+    raw = 2.0 * math.sqrt(total_area * 1.15 / math.pi)
+
+    return max(raw, float(global_branch.min_dia))
+
+
+def assign_wires_to_branches(conc_wires, global_output_branches) -> list:
+    """
+    First-come-first-serve: fill each output branch until it's over capacity.
+    """
+
+    assignments = [[] for _ in global_output_branches]
+    for cw in conc_wires:
+        placed = False
+        for i, (g_br, assigned) in enumerate(zip(global_output_branches, assignments)):
+            if effective_diameter(assigned + [cw], g_br) <= float(g_br.max_dia):
+                assigned.append(cw)
+                placed = True
+                break
+
+        if not placed:
+            assignments[-1].append(cw)
+
+    return assignments
+
+
+def _set_angle_from_bundle(transition_db_obj, bundle) -> None:
+    """
+    Align the transition so its local X axis follows the bundle direction.
+    """
+
+    p1 = bundle.obj3d.start_position.as_numpy
+    p2 = bundle.obj3d.stop_position.as_numpy
+    seg = p2 - p1
+    seg_len = float(np.linalg.norm(seg))
+    if seg_len < 1e-8:
+        return
+
+    x_axis = seg / seg_len
+
+    world_up = np.array([0.0, 0.0, 1.0], dtype=float)
+    if abs(float(np.dot(x_axis, world_up))) > 0.99:
+        world_up = np.array([0.0, 1.0, 0.0], dtype=float)
+
+    z_axis = np.cross(x_axis, world_up)
+    z_len = float(np.linalg.norm(z_axis))
+    if z_len < 1e-8:
+        return
+
+    z_axis /= z_len
+    y_axis = np.cross(z_axis, x_axis)
+    rot_mat = np.column_stack([x_axis, y_axis, z_axis]).astype(np.float64)
+
+    # Shepperd stable quaternion from rotation matrix
+    trace = rot_mat[0, 0] + rot_mat[1, 1] + rot_mat[2, 2]
+    if trace > 0:
+        s = math.sqrt(trace + 1.0) * 2
+        qw = 0.25 * s
+        qx = (rot_mat[2, 1] - rot_mat[1, 2]) / s
+        qy = (rot_mat[0, 2] - rot_mat[2, 0]) / s
+        qz = (rot_mat[1, 0] - rot_mat[0, 1]) / s
+
+    elif rot_mat[0, 0] > rot_mat[1, 1] and rot_mat[0, 0] > rot_mat[2, 2]:
+        s = math.sqrt(1.0 + rot_mat[0, 0] - rot_mat[1, 1] - rot_mat[2, 2]) * 2
+        qw = (rot_mat[2, 1] - rot_mat[1, 2]) / s
+        qx = 0.25 * s
+        qy = (rot_mat[0, 1] + rot_mat[1, 0]) / s
+        qz = (rot_mat[0, 2] + rot_mat[2, 0]) / s
+
+    elif rot_mat[1, 1] > rot_mat[2, 2]:
+        s = math.sqrt(1.0 + rot_mat[1, 1] - rot_mat[0, 0] - rot_mat[2, 2]) * 2
+        qw = (rot_mat[0, 2] - rot_mat[2, 0]) / s
+        qx = (rot_mat[0, 1] + rot_mat[1, 0]) / s
+        qy = 0.25 * s
+        qz = (rot_mat[1, 2] + rot_mat[2, 1]) / s
+
+    else:
+        s = math.sqrt(1.0 + rot_mat[2, 2] - rot_mat[0, 0] - rot_mat[1, 1]) * 2
+        qw = (rot_mat[1, 0] - rot_mat[0, 1]) / s
+        qx = (rot_mat[0, 2] + rot_mat[2, 0]) / s
+        qy = (rot_mat[1, 2] + rot_mat[2, 1]) / s
+        qz = 0.25 * s
+
+    obj_angle = transition_db_obj.angle3d
+    old_euler = obj_angle.as_euler_float
+    new_euler = _handler_base._euler_from_matrix_continuous(rot_mat, old_euler)
+    obj_angle._q.w, obj_angle._q.x = float(qw), float(qx)
+    obj_angle._q.y, obj_angle._q.z = float(qy), float(qz)
+    cache = obj_angle._Angle__euler_angles
+    if cache is not None:
+        cache[0], cache[1], cache[2] = new_euler[0], new_euler[1], new_euler[2]
+
+    obj_angle._matrix[:] = obj_angle._q.as_matrix
+    obj_angle._process_callbacks()
+
+
+def _create_branch_concentric(ptables, branch_db, conc_wires, diameter) -> None:
+    """Create concentric → single layer → wires for one transition branch."""
+    conc_db = ptables.pjt_concentrics_table.insert(None, branch_db.db_id)
+    if not conc_wires:
+        return
+
+    layer_db = ptables.pjt_concentric_layers_table.insert(
+        0, len(conc_wires), 0, conc_db.db_id, diameter)
+
+    for idx, cw in enumerate(conc_wires):
+        ptables.pjt_concentric_wires_table.insert(layer_db.db_id, idx, cw.wire_id, False)
+
+
+def _find_bundle(mouse_pos, camera, project) -> "_bundle.Bundle | None":
+    selected = _object_picker.find_object(mouse_pos, camera.objects_in_view, camera)
+    if isinstance(selected, _bundle.Bundle):
+        return selected
+
+    world_pos = camera.get_position_on_focal_plane(mouse_pos).as_numpy
+    best, best_dist_sq = None, _SNAP_THRESHOLD ** 2
+
+    for bndl in project.bundles:
+        if not bndl.is_in_3dview:
+            continue
+
+        p1 = bndl.obj3d.start_position.as_numpy
+        p2 = bndl.obj3d.stop_position.as_numpy
+        seg = p2 - p1
+        seg_len_sq = float(np.dot(seg, seg))
+        if seg_len_sq < 1e-8:
+            continue
+
+        t = max(0.0, min(1.0, float(np.dot(world_pos - p1, seg)) / seg_len_sq))
+        dist_sq = float(np.sum((world_pos - (p1 + t * seg)) ** 2))
+        if dist_sq < best_dist_sq:
+            best_dist_sq, best = dist_sq, bndl
+
+    return best
+
+
+# ===========================================================================
 # AddTransitionHandler
-# ══════════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 
 class AddTransitionHandler(_handler_base.HandlerBase):
-    """Handle insertion of transition objects into wires or bundles.
+    """Handle interactive placement of transition fittings onto bundles.
+
+    Workflow: hover snaps to the nearest bundle and shows a live preview.
+    Click finalises the placement, creating all required DB records (transition,
+    branches, concentrics, invisible wire layouts and pass-through wire segments).
     """
-    obj: _transition.Transition = None
+    obj: "_transition.Transition" = None
 
-    def __init__(self, mainframe: '_ui.MainFrame', part_id: int):
-        """Initialize the object and capture the state required for later interaction.
+    def __init__(self, mainframe: "_ui.MainFrame"):
+        part_id = mainframe.editor_db.editor.transitions.GetSelection()
+        if part_id is None:
+            dlg = _part_search.SearchDialog(
+                mainframe, _trans_editor_page.TransitionsPage,
+                title='Add Transition',
+                table=mainframe.global_db.transitions_table)
+            if dlg.exec() == QDialog.DialogCode.Accepted:
+                part_id = dlg.GetValue()
+            dlg.deleteLater()
 
-        :param mainframe: Main application frame that owns the editor and project state.
-        :type mainframe: '_ui.MainFrame'
-        :param part_id: Identifier of the selected part definition.
-        :type part_id: int
-        """
         super().__init__(mainframe, part_id)
-        self.target = None
 
-        self._preview_material = _materials.Plastic(
-            _color.Color(*Config.add_object.preview_color))
-        self._wire_highlight_material = _materials.Plastic(
-            _color.Color(*Config.add_object.wire_highlight))
-        self._bundle_highlight_material = _materials.Plastic(
+        self._snapped_bundle: "_bundle.Bundle | None" = None
+        self._highlight_material = _materials.Plastic(
             _color.Color(*Config.add_object.bundle_highlight))
 
-    def release_capture(self) -> None:
-        """Handle release of the captured position and complete any deferred placement work.
+        if part_id is None:
+            self._finalized = True
+            return
 
-        :raises NotImplementedError: Raised by handlers that require a subclass implementation.
-        """
-        raise NotImplementedError
+        self._global_part = mainframe.global_db.transitions_table[part_id]
+
+        # Preview: build transition DB with all branch points at the origin.
+        # _build_model will fire in Transition.__init__ and position them locally.
+        center_db = self.ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
+        init_angle = _angle.Angle()
+        transition_db = self.ptables.pjt_transitions_table.insert(
+            part_id, center_db.db_id, init_angle, '')
+
+        for branch_id in range(1, self._global_part.branch_count + 1):
+            g_br = self._global_part.branches[branch_id - 1]
+            pt_db = self.ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
+            self.ptables.pjt_transition_branches_table.insert(
+                transition_db.db_id, pt_db.db_id, branch_id, float(g_br.min_dia))
+
+        self.obj = _transition.Transition(mainframe, transition_db)
+        self.obj.obj3d.is_visible = False
 
     def hover(self, mouse_pos: _point.Point):
-        """Update preview or highlight state for the supplied mouse position.
-
-        :param mouse_pos: Mouse position used for picking or preview updates.
-        :type mouse_pos: _point.Point
-        """
-        target = _get_wire_or_bundle(mouse_pos, self.camera)
-        if target is None:
-            if self.target is not None:
-                self.target.identify(None)
-                self.target = None
-            return
-        if target != self.target:
-            if self.target is not None:
-                self.target.identify(None)
-            target.identify(_HOVER_HIGHLIGHT)
-            self.target = target
-
-    def start(self, mouse_pos: _point.Point):
-        """Start the handler operation for the supplied mouse position.
-
-        :param mouse_pos: Mouse position used for picking or preview updates.
-        :type mouse_pos: _point.Point
-        """
-        self.is_active = True
-        self.finalize(mouse_pos)
-
-    def finalize(self, mouse_pos: _point.Point):
-        """Finalize the active operation using the supplied mouse position.
-
-        :param mouse_pos: Mouse position used for picking or preview updates.
-        :type mouse_pos: _point.Point
-        """
-        if not self.is_active:
+        if self._finalized:
             return
 
-        if self.target is not None:
-            self.target.identify(None)
-            self.target = None
+        bundle = _find_bundle(mouse_pos, self.camera, self.mainframe.project)
 
-        target = _get_wire_or_bundle(mouse_pos, self.camera)
-        if target is None:
-            self.is_active = False
+        if bundle is None:
+            if self._snapped_bundle is not None:
+                self._snapped_bundle.identify(None)
+                self._snapped_bundle = None
+            self.obj.obj3d.is_visible = False
             return
 
-        position, wire_angle = _utils.get_closest_point_on_wire(
-            mouse_pos, self.camera, target)
-        if None in (position, wire_angle):
-            self.is_active = False
+        trunk_global = self._global_part.branches[0]
+        conc_wires = bundle.db_obj.wires
+        if effective_diameter(conc_wires, trunk_global) > float(trunk_global.max_dia):
+            if self._snapped_bundle is not None:
+                self._snapped_bundle.identify(None)
+                self._snapped_bundle = None
+            self.obj.obj3d.is_visible = False
             return
 
-        diameter  = _diameter_of(target)
-        is_bundle = isinstance(target, _bundle.Bundle)
-        part      = self.mainframe.project.gtables.transitions_table[self.part_id]
+        # I have to make this available on the budles as well.
+        raw_pos, _, _ = _utils.get_closest_point_on_wire_endpoint(
+            mouse_pos, self.camera, bundle)
+        if not isinstance(raw_pos, _point.Point):
+            raw_pos = _point.Point(*raw_pos)
 
-        centre_p3d = self.ptables.pjt_points3d_table.insert(
-            position.x, position.y, position.z)
-        transition_db = self.ptables.pjt_transitions_table.insert(
-            self.part_id, centre_p3d.db_id, wire_angle, part.name)
+        pos = self.obj.obj3d.position
+        pos += raw_pos - pos
 
-        for i, branch_data in enumerate(part.branches):
-            bp3d = self.ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
-            self.ptables.pjt_transition_branches_table.insert(
-                transition_id=transition_db.db_id,
-                point_id=bp3d.db_id,
-                branch_id=i + 1,
-                diameter=float(branch_data.min_dia)
-            )
+        if bundle is not self._snapped_bundle:
+            if self._snapped_bundle is not None:
+                self._snapped_bundle.identify(None)
 
-        transition_obj = _transition.Transition(self.mainframe, transition_db)
-        self.mainframe.project.add_transition(transition_obj)
+            bundle.identify(self._highlight_material)
+            _set_angle_from_bundle(self.obj.db_obj, bundle)
+            self.obj.obj3d.build()
+            self._snapped_bundle = bundle
 
-        entry_branch, exit_branch = _best_fitting_branches(
-            transition_obj.obj3d._branches, diameter)
-        if entry_branch is None:
-            self.is_active = False
+        self.obj.obj3d.is_visible = True
+
+    def release_capture(self):
+        if self._finalized or self._captured_position is None:
             return
 
-        entry_p_id        = int(entry_branch.db_obj.position3d.db_id[:-2])
-        exit_p_id         = int(exit_branch.db_obj.position3d.db_id[:-2])
-        original_start_id = int(target.obj3d.start_position.db_id[:-2])
-        original_stop_id  = int(target.obj3d.stop_position.db_id[:-2])
-        part_id           = target.db_obj.part_id
-        circuit_id        = getattr(target.db_obj, 'circuit_id', None)
+        if self._snapped_bundle is None:
+            return
 
-        if is_bundle:
-            seg1 = _insert_bundle(
-                self.ptables, part_id, original_start_id, entry_p_id)
-            seg2 = _insert_bundle(
-                self.ptables, part_id, exit_p_id, original_stop_id)
-            self.mainframe.project.add_bundle(
-                _bundle.Bundle(self.mainframe, seg1))
-            self.mainframe.project.add_bundle(
-                _bundle.Bundle(self.mainframe, seg2))
+        bundle = self._snapped_bundle
+        self._snapped_bundle.identify(None)
+        self._snapped_bundle = None
+
+        raw_pos, is_at_endpoint, endpoint = _utils.get_closest_point_on_wire_endpoint(
+            self._captured_position, self.camera, bundle)
+        if not isinstance(raw_pos, _point.Point):
+            raw_pos = _point.Point(*raw_pos)
+
+        self._finalize(bundle, raw_pos, is_at_endpoint, endpoint)
+
+    def _finalize(self, bundle, snap_pos, is_at_endpoint, endpoint):
+        project = self.mainframe.project
+        ptables = self.ptables
+        global_branches = self._global_part.branches
+        trunk_global = global_branches[0]
+        output_globals = global_branches[1:]
+
+        conc_wires = bundle.db_obj.wires
+        output_assignments = assign_wires_to_branches(conc_wires, output_globals)
+
+        self.obj.delete()
+        self.obj = None
+
+        # Trunk entry point: reuse existing bundle endpoint or create new split point
+        if is_at_endpoint:
+            ep_pt = (bundle.obj3d.start_position if endpoint == 'start'
+                     else bundle.obj3d.stop_position)
+            trunk_point_id = int(ep_pt.db_id[:-2])
         else:
-            seg1 = _insert_wire(
-                self.ptables, part_id, circuit_id,
-                original_start_id, entry_p_id, visible=True)
-            seg2 = _insert_wire(
-                self.ptables, part_id, circuit_id,
-                exit_p_id, original_stop_id, visible=True)
-            self.mainframe.project.add_wire(
-                _wire.Wire(self.mainframe, seg1))
-            self.mainframe.project.add_wire(
-                _wire.Wire(self.mainframe, seg2))
+            pt_db = ptables.pjt_points3d_table.insert(
+                float(snap_pos.x), float(snap_pos.y), float(snap_pos.z))
+            trunk_point_id = pt_db.db_id
 
-        target.delete()
-        self.is_active = False
+        center_db = ptables.pjt_points3d_table.insert(
+            float(snap_pos.x), float(snap_pos.y), float(snap_pos.z))
+        init_angle = _angle.Angle()
+        transition_db = ptables.pjt_transitions_table.insert(
+            self.part_id, center_db.db_id, init_angle, '')
+        _set_angle_from_bundle(transition_db, bundle)
+
+        # Branch 1 — trunk
+        trunk_dia = effective_diameter(conc_wires, trunk_global)
+        trunk_br_db = ptables.pjt_transition_branches_table.insert(
+            transition_db.db_id, trunk_point_id, 1, trunk_dia)
+        _create_branch_concentric(ptables, trunk_br_db, conc_wires, trunk_dia)
+
+        # Invisible wire layout at trunk entry point
+        trunk_wl_db = ptables.pjt_wire_layouts_table.insert(trunk_point_id)
+        trunk_wl_db.is_visible3d = False
+        project.add_wire_layout(_wire_layout.WireLayout(self.mainframe, trunk_wl_db))
+
+        # Output branches — placeholder points, resolved by Transition 3D ctor
+        branch_records = []
+        for i, (g_br, assigned) in enumerate(zip(output_globals, output_assignments)):
+            br_pt_db = ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
+            br_dia = effective_diameter(assigned, g_br)
+            br_db = ptables.pjt_transition_branches_table.insert(
+                transition_db.db_id, br_pt_db.db_id, i + 2, br_dia)
+            _create_branch_concentric(ptables, br_db, assigned, br_dia)
+            branch_records.append((br_db, br_pt_db.db_id, assigned))
+
+        # Build the real 3D Transition — this updates branch point positions in the DB
+        transition_obj = _transition.Transition(self.mainframe, transition_db)
+
+        # Wire layouts at output branch points + invisible wire segments through transition
+        for br_db, br_pt_id, assigned in branch_records:
+            wl_db = ptables.pjt_wire_layouts_table.insert(br_pt_id)
+            wl_db.is_visible3d = False
+            project.add_wire_layout(_wire_layout.WireLayout(self.mainframe, wl_db))
+
+            for cw in assigned:
+                pjt_wire = cw.wire
+                ptables.pjt_wires_table.insert(
+                    pjt_wire.part_id, pjt_wire.circuit_id,
+                    trunk_point_id, br_pt_id,
+                    None, None, False, False, None, None, False)
+
+        if not is_at_endpoint:
+            from . import bundle_layout_handler as _blh
+
+            _blh._split_bundle_at_point(project, bundle, trunk_point_id)
+
+        project.add_transition(transition_obj)
+        self._finalized = True
+
+    def cancel(self):
+        if self._snapped_bundle is not None:
+            self._snapped_bundle.identify(None)
+            self._snapped_bundle = None
+
+        if self.obj is not None:
+            self.obj.delete()
+            self.obj = None
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # RouteThroughTransitionHandler
-# Drag an existing wire/bundle endpoint into a transition branch.
-# ══════════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 
 class RouteThroughTransitionHandler(_handler_base.HandlerBase):
+    """Reconnect an existing wire or bundle endpoint to a compatible transition branch."""
 
-    """Reconnect an existing wire or bundle endpoint to a compatible transition branch.
-    """
-    def __init__(self, mainframe: '_ui.MainFrame',
-                 target, is_start: bool):
-        """Initialize the object and capture the state required for later interaction.
-
-        :param mainframe: Main application frame that owns the editor and project state.
-        :type mainframe: '_ui.MainFrame'
-        :param target: Existing object being rerouted or replaced.
-        :type target: object
-        :param is_start: Whether the routed endpoint is the start point of the target object.
-        :type is_start: bool
-        """
+    def __init__(self, mainframe: "_ui.MainFrame", target, is_start: bool):
         super().__init__(mainframe, None)
-        self.target       = target
-        self.is_start     = is_start
-        self.diameter     = _diameter_of(target)
+        self.target = target
+        self.is_start = is_start
+        self.diameter = self._diameter_of(target)
         self._highlighted = []
 
-    def _highlight_all_branches(self):
-        """Highlight every transition branch according to whether it accepts the current diameter.
-        """
+    @staticmethod
+    def _diameter_of(obj) -> float:
+        if isinstance(obj, _wire.Wire):
+            od = obj.db_obj.part.od_mm
+            return float(od) if od else 1.0
+
+        if isinstance(obj, _bundle.Bundle):
+            d = obj.obj3d._diameter
+            return float(d) if d else 1.0
+
+        return 1.0
+
+    @staticmethod
+    def _fits(diameter: float, branch) -> bool:
+        return branch.min_diameter <= diameter <= branch.max_diameter
+
+    def _highlight_branches(self):
         for t_obj in self.mainframe.project.transitions:
             for branch in t_obj.obj3d._branches:
-                color = (_BRANCH_FIT if _fits(self.diameter, branch)
-                         else _BRANCH_NO_FIT)
-                branch.identify(color)
+                mat = _BRANCH_FIT if self._fits(self.diameter, branch) else _BRANCH_NO_FIT
+                branch.identify(mat)
                 self._highlighted.append(branch)
 
     def _clear_highlights(self):
-        """Clear every highlight that this handler applied.
-        """
         for b in self._highlighted:
             b.identify(None)
+
         self._highlighted.clear()
 
-    def start(self, mouse_pos: _point.Point):
-        """Start the handler operation for the supplied mouse position.
-
-        :param mouse_pos: Mouse position used for picking or preview updates.
-        :type mouse_pos: _point.Point
-        """
-        self.is_active = True
-        self._highlight_all_branches()
-
     def hover(self, mouse_pos: _point.Point):
-        """Update preview or highlight state for the supplied mouse position.
-
-        :param mouse_pos: Mouse position used for picking or preview updates.
-        :type mouse_pos: _point.Point
-        """
         pass
 
-    def finalize(self, mouse_pos: _point.Point):
-        """Finalize the active operation using the supplied mouse position.
-
-        :param mouse_pos: Mouse position used for picking or preview updates.
-        :type mouse_pos: _point.Point
-        """
-        if not self.is_active:
+    def release_capture(self):
+        if self._finalized or self._captured_position is None:
             return
 
         from ..objects.objects3d.transition import Branch as _Branch3D
+
         selected = _object_picker.find_object(
-            mouse_pos, self.camera.objects_in_view, self.camera)
+            self._captured_position, self.camera.objects_in_view, self.camera)
 
         self._clear_highlights()
-        self.is_active = False
+        self._finalized = True
 
         if not isinstance(selected, _Branch3D):
             return
-        if not _fits(self.diameter, selected):
+
+        if not self._fits(self.diameter, selected):
             return
 
-        if self.is_start:
-            old_point_id = self.target.db_obj.start_position3d_id
-        else:
-            old_point_id = self.target.db_obj.stop_position3d_id
-
+        old_point_id = (self.target.db_obj.start_position3d_id if self.is_start
+                        else self.target.db_obj.stop_position3d_id)
         branch_p_id = int(selected.db_obj.position3d.db_id[:-2])
-
         if old_point_id == branch_p_id:
             return
 
         _repoint_all_references(self.ptables, old_point_id, branch_p_id)
         _delete_point_if_orphaned(self.ptables, old_point_id)
-
         self.mainframe.editor3d.Refresh(False)
 
+    def cancel(self):
+        self._clear_highlights()
 
-# ══════════════════════════════════════════════════════════════════════════════
+
+# ===========================================================================
 # RouteThroughBundleHandler
-# Drag an existing wire endpoint onto a bundle endpoint.
-#
-# Cleanup model
-# -------------
-# When the wire's endpoint Point is replaced by the bundle's Point, the
-# old Point may be orphaned — nothing references it.  We also need to
-# repoint any other wires or layouts that shared the old Point, because
-# they were connected at that junction and should now connect at the
-# bundle endpoint instead.
-#
-# _repoint_all_references updates every table in one pass.
-# _delete_point_if_orphaned checks all tables before deleting.
-# ══════════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 
 class RouteThroughBundleHandler(_handler_base.HandlerBase):
+    """Reconnect an existing wire endpoint so it shares a selected bundle endpoint."""
 
-    """Reconnect an existing wire endpoint so it shares a selected bundle endpoint.
-    """
-    def __init__(self, mainframe: '_ui.MainFrame',
-                 target: _wire.Wire, is_start: bool):
-        """Initialize the object and capture the state required for later interaction.
-
-        :param mainframe: Main application frame that owns the editor and project state.
-        :type mainframe: '_ui.MainFrame'
-        :param target: Existing object being rerouted or replaced.
-        :type target: _wire.Wire
-        :param is_start: Whether the routed endpoint is the start point of the target object.
-        :type is_start: bool
-        """
+    def __init__(self, mainframe: "_ui.MainFrame", target: "_wire.Wire", is_start: bool):
         super().__init__(mainframe, None)
-        self.target          = target
-        self.is_start        = is_start
+        self.target = target
+        self.is_start = is_start
         self._hovered_bundle = None
 
     def hover(self, mouse_pos: _point.Point):
-        """Update preview or highlight state for the supplied mouse position.
-
-        :param mouse_pos: Mouse position used for picking or preview updates.
-        :type mouse_pos: _point.Point
-        """
         selected = _object_picker.find_object(
             mouse_pos, self.camera.objects_in_view, self.camera)
 
@@ -588,29 +594,18 @@ class RouteThroughBundleHandler(_handler_base.HandlerBase):
             if self._hovered_bundle is not None:
                 self._hovered_bundle.identify(None)
                 self._hovered_bundle = None
+
             return
 
-        if selected != self._hovered_bundle:
+        if selected is not self._hovered_bundle:
             if self._hovered_bundle is not None:
                 self._hovered_bundle.identify(None)
+
             selected.identify(_HOVER_HIGHLIGHT)
             self._hovered_bundle = selected
 
-    def start(self, mouse_pos: _point.Point):
-        """Start the handler operation for the supplied mouse position.
-
-        :param mouse_pos: Mouse position used for picking or preview updates.
-        :type mouse_pos: _point.Point
-        """
-        self.is_active = True
-
-    def finalize(self, mouse_pos: _point.Point):
-        """Finalize the active operation using the supplied mouse position.
-
-        :param mouse_pos: Mouse position used for picking or preview updates.
-        :type mouse_pos: _point.Point
-        """
-        if not self.is_active:
+    def release_capture(self):
+        if self._finalized or self._captured_position is None:
             return
 
         if self._hovered_bundle is not None:
@@ -618,241 +613,149 @@ class RouteThroughBundleHandler(_handler_base.HandlerBase):
             self._hovered_bundle = None
 
         selected = _object_picker.find_object(
-            mouse_pos, self.camera.objects_in_view, self.camera)
+            self._captured_position, self.camera.objects_in_view, self.camera)
 
-        self.is_active = False
+        self._finalized = True
 
         if not isinstance(selected, _bundle.Bundle):
             return
 
-        # Determine which bundle endpoint the wire should connect to.
-        # Use the bundle endpoint nearest to the wire's current position.
-        if self.is_start:
-            old_point_id = self.target.db_obj.start_position3d_id
-            wire_p = self.target.obj3d.start_position
-        else:
-            old_point_id = self.target.db_obj.stop_position3d_id
-            wire_p = self.target.obj3d.stop_position
+        old_point_id = (self.target.db_obj.start_position3d_id if self.is_start
+                        else self.target.db_obj.stop_position3d_id)
+
+        wire_p = (self.target.obj3d.start_position if self.is_start
+                  else self.target.obj3d.stop_position)
+
+        start_np = selected.obj3d.start_position.as_numpy
+        stop_np = selected.obj3d.stop_position.as_numpy
+        wire_np = wire_p.as_numpy
+        d_start = float(np.linalg.norm(wire_np - start_np))
+        d_stop = float(np.linalg.norm(wire_np - stop_np))
 
         bundle_start_id = int(selected.obj3d.start_position.db_id[:-2])
-        bundle_stop_id  = int(selected.obj3d.stop_position.db_id[:-2])
-
-        bundle_start_p = selected.obj3d.start_position
-        bundle_stop_p  = selected.obj3d.stop_position
-
-        dist_start = (wire_p - bundle_start_p).length
-        dist_stop  = (wire_p - bundle_stop_p).length
-
-        bundle_p_id = (bundle_start_id
-                       if dist_start <= dist_stop
-                       else bundle_stop_id)
+        bundle_stop_id = int(selected.obj3d.stop_position.db_id[:-2])
+        bundle_p_id = bundle_start_id if d_start <= d_stop else bundle_stop_id
 
         if old_point_id == bundle_p_id:
             return
 
-        # Repoint every object that referenced the old Point so they all
-        # connect at the bundle endpoint instead — covers other wire
-        # segments, wire layouts, and anything else at that junction.
-        # Orphan deletion is deferred to cleanup.py (runs on exit / on demand).
         _repoint_all_references(self.ptables, old_point_id, bundle_p_id)
-
         self.mainframe.editor3d.Refresh(False)
 
+    def cancel(self):
+        if self._hovered_bundle is not None:
+            self._hovered_bundle.identify(None)
+            self._hovered_bundle = None
 
-# ══════════════════════════════════════════════════════════════════════════════
+
+# ===========================================================================
 # RoutedWireHandler
-#
-# Draw a new wire that passes through bundles and transitions.
-#
-# Bundle traversal
-# ----------------
-# Clicking any section of a bundle walks the full chain via
-# _walk_bundle_chain, returning the ordered list of every boundary Point
-# ID from one true end to the other.  The handler commits one invisible
-# wire segment per consecutive pair, and one invisible wire layout at
-# each intermediate Point so wire length follows the actual routed path.
-#
-# Transition traversal
-# --------------------
-# Clicking a branch sphere shows remaining branches as exit candidates.
-# Clicking an exit branch commits one invisible segment entry→exit,
-# both Points shared with the transition branches.
-#
-# Visibility rule
-# ---------------
-# Outside any container  → is_visible3d=True
-# Inside bundle          → is_visible3d=False  (+ invisible wire layouts)
-# Inside transition      → is_visible3d=False
-# ══════════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 
 class RoutedWireHandler(_handler_base.HandlerBase):
+    """Create a new wire that can pass through bundle chains and transitions.
 
-    """Create a wire that can pass through bundle chains and transitions before final placement.
+    Click to start, click again to add waypoints (clicking bundles / transition
+    branches routes through them automatically), final click places the wire.
     """
-    _IDLE     = 'idle'
-    _ROUTING  = 'routing'
+    _IDLE = 'idle'
+    _ROUTING = 'routing'
     _IN_TRANS = 'in_transition'
 
-    def __init__(self, mainframe: '_ui.MainFrame', part_id: int):
-        """Initialize the object and capture the state required for later interaction.
-
-        :param mainframe: Main application frame that owns the editor and project state.
-        :type mainframe: '_ui.MainFrame'
-        :param part_id: Identifier of the selected part definition.
-        :type part_id: int
-        """
+    def __init__(self, mainframe: "_ui.MainFrame", part_id: int):
         super().__init__(mainframe, part_id)
-        self._state        = self._IDLE
-        self._segments     = []
+        self._state = self._IDLE
+        self._segments = []
         self._seg_start_id = None
         self._entry_branch = None
-        self._preview      = None
-        self._highlighted  = []
+        self._preview = None
+        self._highlighted = []
 
     def _clear_highlights(self):
-        """Clear every highlight that this handler applied.
-        """
         for obj in self._highlighted:
             obj.identify(None)
+
         self._highlighted.clear()
 
-    def _commit(self, stop_id: int, visible: bool):
-        """Append a routed wire segment and advance the current segment start identifier.
-
-        :param stop_id: 3D point identifier for the segment end.
-        :type stop_id: int
-        :param visible: Whether the inserted segment should be visible in the 3D editor.
-        :type visible: bool
-        """
-        if self._seg_start_id is not None:
-            self._segments.append((self._seg_start_id, stop_id, visible))
-        self._seg_start_id = stop_id
-
-    def _commit_chain(self, ordered_point_ids: list):
-        """Append routed wire segments for every adjacent pair in the supplied point chain.
-
-        :param ordered_point_ids: Ordered point identifiers describing a routed path.
-        :type ordered_point_ids: list
-        """
-        for i in range(len(ordered_point_ids) - 1):
-            self._segments.append(
-                (ordered_point_ids[i], ordered_point_ids[i + 1], False))
-        self._seg_start_id = ordered_point_ids[-1]
-
     def _delete_preview(self):
-        """Delete the current preview object and any temporary database rows it owns.
-        """
         if self._preview is not None:
             self._preview.delete()
             self._preview = None
 
     def _wire_od(self) -> float:
-        """Return the active wire outer diameter used for routing decisions.
+        od = self.mainframe.global_db.wires_table[self.part_id].od_mm
 
-        :returns: The value returned by ``_wire_od``.
-        :rtype: float
-        """
-        od = self.mainframe.project.gtables.wires_table[self.part_id].od_mm
         return float(od) if od else 1.0
 
-    def _highlight_exit_branches(self, diameter: float, exclude_branch):
-        """Highlight exit branches that can be used after entering a transition.
+    def _fits(self, diameter: float, branch) -> bool:
+        return branch.min_diameter <= diameter <= branch.max_diameter
 
-        :param diameter: Diameter value used for compatibility checks.
-        :type diameter: float
-        :param exclude_branch: Branch that should remain unhighlighted while choosing an exit branch.
-        :type exclude_branch: object
-        """
+    def _highlight_exit_branches(self, diameter: float, exclude_branch):
         for t_obj in self.mainframe.project.transitions:
             for branch in t_obj.obj3d._branches:
                 if branch is exclude_branch:
-                    branch.identify(None)
                     continue
-                color = (_BRANCH_FIT if _fits(diameter, branch)
-                         else _BRANCH_NO_FIT)
-                branch.identify(color)
+
+                mat = _BRANCH_FIT if self._fits(diameter, branch) else _BRANCH_NO_FIT
+                branch.identify(mat)
                 self._highlighted.append(branch)
 
-    def start(self, mouse_pos: _point.Point):
-        """Start the handler operation for the supplied mouse position.
-
-        :param mouse_pos: Mouse position used for picking or preview updates.
-        :type mouse_pos: _point.Point
-        """
-        if self._state == self._IDLE:
-            self._begin(mouse_pos)
-        elif self._state == self._ROUTING:
-            self._handle_routing_click(mouse_pos)
-        elif self._state == self._IN_TRANS:
-            self._handle_exit_click(mouse_pos)
-
     def hover(self, mouse_pos: _point.Point):
-        """Update preview or highlight state for the supplied mouse position.
-
-        :param mouse_pos: Mouse position used for picking or preview updates.
-        :type mouse_pos: _point.Point
-        """
         if self._state == self._ROUTING:
             self._update_preview(mouse_pos)
 
-    def finalize(self, mouse_pos: _point.Point):
-        """Finalize the active operation using the supplied mouse position.
+    def release_capture(self):
+        if self._finalized or self._captured_position is None:
+            return
 
-        :param mouse_pos: Mouse position used for picking or preview updates.
-        :type mouse_pos: _point.Point
-        """
-        if self._state == self._ROUTING:
-            self._place_all(mouse_pos)
+        if self._state == self._IDLE:
+            self._begin(self._captured_position)
+        elif self._state == self._ROUTING:
+            self._handle_routing_click(self._captured_position)
+        elif self._state == self._IN_TRANS:
+            self._handle_exit_click(self._captured_position)
 
     def _begin(self, mouse_pos: _point.Point):
-        """Create the first routed-wire point on the focal plane and enter routing mode.
-
-        :param mouse_pos: Mouse position used for picking or preview updates.
-        :type mouse_pos: _point.Point
-        """
-        pos = _utils.get_position_on_focal_plane(mouse_pos, self.camera)
+        pos = self.camera.get_position_on_focal_plane(mouse_pos)
         if pos is None:
             return
-        p3d = self.ptables.pjt_points3d_table.insert(pos.x, pos.y, pos.z)
+
+        p3d = self.ptables.pjt_points3d_table.insert(
+            float(pos.x), float(pos.y), float(pos.z))
+
         self._seg_start_id = p3d.db_id
         self._state = self._ROUTING
-        self.is_active = True
 
     def _update_preview(self, mouse_pos: _point.Point):
-        """Create or move the routed-wire preview segment for the current cursor position.
+        target = _object_picker.find_object(
+            mouse_pos, self.camera.objects_in_view, self.camera)
+        if isinstance(target, (_wire.Wire, _bundle.Bundle)):
+            pos, _ = (_utils.get_closest_point_on_wire_endpoint(
+                mouse_pos, self.camera, target)[:2])
 
-        :param mouse_pos: Mouse position used for picking or preview updates.
-        :type mouse_pos: _point.Point
-        """
-        target = _get_wire_or_bundle(mouse_pos, self.camera)
-        if target is not None:
-            pos, _ = _utils.get_closest_point_on_wire(
-                mouse_pos, self.camera, target)
+            if not isinstance(pos, _point.Point):
+                pos = _point.Point(*pos)
         else:
-            pos = _utils.get_position_on_focal_plane(mouse_pos, self.camera)
+            pos = self.camera.get_position_on_focal_plane(mouse_pos)
+
         if pos is None:
             return
 
         if self._preview is None:
             end_p3d = self.ptables.pjt_points3d_table.insert(
-                pos.x, pos.y, pos.z)
+                float(pos.x), float(pos.y), float(pos.z))
+
             wire_db = _insert_wire(
                 self.ptables, self.part_id, None,
                 self._seg_start_id, end_p3d.db_id, visible=True)
+
             self._preview = _wire.Wire(self.mainframe, wire_db)
-            self._preview.obj3d._material.alpha = 0.5
             self.mainframe.add_object(self._preview)
         else:
             end_pos = self._preview.obj3d.stop_position
-            delta = pos - end_pos
-            end_pos += delta
+            end_pos += pos - end_pos
 
     def _handle_routing_click(self, mouse_pos: _point.Point):
-        """Handle a routing click while the handler is outside a transition.
-
-        :param mouse_pos: Mouse position used for picking or preview updates.
-        :type mouse_pos: _point.Point
-        """
         from ..objects.objects3d.transition import Branch as _Branch3D
 
         selected = _object_picker.find_object(
@@ -862,35 +765,35 @@ class RoutedWireHandler(_handler_base.HandlerBase):
 
         if isinstance(selected, _bundle.Bundle):
             chain = _walk_bundle_chain(selected.db_obj, self.ptables)
+            # Entry end: whichever bundle end is closer to current position
+            cur_p3d = self.ptables.pjt_points3d_table[self._seg_start_id]
+            cur_np = np.array([cur_p3d.x, cur_p3d.y, cur_p3d.z], dtype=float)
+            end_a_db = self.ptables.pjt_points3d_table[chain[0]]
+            end_a_np = np.array([end_a_db.x, end_a_db.y, end_a_db.z], dtype=float)
+            end_b_db = self.ptables.pjt_points3d_table[chain[-1]]
+            end_b_np = np.array([end_b_db.x, end_b_db.y, end_b_db.z], dtype=float)
 
-            # Orient chain: entry end is the one closer to current wire pos
-            cur_p     = self.ptables.pjt_points3d_table[self._seg_start_id].point
-            end_a     = self.ptables.pjt_points3d_table[chain[0]].point
-            end_b     = self.ptables.pjt_points3d_table[chain[-1]].point
-            dist_a    = (cur_p - end_a).length if cur_p else float('inf')
-            dist_b    = (cur_p - end_b).length if cur_p else float('inf')
-
-            if dist_b < dist_a:
+            if float(np.linalg.norm(cur_np - end_b_np)) < float(np.linalg.norm(cur_np - end_a_np)):
                 chain = list(reversed(chain))
 
-            # Visible segment from previous point to bundle entry
-            self._commit(chain[0], visible=True)
+            # Visible segment up to bundle entry, then invisible through bundle
+            self._segments.append((self._seg_start_id, chain[0], True))
 
-            # Invisible segments through every bundle section
-            self._commit_chain(chain)
+            for i in range(len(chain) - 1):
+                self._segments.append((chain[i], chain[i + 1], False))
 
+            self._seg_start_id = chain[-1]
             self._delete_preview()
 
         elif isinstance(selected, _Branch3D):
-            if not _fits(diameter, selected):
+            if not self._fits(diameter, selected):
                 return
 
             entry_p_id = int(selected.db_obj.position3d.db_id[:-2])
-            self._commit(entry_p_id, visible=True)
-
+            self._segments.append((self._seg_start_id, entry_p_id, True))
+            self._seg_start_id = entry_p_id
             self._delete_preview()
             self._clear_highlights()
-
             self._entry_branch = selected
             self._highlight_exit_branches(diameter, exclude_branch=selected)
             self._state = self._IN_TRANS
@@ -899,11 +802,6 @@ class RoutedWireHandler(_handler_base.HandlerBase):
             self._place_all(mouse_pos)
 
     def _handle_exit_click(self, mouse_pos: _point.Point):
-        """Handle selection of the exit branch while the routed wire is inside a transition.
-
-        :param mouse_pos: Mouse position used for picking or preview updates.
-        :type mouse_pos: _point.Point
-        """
         from ..objects.objects3d.transition import Branch as _Branch3D
 
         selected = _object_picker.find_object(
@@ -911,75 +809,73 @@ class RoutedWireHandler(_handler_base.HandlerBase):
 
         if not isinstance(selected, _Branch3D):
             return
-        if not _fits(self._wire_od(), selected):
+
+        if not self._fits(self._wire_od(), selected):
             return
 
         self._clear_highlights()
-
         exit_p_id = int(selected.db_obj.position3d.db_id[:-2])
-        self._commit(exit_p_id, visible=False)
-
+        self._segments.append((self._seg_start_id, exit_p_id, False))
+        self._seg_start_id = exit_p_id
         self._entry_branch = None
         self._state = self._ROUTING
 
     def _place_all(self, mouse_pos: _point.Point):
-        """Commit every queued routed-wire segment and any required invisible wire layouts.
-
-        :param mouse_pos: Mouse position used for picking or preview updates.
-        :type mouse_pos: _point.Point
-        """
         self._delete_preview()
         self._clear_highlights()
 
-        target = _get_wire_or_bundle(mouse_pos, self.camera)
-        if target is not None:
-            pos, _ = _utils.get_closest_point_on_wire(
-                mouse_pos, self.camera, target)
+        target = _object_picker.find_object(
+            mouse_pos, self.camera.objects_in_view, self.camera)
+
+        if isinstance(target, (_wire.Wire, _bundle.Bundle)):
+            pos, _ = (_utils.get_closest_point_on_wire_endpoint(
+                mouse_pos, self.camera, target)[:2])
+
+            if not isinstance(pos, _point.Point):
+                pos = _point.Point(*pos)
         else:
-            pos = _utils.get_position_on_focal_plane(mouse_pos, self.camera)
+            pos = self.camera.get_position_on_focal_plane(mouse_pos)
 
         if pos is None or self._seg_start_id is None:
             self._reset()
             return
 
-        end_p3d = self.ptables.pjt_points3d_table.insert(pos.x, pos.y, pos.z)
-        self._commit(end_p3d.db_id, visible=True)
+        end_p3d = self.ptables.pjt_points3d_table.insert(
+            float(pos.x), float(pos.y), float(pos.z))
 
-        # Insert all wire segments.  For invisible runs through bundles,
-        # also insert invisible wire layouts at every intermediate Point
-        # so wire length calculations follow the actual routed path.
+        self._segments.append((self._seg_start_id, end_p3d.db_id, True))
+
         intermediate_layout_points = set()
-
         for i, (start_id, stop_id, visible) in enumerate(self._segments):
             wire_db = _insert_wire(
-                self.ptables, self.part_id, None,
-                start_id, stop_id, visible=visible)
-            self.mainframe.project.add_wire(
-                _wire.Wire(self.mainframe, wire_db))
+                self.ptables, self.part_id, None, start_id, stop_id, visible=visible)
 
-            if not visible:
-                # If the next segment is also invisible, stop_id is an
-                # intermediate bundle layout Point — needs a wire layout
-                if (i + 1 < len(self._segments) and
-                        not self._segments[i + 1][2]):
-                    intermediate_layout_points.add(stop_id)
+            self.mainframe.project.add_wire(_wire.Wire(self.mainframe, wire_db))
+
+            if not visible and (i + 1 < len(self._segments) and
+                                not self._segments[i + 1][2]):
+
+                intermediate_layout_points.add(stop_id)
 
         for point_id in intermediate_layout_points:
-            layout_db = self.ptables.pjt_wire_layouts_table.insert(
-                point_id=point_id)
+            layout_db = self.ptables.pjt_wire_layouts_table.insert(point_id)
             layout_db.is_visible3d = False
             layout_db.is_visible2d = False
+
             self.mainframe.project.add_wire_layout(
                 _wire_layout.WireLayout(self.mainframe, layout_db))
 
         self._reset()
 
     def _reset(self):
-        """Reset the routed-wire handler back to its idle state.
-        """
-        self._stat = self._IDLE
+        self._state = self._IDLE
         self._segments = []
         self._seg_start_id = None
         self._entry_branch = None
         self._preview = None
-        self.is_active = False
+        self._finalized = True
+
+    def cancel(self):
+        self._delete_preview()
+        self._clear_highlights()
+        self._reset()

@@ -466,6 +466,9 @@ class TransitionMenu(QMenu):
         action = self.addAction('Clone')
         action.triggered.connect(self.on_clone)
 
+        action = self.addAction('Route Wires')
+        action.triggered.connect(self.on_route_wires)
+
         self.addSeparator()
         action = self.addAction('Delete')
         action.triggered.connect(self.on_delete)
@@ -486,6 +489,15 @@ class TransitionMenu(QMenu):
         """Delete this transition from the project."""
         _menu_ops.delete_object(
             self.selected, self.selected.mainframe.project.delete_transition)
+
+    def on_route_wires(self):
+        """Open the wire routing dialog to reassign wires between output branches."""
+        from ...ui.dialogs import transition_routing as _routing_dlg
+
+        mainframe = self.selected.mainframe
+        dlg = _routing_dlg.TransitionRoutingDialog(mainframe, self.selected)
+        dlg.exec()
+        dlg.deleteLater()
 
     def on_properties(self):
         """Show this transition's properties in the object editor."""

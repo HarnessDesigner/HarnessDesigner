@@ -7,7 +7,7 @@ from OpenGL import GL
 import math
 
 from . import base2d as _base2d
-
+from ...geometry import angle as _angle
 
 if TYPE_CHECKING:
     from ...database.project_db import pjt_wire as _pjt_wire
@@ -59,7 +59,13 @@ class Wire(_base2d.Base2D):
         :param db_obj: Database-backed object.
         :type db_obj: :class:`_pjt_wire.PJTWire`
         """
-        _base2d.Base2D.__init__(self, parent, db_obj)
+
+        self._part = db_obj.part
+        self._p1 = db_obj.start_position2d
+        self._p2 = db_obj.stop_position2d
+        angle = _angle.Angle.from_euler(0.0, 0.0, 0.0)
+
+        _base2d.Base2D.__init__(self, parent, db_obj, self._p1, angle)
 
         self._part = db_obj.part
         self._p1 = db_obj.start_position2d
@@ -166,7 +172,7 @@ class Wire(_base2d.Base2D):
         # Default width
         return 3.0
 
-    def render_selection(self):
+    def render_selection(self, program: int, proj, view) -> None:
         """Render selection highlight"""
         if self._p1 is None or self._p2 is None:
             return
@@ -198,7 +204,7 @@ class Wire(_base2d.Base2D):
         GL.glVertex2f(x - size, y + size)
         GL.glEnd()
 
-    def hit_test(self, world_x: float, world_y: float) -> bool:
+    def hit_test(self, world_pos: "_point.Point") -> bool:
         """Test if point is near the wire line"""
         if self._p1 is None or self._p2 is None:
             return False

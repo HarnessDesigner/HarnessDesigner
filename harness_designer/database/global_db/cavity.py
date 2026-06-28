@@ -4,6 +4,7 @@ from PySide6.QtWidgets import QTabWidget
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
 import uuid
+import numpy as np
 
 from ...ui import prop_ctrls as _prop_ctrls
 from .bases import EntryBase, TableBase
@@ -383,6 +384,38 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         angle.bind(self._update_angle2d)
 
         return angle
+
+    @property
+    def aabb(self) -> np.ndarray | None:
+        value = self._table.select('aabb', id=self._db_id)[0][0]
+        if value is None:
+            return value
+
+        value = np.array(eval(value), dtype=np.float32)
+        return value
+
+    @aabb.setter
+    def aabb(self, value: np.ndarray):
+        value = [[float(str(item)) for item in items]
+                 for items in value.tolist()]
+
+        self._table.update(self._db_id, aabb=str(value))
+
+    @property
+    def obb(self) -> np.ndarray | None:
+        value = self._table.select('obb', id=self._db_id)[0][0]
+        if value is None:
+            return value
+
+        value = np.array(eval(value), dtype=np.float32)
+        return value
+
+    @obb.setter
+    def obb(self, value: np.ndarray):
+        value = [[float(str(item)) for item in items]
+                 for items in value.tolist()]
+
+        self._table.update(self._db_id, obb=str(value))
 
     @property
     def round_terminal(self) -> bool:

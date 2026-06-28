@@ -24,18 +24,20 @@ class StartStopPosition3DMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         """
-        if self._stored_start_position3d is None and self._obj is not None:
+
+        if self._stored_start_position3d is None:
             point_id = self.start_position3d_id
 
             self._stored_start_position3d = self._table.db.pjt_points3d_table[point_id]
-            self._stored_start_position3d.add_object(self._obj)
-            point = self._stored_start_position3d.point
-        elif self._stored_start_position3d is not None:
             point = self._stored_start_position3d.point
         else:
-            point = None
+            point = self._stored_start_position3d.point
+
+        if self._obj is not None:
+            self._stored_start_position3d.add_object(self._obj())
 
         return point
+
 
     @property
     def start_position3d_id(self) -> int:
@@ -80,16 +82,17 @@ class StartStopPosition3DMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         """
-        if self._stored_stop_position3d is None and self._obj is not None:
+
+        if self._stored_stop_position3d is None:
             point_id = self.stop_position3d_id
 
             self._stored_stop_position3d = self._table.db.pjt_points3d_table[point_id]
-            self._stored_stop_position3d.add_object(self._obj)
-            point = self._stored_stop_position3d.point
-        elif self._stored_stop_position3d is not None:
             point = self._stored_stop_position3d.point
         else:
-            point = None
+            point = self._stored_stop_position3d.point
+
+        if self._obj is not None:
+            self._stored_stop_position3d.add_object(self._obj())
 
         return point
 

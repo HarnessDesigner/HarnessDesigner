@@ -163,6 +163,15 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
 
         return packet
 
+    @property
+    def diameter(self) -> float:
+        return self.table.db.pjt_concentrics_table.select('id', bundle_id=self.db_id)[0][0]
+
+    @diameter.setter
+    def diameter(self, value: float):
+        concentric_id = self.table.db.pjt_concentrics_table.select('id', bundle_id=self.db_id)[
+            0][0]
+
     def get_object(self) -> "_bundle_obj.Bundle":
         """Return the object.
 

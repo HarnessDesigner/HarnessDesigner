@@ -121,7 +121,7 @@ class PJTTPALocksTable(PJTTableBase):
 
         raise KeyError(item)
 
-    def insert(self, part_id: int, position3d_id: int, housing_id: int = None) -> "PJTTPALock":
+    def insert(self, part_id: int, position3d_id: int, idx: int, housing_id: int = None) -> "PJTTPALock":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -136,7 +136,7 @@ class PJTTPALocksTable(PJTTableBase):
         :rtype: :class:`PJTTPALock`
         """
         db_id = PJTTableBase.insert(
-            self, part_id=part_id, point3d_id=position3d_id, housing_id=housing_id)
+            self, part_id=part_id, point3d_id=position3d_id, housing_id=housing_id, idx=idx)
 
         return PJTTPALock(self, db_id, self.project_id)
 

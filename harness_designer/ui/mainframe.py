@@ -736,7 +736,7 @@ class MainFrame(QMainWindow):
             position = obj.position
         else:
             mouse_pos = evt.GetPosition()
-            position = _utils.get_position_on_focal_plane(mouse_pos, self.editor3d.camera)
+            position = self.editor3d.camera.get_position_on_focal_plane(mouse_pos)
 
         x, y, z = position.as_float
         self._status_x.setText(f'X: {round(float(x), 4)}')
@@ -826,12 +826,12 @@ class MainFrame(QMainWindow):
             context_menu = obj.obj3d.get_context_menu()
             if context_menu is not None:
                 # QMenu.exec() takes a global screen position.
-                # evt.GetPosition() returns a Point in canvas-local coords;
-                # map it to global via the canvas widget.
+                # evt.GetPosition() returns a Point in _canvas local coords
+                # (the inner QOpenGLWidget, not the Canvas3D container).
                 x, y, _ = evt.GetPosition().as_int
-                canvas_widget = self.editor3d.editor
-                global_pos = canvas_widget.mapToGlobal(
-                    canvas_widget.rect().topLeft().__class__(x, y)
+                gl_widget = self.editor3d.editor._canvas
+                global_pos = gl_widget.mapToGlobal(
+                    gl_widget.rect().topLeft().__class__(x, y)
                 )
                 context_menu.exec(global_pos)
 

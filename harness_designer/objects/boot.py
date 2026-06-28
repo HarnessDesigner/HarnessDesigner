@@ -22,7 +22,7 @@ class Boot(_ObjectBase):
     db_obj: "_pjt_boot.PJTBoot" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
-                 db_obj: "_pjt_boot.PJTBoot"):
+                 db_obj: "_pjt_boot.PJTBoot", project_load=False):
         """Initialise the :class:`Boot` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

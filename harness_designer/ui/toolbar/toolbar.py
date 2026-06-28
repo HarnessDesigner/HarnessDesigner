@@ -14,6 +14,9 @@ from . import float_spin_button as _fsb
 from . import snap_angle_button as _sab
 from ... import config as _config
 from ...objects import project_model as _project_model
+from ...objects import bundle as _bundle
+from ...objects import wire as _wire
+from ...objects import cavity as _cavity
 
 
 if TYPE_CHECKING:
@@ -616,9 +619,6 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
             evt.StopPropagation()
             return
 
-        from ...objects import bundle as _bundle
-        from ...objects import wire as _wire
-
         if self._position3d is not None:
             self._position3d.unbind(self.on_position)
             self._position3d = None
@@ -634,7 +634,7 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
         if self._selected is not None:
             self._selected = None
 
-        if isinstance(obj, (_bundle.Bundle, _wire.Wire)):
+        if isinstance(obj, (_bundle.Bundle, _wire.Wire, _cavity.Cavity)):
             for act in (self.rotate_x, self.rotate_y, self.rotate_z, self.scale_x,
                         self.scale_y, self.scale_z, self.move_x, self.move_y,
                         self.move_z):

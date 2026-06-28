@@ -45,7 +45,6 @@ class Cavity(_base2d.Base2D):
         _base2d.Base2D.__init__(self, parent, db_obj, position, angle)
         self._housing = None  # Reference to parent housing
 
-
     def _on_position_changed(self, *args):
         """Called when cavity position changes"""
         self.editor2d.editor.canvas.Refresh()

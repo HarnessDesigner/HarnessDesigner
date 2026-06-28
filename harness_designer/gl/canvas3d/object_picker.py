@@ -166,7 +166,8 @@ def _pick_candidates_at_mouse(mx, my, scene_objects,
 
 
 @_debug.logfunc
-def find_object(mouse_pos, scene_objects, camera: "_camera.Camera"):
+def find_object(mouse_pos, scene_objects, camera: "_camera.Camera",
+                current_selection=None):
     """Find the object.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -177,6 +178,8 @@ def find_object(mouse_pos, scene_objects, camera: "_camera.Camera"):
     :type scene_objects: UNKNOWN
     :param camera: Value for ``camera``.
     :type camera: :class:`_camera.Camera`
+    :param current_selection: Currently selected object, used to cycle to the
+        next closest overlapping object when the closest hit matches it.
     :returns: Return value. UNKNOWN details.
     :rtype: UNKNOWN
     """
@@ -185,8 +188,6 @@ def find_object(mouse_pos, scene_objects, camera: "_camera.Camera"):
     pj = camera.projection
     mv = camera.modelview
     viewport = camera.viewport
-
-    # refresh candidate list if mouse moved significantly
 
     candidates = _pick_candidates_at_mouse(mx, my, scene_objects, camera)
 
@@ -221,17 +222,24 @@ def find_object(mouse_pos, scene_objects, camera: "_camera.Camera"):
         # fallback: just pick first candidate
         return candidates[0][1]
 
-    # Evaluate ray hit for ALL candidates; pick closest t
-    best_obj = None
-    best_t = inf
-
+    # Evaluate ray hit for ALL candidates; collect sorted hit list
+    hits = []
     for _, obj in candidates:
-        # world AABB
         wmin, wmax = obj.obj3d.aabb
-
         hit, t_hit = _ray_intersect_aabb(origin, direc, wmin, wmax)
-        if hit and t_hit < best_t:
-            best_t = t_hit
-            best_obj = obj
+        if hit:
+            hits.append((t_hit, obj))
 
-    return best_obj
+    if not hits:
+        return None
+
+    hits.sort(key=lambda k: k[0])
+
+    if current_selection is None or len(hits) == 1:
+        return hits[0][1]
+
+    # If the closest hit is the currently selected object, cycle to the next.
+    if hits[0][1] is current_selection:
+        return hits[1][1]
+
+    return hits[0][1]

@@ -6,6 +6,7 @@ from typing import Iterable as _Iterable, TYPE_CHECKING
 import uuid
 
 from ...ui import prop_ctrls as _prop_ctrls
+from ... import utils as _utils
 from .bases import EntryBase, TableBase
 from ...geometry import point as _point
 from .mixins import (
@@ -31,6 +32,41 @@ from .mixins import (
 
 if TYPE_CHECKING:
     from . import seal as _seal
+
+
+def _seal_eff_dia(seal, side: str) -> float | None:
+    """Resolve a seal's effective wire diameter for *side* ('min' or 'max').
+
+    Tries wire_dia → wire_size_dia → cross-section → AWG, in that order.
+    Returns None if every relevant field is NULL.
+    """
+    if side == 'min':
+        v = seal.wire_dia_min
+        if v is not None:
+            return v
+        v = seal.wire_size_dia_min
+        if v is not None:
+            return v
+        v = seal.wire_size_cross_min
+        if v is not None:
+            return _utils.mm2_to_d_mm(v)
+        v = seal.wire_size_awg_min
+        if v is not None:
+            return _utils.awg_to_d_mm(v)
+    else:
+        v = seal.wire_dia_max
+        if v is not None:
+            return v
+        v = seal.wire_size_dia_max
+        if v is not None:
+            return v
+        v = seal.wire_size_cross_max
+        if v is not None:
+            return _utils.mm2_to_d_mm(v)
+        v = seal.wire_size_awg_max
+        if v is not None:
+            return _utils.awg_to_d_mm(v)
+    return None
 
 
 class TerminalsTable(TableBase):
@@ -433,23 +469,29 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         if not self.sealing:
             return []
 
-        min_dia = self.min_dia
-        max_dia = self.max_dia
+        term_min = self.wire_size_dia_min
+        term_max = self.wire_size_dia_max
 
-        if not min_dia or not max_dia:
+        if not term_min or not term_max:
             return []
 
-        cmd = (f'SELECT id FROM seals WHERE wire_dia_min <= {min_dia} '
-               f'AND wire_dia_max >= {max_dia};')
-
-        self._table.db.seals_table.execute(cmd)
-        rows = self._table.db.seals_table.fetchall()
-
         res = []
-        for row in rows:
-            seal = self._table.db.seals_table[row[0]]
+        for seal in self._table.db.seals_table:
             if seal.type.name.lower() not in ('sws', 'single wire seal'):
                 continue
+
+            seal_min = _seal_eff_dia(seal, 'min')
+            seal_max = _seal_eff_dia(seal, 'max')
+
+            if seal_min is None and seal_max is None:
+                continue
+
+            if seal_min is not None and seal_min > term_min:
+                continue
+
+            if seal_max is not None and seal_max < term_max:
+                continue
+
             res.append(seal)
 
         return res

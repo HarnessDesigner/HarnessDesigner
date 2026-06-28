@@ -25,7 +25,7 @@ class Cavity(_ObjectBase):
     db_obj: "_pjt_cavity.PJTCavity" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
-                 db_obj: "_pjt_cavity.PJTCavity"):
+                 db_obj: "_pjt_cavity.PJTCavity", project_load=False):
         """Initialise the :class:`Cavity` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

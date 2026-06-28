@@ -22,7 +22,7 @@ class WireMarker(_ObjectBase):
     db_obj: "_wire_marker.PJTWireMarker" = None
 
     def __init__(self, mainframe: "_mainframe.MainFrame",
-                 db_obj: "_wire_marker.PJTWireMarker"):
+                 db_obj: "_wire_marker.PJTWireMarker", project_load=False):
         """Initialise the :class:`WireMarker` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

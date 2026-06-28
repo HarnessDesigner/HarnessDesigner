@@ -22,7 +22,7 @@ class Cover(_ObjectBase):
     db_obj: "_pjt_cover.PJTCover" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
-                 db_obj: "_pjt_cover.PJTCover"):
+                 db_obj: "_pjt_cover.PJTCover", project_load=False):
         """Initialise the :class:`Cover` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

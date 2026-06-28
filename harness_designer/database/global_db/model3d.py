@@ -6,14 +6,14 @@ import os
 import uuid
 import numpy as np
 
-from ...create_database import models3d as _models3d
-from ....geometry import angle as _angle
-from ....geometry import point as _point
-from ..bases import EntryBase, TableBase
-from .... import resources as _resources
+from ..create_database import models3d as _models3d
+from ...geometry import angle as _angle
+from ...geometry import point as _point
+from .bases import EntryBase, TableBase
+from ... import resources as _resources
 
 if TYPE_CHECKING:
-    from .. import file_types as _file_types
+    from . import file_types as _file_types
 
 
 class Models3DTable(TableBase):
@@ -588,8 +588,8 @@ class Model3D(EntryBase):
             # from the mapping into the GPU vertex buffer.
 
             if self.angle3d is None:
-                from ....ui.dialogs import part_orientation as _part_orientation
-                from .... import app as _app
+                from ...ui.dialogs import part_orientation as _part_orientation
+                from ... import app as _app
 
                 self.angle3d = [0.0, 0.0, 0.0]
                 self.position3d = [0.0, 0.0, 0.0]

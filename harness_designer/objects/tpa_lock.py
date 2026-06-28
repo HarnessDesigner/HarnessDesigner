@@ -21,7 +21,7 @@ class TPALock(_ObjectBase):
     obj3d: _tpa_lock_3d.TPALock = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
-                 db_obj: "_pjt_tpa_lock.PJTTPALock"):
+                 db_obj: "_pjt_tpa_lock.PJTTPALock", project_load=False):
         """Initialise the :class:`TPALock` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

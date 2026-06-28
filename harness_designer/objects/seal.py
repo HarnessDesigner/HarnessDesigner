@@ -22,7 +22,7 @@ class Seal(_ObjectBase):
     db_obj: "_pjt_seal.PJTSeal" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
-                 db_obj: "_pjt_seal.PJTSeal"):
+                 db_obj: "_pjt_seal.PJTSeal", project_load=False):
         """Initialise the :class:`Seal` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

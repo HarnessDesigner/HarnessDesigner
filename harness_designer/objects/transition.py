@@ -21,7 +21,7 @@ class Transition(_ObjectBase):
     obj3d: _transition_3d.Transition = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
-                 db_obj: "_pjt_transition.PJTTransition"):
+                 db_obj: "_pjt_transition.PJTTransition", project_load=False):
         """Initialise the :class:`Transition` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

@@ -12,6 +12,19 @@ When adding or modifying entries, retain the general structure of the file:
   - dependencies
   - layer relationships/patterns
 
+### `CODEBASE_MAP.md` Maintenance
+**This file must be updated whenever the file structure changes.**
+That includes:
+- adding, removing, or renaming any `.py` file or directory
+- converting a single-file module into a package (or vice versa)
+- moving code between modules
+- adding or removing third-party dependencies
+- any change to layer relationships or architectural patterns
+
+Keeping this file accurate is as important as keeping the code correct —
+AI agents that work on this project depend on it to avoid re-exploring
+the entire codebase from scratch every session.
+
 # harness_designer codebase map
 
 PySide6 (Qt) desktop app for designing wire harnesses. ~508 .py files. GUI toolkit is **PySide6**, with a wx-style `CallAfter` shim in `app.py`. OpenGL rendering for 2D/3D editors. Multi-process architecture for DB/model/image work. For release builds the project's Python code is converted to C extension modules and compiled, so hot numeric loops run much faster than the interpreted dev environment suggests.
@@ -32,7 +45,17 @@ Contents/structure of the `harness_designer/` package.
     to users who haven't customized it
 - `resources.py`
 - `color.py`
-- `utils.py`
+- `utils/`: utility helpers (layered package)
+  - `paths.py`: `get_appdata()`, `get_documents()`
+  - `remap.py`: `remap()` value range conversion
+  - `wire_conversions.py`: AWG/mm²/diameter conversions
+  - `snap_pool.py`: `SnapPool` (numpy-backed nearest-point lookup)
+  - `ui_utils.py`: `HSizer()`, `IMAGE_FILE_WILDCARDS`, `MODEL_FILE_WILDCARDS`
+  - `bounding_boxes.py`: `compute_aabb()`, `compute_obb()`, `adjust_aabb()`
+  - `mesh_normals.py`: `compute_normals()`, `compute_smooth_normals()`, `compute_face_normals()`, `compute_face_indexes()`
+  - `model_utils.py`: `compute_edges()`, `convert_model_to_mesh()`
+- `app_mixins/`: application-level mixins
+  - `callback_mixin.py`
 - `debug.py`
 - `monkey_patch.py`
 - `splash.py`
@@ -51,23 +74,32 @@ Contents/structure of the `harness_designer/` package.
     - `sql_table.py`
   - `sqlite_connector/`: same as `mysql_connector/`
 - `global_db/`: shared parts-catalog tables, one file per entity
-  - housing
-  - terminal
-  - seal
-  - boot
-  - cover
-  - cpa_lock
-  - tpa_lock
-  - splice
-  - wire
-  - wire_marker
-  - transition(+_branch)
-  - cavity
-  - cavity_lock
-  - accessory
-  - adhesive
-  - bundle_cover
-  - plus lookup tables
+  - part entities:
+    - housing
+    - terminal
+    - seal
+    - seal_type
+    - boot
+    - cover
+    - cpa_lock
+    - cpa_lock_type
+    - tpa_lock
+    - splice
+    - splice_types
+    - wire
+    - wire_marker
+    - transition (+_branch)
+    - cavity
+    - cavity_lock
+    - accessory
+    - adhesive
+    - bundle_cover
+  - file/resource entities:
+    - image
+    - datasheet
+    - cad
+    - file_types
+  - lookup tables:
     - color
     - material
     - manufacturer
@@ -78,9 +110,10 @@ Contents/structure of the `harness_designer/` package.
     - shape
     - temperature
     - direction
-    - protection…
-  - `bases.py` (~1300 lines): is the table base class. 
-  - `resource_state.py`: tracks resource sync state.
+    - protection
+    - setting
+  - `bases.py` (~1300 lines): table base class
+  - `resource_state.py`: tracks resource sync state
   - `mixins/`: column mixins
     - part_number
     - manufacturer
@@ -90,10 +123,7 @@ Contents/structure of the `harness_designer/` package.
     - model3d
     - compat_housings/seals/terminals
     - wire_size
-  - `model3d/`: 3D model storage
-    - `loader.py`
-    - `model_download.py`
-    - `preview/`
+  - `model3d.py`: 3D model storage (`Models3DTable`, `Model3D`)
   - `ip/`: IP rating tables
     - fluid
     - solid
@@ -101,10 +131,18 @@ Contents/structure of the `harness_designer/` package.
 - `project_db/`: per-project tables, all prefixed `pjt_`
   - pjt_housing
   - pjt_wire
+  - pjt_wire_marker
+  - pjt_wire_service_loop
+  - pjt_wire_layout
   - pjt_bundle
+  - pjt_bundle_layout
   - pjt_concentric*
-  - pjt_point2d/3d
-  - `pjt_bases.py` (~1100 lines): is the base
+  - pjt_point2d
+  - pjt_point3d
+  - pjt_circuit
+  - pjt_note
+  - pjt_tpa_lock
+  - pjt_bases.py (~1100 lines): base class
   - `project.py`: project table
   - `cleanup.py`
   - `mixins/`:
@@ -117,7 +155,8 @@ Contents/structure of the `harness_designer/` package.
     - notes
     - part
     - smooth
-    - start_stop_position
+    - start_stop_position2d
+    - start_stop_position3d
 - `create_database/`: one file per table containing seed/creation 
                       logic (mirrors global_db naming)
 - `common_db/`
@@ -133,18 +172,35 @@ Contents/structure of the `harness_designer/` package.
 - `clean_creds/win.py`: Windows credential cleanup
 
 ## `objects/` (scene objects rendered in editors)
-- `*.py` (housing, terminal, wire, …): **wrapper classes** (`ObjectBase` in `object_base.py`): one wrapper per scene part 
-    holding `obj2d` + `obj3d` plus child wrappers (e.g. `objects/housing.py` `Housing` 
-    owns cavities, tpa/cpa locks, seal, cover, boot) and fanning select/delete/identify 
-    out to both views.
-- `objects3d/`: the actual renderable 3D views (constructed with `(parent=wrapper, db_obj=pjt entry)`.)
-  - one file per harness part
+- wrapper classes (`ObjectBase` in `object_base.py`): one wrapper per scene part
+  holding `obj2d` + `obj3d` plus child wrappers (e.g. `objects/housing.py` `Housing`
+  owns cavities, tpa/cpa locks, seal, cover, boot) and fanning select/delete/identify
+  out to both views.
+  - housing
+  - terminal
+  - wire
+  - wire_layout
+  - bundle
+  - circuit
+  - note
+  - splice
+  - transition
+  - project_model
+  - generic
+- `objects3d/`: the actual renderable 3D views (constructed with `(parent=wrapper, db_obj=pjt entry)`)
+  - one file per harness part (housing, terminal, wire, wire_layout, bundle, splice, transition, seal, boot, cover, tpa_lock, cpa_lock, note, wire_marker, project_model, generic)
   - `base3d.py` (~960 lines): base 3D object
+  - `housing_cavity_picker.py`: cavity selection overlay
   - `menu_ops.py`: context-menu operations
-  - `mixins/`: 
+  - `mixins/`:
     - angle
     - move
 - `objects2d/`: same structure as `objects3d` except for 2D rendering
+  - wire
+  - wire_layout
+  - project_model
+  - generic
+  - `base2d.py`: base 2D object
 
   
 
@@ -245,7 +301,11 @@ Contents/structure of the `harness_designer/` package.
 - `dialogs/`:
   - dialog_base.py
   - part_search.py
+  - part_orientation.py
   - properties_dialog.py
+  - bundle_wires_dialog.py
+  - export_dialog.py
+  - transition_routing.py
   - add_project
   - add_note
   - project_dialog
@@ -253,7 +313,7 @@ Contents/structure of the `harness_designer/` package.
   - debug_settings
   - error
   - header
-  - `housing_editor/`: 
+  - `housing_editor/`:
     - housing
     - cavity
     - accessory
@@ -278,6 +338,8 @@ Contents/structure of the `harness_designer/` package.
 - `web_viewer/` (empty)
 
 ## Other subsystems
+- `exporter/`: project export
+  - `exporter.py`
 - `geometry/`: 
   - point
   - line
@@ -375,7 +437,7 @@ objects2d/housing.py + objects3d/housing.py   renderable views; ctor(parent=wrap
                                          editors render them.
 - **Project load flow:** project_db tables iterate `pjt_*` entries → 
                          each entry builds its wrapper + 2d/3d objects 
-                         (3D models fetched/meshed via `process/model_process.py` + `global_db/model3d/loader.py`).
+                         (3D models fetched/meshed via `process/model_process.py`).
 - **Catalog editing** is a separate path: `ui/editor_db/housing.py` edits the global_db table 
                                           directly and never touches `pjt_*` or scene objects.
 - Naming convention per layer: 
@@ -394,7 +456,7 @@ How a part's 3D model gets from disk to the screen:
   - packs vertices + both normal sets into one flat float array
   - saves it as a plain **uncompressed `.npy`** file at `<model_dir>/<uuid[:2]>/<uuid>.npy`
   - only metadata goes to the DB: uuid, vertex_count, aabb, obb
-- **Loading** (`global_db/model3d/__init__.py`):
+- **Loading** (`global_db/model3d.py`):
   - the parent process opens the `.npy` with `np.load(mmap_mode='r')`
   - the **memmap** is streamed straight into the GPU vertex buffer — model data is never fully loaded into RAM
 - **Shared GL contexts** (`app.py`, `gl/context.py`):
@@ -475,6 +537,19 @@ How a part's 3D model gets from disk to the screen:
   - writers that are also bound listeners MUST use the **unbind → write → rebind** 
     idiom to avoid feedback loops (see prop_ctrls and `Rings3D.apply_drag_angle` 
     for the reference pattern)
+- **Type hints are load-bearing — do not weaken them.**
+  The entire codebase is compiled to C extension modules via Cython for release builds.
+  Cython uses concrete type annotations to emit statically typed C; if a hint is 
+  removed, generalised to a base class, or replaced with a TypeVar/Generic, Cython 
+  falls back to Python object boxing for that value and the compiled code loses its 
+  performance advantage. This means:
+  - every `@property` return type, `__iter__` yield type, and `__getitem__` return 
+    type must name the most specific concrete class, not a base or abstract type
+  - refactors that appear to reduce boilerplate by moving typed methods into a base 
+    class often destroy Cython's ability to specialise those methods — check whether 
+    the type information survives before proceeding
+  - `TYPE_CHECKING` blocks are fine (Cython ignores them at compile time), but 
+    runtime annotations on hot paths must be concrete
 - Lazy imports are used in objects3d context menus.
 - Dialogs use a custom title bar and close only via bottom buttons — no native window chrome.
 - **Mouse-drag interaction: axis locking** (`gl/canvas3d/dragging.py` `DragObject`):

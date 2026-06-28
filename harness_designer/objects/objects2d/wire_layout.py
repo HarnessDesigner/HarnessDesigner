@@ -6,7 +6,8 @@ from PySide6.QtWidgets import QMenu
 from OpenGL import GL
 
 from . import base2d as _base2d
-
+from ...geometry import angle as _angle
+from ... import utils as _utils
 
 if TYPE_CHECKING:
     from ...database.project_db import pjt_wire_layout as _pjt_wire_layout
@@ -34,16 +35,18 @@ class WireLayout(_base2d.Base2D):
         :type db_obj: :class:`_pjt_wire_layout.PJTWireLayout`
         """
 
-        _base2d.Base2D.__init__(self, parent, db_obj)
+        position = db_obj.position2d
+        angle = _angle.Angle.from_euler(0.0, 0.0, 0.0)
 
-        self._position = db_obj.position2d.point if hasattr(db_obj, 'position2d') else None
+        wires = db_obj.attached_wires
 
-        # Wire layout visual properties
-        self._radius = 5.0  # mm
+        if wires:
+            diameter = _utils.mm2_to_d_mm(wires[0].part.size_mm2)
+        else:
+            diameter = 2.0
 
-        # Bind to position changes
-        if self._position:
-            self._position.bind(self._on_position_changed)
+        self._radius = diameter * 0.75
+        _base2d.Base2D.__init__(self, parent, db_obj, position, angle)
 
     def _on_position_changed(self, *args):
         """Called when wire layout position changes"""

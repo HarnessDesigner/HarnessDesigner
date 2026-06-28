@@ -17,6 +17,7 @@ from ...geometry.decimal import Decimal as _d
 if TYPE_CHECKING:
     from ...database.project_db import pjt_housing as _pjt_housing
     from .. import housing as _housing
+    from . import cavity as _cavity2d
 
 
 class Housing(_base2d.Base2D):
@@ -54,6 +55,11 @@ class Housing(_base2d.Base2D):
 
         # Track child cavities for hierarchical movement
         self._cavities = []
+
+    @property
+    def cavities(self) -> "_cavity2d.Cavity":
+        cavities = [cavity.obj2d for cavity in self._parent.cavities]
+        return cavities
 
     def add_cavity(self, cavity):
         """

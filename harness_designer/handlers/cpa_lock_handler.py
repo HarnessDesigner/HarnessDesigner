@@ -92,7 +92,8 @@ class AddCPALockHandler(_handler_base.HandlerBase):
 
         if self._housing is None:
 
-            compat_housings = self.ptables.global_db.housings_table.get_compat(cpa_lock=part_number)
+            compat_housings = self.ptables.global_db.housings_table.get_compat(
+                cpa_lock=part_number)
 
             compat_housings.extend(self.part.compat_housings)
 
@@ -112,10 +113,12 @@ class AddCPALockHandler(_handler_base.HandlerBase):
 
             pos_obj = self.ptables.pjt_points3d_table.insert(0, 0, 0)
             pos_id = pos_obj.db_id
+
             db_obj = self.ptables.pjt_cpa_locks_table.insert(
                 part_id, pos_id, None)
         else:
             pos_id = self._housing.db_obj.cpa_lock_position3d_id
+
             db_obj = self.ptables.pjt_cpa_locks_table.insert(
                 part_id, pos_id, self._housing.db_obj.db_id)
 
@@ -123,7 +126,7 @@ class AddCPALockHandler(_handler_base.HandlerBase):
         self.obj.identify(self._preview_material)
 
         if self._housing is not None:
-            _handler_base.set_angle_from_housing(self.obj.db_obj, self._housing.db_obj)
+            self.set_angle_from_housing(self.obj, self._housing)
 
     @property
     def snap_pool(self):
@@ -137,7 +140,7 @@ class AddCPALockHandler(_handler_base.HandlerBase):
             housing_cpa_positions.append(housing.db_obj.cpa_lock_position3d)
             housings.append(housing)
 
-        return _utils.SnapPool(housings, housing_cpa_positions)
+        return _utils.SnapPool(housings, housing_cpa_positions, threshold=10.0)
 
     def hover(self, mouse_pos: _point.Point):
         """
@@ -160,12 +163,12 @@ class AddCPALockHandler(_handler_base.HandlerBase):
             point = world_pos
             self._snapped = None
             if prev_snapped is not None:
-                _handler_base.reset_angle(self.obj.db_obj)
+                self.reset_angle(self.obj)
         else:
             point = housing.db_obj.cpa_lock_position3d
             self._snapped = housing
             if prev_snapped is not housing:
-                _handler_base.set_angle_from_housing(self.obj.db_obj, housing.db_obj)
+                self.set_angle_from_housing(self.obj, housing)
 
         position = self.obj.db_obj.position3d
 
@@ -192,14 +195,12 @@ class AddCPALockHandler(_handler_base.HandlerBase):
             for housing in self.mainframe.project.housings:
                 housing.identify(None)
 
-            self.obj.delete()
+            self._snapped.db_obj.cpa_lock_position3d.attach(
+                self.obj.db_obj.position3d)
 
-            db_obj = self.ptables.pjt_cpa_locks_table.insert(
-                self.part.db_id, self._snapped.db_obj.cpa_lock_position3d_id,
-                self._snapped.db_obj.db_id)
-
-            _handler_base.set_angle_from_housing(db_obj, self._snapped.db_obj)
-            obj = _cpa_lock.CPALock(self.mainframe, db_obj)
+            self.obj.db_obj.housing_id = self._snapped.db_obj.db_id
+            self.set_angle_from_housing(self.obj, self._snapped)
+            obj = self.obj
         else:
             obj = self.obj
 
@@ -208,4 +209,3 @@ class AddCPALockHandler(_handler_base.HandlerBase):
         self.mainframe.project.add_cpa_lock(obj)
 
         self.obj = None
-

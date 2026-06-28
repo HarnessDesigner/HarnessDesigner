@@ -18,7 +18,7 @@ from ...gl import materials as _materials
 from ... import color as _color
 from ... import utils as _utils
 from ... import config as _config
-
+from . import mixins as _mixins
 
 if TYPE_CHECKING:
     from ...database.project_db import pjt_wire as _pjt_wire
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 Config = _config.Config.editor3d
 
 
-class Wire(_base3d.Base3D):
+class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
     """Represent a wire in :mod:`harness_designer.objects.objects3d.wire`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -108,11 +108,11 @@ class Wire(_base3d.Base3D):
         """Calculate position, rotation, and scale from endpoints"""
 
         # Calculate wire vector
-        wire_vector = (self._p1 - self._p2).as_numpy
+        wire_vector = (self._p2 - self._p1).as_numpy
         length = np.linalg.norm(wire_vector)
 
         if length < 0.001:
-            length = 0.001  # Prevent zero length
+            return
 
         self._scale.z = length
 
@@ -147,6 +147,7 @@ class Wire(_base3d.Base3D):
         dot = np.dot(z_axis, direction)
         if abs(dot - 1.0) < 0.0001:
             return _angle.Angle.from_quat([1.0, 0.0, 0.0, 0.0])  # Identity
+
         if abs(dot + 1.0) < 0.0001:
             # 180 degree rotation around X axis
             return _angle.Angle.from_quat([0.0, 1.0, 0.0, 0.0])

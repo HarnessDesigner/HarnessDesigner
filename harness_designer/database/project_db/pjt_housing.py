@@ -71,8 +71,8 @@ def _euler_from_matrix_continuous(
     *prev_euler_deg* so the displayed values never jump.
     """
     pitch = float(np.degrees(np.arcsin(np.clip(-rot_mat[1, 2], -1.0, 1.0))))
-    yaw   = float(np.degrees(np.arctan2(rot_mat[0, 2], rot_mat[2, 2])))
-    roll  = float(np.degrees(np.arctan2(rot_mat[1, 0], rot_mat[1, 1])))
+    yaw = float(np.degrees(np.arctan2(rot_mat[0, 2], rot_mat[2, 2])))
+    roll = float(np.degrees(np.arctan2(rot_mat[1, 0], rot_mat[1, 1])))
     result = [pitch, yaw, roll]
 
     if prev_euler_deg and not any(math.isnan(v) for v in prev_euler_deg):
@@ -199,6 +199,7 @@ class PJTHousingsTable(PJTTableBase):
 
         if position2d_id is None:
             position2d_id = self.db.pjt_points2d_table.insert(0.0, 0.0).db_id
+
         if position3d_id is None:
             position3d_id = self.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
 
@@ -214,7 +215,9 @@ class PJTHousingsTable(PJTTableBase):
             if cavity is None:
                 continue
 
-            self.db.pjt_cavities_table.insert(cavity.db_id, db_id, cavity.name)
+            print(cavity.db_id, db_id, cavity.name)
+            pjt_cavity = self.db.pjt_cavities_table.insert(cavity.db_id, db_id, cavity.name)
+            print(pjt_cavity)
 
         pos = db_obj.cover_position3d
         pos += pos3d
@@ -269,6 +272,23 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         self.merge_packet_data(self.part.build_monitor_packet(), packet)
 
         return packet
+
+    def update_cavities(self):
+        for cavity in self.cavities:
+            if cavity is not None:
+                return
+
+        from ...objects import cavity as _cavity
+
+        # add the cavities from the part to the project
+        for cavity in self.part.cavities:
+            if cavity is None:
+                continue
+
+            db_obj = self._table.db.pjt_cavities_table.insert(cavity.db_id, self.db_id, cavity.name)
+
+            cavity = _cavity.Cavity(self._table.db.mainframe, db_obj)
+            self._table.db.mainframe.project.add_cavity(cavity)
 
     def get_object(self) -> "_housing_obj.Housing":
         """Return the object.
@@ -978,21 +998,20 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         """
-        if self._stored_position2d is None and self._obj is not None:
 
+        if self._stored_position2d is None:
             point_id = self.position2d_id
 
             self._stored_position2d = self._table.db.pjt_points2d_table[point_id]
-            self._stored_position2d.add_object(self._obj())
 
             point = self._stored_position2d.point
             point.bind(self._update_position2d)
             self._o_position2d = point.copy()
-
-        elif self._stored_position2d is None:
-            point = None
         else:
             point = self._stored_position2d.point
+
+        if self._obj is not None:
+            self._stored_position2d.add_object(self._obj())
 
         return point
 
@@ -1022,62 +1041,82 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         # Compute the true world-space rotation delta as q_new ⊗ q_old⁻¹.
         # Using the Euler-path (angle - o_angle) gives a component-wise
         # difference that is only correct when the non-rotated axes are zero.
-        actual_delta_q = angle._q - o_angle._q
-        delta = angle - o_angle
+        actual_delta_q = angle._q - o_angle._q  # NOQA
+        position = self.position3d
 
         cavities = [c for c in self.cavities if c is not None]
-        if cavities:
-            housing_pos = self.position3d.as_numpy
+        for cavity in cavities:
+            pos = cavity.position3d
 
-            # Get all cavity centers: shape (N, 3)
-            centers = np.array(
-                [cavity.position3d.as_numpy for cavity in cavities], dtype=np.float32)
+            new_pos = pos - position
+            new_pos @= inverse_angle
+            new_pos @= angle
+            new_pos += position
+            pos_delta = new_pos - pos
 
-            # Create reference offset vector for all cavities
-            reference_vector = np.array([0.0, 0.0, 10.0], dtype=np.float32)
+            cavity_angle = cavity.angle3d
+            old_euler = cavity_angle.as_euler_float
 
-            # Rotate reference vector by each cavity's current angle to get offset
-            # Then add to centers to get reference points
-            offsets = np.array(
-                [cavity.angle3d @ reference_vector for cavity in cavities],
-                dtype=np.float32)
+            # world-space composition: q_delta ⊗
+            q_acc_new = cavity_angle._q + actual_delta_q  # NOQA
 
-            references = centers + offsets
+            new_euler = None
+            part = cavity.part
 
-            # Stack centers and references: shape (N*2, 3)
-            all_points = np.empty((len(cavities) * 2, 3), dtype=np.float32)
-            all_points[0::2] = centers      # Even indices: centers
-            all_points[1::2] = references   # Odd indices: references
+            local_obb = part.obb
 
-            # Vectorized transformation
-            all_points -= housing_pos
-            all_points @= delta
-            all_points += housing_pos
+            fwd_face = 4
+            up_face = 3
 
-            # Extract and update
-            for i, cavity in enumerate(cavities):
-                rotated_center = all_points[i * 2]
-                rotated_reference = all_points[i * 2 + 1]
+            # Full world-space rotation: project angle on top of
+            # the baked model3d orientation (q_acc_new ⊗ q_model3d).
+            # forward_up face indices were chosen using model3d.angle3d,
+            # so we must include it here for consistent face directions.
+            q_model3d = part.angle3d._q  # NOQA
 
-                # Update position
-                c_position = cavity.position3d
-                with c_position:
-                    c_position.x = float(rotated_center[0])
-                    c_position.y = float(rotated_center[1])
+            # = q_acc_new ⊗ q_model3d
+            q_obb = q_model3d + q_acc_new
 
-                c_position.z = float(rotated_center[2])
+            rotated = np.array(
+                [q_obb @ c for c in local_obb], dtype=np.float32)
 
-                # Calculate new angle
-                new_cavity_angle = _angle.Angle.from_points(
-                    _point.Point(*rotated_center),
-                    _point.Point(*rotated_reference)
-                )
+            fwd = _obb_face_direction(rotated, local_obb, fwd_face)
+            up = _obb_face_direction(rotated, local_obb, up_face)
 
-                c_angle = cavity.angle3d
-                angle_delta = new_cavity_angle - c_angle
-                c_angle += angle_delta
+            if fwd is None or up is None:
+                continue
 
-        position = self.position3d
+            right = np.cross(up, fwd)
+            rn = float(np.linalg.norm(right))
+            if rn > 1e-8:
+                right /= rn
+                up = np.cross(fwd, right)
+                rot_mat = np.column_stack([right, up, fwd])
+                new_euler = _euler_from_matrix_continuous(rot_mat, old_euler)
+
+            with cavity_angle:
+                if new_euler is None:
+                    cavity_angle.x = float('nan')
+                    cavity_angle.y = float('nan')
+                    cavity_angle.z = float('nan')
+                else:
+                    cavity_angle.x = new_euler[0]
+                    cavity_angle.y = new_euler[1]
+                    cavity_angle.z = new_euler[2]
+
+                # Update quaternion, Euler cache, and matrix in one shot so
+                # only a single DB write fires through _process_callbacks.
+                cavity_angle._q.w = q_acc_new.w  # NOQA
+                cavity_angle._q.x = q_acc_new.x  # NOQA
+                cavity_angle._q.y = q_acc_new.y  # NOQA
+                cavity_angle._q.z = q_acc_new.z  # NOQA
+
+                cavity_angle._matrix[:] = q_acc_new.as_matrix  # NOQA
+
+            cavity_angle._process_callbacks()  # NOQA
+
+            pos += pos_delta
+
         cover_pos = self.cover_position3d
         cpa_pos = self.cpa_lock_position3d
         tpa1_pos = self.tpa_lock_1_position3d
@@ -1104,7 +1143,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
                 old_euler = obj_angle.as_euler_float
 
                 # world-space composition: q_delta ⊗ q_acc_old
-                q_acc_new = obj_angle._q + actual_delta_q
+                q_acc_new = obj_angle._q + actual_delta_q  # NOQA
 
                 new_euler = None
                 part = obj.part
@@ -1113,22 +1152,25 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
                     if model3d is not None:
                         local_obb = model3d.obb
                         fwd_face, up_face = model3d.forward_up
-                        if -1 in (fwd_face, up_face):
+                        if fwd_face == -1 or up_face == -1:
                             continue
 
                         # Full world-space rotation: project angle on top of
                         # the baked model3d orientation (q_acc_new ⊗ q_model3d).
                         # forward_up face indices were chosen using model3d.angle3d,
                         # so we must include it here for consistent face directions.
-                        q_model3d = model3d.angle3d._q
-                        q_obb = q_model3d + q_acc_new  # = q_acc_new ⊗ q_model3d
+                        q_model3d = model3d.angle3d._q  # NOQA
+
+                        # = q_acc_new ⊗ q_model3d
+                        q_obb = q_model3d + q_acc_new
+
                         rotated = np.array(
                             [q_obb @ c for c in local_obb], dtype=np.float32)
 
                         fwd = _obb_face_direction(rotated, local_obb, fwd_face)
                         up = _obb_face_direction(rotated, local_obb, up_face)
 
-                        if None in (fwd, up):
+                        if fwd is None or up is None:
                             continue
 
                         right = np.cross(up, fwd)
@@ -1140,26 +1182,26 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
                             new_euler = _euler_from_matrix_continuous(
                                 rot_mat, old_euler)
 
-                # Update quaternion, Euler cache, and matrix in one shot so
-                # only a single DB write fires through _process_callbacks.
-                obj_angle._q.w = q_acc_new.w
-                obj_angle._q.x = q_acc_new.x
-                obj_angle._q.y = q_acc_new.y
-                obj_angle._q.z = q_acc_new.z
-
-                euler_cache = obj_angle._Angle__euler_angles
-                if euler_cache is not None:
+                with obj_angle:
                     if new_euler is None:
-                        euler_cache[0] = float('nan')
-                        euler_cache[1] = float('nan')
-                        euler_cache[2] = float('nan')
+                        obj_angle.x = float('nan')
+                        obj_angle.y = float('nan')
+                        obj_angle.z = float('nan')
                     else:
-                        euler_cache[0] = new_euler[0]
-                        euler_cache[1] = new_euler[1]
-                        euler_cache[2] = new_euler[2]
+                        obj_angle.x = new_euler[0]
+                        obj_angle.y = new_euler[1]
+                        obj_angle.z = new_euler[2]
 
-                obj_angle._matrix[:] = q_acc_new.as_matrix
-                obj_angle._process_callbacks()
+                    # Update quaternion, Euler cache, and matrix in one shot so
+                    # only a single DB write fires through _process_callbacks.
+                    obj_angle._q.w = q_acc_new.w  # NOQA
+                    obj_angle._q.x = q_acc_new.x  # NOQA
+                    obj_angle._q.y = q_acc_new.y  # NOQA
+                    obj_angle._q.z = q_acc_new.z  # NOQA
+
+                    obj_angle._matrix[:] = q_acc_new.as_matrix  # NOQA
+
+                obj_angle._process_callbacks()  # NOQA
 
             pos += pos_delta
 
@@ -1238,16 +1280,16 @@ class PJTHousingControl(QTabWidget):
 
         self.cavity_pages = []
 
-        if db_obj is not None:
-            for i, cavity in enumerate(db_obj.cavities):
-                if cavity is None:
-                    continue
-
-                ctrl = db_obj.table.db.pjt_cavities_table.get_control(i)
-                ctrl.setParent(self.cavities_notebook)
-                self.cavities_notebook.addTab(ctrl, ctrl.GetLabel())
-                ctrl.set_obj(cavity)
-                self.cavity_pages.append(ctrl)
+        # if db_obj is not None:
+        #     for i, cavity in enumerate(db_obj.cavities):
+        #         if cavity is None:
+        #             continue
+        #
+        #         ctrl = db_obj.table.db.pjt_cavities_table.get_control(i)
+        #         ctrl.setParent(self.cavities_notebook)
+        #         self.cavities_notebook.addTab(ctrl, ctrl.GetLabel())
+        #         ctrl.set_obj(cavity)
+        #         self.cavity_pages.append(ctrl)
 
     def __init__(self, parent):
         """Initialise the :class:`PJTHousingControl` instance.

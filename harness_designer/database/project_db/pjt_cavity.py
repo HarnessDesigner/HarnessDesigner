@@ -4,6 +4,7 @@ from typing import Iterable as _Iterable, TYPE_CHECKING
 
 import uuid
 import weakref
+import numpy as np
 from PySide6.QtWidgets import QTabWidget
 
 from ...ui import prop_ctrls as _prop_ctrls
@@ -33,24 +34,26 @@ if TYPE_CHECKING:
 
 
 class PJTCavitiesTable(PJTTableBase):
-    """Represent a PJT cavities table in :mod:`harness_designer.database.project_db.pjt_cavity`.
-
-    UNKNOWN details are inferred from the class name and surrounding code.
     """
-    __table_name__ = 'pjt_cavities'
+    Represent a PJT cavities table in :mod:`harness_designer.database.project_db.pjt_cavity`.
+    """
 
+    __table_name__ = 'pjt_cavities'
     _control: "PJTCavityControl" = None
 
     @property
     def control(self) -> "PJTCavityControl":
-        """Return the control.
+        """
+        Return the control.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`PJTCavityControl`
+
         :raises RuntimeError: Raised when the operation cannot be completed.
         """
+
         if self._control is None:
             raise RuntimeError('sanity check')
 
@@ -58,13 +61,15 @@ class PJTCavitiesTable(PJTTableBase):
 
     @classmethod
     def start_control(cls, mainframe):
-        """Start the control.
+        """
+        Start the control.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param mainframe: Main application frame.
         :type mainframe: UNKNOWN
         """
+
         cls._control = PJTCavityControl(mainframe)
         cls._control.hide()
 
@@ -77,7 +82,8 @@ class PJTCavitiesTable(PJTTableBase):
     _controls: list["PJTCavityControl"] = []
 
     def get_control(self, index):
-        """Return the control.
+        """
+        Return the control.
 
         UNKNOWN details are inferred from the callable name and signature.
 
@@ -99,7 +105,8 @@ class PJTCavitiesTable(PJTTableBase):
         return self._controls[index]
 
     def get_from_position3d_id(self, position3d_id) -> "PJTCavity":
-        """Return the from position 3D ID.
+        """
+        Return the from position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
@@ -108,6 +115,7 @@ class PJTCavitiesTable(PJTTableBase):
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`PJTCavity`
         """
+
         rows = self.select('id', position3d_id=position3d_id)
         if rows:
             return self[rows[0][0]]
@@ -117,53 +125,57 @@ class PJTCavitiesTable(PJTTableBase):
             return self[rows[0][0]]
 
     def get_from_position2d_id(self, position2d_id) -> "PJTCavity":
-        """Return the from position 2D ID.
+        """
+        Return the from position 2D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param position2d_id: Identifier for the position 2D.
         :type position2d_id: UNKNOWN
+
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`PJTCavity`
         """
+
         rows = self.select('id', position2d_id=position2d_id)
         if rows:
             return self[rows[0][0]]
 
     def _table_needs_update(self) -> bool:
-        """Execute the table needs update operation.
+        """
+        Execute the table needs update operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Return value. UNKNOWN details.
         :rtype: bool
         """
+
         from ..create_database import cavities
 
         return cavities.pjt_table.is_ok(self)
 
     def _add_table_to_db(self):
-        """Add a table to database.
-
-        UNKNOWN details are inferred from the callable name and signature.
         """
+        Add a table to database.
+        """
+
         from ..create_database import cavities
 
         cavities.pjt_table.add_to_db(self)
 
     def _update_table_in_db(self):
-        """Update the table in database.
-
-        UNKNOWN details are inferred from the callable name and signature.
         """
+        Update the table in database.
+        """
+
         from ..create_database import cavities
 
         cavities.pjt_table.update_fields(self)
 
     def __iter__(self) -> _Iterable["PJTCavity"]:
-        """Iterate over the available items.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Iterate over the available items.
 
         :returns: Iterator or iterable result. UNKNOWN details.
         :rtype: _Iterable['PJTCavity']
@@ -173,17 +185,19 @@ class PJTCavitiesTable(PJTTableBase):
             yield PJTCavity(self, db_id, self.project_id)
 
     def __getitem__(self, item) -> "PJTCavity":
-        """Return the requested item.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Return the requested item.
 
         :param item: Item identifier or value.
         :type item: UNKNOWN
+
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`PJTCavity`
+
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
+
         if isinstance(item, int):
             if item in self:
                 return PJTCavity(self, item, self.project_id)
@@ -191,22 +205,28 @@ class PJTCavitiesTable(PJTTableBase):
 
         raise KeyError(item)
 
-    def insert(self, part_id: int, housing_id: int, name: str) -> "PJTCavity":
-        """Execute the insert operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
+    def insert(self, part_id: int, housing_id: int, name: str = "") -> "PJTCavity":
+        """
+        Execute the insert operation.
 
         :param part_id: Identifier for the part.
         :type part_id: int
+
         :param housing_id: Identifier for the housing.
         :type housing_id: int
+
         :param name: name of the cavity
         :type name: str
+
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`PJTCavity`
         """
 
         g_cavity = self.db.global_db.cavities_table[part_id]
+
+        aabb = g_cavity.aabb
+        obb = g_cavity.obb
+
         c_position2d = g_cavity.position2d
         c_position3d = g_cavity.position3d
 
@@ -227,6 +247,26 @@ class PJTCavitiesTable(PJTTableBase):
         angle2d = h_angle2d + c_angle2d
         angle3d = h_angle3d + c_angle3d
 
+        inverse_h_angle3d = h_angle3d.inverse
+
+        aabb -= h_position3d
+        obb -= h_position3d
+
+        aabb @= inverse_h_angle3d
+        obb @= inverse_h_angle3d
+
+        aabb @= angle3d
+        obb @= angle3d
+
+        aabb += position3d
+        obb += position3d
+
+        aabb = [[float(str(item)) for item in items]
+                for items in aabb.tolist()]
+
+        obb = [[float(str(item)) for item in items]
+               for items in obb.tolist()]
+
         quat2d = list(angle2d.as_quat_float)
         angle2d = list(angle2d.as_euler_float)
 
@@ -237,9 +277,10 @@ class PJTCavitiesTable(PJTTableBase):
         position3d = self.db.pjt_points3d_table.insert(*position3d.as_float)
 
         db_id = PJTTableBase.insert(self, part_id=part_id, housing_id=housing_id,
-                                    quat2d=quat2d, angle2d=angle2d, quat3d=quat3d,
-                                    angle3d=angle3d, point3d_id=position3d.db_id,
-                                    point2d_id=position2d.db_id)
+                                    name=name, quat2d=str(quat2d), angle2d=str(angle2d),
+                                    quat3d=str(quat3d), angle3d=str(angle3d),
+                                    point3d_id=position3d.db_id,
+                                    point2d_id=position2d.db_id, aabb=str(aabb), obb=str(obb))
 
         return PJTCavity(self, db_id, self.project_id)
 
@@ -247,21 +288,20 @@ class PJTCavitiesTable(PJTTableBase):
 class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
                 PartMixin, NameMixin, NotesMixin, Visible2DMixin, Visible3DMixin,
                 Angle2DMixin, Angle3DMixin):
-    """Represent a PJT cavity in :mod:`harness_designer.database.project_db.pjt_cavity`.
-
-    UNKNOWN details are inferred from the class name and surrounding code.
+    """
+    Represent a PJT cavity in :mod:`harness_designer.database.project_db.pjt_cavity`.
     """
 
     _table: PJTCavitiesTable = None
 
     def build_monitor_packet(self):
-        """Build the monitor packet.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Build the monitor packet.
 
         :returns: Return value. UNKNOWN details.
         :rtype: UNKNOWN
         """
+
         housing = self.housing
 
         packet = {
@@ -277,36 +317,33 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
         return packet
 
     def get_object(self) -> "_cavity_obj.Cavity":
-        """Return the object.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Return the object.
 
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`_cavity_obj.Cavity`
         """
+
         if self._obj is not None:
             return self._obj()
 
         return self._obj
 
     def __release_obj_ref(self, _):
-        """Release the obj ref.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param _: Value for ``_``.
-        :type _: UNKNOWN
         """
+        Release the obj ref.
+        """
+
         self._obj = None
 
     def set_object(self, obj: "_cavity_obj.Cavity"):
-        """Set the object.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Set the object.
 
         :param obj: Object instance to operate on.
         :type obj: :class:`_cavity_obj.Cavity`
         """
+
         if obj is not None:
             self._obj = weakref.ref(obj, self.__release_obj_ref)
         else:
@@ -314,24 +351,50 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
 
     @property
     def table(self) -> PJTCavitiesTable:
-        """Return the table.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Return the table.
 
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`PJTCavitiesTable`
         """
+
         return self._table
 
     @property
-    def terminal(self) -> "_pjt_terminal.PJTTerminal":
-        """Return the terminal.
+    def aabb(self) -> np.ndarray:
+        value = self._table.select('aabb', id=self._db_id)[0][0]
+        value = np.array(eval(value), dtype=np.float32)
+        return value
 
-        UNKNOWN details are inferred from the callable name and signature.
+    @aabb.setter
+    def aabb(self, value: np.ndarray):
+        value = [[float(str(item)) for item in items]
+                 for items in value.tolist()]
+
+        self._table.update(self._db_id, aabb=str(value))
+
+    @property
+    def obb(self) -> np.ndarray:
+        value = self._table.select('obb', id=self._db_id)[0][0]
+        value = np.array(eval(value), dtype=np.float32)
+        return value
+
+    @obb.setter
+    def obb(self, value: np.ndarray):
+        value = [[float(str(item)) for item in items]
+                 for items in value.tolist()]
+
+        self._table.update(self._db_id, obb=str(value))
+
+    @property
+    def terminal(self) -> "_pjt_terminal.PJTTerminal":
+        """
+        Return the terminal.
 
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_terminal.PJTTerminal`
         """
+
         terminal_ids = self._table.db.pjt_terminals_table.select(
             'id', cavity_id=self._db_id)
 
@@ -344,13 +407,13 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
 
     @property
     def terminal_position3d(self) -> "_point.Point":
-        """Return the terminal position 3D.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Return the terminal position 3D.
 
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         """
+
         if self._stored_terminal_position3d is None and self._obj is not None:
             point_id = self.terminal_position3d_id
 
@@ -361,13 +424,13 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
 
     @property
     def terminal_position3d_id(self) -> int:
-        """Return the terminal position 3D ID.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Return the terminal position 3D ID.
 
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
+
         point_id = self._table.select('terminal_point3d_id', id=self._db_id)[0][0]
         if point_id is None:
 
@@ -396,59 +459,59 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
 
     @terminal_position3d_id.setter
     def terminal_position3d_id(self, value: int):
-        """Set the terminal position 3D ID.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Set the terminal position 3D ID.
 
         :param value: Value to store or process.
         :type value: int
         """
+
         self._table.update(self._db_id, terminal_point3d_id=value)
         self._populate('terminal_position3d_id')
 
     @property
     def terminal_position2d(self) -> "_point.Point":
-        """Return the terminal position 2D.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Return the terminal position 2D.
 
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         """
+
         return self.position2d
 
     @property
     def terminal_position2d_id(self) -> int:
-        """Return the terminal position 2D ID.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Return the terminal position 2D ID.
 
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
+
         return self.position2d_id
 
     @terminal_position2d_id.setter
     def terminal_position2d_id(self, value: int):
-        """Set the terminal position 2D ID.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Set the terminal position 2D ID.
 
         :param value: Value to store or process.
         :type value: int
         """
+
         self.position2d_id = value
         self._populate('terminal_position2d_id')
 
     @property
     def seal(self) -> "_pjt_seal.PJTSeal":
-        """Return the seal.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Return the seal.
 
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_seal.PJTSeal`
         """
+
         seal_ids = self._table.db.pjt_seals_table.select(
             'id', cavity_id=self._db_id)
 
@@ -461,32 +524,32 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
 
     @property
     def part(self) -> "_cavity.Cavity":
-        """Return the part.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Return the part.
 
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_cavity.Cavity`
         """
+
         if self._stored_part is None and self._obj is not None:
             part_id = self.part_id
 
             if part_id is None:
                 return None
 
-            self._stored_part = self._table.db.global_db.covers_table[part_id]
+            self._stored_part = self._table.db.global_db.cavities_table[part_id]
             self._stored_part.add_object(self._obj())
 
         return self._stored_part
 
     def _update_angle2d(self, angle: _angle.Angle):
-        """Update the angle 2D.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Update the angle 2D.
 
         :param angle: Value for ``angle``.
         :type angle: :class:`_angle.Angle`
         """
+
         quat = eval(self._table.select('quat2d', id=self._db_id)[0][0])
         euler = eval(self._table.select('angle2d', id=self._db_id)[0][0])
 
@@ -511,17 +574,19 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
         self._populate('angle2d')
 
     def _update_angle3d(self, angle: _angle.Angle):
-        """Update the angle 3D.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Update the angle 3D.
 
         :param angle: Value for ``angle``.
         :type angle: :class:`_angle.Angle`
         """
+
         quat = eval(self._table.select('quat3d', id=self._db_id)[0][0])
         euler = eval(self._table.select('angle3d', id=self._db_id)[0][0])
 
         o_angle = _angle.Angle.from_quat(quat, euler)
+        inverse_angle = o_angle.inverse
+        position = self.position3d
 
         quat = str(list(angle.as_quat_float))
         euler = str(list(angle.as_euler_float))
@@ -544,17 +609,35 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
             s_angle = seal.angle3d
             s_angle += delta
 
+        aabb = self.aabb
+        obb = self.obb
+
+        aabb -= position
+        obb -= position
+
+        aabb @= inverse_angle
+        obb @= inverse_angle
+
+        aabb @= angle
+        obb @= angle
+
+        aabb += position
+        obb += position
+
+        self.aabb = aabb
+        self.obb = obb
+
         self._populate('angle3d')
 
     @property
     def angle3d(self) -> _angle.Angle:
-        """Return the angle 3D.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Return the angle 3D.
 
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_angle.Angle`
         """
+
         quat = eval(self._table.select('quat3d', id=self._db_id)[0][0])
         euler = eval(self._table.select('angle3d', id=self._db_id)[0][0])
 
@@ -568,29 +651,28 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
 
 
 class PJTCavityControl(_prop_ctrls.Category):
-    """Represent a PJT cavity control in :mod:`harness_designer.database.project_db.pjt_cavity`.
-
-    UNKNOWN details are inferred from the class name and surrounding code.
+    """
+    Represent a PJT cavity control in :mod:`harness_designer.database.project_db.pjt_cavity`.
     """
 
     def SetIndex(self, index):
-        """Execute the set index operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Execute the set index operation.
 
         :param index: Index value.
         :type index: UNKNOWN
         """
+
         self.SetLabel(f'Cavity {index}')
 
     def __init__(self, parent):
-        """Initialise the :class:`PJTCavityControl` instance.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Initialise the :class:`PJTCavityControl` instance.
 
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
+
         self.db_obj: PJTCavity = None
 
         super().__init__(parent, 'Cavity')
@@ -662,13 +744,13 @@ class PJTCavityControl(_prop_ctrls.Category):
             self.nb.addTab(page, page.GetLabel())
 
     def set_obj(self, db_obj: PJTCavity):
-        """Set the obj.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Set the obj.
 
         :param db_obj: Database-backed object.
         :type db_obj: :class:`PJTCavity`
         """
+        
         self.db_obj = db_obj
         self.name_ctrl.set_obj(db_obj)
         self.notes_ctrl.set_obj(db_obj)

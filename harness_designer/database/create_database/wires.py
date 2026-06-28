@@ -20,6 +20,7 @@ from . import points3d as _points3d
 from . import circuits as _circuits
 from . import bundle_covers as _bundle_covers
 from . import transitions as _transitions
+from . import concentric_layers as _concentric_layers
 
 
 from harness_designer.database import db_connectors as _con
@@ -306,7 +307,6 @@ pjt_table = _con.SQLTable(
                   references=_con.SQLFieldReference(_points3d.pjt_table,
                                                     _points3d.pjt_id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
-
     _con.IntField('start_point2d_id', default="NULL",
                   references=_con.SQLFieldReference(_points2d.pjt_table,
                                                     _points2d.pjt_id_field,
@@ -315,8 +315,18 @@ pjt_table = _con.SQLTable(
                   references=_con.SQLFieldReference(_points2d.pjt_table,
                                                     _points2d.pjt_id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('layer_view_point_id', default="NULL",
+                  references=_con.SQLFieldReference(_points2d.pjt_table,
+                                                    _points2d.pjt_id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('layer_id', default="NULL",
+                  references=_con.SQLFieldReference(_concentric_layers.pjt_table,
+                                                    _concentric_layers.pjt_id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('is_filler_wire', default='0', no_null=True),
     _con.TextField('notes', default='""', no_null=True),
     _con.IntField('is_visible2d', default='1', no_null=True),
     _con.IntField('is_visible3d', default='1', no_null=True),
-    _con.IntField('smooth', default='NULL')
+    _con.IntField('smooth', default='NULL'),
+    _con.TextField('name', default='""', no_null=True)
 )
