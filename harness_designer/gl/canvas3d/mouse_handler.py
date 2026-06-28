@@ -16,6 +16,7 @@ from ... import utils as _utils
 from .. import events as _events
 from ... import handlers as _handlers
 from ...objects import housing as _housing
+from ...objects import cavity as _cavity
 
 
 MOUSE_NONE = _config.MOUSE_NONE
@@ -414,10 +415,8 @@ class MouseHandler:
 
             cur_selected = self.canvas.get_selected()
             selected = self._pick_object(mouse_pos, current_selection=cur_selected)
-            print(type(selected))
 
             if not self._is_motion:
-                # Clear any stale cavity overlay before processing the new click.
                 if self._active_cavity_housing is not None:
                     self._active_cavity_housing.clear_cavity_overlay()
                     self._active_cavity_housing = None
@@ -431,15 +430,13 @@ class MouseHandler:
                     cavity = selected.obj3d.try_pick_cavity(
                         mouse_pos.x, mouse_pos.y)
 
-                    print(type(cavity))
                     if cavity is not None:
-                        self._active_cavity_housing = selected.obj3d
+                        housing = selected.obj3d
                         selected = cavity.parent
+                        self._active_cavity_housing = housing
 
-                print(type(selected))
                 if cur_selected is None and selected is not None:
                     selected.set_selected(True)
-                    print('cur_selected is None and selected is not None')
 
                     event = _events.GLObjectEvent(_events.EVT_GL_OBJECT_SELECTED)
                     event.SetGLObject(selected)
@@ -448,7 +445,6 @@ class MouseHandler:
 
                 elif selected is None and cur_selected is not None:
                     cur_selected.set_selected(False)
-                    print('selected is None and cur_selected is not None')
 
                     event = _events.GLObjectEvent(_events.EVT_GL_OBJECT_UNSELECTED)
                     event.SetGLObject(selected)
@@ -461,8 +457,6 @@ class MouseHandler:
                     cur_selected is not None and
                     selected == cur_selected
                 ):
-                    print('selected is not None and cur_selected is not None and selected == cur_selected')
-
                     selected.set_selected(False)
                     event = _events.GLObjectEvent(_events.EVT_GL_OBJECT_UNSELECTED)
                     event.SetGLObject(selected)
@@ -475,7 +469,6 @@ class MouseHandler:
                     cur_selected is not None and
                     selected != cur_selected
                 ):
-                    print('selected is not None and cur_selected is not None and selected != cur_selected')
                     cur_selected.set_selected(False)
 
                     event = _events.GLObjectEvent(_events.EVT_GL_OBJECT_UNSELECTED)

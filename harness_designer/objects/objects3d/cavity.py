@@ -31,11 +31,6 @@ class Cavity(_base3d.Base3D):
     db_obj: "_pjt_cavity.PJTCavity" = None
 
     def set_selected(self, state: bool) -> None:
-        if not state:
-            from ...utils import mesh_surface_picker as _picker_mod
-            active = _picker_mod.MeshSurfacePicker._active
-            if active is not None:
-                active.clear_selection()
         super().set_selected(state)
 
     def get_context_menu(self):

@@ -152,6 +152,7 @@ class Housing(_base3d.Base3D):
 
         verts = self._picker.vertices
         n_surf = len(surfaces)
+        n_cav = len(cavities)
         centroids = np.empty((n_surf, 3), dtype=np.float64)
         surf_normals = np.empty((n_surf, 3), dtype=np.float64)
         for i, surf in enumerate(surfaces):
@@ -159,42 +160,53 @@ class Housing(_base3d.Base3D):
             centroids[i] = verts[idxs].mean(axis=0)
             surf_normals[i] = np.asarray(surf.normal, dtype=np.float64)
 
-        self._surf_to_cavity = {}
-        for cavity_3d in cavities:
+        # Build distance matrix [n_cav × n_surf].
+        # The cavity OBB and position3d are stored directly in housing VBO
+        # space by apply_analysis — no additional angle/position transform is
+        # needed.  OBB corners 4-7 are the terminal (outer) face: the analysis
+        # places them at center + l2*n where n is the outward terminal normal.
+        dist_matrix = np.full((n_cav, n_surf), np.inf)
+        for ci, cavity_3d in enumerate(cavities):
             part = cavity_3d.db_obj.part
             obb = part.obb if part is not None else None
-
-            angle = part.angle3d
-            position = part.position3d
-
             if obb is not None:
-                obb @= angle
-                obb += position
-
                 obb_f = obb.astype(np.float64)
-                outer_center = obb_f[4:].mean(axis=0)
-                cav_axis = outer_center - obb_f[:4].mean(axis=0)
+                term_center = obb_f[4:].mean(axis=0)
+                wire_center = obb_f[:4].mean(axis=0)
+                cav_axis = term_center - wire_center
                 cav_axis /= np.linalg.norm(cav_axis) + 1e-12
-                dists = np.linalg.norm(centroids - outer_center, axis=1)
-                # prefer surfaces whose normal is parallel to the cavity axis
+                dists = np.linalg.norm(centroids - term_center, axis=1)
                 dots = np.abs(surf_normals @ cav_axis)
                 parallel = dots > 0.85
                 if parallel.any():
                     dists = np.where(parallel, dists, np.inf)
             else:
-                entry_center = part.position3d.as_numpy.astype(np.float64)
-                dists = np.linalg.norm(centroids - entry_center, axis=1)
+                entry = part.position3d.as_numpy.astype(np.float64)
+                dists = np.linalg.norm(centroids - entry, axis=1)
+            dist_matrix[ci] = dists
 
-            idx = int(np.argmin(dists))
-            cavity_3d.surf_idx = idx
-            self._surf_to_cavity[idx] = cavity_3d
+        # Greedy 1-to-1 assignment: closest (cavity, surface) pair first so
+        # no two cavities can overwrite each other in the map.
+        self._surf_to_cavity = {}
+        assigned_surfs: set = set()
+        assigned_cavs: set = set()
+        flat = dist_matrix.ravel()
+        for k in np.argsort(flat):
+            if flat[k] == np.inf:
+                break
+            ci = int(k) // n_surf
+            si = int(k) % n_surf
+            if ci not in assigned_cavs and si not in assigned_surfs:
+                cavities[ci].surf_idx = si
+                self._surf_to_cavity[si] = cavities[ci]
+                assigned_cavs.add(ci)
+                assigned_surfs.add(si)
 
     def on_surface_selected(self, idx: int):
         cavity_3d = self._surf_to_cavity.get(idx)
         if cavity_3d is not None:
             self._picker.select(idx)
-            self._selected_global_cavity = cavity_3d.db_obj.part if cavity_3d else None
-
+            self._selected_global_cavity = cavity_3d.db_obj.part
         return cavity_3d
 
     def _on_right_click(self, global_pos) -> None:
@@ -210,7 +222,6 @@ class Housing(_base3d.Base3D):
         idx, _ = self._picker.pick_surface_at(x, y)
         if idx < 0:
             return None
-
         return self.on_surface_selected(idx)
 
     def clear_cavity_overlay(self) -> None:

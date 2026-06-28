@@ -136,21 +136,38 @@ class SurfaceOverlay(QtWidgets.QWidget):
         if camera.clip is None or camera.viewport is None:
             return
 
-        dpr = camera.devicePixelRatio
-
         rot_mat = picker.rot_mat
         scale_arr = picker.scale_arr
         pos_arr = picker.pos_arr
-
         verts = picker.vertices
+
+        surf = picker.surfaces[picker.selected_surf_idx]
+
+        # Back-face culling: use the raw VBO normal for the first triangle
+        # vertex (not the canonicalized Surface.normal used for grouping).
+        # Transform to world space and compare against the camera look
+        # direction.  If the normal and view direction align (dot > 0) the
+        # surface faces away from the camera — skip drawing entirely.
+        ti0 = surf.tri_indices[0]
+        local_n = picker.normals[3 * ti0].astype(np.float64)
+        world_n = local_n @ rot_mat
+
+        near_c = camera.unproject_from_ndc(0.0, 0.0, -1.0)
+        far_c  = camera.unproject_from_ndc(0.0, 0.0,  1.0)
+        if near_c is None or far_c is None:
+            return
+        cam_dir = far_c - near_c  # world-space look direction (unnormalised)
+
+        if float(np.dot(world_n, cam_dir)) > 0.0:
+            return
+
+        dpr = camera.devicePixelRatio
 
         def project(local_pt: np.ndarray) -> QtCore.QPointF | None:
             world = (local_pt * scale_arr) @ rot_mat + pos_arr
-
             screen = camera.ProjectPoint(world)
             if screen is None:
                 return None
-
             return QtCore.QPointF(screen.x / dpr, screen.y / dpr)
 
         painter = QtGui.QPainter(self)
@@ -162,7 +179,6 @@ class SurfaceOverlay(QtWidgets.QWidget):
         r, g, b, a = picker.overlay_color
         painter.setBrush(QtGui.QBrush(QtGui.QColor(r, g, b, a)))
 
-        surf = picker.surfaces[picker.selected_surf_idx]
         for ti in surf.tri_indices:
             pts = [project(verts[3 * ti + k]) for k in range(3)]
             if all(p is not None for p in pts):
