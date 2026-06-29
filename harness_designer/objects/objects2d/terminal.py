@@ -37,24 +37,13 @@ class Terminal(_base2d.Base2D):
         :param db_obj: Database-backed object.
         :type db_obj: :class:`_pjt_terminal.PJTTerminal`
         """
+        position = db_obj.position2d
+        angle = db_obj.angle2d
 
-        _base2d.Base2D.__init__(self, parent, db_obj)
+        _base2d.Base2D.__init__(self, parent, db_obj, position, angle)
 
         # Pull data from database
         self._part = db_obj.part
-
-        # Get position from database (Point instance)
-        if hasattr(db_obj, 'position2d') and db_obj.position2d:
-            self._position = db_obj.position2d.point
-        else:
-            from ...geometry import point as _point
-            self._position = _point.Point(0.0, 0.0, 0.0)
-
-        # Get angle from database (Angle instance) - for rotation
-        if hasattr(db_obj, 'angle2d') and db_obj.angle2d:
-            self._angle = db_obj.angle2d
-        else:
-            self._angle = _angle.Angle.from_euler(0.0, 0.0, 0.0)
 
         # Terminal visual properties
         self._radius = 3.0  # mm - circle radius

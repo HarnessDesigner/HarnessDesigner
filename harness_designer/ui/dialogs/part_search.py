@@ -80,6 +80,7 @@ class _MainTableInfo:
         if alias in self.columns:
             if alias in self.fk_target:
                 return None
+
             return alias, None
 
         for suffix in RESOLUTION_SUFFIXES:
@@ -276,7 +277,7 @@ class FKFilterPanel(_FilterPanelBase):
         placeholders = ",".join(["?"] * len(displays))
         sql = (f't.{self.column} IN ('
                f'SELECT id FROM {self.ref_table} '
-               f'WHERE {self.display_col} IN ({placeholders}));')
+               f'WHERE {self.display_col} IN ({placeholders}))')
 
         return sql, displays
 
@@ -722,25 +723,25 @@ class SearchDialog(_dialog_base.BaseDialog):
 
         UNKNOWN details are inferred from the callable name and signature.
         """
-        outer = QtWidgets.QVBoxLayout(self)
+        outer = QtWidgets.QVBoxLayout(self.panel)
 
         top = QtWidgets.QHBoxLayout()
-        st = QtWidgets.QLabel("Keyword:", self)
+        st = QtWidgets.QLabel("Keyword:", self.panel)
         top.addWidget(st)
 
-        self.kw_ctrl = QtWidgets.QLineEdit(self)
+        self.kw_ctrl = QtWidgets.QLineEdit(self.panel)
         self.kw_ctrl.setPlaceholderText("Part # or description...")
         self.kw_ctrl.textChanged.connect(self._on_kw_changed)
         top.addWidget(self.kw_ctrl, 1)
 
-        clear_btn = QtWidgets.QPushButton("Clear All", self)
+        clear_btn = QtWidgets.QPushButton("Clear All", self.panel)
         clear_btn.clicked.connect(self._on_clear_all)
         top.addWidget(clear_btn)
 
         outer.addLayout(top)
 
         # Horizontally scrolling filter strip
-        self.filter_scroll = QtWidgets.QScrollArea(self)
+        self.filter_scroll = QtWidgets.QScrollArea(self.panel)
         self.filter_scroll.setHorizontalScrollBarPolicy(
             QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
 
@@ -750,7 +751,7 @@ class SearchDialog(_dialog_base.BaseDialog):
         self.filter_scroll.setWidgetResizable(True)
         self.filter_scroll.setFixedHeight(PANEL_H + 20)
 
-        self._filter_container = QtWidgets.QWidget()
+        self._filter_container = QtWidgets.QWidget(self.panel)
         self.filter_sizer = QtWidgets.QHBoxLayout(self._filter_container)
         self.filter_sizer.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
         self.filter_scroll.setWidget(self._filter_container)
@@ -758,12 +759,12 @@ class SearchDialog(_dialog_base.BaseDialog):
         outer.addWidget(self.filter_scroll)
 
         bottom = QtWidgets.QHBoxLayout()
-        self.status = QtWidgets.QLabel("0 results", self)
+        self.status = QtWidgets.QLabel("0 results", self.panel)
         bottom.addWidget(self.status)
         bottom.addStretch(1)
         outer.addLayout(bottom)
 
-        self.results = self.page_class(self, self.mainframe, '', self.table)
+        self.results = self.page_class(self.panel, self.mainframe, '', self.table)
 
         # The page class is an EditorList (QTableView). It already keeps
         # ``results.selected`` in sync via its own selection handler, but
@@ -800,73 +801,77 @@ class SearchDialog(_dialog_base.BaseDialog):
         cur = self.conn
 
         for idx in sorted(self.page_class.column_mapping.keys()):
-            label, alias = self.page_class.column_mapping[idx]
-            resolved = self.info.resolve_alias(alias)
-            if resolved is None:
+            label, alias_dict = self.page_class.column_mapping[idx][:2]
+
+            field_name = alias_dict.get('field_name', '')
+            ref_table = alias_dict.get('ref_table')
+            ref_field = alias_dict.get('ref_field')
+
+            # Skip the primary key and columns absent from the actual DB table
+            # (virtual/computed fields, blob arrays, model references, etc.).
+            if field_name == 'id' or field_name not in self.info.columns:
                 continue
 
-            col, disp_col = resolved
+            panel = None
 
-            if disp_col is not None:
-                ref_table = self.info.fk_target.get(col)
-                if not ref_table:
-                    continue
-
-                cur.execute(f'SELECT DISTINCT r.{disp_col} '
-                            f'FROM {table} t '
-                            f'JOIN {ref_table} r ON t.{col} = r.id '
-                            f'WHERE r.{disp_col} IS NOT NULL '
-                            f'ORDER BY r.{disp_col} COLLATE NOCASE;')
-
+            if ref_table and ref_field:
+                # Foreign-key column — populate choices from the linked table.
+                cur.execute(
+                    f'SELECT DISTINCT r.{ref_field} '
+                    f'FROM {table} t '
+                    f'JOIN {ref_table} r ON t.{field_name} = r.id '
+                    f'WHERE r.{ref_field} IS NOT NULL '
+                    f'ORDER BY r.{ref_field} COLLATE NOCASE;')
                 rows = cur.fetchall()
 
                 if len(rows) < MIN_DISTINCT_FOR_FILTER:
                     continue
 
-                p = FKFilterPanel(self._filter_container, col, ref_table,
-                                  disp_col, label, self._on_filter_changed)
+                p = FKFilterPanel(self._filter_container, field_name, ref_table,
+                                  ref_field, label, self._on_filter_changed)
                 p.populate([r[0] for r in rows])
                 panel = p
 
             else:
-                col_type = self.info.columns.get(col, "")
-                cur.execute(f'SELECT DISTINCT {col} FROM {table} '
-                            f'WHERE {col} IS NOT NULL ORDER BY {col};')
+                # Plain column — only numeric types get a filter widget.
+                col_type = self.info.columns.get(field_name, '')
+                is_int = 'INT' in col_type
+                is_real = any(t in col_type for t in ('REAL', 'FLOA', 'DOUB', 'NUMERIC'))
 
+                if not is_int and not is_real:
+                    continue
+
+                cur.execute(
+                    f'SELECT DISTINCT t.{field_name} FROM {table} t '
+                    f'WHERE t.{field_name} IS NOT NULL ORDER BY t.{field_name};')
                 rows = cur.fetchall()
-
                 values = [r[0] for r in rows]
+
                 if len(values) < MIN_DISTINCT_FOR_FILTER:
                     continue
 
-                is_int_type = "INT" in col_type
-                is_real_type = any(t in col_type for t in
-                                   ("REAL", "FLOA", "DOUB", "NUMERIC"))
-
-                if not is_int_type and not is_real_type:
-                    continue
-
-                if is_int_type and len(values) <= MAX_DISTINCT_FOR_ENUM:
-                    p = EnumFilterPanel(self._filter_container, col, label,
+                if is_int and len(values) <= MAX_DISTINCT_FOR_ENUM:
+                    p = EnumFilterPanel(self._filter_container, field_name, label,
                                         self._on_filter_changed)
                     p.populate(values)
                     panel = p
                 else:
-                    cur.execute(f'SELECT MIN({col}), MAX({col}) '
-                                f'FROM {table} WHERE {col} IS NOT NULL;')
+                    cur.execute(
+                        f'SELECT MIN(t.{field_name}), MAX(t.{field_name}) '
+                        f'FROM {table} t WHERE t.{field_name} IS NOT NULL;')
                     rows = cur.fetchall()
-
                     lo, hi = (None, None) if not rows else rows[0]
                     if lo is None or hi is None or lo == hi:
                         continue
 
-                    p = RangeFilterPanel(self._filter_container, col, is_int_type,
+                    p = RangeFilterPanel(self._filter_container, field_name, is_int,
                                          label, self._on_filter_changed)
                     p.update_bounds(lo, hi)
                     panel = p
 
-            self.filters[col] = panel
-            self.filter_sizer.addWidget(panel)
+            if panel is not None:
+                self.filters[field_name] = panel
+                self.filter_sizer.addWidget(panel)
 
     def _on_kw_changed(self) -> None:
         """Handle the kw changed event.

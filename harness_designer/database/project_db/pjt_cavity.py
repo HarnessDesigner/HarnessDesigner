@@ -414,10 +414,12 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
         :rtype: :class:`_point.Point`
         """
 
-        if self._stored_terminal_position3d is None and self._obj is not None:
+        if self._stored_terminal_position3d is None:
             point_id = self.terminal_position3d_id
 
-            self._stored_terminal_position3d = self.table.db.pjt_points3d_table[point_id]
+            self._stored_terminal_position3d = self._table.db.pjt_points3d_table[point_id]
+
+        if self._obj is not None:
             self._stored_terminal_position3d.add_object(self._obj())
 
         return self._stored_terminal_position3d.point
@@ -520,6 +522,27 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
 
         return self._table.db.pjt_seals_table[seal_ids[0][0]]
 
+    @property
+    def seal_position3d(self) -> "_point.Point":
+        """
+        Return the seal position 3D.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_point.Point`
+        """
+        return self.terminal_position3d
+
+    @property
+    def seal_position3d_id(self) -> int:
+        """
+        Return the seal position 3D ID.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: int
+        """
+
+        return self.terminal.position3d_id
+
     _stored_part: "_cavity.Cavity" = None
 
     @property
@@ -597,17 +620,34 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
         self._table.update(self._db_id, quat3d=quat)
         self._table.update(self._db_id, angle3d=euler)
 
-        delta = angle - o_angle
+        accessory = self.terminal or self.seal
+        if accessory is not None:
+            a_position = accessory.position3d
+            pos = a_position.copy()
+            pos -= position
+            pos @= inverse_angle
+            pos @= angle
+            pos += position
 
-        terminal = self.terminal
-        if terminal is not None:
-            t_angle = terminal.angle3d
-            t_angle += delta
+            delta = pos - a_position
+            a_position += delta
 
-        seal = self.seal
-        if seal is not None:
-            s_angle = seal.angle3d
-            s_angle += delta
+            old_angle = accessory.angle3d
+            quat = angle.as_quat_numpy
+
+            with old_angle:
+                old_angle._q.w = quat[0]
+                old_angle._q.x = quat[1]
+                old_angle._q.y = quat[2]
+                old_angle._q.z = quat[3]
+
+                old_angle.x = angle.x
+                old_angle.y = angle.y
+                old_angle.z = angle.z
+
+                old_angle._matrix[:] = angle.as_matrix_numpy.copy()  # NOQA
+
+            old_angle._process_callbacks()  # NOQA
 
         aabb = self.aabb
         obb = self.obb
@@ -672,7 +712,6 @@ class PJTCavityControl(_prop_ctrls.Category):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
-
         self.db_obj: PJTCavity = None
 
         super().__init__(parent, 'Cavity')

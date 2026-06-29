@@ -255,6 +255,7 @@ class PJTCoverControl(QTabWidget):
         :param db_obj: Database-backed object.
         :type db_obj: :class:`PJTCover`
         """
+
         self.db_obj = db_obj
 
         self.name_ctrl.set_obj(db_obj)
@@ -277,6 +278,7 @@ class PJTCoverControl(QTabWidget):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
+
         self.db_obj: PJTCover = None
 
         QTabWidget.__init__(self, parent)

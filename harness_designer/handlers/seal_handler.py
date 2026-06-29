@@ -2,24 +2,49 @@
 
 """
 Interactive handler logic for placing seals on compatible objects.
+
+Five placement modes depending on the arguments supplied:
+
+Mode 1a – *housing* only (for_cavity=False)
+    MAT seal placed on the housing immediately via the pre-defined seal slot.
+    Invoke via :func:`run_attached_handler`.
+
+Mode 1b – *housing* only with for_cavity=True
+    Plug/dummy-pin preview snaps interactively to this housing's empty cavities.
+    Invoke via :func:`start_handler`.
+
+Mode 2 – *terminal* only
+    SWS seal placed at the midpoint of the terminal's cavity immediately.
+    Invoke via :func:`run_attached_handler`.
+
+Mode 3 – *cavity* only
+    Plug or dummy-pin placed on the cavity immediately.  Dummy pins use the
+    same entry/midpoint logic as terminal pins.
+    Invoke via :func:`run_attached_handler`.
+
+Mode 4 – no arguments
+    Editor selection is tried first; a part-search dialog opens otherwise.
+    The preview snaps to housings, terminals, or empty cavities depending on
+    the chosen seal type.  Invoke via :func:`start_handler`.
 """
 
 from PySide6.QtWidgets import QDialog
 from typing import TYPE_CHECKING
 
+import numpy as np
 
 from . import handler_base as _handler_base
 from ..geometry import point as _point
+from ..objects import housing as _housing
+from ..objects import terminal as _terminal
+from ..objects import cavity as _cavity
+from ..objects import seal as _seal
 from ..gl import materials as _materials
 from .. import config as _config
 from ..ui.dialogs import part_search as _part_search
 from ..ui import editor_db as _editor_db
 from .. import color as _color
 from .. import utils as _utils
-from ..objects import housing as _housing
-from ..objects import terminal as _terminal
-from ..objects import cavity as _cavity
-from ..objects import seal as _seal
 
 if TYPE_CHECKING:
     from .. import ui as _ui
@@ -30,57 +55,57 @@ Config = _config.Config.colors
 
 
 class AddSealHandler(_handler_base.HandlerBase):
-    """Handle interactive placement of seals."""
+    """
+    Handle interactive placement of seals.
+    """
+
     obj: _seal.Seal = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
-                 selected: _housing.Housing | _terminal.Terminal | _cavity.Cavity = None):
-        """
-        Initialize the object and capture the state required for later interaction.
+                 housing: "_housing.Housing" = None,
+                 terminal: "_terminal.Terminal" = None,
+                 cavity: "_cavity.Cavity" = None,
+                 for_cavity: bool = False):
 
-        :param mainframe: Main application frame that owns the editor and project state.
-        :type mainframe: "_ui.MainFrame"
-        """
+        self._housing = housing
+        self._terminal = terminal
+        self._cavity = cavity
+        self._for_cavity = for_cavity
+        self.mainframe = mainframe
 
-        self._selected = selected
+        # Compute pre-filter part numbers before opening the dialog.
+        if housing is not None and not for_cavity:
+            compat_pns = housing.db_obj.part.compat_seals_array
 
-        if isinstance(selected, _housing.Housing):
-            compat_seals = selected.db_obj.part.compat_seals_array
+        elif terminal is not None:
+            compat_pns = [s.part_number for s in terminal.db_obj.part.compat_seals]
 
-        elif isinstance(selected, _cavity.Cavity):
-            # self.ptables is not available until HandlerBase.__init__ runs,
-            # so the global database is reached through the mainframe here.
-            mainframe.global_db.seals_table.execute(
-                'SELECT id FROM seal_types WHERE UPPER(name) = "PLUG";')
-            rows = mainframe.global_db.seals_table.fetchall()
-            if rows:
-                type_id = rows[0][0]
+        elif cavity is not None:
+            g_cav = cavity.db_obj.part
+            max_dim = max(g_cav.width or 0.0, g_cav.height or 0.0)
+            compat_pns = self._cavity_plug_pns(max_dim)
 
-                height = selected.db_obj.part.height
-                width = selected.db_obj.part.width
+        elif housing is not None and for_cavity:
+            max_dim = 0.0
+            for g_cav in housing.db_obj.part.cavities:
+                max_dim = max(max_dim, g_cav.width or 0.0, g_cav.height or 0.0)
 
-                mainframe.global_db.seals_table.execute(
-                    'SELECT part_number FROM seals WHERE '
-                    'type_id=? AND width=? AND height=?;',
-                    (type_id, width, height))
+            compat_pns = self._cavity_plug_pns(max_dim)
 
-                rows = mainframe.global_db.seals_table.fetchall()
-                compat_seals = [row[0] for row in rows]
-            else:
-                compat_seals = []
-
-        elif isinstance(selected, _terminal.Terminal):
-            compat_seals = selected.db_obj.part.compat_seals_array
         else:
-            compat_seals = []
+            compat_pns = []
 
-        part_id = mainframe.editor_db.editor.covers.GetSelection()
+        # Free mode (no target given) can pick up the editor's current selection.
+        if housing is None and terminal is None and cavity is None:
+            part_id = mainframe.editor_db.editor.seals.GetSelection()
+        else:
+            part_id = None
 
         if part_id is None:
             dlg = _part_search.SearchDialog(
                 mainframe, _editor_db.SealsPage, title='Add Seal',
                 table=mainframe.global_db.seals_table,
-                initial_results=compat_seals)
+                initial_results=compat_pns)
 
             if dlg.exec() == QDialog.DialogCode.Accepted:
                 part_id = dlg.GetValue()
@@ -91,23 +116,14 @@ class AddSealHandler(_handler_base.HandlerBase):
 
         self._preview_material = _materials.Plastic(
             _color.Color(*Config.add_object.preview_color))
-
         self._highlight_material = _materials.Plastic(
             _color.Color(*Config.add_object.housing_highlight))
-
         self._compat_highlight_material = _materials.Plastic(
-            _color.Color(*Config.add_object.splice_highlight)
-        )
+            _color.Color(*Config.add_object.splice_highlight))
 
-        self.compat_housings: list[str] = None
-        self.project_housings: list[_housing.Housing] = None
-
-        self.compat_terminals: list[str] = None
-        self.project_terminals: list[_terminal.Terminal] = None
-
-        self.project_cavities: dict[_cavity.Cavity, _housing.Housing] = None
-
+        self._snap_targets: list = []
         self._snapped = None
+        self._is_dummy_pin: bool = False
         self.part: "_db_seal.Seal" = None
 
         if part_id is None:
@@ -115,202 +131,294 @@ class AddSealHandler(_handler_base.HandlerBase):
         else:
             self.set_part(part_id)
 
-    def set_part(self, part_id):
+    @staticmethod
+    def _cavity_midpoint(pjt_cavity):
+        """
+        Return world-space midpoint of *pjt_cavity* along its insertion axis.
+        """
+
+        cpos_np = pjt_cavity.position3d.as_numpy.astype(np.float64)
+        cav_ang = pjt_cavity.angle3d
+        length = float(pjt_cavity.part.length)
+        ref_local = np.array([[0.0, 0.0, length]], dtype=np.float64)
+        ref_world = np.asarray(ref_local @ cav_ang, dtype=np.float64)[0] + cpos_np
+        mid = (cpos_np + ref_world) / 2.0
+
+        return float(mid[0]), float(mid[1]), float(mid[2])
+
+    def _cavity_plug_pns(self, max_dim):
+        """
+        Return PLUG and dummy-pin seal part numbers whose dimensions fit max_dim.
+        """
+
+        if max_dim <= 0.0:
+            return []
+
+        self.mainframe.global_db.seals_table.execute(
+            'SELECT DISTINCT s.part_number FROM seals s '
+            'JOIN seal_types st ON s.type_id = st.id '
+            'WHERE (UPPER(st.name) = "PLUG" OR UPPER(st.name) = "DUMMY PIN") '
+            'AND (s.width <= ? OR s.o_dia <= ?);',
+            (max_dim, max_dim))
+
+        return [row[0] for row in self.mainframe.global_db.seals_table.fetchall()]
+
+    def set_part(self, part_id: int):
         if self.obj is not None:
             self.obj.delete()
 
         self.part = self.ptables.global_db.seals_table[part_id]
-        part_number = self.part.part_number
+        type_name = self.part.type.name.lower()
+        self._is_dummy_pin = 'dummy' in type_name
 
-        if self._selected is None:
-            type_name = self.part.type.name.lower()
-            if type_name in ('sws', 'single wire seal'):
-                compat_terminals = self.ptables.global_db.terminals_table.get_compat(
-                    seal=part_number)
+        if self._housing is not None and not self._for_cavity:
+            # Mode 1a: MAT seal on housing – instant attach at the seal slot.
+            pos_id = self._housing.db_obj.seal_position3d_id
 
-                compat_terminals.extend(self.part.compat_terminals_array)
+            db_obj = self.ptables.pjt_seals_table.insert(
+                part_id, pos_id, self._housing.db_obj.db_id,
+                None, None)
 
-                self.compat_terminals = list(set(compat_terminals))
-                self.project_terminals = []
-
-                for terminal in self.mainframe.project.terminals:
-                    if terminal.db_obj.part.part_number in self.compat_terminals:
-                        terminal.identify(self._compat_highlight_material)
-                    else:
-                        terminal.identify(self._highlight_material)
-
-                    self.project_terminals.append(terminal)
-
-            elif type_name == 'plug':
-                compat_housings = self.ptables.global_db.housings_table.get_compat(
-                    seal=part_number)
-
-                compat_housings.extend(self.part.compat_housings_array)
-
-                self.compat_housings = list(set(compat_housings))
-                self.project_cavities = {}
-
-                for cavity in self.mainframe.project.cavities:
-                    housing = cavity.db_obj.housing
-
-                    if cavity.db_obj.terminal is not None:
-                        continue
-
-                    if housing.part.part_number in self.compat_housings:
-                        cavity.identify(self._compat_highlight_material)
-                    else:
-                        cavity.identify(self._highlight_material)
-
-                    self.project_cavities[cavity] = housing.get_object()
+        elif self._terminal is not None:
+            # Mode 2: SWS on terminal – instant at cavity midpoint.
+            pjt_cavity = self._terminal.db_obj.cavity
+            if pjt_cavity is not None:
+                tx, ty, tz = self._cavity_midpoint(pjt_cavity)
             else:
-                compat_housings = self.ptables.global_db.housings_table.get_compat(
-                    seal=part_number)
+                tx, ty, tz = self._terminal.db_obj.position3d.as_float
 
-                compat_housings.extend(self.part.compat_housings_array)
+            p3d = self.ptables.pjt_points3d_table.insert(tx, ty, tz)
 
-                self.compat_housings = list(set(compat_housings))
-                self.project_housings = []
+            db_obj = self.ptables.pjt_seals_table.insert(
+                part_id, p3d.db_id, None,
+                self._terminal.db_obj.db_id, None)
 
-                for housing in self.mainframe.project.housings:
-                    if housing.db_obj.part.part_number in self.compat_housings:
-                        housing.identify(self._compat_highlight_material)
-                    else:
-                        housing.identify(self._highlight_material)
+        elif self._cavity is not None:
+            # Mode 3: PLUG or dummy pin on cavity – instant.
+            pjt_cavity = self._cavity.db_obj
+            if self._is_dummy_pin:
+                gender = pjt_cavity.housing.part.gender.name.lower()
+                if gender == 'male':
+                    tx, ty, tz = pjt_cavity.position3d.as_float
+                else:
+                    tx, ty, tz = self._cavity_midpoint(pjt_cavity)
+            else:
+                tx, ty, tz = self._cavity_midpoint(pjt_cavity)
 
-                    self.project_housings.append(housing)
+            p3d = self.ptables.pjt_points3d_table.insert(tx, ty, tz)
+
+            db_obj = self.ptables.pjt_seals_table.insert(
+                part_id, p3d.db_id, None,
+                None, pjt_cavity.db_id)
+
+        elif self._housing is not None and self._for_cavity:
+            # Mode 1b: interactive preview locked to this housing's cavities.
+            housing_db_id = self._housing.db_obj.db_id
+            for cav in self.mainframe.project.cavities:
+                if cav.db_obj.housing.db_id != housing_db_id:
+                    continue
+
+                if cav.db_obj.terminal is not None:
+                    continue
+
+                cav.identify(self._compat_highlight_material)
+                self._snap_targets.append(cav)
 
             pos_obj = self.ptables.pjt_points3d_table.insert(0, 0, 0)
-            pos_id = pos_obj.db_id
-            db_obj = self.ptables.pjt_seals_table.insert(
-                part_id, pos_id, None, None, None)
-        else:
-            if isinstance(self._selected, _housing.Housing):
-                pos_id = self._selected.db_obj.seal_position3d_id
-                db_obj = self.ptables.pjt_seals_table.insert(
-                    part_id, pos_id, self._selected.db_obj.db_id,
-                    None, None)
 
-            elif isinstance(self._selected, _terminal.Terminal):
-                pos_id = self._selected.db_obj.position3d_id
-                db_obj = self.ptables.pjt_seals_table.insert(
-                    part_id, pos_id, None,
-                    self._selected.db_obj.db_id, None)
-            else:
-                pos_id = self._selected.db_obj.terminal_position3d_id
-                db_obj = self.ptables.pjt_seals_table.insert(
-                    part_id, pos_id, None,
-                    None, self._selected.db_obj.db_id
-                )
+            db_obj = self.ptables.pjt_seals_table.insert(
+                part_id, pos_obj.db_id, None,
+                None, None)
+
+        else:
+            # Mode 4: free interactive – target type depends on seal type.
+            compat_pns_h = set(self.part.compat_housings_array)
+            compat_pns_t = set(self.part.compat_terminals_array)
+            is_sws = type_name in ('sws', 'single wire seal')
+            is_mat = type_name == 'mat'
+
+            if is_sws:
+                for t in self.mainframe.project.terminals:
+                    if not t.db_obj.part.sealing:
+                        continue
+
+                    if t.db_obj.part.part_number in compat_pns_t:
+                        t.identify(self._compat_highlight_material)
+                    else:
+                        t.identify(self._highlight_material)
+
+                    self._snap_targets.append(t)
+
+            elif is_mat:
+                for h in self.mainframe.project.housings:
+                    if not h.db_obj.part.sealing:
+                        continue
+
+                    if h.db_obj.part.part_number in compat_pns_h:
+                        h.identify(self._compat_highlight_material)
+                    else:
+                        h.identify(self._highlight_material)
+
+                    self._snap_targets.append(h)
+
+            else:  # PLUG or dummy pin
+                for cav in self.mainframe.project.cavities:
+                    if cav.db_obj.terminal is not None:
+                        continue
+
+                    if cav.db_obj.housing.part.part_number in compat_pns_h:
+                        cav.identify(self._compat_highlight_material)
+                    else:
+                        cav.identify(self._highlight_material)
+
+                    self._snap_targets.append(cav)
+
+            pos_obj = self.ptables.pjt_points3d_table.insert(0, 0, 0)
+
+            db_obj = self.ptables.pjt_seals_table.insert(
+                part_id, pos_obj.db_id, None,
+                None, None)
 
         self.obj = _seal.Seal(self.mainframe, db_obj)
         self.obj.identify(self._preview_material)
 
-        if isinstance(self._selected, _housing.Housing):
-            self.set_angle_from_housing(self.obj, self._selected)
+        if self._housing is not None and not self._for_cavity:
+            self.set_angle_from_housing(self.obj, self._housing)
+        elif self._terminal is not None:
+            pjt_cavity = self._terminal.db_obj.cavity
+            if pjt_cavity is not None:
+                self.set_angle_from_cavity(self.obj, pjt_cavity)
+        elif self._cavity is not None:
+            self.set_angle_from_cavity(self.obj, self._cavity.db_obj)
 
     @property
     def snap_pool(self):
-        positions = []
         objects = []
+        positions = []
+        for target in self._snap_targets:
+            if not target.is_in_3dview:
+                continue
 
-        if self.project_housings is not None:
-            for housing in self.project_housings:
-                if not housing.is_in_3dview:
-                    continue
+            if isinstance(target, _housing.Housing):
+                positions.append(target.db_obj.seal_position3d)
+            elif isinstance(target, _terminal.Terminal):
+                pjt_cav = target.db_obj.cavity
+                if pjt_cav is not None:
+                    x, y, z = self._cavity_midpoint(pjt_cav)
+                    positions.append(_point.Point(x, y, z))
+                else:
+                    positions.append(target.db_obj.position3d)
 
-                positions.append(housing.db_obj.seal_position3d)
-                objects.append(housing)
+            else:  # Cavity
+                pjt_cav = target.db_obj
+                if self._is_dummy_pin:
+                    gender = pjt_cav.housing.part.gender.name.lower()
 
-        elif self.project_terminals is not None:
-            for terminal in self.project_terminals:
-                if not terminal.is_in_3dview:
-                    continue
+                    if gender == 'male':
+                        x, y, z = pjt_cav.position3d.as_float
+                    else:
+                        x, y, z = self._cavity_midpoint(pjt_cav)
+                else:
+                    x, y, z = self._cavity_midpoint(pjt_cav)
 
-                positions.append(terminal.db_obj.position3d)
-                objects.append(terminal)
+                positions.append(_point.Point(x, y, z))
 
-        elif self.project_cavities is not None:
-            for cavity in self.project_cavities.keys():
-                if not cavity.is_in_3dview:
-                    continue
-
-                positions.append(cavity.db_obj.terminal_position3d_id)
-                objects.append(cavity)
-
-        else:
-            raise RuntimeError('sanity check')
+            objects.append(target)
 
         return _utils.SnapPool(objects, positions)
 
     def hover(self, mouse_pos: _point.Point):
-        """
-        Update preview or highlight state for the supplied mouse position.
+        if self._finalized:
+            return
 
-        :param mouse_pos: Mouse position used for picking or preview updates.
-        :type mouse_pos: _point.Point
-        """
+        # Instant-attach modes have no hover interaction.
+        is_interactive = (
+            self._for_cavity or
+            (self._housing is None and self._terminal is None
+             and self._cavity is None)
+        )
 
-        if self._finalized or self._selected is not None:
+        if not is_interactive:
             return
 
         snap_pool = self.snap_pool
         world_pos = self.camera.get_position_on_focal_plane(mouse_pos)
-        obj = snap_pool.query(world_pos)
+        snapped = snap_pool.query(world_pos)
 
         prev_snapped = self._snapped
 
-        if obj is None:
+        if snapped is None:
             point = world_pos
             self._snapped = None
+            if prev_snapped is not None:
+                self.reset_angle(self.obj)
+
         else:
-            if isinstance(obj, _housing.Housing):
-                point = obj.db_obj.seal_position3d
+            if isinstance(snapped, _housing.Housing):
+                point = snapped.db_obj.seal_position3d
+                if prev_snapped is not snapped:
+                    self.set_angle_from_housing(self.obj, snapped)
 
-            elif isinstance(obj, _terminal.Terminal):
-                point = obj.db_obj.position3d
+            elif isinstance(snapped, _terminal.Terminal):
+                pjt_cav = snapped.db_obj.cavity
+                if pjt_cav is not None:
+                    x, y, z = self._cavity_midpoint(pjt_cav)
+                    point = _point.Point(x, y, z)
+                    if prev_snapped is not snapped:
+                        self.set_angle_from_cavity(self.obj, pjt_cav)
+                else:
+                    point = snapped.db_obj.position3d
+                    if prev_snapped is not snapped:
+                        self.reset_angle(self.obj)
 
-            elif isinstance(obj, _cavity.Cavity):
-                point = obj.db_obj.terminal_position3d
+            else:  # Cavity
+                pjt_cav = snapped.db_obj
+                if self._is_dummy_pin:
+                    gender = pjt_cav.housing.part.gender.name.lower()
 
-            else:
-                raise RuntimeError('sanity check')
+                    if gender == 'male':
+                        x, y, z = pjt_cav.position3d.as_float
+                    else:
+                        x, y, z = self._cavity_midpoint(pjt_cav)
+                else:
+                    x, y, z = self._cavity_midpoint(pjt_cav)
 
-            self._snapped = obj
+                point = _point.Point(x, y, z)
 
-        snapped_to_housing = isinstance(self._snapped, _housing.Housing)
-        was_snapped_to_housing = isinstance(prev_snapped, _housing.Housing)
+                if prev_snapped is not snapped:
+                    self.set_angle_from_cavity(self.obj, pjt_cav)
 
-        if snapped_to_housing and self._snapped is not prev_snapped:
-            self.set_angle_from_housing(self.obj, self._snapped)
-        elif was_snapped_to_housing and not snapped_to_housing:
-            self.reset_angle(self.obj)
+            self._snapped = snapped
 
         position = self.obj.db_obj.position3d
-
         delta = point - position
         position += delta
 
     def release_capture(self) -> None:
-        """
-        Handle release of the captured position and complete any
-        deferred placement work.
-        """
-
         if self._finalized:
             return
 
         if self._captured_position is None:
             return
 
-        if self._selected is None:
+        # Instant-attach modes: set_part already created the DB record at the
+        # correct position; just register the seal with the project.
+        is_instant = (
+            (self._housing is not None and not self._for_cavity)
+            or self._terminal is not None
+            or self._cavity is not None
+        )
 
+        if not is_instant:
             if self._snapped is None:
                 return
 
             if isinstance(self._snapped, _housing.Housing):
-                for housing in self.mainframe.project.housings:
-                    housing.identify(None)
+                for h in self.mainframe.project.housings:
+                    h.identify(None)
 
+                # Attach the preview position to the housing's seal slot so
+                # the seal follows any future housing transforms.
                 self._snapped.db_obj.seal_position3d.attach(
                     self.obj.db_obj.position3d)
 
@@ -318,32 +426,22 @@ class AddSealHandler(_handler_base.HandlerBase):
                 self.set_angle_from_housing(self.obj, self._snapped)
 
             elif isinstance(self._snapped, _terminal.Terminal):
-                for terminal in self.mainframe.project.terminals:
-                    terminal.identify(None)
+                for t in self.mainframe.project.terminals:
+                    t.identify(None)
 
-                self._snapped.db_obj.position3d.attach(
-                    self.obj.db_obj.position3d)
+                pjt_cav = self._snapped.db_obj.cavity
+                if pjt_cav is not None:
+                    self.set_angle_from_cavity(self.obj, pjt_cav)
 
                 self.obj.db_obj.terminal_id = self._snapped.db_obj.db_id
 
-            elif isinstance(self._snapped, _cavity.Cavity):
-                for cavity in self.mainframe.project.cavities:
-                    cavity.identify(None)
+            else:  # Cavity
+                for cav in self.mainframe.project.cavities:
+                    cav.identify(None)
 
-                self._snapped.db_obj.terminal_position3d.attach(
-                    self.obj.db_obj.position3d)
-
+                self.set_angle_from_cavity(self.obj, self._snapped.db_obj)
                 self.obj.db_obj.cavity_id = self._snapped.db_obj.db_id
 
-            else:
-                raise RuntimeError('sanity check')
-
-            obj = self.obj
-        else:
-            obj = self.obj
-
         self._finalized = True
-
-        self.mainframe.project.add_seal(obj)
-
+        self.mainframe.project.add_seal(self.obj)
         self.obj = None

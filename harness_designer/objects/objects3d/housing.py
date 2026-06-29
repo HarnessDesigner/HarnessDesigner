@@ -260,6 +260,8 @@ class HousingCavityMenu(QMenu):
                         self._pjt_cavity.terminal is not None)
         has_seal = (self._pjt_cavity is not None and
                     self._pjt_cavity.seal is not None)
+        terminal_sealable = (has_terminal and
+                             self._pjt_cavity.terminal.part.sealing)
 
         if has_terminal:
             act = self.addAction('Edit Terminal')
@@ -271,9 +273,12 @@ class HousingCavityMenu(QMenu):
         if has_seal:
             act = self.addAction('Edit Seal')
             act.triggered.connect(self.on_edit_seal)
-        else:
-            act = self.addAction('Add Seal')
-            act.triggered.connect(self.on_add_seal)
+        elif has_terminal and terminal_sealable:
+            act = self.addAction('Add Wire Seal')
+            act.triggered.connect(self.on_add_wire_seal)
+        elif not has_terminal:
+            act = self.addAction('Add Plug Seal')
+            act.triggered.connect(self.on_add_plug_seal)
 
     def _find_pjt_cavity(self):
         g_id = self._global_cavity.db_id
@@ -307,83 +312,52 @@ class HousingCavityMenu(QMenu):
         return float(mid[0]), float(mid[1]), float(mid[2])
 
     def on_add_terminal(self):
-        def _do():
-            from .. import terminal as _terminal_obj
-            from . import menu_ops as _menu_ops
+        from .. import cavity as _cavity_mod
+        from ... import handlers as _handlers
 
-            housing = self._housing_3d
-            mainframe = housing.mainframe
-            g_cavity = self._global_cavity
+        pjt_cavity = self._get_or_create_pjt_cavity()
+        mainframe = self._housing_3d.mainframe
+        housing_wrapper = self._housing_3d.parent
 
-            compat_ids = [t.db_id for t in g_cavity.compat_terminals]
+        cavity_obj = pjt_cavity.get_object()
+        if cavity_obj is None:
+            cavity_obj = _cavity_mod.Cavity(mainframe, pjt_cavity)
+            mainframe.project.add_cavity(cavity_obj)
 
-            part_id = _menu_ops.get_part_id(
-                mainframe, 'terminals',
-                mainframe.global_db.terminals_table, 'Add Terminal',
-                initial_results=compat_ids)
+        _menu_ops.run_attached_handler(
+            lambda: _handlers.AddTerminalHandler(
+                mainframe, housing=housing_wrapper, cavity=cavity_obj))
 
-            if part_id is None:
-                return
+    def on_add_wire_seal(self):
+        from ... import handlers as _handlers
 
-            pjt_cavity = self._get_or_create_pjt_cavity()
+        if self._pjt_cavity is None:
+            return
+        terminal_db = self._pjt_cavity.terminal
+        if terminal_db is None:
+            return
+        terminal_obj = terminal_db.get_object()
+        if terminal_obj is None:
+            return
 
-            g_terminal = mainframe.global_db.terminals_table[part_id]
-            is_male = g_terminal.gender.name.lower() == 'male'
+        mainframe = self._housing_3d.mainframe
+        _menu_ops.run_attached_handler(
+            lambda: _handlers.AddSealHandler(mainframe, terminal=terminal_obj))
 
-            if is_male:
-                tx, ty, tz = pjt_cavity.position3d.as_float
-            else:
-                tx, ty, tz = self._cavity_midpoint(pjt_cavity)
+    def on_add_plug_seal(self):
+        from .. import cavity as _cavity_mod
+        from ... import handlers as _handlers
 
-            ptables = mainframe.project.ptables
-            p3d = ptables.pjt_points3d_table.insert(tx, ty, tz)
+        pjt_cavity = self._get_or_create_pjt_cavity()
+        mainframe = self._housing_3d.mainframe
 
-            terminal_db = ptables.pjt_terminals_table.insert(
-                part_id, None, p3d.db_id, pjt_cavity.db_id)
+        cavity_obj = pjt_cavity.get_object()
+        if cavity_obj is None:
+            cavity_obj = _cavity_mod.Cavity(mainframe, pjt_cavity)
+            mainframe.project.add_cavity(cavity_obj)
 
-            terminal = _terminal_obj.Terminal(mainframe, terminal_db)
-            mainframe.project.add_terminal(terminal)
-
-        QTimer.singleShot(0, _do)
-
-    def on_add_seal(self):
-        def _do():
-            from . import menu_ops as _menu_ops
-            from ...objects import seal as _seal_obj
-
-            housing = self._housing_3d
-            mainframe = housing.mainframe
-            g_cavity = self._global_cavity
-
-            mainframe.global_db.seals_table.execute(
-                'SELECT seals.id FROM seals '
-                'JOIN seal_types ON seals.type_id = seal_types.id '
-                'WHERE UPPER(seal_types.name) = "PLUG" '
-                'AND seals.width = ? AND seals.height = ?;',
-                (g_cavity.width, g_cavity.height))
-            compat_ids = [row[0] for row in mainframe.global_db.seals_table.fetchall()]
-
-            part_id = _menu_ops.get_part_id(
-                mainframe, 'seals',
-                mainframe.global_db.seals_table, 'Add Seal',
-                initial_results=compat_ids)
-
-            if part_id is None:
-                return
-
-            pjt_cavity = self._get_or_create_pjt_cavity()
-            mx, my, mz = self._cavity_midpoint(pjt_cavity)
-
-            ptables = mainframe.project.ptables
-            p3d = ptables.pjt_points3d_table.insert(mx, my, mz)
-
-            seal_db = ptables.pjt_seals_table.insert(
-                part_id, p3d.db_id, None, None, pjt_cavity.db_id)
-
-            seal = _seal_obj.Seal(mainframe, seal_db)
-            mainframe.project.add_seal(seal)
-
-        QTimer.singleShot(0, _do)
+        _menu_ops.run_attached_handler(
+            lambda: _handlers.AddSealHandler(mainframe, cavity=cavity_obj))
 
     def on_edit_terminal(self):
         def _do():
@@ -439,8 +413,12 @@ class HousingMenu(QMenu):
         self.canvas = mainframe.editor3d.editor
         self.obj = obj
 
-        action = self.addAction('Add Seal')
-        action.triggered.connect(self.on_add_seal)
+        if self.obj.db_obj.part.sealing:
+            action = self.addAction('Add Mat Seal')
+            action.triggered.connect(self.on_add_mat_seal)
+
+        action = self.addAction('Add Cavity Seal')
+        action.triggered.connect(self.on_add_cavity_seal)
 
         action = self.addAction('Add Terminal')
         action.triggered.connect(self.on_add_terminal)
@@ -504,39 +482,36 @@ class HousingMenu(QMenu):
 
         QTimer.singleShot(0, lambda: _do(self.obj.db_obj.part))
 
-    def on_add_seal(self):
-        """Attach a seal to this housing."""
+    def on_add_mat_seal(self):
+        """Attach a MAT seal to this housing."""
         from ... import handlers as _handlers
 
         housing = self.obj.parent
 
         _menu_ops.run_attached_handler(
-            lambda: _handlers.AddSealHandler(self.mainframe, housing))
+            lambda: _handlers.AddSealHandler(self.mainframe, housing=housing))
+
+    def on_add_cavity_seal(self):
+        """Add a plug seal interactively to one of this housing's cavities."""
+        from ... import handlers as _handlers
+
+        housing = self.obj.parent
+
+        _menu_ops.start_handler(
+            self.mainframe,
+            lambda: _handlers.AddSealHandler(
+                self.mainframe, housing=housing, for_cavity=True))
 
     def on_add_terminal(self):
-        """Add a terminal to this housing."""
-        def _do():
-            from .. import terminal as _terminal_obj
+        """Add terminals to this housing's cavities with a snapping preview."""
+        from ... import handlers as _handlers
 
-            part_id = _menu_ops.get_part_id(
-                self.mainframe, 'terminals',
-                self.mainframe.global_db.terminals_table, 'Add Terminal')
+        housing = self.obj.parent
 
-            if part_id is None:
-                return
-
-            position = self.obj.db_obj.position3d
-            ptables = self.mainframe.project.ptables
-
-            p3d = ptables.pjt_points3d_table.insert(*position.as_float)
-
-            terminal_db = ptables.pjt_terminals_table.insert(
-                part_id, None, p3d.db_id, None)
-
-            terminal = _terminal_obj.Terminal(self.mainframe, terminal_db)
-            self.mainframe.project.add_terminal(terminal)
-
-        QTimer.singleShot(0, _do)
+        _menu_ops.start_handler(
+            self.mainframe,
+            lambda: _handlers.AddTerminalHandler(
+                self.mainframe, housing=housing))
 
     def on_add_cpa_lock(self):
         """Attach a CPA lock to this housing."""

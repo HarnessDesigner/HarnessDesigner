@@ -70,6 +70,7 @@ class Base3D:
 
         try:
             self._is_visible = db_obj.is_visible3d  # NOQA
+            self.db_obj.bind(self._is_visible_callback, 'is_visible3d')
         except AttributeError:
             self._is_visible = False
 
@@ -94,6 +95,10 @@ class Base3D:
         position.bind(self._update_position)
         angle.bind(self._update_angle)
         scale.bind(self._update_scale)
+
+    def _is_visible_callback(self, *_, **__):
+        self._is_visible = self.db_obj.is_visible3d  # NOQA
+        self.mainframe.editor3d.Refresh()
 
     def _set_model(self, model: "_model3d.Model3D"):
         self.parent.mainframe.editor3d.context.acquire()

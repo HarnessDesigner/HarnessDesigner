@@ -153,6 +153,67 @@ class HandlerBase:
 
         return True
 
+    @classmethod
+    def set_angle_from_cavity(cls, acc_obj, pjt_cavity) -> bool:
+        """
+        Align *acc_obj*'s angle3d to match *pjt_cavity*'s world-space rotation.
+
+        Mirrors :meth:`set_angle_from_housing` but uses the cavity quaternion.
+        Returns True when the angle was written, False when data is missing.
+        """
+
+        part = acc_obj.db_obj.part
+        if part is None:
+            return False
+
+        model3d = part.model3d
+        if model3d is None:
+            return False
+
+        local_obb = acc_obj.obj3d._vbo.local_obb  # NOQA
+        if local_obb is None:
+            return False
+
+        fwd_face, up_face = model3d.forward_up
+        if fwd_face == -1 or up_face == -1:
+            return False
+
+        q_c = pjt_cavity.angle3d._q  # NOQA
+        q_obj = acc_obj.obj3d.angle._q  # NOQA
+        q_obb = q_obj + q_c
+        rotated = np.array([q_obb @ c for c in local_obb], dtype=np.float32)
+
+        fwd = cls.obb_face_direction(rotated, local_obb, fwd_face)
+        up = cls.obb_face_direction(rotated, local_obb, up_face)
+        if fwd is None or up is None:
+            return False
+
+        right = np.cross(up, fwd)
+        rn = float(np.linalg.norm(right))
+        if rn < 1e-8:
+            return False
+
+        right /= rn
+        up = np.cross(fwd, right)
+        rot_mat = np.column_stack([right, up, fwd])
+
+        obj_angle = acc_obj.obj3d.angle
+        old_euler = obj_angle.as_euler_float
+        new_euler = cls.euler_from_matrix_continuous(rot_mat, old_euler)
+
+        with obj_angle:
+            obj_angle.x = new_euler[0]
+            obj_angle.y = new_euler[1]
+            obj_angle.z = new_euler[2]
+            obj_angle._matrix[:] = q_c.as_matrix  # NOQA
+
+        obj_angle._q.w = q_c.w  # NOQA
+        obj_angle._q.x = q_c.x  # NOQA
+        obj_angle._q.y = q_c.y  # NOQA
+        obj_angle._q.z = q_c.z  # NOQA
+        obj_angle._process_callbacks()  # NOQA
+        return True
+
     @staticmethod
     def reset_angle(acc_obj) -> None:
         """
