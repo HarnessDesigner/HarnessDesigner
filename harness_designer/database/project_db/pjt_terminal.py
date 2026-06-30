@@ -6,6 +6,7 @@ import weakref
 from PySide6.QtWidgets import QTabWidget
 
 from ...ui import prop_ctrls as _prop_ctrls
+from ..common_db.lazy_tab_mixin import LazyTabMixin
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from . import pjt_seal as _pjt_seal
 from . import pjt_circuit as _pjt_circuit
@@ -526,7 +527,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin, Not
         return self._stored_part
 
 
-class PJTTerminalControl(QTabWidget):
+class PJTTerminalControl(QTabWidget, LazyTabMixin):
     """Represent a PJT terminal control in :mod:`harness_designer.database.project_db.pjt_terminal`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -540,61 +541,56 @@ class PJTTerminalControl(QTabWidget):
         :param db_obj: Database-backed object.
         :type db_obj: :class:`PJTTerminal`
         """
-        self.db_obj = db_obj
+        self._lazy_set_obj(db_obj)
 
-        self.name_ctrl.set_obj(db_obj)
-        self.note_ctrl.set_obj(db_obj)
-        self.smooth_ctrl.set_obj(db_obj)
-        self.angle2d_ctrl.set_obj(db_obj)
-        self.angle3d_ctrl.set_obj(db_obj)
-
-        self.position2d_ctrl.set_obj(db_obj)
-        self.position3d_ctrl.set_obj(db_obj)
-
-        self.visible2d_ctrl.set_obj(db_obj)
-        self.visible3d_ctrl.set_obj(db_obj)
-
-        if db_obj is None:
-            self.is_start_ctrl.SetValue(False)
-            self.voltage_drop_ctrl.SetValue(0.0)
-            self.volts_ctrl.SetValue(0.0)
-            self.load_ctrl.SetValue(0.0)
-
-            self.is_start_ctrl.setEnabled(False)
-            self.voltage_drop_ctrl.setEnabled(False)
-            self.volts_ctrl.setEnabled(False)
-            self.load_ctrl.setEnabled(False)
-
-            self.seal_ctrl.set_obj(None)
-            self.terminal_ctrl.set_obj(None)
-            self.circuit_ctrl.set_obj(None)
-
-        else:
-
-            is_start = db_obj.is_start
-
-            self.is_start_ctrl.SetValue(is_start)
-
-            if is_start:
-                self.voltage_drop_ctrl.setEnabled(True)
-                self.volts_ctrl.setEnabled(True)
-                self.voltage_drop_ctrl.SetValue(db_obj.voltage_drop)
-                self.volts_ctrl.SetValue(db_obj.volts)
-
-                self.load_ctrl.setEnabled(False)
-                self.load_ctrl.SetValue(0.0)
-            else:
-                self.voltage_drop_ctrl.setEnabled(False)
-                self.volts_ctrl.setEnabled(False)
+    def _load_tab(self, index: int):
+        page = self.widget(index)
+        if page is self._general_page:
+            self.name_ctrl.set_obj(self.db_obj)
+            self.note_ctrl.set_obj(self.db_obj)
+            self.smooth_ctrl.set_obj(self.db_obj)
+            if self.db_obj is None:
+                self.is_start_ctrl.SetValue(False)
                 self.voltage_drop_ctrl.SetValue(0.0)
                 self.volts_ctrl.SetValue(0.0)
-
-                self.load_ctrl.setEnabled(True)
-                self.load_ctrl.SetValue(db_obj.load)
-
-            self.seal_ctrl.set_obj(db_obj.seal)
-            self.terminal_ctrl.set_obj(db_obj.part)
-            self.circuit_ctrl.set_obj(db_obj.circuit)
+                self.load_ctrl.SetValue(0.0)
+                self.is_start_ctrl.setEnabled(False)
+                self.voltage_drop_ctrl.setEnabled(False)
+                self.volts_ctrl.setEnabled(False)
+                self.load_ctrl.setEnabled(False)
+            else:
+                is_start = self.db_obj.is_start
+                self.is_start_ctrl.SetValue(is_start)
+                if is_start:
+                    self.voltage_drop_ctrl.setEnabled(True)
+                    self.volts_ctrl.setEnabled(True)
+                    self.voltage_drop_ctrl.SetValue(self.db_obj.voltage_drop)
+                    self.volts_ctrl.SetValue(self.db_obj.volts)
+                    self.load_ctrl.setEnabled(False)
+                    self.load_ctrl.SetValue(0.0)
+                else:
+                    self.voltage_drop_ctrl.setEnabled(False)
+                    self.volts_ctrl.setEnabled(False)
+                    self.voltage_drop_ctrl.SetValue(0.0)
+                    self.volts_ctrl.SetValue(0.0)
+                    self.load_ctrl.setEnabled(True)
+                    self.load_ctrl.SetValue(self.db_obj.load)
+        elif page is self._angle_page:
+            self.angle2d_ctrl.set_obj(self.db_obj)
+            self.angle3d_ctrl.set_obj(self.db_obj)
+        elif page is self._position_page:
+            self.position2d_ctrl.set_obj(self.db_obj)
+            self.position3d_ctrl.set_obj(self.db_obj)
+        elif page is self._visible_page:
+            self.visible2d_ctrl.set_obj(self.db_obj)
+            self.visible3d_ctrl.set_obj(self.db_obj)
+        elif page is self._seal_page:
+            self.seal_ctrl.set_obj(None if self.db_obj is None else self.db_obj.seal)
+        elif page is self._circuit_page:
+            self.circuit_ctrl.set_obj(None if self.db_obj is None else self.db_obj.circuit)
+        elif page is self._part_page:
+            self.terminal_ctrl.set_obj(None if self.db_obj is None else self.db_obj.part)
+        self._tab_loaded[index] = True
 
     def __init__(self, parent):
         """Initialise the :class:`PJTTerminalControl` instance.
@@ -610,7 +606,7 @@ class PJTTerminalControl(QTabWidget):
         self.setTabPosition(QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
-        general_page = _prop_ctrls.Category(self, 'General')
+        self._general_page = general_page = _prop_ctrls.Category(self, 'General')
         self.name_ctrl = NameControl(general_page)
         self.note_ctrl = NotesControl(general_page)
         self.smooth_ctrl = SmoothControl(general_page)
@@ -629,38 +625,38 @@ class PJTTerminalControl(QTabWidget):
         general_page.addWidget(self.volts_ctrl)
         general_page.addWidget(self.load_ctrl)
 
-        angle_page = _prop_ctrls.Category(self, 'Angle')
+        self._angle_page = angle_page = _prop_ctrls.Category(self, 'Angle')
         self.angle2d_ctrl = Angle2DControl(angle_page)
         self.angle3d_ctrl = Angle3DControl(angle_page)
 
         angle_page.addWidget(self.angle2d_ctrl)
         angle_page.addWidget(self.angle3d_ctrl)
 
-        position_page = _prop_ctrls.Category(self, 'Position')
+        self._position_page = position_page = _prop_ctrls.Category(self, 'Position')
         self.position2d_ctrl = Position2DControl(position_page)
         self.position3d_ctrl = Position3DControl(position_page)
 
         position_page.addWidget(self.position2d_ctrl)
         position_page.addWidget(self.position3d_ctrl)
 
-        visible_page = _prop_ctrls.Category(self, 'Visible')
+        self._visible_page = visible_page = _prop_ctrls.Category(self, 'Visible')
         self.visible2d_ctrl = Visible2DControl(visible_page)
         self.visible3d_ctrl = Visible3DControl(visible_page)
 
         visible_page.addWidget(self.visible2d_ctrl)
         visible_page.addWidget(self.visible3d_ctrl)
 
-        seal_page = _prop_ctrls.Category(self, 'Seal')
+        self._seal_page = seal_page = _prop_ctrls.Category(self, 'Seal')
         self.seal_ctrl = _pjt_seal.PJTSealControl(seal_page)
 
         seal_page.addWidget(self.seal_ctrl)
 
-        circuit_page = _prop_ctrls.Category(self, 'Circuit')
+        self._circuit_page = circuit_page = _prop_ctrls.Category(self, 'Circuit')
         self.circuit_ctrl = _pjt_circuit.PJTCircuitControl(circuit_page)
 
         circuit_page.addWidget(self.circuit_ctrl)
 
-        part_page = _prop_ctrls.Category(self, 'Part')
+        self._part_page = part_page = _prop_ctrls.Category(self, 'Part')
         self.terminal_ctrl = _terminal.TerminalControl(part_page)
 
         part_page.addWidget(self.terminal_ctrl)
@@ -675,3 +671,5 @@ class PJTTerminalControl(QTabWidget):
             part_page
         ):
             self.addTab(page, page.GetLabel())
+
+        self._init_lazy_tabs()

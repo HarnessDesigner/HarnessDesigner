@@ -110,6 +110,10 @@ class AddTerminalHandler(_handler_base.HandlerBase):
         else:
             self.set_part(part_id)
 
+            if self._cavity is not None:
+                self.release_capture()
+                self._finalized = True
+
     @staticmethod
     def _cavity_midpoint(pjt_cavity):
         """
@@ -231,23 +235,26 @@ class AddTerminalHandler(_handler_base.HandlerBase):
             pjt_cavity = self._cavity.db_obj
 
             if self._is_male:
-                tx, ty, tz = pjt_cavity.position3d.as_float
+                tx, ty, tz = [float(str(item)) for item in pjt_cavity.obb[:4].mean(axis=0).tolist()]
             else:
-                tx, ty, tz = self._cavity_midpoint(pjt_cavity)
+                tx, ty, tz = pjt_cavity.position3d.as_float
 
-            p3d = self.ptables.pjt_points3d_table.insert(tx, ty, tz)
+            point = _point.Point(tx, ty, tz)
+            pos = pjt_cavity.terminal_position3d
+            delta = point - pos
+            pos += delta
+
             db_obj = self.ptables.pjt_terminals_table.insert(
-                part_id, None, p3d.db_id, pjt_cavity.db_id)
+                part_id, None, int(pos.db_id[:-2]), pjt_cavity.db_id)
 
         elif self._housing is not None:
             # Mode 2: floating preview, snaps only to this housing's cavities.
-            housing_db_id = self._housing.db_obj.db_id
+            housing_db = self._housing.db_obj
 
-            for cavity in self.mainframe.project.cavities:
-                if cavity.db_obj.housing.db_id != housing_db_id:
-                    continue
+            for cavity in self._housing.cavities:
                 if cavity.db_obj.terminal is not None:
                     continue
+
                 cavity.identify(self._compat_highlight_material)
                 self.project_cavities.append(cavity)
 

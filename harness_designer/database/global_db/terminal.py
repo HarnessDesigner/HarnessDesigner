@@ -7,6 +7,7 @@ import uuid
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ... import utils as _utils
+from ..common_db.lazy_tab_mixin import LazyTabMixin
 from .bases import EntryBase, TableBase
 from ...geometry import point as _point
 from .mixins import (
@@ -817,7 +818,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return scale
 
 
-class TerminalControl(QTabWidget):
+class TerminalControl(QTabWidget, LazyTabMixin):
     """Represent a terminal control in :mod:`harness_designer.database.global_db.terminal`.
 
     UNKNOWN details are inferred from the class name and surrounding code.

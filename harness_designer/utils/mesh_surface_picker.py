@@ -21,18 +21,10 @@ Inverse (world → local):
 
 Because the rotation matrix is orthogonal, R^{-1} = R^T.
 
-For the overlay, local vertices are projected to world space on-the-fly
-during paintEvent:
-
-    world = (local * scale_arr) @ rot_mat + pos_arr
-
-so the highlight always tracks the object's current transform without any
-data to maintain.
-
 Surfaces (coplanar groups) are computed once from local vertices and only
 rebuilt when the VBO changes (model loaded / replaced).  Position, angle
 and scale changes do NOT require a surface rebuild – they only update the
-three cached numpy arrays used by the ray transform and overlay projection.
+three cached numpy arrays used by the ray transform.
 
 Usage
 -----
@@ -42,8 +34,7 @@ Instantiate MeshSurfacePicker with the obj3d (must expose .position,
     picker = MeshSurfacePicker(obj3d, gl_widget)
     surf_idx, world_hit = picker.pick_surface_at(mouse_x, mouse_y)
 
-The companion SurfaceOverlay is created automatically and installed on the
-GL widget.  Call picker.cleanup() when the object is deleted.
+Call picker.cleanup() when the object is deleted.
 """
 
 from typing import TYPE_CHECKING
@@ -51,7 +42,6 @@ from typing import TYPE_CHECKING
 from collections import defaultdict
 from dataclasses import dataclass
 import numpy as np
-from PySide6 import QtCore, QtGui, QtWidgets
 
 
 if TYPE_CHECKING:
@@ -85,120 +75,6 @@ def _point_in_triangle(p, a, b, c) -> bool:
     v = (d00 * d12 - d01 * d02) * inv
 
     return u >= -1e-4 and v >= -1e-4 and (u + v) <= 1.0 + 1e-4
-
-
-class SurfaceOverlay(QtWidgets.QWidget):
-    """
-    Transparent child widget that projects selected surfaces as 2-D highlights.
-
-    Parented to the GL widget so it resizes automatically.  Connects to
-    frameSwapped so it repaints after every rendered frame – this keeps the
-    highlight locked to the geometry even as the camera moves.
-
-    Projection is done purely in local space: each vertex is converted to
-    world space on-the-fly using the picker's cached TRS arrays, then
-    projected through the camera's clip matrix.  No world-space vertex
-    array is maintained.
-    """
-
-    def __init__(self, canvas3d: "_Canvas3D", picker: "MeshSurfacePicker"):
-        gl_widget = canvas3d._canvas  # NOQA
-        super().__init__(gl_widget)
-        self._picker = picker
-        self._camera = gl_widget.camera
-        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_NoSystemBackground)
-        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setGeometry(gl_widget.rect())
-        gl_widget.installEventFilter(self)
-        gl_widget.frameSwapped.connect(self.update)
-        self.show()
-        self.raise_()
-
-    # ------------------------------------------------------------------
-    def eventFilter(self, obj, event) -> bool:
-        if event.type() == QtCore.QEvent.Type.Resize:
-            self.setGeometry(QtCore.QRect(0, 0, obj.width(), obj.height()))
-
-        return False
-
-    # ------------------------------------------------------------------
-    def paintEvent(self, _event) -> None:
-        picker = self._picker
-
-        if not picker.surfaces or picker.vertices is None:
-            return
-
-        if picker.selected_surf_idx is None:
-            return
-
-        camera = self._camera
-        if camera.clip is None or camera.viewport is None:
-            return
-
-        rot_mat = picker.rot_mat
-        scale_arr = picker.scale_arr
-        pos_arr = picker.pos_arr
-        verts = picker.vertices
-
-        surf = picker.surfaces[picker.selected_surf_idx]
-
-        # Back-face culling: use the raw VBO normal for the first triangle
-        # vertex (not the canonicalized Surface.normal used for grouping).
-        # Transform to world space and compare against the camera look
-        # direction.  If the normal and view direction align (dot > 0) the
-        # surface faces away from the camera — skip drawing entirely.
-        ti0 = surf.tri_indices[0]
-        local_n = picker.normals[3 * ti0].astype(np.float64)
-        world_n = local_n @ rot_mat
-
-        near_c = camera.unproject_from_ndc(0.0, 0.0, -1.0)
-        far_c  = camera.unproject_from_ndc(0.0, 0.0,  1.0)
-        if near_c is None or far_c is None:
-            return
-        cam_dir = far_c - near_c  # world-space look direction (unnormalised)
-
-        if float(np.dot(world_n, cam_dir)) > 0.0:
-            return
-
-        dpr = camera.devicePixelRatio
-
-        def project(local_pt: np.ndarray) -> QtCore.QPointF | None:
-            world = (local_pt * scale_arr) @ rot_mat + pos_arr
-            screen = camera.ProjectPoint(world)
-            if screen is None:
-                return None
-            return QtCore.QPointF(screen.x / dpr, screen.y / dpr)
-
-        painter = QtGui.QPainter(self)
-        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
-        painter.setPen(QtCore.Qt.PenStyle.NoPen)
-
-        # Delegate appearance to the picker so subclasses / callers can
-        # override colour without touching the overlay widget.
-        r, g, b, a = picker.overlay_color
-        painter.setBrush(QtGui.QBrush(QtGui.QColor(r, g, b, a)))
-
-        for ti in surf.tri_indices:
-            pts = [project(verts[3 * ti + k]) for k in range(3)]
-            if all(p is not None for p in pts):
-                painter.drawPolygon(QtGui.QPolygonF(pts))
-
-        painter.end()
-
-    # ------------------------------------------------------------------
-    def cleanup(self) -> None:
-        picker = self._picker
-        picker.gl_widget.removeEventFilter(self)
-
-        try:
-            picker.gl_widget.frameSwapped.disconnect(self.update)
-        except RuntimeError:
-            pass
-
-        self.hide()
-        self.setParent(None)
-        self.deleteLater()
 
 
 # ---------------------------------------------------------------------------
@@ -242,10 +118,6 @@ class MeshSurfacePicker:
     # objects in the scene.  Selecting a surface on one object auto-clears
     # any highlight from every other picker.
     _active: "MeshSurfacePicker" = None
-
-    @property
-    def gl_widget(self):
-        return self._gl_widget
 
     @property
     def camera(self):
@@ -307,8 +179,6 @@ class MeshSurfacePicker:
         self._surfaces: list[Surface] = []
         self._build_surfaces()
 
-        self.overlay = SurfaceOverlay(canvas3d, self)
-
     def _refresh_transform_cache(self) -> None:
         """
         Snapshot angle/position/scale into plain numpy arrays.
@@ -329,23 +199,13 @@ class MeshSurfacePicker:
     def _on_position(self, position: "_point.Point") -> None:
         self._pos_arr = position.as_numpy.astype(np.float64)
 
-        # Surfaces in local space are unaffected – just refresh overlay.
-        if self.overlay is not None:
-            self.overlay.update()
-
     def _on_angle(self, angle: "_angle.Angle") -> None:
         rot = angle.as_matrix_numpy.astype(np.float64)
         self._rot_mat = rot
         self._inv_rot = rot.T
 
-        if self.overlay is not None:
-            self.overlay.update()
-
     def _on_scale(self, scale: "_point.Point") -> None:
         self._scale_arr = scale.as_numpy.astype(np.float64)
-
-        if self.overlay is not None:
-            self.overlay.update()
 
     def update_vbo(self) -> None:
         """
@@ -701,18 +561,15 @@ class MeshSurfacePicker:
 
     def select(self, surf_idx: int) -> None:
         """
-        Highlight surface surf_idx and repaint the overlay.
+        Highlight surface surf_idx.
         """
 
         self._set_active()
         self.selected_surf_idx = surf_idx
 
-        if self.overlay is not None:
-            self.overlay.update()
-
     def clear_selection(self) -> None:
         """
-        Remove the highlight and repaint.
+        Remove the highlight.
         """
 
         self.selected_surf_idx = None
@@ -720,12 +577,9 @@ class MeshSurfacePicker:
         if MeshSurfacePicker._active is self:
             MeshSurfacePicker._active = None
 
-        if self.overlay is not None:
-            self.overlay.update()
-
     def cleanup(self) -> None:
         """
-        Unbind transform callbacks and destroy the overlay.
+        Unbind transform callbacks.
         """
 
         if MeshSurfacePicker._active is self:
@@ -740,7 +594,3 @@ class MeshSurfacePicker:
                 attr.unbind(cb)
             except Exception:  # NOQA
                 pass
-
-        if self.overlay is not None:
-            self.overlay.cleanup()
-            self.overlay = None

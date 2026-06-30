@@ -6,6 +6,7 @@ import weakref
 from PySide6.QtWidgets import QTabWidget
 
 from ...ui import prop_ctrls as _prop_ctrls
+from ..common_db.lazy_tab_mixin import LazyTabMixin
 from ..global_db import cover as _cover
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from .mixins import (
@@ -241,7 +242,7 @@ class PJTCover(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DM
         return self._stored_part
 
 
-class PJTCoverControl(QTabWidget):
+class PJTCoverControl(QTabWidget, LazyTabMixin):
     """Represent a PJT cover control in :mod:`harness_designer.database.project_db.pjt_cover`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -255,20 +256,23 @@ class PJTCoverControl(QTabWidget):
         :param db_obj: Database-backed object.
         :type db_obj: :class:`PJTCover`
         """
+        self._lazy_set_obj(db_obj)
 
-        self.db_obj = db_obj
-
-        self.name_ctrl.set_obj(db_obj)
-        self.note_ctrl.set_obj(db_obj)
-        self.smooth_ctrl.set_obj(db_obj)
-        self.angle3d_ctrl.set_obj(db_obj)
-        self.position3d_ctrl.set_obj(db_obj)
-        self.visible3d_ctrl.set_obj(db_obj)
-
-        if db_obj is None:
-            self.cover_ctrl.set_obj(None)
-        else:
-            self.cover_ctrl.set_obj(db_obj.part)
+    def _load_tab(self, index: int):
+        page = self.widget(index)
+        if page is self._general_page:
+            self.name_ctrl.set_obj(self.db_obj)
+            self.note_ctrl.set_obj(self.db_obj)
+            self.smooth_ctrl.set_obj(self.db_obj)
+        elif page is self._angle_page:
+            self.angle3d_ctrl.set_obj(self.db_obj)
+        elif page is self._position_page:
+            self.position3d_ctrl.set_obj(self.db_obj)
+        elif page is self._visible_page:
+            self.visible3d_ctrl.set_obj(self.db_obj)
+        elif page is self._part_page:
+            self.cover_ctrl.set_obj(None if self.db_obj is None else self.db_obj.part)
+        self._tab_loaded[index] = True
 
     def __init__(self, parent):
         """Initialise the :class:`PJTCoverControl` instance.
@@ -285,7 +289,7 @@ class PJTCoverControl(QTabWidget):
         self.setTabPosition(QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
-        general_page = _prop_ctrls.Category(self, 'General')
+        self._general_page = general_page = _prop_ctrls.Category(self, 'General')
         self.name_ctrl = NameControl(general_page)
         self.note_ctrl = NotesControl(general_page)
         self.smooth_ctrl = SmoothControl(general_page)
@@ -294,22 +298,22 @@ class PJTCoverControl(QTabWidget):
         general_page.addWidget(self.note_ctrl)
         general_page.addWidget(self.smooth_ctrl)
 
-        angle_page = _prop_ctrls.Category(self, 'Angle')
+        self._angle_page = angle_page = _prop_ctrls.Category(self, 'Angle')
         self.angle3d_ctrl = Angle3DControl(angle_page)
 
         angle_page.addWidget(self.angle3d_ctrl)
 
-        position_page = _prop_ctrls.Category(self, 'Position')
+        self._position_page = position_page = _prop_ctrls.Category(self, 'Position')
         self.position3d_ctrl = Position3DControl(position_page)
 
         position_page.addWidget(self.position3d_ctrl)
 
-        visible_page = _prop_ctrls.Category(self, 'Visible')
+        self._visible_page = visible_page = _prop_ctrls.Category(self, 'Visible')
         self.visible3d_ctrl = Visible3DControl(visible_page)
 
         visible_page.addWidget(self.visible3d_ctrl)
 
-        part_page = _prop_ctrls.Category(self, 'Part')
+        self._part_page = part_page = _prop_ctrls.Category(self, 'Part')
 
         from ..global_db import cover as _cover  # NOQA
 
@@ -325,3 +329,5 @@ class PJTCoverControl(QTabWidget):
             part_page
         ):
             self.addTab(page, page.GetLabel())
+
+        self._init_lazy_tabs()

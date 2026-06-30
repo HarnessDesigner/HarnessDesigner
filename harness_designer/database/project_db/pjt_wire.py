@@ -6,6 +6,7 @@ import weakref
 from PySide6.QtWidgets import QTabWidget
 
 from ...ui import prop_ctrls as _prop_ctrls
+from ..common_db.lazy_tab_mixin import LazyTabMixin
 from ..global_db import wire as _wire
 from . import pjt_circuit as _pjt_circuit
 from .pjt_bases import PJTEntryBase, PJTTableBase
@@ -527,7 +528,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         return self._stored_part
 
 
-class PJTWireControl(QTabWidget):
+class PJTWireControl(QTabWidget, LazyTabMixin):
     """Represent a PJT wire control in :mod:`harness_designer.database.project_db.pjt_wire`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -559,45 +560,49 @@ class PJTWireControl(QTabWidget):
         if self.db_obj is not None:
             self.db_obj.start_position3d.unbind(self._update_position3d)
             self.db_obj.stop_position3d.unbind(self._update_position3d)
+        self._lazy_set_obj(db_obj)
 
-        self.db_obj = db_obj
-
-        self.name_ctrl.set_obj(db_obj)
-        self.note_ctrl.set_obj(db_obj)
-        self.smooth_ctrl.set_obj(db_obj)
-        self.position2d_ctrl.set_obj(db_obj)
-        self.position3d_ctrl.set_obj(db_obj)
-        self.visible2d_ctrl.set_obj(db_obj)
-        self.visible3d_ctrl.set_obj(db_obj)
-
-        if db_obj is None:
-            self.wire_ctrl.set_obj(None)
-            self.circuit_ctrl.set_obj(None)
-
-            self.is_filler_wire_ctrl.SetValue(False)
-            self.is_filler_wire_ctrl.setEnabled(False)
-
-            self.length_mm_ctrl.SetValue('')
-            self.length_m_ctrl.SetValue('')
-            self.length_ft_ctrl.SetValue('')
-            self.weight_g_ctrl.SetValue('')
-            self.weight_lb_ctrl.SetValue('')
-            self.resistance_ctrl.SetValue('')
-
-        else:
-            self.wire_ctrl.set_obj(db_obj.part)
-            self.circuit_ctrl.set_obj(db_obj.circuit)
-            self.is_filler_wire_ctrl.SetValue(db_obj.is_filler_wire)
-            self.is_filler_wire_ctrl.setEnabled(True)
-            self.length_mm_ctrl.SetValue(str(db_obj.length_mm))
-            self.length_m_ctrl.SetValue(str(db_obj.length_m))
-            self.length_ft_ctrl.SetValue(str(db_obj.length_ft))
-            self.weight_g_ctrl.SetValue(str(db_obj.weight_g))
-            self.weight_lb_ctrl.SetValue(str(db_obj.weight_lb))
-            self.resistance_ctrl.SetValue(str(db_obj.resistance))
-
-            self.db_obj.start_position3d.bind(self._update_position3d)
-            self.db_obj.stop_position3d.bind(self._update_position3d)
+    def _load_tab(self, index: int):
+        page = self.widget(index)
+        if page is self._general_page:
+            self.name_ctrl.set_obj(self.db_obj)
+            self.note_ctrl.set_obj(self.db_obj)
+            self.smooth_ctrl.set_obj(self.db_obj)
+            if self.db_obj is None:
+                self.is_filler_wire_ctrl.SetValue(False)
+                self.is_filler_wire_ctrl.setEnabled(False)
+            else:
+                self.is_filler_wire_ctrl.SetValue(self.db_obj.is_filler_wire)
+                self.is_filler_wire_ctrl.setEnabled(True)
+        elif page is self._info_page:
+            if self.db_obj is None:
+                self.length_mm_ctrl.SetValue('')
+                self.length_m_ctrl.SetValue('')
+                self.length_ft_ctrl.SetValue('')
+                self.weight_g_ctrl.SetValue('')
+                self.weight_lb_ctrl.SetValue('')
+                self.resistance_ctrl.SetValue('')
+            else:
+                self.length_mm_ctrl.SetValue(str(self.db_obj.length_mm))
+                self.length_m_ctrl.SetValue(str(self.db_obj.length_m))
+                self.length_ft_ctrl.SetValue(str(self.db_obj.length_ft))
+                self.weight_g_ctrl.SetValue(str(self.db_obj.weight_g))
+                self.weight_lb_ctrl.SetValue(str(self.db_obj.weight_lb))
+                self.resistance_ctrl.SetValue(str(self.db_obj.resistance))
+        elif page is self._position_page:
+            self.position2d_ctrl.set_obj(self.db_obj)
+            self.position3d_ctrl.set_obj(self.db_obj)
+            if self.db_obj is not None:
+                self.db_obj.start_position3d.bind(self._update_position3d)
+                self.db_obj.stop_position3d.bind(self._update_position3d)
+        elif page is self._visible_page:
+            self.visible2d_ctrl.set_obj(self.db_obj)
+            self.visible3d_ctrl.set_obj(self.db_obj)
+        elif page is self._circuit_page:
+            self.circuit_ctrl.set_obj(None if self.db_obj is None else self.db_obj.circuit)
+        elif page is self._part_page:
+            self.wire_ctrl.set_obj(None if self.db_obj is None else self.db_obj.part)
+        self._tab_loaded[index] = True
 
     def __init__(self, parent):
         """Initialise the :class:`PJTWireControl` instance.
@@ -613,7 +618,7 @@ class PJTWireControl(QTabWidget):
         self.setTabPosition(QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
-        general_page = _prop_ctrls.Category(self, 'General')
+        self._general_page = general_page = _prop_ctrls.Category(self, 'General')
         self.name_ctrl = NameControl(general_page)
         self.note_ctrl = NotesControl(general_page)
         self.smooth_ctrl = SmoothControl(general_page)
@@ -624,7 +629,7 @@ class PJTWireControl(QTabWidget):
         general_page.addWidget(self.smooth_ctrl)
         general_page.addWidget(self.is_filler_wire_ctrl)
 
-        position_page = _prop_ctrls.Category(self, 'Position')
+        self._position_page = position_page = _prop_ctrls.Category(self, 'Position')
 
         self.position2d_ctrl = StartStopPosition2DControl(position_page)
         self.position3d_ctrl = StartStopPosition3DControl(position_page)
@@ -632,14 +637,14 @@ class PJTWireControl(QTabWidget):
         position_page.addWidget(self.position2d_ctrl)
         position_page.addWidget(self.position3d_ctrl)
 
-        visible_page = _prop_ctrls.Category(self, 'Visible')
+        self._visible_page = visible_page = _prop_ctrls.Category(self, 'Visible')
         self.visible2d_ctrl = Visible2DControl(visible_page)
         self.visible3d_ctrl = Visible3DControl(visible_page)
 
         visible_page.addWidget(self.visible2d_ctrl)
         visible_page.addWidget(self.visible3d_ctrl)
 
-        info_page = _prop_ctrls.Category(self, 'Info')
+        self._info_page = info_page = _prop_ctrls.Category(self, 'Info')
 
         length_group = _prop_ctrls.Property(info_page, 'Length', orientation='vertical')
         info_page.addWidget(length_group)
@@ -668,12 +673,12 @@ class PJTWireControl(QTabWidget):
 
         electrical_group.addWidget(self.resistance_ctrl)
 
-        circuit_page = _prop_ctrls.Category(self, 'Circuit')
+        self._circuit_page = circuit_page = _prop_ctrls.Category(self, 'Circuit')
         self.circuit_ctrl = _pjt_circuit.PJTCircuitControl(circuit_page)
 
         circuit_page.addWidget(self.circuit_ctrl)
 
-        part_page = _prop_ctrls.Category(self, 'Part')
+        self._part_page = part_page = _prop_ctrls.Category(self, 'Part')
         self.wire_ctrl = _wire.WireControl(part_page)
 
         part_page.addWidget(self.wire_ctrl)
@@ -687,3 +692,5 @@ class PJTWireControl(QTabWidget):
             part_page
         ):
             self.addTab(page, page.GetLabel())
+
+        self._init_lazy_tabs()

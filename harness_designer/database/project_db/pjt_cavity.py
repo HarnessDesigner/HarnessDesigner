@@ -72,10 +72,10 @@ class PJTCavitiesTable(PJTTableBase):
 
         cls._control = PJTCavityControl(mainframe)
         cls._control.hide()
-
+        #
         # for i in range(20):
         #     control = PJTCavityControl(mainframe)
-        #     control.Show(False)
+        #     control.hide()
         #     control.SetIndex(i + 1)
         #     cls._controls.append(control)
 
@@ -93,14 +93,11 @@ class PJTCavitiesTable(PJTTableBase):
         :rtype: UNKNOWN
         """
 
-        controls_len = len(self._controls)
-
-        if controls_len - 1 < index:
-            for i in range(controls_len - 1, index):
-                ctrl = PJTCavityControl(self.db.mainframe)
-                ctrl.SetIndex(i + 1)
-                ctrl.hide()
-                self._controls.append(ctrl)
+        while len(self._controls) < index + 1:
+            ctrl = PJTCavityControl(self.db.mainframe)
+            ctrl.SetIndex(len(self._controls))
+            ctrl.hide()
+            self._controls.append(ctrl)
 
         return self._controls[index]
 
@@ -704,6 +701,8 @@ class PJTCavityControl(_prop_ctrls.Category):
         """
 
         self.SetLabel(f'Cavity {index}')
+
+        print('creating cavity:', index)
 
     def __init__(self, parent):
         """

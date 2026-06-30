@@ -27,19 +27,20 @@ class Overlay(QWidget):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
     def __init__(self, parent, config: _config.Config.editor3d.axis_overlay):
-        """Initialise the :class:`Overlay` instance.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Initialise the :class:`Overlay` instance.
 
         :param parent: Parent object.
         :type parent: UNKNOWN
+
         :param config: Value for ``config``.
         :type config: :class:`_config.Config.editor3d.axis_overlay`
         """
+
         self.canvas3d = parent
         QWidget.__init__(self, parent)
-        self.setFixedSize(*config.size)
-        self.move(*config.position)
+        self.setFixedSize(*config.size)  # NOQA
+        self.move(*config.position)  # NOQA
         self.setStyleSheet("border: 2px solid gray;")
 
         self.gl_overlay = GLOverlay(self, size=config.size)
@@ -53,35 +54,30 @@ class Overlay(QWidget):
         self.setVisible(config.is_visible)
 
         QTimer.singleShot(0, lambda: (
-            self.move(*self.config.position),
+            self.move(*self.config.position),  # NOQA
             self.gl_overlay.update()
         ))
 
     def setVisible(self, flag=True):
-        """Execute the set visible operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Execute the set visible operation.
 
         :param flag: Value for ``flag``.
         :type flag: UNKNOWN
         """
+
         self.config.is_visible = flag
         QWidget.setVisible(self, flag)
 
     def resizeEvent(self, event):
-        """Execute the resize event operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Execute the resize event operation.
 
         :param event: Event object.
         :type event: UNKNOWN
         """
 
         def _do():
-            """Execute the do operation.
-
-            UNKNOWN details are inferred from the callable name and signature.
-            """
             w = self.width()
             h = self.height()
             self.config.size = (w, h)
@@ -91,19 +87,14 @@ class Overlay(QWidget):
         QWidget.resizeEvent(self, event)
 
     def moveEvent(self, event):
-        """Execute the move event operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Execute the move event operation.
 
         :param event: Event object.
         :type event: UNKNOWN
         """
 
         def _do():
-            """Execute the do operation.
-
-            UNKNOWN details are inferred from the callable name and signature.
-            """
             pos = self.pos()
             self.config.position = (pos.x(), pos.y())
 
@@ -111,23 +102,23 @@ class Overlay(QWidget):
         QWidget.moveEvent(self, event)
 
     def set_angle(self, point: _point.Point):
-        """Set the angle.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Set the angle.
 
         :param point: Point value.
         :type point: :class:`_point.Point`
         """
+
         self.gl_overlay.set_angle(point)
 
     def SetSize(self, size):
-        """Execute the set size operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Execute the set size operation.
 
         :param size: Value for ``size``.
         :type size: UNKNOWN
         """
+
         w, h = size
         w = h = min(w, h)
         self.setFixedSize(w, h)
@@ -135,21 +126,21 @@ class Overlay(QWidget):
 
 
 class GLOverlay(QOpenGLWidget):
-    """Represent a GL overlay in :mod:`harness_designer.gl.canvas3d.axis_overlay`.
-
-    UNKNOWN details are inferred from the class name and surrounding code.
+    """
+    Represent a GL overlay in :mod:`harness_designer.gl.canvas3d.axis_overlay`.
     """
 
     def __init__(self, parent: Overlay, size=(-1, -1)):
-        """Initialise the :class:`GLOverlay` instance.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Initialise the :class:`GLOverlay` instance.
 
         :param parent: Parent object.
         :type parent: :class:`Overlay`
+
         :param size: Value for ``size``.
         :type size: UNKNOWN
         """
+
         QOpenGLWidget.__init__(self, parent)
         self.parent_overlay = parent
         self._init = False
@@ -173,49 +164,49 @@ class GLOverlay(QOpenGLWidget):
         self.setMouseTracking(True)
 
     def mousePressEvent(self, event):
-        """Execute the mouse press event operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Execute the mouse press event operation.
 
         :param event: Event object.
         :type event: UNKNOWN
         """
-        if event.button() == Qt.LeftButton:
+
+        if event.button() == Qt.MouseButton.LeftButton:
             self._on_left_down(event)
-        elif event.button() == Qt.RightButton:
+        elif event.button() == Qt.MouseButton.RightButton:
             self._on_right_down(event)
 
     def mouseReleaseEvent(self, event):
-        """Execute the mouse release event operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Execute the mouse release event operation.
 
         :param event: Event object.
         :type event: UNKNOWN
         """
-        if event.button() == Qt.LeftButton:
+
+        if event.button() == Qt.MouseButton.LeftButton:
             self._on_left_up(event)
-        elif event.button() == Qt.RightButton:
+        elif event.button() == Qt.MouseButton.RightButton:
             self._on_right_up(event)
 
     def mouseMoveEvent(self, event):
-        """Execute the mouse move event operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Execute the mouse move event operation.
 
         :param event: Event object.
         :type event: UNKNOWN
         """
+
         self._on_mouse_motion(event)
 
     def _on_left_down(self, event):
-        """Handle the left down event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the left down event.
 
         :param event: Event object.
         :type event: UNKNOWN
         """
+
         x = event.position().x()
         y = event.position().y()
         w = self.parent_overlay.width()
@@ -243,44 +234,44 @@ class GLOverlay(QOpenGLWidget):
         self.grabMouse()
 
     def _on_left_up(self, event):
-        """Handle the left up event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the left up event.
 
         :param event: Event object.
         :type event: UNKNOWN
         """
+
         self.releaseMouse()
         self.grab_location = 0
 
     def _on_right_up(self, event):
-        """Handle the right up event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the right up event.
 
         :param event: Event object.
         :type event: UNKNOWN
         """
+
         pass
 
     def _on_right_down(self, event):
-        """Handle the right down event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the right down event.
 
         :param event: Event object.
         :type event: UNKNOWN
         """
+
         pass
 
     def _on_mouse_motion(self, event):
-        """Handle the mouse motion event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the mouse motion event.
 
         :param event: Event object.
         :type event: UNKNOWN
         """
+
         size = self.parent_overlay.size()
         w = size.width()
         h = size.height()
@@ -414,23 +405,23 @@ class GLOverlay(QOpenGLWidget):
             (0 <= mx <= 10 and 0 <= my <= 10) or
             (w - 10 <= mx <= w and h - 10 <= my <= h)
         ):
-            self.setCursor(QCursor(Qt.SizeFDiagCursor))
+            self.setCursor(QCursor(Qt.CursorShape.SizeFDiagCursor))
         elif (
             (w - 10 <= mx <= w and 0 <= my <= 10) or
             (0 <= mx <= 10 and h - 10 <= my <= h)
         ):
-            self.setCursor(QCursor(Qt.SizeBDiagCursor))
+            self.setCursor(QCursor(Qt.CursorShape.SizeBDiagCursor))
         else:
-            self.setCursor(QCursor(Qt.SizeAllCursor))
+            self.setCursor(QCursor(Qt.CursorShape.SizeAllCursor))
 
     def build_model(self, size):
-        """Build the model.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Build the model.
 
         :param size: Value for ``size``.
         :type size: UNKNOWN
         """
+
         self.distance = size / 14.0
         size /= 40.0
         r = (size / 22)
@@ -440,10 +431,17 @@ class GLOverlay(QOpenGLWidget):
         z_vertices, z_faces = _cylinder.create(r, size, resolution=10, split=1)
         s_vertices, s_faces = _sphere.create(r, resolution=10)
 
-        x_material = _materials.Plastic(_color.Color(1.0, 0.2, 0.2, 1.0))
-        y_material = _materials.Plastic(_color.Color(0.2, 1.0, 0.2, 1.0))
-        z_material = _materials.Plastic(_color.Color(0.2, 0.2, 1.0, 1.0))
-        s_material = _materials.Plastic(_color.Color(0.1, 0.1, 0.1, 1.0))
+        x_material = _materials.Plastic(
+            _color.Color(1.0, 0.2, 0.2, 1.0))
+
+        y_material = _materials.Plastic(
+            _color.Color(0.2, 1.0, 0.2, 1.0))
+
+        z_material = _materials.Plastic(
+            _color.Color(0.2, 0.2, 1.0, 1.0))
+
+        s_material = _materials.Plastic(
+            _color.Color(0.1, 0.1, 0.1, 1.0))
 
         def _unpack(packed, count):
             # mutable views into the packed array, one block per attribute
@@ -482,13 +480,13 @@ class GLOverlay(QOpenGLWidget):
         ]
 
     def set_angle(self, point: _point.Point):
-        """Set the angle.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Set the angle.
 
         :param point: Point value.
         :type point: :class:`_point.Point`
         """
+
         self._last_angle = point
 
         camera_pos = self.camera_pos.as_numpy
@@ -514,10 +512,10 @@ class GLOverlay(QOpenGLWidget):
         self.update()
 
     def initializeGL(self):
-        """Execute the initialize GL operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
         """
+        Execute the initialize GL operation.
+        """
+
         w = self.width()
         h = self.height()
         GL.glClearColor(0.1, 0.1, 0.1, 1.0)
@@ -553,27 +551,31 @@ class GLOverlay(QOpenGLWidget):
 
         GL.glMatrixMode(GL.GL_MODELVIEW)
 
-        camera = self.camera_eye.as_float + self.camera_pos.as_float + (0.0, 1.0, 0.0)
+        camera = (self.camera_eye.as_float +
+                  self.camera_pos.as_float +
+                  (0.0, 1.0, 0.0))
+
         GLU.gluLookAt(*camera)
 
     def resizeGL(self, width, height):
-        """Execute the resize GL operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Execute the resize GL operation.
 
         :param width: Value for ``width``.
         :type width: UNKNOWN
+
         :param height: Value for ``height``.
         :type height: UNKNOWN
         """
+
         self.size = (width, height)
         GL.glViewport(0, 0, width, height)
 
     def paintGL(self):
-        """Execute the paint GL operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
         """
+        Execute the paint GL operation.
+        """
+
         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
         GL.glMatrixMode(GL.GL_MODELVIEW)
         GL.glLoadIdentity()
@@ -582,10 +584,7 @@ class GLOverlay(QOpenGLWidget):
 
         fn = np.linalg.norm(forward)
         if fn < 1e-6:
-            forward = np.array(
-                [0.0, 0.0, -1.0],
-                dtype=np.float32
-                )
+            forward = np.array([0.0, 0.0, -1.0], dtype=np.float32)
         else:
             forward = forward / fn
 
@@ -597,10 +596,7 @@ class GLOverlay(QOpenGLWidget):
 
         rn = np.linalg.norm(right)
         if rn < 1e-6:
-            right = np.array(
-                [1.0, 0.0, 0.0],
-                dtype=np.float32
-                )
+            right = np.array([1.0, 0.0, 0.0], dtype=np.float32)
         else:
             right = right / rn
 
@@ -608,14 +604,14 @@ class GLOverlay(QOpenGLWidget):
 
         un = np.linalg.norm(up)
         if un < 1e-6:
-            up = np.array(
-                [0.0, 1.0, 0.0],
-                dtype=np.float32
-                )
+            up = np.array([0.0, 1.0, 0.0], dtype=np.float32)
         else:
             up = up / un
 
-        camera = self.camera_eye.as_float + self.camera_pos.as_float + tuple(float(str(v)) for v in up.tolist())
+        camera = (self.camera_eye.as_float +
+                  self.camera_pos.as_float +
+                  tuple(float(str(v)) for v in up.tolist()))
+
         GLU.gluLookAt(*camera)
 
         GL.glPushMatrix()

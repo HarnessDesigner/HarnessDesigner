@@ -6,6 +6,7 @@ from typing import Iterable as _Iterable, TYPE_CHECKING
 
 from ... import utils as _utils
 from ...ui import prop_ctrls as _prop_ctrls
+from ..common_db.lazy_tab_mixin import LazyTabMixin
 from .bases import EntryBase, TableBase
 from .mixins import (
     PartNumberMixin, PartNumberControl,
@@ -952,7 +953,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         self._populate('stripe_color_id')
 
 
-class WireControl(QTabWidget):
+class WireControl(QTabWidget, LazyTabMixin):
     """Represent a wire control in :mod:`harness_designer.database.global_db.wire`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -966,65 +967,75 @@ class WireControl(QTabWidget):
         :param db_obj: Database-backed object.
         :type db_obj: :class:`Wire`
         """
-        self.db_obj = db_obj
+        self._lazy_set_obj(db_obj)
 
-        self.mfg_page.set_obj(db_obj)
-        self.family_page.set_obj(db_obj)
-        self.series_page.set_obj(db_obj)
-        self.temperature_page.set_obj(db_obj)
-        self.resources_page.set_obj(db_obj)
-        self.part_number_ctrl.set_obj(db_obj)
-        self.description_ctrl.set_obj(db_obj)
-        self.color_ctrl.set_obj(db_obj)
-        self.stripe_color_ctrl.set_obj(db_obj)
-        self.material_ctrl.set_obj(db_obj)
-        self.core_material_ctrl.set_obj(db_obj)
-
-        if db_obj is None:
-            self.tpi_ctrl.SetValue(0.0)
-            self.weight_1km_ctrl.SetValue(0.0)
-            self.volts_ctrl.SetValue(0.0)
-            self.resistance_1km_ctrl.SetValue(0.0)
-            self.num_conductors_ctrl.SetValue(1)
-            self.shielded_ctrl.SetValue(False)
-            self.conductor_dia_mm_ctrl.SetValue(0.05)
-            self.size_mm2_ctrl.SetValue(0.05)
-            self.size_awg_ctrl.SetValue(30.0)
-            self.od_mm_ctrl.SetValue(0.05)
-
-            self.tpi_ctrl.setEnabled(False)
-            self.weight_1km_ctrl.setEnabled(False)
-            self.volts_ctrl.setEnabled(False)
-            self.resistance_1km_ctrl.setEnabled(False)
-            self.num_conductors_ctrl.setEnabled(False)
-            self.shielded_ctrl.setEnabled(False)
-            self.conductor_dia_mm_ctrl.setEnabled(False)
-            self.size_mm2_ctrl.setEnabled(False)
-            self.size_awg_ctrl.setEnabled(False)
-            self.od_mm_ctrl.setEnabled(False)
-
-        else:
-            self.tpi_ctrl.SetValue(db_obj.tpi)
-            self.weight_1km_ctrl.SetValue(db_obj.weight_1km)
-            self.volts_ctrl.SetValue(db_obj.volts)
-            self.resistance_1km_ctrl.SetValue(db_obj.resistance_1km)
-            self.num_conductors_ctrl.SetValue(db_obj.num_conductors)
-            self.shielded_ctrl.SetValue(db_obj.shielded)
-            self.conductor_dia_mm_ctrl.SetValue(db_obj.conductor_dia_mm)
-            self.size_mm2_ctrl.SetValue(db_obj.size_mm2)
-            self.size_awg_ctrl.SetValue(db_obj.size_awg)
-            self.od_mm_ctrl.SetValue(db_obj.od_mm)
-
-            self.tpi_ctrl.setEnabled(True)
-            self.weight_1km_ctrl.setEnabled(True)
-            self.volts_ctrl.setEnabled(True)
-            self.resistance_1km_ctrl.setEnabled(True)
-            self.num_conductors_ctrl.setEnabled(True)
-            self.shielded_ctrl.setEnabled(True)
-            self.conductor_dia_mm_ctrl.setEnabled(True)
-            self.size_mm2_ctrl.setEnabled(True)
-            self.size_awg_ctrl.setEnabled(True)
-            self.od_mm_ctrl.setEnabled(True)
+    def _load_tab(self, index: int):
+        page = self.widget(index)
+        if page is self._general_page:
+            self.part_number_ctrl.set_obj(self.db_obj)
+            self.description_ctrl.set_obj(self.db_obj)
+            if self.db_obj is None:
+                self.tpi_ctrl.SetValue(0.0)
+                self.weight_1km_ctrl.SetValue(0.0)
+                self.volts_ctrl.SetValue(0.0)
+                self.resistance_1km_ctrl.SetValue(0.0)
+                self.num_conductors_ctrl.SetValue(1)
+                self.shielded_ctrl.SetValue(False)
+                self.tpi_ctrl.setEnabled(False)
+                self.weight_1km_ctrl.setEnabled(False)
+                self.volts_ctrl.setEnabled(False)
+                self.resistance_1km_ctrl.setEnabled(False)
+                self.num_conductors_ctrl.setEnabled(False)
+                self.shielded_ctrl.setEnabled(False)
+            else:
+                self.tpi_ctrl.SetValue(self.db_obj.tpi)
+                self.weight_1km_ctrl.SetValue(self.db_obj.weight_1km)
+                self.volts_ctrl.SetValue(self.db_obj.volts)
+                self.resistance_1km_ctrl.SetValue(self.db_obj.resistance_1km)
+                self.num_conductors_ctrl.SetValue(self.db_obj.num_conductors)
+                self.shielded_ctrl.SetValue(self.db_obj.shielded)
+                self.tpi_ctrl.setEnabled(True)
+                self.weight_1km_ctrl.setEnabled(True)
+                self.volts_ctrl.setEnabled(True)
+                self.resistance_1km_ctrl.setEnabled(True)
+                self.num_conductors_ctrl.setEnabled(True)
+                self.shielded_ctrl.setEnabled(True)
+        elif page is self.mfg_page:
+            self.mfg_page.set_obj(self.db_obj)
+        elif page is self.family_page:
+            self.family_page.set_obj(self.db_obj)
+        elif page is self.series_page:
+            self.series_page.set_obj(self.db_obj)
+        elif page is self.temperature_page:
+            self.temperature_page.set_obj(self.db_obj)
+        elif page is self.resources_page:
+            self.resources_page.set_obj(self.db_obj)
+        elif page is self._size_page:
+            if self.db_obj is None:
+                self.conductor_dia_mm_ctrl.SetValue(0.05)
+                self.size_mm2_ctrl.SetValue(0.05)
+                self.size_awg_ctrl.SetValue(30.0)
+                self.od_mm_ctrl.SetValue(0.05)
+                self.conductor_dia_mm_ctrl.setEnabled(False)
+                self.size_mm2_ctrl.setEnabled(False)
+                self.size_awg_ctrl.setEnabled(False)
+                self.od_mm_ctrl.setEnabled(False)
+            else:
+                self.conductor_dia_mm_ctrl.SetValue(self.db_obj.conductor_dia_mm)
+                self.size_mm2_ctrl.SetValue(self.db_obj.size_mm2)
+                self.size_awg_ctrl.SetValue(self.db_obj.size_awg)
+                self.od_mm_ctrl.SetValue(self.db_obj.od_mm)
+                self.conductor_dia_mm_ctrl.setEnabled(True)
+                self.size_mm2_ctrl.setEnabled(True)
+                self.size_awg_ctrl.setEnabled(True)
+                self.od_mm_ctrl.setEnabled(True)
+        elif page is self._color_page:
+            self.color_ctrl.set_obj(self.db_obj)
+            self.stripe_color_ctrl.set_obj(self.db_obj)
+        elif page is self._materials_page:
+            self.material_ctrl.set_obj(self.db_obj)
+            self.core_material_ctrl.set_obj(self.db_obj)
+        self._tab_loaded[index] = True
 
     def _on_tpi(self, evt):
         """Handle the tpi event.
@@ -1173,7 +1184,7 @@ class WireControl(QTabWidget):
         self.setTabPosition(QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
-        general_page = _prop_ctrls.Category(self, 'General')
+        self._general_page = general_page = _prop_ctrls.Category(self, 'General')
 
         self.part_number_ctrl = PartNumberControl(general_page)
         self.description_ctrl = DescriptionControl(general_page)
@@ -1213,7 +1224,7 @@ class WireControl(QTabWidget):
         general_page.addWidget(self.strands_ctrl)
         general_page.addWidget(self.shielded_ctrl)
 
-        color_page = _prop_ctrls.Category(self, 'Color')
+        self._color_page = color_page = _prop_ctrls.Category(self, 'Color')
         self.color_ctrl = ColorControl(color_page)
         self.color_ctrl.SetLabel('Primary')
 
@@ -1231,7 +1242,7 @@ class WireControl(QTabWidget):
 
         self.resources_page = ResourcesControl(self)
 
-        materials_page = _prop_ctrls.Category(self, 'Materials')
+        self._materials_page = materials_page = _prop_ctrls.Category(self, 'Materials')
         self.material_ctrl = MaterialControl(materials_page)
         self.material_ctrl.SetLabel('Jacket')
 
@@ -1242,7 +1253,7 @@ class WireControl(QTabWidget):
         materials_page.addWidget(self.material_ctrl)
         materials_page.addWidget(self.core_material_ctrl)
 
-        size_page = _prop_ctrls.Category(self, 'Size')
+        self._size_page = size_page = _prop_ctrls.Category(self, 'Size')
 
         self.conductor_dia_mm_ctrl = _prop_ctrls.FloatProperty(
             size_page, 'Conductor Diameter',
@@ -1289,3 +1300,5 @@ class WireControl(QTabWidget):
             materials_page
         ):
             self.addTab(page, page.GetLabel())
+
+        self._init_lazy_tabs()

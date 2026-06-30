@@ -52,7 +52,7 @@ class Property(QWidget):
                 self._static_box.setLayout(self._sizer)
 
                 sizer = QHBoxLayout()
-                sizer.addWidget(self._static_box)
+                sizer.addWidget(self._static_box, 1)
                 self.setLayout(sizer)
 
             else:

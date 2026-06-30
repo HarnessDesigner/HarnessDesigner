@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QTabWidget
 import build123d
 
 from ...ui import prop_ctrls as _prop_ctrls
+from ..common_db.lazy_tab_mixin import LazyTabMixin
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from .mixins import (
     Angle3DMixin, Angle3DControl,
@@ -419,7 +420,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
         self._populate('is_visible3d')
 
 
-class PJTNoteControl(QTabWidget):
+class PJTNoteControl(QTabWidget, LazyTabMixin):
     """Represent a PJT note control in :mod:`harness_designer.database.project_db.pjt_note`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -437,70 +438,73 @@ class PJTNoteControl(QTabWidget):
             if self.db_obj.is_visible2d:
                 self.align_2d_ctrl.SetValue(build123d.TextAlign.LEFT)
                 self.style_2d_ctrl.SetValue(build123d.FontStyle.REGULAR)
-
             if self.db_obj.is_visible3d:
                 self.align_3d_ctrl.SetValue(build123d.TextAlign.LEFT)
                 self.style_3d_ctrl.SetValue(build123d.FontStyle.REGULAR)
+        self._lazy_set_obj(db_obj)
 
-        self.db_obj = db_obj
-
-        self.note_ctrl.set_obj(db_obj)
-        self.smooth_ctrl.set_obj(db_obj)
-        self.angle2d_ctrl.set_obj(db_obj)
-        self.angle3d_ctrl.set_obj(db_obj)
-
-        self.position2d_ctrl.set_obj(db_obj)
-        self.position3d_ctrl.set_obj(db_obj)
-
-        self.visible2d_ctrl.set_obj(db_obj)
-        self.visible3d_ctrl.set_obj(db_obj)
-        self.color_control.set_obj(db_obj)
-
-        if db_obj is None:
-            self.align_2d_ctrl.Enable(False)
-            self.style_2d_ctrl.Enable(False)
-            self.align_3d_ctrl.Enable(False)
-            self.style_3d_ctrl.Enable(False)
-        else:
-            if db_obj.is_visible2d:
-                self.align_2d_ctrl.SetLabels(['Left', 'Center', 'Right'])
-                self.align_2d_ctrl.SetItems(
-                    [build123d.TextAlign.LEFT, build123d.TextAlign.CENTER,
-                     build123d.TextAlign.RIGHT])
-
-                self.align_2d_ctrl.show()
-                self.align_2d_ctrl.SetValue(db_obj.h_align2d)
-
-                self.style_2d_ctrl.SetLabels(['Normal', 'Bold', 'Italic', 'Bold Italic'])
-                self.style_2d_ctrl.SetItems(
-                    [build123d.FontStyle.REGULAR, build123d.FontStyle.BOLD,
-                     build123d.FontStyle.ITALIC, build123d.FontStyle.BOLDITALIC])
-
-                self.style_2d_ctrl.show()
-                self.style_2d_ctrl.SetValue(db_obj.h_align3d)
+    def _load_tab(self, index: int):
+        page = self.widget(index)
+        if page is self._general_page:
+            self.note_ctrl.set_obj(self.db_obj)
+            self.smooth_ctrl.set_obj(self.db_obj)
+            self.color_control.set_obj(self.db_obj)
+        elif page is self._angle_page:
+            self.angle2d_ctrl.set_obj(self.db_obj)
+            self.angle3d_ctrl.set_obj(self.db_obj)
+        elif page is self._position_page:
+            self.position2d_ctrl.set_obj(self.db_obj)
+            self.position3d_ctrl.set_obj(self.db_obj)
+        elif page is self._visible_page:
+            self.visible2d_ctrl.set_obj(self.db_obj)
+            self.visible3d_ctrl.set_obj(self.db_obj)
+        elif page is self._style_page:
+            if self.db_obj is None:
+                self.style_2d_ctrl.Enable(False)
+                self.style_3d_ctrl.Enable(False)
             else:
-                self.align_2d_ctrl.hide()
-                self.style_2d_ctrl.hide()
-
-            if db_obj.is_visible3d:
-                self.align_3d_ctrl.SetLabels(['Left', 'Center', 'Right'])
-                self.align_3d_ctrl.SetItems(
-                    [build123d.TextAlign.LEFT, build123d.TextAlign.CENTER,
-                     build123d.TextAlign.RIGHT])
-
-                self.align_3d_ctrl.show()
-                self.align_3d_ctrl.SetValue(db_obj.h_align3d)
-
-                self.style_3d_ctrl.SetLabels(['Normal', 'Bold', 'Italic', 'Bold Italic'])
-                self.style_3d_ctrl.SetItems(
-                    [build123d.FontStyle.REGULAR, build123d.FontStyle.BOLD,
-                     build123d.FontStyle.ITALIC, build123d.FontStyle.BOLDITALIC])
-
-                self.style_3d_ctrl.show()
-                self.style_3d_ctrl.SetValue(db_obj.h_align3d)
+                if self.db_obj.is_visible2d:
+                    self.style_2d_ctrl.SetLabels(['Normal', 'Bold', 'Italic', 'Bold Italic'])
+                    self.style_2d_ctrl.SetItems(
+                        [build123d.FontStyle.REGULAR, build123d.FontStyle.BOLD,
+                         build123d.FontStyle.ITALIC, build123d.FontStyle.BOLDITALIC])
+                    self.style_2d_ctrl.show()
+                    self.style_2d_ctrl.SetValue(self.db_obj.h_align2d)
+                else:
+                    self.style_2d_ctrl.hide()
+                if self.db_obj.is_visible3d:
+                    self.style_3d_ctrl.SetLabels(['Normal', 'Bold', 'Italic', 'Bold Italic'])
+                    self.style_3d_ctrl.SetItems(
+                        [build123d.FontStyle.REGULAR, build123d.FontStyle.BOLD,
+                         build123d.FontStyle.ITALIC, build123d.FontStyle.BOLDITALIC])
+                    self.style_3d_ctrl.show()
+                    self.style_3d_ctrl.SetValue(self.db_obj.h_align3d)
+                else:
+                    self.style_3d_ctrl.hide()
+        elif page is self._align_page:
+            if self.db_obj is None:
+                self.align_2d_ctrl.Enable(False)
+                self.align_3d_ctrl.Enable(False)
             else:
-                self.align_3d_ctrl.hide()
-                self.style_3d_ctrl.hide()
+                if self.db_obj.is_visible2d:
+                    self.align_2d_ctrl.SetLabels(['Left', 'Center', 'Right'])
+                    self.align_2d_ctrl.SetItems(
+                        [build123d.TextAlign.LEFT, build123d.TextAlign.CENTER,
+                         build123d.TextAlign.RIGHT])
+                    self.align_2d_ctrl.show()
+                    self.align_2d_ctrl.SetValue(self.db_obj.h_align2d)
+                else:
+                    self.align_2d_ctrl.hide()
+                if self.db_obj.is_visible3d:
+                    self.align_3d_ctrl.SetLabels(['Left', 'Center', 'Right'])
+                    self.align_3d_ctrl.SetItems(
+                        [build123d.TextAlign.LEFT, build123d.TextAlign.CENTER,
+                         build123d.TextAlign.RIGHT])
+                    self.align_3d_ctrl.show()
+                    self.align_3d_ctrl.SetValue(self.db_obj.h_align3d)
+                else:
+                    self.align_3d_ctrl.hide()
+        self._tab_loaded[index] = True
 
     def _on_align2d(self, evt):
         """Handle the align 2D event.
@@ -560,7 +564,7 @@ class PJTNoteControl(QTabWidget):
         self.setTabPosition(QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
-        general_page = _prop_ctrls.Category(self, 'General')
+        self._general_page = general_page = _prop_ctrls.Category(self, 'General')
         self.note_ctrl = NotesControl(general_page)
         self.smooth_ctrl = SmoothControl(general_page)
         self.color_control = ColorControl(general_page)
@@ -569,14 +573,14 @@ class PJTNoteControl(QTabWidget):
         general_page.addWidget(self.smooth_ctrl)
         general_page.addWidget(self.color_control)
 
-        style_page = _prop_ctrls.Category(self, 'Style')
+        self._style_page = style_page = _prop_ctrls.Category(self, 'Style')
         self.style_2d_ctrl = _prop_ctrls.EnumProperty(style_page, '2D Style')
         self.style_3d_ctrl = _prop_ctrls.EnumProperty(style_page, '3D Style')
 
         style_page.addWidget(self.style_2d_ctrl)
         style_page.addWidget(self.style_3d_ctrl)
 
-        align_page = _prop_ctrls.Category(self, 'Align')
+        self._align_page = align_page = _prop_ctrls.Category(self, 'Align')
         self.align_2d_ctrl = _prop_ctrls.EnumProperty(align_page, '2D Align')
         self.align_3d_ctrl = _prop_ctrls.EnumProperty(align_page, '3D Align')
 
@@ -589,21 +593,21 @@ class PJTNoteControl(QTabWidget):
         self.align_2d_ctrl.propertyChanged.connect(self._on_align2d)
         self.align_3d_ctrl.propertyChanged.connect(self._on_align3d)
 
-        angle_page = _prop_ctrls.Category(self, 'Angle')
+        self._angle_page = angle_page = _prop_ctrls.Category(self, 'Angle')
         self.angle2d_ctrl = Angle2DControl(angle_page)
         self.angle3d_ctrl = Angle3DControl(angle_page)
 
         angle_page.addWidget(self.angle2d_ctrl)
         angle_page.addWidget(self.angle3d_ctrl)
 
-        position_page = _prop_ctrls.Category(self, 'Position')
+        self._position_page = position_page = _prop_ctrls.Category(self, 'Position')
         self.position2d_ctrl = Position2DControl(position_page)
         self.position3d_ctrl = Position3DControl(position_page)
 
         position_page.addWidget(self.position2d_ctrl)
         position_page.addWidget(self.position3d_ctrl)
 
-        visible_page = _prop_ctrls.Category(self, 'Visible')
+        self._visible_page = visible_page = _prop_ctrls.Category(self, 'Visible')
         self.visible2d_ctrl = Visible2DControl(visible_page)
         self.visible3d_ctrl = Visible3DControl(visible_page)
 
@@ -619,3 +623,5 @@ class PJTNoteControl(QTabWidget):
             align_page
         ):
             self.addTab(page, page.GetLabel())
+
+        self._init_lazy_tabs()

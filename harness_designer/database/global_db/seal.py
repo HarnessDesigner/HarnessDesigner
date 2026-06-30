@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Iterable as _Iterable
 import uuid
 
 from ...ui import prop_ctrls as _prop_ctrls
+from ..common_db.lazy_tab_mixin import LazyTabMixin
 from .bases import EntryBase, TableBase
 from ...geometry import point as _point
 from .mixins import (
@@ -596,7 +597,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         self._populate('wire_dia_max')
 
 
-class SealControl(QTabWidget):
+class SealControl(QTabWidget, LazyTabMixin):
     """Represent a seal control in :mod:`harness_designer.database.global_db.seal`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -612,44 +613,53 @@ class SealControl(QTabWidget):
         :param db_obj: Database-backed object.
         :type db_obj: :class:`Seal`
         """
-        self.db_obj = db_obj
+        self._lazy_set_obj(db_obj)
 
-        self.mfg_page.set_obj(db_obj)
-        self.family_page.set_obj(db_obj)
-        self.series_page.set_obj(db_obj)
-        self.temperature_page.set_obj(db_obj)
-        self.dimension_page.set_obj(db_obj)
-        self.resources_page.set_obj(db_obj)
-        self.model3d_page.set_obj(db_obj)
-        self.wire_size_page.set_obj(db_obj)
-
-        self.part_number_ctrl.set_obj(db_obj)
-        self.description_ctrl.set_obj(db_obj)
-        self.color_ctrl.set_obj(db_obj)
-        self.weight_ctrl.set_obj(db_obj)
-        self.compat_housing_ctrl.set_obj(db_obj)
-        self.compat_terminals_ctrl.set_obj(db_obj)
-
-        if db_obj is None:
-            self.hardness_ctrl.SetValue(0)
-            self.lubricant_ctrl.SetValue('')
-            self.o_dia_ctrl.SetValue(0.0)
-            self.i_dia_ctrl.SetValue(0.0)
-
-            self.hardness_ctrl.setEnabled(False)
-            self.lubricant_ctrl.setEnabled(False)
-            self.o_dia_ctrl.setEnabled(False)
-            self.i_dia_ctrl.setEnabled(False)
-        else:
-            self.hardness_ctrl.SetValue(db_obj.hardness)
-            self.lubricant_ctrl.SetValue(db_obj.lubricant)
-            self.o_dia_ctrl.SetValue(db_obj.o_dia)
-            self.i_dia_ctrl.SetValue(db_obj.i_dia)
-
-            self.hardness_ctrl.setEnabled(True)
-            self.lubricant_ctrl.setEnabled(True)
-            self.o_dia_ctrl.setEnabled(True)
-            self.i_dia_ctrl.setEnabled(True)
+    def _load_tab(self, index: int):
+        page = self.widget(index)
+        if page is self._general_page:
+            self.part_number_ctrl.set_obj(self.db_obj)
+            self.description_ctrl.set_obj(self.db_obj)
+            self.color_ctrl.set_obj(self.db_obj)
+            self.weight_ctrl.set_obj(self.db_obj)
+            if self.db_obj is None:
+                self.hardness_ctrl.SetValue(0)
+                self.lubricant_ctrl.SetValue('')
+                self.o_dia_ctrl.SetValue(0.0)
+                self.i_dia_ctrl.SetValue(0.0)
+                self.hardness_ctrl.setEnabled(False)
+                self.lubricant_ctrl.setEnabled(False)
+                self.o_dia_ctrl.setEnabled(False)
+                self.i_dia_ctrl.setEnabled(False)
+            else:
+                self.hardness_ctrl.SetValue(self.db_obj.hardness)
+                self.lubricant_ctrl.SetValue(self.db_obj.lubricant)
+                self.o_dia_ctrl.SetValue(self.db_obj.o_dia)
+                self.i_dia_ctrl.SetValue(self.db_obj.i_dia)
+                self.hardness_ctrl.setEnabled(True)
+                self.lubricant_ctrl.setEnabled(True)
+                self.o_dia_ctrl.setEnabled(True)
+                self.i_dia_ctrl.setEnabled(True)
+        elif page is self.mfg_page:
+            self.mfg_page.set_obj(self.db_obj)
+        elif page is self.family_page:
+            self.family_page.set_obj(self.db_obj)
+        elif page is self.series_page:
+            self.series_page.set_obj(self.db_obj)
+        elif page is self.temperature_page:
+            self.temperature_page.set_obj(self.db_obj)
+        elif page is self.dimension_page:
+            self.dimension_page.set_obj(self.db_obj)
+        elif page is self.wire_size_page:
+            self.wire_size_page.set_obj(self.db_obj)
+        elif page is self.resources_page:
+            self.resources_page.set_obj(self.db_obj)
+        elif page is self._compat_parts_page:
+            self.compat_housing_ctrl.set_obj(self.db_obj)
+            self.compat_terminals_ctrl.set_obj(self.db_obj)
+        elif page is self.model3d_page:
+            self.model3d_page.set_obj(self.db_obj)
+        self._tab_loaded[index] = True
 
     def _on_hardness(self, evt):
         """Handle the hardness event.
@@ -709,7 +719,7 @@ class SealControl(QTabWidget):
         self.setTabPosition(QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
-        general_page = _prop_ctrls.Category(self, 'General')
+        self._general_page = general_page = _prop_ctrls.Category(self, 'General')
 
         self.part_number_ctrl = PartNumberControl(general_page)
         self.description_ctrl = DescriptionControl(general_page)
@@ -753,7 +763,7 @@ class SealControl(QTabWidget):
 
         self.resources_page = ResourcesControl(self)
 
-        compat_parts_page = _prop_ctrls.Category(self, 'Compatible Parts')
+        self._compat_parts_page = compat_parts_page = _prop_ctrls.Category(self, 'Compatible Parts')
         self.compat_housing_ctrl = CompatHousingsControl(compat_parts_page)
         self.compat_terminals_ctrl = CompatTerminalsControl(compat_parts_page)
 
@@ -776,3 +786,5 @@ class SealControl(QTabWidget):
             self.model3d_page
         ):
             self.addTab(page, page.GetLabel())
+
+        self._init_lazy_tabs()

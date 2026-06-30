@@ -5,6 +5,7 @@ from typing import Iterable as _Iterable
 
 
 from ...ui import prop_ctrls as _prop_ctrls
+from ..common_db.lazy_tab_mixin import LazyTabMixin
 from .bases import EntryBase, TableBase
 from .mixins import (
     PartNumberMixin, PartNumberControl,
@@ -356,7 +357,7 @@ class Cover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, Dir
         self._populate('pins')
 
 
-class CoverControl(QTabWidget):
+class CoverControl(QTabWidget, LazyTabMixin):
     """Represent a cover control in :mod:`harness_designer.database.global_db.cover`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -370,22 +371,33 @@ class CoverControl(QTabWidget):
         :param db_obj: Database-backed object.
         :type db_obj: :class:`Cover`
         """
-        self.db_obj = db_obj
+        self._lazy_set_obj(db_obj)
 
-        self.mfg_page.set_obj(db_obj)
-        self.family_page.set_obj(db_obj)
-        self.series_page.set_obj(db_obj)
-        self.temperature_page.set_obj(db_obj)
-        self.dimension_page.set_obj(db_obj)
-        self.resources_page.set_obj(db_obj)
-        self.model3d_page.set_obj(db_obj)
-
-        self.part_number_ctrl.set_obj(db_obj)
-        self.description_ctrl.set_obj(db_obj)
-        self.color_ctrl.set_obj(db_obj)
-        self.direction_ctrl.set_obj(db_obj)
-        self.weight_ctrl.set_obj(db_obj)
-        self.compat_housing_ctrl.set_obj(db_obj)
+    def _load_tab(self, index: int):
+        page = self.widget(index)
+        if page is self._general_page:
+            self.part_number_ctrl.set_obj(self.db_obj)
+            self.description_ctrl.set_obj(self.db_obj)
+            self.color_ctrl.set_obj(self.db_obj)
+            self.direction_ctrl.set_obj(self.db_obj)
+        elif page is self.mfg_page:
+            self.mfg_page.set_obj(self.db_obj)
+        elif page is self.family_page:
+            self.family_page.set_obj(self.db_obj)
+        elif page is self.series_page:
+            self.series_page.set_obj(self.db_obj)
+        elif page is self.temperature_page:
+            self.temperature_page.set_obj(self.db_obj)
+        elif page is self.dimension_page:
+            self.dimension_page.set_obj(self.db_obj)
+            self.weight_ctrl.set_obj(self.db_obj)
+        elif page is self.resources_page:
+            self.resources_page.set_obj(self.db_obj)
+        elif page is self._compat_parts_page:
+            self.compat_housing_ctrl.set_obj(self.db_obj)
+        elif page is self.model3d_page:
+            self.model3d_page.set_obj(self.db_obj)
+        self._tab_loaded[index] = True
 
     def __init__(self, parent):
         """Initialise the :class:`CoverControl` instance.
@@ -401,7 +413,7 @@ class CoverControl(QTabWidget):
         self.setTabPosition(QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
-        general_page = _prop_ctrls.Category(self, 'General')
+        self._general_page = general_page = _prop_ctrls.Category(self, 'General')
 
         self.part_number_ctrl = PartNumberControl(general_page)
         self.description_ctrl = DescriptionControl(general_page)
@@ -425,7 +437,7 @@ class CoverControl(QTabWidget):
 
         self.resources_page = ResourcesControl(self)
 
-        compat_parts_page = _prop_ctrls.Category(self, 'Compatible Parts')
+        self._compat_parts_page = compat_parts_page = _prop_ctrls.Category(self, 'Compatible Parts')
         self.compat_housing_ctrl = CompatHousingsControl(compat_parts_page)
 
         compat_parts_page.addWidget(self.compat_housing_ctrl)
@@ -444,3 +456,5 @@ class CoverControl(QTabWidget):
             self.model3d_page
         ):
             self.addTab(page, page.GetLabel())
+
+        self._init_lazy_tabs()

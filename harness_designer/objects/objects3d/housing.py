@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from PySide6.QtWidgets import QMenu
 from PySide6.QtCore import QTimer
 import numpy as np
+from OpenGL import GL
 
 from ...ui.widgets import context_menus as _context_menus
 from ...geometry import point as _point
@@ -228,6 +229,42 @@ class Housing(_base3d.Base3D):
         """Hide any active cavity-plane highlight for this housing."""
         self._selected_global_cavity = None
         self._picker.clear_selection()
+
+    def render(self, faces_program, edges_program, vertices_program):
+        super().render(faces_program, edges_program, vertices_program)
+
+        picker = self._picker
+        if picker is None or picker.selected_surf_idx is None:
+            return
+
+        surf  = picker.surfaces[picker.selected_surf_idx]
+        verts = picker.vertices     # (N, 3) float64, housing local space
+        rot   = picker.rot_mat
+        scale = picker.scale_arr
+        pos   = picker.pos_arr
+
+        # Gather vertex indices for the selected surface and transform to
+        # world space in one vectorised step.
+        tri_arr = np.asarray(surf.tri_indices, dtype=np.int64)
+        idx = (tri_arr[:, None] * 3 + np.arange(3, dtype=np.int64)).ravel()
+        positions = ((verts[idx] * scale) @ rot + pos).astype(np.float32)
+
+        r, g, b, a = picker.overlay_color
+
+        GL.glUseProgram(0)
+        GL.glDepthMask(GL.GL_FALSE)
+        GL.glEnable(GL.GL_POLYGON_OFFSET_FILL)
+        GL.glPolygonOffset(-1.0, -1.0)
+
+        GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
+        GL.glColor4f(r / 255.0, g / 255.0, b / 255.0, a / 255.0)
+        GL.glVertexPointer(3, GL.GL_FLOAT, 0, positions)
+        GL.glDrawArrays(GL.GL_TRIANGLES, 0, len(positions))
+        GL.glDisableClientState(GL.GL_VERTEX_ARRAY)
+
+        GL.glDisable(GL.GL_POLYGON_OFFSET_FILL)
+        GL.glPolygonOffset(0.0, 0.0)
+        GL.glDepthMask(GL.GL_TRUE)
 
     def delete(self):
         """Clean up the picker before delegating to Base3D."""

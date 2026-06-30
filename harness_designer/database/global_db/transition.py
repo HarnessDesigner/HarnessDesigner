@@ -5,6 +5,7 @@ from typing import Iterable as _Iterable, TYPE_CHECKING
 
 
 from ...ui import prop_ctrls as _prop_ctrls
+from ..common_db.lazy_tab_mixin import LazyTabMixin
 from .bases import EntryBase, TableBase
 from .mixins import (
     PartNumberMixin, PartNumberControl,
@@ -369,7 +370,7 @@ class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyM
         self._populate('shape_id')
 
 
-class TransitionControl(QTabWidget):
+class TransitionControl(QTabWidget, LazyTabMixin):
     """Represent a transition control in :mod:`harness_designer.database.global_db.transition`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -386,42 +387,47 @@ class TransitionControl(QTabWidget):
         if self.db_obj is not None:
             for i in range(self.branch_count_ctrl.GetValue()):
                 self.branch_page.removeTab(i)
-
                 branch = self.branches[i]
                 branch.hide()
                 branch.setParent(self.db_obj.table.db.mainframe)
-
             self.branches = []
+        self._lazy_set_obj(db_obj)
 
-        self.db_obj = db_obj
-
-        self.mfg_page.set_obj(db_obj)
-        self.family_page.set_obj(db_obj)
-        self.series_page.set_obj(db_obj)
-        self.temperature_page.set_obj(db_obj)
-        self.resources_page.set_obj(db_obj)
-        self.part_number_ctrl.set_obj(db_obj)
-        self.description_ctrl.set_obj(db_obj)
-        self.color_ctrl.set_obj(db_obj)
-        self.weight_ctrl.set_obj(db_obj)
-
-        self.material_ctrl.set_obj(db_obj)
-        self.protection_ctrl.set_obj(db_obj)
-        self.adhesive_ctrl.set_obj(db_obj)
-
-        if db_obj is None:
-            self.branch_count_ctrl.SetValue(1)
-            self.branch_count_ctrl.setEnabled(False)
-        else:
-            self.branch_count_ctrl.SetValue(db_obj.branch_count)
-            self.branch_count_ctrl.setEnabled(True)
-
-            for i, branch in enumerate(db_obj.branches):
-                branch_ctrl = db_obj.table.db.transition_branches_table.get_control(i)
-                branch_ctrl.set_obj(branch)
-                branch_ctrl.setParent(self.branch_page)
-                self.branch_page.addTab(branch_ctrl, branch_ctrl.GetLabel())
-                self.branches.append(branch_ctrl)
+    def _load_tab(self, index: int):
+        page = self.widget(index)
+        if page is self._general_page:
+            self.part_number_ctrl.set_obj(self.db_obj)
+            self.description_ctrl.set_obj(self.db_obj)
+            self.color_ctrl.set_obj(self.db_obj)
+            self.weight_ctrl.set_obj(self.db_obj)
+            self.material_ctrl.set_obj(self.db_obj)
+            self.protection_ctrl.set_obj(self.db_obj)
+            self.adhesive_ctrl.set_obj(self.db_obj)
+            if self.db_obj is None:
+                self.branch_count_ctrl.SetValue(1)
+                self.branch_count_ctrl.setEnabled(False)
+            else:
+                self.branch_count_ctrl.SetValue(self.db_obj.branch_count)
+                self.branch_count_ctrl.setEnabled(True)
+        elif page is self.mfg_page:
+            self.mfg_page.set_obj(self.db_obj)
+        elif page is self.family_page:
+            self.family_page.set_obj(self.db_obj)
+        elif page is self.series_page:
+            self.series_page.set_obj(self.db_obj)
+        elif page is self.temperature_page:
+            self.temperature_page.set_obj(self.db_obj)
+        elif page is self.resources_page:
+            self.resources_page.set_obj(self.db_obj)
+        elif page is self._branch_category_page:
+            if self.db_obj is not None:
+                for i, branch in enumerate(self.db_obj.branches):
+                    branch_ctrl = self.db_obj.table.db.transition_branches_table.get_control(i)
+                    branch_ctrl.set_obj(branch)
+                    branch_ctrl.setParent(self.branch_page)
+                    self.branch_page.addTab(branch_ctrl, branch_ctrl.GetLabel())
+                    self.branches.append(branch_ctrl)
+        self._tab_loaded[index] = True
 
     def _on_branch_count(self, evt):
         """Handle the branch count event.
@@ -475,7 +481,7 @@ class TransitionControl(QTabWidget):
         self.setTabPosition(QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
-        general_page = _prop_ctrls.Category(self, 'General')
+        self._general_page = general_page = _prop_ctrls.Category(self, 'General')
 
         self.part_number_ctrl = PartNumberControl(general_page)
         self.description_ctrl = DescriptionControl(general_page)
@@ -493,7 +499,7 @@ class TransitionControl(QTabWidget):
         general_page.addWidget(self.protection_ctrl)
         general_page.addWidget(self.adhesive_ctrl)
 
-        branch_page = _prop_ctrls.Category(self, 'Branches')
+        self._branch_category_page = branch_page = _prop_ctrls.Category(self, 'Branches')
 
         self.branch_count_ctrl = _prop_ctrls.IntProperty(
             branch_page, 'Branch Count', min_value=1, max_value=6)
@@ -524,3 +530,5 @@ class TransitionControl(QTabWidget):
             branch_page
         ):
             self.addTab(page, page.GetLabel())
+
+        self._init_lazy_tabs()

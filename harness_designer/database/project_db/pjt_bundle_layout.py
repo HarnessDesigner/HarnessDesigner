@@ -6,6 +6,7 @@ import weakref
 from PySide6.QtWidgets import QTabWidget
 
 from ...ui import prop_ctrls as _prop_ctrls
+from ..common_db.lazy_tab_mixin import LazyTabMixin
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from .mixins import (
     Position3DMixin, Position3DControl,
@@ -259,7 +260,7 @@ class PJTBundleLayout(PJTEntryBase, Position3DMixin, Visible3DMixin, NotesMixin,
         self._populate('diameter')
 
 
-class PJTBundleLayoutControl(QTabWidget):
+class PJTBundleLayoutControl(QTabWidget, LazyTabMixin):
     """Represent a PJT bundle layout control in :mod:`harness_designer.database.project_db.pjt_bundle_layout`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -273,17 +274,22 @@ class PJTBundleLayoutControl(QTabWidget):
         :param db_obj: Database-backed object.
         :type db_obj: :class:`PJTBundleLayout`
         """
-        self.db_obj = db_obj
+        self._lazy_set_obj(db_obj)
 
-        self.visible_ctrl.set_obj(db_obj)
-        self.position_ctrl.set_obj(db_obj)
-        self.notes_ctrl.set_obj(db_obj)
-        self.smooth_ctrl.set_obj(db_obj)
-
-        if db_obj is None:
-            self.diameter_ctrl.SetValue('')
-        else:
-            self.diameter_ctrl.SetValue(str(db_obj.diameter))
+    def _load_tab(self, index: int):
+        page = self.widget(index)
+        if page is self._general_page:
+            self.notes_ctrl.set_obj(self.db_obj)
+            self.smooth_ctrl.set_obj(self.db_obj)
+            if self.db_obj is None:
+                self.diameter_ctrl.SetValue('')
+            else:
+                self.diameter_ctrl.SetValue(str(self.db_obj.diameter))
+        elif page is self._visible_page:
+            self.visible_ctrl.set_obj(self.db_obj)
+        elif page is self._position_page:
+            self.position_ctrl.set_obj(self.db_obj)
+        self._tab_loaded[index] = True
 
     def __init__(self, parent):
         """Initialise the :class:`PJTBundleLayoutControl` instance.
@@ -298,7 +304,7 @@ class PJTBundleLayoutControl(QTabWidget):
         self.setTabPosition(QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
-        general_page = _prop_ctrls.Category(self, 'General')
+        self._general_page = general_page = _prop_ctrls.Category(self, 'General')
         self.notes_ctrl = NotesControl(general_page)
         self.smooth_ctrl = SmoothControl(general_page)
 
@@ -308,12 +314,12 @@ class PJTBundleLayoutControl(QTabWidget):
         general_page.addWidget(self.smooth_ctrl)
         general_page.addWidget(self.diameter_ctrl)
 
-        position_page = _prop_ctrls.Category(self, 'Position')
+        self._position_page = position_page = _prop_ctrls.Category(self, 'Position')
         self.position_ctrl = Position3DControl(position_page)
 
         position_page.addWidget(self.position_ctrl)
 
-        visible_page = _prop_ctrls.Category(self, 'Visible')
+        self._visible_page = visible_page = _prop_ctrls.Category(self, 'Visible')
         self.visible_ctrl = Visible3DControl(visible_page)
 
         visible_page.addWidget(self.visible_ctrl)
@@ -324,3 +330,5 @@ class PJTBundleLayoutControl(QTabWidget):
             position_page
         ):
             self.addTab(page, page.GetLabel())
+
+        self._init_lazy_tabs()

@@ -6,6 +6,7 @@ from typing import Iterable as _Iterable, TYPE_CHECKING
 import uuid
 
 from ...ui import prop_ctrls as _prop_ctrls
+from ..common_db.lazy_tab_mixin import LazyTabMixin
 from .bases import EntryBase, TableBase
 from . import cpa_lock as _cpa_lock
 from . import tpa_lock as _tpa_lock
@@ -1229,7 +1230,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         return angle
 
 
-class HousingControl(QTabWidget):
+class HousingControl(QTabWidget, LazyTabMixin):
     """Represent a housing control in :mod:`harness_designer.database.global_db.housing`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -1243,72 +1244,89 @@ class HousingControl(QTabWidget):
         :param db_obj: Database-backed object.
         :type db_obj: :class:`Housing`
         """
-        self.manufacturer_page.set_obj(db_obj)
-        self.family_page.set_obj(db_obj)
-        self.series_page.set_obj(db_obj)
-        self.resources_page.set_obj(db_obj)
-        self.dimensions_page.set_obj(db_obj)
-        self.cavity_lock_page.set_obj(db_obj)
-        self.temperature_page.set_obj(db_obj)
-        self.model3d_page.set_obj(db_obj)
+        self._lazy_set_obj(db_obj)
 
-        self.weight_ctrl.set_obj(db_obj)
-        self.part_number_ctrl.set_obj(db_obj)
-        self.description_ctrl.set_obj(db_obj)
-        self.gender_ctrl.set_obj(db_obj)
-        self.color_ctrl.set_obj(db_obj)
-        self.direction_ctrl.set_obj(db_obj)
-        self.compat_housings_ctrl.set_obj(db_obj)
-        self.compat_terminals_ctrl.set_obj(db_obj)
-        self.compat_seals_ctrl.set_obj(db_obj)
-
-        db_obj.table.execute('SELECT name FROM seal_types;')
-        rows = db_obj.table.fetchall()
-
-        self.seal_type_choices = sorted([item[0] for item in rows])
-        self.seal_type_ctrl.SetItems(self.seal_type_choices)
-        self.seal_type_ctrl.SetValue(db_obj.seal_type.name)
-
-        self.sealing_ctrl.SetValue(db_obj.sealing)
-
-        self.compat_tpas_ctrl.SetValue(db_obj.compat_tpas_array)
-        self.compat_cpas_ctrl.SetValue(db_obj.compat_cpas_array)
-        self.compat_boots_ctrl.SetValue(db_obj.compat_boots_array)
-        self.compat_covers_ctrl.SetValue(db_obj.compat_covers_array)
-
-        self.seal_ctrl.SetValue(db_obj.seal_position3d)
-        self.tpa_lock_1_ctrl.SetValue(db_obj.tpa_lock_1_position3d)
-        self.tpa_lock_2_ctrl.SetValue(db_obj.tpa_lock_2_position3d)
-        self.cpa_lock_ctrl.SetValue(db_obj.cpa_lock_position3d)
-        self.boot_ctrl.SetValue(db_obj.boot_position3d)
-        self.cover_ctrl.SetValue(db_obj.cover_position3d)
-
-        self.terminal_sizes_ctrl.SetValue(db_obj.terminal_sizes)
-        self.terminal_size_count_ctrl.SetValue(db_obj.terminal_size_counts)
-        self.pitch_ctrl.SetValue(db_obj.centerline)
-        self.rows_ctrl.SetValue(db_obj.rows)
-        self.pin_count_ctrl.SetValue(db_obj.num_pins)
-
-        self.angle_ctrl.SetValue(db_obj.angle3d)
-
-        for i in range(self.cavities_notebook.count()):
-            self.cavities_notebook.removeTab(i)
-
-        for page in self.cavity_pages:
-            page.setParent(db_obj.table.db.mainframe)
-            page.hide()
-
-        self.cavity_pages = []
-
-        for i, cavity in enumerate(db_obj.cavities):
-            if cavity is None:
-                continue
-
-            ctrl = db_obj.table.db.cavities_table.get_control(i)
-            ctrl.setParent(self.cavities_notebook)
-            self.cavities_notebook.addTab(ctrl, ctrl.GetLabel())
-            ctrl.set_obj(cavity)
-            self.cavity_pages.append(ctrl)
+    def _load_tab(self, index: int):
+        page = self.widget(index)
+        if page is self._general_page:
+            self.weight_ctrl.set_obj(self.db_obj)
+            self.part_number_ctrl.set_obj(self.db_obj)
+            self.description_ctrl.set_obj(self.db_obj)
+            self.gender_ctrl.set_obj(self.db_obj)
+            self.color_ctrl.set_obj(self.db_obj)
+            self.direction_ctrl.set_obj(self.db_obj)
+            if self.db_obj is not None:
+                self.angle_ctrl.SetValue(self.db_obj.angle3d)
+        elif page is self.manufacturer_page:
+            self.manufacturer_page.set_obj(self.db_obj)
+        elif page is self.family_page:
+            self.family_page.set_obj(self.db_obj)
+        elif page is self.series_page:
+            self.series_page.set_obj(self.db_obj)
+        elif page is self.dimensions_page:
+            self.dimensions_page.set_obj(self.db_obj)
+        elif page is self.temperature_page:
+            self.temperature_page.set_obj(self.db_obj)
+        elif page is self.cavity_lock_page:
+            self.cavity_lock_page.set_obj(self.db_obj)
+        elif page is self.resources_page:
+            self.resources_page.set_obj(self.db_obj)
+        elif page is self.model3d_page:
+            self.model3d_page.set_obj(self.db_obj)
+        elif page is self._housings_page:
+            self.compat_housings_ctrl.set_obj(self.db_obj)
+        elif page is self._terminal_page:
+            self.compat_terminals_ctrl.set_obj(self.db_obj)
+            if self.db_obj is not None:
+                self.terminal_sizes_ctrl.SetValue(self.db_obj.terminal_sizes)
+                self.terminal_size_count_ctrl.SetValue(self.db_obj.terminal_size_counts)
+                self.pitch_ctrl.SetValue(self.db_obj.centerline)
+                self.rows_ctrl.SetValue(self.db_obj.rows)
+                self.pin_count_ctrl.SetValue(self.db_obj.num_pins)
+        elif page is self._seals_page:
+            self.compat_seals_ctrl.set_obj(self.db_obj)
+            if self.db_obj is not None:
+                self.db_obj.table.execute('SELECT name FROM seal_types;')
+                rows = self.db_obj.table.fetchall()
+                self.seal_type_choices = sorted([item[0] for item in rows])
+                self.seal_type_ctrl.SetItems(self.seal_type_choices)
+                self.seal_type_ctrl.SetValue(self.db_obj.seal_type.name)
+                self.sealing_ctrl.SetValue(self.db_obj.sealing)
+                self.seal_ctrl.SetValue(self.db_obj.seal_position3d)
+        elif page is self._tpas_page:
+            if self.db_obj is not None:
+                self.compat_tpas_ctrl.SetValue(self.db_obj.compat_tpas_array)
+                self.tpa_lock_1_ctrl.SetValue(self.db_obj.tpa_lock_1_position3d)
+                self.tpa_lock_2_ctrl.SetValue(self.db_obj.tpa_lock_2_position3d)
+        elif page is self._cpas_page:
+            if self.db_obj is not None:
+                self.compat_cpas_ctrl.SetValue(self.db_obj.compat_cpas_array)
+                self.cpa_lock_ctrl.SetValue(self.db_obj.cpa_lock_position3d)
+        elif page is self._boots_page:
+            if self.db_obj is not None:
+                self.compat_boots_ctrl.SetValue(self.db_obj.compat_boots_array)
+                self.boot_ctrl.SetValue(self.db_obj.boot_position3d)
+        elif page is self._covers_page:
+            if self.db_obj is not None:
+                self.compat_covers_ctrl.SetValue(self.db_obj.compat_covers_array)
+                self.cover_ctrl.SetValue(self.db_obj.cover_position3d)
+        elif page is self._cavities_page:
+            while self.cavities_notebook.count():
+                self.cavities_notebook.removeTab(0)
+            for p in self.cavity_pages:
+                p.setParent(self.db_obj.table.db.mainframe)
+                p.hide()
+            self.cavity_pages = []
+            if self.db_obj is not None:
+                for i, cavity in enumerate(self.db_obj.cavities):
+                    if cavity is None:
+                        continue
+                    ctrl = self.db_obj.table.db.cavities_table.get_control(i)
+                    ctrl.setParent(self.cavities_notebook)
+                    self.cavities_notebook.addTab(ctrl, ctrl.GetLabel())
+                    ctrl.set_obj(cavity)
+                    self.cavity_pages.append(ctrl)
+        self._tab_loaded[index] = True
 
     def _on_seal_type(self, evt):
         """Handle the seal type event.
@@ -1467,7 +1485,7 @@ class HousingControl(QTabWidget):
 
         self.dimensions_page.addWidget(self.weight_ctrl)
 
-        general_page = _prop_ctrls.Category(self, 'General')
+        self._general_page = general_page = _prop_ctrls.Category(self, 'General')
         self.part_number_ctrl = PartNumberControl(general_page)
         self.description_ctrl = DescriptionControl(general_page)
         self.gender_ctrl = GenderControl(general_page)
@@ -1482,12 +1500,12 @@ class HousingControl(QTabWidget):
         general_page.addWidget(self.direction_ctrl)
         general_page.addWidget(self.angle_ctrl)
 
-        housings_page = _prop_ctrls.Category(self, 'Housings')
+        self._housings_page = housings_page = _prop_ctrls.Category(self, 'Housings')
         self.compat_housings_ctrl = CompatHousingsControl(housings_page)
 
         housings_page.addWidget(self.compat_housings_ctrl)
 
-        terminal_page = _prop_ctrls.Category(self, 'Terminals')
+        self._terminal_page = terminal_page = _prop_ctrls.Category(self, 'Terminals')
         self.compat_terminals_ctrl = CompatTerminalsControl(terminal_page)
 
         terminal_page.addWidget(self.compat_terminals_ctrl)
@@ -1528,7 +1546,7 @@ class HousingControl(QTabWidget):
 
         self.pin_count_ctrl.propertyChanged.connect(self._on_pin_count)
 
-        seals_page = _prop_ctrls.Category(self, 'Seals')
+        self._seals_page = seals_page = _prop_ctrls.Category(self, 'Seals')
 
         self.compat_seals_ctrl = CompatSealsControl(seals_page)
 
@@ -1552,7 +1570,7 @@ class HousingControl(QTabWidget):
 
         seals_page.addWidget(self.seal_ctrl)
 
-        tpas_page = _prop_ctrls.Category(self, 'TPA Locks')
+        self._tpas_page = tpas_page = _prop_ctrls.Category(self, 'TPA Locks')
 
         self.compat_tpas_ctrl = _prop_ctrls.ArrayStringProperty(tpas_page, 'Compatible TPA Locks')
 
@@ -1568,7 +1586,7 @@ class HousingControl(QTabWidget):
 
         tpas_page.addWidget(self.tpa_lock_2_ctrl)
 
-        cpas_page = _prop_ctrls.Category(self, 'CPA Locks')
+        self._cpas_page = cpas_page = _prop_ctrls.Category(self, 'CPA Locks')
 
         self.compat_cpas_ctrl = _prop_ctrls.ArrayStringProperty(cpas_page, 'Compatible CPA Locks')
 
@@ -1580,7 +1598,7 @@ class HousingControl(QTabWidget):
 
         cpas_page.addWidget(self.cpa_lock_ctrl)
 
-        boots_page = _prop_ctrls.Category(self, 'Boots')
+        self._boots_page = boots_page = _prop_ctrls.Category(self, 'Boots')
 
         self.compat_boots_ctrl = _prop_ctrls.ArrayStringProperty(boots_page, 'Compatible Boots')
 
@@ -1591,7 +1609,7 @@ class HousingControl(QTabWidget):
 
         boots_page.addWidget(self.boot_ctrl)
 
-        covers_page = _prop_ctrls.Category(self, 'Covers')
+        self._covers_page = covers_page = _prop_ctrls.Category(self, 'Covers')
 
         self.compat_covers_ctrl = _prop_ctrls.ArrayStringProperty(covers_page, 'Compatible Covers')
 
@@ -1602,7 +1620,7 @@ class HousingControl(QTabWidget):
 
         covers_page.addWidget(self.cover_ctrl)
 
-        cavities_page = _prop_ctrls.Category(self, 'Cavities')
+        self._cavities_page = cavities_page = _prop_ctrls.Category(self, 'Cavities')
         self.cavities_notebook = QTabWidget(cavities_page)
         self.cavities_notebook.setTabPosition(QTabWidget.TabPosition.North)
         self.cavities_notebook.setUsesScrollButtons(True)
@@ -1633,3 +1651,5 @@ class HousingControl(QTabWidget):
         ):
 
             self.addTab(page, page.GetLabel())
+
+        self._init_lazy_tabs()

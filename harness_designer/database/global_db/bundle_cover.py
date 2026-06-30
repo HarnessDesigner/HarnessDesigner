@@ -5,6 +5,7 @@ from typing import Iterable as _Iterable, TYPE_CHECKING
 
 
 from ...ui import prop_ctrls as _prop_ctrls
+from ..common_db.lazy_tab_mixin import LazyTabMixin
 from .bases import EntryBase, TableBase
 from .mixins import (
     PartNumberMixin, PartNumberControl,
@@ -484,7 +485,7 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
         self._populate('max_dia')
 
 
-class BundleCoverControl(QTabWidget):
+class BundleCoverControl(QTabWidget, LazyTabMixin):
     """Represent a bundle cover control in :mod:`harness_designer.database.global_db.bundle_cover`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -498,59 +499,63 @@ class BundleCoverControl(QTabWidget):
         :param db_obj: Database-backed object.
         :type db_obj: :class:`BundleCover`
         """
-        self.db_obj = db_obj
+        self._lazy_set_obj(db_obj)
 
-        self.mfg_page.set_obj(db_obj)
-        self.family_page.set_obj(db_obj)
-        self.series_page.set_obj(db_obj)
-        self.temperature_page.set_obj(db_obj)
-        self.resources_page.set_obj(db_obj)
-
-        self.part_number_ctrl.set_obj(db_obj)
-        self.description_ctrl.set_obj(db_obj)
-        self.color_ctrl.set_obj(db_obj)
-        self.material_ctrl.set_obj(db_obj)
-        self.weight_ctrl.set_obj(db_obj)
-        self.adhesive_ctrl.set_obj(db_obj)
-        self.protection_ctrl.set_obj(db_obj)
-
-        if db_obj is None:
-            self.shrink_temp_choices = []
-
-            self.shrink_temp_ctrl.SetItems(self.shrink_temp_choices)
-            self.shrink_temp_ctrl.SetValue('')
-            self.rigidity_ctrl.SetValue('')
-            self.shrink_ratio_ctrl.SetValue('')
-            self.wall_ctrl.SetValue('')
-            self.min_dia_ctrl.SetValue(0.0)
-            self.max_dia_ctrl.SetValue(0.0)
-
-            self.shrink_temp_ctrl.setEnabled(False)
-            self.rigidity_ctrl.setEnabled(False)
-            self.shrink_ratio_ctrl.setEnabled(False)
-            self.wall_ctrl.setEnabled(False)
-            self.min_dia_ctrl.setEnabled(False)
-            self.max_dia_ctrl.setEnabled(False)
-        else:
-            db_obj.table.execute(f'SELECT name FROM temperatures;')
-            rows = db_obj.table.fetchall()
-            self.shrink_temp_choices = sorted([row[0] for row in rows])
-
-            self.shrink_temp_ctrl.SetItems(self.shrink_temp_choices)
-            self.shrink_temp_ctrl.SetValue(db_obj.min_temp.name)
-
-            self.rigidity_ctrl.SetValue(db_obj.rigidity)
-            self.shrink_ratio_ctrl.SetValue(db_obj.shrink_ratio)
-            self.wall_ctrl.SetValue(db_obj.wall)
-            self.min_dia_ctrl.SetValue(db_obj.min_dia)
-            self.max_dia_ctrl.SetValue(db_obj.max_dia)
-
-            self.shrink_temp_ctrl.setEnabled(True)
-            self.rigidity_ctrl.setEnabled(True)
-            self.shrink_ratio_ctrl.setEnabled(True)
-            self.wall_ctrl.setEnabled(True)
-            self.min_dia_ctrl.setEnabled(True)
-            self.max_dia_ctrl.setEnabled(True)
+    def _load_tab(self, index: int):
+        page = self.widget(index)
+        if page is self._general_page:
+            self.part_number_ctrl.set_obj(self.db_obj)
+            self.description_ctrl.set_obj(self.db_obj)
+            self.color_ctrl.set_obj(self.db_obj)
+            self.material_ctrl.set_obj(self.db_obj)
+            self.weight_ctrl.set_obj(self.db_obj)
+            self.adhesive_ctrl.set_obj(self.db_obj)
+            self.protection_ctrl.set_obj(self.db_obj)
+            if self.db_obj is None:
+                self.rigidity_ctrl.SetValue('')
+                self.shrink_ratio_ctrl.SetValue('')
+                self.wall_ctrl.SetValue('')
+                self.min_dia_ctrl.SetValue(0.0)
+                self.max_dia_ctrl.SetValue(0.0)
+                self.rigidity_ctrl.setEnabled(False)
+                self.shrink_ratio_ctrl.setEnabled(False)
+                self.wall_ctrl.setEnabled(False)
+                self.min_dia_ctrl.setEnabled(False)
+                self.max_dia_ctrl.setEnabled(False)
+            else:
+                self.rigidity_ctrl.SetValue(self.db_obj.rigidity)
+                self.shrink_ratio_ctrl.SetValue(self.db_obj.shrink_ratio)
+                self.wall_ctrl.SetValue(self.db_obj.wall)
+                self.min_dia_ctrl.SetValue(self.db_obj.min_dia)
+                self.max_dia_ctrl.SetValue(self.db_obj.max_dia)
+                self.rigidity_ctrl.setEnabled(True)
+                self.shrink_ratio_ctrl.setEnabled(True)
+                self.wall_ctrl.setEnabled(True)
+                self.min_dia_ctrl.setEnabled(True)
+                self.max_dia_ctrl.setEnabled(True)
+        elif page is self.mfg_page:
+            self.mfg_page.set_obj(self.db_obj)
+        elif page is self.family_page:
+            self.family_page.set_obj(self.db_obj)
+        elif page is self.series_page:
+            self.series_page.set_obj(self.db_obj)
+        elif page is self.temperature_page:
+            self.temperature_page.set_obj(self.db_obj)
+            if self.db_obj is None:
+                self.shrink_temp_choices = []
+                self.shrink_temp_ctrl.SetItems(self.shrink_temp_choices)
+                self.shrink_temp_ctrl.SetValue('')
+                self.shrink_temp_ctrl.setEnabled(False)
+            else:
+                self.db_obj.table.execute('SELECT name FROM temperatures;')
+                rows = self.db_obj.table.fetchall()
+                self.shrink_temp_choices = sorted([row[0] for row in rows])
+                self.shrink_temp_ctrl.SetItems(self.shrink_temp_choices)
+                self.shrink_temp_ctrl.SetValue(self.db_obj.min_temp.name)
+                self.shrink_temp_ctrl.setEnabled(True)
+        elif page is self.resources_page:
+            self.resources_page.set_obj(self.db_obj)
+        self._tab_loaded[index] = True
 
     def _on_rigidity(self, evt):
         """Handle the rigidity event.
@@ -651,7 +656,7 @@ class BundleCoverControl(QTabWidget):
         self.setTabPosition(QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
-        general_page = _prop_ctrls.Category(self, 'General')
+        self._general_page = general_page = _prop_ctrls.Category(self, 'General')
 
         self.part_number_ctrl = PartNumberControl(general_page)
         self.description_ctrl = DescriptionControl(general_page)
@@ -719,3 +724,5 @@ class BundleCoverControl(QTabWidget):
             self.resources_page,
         ):
             self.addTab(page, page.GetLabel())
+
+        self._init_lazy_tabs()

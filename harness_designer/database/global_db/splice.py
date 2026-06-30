@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Iterable as _Iterable
 
 
 from ...ui import prop_ctrls as _prop_ctrls
+from ..common_db.lazy_tab_mixin import LazyTabMixin
 from .bases import EntryBase, TableBase
 from .mixins import (
     PartNumberMixin, PartNumberControl,
@@ -410,7 +411,7 @@ class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
         self._populate('max_dia')
 
 
-class SpliceControl(QTabWidget):
+class SpliceControl(QTabWidget, LazyTabMixin):
     """Represent a splice control in :mod:`harness_designer.database.global_db.splice`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -426,53 +427,63 @@ class SpliceControl(QTabWidget):
         :param db_obj: Database-backed object.
         :type db_obj: :class:`Splice`
         """
-        self.db_obj = db_obj
+        self._lazy_set_obj(db_obj)
 
-        self.mfg_page.set_obj(db_obj)
-        self.family_page.set_obj(db_obj)
-        self.series_page.set_obj(db_obj)
-        self.temperature_page.set_obj(db_obj)
-        self.dimension_page.set_obj(db_obj)
-        self.resources_page.set_obj(db_obj)
-        self.plating_page.set_obj(db_obj)
-        self.model3d_page.set_obj(db_obj)
-
-        self.material_ctrl.set_obj(db_obj)
-        self.part_number_ctrl.set_obj(db_obj)
-        self.description_ctrl.set_obj(db_obj)
-        self.color_ctrl.set_obj(db_obj)
-        self.weight_ctrl.set_obj(db_obj)
-        self.wire_size_page.set_obj(db_obj)
-
-        if db_obj is None:
-            self.splice_type_choices = []
-            self.splice_type_ctrl.SetItems([])
-            self.splice_type_ctrl.SetValue('')
-            self.resistance_ctrl.SetValue(0.0)
-            self.min_dia_ctrl.SetValue(0.0)
-            self.max_dia_ctrl.SetValue(0.0)
-
-            self.splice_type_ctrl.setEnabled(False)
-            self.resistance_ctrl.setEnabled(False)
-            self.min_dia_ctrl.setEnabled(False)
-            self.max_dia_ctrl.setEnabled(False)
-        else:
-            self.db_obj.table.execute(f'SELECT name FROM splice_types;')
-            rows = self.db_obj.table.fetchall()
-
-            self.splice_type_choices = sorted([row[0] for row in rows])
-
-            self.splice_type_ctrl.SetItems(self.splice_type_choices)
-            self.splice_type_ctrl.SetValue(db_obj.type.name)
-
-            self.resistance_ctrl.SetValue(db_obj.resistance)
-            self.min_dia_ctrl.SetValue(db_obj.min_dia)
-            self.max_dia_ctrl.SetValue(db_obj.max_dia)
-
-            self.splice_type_ctrl.setEnabled(True)
-            self.resistance_ctrl.setEnabled(True)
-            self.min_dia_ctrl.setEnabled(True)
-            self.max_dia_ctrl.setEnabled(True)
+    def _load_tab(self, index: int):
+        page = self.widget(index)
+        if page is self._general_page:
+            self.part_number_ctrl.set_obj(self.db_obj)
+            self.description_ctrl.set_obj(self.db_obj)
+            self.color_ctrl.set_obj(self.db_obj)
+            self.weight_ctrl.set_obj(self.db_obj)
+            self.material_ctrl.set_obj(self.db_obj)
+            if self.db_obj is None:
+                self.splice_type_choices = []
+                self.splice_type_ctrl.SetItems([])
+                self.splice_type_ctrl.SetValue('')
+                self.resistance_ctrl.SetValue(0.0)
+                self.splice_type_ctrl.setEnabled(False)
+                self.resistance_ctrl.setEnabled(False)
+            else:
+                self.db_obj.table.execute('SELECT name FROM splice_types;')
+                rows = self.db_obj.table.fetchall()
+                self.splice_type_choices = sorted([row[0] for row in rows])
+                self.splice_type_ctrl.SetItems(self.splice_type_choices)
+                self.splice_type_ctrl.SetValue(self.db_obj.type.name)
+                self.resistance_ctrl.SetValue(self.db_obj.resistance)
+                self.splice_type_ctrl.setEnabled(True)
+                self.resistance_ctrl.setEnabled(True)
+        elif page is self.mfg_page:
+            self.mfg_page.set_obj(self.db_obj)
+        elif page is self.family_page:
+            self.family_page.set_obj(self.db_obj)
+        elif page is self.series_page:
+            self.series_page.set_obj(self.db_obj)
+        elif page is self.temperature_page:
+            self.temperature_page.set_obj(self.db_obj)
+        elif page is self.dimension_page:
+            self.dimension_page.set_obj(self.db_obj)
+            self.weight_ctrl.set_obj(self.db_obj)
+        elif page is self.resources_page:
+            self.resources_page.set_obj(self.db_obj)
+        elif page is self._diameter_page:
+            if self.db_obj is None:
+                self.min_dia_ctrl.SetValue(0.0)
+                self.max_dia_ctrl.SetValue(0.0)
+                self.min_dia_ctrl.setEnabled(False)
+                self.max_dia_ctrl.setEnabled(False)
+            else:
+                self.min_dia_ctrl.SetValue(self.db_obj.min_dia)
+                self.max_dia_ctrl.SetValue(self.db_obj.max_dia)
+                self.min_dia_ctrl.setEnabled(True)
+                self.max_dia_ctrl.setEnabled(True)
+        elif page is self.plating_page:
+            self.plating_page.set_obj(self.db_obj)
+        elif page is self.model3d_page:
+            self.model3d_page.set_obj(self.db_obj)
+        elif page is self.wire_size_page:
+            self.wire_size_page.set_obj(self.db_obj)
+        self._tab_loaded[index] = True
 
     def _on_resistance(self, evt):
         """Handle the resistance event.
@@ -548,7 +559,7 @@ class SpliceControl(QTabWidget):
         self.setTabPosition(QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
-        general_page = _prop_ctrls.Category(self, 'General')
+        self._general_page = general_page = _prop_ctrls.Category(self, 'General')
 
         self.part_number_ctrl = PartNumberControl(general_page)
         self.description_ctrl = DescriptionControl(general_page)
@@ -572,7 +583,7 @@ class SpliceControl(QTabWidget):
 
         self.plating_page = PlatingControl(self)
 
-        diameter_page = _prop_ctrls.Category(self, 'Diameter')
+        self._diameter_page = diameter_page = _prop_ctrls.Category(self, 'Diameter')
         self.min_dia_ctrl = _prop_ctrls.FloatProperty(
             diameter_page, 'Minimum', min_value=0.0,
             max_value=99.9, increment=0.01, units='mm')
@@ -619,3 +630,5 @@ class SpliceControl(QTabWidget):
             self.wire_size_page
         ):
             self.addTab(page, page.GetLabel())
+
+        self._init_lazy_tabs()

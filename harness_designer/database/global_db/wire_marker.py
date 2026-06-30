@@ -5,6 +5,7 @@ from typing import Iterable as _Iterable
 
 
 from ...ui import prop_ctrls as _prop_ctrls
+from ..common_db.lazy_tab_mixin import LazyTabMixin
 from .bases import EntryBase, TableBase
 from .mixins import (
     PartNumberMixin, PartNumberControl,
@@ -370,7 +371,7 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
         self._populate('length')
 
 
-class WireMarkerControl(QTabWidget):
+class WireMarkerControl(QTabWidget, LazyTabMixin):
     """Represent a wire marker control in :mod:`harness_designer.database.global_db.wire_marker`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -384,40 +385,49 @@ class WireMarkerControl(QTabWidget):
         :param db_obj: Database-backed object.
         :type db_obj: :class:`WireMarker`
         """
-        self.db_obj = db_obj
+        self._lazy_set_obj(db_obj)
 
-        self.mfg_page.set_obj(db_obj)
-        self.family_page.set_obj(db_obj)
-        self.series_page.set_obj(db_obj)
-        self.temperature_page.set_obj(db_obj)
-        self.resources_page.set_obj(db_obj)
-
-        self.part_number_ctrl.set_obj(db_obj)
-        self.description_ctrl.set_obj(db_obj)
-        self.color_ctrl.set_obj(db_obj)
-        self.weight_ctrl.set_obj(db_obj)
-        self.wire_size_page.set_obj(db_obj)
-
-        if db_obj is None:
-            self.length_ctrl.SetValue(0.05)
-            self.min_diameter_ctrl.SetValue(0.05)
-            self.max_diameter_ctrl.SetValue(0.05)
-            self.label_ctrl.SetValue(False)
-
-            self.length_ctrl.setEnabled(False)
-            self.min_diameter_ctrl.setEnabled(False)
-            self.max_diameter_ctrl.setEnabled(False)
-            self.label_ctrl.setEnabled(False)
-        else:
-            self.length_ctrl.SetValue(db_obj.length)
-            self.min_diameter_ctrl.SetValue(db_obj.min_diameter)
-            self.max_diameter_ctrl.SetValue(db_obj.max_diameter)
-            self.label_ctrl.SetValue(db_obj.has_label)
-
-            self.length_ctrl.setEnabled(True)
-            self.min_diameter_ctrl.setEnabled(True)
-            self.max_diameter_ctrl.setEnabled(True)
-            self.label_ctrl.setEnabled(True)
+    def _load_tab(self, index: int):
+        page = self.widget(index)
+        if page is self._general_page:
+            self.part_number_ctrl.set_obj(self.db_obj)
+            self.description_ctrl.set_obj(self.db_obj)
+            self.color_ctrl.set_obj(self.db_obj)
+            self.weight_ctrl.set_obj(self.db_obj)
+            if self.db_obj is None:
+                self.length_ctrl.SetValue(0.05)
+                self.label_ctrl.SetValue(False)
+                self.length_ctrl.setEnabled(False)
+                self.label_ctrl.setEnabled(False)
+            else:
+                self.length_ctrl.SetValue(self.db_obj.length)
+                self.label_ctrl.SetValue(self.db_obj.has_label)
+                self.length_ctrl.setEnabled(True)
+                self.label_ctrl.setEnabled(True)
+        elif page is self.mfg_page:
+            self.mfg_page.set_obj(self.db_obj)
+        elif page is self.family_page:
+            self.family_page.set_obj(self.db_obj)
+        elif page is self.series_page:
+            self.series_page.set_obj(self.db_obj)
+        elif page is self.temperature_page:
+            self.temperature_page.set_obj(self.db_obj)
+        elif page is self.resources_page:
+            self.resources_page.set_obj(self.db_obj)
+        elif page is self.wire_size_page:
+            self.wire_size_page.set_obj(self.db_obj)
+        elif page is self._diameter_page:
+            if self.db_obj is None:
+                self.min_diameter_ctrl.SetValue(0.05)
+                self.max_diameter_ctrl.SetValue(0.05)
+                self.min_diameter_ctrl.setEnabled(False)
+                self.max_diameter_ctrl.setEnabled(False)
+            else:
+                self.min_diameter_ctrl.SetValue(self.db_obj.min_diameter)
+                self.max_diameter_ctrl.SetValue(self.db_obj.max_diameter)
+                self.min_diameter_ctrl.setEnabled(True)
+                self.max_diameter_ctrl.setEnabled(True)
+        self._tab_loaded[index] = True
 
     def _on_min_diameter(self, evt):
         """Handle the min diameter event.
@@ -477,7 +487,7 @@ class WireMarkerControl(QTabWidget):
         self.setTabPosition(QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
-        general_page = _prop_ctrls.Category(self, 'General')
+        self._general_page = general_page = _prop_ctrls.Category(self, 'General')
 
         self.part_number_ctrl = PartNumberControl(general_page)
         self.description_ctrl = DescriptionControl(general_page)
@@ -506,7 +516,7 @@ class WireMarkerControl(QTabWidget):
 
         self.resources_page = ResourcesControl(self)
 
-        diameter_page = _prop_ctrls.Category(self, 'Diameter')
+        self._diameter_page = diameter_page = _prop_ctrls.Category(self, 'Diameter')
 
         self.min_diameter_ctrl = _prop_ctrls.FloatProperty(
             diameter_page, 'Minimum', min_value=0.05,
@@ -538,3 +548,5 @@ class WireMarkerControl(QTabWidget):
             diameter_page
         ):
             self.addTab(page, page.GetLabel())
+
+        self._init_lazy_tabs()

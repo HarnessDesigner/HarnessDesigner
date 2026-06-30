@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from PySide6.QtWidgets import QScrollArea, QWidget, QVBoxLayout, QTabWidget
+from PySide6.QtWidgets import QScrollArea, QWidget, QVBoxLayout, QTabWidget, QHBoxLayout
 
 
 class Category(QScrollArea):
@@ -25,6 +25,7 @@ class Category(QScrollArea):
         self._container = QWidget()
         self._sizer = QVBoxLayout()
         self._sizer.setContentsMargins(3, 3, 3, 3)
+        self._sizer.addStretch(1)
         self._container.setLayout(self._sizer)
 
         self.setWidget(self._container)
@@ -52,7 +53,6 @@ class Category(QScrollArea):
 
     def addWidget(self, widget):
         """Add a property widget to this category."""
-        if isinstance(widget, QTabWidget):
-            self._sizer.addWidget(widget, stretch=1)
-        else:
-            self._sizer.addWidget(widget)
+        pos = self._sizer.count() - 1
+        self._sizer.insertWidget(pos, widget)
+

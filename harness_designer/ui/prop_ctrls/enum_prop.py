@@ -37,6 +37,10 @@ class EnumProperty(QtWidgets.QWidget):
         self._sizer = None
         self._label = label
 
+        self._outer_sizer = QtWidgets.QVBoxLayout()
+        self._outer_sizer.setContentsMargins(0, 0, 0, 0)
+        self.setLayout(self._outer_sizer)
+
     def _on_change(self, button_id: int) -> None:
         """
         Handle the change event.
@@ -121,14 +125,15 @@ class EnumProperty(QtWidgets.QWidget):
 
         self._labels = labels
 
-        # Remove old radio box if present
         if self._radio_box is not None:
+            self._outer_sizer.removeWidget(self._radio_box)
             self._radio_box.deleteLater()
 
         self._radio_box = QtWidgets.QGroupBox(self._label, self)
         self._sizer = QtWidgets.QVBoxLayout()
         self._sizer.setContentsMargins(4, 4, 4, 4)
         self._radio_box.setLayout(self._sizer)
+        self._outer_sizer.addWidget(self._radio_box)
 
         bg = QtWidgets.QButtonGroup(self._radio_box)
         bg.setExclusive(True)
@@ -159,13 +164,6 @@ class EnumProperty(QtWidgets.QWidget):
             if btn is not None:
                 btn.setChecked(True)
 
-        # Trigger parent relayout
-        parent = self.parent()
-        while parent is not None and not isinstance(parent, QtWidgets.QTabWidget):
-            parent = parent.parent()
-
-        if parent is not None:
-            parent.adjustSize()
 
     def GetLabels(self) -> list[str]:
         """
