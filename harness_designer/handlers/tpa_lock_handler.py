@@ -91,6 +91,8 @@ class AddTPALockHandler(_handler_base.HandlerBase):
             self.obj.delete()
 
         self.part = self.ptables.global_db.tpa_locks_table[part_id]
+
+        name = f'{self.part.manufacturer.name} {self.part.part_number}'
         part_number = self.part.part_number
 
         if self._housing is None:
@@ -117,7 +119,7 @@ class AddTPALockHandler(_handler_base.HandlerBase):
             pos_obj = self.ptables.pjt_points3d_table.insert(0, 0, 0)
             pos_id = pos_obj.db_id
             db_obj = self.ptables.pjt_tpa_locks_table.insert(
-                part_id, pos_id, 1, None)
+                part_id, name, pos_id, 1, None)
         else:
             if self._housing.db_obj.tpa_lock1 is None:
                 pos_id = self._housing.db_obj.tpa_lock_1_position3d_id
@@ -127,7 +129,7 @@ class AddTPALockHandler(_handler_base.HandlerBase):
                 idx = 2
 
             db_obj = self.ptables.pjt_tpa_locks_table.insert(
-                part_id, pos_id, idx, self._housing.db_obj.db_id)
+                part_id, name, pos_id, idx, self._housing.db_obj.db_id)
 
         self.obj = _tpa_lock.TPALock(self.mainframe, db_obj)
         self.obj.identify(self._preview_material)

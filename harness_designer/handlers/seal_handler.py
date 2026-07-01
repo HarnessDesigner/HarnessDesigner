@@ -168,6 +168,7 @@ class AddSealHandler(_handler_base.HandlerBase):
             self.obj.delete()
 
         self.part = self.ptables.global_db.seals_table[part_id]
+        name = f'{self.part.manufacturer.name} {self.part.part_number}'
         type_name = self.part.type.name.lower()
         self._is_dummy_pin = 'dummy' in type_name
 
@@ -176,7 +177,7 @@ class AddSealHandler(_handler_base.HandlerBase):
             pos_id = self._housing.db_obj.seal_position3d_id
 
             db_obj = self.ptables.pjt_seals_table.insert(
-                part_id, pos_id, self._housing.db_obj.db_id,
+                part_id, name, pos_id, self._housing.db_obj.db_id,
                 None, None)
 
         elif self._terminal is not None:
@@ -190,7 +191,7 @@ class AddSealHandler(_handler_base.HandlerBase):
             p3d = self.ptables.pjt_points3d_table.insert(tx, ty, tz)
 
             db_obj = self.ptables.pjt_seals_table.insert(
-                part_id, p3d.db_id, None,
+                part_id, name, p3d.db_id, None,
                 self._terminal.db_obj.db_id, None)
 
         elif self._cavity is not None:
@@ -208,7 +209,7 @@ class AddSealHandler(_handler_base.HandlerBase):
             p3d = self.ptables.pjt_points3d_table.insert(tx, ty, tz)
 
             db_obj = self.ptables.pjt_seals_table.insert(
-                part_id, p3d.db_id, None,
+                part_id, name, p3d.db_id, None,
                 None, pjt_cavity.db_id)
 
         elif self._housing is not None and self._for_cavity:
@@ -227,7 +228,7 @@ class AddSealHandler(_handler_base.HandlerBase):
             pos_obj = self.ptables.pjt_points3d_table.insert(0, 0, 0)
 
             db_obj = self.ptables.pjt_seals_table.insert(
-                part_id, pos_obj.db_id, None,
+                part_id, name, pos_obj.db_id, None,
                 None, None)
 
         else:
@@ -276,7 +277,7 @@ class AddSealHandler(_handler_base.HandlerBase):
             pos_obj = self.ptables.pjt_points3d_table.insert(0, 0, 0)
 
             db_obj = self.ptables.pjt_seals_table.insert(
-                part_id, pos_obj.db_id, None,
+                part_id, name, pos_obj.db_id, None,
                 None, None)
 
         self.obj = _seal.Seal(self.mainframe, db_obj)

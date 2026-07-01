@@ -161,12 +161,11 @@ class Housing(_base3d.Base3D):
             centroids[i] = verts[idxs].mean(axis=0)
             surf_normals[i] = np.asarray(surf.normal, dtype=np.float64)
 
-        # Build distance matrix [n_cav × n_surf].
-        # The cavity OBB and position3d are stored directly in housing VBO
-        # space by apply_analysis — no additional angle/position transform is
-        # needed.  OBB corners 4-7 are the terminal (outer) face: the analysis
-        # places them at center + l2*n where n is the outward terminal normal.
-        dist_matrix = np.full((n_cav, n_surf), np.inf)
+        # Build separate distance matrices for terminal (corners 4-7) and
+        # wire (corners 0-3) faces.  Both use the cavity-axis parallel filter
+        # since |dot| > 0.85 accepts normals pointing either way along the axis.
+        term_dist = np.full((n_cav, n_surf), np.inf)
+        wire_dist = np.full((n_cav, n_surf), np.inf)
         for ci, cavity_3d in enumerate(cavities):
             part = cavity_3d.db_obj.part
             obb = part.obb if part is not None else None
@@ -176,22 +175,25 @@ class Housing(_base3d.Base3D):
                 wire_center = obb_f[:4].mean(axis=0)
                 cav_axis = term_center - wire_center
                 cav_axis /= np.linalg.norm(cav_axis) + 1e-12
-                dists = np.linalg.norm(centroids - term_center, axis=1)
                 dots = np.abs(surf_normals @ cav_axis)
                 parallel = dots > 0.85
+                t_dists = np.linalg.norm(centroids - term_center, axis=1)
+                w_dists = np.linalg.norm(centroids - wire_center, axis=1)
                 if parallel.any():
-                    dists = np.where(parallel, dists, np.inf)
+                    t_dists = np.where(parallel, t_dists, np.inf)
+                    w_dists = np.where(parallel, w_dists, np.inf)
+                term_dist[ci] = t_dists
+                wire_dist[ci] = w_dists
             else:
                 entry = part.position3d.as_numpy.astype(np.float64)
-                dists = np.linalg.norm(centroids - entry, axis=1)
-            dist_matrix[ci] = dists
+                term_dist[ci] = np.linalg.norm(centroids - entry, axis=1)
 
-        # Greedy 1-to-1 assignment: closest (cavity, surface) pair first so
-        # no two cavities can overwrite each other in the map.
         self._surf_to_cavity = {}
         assigned_surfs: set = set()
+
+        # First pass: terminal faces — sets the primary surf_idx on each cavity.
         assigned_cavs: set = set()
-        flat = dist_matrix.ravel()
+        flat = term_dist.ravel()
         for k in np.argsort(flat):
             if flat[k] == np.inf:
                 break
@@ -201,6 +203,20 @@ class Housing(_base3d.Base3D):
                 cavities[ci].surf_idx = si
                 self._surf_to_cavity[si] = cavities[ci]
                 assigned_cavs.add(ci)
+                assigned_surfs.add(si)
+
+        # Second pass: wire faces — each cavity gets at most one additional
+        # surface so clicking from the back also resolves to the same cavity.
+        assigned_cavs_wire: set = set()
+        flat_wire = wire_dist.ravel()
+        for k in np.argsort(flat_wire):
+            if flat_wire[k] == np.inf:
+                break
+            ci = int(k) // n_surf
+            si = int(k) % n_surf
+            if ci not in assigned_cavs_wire and si not in assigned_surfs:
+                self._surf_to_cavity[si] = cavities[ci]
+                assigned_cavs_wire.add(ci)
                 assigned_surfs.add(si)
 
     def on_surface_selected(self, idx: int):

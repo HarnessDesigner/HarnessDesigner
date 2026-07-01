@@ -122,7 +122,7 @@ class PJTCoversTable(PJTTableBase):
 
         raise KeyError(item)
 
-    def insert(self, part_id: int, position3d_id: int, housing_id: int | None) -> "PJTCover":
+    def insert(self, part_id: int, name: str, position3d_id: int, housing_id: int | None) -> "PJTCover":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -136,7 +136,7 @@ class PJTCoversTable(PJTTableBase):
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`PJTCover`
         """
-        db_id = PJTTableBase.insert(self, part_id=part_id, point3d_id=position3d_id, housing_id=housing_id)
+        db_id = PJTTableBase.insert(self, part_id=part_id, name=name, point3d_id=position3d_id, housing_id=housing_id)
 
         return PJTCover(self, db_id, self.project_id)
 

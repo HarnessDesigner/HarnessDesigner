@@ -87,6 +87,8 @@ class AddCoverHandler(_handler_base.HandlerBase):
             self.obj.delete()
 
         self.part = self.ptables.global_db.covers_table[part_id]
+
+        name = f'{self.part.manufacturer.name} {self.part.part_number}'
         part_number = self.part.part_number
 
         if self._housing is None:
@@ -112,11 +114,11 @@ class AddCoverHandler(_handler_base.HandlerBase):
             pos_obj = self.ptables.pjt_points3d_table.insert(0, 0, 0)
             pos_id = pos_obj.db_id
             db_obj = self.ptables.pjt_covers_table.insert(
-                part_id, pos_id, None)
+                part_id, name, pos_id, None)
         else:
             pos_id = self._housing.db_obj.cover_position3d_id
             db_obj = self.ptables.pjt_covers_table.insert(
-                part_id, pos_id, self._housing.db_obj.db_id)
+                part_id, name, pos_id, self._housing.db_obj.db_id)
 
         self.obj = _cover.Cover(self.mainframe, db_obj)
         self.obj.identify(self._preview_material)

@@ -228,6 +228,8 @@ class AddTerminalHandler(_handler_base.HandlerBase):
             self.obj.delete()
 
         self.part = self.ptables.global_db.terminals_table[part_id]
+
+        name = f'{self.part.manufacturer.name} {self.part.part_number}'
         self._is_male = self.part.gender.name.lower() == 'male'
 
         if self._cavity is not None:
@@ -245,7 +247,7 @@ class AddTerminalHandler(_handler_base.HandlerBase):
             pos += delta
 
             db_obj = self.ptables.pjt_terminals_table.insert(
-                part_id, None, int(pos.db_id[:-2]), pjt_cavity.db_id)
+                part_id, name, None, int(pos.db_id[:-2]), pjt_cavity.db_id)
 
         elif self._housing is not None:
             # Mode 2: floating preview, snaps only to this housing's cavities.
@@ -260,7 +262,7 @@ class AddTerminalHandler(_handler_base.HandlerBase):
 
             pos_obj = self.ptables.pjt_points3d_table.insert(0, 0, 0)
             db_obj = self.ptables.pjt_terminals_table.insert(
-                part_id, None, pos_obj.db_id, None)
+                part_id, name, None, pos_obj.db_id, None)
 
         else:
             # Mode 3: floating preview, snaps to any compatible cavity.
@@ -301,7 +303,7 @@ class AddTerminalHandler(_handler_base.HandlerBase):
 
             pos_obj = self.ptables.pjt_points3d_table.insert(0, 0, 0)
             db_obj = self.ptables.pjt_terminals_table.insert(
-                part_id, None, pos_obj.db_id, None)
+                part_id, name, None, pos_obj.db_id, None)
 
         self.obj = _terminal.Terminal(self.mainframe, db_obj)
         self.obj.identify(self._preview_material)

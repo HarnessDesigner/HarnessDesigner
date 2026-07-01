@@ -189,10 +189,11 @@ class MeshSurfacePicker:
         """
 
         rot = self._angle.as_matrix_numpy.astype(np.float64)
-        self._rot_mat = rot
-
-        # orthogonal ⇒ R^{-1} = R^T
-        self._inv_rot = rot.T
+        # as_matrix_numpy is the column-vector matrix R where R@v rotates v.
+        # numpy @ uses row-vector convention, so the forward transform is
+        # world = (local*S) @ R.T + P, and the inverse is @ R (not R.T).
+        self._rot_mat = rot.T
+        self._inv_rot = rot
         self._scale_arr = self._scale.as_numpy.astype(np.float64)
         self._pos_arr = self._position.as_numpy.astype(np.float64)
 
@@ -201,8 +202,8 @@ class MeshSurfacePicker:
 
     def _on_angle(self, angle: "_angle.Angle") -> None:
         rot = angle.as_matrix_numpy.astype(np.float64)
-        self._rot_mat = rot
-        self._inv_rot = rot.T
+        self._rot_mat = rot.T
+        self._inv_rot = rot
 
     def _on_scale(self, scale: "_point.Point") -> None:
         self._scale_arr = scale.as_numpy.astype(np.float64)

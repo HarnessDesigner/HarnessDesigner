@@ -332,17 +332,20 @@ class AddTransitionHandler(_handler_base.HandlerBase):
             self._finalized = True
             return
 
-        self._global_part = mainframe.global_db.transitions_table[part_id]
+        self.part = mainframe.global_db.transitions_table[part_id]
 
         # Preview: build transition DB with all branch points at the origin.
         # _build_model will fire in Transition.__init__ and position them locally.
         center_db = self.ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
         init_angle = _angle.Angle()
-        transition_db = self.ptables.pjt_transitions_table.insert(
-            part_id, center_db.db_id, init_angle, '')
 
-        for branch_id in range(1, self._global_part.branch_count + 1):
-            g_br = self._global_part.branches[branch_id - 1]
+        name = f'{self.part.manufacturer.name} {self.part.part_number}'
+
+        transition_db = self.ptables.pjt_transitions_table.insert(
+            part_id, name, center_db.db_id, init_angle)
+
+        for branch_id in range(1, self.part.branch_count + 1):
+            g_br = self.part.branches[branch_id - 1]
             pt_db = self.ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
             self.ptables.pjt_transition_branches_table.insert(
                 transition_db.db_id, pt_db.db_id, branch_id, float(g_br.min_dia))
@@ -363,7 +366,7 @@ class AddTransitionHandler(_handler_base.HandlerBase):
             self.obj.obj3d.is_visible = False
             return
 
-        trunk_global = self._global_part.branches[0]
+        trunk_global = self.part.branches[0]
         conc_wires = bundle.db_obj.wires
         if effective_diameter(conc_wires, trunk_global) > float(trunk_global.max_dia):
             if self._snapped_bundle is not None:
@@ -413,7 +416,7 @@ class AddTransitionHandler(_handler_base.HandlerBase):
     def _finalize(self, bundle, snap_pos, is_at_endpoint, endpoint):
         project = self.mainframe.project
         ptables = self.ptables
-        global_branches = self._global_part.branches
+        global_branches = self.part.branches
         trunk_global = global_branches[0]
         output_globals = global_branches[1:]
 

@@ -125,7 +125,7 @@ class PJTWireServiceLoopsTable(PJTTableBase):
 
         raise KeyError(item)
 
-    def insert(self, start_point3d_id: int, stop_point3d_id: int, part_id: int,
+    def insert(self, part_id: int, name: str, start_point3d_id: int, stop_point3d_id: int,
                circuit_id: int, is_visible: bool, quat: np.ndarray) -> "PJTWireServiceLoop":
         """Execute the insert operation.
 
@@ -147,7 +147,7 @@ class PJTWireServiceLoopsTable(PJTTableBase):
         :rtype: :class:`PJTWireServiceLoop`
         """
 
-        db_id = PJTTableBase.insert(self, part_id=part_id, circuit_id=circuit_id,
+        db_id = PJTTableBase.insert(self, part_id=part_id, name=name, circuit_id=circuit_id,
                                     start_point3d_id=start_point3d_id,
                                     stop_point3d_id=stop_point3d_id,
                                     quat=str([float(str(v)) for v in quat.tolist()]),

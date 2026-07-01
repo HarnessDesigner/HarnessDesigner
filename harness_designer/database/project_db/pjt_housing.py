@@ -183,7 +183,7 @@ class PJTHousingsTable(PJTTableBase):
 
         raise KeyError(item)
 
-    def insert(self, part_id: int, position3d_id: int = None,
+    def insert(self, part_id: int, name: str, position3d_id: int = None,
                position2d_id: int = None) -> "PJTHousing":
         """Execute the insert operation.
 
@@ -191,10 +191,16 @@ class PJTHousingsTable(PJTTableBase):
 
         :param part_id: Identifier for the part.
         :type part_id: int
+
+        :param name: Name for the part.
+        :type name: str
+
         :param position3d_id: 3D position id.
         :type position3d_id: int | None
+
         :param position2d_id: 2D position id.
         :type position2d_id: int | None
+
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`PJTHousing`
         """
@@ -205,7 +211,7 @@ class PJTHousingsTable(PJTTableBase):
         if position3d_id is None:
             position3d_id = self.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
 
-        db_id = PJTTableBase.insert(self, point3d_id=position3d_id,
+        db_id = PJTTableBase.insert(self, name=name, point3d_id=position3d_id,
                                     point2d_id=position2d_id, part_id=part_id)
 
         db_obj = PJTHousing(self, db_id, self.project_id)

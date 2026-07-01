@@ -123,7 +123,7 @@ class PJTBundlesTable(PJTTableBase):
 
         raise KeyError(item)
 
-    def insert(self, part_id: int) -> "PJTBundle":
+    def insert(self, part_id: int, name: str) -> "PJTBundle":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -133,7 +133,7 @@ class PJTBundlesTable(PJTTableBase):
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`PJTBundle`
         """
-        db_id = PJTTableBase.insert(self, part_id=part_id)
+        db_id = PJTTableBase.insert(self, part_id=part_id, name=name)
 
         return PJTBundle(self, db_id, self.project_id)
 

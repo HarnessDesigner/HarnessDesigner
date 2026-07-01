@@ -123,7 +123,8 @@ class AddBundleHandler(_handler_base.HandlerBase):
         start_db = self.ptables.pjt_points3d_table.insert(*p1_np.tolist())
         stop_db = self.ptables.pjt_points3d_table.insert(*p2_np.tolist())
 
-        bundle_db = self.ptables.pjt_bundles_table.insert(self.part_id)
+        name = f'{self.part.manufacturer.name} {self.part.part_number}'
+        bundle_db = self.ptables.pjt_bundles_table.insert(self.part_id, name)
         bundle_db.start_position3d_id = start_db.db_id
         bundle_db.stop_position3d_id = stop_db.db_id
 

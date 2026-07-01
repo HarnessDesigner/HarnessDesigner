@@ -127,7 +127,7 @@ class PJTWiresTable(PJTTableBase):
 
         raise KeyError(item)
 
-    def insert(self, part_id: int, circuit_id: int, start_point3d_id: int | None, stop_point3d_id: int | None,
+    def insert(self, part_id: int, name: str, circuit_id: int, start_point3d_id: int | None, stop_point3d_id: int | None,
                start_point2d_id: int | None, stop_point2d_id: int | None, is_visible3d: bool, is_visible2d: bool,
                layer_view_point_id: int | None, layer_id: int | None, is_filler_wire: bool) -> "PJTWire":
         """Execute the insert operation.
@@ -160,7 +160,7 @@ class PJTWiresTable(PJTTableBase):
         :rtype: :class:`PJTWire`
         """
 
-        db_id = PJTTableBase.insert(self, part_id=part_id, circuit_id=circuit_id,
+        db_id = PJTTableBase.insert(self, part_id=part_id, name=name, circuit_id=circuit_id,
                                     start_point3d_id=start_point3d_id, stop_point3d_id=stop_point3d_id,
                                     start_point2d_id=start_point2d_id, stop_point2d_id=stop_point2d_id,
                                     is_visible3d=int(is_visible3d), is_visible2d=int(is_visible2d),

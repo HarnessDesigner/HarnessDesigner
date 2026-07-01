@@ -259,9 +259,14 @@ class AddWireServiceLoopHandler(_handler_base.HandlerBase):
         p_stop_db = self.ptables.pjt_points3d_table.insert(
             stop_pos.x, stop_pos.y, stop_pos.z)
 
+        self.part = wire.db_obj.part
+
+        name = f'{self.part.manufacturer.name} {self.part.part_number}'
+
         loop_db = self.ptables.pjt_wire_service_loops_table.insert(
+            wire.db_obj.part_id, name,
             p_start_db.db_id, p_stop_db.db_id,
-            wire.db_obj.part_id, wire.db_obj.circuit_id,
+            wire.db_obj.circuit_id,
             True, q_arr)
 
         self.obj = _wire_service_loop.WireServiceLoop(self.mainframe, loop_db)

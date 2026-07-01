@@ -124,7 +124,7 @@ class PJTSealsTable(PJTTableBase):
 
         raise KeyError(item)
 
-    def insert(self, part_id: int, position3d_id: int, housing_id: int | None,
+    def insert(self, part_id: int, name: str, position3d_id: int, housing_id: int | None,
                terminal_id: int | None, cavity_id: int = None) -> "PJTSeal":
         """Execute the insert operation.
 
@@ -144,7 +144,7 @@ class PJTSealsTable(PJTTableBase):
         :rtype: :class:`PJTSeal`
         """
 
-        db_id = PJTTableBase.insert(self, part_id=part_id, point3d_id=position3d_id,
+        db_id = PJTTableBase.insert(self, part_id=part_id, name=name, point3d_id=position3d_id,
                                     housing_id=housing_id, terminal_id=terminal_id,
                                     cavity_id=cavity_id)
 

@@ -131,7 +131,7 @@ class PJTSplicesTable(PJTTableBase):
 
         raise KeyError(item)
 
-    def insert(self, part_id: int, start_point3d_id: int, stop_point3d_id: int,
+    def insert(self, part_id: int, name: str, start_point3d_id: int, stop_point3d_id: int,
                branch_point3d_id: int, point2d_id: int, circuit_id: int) -> "PJTSplice":
         """Execute the insert operation.
 
@@ -153,7 +153,7 @@ class PJTSplicesTable(PJTTableBase):
         :rtype: :class:`PJTSplice`
         """
 
-        db_id = PJTTableBase.insert(self, part_id=part_id, circuit_id=circuit_id,
+        db_id = PJTTableBase.insert(self, part_id=part_id, name=name, circuit_id=circuit_id,
                                     start_point3d_id=start_point3d_id, stop_point3d_id=stop_point3d_id,
                                     branch_point3d_id=branch_point3d_id, point2d_id=point2d_id)
 

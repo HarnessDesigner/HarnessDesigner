@@ -17,6 +17,8 @@ class AnalysisItem:
     d_start: float
     d_end: float
     verts: np.ndarray   # (3N, 3) float32 — triangle soup for the 3D overlay
+    wire_surf_si: int = -1   # index into picker.surfaces for the matched wire surface
+    term_surf_si: int = -1   # index into picker.surfaces for this terminal surface
 
     @property
     def radius(self) -> float:

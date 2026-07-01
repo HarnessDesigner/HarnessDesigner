@@ -122,7 +122,7 @@ class PJTTransitionsTable(PJTTableBase):
 
         raise KeyError(item)
 
-    def insert(self, part_id: int, center_id: int, angle: _angle.Angle, name: str) -> "PJTTransition":
+    def insert(self, part_id: int, name: str, center_id: int, angle: _angle.Angle) -> "PJTTransition":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -139,8 +139,8 @@ class PJTTransitionsTable(PJTTableBase):
         :rtype: :class:`PJTTransition`
         """
 
-        db_id = PJTTableBase.insert(self, part_id=part_id, center_id=center_id,
-                                    angle=str(list(angle.as_euler_float)), name=name)
+        db_id = PJTTableBase.insert(self, part_id=part_id, name=name, center_id=center_id,
+                                    angle=str(list(angle.as_euler_float)))
 
         return PJTTransition(self, db_id, self.project_id)
 

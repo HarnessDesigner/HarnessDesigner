@@ -132,8 +132,10 @@ class AddSpliceHandler(_handler_base.HandlerBase):
         stop_db = self.ptables.pjt_points3d_table.insert(*stop_np.tolist())
         branch_db = self.ptables.pjt_points3d_table.insert(*center.tolist())
 
+        name = f'{self.part.manufacturer.name} {self.part.part_number}'
+
         db_obj = self.ptables.pjt_splices_table.insert(
-            self.part_id,
+            self.part_id, name,
             start_db.db_id, stop_db.db_id, branch_db.db_id,
             None, None)
 

@@ -483,6 +483,8 @@ class AddWireHandler(_handler_base.HandlerBase):
         if self.part_id is None:
             return
 
+        self.part = self.mainframe.global_db.wires_table[self.part_id]
+
         self._start_point_id = start_point_id
 
         # Create the preview wire with a temporary stop point at the same location
@@ -491,8 +493,10 @@ class AddWireHandler(_handler_base.HandlerBase):
 
         self._preview_stop_point_id = stop_db.db_id
 
+        name = f'{self.part.manufacturer.name} {self.part.part_number}'
+
         wire_db = self.ptables.pjt_wires_table.insert(
-            self.part_id, self._start_circuit_id,
+            self.part_id, name, self._start_circuit_id,
             start_point_id, stop_db.db_id,
             None, None, True, False, None, None, False)
 

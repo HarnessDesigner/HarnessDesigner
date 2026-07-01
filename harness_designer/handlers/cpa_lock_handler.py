@@ -88,6 +88,7 @@ class AddCPALockHandler(_handler_base.HandlerBase):
             self.obj.delete()
 
         self.part = self.ptables.global_db.cpa_locks_table[part_id]
+        name = f'{self.part.manufacturer.name} {self.part.part_number}'
         part_number = self.part.part_number
 
         if self._housing is None:
@@ -115,12 +116,12 @@ class AddCPALockHandler(_handler_base.HandlerBase):
             pos_id = pos_obj.db_id
 
             db_obj = self.ptables.pjt_cpa_locks_table.insert(
-                part_id, pos_id, None)
+                part_id, name, pos_id, None)
         else:
             pos_id = self._housing.db_obj.cpa_lock_position3d_id
 
             db_obj = self.ptables.pjt_cpa_locks_table.insert(
-                part_id, pos_id, self._housing.db_obj.db_id)
+                part_id, name, pos_id, self._housing.db_obj.db_id)
 
         self.obj = _cpa_lock.CPALock(self.mainframe, db_obj)
         self.obj.identify(self._preview_material)

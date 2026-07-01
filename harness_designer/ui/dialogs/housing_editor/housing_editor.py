@@ -15,6 +15,7 @@ from . import connector_analysis as _analysis
 from . import analysis_panel as _analysis_panel
 from .. import dialog_base as _dialog_base
 from ....gl import canvas3d as _canvas3d
+from ....utils.mesh_surface_picker import MeshSurfacePicker as _MeshSurfacePicker
 
 
 if TYPE_CHECKING:
@@ -33,37 +34,136 @@ _TERMINAL_COLORS: list[tuple[float, float, float]] = [
 ]
 
 
-def _unproject(ndc_x, ndc_y, ndc_z, inv_mvp):
-    clip = np.array([ndc_x, ndc_y, ndc_z, 1.0], dtype=np.float64)
-    world = inv_mvp.dot(clip)
+class PlaneTreePanel(QtWidgets.QWidget):
+    """Side panel that shows selected plane groups as a tree.
 
-    if abs(float(world[3])) < 1e-12:
-        return None
+    Top-level (bold) nodes = one plane group per coplanar click, labelled
+    "Plane N — X surfaces".  Each node expands to show its individual
+    surfaces, labelled "Surface M — Y tris".
 
-    world /= world[3]
+    Clicking a top-level node highlights all surfaces in that group and
+    dims all surfaces in other groups.  Clicking a child node highlights
+    only that one surface.  Clicking the already-selected item deselects
+    (everything in this mode returns to full brightness).
 
-    return world[:3]
+    Remove: if a group node is selected, the whole group is removed.
+            if a surface node is selected, only that surface is removed.
+    Done: exits the active mode (unchecks the toolbar button).
+    """
 
+    # (group_idx, surf_local_idx)  –  surf_local_idx = -1 means whole group
+    selectionChanged = QtCore.Signal(int, int)
+    removeRequested = QtCore.Signal(int, int)
+    accepted = QtCore.Signal()
 
-def _point_in_triangle(p, a, b, c):
-    v0 = c - a
-    v1 = b - a
-    v2 = p - a
-    d00 = float(v0 @ v0)
-    d01 = float(v0 @ v1)
-    d02 = float(v0 @ v2)
-    d11 = float(v1 @ v1)
-    d12 = float(v1 @ v2)
+    def __init__(self, parent: QtWidgets.QWidget):
+        super().__init__(parent)
 
-    denom = d00 * d11 - d01 * d01
-    if abs(denom) < 1e-12:
-        return False
+        self._sel_group: int = -1
+        self._sel_surf: int = -1   # local index inside the group, -1 = whole group
 
-    inv = 1.0 / denom
-    u = (d11 * d02 - d01 * d12) * inv
-    v = (d00 * d12 - d01 * d02) * inv
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setContentsMargins(6, 6, 6, 6)
+        layout.setSpacing(4)
 
-    return u >= -1e-4 and v >= -1e-4 and (u + v) <= 1.0 + 1e-4
+        self._label = QtWidgets.QLabel('Selected Surfaces', self)
+        self._label.setStyleSheet('font-weight: bold;')
+        layout.addWidget(self._label)
+
+        self._tree = QtWidgets.QTreeWidget(self)
+        self._tree.setHeaderHidden(True)
+        self._tree.setSelectionMode(
+            QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
+        self._tree.setStyleSheet(
+            'QTreeWidget::item:selected {'
+            '  background-color: #cc1100;'
+            '  color: white;'
+            '}'
+        )
+        layout.addWidget(self._tree, 1)
+
+        btn_row = QtWidgets.QHBoxLayout()
+        self._btn_remove = QtWidgets.QPushButton('Remove', self)
+        self._btn_done = QtWidgets.QPushButton('Done', self)
+        btn_row.addWidget(self._btn_remove)
+        btn_row.addStretch(1)
+        btn_row.addWidget(self._btn_done)
+        layout.addLayout(btn_row)
+
+        self._tree.itemClicked.connect(self._on_item_clicked)
+        self._btn_remove.clicked.connect(self._on_remove)
+        self._btn_done.clicked.connect(self.accepted)
+
+        self.setMinimumWidth(210)
+        self.setMaximumWidth(290)
+        self.hide()
+
+    def load(
+        self,
+        groups: list[list[int]],
+        surfaces: list,
+        label: str = 'Selected Surfaces',
+    ) -> None:
+        """Rebuild the tree from plane groups.
+
+        groups[g] is the list of surface indices for plane group g.
+        surfaces is the full picker surface list (for triangle-count labels).
+        """
+        self._label.setText(label)
+        self._tree.clear()
+        self._sel_group = -1
+        self._sel_surf = -1
+
+        for g, group in enumerate(groups):
+            n = len(group)
+            parent_item = QtWidgets.QTreeWidgetItem(
+                self._tree,
+                [f'Plane {g + 1}  —  {n} surface{"s" if n != 1 else ""}'],
+            )
+            parent_item.setData(
+                0, QtCore.Qt.ItemDataRole.UserRole, (g, -1))
+            font = parent_item.font(0)
+            font.setBold(True)
+            parent_item.setFont(0, font)
+
+            for s, si in enumerate(group):
+                n_tris = len(surfaces[si].tri_indices)
+                child = QtWidgets.QTreeWidgetItem(
+                    parent_item,
+                    [f'  Surface {s + 1}  —  {n_tris}'
+                     f' tri{"s" if n_tris != 1 else ""}'],
+                )
+                child.setData(
+                    0, QtCore.Qt.ItemDataRole.UserRole, (g, s))
+
+            parent_item.setExpanded(True)
+
+        if groups:
+            self.show()
+        else:
+            self.hide()
+
+    def selection(self) -> tuple[int, int]:
+        return self._sel_group, self._sel_surf
+
+    def _on_item_clicked(
+        self, item: QtWidgets.QTreeWidgetItem, _col: int
+    ) -> None:
+        g, s = item.data(0, QtCore.Qt.ItemDataRole.UserRole)
+        if g == self._sel_group and s == self._sel_surf:
+            # Same item clicked again → deselect
+            self._tree.clearSelection()
+            self._sel_group = -1
+            self._sel_surf = -1
+            self.selectionChanged.emit(-1, -1)
+        else:
+            self._sel_group = g
+            self._sel_surf = s
+            self.selectionChanged.emit(g, s)
+
+    def _on_remove(self) -> None:
+        if self._sel_group >= 0:
+            self.removeRequested.emit(self._sel_group, self._sel_surf)
 
 
 class SurfaceOverlay(QtWidgets.QWidget):
@@ -126,32 +226,67 @@ class SurfaceOverlay(QtWidgets.QWidget):
 
             return QtCore.QPointF(sx, sy)
 
-        def draw_surf(surf, r, g, b):
-            painter.setBrush(QtGui.QBrush(QtGui.QColor(r, g, b, 80)))
-
+        def draw_surf(surf, r, g, b, alpha=80):
+            painter.setBrush(QtGui.QBrush(QtGui.QColor(r, g, b, alpha)))
             for ti in surf.tri_indices:
                 pts = [project(verts[3 * ti + k]) for k in range(3)]
-
                 if all(p is not None for p in pts):
                     painter.drawPolygon(QtGui.QPolygonF(pts))
 
-        if dlg.wire_surf_idx is not None:
-            draw_surf(dlg.surfaces[dlg.wire_surf_idx], 255, 140, 0)
+        mode = dlg.select_mode
+        g_sel = dlg.plane_sel_group
+        s_sel = dlg.plane_sel_surf
 
+        # --- wire plane groups (orange) ---
+        wire_g = g_sel if mode == 'wire' else -1
+        wire_s = s_sel if mode == 'wire' else -1
+
+        for g, group in enumerate(dlg.wire_plane_groups):
+            for s, si in enumerate(group):
+                if wire_g < 0:
+                    draw_surf(dlg.surfaces[si], 255, 140, 0, 80)
+                elif g == wire_g and (wire_s < 0 or s == wire_s):
+                    draw_surf(dlg.surfaces[si], 255, 40, 40, 200)   # selected → bright red
+                else:
+                    draw_surf(dlg.surfaces[si], 255, 140, 0, 20)    # unselected → dim orange
+
+        # --- terminal plane groups (blue) ---
+        term_g = g_sel if mode == 'terminal_plane' else -1
+        term_s = s_sel if mode == 'terminal_plane' else -1
+
+        for g, group in enumerate(dlg.term_plane_groups):
+            for s, si in enumerate(group):
+                if term_g < 0:
+                    draw_surf(dlg.surfaces[si], 51, 153, 255, 80)
+                elif g == term_g and (term_s < 0 or s == term_s):
+                    draw_surf(dlg.surfaces[si], 255, 40, 40, 200)   # selected → bright red
+                else:
+                    draw_surf(dlg.surfaces[si], 51, 153, 255, 20)   # unselected → dim blue
+
+        # --- selected cavity surface highlights (only when not in a pick mode) ---
+        if dlg.select_mode is None:
+            w_si = dlg.selected_cavity_wire_si
+            t_si = dlg.selected_cavity_term_si
+            if 0 <= w_si < len(dlg.surfaces):
+                draw_surf(dlg.surfaces[w_si], 255, 220, 0, 120)    # yellow = wire
+            if 0 <= t_si < len(dlg.surfaces):
+                draw_surf(dlg.surfaces[t_si], 0, 210, 255, 120)    # cyan = terminal
+
+        # --- individual terminals (per-surface colours) ---
         for idx in dlg.terminal_surf_idxs:
             surf = dlg.surfaces[idx]
             rf, gf, bf = dlg.terminal_surf_colors.get(idx, (0.5, 0.5, 0.5))
             draw_surf(surf, int(rf * 255), int(gf * 255), int(bf * 255))
 
-        # Draw analysis-result cavity overlays when the preview panel is visible
+        # --- analysis-result cavity overlays ---
         if dlg.analysis_panel.isVisible():
             items = dlg.analysis_panel.items()
             selected = dlg.analysis_selected
             for i, item in enumerate(items):
                 if i == selected:
-                    rgba = (80, 255, 80, 130)   # bright green = selected
+                    rgba = (80, 255, 80, 130)
                 else:
-                    rgba = (200, 200, 200, 55)  # dim grey = unselected
+                    rgba = (200, 200, 200, 55)
 
                 painter.setBrush(QtGui.QBrush(QtGui.QColor(*rgba)))
 
@@ -229,14 +364,33 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
 
         # ── surface-picking state ─────────────────────────────────────────────
         self.vertices: Optional[np.ndarray] = None
-        self.face_norms: Optional[np.ndarray] = None
-        self.surfaces: list[_analysis.Surface] = []
+        self.surfaces: list = []
+        self._picker: Optional[_MeshSurfacePicker] = None
         self.select_mode: Optional[str] = None
-        self.wire_surf_idx: Optional[int] = None
+        # Plane groups: each entry is a list of surface indices on one clicked plane.
+        self.wire_plane_groups: list[list[int]] = []
+        self.term_plane_groups: list[list[int]] = []
+        # Seed surface index per group — used to re-expand when tolerance changes.
+        self.wire_plane_seeds: list[int] = []
+        self.term_plane_seeds: list[int] = []
+        # Per-group sets of surfaces the user manually removed; excluded from re-expansion.
+        self.wire_plane_excludes: list[set[int]] = []
+        self.term_plane_excludes: list[set[int]] = []
+        # Plane distance tolerance for coplanar grouping.
+        self.plane_tol: float = 0.05
+        # Individual terminal surfaces (Add Terminal mode)
         self.terminal_surf_idxs: list[int] = []
         self.terminal_surf_colors: dict[int, tuple[float, float, float]] = {}
         self.terminal_overrides: dict[int, str] = {}
         self.term_color_idx: int = 0
+        # Tree selection: which group and which surface within it are highlighted.
+        # plane_sel_surf = -1 means the whole group is highlighted.
+        self.plane_sel_group: int = -1
+        self.plane_sel_surf: int = -1
+        # Surfaces highlighted because the matching cavity tab is selected.
+        # -1 = none (cavity loaded from DB has no session-time surface index).
+        self.selected_cavity_wire_si: int = -1
+        self.selected_cavity_term_si: int = -1
         self.length_factor: float = 1.0
         self.surface_filter: Optional[_SurfaceSelectFilter] = None
 
@@ -301,6 +455,16 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
 
         tb_layout.addWidget(self._len_label)
         tb_layout.addWidget(self._len_slider)
+        tb_layout.addSpacing(12)
+
+        self._tol_label = QtWidgets.QLabel('Tol: 0.05', toolbar)
+        self._tol_slider = QtWidgets.QSlider(
+            QtCore.Qt.Orientation.Horizontal, toolbar)
+        self._tol_slider.setRange(1, 50)   # 0.01 – 0.50 in 0.01 steps
+        self._tol_slider.setValue(5)        # default 0.05
+        self._tol_slider.setFixedWidth(100)
+        tb_layout.addWidget(self._tol_label)
+        tb_layout.addWidget(self._tol_slider)
         tb_layout.addStretch(1)
 
         self._status_label = QtWidgets.QLabel('', toolbar)
@@ -325,6 +489,13 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         self._btn_clear_terms.clicked.connect(self._clear_terminals)
         self._btn_clear_all.clicked.connect(self._clear_all)
         self._len_slider.valueChanged.connect(self._on_length_changed)
+        self._tol_slider.valueChanged.connect(self._on_tol_changed)
+
+        # ── plane tree side-panel (shown while in wire/terminal_plane mode) ───
+        self.plane_list_panel = PlaneTreePanel(self.panel)
+        self.plane_list_panel.selectionChanged.connect(self._on_plane_sel_changed)
+        self.plane_list_panel.removeRequested.connect(self._on_plane_remove)
+        self.plane_list_panel.accepted.connect(self._on_plane_accepted)
 
         # ── analysis result side-panel (hidden until Analyze is clicked) ──────
         self.analysis_panel = _analysis_panel.AnalysisResultPanel(self.panel)
@@ -337,7 +508,8 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         v_layout = QtWidgets.QVBoxLayout(self.panel)
         h_layout = QtWidgets.QHBoxLayout()
         h_layout.addWidget(self.canvas, 1)
-        h_layout.addWidget(self.analysis_panel)   # shown/hidden by load()
+        h_layout.addWidget(self.plane_list_panel)  # shown in wire/terminal_plane mode
+        h_layout.addWidget(self.analysis_panel)    # shown/hidden by load()
         v_layout.addLayout(h_layout, 1)
         v_layout.addWidget(toolbar)
         v_layout.addSpacing(5)
@@ -363,108 +535,29 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         self.controls.addTab(self.cavity_panel, 'Cavities')
         self.controls.addTab(self.accessory_panel, 'Accessories')
 
+        self.cavity_panel.cavitySelected.connect(self._on_cavity_selected)
+
         # Install surface-picking event filter on the inner GL widget
         self.surface_filter = _SurfaceSelectFilter(self)
         self.surface_overlay = SurfaceOverlay(self.canvas._canvas, self)
 
-        self._build_surfaces()
-        self.update()
-
-    def _build_surfaces(self) -> None:
-        vbo = self.housing.obj3d._vbo
-        # VBO already has model.angle3d / model.position3d pre-baked in by
-        # housing_obj.py, so these arrays are already in world space.
-        self.vertices = vbo.vertices.reshape(-1, 3).copy().astype(np.float32)
-        self.face_norms = vbo.face_normals.reshape(-1, 3).copy().astype(np.float32)
-
-        raw = _analysis.compute_surfaces(self.vertices, self.face_norms)
-
-        self.surfaces = [
-            s for grp in raw
-            for s in _analysis.split_into_components(grp, self.vertices)]
-
+        # Housing3D pre-bakes model.angle3d / model.position3d into the VBO so
+        # its own position/angle/scale are identity.  MeshSurfacePicker therefore
+        # works in world space — no additional transform is applied to the ray.
+        self._picker = _MeshSurfacePicker(self.housing.obj3d, self.canvas)
+        self.vertices = self._picker.vertices   # (N*3, 3) float64, world space
+        self.surfaces = self._picker.surfaces   # MeshSurfacePicker.Surface list
         self._set_status(
             f'Mesh loaded — {len(self.surfaces)} surfaces detected')
+        self.update()
 
     # ── surface picking ───────────────────────────────────────────────────────
 
-    def _compute_ray(self, px: int, py: int):
-        camera = self.canvas._canvas.camera
-
-        if (
-            camera.projection is None or
-            camera.modelview is None or
-            camera.viewport is None
-        ):
-            return None, None
-
-        pj = camera.projection.astype(np.float64)
-        mv = camera.modelview.astype(np.float64)
-        viewport = camera.viewport
-
-        vx, vy, vw, vh = viewport
-
-        if vw < 1 or vh < 1:
-            return None, None
-
-        # event.position() is in logical pixels; the GL viewport is in physical
-        # pixels. Scale up by DPR so both are in the same unit.
-        dpr = self.canvas._canvas.devicePixelRatio()
-        wx = float(px) * dpr
-        wy = float(vh - py * dpr)
-
-        ndc_x = (2.0 * (wx - vx) / vw) - 1.0
-        ndc_y = (2.0 * (wy - vy) / vh) - 1.0
-
-        mvp = pj.dot(mv)
-        inv_mvp = np.linalg.inv(mvp)
-
-        near = _unproject(ndc_x, ndc_y, -1.0, inv_mvp)
-        far = _unproject(ndc_x, ndc_y, 1.0, inv_mvp)
-
-        if near is None or far is None:
-            return None, None
-
-        d = far - near
-        mag = float(np.linalg.norm(d))
-
-        if mag < 1e-10:
-            return None, None
-
-        return near, d / mag
-
     def pick_surface_at(self, px: int, py: int) -> int:
-        origin, direction = self._compute_ray(px, py)
-
-        if origin is None:
+        if self._picker is None:
             return -1
-
-        verts = self.vertices.reshape(-1, 3).astype(np.float64)
-        best_t = float('inf')
-        best_idx = -1
-
-        for i, surf in enumerate(self.surfaces):
-            n = surf.normal.astype(np.float64)
-            denom = float(n @ direction)
-            if abs(denom) < 1e-8:
-                continue
-
-            t = (float(surf.plane_dist) - float(n @ origin)) / denom
-            if t < 0.0 or t >= best_t:
-                continue
-
-            hit = origin + t * direction
-            for ti in surf.tri_indices:
-                a = verts[3 * ti]
-                b = verts[3 * ti + 1]
-                c = verts[3 * ti + 2]
-
-                if _point_in_triangle(hit, a, b, c):
-                    best_t = t
-                    best_idx = i
-                    break
-
-        return best_idx
+        idx, _ = self._picker.pick_surface_at(px, py)
+        return idx
 
     # ── selection modes ───────────────────────────────────────────────────────
 
@@ -480,111 +573,174 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
 
         if checked:
             self.select_mode = mode
+            self.plane_sel_group = -1
+            self.plane_sel_surf = -1
 
             for btn in self._mode_btns:
                 if btn is not button:
                     btn.setChecked(False)
 
             hints = {
-                'wire': 'Click the wire-side plane (click again to deselect)',
-                'terminal_plane': 'Click any terminal recess — all on that plane selected',
-                'terminal': 'Click individual terminal recesses to add/remove'}
-
+                'wire': 'Click a wire-side plane to add it — click a selected plane again to remove',
+                'terminal_plane': 'Click a terminal plane to add it — click again to remove',
+                'terminal': 'Click individual terminal recesses to add/remove',
+            }
             self._set_status(hints.get(mode, ''))
+
+            if mode == 'wire':
+                self._reload_plane_tree(is_wire=True)
+            elif mode == 'terminal_plane':
+                self._reload_plane_tree(is_wire=False)
+            else:
+                self.plane_list_panel.hide()
         else:
             self.select_mode = None
+            self.plane_sel_group = -1
+            self.plane_sel_surf = -1
+            self.plane_list_panel.hide()
             self._set_status('')
 
     def assign_surface(self, idx: int) -> None:
-        if self.select_mode == 'wire':
-            if idx == self.wire_surf_idx:
-                self.wire_surf_idx = None
-                self._set_status('Wire side deselected')
-            else:
-                self.wire_surf_idx = idx
-                self._set_status('Wire side set')
+        if self.select_mode in ('wire', 'terminal_plane'):
+            self._toggle_plane_group(idx)
 
         elif self.select_mode == 'terminal':
             if idx in self.terminal_surf_idxs:
                 self.terminal_surf_idxs.remove(idx)
                 self.terminal_surf_colors.pop(idx, None)
                 self._set_status(
-                    f'Terminal removed '
-                    f'({len(self.terminal_surf_idxs)} selected)')
+                    f'Terminal removed ({len(self.terminal_surf_idxs)} selected)')
             else:
                 color = self._next_color()
                 self.terminal_surf_idxs.append(idx)
                 self.terminal_surf_colors[idx] = color
                 self._set_status(
-                    f'Terminal added '
-                    f'({len(self.terminal_surf_idxs)} selected)')
-
-        elif self.select_mode == 'terminal_plane':
-            ref = self.surfaces[idx]
-            plane_idxs = [
-                i for i, s in enumerate(self.surfaces)
-                if (float(np.dot(s.normal, ref.normal)) > 0.98
-                    and abs(s.plane_dist - ref.plane_dist) < 0.5)
-            ]
-
-            if all(i in self.terminal_surf_idxs for i in plane_idxs):
-                for i in plane_idxs:
-                    self.terminal_surf_idxs.remove(i)
-                    self.terminal_surf_colors.pop(i, None)
-
-                self._set_status(
-                    f'Plane deselected ({len(self.terminal_surf_idxs)} '
-                    f'terminals remaining)')
-            else:
-                color = self._next_color()
-                for i in plane_idxs:
-                    if i not in self.terminal_surf_idxs:
-                        self.terminal_surf_idxs.append(i)
-                        self.terminal_surf_colors[i] = color
-
-                self._set_status(
-                    f'Plane selected — {len(plane_idxs)} '
-                    f'surfaces ({len(self.terminal_surf_idxs)} total)')
+                    f'Terminal added ({len(self.terminal_surf_idxs)} selected)')
 
         if self.surface_overlay is not None:
             self.surface_overlay.update()
 
+    def _coplanar_idxs(self, idx: int) -> list[int]:
+        ref = self.surfaces[idx]
+        tol = self.plane_tol
+        return [
+            i for i, s in enumerate(self.surfaces)
+            if (float(np.dot(s.normal, ref.normal)) > 0.98
+                and abs(s.plane_dist - ref.plane_dist) < tol)
+        ]
+
+    def _toggle_plane_group(self, idx: int) -> None:
+        is_wire = self.select_mode == 'wire'
+        groups = self.wire_plane_groups if is_wire else self.term_plane_groups
+        seeds = self.wire_plane_seeds if is_wire else self.term_plane_seeds
+        excludes = self.wire_plane_excludes if is_wire else self.term_plane_excludes
+        label = 'Wire' if is_wire else 'Terminal'
+
+        plane_idxs = self._coplanar_idxs(idx)
+        idx_set = set(plane_idxs)
+
+        # Find if the clicked surface already belongs to any existing group.
+        existing = next(
+            (gi for gi, g in enumerate(groups) if idx in g or idx_set.intersection(g)),
+            None)
+
+        if existing is not None:
+            groups.pop(existing)
+            seeds.pop(existing)
+            excludes.pop(existing)
+            self.plane_sel_group = -1
+            self.plane_sel_surf = -1
+            n = len(groups)
+            self._set_status(
+                f'{label}: plane removed ({n} plane{"s" if n != 1 else ""} selected)')
+        else:
+            groups.append(plane_idxs)
+            seeds.append(idx)
+            excludes.append(set())
+            n = len(groups)
+            self._set_status(
+                f'{label}: {len(plane_idxs)} surface'
+                f'{"s" if len(plane_idxs) != 1 else ""} added'
+                f' ({n} plane{"s" if n != 1 else ""} total)')
+
+        self._reload_plane_tree(is_wire)
+
+    def _reload_plane_tree(self, is_wire: bool) -> None:
+        groups = self.wire_plane_groups if is_wire else self.term_plane_groups
+        label = 'Wire Surfaces' if is_wire else 'Terminal Surfaces'
+        self.plane_list_panel.load(groups, self.surfaces, label)
+
     # ── analysis ──────────────────────────────────────────────────────────────
 
     def run_analysis(self) -> None:
-        if self.wire_surf_idx is None:
+        if not self.wire_plane_groups:
             self._set_status('Select the wire side first.')
             return
-        if not self.terminal_surf_idxs:
+
+        all_terminal = [i for grp in self.term_plane_groups for i in grp]
+        for i in self.terminal_surf_idxs:
+            if i not in all_terminal:
+                all_terminal.append(i)
+        if not all_terminal:
             self._set_status('Select at least one terminal plane first.')
             return
 
-        wire_surf = self.surfaces[self.wire_surf_idx]
-        wire_centroid = _analysis.surface_centroid(wire_surf, self.vertices)
+        # Flatten all selected wire surfaces, keeping their picker surface index.
+        wire_surf_items: list[tuple[int, object]] = [
+            (si, self.surfaces[si])
+            for grp in self.wire_plane_groups
+            for si in grp
+        ]
+        wire_centroids = [
+            _analysis.surface_centroid(ws, self.vertices)
+            for _, ws in wire_surf_items
+        ]
 
         results = []
-        for ti in self.terminal_surf_idxs:
+        for ti in all_terminal:
             term_surf = self.surfaces[ti]
+            n_t = term_surf.normal.astype(np.float64)
+            n_t /= np.linalg.norm(n_t) + 1e-12
+
+            # Find the wire surface spatially closest to this terminal in the
+            # cross-sectional plane (perpendicular to the cavity axis).
+            # This ensures each terminal exits through its own wire plane even
+            # when multiple wire planes exist at different depths.
+            c_t = _analysis.surface_centroid(term_surf, self.vertices)
+            c_t_perp = c_t - float(np.dot(c_t, n_t)) * n_t
+
+            best_ws_si, best_ws = wire_surf_items[0]
+            best_wc = wire_centroids[0]
+            best_d = float('inf')
+            for (wsi, ws), wc in zip(wire_surf_items, wire_centroids):
+                c_w_perp = wc - float(np.dot(wc, n_t)) * n_t
+                d = float(np.linalg.norm(c_t_perp - c_w_perp))
+                if d < best_d:
+                    best_d = d
+                    best_ws_si = wsi
+                    best_ws = ws
+                    best_wc = wc
+
             try:
                 kind, params, verts, _norms = _analysis.generate_terminal_geometry(
-                    term_surf, wire_surf, self.vertices,
+                    term_surf, best_ws, self.vertices,
                     kind_override=self.terminal_overrides.get(ti),
                     length_factor=self.length_factor,
                 )
             except Exception:  # NOQA
                 continue
 
-            n_term = term_surf.normal.astype(np.float64)
-            n_term /= np.linalg.norm(n_term) + 1e-12
             d_start = term_surf.plane_dist
-            d_full = float(wire_centroid @ n_term)
+            d_full = float(np.dot(best_wc, n_t))
             d_end = d_start + (d_full - d_start) * self.length_factor
 
             center = np.array(params['center'], dtype=np.float64)
-            u_ax, v_ax = _analysis.plane_frame(n_term)
+            u_ax, v_ax = _analysis.plane_frame(n_t)
             proj_u = float(center @ u_ax)
             proj_v = float(center @ v_ax)
-            results.append((kind, params, d_start, d_end, proj_u, proj_v, verts))
+            results.append(
+                (kind, params, d_start, d_end, proj_u, proj_v, verts, best_ws_si, ti)
+            )
 
         if not results:
             self._set_status('Analysis produced no results.')
@@ -596,7 +752,7 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         # Build preview items — names continue from existing cavity count
         existing = len(self.cavity_panel.cavities) if self.cavity_panel else 0
         items = []
-        for i, (kind, params, d_start, d_end, _pu, _pv, verts) in enumerate(results):
+        for i, (kind, params, d_start, d_end, _pu, _pv, verts, wire_si, term_si) in enumerate(results):
             item = _analysis_panel.AnalysisItem(
                 name=str(existing + i + 1),
                 kind=kind,
@@ -604,6 +760,8 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
                 d_start=d_start,
                 d_end=d_end,
                 verts=verts,
+                wire_surf_si=wire_si,
+                term_surf_si=term_si,
             )
             items.append(item)
 
@@ -659,16 +817,43 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         self._len_label.setText(f'Length: {value}%')
         self.length_factor = value / 100.0
 
+    def _on_tol_changed(self, value: int) -> None:
+        self.plane_tol = value / 100.0
+        self._tol_label.setText(f'Tol: {self.plane_tol:.2f}')
+        self._reexpand_all_groups()
+
+    def _reexpand_all_groups(self) -> None:
+        for i, seed in enumerate(self.wire_plane_seeds):
+            expanded = self._coplanar_idxs(seed)
+            self.wire_plane_groups[i] = [
+                si for si in expanded if si not in self.wire_plane_excludes[i]]
+        for i, seed in enumerate(self.term_plane_seeds):
+            expanded = self._coplanar_idxs(seed)
+            self.term_plane_groups[i] = [
+                si for si in expanded if si not in self.term_plane_excludes[i]]
+        if self.select_mode == 'wire':
+            self._reload_plane_tree(is_wire=True)
+        elif self.select_mode == 'terminal_plane':
+            self._reload_plane_tree(is_wire=False)
+        if self.surface_overlay is not None:
+            self.surface_overlay.update()
+
     def _clear_terminals(self) -> None:
+        self.term_plane_groups = []
+        self.term_plane_seeds = []
+        self.term_plane_excludes = []
         self.terminal_surf_idxs.clear()
         self.terminal_surf_colors.clear()
         self.terminal_overrides.clear()
         self.term_color_idx = 0
+        self.plane_sel_group = -1
+        self.plane_sel_surf = -1
 
         for btn in self._mode_btns:
             btn.setChecked(False)
 
         self.select_mode = None
+        self.plane_list_panel.hide()
 
         if self.surface_overlay is not None:
             self.surface_overlay.update()
@@ -676,9 +861,69 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         self._set_status('Terminals cleared.')
 
     def _clear_all(self) -> None:
-        self.wire_surf_idx = None
+        self.wire_plane_groups = []
+        self.wire_plane_seeds = []
+        self.wire_plane_excludes = []
+        self.plane_sel_group = -1
+        self.plane_sel_surf = -1
         self._clear_terminals()
         self._set_status('All selections cleared.')
+
+    # ── plane tree event handlers ─────────────────────────────────────────────
+
+    def _on_plane_sel_changed(self, g: int, s: int) -> None:
+        self.plane_sel_group = g
+        self.plane_sel_surf = s
+        if self.surface_overlay is not None:
+            self.surface_overlay.update()
+
+    def _on_plane_remove(self, g: int, s: int) -> None:
+        is_wire = self.select_mode == 'wire'
+        groups = self.wire_plane_groups if is_wire else self.term_plane_groups
+        seeds = self.wire_plane_seeds if is_wire else self.term_plane_seeds
+        excludes = self.wire_plane_excludes if is_wire else self.term_plane_excludes
+
+        if g < 0 or g >= len(groups):
+            return
+
+        if s < 0:
+            # Remove the whole plane group
+            groups.pop(g)
+            seeds.pop(g)
+            excludes.pop(g)
+        else:
+            # Remove just the one surface; remember it so the tolerance slider
+            # re-expansion doesn't bring it back.
+            if s < len(groups[g]):
+                removed_si = groups[g].pop(s)
+                excludes[g].add(removed_si)
+                if not groups[g]:
+                    groups.pop(g)
+                    seeds.pop(g)
+                    excludes.pop(g)
+
+        self.plane_sel_group = -1
+        self.plane_sel_surf = -1
+        self._reload_plane_tree(is_wire)
+        if self.surface_overlay is not None:
+            self.surface_overlay.update()
+
+    def _on_plane_accepted(self) -> None:
+        for btn in self._mode_btns:
+            btn.setChecked(False)
+        self.select_mode = None
+        self.plane_sel_group = -1
+        self.plane_sel_surf = -1
+        self.plane_list_panel.hide()
+        self._set_status('')
+        if self.surface_overlay is not None:
+            self.surface_overlay.update()
+
+    def _on_cavity_selected(self, wire_si: int, term_si: int) -> None:
+        self.selected_cavity_wire_si = wire_si
+        self.selected_cavity_term_si = term_si
+        if self.surface_overlay is not None:
+            self.surface_overlay.update()
 
     def _set_status(self, msg: str) -> None:
         self._status_label.setText(msg)
@@ -686,6 +931,8 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
     # ── boilerplate (unchanged from original) ─────────────────────────────────
 
     def closeEvent(self, event):
+        if self._picker is not None:
+            self._picker.cleanup()
         self.canvas.cleanup()
         super().closeEvent(event)
 
