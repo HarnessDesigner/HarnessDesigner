@@ -8,7 +8,9 @@ from PySide6.QtWidgets import QTabWidget
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
 from .pjt_bases import PJTEntryBase, PJTTableBase
+from . import pjt_point3d as _pjt_point3d
 from . import pjt_seal as _pjt_seal
+from ...geometry import point as _point
 from . import pjt_circuit as _pjt_circuit
 from ..global_db import terminal as _terminal
 from ... import logger as _logger
@@ -503,6 +505,128 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin, Not
                 continue
 
             return seal
+
+    _stored_wire_position3d: "_pjt_point3d.PJTPoint3D" = None
+
+    @property
+    def wire_position3d(self) -> "_point.Point":
+        """Return the wire attachment point (center of the terminal's back OBB face).
+
+        Lazily creates and persists the point on first access when the
+        ``wire_point3d_id`` column is NULL.  Returns ``None`` only when the
+        terminal's part or 3-D model has no geometry available.
+        """
+        if self._stored_wire_position3d is None:
+            wire_point3d_id = self._table.select('wire_point3d_id', id=self._db_id)[0][0]
+            if wire_point3d_id is None:
+                wire_point3d_id = self._compute_wire_position3d()
+            if wire_point3d_id is None:
+                return None
+            self._stored_wire_position3d = self._table.db.pjt_points3d_table[wire_point3d_id]
+        return self._stored_wire_position3d.point
+
+    def _compute_wire_position3d(self) -> "int | None":
+        """Compute and persist the wire attachment point.
+
+        The position is the center of the back OBB face (face opposite the
+        terminal's forward face) rotated into world space by the terminal's
+        current angle and offset by the terminal's current position.
+
+        When no mesh has been processed yet (``model3d.obb`` is ``None``),
+        the OBB and AABB are built from the part's physical dimensions and
+        stored to the global DB so subsequent callers find them there.
+
+        Returns the new ``pjt_points3d`` row id, or ``None`` when the
+        terminal has no part assigned.
+        """
+        import numpy as np
+
+        part = self.part
+        if part is None:
+            return None
+
+        model3d = part.model3d
+        if model3d is None:
+            return None
+
+        local_obb = model3d.obb
+        if local_obb is None:
+            half_w = part.width / 2.0
+            half_h = part.height / 2.0
+            half_l = part.length / 2.0
+            local_obb = np.array([
+                [-half_w, -half_h, -half_l],
+                [+half_w, -half_h, -half_l],
+                [-half_w, +half_h, -half_l],
+                [+half_w, +half_h, -half_l],
+                [-half_w, -half_h, +half_l],
+                [+half_w, -half_h, +half_l],
+                [-half_w, +half_h, +half_l],
+                [+half_w, +half_h, +half_l],
+            ], dtype=np.float32)
+            model3d.obb = local_obb
+            model3d.aabb = np.array([
+                [-half_w, -half_h, -half_l],
+                [+half_w, +half_h, +half_l],
+            ], dtype=np.float32)
+
+        fwd_face, _ = model3d.forward_up
+        if fwd_face == -1:
+            fwd_face = 4  # default: −Z side is the insertion face (cavity convention)
+
+        back_face = fwd_face ^ 1
+        axis = back_face // 2
+        sign = back_face % 2
+        sorted_i = np.argsort(local_obb[:, axis])
+        corner_i = sorted_i[:4] if sign == 0 else sorted_i[4:]
+
+        back_center = local_obb[corner_i].mean(axis=0)
+
+        back_pt = _point.Point(
+            float(str(np.float32(back_center[0]))),
+            float(str(np.float32(back_center[1]))),
+            float(str(np.float32(back_center[2])))
+        )
+        back_pt @= self.angle3d
+        back_pt += self.position3d
+
+        x, y, z = back_pt.as_float
+
+        self._table.execute(
+            'INSERT INTO pjt_points3d (project_id, x, y, z) VALUES (?, ?, ?, ?);',
+            (self._table.project_id, x, y, z)
+        )
+        self._table.commit()
+        wire_point3d_id = self._table.lastrowid
+        self._table.update(self._db_id, wire_point3d_id=wire_point3d_id)
+        return wire_point3d_id
+
+    _stored_seal_position3d: "_pjt_point3d.PJTPoint3D" = None
+
+    @property
+    def seal_position3d(self) -> "_point.Point":
+        """Return the per-terminal seal position.
+
+        Returns ``None`` until the seal is created and ``seal_point3d_id``
+        is set via the :attr:`seal_point3d_id` setter.
+        """
+        if self._stored_seal_position3d is None:
+            seal_point3d_id = self._table.select('seal_point3d_id', id=self._db_id)[0][0]
+            if seal_point3d_id is None:
+                return None
+            self._stored_seal_position3d = self._table.db.pjt_points3d_table[seal_point3d_id]
+        return self._stored_seal_position3d.point
+
+    @property
+    def seal_point3d_id(self) -> "int | None":
+        """Return the DB row id of the seal position point, or ``None``."""
+        return self._table.select('seal_point3d_id', id=self._db_id)[0][0]
+
+    @seal_point3d_id.setter
+    def seal_point3d_id(self, value: int):
+        """Persist *value* as the seal position point id and invalidate the cache."""
+        self._stored_seal_position3d = None
+        self._table.update(self._db_id, seal_point3d_id=value)
 
     _stored_part: "_terminal.Terminal" = None
 

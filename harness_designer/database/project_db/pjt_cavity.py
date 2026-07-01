@@ -383,6 +383,8 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
 
         self._table.update(self._db_id, obb=str(value))
 
+    _stored_terminal: "_pjt_terminal.PJTTerminal" = None
+
     @property
     def terminal(self) -> "_pjt_terminal.PJTTerminal":
         """
@@ -392,13 +394,17 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
         :rtype: :class:`_pjt_terminal.PJTTerminal`
         """
 
+        if self._stored_terminal is not None:
+            return self._stored_terminal
+
         terminal_ids = self._table.db.pjt_terminals_table.select(
             'id', cavity_id=self._db_id)
 
         if not terminal_ids:
             return None
 
-        return self._table.db.pjt_terminals_table[terminal_ids[0][0]]
+        self._stored_terminal = self._table.db.pjt_terminals_table[terminal_ids[0][0]]
+        return self._stored_terminal
 
     _stored_terminal_position3d: "_pjt_point3d.PJTPoint3D" = None
 

@@ -420,6 +420,18 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         self.__callbacks__ = []
         self.__unbound_callbacks__ = []
         self.__ref_count__ = 0
+        self._stale = False
+
+    @property
+    def stale(self) -> bool:
+        """True when in-memory coordinates have been batch-written to DB but
+        no render callback has fired yet — signals objects (e.g. Wire) to
+        recompute their geometry on the next render pass."""
+        return self._stale
+
+    @stale.setter
+    def stale(self, value: bool) -> None:
+        self._stale = value
 
     @property
     def db_id(self) -> "str | int | None":

@@ -19,6 +19,7 @@ from . import pjt_cpa_lock as _pjt_cpa_lock
 from . import pjt_seal as _pjt_seal
 from . import pjt_boot as _pjt_boot
 from . import pjt_cavity as _pjt_cavity
+from . import pjt_point3d as _pjt_point3d
 
 from ..global_db import housing as _housing
 from .mixins import (
@@ -298,6 +299,8 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
             cavity = _cavity.Cavity(self._table.db.mainframe, db_obj)
             self._table.db.mainframe.project.add_cavity(cavity)
 
+        self._stored_cavities = None
+
     def get_object(self) -> "_housing_obj.Housing":
         """Return the object.
 
@@ -345,6 +348,8 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         """
         return self._table
 
+    _stored_cavities: list = None
+
     @property
     def cavities(self) -> list["_pjt_cavity.PJTCavity"]:
         """Return the cavities.
@@ -354,6 +359,9 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :returns: Property value. UNKNOWN details.
         :rtype: list['_pjt_cavity.PJTCavity']
         """
+        if self._stored_cavities is not None:
+            return self._stored_cavities
+
         cavities = []
 
         cavity_ids = self._table.db.pjt_cavities_table.select(
@@ -364,6 +372,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
             cavities.append(cavity)
 
+        self._stored_cavities = cavities
         return cavities
 
     _stored_cover_position3d: "_pjt_point3d.PJTPoint3D" = None
@@ -728,7 +737,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
                                                           self.db_id)
 
         cavity.name = name
-
+        self._stored_cavities = None
         return cavity
 
     @property
@@ -912,43 +921,93 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :type point: :class:`_point.Point`
         """
 
-        # when the position of a housing is changed all of the objects that
-        # attach to the housing also need to change. That update should happen
-        # in a location where the points for those accessory items change even if
-        # there is no accessory attached to them. The positions of the accessories
-        # are set in the housing editor dialog and those positions are calculated
-        # with the housing center positioned at (0, 0, 0). This makes updating the
-        # the positions easier to do because we simply calculate the difference
-        # between the old housing position and the new position and apply that
-        # difference to each of the accessory points.
-
         delta = point - self._o_position3d
         self._o_position3d = point.copy()
 
-        for cavity in self.cavities:
-            if cavity is None:
+        cavities = [c for c in self.cavities if c is not None]
+
+        # Cavity + accessory positions: use _skip_db_write (no seal cascade).
+        cavity_positions = [cavity.position3d for cavity in cavities]
+
+        accessory_positions = [self.cover_position3d, self.seal_position3d,
+                               self.boot_position3d, self.tpa_lock_1_position3d,
+                               self.tpa_lock_2_position3d, self.cpa_lock_position3d]
+
+        # Terminal center positions: no _skip_db_write (seal cascade must reach DB).
+        # Wire attachment points: stale-only, no callbacks.
+
+        terminal_positions = []
+        wire_positions = []
+        for cavity in cavities:
+            terminal = cavity.terminal
+
+            if terminal is None:
                 continue
 
-            c_position = cavity.position3d
-            c_position += delta
+            terminal_positions.append(cavity.terminal_position3d)
+            terminal_positions.append(terminal.position3d)
 
-        pos = self.cover_position3d
-        pos += delta
+            wp = terminal.wire_position3d
+            if wp is not None:
+                wire_positions.append(wp)
 
-        pos = self.seal_position3d
-        pos += delta
+        all_positions = cavity_positions + accessory_positions + terminal_positions + wire_positions
 
-        pos = self.boot_position3d
-        pos += delta
+        seen = {}
+        for pos in all_positions:
+            key = int(pos.db_id[:-2])
+            if key not in seen:
+                seen[key] = pos
+        all_positions = list(seen.values())
 
-        pos = self.tpa_lock_1_position3d
-        pos += delta
+        if not all_positions:
+            return
 
-        pos = self.tpa_lock_2_position3d
-        pos += delta
+        # changed the data type to a float32
+        all_positions_array = np.array([pos.as_float for pos in all_positions], dtype=np.float32)
 
-        pos = self.cpa_lock_position3d
-        pos += delta
+        # ONE numpy operation for all positions at once.
+        # there is no need to turn the delta into a numpy array. the code
+        # already exists to directly apply a Point delta directly
+        # to a numpy array.
+
+        new_pos_arr = all_positions_array + delta
+
+        # ONE batch DB write for everything (one executemany + one commit).
+        db_ids = [int(p.db_id[:-2]) for p in all_positions]
+
+        # The row handling seen commented below is inefficient and would produce
+        # incorrect values because of how the conversion from a numpy array to a
+        # float array was being done.
+        # rows = [
+        #     (float(new_pos_arr[i, 0]), float(new_pos_arr[i, 1]), float(new_pos_arr[i, 2]), db_ids[i])
+        #     for i in range(len(all_positions))
+        # ]
+        f_position_array = [[float(str(axis)) for axis in point] for point in new_pos_arr]
+
+        # each row is [x, y, z, db_id] — four elements matching the four ? placeholders
+        rows = [[*pos, db_id] for pos, db_id in zip(f_position_array, db_ids)]
+
+        self._table.db.pjt_points3d_table.batch_update(['x', 'y', 'z'], rows)
+
+        # TODO: We need to handle this in a better way. We do not want to
+        #       specifically stop all database updated from occuring for points
+        #       because there could be other points that end up getting modified
+        #       as the result of a point moving. What we need to do is access
+        #       the actual point database object directly and set a marker in
+        #       that instance to not update. This will allow all of the original
+        #       mechanics to run properly without updating the database.
+        #       for the time being I am not going to allow any updates to occur
+        #       and we will mark the Point instance as stale. This way we can
+        #       override the render functions in the 3d object classes that use
+        #       these points so they can update their obb, aabb and any other
+        #       stored data that needs to be updated at render time.
+        for i, pos in enumerate(all_positions):
+            pos.stale = True
+            with pos:
+                pos.x = f_position_array[i][0]
+                pos.y = f_position_array[i][1]
+                pos.z = f_position_array[i][2]
 
     _o_position3d: "_point.Point" = None
 
@@ -1023,6 +1082,9 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
         return point
 
+    _o_quat3d: list = None
+    _o_euler3d: list = None
+
     def _update_angle3d(self, angle: _angle.Angle):
         """Update the angle 3D.
 
@@ -1031,14 +1093,16 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :param angle: Value for ``angle``.
         :type angle: :class:`_angle.Angle`
         """
-        quat = eval(self._table.select('quat3d', id=self._db_id)[0][0])
-        euler = eval(self._table.select('angle3d', id=self._db_id)[0][0])
+        if self._o_quat3d is None:
+            self._o_quat3d = eval(self._table.select('quat3d', id=self._db_id)[0][0])
+            self._o_euler3d = eval(self._table.select('angle3d', id=self._db_id)[0][0])
 
-        o_angle = _angle.Angle.from_quat(quat, euler)
-        inverse_angle = o_angle.inverse
+        o_angle = _angle.Angle.from_quat(self._o_quat3d, self._o_euler3d)
 
-        quat = str(list(angle.as_quat_float))
-        euler = str(list(angle.as_euler_float))
+        new_quat = list(angle.as_quat_float)
+        new_euler = list(angle.as_euler_float)
+        quat = str(new_quat)
+        euler = str(new_euler)
 
         self._table.update(self._db_id, quat3d=quat)
         self._table.update(self._db_id, angle3d=euler)
@@ -1046,50 +1110,84 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         if 'nan' in euler or 'nan' in quat:
             return
 
+        self._o_quat3d = new_quat
+        self._o_euler3d = new_euler
+
         # Compute the true world-space rotation delta as q_new ⊗ q_old⁻¹.
         # Using the Euler-path (angle - o_angle) gives a component-wise
         # difference that is only correct when the non-rotated axes are zero.
         actual_delta_q = angle._q - o_angle._q  # NOQA
         position = self.position3d
-
         cavities = [c for c in self.cavities if c is not None]
+
+        w_d, x_d, y_d, z_d = actual_delta_q.as_float
+        qvec_d = np.array([x_d, y_d, z_d], dtype=np.float64)
+        center = np.array([position.x, position.y, position.z], dtype=np.float64)
+
+        # ── Collect all positions for one vectorized rotation ─────────────────
+        all_positions = []
         for cavity in cavities:
-            pos = cavity.position3d
+            all_positions.append(cavity.position3d)
+            terminal = cavity.terminal
+            if terminal is not None:
+                all_positions.append(cavity.terminal_position3d)
+                all_positions.append(terminal.position3d)
+                wp = terminal.wire_position3d
+                if wp is not None:
+                    all_positions.append(wp)
 
-            new_pos = pos - position
-            new_pos @= inverse_angle
-            new_pos @= angle
-            new_pos += position
-            pos_delta = new_pos - pos
+        all_positions.extend([
+            self.cover_position3d, self.seal_position3d, self.boot_position3d,
+            self.tpa_lock_1_position3d, self.tpa_lock_2_position3d,
+            self.cpa_lock_position3d
+        ])
 
+        seen = {}
+        for pos in all_positions:
+            key = int(pos.db_id[:-2])
+            if key not in seen:
+                seen[key] = pos
+        all_positions = list(seen.values())
+
+        if all_positions:
+            pos_arr = np.array([[p.x, p.y, p.z] for p in all_positions], dtype=np.float64)
+            rel = pos_arr - center
+            t_vec = np.cross(qvec_d, rel)
+            new_pos_arr = rel + 2.0 * w_d * t_vec + 2.0 * np.cross(qvec_d, t_vec) + center
+
+            f_position_array = [[float(str(axis)) for axis in point] for point in new_pos_arr]
+            db_ids = [int(p.db_id[:-2]) for p in all_positions]
+            rows = [[*pos, db_id] for pos, db_id in zip(f_position_array, db_ids)]
+            self._table.db.pjt_points3d_table.batch_update(['x', 'y', 'z'], rows)
+
+            for i, pos in enumerate(all_positions):
+                pos.stale = True
+                with pos:
+                    pos.x = f_position_array[i][0]
+                    pos.y = f_position_array[i][1]
+                    pos.z = f_position_array[i][2]
+
+        # ── Per-cavity angle computation (OBB-based) ──────────────────────────
+        angle_results = []  # [(cavity, q_acc_new, new_euler), ...]
+
+        for cavity in cavities:
             cavity_angle = cavity.angle3d
             old_euler = cavity_angle.as_euler_float
-
-            # world-space composition: q_delta ⊗
             q_acc_new = cavity_angle._q + actual_delta_q  # NOQA
 
             new_euler = None
             part = cavity.part
-
             local_obb = part.obb
-
-            fwd_face = 4
-            up_face = 3
-
-            # Full world-space rotation: project angle on top of
-            # the baked model3d orientation (q_acc_new ⊗ q_model3d).
-            # forward_up face indices were chosen using model3d.angle3d,
-            # so we must include it here for consistent face directions.
             q_model3d = part.angle3d._q  # NOQA
-
-            # = q_acc_new ⊗ q_model3d
             q_obb = q_model3d + q_acc_new
 
-            rotated = np.array(
-                [q_obb @ c for c in local_obb], dtype=np.float32)
+            w_o, x_o, y_o, z_o = q_obb.as_float
+            qvec_o = np.array([x_o, y_o, z_o], dtype=np.float32)
+            t_o = np.cross(qvec_o, local_obb)
+            rotated = local_obb + 2.0 * w_o * t_o + 2.0 * np.cross(qvec_o, t_o)
 
-            fwd = _obb_face_direction(rotated, local_obb, fwd_face)
-            up = _obb_face_direction(rotated, local_obb, up_face)
+            fwd = _obb_face_direction(rotated, local_obb, 4)
+            up = _obb_face_direction(rotated, local_obb, 3)
 
             if fwd is None or up is None:
                 continue
@@ -1102,116 +1200,102 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
                 rot_mat = np.column_stack([right, up, fwd])
                 new_euler = _euler_from_matrix_continuous(rot_mat, old_euler)
 
-            with cavity_angle:
-                if new_euler is None:
-                    cavity_angle.x = float('nan')
-                    cavity_angle.y = float('nan')
-                    cavity_angle.z = float('nan')
-                else:
-                    cavity_angle.x = new_euler[0]
-                    cavity_angle.y = new_euler[1]
-                    cavity_angle.z = new_euler[2]
+            if new_euler is None:
+                new_euler = _euler_from_matrix_continuous(q_acc_new.as_matrix, old_euler)
 
-                # Update quaternion, Euler cache, and matrix in one shot so
-                # only a single DB write fires through _process_callbacks.
-                cavity_angle._q.w = q_acc_new.w  # NOQA
-                cavity_angle._q.x = q_acc_new.x  # NOQA
-                cavity_angle._q.y = q_acc_new.y  # NOQA
-                cavity_angle._q.z = q_acc_new.z  # NOQA
+            angle_results.append((cavity, q_acc_new, new_euler))
 
-                cavity_angle._matrix[:] = q_acc_new.as_matrix  # NOQA
+        for cav, q_acc_new, new_euler in angle_results:
+            cav_angle = cav.angle3d
+            with cav_angle:
+                cav_angle.x = new_euler[0]
+                cav_angle.y = new_euler[1]
+                cav_angle.z = new_euler[2]
+                cav_angle._q.w = q_acc_new.w  # NOQA
+                cav_angle._q.x = q_acc_new.x  # NOQA
+                cav_angle._q.y = q_acc_new.y  # NOQA
+                cav_angle._q.z = q_acc_new.z  # NOQA
+                cav_angle._matrix[:] = q_acc_new.as_matrix  # NOQA
 
-            cavity_angle._process_callbacks()  # NOQA
+        if angle_results:
+            angle_rows = [
+                (str([q.w, q.x, q.y, q.z]), str(eu), cav._db_id)
+                for cav, q, eu in angle_results
+            ]
+            angle_results[0][0]._table.batch_update(['quat3d', 'angle3d'], angle_rows)
 
-            pos += pos_delta
+        # ── Accessory angle computation (OBB-based) ───────────────────────────
+        acc_objs = [self.tpa_lock1, self.tpa_lock2,
+                    self.cover, self.cpa_lock, self.boot, self.seal]
 
-        cover_pos = self.cover_position3d
-        cpa_pos = self.cpa_lock_position3d
-        tpa1_pos = self.tpa_lock_1_position3d
-        tpa2_pos = self.tpa_lock_2_position3d
-        seal_pos = self.seal_position3d
-        boot_pos = self.boot_position3d
+        acc_angle_results = []  # [(obj, q_acc_new, new_euler), ...]
 
-        objs = [self.tpa_lock1, self.tpa_lock2,
-                self.cover, self.cpa_lock, self.boot, self.seal]
+        for obj in acc_objs:
+            if obj is None:
+                continue
 
-        objs = zip(objs, [tpa1_pos, tpa2_pos, cover_pos,
-                          cpa_pos, boot_pos, seal_pos])
+            obj_angle = obj.angle3d
+            old_euler = obj_angle.as_euler_float
+            q_acc_new = obj_angle._q + actual_delta_q  # NOQA
 
-        for obj, pos in objs:
-            new_pos = pos - position
+            new_euler = None
+            part = obj.part
+            if part is not None:
+                model3d = part.model3d
+                if model3d is not None:
+                    local_obb = model3d.obb
+                    fwd_face, up_face = model3d.forward_up
+                    if fwd_face == -1 or up_face == -1:
+                        continue
 
-            new_pos @= inverse_angle
-            new_pos @= angle
-            new_pos += position
-            pos_delta = new_pos - pos
+                    q_model3d = model3d.angle3d._q  # NOQA
+                    q_obb = q_model3d + q_acc_new
 
-            if obj is not None:
-                obj_angle = obj.angle3d
-                old_euler = obj_angle.as_euler_float
+                    w_o, x_o, y_o, z_o = q_obb.as_float
+                    qvec_o = np.array([x_o, y_o, z_o], dtype=np.float32)
+                    t_o = np.cross(qvec_o, local_obb)
+                    rotated = local_obb + 2.0 * w_o * t_o + 2.0 * np.cross(qvec_o, t_o)
 
-                # world-space composition: q_delta ⊗ q_acc_old
-                q_acc_new = obj_angle._q + actual_delta_q  # NOQA
+                    fwd = _obb_face_direction(rotated, local_obb, fwd_face)
+                    up = _obb_face_direction(rotated, local_obb, up_face)
 
-                new_euler = None
-                part = obj.part
-                if part is not None:
-                    model3d = part.model3d
-                    if model3d is not None:
-                        local_obb = model3d.obb
-                        fwd_face, up_face = model3d.forward_up
-                        if fwd_face == -1 or up_face == -1:
-                            continue
+                    if fwd is None or up is None:
+                        continue
 
-                        # Full world-space rotation: project angle on top of
-                        # the baked model3d orientation (q_acc_new ⊗ q_model3d).
-                        # forward_up face indices were chosen using model3d.angle3d,
-                        # so we must include it here for consistent face directions.
-                        q_model3d = model3d.angle3d._q  # NOQA
+                    right = np.cross(up, fwd)
+                    rn = float(np.linalg.norm(right))
+                    if rn > 1e-8:
+                        right /= rn
+                        up = np.cross(fwd, right)
+                        rot_mat = np.column_stack([right, up, fwd])
+                        new_euler = _euler_from_matrix_continuous(rot_mat, old_euler)
 
-                        # = q_acc_new ⊗ q_model3d
-                        q_obb = q_model3d + q_acc_new
+            if new_euler is None:
+                new_euler = _euler_from_matrix_continuous(q_acc_new.as_matrix, old_euler)
 
-                        rotated = np.array(
-                            [q_obb @ c for c in local_obb], dtype=np.float32)
+            acc_angle_results.append((obj, q_acc_new, new_euler))
 
-                        fwd = _obb_face_direction(rotated, local_obb, fwd_face)
-                        up = _obb_face_direction(rotated, local_obb, up_face)
+        for obj, q_acc_new, new_euler in acc_angle_results:
+            obj_angle = obj.angle3d
+            with obj_angle:
+                obj_angle.x = new_euler[0]
+                obj_angle.y = new_euler[1]
+                obj_angle.z = new_euler[2]
+                obj_angle._q.w = q_acc_new.w  # NOQA
+                obj_angle._q.x = q_acc_new.x  # NOQA
+                obj_angle._q.y = q_acc_new.y  # NOQA
+                obj_angle._q.z = q_acc_new.z  # NOQA
+                obj_angle._matrix[:] = q_acc_new.as_matrix  # NOQA
 
-                        if fwd is None or up is None:
-                            continue
-
-                        right = np.cross(up, fwd)
-                        rn = float(np.linalg.norm(right))
-                        if rn > 1e-8:
-                            right /= rn
-                            up = np.cross(fwd, right)
-                            rot_mat = np.column_stack([right, up, fwd])
-                            new_euler = _euler_from_matrix_continuous(
-                                rot_mat, old_euler)
-
-                with obj_angle:
-                    if new_euler is None:
-                        obj_angle.x = float('nan')
-                        obj_angle.y = float('nan')
-                        obj_angle.z = float('nan')
-                    else:
-                        obj_angle.x = new_euler[0]
-                        obj_angle.y = new_euler[1]
-                        obj_angle.z = new_euler[2]
-
-                    # Update quaternion, Euler cache, and matrix in one shot so
-                    # only a single DB write fires through _process_callbacks.
-                    obj_angle._q.w = q_acc_new.w  # NOQA
-                    obj_angle._q.x = q_acc_new.x  # NOQA
-                    obj_angle._q.y = q_acc_new.y  # NOQA
-                    obj_angle._q.z = q_acc_new.z  # NOQA
-
-                    obj_angle._matrix[:] = q_acc_new.as_matrix  # NOQA
-
-                obj_angle._process_callbacks()  # NOQA
-
-            pos += pos_delta
+        if acc_angle_results:
+            from collections import defaultdict as _dd
+            table_angle_rows = _dd(list)
+            for obj, q, eu in acc_angle_results:
+                table_angle_rows[obj._table].append(
+                    (str([q.w, q.x, q.y, q.z]), str(eu), obj._db_id)
+                )
+            for table, rows in table_angle_rows.items():
+                table.batch_update(['quat3d', 'angle3d'], rows)
 
         self._populate('angle3d')
 

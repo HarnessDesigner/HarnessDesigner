@@ -261,6 +261,10 @@ class PJTPoint3D(PJTEntryBase):
         """
         self._table.update(self._db_id, z=value)
 
+    # Class-level flag: set True during bulk position batch-writes so that the
+    # per-point DB callback is suppressed while 3D render callbacks still fire.
+    _skip_db_write: bool = False
+
     def _update_point(self, point: _point.Point):
         """Update the point.
 
@@ -275,6 +279,8 @@ class PJTPoint3D(PJTEntryBase):
             self._stored_point3d = None
             self._db_id = db_id
             self._is_clone = True
+            return
+        if PJTPoint3D._skip_db_write:
             return
         x, y, z = point.as_float
         self._table.update(self._db_id, x=x, y=y, z=z)

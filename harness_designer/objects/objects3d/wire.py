@@ -70,6 +70,7 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
         self._wires = []  # List of weak references to Wire objects
 
         self._p2.bind(self._update_position)
+        self._geometry_stale = False
 
         vbo = _cylinder.create_vbo()
         angle = _angle.Angle()
@@ -81,7 +82,12 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
 
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
 
-        self._update_position(None)
+        # _update_angle just calls _update_position(None) — redundant since
+        # both endpoints already drive recalculation via their point bindings.
+        # The stale-marker path (render-time check) replaces this callback.
+        self._angle.unbind(self._update_angle)
+
+        self._recalculate_geometry()
         parent.mainframe.editor3d.context.release()
 
     @property
@@ -104,10 +110,8 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
         """
         self._update_position(None)
 
-    def _update_position(self, _: _point.Point):
-        """Calculate position, rotation, and scale from endpoints"""
-
-        # Calculate wire vector
+    def _recalculate_geometry(self):
+        """Compute wire direction, length, angle, OBB and AABB from current endpoints."""
         wire_vector = (self._p2 - self._p1).as_numpy
         length = np.linalg.norm(wire_vector)
 
@@ -124,6 +128,19 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
 
         self._compute_obb()
         self._compute_aabb()
+
+    def _update_position(self, _: _point.Point):
+        """Defer geometry recalculation to the next render pass."""
+        self._geometry_stale = True
+
+    def render(self, faces_program, edges_program, vertices_program):
+        """Render the wire, recomputing geometry if an endpoint moved since last render."""
+        if self._geometry_stale or self._p1.stale or self._p2.stale:
+            self._recalculate_geometry()
+            self._geometry_stale = False
+            self._p1.stale = False
+            self._p2.stale = False
+        super().render(faces_program, edges_program, vertices_program)
 
     def set_selected(self, flag: bool):
         """Set the selected.

@@ -523,6 +523,22 @@ class PJTTableBase:
         self._con.execute(f'UPDATE {self.__table_name__} SET {fields} WHERE id = {db_id};', values)
         self._con.commit()
 
+    def batch_update(self, field_names: list, rows: list) -> None:
+        """Update multiple rows in one transaction.
+
+        :param field_names: Column names to update, e.g. ``['x', 'y', 'z']``.
+        :type field_names: list[str]
+        :param rows: Sequence of ``(val1, val2, ..., row_id)`` tuples.
+            The last element of every tuple must be the row ``id``.
+        :type rows: list[tuple]
+        """
+        if not rows:
+            return
+        set_clause = ', '.join(f'{f} = ?' for f in field_names)
+        sql = f'UPDATE {self.__table_name__} SET {set_clause} WHERE id = ?'
+        self._con.executemany(sql, rows)
+        self._con.commit()
+
     @property
     def has_points3d(self):
         """Return the has points 3D.

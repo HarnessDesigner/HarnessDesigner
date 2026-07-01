@@ -130,6 +130,10 @@ class PJTBundlesTable(PJTTableBase):
 
         :param part_id: Identifier for the part.
         :type part_id: int
+
+        :param name: Name for the project part.
+        :type part_id: str
+
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`PJTBundle`
         """
@@ -170,8 +174,8 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
 
     @diameter.setter
     def diameter(self, value: float):
-        concentric_id = self.table.db.pjt_concentrics_table.select('id', bundle_id=self.db_id)[
-            0][0]
+        # TODO: figure out the code that is needed here.
+        concentric_id = self.table.db.pjt_concentrics_table.select('id', bundle_id=self.db_id)[0][0]
 
     def get_object(self) -> "_bundle_obj.Bundle":
         """Return the object.
