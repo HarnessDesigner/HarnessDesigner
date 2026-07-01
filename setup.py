@@ -51,42 +51,29 @@ def main():
     assimp_path = os.path.join(base_path, 'libs/assimp/port/PyAssimp')
     assimp_lib_path = os.path.join(assimp_path, 'pyassimp')
 
+    # Rename pyproject.toml if present so pip uses the legacy setup.py path
+    # and does not attempt an isolated build (which would lose the pre-copied DLLs).
     toml_path = os.path.join(assimp_path, 'pyproject.toml')
-
+    toml_bak = toml_path + '.bak'
     if os.path.exists(toml_path):
-        os.rename(toml_path, toml_path + '.bak')
+        os.rename(toml_path, toml_bak)
 
-    assimp_files = []
     for file in os.listdir(assimp_binary_path):
         src = os.path.join(assimp_binary_path, file)
         dst = os.path.join(assimp_lib_path, file)
-
-        assimp_files.append(dst)
         shutil.copyfile(src, dst)
 
     os.environ['PATH'] += os.pathsep + assimp_binary_path
 
-    os.chdir(assimp_path)
-    setup(
-        name='pyassimp',
-        version='5.2.5',
-        description='Python bindings for the Open Asset Import Library (ASSIMP)',
-        url='https://github.com/assimp/assimp',
-        author='ASSIMP developers',
-        zip_safe=False,
-        author_email='assimp-discussions@lists.sourceforge.net',
-        maintainer='Séverin Lemaignan',
-        maintainer_email='severin@guakamole.org',
-        packages=['pyassimp'],
-        include_package_data=True,
-        package_data={
-            'pyassimp': assimp_files,
-            'share/pyassimp': ['README.rst'],
-            'share/examples/pyassimp': ['scripts/' + f for f in
-                                        os.listdir('scripts/')]
-        },
-        install_requires=['numpy==2.2.6']
-    )
+    import subprocess
+    try:
+        subprocess.run(
+            [sys.executable, '-m', 'pip', 'install', '--no-build-isolation', assimp_path],
+            check=True,
+        )
+    finally:
+        if os.path.exists(toml_bak):
+            os.rename(toml_bak, toml_path)
 
     while base_path in sys.path:
         sys.path.remove(base_path)

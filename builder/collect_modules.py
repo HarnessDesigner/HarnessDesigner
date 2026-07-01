@@ -64,21 +64,31 @@ pandas'''
 
 
 def get_modules():
+    import logging
+
     res = []
-    for name in MODULE_NAMES.split('\n'):
-        try:
-            mod = __import__(name)
-        except ModuleNotFoundError:
-            print('MODULE NOT FOUND:', name)
-            continue
+    # Some modules (e.g. matplotlib) initialise loggers on import whose
+    # underlying stream has been detached by PyInstaller's build harness,
+    # producing spurious "ValueError: underlying buffer has been detached"
+    # tracebacks.  Silence all logging for the duration of the probe imports.
+    logging.disable(logging.CRITICAL)
+    try:
+        for name in MODULE_NAMES.split('\n'):
+            try:
+                mod = __import__(name)
+            except ModuleNotFoundError:
+                print('MODULE NOT FOUND:', name)
+                continue
 
-        if mod.__file__ is None:
-            cmd = [f'--hidden-import={name}']
-        elif '__init__' in mod.__file__:
-            cmd = [f'--collect-all={name}']
-        else:
-            cmd = [f'--hidden-import={name}']
+            if mod.__file__ is None:
+                cmd = [f'--hidden-import={name}']
+            elif '__init__' in mod.__file__:
+                cmd = [f'--collect-all={name}']
+            else:
+                cmd = [f'--hidden-import={name}']
 
-        res.extend(cmd)
+            res.extend(cmd)
+    finally:
+        logging.disable(logging.NOTSET)
 
     return res

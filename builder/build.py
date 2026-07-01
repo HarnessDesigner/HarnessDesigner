@@ -11,7 +11,7 @@ def build_dependency_installer():
         f'--add-binary={sys.executable}{os.pathsep}.',
         '--collect-all=pip',
         '--name=installer',
-        '--contents-directory=.',
+        '--onefile',
         '--noconfirm',
         '--clean',
         '--windowed',
@@ -79,13 +79,41 @@ def build_installer(base_import):
         'shiboken6',
         'mysql',
         'mysql.connector',
+        # test suites that drag in pytest and test data
+        'numpy.f2py.tests',
+        'pandas.tests',
+        'matplotlib.tests',
+        # optional extras whose dependencies are not installed
+        'pyparsing.diagram',                    # needs railroad
+        'prompt_toolkit.contrib.ssh',           # needs asyncssh
+        'scipy._lib.array_api_compat.torch',    # needs torch
+        # OpenGL Tk/Togl integration — not available in headless environments
+        'OpenGL.Tk',
+        # distutils sub-modules that do not exist in Python 3.11 but are
+        # referenced by pip's metadata, causing spurious ERROR log lines
+        'distutils._collections',
+        'distutils._macos_compat',
+        'distutils.command.py37compat',
+        'distutils.py35compat',
+        'distutils.py38compat',
     ):
         args.extend([f'--exclude-module={mod}'])
+
+    # scipy Cython extension not auto-discovered by PyInstaller's hook
+    args.extend(['--hidden-import=scipy.special._cdflib'])
 
     info_plist = None
     if sys.platform.startswith('win'):
         args.extend(['--icon=../../harness_designer/image/icon_256x256.png'])
         args.extend(['--name=harness_designer'])
+        for mod in (
+            '_curses',
+            'curses',
+            'OpenGL.raw.GLES3',                     # GLES not available on Windows
+            'distutils.command.bdist_msi',           # does not exist in Python 3.11
+            'distutils.command.bdist_wininst',       # does not exist in Python 3.11
+        ):
+            args.extend([f'--exclude-module={mod}'])
     elif sys.platform.startswith('darwin'):
         arch = platform.machine()   # x86_64 or arm64
         args.extend([f'--target-arch={arch}'])

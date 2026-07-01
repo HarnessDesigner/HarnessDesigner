@@ -76,3 +76,10 @@ jobs:
           name: harness_designer-macos-arm64-dep-installer
           path: builder/scripts/dist/installer.app/
           if-no-files-found: error
+
+      - name: Upload macOS installer artifact
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: harness_designer-macos-installer
+          path: dist/macos/
+          if-no-files-found: error
