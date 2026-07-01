@@ -65,3 +65,10 @@ jobs:
           name: harness_designer-windows-dep-installer
           path: builder/scripts/dist/installer/
           if-no-files-found: error
+
+      - name: Upload Windows installer artifact
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: harness_designer-windows-installer
+          path: dist/windows/
+          if-no-files-found: error

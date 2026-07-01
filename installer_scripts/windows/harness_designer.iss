@@ -80,10 +80,10 @@ Name: "{commondesktop}\{#AppName}";     Filename: "{app}\{#AppExeName}"; Tasks: 
 ; Passes the lib\ directory inside the install folder as the target.
 ; The installer GUI lets the user choose optional components (e.g. MySQL support).
 Filename: "{tmp}\installer.exe"; \
-    Parameters: """{app}\lib"""; \
+    Parameters: """{app}\_internal"""; \
     StatusMsg: "Installing required components..."; \
     Flags: waituntilterminated
 
 [UninstallDelete]
-; Remove the externally installed package library on uninstall
-Type: filesandordirs; Name: "{app}\lib"
+; Remove any pip-installed packages that were added to _internal during setup
+Type: filesandordirs; Name: "{app}\_internal"
