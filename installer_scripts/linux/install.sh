@@ -58,7 +58,7 @@ else
 fi
 
 APP_DIR="$PREFIX/$APP_NAME"
-LIB_DIR="$APP_DIR/lib"
+LIB_DIR="$APP_DIR"
 
 # ── Sudo wrapper ──────────────────────────────────────────────────────────────
 

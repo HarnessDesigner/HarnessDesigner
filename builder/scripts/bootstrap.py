@@ -6,7 +6,7 @@ import importlib
 
 
 def _lib_dir():
-    return os.path.join(os.path.dirname(sys.executable), '_internal')
+    return os.path.dirname(sys.executable)
 
 
 def _python_exe():

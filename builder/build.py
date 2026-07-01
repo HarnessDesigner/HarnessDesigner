@@ -11,6 +11,7 @@ def build_dependency_installer():
         f'--add-binary={sys.executable}{os.pathsep}.',
         '--collect-all=pip',
         '--name=installer',
+        '--contents-directory=.',
         '--noconfirm',
         '--clean',
         '--windowed',
@@ -103,6 +104,7 @@ def build_installer(base_import):
 
     args += [
         '--collect-all=harness_designer',
+        '--contents-directory=.',
         '--noconfirm',
         '--clean',
         '--windowed',
