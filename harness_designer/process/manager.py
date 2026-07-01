@@ -729,6 +729,10 @@ class ProcessManager(threading.Thread):
 
         self._wait_event.set()
 
+    @property
+    def is_stopped(self):
+        return not self.is_alive()
+
     def stop(self):
         """Signal the worker thread and subprocesses to stop.
 
@@ -736,8 +740,10 @@ class ProcessManager(threading.Thread):
         :rtype: None
         """
 
+        self._image_process.stop()
+        self._db_process.stop()
+
         for process in self._model_processes[:]:
             process.stop()
 
-        self._image_process.stop()
-        self._db_process.stop()
+        self._exit_event.set()

@@ -291,11 +291,10 @@ def _reduce_triangles(
 
 class ThreadWorker(threading.Thread):
 
-    def __init__(self, db_broker, credentials, message, out_queue, exit_event):
+    def __init__(self, db_broker, credentials, message, out_queue):
         self.db_broker = db_broker
         self.credentials = credentials
         self.message = message
-        self.exit_event = exit_event
         self.out_queue = out_queue
 
         threading.Thread.__init__(self)
@@ -320,10 +319,6 @@ class ThreadWorker(threading.Thread):
 
             self.out_queue.put(message)
 
-            if self.exit_event.is_set():
-                connector.close()
-                return
-
             connector.execute(f'SELECT target_count, aggressiveness, '
                               f'update_rate, iterations, simplify, '
                               f'path FROM models3d WHERE id={model_id};')
@@ -342,14 +337,8 @@ class ThreadWorker(threading.Thread):
             message['step'] = 2
             self.out_queue.put(message)
 
-            if self.exit_event.is_set():
-                connector.close()
-                return
-
             (target_count, aggressiveness, update_rate,
              iterations, simplify, path) = model_data[0]
-
-            print('COLLECTING MODEL 1:', path)
 
             if not path:
                 message['err_msg'] = 'invalid model url/path'
@@ -362,10 +351,6 @@ class ThreadWorker(threading.Thread):
 
             message['step'] = 3
             self.out_queue.put(message)
-
-            if self.exit_event.is_set():
-                connector.close()
-                return
 
             try:
                 file_path = _resources.collect_resource(
@@ -402,8 +387,6 @@ class ThreadWorker(threading.Thread):
 
                 return
 
-            print('COLLECTING MODEL 2:', file_path)
-
             if file_path is None:
                 message['err_no'] = -10003
                 message['err_msg'] = f'This should not occur "models3d" ({model_id})'
@@ -416,10 +399,6 @@ class ThreadWorker(threading.Thread):
 
             message['step'] = 4
             self.out_queue.put(message)
-
-            if self.exit_event.is_set():
-                connector.close()
-                return
 
             model_path, file_type_id = file_path
 
@@ -441,10 +420,6 @@ class ThreadWorker(threading.Thread):
             message['step'] = 5
             self.out_queue.put(message)
 
-            if self.exit_event.is_set():
-                connector.close()
-                return
-
             if not os.path.exists(model_path):
                 message['err_msg'] = f'file does not exist ("{model_path}")'
                 message['err_no'] = -10005
@@ -462,10 +437,6 @@ class ThreadWorker(threading.Thread):
                 message['step'] = 6
                 self.out_queue.put(message)
 
-                if self.exit_event.is_set():
-                    connector.close()
-                    return
-
                 vertices, faces = _reduce_triangles(
                     vertices, faces, target_count, aggressiveness, iterations
                 )
@@ -473,18 +444,10 @@ class ThreadWorker(threading.Thread):
             message['step'] = 7
             self.out_queue.put(message)
 
-            if self.exit_event.is_set():
-                connector.close()
-                return
-
             packed, vertex_count = _utils.compute_normals(vertices, faces)
 
             message['step'] = 8
             self.out_queue.put(message)
-
-            if self.exit_event.is_set():
-                connector.close()
-                return
 
             # The packed array is saved as a plain uncompressed .npy file.
             # The parent opens the file as a numpy memory map and streams
@@ -505,10 +468,6 @@ class ThreadWorker(threading.Thread):
 
             message['step'] = 9
             self.out_queue.put(message)
-
-            if self.exit_event.is_set():
-                connector.close()
-                return
 
             # Only DB writes permitted from child: uuid, file_type_id and
             # the model metadata (vertex_count, aabb, obb).
@@ -597,25 +556,19 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
 
         timeout = _config.Config.resources.model_watchdog_timeout
 
-        thread = ThreadWorker(db_broker, credentials, message, out_queue, exit_event)
+        thread = ThreadWorker(db_broker, credentials, message, out_queue)
         start_time = time.time()
 
         thread.start()
 
         stop_time = time.time()
         while stop_time - start_time <= timeout:
-            if exit_event.is_set():
-                break
-
             if thread.is_alive():
                 exit_event.wait(0.1)
             else:
                 break
 
             stop_time = time.time()
-
-        if exit_event.is_set():
-            break
 
         if thread.exception is not None:
             # Unhandled exception: pass error info to parent for DB update.
@@ -709,6 +662,8 @@ class ProcessWorker:
         self.exit_event.set()
         self.out_queue.put(None)
 
-        self.process.join(5.0)
+        from .. import config as _config
+
+        self.process.join(_config.Config.resources.model_watchdog_timeout + 3.0)
         if self.process.is_alive():
             print('model process is stuck')

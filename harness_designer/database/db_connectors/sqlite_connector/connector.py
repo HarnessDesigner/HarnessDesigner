@@ -240,9 +240,11 @@ class SQLConnector(_base.ConnectorBase):
                 return self._cursor.execute(operation)
             else:
                 return self._cursor.execute(operation, params)
-        except:  # NOQA
-            _logger.logger.error('SQLITE ERROR:', 'CMD:', operation, '\n', 'PARAMS:', params)
-            raise
+        except AttributeError:
+            return None
+        except Exception:  # NOQA
+            _logger.logger.error('SQLITE execute ERROR:', 'CMD:', operation, '\n', 'PARAMS:', params)
+            return None
 
     def executemany(
         self, operation: str, seq_params: list[_ParamsSequenceOrDictType] | tuple[_ParamsSequenceOrDictType]
@@ -260,7 +262,13 @@ class SQLConnector(_base.ConnectorBase):
         :rtype: _Generator[sqlite3.Cursor, None, None] | None
         """
 
-        return self._cursor.executemany(operation, seq_params)
+        try:
+            return self._cursor.executemany(operation, seq_params)
+        except AttributeError:
+            return None
+        except Exception:  # NOQA
+            _logger.logger.error('SQLITE executemany ERROR:', 'CMD:', operation, '\n', 'PARAMS:', seq_params)
+            return None
 
     @property
     def lastrowid(self) -> _Optional[int]:

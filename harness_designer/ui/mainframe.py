@@ -2,26 +2,14 @@
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import (
-    QMainWindow,
-    QStatusBar,
-    QLabel,
-    QDockWidget,
-    QWidget,
-    QProgressBar,
-    QDialog,
-    QApplication
-)
-
-from PySide6.QtCore import Qt, QTimer, QByteArray
-from PySide6.QtGui import QCursor
+from PySide6 import QtWidgets
+from PySide6 import QtCore
 
 from .. import config as _config
-from . import dialogs as _dialogs
+from .dialogs import closing_dialog as _closing_dialog
 from . import toolbar as _toolbar
 from .. import gl as _gl
 from .. import handlers as _handlers
-from .. import utils as _utils
 from .. import app as _app
 
 
@@ -32,7 +20,6 @@ if TYPE_CHECKING:
     from ..objects import project as _project
     from .. import objects as _objects
     from .. import logger as _logger
-    from ..geometry import point as _point
 
 
 _mainframe: "MainFrame" = None
@@ -44,7 +31,7 @@ Config = _config.Config.mainframe
 # so pass them directly to editor.connect() — no mapping table needed.
 
 
-class MainFrame(QMainWindow):
+class MainFrame(QtWidgets.QMainWindow):
     """Represent a main frame in :mod:`harness_designer.ui.mainframe`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -65,9 +52,10 @@ class MainFrame(QMainWindow):
         :param logger: Value for ``logger``.
         :type logger: :class:`_logger.Log`
         """
-        QMainWindow.__init__(self)
+        QtWidgets.QMainWindow.__init__(self)
 
         self.config = _config.Config
+        self._is_closing = False
 
         splash.SetText('Startup logging ...')
         splash.flush()
@@ -122,9 +110,9 @@ class MainFrame(QMainWindow):
         # floating drag-and-tab between arbitrary positions is required).
         # ------------------------------------------------------------------
         self.setDockOptions(
-            QMainWindow.DockOption.AnimatedDocks |
-            QMainWindow.DockOption.AllowNestedDocks |
-            QMainWindow.DockOption.AllowTabbedDocks
+            QtWidgets.QMainWindow.DockOption.AnimatedDocks |
+            QtWidgets.QMainWindow.DockOption.AllowNestedDocks |
+            QtWidgets.QMainWindow.DockOption.AllowTabbedDocks
         )
 
         splash.SetText('Creating statusbar...')
@@ -135,7 +123,7 @@ class MainFrame(QMainWindow):
         # showMessage() is for transient notifications; coordinates use
         # permanent widgets so they are never overwritten by transient text.
         # ------------------------------------------------------------------
-        status_bar = QStatusBar(self)
+        status_bar = QtWidgets.QStatusBar(self)
         self.setStatusBar(status_bar)
         self.status_bar = status_bar
 
@@ -143,18 +131,18 @@ class MainFrame(QMainWindow):
         coord_text = 'X: 0.000000'
         label_width = fm.horizontalAdvance(coord_text) + 8
 
-        self._status_x = QLabel('X: 0.000000')
+        self._status_x = QtWidgets.QLabel('X: 0.000000')
         self._status_x.setFixedWidth(label_width)
-        self._status_y = QLabel('Y: 0.000000')
+        self._status_y = QtWidgets.QLabel('Y: 0.000000')
         self._status_y.setFixedWidth(label_width)
-        self._status_z = QLabel('Z: 0.000000')
+        self._status_z = QtWidgets.QLabel('Z: 0.000000')
         self._status_z.setFixedWidth(label_width)
 
         status_bar.addPermanentWidget(self._status_x)
         status_bar.addPermanentWidget(self._status_y)
         status_bar.addPermanentWidget(self._status_z)
 
-        self.progress_bar = QProgressBar()
+        self.progress_bar = QtWidgets.QProgressBar()
         self.progress_bar.setRange(0, 100)  # Set your known max here
         self.progress_bar.setValue(0)
         self.progress_bar.setMaximumWidth(300)
@@ -350,12 +338,12 @@ class MainFrame(QMainWindow):
             if isinstance(state, str):
                 # Guard: if an old str value slipped in, encode before use
                 state = state.encode('latin-1')
-            self.restoreState(QByteArray(state))
+            self.restoreState(QtCore.QByteArray(state))
 
         if Config.position:
-            QTimer.singleShot(0, lambda: self.move(*Config.position))
+            QtCore.QTimer.singleShot(0, lambda: self.move(*Config.position))
         else:
-            QTimer.singleShot(0, self._center_on_screen)
+            QtCore.QTimer.singleShot(0, self._center_on_screen)
 
         # ------------------------------------------------------------------
         # Connect GL canvas signals using editor3d.connect() shim.
@@ -378,9 +366,9 @@ class MainFrame(QMainWindow):
         # chains itself only when there is remaining work, matching the
         # original event.RequestMore() pattern.
         # ------------------------------------------------------------------
-        self._idle_timer = QTimer(self)
+        self._idle_timer = QtCore.QTimer(self)
         self._idle_timer.setInterval(0)
-        self._idle_timer.timeout.connect(self._on_idle)
+        self._idle_timer.timeout.connect(self._on_idle)  # NOQA
         self._idle_timer.start()
         self._splash = splash
 
@@ -430,8 +418,8 @@ class MainFrame(QMainWindow):
         self.status_bar.showMessage(label)
         self.progress_bar.show()
 
-    def _make_dock(self, title: str, name: str, widget: QWidget,
-                   area=None) -> QDockWidget:
+    def _make_dock(self, title: str, name: str, widget: QtWidgets.QWidget,
+                   area=None) -> QtWidgets.QDockWidget:
         """Create and register a QDockWidget.
 
         Parameters
@@ -445,18 +433,18 @@ class MainFrame(QMainWindow):
                 widget instead of docking it.  Defaults to
                 Qt.RightDockWidgetArea when None.
         """
-        if area is Qt.DockWidgetArea.AllDockWidgetAreas:
+        if area is QtCore.Qt.DockWidgetArea.AllDockWidgetAreas:
             # The 3D editor fills the central area — not a dockable pane
             self.setCentralWidget(widget)
             return None  # no QDockWidget to return
 
-        dock = QDockWidget(title, self)
+        dock = QtWidgets.QDockWidget(title, self)
         dock.setObjectName(name)   # required for saveState/restoreState
         dock.setWindowTitle(title)
         dock.setWidget(widget)
 
         if area is None:
-            area = Qt.DockWidgetArea.RightDockWidgetArea
+            area = QtCore.Qt.DockWidgetArea.RightDockWidgetArea
 
         self.addDockWidget(area, dock)
         return dock
@@ -579,8 +567,8 @@ class MainFrame(QMainWindow):
         :param event: Event object.
         :type event: UNKNOWN
         """
-        QMainWindow.moveEvent(self, event)
-        QTimer.singleShot(0, self._save_position)
+        QtWidgets.QMainWindow.moveEvent(self, event)
+        QtCore.QTimer.singleShot(0, self._save_position)
 
     def resizeEvent(self, event):
         """Execute the resize event operation.
@@ -590,8 +578,8 @@ class MainFrame(QMainWindow):
         :param event: Event object.
         :type event: UNKNOWN
         """
-        QMainWindow.resizeEvent(self, event)
-        QTimer.singleShot(0, self._save_size)
+        QtWidgets.QMainWindow.resizeEvent(self, event)
+        QtCore.QTimer.singleShot(0, self._save_size)
 
     def closeEvent(self, event):
         """Execute the close event operation.
@@ -601,8 +589,90 @@ class MainFrame(QMainWindow):
         :param event: Event object.
         :type event: UNKNOWN
         """
-        self._on_close()
-        event.accept()
+
+        # small splash dialog appears letting the user know that the
+        # application is closing. This dialog has a progress bar and a message
+        # that gets set which will appear directly below the bar centered.
+        # this dialog should remain on top of the application centered and have
+        # no buttons to close the dialog. The dialog will close right before
+        # the main application completely shuts down.
+
+        # I would like to have a type of modal functionality where all user
+        # input to the main application is no longer allowed. However, I cannot
+        # use the modal of the dialog because it would take control of the main
+        # thread which is something we do not want to have happen.
+
+        # I also need to know how to exit the application gracefully once all
+        # of the shutdown tasks have been completed.
+
+        if self._is_closing:
+            event.accept()
+            return
+
+        self._is_closing = True
+
+        close_dlg = _closing_dialog.ClosingDialog(self, total_steps=9)
+        close_dlg.setWindowModality(QtCore.Qt.WindowModality.ApplicationModal)
+        close_dlg.show()
+
+        self.logger.info('Harness Designer shutting down')
+        self.logger.info('Stopping Process Manager...')
+        close_dlg.set_message('Stopping Process Manager...')
+
+        self.process_manager.stop()
+
+        def _finished():
+            close_dlg.close()
+            QtWidgets.QApplication.instance().quit()
+
+        def _do():
+            count = 0
+            import time
+
+            while not self.process_manager.is_stopped:
+                if count == 30:
+                    break
+
+                count += 1
+                time.sleep(1)
+
+            if count == 30:
+                self.logger.error('Process manager did not shut down properly...')
+
+            close_dlg.set_step(1)
+            QtWidgets.QApplication.processEvents()
+
+            self.logger.info('Saving UI layout...')
+            close_dlg.set_message('Saving UI layout...')
+            QtWidgets.QApplication.processEvents()
+
+            # saveState() returns QByteArray; store as bytes for Config
+            Config.ui_perspective = bytes(self.saveState())
+            close_dlg.set_step(2)
+            QtWidgets.QApplication.processEvents()
+
+            def _run(label, func, step):
+                time.sleep(0.250)
+                self.logger.info(label)
+                close_dlg.set_message(label)
+                QtWidgets.QApplication.processEvents()
+                func()
+                close_dlg.set_step(step)
+                QtWidgets.QApplication.processEvents()
+
+            _run('Closing 2D Editor....', self.editor2d.Destroy, 3)
+            _run('Closing 3D Editor....', self.editor3d.Destroy, 4)
+            _run('Closing Database Editor....', self.editor_db.Destroy, 5)
+            _run('Closing Object Editor....', self.editor_obj.Destroy, 6)
+            _run('Closing Assembly Editor....', self.editor_assembly.Destroy, 7)
+            _run('Closing Log Viewer....', self.log_viewer.Destroy, 8)
+            _run('Closing Database Connection....', self.db_connector.close, 9)
+
+            _app.CallLater(_finished)
+
+        _app.CallLater(_do)
+
+        event.ignore()
 
     def _save_position(self):
         """Save the position.
@@ -638,53 +708,14 @@ class MainFrame(QMainWindow):
 
         return
 
-        if self.project is None:
-            return
-
-        if not self.project.cleanup.process_chunk():
-            # No remaining work; pause idle processing.  The timer will
-            # still fire on the next Qt event-loop pass and re-check, which
-            # is effectively the same cost as the original wx idle pattern.
-            pass
-
-    # ------------------------------------------------------------------
-    # Close / shutdown
-    # ------------------------------------------------------------------
-
-    def _on_close(self):
-        """Handle the close event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        self.logger.info('Harness Designer shutting down')
-
-        self.logger.info('Stopping Process Manager...')
-        self.process_manager.stop()
-
-        self.logger.info('Saving UI layout...')
-        # saveState() returns QByteArray; store as bytes for Config
-        Config.ui_perspective = bytes(self.saveState())
-
-        self.logger.info('Closing 2D Editor....')
-        self.editor2d.Destroy()
-
-        self.logger.info('Closing 3D Editor....')
-        self.editor3d.Destroy()
-
-        self.logger.info('Closing Database Editor....')
-        self.editor_db.Destroy()
-
-        self.logger.info('Closing Object Editor....')
-        self.editor_obj.Destroy()
-
-        self.logger.info('Closing Assembly Editor....')
-        self.editor_assembly.Destroy()
-
-        self.logger.info('Closing Log Viewer....')
-        self.log_viewer.Destroy()
-
-        self.logger.info('Closing Database Connection....')
-        self.db_connector.close()
+        # if self.project is None:
+        #     return
+        #
+        # if not self.project.cleanup.process_chunk():
+        #     # No remaining work; pause idle processing.  The timer will
+        #     # still fire on the next Qt event-loop pass and re-check, which
+        #     # is effectively the same cost as the original wx idle pattern.
+        #     pass
 
     # ------------------------------------------------------------------
     # Status bar helpers (public API used by canvas handlers)
@@ -757,7 +788,7 @@ class MainFrame(QMainWindow):
             self._splash.Destroy()
             self._splash = None
 
-        QTimer.singleShot(0, self._open_project)
+        QtCore.QTimer.singleShot(0, self._open_project)
 
     def _open_project(self):
         from ..objects import project as _proj
@@ -829,7 +860,7 @@ class MainFrame(QMainWindow):
                 # evt.GetPosition() returns a Point in _canvas local coords
                 # (the inner QOpenGLWidget, not the Canvas3D container).
                 x, y, _ = evt.GetPosition().as_int
-                gl_widget = self.editor3d.editor._canvas
+                gl_widget = self.editor3d.editor._canvas  # NOQA
                 global_pos = gl_widget.mapToGlobal(
                     gl_widget.rect().topLeft().__class__(x, y)
                 )
@@ -955,7 +986,7 @@ class MainFrame(QMainWindow):
         """
         if self._obj_handler is not None:
             keycode = evt.GetKeyCode()
-            if keycode == Qt.Key.Key_Escape:
+            if keycode == QtCore.Qt.Key.Key_Escape:
                 mouse_event = evt.GetMouseEvent()
 
                 if (
@@ -1457,7 +1488,7 @@ class MainFrame(QMainWindow):
         """
         if self._obj_handler is not None:
             keycode = evt.GetKeyCode()
-            if keycode == Qt.Key.Key_Escape:
+            if keycode == QtCore.Qt.Key.Key_Escape:
                 mouse_event = evt.GetMouseEvent()
 
                 if (
@@ -1796,7 +1827,7 @@ class MainFrame(QMainWindow):
     # focus-tracking; this stub preserves the hook for future use.
     # ------------------------------------------------------------------
 
-    def _on_pane_activated(self, dock: QDockWidget) -> None:
+    def _on_pane_activated(self, dock: QtWidgets.QDockWidget) -> None:
         """Handle the pane activated event.
 
         UNKNOWN details are inferred from the callable name and signature.
