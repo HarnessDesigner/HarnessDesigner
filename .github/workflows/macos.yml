@@ -61,7 +61,17 @@ jobs:
       - name: Build (Cython + PyInstaller + dependency installer)
         env:
           PYTHONPATH: ${{ github.workspace }}
-        run: python setup.py install --installer
+        shell: bash
+        run: |
+          set -o pipefail
+          python setup.py install --installer 2>&1 | tee build.log
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: build-log-macos
+          path: build.log
 
       - name: Upload app artifact
         uses: actions/upload-artifact@v7.0.1

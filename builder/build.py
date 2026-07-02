@@ -34,6 +34,57 @@ def build_dependency_installer():
     os.chdir(cwd)
 
 
+def _clean_dist(app_dir):
+    """
+    Remove files and directories from a PyInstaller onedir (or .app bundle)
+    that are not needed at runtime, reducing installer size.
+
+    Removes:
+      - .pyi  — type stubs (IDE-only, never imported)
+      - .pyx  — Cython sources (already compiled to .so / .pyd)
+      - .c / .cpp / .h — C/C++ sources that slipped through data collection
+      - *.dist-info/  — package metadata (not used inside a frozen app)
+      - __pycache__/  — bytecode cache dirs (frozen app uses its own archive)
+      - empty directories left over after the above removals
+    """
+    import os
+    import shutil
+
+    _REMOVE_EXTS = frozenset(['.pyi', '.pyx', '.c', '.cpp', '.h'])
+
+    n_files = 0
+    n_dirs = 0
+
+    for root, dirs, files in os.walk(app_dir, topdown=False):
+        # Remove unwanted files
+        for fname in files:
+            if os.path.splitext(fname)[1] in _REMOVE_EXTS:
+                try:
+                    os.remove(os.path.join(root, fname))
+                    n_files += 1
+                except OSError:
+                    pass
+
+        # Remove unwanted directories
+        for dname in dirs:
+            if dname == '__pycache__' or dname.endswith('.dist-info'):
+                try:
+                    shutil.rmtree(os.path.join(root, dname), ignore_errors=True)
+                    n_dirs += 1
+                except OSError:
+                    pass
+
+        # Remove the directory itself if it is now empty (skip root)
+        if root != app_dir and os.path.isdir(root):
+            try:
+                os.rmdir(root)
+                n_dirs += 1
+            except OSError:
+                pass
+
+    print(f'_clean_dist: removed {n_files} files, {n_dirs} directories from {app_dir}')
+
+
 def build_installer(base_import):
     import sys
     import os
@@ -100,11 +151,17 @@ def build_installer(base_import):
         'distutils.command.py37compat',
         'distutils.py35compat',
         'distutils.py38compat',
+        # VTK optional modules that do not exist in the installed VTK version
+        'vtkmodules.util.data_model',
+        'vtkmodules.util.execution_model',
+        'vtkmodules.vtkRenderingVRModels',
+        # pycparser generates these at runtime; they are not bundled
+        'pycparser.lextab',
+        'pycparser.yacctab',
+        # closing_dialog is not committed to the repo yet; suppress analysis error
+        'harness_designer.ui.dialogs.closing_dialog',
     ):
         args.extend([f'--exclude-module={mod}'])
-
-    # scipy Cython extension not auto-discovered by PyInstaller's hook
-    args.extend(['--hidden-import=scipy.special._cdflib'])
 
     info_plist = None
     if sys.platform.startswith('win'):
@@ -135,6 +192,10 @@ def build_installer(base_import):
         # Linux: no platform-specific icon flag; name binary HD so it doesn't
         # collide with the harness_designer/ Python package directory.
         args.extend(['--name=HD'])
+        for mod in (
+            'OpenGL.osmesa',                        # software renderer, not needed
+        ):
+            args.extend([f'--exclude-module={mod}'])
 
     args += [
         '--collect-all=harness_designer',
@@ -175,13 +236,14 @@ def build_installer(base_import):
 
     # PyInstaller 6.x on macOS can add the Python framework symlink to COLLECT's
     # TOC twice, causing os.symlink() to fail with FileExistsError on the second
-    # attempt.  Patch os.symlink for the duration of this build to silently
-    # replace duplicate symlinks (removing an existing symlink before recreating
-    # it is always safe; regular files are left alone).
+    # attempt.  Additionally, PyInstaller sometimes copies the Python binary as a
+    # regular file first and then tries to create a symlink at the same path,
+    # also causing FileExistsError.  Use lexists (catches both regular files and
+    # symlinks, including broken ones) and unlink before recreating.
     _orig_symlink = os.symlink
     if sys.platform.startswith('darwin'):
         def _dedup_symlink(src, dst, *_a, **_kw):
-            if os.path.islink(dst):
+            if os.path.lexists(dst):
                 os.unlink(dst)
             _orig_symlink(src, dst, *_a, **_kw)
         os.symlink = _dedup_symlink
@@ -202,6 +264,13 @@ def build_installer(base_import):
         _new = os.path.join(scripts_dir, 'dist', 'harness_designer')
     if os.path.exists(_old):
         shutil.move(_old, _new)
+
+    # Strip type stubs, C sources, dist-info, __pycache__, and empty dirs from
+    # the PyInstaller output before the installer packages everything up.
+    if sys.platform.startswith('darwin'):
+        _clean_dist(os.path.join(scripts_dir, 'dist', 'harness_designer.app'))
+    else:
+        _clean_dist(os.path.join(scripts_dir, 'dist', 'harness_designer'))
 
     # --info-plist is not a valid PyInstaller CLI flag; merge custom keys into
     # the generated Info.plist after the build instead.

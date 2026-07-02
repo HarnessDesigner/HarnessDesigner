@@ -128,11 +128,11 @@ class DimensionMixin(BaseMixin):
         self._populate('height')
 
     @property
-    def size(self) -> tuple[float, float, float]:
+    def size(self) -> tuple:
         return self._table.select('width', 'height', 'length', id=self._db_id)[0]
 
     @size.setter
-    def size(self, value: tuple[float, float, float]):
+    def size(self, value: tuple):
         self._table.update(self._db_id, width=value[0], height=value[1], length=value[2])
 
 

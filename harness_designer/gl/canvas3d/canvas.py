@@ -902,11 +902,6 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         """
         return
 
-        if flag and self._focal_target is None:
-            self._focal_target = _focal_target.FocalPoint(self)
-        elif not flag and self._focal_target is not None:
-            self._focal_target = None
-
     def set_draw_grid(self, flag):
         """Set the draw grid.
 

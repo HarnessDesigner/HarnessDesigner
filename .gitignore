@@ -214,3 +214,4 @@ __marimo__/
 /harness_designer/gl/canvas3d/culling.c
 /libs/assimp/port/PyAssimp/pyassimp.egg-info/
 /libs/assimp/port/PyAssimp/build/
+/build_logs/
