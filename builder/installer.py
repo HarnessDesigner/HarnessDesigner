@@ -211,18 +211,8 @@ def build_linux(version):
 
     os.makedirs(os.path.dirname(archive_path), exist_ok=True)
 
-    # ── Patch install.sh ──────────────────────────────────────────────────────
-    # The original sets INSTALLER_SRC="$BUILD_DIR/installer" (the onedir).
-    # We change it to point at the binary inside the directory.
-
     with open(install_sh_path, encoding='utf-8') as fh:
         install_sh_src = fh.read()
-
-    patched_sh = install_sh_src.replace(
-        'INSTALLER_SRC="$BUILD_DIR/installer"',
-        'INSTALLER_SRC="$BUILD_DIR/installer/installer"',
-        1,
-    )
 
     # Root-level convenience launcher so users run ./install.sh from the
     # extracted directory instead of the longer installer_scripts/linux/ path.
@@ -254,18 +244,21 @@ exec "$DIR/installer_scripts/linux/install.sh" "$@"
         # Root convenience launcher
         _add_text(tar, f'{stem}/install.sh', root_sh)
 
-        # Patched install.sh at the expected relative path
-        _add_text(tar, f'{stem}/installer_scripts/linux/install.sh', patched_sh)
+        # install.sh at the expected relative path
+        _add_text(tar, f'{stem}/installer_scripts/linux/install.sh', install_sh_src)
 
         # Main application (PyInstaller onedir)
         print('   Adding main application ...')
         for fpath, arcname in _walk_dir(app_src, f'{stem}/builder/scripts/dist'):
             tar.add(fpath, arcname=arcname)
 
-        # Dependency installer (PyInstaller onedir)
+        # Dependency installer (PyInstaller --onefile single binary)
         print('   Adding dependency installer ...')
-        for fpath, arcname in _walk_dir(installer_src, f'{stem}/builder/scripts/dist'):
-            tar.add(fpath, arcname=arcname)
+        ti = tarfile.TarInfo(name=f'{stem}/builder/scripts/dist/installer')
+        ti.size = os.path.getsize(installer_src)
+        ti.mode = 0o755
+        with open(installer_src, 'rb') as fh:
+            tar.addfile(ti, fh)
 
         # Application icon
         tar.add(

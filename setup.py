@@ -64,7 +64,14 @@ def main():
         shutil.copyfile(src, dst)
 
     os.environ['PATH'] += os.pathsep + assimp_binary_path
+    if sys.platform.startswith('darwin'):
+        dyld = os.environ.get('DYLD_LIBRARY_PATH', '')
+        os.environ['DYLD_LIBRARY_PATH'] = assimp_binary_path + (os.pathsep + dyld if dyld else '')
+    elif sys.platform.startswith('linux'):
+        ld = os.environ.get('LD_LIBRARY_PATH', '')
+        os.environ['LD_LIBRARY_PATH'] = assimp_binary_path + (os.pathsep + ld if ld else '')
 
+    import importlib.util
     import subprocess
     try:
         subprocess.run(
@@ -74,6 +81,19 @@ def main():
     finally:
         if os.path.exists(toml_bak):
             os.rename(toml_bak, toml_path)
+
+    # The upstream PyAssimp setup.py has no package_data for the compiled
+    # assimp library, so pip only installs the Python files.  Find where
+    # pyassimp landed in site-packages and copy the library there so that
+    # pyassimp.helper.search_library() can find it at import time.
+    importlib.invalidate_caches()
+    spec = importlib.util.find_spec('pyassimp')
+    if spec and spec.origin:
+        installed_pkg_dir = os.path.dirname(spec.origin)
+        for file in os.listdir(assimp_binary_path):
+            src = os.path.join(assimp_binary_path, file)
+            dst = os.path.join(installed_pkg_dir, file)
+            shutil.copyfile(src, dst)
 
     while base_path in sys.path:
         sys.path.remove(base_path)
