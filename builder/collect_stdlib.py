@@ -37,7 +37,9 @@ def get_modules():
                 'idlelib',      # Python IDLE IDE
                 'lib2to3',      # Python 2→3 converter
                 'venv',         # virtual-env support (unused in frozen app)
-                'tkinter',      # Tk GUI toolkit (app uses PySide6)
+                # tkinter is intentionally NOT skipped here — PyInstaller's
+                # pyi_rth__tkinter runtime hook requires _tcl_data to be present
+                # at startup, so tkinter must be fully collected.
             ):
                 continue
 

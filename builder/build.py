@@ -57,8 +57,10 @@ def _clean_dist(app_dir):
     # its internal archive as bytecode; the .py copies left on disk are from
     # --collect-all data collection and are never imported by the frozen app.
     _REMOVE_EXTS = frozenset(['.py', '.pyi', '.pyx', '.c', '.cpp', '.h'])
-    # Data dirs pulled in by PyInstaller's matplotlib hook; unused with PySide6
-    _REMOVE_DATADIRS = frozenset(['_tcl_data', '_tk_data'])
+    # _tcl_data / _tk_data must be kept — PyInstaller's pyi_rth__tkinter runtime
+    # hook checks for _tcl_data at startup and crashes with FileNotFoundError
+    # if it is absent, even when the app itself does not call tkinter directly.
+    _REMOVE_DATADIRS = frozenset()
     # PyOpenGL ships freeglut/gle DLLs for vc9 (VS2008) and vc10 (VS2010) that
     # require MSVCR90.dll / MSVCR100.dll — old runtimes absent on modern Windows.
     # The vc15 (VS2017+) variants use the universal CRT and are sufficient.
