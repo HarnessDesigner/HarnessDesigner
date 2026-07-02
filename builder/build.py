@@ -227,8 +227,6 @@ def build_installer(base_import):
         # pycparser generates these at runtime; they are not bundled
         'pycparser.lextab',
         'pycparser.yacctab',
-        # closing_dialog is not committed to the repo yet; suppress analysis error
-        'harness_designer.ui.dialogs.closing_dialog',
         # ── IDE / dev-tool packages pulled in transitively ──────────────────
         # jedi (code-completion) + parso (its parser) + typeshed stubs
         'jedi',
