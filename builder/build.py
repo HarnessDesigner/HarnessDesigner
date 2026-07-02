@@ -40,23 +40,43 @@ def _clean_dist(app_dir):
     that are not needed at runtime, reducing installer size.
 
     Removes:
-      - .pyi  — type stubs (IDE-only, never imported)
-      - .pyx  — Cython sources (already compiled to .so / .pyd)
-      - .c / .cpp / .h — C/C++ sources that slipped through data collection
-      - *.dist-info/  — package metadata (not used inside a frozen app)
-      - __pycache__/  — bytecode cache dirs (frozen app uses its own archive)
+      - .py   — Python source files (bytecode is in PyInstaller's archive)
+      - .pyi / .pyx / .c / .cpp / .h — stubs and other source files
+      - *.dist-info/  — package metadata; license files are extracted first
+      - __pycache__/  — bytecode cache dirs
+      - _tcl_data / _tk_data — Tcl/Tk runtime data (not needed with PySide6)
       - empty directories left over after the above removals
+
+    Collects all license files from *.dist-info into a single 'licenses/'
+    directory at the root of app_dir so they can be displayed in the app.
     """
     import os
     import shutil
 
-    _REMOVE_EXTS = frozenset(['.pyi', '.pyx', '.c', '.cpp', '.h'])
+    # .py — redundant: PyInstaller already compiled everything it analyzed into
+    # its internal archive as bytecode; the .py copies left on disk are from
+    # --collect-all data collection and are never imported by the frozen app.
+    _REMOVE_EXTS = frozenset(['.py', '.pyi', '.pyx', '.c', '.cpp', '.h'])
+    # Data dirs pulled in by PyInstaller's matplotlib hook; unused with PySide6
+    _REMOVE_DATADIRS = frozenset(['_tcl_data', '_tk_data'])
+    # File names (lower-cased) treated as license files worth keeping
+    _LICENSE_NAMES = frozenset([
+        'license', 'license.txt', 'license.md', 'license.rst',
+        'licence', 'licence.txt',
+        'copying', 'copying.txt', 'copying.rst',
+        'notice', 'notice.txt',
+        'license.apache', 'license.bsd', 'license.external', 'license.lgpl',
+        'authors', 'authors.txt', 'authors.rst',
+    ])
 
     n_files = 0
     n_dirs = 0
 
+    licenses_dir = os.path.join(app_dir, 'licenses')
+    os.makedirs(licenses_dir, exist_ok=True)
+
     for root, dirs, files in os.walk(app_dir, topdown=False):
-        # Remove unwanted files
+        # Remove unwanted individual files
         for fname in files:
             if os.path.splitext(fname)[1] in _REMOVE_EXTS:
                 try:
@@ -65,11 +85,32 @@ def _clean_dist(app_dir):
                 except OSError:
                     pass
 
-        # Remove unwanted directories
+        # Remove unwanted directories (walking bottom-up so children go first)
         for dname in dirs:
-            if dname == '__pycache__' or dname.endswith('.dist-info'):
+            dir_path = os.path.join(root, dname)
+            if dname in _REMOVE_DATADIRS or dname == '__pycache__':
                 try:
-                    shutil.rmtree(os.path.join(root, dname), ignore_errors=True)
+                    shutil.rmtree(dir_path, ignore_errors=True)
+                    n_dirs += 1
+                except OSError:
+                    pass
+            elif dname.endswith('.dist-info'):
+                # Extract every license-like file before nuking the dir
+                pkg_name = dname.replace('.dist-info', '')
+                for lic_root, _, lic_files in os.walk(dir_path):
+                    for lic_fname in lic_files:
+                        if lic_fname.lower() in _LICENSE_NAMES:
+                            src = os.path.join(lic_root, lic_fname)
+                            # Unique dest: pkgname + relative path joined with _
+                            rel = os.path.relpath(src, dir_path)
+                            rel_flat = rel.replace(os.sep, '_')
+                            dest = os.path.join(licenses_dir, f'{pkg_name}_{rel_flat}')
+                            try:
+                                shutil.copy2(src, dest)
+                            except OSError:
+                                pass
+                try:
+                    shutil.rmtree(dir_path, ignore_errors=True)
                     n_dirs += 1
                 except OSError:
                     pass
@@ -82,7 +123,9 @@ def _clean_dist(app_dir):
             except OSError:
                 pass
 
-    print(f'_clean_dist: removed {n_files} files, {n_dirs} directories from {app_dir}')
+    lic_count = len(os.listdir(licenses_dir)) if os.path.isdir(licenses_dir) else 0
+    print(f'_clean_dist: removed {n_files} files, {n_dirs} dirs; '
+          f'collected {lic_count} license files → {licenses_dir}')
 
 
 def build_installer(base_import):
@@ -138,7 +181,6 @@ def build_installer(base_import):
         'mysql.connector',
         # optional extras whose dependencies are not installed
         'pyparsing.diagram',                    # needs railroad
-        'prompt_toolkit.contrib.ssh',           # needs asyncssh
         'scipy._lib.array_api_compat.torch',    # needs torch
         # OpenGL Tk/Togl integration — not available in headless environments
         'OpenGL.Tk',
@@ -160,6 +202,31 @@ def build_installer(base_import):
         'pycparser.yacctab',
         # closing_dialog is not committed to the repo yet; suppress analysis error
         'harness_designer.ui.dialogs.closing_dialog',
+        # ── IDE / dev-tool packages pulled in transitively ──────────────────
+        # jedi (code-completion) + parso (its parser) + typeshed stubs
+        'jedi',
+        'parso',
+        # IPython interactive shell and its dependency cluster
+        'IPython',
+        'ipykernel',
+        'traitlets',            # IPython config system
+        'matplotlib_inline',    # IPython display hook
+        'executing',            # stack inspection for IPython tracebacks
+        'asttokens',            # AST source mapping (IPython)
+        'stack_data',           # enhanced tracebacks (IPython)
+        'pure_eval',            # safe expression evaluation (IPython)
+        'decorator',            # generic decorator helper (IPython)
+        # Python IDE / stdlib tools — not needed in a frozen release app
+        'idlelib',
+        'lib2to3',
+        'Cython',               # compiler itself — already ran at build time
+        'venv',                 # virtual-env support, unused in frozen app
+        # Terminal-UI toolkit dragged in by IPython
+        'prompt_toolkit',
+        'prompt_toolkit.contrib.ssh',           # also needs asyncssh
+        'wcwidth',              # terminal column-width helper (prompt_toolkit)
+        # Syntax highlighter — pip bundles its own copy; Rich degrades without
+        'pygments',
     ):
         args.extend([f'--exclude-module={mod}'])
 
@@ -202,6 +269,10 @@ def build_installer(base_import):
         # With --name=HD the executable is always HD or HD.exe — no longer
         # collides with the harness_designer/ package dir on any platform.
         '--contents-directory=.',
+        # Strip assert statements from archived bytecode (level 1 keeps
+        # docstrings; level 2 also removes them which can break packages
+        # that use __doc__ at runtime).
+        '--optimize=1',
         '--noconfirm',
         '--clean',
         '--windowed',
