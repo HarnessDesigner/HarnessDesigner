@@ -3,7 +3,7 @@
 ;
 ; Prerequisites:
 ;   - Build the app:        python -m builder (produces builder\scripts\dist\harness_designer\)
-;   - Build the installer:  build_dependency_installer() (produces builder\scripts\dist\installer\)
+;   - Build the installer:  build_dependency_installer() (produces builder\scripts\dist\installer.exe)
 ;   - Convert icon:         harness_designer\image\icon_256x256.png → icon_256x256.ico
 ;                           (use ImageMagick: magick icon_256x256.png icon_256x256.ico)
 ;   - Inno Setup 6+:        https://jrsoftware.org/isinfo.php
@@ -23,7 +23,7 @@
 
 ; Source paths relative to this .iss file (installer_scripts/windows/)
 #define AppSrcDir    "..\..\builder\scripts\dist\harness_designer"
-#define InstallerSrc "..\..\builder\scripts\dist\installer\installer.exe"
+#define InstallerSrc "..\..\builder\scripts\dist\installer.exe"
 #define IconFile     "..\..\harness_designer\image\icon_256x256.ico"
 #define LicenseFile  "..\..\LICENSE"
 

@@ -59,14 +59,10 @@ def _check_build_outputs():
         if not os.path.isdir(app):
             errors.append(f'  missing dir : {app}')
 
-        installer_dir = os.path.join(BUILD_DIR, 'installer')
-        if not os.path.isdir(installer_dir):
-            errors.append(f'  missing dir : {installer_dir}')
-        else:
-            ext = '.exe' if sys.platform.startswith('win') else ''
-            binary = os.path.join(installer_dir, f'installer{ext}')
-            if not os.path.isfile(binary):
-                errors.append(f'  missing file: {binary}')
+        ext = '.exe' if sys.platform.startswith('win') else ''
+        binary = os.path.join(BUILD_DIR, f'installer{ext}')
+        if not os.path.isfile(binary):
+            errors.append(f'  missing file: {binary}')
 
     if not os.path.isfile(ICON_PNG):
         errors.append(f'  missing file: {ICON_PNG}')
