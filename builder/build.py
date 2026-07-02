@@ -59,6 +59,11 @@ def _clean_dist(app_dir):
     _REMOVE_EXTS = frozenset(['.py', '.pyi', '.pyx', '.c', '.cpp', '.h'])
     # Data dirs pulled in by PyInstaller's matplotlib hook; unused with PySide6
     _REMOVE_DATADIRS = frozenset(['_tcl_data', '_tk_data'])
+    # PyOpenGL ships freeglut/gle DLLs for vc9 (VS2008) and vc10 (VS2010) that
+    # require MSVCR90.dll / MSVCR100.dll — old runtimes absent on modern Windows.
+    # The vc15 (VS2017+) variants use the universal CRT and are sufficient.
+    import sys as _sys
+    _remove_dll_suffixes = ('.vc9.dll', '.vc10.dll') if _sys.platform.startswith('win') else ()
     # File names (lower-cased) treated as license files worth keeping
     _LICENSE_NAMES = frozenset([
         'license', 'license.txt', 'license.md', 'license.rst',
@@ -78,7 +83,10 @@ def _clean_dist(app_dir):
     for root, dirs, files in os.walk(app_dir, topdown=False):
         # Remove unwanted individual files
         for fname in files:
-            if os.path.splitext(fname)[1] in _REMOVE_EXTS:
+            flower = fname.lower()
+            if os.path.splitext(fname)[1] in _REMOVE_EXTS or any(
+                flower.endswith(s) for s in _remove_dll_suffixes
+            ):
                 try:
                     os.remove(os.path.join(root, fname))
                     n_files += 1
@@ -132,6 +140,19 @@ def build_installer(base_import):
     import sys
     import os
     import platform
+    import warnings
+
+    # Setuptools/pkg_resources emit EasyInstallDeprecationWarning and
+    # SetuptoolsDeprecationWarning whenever those modules are imported.
+    # PyInstaller's analysis phase imports them to trace dependencies, so
+    # these warnings flood the build log.  Filter them before PyInstaller runs.
+    # In-process filter (covers the analysis phase which runs in this process):
+    warnings.filterwarnings('ignore', category=DeprecationWarning, module='setuptools')
+    warnings.filterwarnings('ignore', category=DeprecationWarning, module='pkg_resources')
+    # Subprocess filter (covers any workers PyInstaller forks for collection):
+    _pw = os.environ.get('PYTHONWARNINGS', '')
+    _suppress = 'ignore::DeprecationWarning:setuptools,ignore::DeprecationWarning:pkg_resources'
+    os.environ['PYTHONWARNINGS'] = f'{_pw},{_suppress}' if _pw else _suppress
 
     try:
         from . import collect_stdlib
@@ -182,8 +203,12 @@ def build_installer(base_import):
         # optional extras whose dependencies are not installed
         'pyparsing.diagram',                    # needs railroad
         'scipy._lib.array_api_compat.torch',    # needs torch
+        # scipy 1.17.1 removed _cdflib but its PyInstaller hook still declares it
+        'scipy.special._cdflib',
         # OpenGL Tk/Togl integration — not available in headless environments
         'OpenGL.Tk',
+        # GLES3 is a mobile/embedded-only API — unavailable on all desktop platforms
+        'OpenGL.raw.GLES3',
         # distutils sub-modules that do not exist in Python 3.11 but are
         # referenced by pip's metadata, causing spurious ERROR log lines
         'distutils._collections',
@@ -234,7 +259,6 @@ def build_installer(base_import):
         for mod in (
             '_curses',
             'curses',
-            'OpenGL.raw.GLES3',                     # GLES not available on Windows
         ):
             args.extend([f'--exclude-module={mod}'])
     elif sys.platform.startswith('darwin'):

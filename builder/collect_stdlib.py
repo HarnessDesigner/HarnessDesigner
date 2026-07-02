@@ -41,6 +41,11 @@ def get_modules():
             ):
                 continue
 
+            # config-3.11-darwin, config-3.11-x86_64-linux-gnu, etc. are
+            # Makefile/sysconfig dirs, not Python packages — skip them.
+            if item.startswith('config-'):
+                continue
+
             path = os.path.join(python_stdlib, item)
 
             if os.path.isdir(path):

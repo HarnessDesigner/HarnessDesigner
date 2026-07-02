@@ -98,7 +98,7 @@ chmod +x "$RESOURCES_DIR/dependency_installer"
 
 # ── Code sign the app (optional) ─────────────────────────────────────────────
 
-if [[ $SIGN -eq 1 ]]; then
+if [[ -n "$SIGN" ]]; then
     echo "→ Signing app bundle..."
     codesign --deep --force --verify --verbose \
         --sign "$DEVELOPER_ID_APP" \
@@ -133,7 +133,7 @@ productbuild \
 
 # ── Notarize (optional, requires --sign and configured credentials) ───────────
 
-if [[ $SIGN -eq 1 ]]; then
+if [[ -n "$SIGN" ]]; then
     echo "→ Submitting for notarization..."
     xcrun notarytool submit "$FINAL_PKG" \
         --keychain-profile "AC_PASSWORD" \

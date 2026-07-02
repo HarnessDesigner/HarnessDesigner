@@ -76,9 +76,10 @@ def calculate_centroids_parallel(
 
         # Calculate centroid: (v0 + v1 + v2) / 3
         # Manual calculation is faster than NumPy operations in tight loop
-        centroids_view[i, 0] = (vertices[v0_idx, 0] + vertices[v1_idx, 0] + vertices[v2_idx, 0]) * 0.33333333
-        centroids_view[i, 1] = (vertices[v0_idx, 1] + vertices[v1_idx, 1] + vertices[v2_idx, 1]) * 0.33333333
-        centroids_view[i, 2] = (vertices[v0_idx, 2] + vertices[v1_idx, 2] + vertices[v2_idx, 2]) * 0.33333333
+        # Divide by integer 3 (not 3.0) to avoid promoting float32 to double.
+        centroids_view[i, 0] = (vertices[v0_idx, 0] + vertices[v1_idx, 0] + vertices[v2_idx, 0]) / 3
+        centroids_view[i, 1] = (vertices[v0_idx, 1] + vertices[v1_idx, 1] + vertices[v2_idx, 1]) / 3
+        centroids_view[i, 2] = (vertices[v0_idx, 2] + vertices[v1_idx, 2] + vertices[v2_idx, 2]) / 3
 
     return centroids
 
@@ -136,7 +137,7 @@ cdef class FastBVHBuilder:
         self.centroids = centroids
         self.leaf_threshold = leaf_threshold
 
-        cdef int num_faces = faces.shape[0]
+        cdef int num_faces = <int>faces.shape[0]
 
         # Initialize primitive indices (will be reordered during build)
         self.indices = np.arange(num_faces, dtype=np.int32)
@@ -173,7 +174,7 @@ cdef class FastBVHBuilder:
         Performance: Releases GIL during tree construction for max speed
         """
         cdef int root_idx
-        cdef int num_faces = self.faces.shape[0]
+        cdef int num_faces = <int>self.faces.shape[0]
 
         print(f"Building BVH tree...")
 
@@ -541,19 +542,19 @@ def quaternion_to_rotation_matrix(FLOAT[::1] quat):
 
         cnp.ndarray[FLOAT, ndim=2] mat = np.empty((3, 3), dtype=np.float32)
 
-    # Row 0
-    mat[0, 0] = 1.0 - 2.0 * (yy + zz)
-    mat[0, 1] = 2.0 * (xy - wz)
-    mat[0, 2] = 2.0 * (xz + wy)
+    # Row 0 — integer literals (1, 2) prevent double promotion of float32 operands
+    mat[0, 0] = 1 - 2 * (yy + zz)
+    mat[0, 1] = 2 * (xy - wz)
+    mat[0, 2] = 2 * (xz + wy)
 
     # Row 1
-    mat[1, 0] = 2.0 * (xy + wz)
-    mat[1, 1] = 1.0 - 2.0 * (xx + zz)
-    mat[1, 2] = 2.0 * (yz - wx)
+    mat[1, 0] = 2 * (xy + wz)
+    mat[1, 1] = 1 - 2 * (xx + zz)
+    mat[1, 2] = 2 * (yz - wx)
 
     # Row 2
-    mat[2, 0] = 2.0 * (xz - wy)
-    mat[2, 1] = 2.0 * (yz + wx)
-    mat[2, 2] = 1.0 - 2.0 * (xx + yy)
+    mat[2, 0] = 2 * (xz - wy)
+    mat[2, 1] = 2 * (yz + wx)
+    mat[2, 2] = 1 - 2 * (xx + yy)
 
     return mat
