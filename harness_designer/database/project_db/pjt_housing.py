@@ -1169,6 +1169,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
         # ── Per-cavity angle computation (OBB-based) ──────────────────────────
         angle_results = []  # [(cavity, q_acc_new, new_euler), ...]
+        rn = 0.0  # Cython infers this as C double; initialise to silence clang -Wuninitialized
 
         for cavity in cavities:
             cavity_angle = cavity.angle3d

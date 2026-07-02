@@ -22,7 +22,10 @@ def run(hd_path):
 
         data = data.split('\n')
 
-        data[0] = f'# distutils: include_dirs = {numpy.get_include()}'
+        data[0] = (
+            f'# distutils: include_dirs = {numpy.get_include()}\n'
+            '# distutils: define_macros = NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION'
+        )
         data = '\n'.join(data)
 
         with open(path, 'w') as f:
