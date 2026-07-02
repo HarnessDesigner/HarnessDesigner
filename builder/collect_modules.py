@@ -92,3 +92,73 @@ def get_modules():
         logging.disable(logging.NOTSET)
 
     return res
+
+
+def get_test_excludes():
+    """
+    Walk every package in MODULE_NAMES and return ``--exclude-module`` flags for
+    every submodule whose dotted name contains a test component ('test', 'tests',
+    '_test', '_tests', 'testing').
+
+    PyInstaller has no wildcard support for --exclude-module, so this function
+    enumerates them all via a pure file-system scan (no imports).  The generated
+    flags cover both top-level test packages (e.g. pandas.tests) and every
+    individual module inside them (e.g. pandas.tests.frame.test_api) so that
+    explicit hidden-import requests from built-in hooks are also suppressed.
+    """
+    import importlib.util
+    import os
+
+    _TEST_COMPONENTS = frozenset(['test', 'tests', '_test', '_tests', 'testing'])
+
+    excludes = set()
+
+    def _add_all(dir_path, prefix):
+        """Add every module and sub-package under an already-identified test dir."""
+        try:
+            entries = os.scandir(dir_path)
+        except OSError:
+            return
+        for entry in entries:
+            if entry.name.startswith('.'):
+                continue
+            if entry.is_dir(follow_symlinks=False):
+                mod = prefix + entry.name
+                excludes.add(mod)
+                _add_all(entry.path, mod + '.')
+            elif (
+                entry.name.endswith('.py')
+                and entry.name not in ('__init__.py', '__main__.py')
+            ):
+                excludes.add(prefix + entry.name[:-3])
+
+    def _scan(dir_path, prefix):
+        """Recurse into a package directory, stopping at test sub-directories."""
+        try:
+            entries = os.scandir(dir_path)
+        except OSError:
+            return
+        for entry in entries:
+            if entry.name.startswith('.') or not entry.is_dir(follow_symlinks=False):
+                continue
+            mod = prefix + entry.name
+            if entry.name in _TEST_COMPONENTS:
+                excludes.add(mod)
+                _add_all(entry.path, mod + '.')
+            elif os.path.isfile(os.path.join(entry.path, '__init__.py')):
+                _scan(entry.path, mod + '.')
+
+    for name in MODULE_NAMES.split('\n'):
+        name = name.strip()
+        if not name:
+            continue
+        try:
+            spec = importlib.util.find_spec(name)
+        except (ModuleNotFoundError, ValueError):
+            continue
+        if spec is None or not spec.submodule_search_locations:
+            continue
+        for pkg_dir in spec.submodule_search_locations:
+            _scan(pkg_dir, name + '.')
+
+    return [f'--exclude-module={n}' for n in sorted(excludes)]

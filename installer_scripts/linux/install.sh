@@ -16,6 +16,7 @@ set -euo pipefail
 # ── Configuration ─────────────────────────────────────────────────────────────
 
 APP_NAME="harness_designer"
+APP_BINARY="HD"
 APP_DISPLAY_NAME="Harness Designer"
 APP_VERSION="1.0.0"
 ICON_NAME="harness_designer"
@@ -118,13 +119,13 @@ run mkdir -p "$ICON_DIR"
 
 echo "Copying application files..."
 run cp -r "$APP_SRC/." "$APP_DIR/"
-run chmod +x "$APP_DIR/$APP_NAME"
+run chmod +x "$APP_DIR/$APP_BINARY"
 
 echo "Installing icon..."
 run cp "$ICON_SRC" "$ICON_DIR/$ICON_NAME.png"
 
 echo "Creating launcher symlink..."
-run ln -sf "$APP_DIR/$APP_NAME" "$BIN_DIR/$APP_NAME"
+run ln -sf "$APP_DIR/$APP_BINARY" "$BIN_DIR/$APP_NAME"
 
 echo "Creating desktop entry..."
 run tee "$DESKTOP_DIR/$APP_NAME.desktop" > /dev/null <<EOF
@@ -134,7 +135,7 @@ Type=Application
 Name=$APP_DISPLAY_NAME
 GenericName=Electrical Harness Designer
 Comment=Design and document electrical harnesses
-Exec=$APP_DIR/$APP_NAME %F
+Exec=$APP_DIR/$APP_BINARY %F
 Icon=$ICON_NAME
 Terminal=false
 Categories=Engineering;Electronics;

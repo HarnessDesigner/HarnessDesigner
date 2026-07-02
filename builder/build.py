@@ -10,6 +10,10 @@ def build_dependency_installer():
     args = [
         f'--add-binary={sys.executable}{os.pathsep}.',
         '--collect-all=pip',
+        # distlib.resources.finder() resolves finders by loader type; PyInstaller's
+        # FrozenImporter is not registered, causing DistlibException at pip import
+        # time.  This hook patches finder() before installer.py runs.
+        '--runtime-hook=rthook_pip_distlib.py',
         '--name=installer',
         '--onefile',
         '--noconfirm',
@@ -46,12 +50,14 @@ def build_installer(base_import):
 
     std_lib = collect_stdlib.get_modules()
     modules = collect_modules.get_modules()
+    test_excludes = collect_modules.get_test_excludes()
 
     script = 'run.py'
 
     args = []
     args += std_lib
     args += modules
+    args += test_excludes
 
     # Bundle python.exe so the bootstrap can use it as sys.executable for pip
     # subprocess calls — without this, pip spawns the frozen exe as Python.
@@ -79,10 +85,6 @@ def build_installer(base_import):
         'shiboken6',
         'mysql',
         'mysql.connector',
-        # test suites that drag in pytest and test data
-        'numpy.f2py.tests',
-        'pandas.tests',
-        'matplotlib.tests',
         # optional extras whose dependencies are not installed
         'pyparsing.diagram',                    # needs railroad
         'prompt_toolkit.contrib.ssh',           # needs asyncssh
@@ -93,6 +95,8 @@ def build_installer(base_import):
         # referenced by pip's metadata, causing spurious ERROR log lines
         'distutils._collections',
         'distutils._macos_compat',
+        'distutils.command.bdist_msi',
+        'distutils.command.bdist_wininst',
         'distutils.command.py37compat',
         'distutils.py35compat',
         'distutils.py38compat',
@@ -105,20 +109,18 @@ def build_installer(base_import):
     info_plist = None
     if sys.platform.startswith('win'):
         args.extend(['--icon=../../harness_designer/image/icon_256x256.png'])
-        args.extend(['--name=harness_designer'])
+        args.extend(['--name=HD'])
         for mod in (
             '_curses',
             'curses',
             'OpenGL.raw.GLES3',                     # GLES not available on Windows
-            'distutils.command.bdist_msi',           # does not exist in Python 3.11
-            'distutils.command.bdist_wininst',       # does not exist in Python 3.11
         ):
             args.extend([f'--exclude-module={mod}'])
     elif sys.platform.startswith('darwin'):
         arch = platform.machine()   # x86_64 or arm64
         args.extend([f'--target-arch={arch}'])
         args.extend(['--icon=../../harness_designer/image/icon_256x256.png'])
-        args.extend(['--name=harness_designer'])
+        args.extend(['--name=HD'])
         args.extend(['--osx-bundle-identifier=com.kevinschlosser.harnessdesigner'])
         _candidate = os.path.join(
             os.path.dirname(base_path), 'installer_scripts', 'macos', 'Info.plist'
@@ -129,9 +131,15 @@ def build_installer(base_import):
         # OpenGL_accelerate is unreliable on Apple Silicon.
         if arch == 'arm64':
             args.extend(['--exclude-module=OpenGL_accelerate'])
+    else:
+        # Linux: no platform-specific icon flag; name binary HD so it doesn't
+        # collide with the harness_designer/ Python package directory.
+        args.extend(['--name=HD'])
 
     args += [
         '--collect-all=harness_designer',
+        # With --name=HD the executable is always HD or HD.exe — no longer
+        # collides with the harness_designer/ package dir on any platform.
         '--contents-directory=.',
         '--noconfirm',
         '--clean',
@@ -151,11 +159,11 @@ def build_installer(base_import):
     os.chdir(scripts_dir)
 
     # --noconfirm overwrites files but os.symlink() raises FileExistsError if a
-    # symlink already exists.  On macOS, PyInstaller's COLLECT step creates
-    # dist/harness_designer/ and BUNDLE wraps it into dist/harness_designer.app/;
-    # both must be removed so neither leaves stale symlinks for the next build.
+    # symlink already exists.  Clean both the PyInstaller outputs (HD.app / HD)
+    # and the post-renamed paths (harness_designer.app / harness_designer) so
+    # neither leaves stale symlinks for the next build.
     import shutil
-    for candidate in ('harness_designer.app', 'harness_designer'):
+    for candidate in ('harness_designer.app', 'harness_designer', 'HD.app', 'HD'):
         old_dist = os.path.join(scripts_dir, 'dist', candidate)
         if os.path.exists(old_dist):
             shutil.rmtree(old_dist)
@@ -182,6 +190,18 @@ def build_installer(base_import):
         PyInstaller.__main__.run(args)
     finally:
         os.symlink = _orig_symlink
+
+    # Rename HD.app / HD / HD/ → harness_designer.app / harness_designer so that
+    # installer scripts find the expected paths without modification.  The binary
+    # inside the onedir is always named HD (or HD.exe on Windows).
+    if sys.platform.startswith('darwin'):
+        _old = os.path.join(scripts_dir, 'dist', 'HD.app')
+        _new = os.path.join(scripts_dir, 'dist', 'harness_designer.app')
+    else:
+        _old = os.path.join(scripts_dir, 'dist', 'HD')
+        _new = os.path.join(scripts_dir, 'dist', 'harness_designer')
+    if os.path.exists(_old):
+        shutil.move(_old, _new)
 
     # --info-plist is not a valid PyInstaller CLI flag; merge custom keys into
     # the generated Info.plist after the build instead.

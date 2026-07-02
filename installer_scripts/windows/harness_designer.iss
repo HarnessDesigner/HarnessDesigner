@@ -15,7 +15,7 @@
 #define AppVersion   "1.0.0"
 #define AppPublisher "Kevin G. Schlosser"
 #define AppURL       "https://github.com/HarnessDesigner/HarnessDesigner"
-#define AppExeName   "harness_designer.exe"
+#define AppExeName   "HD.exe"
 
 ; Generate a fresh GUID via Tools > Generate GUID in the Inno Setup IDE.
 ; Never reuse this GUID for a different application.

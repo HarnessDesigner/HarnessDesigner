@@ -397,6 +397,7 @@ class TableBase:
         :rtype: int
         """
 
+        is_file_object = False  # Cython C int; declare before first exception point to silence clang -Wuninitialized
         self.execute(f'SELECT "(\'" || group_concat(name, "\', \'") || "\')" from '
                      f'pragma_table_info("{self.__table_name__}");')
 
@@ -405,8 +406,6 @@ class TableBase:
         self.execute(f'SELECT {", ".join(column_names)} FROM {self.__table_name__};')
 
         if isinstance(file, str):
-            is_file_object = False
-
             file = open(file, 'wb')
         else:
             is_file_object = True

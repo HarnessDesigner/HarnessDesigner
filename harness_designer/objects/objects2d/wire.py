@@ -211,7 +211,7 @@ class Wire(_base2d.Base2D):
 
         # Calculate distance from point to line segment
         distance = self._point_to_line_distance(
-            world_x, world_y,
+            world_pos.x, world_pos.y,
             self._p1.x, self._p1.y,
             self._p2.x, self._p2.y
         )
