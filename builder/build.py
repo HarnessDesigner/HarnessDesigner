@@ -125,7 +125,7 @@ def _clean_dist(app_dir):
 
     lic_count = len(os.listdir(licenses_dir)) if os.path.isdir(licenses_dir) else 0
     print(f'_clean_dist: removed {n_files} files, {n_dirs} dirs; '
-          f'collected {lic_count} license files → {licenses_dir}')
+          f'collected {lic_count} license files -> {licenses_dir}')
 
 
 def build_installer(base_import):
@@ -216,11 +216,8 @@ def build_installer(base_import):
         'stack_data',           # enhanced tracebacks (IPython)
         'pure_eval',            # safe expression evaluation (IPython)
         'decorator',            # generic decorator helper (IPython)
-        # Python IDE / stdlib tools — not needed in a frozen release app
-        'idlelib',
-        'lib2to3',
-        'Cython',               # compiler itself — already ran at build time
-        'venv',                 # virtual-env support, unused in frozen app
+        # Cython compiler itself — already ran at build time, not needed at runtime
+        'Cython',
         # Terminal-UI toolkit dragged in by IPython
         'prompt_toolkit',
         'prompt_toolkit.contrib.ssh',           # also needs asyncssh

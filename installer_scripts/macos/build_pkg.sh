@@ -26,7 +26,7 @@ APP_NAME="HarnessDesigner"
 APP_DISPLAY_NAME="Harness Designer"
 APP_VERSION="1.0.0"
 BUNDLE_ID="com.kevinschlosser.harnessdesigner"
-SIGN=0
+SIGN=""   # set to non-empty (e.g. 1) only when --sign is passed
 
 # Code signing identities (only used when --sign is passed)
 DEVELOPER_ID_APP="Developer ID Application: Kevin G. Schlosser (TEAMID)"

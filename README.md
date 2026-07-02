@@ -6,6 +6,17 @@
 
 Wiring harness design software — currently in active development (WIP).
 
+I am currently working on the CI and the build system. I hopefully should have
+installers up and running sometime today. I will do an initial pre alpha release
+once I get the build and CI stuff done. This will allow people to at least run
+the app to see what it's like. There are still a lot of bugs in it and not all of 
+the functionality has been added yet. Some basic things do work like adding housings,
+wires and some of the accessory type items. The schematic editor doesn't do anything 
+currently. The user will be able to basiclaly test out whether or not the installer 
+works properly and if the installation actually will run. They will be able to add a 
+couple of things to be able to check out user input and how things respond. They can 
+also upload the log to me so I can see what kind of errors if any have occurred.  
+
 ---
 
 ## Screenshots

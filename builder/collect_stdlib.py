@@ -28,7 +28,16 @@ def get_modules():
         else:
             if item in (
                 '__pycache__', 'unittest', 'test',
-                '__phello__', 'turtledemo', 'site-packages'
+                '__phello__', 'turtledemo', 'site-packages',
+                # These are excluded from the bundle in build.py.  Skipping
+                # them here prevents --collect-all from triggering their
+                # PyInstaller hooks, which would otherwise declare dozens of
+                # hidden imports that then fail with ERROR "not found" because
+                # the module itself is excluded.
+                'idlelib',      # Python IDLE IDE
+                'lib2to3',      # Python 2→3 converter
+                'venv',         # virtual-env support (unused in frozen app)
+                'tkinter',      # Tk GUI toolkit (app uses PySide6)
             ):
                 continue
 
