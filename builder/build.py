@@ -232,9 +232,7 @@ def build_installer(base_import):
         'matplotlib_inline',    # IPython/Jupyter display hook
         # Cython compiler itself — already ran at build time, not needed at runtime
         'Cython',
-        # Terminal-UI toolkit dragged in by IPython
-        'prompt_toolkit.contrib.ssh',           # also needs asyncssh
-        # Syntax highlighter — pip bundles its own copy; Rich degrades without
+        'prompt_toolkit.contrib.ssh',           # needs asyncssh which is not installed
     ):
         args.extend([f'--exclude-module={mod}'])
 
@@ -273,6 +271,17 @@ def build_installer(base_import):
 
     args += [
         '--collect-all=harness_designer',
+        # These three packages use lazy/dynamic imports that PyInstaller's
+        # static analysis cannot fully trace:
+        #   IPython      — __getattr__-based lazy loading in __init__.py; 100+
+        #                  submodules only resolved at attribute access time.
+        #   prompt_toolkit — registry-based lazy imports; submodules like
+        #                  auto_suggest/filters/keys are never explicitly imported.
+        #   pygments     — entry-points / plugin-registry for lexers, formatters,
+        #                  and styles; none are explicit imports in the package.
+        '--collect-all=IPython',
+        '--collect-all=prompt_toolkit',
+        '--collect-all=pygments',
         # With --name=HD the executable is always HD or HD.exe — no longer
         # collides with the harness_designer/ package dir on any platform.
         '--contents-directory=.',
