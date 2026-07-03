@@ -367,15 +367,15 @@ class MainFrame(QtWidgets.QMainWindow):
     def end_progress_bar(self):
         self.progress_bar.hide()
 
-    def set_progress(self, value, label=None):
+    def set_progress(self, value: int, label: str = None):
         """Set the progress.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: UNKNOWN
+        :type value: int
         :param label: Value for ``label``.
-        :type label: UNKNOWN
+        :type label: str | None
         """
         if label is not None:
             self.status_bar.showMessage(label)
@@ -386,15 +386,15 @@ class MainFrame(QtWidgets.QMainWindow):
             self.status_bar.showMessage("Ready")
             self.progress_bar.hide()
 
-    def start_progress(self, label, max_value):
+    def start_progress(self, label: str, max_value: int):
         """Start the progress.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param label: Value for ``label``.
-        :type label: UNKNOWN
+        :type label: str
         :param max_value: Value for ``max_value``.
-        :type max_value: UNKNOWN
+        :type max_value: int
         """
         self.progress_bar.setRange(0, max_value)
         self.progress_bar.setValue(0)
@@ -402,7 +402,7 @@ class MainFrame(QtWidgets.QMainWindow):
         self.progress_bar.show()
 
     def _make_dock(self, title: str, name: str, widget: QtWidgets.QWidget,
-                   area=None) -> QtWidgets.QDockWidget:
+                   area: QtCore.Qt.DockWidgetArea = None) -> QtWidgets.QDockWidget:
         """Create and register a QDockWidget.
 
         Parameters
