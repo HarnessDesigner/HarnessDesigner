@@ -231,16 +231,9 @@ def build_installer(base_import):
         # jedi (code-completion) + parso (its parser) + typeshed stubs
         'jedi',
         'parso',
-        # IPython interactive shell and its dependency cluster
-        'IPython',
+        # ipykernel is the Jupyter kernel — not needed at runtime
         'ipykernel',
-        'traitlets',            # IPython config system
-        'matplotlib_inline',    # IPython display hook
-        'executing',            # stack inspection for IPython tracebacks
-        'asttokens',            # AST source mapping (IPython)
-        'stack_data',           # enhanced tracebacks (IPython)
-        'pure_eval',            # safe expression evaluation (IPython)
-        'decorator',            # generic decorator helper (IPython)
+        'matplotlib_inline',    # IPython/Jupyter display hook
         # Cython compiler itself — already ran at build time, not needed at runtime
         'Cython',
         # Terminal-UI toolkit dragged in by IPython
