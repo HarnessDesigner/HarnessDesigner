@@ -24,12 +24,8 @@ def build_dependency_installer():
         '--noconfirm',
         '--clean',
         '--windowed',
+        'dep_installer.py'
     ]
-
-    if os.path.exists(ico):
-        args.append(f'--icon={os.path.normpath(ico)}')
-
-    args.append('dep_installer.py')
 
     cwd = os.getcwd()
     os.chdir(os.path.join(base_path, 'scripts'))
