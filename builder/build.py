@@ -227,17 +227,12 @@ def build_installer(base_import):
         # pycparser generates these at runtime; they are not bundled
         'pycparser.lextab',
         'pycparser.yacctab',
-        # ── IDE / dev-tool packages pulled in transitively ──────────────────
-        # jedi (code-completion) + parso (its parser) + typeshed stubs
-        'jedi',
-        'parso',
         # ipykernel is the Jupyter kernel — not needed at runtime
         'ipykernel',
         'matplotlib_inline',    # IPython/Jupyter display hook
         # Cython compiler itself — already ran at build time, not needed at runtime
         'Cython',
         # Terminal-UI toolkit dragged in by IPython
-        'prompt_toolkit',
         'prompt_toolkit.contrib.ssh',           # also needs asyncssh
         # Syntax highlighter — pip bundles its own copy; Rich degrades without
     ):

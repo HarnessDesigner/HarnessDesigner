@@ -59,6 +59,13 @@ def main():
         os.rename(toml_path, toml_bak)
 
     for file in os.listdir(assimp_binary_path):
+        if (
+            not file.endswith('.so') and
+            not file.endswith('.dll') and
+            not file.endswith('.dynlib')
+        ):
+            continue
+
         src = os.path.join(assimp_binary_path, file)
         dst = os.path.join(assimp_lib_path, file)
         shutil.copyfile(src, dst)
