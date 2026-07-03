@@ -2,14 +2,14 @@
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import QMenu
+from PySide6 import QtWidgets
 
 
 if TYPE_CHECKING:
     from ... import ui as _ui
 
 
-class WindowMenu(QMenu):
+class WindowMenu(QtWidgets.QMenu):
     """Represent a window menu in :mod:`harness_designer.ui.system_menu.window`.
 
     UNKNOWN details are inferred from the class name and surrounding code.

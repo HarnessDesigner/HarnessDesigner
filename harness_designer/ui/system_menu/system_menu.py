@@ -1,7 +1,7 @@
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import QMenuBar
+from PySide6 import QtWidgets
 
 from . import file as _file
 from . import edit as _edit
@@ -16,20 +16,19 @@ if TYPE_CHECKING:
     from ... import ui as _ui
 
 
-class SystemMenu(QMenuBar):
-    """Represent a system menu in :mod:`harness_designer.ui.system_menu.__init__`.
-
-    UNKNOWN details are inferred from the class name and surrounding code.
+class SystemMenu(QtWidgets.QMenuBar):
+    """
+    Represent a system menu in :mod:`harness_designer.ui.system_menu.__init__`.
     """
 
     def __init__(self, mainframe: "_ui.MainFrame"):
-        """Initialise the :class:`SystemMenu` instance.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Initialise the :class:`SystemMenu` instance.
 
         :param mainframe: Main application frame.
         :type mainframe: :class:`_ui.MainFrame`
         """
+
         super().__init__(mainframe)
         self.mainframe = mainframe
 

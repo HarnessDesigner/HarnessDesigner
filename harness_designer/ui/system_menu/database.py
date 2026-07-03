@@ -2,7 +2,14 @@
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import QMenu
+from PySide6 import QtWidgets
+
+
+try:
+    import mysql
+except ImportError:
+    mysql = None
+
 
 from ...database.db_connectors.mysql_connector import settings_dialog as _mysql_settings
 from ...database.db_connectors.sqlite_connector import settings_dialog as _sqlite_settings
@@ -13,58 +20,53 @@ if TYPE_CHECKING:
     from ... import ui as _ui
 
 
-DBConfig    = _config.Config.database
+DBConfig = _config.Config.database
 MySQLConfig = _config.Config.database.mysql
 SQLiteConfig = _config.Config.database.sqlite
 
 
-class DatabaseMenu(QMenu):
-    """Represent a database menu in :mod:`harness_designer.ui.system_menu.database`.
-
-    UNKNOWN details are inferred from the class name and surrounding code.
+class DatabaseMenu(QtWidgets.QMenu):
+    """
+    Represent a database menu in :mod:`harness_designer.ui.system_menu.database`.
     """
 
     def __init__(self, mainframe: "_ui.MainFrame"):
-        """Initialise the :class:`DatabaseMenu` instance.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Initialise the :class:`DatabaseMenu` instance.
 
         :param mainframe: Main application frame.
         :type mainframe: :class:`_ui.MainFrame`
         """
+
         super().__init__('Database', mainframe)
         self.mainframe = mainframe
 
         self.addAction('SQLite Settings').triggered.connect(self.on_sqlite_settings)
-        self.addAction('MySQL Settings').triggered.connect(self.on_mysql_settings)
+
+        if mysql is not None:
+            self.addAction('MySQL Settings').triggered.connect(self.on_mysql_settings)
+
         self.addSeparator()
-        self.addAction('Import Data').triggered.connect(self.on_import_data)
 
     def on_sqlite_settings(self):
-        """Handle the sqlite settings event.
-
-        UNKNOWN details are inferred from the callable name and signature.
         """
+        Handle the sqlite settings event.
+        """
+
         pass
 
-    def on_mysql_settings(self):
-        """Handle the mysql settings event.
+    if mysql is None:
+        def on_mysql_settings(self):
+            pass
 
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        dlg = _mysql_settings.SQLOptionsDialog(self.mainframe)
-        if dlg.exec() == dlg.Accepted:
-            settings = dlg.GetValue()
-            for key, value in settings.items():
-                setattr(MySQLConfig, key, value)
+    else:
+        def on_mysql_settings(self):
+            """
+            Handle the mysql settings event.
+            """
 
-    def on_import_data(self):
-        """Handle the import data event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        dlg = _sqlite_settings.SQLOptionsDialog(self.mainframe)
-        if dlg.exec() == dlg.Accepted:
-            settings = dlg.GetValue()
-            for key, value in settings.items():
-                setattr(SQLiteConfig, key, value)
+            dlg = _mysql_settings.SQLOptionsDialog(self.mainframe)
+            if dlg.exec() == dlg.Accepted:
+                settings = dlg.GetValue()
+                for key, value in settings.items():
+                    setattr(MySQLConfig, key, value)

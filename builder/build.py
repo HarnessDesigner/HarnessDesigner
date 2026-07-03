@@ -7,6 +7,11 @@ def build_dependency_installer():
 
     base_path = os.path.abspath(os.path.dirname(__file__))
 
+    ico = os.path.join(
+        base_path, '..', 'installer_scripts', 'windows', 'assets',
+        'harness_designer.ico',
+    )
+
     args = [
         f'--add-binary={sys.executable}{os.pathsep}.',
         '--collect-all=pip',
@@ -19,8 +24,12 @@ def build_dependency_installer():
         '--noconfirm',
         '--clean',
         '--windowed',
-        'installer.py',
     ]
+
+    if os.path.exists(ico):
+        args.append(f'--icon={os.path.normpath(ico)}')
+
+    args.append('installer.py')
 
     cwd = os.getcwd()
     os.chdir(os.path.join(base_path, 'scripts'))

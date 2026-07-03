@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import QMenu
+from PySide6 import QtWidgets
 
 from ..dialogs import debug_settings as _debug_settings
 
@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from ... import ui as _ui
 
 
-class SettingsMenu(QMenu):
+class SettingsMenu(QtWidgets.QMenu):
     """Represent a settings menu in :mod:`harness_designer.ui.system_menu.settings`.
 
     UNKNOWN details are inferred from the class name and surrounding code.

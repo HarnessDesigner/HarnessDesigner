@@ -87,20 +87,6 @@ class MainFrame(QtWidgets.QMainWindow):
         self._selected_obj: "_objects.ObjectBase" = None
         self._obj_handler: _handlers.HandlerBase = None
 
-        self._bundle_handler: _handlers.AddBundleHandler = None
-        self._bundle_layout_handler: _handlers.AddBundleLayoutHandler = None
-        self._cover_handler: _handlers.AddCoverHandler = None
-        self._cpa_lock_handler: _handlers.AddCPALockHandler = None
-        self._housing_handler: _handlers.AddHousingHandler = None
-        self._seal_handler: _handlers.AddSealHandler = None
-        self._splice_handler: _handlers.AddSpliceHandler = None
-        self._terminal_handler: _handlers.AddTerminalHandler = None
-        self._tpa_lock_handler: _handlers.AddTPALockHandler = None
-        self._transition_handler: _handlers.AddTransitionHandler = None
-        self._wire_handler: _handlers.AddWireHandler = None
-        self._wire_layout_handler: _handlers.AddWireLayoutHandler = None
-        self._wire_service_loop_handler: _handlers.AddWireServiceLoopHandler = None
-
         # ------------------------------------------------------------------
         # Docking setup
         # Qt QMainWindow has built-in dock support. For full AUI-equivalent
@@ -173,14 +159,14 @@ class MainFrame(QtWidgets.QMainWindow):
 
         self.editor_db = editor_db.EditorDB(self)
 
-        splash.SetText('Creating attribute editor...')
+        splash.SetText('Creating circuit editor...')
         splash.flush()
 
         from . import editor_ciruit
 
-        self.editor_obj = editor_ciruit.EditorCircuit(self)
+        self.editor_circuit = editor_ciruit.EditorCircuit(self)
 
-        splash.SetText('Creating circuit editor...')
+        splash.SetText('Creating object editor...')
         splash.flush()
 
         from . import editor_obj
@@ -335,9 +321,6 @@ class MainFrame(QtWidgets.QMainWindow):
         if Config.ui_perspective:
             logger.debug('SAVED UI:', repr(Config.ui_perspective))
             state = Config.ui_perspective
-            if isinstance(state, str):
-                # Guard: if an old str value slipped in, encode before use
-                state = state.encode('latin-1')
             self.restoreState(QtCore.QByteArray(state))
 
         if Config.position:
