@@ -239,9 +239,7 @@ def build_installer(base_import):
         # Terminal-UI toolkit dragged in by IPython
         'prompt_toolkit',
         'prompt_toolkit.contrib.ssh',           # also needs asyncssh
-        'wcwidth',              # terminal column-width helper (prompt_toolkit)
         # Syntax highlighter — pip bundles its own copy; Rich degrades without
-        'pygments',
     ):
         args.extend([f'--exclude-module={mod}'])
 
