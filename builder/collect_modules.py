@@ -142,6 +142,7 @@ def get_test_excludes():
             if entry.name.startswith('.') or not entry.is_dir(follow_symlinks=False):
                 continue
             mod = prefix + entry.name
+
             if entry.name in _TEST_COMPONENTS:
                 excludes.add(mod)
                 _add_all(entry.path, mod + '.')
@@ -161,4 +162,4 @@ def get_test_excludes():
         for pkg_dir in spec.submodule_search_locations:
             _scan(pkg_dir, name + '.')
 
-    return [f'--exclude-module={n}' for n in sorted(excludes)]
+    return [f'--exclude-module={n}' for n in sorted(excludes) if 'IPython' not in n]
