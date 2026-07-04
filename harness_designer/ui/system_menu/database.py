@@ -11,8 +11,6 @@ except ImportError:
     mysql = None
 
 
-from ...database.db_connectors.mysql_connector import settings_dialog as _mysql_settings
-from ...database.db_connectors.sqlite_connector import settings_dialog as _sqlite_settings
 from ... import config as _config
 
 
@@ -53,6 +51,8 @@ class DatabaseMenu(QtWidgets.QMenu):
         Handle the sqlite settings event.
         """
 
+        from ...database.db_connectors.sqlite_connector import settings_dialog as _sqlite_settings
+
         pass
 
     if mysql is None:
@@ -64,6 +64,8 @@ class DatabaseMenu(QtWidgets.QMenu):
             """
             Handle the mysql settings event.
             """
+
+            from ...database.db_connectors.mysql_connector import settings_dialog as _mysql_settings
 
             dlg = _mysql_settings.SQLOptionsDialog(self.mainframe)
             if dlg.exec() == dlg.Accepted:
