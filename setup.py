@@ -98,7 +98,9 @@ def main():
         )
     finally:
         if os.path.exists(toml_bak):
-            os.remove(toml_path)
+            if os.path.exists(toml_path):
+                os.remove(toml_path)
+            
             os.rename(toml_bak, toml_path)
 
     # The upstream PyAssimp setup.py has no package_data for the compiled
