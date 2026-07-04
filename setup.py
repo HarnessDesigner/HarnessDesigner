@@ -54,6 +54,10 @@ def main():
         'ninja'
     )
 
+    os.environ['CPPFLAGS'] = '-Wno-error=maybe-uninitialized'
+    os.environ['CFLAGS'] = '-Wno-error=maybe-uninitialized'
+    os.environ['CXXFLAGS'] = '-Wno-error=maybe-uninitialized'
+
     spawn.spawn(p_cmd)
 
     base_path = os.path.abspath(os.path.dirname(__file__))
