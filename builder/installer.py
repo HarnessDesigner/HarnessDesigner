@@ -20,6 +20,8 @@ import subprocess
 import sys
 import tarfile
 
+from . import prepare_installer_assets
+
 
 BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 INSTALLER_SCRIPTS_DIR = os.path.join(BASE_PATH, 'installer_scripts')
@@ -118,7 +120,6 @@ def build_windows(version):
         sys.exit(1)
 
     # Generate the multi-size ICO and the BMP assets the .iss needs at compile time.
-    from builder import prepare_installer_assets
     prepare_installer_assets.prepare_all()
 
     license_file = os.path.join(BASE_PATH, 'LICENSE')
