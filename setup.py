@@ -54,9 +54,10 @@ def main():
         'ninja'
     )
 
-    os.environ['CPPFLAGS'] = '-Wno-error=maybe-uninitialized'
-    os.environ['CFLAGS'] = '-Wno-error=maybe-uninitialized'
-    os.environ['CXXFLAGS'] = '-Wno-error=maybe-uninitialized'
+    if sys.platform.startswith('linux'):
+        os.environ['CPPFLAGS'] = '-Wno-error=maybe-uninitialized'
+        os.environ['CFLAGS'] = '-Wno-error=maybe-uninitialized'
+        os.environ['CXXFLAGS'] = '-Wno-error=maybe-uninitialized'
 
     spawn.spawn(p_cmd)
 
