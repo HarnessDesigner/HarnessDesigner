@@ -15,6 +15,7 @@ except ImportError:
 error_lock = threading.Lock()
 
 errors = []
+retry_files = []
 
 
 def _cythonize_chunk(files, t_lock, sys_path):
@@ -27,17 +28,22 @@ def _cythonize_chunk(files, t_lock, sys_path):
     # started from sys.executable has no guarantee of finding it via -m.
     # -c explicitly re-inserts cython_path into sys.path before importing,
     # instead of relying on the subprocess's own default sys.path.
-    for file in files:
+
+    def _compile(f):
         code = (
             f'import sys; sys.path.insert(0, {sys_path!r}); '
             f'from Cython.Build import Cythonize; '
-            f"Cythonize.main(['-3', '--build', '--inplace', {file!r}])"
+            f"Cythonize.main(['-3', '--build', '--inplace', {f!r}])"
         )
         cmd = f'"{sys.executable}" -c "{code}"'
-        rc, error_lines = spawn.spawn(cmd)
+        return spawn.spawn(cmd)
+
+    for file in files:
+        rc, error_lines = _compile(file)
+
         if rc:
             with error_lock:
-                errors.extend(error_lines)
+                retry_files.append(file)
 
     t_lock.release()
 
@@ -76,9 +82,22 @@ def run(hd_path):
     for lock in locks:
         lock.acquire()
 
+    for file in retry_files:
+        code = (
+            f'import sys; sys.path.insert(0, {sys_path!r}); '
+            f'from Cython.Build import Cythonize; '
+            f"Cythonize.main(['-3', '--build', '--inplace', {file!r}])"
+        )
+        cmd = f'"{sys.executable}" -c "{code}"'
+        rc, error_lines = spawn.spawn(cmd)
+
+        if rc:
+            errors.extend(error_lines)
+
     if errors:
         for line in errors:
             sys.stderr.write(line + '\n')
+
         sys.stderr.flush()
         sys.exit(1)
 

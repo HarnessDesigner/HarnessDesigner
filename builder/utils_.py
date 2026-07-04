@@ -16,6 +16,7 @@ def iter_mod_path(p, ignore_files=()):
     for f in os.listdir(p):
         if f in IGNORE_PATH:
             continue
+
         if f in ignore_files:
             continue
 
