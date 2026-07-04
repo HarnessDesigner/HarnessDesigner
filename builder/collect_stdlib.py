@@ -9,7 +9,6 @@ def get_modules():
     for item in sys.path:
         if item.endswith('Lib'):
             python_stdlib = item
-
             break
     else:
         python_stdlib = os.path.dirname(os.__file__)

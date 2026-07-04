@@ -1,9 +1,22 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+import sys
+import os
+import gc
+import shutil
+import PyInstaller.__main__
+import platform
+import warnings
+
+from . import collect_stdlib
+from . import collect_modules
+
+if sys.platform.startswith('darwin'):
+    import plistlib
+
+
 def build_dependency_installer():
     """Build dep_installer.exe — the lightweight GUI that installs external packages."""
-    import sys
-    import os
 
     base_path = os.path.abspath(os.path.dirname(__file__))
 
@@ -39,10 +52,8 @@ def build_dependency_installer():
     cwd = os.getcwd()
     os.chdir(os.path.join(base_path, 'scripts'))
 
-    import gc
     gc.collect()
 
-    import PyInstaller.__main__
     PyInstaller.__main__.run(args)
 
     os.chdir(cwd)
@@ -64,8 +75,6 @@ def _clean_dist(app_dir):
     Collects all license files from *.dist-info into a single 'licenses/'
     directory at the root of app_dir so they can be displayed in the app.
     """
-    import os
-    import shutil
 
     # .py — redundant: PyInstaller already compiled everything it analyzed into
     # its internal archive as bytecode; the .py copies left on disk are from
@@ -78,8 +87,7 @@ def _clean_dist(app_dir):
     # PyOpenGL ships freeglut/gle DLLs for vc9 (VS2008) and vc10 (VS2010) that
     # require MSVCR90.dll / MSVCR100.dll — old runtimes absent on modern Windows.
     # The vc15 (VS2017+) variants use the universal CRT and are sufficient.
-    import sys as _sys
-    _remove_dll_suffixes = ('.vc9.dll', '.vc10.dll') if _sys.platform.startswith('win') else ()
+    _remove_dll_suffixes = ('.vc9.dll', '.vc10.dll') if sys.platform.startswith('win') else ()
     # File names (lower-cased) treated as license files worth keeping
     # _LICENSE_NAMES = frozenset([
     #     'license', 'license.txt', 'license.md', 'license.rst',
@@ -118,6 +126,7 @@ def _clean_dist(app_dir):
                     n_dirs += 1
                 except OSError:
                     pass
+
             if dname.endswith('.dist-info'):
                 continue
 
@@ -153,10 +162,6 @@ def _clean_dist(app_dir):
 
 
 def build_installer(base_import):
-    import sys
-    import os
-    import platform
-    import warnings
 
     # Setuptools/pkg_resources emit EasyInstallDeprecationWarning and
     # SetuptoolsDeprecationWarning whenever those modules are imported.
@@ -169,13 +174,6 @@ def build_installer(base_import):
     _pw = os.environ.get('PYTHONWARNINGS', '')
     _suppress = 'ignore::DeprecationWarning:setuptools,ignore::DeprecationWarning:pkg_resources'
     os.environ['PYTHONWARNINGS'] = f'{_pw},{_suppress}' if _pw else _suppress
-
-    try:
-        from . import collect_stdlib
-        from . import collect_modules
-    except ImportError:
-        import collect_stdlib
-        import collect_modules
 
     base_path = os.path.abspath(os.path.dirname(__file__))
 
@@ -254,11 +252,9 @@ def build_installer(base_import):
     if sys.platform.startswith('win'):
         args.extend(['--icon=../../harness_designer/image/icon_256x256.png'])
         args.extend(['--name=HD'])
-        for mod in (
-            '_curses',
-            'curses',
-        ):
+        for mod in ('_curses', 'curses'):
             args.extend([f'--exclude-module={mod}'])
+
     elif sys.platform.startswith('darwin'):
         arch = platform.machine()   # x86_64 or arm64
         args.extend([f'--target-arch={arch}'])
@@ -266,8 +262,8 @@ def build_installer(base_import):
         args.extend(['--name=HD'])
         args.extend(['--osx-bundle-identifier=com.kevinschlosser.harnessdesigner'])
         _candidate = os.path.join(
-            os.path.dirname(base_path), 'installer_scripts', 'macos', 'Info.plist'
-        )
+            os.path.dirname(base_path), 'installer_scripts', 'macos', 'Info.plist')
+
         if os.path.exists(_candidate):
             info_plist = _candidate
 
@@ -277,13 +273,9 @@ def build_installer(base_import):
     else:
         # Linux: no platform-specific icon flag; name binary HD so it doesn't
         # collide with the harness_designer/ Python package directory.
-        args.extend(['--name=HD'])
-        for mod in (
-            'OpenGL.osmesa',                        # software renderer, not needed
-        ):
-            args.extend([f'--exclude-module={mod}'])
+        args.extend(['--name=HD', '--exclude-module=OpenGL.osmesa'])
 
-    args += [
+    args.extend([
         '--collect-all=harness_designer',
         # These three packages use lazy/dynamic imports that PyInstaller's
         # static analysis cannot fully trace:
@@ -307,7 +299,7 @@ def build_installer(base_import):
         '--clean',
         '--windowed',
         f'{script}',
-    ]
+    ])
 
     full_imports = set(list(sys.modules.keys()))
     base_import = set(base_import)
@@ -324,16 +316,12 @@ def build_installer(base_import):
     # symlink already exists.  Clean both the PyInstaller outputs (HD.app / HD)
     # and the post-renamed paths (harness_designer.app / harness_designer) so
     # neither leaves stale symlinks for the next build.
-    import shutil
     for candidate in ('harness_designer.app', 'harness_designer', 'HD.app', 'HD'):
         old_dist = os.path.join(scripts_dir, 'dist', candidate)
         if os.path.exists(old_dist):
             shutil.rmtree(old_dist)
 
-    import gc
     gc.collect()
-
-    import PyInstaller.__main__
 
     # PyInstaller 6.x on macOS can add the Python framework symlink to COLLECT's
     # TOC twice, causing os.symlink() to fail with FileExistsError on the second
@@ -343,10 +331,13 @@ def build_installer(base_import):
     # symlinks, including broken ones) and unlink before recreating.
     _orig_symlink = os.symlink
     if sys.platform.startswith('darwin'):
+
         def _dedup_symlink(src, dst, *_a, **_kw):
             if os.path.lexists(dst):
                 os.unlink(dst)
+
             _orig_symlink(src, dst, *_a, **_kw)
+
         os.symlink = _dedup_symlink
 
     try:
@@ -376,16 +367,18 @@ def build_installer(base_import):
     # --info-plist is not a valid PyInstaller CLI flag; merge custom keys into
     # the generated Info.plist after the build instead.
     if info_plist:
-        import plistlib
         app_plist = os.path.join(
-            scripts_dir, 'dist', 'harness_designer.app', 'Contents', 'Info.plist'
-        )
+            scripts_dir, 'dist', 'harness_designer.app', 'Contents', 'Info.plist')
+
         if os.path.exists(app_plist):
             with open(app_plist, 'rb') as _f:
                 _app_data = plistlib.load(_f)
+
             with open(info_plist, 'rb') as _f:
                 _custom = plistlib.load(_f)
+
             _app_data.update(_custom)
+
             with open(app_plist, 'wb') as _f:
                 plistlib.dump(_app_data, _f)
 

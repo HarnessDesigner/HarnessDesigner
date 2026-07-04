@@ -1,5 +1,10 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+import importlib.util
+import os
+import logging
+
+
 MODULE_NAMES = '''\
 ipython_pygments_lexers
 trianglesolver
@@ -64,7 +69,6 @@ pandas'''
 
 
 def get_modules():
-    import logging
 
     res = []
     # Some modules (e.g. matplotlib) initialise loggers on import whose
@@ -106,8 +110,6 @@ def get_test_excludes():
     individual module inside them (e.g. pandas.tests.frame.test_api) so that
     explicit hidden-import requests from built-in hooks are also suppressed.
     """
-    import importlib.util
-    import os
 
     _TEST_COMPONENTS = frozenset(['test', 'tests', '_test', '_tests', 'testing'])
 
@@ -119,9 +121,11 @@ def get_test_excludes():
             entries = os.scandir(dir_path)
         except OSError:
             return
+
         for entry in entries:
             if entry.name.startswith('.'):
                 continue
+
             if entry.is_dir(follow_symlinks=False):
                 mod = prefix + entry.name
                 excludes.add(mod)
@@ -138,9 +142,11 @@ def get_test_excludes():
             entries = os.scandir(dir_path)
         except OSError:
             return
+
         for entry in entries:
             if entry.name.startswith('.') or not entry.is_dir(follow_symlinks=False):
                 continue
+
             mod = prefix + entry.name
 
             if entry.name in _TEST_COMPONENTS:
@@ -153,12 +159,15 @@ def get_test_excludes():
         name = name.strip()
         if not name:
             continue
+
         try:
             spec = importlib.util.find_spec(name)
         except (ModuleNotFoundError, ValueError):
             continue
+
         if spec is None or not spec.submodule_search_locations:
             continue
+
         for pkg_dir in spec.submodule_search_locations:
             _scan(pkg_dir, name + '.')
 
