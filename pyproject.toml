@@ -1,15 +1,13 @@
 [build-system]
 requires = [
-    "setuptools==62.0.0",
     "Cython==3.2.4",
+    "numpy==2.2.6",
     "wheel==0.46.3",
-    "pyinstaller==6.19.0",
+    "packaging",
     "pyMSVC@git+https://github.com/kdschlosser/python_msvc ; sys_platform=='win32'",
 ]
-build-backend = "setuptools.build_meta"
-
-[tool.setuptools]
-py-modules=[]
+build-backend = "builder._backend"
+backend-path = ["."]
 
 [project]
 name = "harness_designer"
@@ -20,7 +18,30 @@ requires-python = "==3.11.14"
 keywords = []
 authors = [{ name = "Kevin G. Schlosser" }]
 maintainers = [{ name = "Kevin G. Schlosser" }]
-dynamic = ["dependencies"]
+dependencies = [
+    "PySide6==6.11.1",
+    "PyOpenGL==3.1.10",
+    "PyOpenGL-accelerate==3.1.10; sys_platform != 'darwin' or platform_machine == 'x86_64'",
+    "requests==2.33.1",
+    "numpy==2.2.6",
+    "pillow==12.2.0",
+    "mpmath==1.3.0",
+    "lib3mf==2.4.1.post1",
+    "ezdxf==1.4.3",
+    "scipy==1.17.1",
+    "sympy==1.14.0",
+    "pyfqmr==0.4.0",
+    "meshio==5.3.5",
+    "cadquery-ocp==7.8.1.1",
+    "build123d==0.10.0",
+    "keyring==25.7.0",
+    "pyopencl==2026.1.2",
+    "pandas==3.0.3",
+    'apple_smi==0.1.4; sys_platform == "darwin"',
+    'nvidia-ml-py==13.610.43; sys_platform != "darwin"',
+    'amdsmi==7.0.2; sys_platform != "darwin"',
+    "pyassimp",
+]
 
 [project.urls]
 "Homepage" = "https://github.com/HarnessDesigner/HarnessDesigner"

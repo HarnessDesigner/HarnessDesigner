@@ -52,13 +52,28 @@ jobs:
           # raising ModuleNotFoundError and silently dropping unrelated sibling packages.
           pip install "mysql-connector-python==9.5.0"
 
-      - name: Build (Cython + PyInstaller + dependency installer)
+      - name: Build native dependencies (assimp + pyassimp)
         env:
           PYTHONPATH: ${{ github.workspace }}
         shell: bash
         run: |
           set -o pipefail
-          python setup.py install --installer 2>&1 | tee build.log
+          python -m builder.build_native_deps 2>&1 | tee build.log
+
+      - name: Build harness_designer wheel
+        shell: bash
+        run: |
+          set -o pipefail
+          pip install . 2>&1 | tee -a build.log
+
+      - name: Build installer
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m builder 2>&1 | tee -a build.log
+          python -m builder.installer 2>&1 | tee -a build.log
 
       - name: Upload build log
         if: always()
