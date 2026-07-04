@@ -100,7 +100,7 @@ def main():
         if os.path.exists(toml_bak):
             if os.path.exists(toml_path):
                 os.remove(toml_path)
-            
+
             os.rename(toml_bak, toml_path)
 
     # The upstream PyAssimp setup.py has no package_data for the compiled
@@ -203,6 +203,19 @@ def main():
     # pointed at the repo it wipes out the source tree instead of the install.
     while base_path in sys.path:
         sys.path.remove(base_path)
+
+    # setup()'s `install` command still routes through easy_install (setuptools
+    # 62), which drops the package in as an .egg and records its path in
+    # easy-install.pth in site-packages. site.py only parses .pth files at
+    # interpreter startup, so that new entry is invisible to this already-running
+    # process until something re-reads it. importlib.invalidate_caches() (used
+    # elsewhere in this file) only clears import-system caches — it does not
+    # reprocess .pth files — so site.addsitedir() is required here to actually
+    # pick up the newly installed egg path.
+    import site
+    import sysconfig
+    site.addsitedir(sysconfig.get_path('purelib'))
+    importlib.invalidate_caches()
 
     import harness_designer
 
