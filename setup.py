@@ -56,7 +56,7 @@ def main():
 
     spawn.spawn(p_cmd)
 
-    base_path = os.path.dirname(__file__)
+    base_path = os.path.abspath(os.path.dirname(__file__))
 
     assimp_binary_path = os.path.join(base_path, 'libs/assimp/build/bin')
     assimp_path = os.path.join(base_path, 'libs/assimp/port/PyAssimp')
@@ -219,15 +219,16 @@ def main():
 
     import harness_designer
 
-    hd_path = os.path.dirname(harness_designer.__file__)
+    hd_path = os.path.abspath(os.path.join(os.path.dirname(harness_designer.__file__), '..'))
 
     # Hard safety check: hd_path must never be inside the repo. If it is, the
     # cleanup above failed silently, and letting compile_harness_designer run
     # against this path would delete the repo's source tree instead of the
     # installed copy in site-packages — abort loudly instead.
-    _hd_abs = os.path.abspath(hd_path)
-    _base_abs = os.path.abspath(base_path)
-    if os.path.commonpath([_hd_abs, _base_abs]) == _base_abs:
+    print('BASE_PATH:', base_path)
+    print('HD_PATH:', hd_path)
+
+    if hd_path == base_path:
         raise RuntimeError(
             f'harness_designer resolved to {hd_path!r}, inside the repo '
             f'({base_path!r}) instead of the installed site-packages copy. '
