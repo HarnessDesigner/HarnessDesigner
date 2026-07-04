@@ -11,9 +11,13 @@ except ImportError:
     import utils_
     import spawn
 
+
+error_lock = threading.Lock()
+
 errors = []
 
-def _cythonize_chunk(files, lock, cython_path):
+
+def _cythonize_chunk(files, t_lock, sys_path):
     # Invoke cythonize from the command line (via spawn) instead of calling
     # Cythonize.main() in-process — spawn() serializes output through
     # print_lock, so N threads compiling concurrently don't interleave output.
@@ -25,24 +29,25 @@ def _cythonize_chunk(files, lock, cython_path):
     # instead of relying on the subprocess's own default sys.path.
     for file in files:
         code = (
-            f'import sys; sys.path.insert(0, {cython_path!r}); '
+            f'import sys; sys.path.insert(0, {sys_path!r}); '
             f'from Cython.Build import Cythonize; '
             f"Cythonize.main(['-3', '--build', '--inplace', {file!r}])"
         )
         cmd = f'"{sys.executable}" -c "{code}"'
         rc, error_lines = spawn.spawn(cmd)
         if rc:
-            errors.extend(error_lines)
+            with error_lock:
+                errors.extend(error_lines)
 
-    lock.release()
+    t_lock.release()
 
 
-def run(hd_path, rename_py):
+def run(hd_path):
 
     cfiles = utils_.iter_mod_path(hd_path)
 
     import Cython
-    cython_path = os.path.dirname(os.path.dirname(os.path.abspath(Cython.__file__)))
+    cython_path = os.path.abspath(os.path.join(os.path.dirname(Cython.__file__), '..'))
 
     n_threads = os.cpu_count()
 
@@ -77,6 +82,4 @@ def run(hd_path, rename_py):
         sys.stderr.flush()
         sys.exit(1)
 
-    remove_py = not rename_py
-
-    utils_.cleanup_after_compile(hd_path, remove_py, rename_py)
+    utils_.cleanup_after_compile(hd_path)

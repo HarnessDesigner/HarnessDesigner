@@ -219,10 +219,16 @@ def main():
             'Refusing to compile — this would delete the repo source tree.'
         )
 
-    compile_harness_designer.run(hd_path, False)
+    compile_harness_designer.run(hd_path)
 
     path = 'harness_designer'
 
+    # setup()'s plain packages= install only ever copies .py files, and there's
+    # no MANIFEST.in/package_data to pick up anything else. This copies the
+    # non-.py runtime assets (.png images/icons/themes) and the two compiled
+    # extensions build_pyx.run() produced in-place in the repo from bvh.pyx/
+    # culling.pyx — neither of which compile_harness_designer touches, since
+    # it only ever operates on .py files at hd_path.
     def iter_harness_designer(p=''):
         if p:
             dpath = os.path.join(path, p)
@@ -242,7 +248,6 @@ def main():
 
             elif (
                 src_.endswith('.png') or
-                src_.endswith('.pyi') or
                 src_.endswith('.pyd') or
                 src_.endswith('.so')
             ):
