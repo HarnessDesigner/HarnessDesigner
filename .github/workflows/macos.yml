@@ -70,26 +70,26 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: build-log-macos
+          name: build-log-macos.zip
           path: build.log
 
       - name: Upload app artifact
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: harness_designer-macos-arm64
+          name: harness_designer-macos-arm64.zip
           path: builder/scripts/dist/harness_designer.app/
           if-no-files-found: error
 
       - name: Upload dependency installer artifact
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: harness_designer-macos-arm64-dep-installer
-          path: builder/scripts/dist/installer.app/
+          name: harness_designer-macos-arm64-dep-installer.zip
+          path: builder/scripts/dist/dep_installer.app/
           if-no-files-found: error
 
       - name: Upload macOS installer artifact
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: harness_designer-macos-installer
+          name: harness_designer-macos-installer.zip
           path: dist/macos/
           if-no-files-found: error

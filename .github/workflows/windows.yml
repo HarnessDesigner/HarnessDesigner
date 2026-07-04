@@ -59,26 +59,26 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: build-log-windows
+          name: build-log-windows.zip
           path: build.log
 
       - name: Upload app artifact
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: harness_designer-windows
+          name: harness_designer-windows.zip
           path: builder/scripts/dist/harness_designer/
           if-no-files-found: error
 
       - name: Upload dependency installer artifact
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: harness_designer-windows-dep-installer
+          name: harness_designer-windows-dep-installer.zip
           path: builder/scripts/dist/dep_installer.exe
           if-no-files-found: error
 
       - name: Upload Windows installer artifact
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: harness_designer-windows-installer
+          name: harness_designer-windows-installer.zip
           path: dist/windows/
           if-no-files-found: error

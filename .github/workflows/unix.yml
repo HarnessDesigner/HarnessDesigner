@@ -97,12 +97,12 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: build-log-linux
+          name: build-log-linux.zip
           path: build.log
 
       - name: Upload Linux archive artifact
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: harness_designer-linux
+          name: harness_designer-linux.zip
           path: dist/linux/
           if-no-files-found: error
