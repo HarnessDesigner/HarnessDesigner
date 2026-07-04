@@ -60,7 +60,8 @@ def _obb_face_direction(
     corner_i = sorted_i[:4] if sign == 0 else sorted_i[4:]
     center = current_obb.mean(axis=0)
     fc = current_obb[corner_i].mean(axis=0) - center
-    n = float(np.linalg.norm(fc))
+    n = float(str(np.linalg.norm(fc)))
+
     return (fc / n) if n > 1e-8 else None
 
 
@@ -224,9 +225,7 @@ class PJTHousingsTable(PJTTableBase):
             if cavity is None:
                 continue
 
-            print(cavity.db_id, db_id, cavity.name)
-            pjt_cavity = self.db.pjt_cavities_table.insert(cavity.db_id, db_id, cavity.name)
-            print(pjt_cavity)
+            self.db.pjt_cavities_table.insert(cavity.db_id, db_id, cavity.name)
 
         pos = db_obj.cover_position3d
         pos += pos3d
@@ -405,12 +404,10 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        point_id = self._table.select('cover_point3d_id',
-                                      id=self._db_id)[0][0]
+        point_id = self._table.select('cover_point3d_id', id=self._db_id)[0][0]
 
         if point_id is None:
-            point_id = self._table.db.pjt_points3d_table.insert(
-                0.0, 0.0, 0.0).db_id
+            point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
 
             self.cover_position3d_id = point_id
 
@@ -461,12 +458,10 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        point_id = self._table.select('seal_point3d_id',
-                                      id=self._db_id)[0][0]
+        point_id = self._table.select('seal_point3d_id', id=self._db_id)[0][0]
 
         if point_id is None:
-            point_id = self._table.db.pjt_points3d_table.insert(
-                0.0, 0.0, 0.0).db_id
+            point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
 
             self.seal_position3d_id = point_id
 
@@ -518,12 +513,10 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        point_id = self._table.select('boot_point3d_id',
-                                      id=self._db_id)[0][0]
+        point_id = self._table.select('boot_point3d_id', id=self._db_id)[0][0]
 
         if point_id is None:
-            point_id = self._table.db.pjt_points3d_table.insert(
-                0.0, 0.0, 0.0).db_id
+            point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
 
             self.boot_position3d_id = point_id
 
@@ -575,12 +568,10 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        point_id = self._table.select('tpa_lock_1_point3d_id',
-                                      id=self._db_id)[0][0]
+        point_id = self._table.select('tpa_lock_1_point3d_id', id=self._db_id)[0][0]
 
         if point_id is None:
-            point_id = self._table.db.pjt_points3d_table.insert(
-                0.0, 0.0, 0.0).db_id
+            point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
 
             self.tpa_lock_1_position3d_id = point_id
 
@@ -632,12 +623,10 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        point_id = self._table.select('tpa_lock_2_point3d_id',
-                                      id=self._db_id)[0][0]
+        point_id = self._table.select('tpa_lock_2_point3d_id', id=self._db_id)[0][0]
 
         if point_id is None:
-            point_id = self._table.db.pjt_points3d_table.insert(
-                0.0, 0.0, 0.0).db_id
+            point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
 
             self.tpa_lock_2_position3d_id = point_id
 
@@ -689,12 +678,10 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        point_id = self._table.select('cpa_lock_point3d_id',
-                                      id=self._db_id)[0][0]
+        point_id = self._table.select('cpa_lock_point3d_id', id=self._db_id)[0][0]
 
         if point_id is None:
-            point_id = self._table.db.pjt_points3d_table.insert(
-                0.0, 0.0, 0.0).db_id
+            point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
 
             self.cpa_lock_position3d_id = point_id
 
@@ -733,8 +720,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         if name is None:
             name = cavity_part.name
 
-        cavity = self._table.db.pjt_cavities_table.insert(cavity_part.db_id,
-                                                          self.db_id)
+        cavity = self._table.db.pjt_cavities_table.insert(cavity_part.db_id, self.db_id)
 
         cavity.name = name
         self._stored_cavities = None
@@ -768,8 +754,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_cpa_lock.PJTCPALock`
         """
-        db_ids = self._table.db.pjt_cpa_locks_table.select('id',
-                                                           housing_id=self.db_id)
+        db_ids = self._table.db.pjt_cpa_locks_table.select('id', housing_id=self.db_id)
 
         for db_id in db_ids:
             try:
@@ -788,8 +773,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_tpa_lock.PJTTPALock`
         """
-        rows = self._table.db.pjt_tpa_locks_table.select(
-            'id', housing_id=self.db_id, idx=1)
+        rows = self._table.db.pjt_tpa_locks_table.select('id', housing_id=self.db_id, idx=1)
 
         if rows:
             db_id = rows[0][0]
@@ -804,8 +788,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_tpa_lock.PJTTPALock`
         """
-        rows = self._table.db.pjt_tpa_locks_table.select(
-            'id', housing_id=self.db_id, idx=2)
+        rows = self._table.db.pjt_tpa_locks_table.select('id', housing_id=self.db_id, idx=2)
 
         if rows:
             db_id = rows[0][0]
@@ -821,8 +804,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :rtype: list['_pjt_tpa_lock.PJTTPALock']
         """
         res = []
-        db_ids = self._table.db.pjt_tpa_locks_table.select('id',
-                                                           housing_id=self.db_id)
+        db_ids = self._table.db.pjt_tpa_locks_table.select('id', housing_id=self.db_id)
 
         for db_id in db_ids:
             try:
@@ -842,8 +824,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_cover.PJTCover`
         """
-        db_ids = self._table.db.pjt_covers_table.select('id',
-                                                        housing_id=self.db_id)
+        db_ids = self._table.db.pjt_covers_table.select('id', housing_id=self.db_id)
 
         for db_id in db_ids:
             try:
@@ -862,8 +843,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_boot.PJTBoot`
         """
-        db_ids = self._table.db.pjt_boots_table.select('id',
-                                                       housing_id=self.db_id)
+        db_ids = self._table.db.pjt_boots_table.select('id', housing_id=self.db_id)
 
         for db_id in db_ids:
             try:
@@ -1104,8 +1084,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         quat = str(new_quat)
         euler = str(new_euler)
 
-        self._table.update(self._db_id, quat3d=quat)
-        self._table.update(self._db_id, angle3d=euler)
+        self._table.update(self._db_id, quat3d=quat, angle3d=euler)
 
         if 'nan' in euler or 'nan' in quat:
             return
@@ -1121,8 +1100,8 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         cavities = [c for c in self.cavities if c is not None]
 
         w_d, x_d, y_d, z_d = actual_delta_q.as_float
-        qvec_d = np.array([x_d, y_d, z_d], dtype=np.float64)
-        center = np.array([position.x, position.y, position.z], dtype=np.float64)
+        qvec_d = np.array([x_d, y_d, z_d], dtype=np.float32)
+        center = position.as_numpy.copy()
 
         # ── Collect all positions for one vectorized rotation ─────────────────
         all_positions = []
@@ -1136,21 +1115,20 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
                 if wp is not None:
                     all_positions.append(wp)
 
-        all_positions.extend([
-            self.cover_position3d, self.seal_position3d, self.boot_position3d,
-            self.tpa_lock_1_position3d, self.tpa_lock_2_position3d,
-            self.cpa_lock_position3d
-        ])
+        all_positions.extend([self.tpa_lock_1_position3d, self.seal_position3d,
+                              self.tpa_lock_2_position3d, self.boot_position3d,
+                              self.cpa_lock_position3d, self.cover_position3d])
 
         seen = {}
         for pos in all_positions:
             key = int(pos.db_id[:-2])
             if key not in seen:
                 seen[key] = pos
+
         all_positions = list(seen.values())
 
         if all_positions:
-            pos_arr = np.array([[p.x, p.y, p.z] for p in all_positions], dtype=np.float64)
+            pos_arr = np.array([list(p.as_float) for p in all_positions], dtype=np.float32)
             rel = pos_arr - center
             t_vec = np.cross(qvec_d, rel)
             new_pos_arr = rel + 2.0 * w_d * t_vec + 2.0 * np.cross(qvec_d, t_vec) + center
@@ -1169,7 +1147,6 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
         # ── Per-cavity angle computation (OBB-based) ──────────────────────────
         angle_results = []  # [(cavity, q_acc_new, new_euler), ...]
-        rn = 0.0  # Cython infers this as C double; initialise to silence clang -Wuninitialized
 
         for cavity in cavities:
             cavity_angle = cavity.angle3d
@@ -1194,9 +1171,9 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
                 continue
 
             right = np.cross(up, fwd)
-            rn = float(np.linalg.norm(right))
-            if rn > 1e-8:
-                right /= rn
+            right_norm = float(str(np.linalg.norm(right)))
+            if right_norm > 1e-8:
+                right /= right_norm
                 up = np.cross(fwd, right)
                 rot_mat = np.column_stack([right, up, fwd])
                 new_euler = _euler_from_matrix_continuous(rot_mat, old_euler)
@@ -1219,15 +1196,15 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
                 cav_angle._matrix[:] = q_acc_new.as_matrix  # NOQA
 
         if angle_results:
-            angle_rows = [
-                (str([q.w, q.x, q.y, q.z]), str(eu), cav._db_id)
-                for cav, q, eu in angle_results
-            ]
-            angle_results[0][0]._table.batch_update(['quat3d', 'angle3d'], angle_rows)
+            angle_rows = [(str(list(q.as_float)), str(eu), cav._db_id)
+                          for cav, q, eu in angle_results]
+
+            angle_results[0][0].table.batch_update(['quat3d', 'angle3d'], angle_rows)
 
         # ── Accessory angle computation (OBB-based) ───────────────────────────
-        acc_objs = [self.tpa_lock1, self.tpa_lock2,
-                    self.cover, self.cpa_lock, self.boot, self.seal]
+        acc_objs = [self.tpa_lock1, self.seal,
+                    self.tpa_lock2, self.boot,
+                    self.cpa_lock, self.cover]
 
         acc_angle_results = []  # [(obj, q_acc_new, new_euler), ...]
 
@@ -1264,9 +1241,9 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
                         continue
 
                     right = np.cross(up, fwd)
-                    rn = float(np.linalg.norm(right))
-                    if rn > 1e-8:
-                        right /= rn
+                    right_norm = float(str(np.linalg.norm(right)))
+                    if right_norm > 1e-8:
+                        right /= right_norm
                         up = np.cross(fwd, right)
                         rot_mat = np.column_stack([right, up, fwd])
                         new_euler = _euler_from_matrix_continuous(rot_mat, old_euler)
@@ -1292,9 +1269,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
             from collections import defaultdict as _dd
             table_angle_rows = _dd(list)
             for obj, q, eu in acc_angle_results:
-                table_angle_rows[obj._table].append(
-                    (str([q.w, q.x, q.y, q.z]), str(eu), obj._db_id)
-                )
+                table_angle_rows[obj.table].append((str(list(q.as_float)), str(eu), obj._db_id))
             for table, rows in table_angle_rows.items():
                 table.batch_update(['quat3d', 'angle3d'], rows)
 

@@ -72,20 +72,20 @@ def _clean_dist(app_dir):
     import sys as _sys
     _remove_dll_suffixes = ('.vc9.dll', '.vc10.dll') if _sys.platform.startswith('win') else ()
     # File names (lower-cased) treated as license files worth keeping
-    _LICENSE_NAMES = frozenset([
-        'license', 'license.txt', 'license.md', 'license.rst',
-        'licence', 'licence.txt',
-        'copying', 'copying.txt', 'copying.rst',
-        'notice', 'notice.txt',
-        'license.apache', 'license.bsd', 'license.external', 'license.lgpl',
-        'authors', 'authors.txt', 'authors.rst',
-    ])
+    # _LICENSE_NAMES = frozenset([
+    #     'license', 'license.txt', 'license.md', 'license.rst',
+    #     'licence', 'licence.txt',
+    #     'copying', 'copying.txt', 'copying.rst',
+    #     'notice', 'notice.txt',
+    #     'license.apache', 'license.bsd', 'license.external', 'license.lgpl',
+    #     'authors', 'authors.txt', 'authors.rst',
+    # ])
 
     n_files = 0
     n_dirs = 0
 
-    licenses_dir = os.path.join(app_dir, 'licenses')
-    os.makedirs(licenses_dir, exist_ok=True)
+    # licenses_dir = os.path.join(app_dir, 'licenses')
+    # os.makedirs(licenses_dir, exist_ok=True)
 
     for root, dirs, files in os.walk(app_dir, topdown=False):
         # Remove unwanted individual files
@@ -109,38 +109,38 @@ def _clean_dist(app_dir):
                     n_dirs += 1
                 except OSError:
                     pass
-            elif dname.endswith('.dist-info'):
-                # Extract every license-like file before nuking the dir
-                pkg_name = dname.replace('.dist-info', '')
-                for lic_root, _, lic_files in os.walk(dir_path):
-                    for lic_fname in lic_files:
-                        if lic_fname.lower() in _LICENSE_NAMES:
-                            src = os.path.join(lic_root, lic_fname)
-                            # Unique dest: pkgname + relative path joined with _
-                            rel = os.path.relpath(src, dir_path)
-                            rel_flat = rel.replace(os.sep, '_')
-                            dest = os.path.join(licenses_dir, f'{pkg_name}_{rel_flat}')
-                            try:
-                                shutil.copy2(src, dest)
-                            except OSError:
-                                pass
-                try:
-                    shutil.rmtree(dir_path, ignore_errors=True)
-                    n_dirs += 1
-                except OSError:
-                    pass
+            if dname.endswith('.dist-info'):
+                continue
 
-        # Remove the directory itself if it is now empty (skip root)
-        if root != app_dir and os.path.isdir(root):
-            try:
-                os.rmdir(root)
-                n_dirs += 1
-            except OSError:
-                pass
+                # # Extract every license-like file before nuking the dir
+                # pkg_name = dname.replace('.dist-info', '')
+                # for lic_root, _, lic_files in os.walk(dir_path):
+                #     for lic_fname in lic_files:
+                #         if lic_fname.lower() in _LICENSE_NAMES:
+                #             src = os.path.join(lic_root, lic_fname)
+                #             # Unique dest: pkgname + relative path joined with _
+                #             rel = os.path.relpath(src, dir_path)
+                #             rel_flat = rel.replace(os.sep, '_')
+                #             dest = os.path.join(licenses_dir, f'{pkg_name}_{rel_flat}')
+                #             try:
+                #                 shutil.copy2(src, dest)
+                #             except OSError:
+                #                 pass
+                # try:
+                #     shutil.rmtree(dir_path, ignore_errors=True)
+                #     n_dirs += 1
+                # except OSError:
+                #     pass
 
-    lic_count = len(os.listdir(licenses_dir)) if os.path.isdir(licenses_dir) else 0
-    print(f'_clean_dist: removed {n_files} files, {n_dirs} dirs; '
-          f'collected {lic_count} license files -> {licenses_dir}')
+        # # Remove the directory itself if it is now empty (skip root)
+        # if root != app_dir and os.path.isdir(root):
+        #     try:
+        #         os.rmdir(root)
+        #         n_dirs += 1
+        #     except OSError:
+        #         pass
+
+    print(f'_clean_dist: removed {n_files} files and {n_dirs} directories')
 
 
 def build_installer(base_import):
