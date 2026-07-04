@@ -119,7 +119,9 @@ def build_windows(version):
         print('Download: https://jrsoftware.org/isinfo.php')
         sys.exit(1)
 
-    _ensure_icon_ico()
+    # Generate the multi-size ICO and the BMP assets the .iss needs at compile time.
+    from builder import prepare_installer_assets
+    prepare_installer_assets.prepare_all()
 
     license_file = os.path.join(BASE_PATH, 'LICENSE')
     if not os.path.isfile(license_file):
