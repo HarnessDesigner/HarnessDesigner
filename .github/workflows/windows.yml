@@ -46,6 +46,11 @@ jobs:
           pip install "keyring==25.7.0" "pyopencl==2026.1.2" "pandas==3.0.3"
           pip install "nvidia-ml-py==13.610.43" "amdsmi==7.0.2"
           pip install "PySide6==6.11.1"
+          # mysql-connector-python is not bundled (see build.py --exclude-module),
+          # but must be importable here so PyInstaller's --collect-all=harness_designer
+          # can analyze harness_designer.database.db_connectors.mysql_connector without
+          # raising ModuleNotFoundError and silently dropping unrelated sibling packages.
+          pip install "mysql-connector-python==9.5.0"
 
       - name: Build (Cython + PyInstaller + dependency installer)
         env:

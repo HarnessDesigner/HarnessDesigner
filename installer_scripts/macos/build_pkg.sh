@@ -8,7 +8,7 @@
 # Prerequisites:
 #   - Xcode Command Line Tools: xcode-select --install
 #   - Build the app:            python -m builder  (produces builder/scripts/dist/harness_designer.app)
-#   - Build the installer:      build_dependency_installer() (produces builder/scripts/dist/installer.app)
+#   - Build the installer:      build_dependency_installer() (produces builder/scripts/dist/dep_installer)
 #
 # Optional (for signing and notarization):
 #   - Apple Developer ID: set DEVELOPER_ID_APP and DEVELOPER_ID_INSTALLER below
@@ -51,7 +51,7 @@ WORK_DIR="$SCRIPT_DIR/work"
 OUTPUT_DIR="$REPO_ROOT/dist/macos"
 
 APP_SRC="$BUILD_DIR/harness_designer.app"
-INSTALLER_SRC="$BUILD_DIR/dep_installer.app/Contents/MacOS/dep_installer"
+INSTALLER_SRC="$BUILD_DIR/dep_installer"
 PAYLOAD_DIR="$WORK_DIR/payload"
 INSTALL_APP="$PAYLOAD_DIR/Applications/$APP_NAME.app"
 COMPONENT_PKG="$WORK_DIR/$APP_NAME-component.pkg"

@@ -23,9 +23,18 @@ def build_dependency_installer():
         '--onefile',
         '--noconfirm',
         '--clean',
-        '--windowed',
         'dep_installer.py'
     ]
+
+    # --windowed forces PyInstaller to build a macOS .app bundle, which
+    # can't coexist with --onefile (a bundle is a directory, not a single
+    # file) — PyInstaller deprecated the combination. dep_installer is only
+    # ever launched as a subprocess (see build_pkg.sh / postinstall), never
+    # double-clicked from Finder, so the console-suppression --windowed
+    # gives on Windows isn't needed here on macOS; the Tkinter window still
+    # displays normally without it.
+    if sys.platform == 'win32':
+        args.append('--windowed')
 
     cwd = os.getcwd()
     os.chdir(os.path.join(base_path, 'scripts'))

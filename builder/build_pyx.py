@@ -34,6 +34,6 @@ def run(hd_path):
     from Cython.Build import Cythonize
 
     for file in files:
-        Cythonize.main(['-3', '--build', f'--parallel={os.cpu_count()}', '--inplace', file])
+        Cythonize.main(['-3', '--build', '--inplace', file])
 
     # utils_.cleanup_after_compile(hd_path)

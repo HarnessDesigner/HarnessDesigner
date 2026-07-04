@@ -47,9 +47,7 @@ def _check_build_outputs():
 
     if sys.platform.startswith('darwin'):
         app = os.path.join(BUILD_DIR, 'harness_designer.app')
-        installer_bin = os.path.join(
-            BUILD_DIR, 'dep_installer.app', 'Contents', 'MacOS', 'dep_installer'
-        )
+        installer_bin = os.path.join(BUILD_DIR, 'dep_installer')
         if not os.path.isdir(app):
             errors.append(f'  missing dir : {app}')
         if not os.path.isfile(installer_bin):

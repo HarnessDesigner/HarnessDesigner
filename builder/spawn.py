@@ -3,6 +3,7 @@
 import sys
 import os
 import subprocess
+import threading
 
 
 if sys.platform.startswith('win'):
@@ -12,6 +13,8 @@ else:
 
 
 DUMMY_RETURN = b''
+
+print_lock = threading.Lock()
 
 
 def spawn(cmd):
@@ -38,22 +41,27 @@ def spawn(cmd):
     p.stdin.write(cmd)
     p.stdin.close()
 
+    error_lines = []
+
     while p.poll() is None:
         for line in iter(p.stdout.readline, DUMMY_RETURN):
             line = line.strip()
             if line:
-                if sys.platform.startswith('win'):
-                    sys.stdout.write(line.decode('utf-8') + '\n')
-                else:
-                    sys.stdout.write(line.decode('utf-8') + '\n')
+                with print_lock:
+                    if sys.platform.startswith('win'):
+                        sys.stdout.write(line.decode('utf-8') + '\n')
+                    else:
+                        sys.stdout.write(line.decode('utf-8') + '\n')
 
-                sys.stdout.flush()
+                    sys.stdout.flush()
 
+        # Error output is collected, not printed here — callers decide
+        # whether/when to surface it (e.g. only after a whole batch of
+        # spawned commands has finished, to avoid interleaved output).
         for line in iter(p.stderr.readline, DUMMY_RETURN):
             line = line.strip()
             if line:
-                sys.stderr.write(line.decode('utf-8') + '\n')
-                sys.stderr.flush()
+                error_lines.append(line.decode('utf-8'))
 
     if not p.stdout.closed:
         p.stdout.close()
@@ -62,4 +70,5 @@ def spawn(cmd):
         p.stderr.close()
 
     sys.stdout.flush()
-    sys.stderr.flush()
+
+    return p.returncode, error_lines

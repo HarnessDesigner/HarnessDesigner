@@ -25,9 +25,6 @@ from OCP.TopoDS import TopoDS
 from .. import utils as _utils
 from .. import resources as _resources
 
-
-os.environ['PATH'] = os.path.dirname(__file__) + ';' + os.environ['PATH']
-
 import pyassimp  # NOQA
 
 
