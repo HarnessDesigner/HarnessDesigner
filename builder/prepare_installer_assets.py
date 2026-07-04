@@ -13,16 +13,16 @@ Outputs to installer_scripts/windows/assets/:
 import os
 from PIL import Image
 
-_BASE      = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _IMAGE_DIR = os.path.join(_BASE, 'harness_designer', 'image')
-_IMGS_DIR  = os.path.join(_IMAGE_DIR, 'images')
-_OUT_DIR   = os.path.join(_BASE, 'installer_scripts', 'windows', 'assets')
+_IMGS_DIR = os.path.join(_IMAGE_DIR, 'images')
+_OUT_DIR = os.path.join(_BASE, 'installer_scripts', 'windows', 'assets')
 
 # InnoSetup 6 modern-style wizard dimensions at 96 DPI
 _WIZARD_W = 519   # full wizard-form client width
 _HEADER_H = 58    # inner-page header strip height
-_PANEL_W  = 164   # welcome/finish left-panel width
-_PANEL_H  = 314   # welcome/finish left-panel height
+_PANEL_W = 164   # welcome/finish left-panel width
+_PANEL_H = 314   # welcome/finish left-panel height
 
 
 def build_ico() -> None:
@@ -34,17 +34,15 @@ def build_ico() -> None:
         if not os.path.exists(path):
             # 48×48 is not a provided size — scale down from 64×64
             path = os.path.join(_IMAGE_DIR, 'icon_64x64.png')
+
         img = Image.open(path).convert('RGBA').resize((s, s), Image.LANCZOS)
         frames.append(img)
 
     out = os.path.join(_OUT_DIR, 'harness_designer.ico')
-    frames[0].save(
-        out,
-        format='ICO',
-        sizes=[(s, s) for s in sizes],
-        append_images=frames[1:],
-    )
-    print(f'  ico  → {out}')
+    frames[0].save(out, format='ICO', sizes=[(s, s) for s in sizes],
+                   append_images=frames[1:])
+
+    print(f'  ico  -> {out}')
 
 
 def build_header_bmp() -> None:
@@ -55,9 +53,10 @@ def build_header_bmp() -> None:
     if new_h > _HEADER_H:
         top = (new_h - _HEADER_H) // 2
         img = img.crop((0, top, _WIZARD_W, top + _HEADER_H))
+
     out = os.path.join(_OUT_DIR, 'installer_header.bmp')
     img.save(out, format='BMP')
-    print(f'  bmp  → {out}')
+    print(f'  bmp  -> {out}')
 
 
 def build_wizard_panel_bmp() -> None:
@@ -75,7 +74,7 @@ def build_wizard_panel_bmp() -> None:
         img = canvas
     out = os.path.join(_OUT_DIR, 'wizard_panel.bmp')
     img.save(out, format='BMP')
-    print(f'  bmp  → {out}')
+    print(f'  bmp  -> {out}')
 
 
 def prepare_all() -> None:

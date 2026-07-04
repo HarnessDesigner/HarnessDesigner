@@ -245,7 +245,7 @@ class InstallerApp:
             ttk.Checkbutton(row, text=label, variable=var).pack(anchor='w')
 
             label = tk.Label(row, text=f'    {description}',
-                     font=('Segoe UI', 8), fg='#666', justify='left')
+                             font=('Segoe UI', 8), fg='#666', justify='left')
 
             label.pack(anchor='w')
 
@@ -269,13 +269,13 @@ class InstallerApp:
         f = self._switch()
 
         _make_header(f, 'Installing Components',
-                     'Downloading and installing required runtime components…')
+                     'Downloading and installing required runtime components...')
 
         body = tk.Frame(f, padx=16, pady=6)
         body.pack(fill='both', expand=True)
 
         # Status label + progress bar
-        self._status_var = tk.StringVar(value='Initialising…')
+        self._status_var = tk.StringVar(value='Initialising...')
 
         tk.Label(body, textvariable=self._status_var, font=('Segoe UI', 9),
                  anchor='w').pack(fill='x')
@@ -356,14 +356,14 @@ class InstallerApp:
             Redirect sys.stdout / sys.stderr into the terminal queue.
             """
 
-            def write(self, s: str) -> None:
+            def write(self, s: str) -> None:  # NOQA
                 if s:
                     q.put(s)
-                    
+
             def flush(self) -> None:
                 pass
 
-            def isatty(self) -> bool:
+            def isatty(self) -> bool:  # NOQA
                 # Prevents pip from emitting ANSI escape codes
                 return False
 
@@ -376,8 +376,8 @@ class InstallerApp:
 
             total = len(packages)
             for i, (pkg, _, label, *_rest) in enumerate(packages):
-                q.put({'status': f'Installing {label}…', 'progress': i / total})
-                q.put(f'\n[{i + 1}/{total}] Installing {label}…\n')
+                q.put({'status': f'Installing {label}...', 'progress': i / total})
+                q.put(f'\n[{i + 1}/{total}] Installing {label}...\n')
 
                 exit_code = 0
                 try:
@@ -416,9 +416,9 @@ def _run_headless(target_dir: str, log_file: str, mysql: bool = False) -> None:
         packages += [p for p in OPTIONAL_PACKAGES if p[0] == 'mysql-connector-python']
 
     def log(msg: str) -> None:
-        with open(log_file, 'a', encoding='utf-8') as _f:
-            _f.write(msg + '\n')
-            _f.flush()
+        with open(log_file, 'a', encoding='utf-8') as file:
+            file.write(msg + '\n')
+            file.flush()
 
     original_exe = sys.executable
     sys.executable = _python_exe()
@@ -427,7 +427,7 @@ def _run_headless(target_dir: str, log_file: str, mysql: bool = False) -> None:
 
         total = len(packages)
         for i, (pkg, _, label, *_rest) in enumerate(packages):
-            log(f'[{i + 1}/{total}] Installing {label}…')
+            log(f'[{i + 1}/{total}] Installing {label}...')
             buf = io.StringIO()
             exit_code = 0
             try:
