@@ -22,11 +22,11 @@
 
 ; Generate a fresh GUID via Tools > Generate GUID in the Inno Setup IDE.
 ; Never reuse this GUID for a different application.
-#define AppId "{{REPLACE-WITH-GENERATED-GUID}"
+#define AppId "{{55225F52-09E5-41B4-8DFA-4CCDB1114743}"
 
 ; Source paths relative to the repository root (two levels up from this file)
 #define AppSrcDir    "..\..\builder\scripts\dist\harness_designer"
-#define InstallerSrc "..\..\builder\scripts\dist\installer.exe"
+#define InstallerSrc "..\..\builder\scripts\dist\dep_installer.exe"
 #define AssetsDir    "assets"
 #define LicenseFile  "..\..\LICENSE"
 
@@ -88,7 +88,7 @@ Name: "{commondesktop}\{#AppName}";     Filename: "{app}\{#AppExeName}"; Tasks: 
 ; Launch the component installer after the main application files are in place.
 ; installer.exe opens its own window (license → components → install log) and
 ; must be closed by the user before InnoSetup continues to the Finish page.
-Filename: "{tmp}\installer.exe"; \
+Filename: "{tmp}\dep_installer.exe"; \
     Parameters: """{app}"""; \
     StatusMsg: "Installing required components (PySide6)..."; \
     Flags: waituntilterminated

@@ -1,7 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 def build_dependency_installer():
-    """Build installer.exe — the lightweight GUI that installs external packages."""
+    """Build dep_installer.exe — the lightweight GUI that installs external packages."""
     import sys
     import os
 
@@ -19,7 +19,7 @@ def build_dependency_installer():
         # FrozenImporter is not registered, causing DistlibException at pip import
         # time.  This hook patches finder() before installer.py runs.
         '--runtime-hook=rthook_pip_distlib.py',
-        '--name=installer',
+        '--name=dep_installer',
         '--onefile',
         '--noconfirm',
         '--clean',
@@ -29,7 +29,7 @@ def build_dependency_installer():
     if os.path.exists(ico):
         args.append(f'--icon={os.path.normpath(ico)}')
 
-    args.append('installer.py')
+    args.append('dep_installer.py')
 
     cwd = os.getcwd()
     os.chdir(os.path.join(base_path, 'scripts'))

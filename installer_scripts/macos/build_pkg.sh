@@ -51,7 +51,7 @@ WORK_DIR="$SCRIPT_DIR/work"
 OUTPUT_DIR="$REPO_ROOT/dist/macos"
 
 APP_SRC="$BUILD_DIR/harness_designer.app"
-INSTALLER_SRC="$BUILD_DIR/installer.app/Contents/MacOS/installer"
+INSTALLER_SRC="$BUILD_DIR/dep_installer.app/Contents/MacOS/dep_installer"
 PAYLOAD_DIR="$WORK_DIR/payload"
 INSTALL_APP="$PAYLOAD_DIR/Applications/$APP_NAME.app"
 COMPONENT_PKG="$WORK_DIR/$APP_NAME-component.pkg"
@@ -93,8 +93,8 @@ cp -R "$APP_SRC" "$INSTALL_APP"
 # script can find and run it without needing a separate extraction step.
 RESOURCES_DIR="$INSTALL_APP/Contents/Resources"
 mkdir -p "$RESOURCES_DIR"
-cp "$INSTALLER_SRC" "$RESOURCES_DIR/dependency_installer"
-chmod +x "$RESOURCES_DIR/dependency_installer"
+cp "$INSTALLER_SRC" "$RESOURCES_DIR/dep_installer"
+chmod +x "$RESOURCES_DIR/dep_installer"
 
 # ── Code sign the app (optional) ─────────────────────────────────────────────
 

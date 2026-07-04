@@ -72,6 +72,7 @@ def _python_exe() -> str:
         candidate = os.path.join(meipass, 'python.exe')
         if os.path.exists(candidate):
             return candidate
+
     return sys.executable
 
 
@@ -80,23 +81,27 @@ def _python_exe() -> str:
 def _make_header(parent: tk.Widget, title: str, subtitle: str = '') -> None:
     bar = tk.Frame(parent, bg=_HEADER_BG)
     bar.pack(fill='x', side='top')
-    tk.Label(
-        bar, text=title,
-        font=('Segoe UI', 12, 'bold'),
-        bg=_HEADER_BG, fg=_HEADER_FG, anchor='w',
-    ).pack(fill='x', padx=18, pady=(14, 0 if subtitle else 14))
+
+    label = tk.Label(bar, text=title, font=('Segoe UI', 12, 'bold'),
+                     bg=_HEADER_BG, fg=_HEADER_FG, anchor='w')
+
+    label.pack(fill='x', padx=18, pady=(14, 0 if subtitle else 14))
+
     if subtitle:
-        tk.Label(
-            bar, text=subtitle,
-            font=('Segoe UI', 9),
-            bg=_HEADER_BG, fg=_HEADER_SUB, anchor='w',
-        ).pack(fill='x', padx=18, pady=(0, 14))
+        sub_label = tk.Label(bar, text=subtitle, font=('Segoe UI', 9),
+                             bg=_HEADER_BG, fg=_HEADER_SUB, anchor='w')
+
+        sub_label.pack(fill='x', padx=18, pady=(0, 14))
+
     ttk.Separator(parent, orient='horizontal').pack(fill='x', side='top')
 
 
 def _make_button_bar(parent: tk.Widget, *buttons) -> dict:
-    """Build the bottom button row.  Each entry: (label, command, side).
-    Returns a dict mapping label → Button widget."""
+    """
+    Build the bottom button row.  Each entry: (label, command, side).
+    Returns a dict mapping label → Button widget.
+    """
+
     ttk.Separator(parent, orient='horizontal').pack(fill='x', side='bottom')
     bar = tk.Frame(parent, pady=8)
     bar.pack(fill='x', side='bottom')
@@ -105,13 +110,16 @@ def _make_button_bar(parent: tk.Widget, *buttons) -> dict:
         b = ttk.Button(bar, text=label, command=cmd, width=10)
         b.pack(side=side, padx=6)
         refs[label] = b
+
     return refs
 
 
 # ── Installer application ─────────────────────────────────────────────────────
 
 class InstallerApp:
-    """Three-screen mini-installer: License → Components → Install log."""
+    """
+    Three-screen mini-installer: License → Components → Install log.
+    """
 
     def __init__(self, target_dir: str) -> None:
         self.target_dir = target_dir
@@ -144,11 +152,16 @@ class InstallerApp:
             self.root.destroy()
 
     def _switch(self) -> tk.Frame:
-        """Destroy the current content frame and return a fresh one."""
+        """
+        Destroy the current content frame and return a fresh one.
+        """
+
         if self._frame is not None:
             self._frame.destroy()
+
         self._frame = tk.Frame(self.root)
         self._frame.pack(fill='both', expand=True)
+
         return self._frame
 
     # ── Screen 1: PySide6 license ─────────────────────────────────────────────
@@ -157,11 +170,8 @@ class InstallerApp:
         self._allow_close = True
         f = self._switch()
 
-        _make_header(
-            f,
-            'License Agreement',
-            'Please review the PySide6 license before continuing.',
-        )
+        _make_header(f, 'License Agreement',
+                     'Please review the PySide6 license before continuing.')
 
         body = tk.Frame(f, padx=16, pady=8)
         body.pack(fill='both', expand=True)
@@ -170,11 +180,9 @@ class InstallerApp:
         txt_outer = tk.Frame(body, relief='solid', bd=1)
         txt_outer.pack(fill='both', expand=True)
 
-        txt = tk.Text(
-            txt_outer, wrap='word',
-            font=('Courier New', 8),
-            relief='flat', bg='#F8F8F8', fg='#222',
-        )
+        txt = tk.Text(txt_outer, wrap='word', font=('Courier New', 8),
+                      relief='flat', bg='#F8F8F8', fg='#222')
+
         sb = ttk.Scrollbar(txt_outer, command=txt.yview)
         txt.configure(yscrollcommand=sb.set)
         sb.pack(side='right', fill='y')
@@ -184,26 +192,25 @@ class InstallerApp:
 
         # Accept checkbox
         self._accept_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(
-            body,
-            text='I accept the terms of the PySide6 LGPL v3 license',
-            variable=self._accept_var,
-        ).pack(anchor='w', pady=(8, 0))
 
-        _make_button_bar(
-            f,
-            ('Cancel', self.root.destroy, 'right'),
-            ('Next >', self._license_next, 'right'),
-        )
+        check_button = ttk.Checkbutton(
+            body, variable=self._accept_var,
+            text='I accept the terms of the PySide6 LGPL v3 license')
+
+        check_button.pack(anchor='w', pady=(8, 0))
+
+        _make_button_bar(f, ('Cancel', self.root.destroy, 'right'),
+                         ('Next >', self._license_next, 'right'))
 
     def _license_next(self) -> None:
         if not self._accept_var.get():
             messagebox.showerror(
                 'License Required',
                 'You must accept the PySide6 LGPL v3 license to continue.',
-                parent=self.root,
-            )
+                parent=self.root)
+
             return
+
         self._show_packages()
 
     # ── Screen 2: optional component selection ────────────────────────────────
@@ -213,20 +220,18 @@ class InstallerApp:
         f = self._switch()
 
         _make_header(
-            f,
-            'Select Components',
-            'Choose optional components to install alongside Harness Designer.',
-        )
+            f, 'Select Components',
+            'Choose optional components to install alongside Harness Designer.')
 
         body = tk.Frame(f, padx=16, pady=12)
         body.pack(fill='both', expand=True)
 
-        tk.Label(
-            body,
+        label = tk.Label(
+            body, font=('Segoe UI', 9), justify='left',
             text='Required components (PySide6) will always be installed.\n'
-                 'Select any optional components you need:',
-            font=('Segoe UI', 9), justify='left',
-        ).pack(anchor='w', pady=(0, 14))
+                 'Select any optional components you need:')
+
+        label.pack(anchor='w', pady=(0, 14))
 
         self._pkg_vars: list[tuple[tk.BooleanVar, str]] = []
 
@@ -237,29 +242,23 @@ class InstallerApp:
             row = tk.Frame(body)
             row.pack(anchor='w', pady=4, fill='x')
 
-            ttk.Checkbutton(
-                row, text=label, variable=var,
-            ).pack(anchor='w')
-            tk.Label(
-                row,
-                text=f'    {description}',
-                font=('Segoe UI', 8), fg='#666', justify='left',
-            ).pack(anchor='w')
+            ttk.Checkbutton(row, text=label, variable=var).pack(anchor='w')
 
-        _make_button_bar(
-            f,
-            ('Cancel',  self.root.destroy,    'right'),
-            ('Install', self._begin_install,   'right'),
-            ('< Back',  self._show_license,    'right'),
-        )
+            label = tk.Label(row, text=f'    {description}',
+                     font=('Segoe UI', 8), fg='#666', justify='left')
+
+            label.pack(anchor='w')
+
+        _make_button_bar(f, ('Cancel',  self.root.destroy,    'right'),
+                         ('Install', self._begin_install,   'right'),
+                         ('< Back',  self._show_license,    'right'))
 
     def _begin_install(self) -> None:
         packages = list(REQUIRED_PACKAGES)
         for var, pip_name in self._pkg_vars:
             if var.get():
-                packages += [
-                    p for p in OPTIONAL_PACKAGES if p[0] == pip_name
-                ]
+                packages += [p for p in OPTIONAL_PACKAGES if p[0] == pip_name]
+
         self._packages = packages
         self._show_install()
 
@@ -269,21 +268,17 @@ class InstallerApp:
         self._allow_close = False
         f = self._switch()
 
-        _make_header(
-            f,
-            'Installing Components',
-            'Downloading and installing required runtime components…',
-        )
+        _make_header(f, 'Installing Components',
+                     'Downloading and installing required runtime components…')
 
         body = tk.Frame(f, padx=16, pady=6)
         body.pack(fill='both', expand=True)
 
         # Status label + progress bar
         self._status_var = tk.StringVar(value='Initialising…')
-        tk.Label(
-            body, textvariable=self._status_var,
-            font=('Segoe UI', 9), anchor='w',
-        ).pack(fill='x')
+
+        tk.Label(body, textvariable=self._status_var, font=('Segoe UI', 9),
+                 anchor='w').pack(fill='x')
 
         self._progress = ttk.Progressbar(body, maximum=100)
         self._progress.pack(fill='x', pady=(4, 8))
@@ -292,33 +287,24 @@ class InstallerApp:
         term_outer = tk.Frame(body, relief='flat', bd=1, bg='#0C0C0C')
         term_outer.pack(fill='both', expand=True)
 
-        self._terminal = tk.Text(
-            term_outer,
-            bg='#0C0C0C', fg='#00CC00',
-            font=('Courier New', 9),
-            relief='flat', bd=0,
-            insertbackground='#00CC00',
-            wrap='char',
-        )
+        self._terminal = tk.Text(term_outer, bg='#0C0C0C', fg='#00CC00',
+                                 font=('Courier New', 9), relief='flat', bd=0,
+                                 insertbackground='#00CC00', wrap='char')
+
         t_sb = ttk.Scrollbar(term_outer, command=self._terminal.yview)
         self._terminal.configure(yscrollcommand=t_sb.set)
         t_sb.pack(side='right', fill='y')
         self._terminal.pack(fill='both', expand=True, padx=2, pady=2)
         self._terminal.config(state='disabled')
 
-        btns = _make_button_bar(
-            f,
-            ('Close', self.root.destroy, 'right'),
-        )
+        btns = _make_button_bar(f, ('Close', self.root.destroy, 'right'))
         self._close_btn = btns['Close']
         self._close_btn.config(state='disabled')
 
         # Kick off background install thread
-        threading.Thread(
-            target=self._install_worker,
-            args=(self._packages,),
-            daemon=True,
-        ).start()
+        threading.Thread(target=self._install_worker, args=(self._packages,),
+                         daemon=True).start()
+
         self.root.after(50, self._drain_queue)
 
     def _term_write(self, text: str) -> None:
@@ -337,27 +323,28 @@ class InstallerApp:
                 elif isinstance(msg, dict):
                     if 'status' in msg:
                         self._status_var.set(msg['status'])
+
                     if 'progress' in msg:
                         self._progress.config(value=msg['progress'] * 100)
+
                     if 'done' in msg:
                         self._allow_close = True
                         self._close_btn.config(state='normal')
                         if msg.get('error'):
                             self._status_var.set(
-                                'Installation failed — see log above.'
-                            )
+                                'Installation failed — see log above.')
                             self._term_write(
                                 '\nInstallation failed.\n'
                                 'You may close this window and re-run setup, '
                                 'or install PySide6 manually:\n'
-                                '  pip install PySide6\n'
-                            )
+                                '  pip install PySide6\n')
                         else:
                             self._status_var.set('Installation complete.')
                             self._progress.config(value=100)
                         return   # stop polling
         except queue.Empty:
             pass
+
         self.root.after(50, self._drain_queue)
 
     def _install_worker(self, packages: list) -> None:
@@ -365,13 +352,18 @@ class InstallerApp:
         q = self._queue
 
         class _Writer:
-            """Redirect sys.stdout / sys.stderr into the terminal queue."""
-            def write(self_, s: str) -> None:
+            """
+            Redirect sys.stdout / sys.stderr into the terminal queue.
+            """
+
+            def write(self, s: str) -> None:
                 if s:
                     q.put(s)
-            def flush(self_) -> None:
+                    
+            def flush(self) -> None:
                 pass
-            def isatty(self_) -> bool:
+
+            def isatty(self) -> bool:
                 # Prevents pip from emitting ANSI escape codes
                 return False
 
@@ -380,7 +372,7 @@ class InstallerApp:
         sys.executable = _python_exe()
 
         try:
-            from pip._internal.cli.main import main as pip_main
+            from pip._internal.cli.main import main as pip_main  # NOQA
 
             total = len(packages)
             for i, (pkg, _, label, *_rest) in enumerate(packages):
@@ -389,18 +381,21 @@ class InstallerApp:
 
                 exit_code = 0
                 try:
-                    with contextlib.redirect_stdout(writer), \
-                         contextlib.redirect_stderr(writer):
+                    with (
+                        contextlib.redirect_stdout(writer),
+                        contextlib.redirect_stderr(writer)
+                    ):
                         pip_main(['install', '--target', self.target_dir, pkg])
+
                 except SystemExit as exc:
                     exit_code = int(exc.code) if exc.code is not None else 0
 
                 if exit_code not in (0, None):
-                    q.put(
-                        f'\nERROR: pip failed for {pkg!r} '
-                        f'(exit code {exit_code})\n'
-                    )
+                    q.put(f'\nERROR: pip failed for {pkg!r} '
+                          f'(exit code {exit_code})\n')
+
                     q.put({'done': True, 'error': True})
+
                     return
 
             q.put('\nAll components installed successfully.\n')
@@ -428,7 +423,7 @@ def _run_headless(target_dir: str, log_file: str, mysql: bool = False) -> None:
     original_exe = sys.executable
     sys.executable = _python_exe()
     try:
-        from pip._internal.cli.main import main as pip_main
+        from pip._internal.cli.main import main as pip_main  # NOQA
 
         total = len(packages)
         for i, (pkg, _, label, *_rest) in enumerate(packages):
@@ -436,18 +431,24 @@ def _run_headless(target_dir: str, log_file: str, mysql: bool = False) -> None:
             buf = io.StringIO()
             exit_code = 0
             try:
-                with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
+                with (
+                    contextlib.redirect_stdout(buf),
+                    contextlib.redirect_stderr(buf)
+                ):
                     pip_main(['install', '--target', target_dir, pkg])
             except SystemExit as exc:
                 exit_code = int(exc.code) if exc.code is not None else 0
+
             for line in buf.getvalue().splitlines():
                 if line.strip():
                     log(f'    {line}')
+
             if exit_code not in (0, None):
                 log(f'ERROR: pip failed for {pkg!r} (exit {exit_code})')
                 sys.exit(1)
 
         log('All components installed successfully.')
+
     except Exception as exc:
         log(f'ERROR: {exc}')
         sys.exit(1)

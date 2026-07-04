@@ -7,7 +7,7 @@
 set -euo pipefail
 
 INSTALL_DIR="/Applications/HarnessDesigner.app"
-DEPENDENCY_INSTALLER="$INSTALL_DIR/Contents/Resources/dependency_installer"
+DEPENDENCY_INSTALLER="$INSTALL_DIR/Contents/Resources/dep_installer"
 LIB_DIR="$INSTALL_DIR/Contents/MacOS"
 
 # Ensure the embedded installer is executable

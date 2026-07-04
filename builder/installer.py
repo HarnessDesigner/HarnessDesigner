@@ -48,7 +48,7 @@ def _check_build_outputs():
     if sys.platform.startswith('darwin'):
         app = os.path.join(BUILD_DIR, 'harness_designer.app')
         installer_bin = os.path.join(
-            BUILD_DIR, 'installer.app', 'Contents', 'MacOS', 'installer'
+            BUILD_DIR, 'dep_installer.app', 'Contents', 'MacOS', 'dep_installer'
         )
         if not os.path.isdir(app):
             errors.append(f'  missing dir : {app}')
@@ -60,7 +60,7 @@ def _check_build_outputs():
             errors.append(f'  missing dir : {app}')
 
         ext = '.exe' if sys.platform.startswith('win') else ''
-        binary = os.path.join(BUILD_DIR, f'installer{ext}')
+        binary = os.path.join(BUILD_DIR, f'dep_installer{ext}')
         if not os.path.isfile(binary):
             errors.append(f'  missing file: {binary}')
 
@@ -203,7 +203,7 @@ def build_linux(version):
                 └── icon_256x256.png
     """
     app_src = os.path.join(BUILD_DIR, 'harness_designer')
-    installer_src = os.path.join(BUILD_DIR, 'installer')
+    installer_src = os.path.join(BUILD_DIR, 'dep_installer')
     install_sh_path = os.path.join(INSTALLER_SCRIPTS_DIR, 'linux', 'install.sh')
 
     machine = platform.machine().lower()
@@ -256,7 +256,7 @@ exec "$DIR/installer_scripts/linux/install.sh" "$@"
 
         # Dependency installer (PyInstaller --onefile single binary)
         print('   Adding dependency installer ...')
-        ti = tarfile.TarInfo(name=f'{stem}/builder/scripts/dist/installer')
+        ti = tarfile.TarInfo(name=f'{stem}/builder/scripts/dist/dep_installer')
         ti.size = os.path.getsize(installer_src)
         ti.mode = 0o755
         with open(installer_src, 'rb') as fh:

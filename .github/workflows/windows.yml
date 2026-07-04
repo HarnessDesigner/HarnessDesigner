@@ -73,7 +73,7 @@ jobs:
         uses: actions/upload-artifact@v7.0.1
         with:
           name: harness_designer-windows-dep-installer
-          path: builder/scripts/dist/installer.exe
+          path: builder/scripts/dist/dep_installer.exe
           if-no-files-found: error
 
       - name: Upload Windows installer artifact

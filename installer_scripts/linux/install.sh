@@ -95,7 +95,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 BUILD_DIR="$REPO_ROOT/builder/scripts/dist"
 APP_SRC="$BUILD_DIR/$APP_NAME"
-INSTALLER_SRC="$BUILD_DIR/installer"
+INSTALLER_SRC="$BUILD_DIR/dep_installer"
 ICON_SRC="$REPO_ROOT/harness_designer/image/icon_256x256.png"
 
 for path in "$APP_SRC" "$INSTALLER_SRC" "$ICON_SRC"; do
