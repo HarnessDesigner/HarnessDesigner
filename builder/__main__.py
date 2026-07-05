@@ -2,8 +2,9 @@
 #
 # Builds the PyInstaller onedir/onefile app bundle and the dependency
 # installer from the harness_designer wheel installed by `pip install .`
-# (see setup.py / builder/build_native_deps.py). Platform installer packaging
-# is a separate subsequent step — see builder/installer.py.
+# (see pyproject.toml / builder/_backend.py / builder/build_native_deps.py).
+# Platform installer packaging is a separate subsequent step — see
+# builder/installer.py.
 #
 # Usage:
 #   python -m builder
@@ -18,15 +19,25 @@ def main():
 
     base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
+    # `python -m builder` prepends the current directory to sys.path (that's
+    # how `-m` works, independent of PYTHONPATH) — when cwd is the repo root,
+    # as it is in CI, that shadows the pip-installed harness_designer with
+    # this repo's own uncompiled copy. `builder` itself is already fully
+    # imported by this point (that's how -m got here — from_import below
+    # resolves via the already-imported package's __path__, not sys.path),
+    # so it's safe to strip every repo-root-referring entry from sys.path
+    # now, before importing harness_designer.
+    _norm = lambda p: os.path.normcase(os.path.normpath(p or os.getcwd()))
+    _base_norm = _norm(base_path)
+    sys.path[:] = [p for p in sys.path if _norm(p) != _base_norm]
+
     import harness_designer
 
     hd_path = os.path.dirname(harness_designer.__file__)
 
-    # Hard safety check: this script needs the repo root importable (for
-    # `builder` itself, via PYTHONPATH), which risks `harness_designer` also
-    # resolving to this repo's copy instead of the pip-installed one in
-    # site-packages. Abort loudly rather than letting PyInstaller bundle the
-    # wrong (uncompiled) copy.
+    # Hard safety check: hd_path must never be inside the repo. If it is, the
+    # sys.path stripping above failed silently — abort loudly rather than
+    # letting PyInstaller bundle the wrong (uncompiled) copy.
     _hd_abs = os.path.abspath(hd_path)
     _base_abs = os.path.abspath(base_path)
     if os.path.commonpath([_hd_abs, _base_abs]) == _base_abs:
