@@ -21,21 +21,53 @@ import logging
 import os
 
 from packaging.requirements import Requirement
+from packaging.utils import canonicalize_name
+
+# PySide6/shiboken6 already have their own dedicated PyInstaller hooks
+# (Qt plugins, translations, QML, platform-specific deployment bits) that
+# a blanket --collect-all would duplicate or fight with. harness_designer's
+# own direct `import PySide6...` usage is already enough for PyInstaller's
+# analysis phase to pull those hooks in; this walker should never emit
+# flags for this family.
+#
+# `vtk` rides in transitively (cadquery-ocp==7.8.1.1 has a hard, unconditional
+# `vtk==9.3.1` dependency, confirmed via PyPI metadata) purely to back OCP's
+# IVtkOCC viewer, which harness_designer's own custom OpenGL 3D viewer never
+# calls. Bundling it would also drag in `vtk`'s own hard `matplotlib`
+# dependency (and matplotlib's own dependency chain: contourpy, cycler,
+# fonttools, kiwisolver, pyparsing) -- none of which harness_designer uses.
+#
+# Names are pre-canonicalized (packaging.utils.canonicalize_name: lowercased,
+# separators normalized to '-').
+_EXCLUDED_DISTRIBUTIONS = frozenset({
+    'pyside6', 'pyside6-essentials', 'pyside6-addons', 'shiboken6', 'vtk',
+})
 
 
 def _distribution_to_import_names():
-    """{distribution_name: [import_name, ...]} for every installed package.
+    """{canonical_distribution_name: [import_name, ...]} for every installed
+    package.
 
     importlib.metadata.packages_distributions() gives the reverse mapping
     (import name -> distributions that provide it); this inverts it once.
     A single distribution can provide more than one import name (e.g.
-    PyYAML provides both `yaml` and the compiled `_yaml` helper) — this
-    catches those correctly rather than assuming a 1:1 mapping.
+    PyYAML provides both `yaml` and the compiled `_yaml` helper, and VTK's
+    wheel provides `vtk`, `vtkmodules`, and a pile of flat `vtkXxxPython`
+    compiled modules) — this catches those correctly rather than assuming
+    a 1:1 mapping.
+
+    Keys are run through canonicalize_name() (PEP 503: lowercased, '_'/'.'
+    collapsed to '-') because distribution names as reported here preserve
+    their original PyPI casing (e.g. "PyOpenGL"), but names discovered by
+    walking Requires-Dist strings must be compared case-insensitively to
+    match up correctly — a plain dict keyed by raw casing silently misses
+    on anything not written in exactly the same case it happens to appear
+    in some other package's metadata.
     """
     forward = {}
     for import_name, dist_names in importlib.metadata.packages_distributions().items():
         for dist_name in dist_names:
-            forward.setdefault(dist_name, []).append(import_name)
+            forward.setdefault(canonicalize_name(dist_name), []).append(import_name)
     return forward
 
 
@@ -49,11 +81,18 @@ def _walk_distributions(name, seen):
     here — anything not installed (a platform-conditional dependency for a
     different OS, or an extras-gated dependency nothing requested) is
     skipped silently, not treated as an error.
+
+    `seen` collects canonicalized distribution names (see
+    _distribution_to_import_names for why canonicalization matters here
+    too) and doubles as both the recursion guard and the final result set.
     """
-    key = name.lower()
+    key = canonicalize_name(name)
     if key in seen:
         return
     seen.add(key)
+
+    if key in _EXCLUDED_DISTRIBUTIONS:
+        return
 
     try:
         requires = importlib.metadata.requires(name) or []
@@ -86,6 +125,9 @@ def _resolve_import_names():
 
     import_names = set()
     for dist_name in distributions:
+        if dist_name in _EXCLUDED_DISTRIBUTIONS:
+            continue
+
         matches = dist_to_import.get(dist_name)
         if matches:
             import_names.update(matches)
@@ -95,12 +137,13 @@ def _resolve_import_names():
             # fallback doesn't always fill the gap either (confirmed: idna
             # has a proper idna/__init__.py yet doesn't show up in the
             # mapping in at least one environment tested against). Falling
-            # back to the distribution name itself, normalized, catches the
-            # common case where the import name matches the distribution
-            # name outright. If this guess is wrong, get_modules() reports
-            # it in the "not importable" list below rather than it vanishing
-            # without a trace the way a hand-maintained list's gaps would.
-            import_names.add(dist_name.lower().replace('-', '_'))
+            # back to the distribution name itself (already canonicalized:
+            # lowercased, separators normalized) catches the common case
+            # where the import name matches the distribution name outright.
+            # If this guess is wrong, get_modules() reports it in the "not
+            # importable" list below rather than it vanishing without a
+            # trace the way a hand-maintained list's gaps would.
+            import_names.add(dist_name.replace('-', '_'))
 
     return import_names
 
@@ -111,6 +154,7 @@ def get_modules():
     res = []
     existing = []
     missing = []
+    load_failed = []
 
     # Some modules (e.g. matplotlib) initialise loggers on import whose
     # underlying stream has been detached by PyInstaller's build harness,
@@ -123,6 +167,26 @@ def get_modules():
                 mod = __import__(name)
             except ModuleNotFoundError:
                 missing.append(name)
+                continue
+            except Exception:
+                # The package is installed but its import-time code raised
+                # something other than ModuleNotFoundError — e.g. GPU
+                # vendor SMI bindings (amdsmi, nvidia-ml-py/pynvml,
+                # apple_smi) and other hardware-probing libraries look for
+                # a display driver's shared library at import time and
+                # raise arbitrary errors (TypeError, KeyError, OSError...)
+                # when no such GPU exists on this build machine. That
+                # says nothing about whether the *end user's* machine has
+                # the hardware, so still bundle it rather than silently
+                # dropping it — use find_spec() instead of the failed
+                # module object to decide package vs. plain module.
+                load_failed.append(name)
+                existing.append(name)
+                spec = importlib.util.find_spec(name)
+                if spec is not None and spec.submodule_search_locations:
+                    res.append(f'--collect-all={name}')
+                else:
+                    res.append(f'--hidden-import={name}')
                 continue
 
             existing.append(name)
@@ -145,6 +209,15 @@ def get_modules():
     print(f'{len(existing)} of those actually importable in this environment:')
     for name in existing:
         print(f'  {name}')
+
+    if load_failed:
+        print(
+            f'{len(load_failed)} of those raised on import (not ModuleNotFoundError) '
+            'in this environment -- bundled anyway since the failure looks environmental '
+            '(e.g. a hardware/driver probe with no matching device on this build machine):'
+        )
+        for name in load_failed:
+            print(f'  {name}')
 
     if missing:
         print(

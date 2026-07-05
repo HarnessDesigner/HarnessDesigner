@@ -195,6 +195,14 @@ def build_installer(base_import):
     # pip must be importable from inside the frozen bootstrap.
     args.extend(['--collect-all=pip'])
 
+    # Overrides PyInstaller's own hook-keyring.py, which crashes on macOS CI
+    # (see builder/pyinstaller_hooks/hook-keyring.py for the full RuntimeError
+    # and root-cause writeup) -- --additional-hooks-dir takes precedence over
+    # PyInstaller's bundled hooks, so our replacement is used instead.
+    args.extend([
+        f'--additional-hooks-dir={os.path.join(base_path, "pyinstaller_hooks")}',
+    ])
+
     # PySide6 and MySQL are installed at runtime by the dependency installer,
     # not bundled with the app.  Exclude them even if they are importable in
     # the build environment so they do not end up in the PyInstaller bundle.
