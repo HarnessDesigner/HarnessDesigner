@@ -300,6 +300,9 @@ Contents/structure of the `harness_designer/` package.
   - *_ctrl wrappers
 - `dialogs/`:
   - dialog_base.py
+  - about_dialog.py: About box — app info, update check (GitHub releases API),
+    package credits (left list, alphabetical) + metadata/license viewer
+    (`importlib.metadata` over installed dist-info dirs, incl. Python itself)
   - part_search.py
   - part_orientation.py
   - properties_dialog.py

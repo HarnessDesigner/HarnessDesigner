@@ -42,12 +42,31 @@ def _quote(arg):
     return f'"{arg}"' if ' ' in arg else arg
 
 
-def _run(cmd_parts):
+def _run(cmd_parts, expected_output):
+    """Run a command via spawn.spawn() and verify it actually produced
+    expected_output.
+
+    spawn.spawn() pipes the command into a bare shell's stdin rather than
+    running it directly (`cmd.exe`/`bash` with no `-c`/`/c`), so its
+    reported returncode is not trustworthy on every platform — on Windows,
+    a bare `cmd.exe` fed a command via stdin exits 0 on natural EOF
+    regardless of whether that command failed, unless the command itself
+    explicitly propagates its errorlevel. Checking that the expected output
+    file actually exists sidesteps that ambiguity entirely instead of
+    trusting the shell's own exit code.
+    """
+    # Remove any stale output from a previous run first — otherwise a
+    # leftover file from an earlier successful build could make this run's
+    # failure look like a success purely because the file already existed.
+    if os.path.exists(expected_output):
+        os.remove(expected_output)
+
     cmd = ' '.join(_quote(p) for p in cmd_parts)
     returncode, error_lines = spawn.spawn(cmd)
-    if returncode != 0:
+    if returncode != 0 or not os.path.exists(expected_output):
         raise RuntimeError(
-            f'command failed ({returncode}): {cmd}\n' + '\n'.join(error_lines)
+            f'command failed ({returncode}), expected output missing: '
+            f'{expected_output!r}\n{cmd}\n' + '\n'.join(error_lines)
         )
 
 
@@ -101,9 +120,10 @@ def _windows_link_cmd(obj_path, out_path, dotted_name):
     init_name = _module_init_name(dotted_name)
     # /GL (compile step) requires /LTCG at link time, and /INCREMENTAL:NO
     # pairs with /LTCG (incremental linking is incompatible with it).
-    # /IMPLIB is redirected next to the object file — otherwise link.exe
-    # drops an unwanted .lib import file next to the .pyd in the staged
-    # wheel tree.
+    # /IMPLIB is derived from obj_path, which the caller places in a scratch
+    # obj_dir — not next to the final .pyd — so the .lib (and the .exp
+    # link.exe writes alongside it automatically) never end up in the
+    # staged wheel tree.
     implib_path = obj_path + '.lib'
     return [
         'link.exe', '/nologo', '/DLL', '/INCREMENTAL:NO', '/LTCG',
@@ -115,27 +135,56 @@ def _windows_link_cmd(obj_path, out_path, dotted_name):
     ]
 
 
-def compile_one(dotted_name, c_path, output_path, include_dirs):
-    """Compile one Cython-generated .c file into its final .pyd/.so."""
+def compile_one(dotted_name, c_path, output_path, obj_dir, include_dirs):
+    """Compile one Cython-generated .c file into its final .pyd/.so.
+
+    Intermediate artifacts (.obj/.o, and on Windows the .lib/.exp
+    import-library byproducts) are written to obj_dir — a scratch directory
+    entirely separate from output_path's directory, which is the staging
+    tree that gets zipped into the wheel. Naming the object file after
+    dotted_name (globally unique) rather than mirroring the package
+    directory structure means obj_dir doesn't need subdirectories at all.
+    """
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    obj_path = output_path + ('.obj' if sys.platform.startswith('win') else '.o')
+    os.makedirs(obj_dir, exist_ok=True)
+
+    obj_ext = '.obj' if sys.platform.startswith('win') else '.o'
+    obj_path = os.path.join(obj_dir, dotted_name + obj_ext)
 
     if sys.platform.startswith('win'):
-        _run(_windows_compile_cmd(c_path, obj_path, include_dirs))
-        _run(_windows_link_cmd(obj_path, output_path, dotted_name))
+        _run(_windows_compile_cmd(c_path, obj_path, include_dirs), obj_path)
+        _run(_windows_link_cmd(obj_path, output_path, dotted_name), output_path)
     else:
-        _run(_posix_compile_cmd(c_path, obj_path, include_dirs))
-        _run(_posix_link_cmd(obj_path, output_path))
+        _run(_posix_compile_cmd(c_path, obj_path, include_dirs), obj_path)
+        _run(_posix_link_cmd(obj_path, output_path), output_path)
 
 
 def compile_all(jobs, max_workers=None):
-    """jobs: iterable of (dotted_name, c_path, output_path, include_dirs)."""
+    """jobs: iterable of (dotted_name, c_path, output_path, obj_dir, include_dirs).
+
+    Every job runs to completion regardless of whether earlier ones failed —
+    failures are collected, not raised immediately, so a single bad file
+    doesn't cut the batch short and hide whatever else is also wrong.
+    Everything gets reported together in one RuntimeError at the end.
+    """
     max_workers = max_workers or os.cpu_count()
 
+    failures = []
+
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
-        futures = [
-            pool.submit(compile_one, dotted_name, c_path, output_path, include_dirs)
-            for dotted_name, c_path, output_path, include_dirs in jobs
-        ]
-        for future in concurrent.futures.as_completed(futures):
-            future.result()
+        future_to_name = {
+            pool.submit(compile_one, dotted_name, c_path, output_path, obj_dir, include_dirs): dotted_name
+            for dotted_name, c_path, output_path, obj_dir, include_dirs in jobs
+        }
+        for future in concurrent.futures.as_completed(future_to_name):
+            dotted_name = future_to_name[future]
+            try:
+                future.result()
+            except Exception as exc:
+                failures.append(f'{dotted_name}:\n{exc}')
+
+    if failures:
+        raise RuntimeError(
+            f'{len(failures)} of {len(future_to_name)} module(s) failed to compile:\n\n'
+            + '\n\n'.join(failures)
+        )

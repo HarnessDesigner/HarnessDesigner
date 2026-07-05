@@ -77,6 +77,8 @@ def _compile_modules(build_lib, cythonize_enabled):
     build_dir = os.path.join(_REPO_ROOT, 'build', 'c')
     c_paths = cython_build.cythonize_to_c(modules, build_dir=build_dir)
 
+    obj_dir = os.path.join(_REPO_ROOT, 'build', 'obj')
+
     import numpy
     include_dirs = [compiler.python_include_dir(), numpy.get_include()]
     ext_suffix = compiler.ext_suffix()
@@ -85,7 +87,7 @@ def _compile_modules(build_lib, cythonize_enabled):
     for dotted_name, rel_source in modules:
         rel_no_ext = os.path.splitext(rel_source)[0]
         output_path = os.path.join(build_lib, rel_no_ext + ext_suffix)
-        jobs.append((dotted_name, c_paths[dotted_name], output_path, include_dirs))
+        jobs.append((dotted_name, c_paths[dotted_name], output_path, obj_dir, include_dirs))
 
     compiler.compile_all(jobs)
 

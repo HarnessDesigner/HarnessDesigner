@@ -71,4 +71,17 @@ def spawn(cmd):
 
     sys.stdout.flush()
 
-    return p.returncode, error_lines
+    returncode = p.returncode
+
+    # cmd is piped into a bare shell's stdin rather than run directly
+    # (`cmd.exe`/`bash` with no `/c`/`-c`), so the shell's own exit code
+    # doesn't reliably reflect whether the piped command actually failed —
+    # on Windows in particular, a bare `cmd.exe` fed a command this way
+    # exits 0 on natural EOF regardless of that command's own exit status.
+    # This project's builds are expected to be entirely clean, so any
+    # stderr output at all — not just lines that look like hard errors —
+    # is treated as a failure.
+    if returncode == 0 and error_lines:
+        returncode = 1
+
+    return returncode, error_lines

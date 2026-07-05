@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING
 
 from PySide6 import QtWidgets
 
+from ..dialogs import about_dialog as _about_dialog
+
 
 if TYPE_CHECKING:
     from ... import ui as _ui
@@ -23,3 +25,11 @@ class HelpMenu(QtWidgets.QMenu):
 
         super().__init__('Help', mainframe)
         self.mainframe = mainframe
+
+        self.addAction('About Harness Designer').triggered.connect(self.on_about)
+
+    def on_about(self):
+        """Open the About dialog."""
+
+        dlg = _about_dialog.AboutDialog(self.mainframe)
+        dlg.exec()
