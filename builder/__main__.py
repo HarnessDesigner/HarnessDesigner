@@ -35,12 +35,18 @@ def main():
 
     hd_path = os.path.dirname(harness_designer.__file__)
 
-    # Hard safety check: hd_path must never be inside the repo. If it is, the
-    # sys.path stripping above failed silently — abort loudly rather than
-    # letting PyInstaller bundle the wrong (uncompiled) copy.
-    _hd_abs = os.path.abspath(hd_path)
-    _base_abs = os.path.abspath(base_path)
-    if os.path.commonpath([_hd_abs, _base_abs]) == _base_abs:
+    # Hard safety check: harness_designer's parent dir must never be the repo
+    # root. If it is, the sys.path stripping above failed silently — abort
+    # loudly rather than letting PyInstaller bundle the wrong (uncompiled)
+    # copy. Comparing dirname(hd_path) to base_path directly (rather than
+    # os.path.commonpath()) avoids a ValueError when the repo and the Python
+    # install live on different drives on Windows — commonpath() raises
+    # "Paths don't have the same drive" instead of just returning a
+    # non-matching result. normcase() guards against a false negative from
+    # drive-letter/casing differences (Windows paths are case-insensitive).
+    _hd_parent = os.path.normcase(os.path.dirname(os.path.abspath(hd_path)))
+    _base_norm = os.path.normcase(os.path.abspath(base_path))
+    if _hd_parent == _base_norm:
         raise RuntimeError(
             f'harness_designer resolved to {hd_path!r}, inside the repo '
             f'({base_path!r}) instead of the installed site-packages copy.'
