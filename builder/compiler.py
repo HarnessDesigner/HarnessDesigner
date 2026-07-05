@@ -55,6 +55,15 @@ def _posix_compile_cmd(c_path, obj_path, include_dirs):
     cmd = sysconfig.get_config_var('CC').split()
     cmd += sysconfig.get_config_var('CFLAGS').split()
 
+    # distutils compiles files destined for a shared object with
+    # CFLAGS + CCSHARED, not CFLAGS alone (see customize_compiler() /
+    # compiler_so in distutils.sysconfig) — CCSHARED is -fPIC on Linux.
+    # Omitting it links fine on macOS (PIC is the default there) but fails
+    # on Linux with "recompile with -fPIC".
+    ccshared = sysconfig.get_config_var('CCSHARED')
+    if ccshared:
+        cmd += ccshared.split()
+
     if sys.platform.startswith('linux'):
         cmd.append('-Wno-error=maybe-uninitialized')
 
