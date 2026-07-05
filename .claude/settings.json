@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "python -c \"import sys, json; d = json.loads(sys.stdin.read()); print((d.get('tool_input') or {}).get('file_path') or '')\" | tr -d '\\r' | { read -r f; if [ -n \"$f\" ]; then git add \"$f\"; fi; } 2>/dev/null || true",
+            "statusMessage": "Staging new file in git..."
+          }
+        ]
+      }
+    ]
+  }
+}
