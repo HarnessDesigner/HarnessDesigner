@@ -46,14 +46,26 @@ def _run(cmd_parts, expected_output):
     """Run a command via spawn.spawn() and verify it actually produced
     expected_output.
 
-    spawn.spawn() pipes the command into a bare shell's stdin rather than
-    running it directly (`cmd.exe`/`bash` with no `-c`/`/c`), so its
-    reported returncode is not trustworthy on every platform — on Windows,
-    a bare `cmd.exe` fed a command via stdin exits 0 on natural EOF
-    regardless of whether that command failed, unless the command itself
-    explicitly propagates its errorlevel. Checking that the expected output
-    file actually exists sidesteps that ambiguity entirely instead of
-    trusting the shell's own exit code.
+    Every subprocess in this codebase goes through spawn.spawn() — its
+    stdout/stderr collection loop is the one working way to read both pipes
+    from a child process on Windows without deadlocking (Windows has no
+    equivalent of POSIX's non-blocking-pipe-fd trick), so its internals are
+    off limits here regardless of what else changes.
+
+    spawn.spawn()'s own returncode isn't trustworthy for detecting failure
+    though — it pipes cmd into a bare shell's stdin rather than running it
+    directly (`cmd.exe`/`bash` with no `/c`/`-c`), and on Windows a bare
+    `cmd.exe` fed a command this way exits 0 on natural EOF regardless of
+    that command's own exit status. So failure is decided here instead, from
+    what spawn.spawn() returns: a nonzero returncode, a missing expected
+    output file, or stderr text that looks like a genuine compiler/linker
+    error (matching both MSVC's `error C2065:` and GCC/Clang's `error:`
+    convention) all raise. Stderr text that doesn't look like an error is
+    treated as a warning — returned to the caller instead of raised, so a
+    single warning doesn't stop the whole batch, but isn't silently
+    discarded either.
+
+    Returns the captured stderr text (empty string if none) on success.
     """
     # Remove any stale output from a previous run first — otherwise a
     # leftover file from an earlier successful build could make this run's
@@ -62,12 +74,20 @@ def _run(cmd_parts, expected_output):
         os.remove(expected_output)
 
     cmd = ' '.join(_quote(p) for p in cmd_parts)
-    returncode, error_lines = spawn.spawn(cmd)
-    if returncode != 0 or not os.path.exists(expected_output):
+    returncode, error_text = spawn.spawn(cmd)
+
+    is_error = (
+        returncode != 0
+        or not os.path.exists(expected_output)
+        or 'error' in error_text.lower()
+    )
+    if is_error:
         raise RuntimeError(
             f'command failed ({returncode}), expected output missing: '
-            f'{expected_output!r}\n{cmd}\n' + '\n'.join(error_lines)
+            f'{expected_output!r}\n{cmd}\n{error_text}'
         )
+
+    return error_text
 
 
 def _posix_compile_cmd(c_path, obj_path, include_dirs):
@@ -144,6 +164,9 @@ def compile_one(dotted_name, c_path, output_path, obj_dir, include_dirs):
     tree that gets zipped into the wheel. Naming the object file after
     dotted_name (globally unique) rather than mirroring the package
     directory structure means obj_dir doesn't need subdirectories at all.
+
+    Returns this module's combined warning text (empty string if none).
+    Raises if either step fails outright — see _run().
     """
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     os.makedirs(obj_dir, exist_ok=True)
@@ -152,24 +175,30 @@ def compile_one(dotted_name, c_path, output_path, obj_dir, include_dirs):
     obj_path = os.path.join(obj_dir, dotted_name + obj_ext)
 
     if sys.platform.startswith('win'):
-        _run(_windows_compile_cmd(c_path, obj_path, include_dirs), obj_path)
-        _run(_windows_link_cmd(obj_path, output_path, dotted_name), output_path)
+        compile_warning = _run(_windows_compile_cmd(c_path, obj_path, include_dirs), obj_path)
+        link_warning = _run(_windows_link_cmd(obj_path, output_path, dotted_name), output_path)
     else:
-        _run(_posix_compile_cmd(c_path, obj_path, include_dirs), obj_path)
-        _run(_posix_link_cmd(obj_path, output_path), output_path)
+        compile_warning = _run(_posix_compile_cmd(c_path, obj_path, include_dirs), obj_path)
+        link_warning = _run(_posix_link_cmd(obj_path, output_path), output_path)
+
+    return '\n'.join(w for w in (compile_warning, link_warning) if w)
 
 
 def compile_all(jobs, max_workers=None):
     """jobs: iterable of (dotted_name, c_path, output_path, obj_dir, include_dirs).
 
-    Every job runs to completion regardless of whether earlier ones failed —
-    failures are collected, not raised immediately, so a single bad file
-    doesn't cut the batch short and hide whatever else is also wrong.
-    Everything gets reported together in one RuntimeError at the end.
+    Every job runs to completion regardless of whether earlier ones failed
+    or warned — both are collected, not acted on immediately, so a single
+    bad or noisy file doesn't cut the batch short and hide whatever else is
+    also wrong. Warnings are printed together (grouped by module) once
+    everything's done, so they're easy to review and address, but they
+    don't fail the build. Errors are also reported together, and if there
+    are any, the build fails after every job has finished and been reported.
     """
     max_workers = max_workers or os.cpu_count()
 
     failures = []
+    warnings = []
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
         future_to_name = {
@@ -179,9 +208,17 @@ def compile_all(jobs, max_workers=None):
         for future in concurrent.futures.as_completed(future_to_name):
             dotted_name = future_to_name[future]
             try:
-                future.result()
+                warning_text = future.result()
             except Exception as exc:
                 failures.append(f'{dotted_name}:\n{exc}')
+            else:
+                if warning_text:
+                    warnings.append(f'{dotted_name}:\n{warning_text}')
+
+    if warnings:
+        print(f'\n{len(warnings)} module(s) compiled with warnings:\n')
+        print('\n\n'.join(warnings))
+        print()
 
     if failures:
         raise RuntimeError(
