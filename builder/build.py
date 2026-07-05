@@ -256,8 +256,12 @@ def build_installer():
         # test_tokenize.py uses to verify error handling -- PyInstaller's static
         # analysis tries to tokenize it while scanning for imports and crashes
         # with an uncaught SyntaxError/LookupError instead of skipping over it.
+        # NOTE: unittest is NOT excluded here (unlike test/idlelib/lib2to3) --
+        # it's a real, legitimately-imported-at-runtime stdlib package (e.g.
+        # pyparsing.testing does `import unittest` for its assertion-helper
+        # mixins, reached transitively via ezdxf); excluding it caused a real
+        # `ModuleNotFoundError: No module named 'unittest'` at runtime.
         'test',
-        'unittest',
         'idlelib',
         'lib2to3',
     ):
