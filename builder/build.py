@@ -4,85 +4,15 @@ import sys
 import os
 import gc
 import shutil
-import importlib.metadata
-import PyInstaller.__main__
-import PyInstaller.utils.hooks
+
 import platform
 import warnings
-from collections import deque
-
-import packaging.requirements
 
 from . import collect_stdlib
 from . import collect_modules
 
 if sys.platform.startswith('darwin'):
     import plistlib
-
-
-def _copy_metadata_fixed(package_name, recursive=False):
-    """Drop-in replacement for PyInstaller.utils.hooks.copy_metadata.
-
-    PyInstaller's own version raises here:
-
-        if not isinstance(src_path, pathlib.Path):
-            raise RuntimeError(f"...which is of unsupported type {type(src_path)}.")
-
-    against `importlib.metadata.distribution(name)._path` -- and that check
-    itself fails on real CI runners for a completely ordinary WindowsPath/
-    PosixPath instance (confirmed across Windows/Linux/macOS, for keyring,
-    importlib_metadata's own dist-info, and cryptography -- i.e. this is not
-    specific to any one package's hook, it hits every hook that calls
-    copy_metadata()). Filed upstream with PyInstaller, unresolved as of this
-    writing.
-
-    `dist._path` is a perfectly usable path on disk regardless of its exact
-    class, so this reimplementation just stringifies it instead of checking
-    its type. This function is monkeypatched over
-    PyInstaller.utils.hooks.copy_metadata below, before PyInstaller runs, so
-    every hook (built-in or from a 3rd-party package, since hooks do
-    `from PyInstaller.utils.hooks import copy_metadata` and that binds to
-    whatever this attribute is at the time each hook module is imported
-    during analysis -- i.e. after this patch is applied) picks up the fix
-    uniformly, instead of needing a one-off override per affected package.
-    """
-    todo = deque([package_name])
-    done = set()
-    out = []
-
-    while todo:
-        name = todo.pop()
-        if name in done:
-            continue
-        done.add(name)
-
-        dist = importlib.metadata.distribution(name)
-        if not hasattr(dist, '_path'):
-            raise RuntimeError(
-                f'Unsupported distribution type {type(dist)} for {name} - does not have _path attribute'
-            )
-
-        src_path = str(dist._path)
-
-        if os.path.isdir(src_path):
-            dest_path = os.path.basename(src_path)
-        elif os.path.isfile(src_path):
-            dest_path = '.'
-        else:
-            raise RuntimeError(f'Distribution metadata path {src_path!r} for {name} is neither file nor directory!')
-
-        out.append((src_path, dest_path))
-
-        if not recursive:
-            return out
-
-        requirements = [packaging.requirements.Requirement(r) for r in (dist.requires or [])]
-        todo.extend(r.name for r in requirements if r.marker is None or r.marker.evaluate())
-
-    return out
-
-
-PyInstaller.utils.hooks.copy_metadata = _copy_metadata_fixed
 
 
 def build_dependency_installer():
@@ -123,6 +53,8 @@ def build_dependency_installer():
     os.chdir(os.path.join(base_path, 'scripts'))
 
     gc.collect()
+
+    import PyInstaller.__main__
 
     PyInstaller.__main__.run(args)
 
@@ -403,6 +335,8 @@ def build_installer():
             _orig_symlink(src, dst, *_a, **_kw)
 
         os.symlink = _dedup_symlink
+
+    import PyInstaller.__main__
 
     try:
         PyInstaller.__main__.run(args)

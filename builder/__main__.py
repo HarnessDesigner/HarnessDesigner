@@ -30,7 +30,7 @@ def main():
 
     import harness_designer
 
-    hd_path = os.path.dirname(harness_designer.__file__)
+    hd_path = os.path.join(os.path.dirname(harness_designer.__file__), '..')
 
     # Hard safety check: harness_designer's parent dir must never be the repo
     # root. If it is, the sys.path stripping above failed silently — abort
@@ -41,7 +41,7 @@ def main():
     # "Paths don't have the same drive" instead of just returning a
     # non-matching result. normcase() guards against a false negative from
     # drive-letter/casing differences (Windows paths are case-insensitive).
-    _hd_parent = os.path.normcase(os.path.dirname(os.path.abspath(hd_path)))
+    _hd_parent = os.path.normcase(os.path.abspath(hd_path))
     _base_norm = os.path.normcase(os.path.abspath(base_path))
     if _hd_parent == _base_norm:
         raise RuntimeError(
