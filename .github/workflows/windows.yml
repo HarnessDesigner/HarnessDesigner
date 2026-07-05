@@ -82,6 +82,13 @@ jobs:
           name: build-log-windows.zip
           path: build.log
 
+      - name: Upload generated C sources
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: harness_designer-windows-generated-c.zip
+          path: build/c/
+
       - name: Upload app artifact
         uses: actions/upload-artifact@v7.0.1
         with:

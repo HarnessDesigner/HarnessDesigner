@@ -73,7 +73,7 @@ def main():
         if (
             not file.endswith('.so') and
             not file.endswith('.dll') and
-            not file.endswith('.dynlib')
+            not file.endswith('.dylib')
         ):
             continue
 
@@ -113,7 +113,7 @@ def main():
             if (
                 not file.endswith('.so') and
                 not file.endswith('.dll') and
-                not file.endswith('.dynlib')
+                not file.endswith('.dylib')
             ):
                 continue
 

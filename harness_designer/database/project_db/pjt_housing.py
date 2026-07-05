@@ -1073,6 +1073,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :param angle: Value for ``angle``.
         :type angle: :class:`_angle.Angle`
         """
+
         if self._o_quat3d is None:
             self._o_quat3d = eval(self._table.select('quat3d', id=self._db_id)[0][0])
             self._o_euler3d = eval(self._table.select('angle3d', id=self._db_id)[0][0])
