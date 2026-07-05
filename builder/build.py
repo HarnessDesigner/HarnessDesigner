@@ -4,15 +4,85 @@ import sys
 import os
 import gc
 import shutil
+import importlib.metadata
 import PyInstaller.__main__
+import PyInstaller.utils.hooks
 import platform
 import warnings
+from collections import deque
+
+import packaging.requirements
 
 from . import collect_stdlib
 from . import collect_modules
 
 if sys.platform.startswith('darwin'):
     import plistlib
+
+
+def _copy_metadata_fixed(package_name, recursive=False):
+    """Drop-in replacement for PyInstaller.utils.hooks.copy_metadata.
+
+    PyInstaller's own version raises here:
+
+        if not isinstance(src_path, pathlib.Path):
+            raise RuntimeError(f"...which is of unsupported type {type(src_path)}.")
+
+    against `importlib.metadata.distribution(name)._path` -- and that check
+    itself fails on real CI runners for a completely ordinary WindowsPath/
+    PosixPath instance (confirmed across Windows/Linux/macOS, for keyring,
+    importlib_metadata's own dist-info, and cryptography -- i.e. this is not
+    specific to any one package's hook, it hits every hook that calls
+    copy_metadata()). Filed upstream with PyInstaller, unresolved as of this
+    writing.
+
+    `dist._path` is a perfectly usable path on disk regardless of its exact
+    class, so this reimplementation just stringifies it instead of checking
+    its type. This function is monkeypatched over
+    PyInstaller.utils.hooks.copy_metadata below, before PyInstaller runs, so
+    every hook (built-in or from a 3rd-party package, since hooks do
+    `from PyInstaller.utils.hooks import copy_metadata` and that binds to
+    whatever this attribute is at the time each hook module is imported
+    during analysis -- i.e. after this patch is applied) picks up the fix
+    uniformly, instead of needing a one-off override per affected package.
+    """
+    todo = deque([package_name])
+    done = set()
+    out = []
+
+    while todo:
+        name = todo.pop()
+        if name in done:
+            continue
+        done.add(name)
+
+        dist = importlib.metadata.distribution(name)
+        if not hasattr(dist, '_path'):
+            raise RuntimeError(
+                f'Unsupported distribution type {type(dist)} for {name} - does not have _path attribute'
+            )
+
+        src_path = str(dist._path)
+
+        if os.path.isdir(src_path):
+            dest_path = os.path.basename(src_path)
+        elif os.path.isfile(src_path):
+            dest_path = '.'
+        else:
+            raise RuntimeError(f'Distribution metadata path {src_path!r} for {name} is neither file nor directory!')
+
+        out.append((src_path, dest_path))
+
+        if not recursive:
+            return out
+
+        requirements = [packaging.requirements.Requirement(r) for r in (dist.requires or [])]
+        todo.extend(r.name for r in requirements if r.marker is None or r.marker.evaluate())
+
+    return out
+
+
+PyInstaller.utils.hooks.copy_metadata = _copy_metadata_fixed
 
 
 def build_dependency_installer():
@@ -161,7 +231,7 @@ def _clean_dist(app_dir):
     print(f'_clean_dist: removed {n_files} files and {n_dirs} directories')
 
 
-def build_installer(base_import):
+def build_installer():
 
     # Setuptools/pkg_resources emit EasyInstallDeprecationWarning and
     # SetuptoolsDeprecationWarning whenever those modules are imported.
@@ -194,14 +264,6 @@ def build_installer(base_import):
 
     # pip must be importable from inside the frozen bootstrap.
     args.extend(['--collect-all=pip'])
-
-    # Overrides PyInstaller's own hook-keyring.py, which crashes on macOS CI
-    # (see builder/pyinstaller_hooks/hook-keyring.py for the full RuntimeError
-    # and root-cause writeup) -- --additional-hooks-dir takes precedence over
-    # PyInstaller's bundled hooks, so our replacement is used instead.
-    args.extend([
-        f'--additional-hooks-dir={os.path.join(base_path, "pyinstaller_hooks")}',
-    ])
 
     # PySide6 and MySQL are installed at runtime by the dependency installer,
     # not bundled with the app.  Exclude them even if they are importable in
@@ -308,12 +370,6 @@ def build_installer(base_import):
         '--windowed',
         f'{script}',
     ])
-
-    full_imports = set(list(sys.modules.keys()))
-    base_import = set(base_import)
-
-    for item in sorted(list(full_imports.difference(base_import))):
-        del sys.modules[item]
 
     cwd = os.getcwd()
 

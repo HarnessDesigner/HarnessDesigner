@@ -192,11 +192,11 @@ def get_modules():
             existing.append(name)
 
             if mod.__file__ is None:
-                cmd = [f'--hidden-import={name}']
+                cmd = [f'--hidden-import={mod.__name__}']
             elif '__init__' in mod.__file__:
-                cmd = [f'--collect-all={name}']
+                cmd = [f'--collect-all={mod.__name__}']
             else:
-                cmd = [f'--hidden-import={name}']
+                cmd = [f'--hidden-import={mod.__name__}']
 
             res.extend(cmd)
     finally:

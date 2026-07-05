@@ -11,11 +11,8 @@
 
 
 def main():
-    import sys
-
-    base_import = list(sys.modules.keys())
-
     import os
+    import sys
 
     base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
@@ -56,7 +53,7 @@ def main():
 
     from . import build
 
-    build.build_installer(base_import)
+    build.build_installer()
     build.build_dependency_installer()
 
 
