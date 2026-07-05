@@ -247,6 +247,19 @@ def build_installer():
         # Cython compiler itself — already ran at build time, not needed at runtime
         'Cython',
         'prompt_toolkit.contrib.ssh',           # needs asyncssh which is not installed
+        # collect_stdlib.py already skips requesting --collect-all for these, but
+        # that only stops us from asking -- it doesn't stop PyInstaller's own
+        # analysis from bundling them anyway if some other module imports them.
+        # A hard exclude is needed to actually keep them out. This bit in
+        # particular: Lib/test/tokenizedata/bad_coding.py is a deliberately
+        # malformed fixture (bad "uft-8" encoding declaration) that CPython's own
+        # test_tokenize.py uses to verify error handling -- PyInstaller's static
+        # analysis tries to tokenize it while scanning for imports and crashes
+        # with an uncaught SyntaxError/LookupError instead of skipping over it.
+        'test',
+        'unittest',
+        'idlelib',
+        'lib2to3',
     ):
         args.extend([f'--exclude-module={mod}'])
 
