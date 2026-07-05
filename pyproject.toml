@@ -14,14 +14,14 @@ name = "harness_designer"
 version = "0.0.1"
 description = "Wiring harness design software."
 readme = "README.md"
-requires-python = "==3.11.14"
+requires-python = ">=3.11"
 keywords = []
 authors = [{ name = "Kevin G. Schlosser" }]
 maintainers = [{ name = "Kevin G. Schlosser" }]
 dependencies = [
     "PySide6==6.11.1",
     "PyOpenGL==3.1.10",
-    "PyOpenGL-accelerate==3.1.10; sys_platform != 'darwin' or platform_machine == 'x86_64'",
+    "PyOpenGL-accelerate==3.1.10; sys_platform != 'darwin'",
     "requests==2.33.1",
     "numpy==2.2.6",
     "pillow==12.2.0",
