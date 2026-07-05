@@ -78,6 +78,16 @@ print_lock = threading.Lock()
 
 
 def spawn(cmd):
+    # Print the command itself before doing anything else — cmd.exe happens
+    # to echo piped-in commands back to stdout by default, but bash does not
+    # (verified: a bare bash fed a command via stdin prints only the
+    # command's own output, nothing else), so relying on the shell to show
+    # what's running would be silent on macOS/Linux. Printing it ourselves
+    # here is consistent on every platform regardless.
+    with print_lock:
+        sys.stdout.write(cmd + '\n')
+        sys.stdout.flush()
+
     # `cmd` is a single line of shell text (may itself be a `cd X && Y && Z`
     # chain), not an argv list — it gets fed to the shell's stdin below, not
     # passed as Popen's own command-line argument.

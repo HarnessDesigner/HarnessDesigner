@@ -62,7 +62,7 @@ IPython
 matplotlib
 vtk
 vtkmodules
-cadquery_ocp
+OCP
 ocpsvg
 build123d
 pandas'''
