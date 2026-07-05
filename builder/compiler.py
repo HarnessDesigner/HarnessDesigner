@@ -58,12 +58,15 @@ def _run(cmd_parts, expected_output):
     `cmd.exe` fed a command this way exits 0 on natural EOF regardless of
     that command's own exit status. So failure is decided here instead, from
     what spawn.spawn() returns: a nonzero returncode, a missing expected
-    output file, or stderr text that looks like a genuine compiler/linker
-    error (matching both MSVC's `error C2065:` and GCC/Clang's `error:`
-    convention) all raise. Stderr text that doesn't look like an error is
-    treated as a warning — returned to the caller instead of raised, so a
-    single warning doesn't stop the whole batch, but isn't silently
-    discarded either.
+    output file, or stderr text that doesn't look like a warning all raise.
+    Checking for "warning" (lowercased first, so casing can't dodge the
+    check) rather than "error" is deliberate — Cython-generated C is full of
+    identifiers containing "error" as a plain substring (its own goto-label
+    exception-propagation convention names things like __pyx_L1_error,
+    __PYX_ERR), which GCC/Clang echo back verbatim as source-code context
+    on plain warnings, giving false positives on an "error" check that have
+    nothing to do with diagnostic severity. Neither compiler generates
+    identifiers containing "warning", so it's the reliable signal here.
 
     Returns the captured stderr text (empty string if none) on success.
     """
@@ -79,7 +82,7 @@ def _run(cmd_parts, expected_output):
     is_error = (
         returncode != 0
         or not os.path.exists(expected_output)
-        or 'error' in error_text.lower()
+        or (error_text and 'warning' not in error_text.lower())
     )
     if is_error:
         raise RuntimeError(
