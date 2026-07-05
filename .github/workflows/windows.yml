@@ -64,7 +64,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          pip install . 2>&1 | tee -a build.log
+          pip install -v . 2>&1 | tee -a build.log
 
       - name: Build installer
         env:
