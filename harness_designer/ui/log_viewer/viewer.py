@@ -245,6 +245,8 @@ class _LogModel(QtCore.QAbstractTableModel):
 
         if not df.empty and 'timestamp' in df.columns:
             df = df.copy()
+            if not pd.api.types.is_datetime64_any_dtype(df['timestamp']):
+                df['timestamp'] = pd.to_datetime(df['timestamp'])
             df['timestamp_str'] = df['timestamp'].astype(str)
 
         return df
@@ -264,7 +266,8 @@ class _LogModel(QtCore.QAbstractTableModel):
         if not df.empty:
             new_df = df.copy()
         else:
-            new_df = pd.DataFrame(columns=['timestamp', 'level', 'message'])
+            new_df = pd.DataFrame(
+                columns=['timestamp', 'level', 'message', 'timestamp_str'])
 
         self._data = self._ensure_timestamp_str(new_df)
         self.endResetModel()

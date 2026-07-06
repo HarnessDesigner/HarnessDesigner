@@ -74,7 +74,10 @@ class StdOut(io.TextIOWrapper):
         :rtype: None
         """
         if self.__original_stdout__ is not None:
-            self.__original_stdout__.flush()
+            try:
+                self.__original_stdout__.flush()
+            except Exception:  # NOQA
+                pass
 
         if self._line:
             line = self._line.rstrip()
@@ -189,7 +192,10 @@ class StdOut(io.TextIOWrapper):
         :rtype: int
         """
         if self.__original_stdout__ is not None:
-            self.__original_stdout__.write(__s)
+            try:
+                self.__original_stdout__.write(__s)
+            except Exception:  # NOQA
+                pass
 
         self._line += __s
         if self._line.endswith('\n'):
@@ -344,7 +350,10 @@ class StdOut(io.TextIOWrapper):
         :rtype: None
         """
         if self.__original_stdout__ is not None:
-            self.__original_stdout__.writelines(__lines)
+            try:
+                self.__original_stdout__.writelines(__lines)
+            except Exception:  # NOQA
+                pass
 
         for line in __lines:
             if line.endswith('\n'):

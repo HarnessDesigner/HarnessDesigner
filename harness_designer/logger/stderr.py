@@ -73,7 +73,10 @@ class StdErr(io.TextIOWrapper):
         :rtype: None
         """
         if self.__original_stderr__ is not None:
-            self.__original_stderr__.flush()
+            try:
+                self.__original_stderr__.flush()
+            except Exception:  # NOQA
+                pass
 
         if self._line:
             line = self._line.rstrip()
@@ -188,10 +191,10 @@ class StdErr(io.TextIOWrapper):
         :rtype: int
         """
         if self.__original_stderr__ is not None:
-            self.__original_stderr__.write(__s)
-        else:
-            pass
-            # io.TextIOWrapper.write(self, __s)
+            try:
+                self.__original_stderr__.write(__s)
+            except Exception:  # NOQA
+                pass
 
         self._line += __s
         if self._line.endswith('\n'):
@@ -348,7 +351,10 @@ class StdErr(io.TextIOWrapper):
         :rtype: None
         """
         if self.__original_stderr__ is not None:
-            self.__original_stderr__.writelines(__lines)
+            try:
+                self.__original_stderr__.writelines(__lines)
+            except Exception:  # NOQA
+                pass
 
         for line in __lines:
             if line.endswith('\n'):
