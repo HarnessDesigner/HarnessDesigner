@@ -4,9 +4,6 @@ from typing import TYPE_CHECKING, Optional, List
 
 import threading
 import os
-import time
-import zipfile
-import io
 import pandas as pd
 
 from PySide6 import QtWidgets
@@ -16,10 +13,6 @@ from PySide6 import QtGui
 if TYPE_CHECKING:
     from ... import logger as _logger
     from .. import mainframe as _mainframe
-
-from ... import config as _config
-
-Config = _config.Config.logging
 
 
 # ---------------------------------------------------------------------------
@@ -231,23 +224,24 @@ class _LogModel(QtCore.QAbstractTableModel):
 
         return None
 
-    def _ensure_timestamp_str(self, df: pd.DataFrame) -> pd.DataFrame:  # NOQA
-        """
-        Ensure the timestamp str.
+    def _ensure_timestamp_dtype(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Normalize ``timestamp`` to ``datetime64``.
 
-        UNKNOWN details are inferred from the callable name and signature.
+        Live-appended rows carry ``timestamp`` as an isoformat string,
+        while rows loaded from a log file already have it as
+        ``datetime64``; both must match before ``pd.concat`` merges them,
+        or the column gets silently upcast to ``object``.
 
         :param df: Value for ``df``.
         :type df: :class:`pd.DataFrame`
-        :returns: Return value. UNKNOWN details.
+        :returns: ``df`` with a ``datetime64`` ``timestamp`` column.
         :rtype: :class:`pd.DataFrame`
         """
 
-        if not df.empty and 'timestamp' in df.columns:
+        if (not df.empty and 'timestamp' in df.columns
+                and not pd.api.types.is_datetime64_any_dtype(df['timestamp'])):
             df = df.copy()
-            if not pd.api.types.is_datetime64_any_dtype(df['timestamp']):
-                df['timestamp'] = pd.to_datetime(df['timestamp'])
-            df['timestamp_str'] = df['timestamp'].astype(str)
+            df['timestamp'] = pd.to_datetime(df['timestamp'])
 
         return df
 
@@ -269,7 +263,7 @@ class _LogModel(QtCore.QAbstractTableModel):
             new_df = pd.DataFrame(
                 columns=['timestamp', 'level', 'message', 'timestamp_str'])
 
-        self._data = self._ensure_timestamp_str(new_df)
+        self._data = self._ensure_timestamp_dtype(new_df)
         self.endResetModel()
 
     def append_data(self, df: pd.DataFrame):
@@ -285,7 +279,7 @@ class _LogModel(QtCore.QAbstractTableModel):
         if df.empty:
             return
 
-        df = self._ensure_timestamp_str(df)
+        df = self._ensure_timestamp_dtype(df)
         first = len(self._data)
         last = first + len(df) - 1
         self.beginInsertRows(QtCore.QModelIndex(), first, last)
@@ -607,7 +601,14 @@ class LogViewerPanel(QtWidgets.QSplitter):
             self._load_log_data(
                 data['file'], date_filter=data['date'], hour_filter=data['hour'])
         elif item_type == 'archive_file':
-            self._load_archive_file(data['zipfile'], data['filename'])
+            self._load_archive_file(data['archive_path'], data['filename'])
+        elif item_type == 'archive_date':
+            self._load_archive_file(
+                data['archive_path'], data['filename'], date_filter=data['date'])
+        elif item_type == 'archive_hour':
+            self._load_archive_file(
+                data['archive_path'], data['filename'],
+                date_filter=data['date'], hour_filter=data['hour'])
 
     def on_tree_expanding(self, item: QtWidgets.QTreeWidgetItem):
         """
@@ -636,10 +637,10 @@ class LogViewerPanel(QtWidgets.QSplitter):
             self._load_archive_files(item, data['path'], item_id)
         elif item_type == 'archive_file':
             self._load_dates_for_archive_file(
-                item, data['zipfile'], data['filename'], item_id)
+                item, data['archive_path'], data['filename'], item_id)
         elif item_type == 'archive_date':
             self._load_hours_for_archive_date(
-                item, data['zipfile'], data['filename'], data['date'], item_id)
+                item, data['archive_path'], data['filename'], data['date'], item_id)
 
     def on_tree_collapsed(self, item: QtWidgets.QTreeWidgetItem):
         """
@@ -759,7 +760,7 @@ class LogViewerPanel(QtWidgets.QSplitter):
     def _populate_hours(self, parent_item: QtWidgets.QTreeWidgetItem,
                         log_path: Optional[str], date_str: str,
                         hours: List[int], item_id: int, is_archive: bool,
-                        zipfile_obj=None, filename=None):
+                        archive_path=None, filename=None):
         """
         Execute the populate hours operation.
 
@@ -779,7 +780,7 @@ class LogViewerPanel(QtWidgets.QSplitter):
                 hour_item.setData(0,
                                   QtCore.Qt.ItemDataRole.UserRole,
                                   {'type': 'archive_hour',
-                                   'zipfile': zipfile_obj, 'filename': filename,
+                                   'archive_path': archive_path, 'filename': filename,
                                    'date': date_str, 'hour': hour})
 
             else:
@@ -793,15 +794,14 @@ class LogViewerPanel(QtWidgets.QSplitter):
 
         archive_item.takeChildren()
         try:
-            zf = zipfile.ZipFile(archive_path, 'r')
-            names = zf.namelist()
+            names = self.logger.log_handler.list_archive_contents(archive_path)
             self.expanded_items.add(item_id)
             for name in names:
-                if name.endswith('.csv'):
+                if name.endswith('.log'):
                     child = QtWidgets.QTreeWidgetItem(archive_item, [name])
                     child.setData(0, QtCore.Qt.ItemDataRole.UserRole,
                                   {'type': 'archive_file',
-                                   'zipfile': zf, 'filename': name})
+                                   'archive_path': archive_path, 'filename': name})
 
                     QtWidgets.QTreeWidgetItem(child, ['Loading...'])
         except Exception as e:
@@ -809,23 +809,23 @@ class LogViewerPanel(QtWidgets.QSplitter):
             QtWidgets.QTreeWidgetItem(archive_item, ['(Error loading archive)'])
 
     def _load_dates_for_archive_file(self, file_item: QtWidgets.QTreeWidgetItem,
-                                     zipfile_obj, filename: str, item_id: int):
+                                     archive_path: str, filename: str, item_id: int):
         """Load the dates for archive file."""
 
         file_item.takeChildren()
         QtWidgets.QTreeWidgetItem(file_item, ['Loading dates...'])
 
         def load_dates():
-            dates = self._get_dates_in_archive(zipfile_obj, filename)
+            dates = self._get_dates_in_archive(archive_path, filename)
 
             self._callback_ready.emit(
                 lambda: self._populate_archive_dates(
-                    file_item, zipfile_obj, filename, dates, item_id))
+                    file_item, archive_path, filename, dates, item_id))
 
         threading.Thread(target=load_dates, daemon=True).start()
 
     def _populate_archive_dates(self, parent_item: QtWidgets.QTreeWidgetItem,
-                                zipfile_obj, filename: str,
+                                archive_path: str, filename: str,
                                 dates: List[str], item_id: int):
         """Execute the populate archive dates operation."""
 
@@ -837,13 +837,13 @@ class LogViewerPanel(QtWidgets.QSplitter):
         for date_str in dates:
             date_item = QtWidgets.QTreeWidgetItem(parent_item, [date_str])
             date_item.setData(0, QtCore.Qt.ItemDataRole.UserRole,
-                              {'type': 'archive_date', 'zipfile': zipfile_obj,
+                              {'type': 'archive_date', 'archive_path': archive_path,
                                'filename': filename, 'date': date_str})
 
             QtWidgets.QTreeWidgetItem(date_item, ['Loading...'])
 
     def _load_hours_for_archive_date(self, date_item: QtWidgets.QTreeWidgetItem,
-                                     zipfile_obj, filename: str,
+                                     archive_path: str, filename: str,
                                      date_str: str, item_id: int):
         """Load the hours for archive date."""
 
@@ -851,12 +851,12 @@ class LogViewerPanel(QtWidgets.QSplitter):
         QtWidgets.QTreeWidgetItem(date_item, ['Loading hours...'])
 
         def load_hours():
-            hours = self._get_hours_in_archive_date(zipfile_obj, filename, date_str)
+            hours = self._get_hours_in_archive_date(archive_path, filename, date_str)
 
             self._callback_ready.emit(
                 lambda: self._populate_hours(
                     date_item, None, date_str, hours, item_id,
-                    True, zipfile_obj, filename))
+                    True, archive_path, filename))
 
         threading.Thread(target=load_hours, daemon=True).start()
 
@@ -879,13 +879,13 @@ class LogViewerPanel(QtWidgets.QSplitter):
 
         threading.Thread(target=load_data, daemon=True).start()
 
-    def _load_archive_file(self, zipfile_obj, filename: str,
+    def _load_archive_file(self, archive_path: str, filename: str,
                            date_filter: Optional[str] = None,
                            hour_filter: Optional[int] = None):
         """Load the archive file."""
 
         def load_data():
-            df = self._read_archive_file(zipfile_obj, filename)
+            df = self._read_archive_file(archive_path, filename)
             if date_filter and hour_filter is not None:
                 df = self._filter_by_date_and_hour(df, date_filter, hour_filter)
             elif date_filter:
@@ -902,37 +902,24 @@ class LogViewerPanel(QtWidgets.QSplitter):
         self.log_list.SetData(df)
 
     # ------------------------------------------------------------------
-    # File / data helpers (logic identical to original)
+    # File / data helpers (I/O delegated to LogHandler; this layer just
+    # adds the UI-facing error handling and empty-DataFrame fallback).
     # ------------------------------------------------------------------
 
     def _read_log_file(self, log_path: str) -> pd.DataFrame:
         """Execute the read log file operation."""
 
         try:
-            if not os.path.exists(log_path):
-                return pd.DataFrame(columns=['timestamp', 'level', 'message'])
-
-            df = pd.read_csv(log_path, encoding='utf-8')
-            if 'timestamp' in df.columns:
-                df['timestamp'] = pd.to_datetime(df['timestamp'])
-
-            return df
-
+            return self.logger.log_handler.read_log(log_path)
         except Exception as e:
             self.logger.error(f"Failed to read log file {log_path}: {e}")
             return pd.DataFrame(columns=['timestamp', 'level', 'message'])
 
-    def _read_archive_file(self, zipfile_obj, filename: str) -> pd.DataFrame:
+    def _read_archive_file(self, archive_path: str, filename: str) -> pd.DataFrame:
         """Execute the read archive file operation."""
 
         try:
-            data = zipfile_obj.read(filename)
-            df = pd.read_csv(io.BytesIO(data), encoding='utf-8')
-            if 'timestamp' in df.columns:
-                df['timestamp'] = pd.to_datetime(df['timestamp'])
-
-            return df
-
+            return self.logger.log_handler.read_archived_log(archive_path, filename)
         except Exception as e:
             self.logger.error(f"Failed to read archive file {filename}: {e}")
             return pd.DataFrame(columns=['timestamp', 'level', 'message'])
@@ -946,8 +933,8 @@ class LogViewerPanel(QtWidgets.QSplitter):
 
         return sorted([str(d) for d in dates], reverse=True)
 
-    def _get_dates_in_archive(self, zipfile_obj, filename: str) -> List[str]:
-        df = self._read_archive_file(zipfile_obj, filename)
+    def _get_dates_in_archive(self, archive_path: str, filename: str) -> List[str]:
+        df = self._read_archive_file(archive_path, filename)
         if df.empty or 'timestamp' not in df.columns:
             return []
 
@@ -967,10 +954,10 @@ class LogViewerPanel(QtWidgets.QSplitter):
 
         return sorted(df_date['timestamp'].dt.hour.unique().tolist())
 
-    def _get_hours_in_archive_date(self, zipfile_obj, filename: str,
+    def _get_hours_in_archive_date(self, archive_path: str, filename: str,
                                    date_str: str) -> List[int]:
 
-        df = self._read_archive_file(zipfile_obj, filename)
+        df = self._read_archive_file(archive_path, filename)
         if df.empty or 'timestamp' not in df.columns:
             return []
 
@@ -1008,22 +995,22 @@ class LogViewerPanel(QtWidgets.QSplitter):
         self.root = QtWidgets.QTreeWidgetItem(self.treectrl, ['Logs'])
         self.treectrl.addTopLevelItem(self.root)
 
-        archives = self.get_archives()
-        for archive_name, timestamp, archive_path in archives:
-            child = QtWidgets.QTreeWidgetItem(
-                self.root, [f'{archive_name} ({timestamp})'])
+        # File/archive names already encode the date range they cover, so
+        # that's used directly as the tree label instead of file metadata.
+        for archive_path in self.get_archives():
+            label = os.path.splitext(os.path.basename(archive_path))[0]
+            child = QtWidgets.QTreeWidgetItem(self.root, [label])
 
             child.setData(0, QtCore.Qt.ItemDataRole.UserRole,
                           {'type': 'archive', 'path': archive_path})
 
             QtWidgets.QTreeWidgetItem(child, ['Loading...'])
 
-        logfiles = self.get_logfiles()
         self._curr_log = None
 
-        for log_name, timestamp, log_path in logfiles:
-            child = QtWidgets.QTreeWidgetItem(
-                self.root, [f'{log_name} ({timestamp})'])
+        for log_path in self.get_logfiles():
+            label = os.path.splitext(os.path.basename(log_path))[0]
+            child = QtWidgets.QTreeWidgetItem(self.root, [label])
 
             child.setData(0, QtCore.Qt.ItemDataRole.UserRole,
                           {'type': 'file', 'path': log_path})
@@ -1035,35 +1022,13 @@ class LogViewerPanel(QtWidgets.QSplitter):
 
         self.root.setExpanded(True)
 
-    @staticmethod
-    def get_archives():
-        res = []
-        for i in range(Config.num_archives):
-            archive_name = f'log_archive-{i + 1}'
-            archive_path = os.path.join(Config.save_path, archive_name + '.zip')
-            if not os.path.exists(archive_path):
-                break
+    def get_archives(self):
+        """Return archive paths, newest first."""
+        return list(reversed(self.logger.log_handler.list_archives()))
 
-            creation_time = os.path.getctime(archive_path)
-            readable_creation_time = time.asctime(time.localtime(creation_time))
-            res.append((archive_name, readable_creation_time, archive_path))
-
-        return res
-
-    @staticmethod
-    def get_logfiles():
-        res = []
-        for i in range(Config.num_logfiles):
-            log_name = f'log-{i + 1}'
-            log_path = os.path.join(Config.save_path, log_name + '.csv')
-            if not os.path.exists(log_path):
-                break
-
-            mod_time = os.path.getmtime(log_path)
-            readable_mod_time = time.asctime(time.localtime(mod_time))
-            res.append((log_name, readable_mod_time, log_path))
-
-        return res
+    def get_logfiles(self):
+        """Return current (non-archived) log file paths, newest first."""
+        return list(reversed(self.logger.log_handler.list_logfiles()))
 
 
 # ---------------------------------------------------------------------------

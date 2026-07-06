@@ -5,6 +5,8 @@
 import platform
 from .. import config as _config
 import datetime
+import io
+import re
 import zipfile
 import os
 import traceback
@@ -51,8 +53,53 @@ def build_message(msg_type, args):
     return {
         'timestamp': timestamp.isoformat(),
         'level': msg_type_str,
-        'message': msg
+        'message': msg,
+        'timestamp_str': str(timestamp)
     }
+
+
+# Log/archive files are named after the date range they cover, so the range
+# is visible without opening the file. The active file is suffixed
+# " - pending" until it rotates out, at which point it's renamed with its
+# end timestamp. Colons aren't legal in Windows file names, so the time
+# portion uses periods instead. Month-day-year text doesn't sort correctly
+# across month/year boundaries, so ordering is done by parsing each name's
+# timestamp(s) rather than by raw string comparison. The trailing
+# "(?:-\d+)?" on each pattern tolerates the "-N" suffix _unique_path() adds
+# when a burst of rotations lands two files at the same second.
+_TS_FMT = '%m-%d-%Y.%H.%M.%S'
+_TS_PATTERN = r'\d{2}-\d{2}-\d{4}\.\d{2}\.\d{2}\.\d{2}'
+_ACTIVE_LOG_RE = re.compile(rf'^({_TS_PATTERN}) - pending(?:-\d+)?\.log$')
+_CLOSED_LOG_RE = re.compile(
+    rf'^({_TS_PATTERN}) - ({_TS_PATTERN})(?:-\d+)?\.log$')
+_ARCHIVE_RE = re.compile(
+    rf'^({_TS_PATTERN}) - ({_TS_PATTERN})(?:-\d+)?\.archive$')
+
+
+def _parse_ts(text):
+    """Parse a filename timestamp field back into a ``datetime``.
+
+    :param text: Timestamp field matched from a log/archive file name.
+    :type text: str
+    :returns: Parsed timestamp.
+    :rtype: datetime.datetime
+    """
+    return datetime.datetime.strptime(text, _TS_FMT)
+
+
+def _unique_path(name):
+    """Return ``name`` under ``Config.save_path``, disambiguated on collision."""
+    path = os.path.join(Config.save_path, name)
+    if not os.path.exists(path):
+        return path
+
+    stem, ext = os.path.splitext(name)
+    n = 1
+    while True:
+        path = os.path.join(Config.save_path, f'{stem}-{n}{ext}')
+        if not os.path.exists(path):
+            return path
+        n += 1
 
 
 class LogHandler:
@@ -75,30 +122,71 @@ class LogHandler:
         if not os.path.exists(Config.save_path):
             os.makedirs(Config.save_path)
 
-        last_log = None
-        index = 0
-        for i in range(Config.num_logfiles):
-            log = f'log-{i + 1}.csv'
-            log = os.path.join(Config.save_path, log)
-            if os.path.exists(log):
-                last_log = log
-                index = i + 1
-            else:
-                break
+        # Enumerated once here; every rotation/archive/eviction afterwards
+        # just appends to or pops from these two ordered (oldest-first)
+        # lists instead of re-scanning the directory.
+        self._logfiles = self._scan(_ACTIVE_LOG_RE, _CLOSED_LOG_RE)
+        self._archives = self._scan(_ARCHIVE_RE)
 
-        if last_log is None:
-            index = 1
-            last_log = os.path.join(Config.save_path, 'log-1.csv')
-            # Create empty CSV with headers
-            df = pd.DataFrame(columns=['timestamp', 'level', 'message'])
-            df.to_csv(last_log, index=False, encoding='utf-8', lineterminator='\n')
+        # Only the newest "pending" file is resumable; any older ones are
+        # leftovers from a crash and need to be finalized so they're
+        # eligible for archiving like any other closed log file.
+        for path in self._logfiles[:-1]:
+            match = _ACTIVE_LOG_RE.match(os.path.basename(path))
+            if match:
+                end = datetime.datetime.fromtimestamp(
+                    os.path.getmtime(path)).strftime(_TS_FMT)
+                closed_path = _unique_path(f'{match.group(1)} - {end}.log')
+                os.rename(path, closed_path)
+                self._logfiles[self._logfiles.index(path)] = closed_path
 
-        self._logfile_path = last_log
-        self._logfile = open(last_log, 'a', encoding='utf-8', newline='')
-        self._index = index
+        if self._logfiles and _ACTIVE_LOG_RE.match(
+                os.path.basename(self._logfiles[-1])):
+            active = self._logfiles[-1]
+        else:
+            active = self._create_logfile()
+            self._logfiles.append(active)
+
+        self._logfile_path = active
+        self._logfile = open(active, 'a', encoding='utf-8', newline='')
 
         # Track current file size
-        self._current_size = os.path.getsize(last_log)
+        self._current_size = os.path.getsize(active)
+
+    @staticmethod
+    def _scan(*patterns):
+        """Enumerate ``Config.save_path`` for names matching ``patterns``.
+
+        :param patterns: Compiled regexes to match against file names.
+        :type patterns: re.Pattern
+        :returns: Matching paths, sorted oldest first by their parsed
+            starting timestamp.
+        :rtype: list[str]
+        """
+        entries = []
+        for name in os.listdir(Config.save_path):
+            for pattern in patterns:
+                match = pattern.match(name)
+                if match:
+                    entries.append((_parse_ts(match.group(1)), name))
+                    break
+
+        entries.sort(key=lambda entry: entry[0])
+        return [os.path.join(Config.save_path, name) for _, name in entries]
+
+    @staticmethod
+    def _create_logfile():
+        """Create a fresh, empty CSV log file named for the current time.
+
+        :returns: Path to the newly created file.
+        :rtype: str
+        """
+        start = datetime.datetime.now().strftime(_TS_FMT)
+        path = _unique_path(f'{start} - pending.log')
+
+        df = pd.DataFrame(columns=['timestamp', 'level', 'message', 'timestamp_str'])
+        df.to_csv(path, index=False, encoding='utf-8', lineterminator='\n')
+        return path
 
     def bind(self, callback):
         """Bind a callback invoked after writes and file rotation events.
@@ -114,73 +202,123 @@ class LogHandler:
         """Return the path to the current log file"""
         return self._logfile_path
 
+    def list_logfiles(self):
+        """Return current (non-archived) log file paths, oldest first.
+
+        :returns: Snapshot of the registered, un-archived log file paths.
+        :rtype: list[str]
+        """
+        return list(self._logfiles)
+
+    def list_archives(self):
+        """Return archive file paths, oldest first.
+
+        :returns: Snapshot of the registered archive file paths.
+        :rtype: list[str]
+        """
+        return list(self._archives)
+
+    @staticmethod
+    def list_archive_contents(archive_path):
+        """Return the log file names bundled inside an archive.
+
+        :param archive_path: Path to an archive returned by :meth:`list_archives`.
+        :type archive_path: str
+        :returns: Member log file names, in archive order.
+        :rtype: list[str]
+        """
+        with zipfile.ZipFile(archive_path, 'r') as zf:
+            return zf.namelist()
+
+    @staticmethod
+    def read_log(path):
+        """Read a log file into a DataFrame with ``timestamp`` parsed.
+
+        :param path: Path to a log file returned by :meth:`list_logfiles`.
+        :type path: str
+        :returns: Parsed log entries.
+        :rtype: pandas.DataFrame
+        """
+        df = pd.read_csv(path, encoding='utf-8')
+        if 'timestamp' in df.columns:
+            df['timestamp'] = pd.to_datetime(df['timestamp'])
+        return df
+
+    @staticmethod
+    def read_archived_log(archive_path, member_name):
+        """Read one bundled log file out of an archive into a DataFrame.
+
+        :param archive_path: Path to an archive returned by :meth:`list_archives`.
+        :type archive_path: str
+        :param member_name: Name from :meth:`list_archive_contents`.
+        :type member_name: str
+        :returns: Parsed log entries.
+        :rtype: pandas.DataFrame
+        """
+        with zipfile.ZipFile(archive_path, 'r') as zf:
+            data = zf.read(member_name)
+
+        df = pd.read_csv(io.BytesIO(data), encoding='utf-8')
+        if 'timestamp' in df.columns:
+            df['timestamp'] = pd.to_datetime(df['timestamp'])
+        return df
+
     def _open_next_file(self):
-        """Create and open the next CSV log file in the rotation sequence.
+        """Create, open, and register the next CSV log file.
 
         :returns: ``None``.
         :rtype: None
         """
-        if self._logfile is not None:
-            self._logfile.close()
+        path = self._create_logfile()
+        self._logfiles.append(path)
 
-        log = f'log-{self._index}.csv'
-        log = os.path.join(Config.save_path, log)
-        self._logfile_path = log
-
-        # Create new CSV file with headers
-        df = pd.DataFrame(columns=['timestamp', 'level', 'message'])
-        df.to_csv(log, index=False, encoding='utf-8', lineterminator='\n')
-
-        self._current_size = os.path.getsize(log)
-        self._logfile = open(log, 'a', encoding='utf-8', newline='')
+        self._logfile_path = path
+        self._current_size = os.path.getsize(path)
+        self._logfile = open(path, 'a', encoding='utf-8', newline='')
         self._callback()
 
-    def _archive_files(self):
-        """Archive the current set of log files into a ZIP rotation.
+    def _close_current_file(self):
+        """Close the active log file and rename it with its end timestamp.
 
         :returns: ``None``.
         :rtype: None
-        :raises OSError: Raised when archive files cannot be moved or removed.
         """
-        if self._logfile is not None:
-            self._logfile.close()
+        self._logfile.close()
 
-        for i in range(Config.num_archives):
-            archive_name = f'log_archive-{i + 1}.zip'
-            archive_path = os.path.join(Config.save_path, archive_name)
-            if not os.path.exists(archive_path):
-                break
-        else:
-            archive_name = f'log_archive-1.zip'
-            archive_path = os.path.join(Config.save_path, archive_name)
-            os.remove(archive_path)
+        start = _ACTIVE_LOG_RE.match(
+            os.path.basename(self._logfile_path)).group(1)
+        end = datetime.datetime.now().strftime(_TS_FMT)
 
-            for i in range(1, Config.num_archives):
-                src_name = f'log_archive-{i + 1}.zip'
-                dst_name = f'log_archive-{i}.zip'
+        closed_path = _unique_path(f'{start} - {end}.log')
+        os.rename(self._logfile_path, closed_path)
+        self._logfiles[-1] = closed_path
 
-                src_path = os.path.join(Config.save_path, src_name)
-                dst_path = os.path.join(Config.save_path, dst_name)
-                os.rename(src_path, dst_path)
+    def _compact_logfiles(self):
+        """Bundle the registered log files into a single ZIP archive.
 
-            archive_name = f'log_archive-{Config.num_archives}.zip'
-            archive_path = os.path.join(Config.save_path, archive_name)
+        :returns: ``None``.
+        :rtype: None
+        """
+        start = _CLOSED_LOG_RE.match(
+            os.path.basename(self._logfiles[0])).group(1)
+        end = _CLOSED_LOG_RE.match(
+            os.path.basename(self._logfiles[-1])).group(2)
+
+        if len(self._archives) >= Config.num_archives:
+            os.remove(self._archives.pop(0))
+
+        archive_path = _unique_path(f'{start} - {end}.archive')
 
         zf = zipfile.ZipFile(archive_path, mode='x')
-        for i in range(Config.num_logfiles):
-            log = f'log-{i + 1}.csv'
-            log = os.path.join(Config.save_path, log)
-            if os.path.exists(log):
-                zf.write(log, arcname=os.path.basename(log))
+        for path in self._logfiles:
+            zf.write(path, arcname=os.path.basename(path))
         zf.close()
 
-        for i in range(Config.num_logfiles):
-            log = f'log-{i + 1}.csv'
-            log = os.path.join(Config.save_path, log)
-            if os.path.exists(log):
-                os.remove(log)
+        for path in self._logfiles:
+            os.remove(path)
 
-        self._index = 1
+        self._logfiles = []
+        self._archives.append(archive_path)
 
     def write(self, log_entry: dict):
         """Write a log entry (as dict) to CSV file using pandas"""
@@ -203,9 +341,9 @@ class LogHandler:
 
             # Check if we need to rotate
             if self._current_size >= Config.max_logfile_size:
-                self._index += 1
-                if self._index > Config.num_logfiles:
-                    self._archive_files()
+                self._close_current_file()
+                if len(self._logfiles) >= Config.num_logfiles:
+                    self._compact_logfiles()
 
                 self._open_next_file()
 
