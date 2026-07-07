@@ -198,11 +198,11 @@ class SQLConnector(_base.ConnectorBase):
             )
         except mysql.connector.Error as err:
             if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
-                _logger.logger.database("Something is wrong with your user name or password")
+                _logger.database("Something is wrong with your user name or password")
             elif err.errno == errorcode.ER_BAD_DB_ERROR:
-                _logger.logger.database("Database does not exist")
+                _logger.database("Database does not exist")
             else:
-                _logger.logger.traceback(err, 'MYSQL DATABASE')
+                _logger.traceback(err, 'MYSQL DATABASE')
             return False
 
         if username in Config.recent_users:

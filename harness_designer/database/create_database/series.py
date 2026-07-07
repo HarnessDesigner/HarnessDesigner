@@ -49,14 +49,14 @@ def get_series_id(con, name, mfg_id):
     res = con.fetchall()
 
     if not res:
-        _logger.logger.database(f'adding series ("{name}")')
+        _logger.database(f'adding series ("{name}")')
 
         con.execute('INSERT INTO series (name, mfg_id) VALUES (?, ?);', (name, mfg_id))
 
         con.commit()
         db_id = con.lastrowid
 
-        _logger.logger.database(f'series added "{name}" = {db_id}')
+        _logger.database(f'series added "{name}" = {db_id}')
 
         return db_id
     else:

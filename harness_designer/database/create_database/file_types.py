@@ -77,7 +77,7 @@ def add_file_type(con, name, extension, is_model: bool | int = 0,
     con.execute('INSERT INTO file_types (mimetype, extension, name, is_model, is_image, is_datasheet, is_cad) '
                 'VALUES (?, ?, ?, ?, ?, ?, ?);', (mimetype, extension, name, int(is_model), int(is_image), int(is_datasheet), int(is_cad)))
 
-    _logger.logger.database(f'file type added "{extension}"')
+    _logger.database(f'file type added "{extension}"')
 
     if commit:
         con.commit()
@@ -108,14 +108,14 @@ def get_file_type(con, extension=None, mimetype=None):
         if res:
             return res[0][0]
 
-        _logger.logger.database(f'adding file type ("{extension}", "{mimetype}")')
+        _logger.database(f'adding file type ("{extension}", "{mimetype}")')
 
         con.execute('INSERT INTO file_types (extension, mimetype) VALUES (?, ?);', (extension, mimetype))
 
         con.commit()
         db_id = con.lastrowid
 
-        _logger.logger.database(f'file type added "{extension}" = {db_id}')
+        _logger.database(f'file type added "{extension}" = {db_id}')
 
         return db_id
 
@@ -126,14 +126,14 @@ def get_file_type(con, extension=None, mimetype=None):
         if res:
             return res[0][0]
 
-        _logger.logger.database(f'adding file type ("{extension}")')
+        _logger.database(f'adding file type ("{extension}")')
 
         con.execute('INSERT INTO file_types (extension,) VALUES (?);', (extension,))
 
         con.commit()
         db_id = con.lastrowid
 
-        _logger.logger.database(f'file type added "{extension}" = {db_id}')
+        _logger.database(f'file type added "{extension}" = {db_id}')
 
         return db_id
 

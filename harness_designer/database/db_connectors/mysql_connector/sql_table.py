@@ -106,7 +106,7 @@ class SQLTable:
 
         fields = ', '.join(fields)
 
-        _logger.logger.database(f'CREATE TABLE {self.name} ({fields});')
+        _logger.database(f'CREATE TABLE {self.name} ({fields});')
 
         db_cursor._con.execute(f'CREATE TABLE {self.name} ({fields});')
         db_cursor._con.commit()

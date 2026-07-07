@@ -51,14 +51,14 @@ def get_family_id(con, name, mfg_id):
     res = con.fetchall()
 
     if not res:
-        _logger.logger.database(f'adding family ("{name}")')
+        _logger.database(f'adding family ("{name}")')
 
         con.execute('INSERT INTO families (name, mfg_id) VALUES (?, ?);', (name, mfg_id))
 
         con.commit()
         db_id = con.lastrowid
 
-        _logger.logger.database(f'family added "{name}" = {db_id}')
+        _logger.database(f'family added "{name}" = {db_id}')
 
         return db_id
     else:

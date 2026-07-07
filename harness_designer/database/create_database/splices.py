@@ -58,7 +58,7 @@ def add_records(con, splash, data_path):
             splash.SetText(f'Loading {name}splices file...')
             splash.flush()
 
-            _logger.logger.database(json_path)
+            _logger.database(json_path)
 
             with open(json_path, 'r') as f:
                 data = json.loads(f.read())
@@ -77,7 +77,7 @@ def add_records(con, splash, data_path):
                 try:
                     add_splice(con, commit=False, **item)
                 except Exception as err:
-                    _logger.logger.traceback(err)
+                    _logger.traceback(err)
 
         con.commit()
     os.chdir(cwd)
@@ -201,7 +201,7 @@ def add_splice(con, part_number, description, mfg=None, family=None, series=None
                  length, weight, wire_size_awg_min, wire_size_awg_max, wire_size_dia_min,
                  wire_size_dia_max, wire_size_cross_min, wire_size_cross_max, num_wires))
 
-    _logger.logger.database(f'splice added "{part_number}"')
+    _logger.database(f'splice added "{part_number}"')
 
     if commit:
         con.commit()

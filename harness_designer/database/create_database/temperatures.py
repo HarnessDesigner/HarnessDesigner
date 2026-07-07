@@ -29,7 +29,7 @@ def add_records(con, splash, data_path):
         splash.SetText(f'Loading Temperatures file...')
         splash.flush()
 
-        _logger.logger.database(json_path)
+        _logger.database(json_path)
 
         with open(json_path, 'r') as f:
             data = json.loads(f.read())
@@ -77,7 +77,7 @@ def add_temperature(con, name, id=None, commit=True):  # NOQA
             'VALUES (?, ?);', (id, name)
             )
 
-    _logger.logger.database(f'temperature added "{name}"')
+    _logger.database(f'temperature added "{name}"')
 
     if commit:
         con.commit()
@@ -114,13 +114,13 @@ def get_temperature_id(con, name):
     res = con.fetchall()
 
     if not res:
-        _logger.logger.database(f'adding temperature ("{name}")')
+        _logger.database(f'adding temperature ("{name}")')
         con.execute('INSERT INTO temperatures (name) VALUES (?);', (name,))
 
         con.commit()
 
         db_id = con.lastrowid
-        _logger.logger.database(f'temperature added "{name}" = {db_id}')
+        _logger.database(f'temperature added "{name}" = {db_id}')
 
         return db_id
     else:

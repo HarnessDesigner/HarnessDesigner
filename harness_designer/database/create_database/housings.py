@@ -247,7 +247,7 @@ def add_housing(con, part_number, description, mfg=None, family=None, series=Non
                  weight, str(cover_point3d), str(seal_point3d), str(boot_point3d),
                  str(tpa_lock_1_point3d), str(tpa_lock_2_point3d), str(cpa_lock_point3d)))
 
-    _logger.logger.database(f'boot added "{part_number}"')
+    _logger.database(f'boot added "{part_number}"')
 
     if commit:
         con.commit()
@@ -303,7 +303,7 @@ def add_records(con, splash, data_path):
             splash.SetText(f'Loading {name}housings file...')
             splash.flush()
 
-            _logger.logger.database(json_path)
+            _logger.database(json_path)
 
             with open(json_path, 'r') as f:
                 data = json.loads(f.read())
@@ -328,7 +328,7 @@ def add_records(con, splash, data_path):
                 try:
                     add_housing(con, commit=False, **item)
                 except Exception as err:
-                    _logger.logger.traceback(err)
+                    _logger.traceback(err)
 
             con.commit()
     os.chdir(cwd)

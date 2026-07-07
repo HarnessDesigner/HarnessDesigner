@@ -758,7 +758,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
             
             # Ensure we have valid dimensions (must be > 0)
             if vw <= 0 or vh <= 0:
-                _logger.logger.warning(f"  ! WARNING: Invalid viewport dimensions ({vw}x{vh}), using fallback 1920x1080")
+                _logger.warning(f"  ! WARNING: Invalid viewport dimensions ({vw}x{vh}), using fallback 1920x1080")
                 vw = 1920
                 vh = 1080
 
@@ -784,7 +784,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
             self.repaint()
 
         except Exception as err:  # NOQA
-            _logger.logger.traceback(err, 'initializeGL')
+            _logger.traceback(err, 'initializeGL')
             raise
 
     def notify_virtual_size_changed(self, width: int, height: int) -> None:
@@ -913,7 +913,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         try:
             self.floor.set(flag)
         except Exception as err:  # NOQA
-            _logger.logger.traceback(err, 'set floor error')
+            _logger.traceback(err, 'set floor error')
 
     @_debug.logfunc
     def _draw_scene(self, obj_data):
@@ -1004,12 +1004,12 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         try:
             self._scene_light.set(self._faces_program)
         except Exception as err:  # NOQA
-            _logger.logger.traceback(err, 'scene light error')
+            _logger.traceback(err, 'scene light error')
 
         try:
             self._headlight(self._faces_program)
         except Exception as err:  # NOQA
-            _logger.logger.traceback(err, 'headlight error')
+            _logger.traceback(err, 'headlight error')
 
         removed_objects = []
         objects_in_view = []
@@ -1031,7 +1031,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
                 objects_in_view.append(obj)
                 obj.obj3d.render(self._faces_program, self._edges_program, self._vertices_program)
             except Exception as err:  # NOQA
-                _logger.logger.traceback(err, 'object render error')
+                _logger.traceback(err, 'object render error')
 
         GL.glUseProgram(0)
         self._objects_in_view = objects_in_view
@@ -1045,7 +1045,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
                     except ValueError:
                         continue
             except Exception as err:  # NOQA
-                _logger.logger.traceback(err, 'object render removal error')
+                _logger.traceback(err, 'object render removal error')
 
     @_debug.logfunc
     def _on_draw(self):
@@ -1082,14 +1082,14 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         try:
             self.camera.Set()
         except Exception as err:  # NOQA
-            _logger.logger.traceback(err, 'camera set error')
+            _logger.traceback(err, 'camera set error')
 
         try:
             objs = self._view_culling.cull(
                 self._object_data, self.camera.frustum_normals,
                 self.camera.frustum_distances, self.camera.position.as_numpy)
         except Exception as err:  # NOQA
-            _logger.logger.traceback(err, 'culling error')
+            _logger.traceback(err, 'culling error')
             return
 
         self._draw_scene(objs)
@@ -1121,7 +1121,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
                 try:
                     obj3d.render(self._faces_program, self._edges_program, self._vertices_program)
                 except Exception as err:  # NOQA
-                    _logger.logger.traceback(err, 'selected object render error')
+                    _logger.traceback(err, 'selected object render error')
 
                 GL.glUseProgram(self._faces_program)
 
@@ -1139,7 +1139,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
                 self._focal_target.obj3d.render(
                     self._faces_program, self._edges_program, self._vertices_program)
             except Exception as err:  # NOQA
-                _logger.logger.traceback(err, 'focal target error')
+                _logger.traceback(err, 'focal target error')
 
             GL.glUseProgram(0)
 

@@ -103,7 +103,7 @@ def add_transition(con, part_number, description, mfg=None, family=None, series=
                  str(adhesive_ids), weight))
 
     con.commit()
-    _logger.logger.database(f'transition added "{part_number}"')
+    _logger.database(f'transition added "{part_number}"')
 
     transition_id = con.lastrowid
 
@@ -111,7 +111,7 @@ def add_transition(con, part_number, description, mfg=None, family=None, series=
         try:
             _transition_branches.add_transition_branch(con, i, transition_id, commit=commit, **branch)
         except Exception as err:
-            _logger.logger.traceback(err)
+            _logger.traceback(err)
 
 
 def add_pjt_transition(con, project_id, part_id, point3d_id=None, name='', notes='',
@@ -221,7 +221,7 @@ def add_records(con, splash, data_path):
                 try:
                     add_transition(con, commit=False, **item)
                 except Exception as err:
-                    _logger.logger.traceback(err)
+                    _logger.traceback(err)
 
             con.commit()
 

@@ -52,14 +52,14 @@ def get_direction_id(con, name):
     res = con.fetchall()
 
     if not res:
-        _logger.logger.database(f'adding direction ("{name}")')
+        _logger.database(f'adding direction ("{name}")')
 
         con.execute('INSERT INTO directions (name) VALUES (?);', (name,))
 
         con.commit()
         db_id = con.lastrowid
 
-        _logger.logger.database(f'direction added "{name}" = {db_id}')
+        _logger.database(f'direction added "{name}" = {db_id}')
 
         return db_id
     else:

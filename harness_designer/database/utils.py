@@ -191,7 +191,7 @@ def purge_stale_files(db: "_global_db.GLBTables"):
             try:
                 os.remove(file)
             except Exception as err:  # NOQA
-                _logger.logger.traceback(err, 'PRUNING ERROR')
+                _logger.traceback(err, 'PRUNING ERROR')
 
     image_path = db.settings_table['image_path']
     datasheet_path = db.settings_table['datasheet_path']
@@ -199,17 +199,17 @@ def purge_stale_files(db: "_global_db.GLBTables"):
     model_path = db.settings_table['model_path']
 
     image_diff = _get_files_to_prune('images', image_path)
-    _logger.logger.info(f'purging {len(image_diff)} image files from {image_path}...')
+    _logger.info(f'purging {len(image_diff)} image files from {image_path}...')
     _remove_files(image_diff, image_path)
 
     datasheet_diff = _get_files_to_prune('datasheets', datasheet_path)
-    _logger.logger.info(f'purging {len(datasheet_diff)} datasheet files from {datasheet_path}...')
+    _logger.info(f'purging {len(datasheet_diff)} datasheet files from {datasheet_path}...')
     _remove_files(datasheet_diff, datasheet_path)
 
     cad_diff = _get_files_to_prune('cads', cad_path)
-    _logger.logger.info(f'purging {len(cad_diff)} cad files from {cad_path}...')
+    _logger.info(f'purging {len(cad_diff)} cad files from {cad_path}...')
     _remove_files(cad_diff, cad_path)
 
     model_diff = _get_files_to_prune('models3d', model_path)
-    _logger.logger.info(f'purging {len(model_diff)} model files from {model_path}...')
+    _logger.info(f'purging {len(model_diff)} model files from {model_path}...')
     _remove_files(model_diff, model_path)

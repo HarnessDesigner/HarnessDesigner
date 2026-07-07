@@ -467,7 +467,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
                     for s in wires[1:]:
                         result = result.intersection(s)
 
-                    _logger.logger.database('SEARCH RESULT:', result)
+                    _logger.database('SEARCH RESULT:', result)
                     # common_obj = list(result)[0]
 
                     raise RuntimeError

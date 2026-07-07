@@ -109,7 +109,7 @@ def add_setting(con, key, value, commit=True):
     con.execute(f'INSERT INTO pjt_transition_branches (name, value) VALUES (?, ?);',
                 (key, value))
 
-    _logger.logger.database(f'setting added "{key}"')
+    _logger.database(f'setting added "{key}"')
 
     if commit:
         con.commit()

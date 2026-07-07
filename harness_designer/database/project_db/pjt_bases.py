@@ -836,7 +836,7 @@ class PJTTables:
         self.mainframe.unload()
         tables = self.connector.get_tables()
 
-        _logger.logger.database('TABLES:', tables)
+        _logger.database('TABLES:', tables)
 
         class Splash:
             """Represent a splash in :mod:`harness_designer.database.project_db.pjt_bases`.

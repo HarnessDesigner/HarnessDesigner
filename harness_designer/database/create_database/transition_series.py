@@ -48,14 +48,14 @@ def get_transition_series_id(con, name):
     res = con.fetchall()
 
     if not res:
-        _logger.logger.database(f'adding transition series ("{name}")')
+        _logger.database(f'adding transition series ("{name}")')
 
         con.execute('INSERT INTO transition_series (name) VALUES (?);', (name,))
 
         con.commit()
         db_id = con.lastrowid
 
-        _logger.logger.database(f'transition series added "{name}" = {db_id}')
+        _logger.database(f'transition series added "{name}" = {db_id}')
 
         return db_id
     else:

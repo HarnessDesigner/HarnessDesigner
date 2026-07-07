@@ -70,7 +70,7 @@ def add_records(con, splash, data_path):
             splash.SetText(f'Loading {name}covers file...')
             splash.flush()
 
-            _logger.logger.database(json_path)
+            _logger.database(json_path)
 
             with open(json_path, 'r') as f:
                 data = json.loads(f.read())
@@ -95,8 +95,7 @@ def add_records(con, splash, data_path):
                 try:
                     add_cover(con, commit=False, **item)
                 except Exception as err:
-                    _logger.logger.traceback(err)
-
+                    _logger.traceback(err)
 
         con.commit()
 
@@ -193,7 +192,7 @@ def add_cover(con, part_number, description, mfg=None, family=None, series=None,
 
     compat_housings = ', '.join(compat_housings)
 
-    _logger.logger.database(f'adding cover {part_number}: {description}')
+    _logger.database(f'adding cover {part_number}: {description}')
 
     con.execute('INSERT INTO covers (part_number, description, mfg_id, family_id, '
                 'series_id, color_id, direction_id, image_id, datasheet_id, cad_id, '
@@ -204,7 +203,7 @@ def add_cover(con, part_number, description, mfg=None, family=None, series=None,
                  direction_id, image_id, datasheet_id, cad_id, min_temp_id, max_temp_id,
                  model3d_id, length, width, height, weight, pins, compat_housings))
 
-    _logger.logger.database(f'cover added "{part_number}"')
+    _logger.database(f'cover added "{part_number}"')
 
     if commit:
         con.commit()

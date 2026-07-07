@@ -30,7 +30,7 @@ def add_records(con, splash, _):
         con.commit()
     except:  # NOQA
         res = con.execute('SELECT * FROM materials;').fetchall()
-        _logger.logger.error(res)
+        _logger.error(res)
         raise
 
 
@@ -53,14 +53,14 @@ def get_material_id(con, name):
     res = con.fetchall()
 
     if not res:
-        _logger.logger.database(f'adding material ("{name}")')
+        _logger.database(f'adding material ("{name}")')
 
         con.execute('INSERT INTO materials (name) VALUES (?);', (name,))
 
         con.commit()
         db_id = con.lastrowid
 
-        _logger.logger.database(f'material added "{name}" = {db_id}')
+        _logger.database(f'material added "{name}" = {db_id}')
 
         return db_id
     else:

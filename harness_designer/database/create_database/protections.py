@@ -58,7 +58,7 @@ def add_protection(con, name, id=None, commit=True):  # NOQA
             'VALUES (?, ?);', (id, name)
             )
 
-    _logger.logger.database(f'protection added "{repr(name)}"')
+    _logger.database(f'protection added "{repr(name)}"')
 
     if commit:
         con.commit()
@@ -84,14 +84,14 @@ def get_protection_id(con, name):
     res = con.fetchall()
 
     if not res:
-        _logger.logger.database(f'adding protection ("{name}")')
+        _logger.database(f'adding protection ("{name}")')
 
         con.execute('INSERT INTO protections (name) VALUES (?);', (name,))
 
         con.commit()
         db_id = con.lastrowid
 
-        _logger.logger.database(f'protection added "{name}" = {db_id}')
+        _logger.database(f'protection added "{name}" = {db_id}')
 
         return db_id
     else:

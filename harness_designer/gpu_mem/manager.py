@@ -155,9 +155,9 @@ class GPUMemoryManager:
         num_chunks = (height + chunk_size - 1) // chunk_size
         vram_per_chunk = (width * chunk_size * bytes_per_pixel) / (1024 ** 3)
 
-        _logger.logger.info(f"RENDERER: Chunk strategy for {width}x{height}:")
-        _logger.logger.info(f"RENDERER:   Chunk size: {chunk_size} rows")
-        _logger.logger.info(f"RENDERER:   Num chunks: {num_chunks}")
-        _logger.logger.info(f"RENDERER:   VRAM/chunk: {vram_per_chunk:.2f}GB")
+        _logger.info(f"RENDERER: Chunk strategy for {width}x{height}:")
+        _logger.info(f"RENDERER:   Chunk size: {chunk_size} rows")
+        _logger.info(f"RENDERER:   Num chunks: {num_chunks}")
+        _logger.info(f"RENDERER:   VRAM/chunk: {vram_per_chunk:.2f}GB")
 
         return chunk_size

@@ -243,7 +243,7 @@ class SQLConnector(_base.ConnectorBase):
         except AttributeError:
             return None
         except Exception:  # NOQA
-            _logger.logger.error('SQLITE execute ERROR:', 'CMD:', operation, '\n', 'PARAMS:', params)
+            _logger.error('SQLITE execute ERROR:', 'CMD:', operation, '\n', 'PARAMS:', params)
             return None
 
     def executemany(
@@ -267,7 +267,7 @@ class SQLConnector(_base.ConnectorBase):
         except AttributeError:
             return None
         except Exception:  # NOQA
-            _logger.logger.error('SQLITE executemany ERROR:', 'CMD:', operation, '\n', 'PARAMS:', seq_params)
+            _logger.error('SQLITE executemany ERROR:', 'CMD:', operation, '\n', 'PARAMS:', seq_params)
             return None
 
     @property

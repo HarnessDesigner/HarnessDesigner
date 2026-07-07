@@ -467,13 +467,13 @@ class ProcessManager(threading.Thread):
                         continue
 
                     if 'log' in message:
-                        _logger.logger.info(message['log'])
+                        _logger.info(message['log'])
                         continue
 
                     part_number = str(message['part_number'])
 
                     if 'watchdog_restart' in message:
-                        _logger.logger.info(f'MODEL PROCESS MESSAGE: {message}')
+                        _logger.info(f'MODEL PROCESS MESSAGE: {message}')
 
                         # Persist blocking error to resource_state.
                         model_db, resource_db = self._model_processes_running
@@ -534,7 +534,7 @@ class ProcessManager(threading.Thread):
                         continue
 
                     if 'err_no' in message:
-                        _logger.logger.info(f'MODEL PROCESS MESSAGE: {message}')
+                        _logger.info(f'MODEL PROCESS MESSAGE: {message}')
 
                         if 'step' not in message:
                             if part_number in self._model_progress:

@@ -681,9 +681,9 @@ class TableBase:
         select_args = ['tbl1.id']
         tables = []
 
-        _logger.logger.database('search_items:', search_items)
-        _logger.logger.database('compat_parts:', compat_parts)
-        _logger.logger.database('kwargs:', kwargs)
+        _logger.database('search_items:', search_items)
+        _logger.database('compat_parts:', compat_parts)
+        _logger.database('kwargs:', kwargs)
 
         for key in sorted(list(search_items.keys())):
             value = search_items[key]

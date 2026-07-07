@@ -63,14 +63,14 @@ def get_cavity_lock_id(con, name):
     res = con.fetchall()
 
     if not res:
-        _logger.logger.database(f'adding cavity lock ("{name}")')
+        _logger.database(f'adding cavity lock ("{name}")')
 
         con.execute('INSERT INTO cavity_locks (name) VALUES (?);', (name,))
 
         con.commit()
         db_id = con.lastrowid
 
-        _logger.logger.database(f'cavity lock added "{name}" = {db_id}')
+        _logger.database(f'cavity lock added "{name}" = {db_id}')
 
         return db_id
     else:

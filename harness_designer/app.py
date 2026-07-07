@@ -6,6 +6,8 @@ import sys
 import time
 import threading
 
+from . import logger
+
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import Signal, QObject, QTimer
 
@@ -101,10 +103,6 @@ class App(QObject):
         """Runs on the main thread before the event loop starts."""
 
         import harness_designer as _hd
-        from . import themes as _themes
-        from . import config as _config
-
-        _themes.load_theme(_config.Config.mainframe.theme)
 
         # Set default QSurfaceFormat for shared OpenGL contexts
         # This MUST be called before ANY OpenGL context is created (including GL info query)
@@ -132,14 +130,13 @@ class App(QObject):
             return False
 
         # Set up logger
-        try:
-            from . import logger as _lggr
-            self.logger = _lggr.Log()
-        except Exception as err:
-            from . import critical_error_dialog as _ced
-            dlg = _ced.CriticalErrorDialog(None, err)
-            dlg.exec()
-            return False
+        self.logger = logger
+        logger.startup()
+
+        from . import config as _config
+        from . import themes as _themes
+
+        _themes.load_theme(_config.Config.mainframe.theme)
 
         # Show splash
         try:
@@ -156,9 +153,7 @@ class App(QObject):
         return True
 
     def _start_loading_thread(self):
-        """Start the background worker that finishes application startup.
-
-        """
+        """Start the background worker that finishes application startup."""
         t = threading.Thread(target=self._thread_loop, daemon=True)
         t.start()
 

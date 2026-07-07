@@ -69,7 +69,7 @@ def add_records(con, splash, data_path):
             splash.SetText(f'Loading {name}wire markers file...')
             splash.flush()
 
-            _logger.logger.database(json_path)
+            _logger.database(json_path)
 
             with open(json_path, 'r') as f:
                 data = json.loads(f.read())
@@ -88,7 +88,7 @@ def add_records(con, splash, data_path):
                 try:
                     add_wire_marker(con, commit=False, **item)
                 except Exception as err:
-                    _logger.logger.traceback(err)
+                    _logger.traceback(err)
 
             con.commit()
 
@@ -181,7 +181,7 @@ def add_wire_marker(con, part_number, description, mfg=None, family=None, series
                  wire_size_dia_max, wire_size_cross_min, wire_size_cross_max, length,
                  weight, has_label))
 
-    _logger.logger.database(f'wire marker added "{part_number}"')
+    _logger.database(f'wire marker added "{part_number}"')
 
     if commit:
         con.commit()

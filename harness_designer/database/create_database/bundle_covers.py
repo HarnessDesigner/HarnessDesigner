@@ -69,7 +69,7 @@ def add_records(con, splash, data_path):
             splash.SetText(f'Loading {name}bundle covers file...')
             splash.flush()
 
-            _logger.logger.database(json_path)
+            _logger.database(json_path)
 
             with open(json_path, 'r') as f:
                 data = json.loads(f.read())
@@ -87,7 +87,7 @@ def add_records(con, splash, data_path):
                 try:
                     add_bundle_cover(con, commit=False, **item)
                 except Exception as err:
-                    _logger.logger.traceback(err)
+                    _logger.traceback(err)
 
             con.commit()
 
@@ -183,7 +183,7 @@ def add_bundle_cover(con, part_number, description, mfg=None, family=None, serie
                  protection_id, rigidity, shrink_ratio, wall, min_dia, max_dia, adhesive_ids,
                  weight))
 
-    _logger.logger.database(f'bundle cover added "{part_number}"')
+    _logger.database(f'bundle cover added "{part_number}"')
 
     if commit:
         con.commit()

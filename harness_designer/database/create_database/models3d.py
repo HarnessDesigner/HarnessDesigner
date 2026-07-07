@@ -28,7 +28,7 @@ def get_model3d_id(con, path: str):  # NOQA
     res = con.fetchall()
 
     if not res:
-        _logger.logger.database(f'adding model3d ("{path}")')
+        _logger.database(f'adding model3d ("{path}")')
 
         if path.startswith('http'):
             con.execute('INSERT INTO models3d (path) VALUES (?);', (path,))
@@ -52,7 +52,7 @@ def get_model3d_id(con, path: str):  # NOQA
         con.commit()
         db_id = con.lastrowid
 
-        _logger.logger.database(f'model3d added "{path}" = {db_id}')
+        _logger.database(f'model3d added "{path}" = {db_id}')
 
         return db_id
     else:

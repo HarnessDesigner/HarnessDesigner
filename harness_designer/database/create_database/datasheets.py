@@ -28,7 +28,7 @@ def get_datasheet_id(con, path: str):  # NOQA
     res = con.fetchall()
 
     if not res:
-        _logger.logger.database(f'adding datasheet ("{path}")')
+        _logger.database(f'adding datasheet ("{path}")')
 
         if path.startswith('http'):
             con.execute('INSERT INTO datasheets (path) VALUES (?);', (path,))
@@ -57,7 +57,7 @@ def get_datasheet_id(con, path: str):  # NOQA
         con.commit()
         db_id = con.lastrowid
 
-        _logger.logger.database(f'datasheet added "{path}" = {db_id}')
+        _logger.database(f'datasheet added "{path}" = {db_id}')
 
         return db_id
     else:

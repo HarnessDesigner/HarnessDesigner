@@ -58,7 +58,7 @@ def add_transition_branch(con, idx, transition_id, bulb_offset=None, bulb_length
                 (transition_id, idx, bulb_offset, bulb_length, min_dia, max_dia,
                  length, offset, angle, flange_height, flange_width))
 
-    _logger.logger.database(f'transition branch added {idx} - {transition_id}')
+    _logger.database(f'transition branch added {idx} - {transition_id}')
 
     if commit:
         con.commit()

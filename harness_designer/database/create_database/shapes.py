@@ -48,14 +48,14 @@ def get_shape_id(con, name):
     res = con.fetchall()
 
     if not res:
-        _logger.logger.database(f'adding shape ("{name}")')
+        _logger.database(f'adding shape ("{name}")')
 
         con.execute('INSERT INTO shapes (name) VALUES (?);', (name,))
 
         con.commit()
         db_id = con.lastrowid
 
-        _logger.logger.database(f'shape added "{name}" = {db_id}')
+        _logger.database(f'shape added "{name}" = {db_id}')
 
         return db_id
     else:

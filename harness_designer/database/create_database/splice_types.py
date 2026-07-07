@@ -29,7 +29,7 @@ def add_records(con, splash, data_path):
         splash.SetText(f'Loading Splice Types file...')
         splash.flush()
 
-        _logger.logger.database(json_path)
+        _logger.database(json_path)
 
         with open(json_path, 'r') as f:
             data = json.loads(f.read())
@@ -77,7 +77,7 @@ def add_splice_type(con, name, id=None, commit=True):  # NOQA
             'VALUES (?, ?);', (id, name)
             )
 
-    _logger.logger.database(f'splice type added "{name}"')
+    _logger.database(f'splice type added "{name}"')
 
     if commit:
         con.commit()
@@ -103,14 +103,14 @@ def get_splice_type_id(con, name):
     res = con.fetchall()
 
     if not res:
-        _logger.logger.database(f'adding splice type ("{name}")')
+        _logger.database(f'adding splice type ("{name}")')
 
         con.execute('INSERT INTO splice_types (name) VALUES (?);', (name,))
 
         con.commit()
         db_id = con.lastrowid
 
-        _logger.logger.database(f'splice type added "{name}" = {db_id}')
+        _logger.database(f'splice type added "{name}" = {db_id}')
 
         return db_id
     else:

@@ -68,14 +68,14 @@ def get_cpa_lock_type_id(con, name):
     res = con.fetchall()
 
     if not res:
-        _logger.logger.database(f'adding cpa lock type ("{name}")')
+        _logger.database(f'adding cpa lock type ("{name}")')
 
         con.execute('INSERT INTO cpa_lock_types (name) VALUES (?);', (name,))
 
         con.commit()
         db_id = con.lastrowid
 
-        _logger.logger.database(f'cpa lock type added "{name}" = {db_id}')
+        _logger.database(f'cpa lock type added "{name}" = {db_id}')
 
         return db_id
     else:

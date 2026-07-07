@@ -28,7 +28,7 @@ def get_image_id(con, path: str):  # NOQA
     res = con.fetchall()
 
     if not res:
-        _logger.logger.database(f'adding image ("{path}")')
+        _logger.database(f'adding image ("{path}")')
 
         if path.startswith('http'):
             con.execute('INSERT INTO images (path) VALUES (?);', (path,))
@@ -58,7 +58,7 @@ def get_image_id(con, path: str):  # NOQA
         con.commit()
         db_id = con.lastrowid
 
-        _logger.logger.database(f'image added "{path}" = {db_id}')
+        _logger.database(f'image added "{path}" = {db_id}')
 
         return db_id
     else:

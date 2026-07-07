@@ -86,7 +86,7 @@ class Project:
         :type project_id: int
         """
 
-        _logger.logger.info(f'project loading - db_id: {project_id}, name: {project_name}')
+        _logger.info(f'project loading - db_id: {project_id}, name: {project_name}')
         self.db_obj = db_obj
 
         self.mainframe = mainframe
@@ -161,7 +161,7 @@ class Project:
                 if add_func is not None:
                     add_func(gui_obj)
 
-                _logger.logger.info(f'{label} Loaded - db_id: {db_obj_.db_id}')
+                _logger.info(f'{label} Loaded - db_id: {db_obj_.db_id}')
 
             return cur_count
 
@@ -264,14 +264,14 @@ class Project:
         mainframe.set_progress(self._obj_count, 'DONE!')
 
         if self._obj_count != count:
-            _logger.logger.warning(
+            _logger.warning(
                 f'project object count inconsistant, correcting mismatch. '
                 f'stored count: {self._obj_count}  actual count: {count}')
 
         self._obj_count = count
         self.obj_count = count
 
-        _logger.logger.info(f'project loaded: object count: {count}')
+        _logger.info(f'project loaded: object count: {count}')
 
         for table_name, ids in db_ids.items():
             while None in ids:

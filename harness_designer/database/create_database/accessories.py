@@ -130,7 +130,7 @@ def add_accessory(con, part_number, mfg, description=None, series=None,
 
         description += ' Accessory'
 
-    _logger.logger.database(f'adding accessory {part_number}, {description}')
+    _logger.database(f'adding accessory {part_number}, {description}')
     con.execute('INSERT INTO accessories (part_number, description, mfg_id, '
                 'family_id, series_id, color_id, material_id, image_id, '
                 'datasheet_id, cad_id, model3d_id, length, width, height, weight) '
@@ -139,7 +139,7 @@ def add_accessory(con, part_number, mfg, description=None, series=None,
                  material_id, image_id, datasheet_id, cad_id, model3d_id, length,
                  width, height, weight))
 
-    _logger.logger.database(f'accessory added "{part_number}"')
+    _logger.database(f'accessory added "{part_number}"')
 
     if commit:
         con.commit()

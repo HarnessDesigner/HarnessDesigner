@@ -62,14 +62,14 @@ def get_adhesive_id(con, code):
     res = con.fetchall()
 
     if not res:
-        _logger.logger.database(f'adding adhesive ("{code}")')
+        _logger.database(f'adding adhesive ("{code}")')
 
         con.execute('INSERT INTO adhesives (code) VALUES (?);', (code,))
 
         con.commit()
         db_id = con.lastrowid
 
-        _logger.logger.database(f'adhesive added "{code}" = {db_id}')
+        _logger.database(f'adhesive added "{code}" = {db_id}')
 
         return db_id
     else:

@@ -7,6 +7,7 @@ from .. import config as _config
 import datetime
 import io
 import re
+import sys
 import zipfile
 import os
 import traceback
@@ -348,8 +349,16 @@ class LogHandler:
                 self._open_next_file()
 
         except Exception as e:
-            # Fallback in case of write error - don't want to crash the app
-            print(f"Error writing to log: {e}")
+            # Write straight to the real stderr, bypassing sys.stdout/stderr.
+            # Those are redirected through StdOut/StdErr, which call back
+            # into this same write() once a line completes - going through
+            # print() here would re-enter write() on every failure, and a
+            # persistent error becomes an infinite loop.
+            if sys.__stderr__ is not None:
+                try:
+                    sys.__stderr__.write(f"Error writing to log: {e}\n")
+                except Exception:  # NOQA
+                    pass
 
     def close(self):
         """Close the handler.
@@ -386,6 +395,7 @@ class Log(object):
         self.__stdout = stdout.StdOut(self)
         self.__stderr = _stderr = stderr.StdErr(self)
 
+    def startup(self):
         from ..gl import info as _gl_info
 
         startup_block = [
@@ -417,32 +427,31 @@ class Log(object):
             else:
                 startup_block.append(f'{header}: {items}')
 
-        startup_block.extend([
-            '',
-            '----------------------------------------',
-            '',
-            '--------------  Machine  ---------------',
-            '',
-            f'Machine type: {platform.machine()}',
-            f'Processor: {platform.processor()}',
-            f'Architecture: {platform.architecture()}',
-            (
-                'Python: '
-                f'{platform.python_branch()} '
-                f'{platform.python_version()} '
-                f'{platform.python_implementation()} '
-                f'{platform.python_build()} '
-                f'[{platform.python_compiler()}]'
-            ),
-            '',
-            '----------------------------------------',
-            ''
-        ])
+        startup_block.extend(
+            [
+                '',
+                '----------------------------------------',
+                '',
+                '--------------  Machine  ---------------',
+                '',
+                f'Machine type: {platform.machine()}',
+                f'Processor: {platform.processor()}',
+                f'Architecture: {platform.architecture()}',
+                (
+                    'Python: '
+                    f'{platform.python_branch()} '
+                    f'{platform.python_version()} '
+                    f'{platform.python_implementation()} '
+                    f'{platform.python_build()} '
+                    f'[{platform.python_compiler()}]'
+                ),
+                '',
+                '----------------------------------------',
+                ''
+            ]
+        )
 
         self.info_block('\n'.join(startup_block))
-
-        from ..import logger as _logger
-        _logger.logger = self
 
     def _write_lines(self, msg_type, *args):
         args = list(args)
@@ -469,7 +478,7 @@ class Log(object):
         :rtype: None
         """
         self.log_handler.flush()
-
+                        
     def print(self, *args, msg_type=INFO):
         self._write_lines(msg_type, *args)
 
@@ -485,7 +494,7 @@ class Log(object):
     def debug(self, *args):
         if Config.log_debug:
             self._write_lines(DEBUG, *args)
-
+                
     def debug_block(self, *args):
         if Config.log_debug:
             self._write_block(DEBUG, *args)
@@ -501,7 +510,7 @@ class Log(object):
     def warning(self, *args):
         if Config.log_warning:
             self._write_lines(WARNING, *args)
-
+        
     def warning_block(self, *args):
         if Config.log_warning:
             self._write_block(WARNING, *args)
@@ -534,7 +543,7 @@ class Log(object):
             if block:
                 self._write_block(TRACEBACK, block)
                 self.log_handler.flush()
-
+        
     def database(self, *args):
         if Config.log_database:
             self._write_lines(DATABASE, *args)

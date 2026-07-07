@@ -77,7 +77,7 @@ def add_records(con, splash, data_path):
         splash.SetText(f'Loading Manufacturers file...')
         splash.flush()
 
-        _logger.logger.database(json_path)
+        _logger.database(json_path)
 
         with open(json_path, 'r') as f:
             data = json.loads(f.read())
@@ -142,7 +142,7 @@ def add_manufacturer(con, name, description='', address='', contact_person='', p
             (id, name, description, address, contact_person, phone, ext, email, website)
             )
 
-    _logger.logger.database(f'manufacturer added "{name}"')
+    _logger.database(f'manufacturer added "{name}"')
 
     if commit:
         con.commit()
@@ -168,13 +168,13 @@ def get_mfg_id(con, name):
     res = con.fetchall()
 
     if not res:
-        _logger.logger.database(f'adding manufacturer ("{name}", "", "", "", "")')
+        _logger.database(f'adding manufacturer ("{name}", "", "", "", "")')
         con.execute('INSERT INTO manufacturers (name, phone, address, email, website) '
                     'VALUES (?, ?, ?, ?, ?);', (name, '', '', '', ''))
 
         con.commit()
         db_id = con.lastrowid
-        _logger.logger.database(f'manufacturer added "{name}" = {db_id}')
+        _logger.database(f'manufacturer added "{name}" = {db_id}')
 
         return db_id
 

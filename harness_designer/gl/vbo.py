@@ -368,8 +368,7 @@ class VBOHandlerBase:
 
     @classmethod
     def _log_debug(cls, *args):
-        logger = _logger.logger
-        logger.debug_block(*args)
+        _logger.debug_block(*args)
 
     @staticmethod
     def _is_vbo_debug_enabled() -> bool:

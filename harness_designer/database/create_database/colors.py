@@ -27,7 +27,7 @@ def add_records(con, splash, data_path):
     splash.SetText(f'Loading colors file...')
     splash.flush()
 
-    _logger.logger.database(json_path)
+    _logger.database(json_path)
 
     with open(json_path, 'r') as f:
         data = json.loads(f.read())
@@ -72,7 +72,7 @@ def add_color(con, name, rgb, id=None, commit=True): # NOQA
         con.execute('INSERT INTO colors (id, name, rgb) '
                     'VALUES (?, ?, ?);', (id, name, rgb))
 
-    _logger.logger.database(f'color added "{name}"')
+    _logger.database(f'color added "{name}"')
 
     if commit:
         con.commit()

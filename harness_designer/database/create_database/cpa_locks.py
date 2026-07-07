@@ -112,7 +112,7 @@ def add_cpa_lock(con, part_number, description, mfg=None, family=None, series=No
 
     compat_housings = ', '.join(compat_housings)
 
-    _logger.logger.database(f'adding cpa lock {part_number}, {description}')
+    _logger.database(f'adding cpa lock {part_number}, {description}')
 
     con.execute('INSERT INTO cpa_locks (part_number, description, mfg_id, family_id, '
                 'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
@@ -124,7 +124,7 @@ def add_cpa_lock(con, part_number, description, mfg=None, family=None, series=No
                  type_id, length, width, height, weight, pins, terminal_size,
                  compat_housings))
 
-    _logger.logger.database(f'cpa lock added "{part_number}"')
+    _logger.database(f'cpa lock added "{part_number}"')
 
     if commit:
         con.commit()
@@ -178,7 +178,7 @@ def add_records(con, splash, data_path):
             splash.SetText(f'Loading {name}cpa locks file...')
             splash.flush()
 
-            _logger.logger.database(json_path)
+            _logger.database(json_path)
 
             with open(json_path, 'r') as f:
                 data = json.loads(f.read())
@@ -203,7 +203,7 @@ def add_records(con, splash, data_path):
                 try:
                     add_cpa_lock(con, commit=False, **item)
                 except Exception as err:
-                    _logger.logger.traceback(err)
+                    _logger.traceback(err)
 
         con.commit()
     os.chdir(cwd)

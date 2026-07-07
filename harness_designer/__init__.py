@@ -7,8 +7,11 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from . import splash as _splash
-    from . import logger as _logger
     from . import ui as _ui
+
+
+# we are going to set up the logging before anything else hets done.
+from . import logger as _logger
 
 
 splash: "_splash.Splash" = None

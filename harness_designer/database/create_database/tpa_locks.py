@@ -110,7 +110,7 @@ def add_tpa_lock(con, part_number, description, mfg=None, family=None, series=No
 
     compat_housings = ', '.join(compat_housings)
 
-    _logger.logger.database(f'adding tpa lock {part_number}, {description}')
+    _logger.database(f'adding tpa lock {part_number}, {description}')
 
     con.execute('INSERT INTO tpa_locks (part_number, description, mfg_id, family_id, '
                 'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
@@ -122,7 +122,7 @@ def add_tpa_lock(con, part_number, description, mfg=None, family=None, series=No
                  lock_type, length, width, height, weight, pins, terminal_size,
                  compat_housings))
 
-    _logger.logger.database(f'tpa lock added "{part_number}"')
+    _logger.database(f'tpa lock added "{part_number}"')
 
     if commit:
         con.commit()
@@ -243,7 +243,7 @@ def add_records(con, splash, data_path):
                 try:
                     add_tpa_lock(con, commit=False, **item)
                 except Exception as err:
-                    _logger.logger.traceback(err)
+                    _logger.traceback(err)
 
         con.commit()
     os.chdir(cwd)

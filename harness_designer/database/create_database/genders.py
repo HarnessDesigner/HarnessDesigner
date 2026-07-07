@@ -51,13 +51,13 @@ def get_gender_id(con, name):
     res = con.fetchall()
 
     if not res:
-        _logger.logger.database(f'adding gender ("{name}")')
+        _logger.database(f'adding gender ("{name}")')
         con.execute('INSERT INTO genders (name) VALUES (?);', (name,))
 
         con.commit()
         db_id = con.lastrowid
 
-        _logger.logger.database(f'gender added "{name}" = {db_id}')
+        _logger.database(f'gender added "{name}" = {db_id}')
 
         return db_id
     else:
