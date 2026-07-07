@@ -20,10 +20,10 @@ def build_dependency_installer():
 
     base_path = os.path.abspath(os.path.dirname(__file__))
 
-    ico = os.path.join(
-        base_path, '..', 'installer_scripts', 'windows', 'assets',
-        'harness_designer.ico',
-    )
+    # ico = os.path.join(
+    #     base_path, '..', 'installer_scripts', 'windows', 'assets',
+    #     'harness_designer.ico',
+    # )
 
     args = [
         f'--add-binary={sys.executable}{os.pathsep}.',
@@ -103,18 +103,22 @@ def _clean_dist(app_dir):
     n_files = 0
     n_dirs = 0
 
-    # PySide6 / shiboken6 / mysql-connector are installed at runtime by
-    # dep_installer.py, never bundled with the app (see the matching
-    # --exclude-module list in build_installer()). If any of them end up in
-    # the onedir output anyway — e.g. a developer pip-installs PySide6
-    # straight into this dist folder to test-run HD.exe standalone without
-    # going through the full installer — leaving them here means {app} ships
-    # with a "pyside6-x.y.z.dist-info" already in place. pip install --target
-    # then sees the requirement as already satisfied and silently skips the
-    # real install, shipping whatever partial copy happened to be sitting
-    # here at packaging time. Strip them unconditionally so dep_installer.py
-    # is always the sole source of these packages.
-    _RUNTIME_ONLY_PREFIXES = ('pyside6', 'shiboken6', 'mysql_connector_python', 'mysql')
+    # PySide6 / shiboken6 / mysql-connector / GPU vendor SMI bindings are
+    # installed at runtime by dep_installer.py, never bundled with the app
+    # (see the matching --exclude-module list in build_installer()). If any
+    # of them end up in the onedir output anyway — e.g. a developer
+    # pip-installs PySide6 straight into this dist folder to test-run HD.exe
+    # standalone without going through the full installer — leaving them
+    # here means {app} ships with a "pyside6-x.y.z.dist-info" already in
+    # place. pip install --target then sees the requirement as already
+    # satisfied and silently skips the real install, shipping whatever
+    # partial copy happened to be sitting here at packaging time. Strip them
+    # unconditionally so dep_installer.py is always the sole source of these
+    # packages.
+    _RUNTIME_ONLY_PREFIXES = (
+        'pyside6', 'shiboken6', 'mysql_connector_python', 'mysql',
+        'amdsmi', 'nvidia_ml_py', 'pynvml', 'apple_smi',
+    )
     for name in os.listdir(app_dir):
         lname = name.lower()
         stem = lname.split('-', 1)[0] if lname.endswith('.dist-info') else lname
@@ -230,14 +234,24 @@ def build_installer():
     # pip must be importable from inside the frozen bootstrap.
     args.extend(['--collect-all=pip'])
 
-    # PySide6 and MySQL are installed at runtime by the dependency installer,
-    # not bundled with the app.  Exclude them even if they are importable in
-    # the build environment so they do not end up in the PyInstaller bundle.
+    # PySide6, MySQL, and the GPU vendor SMI bindings are installed at
+    # runtime by the dependency installer, not bundled with the app.
+    # Exclude them even if they are importable in the build environment so
+    # they do not end up in the PyInstaller bundle.
     #
     # PySide6 ships as three pip packages whose Python-level names all live
     # under the PySide6 namespace, plus the shiboken6 binding layer.
     # Excluding the top-level names covers all submodules (QtCore, QtWidgets,
     # etc.) because PyInstaller excludes children when a parent is excluded.
+    #
+    # amdsmi / pynvml (nvidia-ml-py) / apple_smi are GPU vendor bindings that
+    # probe for a display driver's shared library at import time. CI build
+    # machines don't have GPU drivers installed, so PyInstaller's binary
+    # dependency walk can't resolve (and therefore can't bundle) whatever
+    # driver DLL those compiled extensions link against — the module would
+    # look bundled but be broken at runtime even on a end-user machine that
+    # does have the driver. Installed at runtime instead, on the actual
+    # target machine, exactly like PySide6.
     for mod in (
         'PySide6',
         'PySide6.QtCore',
@@ -249,6 +263,9 @@ def build_installer():
         'shiboken6',
         'mysql',
         'mysql.connector',
+        'amdsmi',
+        'pynvml',
+        'apple_smi',
         # optional extras whose dependencies are not installed
         'pyparsing.diagram',                    # needs railroad
         'scipy._lib.array_api_compat.torch',    # needs torch

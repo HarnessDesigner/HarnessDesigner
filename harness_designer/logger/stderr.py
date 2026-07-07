@@ -7,8 +7,6 @@ from typing import BinaryIO, Iterator, Iterable
 import sys
 import io
 
-from . import log_handler as _log_handler
-
 
 class StdErr(io.TextIOWrapper):
     """Mirror :data:`sys.stderr` while forwarding writes to the logger.
@@ -201,10 +199,9 @@ class StdErr(io.TextIOWrapper):
             line = self._line.rstrip()
             self._line = ''
             if line:
-                log_entry = _log_handler.build_message(
-                    _log_handler.ERROR, (line,))
+                from .. import logger as _logger
 
-                self.__logger.log_handler.write(log_entry)
+                _logger.error_block(line)
 
         return len(__s)
 
@@ -363,10 +360,9 @@ class StdErr(io.TextIOWrapper):
         else:
             __lines = '\n'.join(__lines)
 
-        log_entry = _log_handler.build_message(
-            _log_handler.ERROR, (__lines.rstrip(),))
+        from .. import logger as _logger
 
-        self.__logger.log_handler.write(log_entry)
+        _logger.error_block(__lines.rstrip())
 
     def readline(self, __size: int = -1) -> str:
         """Read one line from the wrapped stream when available.

@@ -8,6 +8,7 @@ import datetime
 import io
 import re
 import sys
+import threading
 import zipfile
 import os
 import traceback
@@ -19,6 +20,15 @@ from . import stderr
 
 
 Config = _config.Config.logging
+
+# pandas DataFrames aren't thread-safe, and this app touches them from the
+# write() path (whichever thread is logging/printing) as well as several
+# background loader threads in the log viewer. Concurrent access corrupts
+# pandas' Copy-on-Write reference tracking and manifests as a spurious,
+# self-sustaining ChainedAssignmentError (logging the warning triggers more
+# pandas work, which re-triggers the warning). Every DataFrame construction/
+# mutation in the logger and log viewer must go through this lock.
+PANDAS_LOCK = threading.RLock()
 
 INFO = 0
 NOTICE = 1
@@ -185,8 +195,9 @@ class LogHandler:
         start = datetime.datetime.now().strftime(_TS_FMT)
         path = _unique_path(f'{start} - pending.log')
 
-        df = pd.DataFrame(columns=['timestamp', 'level', 'message', 'timestamp_str'])
-        df.to_csv(path, index=False, encoding='utf-8', lineterminator='\n')
+        with PANDAS_LOCK:
+            df = pd.DataFrame(columns=['timestamp', 'level', 'message', 'timestamp_str'])
+            df.to_csv(path, index=False, encoding='utf-8', lineterminator='\n')
         return path
 
     def bind(self, callback):
@@ -240,9 +251,10 @@ class LogHandler:
         :returns: Parsed log entries.
         :rtype: pandas.DataFrame
         """
-        df = pd.read_csv(path, encoding='utf-8')
-        if 'timestamp' in df.columns:
-            df['timestamp'] = pd.to_datetime(df['timestamp'])
+        with PANDAS_LOCK:
+            df = pd.read_csv(path, encoding='utf-8')
+            if 'timestamp' in df.columns:
+                df['timestamp'] = pd.to_datetime(df['timestamp'])
         return df
 
     @staticmethod
@@ -259,9 +271,10 @@ class LogHandler:
         with zipfile.ZipFile(archive_path, 'r') as zf:
             data = zf.read(member_name)
 
-        df = pd.read_csv(io.BytesIO(data), encoding='utf-8')
-        if 'timestamp' in df.columns:
-            df['timestamp'] = pd.to_datetime(df['timestamp'])
+        with PANDAS_LOCK:
+            df = pd.read_csv(io.BytesIO(data), encoding='utf-8')
+            if 'timestamp' in df.columns:
+                df['timestamp'] = pd.to_datetime(df['timestamp'])
         return df
 
     def _open_next_file(self):
@@ -328,10 +341,11 @@ class LogHandler:
 
         try:
             # Create DataFrame from log entry
-            df = pd.DataFrame([log_entry])
+            with PANDAS_LOCK:
+                df = pd.DataFrame([log_entry])
 
-            # Append to CSV file
-            data = df.to_csv(header=False, index=False, encoding='utf-8', lineterminator='\n')
+                # Append to CSV file
+                data = df.to_csv(header=False, index=False, encoding='utf-8', lineterminator='\n')
             self._logfile.write(data)
             self._logfile.flush()
             # Update file size

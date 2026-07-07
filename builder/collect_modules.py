@@ -37,10 +37,18 @@ from packaging.utils import canonicalize_name
 # dependency (and matplotlib's own dependency chain: contourpy, cycler,
 # fonttools, kiwisolver, pyparsing) -- none of which harness_designer uses.
 #
+# amdsmi / nvidia-ml-py (pynvml) / apple_smi are GPU vendor SMI bindings,
+# installed at runtime by dep_installer.py (see REQUIRED_PACKAGES there) for
+# the same reason PySide6 is: CI build machines have no GPU driver installed,
+# so PyInstaller can't resolve the driver DLL these compiled extensions link
+# against, and a module that "looks" bundled would actually be broken at
+# runtime on the end-user's machine.
+#
 # Names are pre-canonicalized (packaging.utils.canonicalize_name: lowercased,
 # separators normalized to '-').
 _EXCLUDED_DISTRIBUTIONS = frozenset({
     'pyside6', 'pyside6-essentials', 'pyside6-addons', 'shiboken6', 'vtk',
+    'amdsmi', 'nvidia-ml-py', 'apple-smi',
 })
 
 

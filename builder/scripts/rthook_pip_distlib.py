@@ -20,8 +20,8 @@ if getattr(sys, 'frozen', False):
         # Import resources.py here — it does NOT call finder() at module level,
         # so this import is safe.  Importing it also guarantees that
         # pip._vendor.distlib is in sys.modules, giving us __file__.
-        import pip._vendor.distlib as _distlib_pkg
-        import pip._vendor.distlib.resources as _res
+        import pip._vendor.distlib as _distlib_pkg  # NOQA
+        import pip._vendor.distlib.resources as _res  # NOQA
 
         _distlib_base = os.path.dirname(_distlib_pkg.__file__)
         _orig_finder = _res.finder
@@ -56,12 +56,14 @@ if getattr(sys, 'frozen', False):
 
             def find(self, rel):
                 path = os.path.join(self._base, rel)
-                return _Resource(os.path.basename(path), path) if os.path.exists(path) else None
+
+                if os.path.exists(path):
+                    return _Resource(os.path.basename(path), path)
 
         def _patched_finder(package):
             try:
                 return _orig_finder(package)
-            except Exception:
+            except Exception:  # NOQA
                 if package == 'pip._vendor.distlib':
                     return _FileSystemFinder(_distlib_base)
                 # Generic fallback for any other unrecognised package
@@ -72,11 +74,11 @@ if getattr(sys, 'frozen', False):
                         mod = importlib.import_module(package)
                     paths = getattr(mod, '__path__', None)
                     base = paths[0] if paths else os.path.dirname(mod.__file__)
-                except Exception:
+                except Exception:  # NOQA
                     base = ''
                 return _FileSystemFinder(base)
 
         _res.finder = _patched_finder
 
-    except Exception:
+    except Exception:  # NOQA
         pass

@@ -10,6 +10,8 @@ from PySide6 import QtWidgets
 from PySide6 import QtCore
 from PySide6 import QtGui
 
+from ...logger.log_handler import PANDAS_LOCK
+
 if TYPE_CHECKING:
     from ... import logger as _logger
     from .. import mainframe as _mainframe
@@ -238,10 +240,11 @@ class _LogModel(QtCore.QAbstractTableModel):
         :rtype: :class:`pd.DataFrame`
         """
 
-        if (not df.empty and 'timestamp' in df.columns
-                and not pd.api.types.is_datetime64_any_dtype(df['timestamp'])):
-            df = df.copy()
-            df['timestamp'] = pd.to_datetime(df['timestamp'])
+        with PANDAS_LOCK:
+            if (not df.empty and 'timestamp' in df.columns
+                    and not pd.api.types.is_datetime64_any_dtype(df['timestamp'])):
+                df = df.copy()
+                df['timestamp'] = pd.to_datetime(df['timestamp'])
 
         return df
 
@@ -257,13 +260,14 @@ class _LogModel(QtCore.QAbstractTableModel):
 
         self.beginResetModel()
 
-        if not df.empty:
-            new_df = df.copy()
-        else:
-            new_df = pd.DataFrame(
-                columns=['timestamp', 'level', 'message', 'timestamp_str'])
+        with PANDAS_LOCK:
+            if not df.empty:
+                new_df = df.copy()
+            else:
+                new_df = pd.DataFrame(
+                    columns=['timestamp', 'level', 'message', 'timestamp_str'])
 
-        self._data = self._ensure_timestamp_dtype(new_df)
+            self._data = self._ensure_timestamp_dtype(new_df)
         self.endResetModel()
 
     def append_data(self, df: pd.DataFrame):
@@ -279,12 +283,13 @@ class _LogModel(QtCore.QAbstractTableModel):
         if df.empty:
             return
 
-        df = self._ensure_timestamp_dtype(df)
-        first = len(self._data)
-        last = first + len(df) - 1
-        self.beginInsertRows(QtCore.QModelIndex(), first, last)
-        self._data = pd.concat([self._data, df], ignore_index=True)
-        self.endInsertRows()
+        with PANDAS_LOCK:
+            df = self._ensure_timestamp_dtype(df)
+            first = len(self._data)
+            last = first + len(df) - 1
+            self.beginInsertRows(QtCore.QModelIndex(), first, last)
+            self._data = pd.concat([self._data, df], ignore_index=True)
+            self.endInsertRows()
 
 
 class VirtualLogListCtrl(QtWidgets.QTableView):
@@ -929,7 +934,8 @@ class LogViewerPanel(QtWidgets.QSplitter):
         if df.empty or 'timestamp' not in df.columns:
             return []
 
-        dates = df['timestamp'].dt.date.unique()
+        with PANDAS_LOCK:
+            dates = df['timestamp'].dt.date.unique()
 
         return sorted([str(d) for d in dates], reverse=True)
 
@@ -938,7 +944,8 @@ class LogViewerPanel(QtWidgets.QSplitter):
         if df.empty or 'timestamp' not in df.columns:
             return []
 
-        dates = df['timestamp'].dt.date.unique()
+        with PANDAS_LOCK:
+            dates = df['timestamp'].dt.date.unique()
 
         return sorted([str(d) for d in dates], reverse=True)
 
@@ -947,12 +954,13 @@ class LogViewerPanel(QtWidgets.QSplitter):
         if df.empty or 'timestamp' not in df.columns:
             return []
 
-        target_date = pd.to_datetime(date_str).date()
-        df_date = df[df['timestamp'].dt.date == target_date]
-        if df_date.empty:
-            return []
+        with PANDAS_LOCK:
+            target_date = pd.to_datetime(date_str).date()
+            df_date = df[df['timestamp'].dt.date == target_date]
+            if df_date.empty:
+                return []
 
-        return sorted(df_date['timestamp'].dt.hour.unique().tolist())
+            return sorted(df_date['timestamp'].dt.hour.unique().tolist())
 
     def _get_hours_in_archive_date(self, archive_path: str, filename: str,
                                    date_str: str) -> List[int]:
@@ -961,21 +969,22 @@ class LogViewerPanel(QtWidgets.QSplitter):
         if df.empty or 'timestamp' not in df.columns:
             return []
 
-        target_date = pd.to_datetime(date_str).date()
-        df_date = df[df['timestamp'].dt.date == target_date]
-        if df_date.empty:
-            return []
+        with PANDAS_LOCK:
+            target_date = pd.to_datetime(date_str).date()
+            df_date = df[df['timestamp'].dt.date == target_date]
+            if df_date.empty:
+                return []
 
-        return sorted(df_date['timestamp'].dt.hour.unique().tolist())
+            return sorted(df_date['timestamp'].dt.hour.unique().tolist())
 
     @staticmethod
     def _filter_by_date(df: pd.DataFrame, date_str: str) -> pd.DataFrame:
         if df.empty or 'timestamp' not in df.columns:
             return df
 
-        target_date = pd.to_datetime(date_str).date()
-
-        return df[df['timestamp'].dt.date == target_date].copy()
+        with PANDAS_LOCK:
+            target_date = pd.to_datetime(date_str).date()
+            return df[df['timestamp'].dt.date == target_date].copy()
 
     @staticmethod
     def _filter_by_date_and_hour(df: pd.DataFrame, date_str: str,
@@ -984,10 +993,10 @@ class LogViewerPanel(QtWidgets.QSplitter):
         if df.empty or 'timestamp' not in df.columns:
             return df
 
-        target_date = pd.to_datetime(date_str).date()
-
-        return df[(df['timestamp'].dt.date == target_date) &
-                  (df['timestamp'].dt.hour == hour)].copy()
+        with PANDAS_LOCK:
+            target_date = pd.to_datetime(date_str).date()
+            return df[(df['timestamp'].dt.date == target_date) &
+                      (df['timestamp'].dt.hour == hour)].copy()
 
     def load(self):
         self.treectrl.clear()
