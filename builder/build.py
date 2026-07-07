@@ -103,6 +103,39 @@ def _clean_dist(app_dir):
     n_files = 0
     n_dirs = 0
 
+    # PySide6 / shiboken6 / mysql-connector are installed at runtime by
+    # dep_installer.py, never bundled with the app (see the matching
+    # --exclude-module list in build_installer()). If any of them end up in
+    # the onedir output anyway — e.g. a developer pip-installs PySide6
+    # straight into this dist folder to test-run HD.exe standalone without
+    # going through the full installer — leaving them here means {app} ships
+    # with a "pyside6-x.y.z.dist-info" already in place. pip install --target
+    # then sees the requirement as already satisfied and silently skips the
+    # real install, shipping whatever partial copy happened to be sitting
+    # here at packaging time. Strip them unconditionally so dep_installer.py
+    # is always the sole source of these packages.
+    _RUNTIME_ONLY_PREFIXES = ('pyside6', 'shiboken6', 'mysql_connector_python', 'mysql')
+    for name in os.listdir(app_dir):
+        lname = name.lower()
+        stem = lname.split('-', 1)[0] if lname.endswith('.dist-info') else lname
+        if stem in _RUNTIME_ONLY_PREFIXES or any(
+            stem == f'{pfx}_essentials' or stem == f'{pfx}_addons'
+            for pfx in _RUNTIME_ONLY_PREFIXES
+        ):
+            path = os.path.join(app_dir, name)
+            shutil.rmtree(path, ignore_errors=True)
+            n_dirs += 1
+
+    bin_dir = os.path.join(app_dir, 'bin')
+    if os.path.isdir(bin_dir):
+        for fname in os.listdir(bin_dir):
+            if fname.lower().startswith(('pyside6-', 'shiboken6-')):
+                try:
+                    os.remove(os.path.join(bin_dir, fname))
+                    n_files += 1
+                except OSError:
+                    pass
+
     # licenses_dir = os.path.join(app_dir, 'licenses')
     # os.makedirs(licenses_dir, exist_ok=True)
 

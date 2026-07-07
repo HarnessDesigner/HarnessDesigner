@@ -48,6 +48,13 @@ def _install_all(target_dir, packages, on_status, on_progress):
                 'install',
                 '--target', target_dir,
                 '--quiet',
+                # Without these, pip sees a leftover dist-info/RECORD from any
+                # earlier partial or manually-cleaned install in target_dir and
+                # silently no-ops ("Target directory ... already exists.
+                # Specify --upgrade to force replacement.") while still
+                # exiting 0 — so a broken PySide6 install looks like success.
+                '--upgrade',
+                '--force-reinstall',
                 package,
             ])
             if exit_code != 0:
