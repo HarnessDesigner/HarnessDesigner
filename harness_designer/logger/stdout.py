@@ -7,8 +7,6 @@ from typing import BinaryIO, Iterator, Iterable
 import sys
 import io
 
-from . import log_handler as _log_handler
-
 
 class StdOut(io.TextIOWrapper):
     """Mirror :data:`sys.stdout` while forwarding writes to the logger.
@@ -84,10 +82,9 @@ class StdOut(io.TextIOWrapper):
             self._line = ''
 
             if line:
-                log_entry = _log_handler.build_message(
-                    _log_handler.INFO, (line,))
+                from .. import logger as _logger
 
-                self.__logger.log_handler.write(log_entry)
+                _logger.info_block(line)
 
     def isatty(self) -> bool:
         """Return whether the wrapped stream is attached to a terminal.

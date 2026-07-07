@@ -81,10 +81,10 @@ class StdErr(io.TextIOWrapper):
             self._line = ''
 
             if line:
-                log_entry = _log_handler.build_message(
-                    _log_handler.INFO, (line,))
 
-                self.__logger.log_handler.write(log_entry)
+                from .. import logger as _logger
+
+                _logger.error_block(line)
 
     def isatty(self) -> bool:
         """Return whether the wrapped stream is attached to a terminal.
