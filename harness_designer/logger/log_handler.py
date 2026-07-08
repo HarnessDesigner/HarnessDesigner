@@ -9,26 +9,28 @@ import io
 import re
 import sys
 import threading
+import typing
 import zipfile
 import os
 import traceback
 import pandas as pd
 
 from .. import __version__
-from . import stdout
-from . import stderr
+from . import redirect
 
 
 Config = _config.Config.logging
 
-# pandas DataFrames aren't thread-safe, and this app touches them from the
-# write() path (whichever thread is logging/printing) as well as several
-# background loader threads in the log viewer. Concurrent access corrupts
-# pandas' Copy-on-Write reference tracking and manifests as a spurious,
-# self-sustaining ChainedAssignmentError (logging the warning triggers more
-# pandas work, which re-triggers the warning). Every DataFrame construction/
-# mutation in the logger and log viewer must go through this lock.
-PANDAS_LOCK = threading.RLock()
+
+class RotationEvent(typing.NamedTuple):
+    """Sent to LogHandler's bound callback (via CallAfter) when the active
+    file rotates. `closed_path` is always where the just-closed file now
+    lives; `archive_path` is set too if that same rotation also bundled it
+    (and other closed files) into a new archive - in which case
+    `closed_path` no longer exists on its own, only as a member of it.
+    """
+    closed_path: str
+    archive_path: typing.Optional[str]
 
 INFO = 0
 NOTICE = 1
@@ -53,19 +55,21 @@ _message_mapping = {
 }
 
 
-def build_message(msg_type, args):
-    """Build a log message and return as a dict for DataFrame"""
-    strs = [str(arg) for arg in args]
-    msg = ' '.join(strs).rstrip()
+def build_message(msg_type, msg):
+    """Build a single log entry dict for a DataFrame row.
 
-    timestamp = datetime.datetime.now()
-    msg_type_str = _message_mapping.get(msg_type, 'UNKNOWN')
-
+    `timestamp` is kept as a real datetime, not a string, so DataFrames
+    built from this dict already have a proper datetime64 'timestamp'
+    column from birth - nothing downstream needs to re-parse or reassign
+    it (the .copy() + column-reassignment pattern pandas' chained-
+    assignment machinery warns about). There's no separate string column
+    for it either; formatting for display happens where it's displayed,
+    not cached here.
+    """
     return {
-        'timestamp': timestamp.isoformat(),
-        'level': msg_type_str,
+        'timestamp': datetime.datetime.now(),
+        'level': _message_mapping.get(msg_type, 'UNKNOWN'),
         'message': msg,
-        'timestamp_str': str(timestamp)
     }
 
 
@@ -113,14 +117,23 @@ def _unique_path(name):
         n += 1
 
 
-class LogHandler:
-    """Write structured log entries to rotating CSV log files."""
+class LogHandler(threading.Thread):
+    """Write structured log entries to rotating CSV log files.
+
+    Writing runs entirely on this object's own thread. write() just
+    appends the entry to a plain list and releases a semaphore - it never
+    touches pandas, the CSV file, or blocks on anything, so callers never
+    stall on log I/O. run() (this thread's body) is the only code that
+    ever pops from that list and does the actual work, so there's nothing
+    to lock between one call to write() and another.
+    """
 
     def _fake_callback(self, _=None):
         """Placeholder callback invoked when no external callback is bound.
 
-        :param _: Callback payload from :meth:`write` or :meth:`_open_next_file`.
-        :type _: object | None
+        :param _: A DataFrame for a new entry, or a RotationEvent for a
+            rotation.
+        :type _: pandas.DataFrame | RotationEvent | None
         :returns: ``None``.
         :rtype: None
         """
@@ -128,7 +141,21 @@ class LogHandler:
 
     def __init__(self):
         """Initialize log file rotation state and open the current CSV file."""
+        super().__init__(daemon=True)
+
         self._callback = self._fake_callback
+
+        # FIFO work queue for the worker thread: append()/pop(0) are each
+        # a single atomic operation under the GIL, and there's exactly one
+        # consumer (run(), on this thread), so nothing else needs to guard
+        # access to this list.
+        self._queue = []
+        # Starts at 0 so run()'s first acquire() blocks immediately;
+        # write()/flush() each call release() exactly once per item they
+        # add, which is always valid on a Semaphore (unlike a Lock, it has
+        # no "already unlocked" error state to race into).
+        self._signal = threading.Semaphore(0)
+        self._exit_event = threading.Event()
 
         if not os.path.exists(Config.save_path):
             os.makedirs(Config.save_path)
@@ -195,15 +222,16 @@ class LogHandler:
         start = datetime.datetime.now().strftime(_TS_FMT)
         path = _unique_path(f'{start} - pending.log')
 
-        with PANDAS_LOCK:
-            df = pd.DataFrame(columns=['timestamp', 'level', 'message', 'timestamp_str'])
-            df.to_csv(path, index=False, encoding='utf-8', lineterminator='\n')
+        df = pd.DataFrame(columns=['timestamp', 'level', 'message'])
+        df.to_csv(path, index=False, encoding='utf-8', lineterminator='\n')
         return path
 
     def bind(self, callback):
-        """Bind a callback invoked after writes and file rotation events.
+        """Bind a callback invoked (via CallAfter, on the main thread) after
+        writes and file rotation events.
 
-        :param callback: Callable receiving the written DataFrame or no argument.
+        :param callback: Callable receiving either the written entry's
+            DataFrame, or - on rotation - a RotationEvent.
         :type callback: collections.abc.Callable
         :returns: ``None``.
         :rtype: None
@@ -251,10 +279,8 @@ class LogHandler:
         :returns: Parsed log entries.
         :rtype: pandas.DataFrame
         """
-        with PANDAS_LOCK:
-            df = pd.read_csv(path, encoding='utf-8')
-            if 'timestamp' in df.columns:
-                df['timestamp'] = pd.to_datetime(df['timestamp'])
+        df = pd.read_csv(path, encoding='utf-8')
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
         return df
 
     @staticmethod
@@ -271,10 +297,8 @@ class LogHandler:
         with zipfile.ZipFile(archive_path, 'r') as zf:
             data = zf.read(member_name)
 
-        with PANDAS_LOCK:
-            df = pd.read_csv(io.BytesIO(data), encoding='utf-8')
-            if 'timestamp' in df.columns:
-                df['timestamp'] = pd.to_datetime(df['timestamp'])
+        df = pd.read_csv(io.BytesIO(data), encoding='utf-8')
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
         return df
 
     def _open_next_file(self):
@@ -289,13 +313,12 @@ class LogHandler:
         self._logfile_path = path
         self._current_size = os.path.getsize(path)
         self._logfile = open(path, 'a', encoding='utf-8', newline='')
-        self._callback()
 
     def _close_current_file(self):
         """Close the active log file and rename it with its end timestamp.
 
-        :returns: ``None``.
-        :rtype: None
+        :returns: The path the active file was renamed to.
+        :rtype: str
         """
         self._logfile.close()
 
@@ -306,12 +329,13 @@ class LogHandler:
         closed_path = _unique_path(f'{start} - {end}.log')
         os.rename(self._logfile_path, closed_path)
         self._logfiles[-1] = closed_path
+        return closed_path
 
     def _compact_logfiles(self):
         """Bundle the registered log files into a single ZIP archive.
 
-        :returns: ``None``.
-        :rtype: None
+        :returns: Path to the new archive.
+        :rtype: str
         """
         start = _CLOSED_LOG_RE.match(
             os.path.basename(self._logfiles[0])).group(1)
@@ -333,68 +357,120 @@ class LogHandler:
 
         self._logfiles = []
         self._archives.append(archive_path)
+        return archive_path
 
     def write(self, log_entry: dict):
-        """Write a log entry (as dict) to CSV file using pandas"""
+        """Queue a log entry for the worker thread to write. Never blocks."""
         if not log_entry or not log_entry.get('message', '').strip():
             return
 
-        try:
-            # Create DataFrame from log entry
-            with PANDAS_LOCK:
-                df = pd.DataFrame([log_entry])
+        self._queue.append(log_entry)
+        self._signal.release()
 
-                # Append to CSV file
-                data = df.to_csv(header=False, index=False, encoding='utf-8', lineterminator='\n')
-            self._logfile.write(data)
+    def run(self):
+        """Worker thread body: the only code that writes/rotates log files."""
+        while not self._exit_event.is_set():
+            self._signal.acquire()
+
+            while self._queue:
+                item = self._queue.pop(0)
+                if isinstance(item, threading.Event):
+                    # A flush()/stop() barrier: flush what's been written so
+                    # far *before* releasing the caller waiting on it - that
+                    # ordering is the guarantee flush() makes.
+                    self._flush_file()
+                    item.set()
+                else:
+                    self._process_entry(item)
+
+            # Queue's empty: one flush for however many entries were just
+            # batched through in this pass, instead of one per entry.
+            self._flush_file()
+
+    def _flush_file(self):
+        if self._logfile is not None:
             self._logfile.flush()
-            # Update file size
+
+    def _process_entry(self, log_entry: dict):
+        """Write one entry to the CSV file and rotate if it's now too big."""
+        try:
+            df = pd.DataFrame([log_entry])
+
+            # date_format matches datetime.isoformat() so the on-disk
+            # format is unchanged now that 'timestamp' is a real
+            # datetime64 column instead of a pre-stringified one.
+            data = df.to_csv(header=False, index=False, encoding='utf-8',
+                              lineterminator='\n',
+                              date_format='%Y-%m-%dT%H:%M:%S.%f')
+
+            self._logfile.write(data)
             self._current_size += len(data.encode('utf-8'))
 
-            # Notify callback
-            self._callback(df)
+            # Deferred: this module is imported synchronously as part of
+            # harness_designer.app's own module-level `from . import
+            # logger`, so `..app` isn't fully loaded yet at that point. By
+            # the time a write actually happens, it is.
+            from .. import app as _app
+            _app.CallAfter(self._callback, df)
 
-            # Check if we need to rotate
             if self._current_size >= Config.max_logfile_size:
-                self._close_current_file()
+                closed_path = self._close_current_file()
+
+                archive_path = None
                 if len(self._logfiles) >= Config.num_logfiles:
-                    self._compact_logfiles()
+                    archive_path = self._compact_logfiles()
 
                 self._open_next_file()
 
+                # A RotationEvent (as opposed to write()'s DataFrame) tells
+                # the viewer this is a rotation, and where the file it
+                # might currently be showing now lives.
+                _app.CallAfter(
+                    self._callback, RotationEvent(closed_path, archive_path))
+
         except Exception as e:
             # Write straight to the real stderr, bypassing sys.stdout/stderr.
-            # Those are redirected through StdOut/StdErr, which call back
-            # into this same write() once a line completes - going through
-            # print() here would re-enter write() on every failure, and a
-            # persistent error becomes an infinite loop.
+            # Those are redirected through StdOut/StdErr, which route back
+            # into write() once a line completes - going through print()
+            # here would just queue another entry for this same thread to
+            # pick up, and a persistent error becomes an infinite loop.
             if sys.__stderr__ is not None:
                 try:
                     sys.__stderr__.write(f"Error writing to log: {e}\n")
                 except Exception:  # NOQA
                     pass
 
-    def close(self):
-        """Close the handler.
+    def stop(self):
+        """Drain the queue, stop the worker thread, and close the file.
 
-        The current implementation keeps the file handle open for reuse, so no
-        explicit close action is performed here.
-
-        :returns: ``None``.
-        :rtype: None
+        Blocks until every entry queued before this call is written.
         """
-        # No file handle to close since we append per write
-        pass
+        self.flush()
+        self._exit_event.set()
+        self._signal.release()
+        self.join()
+
+        if self._logfile is not None:
+            self._logfile.close()
+
+    def close(self):
+        """Stop the worker thread, writing everything already queued first."""
+        self.stop()
 
     def flush(self):
-        """Flush the handler.
+        """Block until every entry queued before this call has been
+        written *and* flushed to disk.
 
-        The current implementation does not manage an additional buffer, so the
-        method is effectively a no-op.
-
-        :returns: ``None``.
-        :rtype: None
+        write() is async (queued to the worker thread), so this is what
+        error()/traceback()/database() rely on to guarantee their line is
+        actually on disk before they return. The flush itself happens on
+        the worker thread, in run(), before it releases this barrier.
         """
+        barrier = threading.Event()
+        self._queue.append(barrier)
+        self._signal.release()
+        barrier.wait()
+
         if self._logfile is not None:
             self._logfile.flush()
 
@@ -405,9 +481,14 @@ class Log(object):
     def __init__(self):
         """Initialize logging, stream redirection, and startup environment logging."""
         self.log_handler = LogHandler()
+        self.log_handler.start()
 
-        self.__stdout = stdout.StdOut(self)
-        self.__stderr = _stderr = stderr.StdErr(self)
+        # `self` is a fully usable Log instance already (methods resolve
+        # via the class, independent of __init__ completing), so it's
+        # handed straight to the wrappers instead of having them import
+        # harness_designer.logger on every write.
+        self._stdout = redirect.StdOut(self)
+        self._stderr = redirect.StdErr(self)
 
     def startup(self):
         from ..gl import info as _gl_info
@@ -467,23 +548,18 @@ class Log(object):
 
         self.info_block('\n'.join(startup_block))
 
+    @staticmethod
+    def _join(args):
+        return ' '.join(str(arg) for arg in args).rstrip()
+
     def _write_lines(self, msg_type, *args):
-        args = list(args)
-
-        for arg in args[:]:
-            if isinstance(arg, str) and '\n' in arg:
-                for line in arg.split('\n'):
-                    log_entry = build_message(msg_type, [line])
-                    self.log_handler.write(log_entry)
-                args.remove(arg)
-
-        if args:
-            log_entry = build_message(msg_type, args)
-            self.log_handler.write(log_entry)
+        """Write each line of the joined args as its own log entry."""
+        for line in self._join(args).split('\n'):
+            self.log_handler.write(build_message(msg_type, line))
 
     def _write_block(self, msg_type, *args):
-        log_entry = build_message(msg_type, args)
-        self.log_handler.write(log_entry)
+        """Write the joined args as a single, possibly multiline, log entry."""
+        self.log_handler.write(build_message(msg_type, self._join(args)))
 
     def flush(self):
         """Flush the underlying :class:`LogHandler`.
@@ -492,7 +568,7 @@ class Log(object):
         :rtype: None
         """
         self.log_handler.flush()
-                        
+
     def print(self, *args, msg_type=INFO):
         self._write_lines(msg_type, *args)
 
@@ -508,7 +584,7 @@ class Log(object):
     def debug(self, *args):
         if Config.log_debug:
             self._write_lines(DEBUG, *args)
-                
+
     def debug_block(self, *args):
         if Config.log_debug:
             self._write_block(DEBUG, *args)
@@ -524,7 +600,7 @@ class Log(object):
     def warning(self, *args):
         if Config.log_warning:
             self._write_lines(WARNING, *args)
-        
+
     def warning_block(self, *args):
         if Config.log_warning:
             self._write_block(WARNING, *args)
@@ -557,7 +633,7 @@ class Log(object):
             if block:
                 self._write_block(TRACEBACK, block)
                 self.log_handler.flush()
-        
+
     def database(self, *args):
         if Config.log_database:
             self._write_lines(DATABASE, *args)
