@@ -29,16 +29,9 @@ REQUIRED_PACKAGES = [
     ('PySide6', 'PySide6', 'PySide6 (Qt UI framework)'),
 ] + _GPU_PACKAGES
 
-# Optional packages — presented as checkboxes before installation begins.
-# Format: ('pip install name', 'import name', 'friendly label', 'description')
-OPTIONAL_PACKAGES = [
-    (
-        'mysql-connector-python',
-        'mysql.connector',
-        'MySQL Connector/Python',
-        'Required for multi-seat installations using a shared MySQL database.',
-    ),
-]
+# Installed only when the installer is launched with --with-mysql — the
+# Inno Setup wizard's "mysqlconnector" task selects this, not a checkbox here.
+MYSQL_PACKAGE = ('mysql-connector-python', 'mysql.connector', 'MySQL Connector/Python')
 
 
 def _python_exe():
@@ -80,51 +73,6 @@ def _install_all(target_dir, packages, on_status, on_progress):
         on_progress(1.0)
     finally:
         sys.executable = original_executable
-
-
-def _build_options_screen(root, on_confirm):
-    """First screen: optional package checkboxes + Install button."""
-    frame = tk.Frame(root, padx=20, pady=16)
-    frame.pack(fill='both', expand=True)
-
-    tk.Label(
-        frame,
-        text='Harness Designer — Component Selection',
-        font=('Segoe UI', 11, 'bold'),
-    ).pack(anchor='w', pady=(0, 4))
-
-    tk.Label(
-        frame,
-        text='Required components will always be installed.\n'
-             'Select any optional components you need:',
-        justify='left',
-        fg='#444',
-    ).pack(anchor='w', pady=(0, 10))
-
-    check_vars = []
-    for pip_name, import_name, label, description in OPTIONAL_PACKAGES:
-        var = tk.BooleanVar(value=False)
-        check_vars.append((var, pip_name, import_name, label, description))
-
-        cb_frame = tk.Frame(frame)
-        cb_frame.pack(anchor='w', pady=2)
-
-        tk.Checkbutton(cb_frame, text=label, variable=var, font=('Segoe UI', 9, 'bold')).pack(anchor='w')
-        tk.Label(cb_frame, text=f'    {description}', fg='#666', justify='left').pack(anchor='w')
-
-    btn_frame = tk.Frame(frame)
-    btn_frame.pack(anchor='e', pady=(14, 0))
-
-    def on_install():
-        selected_optional = [
-            (pip_name, import_name, label, description)
-            for var, pip_name, import_name, label, description in check_vars
-            if var.get()
-        ]
-        frame.destroy()
-        on_confirm(REQUIRED_PACKAGES + selected_optional)
-
-    tk.Button(btn_frame, text='Install', width=12, command=on_install).pack()
 
 
 def _build_progress_screen(root, target_dir, packages):
@@ -169,32 +117,25 @@ def _build_progress_screen(root, target_dir, packages):
 
 def main():
     if len(sys.argv) < 2:
-        print('Usage: installer.exe <target_lib_dir>', file=sys.stderr)
+        print('Usage: dep_installer.exe <target_lib_dir> [--with-mysql]', file=sys.stderr)
         sys.exit(1)
 
     target_dir = sys.argv[1]
+    with_mysql = '--with-mysql' in sys.argv[2:]
     os.makedirs(target_dir, exist_ok=True)
+
+    packages = REQUIRED_PACKAGES + ([MYSQL_PACKAGE] if with_mysql else [])
 
     root = tk.Tk()
     root.title('Harness Designer — Setup')
-    root.geometry('480x260')
+    root.geometry('440x160')
     root.resizable(False, False)
     root.protocol('WM_DELETE_WINDOW', lambda: None)
 
-    thread = None
-    result = {}
-
-    def start_install(packages):
-        nonlocal thread, result
-        root.geometry('440x160')
-        thread, result = _build_progress_screen(root, target_dir, packages)
-
-    _build_options_screen(root, on_confirm=start_install)
+    thread, result = _build_progress_screen(root, target_dir, packages)
 
     root.mainloop()
-
-    if thread is not None:
-        thread.join()
+    thread.join()
 
     if result.get('error') is not None:
         raise result['error']

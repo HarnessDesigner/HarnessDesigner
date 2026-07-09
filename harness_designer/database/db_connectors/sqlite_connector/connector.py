@@ -93,7 +93,7 @@ class SQLConnector(_base.ConnectorBase):
         self.execute(f'SELECT "(\'" || group_concat(name, "\', \'") || "\')" from '
                      f'pragma_table_info("{table_name}");')
 
-        column_names = eval(self.fetchall()[0][0])
+        column_names = list(eval(self.fetchall()[0][0]))
         return column_names
 
     def connect(self, splash) -> bool:

@@ -62,6 +62,11 @@ Name: "desktopicon"; \
     Description: "{cm:CreateDesktopIcon}"; \
     GroupDescription: "{cm:AdditionalIcons}"
 
+Name: "mysqlconnector"; \
+    Description: "MySQL Connector/Python (required for shared multi-seat installations using a MySQL database)"; \
+    GroupDescription: "Optional Components:"; \
+    Flags: unchecked
+
 [Files]
 ; Main application — all files from the PyInstaller onedir build
 Source: "{#AppSrcDir}\*"; \
@@ -80,9 +85,87 @@ Name: "{commondesktop}\{#AppName}";     Filename: "{app}\{#AppExeName}"; Tasks: 
 
 [Run]
 ; Launch the component installer after the main application files are in place.
-; installer.exe opens its own window (license → components → install log) and
-; must be closed by the user before InnoSetup continues to the Finish page.
+; installer.exe opens its own window (progress bar only — component choice is
+; now made via the mysqlconnector task above) and must finish before InnoSetup
+; continues to the Finish page.
 Filename: "{tmp}\dep_installer.exe"; \
-    Parameters: """{app}"""; \
+    Parameters: "{code:GetDepInstallerParams}"; \
     StatusMsg: "Installing required components (PySide6)..."; \
     Flags: waituntilterminated
+
+[UninstallDelete]
+; dep_installer.exe pip-installs PySide6/GPU packages directly into {app},
+; so Inno's uninstaller (which only tracks files it copied via [Files]) can't
+; remove them on its own and leaves a non-empty, undeleted directory behind.
+; No user data ever lives under {app}, so it's always safe to wipe it whole.
+Type: filesandordirs; Name: "{app}"
+
+[Code]
+function GetDepInstallerParams(Param: String): String;
+begin
+  Result := '"' + ExpandConstant('{app}') + '"';
+  if IsTaskSelected('mysqlconnector') then
+    Result := Result + ' --with-mysql';
+end;
+
+// ── Uninstall: optionally preserve the user's database/parts library/projects ──
+
+var
+  KeepUserData: Boolean;
+
+function InitializeUninstall(): Boolean;
+begin
+  KeepUserData := (MsgBox(
+    'Do you want to keep your Harness Designer database, parts library, ' +
+    'downloaded CAD/model files, and saved projects?' + #13#10 + #13#10 +
+    'Choose Yes to keep this data (recommended) in case you reinstall later, ' +
+    'or No to permanently delete it now.',
+    mbConfirmation, MB_YESNO or MB_DEFBUTTON1) = IDYES);
+  Result := True;
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  if (CurUninstallStep = usPostUninstall) and not KeepUserData then
+    DelTree(ExpandConstant('{userappdata}\HarnessDesigner'), True, True, True);
+end;
+
+// ── Install: reflect the real on-disk footprint (main app + pip-installed
+// components) in Add/Remove Programs, instead of Inno's [Files]-only estimate ──
+
+function GetDirSizeBytes(Path: String): Int64;
+var
+  FindRec: TFindRec;
+  Size: Int64;
+  FullPath: String;
+begin
+  Size := 0;
+  if FindFirst(Path + '\*', FindRec) then
+  begin
+    try
+      repeat
+        if (FindRec.Name <> '.') and (FindRec.Name <> '..') then
+        begin
+          FullPath := Path + '\' + FindRec.Name;
+          if (FindRec.Attributes and FILE_ATTRIBUTE_DIRECTORY) <> 0 then
+            Size := Size + GetDirSizeBytes(FullPath)
+          else
+            Size := Size + (Int64(FindRec.SizeHigh) shl 32) + FindRec.SizeLow;
+        end;
+      until not FindNext(FindRec);
+    finally
+      FindClose(FindRec);
+    end;
+  end;
+  Result := Size;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  // ssDone fires after the [Run] entries (dep_installer.exe) have finished,
+  // so this sees the final size including everything pip installed into {app}.
+  if CurStep = ssDone then
+    RegWriteDWordValue(HKLM,
+      'Software\Microsoft\Windows\CurrentVersion\Uninstall\{#AppId}_is1',
+      'EstimatedSize', GetDirSizeBytes(ExpandConstant('{app}')) div 1024);
+end;
