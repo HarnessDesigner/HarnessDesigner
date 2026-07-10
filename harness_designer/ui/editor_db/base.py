@@ -668,8 +668,13 @@ class EditorList(QTableView):
             return EditorList._no_image
 
         if image_id not in self.downloading_images:
+            try:
+                image = self.table.db.images_table[image_id]
+            except AttributeError:
+                # database has been closed
+                return EditorList._no_image
+
             self.downloading_images[image_id] = [self._download_0, row_id]
-            image = self.table.db.images_table[image_id]
             image.load(row[4], row[2], self._load_icon, self._update_progress)
 
         return self.downloading_images.get(image_id, [self.bitmap_indexes.get(image_id, EditorList._no_image)])[0]

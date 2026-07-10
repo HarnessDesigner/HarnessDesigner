@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from PySide6 import QtWidgets
 from PySide6 import QtCore
@@ -40,7 +40,17 @@ class MainFrame(QtWidgets.QMainWindow):
 
     global_db: "_global_db.GLBTables" = None
     project_db: "_project_db.PJTTables" = None
-    project: "_project.Project" = None
+    _project: "_project.Project" = None
+
+    @property
+    def project(self) -> "_project.Project":
+
+        while self._project is None:
+            self._open_project()
+
+    @project.setter
+    def project(self, value: Union["_project.Project", None]):
+        self._project = value
 
     def __init__(self, splash, logger: "_logger.Log"):
         """Initialise the :class:`MainFrame` instance.
