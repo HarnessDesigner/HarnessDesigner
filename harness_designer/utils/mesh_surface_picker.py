@@ -66,6 +66,7 @@ def _point_in_triangle(p, a, b, c) -> bool:
     d02 = float(v0 @ v2)
     d11 = float(v1 @ v1)
     d12 = float(v1 @ v2)
+
     denom = d00 * d11 - d01 * d01
     if abs(denom) < 1e-12:
         return False
@@ -145,7 +146,7 @@ class MeshSurfacePicker:
         self._camera = self._gl_widget.camera
 
         self.selected_surf_idx: int = None
-        self.overlay_color: tuple[int, int, int, int] = (100, 180, 255, 110)
+        self.overlay_color = (100, 180, 255, 110)
 
         # Live references to the object's transform attributes.
         self._position = obj3d.position
@@ -167,11 +168,9 @@ class MeshSurfacePicker:
         # Model-local vertices and normals – never transformed in place.
         vbo = obj3d._vbo  # NOQA
 
-        self.vertices: np.ndarray = (
-            vbo.vertices.reshape(-1, 3).copy().astype(np.float64))
+        self.vertices = vbo.vertices.reshape(-1, 3).copy().astype(np.float64)
 
-        self.normals: np.ndarray = (
-            vbo.face_normals.reshape(-1, 3).copy().astype(np.float64))
+        self.normals = vbo.face_normals.reshape(-1, 3).copy().astype(np.float64)
 
         self._verticesf32 = self.vertices.astype(np.float32)
         self._normalsf32 = self.normals.astype(np.float32)
@@ -220,8 +219,8 @@ class MeshSurfacePicker:
         # Unbind old callbacks.
         for attr, cb in (
             (self._position, self._on_position),
-            (self._angle,    self._on_angle),
-            (self._scale,    self._on_scale),
+            (self._angle, self._on_angle),
+            (self._scale, self._on_scale),
         ):
             try:
                 attr.unbind(cb)
@@ -283,7 +282,7 @@ class MeshSurfacePicker:
         qn = np.round(normals / normal_tol).astype(np.int64)
         qd = np.round(dists / dist_tol).astype(np.int64)
 
-        groups: dict = defaultdict(list)
+        groups = defaultdict(list)
         for i in range(n_tris):
             groups[(tuple(qn[i]), int(qd[i]))].append(i)
 
@@ -300,7 +299,7 @@ class MeshSurfacePicker:
         verts = vertices.reshape(-1, 3)
         tri_list = list(surface.tri_indices)
 
-        edge_tris: dict = defaultdict(list)
+        edge_tris = defaultdict(list)
         for ti in tri_list:
             pvs = [MeshSurfacePicker._pos_key(verts[3 * ti + j])
                    for j in range(3)]
@@ -311,7 +310,7 @@ class MeshSurfacePicker:
 
                 edge_tris[edge].append(ti)
 
-        adj: dict = defaultdict(list)
+        adj = defaultdict(list)
         for tris in edge_tris.values():
             for i in range(len(tris)):
                 for k in range(i + 1, len(tris)):
@@ -441,7 +440,7 @@ class MeshSurfacePicker:
 
     def transform_ray_to_local(
         self,
-        origin_world:    np.ndarray,
+        origin_world: np.ndarray,
         direction_world: np.ndarray,
     ) -> tuple[np.ndarray, np.ndarray] | tuple[None, None]:
         """
@@ -493,7 +492,7 @@ class MeshSurfacePicker:
 
     def pick_surface_at_ray(
         self,
-        origin_world:    np.ndarray,
+        origin_world: np.ndarray,
         direction_world: np.ndarray,
     ) -> tuple[int, np.ndarray | None]:
         """
@@ -588,8 +587,8 @@ class MeshSurfacePicker:
 
         for attr, cb in (
             (self._position, self._on_position),
-            (self._angle,    self._on_angle),
-            (self._scale,    self._on_scale),
+            (self._angle, self._on_angle),
+            (self._scale, self._on_scale),
         ):
             try:
                 attr.unbind(cb)
