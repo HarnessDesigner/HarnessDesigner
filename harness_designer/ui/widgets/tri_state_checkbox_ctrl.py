@@ -75,14 +75,14 @@ class _TriStateCheckBox(QtWidgets.QWidget):
         super().__init__(parent)
 
         # 0=x, 1=check, 2=empty
-        self._state: int = 2
-        self._hovered: bool = False
+        self._state = 2
+        self._hovered = False
 
         # suppress ring on click focus
-        self._focus_from_mouse: bool = False
+        self._focus_from_mouse = False
 
         # 0→1 used for draw scale pop
-        self._anim_progress: float = 0.0
+        self._anim_progress = 0.0
 
         # Animation for the mark appearing
         self._anim = QtCore.QPropertyAnimation(self, b"animProgress", self)
@@ -112,7 +112,7 @@ class _TriStateCheckBox(QtWidgets.QWidget):
     def state(self) -> int:
         return self._state
 
-    def setState(self, state: bool | None):
+    def setState(self, state: bool | int | None):
         """
         Set state (0=X, 1=checked, 2=empty) programmatically.
         """
@@ -120,10 +120,7 @@ class _TriStateCheckBox(QtWidgets.QWidget):
         if state is None:
             state = 2
         else:
-            state = int(state)
-
-        if state not in (0, 1, 2):
-            raise ValueError("state must be 0, 1, or 2")
+            state = int(bool(state))
 
         if state == self._state:
             return
