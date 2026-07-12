@@ -17,6 +17,8 @@ class CompatTerminalsMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    _stored_compat_terminals: list["_terminal.Terminal"] | DefaultStoredValueType = DefaultStoredValue
+
     @property
     def compat_terminals(self) -> list["_terminal.Terminal"]:
         """Return the compat terminals.
@@ -26,15 +28,28 @@ class CompatTerminalsMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: list['_terminal.Terminal']
         """
-        compat_terminals = self.compat_terminals_array
-        res = []
-        for part_number in compat_terminals:
-            try:
-                res.append(self._table.db.terminals_table[part_number])
-            except KeyError:
-                pass
+        if self._stored_compat_terminals is DefaultStoredValue:
+            part_numbers = [pn for pn in self.compat_terminals_array if pn]
 
-        return res
+            if not part_numbers:
+                self._stored_compat_terminals = []
+            else:
+                from .. import terminal as _terminal_module
+
+                terminals_table = self._table.db.terminals_table
+                placeholders = ', '.join('?' * len(part_numbers))
+                terminals_table.execute(
+                    f'SELECT id, part_number FROM terminals WHERE part_number IN ({placeholders});',
+                    part_numbers
+                )
+                found = {part_number: db_id for db_id, part_number in terminals_table.fetchall()}
+
+                self._stored_compat_terminals = [
+                    _terminal_module.Terminal(terminals_table, found[pn])
+                    for pn in part_numbers if pn in found
+                ]
+
+        return self._stored_compat_terminals
 
     _stored_compat_terminals_array: list[str] | DefaultStoredValueType = DefaultStoredValue
 
@@ -67,6 +82,7 @@ class CompatTerminalsMixin(BaseMixin):
         :type value: list[str]
         """
         self._stored_compat_terminals_array = value
+        self._stored_compat_terminals = DefaultStoredValue
         value = ', '.join(value)
 
         self._table.update(self._db_id, compat_terminals=value)

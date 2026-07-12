@@ -1,8 +1,16 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
+
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 
 from ....ui import prop_ctrls as _prop_ctrls
+
+
+if TYPE_CHECKING:
+    from .. import cad as _cad_mod
+    from .. import image as _image_mod
+    from .. import datasheet as _datasheet_mod
 
 
 class ResourceMixin(BaseMixin):
@@ -10,6 +18,20 @@ class ResourceMixin(BaseMixin):
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
+
+    _stored_cad_obj: "DefaultStoredValueType | _cad_mod.CAD | None" = DefaultStoredValue
+
+    def _get_cad_obj(self) -> "_cad_mod.CAD | None":
+        """Return (and cache) the related CAD row, shared by ``cad``/``cad_type``."""
+        if self._stored_cad_obj is DefaultStoredValue:
+            cad_id = self.cad_id
+
+            if cad_id is None:
+                self._stored_cad_obj = None
+            else:
+                self._stored_cad_obj = self._table.db.cads_table[cad_id]
+
+        return self._stored_cad_obj
 
     @property
     def cad(self) -> str | None:
@@ -20,12 +42,10 @@ class ResourceMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: str | None
         """
-        db_id = self.cad_id
-
-        if db_id is None:
+        cad = self._get_cad_obj()
+        if cad is None:
             return None
 
-        cad = self._table.db.cads_table[db_id]
         return cad.data_path
 
     @property
@@ -37,13 +57,9 @@ class ResourceMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: str | None
         """
-        cad_id = self.cad_id
+        cad = self._get_cad_obj()
 
-        if cad_id is None:
-            return None
-
-        cad = self._table.db.cads_table[cad_id]
-        if cad.data_path is not None:
+        if cad is not None and cad.data_path is not None:
             return cad.file_type.extension
 
     _stored_cad_id: int | DefaultStoredValueType = DefaultStoredValue
@@ -72,8 +88,23 @@ class ResourceMixin(BaseMixin):
         :type value: int
         """
         self._stored_cad_id = value
+        self._stored_cad_obj = DefaultStoredValue
         self._table.update(self._db_id, cad_id=value)
         self._populate('cad_id')
+
+    _stored_image_obj: "DefaultStoredValueType | _image_mod.Image | None" = DefaultStoredValue
+
+    def _get_image_obj(self) -> "_image_mod.Image | None":
+        """Return (and cache) the related Image row, shared by ``image``/``image_type``."""
+        if self._stored_image_obj is DefaultStoredValue:
+            image_id = self.image_id
+
+            if image_id is None:
+                self._stored_image_obj = None
+            else:
+                self._stored_image_obj = self._table.db.images_table[image_id]
+
+        return self._stored_image_obj
 
     @property
     def image(self) -> str | None:
@@ -84,11 +115,10 @@ class ResourceMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: str | None
         """
-        db_id = self.image_id
-        if db_id is None:
+        image = self._get_image_obj()
+        if image is None:
             return None
 
-        image = self._table.db.images_table[db_id]
         return image.data_path
 
     @property
@@ -100,13 +130,9 @@ class ResourceMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: str
         """
-        image_id = self.image_id
+        image = self._get_image_obj()
 
-        if image_id is None:
-            return None
-
-        image = self._table.db.images_table[image_id]
-        if image.data_path is not None:
+        if image is not None and image.data_path is not None:
             return image.file_type.extension
 
     _stored_image_id: int | DefaultStoredValueType = DefaultStoredValue
@@ -135,8 +161,23 @@ class ResourceMixin(BaseMixin):
         :type value: int
         """
         self._stored_image_id = value
+        self._stored_image_obj = DefaultStoredValue
         self._table.update(self._db_id, image_id=value)
         self._populate('image_id')
+
+    _stored_datasheet_obj: "DefaultStoredValueType | _datasheet_mod.Datasheet | None" = DefaultStoredValue
+
+    def _get_datasheet_obj(self) -> "_datasheet_mod.Datasheet | None":
+        """Return (and cache) the related Datasheet row, shared by ``datasheet``/``datasheet_type``."""
+        if self._stored_datasheet_obj is DefaultStoredValue:
+            datasheet_id = self.datasheet_id
+
+            if datasheet_id is None:
+                self._stored_datasheet_obj = None
+            else:
+                self._stored_datasheet_obj = self._table.db.datasheets_table[datasheet_id]
+
+        return self._stored_datasheet_obj
 
     @property
     def datasheet(self) -> str | None:
@@ -147,11 +188,10 @@ class ResourceMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: str | None
         """
-        db_id = self.datasheet_id
-        if db_id is None:
+        datasheet = self._get_datasheet_obj()
+        if datasheet is None:
             return None
 
-        datasheet = self._table.db.datasheets_table[db_id]
         return datasheet.data_path
 
     @property
@@ -163,13 +203,9 @@ class ResourceMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: str
         """
-        datasheet_id = self.datasheet_id
+        datasheet = self._get_datasheet_obj()
 
-        if datasheet_id is None:
-            return None
-
-        datasheet = self._table.db.datasheets_table[datasheet_id]
-        if datasheet.data_path is not None:
+        if datasheet is not None and datasheet.data_path is not None:
             return datasheet.file_type.extension
 
     _stored_datasheet_id: int | DefaultStoredValueType = DefaultStoredValue
@@ -198,6 +234,7 @@ class ResourceMixin(BaseMixin):
         :type value: int
         """
         self._stored_datasheet_id = value
+        self._stored_datasheet_obj = DefaultStoredValue
         self._table.update(self._db_id, datasheet_id=value)
         self._populate('datasheet_id')
 
@@ -299,7 +336,7 @@ class ResourcesControl(_prop_ctrls.Category):
         """
         path = evt.GetValue()
 
-        self.db_obj.table.execute(f'SELECT id FROM images WHERE path="{path}";')
+        self.db_obj.table.execute('SELECT id FROM images WHERE path=?;', (path,))
         rows = self.db_obj.table.fetchall()
         if rows:
             db_id = rows[0][0]
@@ -323,7 +360,7 @@ class ResourcesControl(_prop_ctrls.Category):
         """
         path = evt.GetValue()
 
-        self.db_obj.table.execute(f'SELECT id FROM cads WHERE path="{path}";')
+        self.db_obj.table.execute('SELECT id FROM cads WHERE path=?;', (path,))
         rows = self.db_obj.table.fetchall()
         if rows:
             db_id = rows[0][0]
@@ -335,7 +372,7 @@ class ResourcesControl(_prop_ctrls.Category):
 
         cad = self.db_obj.table.db.cads_table[db_id]
 
-        self.image_ctrl.SetValue([path, cad.data_path])
+        self.cad_ctrl.SetValue([path, cad.data_path])
 
     def _on_datasheet(self, evt):
         """Handle the datasheet event.
@@ -347,7 +384,7 @@ class ResourcesControl(_prop_ctrls.Category):
         """
         path = evt.GetValue()
 
-        self.db_obj.table.execute(f'SELECT id FROM datasheets WHERE path="{path}";')
+        self.db_obj.table.execute('SELECT id FROM datasheets WHERE path=?;', (path,))
         rows = self.db_obj.table.fetchall()
         if rows:
             db_id = rows[0][0]
@@ -357,6 +394,6 @@ class ResourcesControl(_prop_ctrls.Category):
 
         self.db_obj.datasheet_id = db_id
 
-        datasheet = self.db_obj.table.db.datasheet_table[db_id]
+        datasheet = self.db_obj.table.db.datasheets_table[db_id]
 
-        self.image_ctrl.SetValue([path, datasheet.data_path])
+        self.datasheet_ctrl.SetValue([path, datasheet.data_path])

@@ -182,7 +182,6 @@ class StartStopPosition2DControl(_prop_ctrls.Property):
         self.addWidget(self.start_ctrl)
         self.addWidget(self.stop_ctrl)
 
-
     def set_obj(self, db_obj: StartStopPosition2DMixin):
         """Set the obj.
 

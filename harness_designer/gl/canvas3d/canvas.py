@@ -1143,10 +1143,9 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
 
             GL.glUseProgram(0)
 
-
         try:
             self.floor.render(self._floor_program)
-        except:
+        except:  # NOQA
             import traceback
             traceback.print_exc()
             raise

@@ -114,8 +114,8 @@ def rotate_pil_image(img: Image.Image, angle: float) -> Image.Image:
 
 
 def pil_image_2_qcursor(img: Image.Image,
-                         hotspot_x: int | None = None,
-                         hotspot_y: int | None = None) -> QCursor:
+                        hotspot_x: int | None = None,
+                        hotspot_y: int | None = None) -> QCursor:
     """Convert a PIL image into a Qt cursor.
 
     :param img: Image to convert.

@@ -278,7 +278,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin, Not
         for db_id in db_ids:
             if db_id[0] != self.db_id:
                 _logger.warning('A circuit cannot have multiple start points. setting '
-                                       'other terminal so it is not a start point')
+                                'other terminal so it is not a start point')
 
                 self._table.update(db_id[0], is_start=0)
 

@@ -32,14 +32,14 @@ class ObjectData:
 class ProcessedObject:
     """Results from processing an object"""
     object_id: int
-    vertices: np.ndarray      # Transformed vertices
-    faces: np.ndarray         # Original faces
-    normals: np.ndarray       # Transformed normals
-    bvh_bounds: np.ndarray    # BVH bounds
-    bvh_structure: np.ndarray # BVH structure
-    bvh_indices: np.ndarray   # BVH indices
+    vertices: np.ndarray  # Transformed vertices
+    faces: np.ndarray  # Original faces
+    normals: np.ndarray  # Transformed normals
+    bvh_bounds: np.ndarray  # BVH bounds
+    bvh_structure: np.ndarray  # BVH structure
+    bvh_indices: np.ndarray  # BVH indices
     material_id: int
-    processing_time: float    # ms
+    processing_time: float  # ms
 
 
 class BVHWorkerThread(threading.Thread):

@@ -7,6 +7,7 @@ The OBB calculation, camera setup, and all rendering logic are completely
 unchanged.  Only the canvas host widget changes.
 """
 
+import math
 import numpy as np
 from OpenGL import GL
 from OpenGL import GLU
@@ -31,24 +32,24 @@ def _calculate_obb(vertices):
     :returns: Return value. UNKNOWN details.
     :rtype: UNKNOWN
     """
-    center   = np.mean(vertices, axis=0)
+    center = np.mean(vertices, axis=0)
     centered = vertices - center
-    cov      = np.cov(centered.T)
+    cov = np.cov(centered.T)
 
     eigenvalues, eigenvectors = np.linalg.eig(cov)
-    idx        = eigenvalues.argsort()[::-1]
+    idx = eigenvalues.argsort()[::-1]
     eigenvalues = eigenvalues[idx]
-    axes       = eigenvectors[:, idx]
+    axes = eigenvectors[:, idx]
 
     if np.linalg.det(axes) < 0:
         axes[:, 2] = -axes[:, 2]
 
-    projected    = centered @ axes
-    min_proj     = np.min(projected, axis=0)
-    max_proj     = np.max(projected, axis=0)
-    extents      = (max_proj - min_proj) / 2.0
+    projected = centered @ axes
+    min_proj = np.min(projected, axis=0)
+    max_proj = np.max(projected, axis=0)
+    extents = (max_proj - min_proj) / 2.0
     center_offset = (max_proj + min_proj) / 2.0
-    center        = center + axes @ center_offset
+    center = center + axes @ center_offset
 
     corners = []
     for i in [-1, 1]:
@@ -71,7 +72,7 @@ def _find_best_corner_view(center, corners):
     :returns: Return value. UNKNOWN details.
     :rtype: UNKNOWN
     """
-    distances    = np.linalg.norm(corners - center, axis=1)
+    distances = np.linalg.norm(corners - center, axis=1)
     farthest_idx = np.argmax(distances)
     chosen_corner = corners[farthest_idx]
     view_direction = center - chosen_corner
@@ -95,12 +96,11 @@ def _calculate_camera_distance(extents, fov_degrees, aspect_ratio, padding_facto
     :returns: Return value. UNKNOWN details.
     :rtype: UNKNOWN
     """
-    import math
-    max_extent      = np.max(extents) * 2
-    fov_rad         = math.radians(fov_degrees)
+    max_extent = np.max(extents) * 2
+    fov_rad = math.radians(fov_degrees)
     dist_for_height = (max_extent / 2.0) / math.tan(fov_rad / 2.0)
     effective_fov_w = 2 * math.atan(math.tan(fov_rad / 2.0) * aspect_ratio)
-    dist_for_width  = (max_extent / 2.0) / math.tan(effective_fov_w / 2.0)
+    dist_for_width = (max_extent / 2.0) / math.tan(effective_fov_w / 2.0)
     return max(dist_for_height, dist_for_width) * padding_factor
 
 
@@ -129,15 +129,15 @@ class Canvas(QOpenGLWidget):
         super().__init__(parent)
         self.initialized = False
 
-        self.center     = None
-        self.extents    = None
-        self.corners    = None
+        self.center = None
+        self.extents = None
+        self.corners = None
         self.corner_pos = None
-        self.view_dir   = None
-        self.vertices   = None
-        self.faces      = None
-        self.data       = None
-        self.color      = None
+        self.view_dir = None
+        self.vertices = None
+        self.faces = None
+        self.data = None
+        self.color = None
 
     # ------------------------------------------------------------------
     # Model loading (unchanged)
@@ -155,9 +155,9 @@ class Canvas(QOpenGLWidget):
         :param faces: Value for ``faces``.
         :type faces: UNKNOWN
         """
-        self.color    = color
+        self.color = color
         self.vertices = vertices
-        self.faces    = faces
+        self.faces = faces
 
         if vertices is None:
             self.center = self.extents = self.corners = None
@@ -227,11 +227,11 @@ class Canvas(QOpenGLWidget):
         w = max(self.width(), 1)
         h = max(self.height(), 1)
         aspect = w / float(h)
-        fov    = 45.0
+        fov = 45.0
 
-        distance   = _calculate_camera_distance(self.extents, fov, aspect, 1.15)
+        distance = _calculate_camera_distance(self.extents, fov, aspect, 1.15)
         near_plane = distance * 0.1
-        far_plane  = distance * 10.0
+        far_plane = distance * 10.0
 
         GL.glMatrixMode(GL.GL_PROJECTION)
         GL.glLoadIdentity()
@@ -240,15 +240,15 @@ class Canvas(QOpenGLWidget):
         GL.glLoadIdentity()
 
         camera_eye = self.center + self.view_dir * distance
-        world_up   = np.array([0.0, 1.0, 0.0])
+        world_up = np.array([0.0, 1.0, 0.0])
 
         if abs(np.dot(self.view_dir, world_up)) > 0.99:
             world_up = np.array([0.0, 0.0, 1.0])
 
         right = np.cross(world_up, self.view_dir)
         right /= np.linalg.norm(right)
-        up    = np.cross(self.view_dir, right)
-        up   /= np.linalg.norm(up)
+        up = np.cross(self.view_dir, right)
+        up /= np.linalg.norm(up)
 
         GLU.gluLookAt(
             camera_eye[0], camera_eye[1], camera_eye[2],

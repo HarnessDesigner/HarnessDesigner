@@ -17,7 +17,7 @@ from ...gl import vbo as _vbo
 
 if TYPE_CHECKING:
     from ...database import project_db as _project_db
-    from ...database.global_db import model3d  as _model3d
+    from ...database.global_db import model3d as _model3d
     from .. import ObjectBase as _ObjectBase
     from ... import ui as _ui
 

@@ -210,6 +210,7 @@ class Accessory(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
 
         return packet
 
+
 '''
  @property
     def propgrid(self):

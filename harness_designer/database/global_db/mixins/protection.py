@@ -42,8 +42,11 @@ class ProtectionMixin(BaseMixin):
         :type value: int
         """
         self._stored_protection_id = value
+        self._stored_protections = DefaultStoredValue
         self._table.update(self._db_id, protection_id=value)
         self._populate('protection_id')
+
+    _stored_protections: "DefaultStoredValueType | _protection.Protection" = DefaultStoredValue
 
     @property
     def protections(self) -> "_protection.Protection":
@@ -54,8 +57,10 @@ class ProtectionMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_protection.Protection`
         """
-        protection_id = self.protection_id
-        return self.table.db.protections_table[protection_id]
+        if self._stored_protections is DefaultStoredValue:
+            self._stored_protections = self.table.db.protections_table[self.protection_id]
+
+        return self._stored_protections
 
 
 class ProtectionControl(_prop_ctrls.AutocompleteStringProperty):

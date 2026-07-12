@@ -173,6 +173,7 @@ class IPRating(EntryBase):
         """
         self._stored_ip_solid = value
         self._stored_ip_solid_id = value.db_id
+        self._stored_pixmap = DefaultStoredValue
 
         self._table.update(self._db_id, solid_id=value.db_id)
 
@@ -203,6 +204,7 @@ class IPRating(EntryBase):
         """
         self._stored_ip_solid_id = value
         self._stored_ip_solid = DefaultStoredValue
+        self._stored_pixmap = DefaultStoredValue
 
         self._table.update(self._db_id, solid_id=value)
 
@@ -234,6 +236,7 @@ class IPRating(EntryBase):
         """
         self._stored_ip_fluid = value
         self._stored_ip_fluid_id = value.db_id
+        self._stored_pixmap = DefaultStoredValue
 
         self._table.update(self._db_id, fluid_id=value.db_id)
 
@@ -264,6 +267,7 @@ class IPRating(EntryBase):
         """
         self._stored_ip_fluid_id = value
         self._stored_ip_fluid = DefaultStoredValue
+        self._stored_pixmap = DefaultStoredValue
 
         self._table.update(self._db_id, fluid_id=value)
 
@@ -365,6 +369,8 @@ class IPRating(EntryBase):
 
         return f'{self.ip_solid.description}\n\n{self.ip_fluid.description}\n\n{supp.description}'
 
+    _stored_pixmap: DefaultStoredValueType | QPixmap = DefaultStoredValue
+
     @property
     def pixmap(self) -> QPixmap:
         """Return the pixmap.
@@ -374,9 +380,12 @@ class IPRating(EntryBase):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`QPixmap`
         """
-        simg = self.ip_solid.icon
-        fimg = self.ip_fluid.icon
+        if self._stored_pixmap is DefaultStoredValue:
+            simg = self.ip_solid.icon
+            fimg = self.ip_fluid.icon
 
-        img = simg | fimg
+            img = simg | fimg
 
-        return img.pixmap
+            self._stored_pixmap = img.pixmap
+
+        return self._stored_pixmap

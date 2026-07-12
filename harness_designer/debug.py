@@ -99,7 +99,7 @@ def logfunc(func):
     is_static_method = False
 
     try:
-        func.__call__.__self__.func_name
+        func.__call__.__self__.func_name  # NOQA
     except AttributeError:
         if not inspect.isfunction(func):  # function
             is_static_method = True
@@ -116,6 +116,7 @@ def logfunc(func):
         :rtype: UNKNOWN
         """
         global _stack_count
+        nonlocal is_static_method
 
         if is_static_method:
             args = list(args[1:])

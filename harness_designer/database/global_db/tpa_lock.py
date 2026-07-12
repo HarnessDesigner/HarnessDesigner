@@ -149,7 +149,7 @@ class TPALocksTable(TableBase):
         else:
             return []
 
-        self.execute(f'SELECT id, {field_name} FROM tpa_locks WHERE {field_name} LIKE "%{part_number}%;')
+        self.execute(f'SELECT id, {field_name} FROM tpa_locks WHERE {field_name} LIKE ?;', (f'%{part_number}%',))
         rows = self.fetchall()
         for db_id, compat in rows:
             compat = compat[1:-1].split(', ')

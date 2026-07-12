@@ -17,6 +17,8 @@ class CompatHousingsMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    _stored_compat_housings: list["_housing.Housing"] | DefaultStoredValueType = DefaultStoredValue
+
     @property
     def compat_housings(self) -> list["_housing.Housing"]:
         """Return the compat housings.
@@ -26,15 +28,28 @@ class CompatHousingsMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: list['_housing.Housing']
         """
-        housings = self.compat_housings_array
-        res = []
-        for part_number in housings:
-            try:
-                res.append(self._table.db.housings_table[part_number])
-            except KeyError:
-                pass
+        if self._stored_compat_housings is DefaultStoredValue:
+            part_numbers = [pn for pn in self.compat_housings_array if pn]
 
-        return res
+            if not part_numbers:
+                self._stored_compat_housings = []
+            else:
+                from .. import housing as _housing_module
+
+                housings_table = self._table.db.housings_table
+                placeholders = ', '.join('?' * len(part_numbers))
+                housings_table.execute(
+                    f'SELECT id, part_number FROM housings WHERE part_number IN ({placeholders});',
+                    part_numbers
+                )
+                found = {part_number: db_id for db_id, part_number in housings_table.fetchall()}
+
+                self._stored_compat_housings = [
+                    _housing_module.Housing(housings_table, found[pn])
+                    for pn in part_numbers if pn in found
+                ]
+
+        return self._stored_compat_housings
 
     _stored_compat_housings_array: list[str] | DefaultStoredValueType = DefaultStoredValue
 
@@ -67,6 +82,7 @@ class CompatHousingsMixin(BaseMixin):
         :type value: list[str]
         """
         self._stored_compat_housings_array = value
+        self._stored_compat_housings = DefaultStoredValue
         value = ", ".join(value)
 
         self._table.update(self._db_id, compat_housings=value)
@@ -117,4 +133,4 @@ class CompatHousingsControl(_prop_ctrls.ArrayStringProperty):
         :type evt: :class:`_prop_ctrls.PropertyEvent`
         """
         compat_housings = evt.GetValue()
-        self.db_obj.compat_seals_array = compat_housings
+        self.db_obj.compat_housings_array = compat_housings

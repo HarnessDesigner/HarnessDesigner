@@ -131,7 +131,10 @@ class Color(EntryBase, NameMixin):
         :param c: Value for ``c``.
         :type c: :class:`_color.Color`
         """
+        self._stored_rgb = (c.GetRed(), c.GetGreen(), c.GetBlue(), c.GetAlpha())
         self._table.update(self._db_id, rgb=c.GetRGBA())
+
+    _stored_ui: DefaultStoredValueType | _color.Color = DefaultStoredValue
 
     @property
     def ui(self) -> _color.Color:
@@ -142,12 +145,16 @@ class Color(EntryBase, NameMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_color.Color`
         """
-        if self._color_id is None:
-            self._color_id = str(uuid.uuid4())
+        if self._stored_ui is DefaultStoredValue:
+            if self._color_id is None:
+                self._color_id = str(uuid.uuid4())
 
-        color = _color.Color(*self.rgb, db_id=self._color_id)
-        color.bind(self._update_color)
-        return color
+            color = _color.Color(*self.rgb, db_id=self._color_id)
+            color.bind(self._update_color)
+
+            self._stored_ui = color
+
+        return self._stored_ui
 
     _stored_rgb: DefaultStoredValueType | tuple[int, int, int, int] = DefaultStoredValue
 
@@ -182,9 +189,10 @@ class Color(EntryBase, NameMixin):
         """
         r, g, b, a = value
 
-        rgba = r << 24 | b << 16 | b << 8 | a
+        rgba = r << 24 | g << 16 | b << 8 | a
 
         self._stored_rgb = value
+        self._stored_ui = DefaultStoredValue
 
         self._table.update(self._db_id, rgb=rgba)
         self._populate('rgb')

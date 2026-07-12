@@ -38,7 +38,6 @@ def create_vbo() -> _vbo_handler.PooledVBOHandler:
             'cone', packed, count, aabb=aabb, obb=obb,
             arena_kind=_vbo_handler.VBO_TYPE_PRIMITIVE)
 
-
     return _vbo
 
 

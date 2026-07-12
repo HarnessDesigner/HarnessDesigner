@@ -32,6 +32,7 @@ class RotationEvent(typing.NamedTuple):
     closed_path: str
     archive_path: typing.Optional[str]
 
+
 INFO = 0
 NOTICE = 1
 WARNING = 2
@@ -400,8 +401,8 @@ class LogHandler(threading.Thread):
             # format is unchanged now that 'timestamp' is a real
             # datetime64 column instead of a pre-stringified one.
             data = df.to_csv(header=False, index=False, encoding='utf-8',
-                              lineterminator='\n',
-                              date_format='%Y-%m-%dT%H:%M:%S.%f')
+                             lineterminator='\n',
+                             date_format='%Y-%m-%dT%H:%M:%S.%f')
 
             self._logfile.write(data)
             self._current_size += len(data.encode('utf-8'))

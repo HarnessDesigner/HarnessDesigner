@@ -245,7 +245,10 @@ class Model3D(EntryBase):
             else:
                 self._stored_aabb = np.asarray(eval(value), dtype=np.float32)
 
-        return self._stored_aabb
+        if self._stored_aabb is None:
+            return None
+
+        return self._stored_aabb.copy()
 
     @aabb.setter
     def aabb(self, value):
@@ -281,7 +284,10 @@ class Model3D(EntryBase):
             else:
                 self._stored_obb = np.asarray(eval(value), dtype=np.float32)
 
-        return self._stored_obb
+        if self._stored_obb is None:
+            return None
+
+        return self._stored_obb.copy()
 
     @obb.setter
     def obb(self, value):
@@ -293,6 +299,7 @@ class Model3D(EntryBase):
         """
 
         self._stored_obb = None if value is None else np.asarray(value, dtype=np.float32)
+        self._stored_size = DefaultStoredValue
         self._table.update(self._db_id, obb=str([[float(str(item)) for item in row] for row in np.asarray(value).tolist()]))
 
     _stored_file_type: "DefaultStoredValueType | _file_types.FileType | None" = DefaultStoredValue
@@ -358,8 +365,12 @@ class Model3D(EntryBase):
         if 'nan' in euler or 'nan' in quat:
             return
 
+        self._stored_size = DefaultStoredValue
+
         self._table.update(self._db_id, angle3d=euler)
         self._table.update(self._db_id, quat3d=quat)
+
+    _stored_angle3d: _angle.Angle | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def angle3d(self) -> _angle.Angle:
@@ -370,32 +381,38 @@ class Model3D(EntryBase):
         :rtype: :class:`_angle.Angle`
         """
 
-        if self._angle3d_id is None:
-            self._angle3d_id = str(uuid.uuid4())
+        if self._stored_angle3d is DefaultStoredValue:
 
-        quat = self._table.select('quat3d', id=self._db_id)[0][0]
-        euler_angle = self._table.select('angle3d', id=self._db_id)[0][0]
+            if self._angle3d_id is None:
+                self._angle3d_id = str(uuid.uuid4())
 
-        if quat is None or euler_angle is None:
-            return None
+            quat = self._table.select('quat3d', id=self._db_id)[0][0]
+            euler_angle = self._table.select('angle3d', id=self._db_id)[0][0]
 
-        angle = _angle.Angle.from_quat(eval(quat), eval(euler_angle), db_id=self._angle3d_id)
-        angle.bind(self.__update_angle3d)
-        return angle
+            if quat is None or euler_angle is None:
+                self._stored_angle3d = None
+            else:
+                angle = _angle.Angle.from_quat(eval(quat), eval(euler_angle), db_id=self._angle3d_id)
+                angle.bind(self.__update_angle3d)
+                self._stored_angle3d = angle
+
+        return self._stored_angle3d
 
     @angle3d.setter
     def angle3d(self, value: list[float, float, float] | None):
         if value is None:
             quat = None
             euler = None
-
         else:
             angle = _angle.Angle.from_euler(*value)
             quat = str(list(angle.as_quat_float))
             euler = str(value)
 
-        if 'nan' in euler or 'nan' in quat:
-            return
+            if 'nan' in euler.lower() or 'nan' in quat.lower():
+                return
+
+        self._stored_angle3d = DefaultStoredValue
+        self._stored_size = DefaultStoredValue
 
         self._table.update(self._db_id, angle3d=euler)
         self._table.update(self._db_id, quat3d=quat)
@@ -410,6 +427,8 @@ class Model3D(EntryBase):
 
         self._table.update(self._db_id, point3d=str(list(offset.as_float)))
 
+    _stored_position3d: _point.Point | None | DefaultStoredValueType = DefaultStoredValue
+
     @property
     def position3d(self) -> _point.Point:
         """
@@ -419,24 +438,34 @@ class Model3D(EntryBase):
         :rtype: :class:`_point.Point`
         """
 
-        if self._position3d_id is None:
-            self._position3d_id = str(uuid.uuid4())
+        if self._stored_position3d is DefaultStoredValue:
 
-        value = self._table.select('point3d', id=self._db_id)[0][0]
-        if value is None:
-            return None
+            if self._position3d_id is None:
+                self._position3d_id = str(uuid.uuid4())
 
-        x, y, z = eval(value)
-        position = _point.Point(x, y, z, db_id=self._position3d_id)
-        position.bind(self.__update_position3d)
-        return position
+            value = self._table.select('point3d', id=self._db_id)[0][0]
+
+            if value is None:
+                self._stored_position3d = None
+            else:
+
+                x, y, z = eval(value)
+                position = _point.Point(x, y, z, db_id=self._position3d_id)
+                position.bind(self.__update_position3d)
+                self._stored_position3d = position
+
+        return self._stored_position3d
 
     @position3d.setter
     def position3d(self, value: list[float, float, float] | None):
-        if value is not None:
-            value = str(value)
+        real_value: str | None = None
 
-        self._table.update(self._db_id, point3d=value)
+        if value is not None:
+            real_value = str(value)
+
+        self._stored_position3d = DefaultStoredValue
+
+        self._table.update(self._db_id, point3d=real_value)
 
     def __update_scale(self, scale: _point.Point):
         """
@@ -448,6 +477,8 @@ class Model3D(EntryBase):
 
         self._table.update(self._db_id, scale=str(list(scale.as_float)))
 
+    _stored_scale3d: _point.Point | None | DefaultStoredValueType = DefaultStoredValue
+
     @property
     def scale(self) -> _point.Point:
         """
@@ -457,12 +488,29 @@ class Model3D(EntryBase):
         :rtype: :class:`_point.Point`
         """
 
-        value = eval(self._table.select('scale', id=self._db_id)[0][0])
+        if self._stored_scale3d is DefaultStoredValue:
+            value = self._table.select('scale', id=self._db_id)[0][0]
 
-        x, y, z = value
-        scale = _point.Point(x, y, z)
-        scale.bind(self.__update_scale)
-        return scale
+            if value is None:
+                self._stored_scale3d = None
+            else:
+                x, y, z = eval(value)
+                scale = _point.Point(x, y, z)
+                scale.bind(self.__update_scale)
+                self._stored_scale3d = scale
+
+        return self._stored_scale3d
+
+    @scale.setter
+    def scale(self, value: list[float, float, float] | None):
+        real_value: str | None = None
+
+        if value is not None:
+            real_value = str(value)
+
+        self._stored_scale3d = DefaultStoredValue
+
+        self._table.update(self._db_id, scale=real_value)
 
     _stored_forward_up: list[int, int] | DefaultStoredValueType = DefaultStoredValue
 
@@ -478,7 +526,7 @@ class Model3D(EntryBase):
             value = self._table.select('forward_up', id=self._db_id)[0][0]
             self._stored_forward_up = eval(f'[{value}]')
 
-        return self._stored_forward_up
+        return list(self._stored_forward_up)
 
     @forward_up.setter
     def forward_up(self, value: list[int, int]):
@@ -632,26 +680,31 @@ class Model3D(EntryBase):
         self._stored_iterations = value
         self._table.update(self._db_id, iterations=value)
 
+    _stored_size: tuple[float, float, float] | DefaultStoredValueType = DefaultStoredValue
+
     @property
     def size(self) -> tuple[float, float, float]:
         """
         Collects the length, width and height of a model from the obb after
         applying a user set rotation to the obb
         """
-        import numpy as np
+        if self._stored_size is DefaultStoredValue:
 
-        obb = self.obb
-        angle = self.angle3d
-        if angle is None:
-            return 0, 0, 0
+            obb = self.obb
+            angle = self.angle3d
 
-        obb @= angle
+            if angle is None:
+                return 0, 0, 0
 
-        width = float(np.linalg.norm(obb[1] - obb[0]))  # X axis
-        height = float(np.linalg.norm(obb[3] - obb[0]))  # Y axis
-        length = float(np.linalg.norm(obb[4] - obb[0]))  # Z axis
+            obb @= angle
 
-        return width, height, length
+            width = float(str(np.linalg.norm(obb[1] - obb[0])))  # X axis
+            height = float(str(np.linalg.norm(obb[3] - obb[0])))  # Y axis
+            length = float(str(np.linalg.norm(obb[4] - obb[0])))  # Z axis
+
+            self._stored_size = (width, height, length)
+
+        return self._stored_size
 
     def download_complete(self):
         if self.db_id not in self._download_callbacks:

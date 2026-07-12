@@ -17,6 +17,8 @@ class CompatSealsMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    _stored_compat_seals: list["_seal.Seal"] | DefaultStoredValueType = DefaultStoredValue
+
     @property
     def compat_seals(self) -> list["_seal.Seal"]:
         """Return the compat seals.
@@ -26,15 +28,28 @@ class CompatSealsMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: list['_seal.Seal']
         """
-        compat_seals = self.compat_seals_array
-        res = []
-        for part_number in compat_seals:
-            try:
-                res.append(self._table.db.seals_table[part_number])
-            except KeyError:
-                pass
+        if self._stored_compat_seals is DefaultStoredValue:
+            part_numbers = [pn for pn in self.compat_seals_array if pn]
 
-        return res
+            if not part_numbers:
+                self._stored_compat_seals = []
+            else:
+                from .. import seal as _seal_module
+
+                seals_table = self._table.db.seals_table
+                placeholders = ', '.join('?' * len(part_numbers))
+                seals_table.execute(
+                    f'SELECT id, part_number FROM seals WHERE part_number IN ({placeholders});',
+                    part_numbers
+                )
+                found = {part_number: db_id for db_id, part_number in seals_table.fetchall()}
+
+                self._stored_compat_seals = [
+                    _seal_module.Seal(seals_table, found[pn])
+                    for pn in part_numbers if pn in found
+                ]
+
+        return self._stored_compat_seals
 
     _stored_compat_seals_array: list[str] | DefaultStoredValueType = DefaultStoredValue
 
@@ -67,6 +82,7 @@ class CompatSealsMixin(BaseMixin):
         :type value: list[str]
         """
         self._stored_compat_seals_array = value
+        self._stored_compat_seals = DefaultStoredValue
         value = ", ".join(value)
 
         self._table.update(self._db_id, compat_seals=value)

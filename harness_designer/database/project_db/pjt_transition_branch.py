@@ -351,7 +351,7 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin):
 
         position_prop = self._position3d_propgrid
         diameter_prop = _prop_ctrls.FloatProperty('Diameter', 'diameter', self.diameter,
-                                                 min_value=0.01, max_value=99.99, increment=0.01, units='mm')
+                                                  min_value=0.01, max_value=99.99, increment=0.01, units='mm')
 
         group.Append(diameter_prop)
         group.Append(position_prop)

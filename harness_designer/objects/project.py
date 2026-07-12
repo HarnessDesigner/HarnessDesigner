@@ -259,8 +259,6 @@ class Project:
             _transition.Transition, db_ids, self._transitions,
             mainframe.object_browser.add_transition, count, self._obj_count)
 
-
-
         mainframe.set_progress(self._obj_count, 'DONE!')
 
         if self._obj_count != count:

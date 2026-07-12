@@ -24,6 +24,7 @@ if TYPE_CHECKING:
 
 Config = _dialog_config.Config
 
+
 def _shape_polygon_points(kind: str, params: dict, segments: int = 24) -> list:
     """Build world-space outline points for a manually-drawn cavity marker.
 

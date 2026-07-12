@@ -316,8 +316,11 @@ class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyM
         :type value: int
         """
         self._stored_branch_count = value
+        self._stored_branches = DefaultStoredValue
         self._table.update(self._db_id, branch_count=value)
         self._populate('branch_count')
+
+    _stored_branches: DefaultStoredValueType | list = DefaultStoredValue
 
     @property
     def branches(self) -> list["_transition_branch.TransitionBranch"]:
@@ -328,15 +331,32 @@ class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyM
         :returns: Property value. UNKNOWN details.
         :rtype: list['_transition_branch.TransitionBranch']
         """
-        res = [None] * self.branch_count
+        if self._stored_branches is DefaultStoredValue:
+            from . import transition_branch as _transition_branch_module
 
-        branch_ids = self._table.db.transition_branches_table.select('id', transition_id=self._db_id)
+            branches_table = self._table.db.transition_branches_table
+            rows = branches_table.select('id', 'idx', transition_id=self._db_id)
 
-        for branch_id in branch_ids:
-            branch = self._table.db.transition_branches_table[branch_id[0]]
-            res[branch.idx - 1] = branch
+            res = [None] * self.branch_count
+            for branch_id, idx in rows:
+                res[idx - 1] = _transition_branch_module.TransitionBranch(branches_table, branch_id)
 
-        return res
+            self._stored_branches = res
+
+        return list(self._stored_branches)
+
+    def invalidate_branches(self) -> None:
+        """Force the next ``branches`` access to re-query the database.
+
+        Branches are inserted/deleted directly through
+        ``TransitionBranchesTable`` (see
+        ``TransitionControl._on_branch_count``), not through a setter on
+        this class, so anything that adds or removes a branch row for this
+        transition must call this afterward to keep the cached list in
+        sync — including on a singleton reference obtained separately
+        from the one that performed the mutation.
+        """
+        self._stored_branches = DefaultStoredValue
 
     _stored_shape: "DefaultStoredValueType | _shape.Shape" = DefaultStoredValue
 
@@ -469,7 +489,7 @@ class TransitionControl(QTabWidget, LazyTabMixin):
             else:
                 branch = self.db_obj.table.db.transition_branches_table.insert(
                     transition_id=self.db_obj.db_id, idx=new_value, name='',
-                    bulb_offset=None, bulb_length=None,min_dia=0.01, max_dia=0.01,
+                    bulb_offset=None, bulb_length=None, min_dia=0.01, max_dia=0.01,
                     length=0.01, angle=0.0, offset=None, flange_height=None, flange_width=None)
 
             branch_ctrl = self.db_obj.table.db.transition_branches_table.get_control(new_value - 1)

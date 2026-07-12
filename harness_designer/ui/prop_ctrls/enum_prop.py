@@ -164,7 +164,6 @@ class EnumProperty(QtWidgets.QWidget):
             if btn is not None:
                 btn.setChecked(True)
 
-
     def GetLabels(self) -> list[str]:
         """
         Execute the get labels operation.

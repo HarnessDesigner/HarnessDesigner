@@ -832,7 +832,7 @@ class LogViewerPanel(QtWidgets.QSplitter):
 
             hours = self._get_hours_in_date(log_path, date_str)
             _app.CallAfter(self._populate_hours,
-                            date_item, log_path, date_str, hours, item_id, False)
+                           date_item, log_path, date_str, hours, item_id, False)
 
         threading.Thread(target=load_hours, daemon=True).start()
 
@@ -898,7 +898,7 @@ class LogViewerPanel(QtWidgets.QSplitter):
             dates = self._get_dates_in_archive(archive_path, filename)
 
             _app.CallAfter(self._populate_archive_dates,
-                            file_item, archive_path, filename, dates, item_id)
+                           file_item, archive_path, filename, dates, item_id)
 
         threading.Thread(target=load_dates, daemon=True).start()
 
@@ -932,8 +932,8 @@ class LogViewerPanel(QtWidgets.QSplitter):
             hours = self._get_hours_in_archive_date(archive_path, filename, date_str)
 
             _app.CallAfter(self._populate_hours,
-                            date_item, None, date_str, hours, item_id,
-                            True, archive_path, filename)
+                           date_item, None, date_str, hours, item_id,
+                           True, archive_path, filename)
 
         threading.Thread(target=load_hours, daemon=True).start()
 

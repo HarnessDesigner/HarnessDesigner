@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 from .... import utils as _utils
 from PySide6.QtWidgets import QTabWidget
 from ....ui import prop_ctrls as _prop_ctrls
-from ....gl import model_preview as _model_preview
 
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 
@@ -20,6 +19,8 @@ class Model3DMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    _stored_model3d: "DefaultStoredValueType | _model3d.Model3D | None" = DefaultStoredValue
+
     @property
     def model3d(self) -> "_model3d.Model3D":
         """Return the model 3D.
@@ -29,11 +30,15 @@ class Model3DMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_model3d.Model3D`
         """
-        model3d_id = self.model3d_id
-        if model3d_id is None:
-            return None
+        if self._stored_model3d is DefaultStoredValue:
+            model3d_id = self.model3d_id
 
-        return self._table.db.models3d_table[model3d_id]
+            if model3d_id is None:
+                self._stored_model3d = None
+            else:
+                self._stored_model3d = self._table.db.models3d_table[model3d_id]
+
+        return self._stored_model3d
 
     _stored_model3d_id: int | DefaultStoredValueType | None = DefaultStoredValue
 
@@ -61,6 +66,7 @@ class Model3DMixin(BaseMixin):
         :type value: int
         """
         self._stored_model3d_id = value
+        self._stored_model3d = DefaultStoredValue
         self._table.update(self._db_id, model3d_id=value)
         self._populate('model3d_id')
 

@@ -17,6 +17,8 @@ class PlatingMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    _stored_plating: "DefaultStoredValueType | _plating.Plating" = DefaultStoredValue
+
     @property
     def plating(self) -> "_plating.Plating":
         """Return the plating.
@@ -26,8 +28,10 @@ class PlatingMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_plating.Plating`
         """
-        plating_id = self.plating_id
-        return self._table.db.platings_table[plating_id]
+        if self._stored_plating is DefaultStoredValue:
+            self._stored_plating = self._table.db.platings_table[self.plating_id]
+
+        return self._stored_plating
 
     _stored_plating_id: int | DefaultStoredValueType = DefaultStoredValue
 
@@ -55,6 +59,7 @@ class PlatingMixin(BaseMixin):
         :type value: int
         """
         self._stored_plating_id = value
+        self._stored_plating = DefaultStoredValue
         self._table.update(self._db_id, plating_id=value)
         self._populate('plating_id')
 

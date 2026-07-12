@@ -489,11 +489,11 @@ class Housing(_base3d.Base3D):
         if surf_idx >= len(picker.surfaces):
             return
 
-        surf  = picker.surfaces[surf_idx]
+        surf = picker.surfaces[surf_idx]
         verts = picker.vertices     # (N, 3) float64, housing local space
-        rot   = picker.rot_mat
+        rot = picker.rot_mat
         scale = picker.scale_arr
-        pos   = picker.pos_arr
+        pos = picker.pos_arr
 
         # Gather vertex indices for the surface and transform to world
         # space in one vectorised step.
@@ -521,7 +521,8 @@ class Housing(_base3d.Base3D):
 
         for i, marker in enumerate(self._cavity_markers):
             positions = ((marker.local_verts.astype(np.float64) * scale) @
-                        rot + pos).astype(np.float32)
+                         rot + pos).astype(np.float32)
+
             color = selected_color if i == self._selected_marker_idx else default_color
             self._draw_overlay_triangles(positions, color)
 

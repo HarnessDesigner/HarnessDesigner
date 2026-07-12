@@ -164,7 +164,7 @@ class Adhesive(EntryBase, DescriptionMixin):
             part_nums = self._table.select('accessory_part_nums', id=self._db_id)[0][0]
             self._stored_accessory_part_nums = part_nums[1:-1].split(', ')
 
-        return self._stored_accessory_part_nums
+        return list(self._stored_accessory_part_nums)
 
     @accessory_part_nums.setter
     def accessory_part_nums(self, value: list[str]):
@@ -194,18 +194,25 @@ class Adhesive(EntryBase, DescriptionMixin):
         :rtype: list['_accessory.Accessory']
         """
         if self._stored_accessories is DefaultStoredValue:
-            accessory_nums = eval(self._table.select('accessory_part_nums',
-                                                     id=self._db_id)[0][0])
-            res = []
-            for part_number in accessory_nums:
-                try:
-                    res.append(self._table.db.accessories_table[part_number])
-                except KeyError:
-                    pass
+            part_numbers = [pn for pn in self.accessory_part_nums if pn]
 
-            self._stored_accessories = res
+            if not part_numbers:
+                self._stored_accessories = []
+            else:
+                accessories_table = self._table.db.accessories_table
+                placeholders = ', '.join('?' * len(part_numbers))
+                accessories_table.execute(
+                    f'SELECT id, part_number FROM accessories WHERE part_number IN ({placeholders});',
+                    part_numbers
+                )
+                found = {part_number: db_id for db_id, part_number in accessories_table.fetchall()}
 
-        return self._stored_accessories
+                self._stored_accessories = [
+                    _accessory.Accessory(accessories_table, found[pn])
+                    for pn in part_numbers if pn in found
+                ]
+
+        return list(self._stored_accessories)
 
 
 from . import accessory as _accessory  # NOQA

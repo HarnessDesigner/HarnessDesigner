@@ -16,6 +16,8 @@ class AdhesiveMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    _stored_adhesives: list["_adhesive.Adhesive"] | DefaultStoredValueType = DefaultStoredValue
+
     @property
     def adhesives(self) -> list["_adhesive.Adhesive"]:
         """Return the adhesives.
@@ -25,16 +27,26 @@ class AdhesiveMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: list['_adhesive.Adhesive']
         """
-        ids = self.adhesive_ids
-        res = []
+        if self._stored_adhesives is DefaultStoredValue:
+            ids = self.adhesive_ids
 
-        for db_id in ids:
-            try:
-                res.append(self._table.db.adhesives_table[db_id])
-            except IndexError:
-                continue
+            if not ids:
+                self._stored_adhesives = []
+            else:
+                from .. import adhesive as _adhesive_module
 
-        return res
+                adhesives_table = self._table.db.adhesives_table
+                placeholders = ', '.join('?' * len(ids))
+                adhesives_table.execute(
+                    f'SELECT id FROM adhesives WHERE id IN ({placeholders});', ids)
+                found_ids = {row[0] for row in adhesives_table.fetchall()}
+
+                self._stored_adhesives = [
+                    _adhesive_module.Adhesive(adhesives_table, db_id)
+                    for db_id in ids if db_id in found_ids
+                ]
+
+        return list(self._stored_adhesives)
 
     _stored_adhesive_ids: list | DefaultStoredValueType = DefaultStoredValue
 
@@ -51,7 +63,7 @@ class AdhesiveMixin(BaseMixin):
             value = self._table.select('adhesive_ids', id=self._db_id)[0][0]
             self._stored_adhesive_ids = eval(value)
 
-        return self._stored_adhesive_ids
+        return list(self._stored_adhesive_ids)
 
     @adhesive_ids.setter
     def adhesive_ids(self, value: list[str]):
@@ -63,6 +75,7 @@ class AdhesiveMixin(BaseMixin):
         :type value: list[str]
         """
         self._stored_adhesive_ids = value
+        self._stored_adhesives = DefaultStoredValue
         self._table.update(self._db_id, adhesive_ids=str(value))
         self._populate('adhesive_ids')
 

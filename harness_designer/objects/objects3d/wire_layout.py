@@ -64,7 +64,6 @@ class WireLayout(_base3d.Base3D):
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
         parent.mainframe.editor3d.context.release()
 
-
     @property
     def wire_position(self) -> _point.Point:
         """Return the wire position.

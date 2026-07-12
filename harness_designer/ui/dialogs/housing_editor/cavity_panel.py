@@ -343,6 +343,12 @@ class CavityPanel(_editable_tab_ctrl.EditableTabCtrl):
 
         cavity.delete()
 
+        # cavities are deleted straight through CavitiesTable, bypassing any
+        # setter on the housing — the housing's cached cavities list (which
+        # may be a singleton shared with other open views) must be reset
+        # explicitly so it re-queries instead of returning the deleted row.
+        self.housing.db_obj.invalidate_cavities()
+
         for i, cavity in enumerate(self.cavities):
             cavity.index = i
 
@@ -400,6 +406,11 @@ class CavityPanel(_editable_tab_ctrl.EditableTabCtrl):
         if idx <= num_pins:   # was strict < — must use <= to allow the Nth pin
             if cavity is None:
                 cavity = cavities_table.insert(housing_id, db_idx)
+
+                # new row inserted straight through CavitiesTable, bypassing
+                # any setter on the housing — reset its cached cavities list
+                # (see on_cavity_remove for why).
+                self.housing.db_obj.invalidate_cavities()
 
             if not has_name:
                 cavity.name = name

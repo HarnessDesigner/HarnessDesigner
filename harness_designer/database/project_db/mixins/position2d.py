@@ -57,7 +57,7 @@ class Position2DMixin(BaseMixin):
             point_id = self._table.select('point2d_id', id=self._db_id)[0][0]
             if point_id is None:
                 self._table.execute(f'INSERT INTO pjt_points2d (project_id, x, y) VALUES (?, ?, ?);',
-                                (self._table.project_id, 0.0, 0.0))
+                                    (self._table.project_id, 0.0, 0.0))
 
                 self._table.commit()
                 point_id = self._table.lastrowid

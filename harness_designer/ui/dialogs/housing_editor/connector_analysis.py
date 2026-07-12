@@ -481,7 +481,6 @@ def filter_by_size_consensus(
                    for j in range(len(holes)) if j != i)]
 
 
-
 def _coplanar(s: Surface, ref: Surface, normal_tol: float, dist_tol: float) -> bool:
     return (float(np.dot(s.normal, ref.normal)) > 1.0 - normal_tol and
             abs(s.plane_dist - ref.plane_dist) < dist_tol)

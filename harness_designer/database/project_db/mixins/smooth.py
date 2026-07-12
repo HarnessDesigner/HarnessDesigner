@@ -4,7 +4,6 @@ from ....ui import prop_ctrls as _prop_ctrls
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 
 
-
 class SmoothMixin(BaseMixin):
     """Represent a smooth mixin in :mod:`harness_designer.database.project_db.mixins.smooth`.
 

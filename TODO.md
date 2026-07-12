@@ -39,6 +39,49 @@ be intentional/non-issue.
   mutual-exclusivity-aware collection added to the position batch that
   `_update_angle3d` now has.
 
+- **`TableBase.__getitem__`/`__contains__` int-lookup pattern does a
+  container-existence query, then a *separate* query for whatever property
+  is read first** (`database/global_db/bases.py`, and copy-pasted into
+  nearly every entity table's own `__getitem__` override — seal.py,
+  terminal.py, housing.py, cavity.py, model3d.py, etc.). The pattern is:
+  `if item in self: return Entry(self, item)`. `item in self` is one query
+  (`SELECT id FROM table WHERE id = ...`); `Entry(self, item)` itself is
+  free (lazy, no query at construction); but the *next* thing a caller
+  usually does — read a property — fires that property's own
+  `_stored_X`-guarded `select()`, a second query. Confirmed with the user
+  (2026-07-12) that a trivial inline of the existence check (replacing
+  `item in self` with a direct `select()` call) does **not** help — it's
+  the exact same single query, just skipping the `__contains__` method
+  hop. The only way to actually cut a query here is for `__getitem__` to
+  fetch more than just `id` in that one query and pre-seed the entry's
+  `_stored_X` caches from it, so the first property read doesn't need its
+  own round trip.
+
+  Explicitly held off on implementing this (2026-07-12) — decided it needs
+  an audit first, not a blind fix. Before doing the real prefetch work,
+  need to determine, per entity class:
+  - What columns/relationships it actually has (own columns vs FK-derived
+    nested objects, e.g. `manufacturer`, `color`, `cavity_lock`).
+  - Which of those are read on essentially every load for an operational
+    reason (software-driven — e.g. whatever the 3D editor/handlers touch
+    just to render or place a part), vs which are only read when a user
+    opens a specific detail/edit panel (e.g. `temperature` — likely only
+    touched when the user opens that tab).
+  - For the "always read operationally" set, prefetching more of the row
+    (or even the FK'd object's row via a JOIN) in the initial query is a
+    clear win. For the "only-if-the-user-opens-this-panel" set, eagerly
+    prefetching would do *more* total work than the current lazy
+    per-property queries, not less — especially if that turns into blind
+    `SELECT *` or JOIN-everything across every nested relationship.
+  - Whether a single `SELECT *` on the entity's own table is enough, or
+    whether some hot paths need a JOIN to pull a directly-nested FK object
+    in the same round trip.
+
+  The fix, once the audit gives real access-pattern data, would be a
+  generic "construct entry with pre-seeded cache" mechanism on
+  `EntryBase`/`TableBase.__getitem__`, applied selectively per entity based
+  on what the audit says is actually hot — not applied uniformly.
+
 ## Resolved (kept briefly for context, safe to delete)
 
 - Terminal never actually got added to the project after part-search

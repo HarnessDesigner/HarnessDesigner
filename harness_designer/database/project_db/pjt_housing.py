@@ -636,7 +636,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :param value: Value to store or process.
         :type value: int
         """
-        self._stored_tpa_lock_1_position3d_id= value
+        self._stored_tpa_lock_1_position3d_id = value
         self._stored_tpa_lock_1_position3d = DefaultStoredValue
         
         self._table.update(self._db_id, tpa_lock_1_point3d_id=value)
@@ -770,7 +770,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :param value: Value to store or process.
         :type value: int
         """
-        self._stored_cpa_lock_position3d_id= value
+        self._stored_cpa_lock_position3d_id = value
         self._stored_cpa_lock_position3d = DefaultStoredValue
         
         self._table.update(self._db_id, cpa_lock_point3d_id=value)

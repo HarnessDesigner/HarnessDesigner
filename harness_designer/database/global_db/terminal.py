@@ -8,7 +8,7 @@ import uuid
 from ...ui import prop_ctrls as _prop_ctrls
 from ... import utils as _utils
 from ..common_db.lazy_tab_mixin import LazyTabMixin
-from .bases import EntryBase, TableBase
+from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from ...geometry import point as _point
 from .mixins import (
     PartNumberMixin, PartNumberControl,
@@ -35,38 +35,21 @@ if TYPE_CHECKING:
     from . import seal as _seal
 
 
-def _seal_eff_dia(seal, side: str) -> float | None:
-    """Resolve a seal's effective wire diameter for *side* ('min' or 'max').
+def _seal_eff_dia(wire_dia: float | None, wire_size_dia: float | None,
+                  wire_size_cross: float | None, wire_size_awg: float | None) -> float | None:
+    """Resolve a seal's effective wire diameter from its raw column values.
 
     Tries wire_dia → wire_size_dia → cross-section → AWG, in that order.
-    Returns None if every relevant field is NULL.
+    Returns None if every relevant value is NULL.
     """
-    if side == 'min':
-        v = seal.wire_dia_min
-        if v is not None:
-            return v
-        v = seal.wire_size_dia_min
-        if v is not None:
-            return v
-        v = seal.wire_size_cross_min
-        if v is not None:
-            return _utils.mm2_to_d_mm(v)
-        v = seal.wire_size_awg_min
-        if v is not None:
-            return _utils.awg_to_d_mm(v)
-    else:
-        v = seal.wire_dia_max
-        if v is not None:
-            return v
-        v = seal.wire_size_dia_max
-        if v is not None:
-            return v
-        v = seal.wire_size_cross_max
-        if v is not None:
-            return _utils.mm2_to_d_mm(v)
-        v = seal.wire_size_awg_max
-        if v is not None:
-            return _utils.awg_to_d_mm(v)
+    if wire_dia is not None:
+        return wire_dia
+    if wire_size_dia is not None:
+        return wire_size_dia
+    if wire_size_cross is not None:
+        return _utils.mm2_to_d_mm(wire_size_cross)
+    if wire_size_awg is not None:
+        return _utils.awg_to_d_mm(wire_size_awg)
     return None
 
 
@@ -200,7 +183,7 @@ class TerminalsTable(TableBase):
         else:
             return []
 
-        self.execute(f'SELECT id, {field_name} FROM terminals WHERE {field_name} LIKE "%{part_number}%;')
+        self.execute(f'SELECT id, {field_name} FROM terminals WHERE {field_name} LIKE ?;', (f'%{part_number}%',))
         rows = self.fetchall()
         for db_id, compat in rows:
             compat = compat[1:-1].split(', ')
@@ -476,13 +459,26 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         if not term_min or not term_max:
             return []
 
-        res = []
-        for seal in self._table.db.seals_table:
-            if seal.type.name.lower() not in ('sws', 'single wire seal'):
-                continue
+        from . import seal as _seal_module
 
-            seal_min = _seal_eff_dia(seal, 'min')
-            seal_max = _seal_eff_dia(seal, 'max')
+        seals_table = self._table.db.seals_table
+        seals_table.execute(
+            'SELECT seals.id, seals.wire_dia_min, seals.wire_dia_max, '
+            'seals.wire_size_dia_min, seals.wire_size_dia_max, '
+            'seals.wire_size_cross_min, seals.wire_size_cross_max, '
+            'seals.wire_size_awg_min, seals.wire_size_awg_max '
+            'FROM seals JOIN seal_types ON seals.type_id = seal_types.id '
+            'WHERE LOWER(seal_types.name) IN (?, ?);',
+            ('sws', 'single wire seal')
+        )
+        rows = seals_table.fetchall()
+
+        res = []
+        for (seal_id, wire_dia_min, wire_dia_max, wire_size_dia_min, wire_size_dia_max,
+             wire_size_cross_min, wire_size_cross_max, wire_size_awg_min, wire_size_awg_max) in rows:
+
+            seal_min = _seal_eff_dia(wire_dia_min, wire_size_dia_min, wire_size_cross_min, wire_size_awg_min)
+            seal_max = _seal_eff_dia(wire_dia_max, wire_size_dia_max, wire_size_cross_max, wire_size_awg_max)
 
             if seal_min is None and seal_max is None:
                 continue
@@ -493,9 +489,11 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
             if seal_max is not None and seal_max < term_max:
                 continue
 
-            res.append(seal)
+            res.append(_seal_module.Seal(seals_table, seal_id))
 
         return res
+
+    _stored_sealing: bool | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def sealing(self) -> bool:
@@ -506,7 +504,10 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: bool
         """
-        return bool(self._table.select('sealing', id=self._db_id)[0][0])
+        if self._stored_sealing is DefaultStoredValue:
+            self._stored_sealing = bool(self._table.select('sealing', id=self._db_id)[0][0])
+
+        return self._stored_sealing
 
     @sealing.setter
     def sealing(self, value: bool):
@@ -517,8 +518,11 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :param value: Value to store or process.
         :type value: bool
         """
+        self._stored_sealing = bool(value)
         self._table.update(self._db_id, sealing=int(value))
         self._populate('sealing')
+
+    _stored_blade_size: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def blade_size(self) -> float:
@@ -529,7 +533,10 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        return self._table.select('blade_size', id=self._db_id)[0][0]
+        if self._stored_blade_size is DefaultStoredValue:
+            self._stored_blade_size = self._table.select('blade_size', id=self._db_id)[0][0]
+
+        return self._stored_blade_size
 
     @blade_size.setter
     def blade_size(self, value: float):
@@ -540,8 +547,11 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_blade_size = value
         self._table.update(self._db_id, blade_size=value)
         self._populate('blade_size')
+
+    _stored_resistance: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def resistance(self) -> float:
@@ -552,7 +562,10 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        return self._table.select('resistance', id=self._db_id)[0][0]
+        if self._stored_resistance is DefaultStoredValue:
+            self._stored_resistance = self._table.select('resistance', id=self._db_id)[0][0]
+
+        return self._stored_resistance
 
     @resistance.setter
     def resistance(self, value: float):
@@ -563,8 +576,11 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_resistance = value
         self._table.update(self._db_id, resistance=value)
         self._populate('resistance')
+
+    _stored_mating_cycles: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def mating_cycles(self) -> int:
@@ -575,7 +591,10 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('mating_cycles', id=self._db_id)[0][0]
+        if self._stored_mating_cycles is DefaultStoredValue:
+            self._stored_mating_cycles = self._table.select('mating_cycles', id=self._db_id)[0][0]
+
+        return self._stored_mating_cycles
 
     @mating_cycles.setter
     def mating_cycles(self, value: int):
@@ -586,8 +605,11 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_mating_cycles = value
         self._table.update(self._db_id, mating_cycles=value)
         self._populate('mating_cycles')
+
+    _stored_max_vibration_g: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def max_vibration_g(self) -> int:
@@ -598,7 +620,10 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('max_vibration_g', id=self._db_id)[0][0]
+        if self._stored_max_vibration_g is DefaultStoredValue:
+            self._stored_max_vibration_g = self._table.select('max_vibration_g', id=self._db_id)[0][0]
+
+        return self._stored_max_vibration_g
 
     @max_vibration_g.setter
     def max_vibration_g(self, value: int):
@@ -609,8 +634,11 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_max_vibration_g = value
         self._table.update(self._db_id, max_vibration_g=value)
         self._populate('max_vibration_g')
+
+    _stored_max_current_ma: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def max_current_ma(self) -> int:
@@ -621,7 +649,10 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('max_current_ma', id=self._db_id)[0][0]
+        if self._stored_max_current_ma is DefaultStoredValue:
+            self._stored_max_current_ma = self._table.select('max_current_ma', id=self._db_id)[0][0]
+
+        return self._stored_max_current_ma
 
     @max_current_ma.setter
     def max_current_ma(self, value: int):
@@ -632,8 +663,11 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_max_current_ma = value
         self._table.update(self._db_id, max_current_ma=value)
         self._populate('max_current_ma')
+
+    _stored_round_terminal: bool | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def round_terminal(self) -> bool:
@@ -644,7 +678,10 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: bool
         """
-        return bool(self._table.select('round_terminal', id=self._db_id)[0][0])
+        if self._stored_round_terminal is DefaultStoredValue:
+            self._stored_round_terminal = bool(self._table.select('round_terminal', id=self._db_id)[0][0])
+
+        return self._stored_round_terminal
 
     @round_terminal.setter
     def round_terminal(self, value: bool):
@@ -655,8 +692,11 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :param value: Value to store or process.
         :type value: bool
         """
+        self._stored_round_terminal = bool(value)
         self._table.update(self._db_id, round_terminal=int(value))
         self._populate('round_terminal')
+
+    _stored_length: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def length(self) -> float:
@@ -667,7 +707,10 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        return self._table.select('length', id=self._db_id)[0][0]
+        if self._stored_length is DefaultStoredValue:
+            self._stored_length = self._table.select('length', id=self._db_id)[0][0]
+
+        return self._stored_length
 
     @length.setter
     def length(self, value: float):
@@ -678,8 +721,12 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :param value: Value to store or process.
         :type value: float
         """
-        self._table.update(self._db_id, length=round(value, 6))
+        value = round(value, 6)
+        self._stored_length = value
+        self._table.update(self._db_id, length=value)
         self._populate('length')
+
+    _stored_width: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def width(self) -> float:
@@ -690,15 +737,19 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        if self.round_terminal:
-            width, height = self._table.select('width', 'height', id=self._db_id)[0]
-            if width != height:
-                width = min(width, height)
-                self._table.update(self._db_id, width=width, height=width)
-            return width
+        if self._stored_width is DefaultStoredValue:
+            if self.round_terminal:
+                width, height = self._table.select('width', 'height', id=self._db_id)[0]
+                if width != height:
+                    width = min(width, height)
+                    self._table.update(self._db_id, width=width, height=width)
 
-        else:
-            return self._table.select('width', id=self._db_id)[0][0]
+                self._stored_width = width
+                self._stored_height = width
+            else:
+                self._stored_width = self._table.select('width', id=self._db_id)[0][0]
+
+        return self._stored_width
 
     @width.setter
     def width(self, value: float):
@@ -709,11 +760,19 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :param value: Value to store or process.
         :type value: float
         """
+        value = round(value, 6)
+
         if self.round_terminal:
-            self._table.update(self._db_id, width=round(value, 6), height=round(value, 6))
+            self._stored_width = value
+            self._stored_height = value
+            self._table.update(self._db_id, width=value, height=value)
         else:
-            self._table.update(self._db_id, width=round(value, 6))
+            self._stored_width = value
+            self._table.update(self._db_id, width=value)
+
         self._populate('width')
+
+    _stored_height: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def height(self) -> float:
@@ -724,16 +783,19 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        if self.round_terminal:
-            width, height = self._table.select('width', 'height', id=self._db_id)[0]
-            if width != height:
-                height = min(width, height)
-                self._table.update(self._db_id, width=height, height=height)
+        if self._stored_height is DefaultStoredValue:
+            if self.round_terminal:
+                width, height = self._table.select('width', 'height', id=self._db_id)[0]
+                if width != height:
+                    height = min(width, height)
+                    self._table.update(self._db_id, width=height, height=height)
 
-            return height
+                self._stored_height = height
+                self._stored_width = height
+            else:
+                self._stored_height = self._table.select('height', id=self._db_id)[0][0]
 
-        else:
-            return self._table.select('height', id=self._db_id)[0][0]
+        return self._stored_height
 
     @height.setter
     def height(self, value: float):
@@ -744,13 +806,20 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :param value: Value to store or process.
         :type value: float
         """
+        value = round(value, 6)
+
         if self.round_terminal:
-            self._table.update(self._db_id, width=round(value, 6), height=round(value, 6))
+            self._stored_width = value
+            self._stored_height = value
+            self._table.update(self._db_id, width=value, height=value)
         else:
-            self._table.update(self._db_id, height=round(value, 6))
+            self._stored_height = value
+            self._table.update(self._db_id, height=value)
+
         self._populate('height')
 
     _scale_id: str = None
+    _stored_scale: "_point.Point | DefaultStoredValueType" = DefaultStoredValue
 
     def _update_scale(self, scale: _point.Point):
         """Update the scale.
@@ -765,6 +834,10 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         if self.round_terminal and width != height:
             width = height = min(width, height)
 
+        self._stored_width = width
+        self._stored_height = height
+        self._stored_length = length
+
         self._table.update(self._db_id, width=width, height=height, length=length)
 
     @property
@@ -776,46 +849,56 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         """
-        if self._scale_id is None:
-            self._scale_id = str(uuid.uuid4())
+        if self._stored_scale is DefaultStoredValue:
+            if self._scale_id is None:
+                self._scale_id = str(uuid.uuid4())
 
-        x = self.width
-        y = self.height
-        z = self.length
+            x = self.width
+            y = self.height
+            z = self.length
 
-        if x <= 0:
-            if self.round_terminal:
-                if y > 0:
-                    x = y
-
-                    self._table.update(self._db_id, width=y)
+            if x <= 0:
+                if self.round_terminal:
+                    if y > 0:
+                        x = y
+                        self._stored_width = y
+                        self._table.update(self._db_id, width=y)
+                    else:
+                        self._stored_width = 1.0
+                        self._stored_height = 1.0
+                        self._table.update(self._db_id, width=1.0, height=1.0)
+                        x = y = 1.0
                 else:
-                    self._table.update(self._db_id, width=1.0, height=1.0)
-                    x = y = 1.0
-            else:
-                self._table.update(self._db_id, width=1.0)
-                x = 1.0
+                    self._stored_width = 1.0
+                    self._table.update(self._db_id, width=1.0)
+                    x = 1.0
 
-        if y <= 0:
-            if self.round_terminal:
-                if x > 0:
-                    y = x
-
-                    self._table.update(self._db_id, height=x)
+            if y <= 0:
+                if self.round_terminal:
+                    if x > 0:
+                        y = x
+                        self._stored_height = x
+                        self._table.update(self._db_id, height=x)
+                    else:
+                        self._stored_width = 1.0
+                        self._stored_height = 1.0
+                        self._table.update(self._db_id, width=1.0, height=1.0)
+                        x = y = 1.0
                 else:
-                    self._table.update(self._db_id, width=1.0, height=1.0)
-                    x = y = 1.0
-            else:
-                self._table.update(self._db_id, height=1.0)
-                y = 1.0
+                    self._stored_height = 1.0
+                    self._table.update(self._db_id, height=1.0)
+                    y = 1.0
 
-        if z <= 0:
-            self._table.update(self._db_id, length=1.0)
-            z = 1.0
+            if z <= 0:
+                self._stored_length = 1.0
+                self._table.update(self._db_id, length=1.0)
+                z = 1.0
 
-        scale = _point.Point(x, y, z, db_id=self._scale_id)
-        scale.bind(self._update_scale)
-        return scale
+            scale = _point.Point(x, y, z, db_id=self._scale_id)
+            scale.bind(self._update_scale)
+            self._stored_scale = scale
+
+        return self._stored_scale
 
 
 class TerminalControl(QTabWidget, LazyTabMixin):

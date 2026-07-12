@@ -148,7 +148,7 @@ class BootsTable(TableBase):
         else:
             return []
 
-        self.execute(f'SELECT id, {field_name} FROM boots WHERE {field_name} LIKE "%{part_number}%;')
+        self.execute(f'SELECT id, {field_name} FROM boots WHERE {field_name} LIKE ?;', (f'%{part_number}%',))
         rows = self.fetchall()
         for db_id, compat in rows:
             compat = compat[1:-1].split(', ')
@@ -291,7 +291,7 @@ class Boot(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, Fami
         color = self.color
 
         packet = {
-            'covers': [self.db_id],
+            'boots': [self.db_id],
             'families': [self.family_id],
             'series': [self.series_id],
             'temperatures': [self.min_temp_id, self.max_temp_id],

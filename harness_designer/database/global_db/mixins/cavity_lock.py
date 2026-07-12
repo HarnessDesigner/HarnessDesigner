@@ -17,6 +17,8 @@ class CavityLockMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    _stored_cavity_lock: "DefaultStoredValueType | _cavity_lock.CavityLock" = DefaultStoredValue
+
     @property
     def cavity_lock(self) -> "_cavity_lock.CavityLock":
         """Return the cavity lock.
@@ -26,10 +28,12 @@ class CavityLockMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_cavity_lock.CavityLock`
         """
-        from ..cavity_lock import CavityLock
-        lock_id = self.cavity_lock_id
+        if self._stored_cavity_lock is DefaultStoredValue:
+            from ..cavity_lock import CavityLock
 
-        return CavityLock(self._table.db.cavity_locks_table, lock_id)
+            self._stored_cavity_lock = CavityLock(self._table.db.cavity_locks_table, self.cavity_lock_id)
+
+        return self._stored_cavity_lock
 
     _stored_cavity_lock_id: int | DefaultStoredValueType = DefaultStoredValue
 
@@ -57,6 +61,7 @@ class CavityLockMixin(BaseMixin):
         :type value: int
         """
         self._stored_cavity_lock_id = value
+        self._stored_cavity_lock = DefaultStoredValue
         self._table.update(self._db_id, cavity_lock_id=value)
         self._populate('cavity_lock_id')
 

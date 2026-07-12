@@ -7,7 +7,7 @@ import uuid
 import numpy as np
 
 from ...ui import prop_ctrls as _prop_ctrls
-from .bases import EntryBase, TableBase
+from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import NameMixin, DimensionMixin, DimensionControl
 from ...geometry import point as _point
 from ...geometry import angle as _angle
@@ -187,6 +187,8 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
 
         return packet
 
+    _stored_housing: "DefaultStoredValueType | _housing.Housing" = DefaultStoredValue
+
     @property
     def housing(self) -> "_housing.Housing":
         """Return the housing.
@@ -196,10 +198,14 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_housing.Housing`
         """
-        from .housing import Housing
+        if self._stored_housing is DefaultStoredValue:
+            from .housing import Housing
 
-        housing_id = self.housing_id
-        return Housing(self._table.db.housings_table, housing_id)
+            self._stored_housing = Housing(self._table.db.housings_table, self.housing_id)
+
+        return self._stored_housing
+
+    _stored_housing_id: DefaultStoredValueType | int = DefaultStoredValue
 
     @property
     def housing_id(self) -> int:
@@ -210,7 +216,12 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('housing_id', id=self._db_id)[0][0]
+        if self._stored_housing_id is DefaultStoredValue:
+            self._stored_housing_id = self._table.select('housing_id', id=self._db_id)[0][0]
+
+        return self._stored_housing_id
+
+    _stored_idx: DefaultStoredValueType | int = DefaultStoredValue
 
     @property
     def idx(self) -> int:
@@ -221,7 +232,10 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('idx', id=self._db_id)[0][0]
+        if self._stored_idx is DefaultStoredValue:
+            self._stored_idx = self._table.select('idx', id=self._db_id)[0][0]
+
+        return self._stored_idx
 
     @idx.setter
     def idx(self, value: int):
@@ -232,8 +246,11 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_idx = value
         self._table.update(self._db_id, idx=value)
         self._populate('idx')
+
+    _stored_terminal_sizes: DefaultStoredValueType | list[float] = DefaultStoredValue
 
     @property
     def terminal_sizes(self) -> list[float]:
@@ -244,11 +261,14 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: list[float]
         """
-        value = self._table.select('terminal_sizes', id=self._db_id)[0][0]
-        if not value.startswith('['):
-            value = f'[{value}]'
+        if self._stored_terminal_sizes is DefaultStoredValue:
+            value = self._table.select('terminal_sizes', id=self._db_id)[0][0]
+            if not value.startswith('['):
+                value = f'[{value}]'
 
-        return eval(value)
+            self._stored_terminal_sizes = eval(value)
+
+        return list(self._stored_terminal_sizes)
 
     @terminal_sizes.setter
     def terminal_sizes(self, value: list[float]):
@@ -262,10 +282,12 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         for i, item in enumerate(value):
             value[i] = round(item, 6)
 
+        self._stored_terminal_sizes = value
         self._table.update(self._db_id, terminal_sizes=str(value)[1:-1])
         self._populate('terminal_sizes')
 
     _position3d_id: str = None
+    _stored_position3d: _point.Point | DefaultStoredValueType = DefaultStoredValue
 
     def __update_position3d(self, point: _point.Point):
         """Update the position 3D.
@@ -282,16 +304,20 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         """
         This is relitive to the housing location
         """
-        if self._position3d_id is None:
-            self._position3d_id = str(uuid.uuid4())
+        if self._stored_position3d is DefaultStoredValue:
+            if self._position3d_id is None:
+                self._position3d_id = str(uuid.uuid4())
 
-        x, y, z = eval(self._table.select('point3d', id=self._db_id)[0][0])
-        point = _point.Point(x, y, z, self._position3d_id)
-        point.bind(self.__update_position3d)
+            x, y, z = eval(self._table.select('point3d', id=self._db_id)[0][0])
+            point = _point.Point(x, y, z, self._position3d_id)
+            point.bind(self.__update_position3d)
 
-        return point
+            self._stored_position3d = point
+
+        return self._stored_position3d
 
     _position2d_id: str = None
+    _stored_position2d: _point.Point | DefaultStoredValueType = DefaultStoredValue
 
     def __update_position2d(self, point: _point.Point):
         """Update the position 2D.
@@ -308,17 +334,21 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         """
         This is relitive to the housing location
         """
-        if self._position2d_id is None:
-            self._position2d_id = str(uuid.uuid4())
+        if self._stored_position2d is DefaultStoredValue:
+            if self._position2d_id is None:
+                self._position2d_id = str(uuid.uuid4())
 
-        x, y = eval(self._table.select('point2d', id=self._db_id)[0][0])
-        point = _point.Point(x, y, db_id=self._position3d_id)
+            x, y = eval(self._table.select('point2d', id=self._db_id)[0][0])
+            point = _point.Point(x, y, db_id=self._position2d_id)
 
-        point.bind(self.__update_position2d)
+            point.bind(self.__update_position2d)
 
-        return point
+            self._stored_position2d = point
+
+        return self._stored_position2d
 
     _angle3d_id: str = None
+    _stored_angle3d: _angle.Angle | DefaultStoredValueType = DefaultStoredValue
 
     def _update_angle3d(self, angle: _angle.Angle):
         """Update the angle 3D.
@@ -341,18 +371,22 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         """
         This is relitive to the housing angle
         """
-        if self._angle3d_id is None:
-            self._angle3d_id = str(uuid.uuid4())
+        if self._stored_angle3d is DefaultStoredValue:
+            if self._angle3d_id is None:
+                self._angle3d_id = str(uuid.uuid4())
 
-        euler = eval(self._table.select('angle3d', id=self._db_id)[0][0])
-        quat = eval(self._table.select('quat3d', id=self._db_id)[0][0])
+            euler = eval(self._table.select('angle3d', id=self._db_id)[0][0])
+            quat = eval(self._table.select('quat3d', id=self._db_id)[0][0])
 
-        angle = _angle.Angle.from_quat(quat, euler, self._angle3d_id)
-        angle.bind(self._update_angle3d)
+            angle = _angle.Angle.from_quat(quat, euler, self._angle3d_id)
+            angle.bind(self._update_angle3d)
 
-        return angle
+            self._stored_angle3d = angle
+
+        return self._stored_angle3d
 
     _angle2d_id: str = None
+    _stored_angle2d: _angle.Angle | DefaultStoredValueType = DefaultStoredValue
 
     def _update_angle2d(self, angle: _angle.Angle):
         """Update the angle 2D.
@@ -375,48 +409,71 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         """
         This is relitive to the housing angle
         """
-        if self._angle2d_id is None:
-            self._angle2d_id = str(uuid.uuid4())
+        if self._stored_angle2d is DefaultStoredValue:
+            if self._angle2d_id is None:
+                self._angle2d_id = str(uuid.uuid4())
 
-        euler = eval(self._table.select('angle2d', id=self._db_id)[0][0])
-        quat = eval(self._table.select('quat2d', id=self._db_id)[0][0])
+            euler = eval(self._table.select('angle2d', id=self._db_id)[0][0])
+            quat = eval(self._table.select('quat2d', id=self._db_id)[0][0])
 
-        angle = _angle.Angle.from_quat(quat, euler, self._angle2d_id)
-        angle.bind(self._update_angle2d)
+            angle = _angle.Angle.from_quat(quat, euler, self._angle2d_id)
+            angle.bind(self._update_angle2d)
 
-        return angle
+            self._stored_angle2d = angle
+
+        return self._stored_angle2d
+
+    _stored_aabb: DefaultStoredValueType | np.ndarray | None = DefaultStoredValue
 
     @property
     def aabb(self) -> np.ndarray | None:
-        value = self._table.select('aabb', id=self._db_id)[0][0]
-        if value is None:
-            return value
+        if self._stored_aabb is DefaultStoredValue:
+            value = self._table.select('aabb', id=self._db_id)[0][0]
 
-        value = np.array(eval(value), dtype=np.float32)
-        return value
+            if value is None:
+                self._stored_aabb = None
+            else:
+                self._stored_aabb = np.array(eval(value), dtype=np.float32)
+
+        if self._stored_aabb is None:
+            return None
+
+        return self._stored_aabb.copy()
 
     @aabb.setter
     def aabb(self, value: np.ndarray):
         value = [[float(str(item)) for item in items]
                  for items in value.tolist()]
 
+        self._stored_aabb = np.array(value, dtype=np.float32)
         self._table.update(self._db_id, aabb=str(value))
+
+    _stored_obb: DefaultStoredValueType | np.ndarray | None = DefaultStoredValue
 
     @property
     def obb(self) -> np.ndarray | None:
-        value = self._table.select('obb', id=self._db_id)[0][0]
-        if value is None:
-            return value
+        if self._stored_obb is DefaultStoredValue:
+            value = self._table.select('obb', id=self._db_id)[0][0]
 
-        value = np.array(eval(value), dtype=np.float32)
-        return value
+            if value is None:
+                self._stored_obb = None
+            else:
+                self._stored_obb = np.array(eval(value), dtype=np.float32)
+
+        if self._stored_obb is None:
+            return None
+
+        return self._stored_obb.copy()
 
     @obb.setter
     def obb(self, value: np.ndarray):
         value = [[float(str(item)) for item in items]
                  for items in value.tolist()]
 
+        self._stored_obb = np.array(value, dtype=np.float32)
         self._table.update(self._db_id, obb=str(value))
+
+    _stored_round_terminal: DefaultStoredValueType | bool = DefaultStoredValue
 
     @property
     def round_terminal(self) -> bool:
@@ -427,7 +484,10 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: bool
         """
-        return bool(self._table.select('round_terminal', id=self._db_id)[0][0])
+        if self._stored_round_terminal is DefaultStoredValue:
+            self._stored_round_terminal = bool(self._table.select('round_terminal', id=self._db_id)[0][0])
+
+        return self._stored_round_terminal
 
     @round_terminal.setter
     def round_terminal(self, value: bool):
@@ -438,8 +498,11 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         :param value: Value to store or process.
         :type value: bool
         """
+        self._stored_round_terminal = bool(value)
         self._table.update(self._db_id, round_terminal=int(value))
         self._populate('round_terminal')
+
+    _stored_render_terminal_marker: DefaultStoredValueType | bool = DefaultStoredValue
 
     @property
     def render_terminal_marker(self) -> bool:
@@ -452,13 +515,20 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         click-test a synthetic circle/rectangle marker in place of real mesh
         geometry.
         """
-        return bool(self._table.select('render_terminal_marker', id=self._db_id)[0][0])
+        if self._stored_render_terminal_marker is DefaultStoredValue:
+            self._stored_render_terminal_marker = bool(
+                self._table.select('render_terminal_marker', id=self._db_id)[0][0])
+
+        return self._stored_render_terminal_marker
 
     @render_terminal_marker.setter
     def render_terminal_marker(self, value: bool):
         """Set whether a synthetic terminal-plane marker should be rendered."""
+        self._stored_render_terminal_marker = bool(value)
         self._table.update(self._db_id, render_terminal_marker=(1 if value else None))
         self._populate('render_terminal_marker')
+
+    _stored_terminal_surf_indices: DefaultStoredValueType | list[int] = DefaultStoredValue
 
     @property
     def terminal_surf_indices(self) -> list[int]:
@@ -469,17 +539,24 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         (see ``objects3d/housing.py`` ``match_cavity_surfaces``) — stable as
         long as the underlying model isn't re-simplified/re-imported.
         """
-        value = self._table.select('terminal_surf_indices', id=self._db_id)[0][0]
-        if value is None:
-            return []
+        if self._stored_terminal_surf_indices is DefaultStoredValue:
+            value = self._table.select('terminal_surf_indices', id=self._db_id)[0][0]
 
-        return list(eval(value))
+            if value is None:
+                self._stored_terminal_surf_indices = []
+            else:
+                self._stored_terminal_surf_indices = list(eval(value))
+
+        return list(self._stored_terminal_surf_indices)
 
     @terminal_surf_indices.setter
     def terminal_surf_indices(self, value: list[int]):
         """Set the terminal-face mesh-surface indices."""
+        self._stored_terminal_surf_indices = list(value)
         self._table.update(self._db_id, terminal_surf_indices=str(list(value)))
         self._populate('terminal_surf_indices')
+
+    _stored_wire_surf_indices: DefaultStoredValueType | list[int] = DefaultStoredValue
 
     @property
     def wire_surf_indices(self) -> list[int]:
@@ -488,17 +565,24 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
 
         See ``terminal_surf_indices`` for details.
         """
-        value = self._table.select('wire_surf_indices', id=self._db_id)[0][0]
-        if value is None:
-            return []
+        if self._stored_wire_surf_indices is DefaultStoredValue:
+            value = self._table.select('wire_surf_indices', id=self._db_id)[0][0]
 
-        return list(eval(value))
+            if value is None:
+                self._stored_wire_surf_indices = []
+            else:
+                self._stored_wire_surf_indices = list(eval(value))
+
+        return list(self._stored_wire_surf_indices)
 
     @wire_surf_indices.setter
     def wire_surf_indices(self, value: list[int]):
         """Set the wire-face mesh-surface indices."""
+        self._stored_wire_surf_indices = list(value)
         self._table.update(self._db_id, wire_surf_indices=str(list(value)))
         self._populate('wire_surf_indices')
+
+    _stored_length: DefaultStoredValueType | float = DefaultStoredValue
 
     @property
     def length(self) -> float:
@@ -509,7 +593,10 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        return self._table.select('length', id=self._db_id)[0][0]
+        if self._stored_length is DefaultStoredValue:
+            self._stored_length = self._table.select('length', id=self._db_id)[0][0]
+
+        return self._stored_length
 
     @length.setter
     def length(self, value: float):
@@ -520,8 +607,11 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_length = value
         self._table.update(self._db_id, length=value)
         self._populate('length')
+
+    _stored_width: DefaultStoredValueType | float = DefaultStoredValue
 
     @property
     def width(self) -> float:
@@ -532,15 +622,19 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        if self.round_terminal:
-            width, height = self._table.select('width', 'height', id=self._db_id)[0]
-            if width != height:
-                width = min(width, height)
-                self._table.update(self._db_id, width=width, height=width)
-            return width
+        if self._stored_width is DefaultStoredValue:
+            if self.round_terminal:
+                width, height = self._table.select('width', 'height', id=self._db_id)[0]
+                if width != height:
+                    width = min(width, height)
+                    self._table.update(self._db_id, width=width, height=width)
 
-        else:
-            return self._table.select('width', id=self._db_id)[0][0]
+                self._stored_width = width
+                self._stored_height = width
+            else:
+                self._stored_width = self._table.select('width', id=self._db_id)[0][0]
+
+        return self._stored_width
 
     @width.setter
     def width(self, value: float):
@@ -552,11 +646,16 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         :type value: float
         """
         if self.round_terminal:
+            self._stored_width = value
+            self._stored_height = value
             self._table.update(self._db_id, width=value, height=value)
         else:
+            self._stored_width = value
             self._table.update(self._db_id, width=value)
 
         self._populate('width')
+
+    _stored_height: DefaultStoredValueType | float = DefaultStoredValue
 
     @property
     def height(self) -> float:
@@ -567,16 +666,19 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        if self.round_terminal:
-            width, height = self._table.select('width', 'height', id=self._db_id)[0]
-            if width != height:
-                height = min(width, height)
-                self._table.update(self._db_id, width=height, height=height)
+        if self._stored_height is DefaultStoredValue:
+            if self.round_terminal:
+                width, height = self._table.select('width', 'height', id=self._db_id)[0]
+                if width != height:
+                    height = min(width, height)
+                    self._table.update(self._db_id, width=height, height=height)
 
-            return height
+                self._stored_height = height
+                self._stored_width = height
+            else:
+                self._stored_height = self._table.select('height', id=self._db_id)[0][0]
 
-        else:
-            return self._table.select('height', id=self._db_id)[0][0]
+        return self._stored_height
 
     @height.setter
     def height(self, value: float):
@@ -588,13 +690,17 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         :type value: float
         """
         if self.round_terminal:
+            self._stored_width = value
+            self._stored_height = value
             self._table.update(self._db_id, width=value, height=value)
         else:
+            self._stored_height = value
             self._table.update(self._db_id, height=value)
 
         self._populate('height')
 
     _scale_id: str = None
+    _stored_scale: "_point.Point | DefaultStoredValueType" = DefaultStoredValue
 
     def _update_scale(self, scale: _point.Point):
         """Update the scale.
@@ -609,6 +715,10 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         if self.round_terminal and width != height:
             width = height = min(width, height)
 
+        self._stored_width = width
+        self._stored_height = height
+        self._stored_length = length
+
         self._table.update(self._db_id, width=width, height=height, length=length)
 
     @property
@@ -620,46 +730,56 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         """
-        if self._scale_id is None:
-            self._scale_id = str(uuid.uuid4())
+        if self._stored_scale is DefaultStoredValue:
+            if self._scale_id is None:
+                self._scale_id = str(uuid.uuid4())
 
-        x = self.width
-        y = self.height
-        z = self.length
+            x = self.width
+            y = self.height
+            z = self.length
 
-        if x <= 0:
-            if self.round_terminal:
-                if y > 0:
-                    x = y
-
-                    self._table.update(self._db_id, width=y)
+            if x <= 0:
+                if self.round_terminal:
+                    if y > 0:
+                        x = y
+                        self._stored_width = y
+                        self._table.update(self._db_id, width=y)
+                    else:
+                        self._stored_width = 1.0
+                        self._stored_height = 1.0
+                        self._table.update(self._db_id, width=1.0, height=1.0)
+                        x = y = 1.0
                 else:
-                    self._table.update(self._db_id, width=1.0, height=1.0)
-                    x = y = 1.0
-            else:
-                self._table.update(self._db_id, width=1.0)
-                x = 1.0
+                    self._stored_width = 1.0
+                    self._table.update(self._db_id, width=1.0)
+                    x = 1.0
 
-        if y <= 0:
-            if self.round_terminal:
-                if x > 0:
-                    y = x
-
-                    self._table.update(self._db_id, height=x)
+            if y <= 0:
+                if self.round_terminal:
+                    if x > 0:
+                        y = x
+                        self._stored_height = x
+                        self._table.update(self._db_id, height=x)
+                    else:
+                        self._stored_width = 1.0
+                        self._stored_height = 1.0
+                        self._table.update(self._db_id, width=1.0, height=1.0)
+                        x = y = 1.0
                 else:
-                    self._table.update(self._db_id, width=1.0, height=1.0)
-                    x = y = 1.0
-            else:
-                self._table.update(self._db_id, height=1.0)
-                y = 1.0
+                    self._stored_height = 1.0
+                    self._table.update(self._db_id, height=1.0)
+                    y = 1.0
 
-        if z <= 0:
-            self._table.update(self._db_id, length=1.0)
-            z = 1.0
+            if z <= 0:
+                self._stored_length = 1.0
+                self._table.update(self._db_id, length=1.0)
+                z = 1.0
 
-        scale = _point.Point(x, y, z, db_id=self._scale_id)
-        scale.bind(self._update_scale)
-        return scale
+            scale = _point.Point(x, y, z, db_id=self._scale_id)
+            scale.bind(self._update_scale)
+            self._stored_scale = scale
+
+        return self._stored_scale
 
     @property
     def compat_terminals(self) -> list["_terminal.Terminal"]:

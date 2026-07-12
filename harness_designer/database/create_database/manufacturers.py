@@ -55,6 +55,7 @@ def inspect_mfg_fam_series(mfg_name, family_name, series_name):
 
     return mfg_name, family_name, series_name
 
+
 def add_records(con, splash, data_path):
     """Add a records.
 

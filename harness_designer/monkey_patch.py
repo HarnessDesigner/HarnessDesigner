@@ -2,6 +2,7 @@
 
 """Compatibility stub preserved for legacy imports."""
 
+
 # monkey_patch.py
 #
 # Under wxPython on Windows 10/11, there was a bug in wxWidgets where window

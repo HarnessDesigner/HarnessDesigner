@@ -161,7 +161,7 @@ class SealsTable(TableBase):
         else:
             return []
 
-        self.execute(f'SELECT id, {field_name} FROM seals WHERE {field_name} LIKE "%{part_number}%;')
+        self.execute(f'SELECT id, {field_name} FROM seals WHERE {field_name} LIKE ?;', (f'%{part_number}%',))
         rows = self.fetchall()
         for db_id, compat in rows:
             compat = compat[1:-1].split(', ')
@@ -373,10 +373,21 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :param scale: Value for ``scale``.
         :type scale: :class:`_point.Point`
         """
-        o_dia1, o_dia2, length = scale.as_float
+        width, height, length = scale.as_float
 
-        o_dia = max(o_dia1, o_dia2)
-        self._table.update(self._db_id, o_dia=o_dia, length=length)
+        is_sws = self.type.name.lower() in ('sws', 'single wire seal')
+        if is_sws:
+            o_dia = max(width, height)
+            self._stored_o_dia = o_dia
+            self._table.update(self._db_id, o_dia=o_dia, length=length)
+        else:
+            self._stored_width = width
+            self._stored_height = height
+            self._table.update(self._db_id, width=width, height=height, length=length)
+
+        self._stored_length = length
+
+    _stored_scale: _point.Point | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def scale(self) -> "_point.Point":
@@ -387,41 +398,50 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         """
-        if self._scale_id is None:
-            self._scale_id = str(uuid.uuid4())
+        if self._stored_scale is DefaultStoredValue:
+            if self._scale_id is None:
+                self._scale_id = str(uuid.uuid4())
 
-        is_sws = self.type.name.lower() in ('sws', 'single wire seal')
-        if is_sws:
-            x = y = self.o_dia
-        else:
-            x = self.width
-            y = self.height
+            is_sws = self.type.name.lower() in ('sws', 'single wire seal')
 
-        z = self.length
-
-        if x <= 0:
             if is_sws:
-                self._table.update(self._db_id, o_dia=1.0)
-                x = y = 1.0
+                x = y = self.o_dia
             else:
-                self._table.update(self._db_id, width=1.0)
-                x = 1.0
+                x = self.width
+                y = self.height
 
-        if y <= 0:
-            if is_sws:
-                self._table.update(self._db_id, o_dia=1.0)
-                x = y = 1.0
-            else:
-                self._table.update(self._db_id, height=1.0)
-                x = 1.0
+            z = self.length
 
-        if z <= 0:
-            self._table.update(self._db_id, length=1.0)
-            z = 1.0
+            if x <= 0:
+                if is_sws:
+                    self._table.update(self._db_id, o_dia=1.0)
+                    x = y = 1.0
+                    self._stored_o_dia = 1.0
+                else:
+                    self._table.update(self._db_id, width=1.0)
+                    x = 1.0
+                    self._stored_width = 1.0
 
-        scale = _point.Point(x, y, z, db_id=self._scale_id)
-        scale.bind(self._update_scale)
-        return scale
+            if y <= 0:
+                if is_sws:
+                    self._table.update(self._db_id, o_dia=1.0)
+                    x = y = 1.0
+                    self._stored_o_dia = 1.0
+                else:
+                    self._table.update(self._db_id, height=1.0)
+                    y = 1.0
+                    self._stored_height = 1.0
+
+            if z <= 0:
+                self._table.update(self._db_id, length=1.0)
+                z = 1.0
+                self._stored_length = 1.0
+
+            scale = _point.Point(x, y, z, db_id=self._scale_id)
+            scale.bind(self._update_scale)
+            self._stored_scale = scale
+
+        return self._stored_scale
 
     _stored_o_dia: DefaultStoredValueType | float = DefaultStoredValue
 
@@ -449,7 +469,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :type value: float
         """
         self._stored_o_dia = round(value, 6)
-        self._table.update(self._db_id, o_dia=round(value, 6))
+        self._table.update(self._db_id, o_dia=self._stored_o_dia)
         self._populate('o_dia')
 
     _stored_i_dia: DefaultStoredValueType | float = DefaultStoredValue
@@ -478,7 +498,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :type value: float
         """
         self._stored_i_dia = round(value, 6)
-        self._table.update(self._db_id, i_dia=round(value, 6))
+        self._table.update(self._db_id, i_dia=self._stored_i_dia)
         self._populate('i_dia')
 
     _stored_type: "DefaultStoredValueType | _seal_type.SealType" = DefaultStoredValue
@@ -586,7 +606,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         self._table.update(self._db_id, lubricant=value)
         self._populate('lubricant')
 
-    _stored_wire_dia_min: DefaultStoredValueType | float = DefaultStoredValue
+    _stored_wire_dia_min: DefaultStoredValueType | float | None = DefaultStoredValue
 
     @property
     def wire_dia_min(self) -> float:
@@ -612,10 +632,10 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :type value: float
         """
         self._stored_wire_dia_min = round(value, 6)
-        self._table.update(self._db_id, wire_dia_min=round(value, 6))
+        self._table.update(self._db_id, wire_dia_min=self._stored_wire_dia_min)
         self._populate('wire_dia_min')
 
-    _stored_wire_dia_max: DefaultStoredValueType | float = DefaultStoredValue
+    _stored_wire_dia_max: DefaultStoredValueType | float | None = DefaultStoredValue
 
     @property
     def wire_dia_max(self) -> float:
@@ -641,7 +661,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :type value: float
         """
         self._stored_wire_dia_max = round(value, 6)
-        self._table.update(self._db_id, wire_dia_max=round(value, 6))
+        self._table.update(self._db_id, wire_dia_max=self._stored_wire_dia_max)
         self._populate('wire_dia_max')
 
 

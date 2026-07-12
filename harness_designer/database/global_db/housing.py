@@ -195,7 +195,7 @@ class HousingsTable(TableBase):
         else:
             return []
 
-        self.execute(f'SELECT id, {field_name} FROM housings WHERE {field_name} LIKE "%{part_number}%";')
+        self.execute(f'SELECT id, {field_name} FROM housings WHERE {field_name} LIKE ?;', (f'%{part_number}%',))
         rows = self.fetchall()
         for db_id, compat in rows:
             compat = compat[1:-1].split(', ')
@@ -451,6 +451,8 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
         return packet
 
+    _stored_compat_covers: DefaultStoredValueType | list[_cover.Cover] = DefaultStoredValue
+
     @property
     def compat_covers(self) -> list[_cover.Cover]:
         """Return the compat covers.
@@ -460,15 +462,26 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: list[_cover.Cover]
         """
-        compat_covers = self.compat_covers_array
-        res = []
-        for part_number in compat_covers:
-            try:
-                res.append(self._table.db.covers_table[part_number])
-            except KeyError:
-                pass
+        if self._stored_compat_covers is DefaultStoredValue:
+            part_numbers = [pn for pn in self.compat_covers_array if pn]
 
-        return res
+            if not part_numbers:
+                self._stored_compat_covers = []
+            else:
+                covers_table = self._table.db.covers_table
+                placeholders = ', '.join('?' * len(part_numbers))
+                covers_table.execute(
+                    f'SELECT id, part_number FROM covers WHERE part_number IN ({placeholders});',
+                    part_numbers
+                )
+                found = {part_number: db_id for db_id, part_number in covers_table.fetchall()}
+
+                self._stored_compat_covers = [
+                    _cover.Cover(covers_table, found[pn])
+                    for pn in part_numbers if pn in found
+                ]
+
+        return list(self._stored_compat_covers)
 
     _stored_compat_covers_array: DefaultStoredValueType | list[str] = DefaultStoredValue
 
@@ -489,7 +502,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
             self._stored_compat_covers_array = value.split(', ')
 
-        return self._stored_compat_covers_array
+        return list(self._stored_compat_covers_array)
 
     @compat_covers_array.setter
     def compat_covers_array(self, value: list[str]):
@@ -501,9 +514,12 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :type value: list[str]
         """
         self._stored_compat_covers_array = value
+        self._stored_compat_covers = DefaultStoredValue
         value = ", ".join(value)
         self._table.update(self._db_id, compat_covers=value)
         self._populate('compat_covers_array')
+
+    _stored_compat_boots: DefaultStoredValueType | list[_boot.Boot] = DefaultStoredValue
 
     @property
     def compat_boots(self) -> list[_boot.Boot]:
@@ -514,14 +530,26 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: list[_boot.Boot]
         """
-        compat_boots = self.compat_boots_array
-        res = []
-        for part_number in compat_boots:
-            try:
-                res.append(self._table.db.boots_table[part_number])
-            except KeyError:
-                pass
-        return res
+        if self._stored_compat_boots is DefaultStoredValue:
+            part_numbers = [pn for pn in self.compat_boots_array if pn]
+
+            if not part_numbers:
+                self._stored_compat_boots = []
+            else:
+                boots_table = self._table.db.boots_table
+                placeholders = ', '.join('?' * len(part_numbers))
+                boots_table.execute(
+                    f'SELECT id, part_number FROM boots WHERE part_number IN ({placeholders});',
+                    part_numbers
+                )
+                found = {part_number: db_id for db_id, part_number in boots_table.fetchall()}
+
+                self._stored_compat_boots = [
+                    _boot.Boot(boots_table, found[pn])
+                    for pn in part_numbers if pn in found
+                ]
+
+        return list(self._stored_compat_boots)
 
     _stored_compat_boots_array: DefaultStoredValueType | list[str] = DefaultStoredValue
 
@@ -542,7 +570,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
             self._stored_compat_boots_array = value.split(', ')
 
-        return self._stored_compat_boots_array
+        return list(self._stored_compat_boots_array)
 
     @compat_boots_array.setter
     def compat_boots_array(self, value: list[str]):
@@ -554,9 +582,12 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :type value: list[str]
         """
         self._stored_compat_boots_array = value
+        self._stored_compat_boots = DefaultStoredValue
         value = ", ".join(value)
         self._table.update(self._db_id, compat_boots=value)
         self._populate('compat_boots_array')
+
+    _stored_compat_cpas: DefaultStoredValueType | list[_cpa_lock.CPALock] = DefaultStoredValue
 
     @property
     def compat_cpas(self) -> list[_cpa_lock.CPALock]:
@@ -567,15 +598,26 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: list[_cpa_lock.CPALock]
         """
-        compat_cpas = self.compat_cpas_array
-        res = []
-        for part_number in compat_cpas:
-            try:
-                res.append(self._table.db.cpa_locks_table[part_number])
-            except KeyError:
-                pass
+        if self._stored_compat_cpas is DefaultStoredValue:
+            part_numbers = [pn for pn in self.compat_cpas_array if pn]
 
-        return res
+            if not part_numbers:
+                self._stored_compat_cpas = []
+            else:
+                cpa_locks_table = self._table.db.cpa_locks_table
+                placeholders = ', '.join('?' * len(part_numbers))
+                cpa_locks_table.execute(
+                    f'SELECT id, part_number FROM cpa_locks WHERE part_number IN ({placeholders});',
+                    part_numbers
+                )
+                found = {part_number: db_id for db_id, part_number in cpa_locks_table.fetchall()}
+
+                self._stored_compat_cpas = [
+                    _cpa_lock.CPALock(cpa_locks_table, found[pn])
+                    for pn in part_numbers if pn in found
+                ]
+
+        return list(self._stored_compat_cpas)
 
     _stored_compat_cpas_array: DefaultStoredValueType | list[str] = DefaultStoredValue
 
@@ -596,7 +638,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
             self._stored_compat_cpas_array = value.split(', ')
 
-        return self._stored_compat_cpas_array
+        return list(self._stored_compat_cpas_array)
 
     @compat_cpas_array.setter
     def compat_cpas_array(self, value: list[str]):
@@ -608,11 +650,14 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :type value: list[str]
         """
         self._stored_compat_cpas_array = value
+        self._stored_compat_cpas = DefaultStoredValue
 
         value = ', '.join(value)
         self._table.update(self._db_id, compat_cpas=value)
 
         self._populate('compat_cpas_array')
+
+    _stored_compat_tpas: DefaultStoredValueType | list[_tpa_lock.TPALock] = DefaultStoredValue
 
     @property
     def compat_tpas(self) -> list[_tpa_lock.TPALock]:
@@ -623,16 +668,26 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: list[_tpa_lock.TPALock]
         """
+        if self._stored_compat_tpas is DefaultStoredValue:
+            part_numbers = [pn for pn in self.compat_tpas_array if pn]
 
-        compat_tpas = self.compat_tpas_array
-        res = []
-        for part_number in compat_tpas:
-            try:
-                res.append(self._table.db.tpa_locks_table[part_number])
-            except KeyError:
-                pass
+            if not part_numbers:
+                self._stored_compat_tpas = []
+            else:
+                tpa_locks_table = self._table.db.tpa_locks_table
+                placeholders = ', '.join('?' * len(part_numbers))
+                tpa_locks_table.execute(
+                    f'SELECT id, part_number FROM tpa_locks WHERE part_number IN ({placeholders});',
+                    part_numbers
+                )
+                found = {part_number: db_id for db_id, part_number in tpa_locks_table.fetchall()}
 
-        return res
+                self._stored_compat_tpas = [
+                    _tpa_lock.TPALock(tpa_locks_table, found[pn])
+                    for pn in part_numbers if pn in found
+                ]
+
+        return list(self._stored_compat_tpas)
 
     _stored_compat_tpas_array: DefaultStoredValueType | list[str] = DefaultStoredValue
 
@@ -649,7 +704,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
             value = self._table.select('compat_tpas', id=self._db_id)[0][0]
             self._stored_compat_tpas_array = value[1:-1].split(', ')
 
-        return self._stored_compat_tpas_array
+        return list(self._stored_compat_tpas_array)
 
     @compat_tpas_array.setter
     def compat_tpas_array(self, value: list[str]):
@@ -661,6 +716,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :type value: list[str]
         """
         self._stored_compat_tpas_array = value
+        self._stored_compat_tpas = DefaultStoredValue
 
         value = f'[{", ".join(value)}]'
         self._table.update(self._db_id, compat_tpas=value)
@@ -873,7 +929,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
             self._stored_terminal_sizes = eval(value)
 
-        return self._stored_terminal_sizes
+        return list(self._stored_terminal_sizes)
 
     @terminal_sizes.setter
     def terminal_sizes(self, value: list[float]):
@@ -907,7 +963,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
             self._stored_terminal_size_counts = eval(value)
 
-        return self._stored_terminal_size_counts
+        return list(self._stored_terminal_size_counts)
 
     @terminal_size_counts.setter
     def terminal_size_counts(self, value: list[int]):
@@ -1038,6 +1094,8 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         self._table.update(self._db_id, num_pins=value)
         self._populate('num_pins')
 
+    _stored_cavities: DefaultStoredValueType | list["_cavity.Cavity"] = DefaultStoredValue
+
     @property
     def cavities(self) -> list["_cavity.Cavity"]:
         """Return the cavities.
@@ -1047,45 +1105,32 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: list['_cavity.Cavity']
         """
+        if self._stored_cavities is DefaultStoredValue:
+            from . import cavity as _cavity_module
 
-        rows = self._table.db.cavities_table.select(
-            "id", housing_id=self._db_id)
-        #
-        # indexes = [row[1] for row in rows]
-        # high_index = max(indexes)
-        #
-        # cavity_count = len(indexes)
-        #
-        # if high_index > cavity_count < num_pins < high_index:
-        #     inds = [None] * high_index
-        #     for idx in indexes:
-        #         inds[idx] = idx
-        #
-        #     while None in indexes:
-        #         indexes.remove(None)
-        #
-        #     for new_index, old_index in enumerate(inds):
-        #         new_index += 1
-        #         if new_index != old_index:
-        #             for db_id, db_index in rows:
-        #                 if db_index != old_index:
-        #                     continue
-        #
-        #                 self._table.db.cavities_table.update(
-        #                     db_id, idx=new_index, housing_id=self._db_id)
-        #                 break
-        #
-        #     rows = self._table.db.cavities_table.select(
-        #         "id", "idx", housing_id=self._db_id)
+            cavities_table = self._table.db.cavities_table
+            rows = cavities_table.select("id", housing_id=self._db_id)
 
-        res = []
-        for db_id in rows:
-            res.append(self._table.db.cavities_table[db_id[0]])
+            self._stored_cavities = [
+                _cavity_module.Cavity(cavities_table, row[0]) for row in rows
+            ]
 
-        return res
+        return list(self._stored_cavities)
+
+    def invalidate_cavities(self) -> None:
+        """Force the next ``cavities`` access to re-query the database.
+
+        Cavities are inserted/deleted directly through ``CavitiesTable``
+        (see the housing editor dialog), not through a setter on this
+        class, so anything that adds or removes a cavity row for this
+        housing must call this afterward to keep the cached list in
+        sync — including on a singleton reference obtained separately
+        from the one that performed the mutation.
+        """
+        self._stored_cavities = DefaultStoredValue
 
     _cover_position3d: str = None
-    _stored_cover_position3d: DefaultStoredValueType | list[float] = DefaultStoredValue
+    _stored_cover_position3d: DefaultStoredValueType | _point.Point = DefaultStoredValue
 
     def __update_cover_position3d(self, point: _point.Point):
         """Update the cover position 3D.
@@ -1095,10 +1140,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param point: Point value.
         :type point: :class:`_point.Point`
         """
-        coords = list(point.as_float)
-        self._stored_cover_position3d = coords
-
-        self._table.update(self._db_id, cover_point3d=str(coords))
+        self._table.update(self._db_id, cover_point3d=str(list(point.as_float)))
         self._populate('cover_position3d')
 
     @property
@@ -1111,19 +1153,19 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :rtype: :class:`_point.Point`
         """
         if self._stored_cover_position3d is DefaultStoredValue:
-            self._stored_cover_position3d = eval(self._table.select('cover_point3d', id=self._db_id)[0][0])
+            if self._cover_position3d is None:
+                self._cover_position3d = str(uuid.uuid4())
 
-        if self._cover_position3d is None:
-            self._cover_position3d = str(uuid.uuid4())
+            coords = eval(self._table.select('cover_point3d', id=self._db_id)[0][0])
+            position = _point.Point(*coords, db_id=self._cover_position3d)
+            position.bind(self.__update_cover_position3d)
 
-        position = _point.Point(*self._stored_cover_position3d, db_id=self._cover_position3d)
+            self._stored_cover_position3d = position
 
-        position.bind(self.__update_cover_position3d)
-
-        return position
+        return self._stored_cover_position3d
 
     _seal_position3d: str = None
-    _stored_seal_position3d: DefaultStoredValueType | list[float] = DefaultStoredValue
+    _stored_seal_position3d: DefaultStoredValueType | _point.Point = DefaultStoredValue
 
     def __update_seal_position3d(self, point: _point.Point):
         """Update the seal position 3D.
@@ -1133,10 +1175,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param point: Point value.
         :type point: :class:`_point.Point`
         """
-        coords = list(point.as_float)
-        self._stored_seal_position3d = coords
-
-        self._table.update(self._db_id, seal_point3d=str(coords))
+        self._table.update(self._db_id, seal_point3d=str(list(point.as_float)))
         self._populate('seal_position3d')
 
     @property
@@ -1149,19 +1188,19 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :rtype: :class:`_point.Point`
         """
         if self._stored_seal_position3d is DefaultStoredValue:
-            self._stored_seal_position3d = eval(self._table.select('seal_point3d', id=self._db_id)[0][0])
+            if self._seal_position3d is None:
+                self._seal_position3d = str(uuid.uuid4())
 
-        if self._seal_position3d is None:
-            self._seal_position3d = str(uuid.uuid4())
+            coords = eval(self._table.select('seal_point3d', id=self._db_id)[0][0])
+            position = _point.Point(*coords, db_id=self._seal_position3d)
+            position.bind(self.__update_seal_position3d)
 
-        position = _point.Point(*self._stored_seal_position3d, db_id=self._seal_position3d)
+            self._stored_seal_position3d = position
 
-        position.bind(self.__update_seal_position3d)
-
-        return position
+        return self._stored_seal_position3d
     
     _boot_position3d: str = None
-    _stored_boot_position3d: DefaultStoredValueType | list[float] = DefaultStoredValue
+    _stored_boot_position3d: DefaultStoredValueType | _point.Point = DefaultStoredValue
 
     def __update_boot_position3d(self, point: _point.Point):
         """Update the boot position 3D.
@@ -1171,10 +1210,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param point: Point value.
         :type point: :class:`_point.Point`
         """
-        coords = list(point.as_float)
-        self._stored_boot_position3d = coords
-
-        self._table.update(self._db_id, boot_point3d=str(coords))
+        self._table.update(self._db_id, boot_point3d=str(list(point.as_float)))
         self._populate('boot_position3d')
 
     @property
@@ -1187,19 +1223,19 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :rtype: :class:`_point.Point`
         """
         if self._stored_boot_position3d is DefaultStoredValue:
-            self._stored_boot_position3d = eval(self._table.select('boot_point3d', id=self._db_id)[0][0])
+            if self._boot_position3d is None:
+                self._boot_position3d = str(uuid.uuid4())
 
-        if self._boot_position3d is None:
-            self._boot_position3d = str(uuid.uuid4())
+            coords = eval(self._table.select('boot_point3d', id=self._db_id)[0][0])
+            position = _point.Point(*coords, db_id=self._boot_position3d)
+            position.bind(self.__update_boot_position3d)
 
-        position = _point.Point(*self._stored_boot_position3d, db_id=self._boot_position3d)
+            self._stored_boot_position3d = position
 
-        position.bind(self.__update_boot_position3d)
-
-        return position
+        return self._stored_boot_position3d
     
     _tpa_lock_1_position3d: str = None
-    _stored_tpa_lock_1_position3d: DefaultStoredValueType | list[float] = DefaultStoredValue
+    _stored_tpa_lock_1_position3d: DefaultStoredValueType | _point.Point = DefaultStoredValue
 
     def __update_tpa_lock_1_position3d(self, point: _point.Point):
         """Update the TPA lock 1 position 3D.
@@ -1209,10 +1245,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param point: Point value.
         :type point: :class:`_point.Point`
         """
-        coords = list(point.as_float)
-        self._stored_tpa_lock_1_position3d = coords
-
-        self._table.update(self._db_id, tpa_lock_1_point3d=str(coords))
+        self._table.update(self._db_id, tpa_lock_1_point3d=str(list(point.as_float)))
         self._populate('tpa_lock_1_position3d')
 
     @property
@@ -1225,20 +1258,19 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :rtype: :class:`_point.Point`
         """
         if self._stored_tpa_lock_1_position3d is DefaultStoredValue:
-            self._stored_tpa_lock_1_position3d = eval(
-                self._table.select('tpa_lock_1_point3d', id=self._db_id)[0][0])
+            if self._tpa_lock_1_position3d is None:
+                self._tpa_lock_1_position3d = str(uuid.uuid4())
 
-        if self._tpa_lock_1_position3d is None:
-            self._tpa_lock_1_position3d = str(uuid.uuid4())
+            coords = eval(self._table.select('tpa_lock_1_point3d', id=self._db_id)[0][0])
+            position = _point.Point(*coords, db_id=self._tpa_lock_1_position3d)
+            position.bind(self.__update_tpa_lock_1_position3d)
 
-        position = _point.Point(*self._stored_tpa_lock_1_position3d, db_id=self._tpa_lock_1_position3d)
+            self._stored_tpa_lock_1_position3d = position
 
-        position.bind(self.__update_tpa_lock_1_position3d)
-
-        return position
+        return self._stored_tpa_lock_1_position3d
 
     _tpa_lock_2_position3d: str = None
-    _stored_tpa_lock_2_position3d: DefaultStoredValueType | list[float] = DefaultStoredValue
+    _stored_tpa_lock_2_position3d: DefaultStoredValueType | _point.Point = DefaultStoredValue
 
     def __update_tpa_lock_2_position3d(self, point: _point.Point):
         """Update the TPA lock 2 position 3D.
@@ -1248,10 +1280,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param point: Point value.
         :type point: :class:`_point.Point`
         """
-        coords = list(point.as_float)
-        self._stored_tpa_lock_2_position3d = coords
-
-        self._table.update(self._db_id, tpa_lock_2_point3d=str(coords))
+        self._table.update(self._db_id, tpa_lock_2_point3d=str(list(point.as_float)))
         self._populate('tpa_lock_2_position3d')
 
     @property
@@ -1264,20 +1293,19 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :rtype: :class:`_point.Point`
         """
         if self._stored_tpa_lock_2_position3d is DefaultStoredValue:
-            self._stored_tpa_lock_2_position3d = eval(
-                self._table.select('tpa_lock_2_point3d', id=self._db_id)[0][0])
+            if self._tpa_lock_2_position3d is None:
+                self._tpa_lock_2_position3d = str(uuid.uuid4())
 
-        if self._tpa_lock_2_position3d is None:
-            self._tpa_lock_2_position3d = str(uuid.uuid4())
+            coords = eval(self._table.select('tpa_lock_2_point3d', id=self._db_id)[0][0])
+            position = _point.Point(*coords, db_id=self._tpa_lock_2_position3d)
+            position.bind(self.__update_tpa_lock_2_position3d)
 
-        position = _point.Point(*self._stored_tpa_lock_2_position3d, db_id=self._tpa_lock_2_position3d)
+            self._stored_tpa_lock_2_position3d = position
 
-        position.bind(self.__update_tpa_lock_2_position3d)
-
-        return position
+        return self._stored_tpa_lock_2_position3d
 
     _cpa_lock_position3d: str = None
-    _stored_cpa_lock_position3d: DefaultStoredValueType | list[float] = DefaultStoredValue
+    _stored_cpa_lock_position3d: DefaultStoredValueType | _point.Point = DefaultStoredValue
 
     def __update_cpa_lock_position3d(self, point: _point.Point):
         """Update the CPA lock position 3D.
@@ -1287,10 +1315,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param point: Point value.
         :type point: :class:`_point.Point`
         """
-        coords = list(point.as_float)
-        self._stored_cpa_lock_position3d = coords
-
-        self._table.update(self._db_id, cpa_lock_point3d=str(coords))
+        self._table.update(self._db_id, cpa_lock_point3d=str(list(point.as_float)))
         self._populate('cpa_lock_position3d')
 
     @property
@@ -1303,19 +1328,19 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :rtype: :class:`_point.Point`
         """
         if self._stored_cpa_lock_position3d is DefaultStoredValue:
-            self._stored_cpa_lock_position3d = eval(self._table.select('cpa_lock_point3d', id=self._db_id)[0][0])
+            if self._cpa_lock_position3d is None:
+                self._cpa_lock_position3d = str(uuid.uuid4())
 
-        if self._cpa_lock_position3d is None:
-            self._cpa_lock_position3d = str(uuid.uuid4())
+            coords = eval(self._table.select('cpa_lock_point3d', id=self._db_id)[0][0])
+            position = _point.Point(*coords, db_id=self._cpa_lock_position3d)
+            position.bind(self.__update_cpa_lock_position3d)
 
-        position = _point.Point(*self._stored_cpa_lock_position3d, db_id=self._cpa_lock_position3d)
+            self._stored_cpa_lock_position3d = position
 
-        position.bind(self.__update_cpa_lock_position3d)
-
-        return position
+        return self._stored_cpa_lock_position3d
 
     _angle3d_db_id: str = None
-    _stored_angle3d: DefaultStoredValueType | tuple = DefaultStoredValue
+    _stored_angle3d: DefaultStoredValueType | _angle.Angle = DefaultStoredValue
 
     def __update_angle3d(self, angle: _angle.Angle):
         """Update the angle 3D.
@@ -1325,15 +1350,11 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param angle: Value for ``angle``.
         :type angle: :class:`_angle.Angle`
         """
-        quat_list = list(angle.as_quat_float)
-        euler_list = list(angle.as_euler_float)
-        quat = str(quat_list)
-        euler = str(euler_list)
+        quat = str(list(angle.as_quat_float))
+        euler = str(list(angle.as_euler_float))
 
         if 'nan' in euler or 'nan' in quat:
             return
-
-        self._stored_angle3d = (quat_list, euler_list)
 
         self._table.update(self._db_id, quat3d=quat)
         self._table.update(self._db_id, angle3d=euler)
@@ -1349,19 +1370,18 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :rtype: :class:`_angle.Angle`
         """
         if self._stored_angle3d is DefaultStoredValue:
+            if self._angle3d_db_id is None:
+                self._angle3d_db_id = str(uuid.uuid4())
+
             quat = eval(self._table.select('quat3d', id=self._db_id)[0][0])
             euler_angle = eval(self._table.select('angle3d', id=self._db_id)[0][0])
-            self._stored_angle3d = (quat, euler_angle)
 
-        quat, euler_angle = self._stored_angle3d
+            angle = _angle.Angle.from_quat(quat, euler_angle, db_id=self._angle3d_db_id)
+            angle.bind(self.__update_angle3d)
 
-        if self._angle3d_db_id is None:
-            self._angle3d_db_id = str(uuid.uuid4())
+            self._stored_angle3d = angle
 
-        angle = _angle.Angle.from_quat(quat, euler_angle, db_id=self._angle3d_db_id)
-        angle.bind(self.__update_angle3d)
-
-        return angle
+        return self._stored_angle3d
 
 
 class HousingControl(QTabWidget, LazyTabMixin):

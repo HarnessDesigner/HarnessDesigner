@@ -748,6 +748,7 @@ class Wire(_base2d.Base2D):
 #     def __len__(self):
 #         return len(self._sections)
 
+
 class WireMenu(QMenu):
     """Represent a wire menu in :mod:`harness_designer.objects.objects2d.wire`.
 

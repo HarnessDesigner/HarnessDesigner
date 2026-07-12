@@ -157,5 +157,6 @@ class Plating(EntryBase, DescriptionMixin):
         :type value: str
         """
         self._stored_symbol = value
+
         self._table.update(self._db_id, symbol=value)
         self._populate('symbol')

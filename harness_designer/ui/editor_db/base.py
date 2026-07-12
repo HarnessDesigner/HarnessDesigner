@@ -280,7 +280,7 @@ class _EditorModel(QAbstractTableModel):
                         return Qt.AlignmentFlag.AlignCenter
 
                 return Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
-        except:
+        except:  # NOQA
             import traceback
             traceback.print_exc()
             raise

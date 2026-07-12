@@ -120,7 +120,7 @@ class MaterialControl(_prop_ctrls.ComboBoxProperty):
         """
         name = evt.GetValue()
 
-        self.db_obj.table.execute('SELECT id FROM materials WHERE name="{name}";')
+        self.db_obj.table.execute('SELECT id FROM materials WHERE name=?;', (name,))
         rows = self.db_obj.table.fetchall()
         if rows:
             db_id = rows[0][0]
@@ -135,4 +135,3 @@ class MaterialControl(_prop_ctrls.ComboBoxProperty):
             self.SetValue(name)
 
         self.db_obj.material_id = db_id
-

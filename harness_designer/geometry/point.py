@@ -882,7 +882,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
             old_root = other._root
             old_root.unbind(other._on_delegate_changed)
             old_root._delegators = [r for r in old_root._delegators
-                                     if r() is not other]
+                                    if r() is not other]
 
         # If other was itself a root with delegators, absorb them all into
         # actual_root so the structure stays flat after this call.
@@ -890,10 +890,12 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
             child = ref()
             if child is None:
                 continue
+
             other.unbind(child._on_delegate_changed)
             actual_root.bind(child._on_delegate_changed)
             child._root = actual_root
             actual_root._delegators.append(ref)
+
         other._delegators.clear()
 
         # Remove other from the PointMeta singleton registry.  actual_root

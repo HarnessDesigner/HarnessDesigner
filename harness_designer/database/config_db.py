@@ -163,10 +163,10 @@ class ConfigDB:
             with self._con:
                 cur = self._con.cursor()
                 cur.execute(f'CREATE TABLE {item}('
-                                  'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-                                  'key TEXT UNIQUE NOT NULL, '
-                                  'value TEXT NOT NULL'
-                                  ');')
+                            'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+                            'key TEXT UNIQUE NOT NULL, '
+                            'value TEXT NOT NULL);')
+
                 self._con.commit()
                 cur.close()
 

@@ -606,7 +606,6 @@ class Rings3D(_base3d.Base3D):
             world_dir = ring_angle @ local_dir
             self._handle_positions[axis] = np.asarray(world_dir, dtype=np.float32) * self._radius
 
-
     def _on_obj_angle(self, _):
         """Update ring orientations when the tracked object rotates."""
         self._update_rings()
@@ -699,7 +698,6 @@ class DragRotate:
         self.selected = selected
         self.axis = axis
         self.rings = rings
-
 
         obj3d = selected.obj3d
         self.angle = obj3d.angle

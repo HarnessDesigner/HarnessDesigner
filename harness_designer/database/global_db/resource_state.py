@@ -325,4 +325,3 @@ class ResourceState(EntryBase):
     def allow_retry(self, value: bool):
         self._stored_allow_retry = value
         self._table.update(self._db_id, allow_retry=int(value))
-
