@@ -4,7 +4,7 @@ from typing import Iterable as _Iterable
 
 import uuid
 
-from .bases import EntryBase, TableBase
+from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import NameMixin
 from ... import color as _color
 
@@ -149,6 +149,8 @@ class Color(EntryBase, NameMixin):
         color.bind(self._update_color)
         return color
 
+    _stored_rgb: DefaultStoredValueType | tuple[int, int, int, int] = DefaultStoredValue
+
     @property
     def rgb(self) -> tuple[int, int, int, int]:
         """Return the RGB.
@@ -158,13 +160,16 @@ class Color(EntryBase, NameMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: tuple[int, int, int, int]
         """
-        rgba = self._table.select('rgb', id=self._db_id)[0][0]
+        if self._stored_rgb is DefaultStoredValue:
+            rgba = self._table.select('rgb', id=self._db_id)[0][0]
 
-        r = rgba >> 24
-        g = (rgba >> 16) & 0xFF
-        b = (rgba >> 8) & 0xFF
-        a = rgba & 0xFF
-        return r, g, b, a
+            r = rgba >> 24
+            g = (rgba >> 16) & 0xFF
+            b = (rgba >> 8) & 0xFF
+            a = rgba & 0xFF
+            self._stored_rgb = (r, g, b, a)
+
+        return self._stored_rgb
 
     @rgb.setter
     def rgb(self, value: tuple[int, int, int, int]):
@@ -178,6 +183,8 @@ class Color(EntryBase, NameMixin):
         r, g, b, a = value
 
         rgba = r << 24 | b << 16 | b << 8 | a
+
+        self._stored_rgb = value
 
         self._table.update(self._db_id, rgb=rgba)
         self._populate('rgb')

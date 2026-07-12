@@ -223,14 +223,27 @@ class MouseHandler:
         :returns: Return value. UNKNOWN details.
         :rtype: UNKNOWN
         """
-        for config, func in (
-            (self.canvas.config.walk, self.canvas.Walk),
-            (self.canvas.config.truck_pedestal, self.canvas.TruckPedestal),
-            (self.canvas.config.rotate, self.canvas.Rotate),
-            (self.canvas.config.pan_tilt, self.canvas.PanTilt),
-            (self.canvas.config.zoom, self.canvas.Zoom),
-            (self.canvas.config.reset, self.canvas.camera.Reset),
-        ):
+        if self.canvas.config.edit2d.enable:
+            # Locked 2D mode: its own binding-set class, no rotate/pan_tilt
+            # entries at all — orbit/look-around is unreachable through
+            # this dispatch regardless of what the user has those bound to.
+            bindings = (
+                (self.canvas.config.edit2d.walk, self.canvas.Walk),
+                (self.canvas.config.edit2d.truck_pedestal, self.canvas.TruckPedestal),
+                (self.canvas.config.edit2d.zoom, self.canvas.Zoom),
+                (self.canvas.config.edit2d.reset, self.canvas.camera.Reset),
+            )
+        else:
+            bindings = (
+                (self.canvas.config.walk, self.canvas.Walk),
+                (self.canvas.config.truck_pedestal, self.canvas.TruckPedestal),
+                (self.canvas.config.rotate, self.canvas.Rotate),
+                (self.canvas.config.pan_tilt, self.canvas.PanTilt),
+                (self.canvas.config.zoom, self.canvas.Zoom),
+                (self.canvas.config.reset, self.canvas.camera.Reset),
+            )
+
+        for config, func in bindings:
             if not config.mouse:
                 continue
 

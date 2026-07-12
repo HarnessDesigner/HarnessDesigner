@@ -2,7 +2,7 @@
 
 
 from ....ui import prop_ctrls as _prop_ctrls
-from .base import BaseMixin
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 from ....geometry import point as _point
 from .. import pjt_point2d as _pjt_point2d
 
@@ -13,7 +13,7 @@ class StartStopPosition2DMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
-    _stored_start_position2d: _pjt_point2d.PJTPoint2D = None
+    _stored_start_position2d: _pjt_point2d.PJTPoint2D | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
     def start_position2d(self) -> _point.Point:
@@ -25,18 +25,25 @@ class StartStopPosition2DMixin(BaseMixin):
         :rtype: :class:`_point.Point`
         """
 
-        if self._stored_start_position2d is None:
+        if self._stored_start_position2d is DefaultStoredValue:
             point_id = self.start_position2d_id
-
-            self._stored_start_position2d = self._table.db.pjt_points2d_table[point_id]
+            
+            if point_id is None:
+                self._stored_start_position2d = None
+            else:
+                self._stored_start_position2d = self._table.db.pjt_points2d_table[point_id]
+        
+        if self._stored_start_position2d is not None:
+            if self._obj is not None:
+                self._stored_start_position2d.add_object(self._obj())
+            
             point = self._stored_start_position2d.point
         else:
-            point = self._stored_start_position2d.point
-
-        if self._obj is not None:
-            self._stored_start_position2d.add_object(self._obj())
+            point = None
 
         return point
+    
+    _stored_start_position2d_id: int | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
     def start_position2d_id(self) -> int:
@@ -47,16 +54,20 @@ class StartStopPosition2DMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        point_id = self._table.select('start_point2d_id', id=self._db_id)[0][0]
-        if point_id is None:
-            self._table.execute(f'INSERT INTO pjt_points2d (project_id, x, y) VALUES (?, ?, ?);',
-                                (self._table.project_id, 0.0, 0.0))
+        
+        if self._stored_start_position2d_id is DefaultStoredValue:
+            point_id = self._table.select('start_point2d_id', id=self._db_id)[0][0]
+            if point_id is None:
+                self._table.execute(f'INSERT INTO pjt_points2d (project_id, x, y) VALUES (?, ?, ?);',
+                                    (self._table.project_id, 0.0, 0.0))
 
-            self._table.commit()
-            point_id = self._table.lastrowid
-            self.start_position2d_id = point_id
-
-        return point_id
+                self._table.commit()
+                point_id = self._table.lastrowid
+                
+                self.start_position2d_id = point_id
+            self._stored_start_position2d_id = point_id
+            
+        return self._stored_start_position2d_id
 
     @start_position2d_id.setter
     def start_position2d_id(self, value: int):
@@ -67,10 +78,14 @@ class StartStopPosition2DMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: int
         """
+        
+        self._stored_start_position2d_id = value
+        self._stored_start_position2d = DefaultStoredValue
+        
         self._table.update(self._db_id, start_point2d_id=value)
         self._populate('start_position2d_id')
 
-    _stored_stop_position2d: _pjt_point2d.PJTPoint2D = None
+    _stored_stop_position2d: _pjt_point2d.PJTPoint2D | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
     def stop_position2d(self) -> _point.Point:
@@ -82,18 +97,25 @@ class StartStopPosition2DMixin(BaseMixin):
         :rtype: :class:`_point.Point`
         """
 
-        if self._stored_stop_position2d is None:
+        if self._stored_stop_position2d is DefaultStoredValue:
             point_id = self.stop_position2d_id
+            
+            if point_id is None:
+                self._stored_stop_position2d = None
+            else:
+                self._stored_stop_position2d = self._table.db.pjt_points2d_table[point_id]
 
-            self._stored_stop_position2d = self._table.db.pjt_points2d_table[point_id]
+        if self._stored_stop_position2d is not None:
+            if self._obj is not None:
+                self._stored_stop_position2d.add_object(self._obj())
+
             point = self._stored_stop_position2d.point
         else:
-            point = self._stored_stop_position2d.point
-
-        if self._obj is not None:
-            self._stored_stop_position2d.add_object(self._obj())
+            point = None
 
         return point
+    
+    _stored_stop_position2d_id: int | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
     def stop_position2d_id(self) -> int:
@@ -104,16 +126,20 @@ class StartStopPosition2DMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        point_id = self._table.select('stop_point2d_id', id=self._db_id)[0][0]
-        if point_id is None:
-            self._table.execute(f'INSERT INTO pjt_points2d (project_id, x, y) VALUES (?, ?, ?);',
-                                (self._table.project_id, 0.0, 0.0))
+        
+        if self._stored_stop_position2d_id is DefaultStoredValue:
+            point_id = self._table.select('stop_point2d_id', id=self._db_id)[0][0]
+            if point_id is None:
+                self._table.execute(f'INSERT INTO pjt_points2d (project_id, x, y) VALUES (?, ?, ?);',
+                                    (self._table.project_id, 0.0, 0.0))
 
-            self._table.commit()
-            point_id = self._table.lastrowid
-            self.stop_position2d_id = point_id
+                self._table.commit()
+                point_id = self._table.lastrowid
+                self.stop_position2d_id = point_id
+                
+            self._stored_stop_position2d_id = point_id
 
-        return point_id
+        return self._stored_stop_position2d_id
 
     @stop_position2d_id.setter
     def stop_position2d_id(self, value: int):
@@ -124,6 +150,10 @@ class StartStopPosition2DMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: int
         """
+        
+        self._stored_stop_position2d_id = value
+        self._stored_stop_position2d = DefaultStoredValue
+        
         self._table.update(self._db_id, stop_point2d_id=value)
         self._populate('stop_position2d_id')
 

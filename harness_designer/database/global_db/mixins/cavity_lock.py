@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from ....ui import prop_ctrls as _prop_ctrls
 
-from .base import BaseMixin
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 
 
 if TYPE_CHECKING:
@@ -31,6 +31,8 @@ class CavityLockMixin(BaseMixin):
 
         return CavityLock(self._table.db.cavity_locks_table, lock_id)
 
+    _stored_cavity_lock_id: int | DefaultStoredValueType = DefaultStoredValue
+
     @property
     def cavity_lock_id(self) -> int:
         """Return the cavity lock ID.
@@ -40,7 +42,10 @@ class CavityLockMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('cavity_lock_id', id=self._db_id)[0][0]
+        if self._stored_cavity_lock_id is DefaultStoredValue:
+            self._stored_cavity_lock_id = self._table.select('cavity_lock_id', id=self._db_id)[0][0]
+
+        return self._stored_cavity_lock_id
 
     @cavity_lock_id.setter
     def cavity_lock_id(self, value: int):
@@ -51,6 +56,7 @@ class CavityLockMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_cavity_lock_id = value
         self._table.update(self._db_id, cavity_lock_id=value)
         self._populate('cavity_lock_id')
 

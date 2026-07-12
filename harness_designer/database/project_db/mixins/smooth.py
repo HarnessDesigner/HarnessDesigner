@@ -1,7 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from ....ui import prop_ctrls as _prop_ctrls
-from .base import BaseMixin
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
+
 
 
 class SmoothMixin(BaseMixin):
@@ -9,6 +10,8 @@ class SmoothMixin(BaseMixin):
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
+    
+    _stored_smooth: bool | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def smooth(self) -> bool | None:
@@ -19,11 +22,14 @@ class SmoothMixin(BaseMixin):
 
         :rtype: bool | None
         """
-        value = self._table.select('smooth', id=self._db_id)[0][0]
-        if value is not None:
-            value = bool(value)
+        if self._stored_smooth is DefaultStoredValue:
+            value = self._table.select('smooth', id=self._db_id)[0][0]
+            if value is not None:
+                value = bool(value)
+                
+            self._stored_smooth = value
 
-        return value
+        return self._stored_smooth
 
     @smooth.setter
     def smooth(self, value: bool | None):
@@ -34,6 +40,8 @@ class SmoothMixin(BaseMixin):
 
         :type value: bool | None
         """
+        
+        self._stored_smooth = value
 
         if value is not None:
             value = int(value)

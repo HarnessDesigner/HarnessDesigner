@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from .base import BaseMixin
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 
 from ....ui import prop_ctrls as _prop_ctrls
 
@@ -46,6 +46,8 @@ class ResourceMixin(BaseMixin):
         if cad.data_path is not None:
             return cad.file_type.extension
 
+    _stored_cad_id: int | DefaultStoredValueType = DefaultStoredValue
+
     @property
     def cad_id(self) -> int:
         """Return the cad ID.
@@ -55,7 +57,10 @@ class ResourceMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('cad_id', id=self._db_id)[0][0]
+        if self._stored_cad_id is DefaultStoredValue:
+            self._stored_cad_id = self._table.select('cad_id', id=self._db_id)[0][0]
+
+        return self._stored_cad_id
 
     @cad_id.setter
     def cad_id(self, value: int):
@@ -66,6 +71,7 @@ class ResourceMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_cad_id = value
         self._table.update(self._db_id, cad_id=value)
         self._populate('cad_id')
 
@@ -103,6 +109,8 @@ class ResourceMixin(BaseMixin):
         if image.data_path is not None:
             return image.file_type.extension
 
+    _stored_image_id: int | DefaultStoredValueType = DefaultStoredValue
+
     @property
     def image_id(self) -> int:
         """Return the image ID.
@@ -112,7 +120,10 @@ class ResourceMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('image_id', id=self._db_id)[0][0]
+        if self._stored_image_id is DefaultStoredValue:
+            self._stored_image_id = self._table.select('image_id', id=self._db_id)[0][0]
+
+        return self._stored_image_id
 
     @image_id.setter
     def image_id(self, value: int):
@@ -123,6 +134,7 @@ class ResourceMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_image_id = value
         self._table.update(self._db_id, image_id=value)
         self._populate('image_id')
 
@@ -160,6 +172,8 @@ class ResourceMixin(BaseMixin):
         if datasheet.data_path is not None:
             return datasheet.file_type.extension
 
+    _stored_datasheet_id: int | DefaultStoredValueType = DefaultStoredValue
+
     @property
     def datasheet_id(self) -> int:
         """Return the datasheet ID.
@@ -169,7 +183,10 @@ class ResourceMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('datasheet_id', id=self._db_id)[0][0]
+        if self._stored_datasheet_id is DefaultStoredValue:
+            self._stored_datasheet_id = self._table.select('datasheet_id', id=self._db_id)[0][0]
+
+        return self._stored_datasheet_id
 
     @datasheet_id.setter
     def datasheet_id(self, value: int):
@@ -180,6 +197,7 @@ class ResourceMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_datasheet_id = value
         self._table.update(self._db_id, datasheet_id=value)
         self._populate('datasheet_id')
 

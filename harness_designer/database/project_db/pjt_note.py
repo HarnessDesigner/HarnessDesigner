@@ -8,7 +8,7 @@ import build123d
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
-from .pjt_bases import PJTEntryBase, PJTTableBase
+from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import (
     Angle3DMixin, Angle3DControl,
     Angle2DMixin, Angle2DControl,
@@ -235,6 +235,8 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
         """
         return self._table
 
+    _stored_size2d: int | None | DefaultStoredValueType = DefaultStoredValue
+
     @property
     def size2d(self) -> int:
         """Return the size 2D.
@@ -244,7 +246,10 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('size2d', id=self._db_id)[0][0]
+        if self._stored_size2d is DefaultStoredValue:
+            self._stored_size2d = self._table.select('size2d', id=self._db_id)[0][0]
+
+        return self._stored_size2d
 
     @size2d.setter
     def size2d(self, value: int):
@@ -255,8 +260,13 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
         :param value: Value to store or process.
         :type value: int
         """
+
+        self._stored_size2d = value
+
         self._table.update(self._db_id, size2d=value)
         self._populate('size2d')
+
+    _stored_h_align2d: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def h_align2d(self) -> int:
@@ -267,7 +277,10 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('h_align2d', id=self._db_id)[0][0]
+        if self._stored_h_align2d is DefaultStoredValue:
+            self._stored_h_align2d = self._table.select('h_align2d', id=self._db_id)[0][0]
+
+        return self._stored_h_align2d
 
     @h_align2d.setter
     def h_align2d(self, value: int):
@@ -278,8 +291,12 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_h_align2d = value
+
         self._table.update(self._db_id, h_align2d=value)
         self._populate('h_align2d')
+
+    _stored_style2d: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def style2d(self) -> int:
@@ -290,7 +307,10 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('style2d', id=self._db_id)[0][0]
+        if self._stored_style2d is DefaultStoredValue:
+            self._stored_style2d = self._table.select('style2d', id=self._db_id)[0][0]
+
+        return self._stored_style2d
 
     @style2d.setter
     def style2d(self, value: int):
@@ -301,8 +321,12 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_style2d = value
+
         self._table.update(self._db_id, style2d=value)
         self._populate('style2d')
+
+    _stored_is_visible2d: bool | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def is_visible2d(self) -> bool:
@@ -313,7 +337,11 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: bool
         """
-        return bool(self._table.select('is_visible2d', id=self._db_id)[0][0])
+
+        if self._stored_is_visible2d is DefaultStoredValue:
+            self._stored_is_visible2d = bool(self._table.select('is_visible2d', id=self._db_id)[0][0])
+
+        return self._stored_is_visible2d
 
     @is_visible2d.setter
     def is_visible2d(self, value: bool):
@@ -324,8 +352,12 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
         :param value: Value to store or process.
         :type value: bool
         """
+        self._stored_is_visible2d = value
+
         self._table.update(self._db_id, is_visible2d=int(value))
         self._populate('is_visible2d')
+
+    _stored_size3d: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def size3d(self) -> float:
@@ -336,7 +368,10 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        return self._table.select('size3d', id=self._db_id)[0][0]
+        if self._stored_size3d is DefaultStoredValue:
+            self._stored_size3d = self._table.select('size3d', id=self._db_id)[0][0]
+
+        return self._stored_size3d
 
     @size3d.setter
     def size3d(self, value: float):
@@ -347,8 +382,12 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_size3d = value
+
         self._table.update(self._db_id, size3d=value)
         self._populate('size3d')
+
+    _stored_h_align3d: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def h_align3d(self) -> int:
@@ -359,7 +398,11 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('h_align3d', id=self._db_id)[0][0]
+
+        if self._stored_h_align3d is DefaultStoredValue:
+            self._stored_h_align3d = self._table.select('h_align3d', id=self._db_id)[0][0]
+
+        return self._stored_h_align3d
 
     @h_align3d.setter
     def h_align3d(self, value: int):
@@ -370,8 +413,12 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_h_align3d = value
+
         self._table.update(self._db_id, h_align3d=value)
         self._populate('h_align3d')
+
+    _stored_style3d: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def style3d(self) -> int:
@@ -382,7 +429,11 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('style3d', id=self._db_id)[0][0]
+
+        if self._stored_style3d is DefaultStoredValue:
+            self._stored_style3d = self._table.select('style3d', id=self._db_id)[0][0]
+
+        return self._stored_style3d
 
     @style3d.setter
     def style3d(self, value: int):
@@ -393,8 +444,12 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_style3d = value
+
         self._table.update(self._db_id, style3d=value)
         self._populate('style3d')
+
+    _stored_is_visible3d: bool | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def is_visible3d(self) -> bool:
@@ -405,7 +460,10 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: bool
         """
-        return bool(self._table.select('is_visible3d', id=self._db_id)[0][0])
+        if self._stored_is_visible3d is DefaultStoredValue:
+            self._stored_is_visible3d = bool(self._table.select('is_visible3d', id=self._db_id)[0][0])
+
+        return self._stored_is_visible3d
 
     @is_visible3d.setter
     def is_visible3d(self, value: bool):
@@ -416,6 +474,9 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
         :param value: Value to store or process.
         :type value: bool
         """
+
+        self._stored_is_visible3d = value
+
         self._table.update(self._db_id, is_visible3d=int(value))
         self._populate('is_visible3d')
 

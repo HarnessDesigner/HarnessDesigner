@@ -6,6 +6,12 @@ Two-click workflow:
   Phase 0 – hover highlights valid start targets; click sets the start point.
   Phase 1 – live preview wire tracks the mouse; second click finalises placement.
 
+Terminal-attached start (*terminal* argument given):
+  Phase 0 is skipped — a part-search dialog (pre-filtered to wires whose
+  diameter fits the terminal's crimp range) opens immediately, and the
+  preview wire starts pinned to the terminal, straight into phase 1.
+  Invoke via :func:`objects.objects3d.menu_ops.start_handler`.
+
 Start-click variants:
   WireLayout  → part_id inherited from the attached wire; start at layout position.
   Wire end    → extension mode: the existing wire endpoint moves to the second click
@@ -104,6 +110,34 @@ def _wire_layout_end_wire(wire_layout_obj, project, part_id):
     return None, None
 
 
+def _get_terminal_compat_pns(mainframe, terminal_obj):
+    """Return wire part numbers whose outer diameter fits *terminal_obj*'s crimp range."""
+    term_part = terminal_obj.db_obj.part
+    if term_part is None:
+        return []
+
+    dia_min = term_part.wire_size_dia_min
+    dia_max = term_part.wire_size_dia_max
+
+    if dia_min is None and dia_max is None:
+        return []
+
+    table = mainframe.global_db.wires_table
+
+    if dia_min is not None and dia_max is not None:
+        table.execute(
+            'SELECT part_number FROM wires WHERE od_mm>=? AND od_mm<=?;',
+            (dia_min, dia_max))
+    elif dia_min is not None:
+        table.execute(
+            'SELECT part_number FROM wires WHERE od_mm>=?;', (dia_min,))
+    else:
+        table.execute(
+            'SELECT part_number FROM wires WHERE od_mm<=?;', (dia_max,))
+
+    return [row[0] for row in table.fetchall()]
+
+
 def _check_terminal_compat(terminal_obj, wire_part, project):
     """Return (is_compatible, message_or_None).
 
@@ -156,7 +190,23 @@ class AddWireHandler(_handler_base.HandlerBase):
 
     obj: "_wire.Wire" = None
 
-    def __init__(self, mainframe: "_ui.MainFrame", part_id: int):
+    def __init__(self, mainframe: "_ui.MainFrame", part_id: int = None,
+                 terminal: "_terminal.Terminal" = None):
+        if terminal is not None:
+            compat_pns = _get_terminal_compat_pns(mainframe, terminal)
+
+            dlg = _part_search.SearchDialog(
+                mainframe, _editor_db.WiresPage, title='Add Wire',
+                table=mainframe.global_db.wires_table,
+                initial_results=compat_pns)
+
+            if dlg.exec() == QDialog.DialogCode.Accepted:
+                part_id = dlg.GetValue()
+            else:
+                part_id = None
+
+            dlg.deleteLater()
+
         super().__init__(mainframe, part_id)
 
         self._preview_material = _materials.Plastic(
@@ -191,6 +241,37 @@ class AddWireHandler(_handler_base.HandlerBase):
 
         # Incompatibility overlay widget (child of the 3D canvas)
         self._overlay = _IncompatOverlay(mainframe.editor3d.editor)
+
+        if terminal is not None:
+            if part_id is None:
+                self._finalized = True
+            else:
+                self._start_from_terminal(terminal, part_id)
+
+    def _start_from_terminal(self, terminal: "_terminal.Terminal", part_id: int):
+        """Pin the preview wire's start to *terminal* and enter phase 1 directly."""
+        self.part = self.mainframe.global_db.wires_table[part_id]
+
+        start_point_id = terminal.db_obj.position3d_id
+        initial_pos = terminal.obj3d.position
+        self._start_circuit_id = terminal.db_obj.circuit_id
+        self._start_point_id = start_point_id
+
+        stop_db = self.ptables.pjt_points3d_table.insert(
+            float(initial_pos.x), float(initial_pos.y), float(initial_pos.z))
+
+        self._preview_stop_point_id = stop_db.db_id
+
+        name = f'{self.part.manufacturer.name} {self.part.part_number}'
+
+        wire_db = self.ptables.pjt_wires_table.insert(
+            part_id, name, self._start_circuit_id,
+            start_point_id, stop_db.db_id,
+            None, None, True, False, None, None, False)
+
+        self.obj = _wire.Wire(self.mainframe, wire_db)
+        self.obj.identify(self._preview_material)
+        self._phase = 1
 
     # ------------------------------------------------------------------
     # Internal helpers

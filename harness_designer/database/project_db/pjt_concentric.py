@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 from ...ui import prop_ctrls as _prop_ctrls
-from .pjt_bases import PJTEntryBase, PJTTableBase
+from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import NotesMixin
 
 
@@ -177,6 +177,8 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
         """
         return self._table
 
+    _stored_bundle: "_pjt_bundle.PJTBundle | None | DefaultStoredValueType" = DefaultStoredValue
+
     @property
     def bundle(self) -> "_pjt_bundle.PJTBundle":
         """Return the bundle.
@@ -186,11 +188,16 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_bundle.PJTBundle`
         """
-        bundle_id = self.bundle_id
-        if bundle_id is None:
-            return None
+        if self._stored_bundle is DefaultStoredValue:
+            bundle_id = self.bundle_id
+            if bundle_id is None:
+                self._stored_bundle = None
+            else:
+                self._stored_bundle = self._table.db.pjt_bundles_table[bundle_id]
 
-        return self._table.db.pjt_bundles_table[bundle_id]
+        return self._stored_bundle
+
+    _stored_bundle_id: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def bundle_id(self) -> int:
@@ -201,7 +208,10 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('bundle_id', id=self._db_id)[0][0]
+        if self._stored_bundle_id is DefaultStoredValue:
+            self._stored_bundle_id = self._table.select('bundle_id', id=self._db_id)[0][0]
+
+        return self._stored_bundle_id
 
     @bundle_id.setter
     def bundle_id(self, value: int):
@@ -212,8 +222,13 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_bundle_id = value
+        self._stored_bundle = DefaultStoredValue
+
         self._table.update(self._db_id, bundle_id=value)
         self._populate('bundle_id')
+
+    _stored_transition_branch: "_pjt_transition_branches.PJTTransitionBranch | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
     def transition_branch(self) -> "_pjt_transition_branches.PJTTransitionBranch":
@@ -224,11 +239,16 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_transition_branches.PJTTransitionBranch`
         """
-        transition_branch_id = self.transition_branch_id
-        if transition_branch_id is None:
-            return None
+        if self._stored_transition_branch is DefaultStoredValue:
+            transition_branch_id = self.transition_branch_id
+            if transition_branch_id is None:
+                self._stored_transition_branch = None
+            else:
+                self._stored_transition_branch = self._table.db.pjt_transition_branches_table[transition_branch_id]
 
-        return self._table.db.pjt_transition_branches_table[transition_branch_id]
+        return self._stored_transition_branch
+
+    _stored_transition_branch_id: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def transition_branch_id(self) -> int:
@@ -239,7 +259,10 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('transition_branch_id', id=self._db_id)[0][0]
+        if self._stored_transition_branch_id is DefaultStoredValue:
+            self._stored_transition_branch_id = self._table.select('transition_branch_id', id=self._db_id)[0][0]
+
+        return self._stored_transition_branch_id
 
     @transition_branch_id.setter
     def transition_branch_id(self, value: int):
@@ -250,6 +273,9 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_transition_branch_id = value
+        self._stored_transition_branch = DefaultStoredValue
+
         self._table.update(self._db_id, transition_branch_id=value)
         self._populate('transition_branch_id')
 

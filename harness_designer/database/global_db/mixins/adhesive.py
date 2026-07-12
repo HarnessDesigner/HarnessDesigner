@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING
 
 from ....ui import prop_ctrls as _prop_ctrls
-from .base import BaseMixin
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 
 
 if TYPE_CHECKING:
@@ -25,7 +25,7 @@ class AdhesiveMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: list['_adhesive.Adhesive']
         """
-        ids = eval(self._table.select('adhesive_ids', id=self._db_id)[0][0])
+        ids = self.adhesive_ids
         res = []
 
         for db_id in ids:
@@ -36,6 +36,8 @@ class AdhesiveMixin(BaseMixin):
 
         return res
 
+    _stored_adhesive_ids: list | DefaultStoredValueType = DefaultStoredValue
+
     @property
     def adhesive_ids(self) -> list[str]:
         """Return the adhesive IDs.
@@ -45,7 +47,11 @@ class AdhesiveMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: list[str]
         """
-        return eval(self._table.select('adhesive_ids', id=self._db_id)[0][0])
+        if self._stored_adhesive_ids is DefaultStoredValue:
+            value = self._table.select('adhesive_ids', id=self._db_id)[0][0]
+            self._stored_adhesive_ids = eval(value)
+
+        return self._stored_adhesive_ids
 
     @adhesive_ids.setter
     def adhesive_ids(self, value: list[str]):
@@ -56,6 +62,7 @@ class AdhesiveMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: list[str]
         """
+        self._stored_adhesive_ids = value
         self._table.update(self._db_id, adhesive_ids=str(value))
         self._populate('adhesive_ids')
 

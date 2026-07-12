@@ -48,6 +48,8 @@ class MainFrame(QtWidgets.QMainWindow):
         while self._project is None:
             self._open_project()
 
+        return self._project
+
     @project.setter
     def project(self, value: Union["_project.Project", None]):
         self._project = value

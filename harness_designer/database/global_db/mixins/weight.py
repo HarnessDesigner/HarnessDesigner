@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from .base import BaseMixin
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 
 from ....ui import prop_ctrls as _prop_ctrls
 
@@ -11,6 +11,8 @@ class WeightMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    _stored_weight: float | DefaultStoredValueType = DefaultStoredValue
+
     @property
     def weight(self) -> float:
         """Return the weight.
@@ -20,7 +22,10 @@ class WeightMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        return self._table.select('weight', id=self._db_id)[0][0]
+        if self._stored_weight is DefaultStoredValue:
+            self._stored_weight = self._table.select('weight', id=self._db_id)[0][0]
+
+        return self._stored_weight
 
     @weight.setter
     def weight(self, value: float):
@@ -31,6 +36,7 @@ class WeightMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_weight = value
         self._table.update(self._db_id, weight=value)
         self._populate('weight')
 

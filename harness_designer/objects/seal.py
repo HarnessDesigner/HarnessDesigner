@@ -41,3 +41,26 @@ class Seal(_ObjectBase):
         self.obj2d = _seal_2d.Seal(self, db_obj)
         self.obj3d = _seal_3d.Seal(self, db_obj)
         self.mainframe.add_object(self)
+
+    def set_selected(self, flag):
+        """Selecting a seal selects its owner instead (the cavity holding
+        its terminal, the cavity it plugs, or the housing for a MAT seal).
+
+        Seals are never directly selectable — all manipulation of a seal
+        happens through whatever it's attached to.
+        """
+        if flag:
+            terminal = self.db_obj.terminal
+            if terminal is not None:
+                owner_db = terminal.cavity
+            else:
+                owner_db = self.db_obj.cavity
+                if owner_db is None:
+                    owner_db = self.db_obj.housing
+
+            owner_obj = owner_db.get_object() if owner_db is not None else None
+            if owner_obj is not None:
+                owner_obj.set_selected(True)
+                return
+
+        super().set_selected(flag)

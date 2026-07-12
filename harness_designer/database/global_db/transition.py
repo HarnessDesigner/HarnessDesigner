@@ -6,7 +6,7 @@ from typing import Iterable as _Iterable, TYPE_CHECKING
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
-from .bases import EntryBase, TableBase
+from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import (
     PartNumberMixin, PartNumberControl,
     SeriesMixin, SeriesControl,
@@ -290,6 +290,8 @@ class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyM
 
         return packet
 
+    _stored_branch_count: int | DefaultStoredValueType = DefaultStoredValue
+
     @property
     def branch_count(self) -> int:
         """Return the branch count.
@@ -299,7 +301,10 @@ class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyM
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('branch_count', id=self._db_id)[0][0]
+        if self._stored_branch_count is DefaultStoredValue:
+            self._stored_branch_count = self._table.select('branch_count', id=self._db_id)[0][0]
+
+        return self._stored_branch_count
 
     @branch_count.setter
     def branch_count(self, value: int):
@@ -310,6 +315,7 @@ class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyM
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_branch_count = value
         self._table.update(self._db_id, branch_count=value)
         self._populate('branch_count')
 
@@ -332,6 +338,8 @@ class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyM
 
         return res
 
+    _stored_shape: "DefaultStoredValueType | _shape.Shape" = DefaultStoredValue
+
     @property
     def shape(self) -> "_shape.Shape":
         """Return the shape.
@@ -341,10 +349,15 @@ class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyM
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_shape.Shape`
         """
-        shape_id = self.shape_id
-        from .shape import Shape
+        if self._stored_shape is DefaultStoredValue:
+            shape_id = self.shape_id
+            from .shape import Shape
 
-        return Shape(self._table.db.shapes_table, shape_id)
+            self._stored_shape = Shape(self._table.db.shapes_table, shape_id)
+
+        return self._stored_shape
+
+    _stored_shape_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def shape_id(self) -> int:
@@ -355,7 +368,10 @@ class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyM
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('shape_id', id=self._db_id)[0][0]
+        if self._stored_shape_id is DefaultStoredValue:
+            self._stored_shape_id = self._table.select('shape_id', id=self._db_id)[0][0]
+
+        return self._stored_shape_id
 
     @shape_id.setter
     def shape_id(self, value: int):
@@ -366,6 +382,9 @@ class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyM
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_shape_id = value
+        self._stored_shape = DefaultStoredValue
+
         self._table.update(self._db_id, shape_id=value)
         self._populate('shape_id')
 

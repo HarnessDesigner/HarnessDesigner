@@ -110,14 +110,13 @@ class AddTerminalHandler(_handler_base.HandlerBase):
         else:
             self.set_part(part_id)
 
-            if self._cavity is not None:
-                self.release_capture()
-                self._finalized = True
-
     @staticmethod
     def _cavity_midpoint(pjt_cavity):
         """
         Return world-space midpoint of *pjt_cavity* along its insertion axis.
+
+        This is the female-terminal position: the center of the terminal
+        sits at the center of the cavity.
         """
 
         cpos_np = pjt_cavity.position3d.as_numpy.astype(np.float64)
@@ -129,6 +128,44 @@ class AddTerminalHandler(_handler_base.HandlerBase):
                         0] + cpos_np
         mid = (cpos_np + ref_world) / 2.0
         return float(mid[0]), float(mid[1]), float(mid[2])
+
+    @staticmethod
+    def _male_terminal_position(pjt_cavity):
+        """
+        Return the male-terminal position: 1/3 of the way from the cavity's
+        forward (terminal-side) OBB face toward its wire-side face.
+
+        Uses the same OBB corner convention as
+        :meth:`objects.objects3d.housing.Housing.match_cavity_surfaces`:
+        corners 4-7 are the terminal/forward face, corners 0-3 are the
+        wire-side face.
+        """
+
+        obb = pjt_cavity.obb.astype(np.float64)
+        forward_center = obb[4:].mean(axis=0)
+        wire_center = obb[:4].mean(axis=0)
+        pos = forward_center + (wire_center - forward_center) / 3.0
+        return float(pos[0]), float(pos[1]), float(pos[2])
+
+    def _resolve_is_male(self, g_housing=None):
+        """
+        Return True when *self.part* should be positioned/treated as male.
+
+        Priority: the terminal part's own gender, then *g_housing*'s gender
+        (when supplied), then default to male so a missing gender is
+        visually obvious rather than silently guessed.
+        """
+
+        term_gender = (self.part.gender.name or '').strip().lower()
+        if term_gender in ('male', 'female'):
+            return term_gender == 'male'
+
+        if g_housing is not None:
+            housing_gender = (g_housing.gender.name or '').strip().lower()
+            if housing_gender in ('male', 'female'):
+                return housing_gender == 'male'
+
+        return True
 
     def _get_cavity_compat_pns(self, housing, cavity):
         """
@@ -230,28 +267,31 @@ class AddTerminalHandler(_handler_base.HandlerBase):
         self.part = self.ptables.global_db.terminals_table[part_id]
 
         name = f'{self.part.manufacturer.name} {self.part.part_number}'
-        self._is_male = self.part.gender.name.lower() == 'male'
 
         if self._cavity is not None:
-            # Mode 1: place terminal directly at the cavity's insertion point.
+            # Mode 1: compute the terminal's own world-space insertion point
+            # from the housing/cavity geometry.  This point is independent
+            # of the cavity's own position3d/terminal_position3d — sharing a
+            # Point between the cavity and the terminal breaks the
+            # positioning/rotation mechanics, so the terminal always gets
+            # its own pjt_points3d row.
             pjt_cavity = self._cavity.db_obj
+            self._is_male = self._resolve_is_male(pjt_cavity.housing.part)
 
             if self._is_male:
-                tx, ty, tz = [float(str(item)) for item in pjt_cavity.obb[:4].mean(axis=0).tolist()]
+                tx, ty, tz = self._male_terminal_position(pjt_cavity)
             else:
-                tx, ty, tz = pjt_cavity.position3d.as_float
+                tx, ty, tz = self._cavity_midpoint(pjt_cavity)
 
-            point = _point.Point(tx, ty, tz)
-            pos = pjt_cavity.terminal_position3d
-            delta = point - pos
-            pos += delta
+            point_db = self.ptables.pjt_points3d_table.insert(tx, ty, tz)
 
             db_obj = self.ptables.pjt_terminals_table.insert(
-                part_id, name, None, int(pos.db_id[:-2]), pjt_cavity.db_id)
+                part_id, name, None, point_db.db_id, pjt_cavity.db_id)
 
         elif self._housing is not None:
             # Mode 2: floating preview, snaps only to this housing's cavities.
             housing_db = self._housing.db_obj
+            self._is_male = self._resolve_is_male(housing_db.part)
 
             for cavity in self._housing.cavities:
                 if cavity.db_obj.terminal is not None:
@@ -266,6 +306,7 @@ class AddTerminalHandler(_handler_base.HandlerBase):
 
         else:
             # Mode 3: floating preview, snaps to any compatible cavity.
+            self._is_male = self._resolve_is_male()
             part_number = self.part.part_number
             blade_size = self.part.blade_size
             part_gender_id = self.part.gender_id
@@ -321,11 +362,11 @@ class AddTerminalHandler(_handler_base.HandlerBase):
                 continue
 
             if self._is_male:
-                positions.append(cavity.db_obj.position3d)
+                x, y, z = self._male_terminal_position(cavity.db_obj)
             else:
                 x, y, z = self._cavity_midpoint(cavity.db_obj)
-                positions.append(_point.Point(x, y, z))
 
+            positions.append(_point.Point(x, y, z))
             objects.append(cavity)
 
         return _utils.SnapPool(objects, positions)
@@ -351,10 +392,11 @@ class AddTerminalHandler(_handler_base.HandlerBase):
                 self.reset_angle(self.obj)
         else:
             if self._is_male:
-                point = snapped.db_obj.position3d
+                x, y, z = self._male_terminal_position(snapped.db_obj)
             else:
                 x, y, z = self._cavity_midpoint(snapped.db_obj)
-                point = _point.Point(x, y, z)
+
+            point = _point.Point(x, y, z)
 
             self._snapped = snapped
             if prev_snapped is not snapped:

@@ -32,7 +32,15 @@ table = _con.SQLTable(
     _con.IntField('round_terminal', default='0', no_null=True),
     _con.TextField('terminal_sizes', default='""', no_null=True),
     _con.TextField('aabb', default='NULL'),
-    _con.TextField('obb', default='NULL')
+    _con.TextField('obb', default='NULL'),
+    _con.IntField('render_terminal_marker', default='NULL'),
+    # Surface indices (into MeshSurfacePicker.surfaces for this part's mesh)
+    # selected in the housing editor for this cavity's terminal/wire face,
+    # stored as the string repr of a list of ints (e.g. "[3, 7, 12]"), NULL
+    # when not yet assigned. Lets match_cavity_surfaces() skip its nearest-
+    # neighbor OBB-matching heuristic for cavities already mapped this way.
+    _con.TextField('terminal_surf_indices', default='NULL'),
+    _con.TextField('wire_surf_indices', default='NULL')
 )
 
 
@@ -79,7 +87,7 @@ pjt_table = _con.SQLTable(
     _con.TextField('quat3d', default='"[1.0, 0.0, 0.0, 0.0]"', no_null=True),
     _con.TextField('angle3d', default='"[0.0, 0.0, 0.0]"', no_null=True),
     _con.IntField('is_visible2d', default='1', no_null=True),
-    _con.IntField('is_visible3d', default='1', no_null=True),
+    _con.IntField('is_visible3d', default='0', no_null=True),
     _con.TextField('aabb', no_null=True),
     _con.TextField('obb', no_null=True)
 )

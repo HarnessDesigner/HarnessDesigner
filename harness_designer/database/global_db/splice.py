@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Iterable as _Iterable
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
-from .bases import EntryBase, TableBase
+from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import (
     PartNumberMixin, PartNumberControl,
     DescriptionMixin, DescriptionControl,
@@ -306,6 +306,8 @@ class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
 
         return packet
 
+    _stored_type: "DefaultStoredValueType | _splice_types.SpliceType" = DefaultStoredValue
+
     @property
     def type(self) -> "_splice_types.SpliceType":
         """Return the type.
@@ -315,8 +317,13 @@ class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_splice_types.SpliceType`
         """
-        db_id = self.type_id
-        return self._table.db.splice_types_table[db_id]
+        if self._stored_type is DefaultStoredValue:
+            db_id = self.type_id
+            self._stored_type = self._table.db.splice_types_table[db_id]
+
+        return self._stored_type
+
+    _stored_type_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def type_id(self) -> int:
@@ -327,7 +334,10 @@ class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('type_id', id=self._db_id)[0][0]
+        if self._stored_type_id is DefaultStoredValue:
+            self._stored_type_id = self._table.select('type_id', id=self._db_id)[0][0]
+
+        return self._stored_type_id
 
     @type_id.setter
     def type_id(self, value: int):
@@ -338,8 +348,13 @@ class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_type_id = value
+        self._stored_type = DefaultStoredValue
+
         self._table.update(self._db_id, type_id=value)
         self._populate('type_id')
+
+    _stored_resistance: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def resistance(self) -> float:
@@ -350,7 +365,10 @@ class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        return self._table.select('resistance', id=self._db_id)[0][0]
+        if self._stored_resistance is DefaultStoredValue:
+            self._stored_resistance = self._table.select('resistance', id=self._db_id)[0][0]
+
+        return self._stored_resistance
 
     @resistance.setter
     def resistance(self, value: float):
@@ -361,8 +379,11 @@ class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_resistance = value
         self._table.update(self._db_id, resistance=value)
         self._populate('resistance')
+
+    _stored_min_dia: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def min_dia(self) -> float:
@@ -373,7 +394,10 @@ class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        return self._table.select('min_dia', id=self._db_id)[0][0]
+        if self._stored_min_dia is DefaultStoredValue:
+            self._stored_min_dia = self._table.select('min_dia', id=self._db_id)[0][0]
+
+        return self._stored_min_dia
 
     @min_dia.setter
     def min_dia(self, value: float):
@@ -384,8 +408,11 @@ class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_min_dia = value
         self._table.update(self._db_id, min_dia=value)
         self._populate('min_dia')
+
+    _stored_max_dia: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def max_dia(self) -> float:
@@ -396,7 +423,10 @@ class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        return self._table.select('max_dia', id=self._db_id)[0][0]
+        if self._stored_max_dia is DefaultStoredValue:
+            self._stored_max_dia = self._table.select('max_dia', id=self._db_id)[0][0]
+
+        return self._stored_max_dia
 
     @max_dia.setter
     def max_dia(self, value: float):
@@ -407,7 +437,8 @@ class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
         :param value: Value to store or process.
         :type value: float
         """
-        self._table.update(self._db_id, min_dia=value)
+        self._stored_max_dia = value
+        self._table.update(self._db_id, max_dia=value)
         self._populate('max_dia')
 
 

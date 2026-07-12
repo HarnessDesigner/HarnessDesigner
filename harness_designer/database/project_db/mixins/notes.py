@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from .base import BaseMixin
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 from ....ui import prop_ctrls as _prop_ctrls
 
 
@@ -9,6 +9,8 @@ class NotesMixin(BaseMixin):
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
+    
+    _stored_notes: str | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def notes(self) -> str:
@@ -19,7 +21,10 @@ class NotesMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: str
         """
-        return self._table.select('notes', id=self._db_id)[0][0]
+        if self._stored_notes is DefaultStoredValue:
+            self._stored_notes = self._table.select('notes', id=self._db_id)[0][0]
+            
+        return self._stored_notes
 
     @notes.setter
     def notes(self, value: str):
@@ -30,6 +35,7 @@ class NotesMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: str
         """
+        self._stored_notes = value
         self._table.update(self._db_id, notes=value)
         self._populate('notes')
 

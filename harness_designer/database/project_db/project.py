@@ -2,7 +2,7 @@
 
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
-from .pjt_bases import PJTEntryBase, PJTTableBase
+from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import ColorMixin
 
 if TYPE_CHECKING:
@@ -166,6 +166,8 @@ class Project(PJTEntryBase, ColorMixin):
         """
         return self._table
 
+    _stored_name: str | DefaultStoredValueType = DefaultStoredValue
+
     @property
     def name(self) -> str:
         """Return the name.
@@ -175,7 +177,10 @@ class Project(PJTEntryBase, ColorMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: str
         """
-        return self._table.select('name', id=self._db_id)[0][0]
+        if self._stored_name is DefaultStoredValue:
+            self._stored_name = self._table.select('name', id=self._db_id)[0][0]
+
+        return self._stored_name
 
     @name.setter
     def name(self, value: str):
@@ -186,7 +191,10 @@ class Project(PJTEntryBase, ColorMixin):
         :param value: Value to store or process.
         :type value: str
         """
+        self._stored_name = value
         self._table.update(self._db_id, name=value)
+
+    _stored_description: str | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def description(self) -> str:
@@ -197,7 +205,10 @@ class Project(PJTEntryBase, ColorMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: str
         """
-        return self._table.select('description', id=self._db_id)[0][0]
+        if self._stored_description is DefaultStoredValue:
+            self._stored_description = self._table.select('description', id=self._db_id)[0][0]
+
+        return self._stored_description
 
     @description.setter
     def description(self, value: str):
@@ -208,7 +219,10 @@ class Project(PJTEntryBase, ColorMixin):
         :param value: Value to store or process.
         :type value: str
         """
+        self._stored_description = value
         self._table.update(self._db_id, description=value)
+
+    _stored_creator: str | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def creator(self) -> str:
@@ -219,7 +233,10 @@ class Project(PJTEntryBase, ColorMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: str
         """
-        return self._table.select('creator', id=self._db_id)[0][0]
+        if self._stored_creator is DefaultStoredValue:
+            self._stored_creator = self._table.select('creator', id=self._db_id)[0][0]
+
+        return self._stored_creator
 
     @creator.setter
     def creator(self, value: str):
@@ -230,20 +247,34 @@ class Project(PJTEntryBase, ColorMixin):
         :param value: Value to store or process.
         :type value: str
         """
+        self._stored_creator = value
         self._table.update(self._db_id, creator=value)
+
+    _stored_model_id: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def model_id(self) -> int:
-        return self._table.select('model_id', id=self._db_id)[0][0]
+        if self._stored_model_id is DefaultStoredValue:
+            self._stored_model_id = self._table.select('model_id', id=self._db_id)[0][0]
+
+        return self._stored_model_id
 
     @model_id.setter
     def model_id(self, value: int):
+        self._stored_model_id = value
+        self._stored_model = DefaultStoredValue
+
         self._table.update(self._db_id, model_id=value)
+
+    _stored_model: "_model3d.Model3D | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
     def model(self) -> "_model3d.Model3D":
-        model_id = self.model_id
-        if model_id is None:
-            return None
+        if self._stored_model is DefaultStoredValue:
+            model_id = self.model_id
+            if model_id is None:
+                self._stored_model = None
+            else:
+                self._stored_model = self.table.db.global_db.models3d_table[model_id]
 
-        return self.table.db.global_db.models3d_table[model_id]
+        return self._stored_model

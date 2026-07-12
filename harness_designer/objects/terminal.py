@@ -43,6 +43,21 @@ class Terminal(_ObjectBase):
         self.obj3d = _terminal_3d.Terminal(self, db_obj)
         self.mainframe.add_object(self)
 
+    def set_selected(self, flag):
+        """Selecting a terminal selects its owning cavity instead.
+
+        Terminals are never directly selectable — all manipulation of a
+        terminal happens through the cavity it's placed in.
+        """
+        if flag:
+            cavity = self.db_obj.cavity
+            cavity_obj = cavity.get_object() if cavity is not None else None
+            if cavity_obj is not None:
+                cavity_obj.set_selected(True)
+                return
+
+        super().set_selected(flag)
+
     @property
     def wire_position(self) -> _point.Point:
         """Return the wire position.

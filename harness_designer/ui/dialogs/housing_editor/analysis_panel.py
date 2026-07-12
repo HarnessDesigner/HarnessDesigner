@@ -19,6 +19,20 @@ class AnalysisItem:
     verts: np.ndarray   # (3N, 3) float32 — triangle soup for the 3D overlay
     wire_surf_si: int = -1   # index into picker.surfaces for the matched wire surface
     term_surf_si: int = -1   # index into picker.surfaces for this terminal surface
+    is_manual: bool = False  # True if hand-drawn on a single-plane housing
+    # Full coplanar surface-index groups wire_surf_si/term_surf_si were
+    # picked from (may cover several disconnected mesh islands on the same
+    # plane). Persisted to Cavity.wire_surf_indices/terminal_surf_indices so
+    # match_cavity_surfaces() can skip its OBB nearest-neighbor heuristic on
+    # later loads. Empty for manual (synthetic-marker) cavities.
+    wire_surf_indices: list = None
+    term_surf_indices: list = None
+
+    def __post_init__(self):
+        if self.wire_surf_indices is None:
+            self.wire_surf_indices = [self.wire_surf_si] if self.wire_surf_si >= 0 else []
+        if self.term_surf_indices is None:
+            self.term_surf_indices = [self.term_surf_si] if self.term_surf_si >= 0 else []
 
     @property
     def radius(self) -> float:

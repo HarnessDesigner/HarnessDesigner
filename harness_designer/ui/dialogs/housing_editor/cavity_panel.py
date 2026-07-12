@@ -430,10 +430,23 @@ class CavityPanel(_editable_tab_ctrl.EditableTabCtrl):
         cavity_tab.cavity.obj3d.apply_analysis(
             item.kind, item.params, item.d_start, item.d_end)
 
+        if item.is_manual:
+            # No real recessed mesh surface exists for this cavity — render
+            # a synthetic circle/rectangle marker from its OBB instead.
+            cavity_tab.cavity.obj3d.db_obj.render_terminal_marker = True
+
         # Store the surface indices so the overlay can highlight them when
         # this cavity tab is selected.
         cavity_tab.wire_surf_si = item.wire_surf_si
         cavity_tab.term_surf_si = item.term_surf_si
+
+        # Persist the full coplanar groups so match_cavity_surfaces() can
+        # skip its OBB nearest-neighbor heuristic on later loads of this
+        # catalog part. Manual (synthetic-marker) cavities have no real
+        # terminal surface, so term_surf_indices stays empty for them.
+        cavity_part = cavity_tab.cavity.obj3d.db_obj
+        cavity_part.wire_surf_indices = item.wire_surf_indices
+        cavity_part.terminal_surf_indices = item.term_surf_indices
 
         if item.name:
             cavity_tab.name = item.name

@@ -6,7 +6,7 @@ from typing import Iterable as _Iterable
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
-from .bases import EntryBase, TableBase
+from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import (
     PartNumberMixin, PartNumberControl,
     ManufacturerMixin, ManufacturerControl,
@@ -255,6 +255,8 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
 
         return packet
 
+    _stored_weight: float | DefaultStoredValueType = DefaultStoredValue
+
     @property
     def weight(self) -> float:
         """Return the weight.
@@ -264,7 +266,10 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        return self._table.select('weight', id=self._db_id)[0][0]
+        if self._stored_weight is DefaultStoredValue:
+            self._stored_weight = self._table.select('weight', id=self._db_id)[0][0]
+
+        return self._stored_weight
 
     @weight.setter
     def weight(self, value: float):
@@ -275,8 +280,11 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_weight = value
         self._table.update(self._db_id, weight=value)
         self._populate('weight')
+
+    _stored_has_label: bool | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def has_label(self) -> bool:
@@ -287,7 +295,10 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
         :returns: Property value. UNKNOWN details.
         :rtype: bool
         """
-        return bool(self._table.select('has_label', id=self._db_id)[0][0])
+        if self._stored_has_label is DefaultStoredValue:
+            self._stored_has_label = bool(self._table.select('has_label', id=self._db_id)[0][0])
+
+        return self._stored_has_label
 
     @has_label.setter
     def has_label(self, value: bool):
@@ -298,8 +309,11 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
         :param value: Value to store or process.
         :type value: bool
         """
+        self._stored_has_label = value
         self._table.update(self._db_id, has_label=int(value))
         self._populate('has_label')
+
+    _stored_min_diameter: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def min_diameter(self) -> float:
@@ -310,7 +324,10 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        return self._table.select('min_diameter', id=self._db_id)[0][0]
+        if self._stored_min_diameter is DefaultStoredValue:
+            self._stored_min_diameter = self._table.select('min_diameter', id=self._db_id)[0][0]
+
+        return self._stored_min_diameter
 
     @min_diameter.setter
     def min_diameter(self, value: float):
@@ -321,8 +338,11 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_min_diameter = value
         self._table.update(self._db_id, min_diameter=value)
         self._populate('min_diameter')
+
+    _stored_max_diameter: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def max_diameter(self) -> float:
@@ -333,7 +353,10 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        return self._table.select('max_diameter', id=self._db_id)[0][0]
+        if self._stored_max_diameter is DefaultStoredValue:
+            self._stored_max_diameter = self._table.select('max_diameter', id=self._db_id)[0][0]
+
+        return self._stored_max_diameter
 
     @max_diameter.setter
     def max_diameter(self, value: float):
@@ -344,8 +367,11 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_max_diameter = value
         self._table.update(self._db_id, max_diameter=value)
         self._populate('max_diameter')
+
+    _stored_length: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def length(self) -> float:
@@ -356,7 +382,10 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        return self._table.select('length', id=self._db_id)[0][0]
+        if self._stored_length is DefaultStoredValue:
+            self._stored_length = self._table.select('length', id=self._db_id)[0][0]
+
+        return self._stored_length
 
     @length.setter
     def length(self, value: float):
@@ -367,6 +396,7 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_length = value
         self._table.update(self._db_id, length=value)
         self._populate('length')
 

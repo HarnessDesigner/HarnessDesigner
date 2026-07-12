@@ -10,7 +10,7 @@ from PySide6.QtWidgets import QTabWidget, QWidget
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
-from .pjt_bases import PJTEntryBase, PJTTableBase
+from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from . import pjt_cover as _pjt_cover
@@ -374,7 +374,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         self._stored_cavities = cavities
         return cavities
 
-    _stored_cover_position3d: "_pjt_point3d.PJTPoint3D" = None
+    _stored_cover_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValue" = DefaultStoredValue
 
     @property
     def cover_position3d(self) -> "_point.Point":
@@ -385,16 +385,25 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         """
-        if self._stored_cover_position3d is None:
+        if self._stored_cover_position3d is DefaultStoredValue:
             point_id = self.cover_position3d_id
+            if point_id is None:
+                self._stored_cover_position3d = None
+            else:
+                self._stored_cover_position3d = self._table.db.pjt_points3d_table[point_id]
 
-            self._stored_cover_position3d = self._table.db.pjt_points3d_table[point_id]
-
-        if self._obj is not None:
-            self._stored_cover_position3d.add_object(self._obj())
-
-        return self._stored_cover_position3d.point
-
+        if self._stored_cover_position3d is not None:
+            if self._obj is not None:
+                self._stored_cover_position3d.add_object(self._obj())
+                
+            point = self._stored_cover_position3d.point
+        else:
+            point = None
+        
+        return point
+    
+    _stored_cover_position3d_id: int | None | DefaultStoredValue = DefaultStoredValue
+    
     @property
     def cover_position3d_id(self) -> int:
         """Return the cover position 3D ID.
@@ -404,14 +413,18 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        point_id = self._table.select('cover_point3d_id', id=self._db_id)[0][0]
+        
+        if self._stored_cover_position3d_id is DefaultStoredValue:
+            point_id = self._table.select('cover_point3d_id', id=self._db_id)[0][0]
 
-        if point_id is None:
-            point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
+            if point_id is None:
+                point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
 
-            self.cover_position3d_id = point_id
+                self.cover_position3d_id = point_id
+            
+            self._stored_cover_position3d_id = point_id
 
-        return point_id
+        return self._stored_cover_position3d_id
 
     @cover_position3d_id.setter
     def cover_position3d_id(self, value: int):
@@ -422,10 +435,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_cover_position3d_id = value
+        self._stored_cover_position3d = DefaultStoredValue
+        
         self._table.update(self._db_id, cover_point3d_id=value)
         self._populate('cover_position3d_id')
 
-    _stored_seal_position3d: "_pjt_point3d.PJTPoint3D" = None
+    _stored_seal_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValue" = DefaultStoredValue
 
     @property
     def seal_position3d(self) -> "_point.Point":
@@ -436,19 +452,25 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         """
-        if self._stored_seal_position3d is None:
+        if self._stored_seal_position3d is DefaultStoredValue:
             point_id = self.seal_position3d_id
-
             if point_id is None:
-                point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
+                self._stored_seal_position3d = None
+            else:
+                self._stored_seal_position3d = self._table.db.pjt_points3d_table[point_id]
 
-            self._stored_seal_position3d = self._table.db.pjt_points3d_table[point_id]
-
-        if self._obj is not None:
-            self._stored_seal_position3d.add_object(self._obj())
-
-        return self._stored_seal_position3d.point
-
+        if self._stored_seal_position3d is not None:
+            if self._obj is not None:
+                self._stored_seal_position3d.add_object(self._obj())
+                
+            point = self._stored_seal_position3d.point
+        else:
+            point = None
+        
+        return point
+    
+    _stored_seal_position3d_id: int | None | DefaultStoredValue = DefaultStoredValue
+    
     @property
     def seal_position3d_id(self) -> int:
         """Return the seal position 3D ID.
@@ -458,14 +480,18 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        point_id = self._table.select('seal_point3d_id', id=self._db_id)[0][0]
+        
+        if self._stored_seal_position3d_id is DefaultStoredValue:
+            point_id = self._table.select('seal_point3d_id', id=self._db_id)[0][0]
 
-        if point_id is None:
-            point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
+            if point_id is None:
+                point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
 
-            self.seal_position3d_id = point_id
+                self.seal_position3d_id = point_id
+            
+            self._stored_seal_position3d_id = point_id
 
-        return point_id
+        return self._stored_seal_position3d_id
 
     @seal_position3d_id.setter
     def seal_position3d_id(self, value: int):
@@ -476,10 +502,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_seal_position3d_id = value
+        self._stored_seal_position3d = DefaultStoredValue
+        
         self._table.update(self._db_id, seal_point3d_id=value)
         self._populate('seal_position3d_id')
 
-    _stored_boot_position3d: "_pjt_point3d.PJTPoint3D" = None
+    _stored_boot_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValue" = DefaultStoredValue
 
     @property
     def boot_position3d(self) -> "_point.Point":
@@ -490,20 +519,25 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         """
-
-        if self._stored_boot_position3d is None:
+        if self._stored_boot_position3d is DefaultStoredValue:
             point_id = self.boot_position3d_id
-
             if point_id is None:
-                point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
+                self._stored_boot_position3d = None
+            else:
+                self._stored_boot_position3d = self._table.db.pjt_points3d_table[point_id]
 
-            self._stored_boot_position3d = self._table.db.pjt_points3d_table[point_id]
-
-        if self._obj is not None:
-            self._stored_boot_position3d.add_object(self._obj())
-
-        return self._stored_boot_position3d.point
-
+        if self._stored_boot_position3d is not None:
+            if self._obj is not None:
+                self._stored_boot_position3d.add_object(self._obj())
+                
+            point = self._stored_boot_position3d.point
+        else:
+            point = None
+        
+        return point
+    
+    _stored_boot_position3d_id: int | None | DefaultStoredValue = DefaultStoredValue
+    
     @property
     def boot_position3d_id(self) -> int:
         """Return the boot position 3D ID.
@@ -513,14 +547,18 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        point_id = self._table.select('boot_point3d_id', id=self._db_id)[0][0]
+        
+        if self._stored_boot_position3d_id is DefaultStoredValue:
+            point_id = self._table.select('boot_point3d_id', id=self._db_id)[0][0]
 
-        if point_id is None:
-            point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
+            if point_id is None:
+                point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
 
-            self.boot_position3d_id = point_id
+                self.boot_position3d_id = point_id
+            
+            self._stored_boot_position3d_id = point_id
 
-        return point_id
+        return self._stored_boot_position3d_id
 
     @boot_position3d_id.setter
     def boot_position3d_id(self, value: int):
@@ -531,171 +569,210 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_boot_position3d_id = value
+        self._stored_boot_position3d = DefaultStoredValue
+        
         self._table.update(self._db_id, boot_point3d_id=value)
         self._populate('boot_position3d_id')
 
-    _stored_tpa_lock_1_position3d: "_pjt_point3d.PJTPoint3D" = None
+    _stored_tpa_lock_1_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValue" = DefaultStoredValue
 
     @property
     def tpa_lock_1_position3d(self) -> "_point.Point":
-        """Return the TPA lock 1 position 3D.
+        """Return the tpa_lock_1 position 3D.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         """
-
-        if self._stored_tpa_lock_1_position3d is None:
+        if self._stored_tpa_lock_1_position3d is DefaultStoredValue:
             point_id = self.tpa_lock_1_position3d_id
-
             if point_id is None:
-                point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
+                self._stored_tpa_lock_1_position3d = None
+            else:
+                self._stored_tpa_lock_1_position3d = self._table.db.pjt_points3d_table[point_id]
 
-            self._stored_tpa_lock_1_position3d = self._table.db.pjt_points3d_table[point_id]
-
-        if self._obj is not None:
-            self._stored_tpa_lock_1_position3d.add_object(self._obj())
-
-        return self._stored_tpa_lock_1_position3d.point
-
+        if self._stored_tpa_lock_1_position3d is not None:
+            if self._obj is not None:
+                self._stored_tpa_lock_1_position3d.add_object(self._obj())
+                
+            point = self._stored_tpa_lock_1_position3d.point
+        else:
+            point = None
+        
+        return point
+    
+    _stored_tpa_lock_1_position3d_id: int | None | DefaultStoredValue = DefaultStoredValue
+    
     @property
     def tpa_lock_1_position3d_id(self) -> int:
-        """Return the TPA lock 1 position 3D ID.
+        """Return the tpa_lock_1 position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        point_id = self._table.select('tpa_lock_1_point3d_id', id=self._db_id)[0][0]
+        
+        if self._stored_tpa_lock_1_position3d_id is DefaultStoredValue:
+            point_id = self._table.select('tpa_lock_1_point3d_id', id=self._db_id)[0][0]
 
-        if point_id is None:
-            point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
+            if point_id is None:
+                point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
 
-            self.tpa_lock_1_position3d_id = point_id
+                self.tpa_lock_1_position3d_id = point_id
+            
+            self._stored_tpa_lock_1_position3d_id = point_id
 
-        return point_id
+        return self._stored_tpa_lock_1_position3d_id
 
     @tpa_lock_1_position3d_id.setter
     def tpa_lock_1_position3d_id(self, value: int):
-        """Set the TPA lock 1 position 3D ID.
+        """Set the tpa_lock_1 position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_tpa_lock_1_position3d_id= value
+        self._stored_tpa_lock_1_position3d = DefaultStoredValue
+        
         self._table.update(self._db_id, tpa_lock_1_point3d_id=value)
         self._populate('tpa_lock_1_position3d_id')
 
-    _stored_tpa_lock_2_position3d: "_pjt_point3d.PJTPoint3D" = None
+    _stored_tpa_lock_2_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValue" = DefaultStoredValue
 
     @property
     def tpa_lock_2_position3d(self) -> "_point.Point":
-        """Return the TPA lock 2 position 3D.
+        """Return the tpa_lock_2 position 3D.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         """
-
-        if self._stored_tpa_lock_2_position3d is None:
+        if self._stored_tpa_lock_2_position3d is DefaultStoredValue:
             point_id = self.tpa_lock_2_position3d_id
-
             if point_id is None:
-                point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
+                self._stored_tpa_lock_2_position3d = None
+            else:
+                self._stored_tpa_lock_2_position3d = self._table.db.pjt_points3d_table[point_id]
 
-            self._stored_tpa_lock_2_position3d = self._table.db.pjt_points3d_table[point_id]
-
-        if self._obj is not None:
-            self._stored_tpa_lock_2_position3d.add_object(self._obj())
-
-        return self._stored_tpa_lock_2_position3d.point
-
+        if self._stored_tpa_lock_2_position3d is not None:
+            if self._obj is not None:
+                self._stored_tpa_lock_2_position3d.add_object(self._obj())
+                
+            point = self._stored_tpa_lock_2_position3d.point
+        else:
+            point = None
+        
+        return point
+    
+    _stored_tpa_lock_2_position3d_id: int | None | DefaultStoredValue = DefaultStoredValue
+    
     @property
     def tpa_lock_2_position3d_id(self) -> int:
-        """Return the TPA lock 2 position 3D ID.
+        """Return the tpa_lock_2 position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        point_id = self._table.select('tpa_lock_2_point3d_id', id=self._db_id)[0][0]
+        
+        if self._stored_tpa_lock_2_position3d_id is DefaultStoredValue:
+            point_id = self._table.select('tpa_lock_2_point3d_id', id=self._db_id)[0][0]
 
-        if point_id is None:
-            point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
+            if point_id is None:
+                point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
 
-            self.tpa_lock_2_position3d_id = point_id
+                self.tpa_lock_2_position3d_id = point_id
+            
+            self._stored_tpa_lock_2_position3d_id = point_id
 
-        return point_id
+        return self._stored_tpa_lock_2_position3d_id
 
     @tpa_lock_2_position3d_id.setter
     def tpa_lock_2_position3d_id(self, value: int):
-        """Set the TPA lock 2 position 3D ID.
+        """Set the tpa_lock_2 position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_tpa_lock_2_position3d_id = value
+        self._stored_tpa_lock_2_position3d = DefaultStoredValue
+        
         self._table.update(self._db_id, tpa_lock_2_point3d_id=value)
         self._populate('tpa_lock_2_position3d_id')
 
-    _stored_cpa_lock_position3d: "_pjt_point3d.PJTPoint3D" = None
+    _stored_cpa_lock_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValue" = DefaultStoredValue
 
     @property
     def cpa_lock_position3d(self) -> "_point.Point":
-        """Return the CPA lock position 3D.
+        """Return the cpa_lock position 3D.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         """
-
-        if self._stored_cpa_lock_position3d is None:
+        if self._stored_cpa_lock_position3d is DefaultStoredValue:
             point_id = self.cpa_lock_position3d_id
-
             if point_id is None:
-                point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
+                self._stored_cpa_lock_position3d = None
+            else:
+                self._stored_cpa_lock_position3d = self._table.db.pjt_points3d_table[point_id]
 
-            self._stored_cpa_lock_position3d = self._table.db.pjt_points3d_table[point_id]
-
-        if self._obj is not None:
-            self._stored_cpa_lock_position3d.add_object(self._obj())
-
-        return self._stored_cpa_lock_position3d.point
-
+        if self._stored_cpa_lock_position3d is not None:
+            if self._obj is not None:
+                self._stored_cpa_lock_position3d.add_object(self._obj())
+                
+            point = self._stored_cpa_lock_position3d.point
+        else:
+            point = None
+        
+        return point
+    
+    _stored_cpa_lock_position3d_id: int | None | DefaultStoredValue = DefaultStoredValue
+    
     @property
     def cpa_lock_position3d_id(self) -> int:
-        """Return the CPA lock position 3D ID.
+        """Return the cpa_lock position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        point_id = self._table.select('cpa_lock_point3d_id', id=self._db_id)[0][0]
+        
+        if self._stored_cpa_lock_position3d_id is DefaultStoredValue:
+            point_id = self._table.select('cpa_lock_point3d_id', id=self._db_id)[0][0]
 
-        if point_id is None:
-            point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
+            if point_id is None:
+                point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
 
-            self.cpa_lock_position3d_id = point_id
+                self.cpa_lock_position3d_id = point_id
+            
+            self._stored_cpa_lock_position3d_id = point_id
 
-        return point_id
+        return self._stored_cpa_lock_position3d_id
 
     @cpa_lock_position3d_id.setter
     def cpa_lock_position3d_id(self, value: int):
-        """Set the CPA lock position 3D ID.
+        """Set the cpa_lock position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_cpa_lock_position3d_id= value
+        self._stored_cpa_lock_position3d = DefaultStoredValue
+        
         self._table.update(self._db_id, cpa_lock_point3d_id=value)
         self._populate('cpa_lock_position3d_id')
 
@@ -868,7 +945,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     #         res.append(accessory)
     #     return res
 
-    _stored_part: "_housing.Housing" = None
+    _stored_part: "_housing.Housing | None | DefaultStoredValue" = DefaultStoredValue
 
     @property
     def part(self) -> "_housing.Housing":
@@ -879,16 +956,17 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_housing.Housing`
         """
-        if self._stored_part is None:
+        if self._stored_part is DefaultStoredValue:
             part_id = self.part_id
 
             if part_id is None:
-                return None
+                self._stored_part = None
+            else:
+                self._stored_part = self._table.db.global_db.housings_table[part_id]
 
-            self._stored_part = self._table.db.global_db.housings_table[part_id]
-
-        if self._obj is not None:
-            self._stored_part.add_object(self._obj())
+        if self._stored_part is not None:
+            if self._obj is not None:
+                self._stored_part.add_object(self._obj())
 
         return self._stored_part
 
@@ -1000,19 +1078,25 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         """
-        if self._stored_position3d is None:
+        if self._stored_position3d is DefaultStoredValue:
             point_id = self.position3d_id
 
-            self._stored_position3d = self._table.db.pjt_points3d_table[point_id]
+            if point_id is None:
+                self._stored_position3d = None
+            else:
+                self._stored_position3d = self._table.db.pjt_points3d_table[point_id]
+
+                point = self._stored_position3d.point
+                point.bind(self._update_position3d)
+                self._o_position3d = point.copy()
+
+        if self._stored_position3d is not None:
+            if self._obj is not None:
+                self._stored_position3d.add_object(self._obj())
 
             point = self._stored_position3d.point
-            point.bind(self._update_position3d)
-            self._o_position3d = point.copy()
         else:
-            point = self._stored_position3d.point
-
-        if self._obj is not None:
-            self._stored_position3d.add_object(self._obj())
+            point = None
 
         return point
 
@@ -1046,19 +1130,25 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :rtype: :class:`_point.Point`
         """
 
-        if self._stored_position2d is None:
+        if self._stored_position2d is DefaultStoredValue:
             point_id = self.position2d_id
 
-            self._stored_position2d = self._table.db.pjt_points2d_table[point_id]
+            if point_id is None:
+                self._stored_position2d = None
+            else:
+                self._stored_position2d = self._table.db.pjt_points2d_table[point_id]
+
+                point = self._stored_position2d.point
+                point.bind(self._update_position2d)
+                self._o_position2d = point.copy()
+
+        if self._stored_position2d is not None:
+            if self._obj is not None:
+                self._stored_position2d.add_object(self._obj())
 
             point = self._stored_position2d.point
-            point.bind(self._update_position2d)
-            self._o_position2d = point.copy()
         else:
-            point = self._stored_position2d.point
-
-        if self._obj is not None:
-            self._stored_position2d.add_object(self._obj())
+            point = None
 
         return point
 
@@ -1201,6 +1291,68 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
                           for cav, q, eu in angle_results]
 
             angle_results[0][0].table.batch_update(['quat3d', 'angle3d'], angle_rows)
+
+        # ── Terminal/seal angle mirrors its cavity's angle exactly — no OBB
+        # alignment needed, so the cavity's already-computed q_acc_new/
+        # new_euler are reused directly instead of recomputing per object.
+        # A cavity holds a terminal XOR a cavity-level (PLUG/dummy-pin) seal,
+        # never both — cavity.seal only finds seals linked via cavity_id.
+        # When a terminal is present, any seal on it (SWS) is linked via
+        # terminal_id instead, invisible to cavity.seal, so it must be
+        # looked up through terminal.seal.
+        terminal_angle_results = []  # [(terminal, q_acc_new, new_euler), ...]
+        seal_angle_results = []      # [(seal, q_acc_new, new_euler), ...]
+
+        for cav, q_acc_new, new_euler in angle_results:
+            terminal = cav.terminal
+            if terminal is not None:
+                terminal_angle_results.append((terminal, q_acc_new, new_euler))
+
+                seal = terminal.seal
+                if seal is not None:
+                    seal_angle_results.append((seal, q_acc_new, new_euler))
+            else:
+                seal = cav.seal
+                if seal is not None:
+                    seal_angle_results.append((seal, q_acc_new, new_euler))
+
+        for term, q_acc_new, new_euler in terminal_angle_results:
+            term_angle = term.angle3d
+            with term_angle:
+                term_angle.x = new_euler[0]
+                term_angle.y = new_euler[1]
+                term_angle.z = new_euler[2]
+                term_angle._q.w = q_acc_new.w  # NOQA
+                term_angle._q.x = q_acc_new.x  # NOQA
+                term_angle._q.y = q_acc_new.y  # NOQA
+                term_angle._q.z = q_acc_new.z  # NOQA
+                term_angle._matrix[:] = q_acc_new.as_matrix  # NOQA
+
+        if terminal_angle_results:
+            terminal_angle_rows = [(str(list(q.as_float)), str(eu), term._db_id)
+                                   for term, q, eu in terminal_angle_results]
+
+            terminal_angle_results[0][0].table.batch_update(
+                ['quat3d', 'angle3d'], terminal_angle_rows)
+
+        for seal, q_acc_new, new_euler in seal_angle_results:
+            seal_angle = seal.angle3d
+            with seal_angle:
+                seal_angle.x = new_euler[0]
+                seal_angle.y = new_euler[1]
+                seal_angle.z = new_euler[2]
+                seal_angle._q.w = q_acc_new.w  # NOQA
+                seal_angle._q.x = q_acc_new.x  # NOQA
+                seal_angle._q.y = q_acc_new.y  # NOQA
+                seal_angle._q.z = q_acc_new.z  # NOQA
+                seal_angle._matrix[:] = q_acc_new.as_matrix  # NOQA
+
+        if seal_angle_results:
+            seal_angle_rows = [(str(list(q.as_float)), str(eu), seal._db_id)
+                               for seal, q, eu in seal_angle_results]
+
+            seal_angle_results[0][0].table.batch_update(
+                ['quat3d', 'angle3d'], seal_angle_rows)
 
         # ── Accessory angle computation (OBB-based) ───────────────────────────
         acc_objs = [self.tpa_lock1, self.seal,

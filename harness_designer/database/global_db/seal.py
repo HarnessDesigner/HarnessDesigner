@@ -7,7 +7,7 @@ import uuid
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
-from .bases import EntryBase, TableBase
+from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from ...geometry import point as _point
 from .mixins import (
     PartNumberMixin, PartNumberControl,
@@ -423,6 +423,8 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         scale.bind(self._update_scale)
         return scale
 
+    _stored_o_dia: DefaultStoredValueType | float = DefaultStoredValue
+
     @property
     def o_dia(self) -> float:
         """Return the o dia.
@@ -432,7 +434,10 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        return self._table.select('o_dia', id=self._db_id)[0][0]
+        if self._stored_o_dia is DefaultStoredValue:
+            self._stored_o_dia = self._table.select('o_dia', id=self._db_id)[0][0]
+
+        return self._stored_o_dia
 
     @o_dia.setter
     def o_dia(self, value: float):
@@ -443,8 +448,11 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_o_dia = round(value, 6)
         self._table.update(self._db_id, o_dia=round(value, 6))
         self._populate('o_dia')
+
+    _stored_i_dia: DefaultStoredValueType | float = DefaultStoredValue
 
     @property
     def i_dia(self) -> float:
@@ -455,7 +463,10 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        return self._table.select('i_dia', id=self._db_id)[0][0]
+        if self._stored_i_dia is DefaultStoredValue:
+            self._stored_i_dia = self._table.select('i_dia', id=self._db_id)[0][0]
+
+        return self._stored_i_dia
 
     @i_dia.setter
     def i_dia(self, value: float):
@@ -466,8 +477,11 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_i_dia = round(value, 6)
         self._table.update(self._db_id, i_dia=round(value, 6))
         self._populate('i_dia')
+
+    _stored_type: "DefaultStoredValueType | _seal_type.SealType" = DefaultStoredValue
 
     @property
     def type(self) -> "_seal_type.SealType":
@@ -478,8 +492,12 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_seal_type.SealType`
         """
-        type_id = self.type_id
-        return self.table.db.seal_types_table[type_id]
+        if self._stored_type is DefaultStoredValue:
+            self._stored_type = self.table.db.seal_types_table[self.type_id]
+
+        return self._stored_type
+
+    _stored_type_id: DefaultStoredValueType | int = DefaultStoredValue
 
     @property
     def type_id(self) -> int:
@@ -490,7 +508,10 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('type_id', id=self._db_id)[0][0]
+        if self._stored_type_id is DefaultStoredValue:
+            self._stored_type_id = self._table.select('type_id', id=self._db_id)[0][0]
+
+        return self._stored_type_id
 
     @type_id.setter
     def type_id(self, value: int):
@@ -501,8 +522,13 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_type_id = value
+        self._stored_type = DefaultStoredValue
+
         self._table.update(self._db_id, type_id=value)
         self._populate('type_id')
+
+    _stored_hardness: DefaultStoredValueType | int = DefaultStoredValue
 
     @property
     def hardness(self) -> int:
@@ -513,7 +539,10 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('hardness', id=self._db_id)[0][0]
+        if self._stored_hardness is DefaultStoredValue:
+            self._stored_hardness = self._table.select('hardness', id=self._db_id)[0][0]
+
+        return self._stored_hardness
 
     @hardness.setter
     def hardness(self, value: int):
@@ -524,8 +553,11 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :param value: Value to store or process.
         :type value: int
         """
-        self._table.update(self.hardness, i_dia=value)
+        self._stored_hardness = value
+        self._table.update(self._db_id, hardness=value)
         self._populate('hardness')
+
+    _stored_lubricant: DefaultStoredValueType | str = DefaultStoredValue
 
     @property
     def lubricant(self) -> str:
@@ -536,7 +568,10 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: str
         """
-        return self._table.select('lubricant', id=self._db_id)[0][0]
+        if self._stored_lubricant is DefaultStoredValue:
+            self._stored_lubricant = self._table.select('lubricant', id=self._db_id)[0][0]
+
+        return self._stored_lubricant
 
     @lubricant.setter
     def lubricant(self, value: str):
@@ -547,8 +582,11 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :param value: Value to store or process.
         :type value: str
         """
+        self._stored_lubricant = value
         self._table.update(self._db_id, lubricant=value)
         self._populate('lubricant')
+
+    _stored_wire_dia_min: DefaultStoredValueType | float = DefaultStoredValue
 
     @property
     def wire_dia_min(self) -> float:
@@ -559,7 +597,10 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        return self._table.select('wire_dia_min', id=self._db_id)[0][0]
+        if self._stored_wire_dia_min is DefaultStoredValue:
+            self._stored_wire_dia_min = self._table.select('wire_dia_min', id=self._db_id)[0][0]
+
+        return self._stored_wire_dia_min
 
     @wire_dia_min.setter
     def wire_dia_min(self, value: float):
@@ -570,8 +611,11 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_wire_dia_min = round(value, 6)
         self._table.update(self._db_id, wire_dia_min=round(value, 6))
         self._populate('wire_dia_min')
+
+    _stored_wire_dia_max: DefaultStoredValueType | float = DefaultStoredValue
 
     @property
     def wire_dia_max(self) -> float:
@@ -582,7 +626,10 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        return self._table.select('wire_dia_max', id=self._db_id)[0][0]
+        if self._stored_wire_dia_max is DefaultStoredValue:
+            self._stored_wire_dia_max = self._table.select('wire_dia_max', id=self._db_id)[0][0]
+
+        return self._stored_wire_dia_max
 
     @wire_dia_max.setter
     def wire_dia_max(self, value: float):
@@ -593,6 +640,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_wire_dia_max = round(value, 6)
         self._table.update(self._db_id, wire_dia_max=round(value, 6))
         self._populate('wire_dia_max')
 

@@ -4,7 +4,9 @@
 import io
 from typing import TYPE_CHECKING
 
+import re
 import threading
+import time as _time_mod
 import sqlite3
 from typing import (Optional as _Optional,
                     Union as _Union,
@@ -31,6 +33,9 @@ if TYPE_CHECKING:
 
 
 Config = _config.Config.database.sqlite
+_DebugConfig = _config.Config.debug.database
+
+_NORMALIZE_LITERAL_RE = re.compile(r"'[^']*'|\b\d+\b")
 
 
 _StrOrBytes = _Union[str, bytes]
@@ -65,6 +70,41 @@ class SQLConnector(_base.ConnectorBase):
         self._cursor: sqlite3.Cursor = None
         self.database_name = 'harness_designer'
         self.cred_manager: _manager.CredManager = None
+
+        # normalized SQL text -> [call_count, total_seconds]
+        self._query_profile: dict[str, list] = {}
+
+    def reset_query_profile(self) -> None:
+        """Clear accumulated query-profile stats (see ``Config.debug.database.profile_queries``)."""
+        self._query_profile = {}
+
+    def dump_query_profile(self, top_n: int = 30, label: str = '') -> None:
+        """Log a summary of queries recorded since the last reset.
+
+        Reports the ``top_n`` normalized statements by total time and by
+        call count, plus grand totals. No-op if nothing was recorded (e.g.
+        profiling was off).
+        """
+        if not self._query_profile:
+            return
+
+        total_calls = sum(v[0] for v in self._query_profile.values())
+        total_time = sum(v[1] for v in self._query_profile.values())
+
+        header = f'QUERY PROFILE{f" ({label})" if label else ""}: ' \
+                 f'{total_calls} calls, {total_time * 1000:.1f}ms total, ' \
+                 f'{len(self._query_profile)} distinct statements'
+        _logger.database(header)
+
+        by_time = sorted(self._query_profile.items(), key=lambda kv: kv[1][1], reverse=True)
+        _logger.database('-- top statements by total time --')
+        for sql, (count, secs) in by_time[:top_n]:
+            _logger.database(f'{secs * 1000:8.1f}ms  {count:6d}x  {secs / count * 1000:6.3f}ms/call  {sql}')
+
+        by_count = sorted(self._query_profile.items(), key=lambda kv: kv[1][0], reverse=True)
+        _logger.database('-- top statements by call count --')
+        for sql, (count, secs) in by_count[:top_n]:
+            _logger.database(f'{count:6d}x  {secs * 1000:8.1f}ms  {secs / count * 1000:6.3f}ms/call  {sql}')
 
     def get_tables(self) -> list[str]:
         """
@@ -235,6 +275,19 @@ class SQLConnector(_base.ConnectorBase):
         :rtype: _Generator[sqlite3.Cursor, None, None] | None
         """
 
+        if not _DebugConfig.profile_queries:
+            try:
+                if params is None:
+                    return self._cursor.execute(operation)
+                else:
+                    return self._cursor.execute(operation, params)
+            except AttributeError:
+                return None
+            except Exception:  # NOQA
+                _logger.error('SQLITE execute ERROR:', 'CMD:', operation, '\n', 'PARAMS:', params)
+                return None
+
+        start = _time_mod.perf_counter()
         try:
             if params is None:
                 return self._cursor.execute(operation)
@@ -245,6 +298,12 @@ class SQLConnector(_base.ConnectorBase):
         except Exception:  # NOQA
             _logger.error('SQLITE execute ERROR:', 'CMD:', operation, '\n', 'PARAMS:', params)
             return None
+        finally:
+            elapsed = _time_mod.perf_counter() - start
+            key = _NORMALIZE_LITERAL_RE.sub('?', operation)
+            entry = self._query_profile.setdefault(key, [0, 0.0])
+            entry[0] += 1
+            entry[1] += elapsed
 
     def executemany(
         self, operation: str, seq_params: list[_ParamsSequenceOrDictType] | tuple[_ParamsSequenceOrDictType]

@@ -2,7 +2,7 @@
 
 from typing import Iterable as _Iterable
 
-from .bases import EntryBase, TableBase
+from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import DescriptionMixin
 
 
@@ -131,6 +131,8 @@ class Plating(EntryBase, DescriptionMixin):
 
         return packet
 
+    _stored_symbol: DefaultStoredValueType | str = DefaultStoredValue
+
     @property
     def symbol(self) -> str:
         """Return the symbol.
@@ -140,7 +142,10 @@ class Plating(EntryBase, DescriptionMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: str
         """
-        return self._table.select('symbol', id=self._db_id)[0][0]
+        if self._stored_symbol is DefaultStoredValue:
+            self._stored_symbol = self._table.select('symbol', id=self._db_id)[0][0]
+
+        return self._stored_symbol
 
     @symbol.setter
     def symbol(self, value: str):
@@ -151,5 +156,6 @@ class Plating(EntryBase, DescriptionMixin):
         :param value: Value to store or process.
         :type value: str
         """
+        self._stored_symbol = value
         self._table.update(self._db_id, symbol=value)
         self._populate('symbol')

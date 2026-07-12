@@ -1,14 +1,16 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Callable, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 from collections import OrderedDict
+import sqlite3
 
 from PySide6 import QtWidgets
 from PySide6 import QtCore
 from PySide6 import QtGui
 
 from . import dialog_base as _dialog_base
+from ... import logger as _logger
 
 
 if TYPE_CHECKING:
@@ -19,6 +21,77 @@ RESOLUTION_SUFFIXES: Tuple[str, ...] = ("name", "symbol", "description")
 FK_FILTER = "fk"
 ENUM_FILTER = "enum"
 RANGE_FILTER = "range"
+
+
+class _QueryWorker(QtCore.QObject):
+    """Run SQL on a dedicated worker thread against its own SQLite connection.
+
+    ``parent.db_connector`` is a single shared connection with a single
+    shared cursor used throughout the app; handing that same cursor to a
+    second thread would corrupt its state the moment anything else touched
+    it concurrently. SQLite has no problem with multiple independent
+    connections to the same file used concurrently for reads, so this
+    worker opens its own connection (from within its own thread, once the
+    thread's event loop has started) and never touches the shared one.
+    """
+
+    resultReady = QtCore.Signal(int, object, object)  # request_id, rows, error
+
+    def __init__(self, db_path: str):
+        """Initialise the :class:`_QueryWorker` instance.
+
+        :param db_path: Filesystem path to the SQLite database file.
+        :type db_path: str
+        """
+        super().__init__()
+        self._db_path = db_path
+        self._conn: Optional[sqlite3.Connection] = None
+
+    @QtCore.Slot()
+    def open(self) -> None:
+        """Open this worker's own connection. Must run on the worker thread."""
+        self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
+
+    @QtCore.Slot(int, str, list)
+    def run_query(self, request_id: int, sql: str, params: list) -> None:
+        """Execute one query and report the result back to the main thread.
+
+        :param request_id: Token used by the caller to match this result
+            back to the request that triggered it.
+        :type request_id: int
+        :param sql: SQL statement to execute.
+        :type sql: str
+        :param params: Bound parameters for ``sql``.
+        :type params: list
+        """
+        try:
+            cur = self._conn.cursor()
+            cur.execute(sql, params)
+            rows = cur.fetchall()
+            cur.close()
+        except Exception as err:  # NOQA
+            self.resultReady.emit(request_id, None, err)
+            return
+
+        self.resultReady.emit(request_id, rows, None)
+
+    def request_stop(self) -> None:
+        """Abort any in-flight query so the worker thread can exit promptly.
+
+        Called directly from the main thread (not via a signal), so unlike
+        every other method here it must NOT touch ``self._conn`` in a way
+        that isn't documented as cross-thread safe.
+        ``sqlite3.Connection.interrupt`` specifically is safe to call from
+        a different thread than the one running the query -- it's the
+        sqlite3 module's designated way to cancel a long-running statement
+        from outside. Without this, closing the dialog while a slow
+        housings query is mid-flight would leave the worker thread stuck
+        running it, and :meth:`QThread.wait` in :meth:`SearchDialog.done`
+        would block the main thread for the query's full duration -- the
+        exact freeze this worker thread exists to avoid.
+        """
+        if self._conn is not None:
+            self._conn.interrupt()
 
 
 class _MainTableInfo:
@@ -587,23 +660,37 @@ class RangeFilterPanel(_FilterPanelBase):
         if not self._initialised:
             self._initialised = True
 
-            if self.is_int:
-                lo_i, hi_i = int(lo), int(hi)
-                self._lo_default, self._hi_default = lo_i, hi_i
-                self.min_ctrl.setRange(lo_i, hi_i)
-                self.max_ctrl.setRange(lo_i, hi_i)
-                self.min_ctrl.setValue(lo_i)
-                self.max_ctrl.setValue(hi_i)
-            else:
-                lo_f, hi_f = float(lo), float(hi)
-                self._lo_default, self._hi_default = lo_f, hi_f
-                inc = self._good_increment(hi_f - lo_f)
-                self.min_ctrl.setSingleStep(inc)
-                self.max_ctrl.setSingleStep(inc)
-                self.min_ctrl.setRange(lo_f, hi_f)
-                self.max_ctrl.setRange(lo_f, hi_f)
-                self.min_ctrl.setValue(lo_f)
-                self.max_ctrl.setValue(hi_f)
+            # setValue() emits valueChanged for real (unlike FKFilterPanel/
+            # EnumFilterPanel's populate(), which block signals around their
+            # initial state). Left unblocked, every RangeFilterPanel built
+            # during the chunked filter-build loop fires two spurious
+            # "filter changed" events mid-construction, each kicking off a
+            # full _refresh_all() pass against a still-partially-built
+            # self.filters -- a storm of redundant queries that looks like
+            # a hang and has nothing to do with anything the user did.
+            self.min_ctrl.blockSignals(True)
+            self.max_ctrl.blockSignals(True)
+            try:
+                if self.is_int:
+                    lo_i, hi_i = int(lo), int(hi)
+                    self._lo_default, self._hi_default = lo_i, hi_i
+                    self.min_ctrl.setRange(lo_i, hi_i)
+                    self.max_ctrl.setRange(lo_i, hi_i)
+                    self.min_ctrl.setValue(lo_i)
+                    self.max_ctrl.setValue(hi_i)
+                else:
+                    lo_f, hi_f = float(lo), float(hi)
+                    self._lo_default, self._hi_default = lo_f, hi_f
+                    inc = self._good_increment(hi_f - lo_f)
+                    self.min_ctrl.setSingleStep(inc)
+                    self.max_ctrl.setSingleStep(inc)
+                    self.min_ctrl.setRange(lo_f, hi_f)
+                    self.max_ctrl.setRange(lo_f, hi_f)
+                    self.min_ctrl.setValue(lo_f)
+                    self.max_ctrl.setValue(hi_f)
+            finally:
+                self.min_ctrl.blockSignals(False)
+                self.max_ctrl.blockSignals(False)
 
         self.range_label.setText(f"In data: {lo:g} - {hi:g}")
 
@@ -655,6 +742,13 @@ class SearchDialog(_dialog_base.BaseDialog):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    # Cross-thread request signal. Connecting this to the worker's
+    # ``run_query`` slot and emitting it from the main thread is the normal
+    # Qt way to hand work to another thread -- Qt detects the receiver
+    # lives on a different thread and auto-delivers the call as a queued
+    # (thread-safe) event instead of calling it directly.
+    _queryRequested = QtCore.Signal(int, str, list)
+
     def __init__(self, parent: "_ui.MainFrame", page_class, table, title: str, initial_results=None):
         """Initialise the :class:`SearchDialog` instance.
 
@@ -673,7 +767,7 @@ class SearchDialog(_dialog_base.BaseDialog):
             with the part being attached to).
         :type initial_results: list[str]
         """
-        super().__init__(parent, title=title)
+        super().__init__(parent, title=title, size=(1180, 780))
 
         self.table = table
         self.initial_results: List[str] = list(initial_results or [])
@@ -694,11 +788,134 @@ class SearchDialog(_dialog_base.BaseDialog):
             )
             return
 
-        self._build_ui()
-        self._build_filters_for(self.current_table)
-        self._refresh_all()
+        # Filter-building/refresh queries (the ones that can run long
+        # against a large catalog table) are dispatched to a worker thread
+        # with its own SQLite connection, so a slow query blocks that
+        # thread instead of this one -- the dialog's own event loop keeps
+        # pumping, so Windows never flags it as "Not Responding", and a
+        # busy cursor + progress bar (see :meth:`_begin_query`) tell the
+        # user something is actually happening.
+        self._next_request_id = 0
+        self._pending_queries: Dict[int, Callable[[list], None]] = {}
+        self._inflight_count = 0
+        self._busy_cursor_active = False
 
-        QtCore.QTimer.singleShot(0, lambda: self.resize(1180, 780))
+        self._query_thread = QtCore.QThread(self)
+        self._query_worker = _QueryWorker(self.conn.db_name)
+        self._query_worker.moveToThread(self._query_thread)
+        self._query_thread.started.connect(self._query_worker.open)  # NOQA
+        self._queryRequested.connect(self._query_worker.run_query)  # NOQA
+        self._query_worker.resultReady.connect(self._on_query_result)
+        self._query_thread.start()
+
+        # Build the empty structure (keyword field, filter strip, results
+        # table) at the dialog's final size first, so the window appears
+        # immediately.  The filter/result queries run right after, once the
+        # event loop actually starts processing (i.e. once the dialog is
+        # already visible), instead of blocking the dialog from showing at
+        # all until every query finishes.
+        self._build_ui()
+        QtCore.QTimer.singleShot(0, self._populate)
+
+    def done(self, result: int) -> None:
+        """Shut down the query worker thread before the dialog closes.
+
+        Overriding :meth:`QDialog.done` (rather than ``accept``/``reject``
+        individually) catches every way the dialog can close, since both
+        funnel through it.
+
+        :param result: The dialog result code being finished with.
+        :type result: int
+        """
+        if hasattr(self, '_query_thread'):
+            # Interrupt first: if a slow housings query is still running on
+            # the worker thread, quit()+wait() alone would block this
+            # (main) thread until that query finishes on its own --
+            # exactly the freeze the worker thread exists to avoid.
+            self._query_worker.request_stop()
+            self._query_thread.quit()
+            self._query_thread.wait()
+
+        super().done(result)
+
+    # ------------------------------------------------------------------
+    # Async query plumbing
+    # ------------------------------------------------------------------
+
+    def _run_query_async(self, sql: str, params: list,
+                         callback: Callable[[list], None]) -> None:
+        """Submit a query to the worker thread; ``callback`` runs on the
+        main thread once the result arrives.
+
+        :param sql: SQL statement to execute.
+        :type sql: str
+        :param params: Bound parameters for ``sql``.
+        :type params: list
+        :param callback: Called with the fetched rows (``[]`` on error).
+        :type callback: Callable[[list], None]
+        """
+        self._next_request_id += 1
+        request_id = self._next_request_id
+        self._pending_queries[request_id] = callback
+        self._begin_query()
+        self._queryRequested.emit(request_id, sql, list(params))
+
+    def _on_query_result(self, request_id: int, rows, error) -> None:
+        """Handle a result delivered back from the worker thread.
+
+        :param request_id: Token matching the originating request.
+        :type request_id: int
+        :param rows: Fetched rows, or ``None`` on error.
+        :type rows: list | None
+        :param error: The exception raised in the worker, if any.
+        :type error: Exception | None
+        """
+        callback = self._pending_queries.pop(request_id, None)
+        self._end_query()
+
+        if callback is None:
+            return
+
+        if error is not None:
+            _logger.error('Search dialog query failed:', error)
+            callback([])
+            return
+
+        callback(rows)
+
+    def _begin_query(self) -> None:
+        """Mark one more query as in flight, entering the busy state on
+        the 0-to-1 transition.
+        """
+        self._inflight_count += 1
+
+        if self._inflight_count == 1 and not self._busy_cursor_active:
+            self._busy_cursor_active = True
+            QtWidgets.QApplication.setOverrideCursor(
+                QtCore.Qt.CursorShape.WaitCursor)
+            self.progress.setVisible(True)
+
+    def _end_query(self) -> None:
+        """Mark one in-flight query as finished, leaving the busy state on
+        the 1-to-0 transition.
+        """
+        self._inflight_count = max(0, self._inflight_count - 1)
+
+        if self._inflight_count == 0 and self._busy_cursor_active:
+            self._busy_cursor_active = False
+            QtWidgets.QApplication.restoreOverrideCursor()
+            self.progress.setVisible(False)
+
+    def _populate(self) -> None:
+        """Run the filter/result queries that fill in the dialog's
+        already-visible, still-empty areas.
+
+        Filter panels are built one column per tick (see
+        :meth:`_build_next_filter_column`), which calls :meth:`_refresh_all`
+        itself once every column has been processed — it must not run
+        against a still-partially-built ``self.filters``.
+        """
+        self._build_filters_for(self.current_table)
 
     def GetValue(self) -> Optional[int]:
         """Execute the get value operation.
@@ -714,7 +931,9 @@ class SearchDialog(_dialog_base.BaseDialog):
             return None
 
         try:
-            return self.results.get_obj_id(sel)
+            # get_obj_id's query matches against SQL's 1-indexed RowNum;
+            # self.results.selected is Qt's 0-indexed row.
+            return self.results.get_obj_id(sel + 1)
         except Exception:  # NOQA
             return None
 
@@ -761,6 +980,17 @@ class SearchDialog(_dialog_base.BaseDialog):
         bottom = QtWidgets.QHBoxLayout()
         self.status = QtWidgets.QLabel("0 results", self.panel)
         bottom.addWidget(self.status)
+
+        # Indeterminate (busy) progress bar, shown only while a query is
+        # in flight on the worker thread -- see _begin_query/_end_query.
+        self.progress = QtWidgets.QProgressBar(self.panel)
+        self.progress.setRange(0, 0)
+        self.progress.setFixedWidth(120)
+        self.progress.setFixedHeight(self.status.sizeHint().height())
+        self.progress.setTextVisible(False)
+        self.progress.setVisible(False)
+        bottom.addWidget(self.progress)
+
         bottom.addStretch(1)
         outer.addLayout(bottom)
 
@@ -779,10 +1009,25 @@ class SearchDialog(_dialog_base.BaseDialog):
 
         outer.addWidget(self.results, 1)
 
+        # OK must not accept an empty selection — without this, clicking OK
+        # after filtering but before actually selecting a row silently
+        # closes the dialog as "Accepted" with GetValue() returning None,
+        # which every caller already treats identically to a cancel.
+        ok_btn = self.button_box.button(
+            QtWidgets.QDialogButtonBox.StandardButton.Ok)
+        ok_btn.setEnabled(False)
+        self.results.itemSelected.connect(lambda _row: ok_btn.setEnabled(True))
+        self.results.itemUnselected.connect(lambda: ok_btn.setEnabled(False))
+
     def _build_filters_for(self, table: str) -> None:
         """Build the filters for.
 
-        UNKNOWN details are inferred from the callable name and signature.
+        Each column is turned into a filter panel (or skipped) on its own
+        deferred tick instead of all at once — a single synchronous loop
+        that queries, populates, and adds every panel to the layout before
+        Qt gets a chance to run a layout/paint pass is what caused
+        everything to flash in squished, then snap to its expanded size
+        once the loop finally returned.
 
         :param table: Value for ``table``.
         :type table: str
@@ -798,80 +1043,118 @@ class SearchDialog(_dialog_base.BaseDialog):
             if item.widget():
                 item.widget().deleteLater()
 
-        cur = self.conn
+        self._filter_column_queue = list(sorted(self.page_class.column_mapping.keys()))
 
-        for idx in sorted(self.page_class.column_mapping.keys()):
-            label, alias_dict = self.page_class.column_mapping[idx][:2]
+        # Defer even the first column so the (now-empty) filter strip gets
+        # its own paint pass at its correct size before any option is
+        # queried and added — otherwise the first panel still lands in the
+        # same tick as the section's own creation.
+        QtCore.QTimer.singleShot(0, lambda: self._build_next_filter_column(table))
 
-            field_name = alias_dict.get('field_name', '')
-            ref_table = alias_dict.get('ref_table')
-            ref_field = alias_dict.get('ref_field')
+    def _build_next_filter_column(self, table: str) -> None:
+        """Build one column's filter panel (if warranted), then queue the
+        next — or, once every column has been processed, run the initial
+        filter-availability/result refresh that depends on the full set of
+        filter panels existing.
 
-            # Skip the primary key and columns absent from the actual DB table
-            # (virtual/computed fields, blob arrays, model references, etc.).
-            if field_name == 'id' or field_name not in self.info.columns:
-                continue
+        Chaining to the next column happens inside :meth:`_build_filter_column`
+        itself once that column's query (if any) actually returns, rather
+        than on a fixed timer -- the async dispatch to the worker thread is
+        what yields back to the event loop between columns now.
+        """
+        if not self._filter_column_queue:
+            self._refresh_all()
+            return
 
-            panel = None
+        idx = self._filter_column_queue.pop(0)
+        self._build_filter_column(table, idx)
 
-            if ref_table and ref_field:
-                # Foreign-key column — populate choices from the linked table.
-                cur.execute(
-                    f'SELECT DISTINCT r.{ref_field} '
-                    f'FROM {table} t '
-                    f'JOIN {ref_table} r ON t.{field_name} = r.id '
-                    f'WHERE r.{ref_field} IS NOT NULL '
-                    f'ORDER BY r.{ref_field} COLLATE NOCASE;')
-                rows = cur.fetchall()
+    def _build_filter_column(self, table: str, idx: int) -> None:
+        """Query one column and add its filter panel to the layout, if
+        warranted. The column's query (if any) runs on the worker thread;
+        :meth:`_build_next_filter_column` is invoked once it's done,
+        whether that's synchronously (skipped column, no query needed) or
+        from the query's result callback.
+        """
+        label, alias_dict = self.page_class.column_mapping[idx][:2]
 
-                if len(rows) < MIN_DISTINCT_FOR_FILTER:
-                    continue
+        field_name = alias_dict.get('field_name', '')
+        ref_table = alias_dict.get('ref_table')
+        ref_field = alias_dict.get('ref_field')
 
-                p = FKFilterPanel(self._filter_container, field_name, ref_table,
-                                  ref_field, label, self._on_filter_changed)
-                p.populate([r[0] for r in rows])
-                panel = p
+        # Skip the primary key and columns absent from the actual DB table
+        # (virtual/computed fields, blob arrays, model references, etc.).
+        if field_name == 'id' or field_name not in self.info.columns:
+            self._build_next_filter_column(table)
+            return
 
-            else:
-                # Plain column — only numeric types get a filter widget.
-                col_type = self.info.columns.get(field_name, '')
-                is_int = 'INT' in col_type
-                is_real = any(t in col_type for t in ('REAL', 'FLOA', 'DOUB', 'NUMERIC'))
+        if ref_table and ref_field:
+            # Foreign-key column — populate choices from the linked table.
+            sql = (f'SELECT DISTINCT r.{ref_field} '
+                   f'FROM {table} t '
+                   f'JOIN {ref_table} r ON t.{field_name} = r.id '
+                   f'WHERE r.{ref_field} IS NOT NULL '
+                   f'ORDER BY r.{ref_field} COLLATE NOCASE;')
 
-                if not is_int and not is_real:
-                    continue
+            def _on_fk_rows(rows):
+                if len(rows) >= MIN_DISTINCT_FOR_FILTER:
+                    p = FKFilterPanel(self._filter_container, field_name, ref_table,
+                                      ref_field, label, self._on_filter_changed)
+                    p.populate([r[0] for r in rows])
+                    self.filters[field_name] = p
+                    self.filter_sizer.addWidget(p)
 
-                cur.execute(
-                    f'SELECT DISTINCT t.{field_name} FROM {table} t '
-                    f'WHERE t.{field_name} IS NOT NULL ORDER BY t.{field_name};')
-                rows = cur.fetchall()
-                values = [r[0] for r in rows]
+                self._build_next_filter_column(table)
 
-                if len(values) < MIN_DISTINCT_FOR_FILTER:
-                    continue
+            self._run_query_async(sql, [], _on_fk_rows)
+            return
 
-                if is_int and len(values) <= MAX_DISTINCT_FOR_ENUM:
-                    p = EnumFilterPanel(self._filter_container, field_name, label,
-                                        self._on_filter_changed)
-                    p.populate(values)
-                    panel = p
-                else:
-                    cur.execute(
-                        f'SELECT MIN(t.{field_name}), MAX(t.{field_name}) '
-                        f'FROM {table} t WHERE t.{field_name} IS NOT NULL;')
-                    rows = cur.fetchall()
-                    lo, hi = (None, None) if not rows else rows[0]
-                    if lo is None or hi is None or lo == hi:
-                        continue
+        # Plain column — only numeric types get a filter widget.
+        col_type = self.info.columns.get(field_name, '')
+        is_int = 'INT' in col_type
+        is_real = any(t in col_type for t in ('REAL', 'FLOA', 'DOUB', 'NUMERIC'))
 
+        if not is_int and not is_real:
+            self._build_next_filter_column(table)
+            return
+
+        sql = (f'SELECT DISTINCT t.{field_name} FROM {table} t '
+               f'WHERE t.{field_name} IS NOT NULL ORDER BY t.{field_name};')
+
+        def _on_values(rows):
+            values = [r[0] for r in rows]
+
+            if len(values) < MIN_DISTINCT_FOR_FILTER:
+                self._build_next_filter_column(table)
+                return
+
+            if is_int and len(values) <= MAX_DISTINCT_FOR_ENUM:
+                p = EnumFilterPanel(self._filter_container, field_name, label,
+                                    self._on_filter_changed)
+                p.populate(values)
+                self.filters[field_name] = p
+                self.filter_sizer.addWidget(p)
+                self._build_next_filter_column(table)
+                return
+
+            minmax_sql = (f'SELECT MIN(t.{field_name}), MAX(t.{field_name}) '
+                          f'FROM {table} t WHERE t.{field_name} IS NOT NULL;')
+
+            def _on_minmax(mm_rows):
+                lo, hi = (None, None) if not mm_rows else mm_rows[0]
+
+                if lo is not None and hi is not None and lo != hi:
                     p = RangeFilterPanel(self._filter_container, field_name, is_int,
                                          label, self._on_filter_changed)
                     p.update_bounds(lo, hi)
-                    panel = p
+                    self.filters[field_name] = p
+                    self.filter_sizer.addWidget(p)
 
-            if panel is not None:
-                self.filters[field_name] = panel
-                self.filter_sizer.addWidget(panel)
+                self._build_next_filter_column(table)
+
+            self._run_query_async(minmax_sql, [], _on_minmax)
+
+        self._run_query_async(sql, [], _on_values)
 
     def _on_kw_changed(self) -> None:
         """Handle the kw changed event.
@@ -912,12 +1195,51 @@ class SearchDialog(_dialog_base.BaseDialog):
         self._refresh_all()
 
     def _refresh_all(self) -> None:
-        """Execute the refresh all operation.
+        """Kick off a chunked filter-availability refresh (one panel's
+        query per tick, same pattern as :meth:`_build_next_filter_column`),
+        then push the filtered results once every panel has been updated.
 
-        UNKNOWN details are inferred from the callable name and signature.
+        Must not run every panel's availability query synchronously in one
+        shot: housings has ~24 filterable FK/numeric columns versus a
+        handful for tpa_locks/covers, and each query is an unindexed
+        full-table scan (FK panels are a scan plus join) over the whole
+        catalog table. Running them all back-to-back on the UI thread is
+        what reads as the dialog "hanging" for housings specifically.
         """
-        self._refresh_filter_availability()
-        self._push_filter_to_page()
+        self._refresh_gen = getattr(self, '_refresh_gen', 0) + 1
+        self._refresh_col_queue = list(self.filters.keys())
+        self._refresh_next_filter_availability(self._refresh_gen)
+
+    def _refresh_next_filter_availability(self, gen: int) -> None:
+        """Refresh one filter panel's availability, then queue the next --
+        or, once the queue is empty, push the filtered results to the page.
+
+        Chaining to the next panel happens inside
+        :meth:`_refresh_filter_column_availability` itself once that
+        panel's query actually returns, rather than on a fixed timer.
+
+        :param gen: Generation token captured when the refresh started;
+            if a newer :meth:`_refresh_all` call has since bumped
+            ``self._refresh_gen``, this chain is stale and aborts instead
+            of racing the newer one or double-calling
+            :meth:`_push_filter_to_page`.
+        :type gen: int
+        """
+        if gen != self._refresh_gen:
+            return
+
+        if not self._refresh_col_queue:
+            self._push_filter_to_page()
+            return
+
+        col = self._refresh_col_queue.pop(0)
+        panel = self.filters.get(col)
+
+        if panel is None:
+            self._refresh_next_filter_availability(gen)
+            return
+
+        self._refresh_filter_column_availability(col, panel, gen)
 
     def _build_predicates(
         self,
@@ -965,52 +1287,76 @@ class SearchDialog(_dialog_base.BaseDialog):
 
         return clauses, params
 
-    def _refresh_filter_availability(self) -> None:
-        """Execute the refresh filter availability operation.
+    def _refresh_filter_column_availability(self, col: str, panel: _FilterPanelBase,
+                                            gen: int) -> None:
+        """Run the single availability query for one filter panel, then
+        continue the chunked refresh chain once it returns.
 
-        UNKNOWN details are inferred from the callable name and signature.
+        :param col: Value for ``col``.
+        :type col: str
+        :param panel: Value for ``panel``.
+        :type panel: _FilterPanelBase
+        :param gen: Generation token; a result that arrives after a newer
+            :meth:`_refresh_all` call has superseded this chain is applied
+            to nothing and does not continue the (now-stale) chain.
+        :type gen: int
         """
-        cur = self.conn
         table = self.current_table
 
-        for col, panel in self.filters.items():
-            clauses, params = self._build_predicates(exclude=col)
+        clauses, params = self._build_predicates(exclude=col)
 
+        if clauses:
+            where = ("WHERE " + " AND ".join(clauses))
+        else:
+            where = ""
+
+        if isinstance(panel, FKFilterPanel):
             if clauses:
-                where = ("WHERE " + " AND ".join(clauses))
+                where_extra = (" AND " + " AND ".join(clauses))
             else:
-                where = ""
+                where_extra = ""
 
-            if isinstance(panel, FKFilterPanel):
-                if clauses:
-                    where_extra = (" AND " + " AND ".join(clauses))
-                else:
-                    where_extra = ""
+            sql = (f'SELECT DISTINCT r.{panel.display_col} '
+                   f'FROM {table} t '
+                   f'JOIN {panel.ref_table} r ON t.{col} = r.id '
+                   f'WHERE r.{panel.display_col} IS NOT NULL '
+                   f'{where_extra};')
 
-                sql = (f'SELECT DISTINCT r.{panel.display_col} '
-                       f'FROM {table} t '
-                       f'JOIN {panel.ref_table} r ON t.{col} = r.id '
-                       f'WHERE r.{panel.display_col} IS NOT NULL '
-                       f'{where_extra};')
-
-                cur.execute(sql, params)
-                rows = cur.fetchall()
+            def _on_rows(rows):
+                if gen != self._refresh_gen:
+                    return
                 panel.update_availability([r[0] for r in rows if r[0] is not None])
+                self._refresh_next_filter_availability(gen)
 
-            elif isinstance(panel, EnumFilterPanel):
-                sql = (f'SELECT DISTINCT t.{col} '
-                       f'FROM {table} t {where};')
-                cur.execute(sql, params)
-                rows = cur.fetchall()
+            self._run_query_async(sql, params, _on_rows)
+
+        elif isinstance(panel, EnumFilterPanel):
+            sql = (f'SELECT DISTINCT t.{col} '
+                   f'FROM {table} t {where};')
+
+            def _on_rows(rows):
+                if gen != self._refresh_gen:
+                    return
                 panel.update_availability([r[0] for r in rows if r[0] is not None])
+                self._refresh_next_filter_availability(gen)
 
-            elif isinstance(panel, RangeFilterPanel):
-                sql = (f'SELECT MIN(t.{col}), MAX(t.{col}) '
-                       f'FROM {table} t {where};')
-                cur.execute(sql, params)
-                rows = cur.fetchall()
+            self._run_query_async(sql, params, _on_rows)
+
+        elif isinstance(panel, RangeFilterPanel):
+            sql = (f'SELECT MIN(t.{col}), MAX(t.{col}) '
+                   f'FROM {table} t {where};')
+
+            def _on_rows(rows):
+                if gen != self._refresh_gen:
+                    return
                 lo, hi = (None, None) if not rows else rows[0]
                 panel.update_bounds(lo, hi)
+                self._refresh_next_filter_availability(gen)
+
+            self._run_query_async(sql, params, _on_rows)
+
+        else:
+            self._refresh_next_filter_availability(gen)
 
     def _push_filter_to_page(self) -> None:
         """Execute the push filter to page operation.
@@ -1037,7 +1383,10 @@ class SearchDialog(_dialog_base.BaseDialog):
 
         self.results.set_filter(where_clause, params)
 
-        total = self.results.record_count
+        # set_filter() already computed and cached this count as part of
+        # resetting the model -- re-reading self.results.record_count here
+        # would silently re-run the same COUNT query a second time.
+        total = self.results._row_count  # NOQA
         self.status.setText(f"{total:,} result{'s' if total != 1 else ''}")
 
     def _on_row_activated(self, index) -> None:

@@ -6,7 +6,7 @@ from typing import Iterable as _Iterable
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
-from .bases import EntryBase, TableBase
+from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import (
     PartNumberMixin, PartNumberControl,
     ManufacturerMixin, ManufacturerControl,
@@ -328,6 +328,8 @@ class TPALock(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
         return packet
 
+    _stored_pins: DefaultStoredValueType | str = DefaultStoredValue
+
     @property
     def pins(self) -> str:
         """Return the pins.
@@ -337,7 +339,10 @@ class TPALock(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: str
         """
-        return self._table.select('pins', id=self._db_id)[0][0]
+        if self._stored_pins is DefaultStoredValue:
+            self._stored_pins = self._table.select('pins', id=self._db_id)[0][0]
+
+        return self._stored_pins
 
     @pins.setter
     def pins(self, value: str):
@@ -348,8 +353,11 @@ class TPALock(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param value: Value to store or process.
         :type value: str
         """
+        self._stored_pins = value
         self._table.update(self._db_id, pins=value)
         self._populate('pins')
+
+    _stored_lock_type: DefaultStoredValueType | str = DefaultStoredValue
 
     @property
     def lock_type(self) -> str:
@@ -360,7 +368,10 @@ class TPALock(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: str
         """
-        return self._table.select('lock_type', id=self._db_id)[0][0]
+        if self._stored_lock_type is DefaultStoredValue:
+            self._stored_lock_type = self._table.select('lock_type', id=self._db_id)[0][0]
+
+        return self._stored_lock_type
 
     @lock_type.setter
     def lock_type(self, value: str):
@@ -371,6 +382,7 @@ class TPALock(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param value: Value to store or process.
         :type value: str
         """
+        self._stored_lock_type = value
         self._table.update(self._db_id, lock_type=value)
         self._populate('lock_type')
 

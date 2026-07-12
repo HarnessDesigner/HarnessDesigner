@@ -8,7 +8,7 @@ from PySide6.QtWidgets import QTabWidget
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
 from ..global_db import seal as _seal
-from .pjt_bases import PJTEntryBase, PJTTableBase
+from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import (
     Angle3DMixin, Angle3DControl,
     Position3DMixin, Position3DControl,
@@ -235,7 +235,7 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DMi
         """
         return self._table
 
-    _stored_part: "_seal.Seal" = None
+    _stored_part: "_seal.Seal | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
     def part(self) -> "_seal.Seal":
@@ -246,18 +246,21 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DMi
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_seal.Seal`
         """
-        if self._stored_part is None and self._obj is not None:
+        if self._stored_part is DefaultStoredValue:
             part_id = self.part_id
 
             if part_id is None:
-                return None
-
-            self._stored_part = self._table.db.global_db.seals_table[part_id]
-            self._stored_part.add_object(self._obj())
-
+                self._stored_part = None
+            else:
+                self._stored_part = self._table.db.global_db.seals_table[part_id]
+            
+        if self._stored_part is not None:
+            if self._obj is not None:
+                self._stored_part.add_object(self._obj())
+                
         return self._stored_part
 
-    _stored_terminal: "_pjt_terminal.PJTTerminal" = None
+    _stored_terminal: "_pjt_terminal.PJTTerminal | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
     def terminal(self) -> "_pjt_terminal.PJTTerminal":
@@ -268,16 +271,21 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DMi
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_terminal.PJTTerminal`
         """
-        if self._stored_terminal is None and self._obj is not None:
-            db_id = self.terminal_id
+        if self._stored_terminal is DefaultStoredValue:
+            terminal_id = self.terminal_id
 
-            if db_id is None:
-                return None
-
-            self._stored_terminal = self._table.db.pjt_terminals_table[db_id]
-            self._stored_terminal.add_object(self._obj())
-
+            if terminal_id is None:
+                self._stored_terminal = None
+            else:
+                self._stored_terminal = self._table.db.pjt_terminals_table[terminal_id]
+            
+        if self._stored_terminal is not None:
+            if self._obj is not None:
+                self._stored_terminal.add_object(self._obj())
+                
         return self._stored_terminal
+
+    # TODO: Finish adding cache
 
     @property
     def terminal_id(self) -> int:

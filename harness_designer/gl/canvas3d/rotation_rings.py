@@ -183,10 +183,14 @@ class RotationRings(_object_base.ObjectBase):
         """
         mainframe = canvas.mainframe
 
+        # Locked top-down (edit2d) mode restricts mouse-driven rotation to
+        # the Y axis — only the Y ring is built/shown/pickable.
+        locked = canvas.config.edit2d.enable
+
         _object_base.ObjectBase.__init__(self, mainframe, None)
         self.selected = selected
         self.obj2d = Rings2D(self)
-        self.obj3d = Rings3D(self, selected, mainframe)
+        self.obj3d = Rings3D(self, selected, mainframe, locked)
         self._treeitem = None
         self.mainframe.add_object(self)
 
@@ -218,7 +222,7 @@ class RotationRings(_object_base.ObjectBase):
         best_axis = None
         best_depth = math.inf
 
-        for axis in AXES:
+        for axis in self.obj3d._axes:
             handle_world = self.obj3d.handle_position(axis)
             screen = camera.ProjectPoint(handle_world)
 
@@ -319,14 +323,19 @@ class Rings3D(_base3d.Base3D):
     """Render three Euler-axis rings with grab handles around an object."""
 
     def __init__(self, parent, selected: "_objects.ObjectBase",
-                 mainframe: "_ui.MainFrame"):
+                 mainframe: "_ui.MainFrame", locked: bool = False):
         """Initialise the :class:`Rings3D` instance.
 
         :param parent: Parent :class:`RotationRings` wrapper.
         :param selected: The object being rotated.
         :param mainframe: MainFrame reference.
+        :param locked: When True (edit2d mode), only the Y axis ring is
+            built — mouse-driven rotation is restricted to Y.
+        :type locked: bool
         """
         obj3d = selected.obj3d
+
+        self._axes = ('y',) if locked else AXES
 
         # Build mesh data first (CPU only — no context needed yet)
         ring_packed, ring_count = _build_ring_mesh(
@@ -368,7 +377,7 @@ class Rings3D(_base3d.Base3D):
 
         scale = _point.Point(1.0, 1.0, 1.0)
         angle = _angle.Angle.from_euler(0, 0, 0)
-        material = self._ring_materials['z']
+        material = self._ring_materials[self._axes[-1]]
 
         # _floor_guard defeats Base3D.__init__'s inline floor-lock check —
         # with a shared position instance a bump would move the actual
@@ -403,7 +412,7 @@ class Rings3D(_base3d.Base3D):
         self._ring_materials = {
             axis: _materials.Plastic(
                 _color.Color(*getattr(ring_config, f'{axis}_color')))
-            for axis in AXES
+            for axis in self._axes
         }
 
     @staticmethod
@@ -589,7 +598,7 @@ class Rings3D(_base3d.Base3D):
         """Recompute ring orientations and handle offsets from the Euler angles."""
         euler = self._obj_angle.as_euler_float
 
-        for axis in AXES:
+        for axis in self._axes:
             ring_angle = slot_ring_angle(axis, euler)
             self._ring_quats[axis] = [float(str(v)) for v in ring_angle.as_quat_numpy.tolist()]
 
@@ -638,7 +647,7 @@ class Rings3D(_base3d.Base3D):
 
         position = self._position.as_float
 
-        for axis in AXES:
+        for axis in self._axes:
             self._ring_materials[axis].set(faces_program)
 
             # Ring

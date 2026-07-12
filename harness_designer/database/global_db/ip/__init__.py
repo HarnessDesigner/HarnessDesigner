@@ -3,7 +3,7 @@
 from typing import Iterable as _Iterable
 
 from PySide6.QtGui import QPixmap
-from ..bases import EntryBase, TableBase
+from ..bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 
 from . import solid as _solid
 from . import fluid as _fluid
@@ -129,6 +129,8 @@ class IPRating(EntryBase):
 
         return packet
 
+    _stored_name: str | DefaultStoredValueType = DefaultStoredValue
+
     @property
     def name(self):
         """Return the name.
@@ -138,7 +140,12 @@ class IPRating(EntryBase):
         :returns: Property value. UNKNOWN details.
         :rtype: UNKNOWN
         """
-        return self._table.select('name', id=self._db_id)[0][0]
+        if self._stored_name is DefaultStoredValue:
+            self._stored_name = self._table.select('name', id=self._db_id)[0][0]
+
+        return self._stored_name
+
+    _stored_ip_solid: "DefaultStoredValueType | _solid.IPSolid" = DefaultStoredValue
 
     @property
     def ip_solid(self) -> _solid.IPSolid:
@@ -149,8 +156,11 @@ class IPRating(EntryBase):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_solid.IPSolid`
         """
-        ip_solid_id = self.ip_solid_id
-        return self._table.db.ip_solids_table[ip_solid_id]
+        if self._stored_ip_solid is DefaultStoredValue:
+            ip_solid_id = self.ip_solid_id
+            self._stored_ip_solid = self._table.db.ip_solids_table[ip_solid_id]
+
+        return self._stored_ip_solid
 
     @ip_solid.setter
     def ip_solid(self, value: _solid.IPSolid):
@@ -161,7 +171,12 @@ class IPRating(EntryBase):
         :param value: Value to store or process.
         :type value: :class:`_solid.IPSolid`
         """
+        self._stored_ip_solid = value
+        self._stored_ip_solid_id = value.db_id
+
         self._table.update(self._db_id, solid_id=value.db_id)
+
+    _stored_ip_solid_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def ip_solid_id(self) -> int:
@@ -172,7 +187,10 @@ class IPRating(EntryBase):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('solid_id', id=self._db_id)[0][0]
+        if self._stored_ip_solid_id is DefaultStoredValue:
+            self._stored_ip_solid_id = self._table.select('solid_id', id=self._db_id)[0][0]
+
+        return self._stored_ip_solid_id
 
     @ip_solid_id.setter
     def ip_solid_id(self, value: int):
@@ -183,7 +201,12 @@ class IPRating(EntryBase):
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_ip_solid_id = value
+        self._stored_ip_solid = DefaultStoredValue
+
         self._table.update(self._db_id, solid_id=value)
+
+    _stored_ip_fluid: "DefaultStoredValueType | _fluid.IPFluid" = DefaultStoredValue
 
     @property
     def ip_fluid(self) -> _fluid.IPFluid:
@@ -194,8 +217,11 @@ class IPRating(EntryBase):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_fluid.IPFluid`
         """
-        ip_fluid_id = self.ip_fluid_id
-        return self._table.db.ip_fluids_table[ip_fluid_id]
+        if self._stored_ip_fluid is DefaultStoredValue:
+            ip_fluid_id = self.ip_fluid_id
+            self._stored_ip_fluid = self._table.db.ip_fluids_table[ip_fluid_id]
+
+        return self._stored_ip_fluid
 
     @ip_fluid.setter
     def ip_fluid(self, value: _fluid.IPFluid):
@@ -206,7 +232,12 @@ class IPRating(EntryBase):
         :param value: Value to store or process.
         :type value: :class:`_fluid.IPFluid`
         """
+        self._stored_ip_fluid = value
+        self._stored_ip_fluid_id = value.db_id
+
         self._table.update(self._db_id, fluid_id=value.db_id)
+
+    _stored_ip_fluid_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def ip_fluid_id(self) -> int:
@@ -217,7 +248,10 @@ class IPRating(EntryBase):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('fluid_id', id=self._db_id)[0][0]
+        if self._stored_ip_fluid_id is DefaultStoredValue:
+            self._stored_ip_fluid_id = self._table.select('fluid_id', id=self._db_id)[0][0]
+
+        return self._stored_ip_fluid_id
 
     @ip_fluid_id.setter
     def ip_fluid_id(self, value: int):
@@ -228,7 +262,12 @@ class IPRating(EntryBase):
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_ip_fluid_id = value
+        self._stored_ip_fluid = DefaultStoredValue
+
         self._table.update(self._db_id, fluid_id=value)
+
+    _stored_ip_supp: "DefaultStoredValueType | _supp.IPSupp | None" = DefaultStoredValue
 
     @property
     def ip_supp(self) -> _supp.IPSupp | None:
@@ -239,11 +278,14 @@ class IPRating(EntryBase):
         :returns: Property value. UNKNOWN details.
         :rtype: _supp.IPSupp | None
         """
-        ip_supp_id = self.ip_supp_id
-        if ip_supp_id is None:
-            return None
+        if self._stored_ip_supp is DefaultStoredValue:
+            ip_supp_id = self.ip_supp_id
+            if ip_supp_id is None:
+                self._stored_ip_supp = None
+            else:
+                self._stored_ip_supp = self._table.db.ip_supps_table[ip_supp_id]
 
-        return self._table.db.ip_supps_table[ip_supp_id]
+        return self._stored_ip_supp
 
     @ip_supp.setter
     def ip_supp(self, value: _supp.IPSupp | None):
@@ -254,10 +296,16 @@ class IPRating(EntryBase):
         :param value: Value to store or process.
         :type value: _supp.IPSupp | None
         """
+        self._stored_ip_supp = value
+
         if value is None:
+            self._stored_ip_supp_id = None
             self._table.update(self._db_id, supp_id=None)
         else:
+            self._stored_ip_supp_id = value.db_id
             self._table.update(self._db_id, supp_id=value.db_id)
+
+    _stored_ip_supp_id: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def ip_supp_id(self) -> int | None:
@@ -268,7 +316,10 @@ class IPRating(EntryBase):
         :returns: Property value. UNKNOWN details.
         :rtype: int | None
         """
-        return self._table.select('supp_id', id=self._db_id)[0][0]
+        if self._stored_ip_supp_id is DefaultStoredValue:
+            self._stored_ip_supp_id = self._table.select('supp_id', id=self._db_id)[0][0]
+
+        return self._stored_ip_supp_id
 
     @ip_supp_id.setter
     def ip_supp_id(self, value: int | None):
@@ -279,6 +330,9 @@ class IPRating(EntryBase):
         :param value: Value to store or process.
         :type value: int | None
         """
+        self._stored_ip_supp_id = value
+        self._stored_ip_supp = DefaultStoredValue
+
         self._table.update(self._db_id, supp_id=value)
 
     @property

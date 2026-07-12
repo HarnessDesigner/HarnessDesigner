@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 
 from ....ui import prop_ctrls as _prop_ctrls
-from .base import BaseMixin
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 
 
 if TYPE_CHECKING:
@@ -17,6 +17,8 @@ class SeriesMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    _stored_series: "DefaultStoredValueType | _series.Series" = DefaultStoredValue
+
     @property
     def series(self) -> "_series.Series":
         """Return the series.
@@ -26,10 +28,15 @@ class SeriesMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_series.Series`
         """
-        from .. import series as _series  # NOQA
+        if self._stored_series is DefaultStoredValue:
+            from .. import series as _series  # NOQA
 
-        series_id = self._table.select('series_id', id=self._db_id)
-        return _series.Series(self._table.db.series_table, series_id[0][0])
+            series_id = self._table.select('series_id', id=self._db_id)
+            self._stored_series = _series.Series(self._table.db.series_table, series_id[0][0])
+
+        return self._stored_series
+
+    _stored_series_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def series_id(self) -> int:
@@ -40,7 +47,10 @@ class SeriesMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('series_id', id=self._db_id)[0][0]
+        if self._stored_series_id is DefaultStoredValue:
+            self._stored_series_id = self._table.select('series_id', id=self._db_id)[0][0]
+
+        return self._stored_series_id
 
     @series_id.setter
     def series_id(self, value: int):
@@ -51,6 +61,9 @@ class SeriesMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_series_id = value
+        self._stored_series = DefaultStoredValue
+
         self._table.update(self._db_id, series_id=value)
         self._populate('series_id')
 

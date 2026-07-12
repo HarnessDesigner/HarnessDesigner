@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from ....ui import prop_ctrls as _prop_ctrls
 
-from .base import BaseMixin
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 
 
 if TYPE_CHECKING:
@@ -17,6 +17,8 @@ class DirectionMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    _stored_direction: "DefaultStoredValueType | _direction.Direction" = DefaultStoredValue
+
     @property
     def direction(self) -> "_direction.Direction":
         """Return the direction.
@@ -26,10 +28,16 @@ class DirectionMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_direction.Direction`
         """
-        from .. import direction as _direction  # NOQA
+        if self._stored_direction is DefaultStoredValue:
+            from .. import direction as _direction  # NOQA
 
-        direction_id = self._table.select('direction_id', id=self._db_id)
-        return _direction.Direction(self._table.db.directions_table, direction_id[0][0])
+            direction_id = self._table.select('direction_id', id=self._db_id)
+            self._stored_direction = _direction.Direction(
+                self._table.db.directions_table, direction_id[0][0])
+
+        return self._stored_direction
+
+    _stored_direction_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def direction_id(self) -> int:
@@ -40,7 +48,10 @@ class DirectionMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('direction_id', id=self._db_id)[0][0]
+        if self._stored_direction_id is DefaultStoredValue:
+            self._stored_direction_id = self._table.select('direction_id', id=self._db_id)[0][0]
+
+        return self._stored_direction_id
 
     @direction_id.setter
     def direction_id(self, value: int):
@@ -51,6 +62,9 @@ class DirectionMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_direction_id = value
+        self._stored_direction = DefaultStoredValue
+
         self._table.update(self._db_id, direction_id=value)
         self._populate('direction_id')
 

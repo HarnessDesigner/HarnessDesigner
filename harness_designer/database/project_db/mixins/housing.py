@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-from .base import BaseMixin
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 
 
 if TYPE_CHECKING:
@@ -15,6 +15,8 @@ class HousingMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    _stored_housing: "DefaultStoredValueType | _pjt_housing.PJTHousing | None" = DefaultStoredValue
+
     @property
     def housing(self) -> "_pjt_housing.PJTHousing":
         """Return the housing.
@@ -24,11 +26,16 @@ class HousingMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_housing.PJTHousing`
         """
-        db_id = self.housing_id
-        if db_id is None:
-            return None
+        if self._stored_housing is DefaultStoredValue:
+            db_id = self.housing_id
+            if db_id is None:
+                self._stored_housing = None
+            else:
+                self._stored_housing = self._table.db.pjt_housings_table[db_id]
+            
+        return self._stored_housing
 
-        return self._table.db.pjt_housings_table[db_id]
+    _stored_housing_id: DefaultStoredValueType | int | None = DefaultStoredValue
 
     @property
     def housing_id(self) -> int:
@@ -39,7 +46,10 @@ class HousingMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('housing_id', id=self._db_id)[0][0]
+        if self._stored_housing_id is DefaultStoredValue:
+            self._stored_housing_id = self._table.select('housing_id', id=self._db_id)[0][0]
+        
+        return self._stored_housing_id
 
     @housing_id.setter
     def housing_id(self, value: int):
@@ -50,5 +60,8 @@ class HousingMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_housing_id = value
+        self._stored_housing = DefaultStoredValue
+        
         self._table.update(self._db_id, housing_id=value)
         self._populate('housing_id')

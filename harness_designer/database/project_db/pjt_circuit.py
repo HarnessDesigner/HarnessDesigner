@@ -6,7 +6,7 @@ import weakref
 from PySide6.QtWidgets import QTabWidget
 
 from ...ui import prop_ctrls as _prop_ctrls
-from .pjt_bases import PJTEntryBase, PJTTableBase
+from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from ...geometry import point as _point
 from ...geometry.decimal import Decimal as _d
 from ... import logger as _logger
@@ -634,6 +634,8 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         """
         return self._table
 
+    _stored_circuit_num: int | DefaultStoredValueType = DefaultStoredValue
+
     @property
     def circuit_num(self) -> int:
         """Return the circuit num.
@@ -643,7 +645,10 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('circuit_num', id=self._db_id)[0][0]
+        if self._stored_circuit_num is DefaultStoredValue:
+            self._stored_circuit_num = self._table.select('circuit_num', id=self._db_id)[0][0]
+
+        return self._stored_circuit_num
 
     @circuit_num.setter
     def circuit_num(self, value: int):
@@ -654,8 +659,13 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         :param value: Value to store or process.
         :type value: int
         """
+
+        self._stored_circuit_num = value
+
         self._table.update(self._db_id, circuit_num=value)
         self._populate('circuit_num')
+
+    _stored_description: str | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def description(self) -> str:
@@ -666,7 +676,10 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: str
         """
-        return self._table.select('description', id=self._db_id)[0][0]
+        if self._stored_description is DefaultStoredValue:
+            self._stored_description = self._table.select('description', id=self._db_id)[0][0]
+
+        return self._stored_description
 
     @description.setter
     def description(self, value: str):
@@ -677,6 +690,8 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         :param value: Value to store or process.
         :type value: str
         """
+        self._stored_description = value
+
         self._table.update(self._db_id, description=value)
         self._populate('description')
 

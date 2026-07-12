@@ -8,7 +8,7 @@ from PySide6.QtWidgets import QTabWidget
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
 from ..global_db import bundle_cover as _bundle_cover
-from .pjt_bases import PJTEntryBase, PJTTableBase
+from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import (
     PartMixin,
     StartStopPosition3DMixin, StartStopPosition3DControl,
@@ -167,10 +167,15 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
         self.merge_packet_data(self.part.build_monitor_packet(), packet)
 
         return packet
+    
+    _stored_diameter: float | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def diameter(self) -> float:
-        return self.table.db.pjt_concentrics_table.select('id', bundle_id=self.db_id)[0][0]
+        if self._stored_diameter is DefaultStoredValue:
+            self._stored_diameter = self.table.db.pjt_concentrics_table.select('id', bundle_id=self.db_id)[0][0]
+            
+        return self._stored_diameter
 
     @diameter.setter
     def diameter(self, value: float):
@@ -238,7 +243,9 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
             res.extend(layer.wires)
 
         return res
-
+    
+    _stored_concentric: "_pjt_concentric.PJTConcentric | None | DefaultStoredValueType" = DefaultStoredValue
+    
     @property
     def concentric(self) -> "_pjt_concentric.PJTConcentric":
         """Return the concentric.
@@ -248,12 +255,14 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_concentric.PJTConcentric`
         """
-        concentric_id = self.table.db.pjt_concentrics_table.select('id', bundle_id=self.db_id)[0][0]
-        if concentric_id is None:
-            return None
-
-        return self.table.db.pjt_concentrics_table[concentric_id]
-
+        if self._stored_concentric is DefaultStoredValue:
+            concentric_id = self.table.db.pjt_concentrics_table.select('id', bundle_id=self.db_id)[0][0]
+            if concentric_id is None:
+                self._stored_concentric = None
+            else:
+                self._stored_concentric = self.table.db.pjt_concentrics_table[concentric_id]
+        return self._stored_concentric
+        
     @property
     def start_layout(self) -> Union["_pjt_bundle_layout.PJTBundleLayout", None]:
         """Return the start layout.
@@ -284,6 +293,8 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
 
         return self._table.db.pjt_bundle_layouts_table[db_ids[0][0]]
 
+    _stored_part: "_bundle_cover.BundleCover | DefaultStoredValueType | None" = DefaultStoredValue
+    
     @property
     def part(self) -> "_bundle_cover.BundleCover":
         """Return the part.
@@ -293,11 +304,14 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_bundle_cover.BundleCover`
         """
-        part_id = self.part_id
-        if part_id is None:
-            return None
-
-        return self._table.db.global_db.bundle_covers_table[part_id]
+        if self._stored_part is DefaultStoredValue:        
+            part_id = self.part_id
+            if part_id is None:
+                self._stored_part = None
+            else:
+                self._stored_part = self._table.db.global_db.bundle_covers_table[part_id]
+            
+        return self._stored_part
 
 
 class PJTBundleControl(QTabWidget, LazyTabMixin):

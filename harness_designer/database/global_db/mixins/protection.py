@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from ....ui import prop_ctrls as _prop_ctrls
 
-from .base import BaseMixin
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 
 if TYPE_CHECKING:
     from .. import protection as _protection
@@ -16,6 +16,8 @@ class ProtectionMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    _stored_protection_id: int | DefaultStoredValueType = DefaultStoredValue
+
     @property
     def protection_id(self) -> int:
         """Return the protection ID.
@@ -25,7 +27,10 @@ class ProtectionMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('protection_id', id=self._db_id)[0][0]
+        if self._stored_protection_id is DefaultStoredValue:
+            self._stored_protection_id = self._table.select('protection_id', id=self._db_id)[0][0]
+
+        return self._stored_protection_id
 
     @protection_id.setter
     def protection_id(self, value: int):
@@ -36,6 +41,7 @@ class ProtectionMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_protection_id = value
         self._table.update(self._db_id, protection_id=value)
         self._populate('protection_id')
 

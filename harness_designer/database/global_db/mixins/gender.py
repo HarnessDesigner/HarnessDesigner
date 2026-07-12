@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from ....ui import prop_ctrls as _prop_ctrls
 
-from .base import BaseMixin
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 
 
 if TYPE_CHECKING:
@@ -17,6 +17,8 @@ class GenderMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    _stored_gender: "DefaultStoredValueType | _gender.Gender" = DefaultStoredValue
+
     @property
     def gender(self) -> "_gender.Gender":
         """Return the gender.
@@ -26,10 +28,15 @@ class GenderMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_gender.Gender`
         """
-        from .. import gender as _gender  # NOQA
+        if self._stored_gender is DefaultStoredValue:
+            from .. import gender as _gender  # NOQA
 
-        gender_id = self._table.select('gender_id', id=self._db_id)
-        return _gender.Gender(self._table.db.genders_table, gender_id[0][0])
+            gender_id = self._table.select('gender_id', id=self._db_id)
+            self._stored_gender = _gender.Gender(self._table.db.genders_table, gender_id[0][0])
+
+        return self._stored_gender
+
+    _stored_gender_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def gender_id(self) -> int:
@@ -40,7 +47,10 @@ class GenderMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('gender_id', id=self._db_id)[0][0]
+        if self._stored_gender_id is DefaultStoredValue:
+            self._stored_gender_id = self._table.select('gender_id', id=self._db_id)[0][0]
+
+        return self._stored_gender_id
 
     @gender_id.setter
     def gender_id(self, value: int):
@@ -51,6 +61,9 @@ class GenderMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_gender_id = value
+        self._stored_gender = DefaultStoredValue
+
         self._table.update(self._db_id, gender_id=value)
         self._populate('gender_id')
 

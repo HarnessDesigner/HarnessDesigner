@@ -9,7 +9,7 @@ import numpy as np
 from ..create_database import models3d as _models3d
 from ...geometry import angle as _angle
 from ...geometry import point as _point
-from .bases import EntryBase, TableBase
+from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from ... import resources as _resources
 
 if TYPE_CHECKING:
@@ -162,6 +162,8 @@ class Model3D(EntryBase):
 
         return path
 
+    _stored_path: str | DefaultStoredValueType = DefaultStoredValue
+
     @property
     def path(self) -> str:
         """
@@ -171,8 +173,12 @@ class Model3D(EntryBase):
         :rtype: str
         """
 
-        path = self._table.select('path', id=self._db_id)[0][0]
-        return path
+        if self._stored_path is DefaultStoredValue:
+            self._stored_path = self._table.select('path', id=self._db_id)[0][0]
+
+        return self._stored_path
+
+    _stored_uuid: str | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def uuid(self) -> str | None:
@@ -183,7 +189,12 @@ class Model3D(EntryBase):
         :rtype: str | None
         """
 
-        return self._table.select('uuid', id=self._db_id)[0][0]
+        if self._stored_uuid is DefaultStoredValue:
+            self._stored_uuid = self._table.select('uuid', id=self._db_id)[0][0]
+
+        return self._stored_uuid
+
+    _stored_vertex_count: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def vertex_count(self) -> int | None:
@@ -195,7 +206,10 @@ class Model3D(EntryBase):
         :rtype: int | None
         """
 
-        return self._table.select('vertex_count', id=self._db_id)[0][0]
+        if self._stored_vertex_count is DefaultStoredValue:
+            self._stored_vertex_count = self._table.select('vertex_count', id=self._db_id)[0][0]
+
+        return self._stored_vertex_count
 
     @vertex_count.setter
     def vertex_count(self, value: int):
@@ -206,7 +220,10 @@ class Model3D(EntryBase):
         :type value: int
         """
 
+        self._stored_vertex_count = value
         self._table.update(self._db_id, vertex_count=value)
+
+    _stored_aabb: np.ndarray | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def aabb(self) -> np.ndarray | None:
@@ -221,11 +238,14 @@ class Model3D(EntryBase):
         :rtype: numpy.ndarray | None
         """
 
-        value = self._table.select('aabb', id=self._db_id)[0][0]
-        if not value:
-            return None
+        if self._stored_aabb is DefaultStoredValue:
+            value = self._table.select('aabb', id=self._db_id)[0][0]
+            if not value:
+                self._stored_aabb = None
+            else:
+                self._stored_aabb = np.asarray(eval(value), dtype=np.float32)
 
-        return np.asarray(eval(value), dtype=np.float32)
+        return self._stored_aabb
 
     @aabb.setter
     def aabb(self, value):
@@ -236,7 +256,10 @@ class Model3D(EntryBase):
         :type value: numpy.ndarray | list
         """
 
+        self._stored_aabb = None if value is None else np.asarray(value, dtype=np.float32)
         self._table.update(self._db_id, aabb=str([[float(str(item)) for item in row] for row in np.asarray(value).tolist()]))
+
+    _stored_obb: np.ndarray | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def obb(self) -> np.ndarray | None:
@@ -251,11 +274,14 @@ class Model3D(EntryBase):
         :rtype: numpy.ndarray | None
         """
 
-        value = self._table.select('obb', id=self._db_id)[0][0]
-        if not value:
-            return None
+        if self._stored_obb is DefaultStoredValue:
+            value = self._table.select('obb', id=self._db_id)[0][0]
+            if not value:
+                self._stored_obb = None
+            else:
+                self._stored_obb = np.asarray(eval(value), dtype=np.float32)
 
-        return np.asarray(eval(value), dtype=np.float32)
+        return self._stored_obb
 
     @obb.setter
     def obb(self, value):
@@ -266,7 +292,10 @@ class Model3D(EntryBase):
         :type value: numpy.ndarray | list
         """
 
+        self._stored_obb = None if value is None else np.asarray(value, dtype=np.float32)
         self._table.update(self._db_id, obb=str([[float(str(item)) for item in row] for row in np.asarray(value).tolist()]))
+
+    _stored_file_type: "DefaultStoredValueType | _file_types.FileType | None" = DefaultStoredValue
 
     @property
     def file_type(self) -> "_file_types.FileType":
@@ -276,11 +305,16 @@ class Model3D(EntryBase):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_file_types.FileType`
         """
-        db_id = self.file_type_id
-        if db_id is None:
-            return None
+        if self._stored_file_type is DefaultStoredValue:
+            db_id = self.file_type_id
+            if db_id is None:
+                self._stored_file_type = None
+            else:
+                self._stored_file_type = self._table.db.file_types_table[db_id]
 
-        return self._table.db.file_types_table[db_id]
+        return self._stored_file_type
+
+    _stored_file_type_id: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def file_type_id(self) -> int | None:
@@ -291,7 +325,10 @@ class Model3D(EntryBase):
         :rtype: int | None
         """
 
-        return self._table.select('file_type_id', id=self._db_id)[0][0]
+        if self._stored_file_type_id is DefaultStoredValue:
+            self._stored_file_type_id = self._table.select('file_type_id', id=self._db_id)[0][0]
+
+        return self._stored_file_type_id
 
     @file_type_id.setter
     def file_type_id(self, value: int):
@@ -301,6 +338,9 @@ class Model3D(EntryBase):
         :param value: Value to store or process.
         :type value: int
         """
+
+        self._stored_file_type_id = value
+        self._stored_file_type = DefaultStoredValue
 
         self._table.update(self._db_id, file_type_id=value)
 
@@ -424,6 +464,8 @@ class Model3D(EntryBase):
         scale.bind(self.__update_scale)
         return scale
 
+    _stored_forward_up: list[int, int] | DefaultStoredValueType = DefaultStoredValue
+
     @property
     def forward_up(self) -> list[int, int]:
         """
@@ -432,8 +474,11 @@ class Model3D(EntryBase):
         :returns: Property value. UNKNOWN details.
         :rtype: list[int, int]
         """
-        value = self._table.select('forward_up', id=self._db_id)[0][0]
-        return eval(f'[{value}]')
+        if self._stored_forward_up is DefaultStoredValue:
+            value = self._table.select('forward_up', id=self._db_id)[0][0]
+            self._stored_forward_up = eval(f'[{value}]')
+
+        return self._stored_forward_up
 
     @forward_up.setter
     def forward_up(self, value: list[int, int]):
@@ -443,8 +488,11 @@ class Model3D(EntryBase):
         :param value: Value to store or process.
         :type value: list[int, int]
         """
+        self._stored_forward_up = value
         value = str(value)[1:-1]
         self._table.update(self._db_id, forward_up=value)
+
+    _stored_target_count: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def target_count(self) -> int:
@@ -455,7 +503,10 @@ class Model3D(EntryBase):
         :rtype: int
         """
 
-        return self._table.select('target_count', id=self._db_id)[0][0]
+        if self._stored_target_count is DefaultStoredValue:
+            self._stored_target_count = self._table.select('target_count', id=self._db_id)[0][0]
+
+        return self._stored_target_count
 
     @target_count.setter
     def target_count(self, value: int):
@@ -466,7 +517,10 @@ class Model3D(EntryBase):
         :type value: int
         """
 
+        self._stored_target_count = value
         self._table.update(self._db_id, target_count=value)
+
+    _stored_aggressiveness: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def aggressiveness(self) -> float:
@@ -477,7 +531,10 @@ class Model3D(EntryBase):
         :rtype: float
         """
 
-        return float(self._table.select('aggressiveness', id=self._db_id)[0][0])
+        if self._stored_aggressiveness is DefaultStoredValue:
+            self._stored_aggressiveness = float(self._table.select('aggressiveness', id=self._db_id)[0][0])
+
+        return self._stored_aggressiveness
 
     @aggressiveness.setter
     def aggressiveness(self, value: float):
@@ -488,7 +545,10 @@ class Model3D(EntryBase):
         :type value: float
         """
 
+        self._stored_aggressiveness = value
         self._table.update(self._db_id, aggressiveness=value)
+
+    _stored_update_rate: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def update_rate(self) -> int:
@@ -499,7 +559,10 @@ class Model3D(EntryBase):
         :rtype: int
         """
 
-        return self._table.select('update_rate', id=self._db_id)[0][0]
+        if self._stored_update_rate is DefaultStoredValue:
+            self._stored_update_rate = self._table.select('update_rate', id=self._db_id)[0][0]
+
+        return self._stored_update_rate
 
     @update_rate.setter
     def update_rate(self, value: int):
@@ -510,7 +573,10 @@ class Model3D(EntryBase):
         :type value: int
         """
 
+        self._stored_update_rate = value
         self._table.update(self._db_id, update_rate=value)
+
+    _stored_simplify: bool | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def simplify(self) -> bool:
@@ -521,7 +587,10 @@ class Model3D(EntryBase):
         :rtype: bool
         """
 
-        return bool(self._table.select('simplify', id=self._db_id)[0][0])
+        if self._stored_simplify is DefaultStoredValue:
+            self._stored_simplify = bool(self._table.select('simplify', id=self._db_id)[0][0])
+
+        return self._stored_simplify
 
     @simplify.setter
     def simplify(self, value: bool):
@@ -532,7 +601,10 @@ class Model3D(EntryBase):
         :type value: bool
         """
 
+        self._stored_simplify = value
         self._table.update(self._db_id, simplify=int(value))
+
+    _stored_iterations: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def iterations(self) -> int:
@@ -543,7 +615,10 @@ class Model3D(EntryBase):
         :rtype: int
         """
 
-        return self._table.select('iterations', id=self._db_id)[0][0]
+        if self._stored_iterations is DefaultStoredValue:
+            self._stored_iterations = self._table.select('iterations', id=self._db_id)[0][0]
+
+        return self._stored_iterations
 
     @iterations.setter
     def iterations(self, value: int):
@@ -554,6 +629,7 @@ class Model3D(EntryBase):
         :type value: int
         """
 
+        self._stored_iterations = value
         self._table.update(self._db_id, iterations=value)
 
     @property

@@ -8,7 +8,7 @@ from PySide6.QtWidgets import QTabWidget
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
 from ..global_db import cpa_lock as _cpa_lock
-from .pjt_bases import PJTEntryBase, PJTTableBase
+from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue
 from .mixins import (
     Angle3DMixin, Angle3DControl,
     Position3DMixin, Position3DControl,
@@ -216,7 +216,7 @@ class PJTCPALock(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3
         """
         return self._table
 
-    _stored_part: "_cpa_lock.CPALock" = None
+    _stored_part: "_cpa_lock.CPALock | None | DefaultStoredValue" = DefaultStoredValue
 
     @property
     def part(self) -> "_cpa_lock.CPALock":
@@ -227,14 +227,18 @@ class PJTCPALock(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_cpa_lock.CPALock`
         """
-        if self._stored_part is None and self._obj is not None:
+        if self._stored_part is DefaultStoredValue:
             part_id = self.part_id
 
             if part_id is None:
-                return None
+                self._stored_part = None
+            else:
 
-            self._stored_part = self._table.db.global_db.cpa_locks_table[part_id]
-            self._stored_part.add_object(self._obj())
+                self._stored_part = self._table.db.global_db.cpa_locks_table[part_id]
+
+        if self._stored_part is not None:
+            if self._obj is not None:
+                self._stored_part.add_object(self._obj())
 
         return self._stored_part
 

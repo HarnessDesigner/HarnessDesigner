@@ -2,7 +2,7 @@
 
 from typing import Iterable as _Iterable
 
-from .pjt_bases import PJTEntryBase, PJTTableBase
+from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from ...geometry import point as _point
 
 
@@ -123,6 +123,8 @@ class PJTPoint2D(PJTEntryBase):
         """
         return self._table
 
+    _stored_x: float | DefaultStoredValueType = DefaultStoredValue
+
     @property
     def x(self) -> float:
         """Return the x.
@@ -132,7 +134,10 @@ class PJTPoint2D(PJTEntryBase):
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        return self._table.select('x', id=self._db_id)[0][0]
+        if self._stored_x is DefaultStoredValue:
+            self._stored_x = self._table.select('x', id=self._db_id)[0][0]
+
+        return self._stored_x
 
     @x.setter
     def x(self, value: float):
@@ -143,7 +148,10 @@ class PJTPoint2D(PJTEntryBase):
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_x = value
         self._table.update(self._db_id, x=value)
+
+    _stored_y: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def y(self) -> float:
@@ -154,7 +162,10 @@ class PJTPoint2D(PJTEntryBase):
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        return self._table.select('y', id=self._db_id)[0][0]
+        if self._stored_y is DefaultStoredValue:
+            self._stored_y = self._table.select('y', id=self._db_id)[0][0]
+
+        return self._stored_y
 
     @y.setter
     def y(self, value: float):
@@ -165,6 +176,7 @@ class PJTPoint2D(PJTEntryBase):
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_y = value
         self._table.update(self._db_id, y=value)
 
     _stored_point2d: _point.Point = None
@@ -193,4 +205,6 @@ class PJTPoint2D(PJTEntryBase):
         :type point: :class:`_point.Point`
         """
         x, y = point.as_float[:-1]
+        self._stored_x = x
+        self._stored_y = y
         self._table.update(self._db_id, x=x, y=y)

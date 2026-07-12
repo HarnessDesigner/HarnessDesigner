@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from ....ui import prop_ctrls as _prop_ctrls
 
-from .base import BaseMixin
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 
 
 if TYPE_CHECKING:
@@ -17,6 +17,8 @@ class MaterialMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    _stored_material: "DefaultStoredValueType | _material.Material" = DefaultStoredValue
+
     @property
     def material(self) -> "_material.Material":
         """Return the material.
@@ -26,8 +28,13 @@ class MaterialMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_material.Material`
         """
-        material_id = self._table.select('material_id', id=self._db_id)
-        return self._table.db.materials_table[material_id[0][0]]
+        if self._stored_material is DefaultStoredValue:
+            material_id = self._table.select('material_id', id=self._db_id)
+            self._stored_material = self._table.db.materials_table[material_id[0][0]]
+
+        return self._stored_material
+
+    _stored_material_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def material_id(self) -> int:
@@ -38,7 +45,10 @@ class MaterialMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('material_id', id=self._db_id)[0][0]
+        if self._stored_material_id is DefaultStoredValue:
+            self._stored_material_id = self._table.select('material_id', id=self._db_id)[0][0]
+
+        return self._stored_material_id
 
     @material_id.setter
     def material_id(self, value: int):
@@ -49,6 +59,9 @@ class MaterialMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_material_id = value
+        self._stored_material = DefaultStoredValue
+
         self._table.update(self._db_id, material_id=value)
         self._populate('material_id')
 

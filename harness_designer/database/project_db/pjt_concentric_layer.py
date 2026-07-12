@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 from ...ui import prop_ctrls as _prop_ctrls
-from .pjt_bases import PJTEntryBase, PJTTableBase
+from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import NotesMixin
 
 
@@ -174,6 +174,8 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
 
         return res
 
+    _stored_concentric: "_pjt_concentric.PJTConcentric | None | DefaultStoredValueType" = DefaultStoredValue
+
     @property
     def concentric(self) -> "_pjt_concentric.PJTConcentric":
         """Return the concentric.
@@ -183,8 +185,13 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_concentric.PJTConcentric`
         """
-        concentric_id = self.concentric_id
-        return self._table.db.pjt_concentrics_table[concentric_id]
+        if self._stored_concentric is DefaultStoredValue:
+            concentric_id = self.concentric_id
+            self._stored_concentric = self._table.db.pjt_concentrics_table[concentric_id]
+
+        return self._stored_concentric
+
+    _stored_concentric_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def concentric_id(self) -> int:
@@ -195,7 +202,10 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('concentric_id', id=self._db_id)[0][0]
+        if self._stored_concentric_id is DefaultStoredValue:
+            self._stored_concentric_id = self._table.select('concentric_id', id=self._db_id)[0][0]
+
+        return self._stored_concentric_id
 
     @concentric_id.setter
     def concentric_id(self, value: int):
@@ -206,8 +216,13 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_concentric_id = value
+        self._stored_concentric = DefaultStoredValue
+
         self._table.update(self._db_id, concentric_id=value)
         self._populate('concentric_id')
+
+    _stored_idx: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def idx(self) -> int:
@@ -218,7 +233,10 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('idx', id=self._db_id)[0][0]
+        if self._stored_idx is DefaultStoredValue:
+            self._stored_idx = self._table.select('idx', id=self._db_id)[0][0]
+
+        return self._stored_idx
 
     @idx.setter
     def idx(self, value: int):
@@ -229,8 +247,11 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_idx = value
         self._table.update(self._db_id, idx=value)
         self._populate('idx')
+
+    _stored_num_wires: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def num_wires(self) -> int:
@@ -241,7 +262,10 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('num_wires', id=self._db_id)[0][0]
+        if self._stored_num_wires is DefaultStoredValue:
+            self._stored_num_wires = self._table.select('num_wires', id=self._db_id)[0][0]
+
+        return self._stored_num_wires
 
     @num_wires.setter
     def num_wires(self, value: int):
@@ -252,8 +276,11 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_num_wires = value
         self._table.update(self._db_id, num_wires=value)
         self._populate('num_wires')
+
+    _stored_num_fillers: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def num_fillers(self) -> int:
@@ -264,7 +291,10 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('num_fillers', id=self._db_id)[0][0]
+        if self._stored_num_fillers is DefaultStoredValue:
+            self._stored_num_fillers = self._table.select('num_fillers', id=self._db_id)[0][0]
+
+        return self._stored_num_fillers
 
     @num_fillers.setter
     def num_fillers(self, value: int):
@@ -275,8 +305,11 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_num_fillers = value
         self._table.update(self._db_id, num_fillers=value)
         self._populate('num_fillers')
+
+    _stored_diameter: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def diameter(self) -> float:
@@ -287,7 +320,10 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        return self._table.select('diameter', id=self._db_id)[0][0]
+        if self._stored_diameter is DefaultStoredValue:
+            self._stored_diameter = self._table.select('diameter', id=self._db_id)[0][0]
+
+        return self._stored_diameter
 
     @diameter.setter
     def diameter(self, value: float):
@@ -298,6 +334,7 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_diameter = value
         self._table.update(self._db_id, diameter=value)
         self._populate('diameter')
 

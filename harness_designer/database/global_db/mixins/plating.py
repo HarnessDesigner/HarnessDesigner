@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from ....ui import prop_ctrls as _prop_ctrls
 
-from .base import BaseMixin
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 
 
 if TYPE_CHECKING:
@@ -29,6 +29,8 @@ class PlatingMixin(BaseMixin):
         plating_id = self.plating_id
         return self._table.db.platings_table[plating_id]
 
+    _stored_plating_id: int | DefaultStoredValueType = DefaultStoredValue
+
     @property
     def plating_id(self) -> int:
         """Return the plating ID.
@@ -38,7 +40,10 @@ class PlatingMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('plating_id', id=self._db_id)[0][0]
+        if self._stored_plating_id is DefaultStoredValue:
+            self._stored_plating_id = self._table.select('plating_id', id=self._db_id)[0][0]
+
+        return self._stored_plating_id
 
     @plating_id.setter
     def plating_id(self, value: int):
@@ -49,6 +54,7 @@ class PlatingMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_plating_id = value
         self._table.update(self._db_id, plating_id=value)
         self._populate('plating_id')
 

@@ -1,7 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from ....ui import prop_ctrls as _prop_ctrls
-from .base import BaseMixin
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 from ....geometry import point as _point
 from .. import pjt_point3d as _pjt_point3d
 
@@ -12,7 +12,7 @@ class Position3DMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
-    _stored_position3d: _pjt_point3d.PJTPoint3D = None
+    _stored_position3d: _pjt_point3d.PJTPoint3D | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
     def position3d(self) -> _point.Point:
@@ -23,18 +23,25 @@ class Position3DMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         """
-        if self._stored_position3d is None:
+        if self._stored_position3d is DefaultStoredValue:
             point_id = self.position3d_id
+            
+            if point_id is None:
+                self._stored_position3d = None
+            else:
+                self._stored_position3d = self._table.db.pjt_points3d_table[point_id]
 
-            self._stored_position3d = self._table.db.pjt_points3d_table[point_id]
+        if self._stored_position3d is not None:
+            if self._obj is not None:
+                self._stored_position3d.add_object(self._obj())
+            
             point = self._stored_position3d.point
         else:
-            point = self._stored_position3d.point
-
-        if self._obj is not None:
-            self._stored_position3d.add_object(self._obj())
+            point = None
 
         return point
+
+    _stored_position3d_id: int | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
     def position3d_id(self) -> int:
@@ -45,16 +52,20 @@ class Position3DMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        point_id = self._table.select('point3d_id', id=self._db_id)[0][0]
-        if point_id is None:
-            self._table.execute(f'INSERT INTO pjt_points3d (project_id, x, y, z) VALUES (?, ?, ?, ?);',
-                                (self._table.project_id, 0.0, 0.0, 0.0))
+        
+        if self._stored_position3d_id is DefaultStoredValue:
+            point_id = self._table.select('point3d_id', id=self._db_id)[0][0]
+            if point_id is None:
+                self._table.execute(f'INSERT INTO pjt_points3d (project_id, x, y, z) VALUES (?, ?, ?, ?);',
+                                    (self._table.project_id, 0.0, 0.0, 0.0))
 
-            self._table.commit()
-            point_id = self._table.lastrowid
-            self.position3d_id = point_id
+                self._table.commit()
+                point_id = self._table.lastrowid
+                self.position3d_id = point_id
 
-        return point_id
+            self._stored_position3d_id = point_id
+
+        return self._stored_position3d_id
 
     @position3d_id.setter
     def position3d_id(self, value: int):
@@ -65,6 +76,9 @@ class Position3DMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_position3d_id = value
+        self._stored_position3d = DefaultStoredValue
+        
         self._table.update(self._db_id, point3d_id=value)
         self._populate('position3d_id')
 

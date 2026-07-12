@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from .base import BaseMixin
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 
 from ....ui import prop_ctrls as _prop_ctrls
 
@@ -11,6 +11,8 @@ class PartNumberMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    _stored_part_number: DefaultStoredValueType | str = DefaultStoredValue
+
     @property
     def part_number(self) -> str:
         """Return the part number.
@@ -20,7 +22,10 @@ class PartNumberMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: str
         """
-        return self._table.select('part_number', id=self._db_id)[0][0]
+        if self._stored_part_number is DefaultStoredValue:
+            self._stored_part_number = self._table.select('part_number', id=self._db_id)[0][0]
+
+        return self._stored_part_number
 
     @part_number.setter
     def part_number(self, value: str):
@@ -31,6 +36,7 @@ class PartNumberMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: str
         """
+        self._stored_part_number = value
         self._table.update(self._db_id, part_number=value)
         self._populate('part_number')
 

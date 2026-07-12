@@ -237,11 +237,15 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin, Not
         :rtype: bool
         """
         value = bool(self._table.select('is_start', id=self._db_id)[0][0])
-        if value and self.load:
-            _logger.warning('You cannot have a load set for the start terminal of a circuit')
+        if value:
+            # Read the raw column instead of self.load — that property
+            # itself checks is_start, which would recurse right back here.
+            raw_load = self._table.select('load', id=self._db_id)[0][0]
+            if raw_load:
+                _logger.warning('You cannot have a load set for the start terminal of a circuit')
 
-            value = False
-            self.is_start = False
+                value = False
+                self.is_start = False
 
         return value
 

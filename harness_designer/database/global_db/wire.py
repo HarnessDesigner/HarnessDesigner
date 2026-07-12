@@ -7,7 +7,7 @@ from typing import Iterable as _Iterable, TYPE_CHECKING
 from ... import utils as _utils
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
-from .bases import EntryBase, TableBase
+from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import (
     PartNumberMixin, PartNumberControl,
     ManufacturerMixin, ManufacturerControl,
@@ -353,6 +353,8 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
         return packet
 
+    _stored_resistance_1km: DefaultStoredValueType | float = DefaultStoredValue
+
     @property
     def resistance_1km(self) -> float:
         """Return the resistance 1km.
@@ -362,8 +364,10 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        resistance = self._table.select('resistance_1km', id=self._db_id)[0][0]
-        return resistance
+        if self._stored_resistance_1km is DefaultStoredValue:
+            self._stored_resistance_1km = self._table.select('resistance_1km', id=self._db_id)[0][0]
+
+        return self._stored_resistance_1km
 
     @resistance_1km.setter
     def resistance_1km(self, value: float):
@@ -374,6 +378,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_resistance_1km = value
         self._table.update(self._db_id, resistance_1km=value)
         self._populate('resistance_1km')
 
@@ -447,6 +452,8 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         value /= 3.28084
         self.resistance_m = value
 
+    _stored_weight_1km: DefaultStoredValueType | float = DefaultStoredValue
+
     @property
     def weight_1km(self) -> float:
         """Return the weight 1km.
@@ -456,8 +463,10 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        weight = self._table.select('weight_1km', id=self._db_id)[0][0]
-        return weight
+        if self._stored_weight_1km is DefaultStoredValue:
+            self._stored_weight_1km = self._table.select('weight_1km', id=self._db_id)[0][0]
+
+        return self._stored_weight_1km
 
     @weight_1km.setter
     def weight_1km(self, value: float):
@@ -468,6 +477,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_weight_1km = value
         self._table.update(self._db_id, weight_1km=value)
         self._populate('weight_1km')
 
@@ -565,6 +575,8 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         value *= 453.592
         self.weight_g_ft = value
 
+    _stored_volts: DefaultStoredValueType | float = DefaultStoredValue
+
     @property
     def volts(self) -> float:
         """Return the volts.
@@ -574,7 +586,10 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        return self._table.select('volts', id=self._db_id)[0][0]
+        if self._stored_volts is DefaultStoredValue:
+            self._stored_volts = self._table.select('volts', id=self._db_id)[0][0]
+
+        return self._stored_volts
 
     @volts.setter
     def volts(self, value: float):
@@ -585,8 +600,11 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_volts = value
         self._table.update(self._db_id, volts=value)
         self._populate('volts')
+
+    _stored_od_mm: DefaultStoredValueType | float = DefaultStoredValue
 
     @property
     def od_mm(self) -> float:
@@ -597,7 +615,10 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        return self._table.select('od_mm', id=self._db_id)[0][0]
+        if self._stored_od_mm is DefaultStoredValue:
+            self._stored_od_mm = self._table.select('od_mm', id=self._db_id)[0][0]
+
+        return self._stored_od_mm
 
     @od_mm.setter
     def od_mm(self, value: float):
@@ -608,8 +629,11 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_od_mm = value
         self._table.update(self._db_id, od_mm=value)
         self._populate('od_mm')
+
+    _stored_shielded: DefaultStoredValueType | bool = DefaultStoredValue
 
     @property
     def shielded(self) -> bool:
@@ -620,7 +644,10 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: bool
         """
-        return bool(self._table.select('shielded', id=self._db_id)[0][0])
+        if self._stored_shielded is DefaultStoredValue:
+            self._stored_shielded = bool(self._table.select('shielded', id=self._db_id)[0][0])
+
+        return self._stored_shielded
 
     @shielded.setter
     def shielded(self, value: bool):
@@ -631,8 +658,11 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :param value: Value to store or process.
         :type value: bool
         """
+        self._stored_shielded = value
         self._table.update(self._db_id, shielded=int(value))
         self._populate('shielded')
+
+    _stored_strands: DefaultStoredValueType | int = DefaultStoredValue
 
     @property
     def strands(self) -> int:
@@ -643,7 +673,10 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('strands', id=self._db_id)[0][0]
+        if self._stored_strands is DefaultStoredValue:
+            self._stored_strands = self._table.select('strands', id=self._db_id)[0][0]
+
+        return self._stored_strands
 
     @strands.setter
     def strands(self, value: int):
@@ -654,8 +687,19 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_strands = value
+
+        # conductor_dia_mm/size_mm2/size_awg fall back to strand-based
+        # conversions when their own DB column is NULL, so a strand count
+        # change can change what those cached properties should resolve to.
+        self._stored_conductor_dia_mm = DefaultStoredValue
+        self._stored_size_mm2 = DefaultStoredValue
+        self._stored_size_awg = DefaultStoredValue
+
         self._table.update(self._db_id, strands=value)
         self._populate('strands')
+
+    _stored_tpi: DefaultStoredValueType | int = DefaultStoredValue
 
     @property
     def tpi(self) -> int:
@@ -666,7 +710,10 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('tpi', id=self._db_id)[0][0]
+        if self._stored_tpi is DefaultStoredValue:
+            self._stored_tpi = self._table.select('tpi', id=self._db_id)[0][0]
+
+        return self._stored_tpi
 
     @tpi.setter
     def tpi(self, value: int):
@@ -677,8 +724,11 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_tpi = value
         self._table.update(self._db_id, tpi=value)
         self._populate('tpi')
+
+    _stored_num_conductors: DefaultStoredValueType | int = DefaultStoredValue
 
     @property
     def num_conductors(self) -> int:
@@ -689,7 +739,10 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('num_conductors', id=self._db_id)[0][0]
+        if self._stored_num_conductors is DefaultStoredValue:
+            self._stored_num_conductors = self._table.select('num_conductors', id=self._db_id)[0][0]
+
+        return self._stored_num_conductors
 
     @num_conductors.setter
     def num_conductors(self, value: int):
@@ -700,8 +753,11 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_num_conductors = value
         self._table.update(self._db_id, num_conductors=value)
         self._populate('num_conductors')
+
+    _stored_core_material: "DefaultStoredValueType | _plating.Plating" = DefaultStoredValue
 
     @property
     def core_material(self) -> "_plating.Plating":
@@ -712,8 +768,12 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_plating.Plating`
         """
-        db_id = self.core_material_id
-        return self._table.db.platings_table[db_id]
+        if self._stored_core_material is DefaultStoredValue:
+            self._stored_core_material = self._table.db.platings_table[self.core_material_id]
+
+        return self._stored_core_material
+
+    _stored_core_material_id: DefaultStoredValueType | int = DefaultStoredValue
 
     @property
     def core_material_id(self) -> int:
@@ -724,7 +784,10 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('core_material_id', id=self._db_id)[0][0]
+        if self._stored_core_material_id is DefaultStoredValue:
+            self._stored_core_material_id = self._table.select('core_material_id', id=self._db_id)[0][0]
+
+        return self._stored_core_material_id
 
     @core_material_id.setter
     def core_material_id(self, value: int):
@@ -735,8 +798,13 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_core_material_id = value
+        self._stored_core_material = DefaultStoredValue
+
         self._table.update(self._db_id, core_material_id=value)
         self._populate('core_material_id')
+
+    _stored_conductor_dia_mm: DefaultStoredValueType | float = DefaultStoredValue
 
     @property
     def conductor_dia_mm(self) -> float:
@@ -747,12 +815,15 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        mm = self._table.select('wire_size_dia', id=self._db_id)[0][0]
+        if self._stored_conductor_dia_mm is DefaultStoredValue:
+            mm = self._table.select('wire_size_dia', id=self._db_id)[0][0]
 
-        if mm is None:
-            _utils.d_in_to_d_mm(self.conductor_dia_in, self.strands)
+            if mm is None:
+                mm = _utils.d_in_to_d_mm(self.conductor_dia_in, self.strands)
 
-        return mm
+            self._stored_conductor_dia_mm = mm
+
+        return self._stored_conductor_dia_mm
 
     @conductor_dia_mm.setter
     def conductor_dia_mm(self, value: float):
@@ -763,6 +834,10 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_conductor_dia_mm = value
+        self._stored_size_awg = DefaultStoredValue
+        self._stored_size_mm2 = DefaultStoredValue
+
         self._table.update(self._db_id, wire_size_dia=value)
         self._table.update(self._db_id, wire_size_awg=_utils.d_mm_to_awg(value, self.strands))
         self._table.update(self._db_id, wire_size_cross=_utils.d_mm_to_mm2(value, self.strands))
@@ -791,6 +866,8 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         """
         self.conductor_dia_mm = value * 25.4
 
+    _stored_size_mm2: DefaultStoredValueType | float = DefaultStoredValue
+
     @property
     def size_mm2(self) -> float:
         """Return the size mm 2.
@@ -801,22 +878,25 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :rtype: float
         :raises RuntimeError: Raised when the operation cannot be completed.
         """
-        mm2 = self._table.select('wire_size_cross', id=self._db_id)[0][0]
+        if self._stored_size_mm2 is DefaultStoredValue:
+            mm2 = self._table.select('wire_size_cross', id=self._db_id)[0][0]
 
-        if mm2 is None:
-            awg = self.size_awg
+            if mm2 is None:
+                awg = self.size_awg
 
-            if awg is None:
-                mm = self.conductor_dia_mm
+                if awg is None:
+                    mm = self.conductor_dia_mm
 
-                if mm is None:
-                    raise RuntimeError('sanity check')
+                    if mm is None:
+                        raise RuntimeError('sanity check')
 
-                return _utils.d_mm_to_mm2(mm, self.strands)
+                    mm2 = _utils.d_mm_to_mm2(mm, self.strands)
+                else:
+                    mm2 = _utils.awg_to_mm2(awg, self.strands)
 
-            return _utils.awg_to_mm2(awg, self.strands)
+            self._stored_size_mm2 = mm2
 
-        return mm2
+        return self._stored_size_mm2
 
     @size_mm2.setter
     def size_mm2(self, value: float):
@@ -827,10 +907,16 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_size_mm2 = value
+        self._stored_size_awg = DefaultStoredValue
+        self._stored_conductor_dia_mm = DefaultStoredValue
+
         self._table.update(self._db_id, wire_size_cross=value)
         self._table.update(self._db_id, wire_size_awg=_utils.mm2_to_awg(value, self.strands))
         self._table.update(self._db_id, wire_size_dia=_utils.mm2_to_d_mm(value, self.strands))
         self._populate('size_mm2')
+
+    _stored_size_awg: DefaultStoredValueType | int = DefaultStoredValue
 
     @property
     def size_awg(self) -> int:
@@ -842,22 +928,25 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :rtype: int
         :raises RuntimeError: Raised when the operation cannot be completed.
         """
-        awg = self._table.select('wire_size_awg', id=self._db_id)[0][0]
+        if self._stored_size_awg is DefaultStoredValue:
+            awg = self._table.select('wire_size_awg', id=self._db_id)[0][0]
 
-        if awg is None:
-            mm2 = self.size_mm2
+            if awg is None:
+                mm2 = self.size_mm2
 
-            if mm2 is None:
-                mm = self.conductor_dia_mm
+                if mm2 is None:
+                    mm = self.conductor_dia_mm
 
-                if mm is None:
-                    raise RuntimeError('sanity check')
+                    if mm is None:
+                        raise RuntimeError('sanity check')
 
-                return _utils.d_mm_to_awg(mm, self.strands)
+                    awg = _utils.d_mm_to_awg(mm, self.strands)
+                else:
+                    awg = _utils.mm2_to_awg(mm2, self.strands)
 
-            return _utils.mm2_to_awg(mm2, self.strands)
+            self._stored_size_awg = awg
 
-        return awg
+        return self._stored_size_awg
 
     @size_awg.setter
     def size_awg(self, value: int):
@@ -868,6 +957,10 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_size_awg = value
+        self._stored_size_mm2 = DefaultStoredValue
+        self._stored_conductor_dia_mm = DefaultStoredValue
+
         self._table.update(self._db_id, wire_size_awg=value)
         self._table.update(self._db_id, wire_size_dia=_utils.awg_to_d_mm(value, self.strands))
         self._table.update(self._db_id, wire_size_cross=_utils.awg_to_mm2(value, self.strands))
@@ -917,6 +1010,8 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         """
         return 'mm²'
 
+    _stored_stripe_color: "DefaultStoredValueType | _color.Color" = DefaultStoredValue
+
     @property
     def stripe_color(self) -> "_color.Color":
         """Return the stripe color.
@@ -926,8 +1021,12 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_color.Color`
         """
-        db_id = self.stripe_color_id
-        return self._table.db.colors_table[db_id]
+        if self._stored_stripe_color is DefaultStoredValue:
+            self._stored_stripe_color = self._table.db.colors_table[self.stripe_color_id]
+
+        return self._stored_stripe_color
+
+    _stored_stripe_color_id: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def stripe_color_id(self) -> int | None:
@@ -938,7 +1037,10 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: int | None
         """
-        return self._table.select('stripe_color_id', id=self._db_id)[0][0]
+        if self._stored_stripe_color_id is DefaultStoredValue:
+            self._stored_stripe_color_id = self._table.select('stripe_color_id', id=self._db_id)[0][0]
+
+        return self._stored_stripe_color_id
 
     @stripe_color_id.setter
     def stripe_color_id(self, value: int | None):
@@ -949,6 +1051,9 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :param value: Value to store or process.
         :type value: int | None
         """
+        self._stored_stripe_color_id = value
+        self._stored_stripe_color = DefaultStoredValue
+
         self._table.update(self._db_id, stripe_color_id=value)
         self._populate('stripe_color_id')
 

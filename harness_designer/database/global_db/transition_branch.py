@@ -4,7 +4,7 @@ from typing import Iterable as _Iterable, TYPE_CHECKING
 
 
 from ...ui import prop_ctrls as _prop_ctrls
-from .bases import EntryBase, TableBase
+from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import NameMixin, NameControl
 from ...geometry import point as _point
 
@@ -151,6 +151,8 @@ class TransitionBranch(EntryBase, NameMixin):
 
         return packet
 
+    _stored_transition: "DefaultStoredValueType | _transition.Transition" = DefaultStoredValue
+
     @property
     def transition(self) -> "_transition.Transition":
         """Return the transition.
@@ -160,11 +162,16 @@ class TransitionBranch(EntryBase, NameMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_transition.Transition`
         """
-        from .transition import Transition
+        if self._stored_transition is DefaultStoredValue:
+            from .transition import Transition
 
-        tran_id = self.transition_id
+            tran_id = self.transition_id
 
-        return Transition(self._table.db.transitions_table, tran_id)
+            self._stored_transition = Transition(self._table.db.transitions_table, tran_id)
+
+        return self._stored_transition
+
+    _stored_transition_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def transition_id(self) -> int:
@@ -175,7 +182,12 @@ class TransitionBranch(EntryBase, NameMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('tran_id', id=self._db_id)[0][0]
+        if self._stored_transition_id is DefaultStoredValue:
+            self._stored_transition_id = self._table.select('tran_id', id=self._db_id)[0][0]
+
+        return self._stored_transition_id
+
+    _stored_idx: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def idx(self) -> int:
@@ -186,7 +198,10 @@ class TransitionBranch(EntryBase, NameMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('idx', id=self._db_id)[0][0]
+        if self._stored_idx is DefaultStoredValue:
+            self._stored_idx = self._table.select('idx', id=self._db_id)[0][0]
+
+        return self._stored_idx
 
     @idx.setter
     def idx(self, value: int):
@@ -197,8 +212,11 @@ class TransitionBranch(EntryBase, NameMixin):
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_idx = value
         self._table.update(self._db_id, idx=value)
         self._populate('idx')
+
+    _stored_bulb_offset: "_point.Point | DefaultStoredValueType" = DefaultStoredValue
 
     @property
     def bulb_offset(self) -> _point.Point:
@@ -209,13 +227,15 @@ class TransitionBranch(EntryBase, NameMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         """
-        offset = self._table.select('bulb_offset', id=self._db_id)[0][0]
-        if offset is None:
-            return _point.Point(0.0, 0.0)
+        if self._stored_bulb_offset is DefaultStoredValue:
+            offset = self._table.select('bulb_offset', id=self._db_id)[0][0]
+            if offset is None:
+                self._stored_bulb_offset = _point.Point(0.0, 0.0)
+            else:
+                offset = eval(offset)
+                self._stored_bulb_offset = _point.Point(offset[0], offset[1], 0)
 
-        offset = eval(offset)
-
-        return _point.Point(offset[0], offset[1], 0)
+        return self._stored_bulb_offset
 
     @bulb_offset.setter
     def bulb_offset(self, value: _point.Point):
@@ -226,8 +246,11 @@ class TransitionBranch(EntryBase, NameMixin):
         :param value: Value to store or process.
         :type value: :class:`_point.Point`
         """
+        self._stored_bulb_offset = value
         self._table.update(self._db_id, bulb_offset=str(list(value.as_float)))
         self._populate('bulb_offset')
+
+    _stored_bulb_length: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def bulb_length(self) -> float:
@@ -238,12 +261,15 @@ class TransitionBranch(EntryBase, NameMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        length = self._table.select('bulb_length', id=self._db_id)[0][0]
+        if self._stored_bulb_length is DefaultStoredValue:
+            length = self._table.select('bulb_length', id=self._db_id)[0][0]
 
-        if length is None:
-            return 0.0
+            if length is None:
+                length = 0.0
 
-        return length
+            self._stored_bulb_length = length
+
+        return self._stored_bulb_length
 
     @bulb_length.setter
     def bulb_length(self, value: float):
@@ -254,6 +280,7 @@ class TransitionBranch(EntryBase, NameMixin):
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_bulb_length = value
         self._table.update(self._db_id, bulb_length=value)
         self._populate('bulb_length')
 
@@ -277,6 +304,8 @@ class TransitionBranch(EntryBase, NameMixin):
 
         return res
 
+    _stored_min_dia: float | DefaultStoredValueType = DefaultStoredValue
+
     @property
     def min_dia(self) -> float:
         """Return the min dia.
@@ -286,8 +315,10 @@ class TransitionBranch(EntryBase, NameMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        min_dia = self._table.select('min_dia', id=self._db_id)[0][0]
-        return min_dia
+        if self._stored_min_dia is DefaultStoredValue:
+            self._stored_min_dia = self._table.select('min_dia', id=self._db_id)[0][0]
+
+        return self._stored_min_dia
 
     @min_dia.setter
     def min_dia(self, value: float):
@@ -298,8 +329,11 @@ class TransitionBranch(EntryBase, NameMixin):
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_min_dia = value
         self._table.update(self._db_id, min_dia=value)
         self._populate('min_dia')
+
+    _stored_max_dia: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def max_dia(self) -> float:
@@ -310,8 +344,10 @@ class TransitionBranch(EntryBase, NameMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        max_dia = self._table.select('max_dia', id=self._db_id)[0][0]
-        return max_dia
+        if self._stored_max_dia is DefaultStoredValue:
+            self._stored_max_dia = self._table.select('max_dia', id=self._db_id)[0][0]
+
+        return self._stored_max_dia
 
     @max_dia.setter
     def max_dia(self, value: float):
@@ -322,8 +358,11 @@ class TransitionBranch(EntryBase, NameMixin):
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_max_dia = value
         self._table.update(self._db_id, max_dia=value)
         self._populate('max_dia')
+
+    _stored_length: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def length(self) -> float:
@@ -334,8 +373,10 @@ class TransitionBranch(EntryBase, NameMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        length = self._table.select('length', id=self._db_id)[0][0]
-        return length
+        if self._stored_length is DefaultStoredValue:
+            self._stored_length = self._table.select('length', id=self._db_id)[0][0]
+
+        return self._stored_length
 
     @length.setter
     def length(self, value: float):
@@ -346,8 +387,11 @@ class TransitionBranch(EntryBase, NameMixin):
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_length = value
         self._table.update(self._db_id, length=value)
         self._populate('length')
+
+    _stored_angle: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def angle(self) -> float:
@@ -358,8 +402,10 @@ class TransitionBranch(EntryBase, NameMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        angle = self._table.select('angle', id=self._db_id)[0][0]
-        return angle
+        if self._stored_angle is DefaultStoredValue:
+            self._stored_angle = self._table.select('angle', id=self._db_id)[0][0]
+
+        return self._stored_angle
 
     @angle.setter
     def angle(self, value: float):
@@ -370,8 +416,11 @@ class TransitionBranch(EntryBase, NameMixin):
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_angle = float(value)
         self._table.update(self._db_id, angle=float(value))
         self._populate('angle')
+
+    _stored_offset: "_point.Point | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
     def offset(self) -> _point.Point:
@@ -382,13 +431,15 @@ class TransitionBranch(EntryBase, NameMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         """
-        offset = self._table.select('offset', id=self._db_id)[0][0]
-        if offset is None:
-            return None
+        if self._stored_offset is DefaultStoredValue:
+            offset = self._table.select('offset', id=self._db_id)[0][0]
+            if offset is None:
+                self._stored_offset = None
+            else:
+                offset = eval(offset)
+                self._stored_offset = _point.Point(offset[0], offset[1], 0)
 
-        offset = eval(offset)
-
-        return _point.Point(offset[0], offset[1], 0)
+        return self._stored_offset
 
     @offset.setter
     def offset(self, value: _point.Point):
@@ -399,8 +450,11 @@ class TransitionBranch(EntryBase, NameMixin):
         :param value: Value to store or process.
         :type value: :class:`_point.Point`
         """
+        self._stored_offset = value
         self._table.update(self._db_id, offset=str(list(value.as_float)))
         self._populate('offset')
+
+    _stored_flange_height: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def flange_height(self) -> float:
@@ -411,8 +465,10 @@ class TransitionBranch(EntryBase, NameMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        flange_height = self._table.select('flange_height', id=self._db_id)[0][0]
-        return flange_height
+        if self._stored_flange_height is DefaultStoredValue:
+            self._stored_flange_height = self._table.select('flange_height', id=self._db_id)[0][0]
+
+        return self._stored_flange_height
 
     @flange_height.setter
     def flange_height(self, value: float):
@@ -423,8 +479,11 @@ class TransitionBranch(EntryBase, NameMixin):
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_flange_height = value
         self._table.update(self._db_id, flange_height=value)
         self._populate('flange_height')
+
+    _stored_flange_width: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def flange_width(self) -> float:
@@ -435,8 +494,10 @@ class TransitionBranch(EntryBase, NameMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        flange_width = self._table.select('flange_width', id=self._db_id)[0][0]
-        return flange_width
+        if self._stored_flange_width is DefaultStoredValue:
+            self._stored_flange_width = self._table.select('flange_width', id=self._db_id)[0][0]
+
+        return self._stored_flange_width
 
     @flange_width.setter
     def flange_width(self, value: float):
@@ -447,6 +508,7 @@ class TransitionBranch(EntryBase, NameMixin):
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_flange_width = value
         self._table.update(self._db_id, flange_width=value)
         self._populate('flange_width')
 

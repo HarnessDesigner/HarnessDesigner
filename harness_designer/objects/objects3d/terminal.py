@@ -89,11 +89,98 @@ class Terminal(_base3d.Base3D):
             self, parent, db_obj, vbo, angle, db_obj.position3d,
             scale, material)
 
+        # Cavity surface overlay (wire-side always, pin-side for
+        # female/undetermined-gender terminals) — resolved lazily in
+        # render() and cached until the owning cavity changes.
+        self._overlay_cavity_id = None
+        self._overlay_housing_3d = None
+        self._overlay_cavity_obj = None
+        self._overlay_wire_surf_idx: int = None
+        self._overlay_pin_surf_idx: int = None
+
         parent.mainframe.editor3d.context.release()
 
         if model is not None:
             model.load(self._part.manufacturer.name,
                        self._part.part_number, self._set_model)
+
+    def _refresh_overlay_state(self) -> None:
+        """(Re)resolve which of the housing's mesh surfaces this terminal
+        should overlay, and which wrapper object's selection state drives
+        the overlay color.  Cheap no-op once the owning cavity stops
+        changing between calls.
+        """
+        pjt_cavity = self.db_obj.cavity
+        cavity_id = pjt_cavity.db_id if pjt_cavity is not None else None
+
+        if cavity_id == self._overlay_cavity_id:
+            return
+
+        self._overlay_cavity_id = cavity_id
+        self._overlay_housing_3d = None
+        self._overlay_cavity_obj = None
+        self._overlay_wire_surf_idx = None
+        self._overlay_pin_surf_idx = None
+
+        if pjt_cavity is None:
+            return
+
+        cavity_obj = pjt_cavity.get_object()
+        if cavity_obj is None or cavity_obj.obj3d is None:
+            return
+
+        housing_pjt = pjt_cavity.housing
+        housing_obj = housing_pjt.get_object() if housing_pjt is not None else None
+        if housing_obj is None or housing_obj.obj3d is None:
+            return
+
+        self._overlay_cavity_obj = cavity_obj
+        self._overlay_housing_3d = housing_obj.obj3d
+
+        cavity_3d = cavity_obj.obj3d
+        if cavity_3d.wire_surf_idx >= 0:
+            self._overlay_wire_surf_idx = cavity_3d.wire_surf_idx
+
+        if self._pin_overlay_needed(pjt_cavity) and cavity_3d.surf_idx >= 0:
+            self._overlay_pin_surf_idx = cavity_3d.surf_idx
+
+    def _pin_overlay_needed(self, pjt_cavity) -> bool:
+        """Male terminals never show a pin-side overlay; female terminals
+        always do; an undetermined gender defaults to showing it (terminal
+        part gender checked first, then the housing's gender).
+        """
+        term_gender = (self._part.gender.name or '').strip().lower()
+        if term_gender == 'male':
+            return False
+        if term_gender == 'female':
+            return True
+
+        housing_gender = (pjt_cavity.housing.part.gender.name or '').strip().lower()
+        if housing_gender == 'male':
+            return False
+
+        return True
+
+    def render(self, faces_program, edges_program, vertices_program):
+        super().render(faces_program, edges_program, vertices_program)
+
+        self._refresh_overlay_state()
+
+        housing_3d = self._overlay_housing_3d
+        if housing_3d is None:
+            return
+
+        cavity_obj = self._overlay_cavity_obj
+        if cavity_obj is not None and cavity_obj.is_selected:
+            color = self._selected_material.diffuse
+        else:
+            color = self._unselected_material.diffuse
+
+        if self._overlay_wire_surf_idx is not None:
+            housing_3d.render_surface_overlay(self._overlay_wire_surf_idx, color)
+
+        if self._overlay_pin_surf_idx is not None:
+            housing_3d.render_surface_overlay(self._overlay_pin_surf_idx, color)
 
     def _update_position(self, position: _point.Point):
         """Update the position.

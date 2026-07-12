@@ -2,7 +2,7 @@
 
 from typing import Iterable as _Iterable
 
-from .bases import EntryBase, TableBase
+from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import NameMixin
 
 
@@ -132,6 +132,8 @@ class FileType(EntryBase, NameMixin):
 
         return packet
 
+    _stored_extension: DefaultStoredValueType | str = DefaultStoredValue
+
     @property
     def extension(self) -> str:
         """Return the extension.
@@ -141,7 +143,10 @@ class FileType(EntryBase, NameMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: str
         """
-        return self._table.select('extension', id=self._db_id)[0][0]
+        if self._stored_extension is DefaultStoredValue:
+            self._stored_extension = self._table.select('extension', id=self._db_id)[0][0]
+
+        return self._stored_extension
 
     @extension.setter
     def extension(self, value: str):
@@ -152,8 +157,11 @@ class FileType(EntryBase, NameMixin):
         :param value: Value to store or process.
         :type value: str
         """
+        self._stored_extension = value
         self._table.update(self._db_id, extension=value)
         self._populate('extension')
+
+    _stored_mimetype: DefaultStoredValueType | str = DefaultStoredValue
 
     @property
     def mimetype(self) -> str:
@@ -164,7 +172,10 @@ class FileType(EntryBase, NameMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: str
         """
-        return self._table.select('mimetype', id=self._db_id)[0][0]
+        if self._stored_mimetype is DefaultStoredValue:
+            self._stored_mimetype = self._table.select('mimetype', id=self._db_id)[0][0]
+
+        return self._stored_mimetype
 
     @mimetype.setter
     def mimetype(self, value: str):
@@ -175,8 +186,11 @@ class FileType(EntryBase, NameMixin):
         :param value: Value to store or process.
         :type value: str
         """
+        self._stored_mimetype = value
         self._table.update(self._db_id, mimetype=value)
         self._populate('mimetype')
+
+    _stored_is_model: DefaultStoredValueType | bool = DefaultStoredValue
 
     @property
     def is_model(self) -> bool:
@@ -187,7 +201,10 @@ class FileType(EntryBase, NameMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: bool
         """
-        return bool(self._table.select('is_model', id=self._db_id)[0][0])
+        if self._stored_is_model is DefaultStoredValue:
+            self._stored_is_model = bool(self._table.select('is_model', id=self._db_id)[0][0])
+
+        return self._stored_is_model
 
     @is_model.setter
     def is_model(self, value: bool):
@@ -198,5 +215,6 @@ class FileType(EntryBase, NameMixin):
         :param value: Value to store or process.
         :type value: bool
         """
+        self._stored_is_model = value
         self._table.update(self._db_id, is_model=int(value))
         self._populate('is_model')

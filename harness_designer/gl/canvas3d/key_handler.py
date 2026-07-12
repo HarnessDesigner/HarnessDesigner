@@ -127,6 +127,22 @@ class KeyHandler:
         self._keycode_thread.daemon = True
         self._keycode_thread.start()
 
+    def _binding(self, name: str):
+        """Return the active binding class for ``name``.
+
+        Returns ``None`` when ``name`` has no counterpart under
+        ``config.edit2d`` (``rotate``/``pan_tilt``) while locked-2D mode is
+        active, so those keys resolve to nothing instead of falling back to
+        the normal-mode bindings.
+
+        :param name: Binding class name, e.g. ``'rotate'``.
+        :type name: str
+        """
+        if self.canvas.config.edit2d.enable:
+            return getattr(self.canvas.config.edit2d, name, None)
+
+        return getattr(self.canvas.config, name)
+
     def handle_event(self, event):
         """Handle the event.
 
@@ -210,21 +226,23 @@ class KeyHandler:
                         items['keys'] = set(keys)
                         self._running_keycodes[func] = items
 
-        rot = self.canvas.config.rotate
-        key = _process_key_event(keycode, rot.up_key, rot.down_key,
-                                 rot.left_key, rot.right_key)
-        if key is not None:
-            remove_from_queue(self._process_rotate_key, key)
-            return
+        rot = self._binding('rotate')
+        if rot is not None:
+            key = _process_key_event(keycode, rot.up_key, rot.down_key,
+                                     rot.left_key, rot.right_key)
+            if key is not None:
+                remove_from_queue(self._process_rotate_key, key)
+                return
 
-        pan_tilt = self.canvas.config.pan_tilt
-        key = _process_key_event(keycode, pan_tilt.up_key, pan_tilt.down_key,
-                                 pan_tilt.left_key, pan_tilt.right_key)
-        if key is not None:
-            remove_from_queue(self._process_pan_tilt_key, key)
-            return
+        pan_tilt = self._binding('pan_tilt')
+        if pan_tilt is not None:
+            key = _process_key_event(keycode, pan_tilt.up_key, pan_tilt.down_key,
+                                     pan_tilt.left_key, pan_tilt.right_key)
+            if key is not None:
+                remove_from_queue(self._process_pan_tilt_key, key)
+                return
 
-        truck_pedestal = self.canvas.config.truck_pedestal
+        truck_pedestal = self._binding('truck_pedestal')
         key = _process_key_event(keycode, truck_pedestal.up_key,
                                  truck_pedestal.down_key, truck_pedestal.left_key,
                                  truck_pedestal.right_key)
@@ -232,14 +250,14 @@ class KeyHandler:
             remove_from_queue(self._process_truck_pedestal_key, key)
             return
 
-        walk = self.canvas.config.walk
+        walk = self._binding('walk')
         key = _process_key_event(keycode, walk.forward_key, walk.backward_key,
                                  walk.left_key, walk.right_key)
         if key is not None:
             remove_from_queue(self._process_walk_key, key)
             return
 
-        zoom = self.canvas.config.zoom
+        zoom = self._binding('zoom')
         key = _process_key_event(keycode, zoom.in_key, zoom.out_key)
         if key is not None:
             remove_from_queue(self._process_zoom_key, key)
@@ -333,21 +351,23 @@ class KeyHandler:
 
                 self._running_keycodes[func]['keys'].add(k)
 
-        rot = self.canvas.config.rotate
-        key = _process_key_event(keycode, rot.up_key, rot.down_key,
-                                 rot.left_key, rot.right_key)
-        if key is not None:
-            add_to_queue(self._process_rotate_key, key)
-            return
+        rot = self._binding('rotate')
+        if rot is not None:
+            key = _process_key_event(keycode, rot.up_key, rot.down_key,
+                                     rot.left_key, rot.right_key)
+            if key is not None:
+                add_to_queue(self._process_rotate_key, key)
+                return
 
-        pan_tilt = self.canvas.config.pan_tilt
-        key = _process_key_event(keycode, pan_tilt.up_key, pan_tilt.down_key,
-                                 pan_tilt.left_key, pan_tilt.right_key)
-        if key is not None:
-            add_to_queue(self._process_pan_tilt_key, key)
-            return
+        pan_tilt = self._binding('pan_tilt')
+        if pan_tilt is not None:
+            key = _process_key_event(keycode, pan_tilt.up_key, pan_tilt.down_key,
+                                     pan_tilt.left_key, pan_tilt.right_key)
+            if key is not None:
+                add_to_queue(self._process_pan_tilt_key, key)
+                return
 
-        truck_pedestal = self.canvas.config.truck_pedestal
+        truck_pedestal = self._binding('truck_pedestal')
         key = _process_key_event(keycode, truck_pedestal.up_key,
                                  truck_pedestal.down_key, truck_pedestal.left_key,
                                  truck_pedestal.right_key)
@@ -355,20 +375,20 @@ class KeyHandler:
             add_to_queue(self._process_truck_pedestal_key, key)
             return
 
-        walk = self.canvas.config.walk
+        walk = self._binding('walk')
         key = _process_key_event(keycode, walk.forward_key, walk.backward_key,
                                  walk.left_key, walk.right_key)
         if key is not None:
             add_to_queue(self._process_walk_key, key)
             return
 
-        zoom = self.canvas.config.zoom
+        zoom = self._binding('zoom')
         key = _process_key_event(keycode, zoom.in_key, zoom.out_key)
         if key is not None:
             add_to_queue(self._process_zoom_key, key)
             return
 
-        key = _process_key_event(keycode, self.canvas.config.reset.key)
+        key = _process_key_event(keycode, self._binding('reset').key)
         if key is not None:
             self._process_reset_key(key)
             return
@@ -439,14 +459,16 @@ class KeyHandler:
         dx = 0.0
         dy = 0.0
 
+        truck_pedestal = self._binding('truck_pedestal')
+
         for key in keys:
-            if key == self.canvas.config.truck_pedestal.up_key:
+            if key == truck_pedestal.up_key:
                 dy -= 3.0
-            elif key == self.canvas.config.truck_pedestal.down_key:
+            elif key == truck_pedestal.down_key:
                 dy += 3.0
-            elif key == self.canvas.config.truck_pedestal.left_key:
+            elif key == truck_pedestal.left_key:
                 dx -= 3.0
-            elif key == self.canvas.config.truck_pedestal.right_key:
+            elif key == truck_pedestal.right_key:
                 dx += 3.0
 
         self.canvas.TruckPedestal(dx * factor, dy * factor)
@@ -465,14 +487,16 @@ class KeyHandler:
         dx = 0.0
         dy = 0.0
 
+        walk = self._binding('walk')
+
         for key in keys:
-            if key == self.canvas.config.walk.forward_key:
+            if key == walk.forward_key:
                 dy += 2.0
-            elif key == self.canvas.config.walk.backward_key:
+            elif key == walk.backward_key:
                 dy -= 2.0
-            elif key == self.canvas.config.walk.left_key:
+            elif key == walk.left_key:
                 dx += 1.0
-            elif key == self.canvas.config.walk.right_key:
+            elif key == walk.right_key:
                 dx -= 1.0
 
         self.canvas.Walk(dx * factor, dy * factor)
@@ -490,10 +514,12 @@ class KeyHandler:
         """
         delta = 0.0
 
+        zoom = self._binding('zoom')
+
         for key in keys:
-            if key == self.canvas.config.zoom.in_key:
+            if key == zoom.in_key:
                 delta += 1.0
-            elif key == self.canvas.config.zoom.out_key:
+            elif key == zoom.out_key:
                 delta -= 1.0
 
         self.canvas.Zoom(delta * factor, None)

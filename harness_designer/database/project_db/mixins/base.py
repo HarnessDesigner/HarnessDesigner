@@ -1,6 +1,12 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from ..pjt_bases import PJTTableBase, PJTEntryBase
+from ..pjt_bases import (PJTTableBase, PJTEntryBase,
+                         DefaultStoredValue as _DefaultStoredValue,
+                         DefaultStoredValueType as _DefaultStoredValueType)
+
+
+DefaultStoredValue = _DefaultStoredValue
+DefaultStoredValueType = _DefaultStoredValueType
 
 
 class BaseMixin:

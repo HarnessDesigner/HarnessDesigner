@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING
 
 from ....ui import prop_ctrls as _prop_ctrls
-from .base import BaseMixin
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 
 
 if TYPE_CHECKING:
@@ -16,6 +16,8 @@ class TemperatureMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    _stored_min_temp: "DefaultStoredValueType | _temperature.Temperature" = DefaultStoredValue
+
     @property
     def min_temp(self) -> "_temperature.Temperature":
         """Return the min temp.
@@ -25,10 +27,16 @@ class TemperatureMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_temperature.Temperature`
         """
-        from .. import temperature as _temperature  # NOQA
+        if self._stored_min_temp is DefaultStoredValue:
+            from .. import temperature as _temperature  # NOQA
 
-        min_temp_id = self._table.select('min_temp_id', id=self._db_id)
-        return _temperature.Temperature(self._table.db.temperatures_table, min_temp_id[0][0])
+            min_temp_id = self._table.select('min_temp_id', id=self._db_id)
+            self._stored_min_temp = _temperature.Temperature(
+                self._table.db.temperatures_table, min_temp_id[0][0])
+
+        return self._stored_min_temp
+
+    _stored_min_temp_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def min_temp_id(self) -> int:
@@ -39,7 +47,10 @@ class TemperatureMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('min_temp_id', id=self._db_id)[0][0]
+        if self._stored_min_temp_id is DefaultStoredValue:
+            self._stored_min_temp_id = self._table.select('min_temp_id', id=self._db_id)[0][0]
+
+        return self._stored_min_temp_id
 
     @min_temp_id.setter
     def min_temp_id(self, value: int):
@@ -50,8 +61,13 @@ class TemperatureMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_min_temp_id = value
+        self._stored_min_temp = DefaultStoredValue
+
         self._table.update(self._db_id, min_temp_id=value)
         self._populate('min_temp_id')
+
+    _stored_max_temp: "DefaultStoredValueType | _temperature.Temperature" = DefaultStoredValue
 
     @property
     def max_temp(self) -> "_temperature.Temperature":
@@ -62,10 +78,16 @@ class TemperatureMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_temperature.Temperature`
         """
-        from .. import temperature as _temperature  # NOQA
+        if self._stored_max_temp is DefaultStoredValue:
+            from .. import temperature as _temperature  # NOQA
 
-        max_temp_id = self._table.select('max_temp_id', id=self._db_id)
-        return _temperature.Temperature(self._table.db.temperatures_table, max_temp_id[0][0])
+            max_temp_id = self._table.select('max_temp_id', id=self._db_id)
+            self._stored_max_temp = _temperature.Temperature(
+                self._table.db.temperatures_table, max_temp_id[0][0])
+
+        return self._stored_max_temp
+
+    _stored_max_temp_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def max_temp_id(self) -> int:
@@ -76,7 +98,10 @@ class TemperatureMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('max_temp_id', id=self._db_id)[0][0]
+        if self._stored_max_temp_id is DefaultStoredValue:
+            self._stored_max_temp_id = self._table.select('max_temp_id', id=self._db_id)[0][0]
+
+        return self._stored_max_temp_id
 
     @max_temp_id.setter
     def max_temp_id(self, value: int):
@@ -87,6 +112,9 @@ class TemperatureMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_max_temp_id = value
+        self._stored_max_temp = DefaultStoredValue
+
         self._table.update(self._db_id, max_temp_id=value)
         self._populate('max_temp_id')
 

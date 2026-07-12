@@ -6,7 +6,7 @@ from typing import Iterable as _Iterable
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
-from .bases import EntryBase, TableBase
+from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import (
     PartNumberMixin, PartNumberControl,
     ManufacturerMixin, ManufacturerControl,
@@ -333,6 +333,8 @@ class Cover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, Dir
 
         return packet
 
+    _stored_pins: DefaultStoredValueType | str = DefaultStoredValue
+
     @property
     def pins(self) -> str:
         """Return the pins.
@@ -342,7 +344,10 @@ class Cover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, Dir
         :returns: Property value. UNKNOWN details.
         :rtype: str
         """
-        return self._table.select('pins', id=self._db_id)[0][0]
+        if self._stored_pins is DefaultStoredValue:
+            self._stored_pins = self._table.select('pins', id=self._db_id)[0][0]
+
+        return self._stored_pins
 
     @pins.setter
     def pins(self, value: str):
@@ -353,6 +358,7 @@ class Cover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, Dir
         :param value: Value to store or process.
         :type value: str
         """
+        self._stored_pins = value
         self._table.update(self._db_id, pins=value)
         self._populate('pins')
 

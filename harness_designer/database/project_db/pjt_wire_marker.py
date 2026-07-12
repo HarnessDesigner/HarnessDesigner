@@ -7,7 +7,7 @@ from PySide6.QtWidgets import QTabWidget
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
-from .pjt_bases import PJTEntryBase, PJTTableBase
+from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from ..global_db import wire_marker as _wire_marker
 from .mixins import (
     Position2DMixin, Position2DControl,
@@ -222,7 +222,7 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PartMixin,
         """
         return self._table
 
-    _stored_wire: "_pjt_wire.PJTWire" = None
+    _stored_wire: "_pjt_wire.PJTWire | DefaultStoredValueType" = DefaultStoredValue
 
     @property
     def wire(self) -> "_pjt_wire.PJTWire":
@@ -233,12 +233,16 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PartMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_wire.PJTWire`
         """
-        if self._stored_wire is None and self._obj is not None:
+        if self._stored_wire is DefaultStoredValue:
             wire_id = self.wire_id
             self._stored_wire = self._table.db.pjt_wires_table[wire_id]
+
+        if self._obj is not None:
             self._stored_wire.add_object(self._obj())
 
         return self._stored_wire
+
+    _stored_wire_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def wire_id(self) -> int:
@@ -249,7 +253,10 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PartMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('wire_id', id=self._db_id)[0][0]
+        if self._stored_wire_id is DefaultStoredValue:
+            self._stored_wire_id = self._table.select('wire_id', id=self._db_id)[0][0]
+
+        return self._stored_wire_id
 
     @wire_id.setter
     def wire_id(self, value: int):
@@ -260,11 +267,13 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PartMixin,
         :param value: Value to store or process.
         :type value: int
         """
-        self._stored_wire = None
+        self._stored_wire_id = value
+        self._stored_wire = DefaultStoredValue
+
         self._table.update(self._db_id, wire_id=value)
         self._populate('wire_id')
 
-    _stored_part: "_wire_marker.WireMarker" = None
+    _stored_part: "_wire_marker.WireMarker | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
     def part(self) -> "_wire_marker.WireMarker":
@@ -275,15 +284,20 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PartMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_wire_marker.WireMarker`
         """
-        if self._stored_part is None and self._obj is not None:
+        if self._stored_part is DefaultStoredValue:
             part_id = self.part_id
             if part_id is None:
-                return None
+                self._stored_part = None
+            else:
+                self._stored_part = self._table.db.global_db.wire_markers_table[part_id]
 
-            self._stored_part = self._table.db.global_db.wire_markers_table[part_id]
-            self._stored_part.add_object(self._obj())
+        if self._stored_part is not None:
+            if self._obj is not None:
+                self._stored_part.add_object(self._obj())
 
         return self._stored_part
+
+    _stored_label: str | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def label(self) -> str:
@@ -294,7 +308,10 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PartMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: str
         """
-        return self._table.select('label', id=self._db_id)[0][0]
+        if self._stored_label is DefaultStoredValue:
+            self._stored_label = self._table.select('label', id=self._db_id)[0][0]
+
+        return self._stored_label
 
     @label.setter
     def label(self, value: str):
@@ -305,6 +322,7 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PartMixin,
         :param value: Value to store or process.
         :type value: str
         """
+        self._stored_label = value
         self._table.update(self._db_id, label=value)
         self._populate('label')
 

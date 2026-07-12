@@ -11,6 +11,7 @@ from .bases import EntryBase, TableBase
 from .mixins import NameMixin, DimensionMixin, DimensionControl
 from ...geometry import point as _point
 from ...geometry import angle as _angle
+from ..common_db.lazy_tab_mixin import LazyTabMixin
 
 
 if TYPE_CHECKING:
@@ -441,6 +442,65 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         self._populate('round_terminal')
 
     @property
+    def render_terminal_marker(self) -> bool:
+        """Return whether a synthetic terminal-plane marker should be rendered.
+
+        Housings with a single continuous terminal-side plane (no distinct
+        recessed mesh surface per cavity) have no way to distinguish cavities
+        by mesh geometry alone. When this flag is set, the OBB (already
+        stored per cavity) and ``round_terminal`` are used to render and
+        click-test a synthetic circle/rectangle marker in place of real mesh
+        geometry.
+        """
+        return bool(self._table.select('render_terminal_marker', id=self._db_id)[0][0])
+
+    @render_terminal_marker.setter
+    def render_terminal_marker(self, value: bool):
+        """Set whether a synthetic terminal-plane marker should be rendered."""
+        self._table.update(self._db_id, render_terminal_marker=(1 if value else None))
+        self._populate('render_terminal_marker')
+
+    @property
+    def terminal_surf_indices(self) -> list[int]:
+        """Return the mesh-surface indices selected as this cavity's terminal
+        face in the housing editor, or ``[]`` if never assigned.
+
+        Indices are into ``MeshSurfacePicker.surfaces`` for this part's mesh
+        (see ``objects3d/housing.py`` ``match_cavity_surfaces``) — stable as
+        long as the underlying model isn't re-simplified/re-imported.
+        """
+        value = self._table.select('terminal_surf_indices', id=self._db_id)[0][0]
+        if value is None:
+            return []
+
+        return list(eval(value))
+
+    @terminal_surf_indices.setter
+    def terminal_surf_indices(self, value: list[int]):
+        """Set the terminal-face mesh-surface indices."""
+        self._table.update(self._db_id, terminal_surf_indices=str(list(value)))
+        self._populate('terminal_surf_indices')
+
+    @property
+    def wire_surf_indices(self) -> list[int]:
+        """Return the mesh-surface indices selected as this cavity's wire
+        face in the housing editor, or ``[]`` if never assigned.
+
+        See ``terminal_surf_indices`` for details.
+        """
+        value = self._table.select('wire_surf_indices', id=self._db_id)[0][0]
+        if value is None:
+            return []
+
+        return list(eval(value))
+
+    @wire_surf_indices.setter
+    def wire_surf_indices(self, value: list[int]):
+        """Set the wire-face mesh-surface indices."""
+        self._table.update(self._db_id, wire_surf_indices=str(list(value)))
+        self._populate('wire_surf_indices')
+
+    @property
     def length(self) -> float:
         """Return the length.
 
@@ -627,11 +687,24 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         return res
 
 
-class CavityControl(_prop_ctrls.Category):
+class CavityControl(QTabWidget, LazyTabMixin):
     """Represent a cavity control in :mod:`harness_designer.database.global_db.cavity`.
 
-    UNKNOWN details are inferred from the class name and surrounding code.
+    A housing loads all of its cavities as tabs in a notebook (see
+    ``HousingControl``), so this is itself a notebook — like every other
+    per-part-type control (``PJTTerminalControl`` is the reference) — rather
+    than a ``Category`` page wrapping a second, nested notebook.
     """
+
+    _label = 'Cavity'
+
+    def GetLabel(self) -> str:
+        """Return the tab label a parent notebook should use for this control."""
+        return self._label
+
+    def SetLabel(self, value: str) -> None:
+        """Set the tab label a parent notebook should use for this control."""
+        self._label = value
 
     def SetIndex(self, index):
         """Execute the set index operation.
@@ -651,34 +724,38 @@ class CavityControl(_prop_ctrls.Category):
         :param db_obj: Database-backed object.
         :type db_obj: :class:`Cavity`
         """
-        self.db_obj = db_obj
+        self._lazy_set_obj(db_obj)
 
-        self.dimension_page.set_obj(db_obj)
+    def _load_tab(self, index: int):
+        page = self.widget(index)
+        db_obj = self.db_obj
 
-        if db_obj is None:
-            self.index_ctrl.SetValue(0)
-            self.terminal_sizes_ctrl.SetValue([])
-            self.round_terminal_ctrl.SetValue(False)
+        if page is self._general_page:
+            if db_obj is None:
+                self.index_ctrl.SetValue(0)
+                self.terminal_sizes_ctrl.SetValue([])
+                self.round_terminal_ctrl.SetValue(False)
 
-            self.position3d_ctrl.SetValue(None)
-            self.position2d_ctrl.SetValue(None)
-            self.angle3d_ctrl.SetValue(None)
+                self.index_ctrl.setEnabled(False)
+                self.terminal_sizes_ctrl.setEnabled(False)
+                self.round_terminal_ctrl.setEnabled(False)
+            else:
+                self.index_ctrl.SetValue(db_obj.idx)
+                self.terminal_sizes_ctrl.SetValue(db_obj.terminal_sizes)
+                self.round_terminal_ctrl.SetValue(db_obj.round_terminal)
 
-            self.index_ctrl.setEnabled(False)
-            self.terminal_sizes_ctrl.setEnabled(False)
-            self.round_terminal_ctrl.setEnabled(False)
-        else:
-            self.index_ctrl.SetValue(db_obj.idx)
-            self.terminal_sizes_ctrl.SetValue(db_obj.terminal_sizes)
-            self.round_terminal_ctrl.SetValue(db_obj.round_terminal)
+                self.index_ctrl.setEnabled(True)
+                self.terminal_sizes_ctrl.setEnabled(True)
+                self.round_terminal_ctrl.setEnabled(True)
+        elif page is self.dimension_page:
+            self.dimension_page.set_obj(db_obj)
+        elif page is self._position_page:
+            self.position3d_ctrl.SetValue(None if db_obj is None else db_obj.position3d)
+            self.position2d_ctrl.SetValue(None if db_obj is None else db_obj.position2d)
+        elif page is self._angle_page:
+            self.angle3d_ctrl.SetValue(None if db_obj is None else db_obj.angle3d)
 
-            self.position3d_ctrl.SetValue(db_obj.position3d)
-            self.position2d_ctrl.SetValue(db_obj.position2d)
-            self.angle3d_ctrl.SetValue(db_obj.angle3d)
-
-            self.index_ctrl.setEnabled(True)
-            self.terminal_sizes_ctrl.setEnabled(True)
-            self.round_terminal_ctrl.setEnabled(True)
+        self._tab_loaded[index] = True
 
     def _on_round_terminal(self, evt):
         """Handle the round terminal event.
@@ -722,14 +799,13 @@ class CavityControl(_prop_ctrls.Category):
         :type parent: UNKNOWN
         """
         self.db_obj: Cavity = None
+        self._label = 'Cavity'
 
-        super().__init__(parent, 'Cavity')
+        QTabWidget.__init__(self, parent)
+        self.setTabPosition(QTabWidget.TabPosition.North)
+        self.setUsesScrollButtons(True)
 
-        self.nb = QTabWidget(self)
-        self.nb.setTabPosition(QTabWidget.TabPosition.North)
-        self.nb.setUsesScrollButtons(True)
-
-        general_page = _prop_ctrls.Category(self.nb, 'General')
+        self._general_page = general_page = _prop_ctrls.Category(self, 'General')
 
         self.index_ctrl = _prop_ctrls.IntProperty(general_page, 'Index', min_value=0, max_value=999)
         self.round_terminal_ctrl = _prop_ctrls.BoolProperty(general_page, 'Is Round')
@@ -739,16 +815,16 @@ class CavityControl(_prop_ctrls.Category):
         general_page.addWidget(self.round_terminal_ctrl)
         general_page.addWidget(self.terminal_sizes_ctrl)
 
-        self.dimension_page = DimensionControl(self.nb)
+        self.dimension_page = DimensionControl(self)
 
-        position_page = _prop_ctrls.Category(self.nb, 'Position')
+        self._position_page = position_page = _prop_ctrls.Category(self, 'Position')
         self.position2d_ctrl = _prop_ctrls.Position2DProperty(position_page, '2D Position')
         self.position3d_ctrl = _prop_ctrls.Position3DProperty(position_page, '3D Position')
 
         position_page.addWidget(self.position2d_ctrl)
         position_page.addWidget(self.position3d_ctrl)
 
-        angle_page = _prop_ctrls.Category(self.nb, 'Angle')
+        self._angle_page = angle_page = _prop_ctrls.Category(self, 'Angle')
         self.angle3d_ctrl = _prop_ctrls.Angle3DProperty(angle_page, '3D Angle')
 
         angle_page.addWidget(self.angle3d_ctrl)
@@ -763,4 +839,6 @@ class CavityControl(_prop_ctrls.Category):
             position_page,
             angle_page
         ):
-            self.nb.addTab(page, page.GetLabel())
+            self.addTab(page, page.GetLabel())
+
+        self._init_lazy_tabs()

@@ -214,6 +214,19 @@ ZERO_POINT = _point.ZERO_POINT
 # and every mouse-drag event respectively.
 _WORLD_UP = np.array([0.0, 1.0, 0.0], dtype=np.float32)
 
+# Fixed camera basis used while config.edit2d.enable is True (locked
+# straight-down "bird's-eye" view). The generic cross-product derivation in
+# _calculate_camera() is degenerate exactly at straight-down (forward
+# parallel to world-up) — these are hardcoded instead of derived so that
+# degenerate case is never evaluated. Chosen so world X maps to screen X and
+# world Z maps to screen Y, using the same
+# right = cross(world_up, forward) / up = cross(forward, right) convention
+# as the unlocked branch below (verified: cross(_LOCKED_FORWARD,
+# _LOCKED_RIGHT) == _LOCKED_UP).
+_LOCKED_FORWARD = np.array([0.0, -1.0, 0.0], dtype=np.float32)
+_LOCKED_RIGHT = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+_LOCKED_UP = np.array([0.0, 0.0, 1.0], dtype=np.float32)
+
 
 class Camera:
 
@@ -463,10 +476,46 @@ class Camera:
 
             self._position.x = 0.0
             self._position.y = self.canvas.config.floor.ground_height + 100.0
-            self._position.z = 75.0
+
+            if self.canvas.config.edit2d.enable:
+                # Keep the reset pose inside the locked straight-down view
+                # instead of jumping to the perspective default.
+                self._position.z = 0.0
+            else:
+                self._position.z = 75.0
 
         self._update_camera(None)
         self._send_event(_events.EVT_GL_CAMERA_RESET)
+
+    def SetTopDownLock(self, enable: bool):
+        """
+        Enable/disable the locked straight-down ("bird's-eye") view.
+
+        Writes ``self.canvas.config.edit2d.enable`` — the single source of
+        truth read everywhere else (``_calculate_camera``, ``Rotate``,
+        ``PanTilt``, ``Reset``, the mouse/key dispatch layers, and the
+        rotation-ring gizmo).
+
+        :param enable: Enable or disable the lock.
+        :type enable: bool
+        """
+        enable = bool(enable)
+
+        if enable:
+            with self._position:
+                offset = self._focal_position.as_numpy - self._position.as_numpy
+                focal_distance = float(np.linalg.norm(offset))
+                if focal_distance < 1e-6:
+                    focal_distance = 1.0
+
+                self._position.x = self._focal_position.x
+                self._position.y = self._focal_position.y + focal_distance
+                self._position.z = self._focal_position.z
+
+        self.canvas.config.edit2d.enable = enable
+
+        self._is_dirty = True
+        self._update_camera(None)
 
     def _update_camera(self, _=None):
         """
@@ -562,6 +611,13 @@ class Camera:
 
         focal_distance = np.linalg.norm(forward)
         if focal_distance < 1e-6:
+            return
+
+        if self.canvas.config.edit2d.enable:
+            self._forward = _LOCKED_FORWARD.copy()
+            self._right = _LOCKED_RIGHT.copy()
+            self._up = _LOCKED_UP.copy()
+            self._focal_distance = float(focal_distance)
             return
 
         forward = forward / focal_distance
@@ -679,6 +735,12 @@ class Camera:
         :type dy: int
         """
 
+        if self.canvas.config.edit2d.enable:
+            # Orbit is unreachable through the mouse/key dispatch layer
+            # while locked (no rotate/pan_tilt binding class exists under
+            # edit2d) — this guard is for direct callers.
+            return
+
         self._is_dirty = True
         position = self._rotate_about(
             dx, dy, self._position, self._focal_position)
@@ -785,6 +847,12 @@ class Camera:
         :param dy: Mouse delta Y coordinate.
         :type dy: int
         """
+
+        if self.canvas.config.edit2d.enable:
+            # Unreachable through normal dispatch while locked; guards the
+            # direct call from _orient_to_mouse_on_focal_plane() (mouse
+            # wheel cursor-reorientation), which bypasses _process_mouse.
+            return
 
         self._is_dirty = True
         focal_point = self._rotate_about(

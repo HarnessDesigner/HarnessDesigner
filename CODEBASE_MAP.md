@@ -27,7 +27,7 @@ the entire codebase from scratch every session.
 
 # harness_designer codebase map
 
-PySide6 (Qt) desktop app for designing wire harnesses. ~508 .py files. GUI toolkit is **PySide6**, with a wx-style `CallAfter` shim in `app.py`. OpenGL rendering for 2D/3D editors. Multi-process architecture for DB/model/image work. For release builds the project's Python code is converted to C extension modules and compiled, so hot numeric loops run much faster than the interpreted dev environment suggests.
+PySide6 (Qt) desktop app for designing wire harnesses. ~530 .py files. GUI toolkit is **PySide6**, with a wx-style `CallAfter` shim in `app.py`. OpenGL rendering for 2D/3D editors. Multi-process architecture for DB/model/image work. For release builds the project's Python code is converted to C extension modules and compiled, so hot numeric loops run much faster than the interpreted dev environment suggests.
 
 Contents/structure of the `harness_designer/` package.
 
@@ -53,6 +53,7 @@ Contents/structure of the `harness_designer/` package.
   - `ui_utils.py`: `HSizer()`, `IMAGE_FILE_WILDCARDS`, `MODEL_FILE_WILDCARDS`
   - `bounding_boxes.py`: `compute_aabb()`, `compute_obb()`, `adjust_aabb()`
   - `mesh_normals.py`: `compute_normals()`, `compute_smooth_normals()`, `compute_face_normals()`, `compute_face_indexes()`
+  - `mesh_surface_picker.py`: mesh surface picking (ray/triangle hit testing)
   - `model_utils.py`: `compute_edges()`, `convert_model_to_mesh()`
 - `app_mixins/`: application-level mixins
   - `callback_mixin.py`
@@ -115,13 +116,28 @@ Contents/structure of the `harness_designer/` package.
   - `bases.py` (~1300 lines): table base class
   - `resource_state.py`: tracks resource sync state
   - `mixins/`: column mixins
+    - base
     - part_number
+    - name
+    - description
     - manufacturer
     - color
+    - material
     - dimension
+    - weight
     - image
+    - resource
     - model3d
+    - adhesive
+    - cavity_lock
     - compat_housings/seals/terminals
+    - direction
+    - family
+    - gender
+    - plating
+    - protection
+    - series
+    - temperature
     - wire_size
   - `model3d.py`: 3D model storage (`Models3DTable`, `Model3D`)
   - `ip/`: IP rating tables
@@ -130,6 +146,15 @@ Contents/structure of the `harness_designer/` package.
     - supp
 - `project_db/`: per-project tables, all prefixed `pjt_`
   - pjt_housing
+  - pjt_terminal
+  - pjt_seal
+  - pjt_boot
+  - pjt_cover
+  - pjt_cpa_lock
+  - pjt_tpa_lock
+  - pjt_cavity
+  - pjt_splice
+  - pjt_transition (+_branch)
   - pjt_wire
   - pjt_wire_marker
   - pjt_wire_service_loop
@@ -141,11 +166,11 @@ Contents/structure of the `harness_designer/` package.
   - pjt_point3d
   - pjt_circuit
   - pjt_note
-  - pjt_tpa_lock
   - pjt_bases.py (~1100 lines): base class
   - `project.py`: project table
   - `cleanup.py`
   - `mixins/`:
+    - base
     - position2d/3d
     - angle2d/3d
     - scale3d
@@ -154,6 +179,7 @@ Contents/structure of the `harness_designer/` package.
     - name
     - notes
     - part
+    - housing
     - smooth
     - start_stop_position2d
     - start_stop_position3d
@@ -161,6 +187,7 @@ Contents/structure of the `harness_designer/` package.
                       logic (mirrors global_db naming)
 - `common_db/`
   - `callback.py`: DB callback plumbing
+  - `lazy_tab_mixin.py`: lazy per-tab DB table loading
 - `update_monitor/` — currently empty
 
 ## `process/` (multiprocessing)
@@ -180,32 +207,57 @@ Contents/structure of the `harness_designer/` package.
   - terminal
   - wire
   - wire_layout
+  - wire_marker
+  - wire_service_loop
   - bundle
+  - bundle_layout
   - circuit
   - note
   - splice
   - transition
+  - seal
+  - boot
+  - cover
+  - cpa_lock
+  - tpa_lock
+  - cavity
+  - project
   - project_model
   - generic
 - `objects3d/`: the actual renderable 3D views (constructed with `(parent=wrapper, db_obj=pjt entry)`)
-  - one file per harness part (housing, terminal, wire, wire_layout, bundle, splice, transition, seal, boot, cover, tpa_lock, cpa_lock, note, wire_marker, project_model, generic)
+  - one file per harness part (housing, terminal, wire, wire_layout, wire_marker, wire_service_loop,
+    bundle, bundle_layout, splice, transition, seal, boot, cover, tpa_lock, cpa_lock, cavity, note,
+    project_model, generic)
   - `base3d.py` (~960 lines): base 3D object
-  - `housing_cavity_picker.py`: cavity selection overlay
   - `menu_ops.py`: context-menu operations
   - `mixins/`:
     - angle
     - move
-- `objects2d/`: same structure as `objects3d` except for 2D rendering
-  - wire
-  - wire_layout
-  - project_model
-  - generic
+    - wire_type
+- `objects2d/`: same structure as `objects3d` except for 2D rendering, minus the `wire_type` mixin
+  - one file per harness part (housing, terminal, wire, wire_layout, wire_marker, wire_service_loop,
+    bundle, bundle_layout, splice, transition, seal, boot, cover, tpa_lock, cpa_lock, cavity, note,
+    project_model, generic)
   - `base2d.py`: base 2D object
+  - `mixins/`:
+    - angle
+    - move
 
   
 
 ## `handlers/` (selection/interaction handlers, one per part type)
-- `handler_base.py` (small, ~80 lines): base class
+- `handler_base.py` (~290 lines): base class
+  - `HandlerBase.__init__`: captures mainframe/part_id/camera/ptables state for the handler
+  - `capture_position()`/`release_capture()`/`ignore_next_input()`: mouse-capture lifecycle
+    (`release_capture` raises `NotImplementedError` — subclasses must implement placement)
+  - orientation-alignment helpers, used to snap a newly placed accessory to the face of the
+    housing/cavity it's being dropped into:
+    - `obb_face_direction()`: outward-normal for one OBB face
+    - `euler_from_matrix_continuous()`: YXZ Euler from a rotation matrix, unwrapped continuous
+      with the previous angle (avoids ±180° flips)
+    - `set_angle_from_housing()` / `set_angle_from_cavity()`: align an object's angle3d to a
+      housing's/cavity's world rotation via `model3d.forward_up` face indices
+    - `reset_angle()`: reset angle3d to identity
 - `*_handler.py`:
   - bundle
   - bundle_layout
@@ -224,17 +276,17 @@ Contents/structure of the `harness_designer/` package.
 
 ## `gl/` (OpenGL)
 - `context.py`
-- `vbo.py` (~750 lines, VBO pipeline) 
+- `vbo.py` (~930 lines, VBO pipeline) 
 - `events.py` 
 - `info.py`
 - `canvas2d/`: 
   - camera 
-  - canvas 
+  - canvas.py + canvas2d.py
   - grid
   - dragging
-  - key/mouse handlers 
+  - key_handler.py / mouse_handler.py
   - object_picker
-- `canvas3d/`: same as `canvas2d` plus
+- `canvas3d/`: same as `canvas2d` (canvas.py + canvas3d.py, key_handler.py/mouse_handler.py) plus
   - arcball (dormant — replaced by rotation_rings; pending decision to expose as option or remove)
   - axis_overlay
   - floor
@@ -264,9 +316,11 @@ Contents/structure of the `harness_designer/` package.
 ## `ui/`
 - `mainframe.py` (~2000 lines): main window, docking, ties everything together
 - `editor_2d/editor2d.py`, `editor_3d/editor3d.py`: schematic & 3D editors
-- `editor_assembly/`, `editor_ciruit/` (note typo "ciruit"): assembly & circuit editors (circuit has design_rules.py, editor_widget.py)
+- `editor_assembly/`, `editor_ciruit/` (note typo "ciruit"): assembly & circuit editors (circuit has `editor_circuit.py`, `editor_widget.py`, `design_rules.py`, `bitmaps.py`)
 - `editor_db/`: parts-database editor
   - `base.py` (~1100 lines) + one file per part type
+    (accessory, boot, bundle_cover, cover, cpa_lock, housing, seal, splice, terminal,
+    tpa_lock, transition, wire, wire_marker)
   - `editordb.py`
   - `edit_dialog.py`
 - `editor_obj/`: object property editor
@@ -314,14 +368,14 @@ Contents/structure of the `harness_designer/` package.
   - project_dialog
   - render_setings (typo)
   - debug_settings
+  - closing_dialog.py
   - error
   - header
   - `housing_editor/`:
-    - housing
-    - cavity
-    - accessory
-    - obj+panel pairs
-    - housing_editor.py
+    - housing, cavity, accessory: obj+panel pairs (`housing_obj.py`/`housing_panel.py`, etc.)
+    - `analysis_panel.py` + `connector_analysis.py`: fit/clearance analysis
+    - `config.py`
+    - `housing_editor.py`
 - `system_menu/`: menubar menus
   - file
   - edit
@@ -365,6 +419,8 @@ Contents/structure of the `harness_designer/` package.
   - rectangle
   - line
 - `gpu_mem/`: GPU memory monitoring per vendor
+  - `gpu_base.py`: base class
+  - `gpu_vendor.py`: vendor enum/dispatch
   - nvidia
   - amd
   - intel
@@ -374,20 +430,20 @@ Contents/structure of the `harness_designer/` package.
   - renderer
   - scene
   - light
-  - bvh_processor
+  - bvh_processor.py: Python driver for the BVH build
+  - `bvh.pyx` (Cython, compiled to `bvh.c`) + `kernel.cl` (OpenCL kernel): BVH build/traversal
   - dialog
 - `logger/`: logging
   - log_handler
-  - stdout
-  - stderr
+  - redirect (stdout/stderr redirection)
 - `themes/`: theme manager 
   - Dark
   - Light
-- `image/`: image loading
+- `image/`: image loading (`utils.py` + resource subdirs)
   - icons
   - cursors
-  - connector images
-  - overlays
+  - images (connector images)
+  - ip (IP-rating icon overlays)
 
 ## Third-party dependencies (non-stdlib imports)
 - `PySide6`: PySide6
@@ -427,9 +483,10 @@ objects/housing.py                       Housing(ObjectBase) wrapper — owns ob
         │                                and child wrappers (cavities, locks, seal, cover, boot);
         │                                fans select/delete/identify to both views
         ▼  creates both
-objects2d/housing.py + objects3d/housing.py   renderable views; ctor(parent=wrapper,
-                                              db_obj=PJTHousing); geometry from
-                                              db_obj.part (model3d, dims) via gl/ VBOs
+objects/objects2d/housing.py + objects/objects3d/housing.py   renderable views;
+                                              ctor(parent=wrapper, db_obj=PJTHousing);
+                                              geometry from db_obj.part (model3d, dims)
+                                              via gl/ VBOs
 ```
 
 - **Creation flow (user adds a part):** `handlers/housing_handler.py` (`Add*Handler`) → 
@@ -466,8 +523,8 @@ How a part's 3D model gets from disk to the screen:
   - `AA_ShareOpenGLContexts` is set at import time in `app.py` (before the QApplication is created)
   - so the uploaded model data (VBOs) is **shared across every GL canvas** 
     (editor3d, model_preview) — one upload serves them all
-  - editor2d does **not** use the shared context yet — planned (as of 2026-06-11, 
-    expected within days); remove this note once it does
+  - editor2d does **not** use the shared context yet — planned but not yet scheduled
+    (noted 2026-06-11, still true as of 2026-07-09); remove this note once it does
   - VAOs are **not** shareable across contexts, so `vbo.py` tracks/rebuilds VAOs per canvas 
     (`_clear_vaos`, `_clear_model_vaos_for_arena`)
   - `gl/context.py` `GLContext`: thread-safe acquire/release wrapper around each canvas's 
@@ -522,8 +579,8 @@ How a part's 3D model gets from disk to the screen:
   - project_db (pjt_)
   - create_database
   - objects (wrapper)
-  - objects2d
-  - objects3d
+  - objects/objects2d
+  - objects/objects3d
   - handlers
   - editor_db. 
 

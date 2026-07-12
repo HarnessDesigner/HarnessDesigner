@@ -892,6 +892,19 @@ class Setting3DToolbar(QtWidgets.QToolBar):
         self.show_spotlight.triggered.connect(self.on_spotlight)
         self.addAction(self.show_spotlight)
 
+        # Locked top-down (bird's-eye) view: composes the camera icon with
+        # the lock/unlock overlay rather than the checkbox one, since this
+        # isn't a simple display toggle — it also snaps/restricts the camera.
+        icn = self._get_lock_icon(mainframe.config.editor3d.edit2d.enable)
+
+        self.lock_top_view = QtGui.QAction(icn, 'Lock Top View', self)
+        self.lock_top_view.setCheckable(False)
+        self.lock_top_view.triggered.connect(self.on_lock_top_view)
+        self.addAction(self.lock_top_view)
+
+        # Apply the persisted lock state to the camera at startup.
+        mainframe.editor3d.camera.SetTopDownLock(mainframe.config.editor3d.edit2d.enable)
+
         mainframe.addToolBar(QtCore.Qt.ToolBarArea.TopToolBarArea, self)
 
     @staticmethod
@@ -902,6 +915,11 @@ class Setting3DToolbar(QtWidgets.QToolBar):
             icon = icon + _image.icons.uncheckbox
 
         return _make_icon(icon)
+
+    @staticmethod
+    def _get_lock_icon(enable):
+        icons = _image.icons
+        return _make_icon(icons.camera + (icons.lock if enable else icons.unlock))
 
     def on_wireframe(self, _: bool):
         """
@@ -942,6 +960,18 @@ class Setting3DToolbar(QtWidgets.QToolBar):
             self.mainframe.config.editor3d.headlight.enable, _image.icons.spot_light)
 
         self.show_spotlight.setIcon(icn)
+
+        self.mainframe.editor3d.Refresh()
+
+    def on_lock_top_view(self, _: bool = False):
+        """
+        Handle the locked top-down view toggle.
+        """
+        enable = not self.mainframe.config.editor3d.edit2d.enable
+
+        self.mainframe.editor3d.camera.SetTopDownLock(enable)
+
+        self.lock_top_view.setIcon(self._get_lock_icon(enable))
 
         self.mainframe.editor3d.Refresh()
 

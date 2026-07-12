@@ -8,7 +8,7 @@ from PySide6.QtWidgets import QTabWidget
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
 from ..global_db import transition as _transition
-from .pjt_bases import PJTEntryBase, PJTTableBase
+from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from ...geometry import angle as _angle
 from .mixins import (
     Angle3DMixin, Angle3DControl,
@@ -232,6 +232,8 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin,
         """
         return self._table
 
+    _stored_branch1: "_pjt_transition_branch.PJTTransitionBranch | None | DefaultStoredValueType" = DefaultStoredValue
+
     @property
     def branch1(self) -> "_pjt_transition_branch.PJTTransitionBranch":
         """Return the branch 1.
@@ -241,13 +243,18 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_transition_branch.PJTTransitionBranch`
         """
-        db_ids = self.table.db.pjt_transition_branches_table.select(
-            'id', transition_id=self.db_id, branch_id=1)
+        if self._stored_branch1 is DefaultStoredValue:
+            db_ids = self.table.db.pjt_transition_branches_table.select(
+                'id', transition_id=self.db_id, branch_id=1)
 
-        if not db_ids:
-            return None
+            if not db_ids:
+                self._stored_branch1 = None
+            else:
+                self._stored_branch1 = self.table.db.pjt_transition_branches_table[db_ids[0][0]]
 
-        return self.table.db.pjt_transition_branches_table[db_ids[0][0]]
+        return self._stored_branch1
+
+    _stored_branch2: "_pjt_transition_branch.PJTTransitionBranch | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
     def branch2(self) -> "_pjt_transition_branch.PJTTransitionBranch":
@@ -258,13 +265,18 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_transition_branch.PJTTransitionBranch`
         """
-        db_ids = self.table.db.pjt_transition_branches_table.select(
-            'id', transition_id=self.db_id, branch_id=2)
+        if self._stored_branch2 is DefaultStoredValue:
+            db_ids = self.table.db.pjt_transition_branches_table.select(
+                'id', transition_id=self.db_id, branch_id=2)
 
-        if not db_ids:
-            return None
+            if not db_ids:
+                self._stored_branch2 = None
+            else:
+                self._stored_branch2 = self.table.db.pjt_transition_branches_table[db_ids[0][0]]
 
-        return self.table.db.pjt_transition_branches_table[db_ids[0][0]]
+        return self._stored_branch2
+
+    _stored_branch3: "_pjt_transition_branch.PJTTransitionBranch | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
     def branch3(self) -> "_pjt_transition_branch.PJTTransitionBranch":
@@ -275,13 +287,18 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_transition_branch.PJTTransitionBranch`
         """
-        db_ids = self.table.db.pjt_transition_branches_table.select(
-            'id', transition_id=self.db_id, branch_id=3)
+        if self._stored_branch3 is DefaultStoredValue:
+            db_ids = self.table.db.pjt_transition_branches_table.select(
+                'id', transition_id=self.db_id, branch_id=3)
 
-        if not db_ids:
-            return None
+            if not db_ids:
+                self._stored_branch3 = None
+            else:
+                self._stored_branch3 = self.table.db.pjt_transition_branches_table[db_ids[0][0]]
 
-        return self.table.db.pjt_transition_branches_table[db_ids[0][0]]
+        return self._stored_branch3
+
+    _stored_branch4: "_pjt_transition_branch.PJTTransitionBranch | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
     def branch4(self) -> "_pjt_transition_branch.PJTTransitionBranch":
@@ -292,13 +309,18 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_transition_branch.PJTTransitionBranch`
         """
-        db_ids = self.table.db.pjt_transition_branches_table.select(
-            'id', transition_id=self.db_id, branch_id=4)
+        if self._stored_branch4 is DefaultStoredValue:
+            db_ids = self.table.db.pjt_transition_branches_table.select(
+                'id', transition_id=self.db_id, branch_id=4)
 
-        if not db_ids:
-            return None
+            if not db_ids:
+                self._stored_branch4 = None
+            else:
+                self._stored_branch4 = self.table.db.pjt_transition_branches_table[db_ids[0][0]]
 
-        return self.table.db.pjt_transition_branches_table[db_ids[0][0]]
+        return self._stored_branch4
+
+    _stored_branch5: "_pjt_transition_branch.PJTTransitionBranch | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
     def branch5(self) -> "_pjt_transition_branch.PJTTransitionBranch":
@@ -309,13 +331,18 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_transition_branch.PJTTransitionBranch`
         """
-        db_ids = self.table.db.pjt_transition_branches_table.select(
-            'id', transition_id=self.db_id, branch_id=5)
+        if self._stored_branch5 is DefaultStoredValue:
+            db_ids = self.table.db.pjt_transition_branches_table.select(
+                'id', transition_id=self.db_id, branch_id=5)
 
-        if not db_ids:
-            return None
+            if not db_ids:
+                self._stored_branch5 = None
+            else:
+                self._stored_branch5 = self.table.db.pjt_transition_branches_table[db_ids[0][0]]
 
-        return self.table.db.pjt_transition_branches_table[db_ids[0][0]]
+        return self._stored_branch5
+
+    _stored_branch6: "_pjt_transition_branch.PJTTransitionBranch | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
     def branch6(self) -> "_pjt_transition_branch.PJTTransitionBranch":
@@ -326,15 +353,18 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_transition_branch.PJTTransitionBranch`
         """
-        db_ids = self.table.db.pjt_transition_branches_table.select(
-            'id', transition_id=self.db_id, branch_id=6)
+        if self._stored_branch6 is DefaultStoredValue:
+            db_ids = self.table.db.pjt_transition_branches_table.select(
+                'id', transition_id=self.db_id, branch_id=6)
 
-        if not db_ids:
-            return None
+            if not db_ids:
+                self._stored_branch6 = None
+            else:
+                self._stored_branch6 = self.table.db.pjt_transition_branches_table[db_ids[0][0]]
 
-        return self.table.db.pjt_transition_branches_table[db_ids[0][0]]
+        return self._stored_branch6
 
-    _stored_part: "_transition.Transition" = None
+    _stored_part: "_transition.Transition | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
     def part(self) -> "_transition.Transition":
@@ -345,14 +375,17 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_transition.Transition`
         """
-        if self._stored_part is None and self._obj is not None:
+        if self._stored_part is DefaultStoredValue:
             part_id = self.part_id
 
             if part_id is None:
-                return None
+                self._stored_part = None
+            else:
+                self._stored_part = self._table.db.global_db.transitions_table[part_id]
 
-            self._stored_part = self._table.db.global_db.transitions_table[part_id]
-            self._stored_part.add_object(self._obj())
+        if self._stored_part is not None:
+            if self._obj is not None:
+                self._stored_part.add_object(self._obj())
 
         return self._stored_part
 

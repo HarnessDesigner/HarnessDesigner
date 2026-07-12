@@ -517,7 +517,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         :param value: Value to store or process.
         :type value: bool
         """
-        self._table.update(self._db_id, size=int(value))
+        self._table.update(self._db_id, sealing=int(value))
         self._populate('sealing')
 
     @property

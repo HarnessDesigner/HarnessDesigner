@@ -7,7 +7,7 @@ from PySide6.QtWidgets import QTabWidget
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
-from .pjt_bases import PJTEntryBase, PJTTableBase
+from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from ..global_db import tpa_lock as _tpa_lock
 from .mixins import (
     Angle3DMixin, Angle3DControl,
@@ -205,6 +205,8 @@ class PJTTPALock(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin, Scale3D
         else:
             self._obj = obj
 
+    _stored_idx: int | DefaultStoredValueType = DefaultStoredValue
+
     @property
     def idx(self) -> int:
         """Return the idx.
@@ -214,7 +216,10 @@ class PJTTPALock(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin, Scale3D
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('idx', id=self._db_id)[0][0]
+        if self._stored_idx is DefaultStoredValue:
+            self._stored_idx = self._table.select('idx', id=self._db_id)[0][0]
+
+        return self._stored_idx
 
     @idx.setter
     def idx(self, value: int):
@@ -225,6 +230,7 @@ class PJTTPALock(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin, Scale3D
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_idx = value
         self._table.update(self._db_id, idx=value)
         self._populate('idx')
 
@@ -239,7 +245,7 @@ class PJTTPALock(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin, Scale3D
         """
         return self._table
 
-    _stored_part: "_tpa_lock.TPALock" = None
+    _stored_part: "_tpa_lock.TPALock | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
     def part(self) -> "_tpa_lock.TPALock":
@@ -250,14 +256,17 @@ class PJTTPALock(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin, Scale3D
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_tpa_lock.TPALock`
         """
-        if self._stored_part is None and self._obj is not None:
+        if self._stored_part is DefaultStoredValue:
             part_id = self.part_id
 
             if part_id is None:
-                return None
+                self._stored_part = None
+            else:
+                self._stored_part = self._table.db.global_db.cpa_locks_table[part_id]
 
-            self._stored_part = self._table.db.global_db.cpa_locks_table[part_id]
-            self._stored_part.add_object(self._obj())
+        if self._stored_part is not None:
+            if self._obj is not None:
+                self._stored_part.add_object(self._obj())
 
         return self._stored_part
 

@@ -3,15 +3,71 @@
 import time
 from collections import deque
 
-from PySide6.QtCore import (Qt, QAbstractTableModel, QModelIndex, QTimer,
-                            QSize, Signal)
+from PySide6.QtCore import (Qt, QAbstractTableModel, QModelIndex, QPoint,
+                            QTimer, QSize, Signal)
 from PySide6.QtGui import QPixmap, QIcon
 from PySide6.QtWidgets import (QTableView, QAbstractItemView, QHeaderView,
-                               QApplication)
+                               QApplication, QWidget, QLabel, QLineEdit,
+                               QPushButton, QHBoxLayout)
 
 from . import edit_dialog as _edit_dialog
 from ... import config as _config
 from ... import image as _image
+
+
+class _HeaderSearchPopup(QWidget):
+    """Small popup shown on right-clicking a column header, letting the
+    user type a per-column search value.
+
+    Uses the ``Qt.Popup`` window flag, which Qt closes automatically on
+    any click outside the widget or loss of focus -- "click outside
+    cancels" needs no extra event handling because of it.
+    """
+
+    def __init__(self, parent, initial_text: str, on_ok):
+        """Initialise the :class:`_HeaderSearchPopup` instance.
+
+        :param parent: Parent widget the popup is anchored near.
+        :type parent: QWidget
+        :param initial_text: Current search text for the column, if any.
+        :type initial_text: str
+        :param on_ok: Called with the entered text when OK is pressed
+            (Enter in the field, or the button).
+        :type on_ok: Callable[[str], None]
+        """
+        super().__init__(parent, Qt.WindowType.Popup)
+        self._on_ok = on_ok
+
+        lay = QHBoxLayout(self)
+        lay.setContentsMargins(6, 6, 6, 6)
+
+        lay.addWidget(QLabel('Search:', self))
+
+        self._edit = QLineEdit(self)
+        self._edit.setText(initial_text)
+        self._edit.setMinimumWidth(160)
+        self._edit.returnPressed.connect(self._accept)  # NOQA
+        lay.addWidget(self._edit)
+
+        ok_btn = QPushButton('OK', self)
+        ok_btn.clicked.connect(self._accept)  # NOQA
+        lay.addWidget(ok_btn)
+
+        self._edit.selectAll()
+
+    def showEvent(self, event):
+        """Grab focus into the text field once the popup is actually shown.
+
+        :param event: Show event.
+        :type event: QtGui.QShowEvent
+        """
+        super().showEvent(event)
+        self._edit.setFocus()
+
+    def _accept(self):
+        """Report the entered text and close the popup."""
+        self._on_ok(self._edit.text())
+        self.close()
 
 
 class EditorDBConfig(metaclass=_config.ConfigDB):
@@ -169,6 +225,10 @@ class _EditorModel(QAbstractTableModel):
 
         # Find this column in the sort stack and annotate the label.
         col_name = self._list.column_mapping[col_key][1]['alias']
+
+        search_text = self._list._header_search.get(col_name)  # NOQA
+        if search_text:
+            label = f'{label} ["{search_text}"]'
 
         enumerated_data = enumerate(self._list.sort_columns, start=1)
         for priority, (sort_col, direction) in enumerated_data:
@@ -329,6 +389,111 @@ class EditorList(QTableView):
         self._row_count = self.record_count
         self._model.reset_all()
 
+    def _header_search_predicate(self, col: str, text: str) -> tuple[str, str]:
+        """Build a self-contained ``LIKE`` predicate for one header-search
+        column.
+
+        Must not reference a JOINed table's alias directly (e.g.
+        ``mfg_name.name``) the way the paginated results query's own
+        SELECT can -- :attr:`record_count`'s ``COUNT(*)`` query has no
+        JOINs in scope, only ``t``, so an FK column is matched via a
+        self-contained subquery instead (same technique already used by
+        the search dialog's FK filter panels).
+
+        :param col: Column alias, as used in ``column_mapping``.
+        :type col: str
+        :param text: Raw search text (unescaped, becomes a bound param).
+        :type text: str
+        :returns: The SQL fragment and its single bound parameter.
+        :rtype: tuple[str, str]
+        """
+        for entry in self.column_mapping.values():
+            info = entry[1]
+            if info['alias'] != col:
+                continue
+
+            if 'ref_table' in info:
+                sql = (f't.{info["field_name"]} IN ('
+                       f'SELECT id FROM {info["ref_table"]} '
+                       f'WHERE {info["ref_field"]} LIKE ?)')
+            else:
+                sql = f't.{info["field_name"]} LIKE ?'
+
+            return sql, f'%{text}%'
+
+        return f't.{col} LIKE ?', f'%{text}%'
+
+    def _combined_where(self) -> tuple[str, list]:
+        """Combine the externally-set filter (e.g. the search dialog's
+        keyword box and filter panels) with any active per-column header
+        searches, AND'd together.
+
+        :returns: The combined WHERE body (no ``WHERE`` keyword) and its
+            bound parameters, in the same order.
+        :rtype: tuple[str, list]
+        """
+        clauses = []
+        params: list = []
+
+        if self._where_clause:
+            clauses.append(f'({self._where_clause})')
+            params.extend(self._where_params)
+
+        for col, text in self._header_search.items():
+            sql, param = self._header_search_predicate(col, text)
+            clauses.append(sql)
+            params.append(param)
+
+        return " AND ".join(clauses), params
+
+    def _on_header_context_menu(self, pos: QPoint) -> None:
+        """Show the per-column search popup for the header section that
+        was right-clicked.
+
+        :param pos: Click position, in the header's own coordinates.
+        :type pos: QPoint
+        """
+        header = self.horizontalHeader()
+        logical = header.logicalIndexAt(pos)
+
+        if logical <= 0 or logical not in self.column_lookup:
+            return
+
+        col_name = self.column_lookup[logical]
+        current = self._header_search.get(col_name, '')
+
+        popup = _HeaderSearchPopup(
+            self, current,
+            lambda text, col=col_name: self._apply_header_search(col, text))
+
+        section_pos = header.sectionViewportPosition(logical)
+        anchor = header.mapToGlobal(QPoint(section_pos, header.height()))
+        popup.move(anchor)
+        popup.show()
+
+    def _apply_header_search(self, col: str, text: str) -> None:
+        """Set (or clear, if ``text`` is blank) one column's header search
+        and refresh the list.
+
+        :param col: Column alias whose search value changed.
+        :type col: str
+        :param text: New search text; blank clears the search.
+        :type text: str
+        """
+        text = text.strip()
+
+        if text:
+            self._header_search[col] = text
+        else:
+            self._header_search.pop(col, None)
+
+        self.rows.clear()
+        self.bitmap_indexes.clear()
+        self._clear_selection_state()
+        self._row_count = self.record_count
+        self._model.reset_all()
+        self._rebuild_sort_indicators()
+
     # ------------------------------------------------------------------
     # DB helpers
     # ------------------------------------------------------------------
@@ -379,10 +544,12 @@ class EditorList(QTableView):
         :returns: Property value. UNKNOWN details.
         :rtype: UNKNOWN
         """
+        where_body, params = self._combined_where()
+
         sql = f'SELECT COUNT(*) FROM {self.table_name} AS t'
-        if self._where_clause:
-            sql += f' WHERE {self._where_clause}'
-            self.table.execute(sql + ';', self._where_params)
+        if where_body:
+            sql += f' WHERE {where_body}'
+            self.table.execute(sql + ';', params)
         else:
             self.table.execute(sql + ';')
         return self.table.fetchall()[0][0]
@@ -480,17 +647,15 @@ class EditorList(QTableView):
         :returns: Return value. UNKNOWN details.
         :rtype: UNKNOWN
         """
-        if self._where_clause:
-            where_sql = f'WHERE {self._where_clause}'
-        else:
-            where_sql = ''
+        where_body, params = self._combined_where()
+        where_sql = f'WHERE {where_body}' if where_body else ''
 
         sql = self._effective_query.format(sort_clause=self.sort_clause,
                                            row=row, start_row=row, end_row=row,
                                            where_clause=where_sql)
 
-        if self._where_params:
-            self.table.execute(sql, self._where_params)
+        if params:
+            self.table.execute(sql, params)
         else:
             self.table.execute(sql)
 
@@ -532,17 +697,15 @@ class EditorList(QTableView):
         """
         self.scroll_tracker.start_query()
 
-        if self._where_clause:
-            where_sql = f'WHERE {self._where_clause}'
-        else:
-            where_sql = ''
+        where_body, params = self._combined_where()
+        where_sql = f'WHERE {where_body}' if where_body else ''
 
         sql = self._effective_query.format(sort_clause=self.sort_clause,
                                            start_row=start, end_row=stop,
                                            where_clause=where_sql)
 
-        if self._where_params:
-            self.table.execute(sql, self._where_params)
+        if params:
+            self.table.execute(sql, params)
         else:
             self.table.execute(sql)
 
@@ -990,6 +1153,7 @@ class EditorList(QTableView):
         """
         self._where_clause = ''
         self._where_params: list = []
+        self._header_search: dict[str, str] = {}
         self._effective_query = self._build_query()
 
         self._label = label
@@ -1034,6 +1198,10 @@ class EditorList(QTableView):
 
         # arrows embedded in label text instead
         header.setSortIndicatorShown(False)
+
+        # Right-click a header section for a per-column search popup.
+        header.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        header.customContextMenuRequested.connect(self._on_header_context_menu)  # NOQA
 
         self.column_lookup = {}
 

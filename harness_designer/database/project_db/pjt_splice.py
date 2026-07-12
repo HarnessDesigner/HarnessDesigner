@@ -14,7 +14,7 @@ from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
 from ..global_db import splice as _splice
 from . import pjt_circuit as _pjt_circuit
-from .pjt_bases import PJTEntryBase, PJTTableBase
+from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from ...geometry import point as _point
 from .mixins import (
     PartMixin,
@@ -281,7 +281,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
 
         return [start_wires, stop_wires, branch_wires]
 
-    _stored_branch_position3d: "_pjt_point3d.PJTPoint3D" = None
+    _stored_branch_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
     def branch_position3d(self) -> "_point.Point":
@@ -292,13 +292,16 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         """
-        if self._stored_branch_position3d is None and self._obj is not None:
-
+        if self._stored_branch_position3d is DefaultStoredValue:
             point_id = self.branch_position3d_id
             self._stored_branch_position3d = self._table.db.pjt_points3d_table[point_id]
+
+        if self._obj is not None:
             self._stored_branch_position3d.add_object(self._obj())
 
         return self._stored_branch_position3d.point
+
+    _stored_branch_position3d_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def branch_position3d_id(self) -> int:
@@ -309,17 +312,20 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        point_id = self._table.select('branch_point3d_id', id=self._db_id)[0][0]
-        if point_id is None:
-            self._table.execute(
-                f'INSERT INTO pjt_points3d (project_id, x, y, z) VALUES (?, ?, ?, ?);',
-                (self._table.project_id, 0.0, 0.0, 0.0))
+        if self._stored_branch_position3d_id is DefaultStoredValue:
+            point_id = self._table.select('branch_point3d_id', id=self._db_id)[0][0]
+            if point_id is None:
+                self._table.execute(
+                    f'INSERT INTO pjt_points3d (project_id, x, y, z) VALUES (?, ?, ?, ?);',
+                    (self._table.project_id, 0.0, 0.0, 0.0))
 
-            self._table.commit()
-            point_id = self._table.lastrowid
-            self.branch_position3d_id = point_id
+                self._table.commit()
+                point_id = self._table.lastrowid
+                self.branch_position3d_id = point_id
 
-        return point_id
+            self._stored_branch_position3d_id = point_id
+
+        return self._stored_branch_position3d_id
 
     @branch_position3d_id.setter
     def branch_position3d_id(self, value: int):
@@ -330,8 +336,13 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_branch_position3d_id = value
+        self._stored_branch_position3d = DefaultStoredValue
+
         self._table.update(self._db_id, branch_point3d_id=value)
         self._populate('branch_position3d_id')
+
+    _stored_circuit: "_pjt_circuit.PJTCircuit | DefaultStoredValueType" = DefaultStoredValue
 
     @property
     def circuit(self) -> "_pjt_circuit.PJTCircuit":
@@ -342,8 +353,13 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_circuit.PJTCircuit`
         """
-        circuit_id = self.circuit_id
-        return self._table.db.pjt_circuits_table[circuit_id]
+        if self._stored_circuit is DefaultStoredValue:
+            circuit_id = self.circuit_id
+            self._stored_circuit = self._table.db.pjt_circuits_table[circuit_id]
+
+        return self._stored_circuit
+
+    _stored_circuit_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def circuit_id(self) -> int:
@@ -354,7 +370,10 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('circuit_id', id=self._db_id)[0][0]
+        if self._stored_circuit_id is DefaultStoredValue:
+            self._stored_circuit_id = self._table.select('circuit_id', id=self._db_id)[0][0]
+
+        return self._stored_circuit_id
 
     @circuit_id.setter
     def circuit_id(self, value: int):
@@ -365,6 +384,9 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_circuit_id = value
+        self._stored_circuit = DefaultStoredValue
+
         self._table.update(self._db_id, circuit_id=value)
         self._populate('circuit_id')
 
@@ -379,6 +401,8 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         """
         return self.part.resistance
 
+    _stored_part: "_splice.Splice | None | DefaultStoredValueType" = DefaultStoredValue
+
     @property
     def part(self) -> "_splice.Splice":
         """Return the part.
@@ -388,11 +412,15 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_splice.Splice`
         """
-        part_id = self.part_id
-        if part_id is None:
-            return None
+        if self._stored_part is DefaultStoredValue:
+            part_id = self.part_id
 
-        return self._table.db.global_db.splices_table[part_id]
+            if part_id is None:
+                self._stored_part = None
+            else:
+                self._stored_part = self._table.db.global_db.splices_table[part_id]
+
+        return self._stored_part
 
 
 class PJTSpliceControl(QTabWidget, LazyTabMixin):

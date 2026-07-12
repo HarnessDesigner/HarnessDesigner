@@ -7,7 +7,7 @@ from PySide6.QtWidgets import QTabWidget
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
-from .pjt_bases import PJTEntryBase, PJTTableBase
+from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import (
     Position3DMixin, Position3DControl,
     Visible3DMixin, Visible3DControl,
@@ -235,6 +235,8 @@ class PJTBundleLayout(PJTEntryBase, Position3DMixin, Visible3DMixin, NotesMixin,
         :rtype: :class:`PJTBundleLayoutsTable`
         """
         return self._table
+    
+    _stored_diameter: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def diameter(self) -> float:
@@ -245,7 +247,11 @@ class PJTBundleLayout(PJTEntryBase, Position3DMixin, Visible3DMixin, NotesMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        return self._table.select('diameter', id=self._db_id)[0][0]
+        if self._stored_diameter is DefaultStoredValue:
+            
+            self._stored_diameter = self._table.select('diameter', id=self._db_id)[0][0]
+            
+        return self._stored_diameter
 
     @diameter.setter
     def diameter(self, value: float):
@@ -256,6 +262,8 @@ class PJTBundleLayout(PJTEntryBase, Position3DMixin, Visible3DMixin, NotesMixin,
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_diameter = value
+        
         self._table.update(self._db_id, diameter=value)
         self._populate('diameter')
 

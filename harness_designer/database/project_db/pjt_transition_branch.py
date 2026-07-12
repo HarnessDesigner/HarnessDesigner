@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
-from .pjt_bases import PJTEntryBase, PJTTableBase
+from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import Position3DMixin, PartMixin
 from ...ui import prop_ctrls as _prop_ctrls
 from ..global_db import transition_branch as _transition_branch
@@ -162,6 +162,8 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin):
 
         return res
 
+    _stored_bundle: "_pjt_bundle.PJTBundle | None | DefaultStoredValueType" = DefaultStoredValue
+
     @property
     def bundle(self) -> "_pjt_bundle.PJTBundle":
         """Return the bundle.
@@ -171,15 +173,20 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_bundle.PJTBundle`
         """
-        position_id = self.position3d_id
-        bundle_ids = self.table.db.pjt_bundles_table.select('id', start_point3d_id=position_id)[0][0]
-        if not bundle_ids:
-            bundle_ids = self.table.db.pjt_bundles_table.select('id', stop_point3d_id=position_id)[0][0]
+        if self._stored_bundle is DefaultStoredValue:
+            position_id = self.position3d_id
+            bundle_ids = self.table.db.pjt_bundles_table.select('id', start_point3d_id=position_id)[0][0]
+            if not bundle_ids:
+                bundle_ids = self.table.db.pjt_bundles_table.select('id', stop_point3d_id=position_id)[0][0]
 
-        if not bundle_ids:
-            return None
+            if not bundle_ids:
+                self._stored_bundle = None
+            else:
+                self._stored_bundle = self.table.db.pjt_bundles_table[bundle_ids[0][0]]
 
-        return self.table.db.pjt_bundles_table[bundle_ids[0][0]]
+        return self._stored_bundle
+
+    _stored_concentric: "_pjt_concentric.PJTConcentric | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
     def concentric(self) -> "_pjt_concentric.PJTConcentric":
@@ -190,12 +197,17 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_concentric.PJTConcentric`
         """
-        concentric_id = self.table.db.pjt_concentrics_table.select('id', transition_branch_id=self.db_id)[0][0]
+        if self._stored_concentric is DefaultStoredValue:
+            concentric_id = self.table.db.pjt_concentrics_table.select('id', transition_branch_id=self.db_id)[0][0]
 
-        if concentric_id is None:
-            return None
+            if concentric_id is None:
+                self._stored_concentric = None
+            else:
+                self._stored_concentric = self.table.db.pjt_concentrics_table[concentric_id]
 
-        return self.table.db.pjt_concentrics_table[concentric_id]
+        return self._stored_concentric
+
+    _stored_transition: "_pjt_transition.PJTTransition | DefaultStoredValueType" = DefaultStoredValue
 
     @property
     def transition(self) -> "_pjt_transition.PJTTransition":
@@ -206,8 +218,13 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_transition.PJTTransition`
         """
-        transition_id = self.transition_id
-        return self._table.db.pjt_transitions_table[transition_id]
+        if self._stored_transition is DefaultStoredValue:
+            transition_id = self.transition_id
+            self._stored_transition = self._table.db.pjt_transitions_table[transition_id]
+
+        return self._stored_transition
+
+    _stored_transition_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def transition_id(self) -> int:
@@ -218,7 +235,10 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('transition_id', id=self._db_id)[0][0]
+        if self._stored_transition_id is DefaultStoredValue:
+            self._stored_transition_id = self._table.select('transition_id', id=self._db_id)[0][0]
+
+        return self._stored_transition_id
 
     @transition_id.setter
     def transition_id(self, value: int):
@@ -229,8 +249,13 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin):
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_transition_id = value
+        self._stored_transition = DefaultStoredValue
+
         self._table.update(self._db_id, transition_id=value)
         self._populate('transition_id')
+
+    _stored_branch_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def branch_id(self) -> int:
@@ -241,7 +266,10 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('branch_id', id=self._db_id)[0][0]
+        if self._stored_branch_id is DefaultStoredValue:
+            self._stored_branch_id = self._table.select('branch_id', id=self._db_id)[0][0]
+
+        return self._stored_branch_id
 
     @branch_id.setter
     def branch_id(self, value: int):
@@ -252,8 +280,11 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin):
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_branch_id = value
         self._table.update(self._db_id, branch_id=value)
         self._populate('branch_id')
+
+    _stored_diameter: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def diameter(self) -> float:
@@ -264,7 +295,10 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        return self._table.select('diameter', id=self._db_id)[0][0]
+        if self._stored_diameter is DefaultStoredValue:
+            self._stored_diameter = self._table.select('diameter', id=self._db_id)[0][0]
+
+        return self._stored_diameter
 
     @diameter.setter
     def diameter(self, value: float):
@@ -275,10 +309,11 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin):
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_diameter = value
         self._table.update(self._db_id, diameter=value)
         self._populate('diameter')
 
-    _stored_part: "_transition_branch.TransitionBranch" = None
+    _stored_part: "_transition_branch.TransitionBranch | DefaultStoredValueType" = DefaultStoredValue
 
     def reload_from_db(self):
         """Execute the reload from database operation.
@@ -296,7 +331,7 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_transition_branch.TransitionBranch`
         """
-        if self._stored_part is None:
+        if self._stored_part is DefaultStoredValue:
             part_id = self.part_id
             self._stored_part = self._table.db.global_db.transition_branches_table[part_id]
             self._stored_part.add_object(self)

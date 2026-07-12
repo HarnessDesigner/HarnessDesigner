@@ -8,9 +8,10 @@ import numpy as np
 from PySide6.QtWidgets import QTabWidget
 
 from ...ui import prop_ctrls as _prop_ctrls
-from .pjt_bases import PJTEntryBase, PJTTableBase
+from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from ...geometry import angle as _angle
 from ...geometry import point as _point
+from ..common_db.lazy_tab_mixin import LazyTabMixin
 from .mixins import (
     Position3DMixin, Position3DControl,
     Position2DMixin, Position2DControl,
@@ -277,7 +278,8 @@ class PJTCavitiesTable(PJTTableBase):
                                     name=name, quat2d=str(quat2d), angle2d=str(angle2d),
                                     quat3d=str(quat3d), angle3d=str(angle3d),
                                     point3d_id=position3d.db_id,
-                                    point2d_id=position2d.db_id, aabb=str(aabb), obb=str(obb))
+                                    point2d_id=position2d.db_id, aabb=str(aabb), obb=str(obb),
+                                    is_visible3d=0)
 
         return PJTCavity(self, db_id, self.project_id)
 
@@ -356,34 +358,48 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
         """
 
         return self._table
+    
+    _stored_aabb: np.ndarray | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def aabb(self) -> np.ndarray:
-        value = self._table.select('aabb', id=self._db_id)[0][0]
-        value = np.array(eval(value), dtype=np.float32)
-        return value
+        if self._stored_aabb is DefaultStoredValue:
+            value = self._table.select('aabb', id=self._db_id)[0][0]
+            value = np.array(eval(value), dtype=np.float32)
+            self._stored_aabb = value
+            
+        return self._stored_aabb
 
     @aabb.setter
     def aabb(self, value: np.ndarray):
+        self._stored_aabb = value
+        
         value = [[float(str(item)) for item in items]
                  for items in value.tolist()]
 
         self._table.update(self._db_id, aabb=str(value))
 
+    _stored_obb: np.ndarray | DefaultStoredValueType = DefaultStoredValue
+    
     @property
     def obb(self) -> np.ndarray:
-        value = self._table.select('obb', id=self._db_id)[0][0]
-        value = np.array(eval(value), dtype=np.float32)
-        return value
+        if self._stored_obb is DefaultStoredValue:
+            value = self._table.select('obb', id=self._db_id)[0][0]
+            value = np.array(eval(value), dtype=np.float32)
+            self._stored_obb = value
+        
+        return self._stored_obb
 
     @obb.setter
     def obb(self, value: np.ndarray):
+        self._stored_obb = value
+
         value = [[float(str(item)) for item in items]
                  for items in value.tolist()]
 
         self._table.update(self._db_id, obb=str(value))
 
-    _stored_terminal: "_pjt_terminal.PJTTerminal" = None
+    _stored_terminal: "DefaultStoredValueType | _pjt_terminal.PJTTerminal | None" = DefaultStoredValue
 
     @property
     def terminal(self) -> "_pjt_terminal.PJTTerminal":
@@ -394,19 +410,19 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
         :rtype: :class:`_pjt_terminal.PJTTerminal`
         """
 
-        if self._stored_terminal is not None:
-            return self._stored_terminal
+        if self._stored_terminal is DefaultStoredValue:
 
-        terminal_ids = self._table.db.pjt_terminals_table.select(
-            'id', cavity_id=self._db_id)
+            terminal_ids = self._table.db.pjt_terminals_table.select(
+                'id', cavity_id=self._db_id)
 
-        if not terminal_ids:
-            return None
+            if terminal_ids:
+                self._stored_terminal = self._table.db.pjt_terminals_table[terminal_ids[0][0]]
+            else:
+                self._stored_terminal = None
 
-        self._stored_terminal = self._table.db.pjt_terminals_table[terminal_ids[0][0]]
         return self._stored_terminal
 
-    _stored_terminal_position3d: "_pjt_point3d.PJTPoint3D" = None
+    _stored_terminal_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
     def terminal_position3d(self) -> "_point.Point":
@@ -417,15 +433,25 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
         :rtype: :class:`_point.Point`
         """
 
-        if self._stored_terminal_position3d is None:
+        if self._stored_terminal_position3d is DefaultStoredValue:
             point_id = self.terminal_position3d_id
 
-            self._stored_terminal_position3d = self._table.db.pjt_points3d_table[point_id]
+            if point_id is None:
+                self._stored_terminal_position3d = None
+            else:
+                self._stored_terminal_position3d = self._table.db.pjt_points3d_table[point_id]
 
-        if self._obj is not None:
-            self._stored_terminal_position3d.add_object(self._obj())
+        if self._stored_terminal_position3d is not None:
+            if self._obj is not None:
+                self._stored_terminal_position3d.add_object(self._obj())
 
-        return self._stored_terminal_position3d.point
+            point = self._stored_terminal_position3d.point
+        else:
+            point = None
+
+        return point
+
+    _stored_terminal_position3d_id: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def terminal_position3d_id(self) -> int:
@@ -436,31 +462,34 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
         :rtype: int
         """
 
-        point_id = self._table.select('terminal_point3d_id', id=self._db_id)[0][0]
-        if point_id is None:
+        if self._stored_terminal_position3d_id is DefaultStoredValue:
+            point_id = self._table.select('terminal_point3d_id', id=self._db_id)[0][0]
+            if point_id is None:
 
-            cavity = self.part
+                cavity = self.part
 
-            length = cavity.length
+                length = cavity.length
 
-            ref = _point.Point(0.0, 0.0, length)
+                ref = _point.Point(0.0, 0.0, length)
 
-            position = self.position3d
+                position = self.position3d
 
-            ref @= self.angle3d
-            ref += position
+                ref @= self.angle3d
+                ref += position
 
-            x, y, z = (position + ((ref - position) / 2.0)).as_float
+                x, y, z = (position + ((ref - position) / 2.0)).as_float
 
-            self._table.execute(
-                f'INSERT INTO pjt_points3d (project_id, x, y, z) VALUES (?, ?, ?, ?);',
-                (self._table.project_id, x, y, z))
+                self._table.execute(
+                    f'INSERT INTO pjt_points3d (project_id, x, y, z) VALUES (?, ?, ?, ?);',
+                    (self._table.project_id, x, y, z))
 
-            self._table.commit()
-            point_id = self._table.lastrowid
-            self.terminal_position3d_id = point_id
+                self._table.commit()
+                point_id = self._table.lastrowid
+                self.terminal_position3d_id = point_id
 
-        return point_id
+                self._stored_terminal_position3d_id = point_id
+
+        return self._stored_terminal_position3d_id
 
     @terminal_position3d_id.setter
     def terminal_position3d_id(self, value: int):
@@ -470,6 +499,9 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
         :param value: Value to store or process.
         :type value: int
         """
+
+        self._stored_terminal_position3d_id = value
+        self._stored_terminal_position3d = DefaultStoredValue
 
         self._table.update(self._db_id, terminal_point3d_id=value)
         self._populate('terminal_position3d_id')
@@ -508,6 +540,8 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
         self.position2d_id = value
         self._populate('terminal_position2d_id')
 
+    _stored_seal: "_pjt_seal.PJTSeal | DefaultStoredValueType | None" = DefaultStoredValue
+
     @property
     def seal(self) -> "_pjt_seal.PJTSeal":
         """
@@ -517,13 +551,16 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
         :rtype: :class:`_pjt_seal.PJTSeal`
         """
 
-        seal_ids = self._table.db.pjt_seals_table.select(
-            'id', cavity_id=self._db_id)
+        if self._stored_seal is DefaultStoredValue:
+            seal_ids = self._table.db.pjt_seals_table.select(
+                'id', cavity_id=self._db_id)
 
-        if not seal_ids:
-            return None
+            if not seal_ids:
+                self._stored_seal = None
+            else:
+                self._stored_seal = self._table.db.pjt_seals_table[seal_ids[0][0]]
 
-        return self._table.db.pjt_seals_table[seal_ids[0][0]]
+        return self._stored_seal
 
     @property
     def seal_position3d(self) -> "_point.Point":
@@ -546,7 +583,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
 
         return self.terminal.position3d_id
 
-    _stored_part: "_cavity.Cavity" = None
+    _stored_part: "_cavity.Cavity | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
     def part(self) -> "_cavity.Cavity":
@@ -556,15 +593,17 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_cavity.Cavity`
         """
-
-        if self._stored_part is None and self._obj is not None:
+        if self._stored_part is DefaultStoredValue:
             part_id = self.part_id
 
             if part_id is None:
-                return None
+                self._stored_part = None
+            else:
+                self._stored_part = self._table.db.global_db.cavities_table[part_id]
 
-            self._stored_part = self._table.db.global_db.cavities_table[part_id]
-            self._stored_part.add_object(self._obj())
+        if self._stored_part is not None:
+            if self._obj is not None:
+                self._stored_part.add_object(self._obj())
 
         return self._stored_part
 
@@ -693,10 +732,25 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
         return angle
 
 
-class PJTCavityControl(_prop_ctrls.Category):
+class PJTCavityControl(QTabWidget, LazyTabMixin):
     """
     Represent a PJT cavity control in :mod:`harness_designer.database.project_db.pjt_cavity`.
+
+    A housing loads all of its cavities as tabs in a notebook (see
+    ``PJTHousingControl``), so this is itself a notebook — like every other
+    per-part-type control (``PJTTerminalControl`` is the reference) — rather
+    than a ``Category`` page wrapping a second, nested notebook.
     """
+
+    _label = 'Cavity'
+
+    def GetLabel(self) -> str:
+        """Return the tab label a parent notebook should use for this control."""
+        return self._label
+
+    def SetLabel(self, value: str) -> None:
+        """Set the tab label a parent notebook should use for this control."""
+        self._label = value
 
     def SetIndex(self, index):
         """
@@ -708,7 +762,39 @@ class PJTCavityControl(_prop_ctrls.Category):
 
         self.SetLabel(f'Cavity {index}')
 
-        print('creating cavity:', index)
+    def set_obj(self, db_obj: PJTCavity):
+        """
+        Set the obj.
+
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`PJTCavity`
+        """
+        self._lazy_set_obj(db_obj)
+
+    def _load_tab(self, index: int):
+        page = self.widget(index)
+        db_obj = self.db_obj
+
+        if page is self._general_page:
+            self.name_ctrl.set_obj(db_obj)
+            self.notes_ctrl.set_obj(db_obj)
+        elif page is self._angle_page:
+            self.angle2d_ctrl.set_obj(db_obj)
+            self.angle3d_ctrl.set_obj(db_obj)
+        elif page is self._position_page:
+            self.position2d_ctrl.set_obj(db_obj)
+            self.position3d_ctrl.set_obj(db_obj)
+        elif page is self._visible_page:
+            self.visible2d_ctrl.set_obj(db_obj)
+            self.visible3d_ctrl.set_obj(db_obj)
+        elif page is self._terminal_page:
+            self.terminal_ctrl.set_obj(None if db_obj is None else db_obj.terminal)
+        elif page is self._seal_page:
+            self.seal_ctrl.set_obj(None if db_obj is None else db_obj.seal)
+        elif page is self._part_page:
+            self.part_ctrl.set_obj(None if db_obj is None else db_obj.part)
+
+        self._tab_loaded[index] = True
 
     def __init__(self, parent):
         """
@@ -718,42 +804,41 @@ class PJTCavityControl(_prop_ctrls.Category):
         :type parent: UNKNOWN
         """
         self.db_obj: PJTCavity = None
+        self._label = 'Cavity'
 
-        super().__init__(parent, 'Cavity')
+        QTabWidget.__init__(self, parent)
+        self.setTabPosition(QTabWidget.TabPosition.North)
+        self.setUsesScrollButtons(True)
 
-        self.nb = QTabWidget(self)
-        self.nb.setTabPosition(QTabWidget.TabPosition.North)
-        self.nb.setUsesScrollButtons(True)
-
-        general_page = _prop_ctrls.Category(self.nb, 'General')
+        self._general_page = general_page = _prop_ctrls.Category(self, 'General')
         self.name_ctrl = NameControl(general_page)
         self.notes_ctrl = NotesControl(general_page)
 
         general_page.addWidget(self.name_ctrl)
         general_page.addWidget(self.notes_ctrl)
 
-        angle_page = _prop_ctrls.Category(self.nb, 'Angle')
+        self._angle_page = angle_page = _prop_ctrls.Category(self, 'Angle')
         self.angle2d_ctrl = Angle2DControl(angle_page)
         self.angle3d_ctrl = Angle3DControl(angle_page)
 
         angle_page.addWidget(self.angle2d_ctrl)
         angle_page.addWidget(self.angle3d_ctrl)
 
-        position_page = _prop_ctrls.Category(self.nb, 'Position')
+        self._position_page = position_page = _prop_ctrls.Category(self, 'Position')
         self.position2d_ctrl = Position2DControl(position_page)
         self.position3d_ctrl = Position3DControl(position_page)
 
         position_page.addWidget(self.position2d_ctrl)
         position_page.addWidget(self.position3d_ctrl)
 
-        visible_page = _prop_ctrls.Category(self.nb, 'Visible')
+        self._visible_page = visible_page = _prop_ctrls.Category(self, 'Visible')
         self.visible2d_ctrl = Visible2DControl(visible_page)
         self.visible3d_ctrl = Visible3DControl(visible_page)
 
         visible_page.addWidget(self.visible2d_ctrl)
         visible_page.addWidget(self.visible3d_ctrl)
 
-        terminal_page = _prop_ctrls.Category(self.nb, 'Terminal')
+        self._terminal_page = terminal_page = _prop_ctrls.Category(self, 'Terminal')
 
         from . import pjt_terminal as _pjt_terminal  # NOQA
 
@@ -761,7 +846,7 @@ class PJTCavityControl(_prop_ctrls.Category):
 
         terminal_page.addWidget(self.terminal_ctrl)
 
-        seal_page = _prop_ctrls.Category(self.nb, 'Seal')
+        self._seal_page = seal_page = _prop_ctrls.Category(self, 'Seal')
 
         from . import pjt_seal as _pjt_seal  # NOQA
 
@@ -769,7 +854,7 @@ class PJTCavityControl(_prop_ctrls.Category):
 
         seal_page.addWidget(self.seal_ctrl)
 
-        part_page = _prop_ctrls.Category(self.nb, 'Part')
+        self._part_page = part_page = _prop_ctrls.Category(self, 'Part')
         from ..global_db import cavity as _cavity  # NOQA
 
         self.part_ctrl = _cavity.CavityControl(part_page)
@@ -785,31 +870,6 @@ class PJTCavityControl(_prop_ctrls.Category):
             seal_page,
             part_page
         ):
-            self.nb.addTab(page, page.GetLabel())
+            self.addTab(page, page.GetLabel())
 
-    def set_obj(self, db_obj: PJTCavity):
-        """
-        Set the obj.
-
-        :param db_obj: Database-backed object.
-        :type db_obj: :class:`PJTCavity`
-        """
-        
-        self.db_obj = db_obj
-        self.name_ctrl.set_obj(db_obj)
-        self.notes_ctrl.set_obj(db_obj)
-        self.angle2d_ctrl.set_obj(db_obj)
-        self.angle3d_ctrl.set_obj(db_obj)
-        self.position2d_ctrl.set_obj(db_obj)
-        self.position3d_ctrl.set_obj(db_obj)
-        self.visible2d_ctrl.set_obj(db_obj)
-        self.visible3d_ctrl.set_obj(db_obj)
-
-        if db_obj is None:
-            self.terminal_ctrl.set_obj(None)
-            self.seal_ctrl.set_obj(None)
-            self.part_ctrl.set_obj(None)
-        else:
-            self.terminal_ctrl.set_obj(db_obj.terminal)
-            self.seal_ctrl.set_obj(db_obj.seal)
-            self.part_ctrl.set_obj(db_obj.part)
+        self._init_lazy_tabs()

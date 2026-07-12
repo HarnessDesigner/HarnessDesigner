@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Iterable as _Iterable
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
-from .bases import EntryBase, TableBase
+from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 
 from .mixins import (
     PartNumberMixin, PartNumberControl,
@@ -334,6 +334,8 @@ class CPALock(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
         return packet
 
+    _stored_type: "DefaultStoredValueType | _cpa_lock_type.CPALockType" = DefaultStoredValue
+
     @property
     def type(self) -> "_cpa_lock_type.CPALockType":
         """Return the type.
@@ -343,8 +345,13 @@ class CPALock(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_cpa_lock_type.CPALockType`
         """
-        type_id = self.type_id
-        return self._table.db.cpa_locks_table[type_id]
+        if self._stored_type is DefaultStoredValue:
+            type_id = self.type_id
+            self._stored_type = self._table.db.cpa_locks_table[type_id]
+
+        return self._stored_type
+
+    _stored_type_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def type_id(self) -> int:
@@ -355,7 +362,10 @@ class CPALock(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('type_id', id=self._db_id)[0][0]
+        if self._stored_type_id is DefaultStoredValue:
+            self._stored_type_id = self._table.select('type_id', id=self._db_id)[0][0]
+
+        return self._stored_type_id
 
     @type_id.setter
     def type_id(self, value: int):
@@ -366,6 +376,9 @@ class CPALock(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_type_id = value
+        self._stored_type = DefaultStoredValue
+
         self._table.update(self._db_id, type_id=value)
         self._populate('type_id')
 

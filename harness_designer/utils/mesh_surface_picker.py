@@ -37,7 +37,7 @@ Instantiate MeshSurfacePicker with the obj3d (must expose .position,
 Call picker.cleanup() when the object is deleted.
 """
 
-from typing import TYPE_CHECKING
+from typing import Iterable as _Iterable, TYPE_CHECKING
 
 from collections import defaultdict
 from dataclasses import dataclass
@@ -57,25 +57,34 @@ class Surface:
     plane_dist: float   # dot(centroid, normal) — signed dist from origin
 
 
-def _point_in_triangle(p, a, b, c) -> bool:
+def _points_in_triangles(p: np.ndarray, a: np.ndarray, b: np.ndarray, c: np.ndarray) -> np.ndarray:
+    """Vectorized point-in-triangle test.
+
+    ``a``, ``b``, ``c`` are (T, 3) arrays of triangle vertices; ``p`` is a
+    single point broadcast against every triangle. Returns a (T,) boolean
+    mask — same barycentric test as the scalar version this replaces, just
+    evaluated for every triangle in one shot instead of a Python loop.
+    """
     v0 = c - a
     v1 = b - a
     v2 = p - a
-    d00 = float(v0 @ v0)
-    d01 = float(v0 @ v1)
-    d02 = float(v0 @ v2)
-    d11 = float(v1 @ v1)
-    d12 = float(v1 @ v2)
+
+    d00 = np.einsum('ij,ij->i', v0, v0)
+    d01 = np.einsum('ij,ij->i', v0, v1)
+    d02 = np.einsum('ij,ij->i', v0, v2)
+    d11 = np.einsum('ij,ij->i', v1, v1)
+    d12 = np.einsum('ij,ij->i', v1, v2)
 
     denom = d00 * d11 - d01 * d01
-    if abs(denom) < 1e-12:
-        return False
+    valid = np.abs(denom) >= 1e-12
 
-    inv = 1.0 / denom
+    inv = np.zeros_like(denom)
+    inv[valid] = 1.0 / denom[valid]
+
     u = (d11 * d02 - d01 * d12) * inv
     v = (d00 * d12 - d01 * d02) * inv
 
-    return u >= -1e-4 and v >= -1e-4 and (u + v) <= 1.0 + 1e-4
+    return valid & (u >= -1e-4) & (v >= -1e-4) & ((u + v) <= 1.0 + 1e-4)
 
 
 # ---------------------------------------------------------------------------
@@ -388,6 +397,15 @@ class MeshSurfacePicker:
 
         self._surfaces = [s for grp in raw for s in self.split_into_components(grp)]
 
+        if self._surfaces:
+            self._surf_normals = np.array(
+                [s.normal for s in self._surfaces], dtype=np.float64)
+            self._surf_dists = np.array(
+                [s.plane_dist for s in self._surfaces], dtype=np.float64)
+        else:
+            self._surf_normals = np.zeros((0, 3), dtype=np.float64)
+            self._surf_dists = np.zeros((0,), dtype=np.float64)
+
     @property
     def surfaces(self) -> list[Surface]:
         """
@@ -474,10 +492,15 @@ class MeshSurfacePicker:
         return o, d / d_mag
 
     def pick_surface_at(
-        self, px: int, py: int
+        self, px: int, py: int, candidate_indices: _Iterable[int] | None = None
     ) -> tuple[int, np.ndarray | None]:
         """
         Ray-cast at pixel (px, py).
+
+        ``candidate_indices``, if given, restricts the test to that subset
+        of surface indices (into ``self.surfaces``) instead of every surface
+        in the mesh — e.g. only the surfaces a caller has already matched to
+        a cavity, rather than the whole housing shell.
 
         Returns (surf_idx, world_hit_point) where surf_idx is the index
         into self.surfaces of the closest intersected surface, or -1 on
@@ -488,18 +511,23 @@ class MeshSurfacePicker:
         if origin_w is None:
             return -1, None
 
-        return self.pick_surface_at_ray(origin_w, direction_w)
+        return self.pick_surface_at_ray(
+            origin_w, direction_w, candidate_indices=candidate_indices)
 
     def pick_surface_at_ray(
         self,
         origin_world: np.ndarray,
         direction_world: np.ndarray,
+        candidate_indices: _Iterable[int] | None = None,
     ) -> tuple[int, np.ndarray | None]:
         """
         Ray-cast with a pre-computed world-space ray.
 
         Useful when the caller already has the ray (e.g. from another
         picker or from a cached value).
+
+        ``candidate_indices``, if given, restricts the test to that subset
+        of surface indices instead of every surface in the mesh.
 
         Returns (surf_idx, world_hit_point) or (-1, None) on miss.
         """
@@ -514,28 +542,53 @@ class MeshSurfacePicker:
             return -1, None
 
         verts = self.vertices  # (N*3, 3) float64, local space
+
+        if candidate_indices is None:
+            idxs = np.arange(len(self._surfaces))
+        else:
+            idxs = np.asarray(list(candidate_indices), dtype=np.int64)
+            if idxs.size == 0:
+                return -1, None
+
+        surf_normals = self._surf_normals[idxs]
+        surf_dists = self._surf_dists[idxs]
+
+        # Ray-vs-plane test for every candidate surface at once (cheap: one
+        # array op per call, not per triangle). Invalid/behind-camera
+        # surfaces are marked +inf so they sort last and are never visited
+        # below.
+        denom = surf_normals @ direction_l  # (len(idxs),)
+        t = np.full(len(idxs), np.inf, dtype=np.float64)
+        valid = np.abs(denom) >= 1e-8
+        t[valid] = (surf_dists[valid] - surf_normals[valid] @ origin_l) / denom[valid]
+        t[t < 0.0] = np.inf
+
+        # Visit surfaces nearest-plane-first. The first one whose actual
+        # triangles (not just its infinite plane) contain the hit point is
+        # necessarily the closest valid hit — every surface with a smaller t
+        # was already tried and missed, and nothing further can beat it.
         best_t = float('inf')
         best_idx = -1
 
-        for i, surf in enumerate(self._surfaces):
-            n = surf.normal.astype(np.float64)
-            denom = float(n @ direction_l)
-            if abs(denom) < 1e-8:
-                continue
+        for k in np.argsort(t):
+            tk = float(t[k])
+            if not np.isfinite(tk):
+                break
 
-            t = (float(surf.plane_dist) - float(n @ origin_l)) / denom
-            if t < 0.0 or t >= best_t:
-                continue
+            i = int(idxs[k])
+            surf = self._surfaces[i]
+            hit_l = origin_l + tk * direction_l
 
-            hit_l = origin_l + t * direction_l
-            for ti in surf.tri_indices:
-                a = verts[3 * ti]
-                b = verts[3 * ti + 1]
-                c = verts[3 * ti + 2]
-                if _point_in_triangle(hit_l, a, b, c):
-                    best_t = t
-                    best_idx = i
-                    break
+            tri_idx = np.asarray(surf.tri_indices)
+            a = verts[3 * tri_idx]
+            b = verts[3 * tri_idx + 1]
+            c = verts[3 * tri_idx + 2]
+            p = np.broadcast_to(hit_l, a.shape)
+
+            if _points_in_triangles(p, a, b, c).any():
+                best_t = tk
+                best_idx = i
+                break
 
         if best_idx < 0:
             return -1, None

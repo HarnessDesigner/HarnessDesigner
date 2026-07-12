@@ -13,6 +13,22 @@ if TYPE_CHECKING:
     from ... import splash as _splash
 
 
+# These next 2 classes are for cached values.
+# declare the value as an instance variable using the following syntax
+# _stored_value: DefaultStoredValueType | float = DefaultStoredValue
+#
+# Then to do a test to see what the cached value is set to...
+# if self._stored_value is DefaultStoredValue:
+#     ...
+#
+class DefaultStoredValueType(type):
+    pass
+
+
+class DefaultStoredValue(metaclass=DefaultStoredValueType):
+    pass
+
+
 class _PJTEntrySingleton(type):
     """Represent a PJT entry singleton in :mod:`harness_designer.database.project_db.pjt_bases`.
 

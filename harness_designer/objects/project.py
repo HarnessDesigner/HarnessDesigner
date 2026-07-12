@@ -482,8 +482,8 @@ class Project:
         :param db_id: Identifier for the database.
         :type db_id: UNKNOWN
         """
-        seal = self._terminals.pop(db_id)
-        seal.delete()
+        terminal = self._terminals.pop(db_id)
+        terminal.delete()
         self.obj_count -= 1
 
     def add_terminal(self, obj: _terminal.Terminal) -> None:

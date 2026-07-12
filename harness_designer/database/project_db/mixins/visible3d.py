@@ -1,7 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from ....ui import prop_ctrls as _prop_ctrls
-from .base import BaseMixin
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 
 
 class Visible3DMixin(BaseMixin):
@@ -9,6 +9,8 @@ class Visible3DMixin(BaseMixin):
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
+    
+    _stored_is_visible3d: bool | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def is_visible3d(self) -> bool:
@@ -19,7 +21,10 @@ class Visible3DMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: bool
         """
-        return bool(self._table.select('is_visible3d', id=self._db_id)[0][0])
+        if self._stored_is_visible3d is DefaultStoredValue: 
+            self._stored_is_visible3d = bool(self._table.select('is_visible3d', id=self._db_id)[0][0])
+        
+        return self._stored_is_visible3d
 
     @is_visible3d.setter
     def is_visible3d(self, value: bool):
@@ -30,6 +35,8 @@ class Visible3DMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: bool
         """
+        self._stored_is_visible3d = value
+        
         self._table.update(self._db_id, is_visible3d=int(value))
         self._populate('is_visible3d')
 

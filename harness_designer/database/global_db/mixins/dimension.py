@@ -3,7 +3,7 @@
 import uuid
 from ....ui import prop_ctrls as _prop_ctrls
 
-from .base import BaseMixin
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 from ....geometry import point as _point
 
 
@@ -24,6 +24,11 @@ class DimensionMixin(BaseMixin):
         """
         width, height, length = scale.as_float
 
+        self._stored_width = width
+        self._stored_height = height
+        self._stored_length = length
+        self._stored_size = DefaultStoredValue
+
         self._table.update(self._db_id, width=width, height=height, length=length)
 
     @property
@@ -43,20 +48,28 @@ class DimensionMixin(BaseMixin):
         z = self.length
 
         if x <= 0:
+            self._stored_width = 1.0
+            self._stored_size = DefaultStoredValue
             self._table.update(self._db_id, width=1.0)
             x = 1.0
 
         if y <= 0:
+            self._stored_height = 1.0
+            self._stored_size = DefaultStoredValue
             self._table.update(self._db_id, height=1.0)
             y = 1.0
 
         if z <= 0:
+            self._stored_length = 1.0
+            self._stored_size = DefaultStoredValue
             self._table.update(self._db_id, length=1.0)
             z = 1.0
 
         scale = _point.Point(x, y, z, db_id=self._scale_id)
         scale.bind(self._update_scale)
         return scale
+
+    _stored_length: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def length(self) -> float:
@@ -67,7 +80,10 @@ class DimensionMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        return self._table.select('length', id=self._db_id)[0][0]
+        if self._stored_length is DefaultStoredValue:
+            self._stored_length = self._table.select('length', id=self._db_id)[0][0]
+
+        return self._stored_length
 
     @length.setter
     def length(self, value: float):
@@ -78,8 +94,13 @@ class DimensionMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_length = value
+        self._stored_size = DefaultStoredValue
+
         self._table.update(self._db_id, length=value)
         self._populate('length')
+
+    _stored_width: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def width(self) -> float:
@@ -90,7 +111,10 @@ class DimensionMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        return self._table.select('width', id=self._db_id)[0][0]
+        if self._stored_width is DefaultStoredValue:
+            self._stored_width = self._table.select('width', id=self._db_id)[0][0]
+
+        return self._stored_width
 
     @width.setter
     def width(self, value: float):
@@ -101,8 +125,13 @@ class DimensionMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_width = value
+        self._stored_size = DefaultStoredValue
+
         self._table.update(self._db_id, width=value)
         self._populate('width')
+
+    _stored_height: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def height(self) -> float:
@@ -113,7 +142,10 @@ class DimensionMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        return self._table.select('height', id=self._db_id)[0][0]
+        if self._stored_height is DefaultStoredValue:
+            self._stored_height = self._table.select('height', id=self._db_id)[0][0]
+
+        return self._stored_height
 
     @height.setter
     def height(self, value: float):
@@ -124,15 +156,28 @@ class DimensionMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_height = value
+        self._stored_size = DefaultStoredValue
+
         self._table.update(self._db_id, height=value)
         self._populate('height')
 
+    _stored_size: tuple | DefaultStoredValueType = DefaultStoredValue
+
     @property
     def size(self) -> tuple:
-        return self._table.select('width', 'height', 'length', id=self._db_id)[0]
+        if self._stored_size is DefaultStoredValue:
+            self._stored_size = self._table.select('width', 'height', 'length', id=self._db_id)[0]
+
+        return self._stored_size
 
     @size.setter
     def size(self, value: tuple):
+        self._stored_size = value
+        self._stored_width = value[0]
+        self._stored_height = value[1]
+        self._stored_length = value[2]
+
         self._table.update(self._db_id, width=value[0], height=value[1], length=value[2])
 
 

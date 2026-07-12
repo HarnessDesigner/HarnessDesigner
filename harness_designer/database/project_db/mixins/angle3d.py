@@ -3,7 +3,7 @@
 import uuid
 
 from ....ui import prop_ctrls as _prop_ctrls
-from .base import BaseMixin
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 from ....geometry import angle as _angle
 
 
@@ -13,7 +13,7 @@ class Angle3DMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
     _angle3d_db_id: str = None
-    _stored_angle3d: "_angle.Angle" = None
+    _stored_angle3d: _angle.Angle | DefaultStoredValueType = DefaultStoredValue
     # Per-instance flag: set True during bulk angle batch-writes so the individual
     # DB callback is suppressed while 3D render callbacks still fire.
     _skip_db_write: bool = False
@@ -28,7 +28,7 @@ class Angle3DMixin(BaseMixin):
         """
         if self._skip_db_write:
             return
-
+        
         quat = str(list(angle.as_quat_float))
         euler = str(list(angle.as_euler_float))
 
@@ -48,20 +48,19 @@ class Angle3DMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_angle.Angle`
         """
-        if self._stored_angle3d is not None:
-            return self._stored_angle3d
+        if self._stored_angle3d is DefaultStoredValue:
 
-        quat = eval(self._table.select('quat3d', id=self._db_id)[0][0])
-        euler = eval(self._table.select('angle3d', id=self._db_id)[0][0])
+            quat = eval(self._table.select('quat3d', id=self._db_id)[0][0])
+            euler = eval(self._table.select('angle3d', id=self._db_id)[0][0])
+    
+            if self._angle3d_db_id is None:
+                self._angle3d_db_id = str(uuid.uuid4())
+    
+            angle = _angle.Angle.from_quat(quat, euler, db_id=self._angle3d_db_id)
+            angle.bind(self._update_angle3d)
+            self._stored_angle3d = angle
 
-        if self._angle3d_db_id is None:
-            self._angle3d_db_id = str(uuid.uuid4())
-
-        angle = _angle.Angle.from_quat(quat, euler, db_id=self._angle3d_db_id)
-        angle.bind(self._update_angle3d)
-        self._stored_angle3d = angle
-
-        return angle
+        return self._stored_angle3d
 
 
 class Angle3DControl(_prop_ctrls.Angle3DProperty):

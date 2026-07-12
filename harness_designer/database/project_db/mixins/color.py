@@ -1,12 +1,12 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 
 from PySide6.QtGui import QColor
 from ....ui import prop_ctrls as _prop_ctrls
 
-from .base import BaseMixin
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 
 
 if TYPE_CHECKING:
@@ -19,6 +19,8 @@ class ColorMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    _stored_color: "DefaultStoredValueType | _color.Color" = DefaultStoredValue
+
     @property
     def color(self) -> "_color.Color":
         """Return the color.
@@ -28,9 +30,14 @@ class ColorMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_color.Color`
         """
-        color_id = self._table.select('color_id', id=self._db_id)
-        color = self._table.db.global_db.colors_table[color_id[0][0]]
-        return color
+
+        if self._stored_color is DefaultStoredValue:
+            color_id = self._table.select('color_id', id=self._db_id)
+            self._stored_color = self._table.db.global_db.colors_table[color_id[0][0]]
+
+        return self._stored_color
+
+    _stored_color_id: int | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
     def color_id(self) -> int:
@@ -41,7 +48,10 @@ class ColorMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('color_id', id=self._db_id)[0][0]
+        if self._stored_color_id is DefaultStoredValue:
+            self._stored_color_id = self._table.select('color_id', id=self._db_id)[0][0]
+
+        return self._stored_color_id
 
     @color_id.setter
     def color_id(self, value: int):
@@ -52,6 +62,9 @@ class ColorMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_color_id = value
+        self._stored_color = DefaultStoredValue
+
         self._table.update(self._db_id, color_id=value)
         self._populate('color_id')
 

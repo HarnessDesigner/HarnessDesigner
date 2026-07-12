@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 
 from ....ui import prop_ctrls as _prop_ctrls
-from .base import BaseMixin
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 
 
 if TYPE_CHECKING:
@@ -17,6 +17,8 @@ class FamilyMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    _stored_family: "DefaultStoredValueType | _family.Family" = DefaultStoredValue
+
     @property
     def family(self) -> "_family.Family":
         """Return the family.
@@ -26,10 +28,15 @@ class FamilyMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_family.Family`
         """
-        from .. import family as _family  # NOQA
+        if self._stored_family is DefaultStoredValue:
+            from .. import family as _family  # NOQA
 
-        family_id = self._table.select('family_id', id=self._db_id)
-        return _family.Family(self._table.db.families_table, family_id[0][0])
+            family_id = self._table.select('family_id', id=self._db_id)
+            self._stored_family = _family.Family(self._table.db.families_table, family_id[0][0])
+
+        return self._stored_family
+
+    _stored_family_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def family_id(self) -> int:
@@ -40,7 +47,10 @@ class FamilyMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('family_id', id=self._db_id)[0][0]
+        if self._stored_family_id is DefaultStoredValue:
+            self._stored_family_id = self._table.select('family_id', id=self._db_id)[0][0]
+
+        return self._stored_family_id
 
     @family_id.setter
     def family_id(self, value: int):
@@ -51,6 +61,9 @@ class FamilyMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_family_id = value
+        self._stored_family = DefaultStoredValue
+
         self._table.update(self._db_id, family_id=value)
         self._populate('family_id')
 

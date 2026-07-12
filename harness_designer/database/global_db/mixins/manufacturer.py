@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from ....ui import prop_ctrls as _prop_ctrls
 
-from .base import BaseMixin
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 
 
 if TYPE_CHECKING:
@@ -17,6 +17,8 @@ class ManufacturerMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    _stored_manufacturer: "DefaultStoredValueType | _manufacturer.Manufacturer" = DefaultStoredValue
+
     @property
     def manufacturer(self) -> "_manufacturer.Manufacturer":
         """Return the manufacturer.
@@ -26,10 +28,16 @@ class ManufacturerMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_manufacturer.Manufacturer`
         """
-        from .. import manufacturer as _manufacturer  # NOQA
+        if self._stored_manufacturer is DefaultStoredValue:
+            from .. import manufacturer as _manufacturer  # NOQA
 
-        mfg_id = self._table.select('mfg_id', id=self._db_id)
-        return _manufacturer.Manufacturer(self._table.db.manufacturers_table, mfg_id[0][0])
+            mfg_id = self._table.select('mfg_id', id=self._db_id)
+            self._stored_manufacturer = _manufacturer.Manufacturer(
+                self._table.db.manufacturers_table, mfg_id[0][0])
+
+        return self._stored_manufacturer
+
+    _stored_mfg_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def mfg_id(self) -> int:
@@ -40,7 +48,10 @@ class ManufacturerMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('mfg_id', id=self._db_id)[0][0]
+        if self._stored_mfg_id is DefaultStoredValue:
+            self._stored_mfg_id = self._table.select('mfg_id', id=self._db_id)[0][0]
+
+        return self._stored_mfg_id
 
     @mfg_id.setter
     def mfg_id(self, value: int):
@@ -51,6 +62,9 @@ class ManufacturerMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_mfg_id = value
+        self._stored_manufacturer = DefaultStoredValue
+
         self._table.update(self._db_id, mfg_id=value)
         self._populate('mfg_id')
 

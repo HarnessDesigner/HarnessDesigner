@@ -9,7 +9,7 @@ import weakref
 
 from ... import resources as _resources
 from ..create_database import datasheets as _datasheets
-from .bases import EntryBase, TableBase
+from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 
 
 if TYPE_CHECKING:
@@ -242,6 +242,8 @@ class Datasheet(EntryBase):
         if os.path.exists(path):
             return path
 
+    _stored_path: DefaultStoredValueType | str = DefaultStoredValue
+
     @property
     def path(self) -> str:
         """Return the path.
@@ -251,8 +253,12 @@ class Datasheet(EntryBase):
         :returns: Property value. UNKNOWN details.
         :rtype: str
         """
-        path = self._table.select('path', id=self._db_id)[0][0]
-        return path
+        if self._stored_path is DefaultStoredValue:
+            self._stored_path = self._table.select('path', id=self._db_id)[0][0]
+
+        return self._stored_path
+
+    _stored_uuid: DefaultStoredValueType | str | None = DefaultStoredValue
 
     @property
     def uuid(self) -> str | None:
@@ -263,7 +269,12 @@ class Datasheet(EntryBase):
         :returns: Property value. UNKNOWN details.
         :rtype: str | None
         """
-        return self._table.select('uuid', id=self._db_id)[0][0]
+        if self._stored_uuid is DefaultStoredValue:
+            self._stored_uuid = self._table.select('uuid', id=self._db_id)[0][0]
+
+        return self._stored_uuid
+
+    _stored_file_type: "DefaultStoredValueType | _file_types.FileType | None" = DefaultStoredValue
 
     @property
     def file_type(self) -> "_file_types.FileType":
@@ -274,11 +285,16 @@ class Datasheet(EntryBase):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_file_types.FileType`
         """
-        db_id = self.file_type_id
-        if db_id is None:
-            return None
+        if self._stored_file_type is DefaultStoredValue:
+            db_id = self.file_type_id
+            if db_id is None:
+                self._stored_file_type = None
+            else:
+                self._stored_file_type = self._table.db.file_types_table[db_id]
 
-        return self._table.db.file_types_table[db_id]
+        return self._stored_file_type
+
+    _stored_file_type_id: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def file_type_id(self) -> int | None:
@@ -289,7 +305,10 @@ class Datasheet(EntryBase):
         :returns: Property value. UNKNOWN details.
         :rtype: int | None
         """
-        return self._table.select('file_type_id', id=self._db_id)[0][0]
+        if self._stored_file_type_id is DefaultStoredValue:
+            self._stored_file_type_id = self._table.select('file_type_id', id=self._db_id)[0][0]
+
+        return self._stored_file_type_id
 
     @file_type_id.setter
     def file_type_id(self, value: int):
@@ -300,5 +319,8 @@ class Datasheet(EntryBase):
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_file_type_id = value
+        self._stored_file_type = DefaultStoredValue
+
         self._table.update(self._db_id, file_type_id=value)
         self._populate('file_type_id')

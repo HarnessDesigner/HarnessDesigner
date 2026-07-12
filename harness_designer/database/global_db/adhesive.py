@@ -2,7 +2,7 @@
 
 from typing import Iterable as _Iterable
 
-from .bases import EntryBase, TableBase
+from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import DescriptionMixin
 
 
@@ -120,6 +120,8 @@ class Adhesive(EntryBase, DescriptionMixin):
 
         return packet
 
+    _stored_code: DefaultStoredValueType | str = DefaultStoredValue
+
     @property
     def code(self) -> str:
         """Return the code.
@@ -129,7 +131,10 @@ class Adhesive(EntryBase, DescriptionMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: str
         """
-        return self._table.select('code', id=self._db_id)[0][0]
+        if self._stored_code is DefaultStoredValue:
+            self._stored_code = self._table.select('code', id=self._db_id)[0][0]
+
+        return self._stored_code
 
     @code.setter
     def code(self, value: str):
@@ -140,8 +145,11 @@ class Adhesive(EntryBase, DescriptionMixin):
         :param value: Value to store or process.
         :type value: str
         """
+        self._stored_code = value
         self._table.update(self._db_id, code=value)
         self._populate('code')
+
+    _stored_accessory_part_nums: DefaultStoredValueType | list[str] = DefaultStoredValue
 
     @property
     def accessory_part_nums(self) -> list[str]:
@@ -152,9 +160,11 @@ class Adhesive(EntryBase, DescriptionMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: list[str]
         """
-        part_nums = self._table.select('accessory_part_nums', id=self._db_id)[0][0]
-        part_nums = part_nums[1:-1].split(', ')
-        return part_nums
+        if self._stored_accessory_part_nums is DefaultStoredValue:
+            part_nums = self._table.select('accessory_part_nums', id=self._db_id)[0][0]
+            self._stored_accessory_part_nums = part_nums[1:-1].split(', ')
+
+        return self._stored_accessory_part_nums
 
     @accessory_part_nums.setter
     def accessory_part_nums(self, value: list[str]):
@@ -165,9 +175,14 @@ class Adhesive(EntryBase, DescriptionMixin):
         :param value: Value to store or process.
         :type value: list[str]
         """
-        value = f'[{", ".join(value)}]'
-        self._table.update(self._db_id, accessory_part_nums=value)
+        self._stored_accessory_part_nums = value
+        self._stored_accessories = DefaultStoredValue
+
+        db_value = f'[{", ".join(value)}]'
+        self._table.update(self._db_id, accessory_part_nums=db_value)
         self._populate('accessory_part_nums')
+
+    _stored_accessories: "DefaultStoredValueType | list[_accessory.Accessory]" = DefaultStoredValue
 
     @property
     def accessories(self) -> list["_accessory.Accessory"]:
@@ -178,16 +193,19 @@ class Adhesive(EntryBase, DescriptionMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: list['_accessory.Accessory']
         """
-        accessory_nums = eval(self._table.select('accessory_part_nums',
-                                                 id=self._db_id)[0][0])
-        res = []
-        for part_number in accessory_nums:
-            try:
-                res.append(self._table.db.accessories_table[part_number])
-            except KeyError:
-                pass
+        if self._stored_accessories is DefaultStoredValue:
+            accessory_nums = eval(self._table.select('accessory_part_nums',
+                                                     id=self._db_id)[0][0])
+            res = []
+            for part_number in accessory_nums:
+                try:
+                    res.append(self._table.db.accessories_table[part_number])
+                except KeyError:
+                    pass
 
-        return res
+            self._stored_accessories = res
+
+        return self._stored_accessories
 
 
 from . import accessory as _accessory  # NOQA

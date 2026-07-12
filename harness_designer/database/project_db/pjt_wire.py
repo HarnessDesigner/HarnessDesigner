@@ -9,7 +9,7 @@ from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
 from ..global_db import wire as _wire
 from . import pjt_circuit as _pjt_circuit
-from .pjt_bases import PJTEntryBase, PJTTableBase
+from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from ...geometry import line as _line
 from .mixins import (
     StartStopPosition3DMixin, StartStopPosition3DControl,
@@ -293,7 +293,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
 
         return res
 
-    _stored_layer_view_position: "_pjt_point2d.PJTPoint2D" = None
+    _stored_layer_view_position: "_pjt_point2d.PJTPoint2D | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
     def layer_view_position(self) -> "_point.Point":
@@ -304,16 +304,25 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         """
-        if self._stored_layer_view_position is None and self._obj is not None:
+        if self._stored_layer_view_position is DefaultStoredValue:
             point_id = self.layer_view_position_id
 
             if point_id is None:
-                return
+                self._stored_layer_view_position = None
+            else:
+                self._stored_layer_view_position = self._table.db.pjt_points2d_table[point_id]
 
-            self._stored_layer_view_position = self._table.db.pjt_points2d_table[point_id]
-            self._stored_layer_view_position.add_object(self._obj())
+        if self._stored_layer_view_position is not None:
+            if self._obj is not None:
+                self._stored_layer_view_position.add_object(self._obj())
 
-        return self._stored_layer_view_position.point
+            point = self._stored_layer_view_position.point
+        else:
+            point = None
+
+        return point
+
+    _stored_layer_view_position_id: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def layer_view_position_id(self) -> int:
@@ -324,7 +333,10 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('layer_view_point_id', id=self._db_id)[0][0]
+        if self._stored_layer_view_position_id is DefaultStoredValue:
+            self._stored_layer_view_position_id = self._table.select('layer_view_point_id', id=self._db_id)[0][0]
+
+        return self._stored_layer_view_position_id
 
     @layer_view_position_id.setter
     def layer_view_position_id(self, value: int):
@@ -335,10 +347,13 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         :param value: Value to store or process.
         :type value: int
         """
-        self._stored_layer_view_position = None
+        self._stored_layer_view_position_id = value
+        self._stored_layer_view_position = DefaultStoredValue
 
         self._table.update(self._db_id, layer_view_point_id=value)
         self._populate('layer_view_position_id')
+
+    _stored_layer_id: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def layer_id(self) -> int | None:
@@ -349,7 +364,10 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         :returns: Property value. UNKNOWN details.
         :rtype: int | None
         """
-        return self._table.select('layer_id', id=self._db_id)[0][0]
+        if self._stored_layer_id is DefaultStoredValue:
+            self._stored_layer_id = self._table.select('layer_id', id=self._db_id)[0][0]
+
+        return self._stored_layer_id
 
     @layer_id.setter
     def layer_id(self, value: int | None):
@@ -360,8 +378,11 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         :param value: Value to store or process.
         :type value: int | None
         """
+        self._stored_layer_id = value
         self._table.update(self._db_id, layer_id=value)
         self._populate('layer_id')
+
+    _stored_is_filler_wire: bool | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def is_filler_wire(self) -> bool:
@@ -372,7 +393,10 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         :returns: Property value. UNKNOWN details.
         :rtype: bool
         """
-        return bool(self._table.select('is_filler_wire', id=self._db_id)[0][0])
+        if self._stored_is_filler_wire is DefaultStoredValue:
+            self._stored_is_filler_wire = bool(self._table.select('is_filler_wire', id=self._db_id)[0][0])
+
+        return self._stored_is_filler_wire
 
     @is_filler_wire.setter
     def is_filler_wire(self, value: bool):
@@ -383,6 +407,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         :param value: Value to store or process.
         :type value: bool
         """
+        self._stored_is_filler_wire = value
         self._table.update(self._db_id, is_filler_wire=int(value))
         self._populate('is_filler_wire')
 
@@ -467,6 +492,8 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         """
         return self._table
 
+    _stored_circuit: "_pjt_circuit.PJTCircuit | None | DefaultStoredValueType" = DefaultStoredValue
+
     @property
     def circuit(self) -> "_pjt_circuit.PJTCircuit":
         """Return the circuit.
@@ -476,11 +503,16 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_circuit.PJTCircuit`
         """
-        circuit_id = self.circuit_id
-        if circuit_id is None:
-            return None
+        if self._stored_circuit is DefaultStoredValue:
+            circuit_id = self.circuit_id
+            if circuit_id is None:
+                self._stored_circuit = None
+            else:
+                self._stored_circuit = self._table.db.pjt_circuits_table[circuit_id]
 
-        return self._table.db.pjt_circuits_table[circuit_id]
+        return self._stored_circuit
+
+    _stored_circuit_id: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def circuit_id(self) -> int:
@@ -491,7 +523,10 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('circuit_id', id=self._db_id)[0][0]
+        if self._stored_circuit_id is DefaultStoredValue:
+            self._stored_circuit_id = self._table.select('circuit_id', id=self._db_id)[0][0]
+
+        return self._stored_circuit_id
 
     @circuit_id.setter
     def circuit_id(self, value: int):
@@ -502,10 +537,13 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_circuit_id = value
+        self._stored_circuit = DefaultStoredValue
+
         self._table.update(self._db_id, circuit_id=value)
         self._populate('circuit_id')
 
-    _stored_part: "_wire.Wire" = None
+    _stored_part: "_wire.Wire | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
     def part(self) -> "_wire.Wire":
@@ -516,14 +554,17 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_wire.Wire`
         """
-        if self._stored_part is None and self._obj is not None:
+        if self._stored_part is DefaultStoredValue:
             part_id = self.part_id
 
             if part_id is None:
-                return None
-        
-            self._stored_part = self._table.db.global_db.wires_table[part_id]
-            self._stored_part.add_object(self._obj())
+                self._stored_part = None
+            else:
+                self._stored_part = self._table.db.global_db.wires_table[part_id]
+
+        if self._stored_part is not None:
+            if self._obj is not None:
+                self._stored_part.add_object(self._obj())
 
         return self._stored_part
 

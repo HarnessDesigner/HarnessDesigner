@@ -2,7 +2,7 @@
 
 from typing import Iterable as _Iterable
 
-from ..bases import EntryBase, TableBase
+from ..bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from ..mixins import (NameMixin, DescriptionMixin)
 
 from .... import image as _image
@@ -110,6 +110,8 @@ class IPSolid(EntryBase, NameMixin, DescriptionMixin):
     """
     _table: IPSolidsTable = None
 
+    _stored_short_desc: str | DefaultStoredValueType = DefaultStoredValue
+
     @property
     def short_desc(self) -> str:
         """Return the short desc.
@@ -119,7 +121,10 @@ class IPSolid(EntryBase, NameMixin, DescriptionMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: str
         """
-        return self._table.select('short_desc', id=self._db_id)[0][0]
+        if self._stored_short_desc is DefaultStoredValue:
+            self._stored_short_desc = self._table.select('short_desc', id=self._db_id)[0][0]
+
+        return self._stored_short_desc
 
     @short_desc.setter
     def short_desc(self, value: str):
@@ -130,6 +135,7 @@ class IPSolid(EntryBase, NameMixin, DescriptionMixin):
         :param value: Value to store or process.
         :type value: str
         """
+        self._stored_short_desc = value
         self._table.update(self._db_id, short_desc=value)
 
     @property

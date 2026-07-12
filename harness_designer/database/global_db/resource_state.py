@@ -18,7 +18,7 @@ import json
 import socket
 import datetime
 
-from .bases import EntryBase, TableBase
+from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from ... import resources as _resources
 from ..create_database import resource_state as _resource_state
 
@@ -120,25 +120,50 @@ class ResourceState(EntryBase):
 
     _table: ResourceStateTable = None
 
+    _stored_image_id: DefaultStoredValueType | int | None = DefaultStoredValue
+
     @property
     def image_id(self) -> int | None:
-        return self._table.select('image_id', id=self._db_id)[0][0]
+        if self._stored_image_id is DefaultStoredValue:
+            self._stored_image_id = self._table.select('image_id', id=self._db_id)[0][0]
+
+        return self._stored_image_id
+
+    _stored_datasheet_id: DefaultStoredValueType | int | None = DefaultStoredValue
 
     @property
     def datasheet_id(self) -> int | None:
-        return self._table.select('image_id', id=self._db_id)[0][0]
+        if self._stored_datasheet_id is DefaultStoredValue:
+            self._stored_datasheet_id = self._table.select('datasheet_id', id=self._db_id)[0][0]
+
+        return self._stored_datasheet_id
+
+    _stored_cad_id: DefaultStoredValueType | int | None = DefaultStoredValue
 
     @property
     def cad_id(self) -> int | None:
-        return self._table.select('image_id', id=self._db_id)[0][0]
+        if self._stored_cad_id is DefaultStoredValue:
+            self._stored_cad_id = self._table.select('cad_id', id=self._db_id)[0][0]
+
+        return self._stored_cad_id
+
+    _stored_model3d_id: DefaultStoredValueType | int | None = DefaultStoredValue
 
     @property
     def model3d_id(self) -> int | None:
-        return self._table.select('image_id', id=self._db_id)[0][0]
+        if self._stored_model3d_id is DefaultStoredValue:
+            self._stored_model3d_id = self._table.select('model3d_id', id=self._db_id)[0][0]
+
+        return self._stored_model3d_id
+
+    _stored_progress: DefaultStoredValueType | int = DefaultStoredValue
 
     @property
     def progress(self) -> int:
-        return self._table.select('progress', id=self._db_id)[0][0]
+        if self._stored_progress is DefaultStoredValue:
+            self._stored_progress = self._table.select('progress', id=self._db_id)[0][0]
+
+        return self._stored_progress
 
     @progress.setter
     def progress(self, value: int):
@@ -146,55 +171,91 @@ class ResourceState(EntryBase):
             self.claimed_by_host = _hostname()
             self.claimed_at = _now_iso()
 
+        self._stored_progress = value
         self._table.update(self._db_id, progress=value)
+
+    _stored_claimed_by_host: DefaultStoredValueType | str | None = DefaultStoredValue
 
     @property
     def claimed_by_host(self) -> str | None:
-        return self._table.select('claimed_by_host', id=self._db_id)[0][0]
+        if self._stored_claimed_by_host is DefaultStoredValue:
+            self._stored_claimed_by_host = self._table.select('claimed_by_host', id=self._db_id)[0][0]
+
+        return self._stored_claimed_by_host
 
     @claimed_by_host.setter
     def claimed_by_host(self, value: str):
+        self._stored_claimed_by_host = value
         self._table.update(self._db_id, claimed_by_host=value)
+
+    _stored_claimed_at: DefaultStoredValueType | str | None = DefaultStoredValue
 
     @property
     def claimed_at(self) -> str | None:
-        return self._table.select('claimed_at', id=self._db_id)[0][0]
+        if self._stored_claimed_at is DefaultStoredValue:
+            self._stored_claimed_at = self._table.select('claimed_at', id=self._db_id)[0][0]
+
+        return self._stored_claimed_at
 
     @claimed_at.setter
     def claimed_at(self, value: str):
+        self._stored_claimed_at = value
         self._table.update(self._db_id, claimed_at=value)
+
+    _stored_updated_at: DefaultStoredValueType | str | None = DefaultStoredValue
 
     @property
     def updated_at(self) -> str | None:
-        return self._table.select('updated_at', id=self._db_id)[0][0]
+        if self._stored_updated_at is DefaultStoredValue:
+            self._stored_updated_at = self._table.select('updated_at', id=self._db_id)[0][0]
+
+        return self._stored_updated_at
 
     @updated_at.setter
     def updated_at(self, value: str):
+        self._stored_updated_at = value
         self._table.update(self._db_id, updated_at=value)
 
     def update_progress(self, step):
         self.progress = step
         self.updated_at = _now_iso()
 
+    _stored_retry_count: DefaultStoredValueType | int = DefaultStoredValue
+
     @property
     def retry_count(self) -> int:
-        return self._table.select('retry_count', id=self._db_id)[0][0]
+        if self._stored_retry_count is DefaultStoredValue:
+            self._stored_retry_count = self._table.select('retry_count', id=self._db_id)[0][0]
+
+        return self._stored_retry_count
 
     @retry_count.setter
     def retry_count(self, value: int):
+        self._stored_retry_count = value
         self._table.update(self._db_id, retry_count=value)
+
+    _stored_error_step: DefaultStoredValueType | int | None = DefaultStoredValue
 
     @property
     def error_step(self) -> int | None:
-        return self._table.select('error_step', id=self._db_id)[0][0]
+        if self._stored_error_step is DefaultStoredValue:
+            self._stored_error_step = self._table.select('error_step', id=self._db_id)[0][0]
+
+        return self._stored_error_step
 
     @error_step.setter
     def error_step(self, value: int | None):
+        self._stored_error_step = value
         self._table.update(self._db_id, error_step=value)
+
+    _stored_error_blob: DefaultStoredValueType | str | None = DefaultStoredValue
 
     @property
     def error_blob(self) -> str | None:
-        return self._table.select('error_blob', id=self._db_id)[0][0]
+        if self._stored_error_blob is DefaultStoredValue:
+            self._stored_error_blob = self._table.select('error_blob', id=self._db_id)[0][0]
+
+        return self._stored_error_blob
 
     def set_error(self, step, allow_retry, **error_blob):
         self.error_host = _hostname()
@@ -220,29 +281,48 @@ class ResourceState(EntryBase):
 
     @error_blob.setter
     def error_blob(self, value: str | None):
+        self._stored_error_blob = value
         self._table.update(self._db_id, error_blob=value)
+
+    _stored_error_at: DefaultStoredValueType | str | None = DefaultStoredValue
 
     @property
     def error_at(self) -> str | None:
-        return self._table.select('error_at', id=self._db_id)[0][0]
+        if self._stored_error_at is DefaultStoredValue:
+            self._stored_error_at = self._table.select('error_at', id=self._db_id)[0][0]
+
+        return self._stored_error_at
 
     @error_at.setter
     def error_at(self, value: str):
+        self._stored_error_at = value
         self._table.update(self._db_id, error_at=value)
+
+    _stored_error_host: DefaultStoredValueType | str | None = DefaultStoredValue
 
     @property
     def error_host(self) -> str | None:
-        return self._table.select('error_host', id=self._db_id)[0][0]
+        if self._stored_error_host is DefaultStoredValue:
+            self._stored_error_host = self._table.select('error_host', id=self._db_id)[0][0]
+
+        return self._stored_error_host
 
     @error_host.setter
     def error_host(self, value: str):
+        self._stored_error_host = value
         self._table.update(self._db_id, error_host=value)
+
+    _stored_allow_retry: DefaultStoredValueType | bool = DefaultStoredValue
 
     @property
     def allow_retry(self) -> bool:
-        return bool(self._table.select('allow_retry', id=self._db_id)[0][0])
+        if self._stored_allow_retry is DefaultStoredValue:
+            self._stored_allow_retry = bool(self._table.select('allow_retry', id=self._db_id)[0][0])
+
+        return self._stored_allow_retry
 
     @allow_retry.setter
     def allow_retry(self, value: bool):
+        self._stored_allow_retry = value
         self._table.update(self._db_id, allow_retry=int(value))
 

@@ -1,7 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from ....ui import prop_ctrls as _prop_ctrls
-from .base import BaseMixin
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 
 
 class Visible2DMixin(BaseMixin):
@@ -9,6 +9,8 @@ class Visible2DMixin(BaseMixin):
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
+    
+    _stored_is_visible2d: bool | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def is_visible2d(self) -> bool:
@@ -19,8 +21,11 @@ class Visible2DMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: bool
         """
-        return bool(self._table.select('is_visible2d', id=self._db_id)[0][0])
-
+        if self._stored_is_visible2d is DefaultStoredValue:
+            self._stored_is_visible2d = bool(self._table.select('is_visible2d', id=self._db_id)[0][0])
+        
+        return self._stored_is_visible2d
+        
     @is_visible2d.setter
     def is_visible2d(self, value: bool):
         """Set the is visible 2D.
@@ -30,6 +35,9 @@ class Visible2DMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: bool
         """
+        
+        self._stored_is_visible2d = value
+        
         self._table.update(self._db_id, is_visible2d=int(value))
         self._populate('is_visible2d')
 

@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 from ...ui import prop_ctrls as _prop_ctrls
-from .pjt_bases import PJTEntryBase, PJTTableBase
+from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import NotesMixin, Position2DMixin
 
 
@@ -165,6 +165,8 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
         """
         return self._table
 
+    _stored_layer: "_pjt_concentric_layer.PJTConcentricLayer | DefaultStoredValueType" = DefaultStoredValue
+
     @property
     def layer(self) -> "_pjt_concentric_layer.PJTConcentricLayer":
         """Return the layer.
@@ -174,8 +176,13 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_concentric_layer.PJTConcentricLayer`
         """
-        layer_id = self.layer_id
-        return self._table.db.pjt_concentric_layers_table[layer_id]
+        if self._stored_layer is DefaultStoredValue:
+            layer_id = self.layer_id
+            self._stored_layer = self._table.db.pjt_concentric_layers_table[layer_id]
+
+        return self._stored_layer
+
+    _stored_layer_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def layer_id(self) -> int:
@@ -186,7 +193,10 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('layer_id', id=self._db_id)[0][0]
+        if self._stored_layer_id is DefaultStoredValue:
+            self._stored_layer_id = self._table.select('layer_id', id=self._db_id)[0][0]
+
+        return self._stored_layer_id
 
     @layer_id.setter
     def layer_id(self, value: int):
@@ -197,8 +207,13 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_layer_id = value
+        self._stored_layer = DefaultStoredValue
+
         self._table.update(self._db_id, layer_id=value)
         self._populate('layer_id')
+
+    _stored_idx: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def idx(self) -> int:
@@ -209,7 +224,10 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('idx', id=self._db_id)[0][0]
+        if self._stored_idx is DefaultStoredValue:
+            self._stored_idx = self._table.select('idx', id=self._db_id)[0][0]
+
+        return self._stored_idx
 
     @idx.setter
     def idx(self, value: int):
@@ -220,8 +238,11 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_idx = value
         self._table.update(self._db_id, idx=value)
         self._populate('idx')
+
+    _stored_is_filler: bool | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def is_filler(self) -> bool:
@@ -232,7 +253,10 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: bool
         """
-        return bool(self._table.select('is_filler', id=self._db_id)[0][0])
+        if self._stored_is_filler is DefaultStoredValue:
+            self._stored_is_filler = bool(self._table.select('is_filler', id=self._db_id)[0][0])
+
+        return self._stored_is_filler
 
     @is_filler.setter
     def is_filler(self, value: bool):
@@ -243,8 +267,11 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
         :param value: Value to store or process.
         :type value: bool
         """
+        self._stored_is_filler = value
         self._table.update(self._db_id, is_filler=int(value))
         self._populate('is_filler')
+
+    _stored_wire: "_pjt_wire.PJTWire | DefaultStoredValueType" = DefaultStoredValue
 
     @property
     def wire(self) -> "_pjt_wire.PJTWire":
@@ -255,8 +282,13 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_wire.PJTWire`
         """
-        wire_id = self.wire_id
-        return self.table.db.pjt_wires_table[wire_id]
+        if self._stored_wire is DefaultStoredValue:
+            wire_id = self.wire_id
+            self._stored_wire = self.table.db.pjt_wires_table[wire_id]
+
+        return self._stored_wire
+
+    _stored_wire_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def wire_id(self) -> int:
@@ -267,7 +299,10 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('wire_id', id=self._db_id)[0][0]
+        if self._stored_wire_id is DefaultStoredValue:
+            self._stored_wire_id = self._table.select('wire_id', id=self._db_id)[0][0]
+
+        return self._stored_wire_id
 
     @wire_id.setter
     def wire_id(self, value: int):
@@ -278,6 +313,9 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_wire_id = value
+        self._stored_wire = DefaultStoredValue
+
         self._table.update(self._db_id, wire_id=value)
         self._populate('wire_id')
 

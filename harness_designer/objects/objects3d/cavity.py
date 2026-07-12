@@ -72,6 +72,7 @@ class Cavity(_base3d.Base3D):
 
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
         self.surf_idx: int = -1
+        self.wire_surf_idx: int = -1
 
         parent.mainframe.editor3d.context.release()
 

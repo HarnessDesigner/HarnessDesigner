@@ -6,7 +6,7 @@ from typing import Iterable as _Iterable, TYPE_CHECKING
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
-from .bases import EntryBase, TableBase
+from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import (
     PartNumberMixin, PartNumberControl,
     ManufacturerMixin, ManufacturerControl,
@@ -332,6 +332,8 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
 
         return packet
 
+    _stored_rigidity: str | DefaultStoredValueType = DefaultStoredValue
+
     @property
     def rigidity(self) -> str:
         """Return the rigidity.
@@ -341,7 +343,10 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
         :returns: Property value. UNKNOWN details.
         :rtype: str
         """
-        return self._table.select('rigidity', id=self._db_id)[0][0]
+        if self._stored_rigidity is DefaultStoredValue:
+            self._stored_rigidity = self._table.select('rigidity', id=self._db_id)[0][0]
+
+        return self._stored_rigidity
 
     @rigidity.setter
     def rigidity(self, value: str):
@@ -352,8 +357,11 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
         :param value: Value to store or process.
         :type value: str
         """
+        self._stored_rigidity = value
         self._table.update(self._db_id, rigidity=value)
         self._populate('rigidity')
+
+    _stored_shrink_temp: "DefaultStoredValueType | _temperature.Temperature" = DefaultStoredValue
 
     @property
     def shrink_temp(self) -> "_temperature.Temperature":
@@ -364,10 +372,15 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_temperature.Temperature`
         """
-        shrink_temp_id = self.shrink_temp_id
-        from .temperature import Temperature
+        if self._stored_shrink_temp is DefaultStoredValue:
+            shrink_temp_id = self.shrink_temp_id
+            from .temperature import Temperature
 
-        return Temperature(self._table.db.temperatures_table, shrink_temp_id)
+            self._stored_shrink_temp = Temperature(self._table.db.temperatures_table, shrink_temp_id)
+
+        return self._stored_shrink_temp
+
+    _stored_shrink_temp_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def shrink_temp_id(self) -> int:
@@ -378,7 +391,10 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('shrink_temp_id', id=self._db_id)[0][0]
+        if self._stored_shrink_temp_id is DefaultStoredValue:
+            self._stored_shrink_temp_id = self._table.select('shrink_temp_id', id=self._db_id)[0][0]
+
+        return self._stored_shrink_temp_id
 
     @shrink_temp_id.setter
     def shrink_temp_id(self, value: int):
@@ -389,8 +405,13 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_shrink_temp_id = value
+        self._stored_shrink_temp = DefaultStoredValue
+
         self._table.update(self._db_id, shrink_temp_id=value)
         self._populate('shrink_temp_id')
+
+    _stored_shrink_ratio: str | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def shrink_ratio(self) -> str:
@@ -401,7 +422,10 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
         :returns: Property value. UNKNOWN details.
         :rtype: str
         """
-        return self._table.select('shrink_ratio', id=self._db_id)[0][0]
+        if self._stored_shrink_ratio is DefaultStoredValue:
+            self._stored_shrink_ratio = self._table.select('shrink_ratio', id=self._db_id)[0][0]
+
+        return self._stored_shrink_ratio
 
     @shrink_ratio.setter
     def shrink_ratio(self, value: str):
@@ -412,8 +436,11 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
         :param value: Value to store or process.
         :type value: str
         """
+        self._stored_shrink_ratio = value
         self._table.update(self._db_id, shrink_ratio=value)
         self._populate('shrink_ratio')
+
+    _stored_wall: str | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def wall(self) -> str:
@@ -424,7 +451,10 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
         :returns: Property value. UNKNOWN details.
         :rtype: str
         """
-        return self._table.select('wall', id=self._db_id)[0][0]
+        if self._stored_wall is DefaultStoredValue:
+            self._stored_wall = self._table.select('wall', id=self._db_id)[0][0]
+
+        return self._stored_wall
 
     @wall.setter
     def wall(self, value: str):
@@ -435,8 +465,11 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
         :param value: Value to store or process.
         :type value: str
         """
+        self._stored_wall = value
         self._table.update(self._db_id, wall=value)
         self._populate('wall')
+
+    _stored_min_dia: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def min_dia(self) -> float:
@@ -447,7 +480,10 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        return self._table.select('min_dia', id=self._db_id)[0][0]
+        if self._stored_min_dia is DefaultStoredValue:
+            self._stored_min_dia = self._table.select('min_dia', id=self._db_id)[0][0]
+
+        return self._stored_min_dia
 
     @min_dia.setter
     def min_dia(self, value: float):
@@ -458,8 +494,11 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_min_dia = round(value, 6)
         self._table.update(self._db_id, min_dia=round(value, 6))
         self._populate('min_dia')
+
+    _stored_max_dia: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def max_dia(self) -> float:
@@ -470,7 +509,10 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        return self._table.select('max_dia', id=self._db_id)[0][0]
+        if self._stored_max_dia is DefaultStoredValue:
+            self._stored_max_dia = self._table.select('max_dia', id=self._db_id)[0][0]
+
+        return self._stored_max_dia
 
     @max_dia.setter
     def max_dia(self, value: float):
@@ -481,6 +523,7 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_max_dia = round(value, 6)
         self._table.update(self._db_id, max_dia=round(value, 6))
         self._populate('max_dia')
 

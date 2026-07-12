@@ -3,7 +3,7 @@
 import uuid
 
 from ....ui import prop_ctrls as _prop_ctrls
-from .base import BaseMixin
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 from ....geometry import angle as _angle
 
 
@@ -13,6 +13,7 @@ class Angle2DMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
     _angle2d_db_id: str = None
+    _stored_angle2d: _angle.Angle | DefaultStoredValueType = DefaultStoredValue
 
     def _update_angle2d(self, angle: _angle.Angle):
         """Update the angle 2D.
@@ -41,16 +42,20 @@ class Angle2DMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_angle.Angle`
         """
-        quat = eval(self._table.select('quat2d', id=self._db_id)[0][0])
-        euler = eval(self._table.select('angle2d', id=self._db_id)[0][0])
+        
+        if self._stored_angle2d is DefaultStoredValue:
+            quat = eval(self._table.select('quat2d', id=self._db_id)[0][0])
+            euler = eval(self._table.select('angle2d', id=self._db_id)[0][0])
 
-        if self._angle2d_db_id is None:
-            self._angle2d_db_id = str(uuid.uuid4())
+            if self._angle2d_db_id is None:
+                self._angle2d_db_id = str(uuid.uuid4())
 
-        angle = _angle.Angle.from_quat(quat, euler, db_id=self._angle2d_db_id)
-        angle.bind(self._update_angle2d)
+            angle = _angle.Angle.from_quat(quat, euler, db_id=self._angle2d_db_id)
+            angle.bind(self._update_angle2d)
+            
+            self._stored_angle2d = angle
 
-        return angle
+        return self._stored_angle2d
 
 
 class Angle2DControl(_prop_ctrls.FloatProperty):

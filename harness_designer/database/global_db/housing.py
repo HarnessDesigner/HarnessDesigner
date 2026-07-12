@@ -7,7 +7,7 @@ import uuid
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
-from .bases import EntryBase, TableBase
+from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from . import cpa_lock as _cpa_lock
 from . import tpa_lock as _tpa_lock
 from . import boot as _boot
@@ -470,6 +470,8 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
         return res
 
+    _stored_compat_covers_array: DefaultStoredValueType | list[str] = DefaultStoredValue
+
     @property
     def compat_covers_array(self) -> list[str]:
         """Return the compat covers array.
@@ -479,12 +481,15 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: list[str]
         """
-        value = self._table.select('compat_covers', id=self._db_id)[0][0]
+        if self._stored_compat_covers_array is DefaultStoredValue:
+            value = self._table.select('compat_covers', id=self._db_id)[0][0]
 
-        if value.startswith('['):
-            value = value[1:-1]
+            if value.startswith('['):
+                value = value[1:-1]
 
-        return value.split(', ')
+            self._stored_compat_covers_array = value.split(', ')
+
+        return self._stored_compat_covers_array
 
     @compat_covers_array.setter
     def compat_covers_array(self, value: list[str]):
@@ -495,6 +500,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param value: Value to store or process.
         :type value: list[str]
         """
+        self._stored_compat_covers_array = value
         value = ", ".join(value)
         self._table.update(self._db_id, compat_covers=value)
         self._populate('compat_covers_array')
@@ -517,6 +523,8 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
                 pass
         return res
 
+    _stored_compat_boots_array: DefaultStoredValueType | list[str] = DefaultStoredValue
+
     @property
     def compat_boots_array(self) -> list[str]:
         """Return the compat boots array.
@@ -526,12 +534,15 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: list[str]
         """
-        value = self._table.select('compat_boots', id=self._db_id)[0][0]
+        if self._stored_compat_boots_array is DefaultStoredValue:
+            value = self._table.select('compat_boots', id=self._db_id)[0][0]
 
-        if value.startswith('['):
-            value = value[1:-1]
+            if value.startswith('['):
+                value = value[1:-1]
 
-        return value.split(', ')
+            self._stored_compat_boots_array = value.split(', ')
+
+        return self._stored_compat_boots_array
 
     @compat_boots_array.setter
     def compat_boots_array(self, value: list[str]):
@@ -542,6 +553,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param value: Value to store or process.
         :type value: list[str]
         """
+        self._stored_compat_boots_array = value
         value = ", ".join(value)
         self._table.update(self._db_id, compat_boots=value)
         self._populate('compat_boots_array')
@@ -565,6 +577,8 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
         return res
 
+    _stored_compat_cpas_array: DefaultStoredValueType | list[str] = DefaultStoredValue
+
     @property
     def compat_cpas_array(self) -> list[str]:
         """Return the compat cpas array.
@@ -574,12 +588,15 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: list[str]
         """
-        value = self._table.select('compat_cpas', id=self._db_id)[0][0]
+        if self._stored_compat_cpas_array is DefaultStoredValue:
+            value = self._table.select('compat_cpas', id=self._db_id)[0][0]
 
-        if value.startswith('['):
-            value = value[1:-1]
+            if value.startswith('['):
+                value = value[1:-1]
 
-        return value.split(', ')
+            self._stored_compat_cpas_array = value.split(', ')
+
+        return self._stored_compat_cpas_array
 
     @compat_cpas_array.setter
     def compat_cpas_array(self, value: list[str]):
@@ -590,6 +607,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param value: Value to store or process.
         :type value: list[str]
         """
+        self._stored_compat_cpas_array = value
 
         value = ', '.join(value)
         self._table.update(self._db_id, compat_cpas=value)
@@ -616,6 +634,8 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
         return res
 
+    _stored_compat_tpas_array: DefaultStoredValueType | list[str] = DefaultStoredValue
+
     @property
     def compat_tpas_array(self) -> list[str]:
         """Return the compat tpas array.
@@ -625,9 +645,11 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: list[str]
         """
+        if self._stored_compat_tpas_array is DefaultStoredValue:
+            value = self._table.select('compat_tpas', id=self._db_id)[0][0]
+            self._stored_compat_tpas_array = value[1:-1].split(', ')
 
-        value = self._table.select('compat_tpas', id=self._db_id)[0][0]
-        return value[1:-1].split(', ')
+        return self._stored_compat_tpas_array
 
     @compat_tpas_array.setter
     def compat_tpas_array(self, value: list[str]):
@@ -638,10 +660,13 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param value: Value to store or process.
         :type value: list[str]
         """
+        self._stored_compat_tpas_array = value
 
         value = f'[{", ".join(value)}]'
         self._table.update(self._db_id, compat_tpas=value)
         self._populate('compat_tpas_array')
+
+    _stored_ip_rating: "DefaultStoredValueType | _ip.IPRating" = DefaultStoredValue
 
     @property
     def ip_rating(self) -> _ip.IPRating:
@@ -652,9 +677,12 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_ip.IPRating`
         """
+        if self._stored_ip_rating is DefaultStoredValue:
+            self._stored_ip_rating = _ip.IPRating(self._table.db.ip_ratings_table, self.ip_rating_id)
 
-        ip_rating_id = self._table.select('ip_rating_id', id=self._db_id)
-        return _ip.IPRating(self._table.db.ip_ratings_table, ip_rating_id[0][0])
+        return self._stored_ip_rating
+
+    _stored_ip_rating_id: DefaultStoredValueType | int = DefaultStoredValue
 
     @property
     def ip_rating_id(self):
@@ -665,8 +693,10 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: UNKNOWN
         """
+        if self._stored_ip_rating_id is DefaultStoredValue:
+            self._stored_ip_rating_id = self._table.select('ip_rating_id', id=self._db_id)[0][0]
 
-        return self._table.select('ip_rating_id', id=self._db_id)[0][0]
+        return self._stored_ip_rating_id
 
     @ip_rating_id.setter
     def ip_rating_id(self, value):
@@ -677,9 +707,13 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param value: Value to store or process.
         :type value: UNKNOWN
         """
+        self._stored_ip_rating_id = value
+        self._stored_ip_rating = DefaultStoredValue
 
         self._table.update(self._db_id, ip_rating_id=value)
         self._populate('ip_rating_id')
+
+    _stored_cavity_lock: "DefaultStoredValueType | _cavity_lock.CavityLock" = DefaultStoredValue
 
     @property
     def cavity_lock(self) -> _cavity_lock.CavityLock:
@@ -690,9 +724,12 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_cavity_lock.CavityLock`
         """
+        if self._stored_cavity_lock is DefaultStoredValue:
+            self._stored_cavity_lock = self._table.db.cavity_locks_table[self.cavity_lock_id]
 
-        cavity_lock_id = self.cavity_lock_id
-        return self._table.db.cavity_locks_table[cavity_lock_id]
+        return self._stored_cavity_lock
+
+    _stored_cavity_lock_id: DefaultStoredValueType | int = DefaultStoredValue
 
     @property
     def cavity_lock_id(self):
@@ -703,8 +740,10 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: UNKNOWN
         """
+        if self._stored_cavity_lock_id is DefaultStoredValue:
+            self._stored_cavity_lock_id = self._table.select('cavity_lock_id', id=self._db_id)[0][0]
 
-        return self._table.select('cavity_lock_id', id=self._db_id)[0][0]
+        return self._stored_cavity_lock_id
 
     @cavity_lock_id.setter
     def cavity_lock_id(self, value):
@@ -715,9 +754,13 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param value: Value to store or process.
         :type value: UNKNOWN
         """
+        self._stored_cavity_lock_id = value
+        self._stored_cavity_lock = DefaultStoredValue
 
         self._table.update(self._db_id, cavity_lock_id=value)
         self._populate('cavity_lock_id')
+
+    _stored_seal_type: "DefaultStoredValueType | _seal_type.SealType" = DefaultStoredValue
 
     @property
     def seal_type(self) -> _seal_type.SealType:
@@ -728,9 +771,12 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_seal_type.SealType`
         """
+        if self._stored_seal_type is DefaultStoredValue:
+            self._stored_seal_type = self._table.db.seal_types_table[self.seal_type_id]
 
-        seal_type_id = self.seal_type_id
-        return self._table.db.seal_types_table[seal_type_id]
+        return self._stored_seal_type
+
+    _stored_seal_type_id: DefaultStoredValueType | int = DefaultStoredValue
 
     @property
     def seal_type_id(self):
@@ -741,8 +787,10 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: UNKNOWN
         """
+        if self._stored_seal_type_id is DefaultStoredValue:
+            self._stored_seal_type_id = self._table.select('seal_type_id', id=self._db_id)[0][0]
 
-        return self._table.select('seal_type_id', id=self._db_id)[0][0]
+        return self._stored_seal_type_id
 
     @seal_type_id.setter
     def seal_type_id(self, value):
@@ -753,9 +801,13 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param value: Value to store or process.
         :type value: UNKNOWN
         """
+        self._stored_seal_type_id = value
+        self._stored_seal_type = DefaultStoredValue
 
         self._table.update(self._db_id, seal_type_id=value)
         self._populate('seal_type_id')
+
+    _stored_cpa_lock_type: "DefaultStoredValueType | _cpa_lock_type.CPALockType" = DefaultStoredValue
 
     @property
     def cpa_lock_type(self) -> _cpa_lock_type.CPALockType:
@@ -766,9 +818,12 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_cpa_lock_type.CPALockType`
         """
+        if self._stored_cpa_lock_type is DefaultStoredValue:
+            self._stored_cpa_lock_type = self._table.db.cpa_lock_types_table[self.cpa_lock_type_id]
 
-        cpa_lock_type_id = self.cpa_lock_type_id
-        return self._table.db.cpa_lock_types_table[cpa_lock_type_id]
+        return self._stored_cpa_lock_type
+
+    _stored_cpa_lock_type_id: DefaultStoredValueType | int = DefaultStoredValue
 
     @property
     def cpa_lock_type_id(self):
@@ -779,8 +834,10 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: UNKNOWN
         """
+        if self._stored_cpa_lock_type_id is DefaultStoredValue:
+            self._stored_cpa_lock_type_id = self._table.select('cpa_lock_type_id', id=self._db_id)[0][0]
 
-        return self._table.select('cpa_lock_type_id', id=self._db_id)[0][0]
+        return self._stored_cpa_lock_type_id
 
     @cpa_lock_type_id.setter
     def cpa_lock_type_id(self, value):
@@ -791,9 +848,13 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param value: Value to store or process.
         :type value: UNKNOWN
         """
+        self._stored_cpa_lock_type_id = value
+        self._stored_cpa_lock_type = DefaultStoredValue
 
         self._table.update(self._db_id, cpa_lock_type_id=value)
         self._populate('cpa_lock_type_id')
+
+    _stored_terminal_sizes: DefaultStoredValueType | list[float] = DefaultStoredValue
 
     @property
     def terminal_sizes(self) -> list[float]:
@@ -804,13 +865,15 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: list[float]
         """
+        if self._stored_terminal_sizes is DefaultStoredValue:
+            value = self._table.select('terminal_sizes', id=self._db_id)[0][0]
 
-        value = self._table.select('terminal_sizes', id=self._db_id)[0][0]
+            if not value.startswith('['):
+                value = f'[{value}]'
 
-        if not value.startswith('['):
-            value = f'[{value}]'
+            self._stored_terminal_sizes = eval(value)
 
-        return eval(value)
+        return self._stored_terminal_sizes
 
     @terminal_sizes.setter
     def terminal_sizes(self, value: list[float]):
@@ -821,8 +884,11 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param value: Value to store or process.
         :type value: list[float]
         """
+        self._stored_terminal_sizes = value
         self._table.update(self._db_id, terminal_sizes=str(value)[1:-1])
         self._populate('terminal_sizes')
+
+    _stored_terminal_size_counts: DefaultStoredValueType | list[int] = DefaultStoredValue
 
     @property
     def terminal_size_counts(self) -> list[int]:
@@ -833,13 +899,15 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: list[int]
         """
+        if self._stored_terminal_size_counts is DefaultStoredValue:
+            value = self._table.select('terminal_size_counts', id=self._db_id)[0][0]
 
-        value = self._table.select('terminal_size_counts', id=self._db_id)[0][0]
+            if not value.startswith('['):
+                value = f'[{value}]'
 
-        if not value.startswith('['):
-            value = f'[{value}]'
+            self._stored_terminal_size_counts = eval(value)
 
-        return eval(value)
+        return self._stored_terminal_size_counts
 
     @terminal_size_counts.setter
     def terminal_size_counts(self, value: list[int]):
@@ -850,8 +918,11 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param value: Value to store or process.
         :type value: list[int]
         """
+        self._stored_terminal_size_counts = value
         self._table.update(self._db_id, terminal_size_counts=str(value)[1:-1])
         self._populate('terminal_size_counts')
+
+    _stored_sealing: DefaultStoredValueType | bool = DefaultStoredValue
 
     @property
     def sealing(self) -> bool:
@@ -862,7 +933,10 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: bool
         """
-        return bool(self._table.select('sealing', id=self._db_id)[0][0])
+        if self._stored_sealing is DefaultStoredValue:
+            self._stored_sealing = bool(self._table.select('sealing', id=self._db_id)[0][0])
+
+        return self._stored_sealing
 
     @sealing.setter
     def sealing(self, value: bool):
@@ -873,8 +947,11 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param value: Value to store or process.
         :type value: bool
         """
+        self._stored_sealing = value
         self._table.update(self._db_id, sealing=int(value))
         self._populate('sealing')
+
+    _stored_centerline: DefaultStoredValueType | float = DefaultStoredValue
 
     @property
     def centerline(self) -> float:
@@ -885,7 +962,10 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        return self._table.select('centerline', id=self._db_id)[0][0]
+        if self._stored_centerline is DefaultStoredValue:
+            self._stored_centerline = self._table.select('centerline', id=self._db_id)[0][0]
+
+        return self._stored_centerline
 
     @centerline.setter
     def centerline(self, value: float):
@@ -896,8 +976,11 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_centerline = value
         self._table.update(self._db_id, centerline=value)
         self._populate('centerline')
+
+    _stored_rows: DefaultStoredValueType | int = DefaultStoredValue
 
     @property
     def rows(self) -> int:
@@ -908,7 +991,10 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('rows', id=self._db_id)[0][0]
+        if self._stored_rows is DefaultStoredValue:
+            self._stored_rows = self._table.select('rows', id=self._db_id)[0][0]
+
+        return self._stored_rows
 
     @rows.setter
     def rows(self, value: int):
@@ -919,8 +1005,11 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_rows = value
         self._table.update(self._db_id, rows=value)
         self._populate('rows')
+
+    _stored_num_pins: DefaultStoredValueType | int = DefaultStoredValue
 
     @property
     def num_pins(self) -> int:
@@ -931,7 +1020,10 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('num_pins', id=self._db_id)[0][0]
+        if self._stored_num_pins is DefaultStoredValue:
+            self._stored_num_pins = self._table.select('num_pins', id=self._db_id)[0][0]
+
+        return self._stored_num_pins
 
     @num_pins.setter
     def num_pins(self, value: int):
@@ -942,6 +1034,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_num_pins = value
         self._table.update(self._db_id, num_pins=value)
         self._populate('num_pins')
 
@@ -992,7 +1085,8 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         return res
 
     _cover_position3d: str = None
-    
+    _stored_cover_position3d: DefaultStoredValueType | list[float] = DefaultStoredValue
+
     def __update_cover_position3d(self, point: _point.Point):
         """Update the cover position 3D.
 
@@ -1001,7 +1095,10 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param point: Point value.
         :type point: :class:`_point.Point`
         """
-        self._table.update(self._db_id, cover_point3d=str(list(point.as_float)))
+        coords = list(point.as_float)
+        self._stored_cover_position3d = coords
+
+        self._table.update(self._db_id, cover_point3d=str(coords))
         self._populate('cover_position3d')
 
     @property
@@ -1013,19 +1110,21 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         """
-        position_coords = eval(self._table.select('cover_point3d', id=self._db_id)[0][0])
-        
+        if self._stored_cover_position3d is DefaultStoredValue:
+            self._stored_cover_position3d = eval(self._table.select('cover_point3d', id=self._db_id)[0][0])
+
         if self._cover_position3d is None:
             self._cover_position3d = str(uuid.uuid4())
-        
-        position = _point.Point(*position_coords, db_id=self._cover_position3d)
-        
+
+        position = _point.Point(*self._stored_cover_position3d, db_id=self._cover_position3d)
+
         position.bind(self.__update_cover_position3d)
-                
+
         return position
 
     _seal_position3d: str = None
-    
+    _stored_seal_position3d: DefaultStoredValueType | list[float] = DefaultStoredValue
+
     def __update_seal_position3d(self, point: _point.Point):
         """Update the seal position 3D.
 
@@ -1034,7 +1133,10 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param point: Point value.
         :type point: :class:`_point.Point`
         """
-        self._table.update(self._db_id, seal_point3d=str(list(point.as_float)))
+        coords = list(point.as_float)
+        self._stored_seal_position3d = coords
+
+        self._table.update(self._db_id, seal_point3d=str(coords))
         self._populate('seal_position3d')
 
     @property
@@ -1046,18 +1148,20 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         """
-        position_coords = eval(self._table.select('seal_point3d', id=self._db_id)[0][0])
-        
+        if self._stored_seal_position3d is DefaultStoredValue:
+            self._stored_seal_position3d = eval(self._table.select('seal_point3d', id=self._db_id)[0][0])
+
         if self._seal_position3d is None:
             self._seal_position3d = str(uuid.uuid4())
-        
-        position = _point.Point(*position_coords, db_id=self._seal_position3d)
-        
+
+        position = _point.Point(*self._stored_seal_position3d, db_id=self._seal_position3d)
+
         position.bind(self.__update_seal_position3d)
-                
+
         return position
     
     _boot_position3d: str = None
+    _stored_boot_position3d: DefaultStoredValueType | list[float] = DefaultStoredValue
 
     def __update_boot_position3d(self, point: _point.Point):
         """Update the boot position 3D.
@@ -1067,7 +1171,10 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param point: Point value.
         :type point: :class:`_point.Point`
         """
-        self._table.update(self._db_id, boot_point3d=str(list(point.as_float)))
+        coords = list(point.as_float)
+        self._stored_boot_position3d = coords
+
+        self._table.update(self._db_id, boot_point3d=str(coords))
         self._populate('boot_position3d')
 
     @property
@@ -1079,19 +1186,21 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         """
-        position_coords = eval(self._table.select('boot_point3d', id=self._db_id)[0][0])
-        
+        if self._stored_boot_position3d is DefaultStoredValue:
+            self._stored_boot_position3d = eval(self._table.select('boot_point3d', id=self._db_id)[0][0])
+
         if self._boot_position3d is None:
             self._boot_position3d = str(uuid.uuid4())
-        
-        position = _point.Point(*position_coords, db_id=self._boot_position3d)
-        
+
+        position = _point.Point(*self._stored_boot_position3d, db_id=self._boot_position3d)
+
         position.bind(self.__update_boot_position3d)
-                
+
         return position
     
     _tpa_lock_1_position3d: str = None
-    
+    _stored_tpa_lock_1_position3d: DefaultStoredValueType | list[float] = DefaultStoredValue
+
     def __update_tpa_lock_1_position3d(self, point: _point.Point):
         """Update the TPA lock 1 position 3D.
 
@@ -1100,7 +1209,10 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param point: Point value.
         :type point: :class:`_point.Point`
         """
-        self._table.update(self._db_id, tpa_lock_1_point3d=str(list(point.as_float)))
+        coords = list(point.as_float)
+        self._stored_tpa_lock_1_position3d = coords
+
+        self._table.update(self._db_id, tpa_lock_1_point3d=str(coords))
         self._populate('tpa_lock_1_position3d')
 
     @property
@@ -1112,19 +1224,22 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         """
-        position_coords = eval(self._table.select('tpa_lock_1_point3d', id=self._db_id)[0][0])
-        
+        if self._stored_tpa_lock_1_position3d is DefaultStoredValue:
+            self._stored_tpa_lock_1_position3d = eval(
+                self._table.select('tpa_lock_1_point3d', id=self._db_id)[0][0])
+
         if self._tpa_lock_1_position3d is None:
             self._tpa_lock_1_position3d = str(uuid.uuid4())
-        
-        position = _point.Point(*position_coords, db_id=self._tpa_lock_1_position3d)
-        
+
+        position = _point.Point(*self._stored_tpa_lock_1_position3d, db_id=self._tpa_lock_1_position3d)
+
         position.bind(self.__update_tpa_lock_1_position3d)
-                
+
         return position
 
     _tpa_lock_2_position3d: str = None
-    
+    _stored_tpa_lock_2_position3d: DefaultStoredValueType | list[float] = DefaultStoredValue
+
     def __update_tpa_lock_2_position3d(self, point: _point.Point):
         """Update the TPA lock 2 position 3D.
 
@@ -1133,7 +1248,10 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param point: Point value.
         :type point: :class:`_point.Point`
         """
-        self._table.update(self._db_id, tpa_lock_2_point3d=str(list(point.as_float)))
+        coords = list(point.as_float)
+        self._stored_tpa_lock_2_position3d = coords
+
+        self._table.update(self._db_id, tpa_lock_2_point3d=str(coords))
         self._populate('tpa_lock_2_position3d')
 
     @property
@@ -1145,19 +1263,22 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         """
-        position_coords = eval(self._table.select('tpa_lock_2_point3d', id=self._db_id)[0][0])
-        
+        if self._stored_tpa_lock_2_position3d is DefaultStoredValue:
+            self._stored_tpa_lock_2_position3d = eval(
+                self._table.select('tpa_lock_2_point3d', id=self._db_id)[0][0])
+
         if self._tpa_lock_2_position3d is None:
             self._tpa_lock_2_position3d = str(uuid.uuid4())
-        
-        position = _point.Point(*position_coords, db_id=self._tpa_lock_2_position3d)
-        
+
+        position = _point.Point(*self._stored_tpa_lock_2_position3d, db_id=self._tpa_lock_2_position3d)
+
         position.bind(self.__update_tpa_lock_2_position3d)
-                
-        return position    
+
+        return position
 
     _cpa_lock_position3d: str = None
-    
+    _stored_cpa_lock_position3d: DefaultStoredValueType | list[float] = DefaultStoredValue
+
     def __update_cpa_lock_position3d(self, point: _point.Point):
         """Update the CPA lock position 3D.
 
@@ -1166,7 +1287,10 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param point: Point value.
         :type point: :class:`_point.Point`
         """
-        self._table.update(self._db_id, cpa_lock_point3d=str(list(point.as_float)))
+        coords = list(point.as_float)
+        self._stored_cpa_lock_position3d = coords
+
+        self._table.update(self._db_id, cpa_lock_point3d=str(coords))
         self._populate('cpa_lock_position3d')
 
     @property
@@ -1178,18 +1302,20 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         """
-        position_coords = eval(self._table.select('cpa_lock_point3d', id=self._db_id)[0][0])
-        
+        if self._stored_cpa_lock_position3d is DefaultStoredValue:
+            self._stored_cpa_lock_position3d = eval(self._table.select('cpa_lock_point3d', id=self._db_id)[0][0])
+
         if self._cpa_lock_position3d is None:
             self._cpa_lock_position3d = str(uuid.uuid4())
-        
-        position = _point.Point(*position_coords, db_id=self._cpa_lock_position3d)
-        
+
+        position = _point.Point(*self._stored_cpa_lock_position3d, db_id=self._cpa_lock_position3d)
+
         position.bind(self.__update_cpa_lock_position3d)
-                
+
         return position
 
     _angle3d_db_id: str = None
+    _stored_angle3d: DefaultStoredValueType | tuple = DefaultStoredValue
 
     def __update_angle3d(self, angle: _angle.Angle):
         """Update the angle 3D.
@@ -1199,11 +1325,15 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :param angle: Value for ``angle``.
         :type angle: :class:`_angle.Angle`
         """
-        quat = str(list(angle.as_quat_float))
-        euler = str(list(angle.as_euler_float))
+        quat_list = list(angle.as_quat_float)
+        euler_list = list(angle.as_euler_float)
+        quat = str(quat_list)
+        euler = str(euler_list)
 
         if 'nan' in euler or 'nan' in quat:
             return
+
+        self._stored_angle3d = (quat_list, euler_list)
 
         self._table.update(self._db_id, quat3d=quat)
         self._table.update(self._db_id, angle3d=euler)
@@ -1218,8 +1348,12 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_angle.Angle`
         """
-        quat = eval(self._table.select('quat3d', id=self._db_id)[0][0])
-        euler_angle = eval(self._table.select('angle3d', id=self._db_id)[0][0])
+        if self._stored_angle3d is DefaultStoredValue:
+            quat = eval(self._table.select('quat3d', id=self._db_id)[0][0])
+            euler_angle = eval(self._table.select('angle3d', id=self._db_id)[0][0])
+            self._stored_angle3d = (quat, euler_angle)
+
+        quat, euler_angle = self._stored_angle3d
 
         if self._angle3d_db_id is None:
             self._angle3d_db_id = str(uuid.uuid4())

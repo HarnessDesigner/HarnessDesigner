@@ -8,7 +8,7 @@ from PySide6.QtWidgets import QTabWidget
 from ....ui import prop_ctrls as _prop_ctrls
 from ....gl import model_preview as _model_preview
 
-from .base import BaseMixin
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 
 if TYPE_CHECKING:
     from .. import model3d as _model3d
@@ -35,6 +35,8 @@ class Model3DMixin(BaseMixin):
 
         return self._table.db.models3d_table[model3d_id]
 
+    _stored_model3d_id: int | DefaultStoredValueType | None = DefaultStoredValue
+
     @property
     def model3d_id(self) -> int:
         """Return the model 3D ID.
@@ -44,7 +46,10 @@ class Model3DMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        return self._table.select('model3d_id', id=self._db_id)[0][0]
+        if self._stored_model3d_id is DefaultStoredValue:
+            self._stored_model3d_id = self._table.select('model3d_id', id=self._db_id)[0][0]
+
+        return self._stored_model3d_id
 
     @model3d_id.setter
     def model3d_id(self, value: int):
@@ -55,6 +60,7 @@ class Model3DMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_model3d_id = value
         self._table.update(self._db_id, model3d_id=value)
         self._populate('model3d_id')
 

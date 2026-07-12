@@ -22,6 +22,7 @@ class Config:
         walk = _config.Config.editor3d.walk
         zoom = _config.Config.editor3d.zoom
         reset = _config.Config.editor3d.reset
+        edit2d = _config.Config.editor3d.edit2d
         selected_color = _config.Config.editor3d.selected_color
         background_color = _config.Config.editor3d.background_color
 

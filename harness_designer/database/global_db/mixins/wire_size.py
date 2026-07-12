@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from .base import BaseMixin
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 
 from .... import utils as _utils
 from ....ui import prop_ctrls as _prop_ctrls
@@ -12,6 +12,8 @@ class WireSizeMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    _stored_wire_size_dia_min: float | None | DefaultStoredValueType = DefaultStoredValue
+
     @property
     def wire_size_dia_min(self) -> float | None:
         """Return the wire size dia min.
@@ -21,7 +23,10 @@ class WireSizeMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: float | None
         """
-        return self._table.select('wire_size_dia_min', id=self._db_id)[0][0]
+        if self._stored_wire_size_dia_min is DefaultStoredValue:
+            self._stored_wire_size_dia_min = self._table.select('wire_size_dia_min', id=self._db_id)[0][0]
+
+        return self._stored_wire_size_dia_min
 
     @wire_size_dia_min.setter
     def wire_size_dia_min(self, value: float):
@@ -32,10 +37,16 @@ class WireSizeMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_wire_size_dia_min = value
+        self._stored_wire_size_cross_min = _utils.d_mm_to_mm2(value)
+        self._stored_wire_size_awg_min = _utils.d_mm_to_awg(value)
+
         self._table.update(self._db_id, wire_size_dia_min=value)
         self._table.update(self._db_id, wire_size_cross_min=_utils.d_mm_to_mm2(value))
         self._table.update(self._db_id, wire_size_awg_min=_utils.d_mm_to_awg(value))
         self._populate('wire_size_dia_min')
+
+    _stored_wire_size_dia_max: float | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def wire_size_dia_max(self) -> float | None:
@@ -46,7 +57,10 @@ class WireSizeMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: float | None
         """
-        return self._table.select('wire_size_dia_max', id=self._db_id)[0][0]
+        if self._stored_wire_size_dia_max is DefaultStoredValue:
+            self._stored_wire_size_dia_max = self._table.select('wire_size_dia_max', id=self._db_id)[0][0]
+
+        return self._stored_wire_size_dia_max
 
     @wire_size_dia_max.setter
     def wire_size_dia_max(self, value: float):
@@ -57,10 +71,16 @@ class WireSizeMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_wire_size_dia_max = value
+        self._stored_wire_size_cross_max = _utils.d_mm_to_mm2(value)
+        self._stored_wire_size_awg_max = _utils.d_mm_to_awg(value)
+
         self._table.update(self._db_id, wire_size_dia_max=value)
-        self._table.update(self._db_id, wire_size_cross_min=_utils.d_mm_to_mm2(value))
-        self._table.update(self._db_id, wire_size_awg_min=_utils.d_mm_to_awg(value))
+        self._table.update(self._db_id, wire_size_cross_max=_utils.d_mm_to_mm2(value))
+        self._table.update(self._db_id, wire_size_awg_max=_utils.d_mm_to_awg(value))
         self._populate('wire_size_dia_max')
+
+    _stored_wire_size_cross_min: float | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def wire_size_cross_min(self) -> float | None:
@@ -71,7 +91,10 @@ class WireSizeMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: float | None
         """
-        return self._table.select('wire_size_cross_min', id=self._db_id)[0][0]
+        if self._stored_wire_size_cross_min is DefaultStoredValue:
+            self._stored_wire_size_cross_min = self._table.select('wire_size_cross_min', id=self._db_id)[0][0]
+
+        return self._stored_wire_size_cross_min
 
     @wire_size_cross_min.setter
     def wire_size_cross_min(self, value: float):
@@ -82,10 +105,16 @@ class WireSizeMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_wire_size_cross_min = value
+        self._stored_wire_size_dia_min = _utils.mm2_to_d_mm(value)
+        self._stored_wire_size_awg_min = _utils.mm2_to_awg(value)
+
         self._table.update(self._db_id, wire_size_cross_min=value)
         self._table.update(self._db_id, wire_size_dia_min=_utils.mm2_to_d_mm(value))
         self._table.update(self._db_id, wire_size_awg_min=_utils.mm2_to_awg(value))
         self._populate('wire_size_cross_min')
+
+    _stored_wire_size_cross_max: float | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def wire_size_cross_max(self) -> float | None:
@@ -96,7 +125,10 @@ class WireSizeMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: float | None
         """
-        return self._table.select('wire_size_cross_max', id=self._db_id)[0][0]
+        if self._stored_wire_size_cross_max is DefaultStoredValue:
+            self._stored_wire_size_cross_max = self._table.select('wire_size_cross_max', id=self._db_id)[0][0]
+
+        return self._stored_wire_size_cross_max
 
     @wire_size_cross_max.setter
     def wire_size_cross_max(self, value: float):
@@ -107,10 +139,16 @@ class WireSizeMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: float
         """
+        self._stored_wire_size_cross_max = value
+        self._stored_wire_size_dia_max = _utils.mm2_to_d_mm(value)
+        self._stored_wire_size_awg_max = _utils.mm2_to_awg(value)
+
         self._table.update(self._db_id, wire_size_cross_max=value)
         self._table.update(self._db_id, wire_size_dia_max=_utils.mm2_to_d_mm(value))
         self._table.update(self._db_id, wire_size_awg_max=_utils.mm2_to_awg(value))
         self._populate('wire_size_cross_max')
+
+    _stored_wire_size_awg_min: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def wire_size_awg_min(self) -> int | None:
@@ -121,7 +159,10 @@ class WireSizeMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int | None
         """
-        return self._table.select('wire_size_awg_min', id=self._db_id)[0][0]
+        if self._stored_wire_size_awg_min is DefaultStoredValue:
+            self._stored_wire_size_awg_min = self._table.select('wire_size_awg_min', id=self._db_id)[0][0]
+
+        return self._stored_wire_size_awg_min
 
     @wire_size_awg_min.setter
     def wire_size_awg_min(self, value: int):
@@ -132,10 +173,16 @@ class WireSizeMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_wire_size_awg_min = value
+        self._stored_wire_size_dia_min = _utils.awg_to_d_mm(value)
+        self._stored_wire_size_cross_min = _utils.awg_to_mm2(value)
+
         self._table.update(self._db_id, wire_size_awg_min=value)
         self._table.update(self._db_id, wire_size_dia_min=_utils.awg_to_d_mm(value))
         self._table.update(self._db_id, wire_size_cross_min=_utils.awg_to_mm2(value))
         self._populate('wire_size_awg_min')
+
+    _stored_wire_size_awg_max: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def wire_size_awg_max(self) -> int | None:
@@ -146,7 +193,10 @@ class WireSizeMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int | None
         """
-        return self._table.select('wire_size_awg_max', id=self._db_id)[0][0]
+        if self._stored_wire_size_awg_max is DefaultStoredValue:
+            self._stored_wire_size_awg_max = self._table.select('wire_size_awg_max', id=self._db_id)[0][0]
+
+        return self._stored_wire_size_awg_max
 
     @wire_size_awg_max.setter
     def wire_size_awg_max(self, value: int):
@@ -157,6 +207,10 @@ class WireSizeMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: int
         """
+        self._stored_wire_size_awg_max = value
+        self._stored_wire_size_dia_max = _utils.awg_to_d_mm(value)
+        self._stored_wire_size_cross_max = _utils.awg_to_mm2(value)
+
         self._table.update(self._db_id, wire_size_awg_max=value)
         self._table.update(self._db_id, wire_size_dia_max=_utils.awg_to_d_mm(value))
         self._table.update(self._db_id, wire_size_cross_max=_utils.awg_to_mm2(value))

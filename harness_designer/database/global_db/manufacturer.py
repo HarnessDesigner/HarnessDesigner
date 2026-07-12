@@ -2,7 +2,7 @@
 
 from typing import Iterable as _Iterable
 
-from .bases import EntryBase, TableBase
+from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import NameMixin, DescriptionMixin
 
 
@@ -149,6 +149,8 @@ class Manufacturer(EntryBase, NameMixin, DescriptionMixin):
 
         return packet
 
+    _stored_address: DefaultStoredValueType | str = DefaultStoredValue
+
     @property
     def address(self) -> str:
         """Return the address.
@@ -158,7 +160,10 @@ class Manufacturer(EntryBase, NameMixin, DescriptionMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: str
         """
-        return self._table.select('address', id=self._db_id)[0][0]
+        if self._stored_address is DefaultStoredValue:
+            self._stored_address = self._table.select('address', id=self._db_id)[0][0]
+
+        return self._stored_address
 
     @address.setter
     def address(self, value: str):
@@ -169,8 +174,11 @@ class Manufacturer(EntryBase, NameMixin, DescriptionMixin):
         :param value: Value to store or process.
         :type value: str
         """
+        self._stored_address = value
         self._table.update(self._db_id, address=value)
         self._populate('address')
+
+    _stored_contact_person: DefaultStoredValueType | str = DefaultStoredValue
 
     @property
     def contact_person(self) -> str:
@@ -181,7 +189,10 @@ class Manufacturer(EntryBase, NameMixin, DescriptionMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: str
         """
-        return self._table.select('contact_person', id=self._db_id)[0][0]
+        if self._stored_contact_person is DefaultStoredValue:
+            self._stored_contact_person = self._table.select('contact_person', id=self._db_id)[0][0]
+
+        return self._stored_contact_person
 
     @contact_person.setter
     def contact_person(self, value: str):
@@ -192,8 +203,11 @@ class Manufacturer(EntryBase, NameMixin, DescriptionMixin):
         :param value: Value to store or process.
         :type value: str
         """
+        self._stored_contact_person = value
         self._table.update(self._db_id, contact_person=value)
         self._populate('contact_person')
+
+    _stored_phone: DefaultStoredValueType | str = DefaultStoredValue
 
     @property
     def phone(self) -> str:
@@ -204,7 +218,10 @@ class Manufacturer(EntryBase, NameMixin, DescriptionMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: str
         """
-        return self._table.select('phone', id=self._db_id)[0][0]
+        if self._stored_phone is DefaultStoredValue:
+            self._stored_phone = self._table.select('phone', id=self._db_id)[0][0]
+
+        return self._stored_phone
 
     @phone.setter
     def phone(self, value: str):
@@ -215,8 +232,11 @@ class Manufacturer(EntryBase, NameMixin, DescriptionMixin):
         :param value: Value to store or process.
         :type value: str
         """
+        self._stored_phone = value
         self._table.update(self._db_id, phone=value)
         self._populate('phone')
+
+    _stored_ext: DefaultStoredValueType | str = DefaultStoredValue
 
     @property
     def ext(self) -> str:
@@ -227,7 +247,10 @@ class Manufacturer(EntryBase, NameMixin, DescriptionMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: str
         """
-        return self._table.select('ext', id=self._db_id)[0][0]
+        if self._stored_ext is DefaultStoredValue:
+            self._stored_ext = self._table.select('ext', id=self._db_id)[0][0]
+
+        return self._stored_ext
 
     @ext.setter
     def ext(self, value: str):
@@ -238,8 +261,11 @@ class Manufacturer(EntryBase, NameMixin, DescriptionMixin):
         :param value: Value to store or process.
         :type value: str
         """
+        self._stored_ext = value
         self._table.update(self._db_id, ext=value)
         self._populate('ext')
+
+    _stored_email: DefaultStoredValueType | str = DefaultStoredValue
 
     @property
     def email(self) -> str:
@@ -250,7 +276,10 @@ class Manufacturer(EntryBase, NameMixin, DescriptionMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: str
         """
-        return self._table.select('email', id=self._db_id)[0][0]
+        if self._stored_email is DefaultStoredValue:
+            self._stored_email = self._table.select('email', id=self._db_id)[0][0]
+
+        return self._stored_email
 
     @email.setter
     def email(self, value: str):
@@ -261,8 +290,11 @@ class Manufacturer(EntryBase, NameMixin, DescriptionMixin):
         :param value: Value to store or process.
         :type value: str
         """
+        self._stored_email = value
         self._table.update(self._db_id, email=value)
         self._populate('email')
+
+    _stored_website: DefaultStoredValueType | str = DefaultStoredValue
 
     @property
     def website(self) -> str:
@@ -273,7 +305,10 @@ class Manufacturer(EntryBase, NameMixin, DescriptionMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: str
         """
-        return self._table.select('website', id=self._db_id)[0][0]
+        if self._stored_website is DefaultStoredValue:
+            self._stored_website = self._table.select('website', id=self._db_id)[0][0]
+
+        return self._stored_website
 
     @website.setter
     def website(self, value: str):
@@ -284,5 +319,6 @@ class Manufacturer(EntryBase, NameMixin, DescriptionMixin):
         :param value: Value to store or process.
         :type value: str
         """
+        self._stored_website = value
         self._table.update(self._db_id, website=value)
         self._populate('website')

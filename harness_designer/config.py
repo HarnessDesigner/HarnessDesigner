@@ -742,6 +742,47 @@ class Config(metaclass=ConfigDB):
             key = 16777232
             mouse = MOUSE_NONE
 
+        class edit2d(metaclass=ConfigDB):
+            """Locked top-down (bird's-eye) editing mode.
+
+            Deliberately has no `rotate`/`pan_tilt` sub-class — their
+            absence is what makes those functions unreachable through the
+            mouse/key dispatch layer while `enable` is True.
+            """
+            enable = False
+
+            class truck_pedestal(metaclass=ConfigDB):
+                """2D-mode truck and pedestal movement bindings."""
+                mouse = MOUSE_LEFT
+                up_key = ord('8')
+                down_key = ord('2')
+                left_key = ord('4')
+                right_key = ord('6')
+                sensitivity = 0.2
+                speed = 1.0
+
+            class walk(metaclass=ConfigDB):
+                """2D-mode dolly (forward/back) bindings."""
+                mouse = MOUSE_WHEEL | MOUSE_SWAP_AXIS
+                forward_key = 16777235
+                backward_key = 16777237
+                left_key = 16777234
+                right_key = 16777236
+                sensitivity = 1.0
+                speed = 5.0
+
+            class zoom(metaclass=ConfigDB):
+                """2D-mode zoom control bindings."""
+                mouse = MOUSE_NONE
+                in_key = 43
+                out_key = 45
+                sensitivity = 5.0
+
+            class reset(metaclass=ConfigDB):
+                """2D-mode reset-view bindings."""
+                key = 16777232
+                mouse = MOUSE_NONE
+
         class headlight(metaclass=ConfigDB):
             """Headlight settings for the 3D editor camera."""
             enable = True
@@ -776,6 +817,16 @@ class Config(metaclass=ConfigDB):
             """Function-call debug logging settings."""
             log_args = False
             log_duration = False
+
+        class database(metaclass=ConfigDB):
+            """SQL query profiling toggle.
+
+            When enabled, ``SQLConnector`` accumulates per-statement call
+            counts and timing (keyed by normalized SQL text, literals
+            stripped) instead of doing nothing extra per query. Read it back
+            with ``connector.dump_query_profile()``.
+            """
+            profile_queries = False
 
         class rendering3d(metaclass=ConfigDB):
             """3D debug rendering overlays and colours."""

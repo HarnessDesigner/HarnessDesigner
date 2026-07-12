@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-from .base import BaseMixin
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 
 from ....ui import prop_ctrls as _prop_ctrls
 
@@ -36,6 +36,8 @@ class CompatTerminalsMixin(BaseMixin):
 
         return res
 
+    _stored_compat_terminals_array: list[str] | DefaultStoredValueType = DefaultStoredValue
+
     @property
     def compat_terminals_array(self) -> list[str]:
         """Return the compat terminals array.
@@ -45,12 +47,15 @@ class CompatTerminalsMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: list[str]
         """
-        value = self._table.select('compat_terminals', id=self._db_id)[0][0]
+        if self._stored_compat_terminals_array is DefaultStoredValue:
+            value = self._table.select('compat_terminals', id=self._db_id)[0][0]
 
-        if value.startswith('['):
-            value = value[1:-1]
+            if value.startswith('['):
+                value = value[1:-1]
 
-        return value.split(', ')
+            self._stored_compat_terminals_array = value.split(', ')
+
+        return self._stored_compat_terminals_array
 
     @compat_terminals_array.setter
     def compat_terminals_array(self, value: list[str]):
@@ -61,6 +66,7 @@ class CompatTerminalsMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: list[str]
         """
+        self._stored_compat_terminals_array = value
         value = ', '.join(value)
 
         self._table.update(self._db_id, compat_terminals=value)
