@@ -280,9 +280,16 @@ class LogHandler(threading.Thread):
         :returns: Parsed log entries.
         :rtype: pandas.DataFrame
         """
-        df = pd.read_csv(path, encoding='utf-8')
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
-        return df
+        # 'timestamp' must be parsed by read_csv itself, never by a
+        # `df['timestamp'] = ...` after the fact: in the frozen app this
+        # module is Cython-compiled, so `df` has no Python frame to be a
+        # local of and its refcount stays at the temporary-object level -
+        # both heuristics pandas 3.x uses to tell real locals from chained
+        # assignment - and the assignment raises a spurious
+        # ChainedAssignmentError attributed to whatever pure-Python frame
+        # is below (harness_designer/__init__.py's MainLoop() call).
+        return pd.read_csv(path, encoding='utf-8',
+                           parse_dates=['timestamp'], date_format='ISO8601')
 
     @staticmethod
     def read_archived_log(archive_path, member_name):
@@ -298,9 +305,10 @@ class LogHandler(threading.Thread):
         with zipfile.ZipFile(archive_path, 'r') as zf:
             data = zf.read(member_name)
 
-        df = pd.read_csv(io.BytesIO(data), encoding='utf-8')
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
-        return df
+        # Same Cython constraint as read_log(): parse in read_csv, no
+        # column reassignment afterwards.
+        return pd.read_csv(io.BytesIO(data), encoding='utf-8',
+                           parse_dates=['timestamp'], date_format='ISO8601')
 
     def _open_next_file(self):
         """Create, open, and register the next CSV log file.
