@@ -127,7 +127,7 @@ def validate_snap_angle(value) -> float:
     return hundredths / 100.0
 
 
-def slot_ring_angle(axis: str, euler: list) -> "_angle.Angle":
+def slot_ring_angle(axis: str, euler: list | tuple) -> "_angle.Angle":
     """Return the orientation that maps the ring (XY plane) onto ``axis``.
 
     The Euler slots are nested (effective matrix ``Ry·Rx·Rz``), so each
@@ -148,7 +148,7 @@ def slot_ring_angle(axis: str, euler: list) -> "_angle.Angle":
     return _angle.Angle.from_euler(ex, ey, ez)
 
 
-def slot_normal(axis: str, euler: list) -> np.ndarray:
+def slot_normal(axis: str, euler: list | tuple) -> np.ndarray:
     """Return the world-space rotation axis for an Euler slot.
 
     Incrementing an Euler angle rotates the object about this axis given the

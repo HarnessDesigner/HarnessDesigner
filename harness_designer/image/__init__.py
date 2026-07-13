@@ -6,11 +6,16 @@ from typing import TYPE_CHECKING
 
 import sys
 import os
+import numpy as np
 from PIL import Image as _Image
 
 from . import utils
 
 from PySide6.QtGui import QPixmap, QCursor
+
+
+if TYPE_CHECKING:
+    from ..database.global_db import color as _color
 
 
 BASE_PATH = os.path.dirname(__file__)
@@ -169,14 +174,16 @@ class Image:
         """
         img = utils.bytes_data_2_pil_image(self.png_data)
 
-        w, h = img.size
-        for y in range(h):
-            for x in range(w):
-                a = img.getpixel((x, y))[-1]
-                img.putpixel((x, y), (r, g, b, a))
+        arr = np.asarray(img)
+        arr = arr.copy()
+        arr[..., 0] = r
+        arr[..., 1] = g
+        arr[..., 2] = b
 
-        res = Image(self.name, png_data=utils.pil_image_2_png_bytes(img))
+        recolored = _Image.fromarray(arr, 'RGBA')
+        res = Image(self.name, png_data=utils.pil_image_2_png_bytes(recolored))
         img.close()
+        recolored.close()
         return res
 
     def __or__(self, other: "Image"):
@@ -281,6 +288,51 @@ class ImageLoader:
 
         self.__base_path__ = path
 
+        if self.__name__ == 'images':
+            self.__wire_image_cache__ = {}
+
+    def build_wire(
+        self,
+        primary_color: "_color.Color",
+        stripe_color: "_color.Color | None",
+        conductor_color: "_color.Color"
+    ) -> Image:
+        primary_name = primary_color.name
+        if stripe_color is None:
+            stripe_name = None
+        else:
+            stripe_name = stripe_color.name
+
+        conductor_name = conductor_color.name
+
+        key = (primary_name, stripe_name, conductor_name)
+        if key in self.__wire_image_cache__:
+            return self.__wire_image_cache__[key]
+
+        wire_base = self.wire_base
+        wire_stripe = self.wire_stripe
+        wire_conductor = self.wire_conductor
+        wire_shadow = self.wire_shadow
+
+        p_ui = primary_color.ui
+        wire_base = wire_base.recolor(p_ui.GetRed(), p_ui.GetGreen(), p_ui.GetBlue())
+
+        c_ui = conductor_color.ui
+        wire_conductor = wire_conductor.recolor(c_ui.GetRed(), c_ui.GetGreen(), c_ui.GetBlue())
+
+        wire = wire_base
+
+        if stripe_color is not None:
+            s_ui = stripe_color.ui
+            wire_stripe = wire_stripe.recolor(s_ui.GetRed(), s_ui.GetGreen(), s_ui.GetBlue())
+            wire = wire + wire_stripe
+
+        wire = (wire + wire_conductor) + wire_shadow
+
+        self.__wire_image_cache__[key] = wire
+
+        return wire
+
     def __getattr__(self, item):
         """Load a sub-loader or :class:`Image` on first attribute access.
 
@@ -317,6 +369,14 @@ __base = ImageLoader(BASE_PATH)
 
 
 if TYPE_CHECKING:
+
+    def build_wire(
+        primary_color: "_color.Color",  # NOQA
+        stripe_color: "_color.Color | None",  # NOQA
+        conductor_color: "_color.Color"  # NOQA
+    ) -> Image:
+        pass
+
 
     class ip:
         """Type-checking namespace for IP rating images."""
@@ -444,3 +504,7 @@ if TYPE_CHECKING:
         download_3: Image = ...
         download_4: Image = ...
         download_5: Image = ...
+        wire_base: Image = ...
+        wire_conductor: Image = ...
+        wire_stripe: Image = ...
+        wire_shadow: Image = ...
