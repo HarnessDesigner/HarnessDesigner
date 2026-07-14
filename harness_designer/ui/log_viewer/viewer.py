@@ -403,7 +403,7 @@ class VirtualLogListCtrl(QtWidgets.QTableView):
 # LogViewerPanel — QSplitter replacing wx.SplitterWindow
 # ---------------------------------------------------------------------------
 
-class LogViewerPanel(QtWidgets.QSplitter):
+class ViewerPanel(QtWidgets.QSplitter):
     """
     Represent a log viewer panel in :mod:`harness_designer.ui.log_viewer.viewer`.
 
@@ -1098,47 +1098,3 @@ class LogViewerPanel(QtWidgets.QSplitter):
         """Return current (non-archived) log file paths, newest first."""
         return list(reversed(self.logger.log_handler.list_logfiles()))
 
-
-# ---------------------------------------------------------------------------
-# LogViewer — dock coordinator (same pattern as Phase 9 editors)
-# ---------------------------------------------------------------------------
-
-class LogViewer:
-    """
-    Represent a log viewer in :mod:`harness_designer.ui.log_viewer.viewer`.
-
-    UNKNOWN details are inferred from the class name and surrounding code.
-    """
-
-    def __init__(self, mainframe: "_mainframe.MainFrame"):
-        """
-        Initialise the :class:`LogViewer` instance.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param mainframe: Main application frame.
-        :type mainframe: :class:`_mainframe.MainFrame`
-        """
-
-        self.viewer = LogViewerPanel(mainframe, mainframe.logger)
-        self.mainframe = mainframe
-
-        self._dock = mainframe._make_dock(  # NOQA
-            'Log Viewer', 'log_viewer',
-            self.viewer, QtCore.Qt.DockWidgetArea.LeftDockWidgetArea)
-
-        self._dock.show()
-
-    def Show(self, show=True):
-        if show:
-            self._dock.show()
-            self._dock.raise_()
-        else:
-            self._dock.hide()
-
-    def Refresh(self, *_, **__):
-        self.viewer.update()
-
-    def Destroy(self):
-        self.viewer.Destroy()
-        self._dock.deleteLater()

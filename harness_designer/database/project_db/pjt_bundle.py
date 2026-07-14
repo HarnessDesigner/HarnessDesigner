@@ -8,6 +8,7 @@ from PySide6.QtWidgets import QTabWidget
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
 from ..global_db import bundle_cover as _bundle_cover
+from ...geometry import line as _line
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import (
     PartMixin,
@@ -228,6 +229,16 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
         :rtype: :class:`PJTBundlesTable`
         """
         return self._table
+
+    @property
+    def length_mm(self) -> float:
+        """Straight-line length between this segment's start and stop points, in mm."""
+        return _line.Line(self.start_position3d, self.stop_position3d).length()
+
+    @property
+    def length_m(self) -> float:
+        """Straight-line length between this segment's start and stop points, in meters."""
+        return self.length_mm / 1000.0
 
     @property
     def wires(self) -> list["_pjt_wire.PJTWire"]:

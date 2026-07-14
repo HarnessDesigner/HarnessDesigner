@@ -772,6 +772,9 @@ from .pjt_concentric import PJTConcentricsTable  # NOQA
 from .pjt_concentric_layer import PJTConcentricLayersTable  # NOQA
 from .pjt_concentric_wire import PJTConcentricWiresTable  # NOQA
 from .pjt_transition_branch import PJTTransitionBranchesTable  # NOQA
+from .pjt_pegboard_point import PJTPegboardPointsTable  # NOQA
+from .pjt_pegboard_waypoint import PJTPegboardWaypointsTable  # NOQA
+from .pjt_pegboard_table import PJTPegboardTablesTable  # NOQA
 
 from .project import ProjectsTable  # NOQA
 
@@ -823,6 +826,9 @@ class PJTTables:
         self._pjt_concentric_layers_table = None
         self._pjt_concentric_wires_table = None
         self._pjt_transition_branches_table = None
+        self._pjt_pegboard_points_table = None
+        self._pjt_pegboard_waypoints_table = None
+        self._pjt_pegboard_tables_table = None
 
         self._points2d = []
         self._points3d = []
@@ -897,6 +903,9 @@ class PJTTables:
         self._pjt_concentric_layers_table = PJTConcentricLayersTable(self, project_id, tables, Splash)
         self._pjt_concentric_wires_table = PJTConcentricWiresTable(self, project_id, tables, Splash)
         self._pjt_transition_branches_table = PJTTransitionBranchesTable(self, project_id, tables, Splash)
+        self._pjt_pegboard_points_table = PJTPegboardPointsTable(self, project_id, tables, Splash)
+        self._pjt_pegboard_waypoints_table = PJTPegboardWaypointsTable(self, project_id, tables, Splash)
+        self._pjt_pegboard_tables_table = PJTPegboardTablesTable(self, project_id, tables, Splash)
 
     @property
     def pjt_bundles_table(self) -> PJTBundlesTable:
@@ -1172,3 +1181,30 @@ class PJTTables:
         :rtype: :class:`PJTTransitionBranchesTable`
         """
         return self._pjt_transition_branches_table
+
+    @property
+    def pjt_pegboard_points_table(self) -> PJTPegboardPointsTable:
+        """Return the peg-board points overlay table.
+
+        :returns: The peg-board points table for the loaded project.
+        :rtype: :class:`PJTPegboardPointsTable`
+        """
+        return self._pjt_pegboard_points_table
+
+    @property
+    def pjt_pegboard_waypoints_table(self) -> PJTPegboardWaypointsTable:
+        """Return the peg-board waypoints table.
+
+        :returns: The peg-board waypoints table for the loaded project.
+        :rtype: :class:`PJTPegboardWaypointsTable`
+        """
+        return self._pjt_pegboard_waypoints_table
+
+    @property
+    def pjt_pegboard_tables_table(self) -> PJTPegboardTablesTable:
+        """Return the peg-board data-table overlay table.
+
+        :returns: The peg-board tables overlay table for the loaded project.
+        :rtype: :class:`PJTPegboardTablesTable`
+        """
+        return self._pjt_pegboard_tables_table

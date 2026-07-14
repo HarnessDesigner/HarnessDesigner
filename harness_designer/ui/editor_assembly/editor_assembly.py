@@ -4,86 +4,48 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import QWidget
 from PySide6.QtCore import Qt
-from PySide6 import QtWidgets
 
+from .. import dock_base as _dock_base
 
 if TYPE_CHECKING:
     from .. import mainframe as _mainframe
 
 
-class EditorAssembly:
-    """Represent an editor assembly in :mod:`harness_designer.ui.editor_assembly.editor_assembly`.
-
-    UNKNOWN details are inferred from the class name and surrounding code.
+class EditorAssembly(_dock_base.DockBase):
+    """
+    Represent an editor assembly in :mod:`harness_designer.ui.editor_assembly.editor_assembly`.
     """
 
     def __init__(self, mainframe: "_mainframe.MainFrame"):
-        """Initialise the :class:`EditorAssembly` instance.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Initialise the :class:`EditorAssembly` instance.
 
         :param mainframe: Main application frame.
         :type mainframe: :class:`_mainframe.MainFrame`
         """
-        self.editor = EditorAssemblyPanel(mainframe)
-        self.mainframe = mainframe
 
-        dock = mainframe._make_dock(
-            title='Assembly Editor',
-            name='editor_assembly',
-            widget=self.editor,
-            area=Qt.RightDockWidgetArea,
-        )
-        self._dock = dock
-        dock.show()
+        self._ui_obj = EditorAssemblyPanel(mainframe)
 
-    def Show(self, show=True):
-        """Execute the show operation.
+        super().__init__(mainframe, 'Assembly Editor', 'editor_assembly',
+                         Qt.DockWidgetArea.LeftDockWidgetArea)
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param show: Value for ``show``.
-        :type show: UNKNOWN
-        """
-        if show:
-            self._dock.show()
-            self._dock.raise_()
-        else:
-            self._dock.hide()
-
-    def Refresh(self, *args, **kwargs):
-        """Execute the refresh operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param args: Additional positional arguments.
-        :type args: UNKNOWN
-        :param kwargs: Additional keyword arguments.
-        :type kwargs: UNKNOWN
-        """
-        self.editor.update()
-
-    def Destroy(self):
-        """Execute the destroy operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        self.editor.deleteLater()
+    @property
+    def editor(self) -> "EditorAssemblyPanel":
+        return self._ui_obj
 
 
 class EditorAssemblyPanel(QWidget):
-    """Represent an editor assembly panel in :mod:`harness_designer.ui.editor_assembly.editor_assembly`.
-
-    UNKNOWN details are inferred from the class name and surrounding code.
+    """
+    Represent an editor assembly panel in :mod:`harness_designer.ui.editor_assembly.editor_assembly`.
     """
 
     def __init__(self, parent: "_mainframe.MainFrame"):
-        """Initialise the :class:`EditorAssemblyPanel` instance.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Initialise the :class:`EditorAssemblyPanel` instance.
 
         :param parent: Parent object.
         :type parent: :class:`_mainframe.MainFrame`
         """
+
         QWidget.__init__(self, parent)
         self.mainframe = parent

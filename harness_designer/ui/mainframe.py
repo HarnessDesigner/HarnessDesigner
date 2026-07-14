@@ -164,6 +164,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
         self.editor2d = editor_2d.Editor2D(self)
 
+        splash.SetText('Creating peg board editor...')
+        splash.flush()
+
+        from . import editor_pegboard
+
+        self.editor_pegboard = editor_pegboard.EditorPegBoard(self)
+
         splash.SetText('Creating database editor...')
         splash.flush()
 
@@ -214,9 +221,43 @@ class MainFrame(QtWidgets.QMainWindow):
         self.note_toolbar = _toolbar.NoteToolbar(self)
         self.object_toolbar = _toolbar.EditorObjectToolbar(self)
         self.settings3d_toolbar = _toolbar.Setting3DToolbar(self)
+        self.pegboard_toolbar = _toolbar.PegBoardToolbar(self)
 
         splash.SetText('Loading system menu...')
         splash.flush()
+
+        # Group the 3D, schematic, and peg board editors into one tabbed
+        # notebook by default. Each dock keeps its normal Qt drag behavior
+        # (AllowTabbedDocks is set above), so the user can still drag any
+        # tab out into its own floating/docked window and drag it back onto
+        # the tab bar to re-join the notebook — this is standard QDockWidget
+        # tabbing, not custom UI. editor3d's dock is deliberately not
+        # DockWidgetClosable (see editor_3d.py), so it can be floated out but
+        # not closed.
+        self.tabifyDockWidget(self.editor3d.dock, self.editor2d.dock)
+        self.tabifyDockWidget(self.editor2d.dock, self.editor_pegboard.dock)
+        self.editor3d.dock.raise_()  # 3D editor is the initially active tab
+
+        # Tab bar on the right edge (vertical tabs) instead of Qt's default
+        # bottom placement, for the dock area these three editors share.
+        self.setTabPosition(
+            QtCore.Qt.DockWidgetArea.AllDockWidgetAreas,
+            QtWidgets.QTabWidget.TabPosition(Config.tab_location)
+        )
+
+        self.tabifyDockWidget(self.editor_obj.dock, self.object_browser.dock)
+        self.tabifyDockWidget(self.object_browser.dock, self.editor_circuit.dock)
+        self.tabifyDockWidget(self.editor_circuit.dock, self.editor_assembly.dock)
+        self.tabifyDockWidget(self.editor_assembly.dock, self.log_viewer.dock)
+
+        self.editor3d.dock.raise_()  # 3D editor is the initially active tab
+
+        # Tab bar on the right edge (vertical tabs) instead of Qt's default
+        # bottom placement, for the dock area these three editors share.
+        self.setTabPosition(
+            QtCore.Qt.DockWidgetArea.AllDockWidgetAreas,
+            QtWidgets.QTabWidget.TabPosition(Config.tab_location)
+        )
 
         from . import system_menu
         self.system_menu = system_menu.SystemMenu(self)
@@ -349,6 +390,7 @@ class MainFrame(QtWidgets.QMainWindow):
         # ------------------------------------------------------------------
         self._connect_editor3d_signals()
         self._connect_editor2d_signals()
+        self._connect_editor_pegboard_signals()
 
         self.editor_toolbar.modeChanged.connect(self._on_tool_mode_change)
 
@@ -413,7 +455,7 @@ class MainFrame(QtWidgets.QMainWindow):
         self.status_bar.showMessage(label)
         self.progress_bar.show()
 
-    def _make_dock(self, title: str, name: str, widget: QtWidgets.QWidget,
+    def make_dock(self, title: str, name: str, widget: QtWidgets.QWidget,
                    area: QtCore.Qt.DockWidgetArea = None) -> QtWidgets.QDockWidget:
         """Create and register a QDockWidget.
 
@@ -550,6 +592,38 @@ class MainFrame(QtWidgets.QMainWindow):
         self.editor2d.bind(_gl.EVT_GL_AUX2_UP, self._on_aux2_up_2d)
         self.editor2d.bind(_gl.EVT_GL_AUX2_DCLICK, self._on_aux2_dclick_2d)
 
+    def _connect_editor_pegboard_signals(self):
+        self.editor_pegboard.bind(_gl.EVT_GL_OBJECT_SELECTED,      self._on_obj_selected_pegboard)
+        self.editor_pegboard.bind(_gl.EVT_GL_OBJECT_UNSELECTED, self._on_obj_unselected_pegboard)
+        self.editor_pegboard.bind(_gl.EVT_GL_OBJECT_ACTIVATED, self._on_obj_activated_pegboard)
+        self.editor_pegboard.bind(_gl.EVT_GL_OBJECT_RIGHT_CLICK, self._on_obj_right_click_pegboard)
+        self.editor_pegboard.bind(_gl.EVT_GL_OBJECT_MIDDLE_CLICK, self._on_obj_middle_click_pegboard)
+        self.editor_pegboard.bind(_gl.EVT_GL_OBJECT_MIDDLE_DCLICK, self._on_obj_middle_dclick_pegboard)
+        self.editor_pegboard.bind(_gl.EVT_GL_OBJECT_AUX1_CLICK, self._on_obj_aux1_click_pegboard)
+        self.editor_pegboard.bind(_gl.EVT_GL_OBJECT_AUX1_DCLICK, self._on_obj_aux1_dclick_pegboard)
+        self.editor_pegboard.bind(_gl.EVT_GL_OBJECT_AUX2_CLICK, self._on_obj_aux2_click_pegboard)
+        self.editor_pegboard.bind(_gl.EVT_GL_OBJECT_AUX2_DCLICK, self._on_obj_aux2_dclick_pegboard)
+        self.editor_pegboard.bind(_gl.EVT_GL_OBJECT_DRAG, self._on_obj_drag_pegboard)
+        self.editor_pegboard.bind(_gl.EVT_GL_KEY_DOWN, self._on_key_down_pegboard)
+        self.editor_pegboard.bind(_gl.EVT_GL_KEY_UP, self._on_key_up_pegboard)
+        self.editor_pegboard.bind(_gl.EVT_GL_MOUSE_MOVE, self._on_mouse_move_pegboard)
+        self.editor_pegboard.bind(_gl.EVT_GL_CAPTURE_LOST, self._on_capture_lost_pegboard)
+        self.editor_pegboard.bind(_gl.EVT_GL_LEFT_DOWN, self._on_left_down_pegboard)
+        self.editor_pegboard.bind(_gl.EVT_GL_LEFT_UP, self._on_left_up_pegboard)
+        self.editor_pegboard.bind(_gl.EVT_GL_LEFT_DCLICK, self._on_left_dclick_pegboard)
+        self.editor_pegboard.bind(_gl.EVT_GL_RIGHT_DOWN, self._on_right_down_pegboard)
+        self.editor_pegboard.bind(_gl.EVT_GL_RIGHT_UP, self._on_right_up_pegboard)
+        self.editor_pegboard.bind(_gl.EVT_GL_RIGHT_DCLICK, self._on_right_dclick_pegboard)
+        self.editor_pegboard.bind(_gl.EVT_GL_MIDDLE_DOWN, self._on_middle_down_pegboard)
+        self.editor_pegboard.bind(_gl.EVT_GL_MIDDLE_UP, self._on_middle_up_pegboard)
+        self.editor_pegboard.bind(_gl.EVT_GL_MIDDLE_DCLICK, self._on_middle_dclick_pegboard)
+        self.editor_pegboard.bind(_gl.EVT_GL_AUX1_DOWN, self._on_aux1_down_pegboard)
+        self.editor_pegboard.bind(_gl.EVT_GL_AUX1_UP, self._on_aux1_up_pegboard)
+        self.editor_pegboard.bind(_gl.EVT_GL_AUX1_DCLICK, self._on_aux1_dclick_pegboard)
+        self.editor_pegboard.bind(_gl.EVT_GL_AUX2_DOWN, self._on_aux2_down_pegboard)
+        self.editor_pegboard.bind(_gl.EVT_GL_AUX2_UP, self._on_aux2_up_pegboard)
+        self.editor_pegboard.bind(_gl.EVT_GL_AUX2_DCLICK, self._on_aux2_dclick_pegboard)
+
     # ------------------------------------------------------------------
     # QMainWindow event overrides (replace wx.EVT_* bindings)
     # ------------------------------------------------------------------
@@ -606,7 +680,7 @@ class MainFrame(QtWidgets.QMainWindow):
 
         self._is_closing = True
 
-        close_dlg = _closing_dialog.ClosingDialog(self, total_steps=9)
+        close_dlg = _closing_dialog.ClosingDialog(self, total_steps=10)
         close_dlg.setWindowModality(QtCore.Qt.WindowModality.ApplicationModal)
         close_dlg.show()
 
@@ -656,12 +730,13 @@ class MainFrame(QtWidgets.QMainWindow):
                 QtWidgets.QApplication.processEvents()
 
             _run('Closing 2D Editor....', self.editor2d.Destroy, 3)
-            _run('Closing 3D Editor....', self.editor3d.Destroy, 4)
-            _run('Closing Database Editor....', self.editor_db.Destroy, 5)
-            _run('Closing Object Editor....', self.editor_obj.Destroy, 6)
-            _run('Closing Assembly Editor....', self.editor_assembly.Destroy, 7)
-            _run('Closing Log Viewer....', self.log_viewer.Destroy, 8)
-            _run('Closing Database Connection....', self.db_connector.close, 9)
+            _run('Closing Peg Board Editor....', self.editor_pegboard.Destroy, 4)
+            _run('Closing 3D Editor....', self.editor3d.Destroy, 5)
+            _run('Closing Database Editor....', self.editor_db.Destroy, 6)
+            _run('Closing Object Editor....', self.editor_obj.Destroy, 7)
+            _run('Closing Assembly Editor....', self.editor_assembly.Destroy, 8)
+            _run('Closing Log Viewer....', self.log_viewer.Destroy, 9)
+            _run('Closing Database Connection....', self.db_connector.close, 10)
 
             _app.CallLater(_finished)
 
@@ -791,6 +866,16 @@ class MainFrame(QtWidgets.QMainWindow):
         self.editor_db.load_db(self.global_db)
 
         self.project = _proj.Project.select_project(self)
+
+        # Every housing/splice/transition/terminal wrapper constructed while
+        # building the Project above already called add_object(), but
+        # self._project was still None at that point (it isn't assigned
+        # until the line above returns) — so the load_project() rebuild
+        # guarded on self._project inside add_object()/remove_object() never
+        # fired for any of them. Trigger it once now that a project (or
+        # None, if the user canceled the open dialog) is actually assigned.
+        if self._project is not None:
+            self.editor_pegboard.load_project(self._project)
 
     # ------------------------------------------------------------------
     # GL object event handlers (3D canvas)
@@ -1818,6 +1903,384 @@ class MainFrame(QtWidgets.QMainWindow):
             evt.StopPropagation()
         else:
             evt.Skip()
+
+    # ------------------------------------------------------------------
+    # Peg board canvas GL event handlers
+    # Mirror of the _2d handlers above; the peg board editor uses the same
+    # EVT_GL_* signal protocol, routed through editor_pegboard.bind().
+    # Phase 1 has no peg-board object-picking/dragging model yet, so these
+    # only need to exist and behave generically (same _obj_handler gate as
+    # every other editor) -- no new logic beyond that gate.
+    # ------------------------------------------------------------------
+
+    def _on_obj_selected_pegboard(self, evt: _gl.GLObjectEvent) -> None:
+        """Handle the obj selected peg board event.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_obj_unselected_pegboard(self, evt: _gl.GLObjectEvent) -> None:
+        """Handle the obj unselected peg board event.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_obj_activated_pegboard(self, evt: _gl.GLObjectEvent) -> None:
+        """Handle the obj activated peg board event.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_obj_right_click_pegboard(self, evt: _gl.GLObjectEvent) -> None:
+        """Handle the obj right click peg board event.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_obj_right_dclick_pegboard(self, evt: _gl.GLObjectEvent) -> None:
+        """Handle the obj right dclick peg board event.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_obj_middle_click_pegboard(self, evt: _gl.GLObjectEvent) -> None:
+        """Handle the obj middle click peg board event.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_obj_middle_dclick_pegboard(self, evt: _gl.GLObjectEvent) -> None:
+        """Handle the obj middle dclick peg board event.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_obj_aux1_click_pegboard(self, evt: _gl.GLObjectEvent) -> None:
+        """Handle the obj aux 1 click peg board event.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_obj_aux1_dclick_pegboard(self, evt: _gl.GLObjectEvent) -> None:
+        """Handle the obj aux 1 dclick peg board event.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_obj_aux2_click_pegboard(self, evt: _gl.GLObjectEvent) -> None:
+        """Handle the obj aux 2 click peg board event.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_obj_aux2_dclick_pegboard(self, evt: _gl.GLObjectEvent) -> None:
+        """Handle the obj aux 2 dclick peg board event.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_obj_drag_pegboard(self, evt: _gl.GLObjectEvent) -> None:
+        """Handle the obj drag peg board event.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLObjectEvent`
+        """
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_key_down_pegboard(self, evt: _gl.GLKeyEvent) -> None:
+        """Handle the key down peg board event.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLKeyEvent`
+        """
+        if self._obj_handler is not None:
+            keycode = evt.GetKeyCode()
+            if keycode == QtCore.Qt.Key.Key_Escape:
+                mouse_event = evt.GetMouseEvent()
+
+                if (
+                    mouse_event is not None and (
+                        mouse_event.Aux1IsDown() or
+                        mouse_event.Aux2IsDown() or
+                        mouse_event.RightIsDown() or
+                        mouse_event.MiddleIsDown() or
+                        mouse_event.LeftIsDown()
+                    )
+                ):
+                    self._obj_handler.ignore_next_input()
+                else:
+                    self._obj_handler.cancel()
+                    self._obj_handler = None
+
+                evt.StopPropagation()
+                return
+
+        evt.Skip()
+
+    def _on_key_up_pegboard(self, evt: _gl.GLKeyEvent) -> None:
+        """Handle the key up peg board event.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLKeyEvent`
+        """
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_mouse_move_pegboard(self, evt: _gl.GLEvent) -> None:
+        """Handle the mouse move peg board event.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_capture_lost_pegboard(self, evt: _gl.GLCaptureLostEvent) -> None:
+        """Handle the capture lost peg board event.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLCaptureLostEvent`
+        """
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_left_down_pegboard(self, evt: _gl.GLEvent) -> None:
+        """Handle the left down peg board event.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
+        if self._obj_handler is not None:
+            position = evt.GetPosition()
+            self._obj_handler.capture_position(position)
+            self.editor_pegboard.editor.grabMouse()
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_left_up_pegboard(self, evt: _gl.GLEvent) -> None:
+        """Handle the left up peg board event.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
+        if self._obj_handler is not None:
+            self._obj_handler.release_capture()
+
+            if self._obj_handler.is_finalized:
+                self._obj_handler = None
+
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_left_dclick_pegboard(self, evt: _gl.GLEvent) -> None:
+        """Handle the left dclick peg board event.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_right_down_pegboard(self, evt: _gl.GLEvent) -> None:
+        """Handle the right down peg board event.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_right_up_pegboard(self, evt: _gl.GLEvent) -> None:
+        """Handle the right up peg board event.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_right_dclick_pegboard(self, evt: _gl.GLEvent) -> None:
+        """Handle the right dclick peg board event.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_middle_down_pegboard(self, evt: _gl.GLEvent) -> None:
+        """Handle the middle down peg board event.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_middle_up_pegboard(self, evt: _gl.GLEvent) -> None:
+        """Handle the middle up peg board event.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_middle_dclick_pegboard(self, evt: _gl.GLEvent) -> None:
+        """Handle the middle dclick peg board event.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_aux1_down_pegboard(self, evt: _gl.GLEvent) -> None:
+        """Handle the aux 1 down peg board event.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_aux1_up_pegboard(self, evt: _gl.GLEvent) -> None:
+        """Handle the aux 1 up peg board event.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_aux1_dclick_pegboard(self, evt: _gl.GLEvent) -> None:
+        """Handle the aux 1 dclick peg board event.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_aux2_down_pegboard(self, evt: _gl.GLEvent) -> None:
+        """Handle the aux 2 down peg board event.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_aux2_up_pegboard(self, evt: _gl.GLEvent) -> None:
+        """Handle the aux 2 up peg board event.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
+    def _on_aux2_dclick_pegboard(self, evt: _gl.GLEvent) -> None:
+        """Handle the aux 2 dclick peg board event.
+
+        :param evt: Event object.
+        :type evt: :class:`_gl.GLEvent`
+        """
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+        else:
+            evt.Skip()
+
     # QDockWidget.visibilityChanged / raise_() is the Qt equivalent for
     # focus-tracking; this stub preserves the hook for future use.
     # ------------------------------------------------------------------
@@ -1833,6 +2296,8 @@ class MainFrame(QtWidgets.QMainWindow):
         widget = dock.widget() if dock is not None else None
 
         if widget is self.editor2d.editor:
+            pass
+        elif widget is self.editor_pegboard.editor:
             pass
         elif widget is self.editor3d.editor:
             pass
@@ -1858,6 +2323,7 @@ class MainFrame(QtWidgets.QMainWindow):
         self._clone_obj = obj
         self.editor3d.set_clone_obj(obj)
         self.editor2d.set_clone_obj(obj)
+        self.editor_pegboard.set_clone_obj(obj)
 
     def get_clone_obj(self):
         """Return the clone obj.
@@ -1893,6 +2359,19 @@ class MainFrame(QtWidgets.QMainWindow):
         """
         self.editor2d.add_object(obj)
         self.editor3d.add_object(obj)
+        self.editor_pegboard.add_object(obj)
+
+        # Phase 1 peg board render is a bulk rebuild, not an incremental
+        # diff -- re-derive the full static anchor list every time any
+        # object is added anywhere in the app. Project loading adds
+        # objects one at a time, so this fires repeatedly during a project
+        # load and converges to a complete anchor list once loading
+        # finishes. Guard against ``self.project`` here specifically --
+        # that property's getter blocks and prompts a project-open dialog
+        # when no project is open yet, so the backing ``self._project``
+        # field is checked instead.
+        if self._project is not None:
+            self.editor_pegboard.load_project(self._project)
 
     def remove_object(self, obj):
         """Remove the object.
@@ -1904,6 +2383,12 @@ class MainFrame(QtWidgets.QMainWindow):
         """
         self.editor2d.remove_object(obj)
         self.editor3d.remove_object(obj)
+        self.editor_pegboard.remove_object(obj)
+
+        # See add_object() above -- same bulk-rebuild rationale and same
+        # self._project (not self.project) guard.
+        if self._project is not None:
+            self.editor_pegboard.load_project(self._project)
 
     def _set_selected(self, obj: "_objects.ObjectBase"):
         """Set the selected.
@@ -1916,7 +2401,29 @@ class MainFrame(QtWidgets.QMainWindow):
         self._selected_obj = obj
         self.editor3d.set_selected(obj)
         self.editor2d.set_selected(obj)
+        self.editor_pegboard.set_selected(obj)
         _app.CallLater(self.editor_obj.set_selected, obj)
+
+        if obj is None:
+            return
+
+        # Bring the newly selected object into view in any editor where
+        # it isn't already visible -- pan/zoom only when off-screen, so
+        # clicking something already in view doesn't jerk the camera
+        # around. 3D pans only (keeps current zoom, per user preference);
+        # 2D has no equivalent "pan only" primitive yet so it reuses its
+        # existing zoom_to_fit; the peg board's own center_on_object is
+        # pan-only, matching 3D.
+        if obj.obj3d is not None and not obj.is_in_3dview:
+            self.editor3d.camera.CenterOn(obj.obj3d.position)
+
+        if obj.obj2d is not None and not obj.is_in_2dview:
+            # Editor2D (unlike Editor3D) has no .camera of its own --
+            # go through .editor (the Canvas2D panel), which does.
+            self.editor2d.editor.camera.zoom_to_fit([obj])
+
+        if not obj.is_in_pegboardview:
+            self.editor_pegboard.editor.center_on_object(obj)
 
     def set_selected(self, obj: "_objects.ObjectBase"):  # NOQA
         """Set the selected.

@@ -201,6 +201,74 @@ class Camera2D:
 
         return _point.Point(int(screen_x), int(screen_y))
 
+    @property
+    def objects_in_view(self) -> list:
+        """Objects (``ObjectBase`` wrappers) currently visible in the
+        viewport rectangle.
+
+        Backs ``ObjectBase.is_in_2dview``/``is_in_pegboardview`` (``self in
+        editorX.camera.objects_in_view``) -- previously ``is_in_2dview``
+        referenced this attribute before it existed, so any access raised
+        ``AttributeError``. ``Camera2D`` is reused unchanged by both the 2D
+        schematic canvas and the peg board canvas (deliberately not
+        subclassed per Phase 1 of the peg board editor), and those two
+        canvases hold their scene contents in different shapes -- real
+        ``ObjectBase`` wrappers with ``obj2d.get_bounds()`` for the
+        schematic canvas, ``PegboardAnchor`` (``.obj``/``.x``/``.z``) for
+        the peg board -- so this duck-types on which shape ``self.canvas``
+        actually exposes rather than assuming one. Computed fresh on each
+        access (no per-frame cache, unlike the 3D camera's
+        GPU-culling-backed ``objects_in_view`` -- a 2D bounds/point test is
+        cheap enough not to need one), using the exact same
+        ``distance / 1000.0`` world-per-pixel convention as
+        :meth:`screen_to_world`/:meth:`zoom_to_fit`.
+
+        :returns: Objects currently visible in the viewport.
+        :rtype: list
+        """
+        size = self.canvas.size
+        if size is None:
+            return []
+
+        width, height = size
+        world_per_pixel = self._distance / 1000.0
+        half_width = (width / 2.0) * world_per_pixel
+        half_height = (height / 2.0) * world_per_pixel
+
+        left = self._focal_position.x - half_width
+        right = self._focal_position.x + half_width
+        bottom = self._focal_position.y - half_height
+        top = self._focal_position.y + half_height
+
+        result = []
+
+        # 2D schematic canvas: real ObjectBase wrappers, bounds via obj2d.
+        if hasattr(self.canvas, 'objects'):
+            for obj in self.canvas.objects:
+                if not hasattr(obj, 'obj2d') or not hasattr(obj.obj2d, 'get_bounds'):
+                    continue
+
+                bounds = obj.obj2d.get_bounds()
+                if bounds is None:
+                    continue
+
+                min_x, min_y, max_x, max_y = bounds
+                if max_x < left or min_x > right or max_y < bottom or min_y > top:
+                    continue
+
+                result.append(obj)
+
+            return result
+
+        # Peg board canvas: PegboardAnchor point-containment (x/z world position).
+        anchors = getattr(self.canvas, '_anchors', None)
+        if anchors:
+            for anchor in anchors:
+                if left <= anchor.x <= right and bottom <= anchor.z <= top:
+                    result.append(anchor.obj)
+
+        return result
+
     def Reset(self, *_, **__):
         """Reset camera to origin with default distance"""
         with self._focal_position:

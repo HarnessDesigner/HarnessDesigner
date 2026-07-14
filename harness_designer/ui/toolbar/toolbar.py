@@ -12,6 +12,7 @@ from ... import image as _image
 from ...objects import note as _note
 from . import float_spin_button as _fsb
 from . import snap_angle_button as _sab
+from . import pegboard_snap_button as _psb
 from ... import config as _config
 from ...objects import project_model as _project_model
 from ...objects import bundle as _bundle
@@ -1048,6 +1049,82 @@ class Setting3DToolbar(QtWidgets.QToolBar):
         self.show_obb.setIcon(icn)
 
         self.mainframe.editor3d.Refresh()
+
+    def Refresh(self, *_, **__):
+        """Repaint the toolbar."""
+        self.repaint()
+
+    def Destroy(self):
+        """Schedule the toolbar for deletion."""
+        self.deleteLater()
+
+
+# ---------------------------------------------------------------------------
+# PegBoardToolbar
+# ---------------------------------------------------------------------------
+
+class PegBoardToolbar(QtWidgets.QToolBar):
+    """
+    Peg Board Editor interaction toolbar.
+
+    Structural mirror of :class:`Setting3DToolbar` -- a small, focused,
+    always-visible toolbar dedicated to one editor's settings. Holds only
+    the grid-snap toggle for now (see
+    :class:`harness_designer.ui.toolbar.pegboard_snap_button.PegboardSnapButton`).
+
+    A new toolbar (rather than folding this button into an existing one)
+    because none of the existing toolbars share this button's theme:
+    ``EditorObjectToolbar`` is specifically about 3D object transforms
+    (rotate/scale/move), ``Setting3DToolbar`` is specifically about the 3D
+    viewport's debug/display toggles, and ``GeneralToolbar`` is app-level
+    dialogs (settings/tools/BOM/etc.), not per-viewport interaction state.
+    Still follows this codebase's "toolbars are global, not per-editor-
+    focus" convention -- constructed unconditionally in ``mainframe.py``
+    alongside the others, regardless of which editor dock has focus.
+    """
+
+    def __init__(self, mainframe: "_mainframe.MainFrame"):
+        """Initialise the :class:`PegBoardToolbar` instance.
+
+        :param mainframe: Main application frame.
+        :type mainframe: :class:`_mainframe.MainFrame`
+        """
+        self.mainframe = mainframe
+
+        super().__init__('Peg Board', mainframe)
+        self.setObjectName('pegboard_toolbar')
+        self.setMovable(True)
+        self.setFloatable(True)
+        self.setIconSize(QtCore.QSize(32, 32))
+
+        # Grid snap: left click toggles (checkbox overlay shows the state),
+        # right click opens the manual-spacing popup. Always enabled -- it
+        # is a mode setting, not an object property.
+        grid_config = _config.Config.editor_pegboard.grid
+
+        icons = _image.icons
+        self.pegboard_snap = _psb.PegboardSnapButton(
+            self, 'Grid Snap',
+            _make_icon(icons.mip_mapping + icons.checkbox),
+            _make_icon(icons.mip_mapping + icons.uncheckbox))
+
+        self.pegboard_snap.SetManualSpacing(grid_config.manual_snap_spacing)
+        self.pegboard_snap.SetSnapEnabled(grid_config.snap)
+
+        self.pegboard_snap.snapEnabledChanged.connect(self._on_snap_enabled)
+        self.pegboard_snap.manualSpacingChanged.connect(self._on_manual_spacing)
+        self.addWidget(self.pegboard_snap)
+
+        mainframe.addToolBar(QtCore.Qt.ToolBarArea.TopToolBarArea, self)
+
+    @staticmethod
+    def _on_snap_enabled(enabled: bool) -> None:
+        _config.Config.editor_pegboard.grid.snap = bool(enabled)
+
+    @staticmethod
+    def _on_manual_spacing(value) -> None:
+        _config.Config.editor_pegboard.grid.manual_snap_spacing = (
+            None if value is None else float(value))
 
     def Refresh(self, *_, **__):
         """Repaint the toolbar."""

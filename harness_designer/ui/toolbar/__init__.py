@@ -8,6 +8,7 @@ Setting3DToolbar = _toolbar.Setting3DToolbar
 NoteToolbar = _toolbar.NoteToolbar
 EditorToolbar = _toolbar.EditorToolbar
 EditorObjectToolbar = _toolbar.EditorObjectToolbar
+PegBoardToolbar = _toolbar.PegBoardToolbar
 
 ID_BUNDLE_COVER = _toolbar.ID_BUNDLE_COVER
 ID_CIRCLE = _toolbar.ID_CIRCLE

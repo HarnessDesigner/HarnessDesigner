@@ -154,6 +154,10 @@ class ObjectBase:
         return self in self.mainframe.editor2d.camera.objects_in_view
 
     @property
+    def is_in_pegboardview(self) -> bool:
+        return self in self.mainframe.editor_pegboard.editor.camera.objects_in_view
+
+    @property
     def is_boot(self) -> bool:
         from . import boot as _boot
 

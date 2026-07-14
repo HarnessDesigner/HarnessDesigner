@@ -3,12 +3,11 @@
 from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import QApplication
-from PySide6.QtCore import Qt
 from PySide6 import QtWidgets
 
 from ... import config as _config
 from ...gl import canvas3d as _canvas3d
-
+from .. import dock_base as _dock_base
 
 if TYPE_CHECKING:
     from .. import mainframe as _mainframe
@@ -18,134 +17,114 @@ if TYPE_CHECKING:
 Config = _config.Config.editor3d
 
 
-class Editor3D:
-    """Represent an editor 3D in :mod:`harness_designer.ui.editor_3d.editor3d`.
-
-    UNKNOWN details are inferred from the class name and surrounding code.
+class Editor3D(_dock_base.DockBase):
+    """
+    Represent an editor 3D in :mod:`harness_designer.ui.editor_3d.editor3d`.
     """
 
     def __init__(self, mainframe: "_mainframe.MainFrame"):
-        """Initialise the :class:`Editor3D` instance.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Initialise the :class:`Editor3D` instance.
 
         :param mainframe: Main application frame.
         :type mainframe: :class:`_mainframe.MainFrame`
         """
 
-        self.editor = Editor3DPanel(mainframe)
-        self.mainframe = mainframe
+        self._ui_obj = Editor3DPanel(mainframe)
 
-        mainframe._make_dock(
-            title='3D Editor',
-            name='editor_3d',
-            widget=self.editor,
-            area=Qt.DockWidgetArea.AllDockWidgetAreas,  # centre pane — set as central widget directly
-        )
+        super().__init__(mainframe, '3D Editor', 'editor_3d',
+                         features=QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetMovable |
+                                  QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetFloatable)
 
     @property
     def context(self):
-        """Return the context.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Return the context.
 
         :returns: Property value. UNKNOWN details.
         :rtype: UNKNOWN
         """
-        return self.editor.context
+
+        return self._ui_obj.context
 
     @property
     def camera(self) -> "_camera.Camera":
-        """Return the camera.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Return the camera.
 
         :returns: Camera instance
         :rtype: :class:`harness_designer.gl.canvas3d.camera.Camera`
         """
-        return self.editor.camera
+
+        return self._ui_obj.camera
 
     @property
     def config(self) -> _config.Config.editor3d:
-        """Return the config.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Return the config.
 
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_config.Config.editor3d`
         """
-        return self.editor.config
+
+        return self._ui_obj.config
 
     def set_selected(self, obj):
-        """Set the selected.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Set the selected.
 
         :param obj: Object instance to operate on.
         :type obj: UNKNOWN
         """
-        self.editor.set_selected(obj)
+
+        self._ui_obj.set_selected(obj)
 
     def add_object(self, obj):
-        """Add an object.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Add an object.
 
         :param obj: Object instance to operate on.
         :type obj: UNKNOWN
         """
-        self.editor.add_object(obj)
+
+        self._ui_obj.add_object(obj)
 
     def remove_object(self, obj):
-        """Remove the object.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Remove the object.
 
         :param obj: Object instance to operate on.
         :type obj: UNKNOWN
         """
-        self.editor.remove_object(obj)
 
-    def Refresh(self, *_, **__):
-        """Execute the refresh operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param args: Additional positional arguments.
-        :type args: UNKNOWN
-        :param kwargs: Additional keyword arguments.
-        :type kwargs: UNKNOWN
-        """
-        self.editor.Refresh()
-
-    def Destroy(self):
-        """Execute the destroy operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        self.editor.deleteLater()
+        self._ui_obj.remove_object(obj)
 
     def bind(self, signal_name, handler):
-        """Execute the bind operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Execute the bind operation.
 
         :param signal_name: Value for ``signal_name``.
         :type signal_name: UNKNOWN
+
         :param handler: Value for ``handler``.
         :type handler: UNKNOWN
         """
-        self.editor.bind(signal_name, handler)
+
+        self._ui_obj.bind(signal_name, handler)
 
     def set_clone_obj(self, obj):
-        """Set the clone obj.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Set the clone obj.
 
         :param obj: Object instance to operate on.
         :type obj: UNKNOWN
         """
-        self.editor.set_clone_obj(obj)
+
+        self._ui_obj.set_clone_obj(obj)
+
+    @property
+    def editor(self) -> "Editor3DPanel":
+        return self._ui_obj
 
 
 class Editor3DPanel(_canvas3d.Canvas3D):
@@ -162,6 +141,7 @@ class Editor3DPanel(_canvas3d.Canvas3D):
         :param parent: Parent object.
         :type parent: :class:`_mainframe.MainFrame`
         """
+
         if not Config.virtual_canvas.width or not Config.virtual_canvas.height:
             max_x = 0
             max_y = 0

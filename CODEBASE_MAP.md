@@ -159,13 +159,20 @@ Contents/structure of the `harness_designer/` package.
   - pjt_wire_marker
   - pjt_wire_service_loop
   - pjt_wire_layout
-  - pjt_bundle
+  - pjt_bundle (`length_mm`/`length_m` properties added — mirrors `pjt_wire`'s, via `geometry.line.Line.length()`)
   - pjt_bundle_layout
   - pjt_concentric*
   - pjt_point2d
   - pjt_point3d
   - pjt_circuit
   - pjt_note
+  - pjt_pegboard_point / pjt_pegboard_waypoint / pjt_pegboard_table: Peg Board Editor's own layout
+    tables — `pjt_pegboard_points`/`pjt_pegboard_tables` are thin overlays keyed by an existing
+    `point3d_id` (same "second independent coordinate system" pattern `pjt_housing`/`pjt_terminal`
+    use for `point3d_id`+`point2d_id`); `pjt_pegboard_waypoints` are bend points with no 3D
+    counterpart at all, ordered per `bundle_id` by `sequence`. All three are looked up directly by
+    `gl/canvas_pegboard/` — deliberately NOT added as mixins on existing part-type classes (isolated,
+    zero-blast-radius design choice for this feature)
   - pjt_bases.py (~1100 lines): base class
   - `project.py`: project table
   - `cleanup.py`
@@ -282,10 +289,98 @@ Contents/structure of the `harness_designer/` package.
 - `canvas2d/`: 
   - camera 
   - canvas.py + canvas2d.py
-  - grid
+  - `grid.py`: `Grid` — procedural top-down dot grid, shared unchanged by both
+    `canvas2d` and `canvas_pegboard` (both editors just call `set(flag)`/
+    `render(zoom)`). Draws one small quad sized to exactly cover the current
+    viewport every frame; the fragment shader (`gl/shaders/grid2d.py`, real
+    now, no longer dead code) computes every dot procedurally from world
+    position with no CPU-side per-dot precompute at all — replaced an earlier
+    CPU-generated-VBO-of-dot-positions approach (Decimal-heavy nested Python
+    loop building up to ~650k points into a background thread) that turned
+    out to have a latent GL-context-timing bug (VBO upload not wrapped in
+    `canvas.context`, so `glGenBuffers`/`glBufferData` could silently produce
+    invalid buffers with no Python exception if the context wasn't current
+    by the time the deferred callback fired). Adaptive spacing snaps to a
+    "nice" 1/5 × 10^n tick sequence (`nice_value()`/`nice_index_for()`
+    module functions, mirrored by hand in the GLSL — every group of 2
+    sequence indices covers one decade) targeting
+    `distance / Config.editor2d.grid.zoom_ratio` (same field on
+    `Config.editor_pegboard.grid`) as the raw spacing to snap. A 3-per-decade
+    1/2/5 sequence was tried first but rejected — its 2→5 step is a 2.5x
+    ratio, not an integer, so minor-tier dots didn't land on every
+    major-tier dot. 1/5 alternates integer ×5/×2 steps, so every major dot
+    is guaranteed to also be a minor dot (full nesting) at the cost of one
+    fewer step per zoom decade. Same formula evaluated per-pixel in the
+    shader and once on the CPU (`Grid._current_major_spacing`) to keep
+    `grid_spacing` (read by
+    `Canvas.snap_to_grid`) correct.
   - dragging
   - key_handler.py / mouse_handler.py
   - object_picker
+  - ⚠ `key_handler.py`'s `KeyHandler` is dead/unreachable code: never
+    instantiated by `canvas.py` (only `MouseHandler2D` is), doesn't
+    inherit `QObject` (so `installEventFilter()` would raise `TypeError`
+    if it were ever constructed), reads `config.rotate`/`pan_tilt`/
+    `truck_pedestal`/`walk`/`keyboard_settings` which don't exist on
+    `Config.editor2d` (that's the 3D camera's config shape), and its
+    `_key_loop` fires repeat ticks via `QTimer.singleShot()` from a plain
+    `threading.Thread` with no Qt event loop, which never fires. Found
+    while building `canvas_pegboard/` (below); not fixed here since
+    canvas2d/ is out of scope for that task.
+  - ⚠ `mouse_handler.py`'s `_show_canvas_context_menu` (right-click on a
+    selected object) calls `self.canvas.grid_enabled`/`set_snap_to_grid`/
+    `set_grid`/`self.canvas.camera.reset()` — none of which exist on
+    `canvas.py`'s `Canvas` or `camera.py`'s `Camera2D` (the real
+    attributes are `config.grid.enabled`/`set_grid_snap`/
+    `set_grid_display`/`camera.Reset()`). Same discovery, same
+    out-of-scope non-fix.
+- `canvas_pegboard/`: Peg Board Editor canvas — Phase 1 complete (static top-down
+  read-only render; no drag/selection yet). Mirrors `canvas2d/`'s file layout and
+  reuses `canvas2d.camera.Camera2D` and `canvas2d.grid.Grid` directly (both are
+  canvas-agnostic, just duck-type against `.config`/`.context`/`.Refresh()`)
+  instead of copying them. `key_handler.py`/`mouse_handler.py` are NOT straight
+  ports of `canvas2d`'s (see the ⚠ notes above) — they're wired to
+  `Config.editor_pegboard`'s actual fields, `KeyHandler` inherits `QObject`, and
+  its repeat loop dispatches via `app.CallAfter` (not `QTimer.singleShot` from a
+  bare thread) so held-key pan/zoom/reset are genuinely functional, verified
+  with real `QTest` mouse/keyboard events. Mouse-driven object picking/dragging
+  is still a `TODO` (no peg-board scene-object/selection model exists yet).
+  - `flatten.py`: derives the "lay it flat" rotation for a placed part purely
+    from its own stored (unrotated) local OBB + `Model3D.forward_up`
+    (`[forward_face_idx, up_face_idx]`) — deliberately ignores the part's
+    current 3D-scene rotation (a harness is pulled off the vehicle and laid
+    flat on a table, so its as-mounted angle is irrelevant). Falls back to the
+    smallest-OBB-extent axis when `forward_up` was never set; transitions (no
+    `Model3D` at all) use a dedicated function hard-coding local axis Z as
+    "up", since `objects.objects3d.transition._build_model` confines every
+    branch to the local XY plane by construction.
+  - `layout_graph.py`: `PegboardAnchor` + `build_anchors(project)` — walks
+    housings/splices/transitions/bare terminals (`cavity_id is None`) with a
+    live 3D scene object, computing each one's default peg-board position as
+    the (X, Z) projection of its real 3D position (no persistence yet — that's
+    Phase 3). Splices (no single `position3d`, only start/stop) use the
+    start/stop midpoint as a deliberate Phase-1 simplification.
+  - `strand_mesh.py`: `build_strand_quad()` — flat rectangle "strand" mesh
+    builder for bundles. Written but NOT wired into rendering yet (bundle
+    strands + bare-wire visibility filtering are Phase 2).
+  - `canvas.py`'s `_render_objects()` reuses each anchor's EXISTING
+    `obj3d._vbo`/material/scale (no new upload, same shared VBO/arena the 3D
+    editor draws from) under the schematic2d shader
+    (`gl/shaders/schematic2d.py` — previously dead code, now actually compiled
+    via `gl.shaders.compile_schematic2d_program()` and exercised for the first
+    time), replicating `objects.objects3d.base3d.Base3D._render_geometry`'s
+    exact uniform-setting contract (`objectPosition`/`objectRotation`/
+    `objectScale`/`normalMode`, `GLMaterial.set()` reused as-is) plus the
+    shader's own once-per-frame uniforms (`projection`/`view`/`flipY`/
+    `cameraPos2D`/`lightColor`/`lightIntensity`/`renderMode`).
+  - `Canvas.load_project(project)` rebuilds the full anchor list from scratch
+    (safe to call repeatedly) — `ui/mainframe.py`'s `add_object`/`remove_object`
+    fan-out calls it on every project object add/remove (guarded on
+    `self._project`, NOT the `self.project` property, since that property's
+    getter blocks on a project-open dialog when none is open yet), so it
+    converges to a complete render as a project loads. This is an accepted
+    O(n) full-rebuild-per-object Phase-1 simplification, not an oversight —
+    incremental add/remove is later-phase work.
 - `canvas3d/`: same as `canvas2d` (canvas.py + canvas3d.py, key_handler.py/mouse_handler.py) plus
   - arcball (dormant — replaced by rotation_rings; pending decision to expose as option or remove)
   - axis_overlay
@@ -301,7 +396,9 @@ Contents/structure of the `harness_designer/` package.
   - edges
   - vertices
   - floor
-  - grid2d
+  - `grid2d`: procedural top-down dot-grid shader (see `gl/canvas2d/grid.py`)
+    — single quad, all detail computed per-pixel from world position, same
+    technique `floor.py` uses for the 3D floor grid
   - schematic2d
 - `materials/`:
   - material 
@@ -316,6 +413,15 @@ Contents/structure of the `harness_designer/` package.
 ## `ui/`
 - `mainframe.py` (~2000 lines): main window, docking, ties everything together
 - `editor_2d/editor2d.py`, `editor_3d/editor3d.py`: schematic & 3D editors
+- `editor_pegboard/editor_pegboard.py`: Peg Board Editor dock (`EditorPegBoard` +
+  `EditorPegBoardPanel(gl.canvas_pegboard.CanvasPegBoard)`) — structural mirror of
+  `editor_2d/editor2d.py`, wired into `mainframe.py` the same way (dock creation, full
+  `EVT_GL_*` signal set, closing sequence, `add_object`/`remove_object`/`set_selected`/
+  `set_clone_obj` fan-out). Unlike `editor2d`/`editor3d`, its `add_object`/`remove_object`/
+  `set_selected`/`set_clone_obj` are no-op stubs (Phase 1 has no peg-board selection/object
+  model) — real work happens through the separate `load_project(project)` method, called
+  from `mainframe.py`'s `add_object`/`remove_object` fan-out to keep the peg board's bulk
+  static render in sync as a project loads (see `gl/canvas_pegboard/` in the gl/ section).
 - `editor_assembly/`, `editor_ciruit/` (note typo "ciruit"): assembly & circuit editors (circuit has `editor_circuit.py`, `editor_widget.py`, `design_rules.py`, `bitmaps.py`)
 - `editor_db/`: parts-database editor
   - `base.py` (~1100 lines) + one file per part type
@@ -385,11 +491,28 @@ Contents/structure of the `harness_designer/` package.
   - window
   - help
 - `toolbar/`: 
-  - toolbar.py
+  - toolbar.py — `GeneralToolbar`, `EditorToolbar`, `NoteToolbar`, `EditorObjectToolbar`,
+    `Setting3DToolbar`, `PegBoardToolbar`; all constructed unconditionally in
+    `mainframe.py` regardless of which editor dock has focus (existing convention:
+    toolbars are global, not per-editor-focus)
   - float_spin_button.py
   - snap_angle_button.py (rotation-snap toggle: left click = enable/disable with 
     checkbox icon overlay, right click = AutoCompleteComboBox popup of the 71 
     valid snap angles; writes Config.editor3d.rotation_rings)
+  - pegboard_snap_button.py (`PegboardSnapButton` — Peg Board grid-snap toggle,
+    same left/right-click shape as `snap_angle_button.py`: left click =
+    enable/disable with checkbox icon overlay (icon: `icons.mip_mapping`, the
+    only checkerboard/grid-like icon asset available — no dedicated grid icon
+    exists), right click = popup with an "Auto" QCheckBox + QDoubleSpinBox
+    (no enumerable fixed-value set like snap angle has, so no
+    AutoCompleteComboBox). Writes `Config.editor_pegboard.grid.snap` /
+    `.manual_snap_spacing` (`None` = Auto, float = fixed override); registered
+    via new `toolbar.PegBoardToolbar`, since none of the other toolbars share
+    this button's theme (`EditorObjectToolbar` = 3D transforms,
+    `Setting3DToolbar` = 3D viewport display toggles, `GeneralToolbar` =
+    app-level dialogs). `gl/canvas_pegboard/canvas.py`'s `Canvas.snap_to_grid()`
+    was changed to check `config.grid.manual_snap_spacing` first, falling back
+    to `self._grid.grid_spacing` (the live LOD tier) when it's `None`.
 - `log_viewer/viewer.py`
 - `datasheet_viewer/viewer.py`
 - `web_viewer/` (empty)

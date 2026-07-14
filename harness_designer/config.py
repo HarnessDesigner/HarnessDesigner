@@ -570,6 +570,14 @@ class Config(metaclass=ConfigDB):
             enabled = True
             size = 8000
             snap = False
+            # Target ratio of camera distance to the displayed grid spacing
+            # (e.g. 10 means "aim for dots roughly distance/10 apart"). The
+            # raw target is snapped to the nearest "nice" 1/2/5 x 10^n value
+            # (the standard tick-spacing scheme used by most CAD/graphing
+            # tools), so displayed spacing is always a round number and
+            # steps in gentle ~2-2.5x increments as you zoom, not a single
+            # large jump.
+            zoom_ratio = 10.0
 
         class zoom(metaclass=ConfigDB):
             """2D editor zoom control bindings."""
@@ -596,6 +604,62 @@ class Config(metaclass=ConfigDB):
             """Export or render canvas size for the 2D editor."""
             width = 3840
             height = 2160
+
+    class editor_pegboard(metaclass=ConfigDB):
+        """Peg board editor interaction and canvas settings."""
+
+        class virtual_canvas(metaclass=ConfigDB):
+            """Virtual canvas size for peg board editing."""
+            width = 1920
+            height = 1080
+
+        class grid(metaclass=ConfigDB):
+            """Grid display and snapping settings for the peg board editor."""
+            enabled = True
+            size = 8000
+            snap = False
+            # See Config.editor2d.grid's matching field -- gl.canvas2d.grid.Grid
+            # is shared code, reused unchanged by the peg board canvas.
+            zoom_ratio = 10.0
+            # Manual snap-spacing override (world units, mm). None means
+            # "auto" -- snap to whatever Grid.grid_spacing currently is
+            # (the live LOD tier). Set via the peg board toolbar's
+            # snap-to-grid button's right-click popup.
+            manual_snap_spacing = None
+
+        class zoom(metaclass=ConfigDB):
+            """Peg board editor zoom control bindings."""
+            mouse = MOUSE_WHEEL  # | MOUSE_REVERSE_WHEEL_AXIS
+            in_key = 43
+            out_key = 45
+            sensitivity = 5.0
+
+        class pan(metaclass=ConfigDB):
+            """Peg board editor pan control bindings."""
+            mouse = MOUSE_LEFT
+            up_key = 16777235
+            down_key = 16777237
+            left_key = 16777234
+            right_key = 16777236
+            sensitivity = 0.4
+
+        class reset(metaclass=ConfigDB):
+            """Peg board editor reset-view bindings."""
+            key = 16777232
+            mouse = MOUSE_NONE
+
+        class canvas(metaclass=ConfigDB):
+            """Export or render canvas size for the peg board editor."""
+            width = 3840
+            height = 2160
+
+        class table(metaclass=ConfigDB):
+            """Excel-like wire-table overlay settings."""
+            default_width = 200.0    # world units
+            default_height = 120.0   # world units
+            base_font_size = 10.0    # world units, scaled by zoom at render time
+            min_font_px = 6
+            max_font_px = 48
 
     class editor3d(metaclass=ConfigDB):
         """3D editor rendering and navigation settings."""
@@ -916,6 +980,8 @@ class Config(metaclass=ConfigDB):
         theme = 'Dark'
         position = ()
         size = ()
+
+        tab_location = 2
 
         ui_perspective = (
             'layout2'

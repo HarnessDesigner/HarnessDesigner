@@ -3,10 +3,10 @@
 from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import QApplication
-from PySide6 import QtWidgets
 
 from ...gl import canvas2d as _canvas2d
 from ... import config as _config
+from .. import dock_base as _dock_base
 
 
 if TYPE_CHECKING:
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 Config = _config.Config.editor2d
 
 
-class Editor2D:
+class Editor2D(_dock_base.DockBase):
     """Represent an editor 2D in :mod:`harness_designer.ui.editor_2d.editor2d`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -31,31 +31,12 @@ class Editor2D:
         :type mainframe: :class:`_mainframe.MainFrame`
         """
 
-        self.editor = Editor2DPanel(mainframe)
-        self.mainframe = mainframe
+        self._ui_obj = Editor2DPanel(mainframe)
+        super().__init__(mainframe, 'Schematic Editor', 'editor_2d')
 
-        dock = mainframe._make_dock(
-            title='Schematic Editor',
-            name='editor_2d',
-            widget=self.editor,
-            area=None,  # Right area; _make_dock uses Qt.RightDockWidgetArea by default
-        )
-        self._dock = dock
-        dock.show()
-
-    def Show(self, show=True):
-        """Execute the show operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param show: Value for ``show``.
-        :type show: UNKNOWN
-        """
-        if show:
-            self._dock.show()
-            self._dock.raise_()
-        else:
-            self._dock.hide()
+    @property
+    def editor(self) -> "Editor2DPanel":
+        return self._ui_obj
 
     def set_selected(self, obj):
         """Set the selected.
@@ -65,7 +46,7 @@ class Editor2D:
         :param obj: Object instance to operate on.
         :type obj: UNKNOWN
         """
-        self.editor.set_selected(obj)
+        self._ui_obj.set_selected(obj)
 
     def add_object(self, obj):
         """Add an object.
@@ -75,7 +56,7 @@ class Editor2D:
         :param obj: Object instance to operate on.
         :type obj: UNKNOWN
         """
-        self.editor.add_object(obj)
+        self._ui_obj.add_object(obj)
 
     def remove_object(self, obj):
         """Remove the object.
@@ -85,26 +66,7 @@ class Editor2D:
         :param obj: Object instance to operate on.
         :type obj: UNKNOWN
         """
-        self.editor.remove_object(obj)
-
-    def Refresh(self, *args, **kwargs):
-        """Execute the refresh operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param args: Additional positional arguments.
-        :type args: UNKNOWN
-        :param kwargs: Additional keyword arguments.
-        :type kwargs: UNKNOWN
-        """
-        self.editor.update()
-
-    def Destroy(self):
-        """Execute the destroy operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        self.editor.deleteLater()
+        self._ui_obj.remove_object(obj)
 
     def bind(self, signal_name, handler):
         """Execute the bind operation.
@@ -116,7 +78,7 @@ class Editor2D:
         :param handler: Value for ``handler``.
         :type handler: UNKNOWN
         """
-        self.editor.bind(signal_name, handler)
+        self._ui_obj.bind(signal_name, handler)
 
     def set_clone_obj(self, obj):
         """Set the clone obj.
@@ -126,7 +88,7 @@ class Editor2D:
         :param obj: Object instance to operate on.
         :type obj: UNKNOWN
         """
-        self.editor.set_clone_obj(obj)
+        self._ui_obj.set_clone_obj(obj)
 
 
 class Editor2DPanel(_canvas2d.Canvas2D):

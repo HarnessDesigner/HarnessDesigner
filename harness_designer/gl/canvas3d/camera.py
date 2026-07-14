@@ -991,6 +991,30 @@ class Camera:
         self._send_event(_events.EVT_GL_CAMERA_TRUCKPEDISTAL)
 
     @_debug.logfunc
+    def CenterOn(self, world_position: _point.Point) -> None:
+        """
+        Recenter the orbit pivot on *world_position* without changing
+        distance, orientation, or zoom -- a rigid translation of the whole
+        camera rig (position + focal_position moved by the same delta), the
+        same technique :meth:`Walk`/:meth:`TruckPedestal` use for
+        mouse-driven moves. Used to bring a selected-but-off-screen object
+        into view while disturbing the user's current zoom as little as
+        possible.
+
+        :param world_position: World-space point to bring to the focal position.
+        :type world_position: :class:`~harness_designer.geometry.point.Point`
+        """
+
+        move = world_position.as_numpy - self._focal_position.as_numpy
+
+        self._is_dirty = True
+        with self._focal_position and self._position:
+            self._focal_position += move
+            self._position += move
+
+        self._send_event(_events.EVT_GL_CAMERA_WALK)
+
+    @_debug.logfunc
     def ProjectPoint(self, point: _point.Point | np.ndarray) -> _point.Point:
         """
         Projects a 3D world coordinate to a 2D screen coordinate.

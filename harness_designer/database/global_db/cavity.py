@@ -431,21 +431,27 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
             value = self._table.select('aabb', id=self._db_id)[0][0]
 
             if value is None:
-                self._stored_aabb = None
-            else:
-                self._stored_aabb = np.array(eval(value), dtype=np.float32)
+                x, y, z = self.position3d.as_float
+                width, height, length = self.size
+                hw, hh, hl = width / 2.0, height / 2.0, length / 2.0
 
-        if self._stored_aabb is None:
-            return None
+                aabb = [[x - hw, y - hh, z - hl],
+                        [x + hw, y + hh, z + hl]]
 
-        return self._stored_aabb.copy()
+                value = str(aabb)
+
+                self._table.update(self._db_id, aabb=value)
+
+            self._stored_aabb = eval(value)
+
+        return np.array(self._stored_aabb, dtype=np.float32)
 
     @aabb.setter
     def aabb(self, value: np.ndarray):
         value = [[float(str(item)) for item in items]
                  for items in value.tolist()]
 
-        self._stored_aabb = np.array(value, dtype=np.float32)
+        self._stored_aabb = value
         self._table.update(self._db_id, aabb=str(value))
 
     _stored_obb: DefaultStoredValueType | np.ndarray | None = DefaultStoredValue
@@ -456,21 +462,29 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
             value = self._table.select('obb', id=self._db_id)[0][0]
 
             if value is None:
-                self._stored_obb = None
-            else:
-                self._stored_obb = np.array(eval(value), dtype=np.float32)
+                from ... import utils as _utils
 
-        if self._stored_obb is None:
-            return None
+                p1, p2 = self.aabb
 
-        return self._stored_obb.copy()
+                p1 = _point.Point(*p1)
+                p2 = _point.Point(*p2)
+                obb = _utils.compute_obb(p1, p2)
+
+                value = str([[float(str(item)) for item in items]
+                             for items in obb.tolist()])
+
+                self._table.update(self._db_id, obb=value)
+
+            self._stored_obb = eval(value)
+
+        return np.array(self._stored_obb, dtype=np.float32)
 
     @obb.setter
     def obb(self, value: np.ndarray):
         value = [[float(str(item)) for item in items]
                  for items in value.tolist()]
 
-        self._stored_obb = np.array(value, dtype=np.float32)
+        self._stored_obb = value
         self._table.update(self._db_id, obb=str(value))
 
     _stored_round_terminal: DefaultStoredValueType | bool = DefaultStoredValue

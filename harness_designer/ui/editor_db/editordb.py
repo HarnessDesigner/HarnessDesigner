@@ -2,8 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import QTabWidget, QWidget
-from PySide6 import QtWidgets
+from PySide6.QtWidgets import QTabWidget
 from PySide6.QtCore import Qt
 
 from . import accessory as _accessory
@@ -19,6 +18,7 @@ from . import tpa_lock as _tpa_lock
 from . import transition as _transition
 from . import wire as _wire
 from . import wire_marker as _wire_marker
+from .. import dock_base as _dock_base
 
 
 if TYPE_CHECKING:
@@ -26,8 +26,9 @@ if TYPE_CHECKING:
     from .. import mainframe as _mainframe
 
 
-class EditorDB:
-    """Wrapper that creates the dock widget and owns the EditorDBPanel.
+class EditorDB(_dock_base.DockBase):
+    """
+    Wrapper that creates the dock widget and owns the EditorDBPanel.
 
     In the wx version this subclassed aui.AuiPaneInfo and registered
     itself with the AuiManager directly. In Qt, dock management belongs
@@ -36,59 +37,22 @@ class EditorDB:
     """
 
     def __init__(self, mainframe: "_mainframe.MainFrame"):
-        """Initialise the :class:`EditorDB` instance.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Initialise the :class:`EditorDB` instance.
 
         :param mainframe: Main application frame.
         :type mainframe: :class:`_mainframe.MainFrame`
         """
-        self.mainframe = mainframe
-        self.editor = EditorDBPanel(mainframe)
 
-        # The dock widget itself is created and registered by mainframe
-        # via mainframe._make_dock('Database Editor', 'editor_db', self.editor, Bottom).
-        # EditorDB just stores the reference so callers can reach the panel.
+        self._ui_obj = EditorDBPanel(mainframe)
+        super().__init__(mainframe, 'Database Editor', 'editor_db',
+                         Qt.DockWidgetArea.BottomDockWidgetArea)
 
-        self._dock = mainframe._make_dock(
-            title='Database Editor',
-            name='editor_db',
-            widget=self.editor,
-            area=Qt.DockWidgetArea.BottomDockWidgetArea,
-        )
-        # self._dock.visibilityChanged.connect(self._on_visibility_changed)
-        self._dock.show()
+    @property
+    def editor(self) -> "EditorDBPanel":
+        return self._ui_obj
 
-    def Show(self, show=True):
-        """Execute the show operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param show: Value for ``show``.
-        :type show: UNKNOWN
-        """
-        self.editor.setVisible(show)
-
-    def Refresh(self, *args, **kwargs):
-        """Execute the refresh operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param args: Additional positional arguments.
-        :type args: UNKNOWN
-        :param kwargs: Additional keyword arguments.
-        :type kwargs: UNKNOWN
-        """
-        self.editor.Refresh(*args, **kwargs)
-
-    def Destroy(self):
-        """Execute the destroy operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        self.editor.deleteLater()
-
-    def load_db(self, g_db: "_global_db.GLBTables"):
+    def load_db(self, g_db: "_global_db.GLBTables") -> None:
         """Load the database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -96,10 +60,10 @@ class EditorDB:
         :param g_db: Value for ``g_db``.
         :type g_db: :class:`_global_db.GLBTables`
         """
-        self.editor.load_db(g_db)
+        self._ui_obj.load_db(g_db)
 
     @property
-    def accessories(self):
+    def accessories(self) -> _accessory.AccessoriesPage:
         """Return the accessories.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -107,10 +71,10 @@ class EditorDB:
         :returns: Property value. UNKNOWN details.
         :rtype: UNKNOWN
         """
-        return self.editor.accessories
+        return self._ui_obj.accessories
 
     @property
-    def boots(self):
+    def boots(self) -> _boot.BootsPage:
         """Return the boots.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -118,10 +82,10 @@ class EditorDB:
         :returns: Property value. UNKNOWN details.
         :rtype: UNKNOWN
         """
-        return self.editor.boots
+        return self._ui_obj.boots
 
     @property
-    def bundle_covers(self):
+    def bundle_covers(self) -> _bundle_cover.BundleCoversPage:
         """Return the bundle covers.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -129,10 +93,10 @@ class EditorDB:
         :returns: Property value. UNKNOWN details.
         :rtype: UNKNOWN
         """
-        return self.editor.bundle_covers
+        return self._ui_obj.bundle_covers
 
     @property
-    def covers(self):
+    def covers(self) -> _cover.CoversPage:
         """Return the covers.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -140,10 +104,10 @@ class EditorDB:
         :returns: Property value. UNKNOWN details.
         :rtype: UNKNOWN
         """
-        return self.editor.covers
+        return self._ui_obj.covers
 
     @property
-    def cpa_locks(self):
+    def cpa_locks(self) -> _cpa_lock.CPALocksPage:
         """Return the CPA locks.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -151,10 +115,10 @@ class EditorDB:
         :returns: Property value. UNKNOWN details.
         :rtype: UNKNOWN
         """
-        return self.editor.cpa_locks
+        return self._ui_obj.cpa_locks
 
     @property
-    def housings(self):
+    def housings(self) -> _housing.HousingsPage:
         """Return the housings.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -162,10 +126,10 @@ class EditorDB:
         :returns: Property value. UNKNOWN details.
         :rtype: UNKNOWN
         """
-        return self.editor.housings
+        return self._ui_obj.housings
 
     @property
-    def seals(self):
+    def seals(self) -> _seal.SealsPage:
         """Return the seals.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -173,10 +137,10 @@ class EditorDB:
         :returns: Property value. UNKNOWN details.
         :rtype: UNKNOWN
         """
-        return self.editor.seals
+        return self._ui_obj.seals
 
     @property
-    def splices(self):
+    def splices(self) -> _splice.SplicesPage:
         """Return the splices.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -184,10 +148,10 @@ class EditorDB:
         :returns: Property value. UNKNOWN details.
         :rtype: UNKNOWN
         """
-        return self.editor.splices
+        return self._ui_obj.splices
 
     @property
-    def terminals(self):
+    def terminals(self) -> _terminal.TerminalsPage:
         """Return the terminals.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -195,10 +159,10 @@ class EditorDB:
         :returns: Property value. UNKNOWN details.
         :rtype: UNKNOWN
         """
-        return self.editor.terminals
+        return self._ui_obj.terminals
 
     @property
-    def tpa_locks(self):
+    def tpa_locks(self) -> _tpa_lock.TPALocksPage:
         """Return the TPA locks.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -206,10 +170,10 @@ class EditorDB:
         :returns: Property value. UNKNOWN details.
         :rtype: UNKNOWN
         """
-        return self.editor.tpa_locks
+        return self._ui_obj.tpa_locks
 
     @property
-    def transitions(self):
+    def transitions(self) -> _transition.TransitionsPage:
         """Return the transitions.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -217,10 +181,10 @@ class EditorDB:
         :returns: Property value. UNKNOWN details.
         :rtype: UNKNOWN
         """
-        return self.editor.transitions
+        return self._ui_obj.transitions
 
     @property
-    def wires(self):
+    def wires(self) -> _wire.WiresPage:
         """Return the wires.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -228,10 +192,10 @@ class EditorDB:
         :returns: Property value. UNKNOWN details.
         :rtype: UNKNOWN
         """
-        return self.editor.wires
+        return self._ui_obj.wires
 
     @property
-    def wire_markers(self):
+    def wire_markers(self) -> _wire_marker.WireMarkersPage:
         """Return the wire markers.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -239,7 +203,7 @@ class EditorDB:
         :returns: Property value. UNKNOWN details.
         :rtype: UNKNOWN
         """
-        return self.editor.wire_markers
+        return self._ui_obj.wire_markers
 
 
 class EditorDBPanel(QTabWidget):
