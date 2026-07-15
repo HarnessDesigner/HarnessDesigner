@@ -28,7 +28,7 @@ class Camera2D:
     - Zoom: changes distance (closer = more zoomed in, farther = more zoomed out)
     """
 
-    def __init__(self, canvas: "_canvas.Canvas2D"):
+    def __init__(self, canvas: "_canvas.Canvas"):
         """Initialise the :class:`Camera2D` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -146,10 +146,17 @@ class Camera2D:
         # Get world position after zoom
         world_pos_after = self.screen_to_world(screen_pos)
 
-        # Adjust focal position to keep the point under cursor fixed
-
-        delta = world_pos_before - world_pos_after
-        self._focal_position += delta
+        # Adjust focal position to keep the point under cursor fixed.
+        # NOTE: intentionally NOT reusing the `delta` name here -- `delta` is
+        # annotated `float` on the function signature, and Cython statically
+        # types it as a C double from that annotation; reassigning it to a
+        # Point (as this used to do) compiles fine under plain Python
+        # (dynamic typing) but raises "must be real number, not Point" once
+        # compiled, because Cython tries to coerce the Point into the
+        # double-typed slot. Keep numeric and Point-typed values in
+        # separate variables to avoid this class of bug.
+        focal_delta = world_pos_before - world_pos_after
+        self._focal_position += focal_delta
 
     def screen_to_world(self, screen_pos: _point.Point) -> _point.Point:
         """

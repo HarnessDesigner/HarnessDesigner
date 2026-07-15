@@ -477,6 +477,7 @@ class Canvas(QOpenGLWidget):
         """Set up the top-down orthographic projection from the camera."""
         if self.size is None:
             return
+
         width, height = self.size
         if width == 0 or height == 0:
             return

@@ -91,7 +91,7 @@ def compute_flatten_quaternion(local_up_dir: np.ndarray) -> "_quaternion.Quatern
 
 def flatten_quaternion_for_model3d(
         local_obb: np.ndarray,
-        forward_up: "list[int, int] | tuple[int, int]") -> "_quaternion.Quaternion":
+        forward_up: list[int, int] | tuple[int, int]) -> "_quaternion.Quaternion":
     """Return the flatten quaternion for any Model3D-backed part (housing,
     splice, terminal, etc).
 

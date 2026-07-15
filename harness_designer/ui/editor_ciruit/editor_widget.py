@@ -1777,4 +1777,3 @@ def _find_obj(project, collection: str, db_id: int):
 
     except Exception:  # NOQA
         pass
-
