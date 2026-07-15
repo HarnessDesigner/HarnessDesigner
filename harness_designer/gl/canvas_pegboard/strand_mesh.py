@@ -26,9 +26,9 @@ _FLOATS_PER_VERTEX = 9
 
 
 def build_strand_quad(
-        p1_xz: "tuple[float, float]",
-        p2_xz: "tuple[float, float]",
-        width: float) -> "tuple[np.ndarray, int]":
+        p1_xz: tuple[float, float],
+        p2_xz: tuple[float, float],
+        width: float) -> tuple[np.ndarray, int]:
     """Build a flat rectangular strand mesh from *p1_xz* to *p2_xz*.
 
     The rectangle lies flat in the peg board XZ plane at ``y=0``, centered
