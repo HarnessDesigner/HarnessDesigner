@@ -15,7 +15,7 @@ caring that the implementation actually lives in ``canvas2d``.
 from ..canvas2d import camera as _camera2d
 
 
-Camera2D = _camera2d.Camera2D
+Camera = _camera2d.Camera
 
 
 del _camera2d

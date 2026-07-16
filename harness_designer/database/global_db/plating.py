@@ -1,9 +1,31 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import Iterable as _Iterable
+from typing import Iterable as _Iterable, TYPE_CHECKING
 
 from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import DescriptionMixin
+
+
+if TYPE_CHECKING:
+    from . import color as _color
+
+
+# Plating symbol prefix -> named-color lookup key (this same db's own
+# colors_table). Mirrors the finish colors a plated conductor/terminal
+# actually looks like under this app's material rendering (Sn/Tin,
+# Cu/Copper, ...).
+_PLATING_PREFIX_COLOR_NAMES = (
+    ('Sn', 'Tin'),
+    ('Cu', 'Copper'),
+    ('Al', 'Aluminum'),
+    ('Ti', 'Titanium'),
+    ('Zn', 'Zinc'),
+    ('Au', 'Gold'),
+    ('Ag', 'Silver'),
+    ('Ni', 'Nickel'),
+)
+
+_DEFAULT_PLATING_COLOR_NAME = 'Tin'
 
 
 class PlatingsTable(TableBase):
@@ -160,3 +182,30 @@ class Plating(EntryBase, DescriptionMixin):
 
         self._table.update(self._db_id, symbol=value)
         self._populate('symbol')
+
+    @property
+    def color_name(self) -> str:
+        """Return the ``colors_table`` lookup name that visually
+        represents this plating (e.g. ``'Sn60/Pb40'`` -> ``'Tin'``).
+
+        :returns: The matching color name, or
+            :data:`_DEFAULT_PLATING_COLOR_NAME` if :attr:`symbol` doesn't
+            start with any known prefix.
+        :rtype: str
+        """
+        symbol = self.symbol
+        for prefix, name in _PLATING_PREFIX_COLOR_NAMES:
+            if symbol.startswith(prefix):
+                return name
+
+        return _DEFAULT_PLATING_COLOR_NAME
+
+    @property
+    def color(self) -> "_color.Color":
+        """Return the actual :class:`~harness_designer.database.global_db.color.Color`
+        that visually represents this plating (see :attr:`color_name`).
+
+        :returns: Property value.
+        :rtype: :class:`~harness_designer.database.global_db.color.Color`
+        """
+        return self._table.db.colors_table[self.color_name]

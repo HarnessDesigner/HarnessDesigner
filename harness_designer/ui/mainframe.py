@@ -235,8 +235,17 @@ class MainFrame(QtWidgets.QMainWindow):
         # DockWidgetClosable (see editor_3d.py), so it can be floated out but
         # not closed.
         self.tabifyDockWidget(self.editor3d.dock, self.editor2d.dock)
-        self.tabifyDockWidget(self.editor2d.dock, self.editor_pegboard.dock)
+        self.tabifyDockWidget(self.editor3d.dock, self.editor_pegboard.dock)
         self.editor3d.dock.raise_()  # 3D editor is the initially active tab
+
+        self.setDockOptions(
+            QtWidgets.QMainWindow.DockOption.GroupedDragging |
+            QtWidgets.QMainWindow.DockOption.AnimatedDocks |
+            QtWidgets.QMainWindow.DockOption.AllowTabbedDocks |
+            QtWidgets.QMainWindow.DockOption.AllowNestedDocks)
+        # QtWidgets.QMainWindow.DockOption.VerticalTabs
+
+        self.setTabShape(QtWidgets.QTabWidget.TabShape(Config.tab_shape))
 
         # Tab bar on the right edge (vertical tabs) instead of Qt's default
         # bottom placement, for the dock area these three editors share.
@@ -246,9 +255,9 @@ class MainFrame(QtWidgets.QMainWindow):
         )
 
         self.tabifyDockWidget(self.editor_obj.dock, self.object_browser.dock)
-        self.tabifyDockWidget(self.object_browser.dock, self.editor_circuit.dock)
-        self.tabifyDockWidget(self.editor_circuit.dock, self.editor_assembly.dock)
-        self.tabifyDockWidget(self.editor_assembly.dock, self.log_viewer.dock)
+        self.tabifyDockWidget(self.editor_obj.dock, self.editor_circuit.dock)
+        self.tabifyDockWidget(self.editor_obj.dock, self.editor_assembly.dock)
+        self.tabifyDockWidget(self.editor_obj.dock, self.log_viewer.dock)
 
         self.editor3d.dock.raise_()  # 3D editor is the initially active tab
 
@@ -454,37 +463,6 @@ class MainFrame(QtWidgets.QMainWindow):
         self.progress_bar.setValue(0)
         self.status_bar.showMessage(label)
         self.progress_bar.show()
-
-    def make_dock(self, title: str, name: str, widget: QtWidgets.QWidget,
-                   area: QtCore.Qt.DockWidgetArea = None) -> QtWidgets.QDockWidget:
-        """Create and register a QDockWidget.
-
-        Parameters
-        ----------
-        title:  Human-readable pane caption (shown in the title bar).
-        name:   Stable object name used by saveState/restoreState.
-                Must be unique across all dock widgets.
-        widget: The content widget to embed in the dock.
-        area:   Qt dock area constant (Qt.LeftDockWidgetArea etc.).
-                Pass Qt.CentralWidget to set the widget as the central
-                widget instead of docking it.  Defaults to
-                Qt.RightDockWidgetArea when None.
-        """
-        if area is QtCore.Qt.DockWidgetArea.AllDockWidgetAreas:
-            # The 3D editor fills the central area — not a dockable pane
-            self.setCentralWidget(widget)
-            return None  # no QDockWidget to return
-
-        dock = QtWidgets.QDockWidget(title, self)
-        dock.setObjectName(name)   # required for saveState/restoreState
-        dock.setWindowTitle(title)
-        dock.setWidget(widget)
-
-        if area is None:
-            area = QtCore.Qt.DockWidgetArea.RightDockWidgetArea
-
-        self.addDockWidget(area, dock)
-        return dock
 
     def _center_on_screen(self):
         """Execute the center on screen operation.
@@ -2352,7 +2330,12 @@ class MainFrame(QtWidgets.QMainWindow):
     def add_object(self, obj):
         """Add an object.
 
-        UNKNOWN details are inferred from the callable name and signature.
+        Fans out to all three editors -- peg board add is now genuinely
+        incremental (``obj_pegboard`` is built once, at ``obj.__init__``
+        time, and ``editor_pegboard.add_object`` just registers it), matching
+        ``editor2d``/``editor3d`` exactly. This no longer triggers a full
+        peg-board anchor-list rebuild on every call (that used to happen via
+        an unconditional ``load_project()`` here -- removed).
 
         :param obj: Object instance to operate on.
         :type obj: UNKNOWN
@@ -2361,22 +2344,11 @@ class MainFrame(QtWidgets.QMainWindow):
         self.editor3d.add_object(obj)
         self.editor_pegboard.add_object(obj)
 
-        # Phase 1 peg board render is a bulk rebuild, not an incremental
-        # diff -- re-derive the full static anchor list every time any
-        # object is added anywhere in the app. Project loading adds
-        # objects one at a time, so this fires repeatedly during a project
-        # load and converges to a complete anchor list once loading
-        # finishes. Guard against ``self.project`` here specifically --
-        # that property's getter blocks and prompts a project-open dialog
-        # when no project is open yet, so the backing ``self._project``
-        # field is checked instead.
-        if self._project is not None:
-            self.editor_pegboard.load_project(self._project)
-
     def remove_object(self, obj):
         """Remove the object.
 
-        UNKNOWN details are inferred from the callable name and signature.
+        See :meth:`add_object` -- same incremental-fan-out shape, same
+        removed unconditional peg-board rebuild.
 
         :param obj: Object instance to operate on.
         :type obj: UNKNOWN
@@ -2384,11 +2356,6 @@ class MainFrame(QtWidgets.QMainWindow):
         self.editor2d.remove_object(obj)
         self.editor3d.remove_object(obj)
         self.editor_pegboard.remove_object(obj)
-
-        # See add_object() above -- same bulk-rebuild rationale and same
-        # self._project (not self.project) guard.
-        if self._project is not None:
-            self.editor_pegboard.load_project(self._project)
 
     def _set_selected(self, obj: "_objects.ObjectBase"):
         """Set the selected.

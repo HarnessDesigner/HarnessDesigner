@@ -2,8 +2,10 @@
 
 from . import angle3d as _angle3d
 from . import angle2d as _angle2d
+from . import angle_peg as _angle_peg
 from . import position2d as _position2d
 from . import position3d as _position3d
+from . import position_peg as _position_peg
 from . import part as _part
 from . import housing as _housing
 from . import name as _name
@@ -23,11 +25,15 @@ Angle3DControl = _angle3d.Angle3DControl
 Angle2DMixin = _angle2d.Angle2DMixin
 Angle2DControl = _angle2d.Angle2DControl
 
+AnglePegMixin = _angle_peg.AnglePegMixin
+
 Position2DMixin = _position2d.Position2DMixin
 Position2DControl = _position2d.Position2DControl
 
 Position3DMixin = _position3d.Position3DMixin
 Position3DControl = _position3d.Position3DControl
+
+PositionPegMixin = _position_peg.PositionPegMixin
 
 PartMixin = _part.PartMixin
 HousingMixin = _housing.HousingMixin
@@ -62,8 +68,10 @@ ColorControl = _color.ColorControl
 
 del _angle3d
 del _angle2d
+del _angle_peg
 del _position3d
 del _position2d
+del _position_peg
 del _part
 del _housing
 del _name

@@ -3,9 +3,11 @@
 """Schema for ``pjt_pegboard_tables``.
 
 One row per anchor that has a visible Excel-like data table overlaid on the
-peg-board view. Stores the table's geometry (in world units, not pixels)
-and its scroll/collapse state. Keyed purely by ``point3d_id``, same as
-``pjt_pegboard_points``.
+peg-board view. Stores the table's geometry (in world units, not pixels --
+``x``/``z``, matching ``pjt_points3d``'s own axis names, since this is a
+real world position with Y pinned to 0, not a generic 2D x/y pair) and its
+scroll/collapse state. Keyed purely by ``point3d_id`` -- the same identity
+key an anchor's own ``objects.objectspeg.basepeg.BasePeg.point3d_id`` uses.
 """
 
 from . import projects as _projects
@@ -30,7 +32,7 @@ pjt_table = _con.SQLTable(
                                                     on_delete=_con.REFERENCE_CASCADE,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.FloatField('x', no_null=True),
-    _con.FloatField('y', no_null=True),
+    _con.FloatField('z', no_null=True),
     _con.FloatField('width', no_null=True),
     _con.FloatField('height', no_null=True),
     _con.IntField('h_scroll', no_null=True, default='0'),

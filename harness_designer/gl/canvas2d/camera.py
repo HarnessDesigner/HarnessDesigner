@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from . import canvas as _canvas
 
 
-class Camera2D:
+class Camera:
     """
     2D Camera for orthographic schematic view
 
@@ -221,8 +221,9 @@ class Camera2D:
         subclassed per Phase 1 of the peg board editor), and those two
         canvases hold their scene contents in different shapes -- real
         ``ObjectBase`` wrappers with ``obj2d.get_bounds()`` for the
-        schematic canvas, ``PegboardAnchor`` (``.obj``/``.x``/``.z``) for
-        the peg board -- so this duck-types on which shape ``self.canvas``
+        schematic canvas, ``objects.objectspeg.basepeg.BasePeg``
+        (``.obj``/``.position.x``/``.position.y``) for the peg board -- so this duck-types on
+        which shape ``self.canvas``
         actually exposes rather than assuming one. Computed fresh on each
         access (no per-frame cache, unlike the 3D camera's
         GPU-culling-backed ``objects_in_view`` -- a 2D bounds/point test is
@@ -267,11 +268,11 @@ class Camera2D:
 
             return result
 
-        # Peg board canvas: PegboardAnchor point-containment (x/z world position).
+        # Peg board canvas: BasePeg anchor point-containment (x/z world position).
         anchors = getattr(self.canvas, '_anchors', None)
         if anchors:
             for anchor in anchors:
-                if left <= anchor.x <= right and bottom <= anchor.z <= top:
+                if left <= anchor.position.x <= right and bottom <= anchor.position.y <= top:
                     result.append(anchor.obj)
 
         return result

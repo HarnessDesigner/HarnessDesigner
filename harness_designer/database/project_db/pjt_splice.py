@@ -19,6 +19,8 @@ from ...geometry import point as _point
 from .mixins import (
     PartMixin,
     Position2DMixin, Position2DControl,
+    PositionPegMixin,
+    AnglePegMixin,
     StartStopPosition3DMixin, StartStopPosition3DControl,
     Visible3DMixin, Visible3DControl,
     Visible2DMixin, Visible2DControl,
@@ -161,6 +163,7 @@ class PJTSplicesTable(PJTTableBase):
 
 
 class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMixin,
+                PositionPegMixin, AnglePegMixin,
                 Visible3DMixin, Visible2DMixin, NameMixin, NotesMixin, SmoothMixin, Scale3DMixin):
     """Represent a PJT splice in :mod:`harness_designer.database.project_db.pjt_splice`.
 
@@ -183,6 +186,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
             'cavities': [self.part_id],
             'pjt_points3d': [self.start_position3d_id, self.stop_position3d_id, self.branch_position3d_id],
             'pjt_points2d': [self.position2d_id],
+            'pjt_points_peg': [self.position_peg_id],
         }
 
         self.merge_packet_data(self.part.build_monitor_packet(), packet)

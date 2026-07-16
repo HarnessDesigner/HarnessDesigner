@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from . import ObjectBase as _ObjectBase
 from .objects2d import bundle as _bundle_2d
 from .objects3d import bundle as _bundle_3d
+from .objectspeg import bundle as _bundle_peg
 
 
 if TYPE_CHECKING:
@@ -19,6 +20,7 @@ class Bundle(_ObjectBase):
     """
     obj2d: _bundle_2d.Bundle = None
     obj3d: _bundle_3d.Bundle = None
+    objpeg: _bundle_peg.Bundle = None
     db_obj: "_pjt_bundle.PJTBundle" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
@@ -39,4 +41,5 @@ class Bundle(_ObjectBase):
 
         self.obj2d = _bundle_2d.Bundle(self, db_obj)
         self.obj3d = _bundle_3d.Bundle(self, db_obj)
+        self.objpeg = _bundle_peg.Bundle(self, db_obj)
         self.mainframe.add_object(self)

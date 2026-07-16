@@ -334,17 +334,21 @@ Contents/structure of the `harness_designer/` package.
     attributes are `config.grid.enabled`/`set_grid_snap`/
     `set_grid_display`/`camera.Reset()`). Same discovery, same
     out-of-scope non-fix.
-- `canvas_pegboard/`: Peg Board Editor canvas — Phase 1 complete (static top-down
-  read-only render; no drag/selection yet). Mirrors `canvas2d/`'s file layout and
-  reuses `canvas2d.camera.Camera2D` and `canvas2d.grid.Grid` directly (both are
+- `canvas_pegboard/`: Peg Board Editor canvas — Phases 1-2 complete (static
+  top-down read-only render, incl. bundle strands + bare-wire visibility, plus
+  click-to-select with cross-editor sync added afterward; no drag/waypoints/
+  tables yet — Phases 3-4). Mirrors `canvas2d/`'s file layout and reuses
+  `canvas2d.camera.Camera2D` and `canvas2d.grid.Grid` directly (both are
   canvas-agnostic, just duck-type against `.config`/`.context`/`.Refresh()`)
   instead of copying them. `key_handler.py`/`mouse_handler.py` are NOT straight
   ports of `canvas2d`'s (see the ⚠ notes above) — they're wired to
   `Config.editor_pegboard`'s actual fields, `KeyHandler` inherits `QObject`, and
   its repeat loop dispatches via `app.CallAfter` (not `QTimer.singleShot` from a
   bare thread) so held-key pan/zoom/reset are genuinely functional, verified
-  with real `QTest` mouse/keyboard events. Mouse-driven object picking/dragging
-  is still a `TODO` (no peg-board scene-object/selection model exists yet).
+  with real `QTest` mouse/keyboard events. Click-to-select is implemented
+  (`mouse_handler.py`'s `_find_anchor_at_point`/`_find_selected_anchor`,
+  driving `ObjectBase.set_selected()` exactly like the 2D/3D editors, so
+  selection sync is automatic); dragging/waypoint-adding is still `TODO`.
   - `flatten.py`: derives the "lay it flat" rotation for a placed part purely
     from its own stored (unrotated) local OBB + `Model3D.forward_up`
     (`[forward_face_idx, up_face_idx]`) — deliberately ignores the part's
@@ -361,8 +365,25 @@ Contents/structure of the `harness_designer/` package.
     Phase 3). Splices (no single `position3d`, only start/stop) use the
     start/stop midpoint as a deliberate Phase-1 simplification.
   - `strand_mesh.py`: `build_strand_quad()` — flat rectangle "strand" mesh
-    builder for bundles. Written but NOT wired into rendering yet (bundle
-    strands + bare-wire visibility filtering are Phase 2).
+    builder, now wired into rendering (Phase 2). `layout_graph.py`'s
+    `build_bundle_strands()`/`build_bare_wire_strands()` collect one
+    `BundleStrand` per `PJTBundle` row (straight XZ segment, start→stop) and
+    one `BareWireStrand` per bare-terminated wire end (`PJTWire.terminals()`
+    resolved terminal with `cavity_id is None`, drawn from the nearer bundle
+    endpoint out to that terminal's own position) — implements the plan's
+    "bundles only, except bare-terminated wires" visibility rule.
+    `canvas.py` builds one `(NonPooledVBOHandler, materials.Generic)` pair per
+    strand (deferred from `load_project()` to `_render_objects()`, since GPU
+    buffer creation needs a current GL context that isn't guaranteed at
+    `load_project()` time) and draws them under the *same* schematic2d
+    program/uniforms anchors use, with an identity `objectPosition`/
+    `objectRotation`/`objectScale` transform — `build_strand_quad` already
+    bakes final world-space XZ vertices directly, so no per-strand transform
+    is needed. ⚠ `PJTBundle.diameter`'s existing bug (selects the wrong
+    column, `pjt_bundle.py`) is worked around locally
+    (`layout_graph._safe_bundle_width`, sanity-clamps or falls back to a
+    fixed default) rather than fixed at the source — still a known,
+    separately-tracked bug.
   - `canvas.py`'s `_render_objects()` reuses each anchor's EXISTING
     `obj3d._vbo`/material/scale (no new upload, same shared VBO/arena the 3D
     editor draws from) under the schematic2d shader

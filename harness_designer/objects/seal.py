@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from . import ObjectBase as _ObjectBase
 from .objects2d import seal as _seal_2d
 from .objects3d import seal as _seal_3d
+from .objectspeg import seal as _seal_peg
 
 
 if TYPE_CHECKING:
@@ -19,6 +20,7 @@ class Seal(_ObjectBase):
     """
     obj2d: _seal_2d.Seal = None
     obj3d: _seal_3d.Seal = None
+    objpeg: _seal_peg.Seal = None
     db_obj: "_pjt_seal.PJTSeal" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
@@ -40,6 +42,8 @@ class Seal(_ObjectBase):
 
         self.obj2d = _seal_2d.Seal(self, db_obj)
         self.obj3d = _seal_3d.Seal(self, db_obj)
+        self.objpeg = _seal_peg.Seal(self, db_obj)
+
         self.mainframe.add_object(self)
 
     def set_selected(self, flag):

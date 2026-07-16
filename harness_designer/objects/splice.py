@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from . import ObjectBase as _ObjectBase
 from .objects2d import splice as _splice_2d
 from .objects3d import splice as _splice_3d
+from .objectspeg import splice as _splice_peg
 
 
 if TYPE_CHECKING:
@@ -19,6 +20,7 @@ class Splice(_ObjectBase):
     """
     obj2d: _splice_2d.Splice = None
     obj3d: _splice_3d.Splice = None
+    objpeg: "_splice_peg.Splice" = None
     db_obj: "_pjt_splice.PJTSplice" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
@@ -40,4 +42,6 @@ class Splice(_ObjectBase):
 
         self.obj2d = _splice_2d.Splice(self, db_obj)
         self.obj3d = _splice_3d.Splice(self, db_obj)
+        self.objpeg = _splice_peg.Splice(self, db_obj)
+
         self.mainframe.add_object(self)

@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from . import ObjectBase as _ObjectBase
 from .objects2d import cpa_lock as _cpa_lock_2d
 from .objects3d import cpa_lock as _cpa_lock_3d
+from .objectspeg import cpa_lock as _cpa_lock_peg
 
 
 if TYPE_CHECKING:
@@ -19,6 +20,7 @@ class CPALock(_ObjectBase):
     """
     obj2d: _cpa_lock_2d.CPALock = None
     obj3d: _cpa_lock_3d.CPALock = None
+    objpeg: _cpa_lock_peg.CPALock = None
     db_obj: "_pjt_cpa_lock.PJTCPALock" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
@@ -40,4 +42,6 @@ class CPALock(_ObjectBase):
 
         self.obj2d = _cpa_lock_2d.CPALock(self, db_obj)
         self.obj3d = _cpa_lock_3d.CPALock(self, db_obj)
+        self.objpeg = _cpa_lock_peg.CPALock(self, db_obj)
+
         self.mainframe.add_object(self)

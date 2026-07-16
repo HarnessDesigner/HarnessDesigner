@@ -287,11 +287,11 @@ class ImageLoader:
         self.__dict__['__original_module__'] = mod
 
         self.__base_path__ = path
-
         if self.__name__ == 'images':
             self.__wire_image_cache__ = {}
+            self.build_wire = self.__build_wire
 
-    def build_wire(
+    def __build_wire(
         self,
         primary_color: "_color.Color",
         stripe_color: "_color.Color | None",
@@ -369,14 +369,6 @@ __base = ImageLoader(BASE_PATH)
 
 
 if TYPE_CHECKING:
-
-    def build_wire(
-        primary_color: "_color.Color",  # NOQA
-        stripe_color: "_color.Color | None",  # NOQA
-        conductor_color: "_color.Color"  # NOQA
-    ) -> Image:
-        pass
-
 
     class ip:
         """Type-checking namespace for IP rating images."""
@@ -508,3 +500,11 @@ if TYPE_CHECKING:
         wire_conductor: Image = ...
         wire_stripe: Image = ...
         wire_shadow: Image = ...
+
+        @staticmethod
+        def build_wire(
+            primary_color: "_color.Color",  # NOQA
+            stripe_color: "_color.Color | None",  # NOQA
+            conductor_color: "_color.Color"  # NOQA
+        ) -> Image:
+            pass

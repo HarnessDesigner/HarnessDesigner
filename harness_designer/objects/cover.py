@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from . import ObjectBase as _ObjectBase
 from .objects2d import cover as _cover_2d
 from .objects3d import cover as _cover_3d
+from .objectspeg import cover as _cover_peg
 
 
 if TYPE_CHECKING:
@@ -19,6 +20,7 @@ class Cover(_ObjectBase):
     """
     obj2d: _cover_2d.Cover = None
     obj3d: _cover_3d.Cover = None
+    objpeg: _cover_peg.Cover = None
     db_obj: "_pjt_cover.PJTCover" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
@@ -40,4 +42,5 @@ class Cover(_ObjectBase):
 
         self.obj2d = _cover_2d.Cover(self, db_obj)
         self.obj3d = _cover_3d.Cover(self, db_obj)
+        self.objpeg = _cover_peg.Cover(self, db_obj)
         self.mainframe.add_object(self)

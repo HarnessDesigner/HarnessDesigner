@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from . import ObjectBase as _ObjectBase
 from .objects2d import note as _note_2d
 from .objects3d import note as _note_3d
+from .objectspeg import note as _note_peg
 
 
 if TYPE_CHECKING:
@@ -19,6 +20,7 @@ class Note(_ObjectBase):
     """
     obj2d: _note_2d.Note = None
     obj3d: _note_3d.Note = None
+    objpeg: _note_peg.Note = None
     db_obj: "_pjt_note.PJTNote" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
@@ -39,4 +41,5 @@ class Note(_ObjectBase):
 
         self.obj2d = _note_2d.Note(self, db_obj)
         self.obj3d = _note_3d.Note(self, db_obj)
+        self.objpeg = _note_peg.Note(self, db_obj)
         self.mainframe.add_object(self)

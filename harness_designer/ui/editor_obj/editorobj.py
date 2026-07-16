@@ -29,7 +29,7 @@ class EditorObj(_dock_base.DockBase):
         self._ui_obj = EditorObjPanel(mainframe)
 
         super().__init__(mainframe, 'Object Editor', 'editor_obj',
-                         QtCore.Qt.DockWidgetArea.RightDockWidgetArea)
+                         QtCore.Qt.DockWidgetArea.LeftDockWidgetArea)
 
     def _on_visibility_changed(self, visible):
         """Handle the visibility changed event.

@@ -13,6 +13,8 @@ from ...geometry import angle as _angle
 from .mixins import (
     Angle3DMixin, Angle3DControl,
     Position3DMixin, Position3DControl,
+    PositionPegMixin,
+    AnglePegMixin,
     PartMixin,
     NameMixin, NameControl,
     NotesMixin, NotesControl,
@@ -145,7 +147,8 @@ class PJTTransitionsTable(PJTTableBase):
         return PJTTransition(self, db_id, self.project_id)
 
 
-class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin,
+class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegMixin,
+                    AnglePegMixin, PartMixin,
                     NameMixin, Visible3DMixin, NotesMixin, SmoothMixin):
     """Represent a PJT transition in :mod:`harness_designer.database.project_db.pjt_transition`.
 
@@ -166,6 +169,7 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin,
         packet = {
             'pjt_transitions': [self.db_id],
             'pjt_points3d': [self.position3d_id],
+            'pjt_points_peg': [self.position_peg_id],
         }
 
         for branch in (

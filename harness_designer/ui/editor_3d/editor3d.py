@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import QApplication
 from PySide6 import QtWidgets
+from PySide6 import QtCore
 
 from ... import config as _config
 from ...gl import canvas3d as _canvas3d
@@ -33,6 +34,7 @@ class Editor3D(_dock_base.DockBase):
         self._ui_obj = Editor3DPanel(mainframe)
 
         super().__init__(mainframe, '3D Editor', 'editor_3d',
+                         QtCore.Qt.DockWidgetArea.RightDockWidgetArea,
                          features=QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetMovable |
                                   QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetFloatable)
 

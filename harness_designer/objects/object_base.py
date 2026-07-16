@@ -7,6 +7,7 @@ if TYPE_CHECKING:
     from .. import ui as _ui
     from .objects3d import base3d as _base3d
     from .objects2d import base2d as _base2d
+    from .objectspeg import basepeg as _basepeg
     from ..database import project_db as _project_db
 
 
@@ -17,6 +18,7 @@ class ObjectBase:
     """
     obj2d: "_base2d.Base2D" = None
     obj3d: "_base3d.Base3D" = None
+    objpeg: "_basepeg.BasePeg" = None
     db_obj: "_project_db.PJTEntryBase" = None
 
     def __init__(self, mainframe: "_ui.MainFrame", db_obj: "_project_db.PJTEntryBase"):
@@ -112,6 +114,9 @@ class ObjectBase:
         if self.obj3d is not None:
             self.obj3d.set_selected(flag)
 
+        if self.objpeg is not None:
+            self.objpeg.set_selected(flag)
+
         if flag:
             self.mainframe._set_selected(self)  # NOQA
         else:
@@ -145,13 +150,16 @@ class ObjectBase:
         if self.obj3d is not None and self.obj3d.is_selected != value:
             self.obj3d.set_selected(value)
 
+        if self.objpeg is not None and self.objpeg.is_selected != value:
+            self.objpeg.set_selected(value)
+
     @property
     def is_in_3dview(self) -> bool:
         return self in self.mainframe.editor3d.camera.objects_in_view
 
     @property
     def is_in_2dview(self) -> bool:
-        return self in self.mainframe.editor2d.camera.objects_in_view
+        return self in self.mainframe.editor2d.editor.camera.objects_in_view
 
     @property
     def is_in_pegboardview(self) -> bool:

@@ -3,8 +3,8 @@
 """Excel-like data-table overlay geometry and scroll state.
 
 One row per anchor that has a visible data table on the peg-board view.
-Keyed purely by ``point3d_id``, the same way ``pjt_pegboard_points`` is --
-this table has no knowledge of what kind of anchor owns that 3D point.
+Keyed purely by ``point3d_id`` -- this table has no knowledge of what kind
+of anchor owns that 3D point.
 """
 
 from typing import Iterable as _Iterable
@@ -77,7 +77,7 @@ class PJTPegboardTablesTable(PJTTableBase):
         if rows:
             return self[rows[0][0]]
 
-    def insert(self, point3d_id: int, x: float, y: float, width: float,
+    def insert(self, point3d_id: int, x: float, z: float, width: float,
               height: float) -> "PJTPegboardTable":
         """Create a new data-table overlay for an anchor.
 
@@ -86,10 +86,10 @@ class PJTPegboardTablesTable(PJTTableBase):
 
         :param point3d_id: Identifier of the anchor's 3D point.
         :type point3d_id: int
-        :param x: Peg-board X coordinate of the table's top-left corner.
+        :param x: Peg-board (world) X coordinate of the table's top-left corner.
         :type x: float
-        :param y: Peg-board Y coordinate of the table's top-left corner.
-        :type y: float
+        :param z: Peg-board (world) Z coordinate of the table's top-left corner.
+        :type z: float
         :param width: Table width, in world units.
         :type width: float
         :param height: Table height, in world units.
@@ -97,7 +97,7 @@ class PJTPegboardTablesTable(PJTTableBase):
         :returns: The newly created row.
         :rtype: :class:`PJTPegboardTable`
         """
-        db_id = PJTTableBase.insert(self, point3d_id=point3d_id, x=x, y=y,
+        db_id = PJTTableBase.insert(self, point3d_id=point3d_id, x=x, z=z,
                                     width=width, height=height)
 
         return PJTPegboardTable(self, db_id, self.project_id)
@@ -156,30 +156,30 @@ class PJTPegboardTable(PJTEntryBase):
         self._table.update(self._db_id, x=value)
         self._populate('x')
 
-    _stored_y: float | DefaultStoredValueType = DefaultStoredValue
+    _stored_z: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
-    def y(self) -> float:
-        """Return the peg-board Y coordinate of the table's top-left corner.
+    def z(self) -> float:
+        """Return the peg-board (world) Z coordinate of the table's top-left corner.
 
-        :returns: The Y coordinate.
+        :returns: The Z coordinate.
         :rtype: float
         """
-        if self._stored_y is DefaultStoredValue:
-            self._stored_y = self._table.select('y', id=self._db_id)[0][0]
+        if self._stored_z is DefaultStoredValue:
+            self._stored_z = self._table.select('z', id=self._db_id)[0][0]
 
-        return self._stored_y
+        return self._stored_z
 
-    @y.setter
-    def y(self, value: float):
-        """Set the peg-board Y coordinate of the table's top-left corner.
+    @z.setter
+    def z(self, value: float):
+        """Set the peg-board (world) Z coordinate of the table's top-left corner.
 
-        :param value: New Y coordinate.
+        :param value: New Z coordinate.
         :type value: float
         """
-        self._stored_y = value
-        self._table.update(self._db_id, y=value)
-        self._populate('y')
+        self._stored_z = value
+        self._table.update(self._db_id, z=value)
+        self._populate('z')
 
     _stored_width: float | DefaultStoredValueType = DefaultStoredValue
 

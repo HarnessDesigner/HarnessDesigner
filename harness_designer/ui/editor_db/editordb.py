@@ -46,7 +46,7 @@ class EditorDB(_dock_base.DockBase):
 
         self._ui_obj = EditorDBPanel(mainframe)
         super().__init__(mainframe, 'Database Editor', 'editor_db',
-                         Qt.DockWidgetArea.BottomDockWidgetArea)
+                         Qt.DockWidgetArea.LeftDockWidgetArea)
 
     @property
     def editor(self) -> "EditorDBPanel":

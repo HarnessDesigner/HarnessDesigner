@@ -3,8 +3,10 @@
 from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import QApplication
+from PySide6 import QtCore
 
 from ...gl import canvas_pegboard as _canvas_pegboard
+from ...objects.objectspeg import basepeg as _basepeg
 from ... import config as _config
 from .. import dock_base as _dock_base
 
@@ -38,7 +40,33 @@ class EditorPegBoard(_dock_base.DockBase):
 
         self._ui_obj = EditorPegBoardPanel(mainframe)
 
-        super().__init__(mainframe, 'Peg Board Editor', 'editor_pegboard')
+        super().__init__(mainframe, 'Peg Board Editor', 'editor_pegboard',
+                         QtCore.Qt.DockWidgetArea.RightDockWidgetArea)
+
+    @property
+    def context(self):
+        """Return the GL context manager owned by the inner canvas.
+
+        Mirrors ``ui.editor_3d.editor3d.Editor3D.context`` -- needed by
+        ``objects.objectspeg.basepeg.BasePeg._set_model``'s
+        ``self.pegboard.context.acquire()``/``.release()`` calls, which
+        otherwise have nowhere to resolve to.
+
+        :returns: Property value.
+        :rtype: UNKNOWN
+        """
+        return self._ui_obj.context
+
+    @property
+    def camera(self):
+        """Return the camera owned by the inner canvas.
+
+        Mirrors ``ui.editor_3d.editor3d.Editor3D.camera``.
+
+        :returns: Property value.
+        :rtype: UNKNOWN
+        """
+        return self._ui_obj.camera
 
     def set_selected(self, obj):
         """
@@ -58,9 +86,9 @@ class EditorPegBoard(_dock_base.DockBase):
         """
         Add an object.
 
-        Phase 1 rebuilds the peg board's anchor list wholesale via
-        :meth:`load_project` rather than incrementally -- forwards to
-        :class:`EditorPegBoardPanel`'s no-op stub.
+        Incremental now -- forwards to :class:`EditorPegBoardPanel`, which
+        registers ``obj.objpeg`` with the inner ``Canvas`` (skipping every
+        type that isn't a real, active anchor).
 
         :param obj: Object instance to operate on.
         :type obj: UNKNOWN
@@ -72,9 +100,9 @@ class EditorPegBoard(_dock_base.DockBase):
         """
         Remove the object.
 
-        Phase 1 rebuilds the peg board's anchor list wholesale via
-        :meth:`load_project` rather than incrementally -- forwards to
-        :class:`EditorPegBoardPanel`'s no-op stub.
+        Incremental now -- forwards to :class:`EditorPegBoardPanel`, which
+        unregisters ``obj.objpeg`` from the inner ``Canvas`` (skipping every
+        type that isn't a real, active anchor).
 
         :param obj: Object instance to operate on.
         :type obj: UNKNOWN
@@ -189,23 +217,42 @@ class EditorPegBoardPanel(_canvas_pegboard.CanvasPegBoard):
 
     def add_object(self, obj):
         """
-        No-op: Phase 1 rebuilds the anchor list wholesale via
-        :meth:`load_project` rather than incrementally.
+        Register *obj*'s peg-board anchor with the inner canvas, if it has
+        a real, active one.
+
+        Every :class:`~harness_designer.objects.object_base.ObjectBase`
+        subclass has its own dedicated
+        :class:`~harness_designer.objects.objectspeg.basepeg.BasePeg`
+        subclass (never a shared stub), but most construct it with
+        ``vbo=None`` -- inert, ``is_active`` is ``False`` -- so this just
+        skips those, matching
+        :meth:`harness_designer.gl.canvas_pegboard.canvas.Canvas._collect_anchors`'s
+        own gate.
 
         :param obj: Object instance to operate on.
         :type obj: UNKNOWN
         """
-        pass
+        objpeg = getattr(obj, 'objpeg', None)
+        if objpeg is None or not isinstance(objpeg, _basepeg.BasePeg) or not objpeg.is_active:
+            return
+
+        self._canvas.add_anchor(objpeg)
 
     def remove_object(self, obj):
         """
-        No-op: Phase 1 rebuilds the anchor list wholesale via
-        :meth:`load_project` rather than incrementally.
+        Unregister *obj*'s peg-board anchor from the inner canvas, if it
+        has a real, active one.
+
+        Skips every inactive anchor (see :meth:`add_object`).
 
         :param obj: Object instance to operate on.
         :type obj: UNKNOWN
         """
-        pass
+        objpeg = getattr(obj, 'objpeg', None)
+        if objpeg is None or not isinstance(objpeg, _basepeg.BasePeg) or not objpeg.is_active:
+            return
+
+        self._canvas.remove_anchor(objpeg)
 
     def set_clone_obj(self, obj):
         """

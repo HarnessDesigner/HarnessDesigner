@@ -8,6 +8,7 @@ from . import bundle_layout_handler as _bundle_layout_handler
 from . import cover_handler as _cover_handler
 from . import cpa_lock_handler as _cpa_lock_handler
 from . import housing_handler as _housing_handler
+from . import pegboard_handler as _pegboard_handler
 from . import seal_handler as _seal_handler
 from . import splice_handler as _splice_handler
 from . import terminal_handler as _terminal_handler
@@ -26,6 +27,7 @@ AddBundleLayoutHandler = _bundle_layout_handler.AddBundleLayoutHandler
 AddCoverHandler = _cover_handler.AddCoverHandler
 AddCPALockHandler = _cpa_lock_handler.AddCPALockHandler
 AddHousingHandler = _housing_handler.AddHousingHandler
+AddWaypointHandler = _pegboard_handler.AddWaypointHandler
 AddSealHandler = _seal_handler.AddSealHandler
 AddSpliceHandler = _splice_handler.AddSpliceHandler
 AddTerminalHandler = _terminal_handler.AddTerminalHandler
@@ -42,6 +44,7 @@ del _bundle_layout_handler
 del _cover_handler
 del _cpa_lock_handler
 del _housing_handler
+del _pegboard_handler
 del _seal_handler
 del _splice_handler
 del _terminal_handler

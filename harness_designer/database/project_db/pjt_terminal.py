@@ -17,8 +17,10 @@ from ... import logger as _logger
 from .mixins import (
     Angle3DMixin, Angle3DControl,
     Angle2DMixin, Angle2DControl,
+    AnglePegMixin,
     Position3DMixin, Position3DControl,
     Position2DMixin, Position2DControl,
+    PositionPegMixin,
     PartMixin,
     Visible3DMixin, Visible3DControl,
     Visible2DMixin, Visible2DControl,
@@ -154,8 +156,10 @@ class PJTTerminalsTable(PJTTableBase):
         return PJTTerminal(self, db_id, self.project_id)
 
 
-class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin, NotesMixin,
-                  Position2DMixin, PartMixin, Visible3DMixin, Visible2DMixin, NameMixin,
+class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
+                  Position3DMixin, NotesMixin,
+                  Position2DMixin, PositionPegMixin, PartMixin, Visible3DMixin,
+                  Visible2DMixin, NameMixin,
                   HousingMixin, SmoothMixin, Scale3DMixin):
     """Represent a PJT terminal in :mod:`harness_designer.database.project_db.pjt_terminal`.
 
@@ -178,7 +182,8 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, Position3DMixin, Not
         packet = {
             'pjt_terminals': [self.db_id],
             'pjt_points3d': [self.position3d_id],
-            'pjt_points2d': [self.position2d_id]
+            'pjt_points2d': [self.position2d_id],
+            'pjt_points_peg': [self.position_peg_id],
         }
 
         self.merge_packet_data(self.part.build_monitor_packet(), packet)

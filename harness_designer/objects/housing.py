@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from . import ObjectBase as _ObjectBase
 from .objects2d import housing as _housing_2d
 from .objects3d import housing as _housing_3d
+from .objectspeg import housing as _housing_peg
 
 from . import cavity as _cavity
 
@@ -21,7 +22,7 @@ class Housing(_ObjectBase):
     """
     obj2d: _housing_2d.Housing = None
     obj3d: _housing_3d.Housing = None
-
+    objpeg: _housing_peg.Housing = None
     db_obj: "_pjt_housing.PJTHousing" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
@@ -50,10 +51,12 @@ class Housing(_ObjectBase):
 
         self.obj2d = _housing_2d.Housing(self, db_obj)
         self.obj3d = _housing_3d.Housing(self, db_obj)
+        self.objpeg = _housing_peg.Housing(self, db_obj)
 
         self.seals = []
         self.tpa_locks = []
         self.cpa_locks = []
+
         self.mainframe.add_object(self)
 
     @property

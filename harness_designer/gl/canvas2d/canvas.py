@@ -105,7 +105,7 @@ class Canvas(QOpenGLWidget):
         self.context = _context.GLContext(self)
 
         from . import camera as _camera
-        self.camera = _camera.Camera2D(self)
+        self.camera = _camera.Camera(self)
 
         self._mouse_down_pos = None
         self._last_mouse_pos = None

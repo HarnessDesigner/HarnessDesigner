@@ -14,7 +14,6 @@ from ...shapes import box as _box
 from ...gl import vbo as _vbo
 from ...gl import materials as _materials
 from ... import config as _config
-from ... import utils as _utils
 
 
 if TYPE_CHECKING:
@@ -48,28 +47,7 @@ class Terminal(_base3d.Base3D):
         parent.mainframe.editor3d.context.acquire()
 
         self._part = db_obj.part
-        symbol = self._part.plating.symbol
-
-        if symbol.startswith('Sn'):
-            color = 'Tin'
-        elif symbol.startswith('Cu'):
-            color = 'Copper'
-        elif symbol.startswith('Al'):
-            color = 'Aluminum'
-        elif symbol.startswith('Ti'):
-            color = 'Titanium'
-        elif symbol.startswith('Zn'):
-            color = 'Zinc'
-        elif symbol.startswith('Au'):
-            color = 'Gold'
-        elif symbol.startswith('Ag'):
-            color = 'Silver'
-        elif symbol.startswith('Ni'):
-            color = 'Nickel'
-        else:
-            color = 'Tin'
-
-        color = db_obj.table.db.global_db.colors_table[color]
+        color = self._part.plating.color
         self._color = color.ui
         material = _materials.Polished(color.ui)
 

@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from . import ObjectBase as _ObjectBase
 from .objects3d import wire_service_loop as _wire_service_loop_3d
 from .objects2d import wire_service_loop as _wire_service_loop_2d
+from .objectspeg import wire_service_loop as _wire_service_loop_peg
 
 
 if TYPE_CHECKING:
@@ -19,6 +20,7 @@ class WireServiceLoop(_ObjectBase):
     """
     obj2d: _wire_service_loop_2d.WireServiceLoop = None
     obj3d: _wire_service_loop_3d.WireServiceLoop = None
+    objpeg: _wire_service_loop_peg.WireServiceLoop = None
     db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
@@ -40,4 +42,6 @@ class WireServiceLoop(_ObjectBase):
 
         self.obj2d = _wire_service_loop_2d.WireServiceLoop(self, db_obj)
         self.obj3d = _wire_service_loop_3d.WireServiceLoop(self, db_obj)
+        self.objpeg = _wire_service_loop_peg.WireServiceLoop(self, db_obj)
+
         self.mainframe.add_object(self)

@@ -3,6 +3,7 @@
 from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import QApplication
+from PySide6 import QtCore
 
 from ...gl import canvas2d as _canvas2d
 from ... import config as _config
@@ -32,7 +33,8 @@ class Editor2D(_dock_base.DockBase):
         """
 
         self._ui_obj = Editor2DPanel(mainframe)
-        super().__init__(mainframe, 'Schematic Editor', 'editor_2d')
+        super().__init__(mainframe, 'Schematic Editor', 'editor_2d',
+                         QtCore.Qt.DockWidgetArea.RightDockWidgetArea)
 
     @property
     def editor(self) -> "Editor2DPanel":

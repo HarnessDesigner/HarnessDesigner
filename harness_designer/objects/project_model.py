@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from . import ObjectBase as _ObjectBase
 from .objects2d import project_model as _project_model_2d
 from .objects3d import project_model as _project_model_3d
+from .objectspeg import project_model as _project_model_peg
 
 
 if TYPE_CHECKING:
@@ -19,6 +20,7 @@ class ProjectModel(_ObjectBase):
     """
     obj2d: _project_model_2d.ProjectModel = None
     obj3d: _project_model_3d.ProjectModel = None
+    objpeg: _project_model_peg.ProjectModel = None
     db_obj: "_project.Project" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
@@ -26,10 +28,9 @@ class ProjectModel(_ObjectBase):
 
         super().__init__(mainframe, db_obj)
 
-        print('constructing  model')
-
         self.obj2d = _project_model_2d.ProjectModel(self, db_obj)
         self.obj3d = _project_model_3d.ProjectModel(self, db_obj, vbo)
+        self.objpeg = _project_model_peg.ProjectModel(self, db_obj)
         self.mainframe.add_object(self)
 
     def set_selected(self, flag):

@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 # import weakref
 
 from . import ObjectBase as _ObjectBase
+from .objectspeg import circuit as _circuit_peg
 # from ..geometry.decimal import Decimal as _d
 # from .. import color as _color
 # from ..geometry import line as _line
@@ -635,6 +636,7 @@ class Circuit(_ObjectBase):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    objpeg: _circuit_peg.Circuit = None
     db_obj: "_pjt_circuit.PJTCircuit" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
@@ -653,3 +655,7 @@ class Circuit(_ObjectBase):
         db_obj.add_object(self)
 
         super().__init__(mainframe, db_obj)
+
+        self.objpeg = _circuit_peg.Circuit(self, db_obj)
+
+        self.mainframe.add_object(self)

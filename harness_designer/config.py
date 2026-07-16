@@ -608,6 +608,10 @@ class Config(metaclass=ConfigDB):
     class editor_pegboard(metaclass=ConfigDB):
         """Peg board editor interaction and canvas settings."""
 
+        # Selection highlight material color -- mirrors
+        # Config.editor3d.selected_color's role exactly.
+        selected_color = [0.2, 0.6, 0.2, 0.35]
+
         class virtual_canvas(metaclass=ConfigDB):
             """Virtual canvas size for peg board editing."""
             width = 1920
@@ -660,6 +664,40 @@ class Config(metaclass=ConfigDB):
             base_font_size = 10.0    # world units, scaled by zoom at render time
             min_font_px = 6
             max_font_px = 48
+
+        class drag(metaclass=ConfigDB):
+            """Peg board drag-repositioning behavior.
+
+            "clamp": dragging a node stops at each touching edge's
+            max_length_mm boundary (the node itself never exceeds its
+            neighbors' length budgets).
+            "pull": dragging a node is never itself clamped -- once a
+            touching edge goes taut, the neighbor node is pulled along
+            (rigidly translated to keep that edge at exactly its
+            max_length_mm), and the pull propagates recursively through
+            any of that neighbor's own taut edges.
+            """
+            mode = "clamp"
+
+        class rotation_ring(metaclass=ConfigDB):
+            """Peg-board rotation-ring gizmo settings (board-plane-only spin).
+
+            Deliberately a separate section from ``Config.editor3d.
+            rotation_rings`` -- that section's ``snap_enable``/``snap_angle``
+            are read by the 3D editor's own three-ring Euler gizmo
+            (``gl.canvas3d.rotation_rings``); the peg board only ever shows
+            one ring (a board-plane-only spin, unrelated to a part's real 3D
+            angle -- see ``objects.objectspeg.basepeg.BasePeg.angle``), so it gets its
+            own independent snap settings rather than sharing/coupling to
+            the 3D editor's.
+            """
+            snap_enable = False
+            # Drag snap increment in degrees. Must have at most 2 decimal
+            # places and divide the 360 degree range evenly (15, 22.5,
+            # 0.45, ...) -- invalid values disable snapping (see
+            # gl.canvas3d.rotation_rings.validate_snap_angle, reused as-is
+            # by the peg board's rotation-drag handling).
+            snap_angle = 15.0
 
     class editor3d(metaclass=ConfigDB):
         """3D editor rendering and navigation settings."""
@@ -982,6 +1020,11 @@ class Config(metaclass=ConfigDB):
         size = ()
 
         tab_location = 2
+
+        # QtWidgets.QTabWidget.TabShape.Rounded
+        # QtWidgets.QTabWidget.TabShape.Triangular
+        tab_shape = 0
+
 
         ui_perspective = (
             'layout2'

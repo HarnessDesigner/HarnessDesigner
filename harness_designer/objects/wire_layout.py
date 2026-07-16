@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from . import ObjectBase as _ObjectBase
 from .objects3d import wire_layout as _wire3d_layout
 from .objects2d import wire_layout as _wire2d_layout
+from .objectspeg import wire_layout as _wirepeg_layout
 
 
 if TYPE_CHECKING:
@@ -19,6 +20,7 @@ class WireLayout(_ObjectBase):
     """
     obj2d: _wire2d_layout.WireLayout = None
     obj3d: _wire3d_layout.WireLayout = None
+    objpeg: _wirepeg_layout.WireLayout = None
     db_obj: "_pjt_wire_layout.PJTWireLayout" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
@@ -40,4 +42,6 @@ class WireLayout(_ObjectBase):
 
         self.obj2d = _wire2d_layout.WireLayout(self, db_obj)
         self.obj3d = _wire3d_layout.WireLayout(self, db_obj)
+        self.objpeg = _wirepeg_layout.WireLayout(self, db_obj)
+
         self.mainframe.add_object(self)

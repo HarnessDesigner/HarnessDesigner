@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from . import ObjectBase as _ObjectBase
 from .objects3d import wire_marker as _wire_marker_3d
 from .objects2d import wire_marker as _wire_marker_2d
+from .objectspeg import wire_marker as _wire_marker_peg
 
 
 if TYPE_CHECKING:
@@ -19,6 +20,7 @@ class WireMarker(_ObjectBase):
     """
     obj2d: _wire_marker_2d.WireMarker = None
     obj3d: _wire_marker_3d.WireMarker = None
+    objpeg: _wire_marker_peg.WireMarker = None
     db_obj: "_wire_marker.PJTWireMarker" = None
 
     def __init__(self, mainframe: "_mainframe.MainFrame",
@@ -40,6 +42,8 @@ class WireMarker(_ObjectBase):
 
         self.obj2d = _wire_marker_2d.WireMarker(self, db_obj)
         self.obj3d = _wire_marker_3d.WireMarker(self, db_obj)
+        self.objpeg = _wire_marker_peg.WireMarker(self, db_obj)
+
         self.mainframe.add_object(self)
 
     def select2d(self, evt):

@@ -19,6 +19,7 @@ from . import models3d as _models3d
 from . import projects as _projects
 from . import points3d as _points3d
 from . import points2d as _points2d
+from . import points_peg as _points_peg
 from . import circuits as _circuits
 
 from .. import db_connectors as _con
@@ -362,6 +363,13 @@ pjt_table = _con.SQLTable(
                                                     _points2d.pjt_id_field,
                                                     on_delete=_con.REFERENCE_CASCADE,
                                                     on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('point_peg_id', default="NULL",
+                  references=_con.SQLFieldReference(_points_peg.pjt_table,
+                                                    _points_peg.pjt_id_field,
+                                                    on_delete=_con.REFERENCE_CASCADE,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.TextField('quatpeg', default='"[1.0, 0.0, 0.0, 0.0]"', no_null=True),
+    _con.TextField('anglepeg', default='"[0.0, 0.0, 0.0]"', no_null=True),
     _con.IntField('circuit_id', default='NULL',
                   references=_con.SQLFieldReference(_circuits.pjt_table,
                                                     _circuits.pjt_id_field,

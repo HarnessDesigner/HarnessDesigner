@@ -13,6 +13,7 @@ from ...objects import note as _note
 from . import float_spin_button as _fsb
 from . import snap_angle_button as _sab
 from . import pegboard_snap_button as _psb
+from . import pegboard_drag_mode_button as _pdmb
 from ... import config as _config
 from ...objects import project_model as _project_model
 from ...objects import bundle as _bundle
@@ -1115,6 +1116,17 @@ class PegBoardToolbar(QtWidgets.QToolBar):
         self.pegboard_snap.manualSpacingChanged.connect(self._on_manual_spacing)
         self.addWidget(self.pegboard_snap)
 
+        # Drag mode: "clamp" (dragging stops at each segment's length
+        # limit) or "pull" (dragging past a taut segment pulls the
+        # neighboring point along instead). A mode setting, not an object
+        # property -- always enabled, same convention as the grid-snap
+        # button above.
+        self.pegboard_drag_mode = _pdmb.PegboardDragModeButton(self)
+        self.pegboard_drag_mode.SetDragMode(
+            _config.Config.editor_pegboard.drag.mode)
+        self.pegboard_drag_mode.dragModeChanged.connect(self._on_drag_mode)
+        self.addWidget(self.pegboard_drag_mode)
+
         mainframe.addToolBar(QtCore.Qt.ToolBarArea.TopToolBarArea, self)
 
     @staticmethod
@@ -1125,6 +1137,10 @@ class PegBoardToolbar(QtWidgets.QToolBar):
     def _on_manual_spacing(value) -> None:
         _config.Config.editor_pegboard.grid.manual_snap_spacing = (
             None if value is None else float(value))
+
+    @staticmethod
+    def _on_drag_mode(mode: str) -> None:
+        _config.Config.editor_pegboard.drag.mode = mode
 
     def Refresh(self, *_, **__):
         """Repaint the toolbar."""

@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 
 from PySide6 import QtWidgets
+from PySide6 import QtCore
 
 if TYPE_CHECKING:
     from . import mainframe as _mainframe
@@ -11,23 +12,45 @@ _DefaultFeatures = (QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetClosable |
                     QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetMovable)
 
 
+class DockWidget(QtWidgets.QDockWidget):
+
+    def Raise(self):
+        self.raise_()
+
+    def Show(self, flag=True):
+        if flag:
+            self.show()
+            self.raise_()
+
+        else:
+            self.hide()
+
+
 class DockBase:
 
     _ui_obj = None
 
     def __init__(self, mainframe: "_mainframe.MainFrame", title: str,
-                 name: str, area=None, features=_DefaultFeatures):
+                 name: str, area: QtCore.Qt.DockWidgetArea = None,
+                 features: QtWidgets.QDockWidget.DockWidgetFeature = _DefaultFeatures):
 
         self.mainframe = mainframe
 
-        self._dock = mainframe.make_dock(title=title, name=name,
-                                         widget=self._ui_obj, area=area)
+        self._dock = DockWidget(title, mainframe)
 
+        self._dock.setObjectName(name)
+        self._dock.setWindowTitle(title)
+        self._dock.setWidget(self._ui_obj)
         self._dock.setFeatures(features)
-        self._dock.show()
+        self._dock.Show()
+
+        if area is None:
+            area = QtCore.Qt.DockWidgetArea.RightDockWidgetArea
+
+        mainframe.addDockWidget(area, self._dock)
 
     @property
-    def dock(self):
+    def dock(self) -> DockWidget:
         """
         Returns the underlying QT dock object
         """

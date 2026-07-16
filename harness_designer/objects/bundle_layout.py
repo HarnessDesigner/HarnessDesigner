@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from . import ObjectBase as _ObjectBase
 from .objects2d import bundle_layout as _bundle_layout_2d
 from .objects3d import bundle_layout as _bundle_layout_3d
+from .objectspeg import bundle_layout as _bundle_layout_peg
 
 
 if TYPE_CHECKING:
@@ -19,6 +20,7 @@ class BundleLayout(_ObjectBase):
     """
     obj2d: _bundle_layout_2d.BundleLayout = None
     obj3d: _bundle_layout_3d.BundleLayout = None
+    objpeg: _bundle_layout_peg.BundleLayout = None
     db_obj: "_pjt_bundle_layout.PJTBundleLayout" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
@@ -39,3 +41,4 @@ class BundleLayout(_ObjectBase):
 
         self.obj2d = _bundle_layout_2d.BundleLayout(self, db_obj)
         self.obj3d = _bundle_layout_3d.BundleLayout(self, db_obj)
+        self.objpeg = _bundle_layout_peg.BundleLayout(self, db_obj)
