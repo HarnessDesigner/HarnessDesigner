@@ -6,16 +6,18 @@
 
 Wiring harness design software — currently in active development (WIP).
 
-I am currently working on the CI and the build system. I hopefully should have
-installers up and running sometime today. I will do an initial pre alpha release
-once I get the build and CI stuff done. This will allow people to at least run
-the app to see what it's like. There are still a lot of bugs in it and not all of 
-the functionality has been added yet. Some basic things do work like adding housings,
-wires and some of the accessory type items. The schematic editor doesn't do anything 
-currently. The user will be able to basiclaly test out whether or not the installer 
-works properly and if the installation actually will run. They will be able to add a 
-couple of things to be able to check out user input and how things respond. They can 
-also upload the log to me so I can see what kind of errors if any have occurred.  
+CAD style software for designing wiring harnesses for just about anything
+you can think of. From electronics to appliances, automotive, aerospace...
+
+This application is purpose written for designing electricl wiring harnesses it
+is not a plugin for another CAD application. It doesn't have all of the features 
+seen in a CAD application that can make designing a wiring harness a complicated 
+process. The controls have been written specifically for working with the various 
+components in a wiring harness and that is what makes it easy to use!
+
+Pegboard view added - This view is the same thing that gets set up at the production
+level when building multipls of the same woring harness. It's a flat layout with the 
+harness spread out. 
 
 ---
 
@@ -33,6 +35,18 @@ Object rotation with gimbal-lock-safe angle display:
 
 ---
 
+Recent Screenshots
+
+![img_6.png](img_6.png)
+
+
+New Pegboard View
+
+![img_7.png](img_7.png)
+
+
+---
+
 ## Features
 
 - **Schematic editor** — full schematic design environment
@@ -46,16 +60,32 @@ Object rotation with gimbal-lock-safe angle display:
 - **Database viewer** — multi-stage column sorting with ascending/descending/off per column and a visual sort-order indicator. Supports 70K+ parts without performance issues.
 - **Theme manager** — dark and light themes built in; custom themes can be added via Qt style sheets.
 - **Multi-seat support** — model downloads and conversions are shared across clients on the same network. Both clients are notified when a download completes and can continue working in the meantime.
-- **Cached model format** — converted models are saved as `.hdz` files (zipped binary numpy arrays + metadata), so subsequent loads require no re-conversion.
+- **Cached model format** — converted models are saved as `.hd` files, so subsequent loads require no re-conversion.
+- **Pegboard View** — This view is the same thing as what you would do at the production level to build a harness.
 
 ---
 
 ## System Requirements
 
-| Requirement | Minimum |
-|-------------|---------|
-| CPU cores   | 4 (the app runs 3 child processes: DB watcher, image downloader, model downloader/converter) |
-| GPU         | OpenGL-capable |
+| Requirement | Minimum          | Recommended             |
+|-------------|------------------|-------------------------|
+| CPU cores   | 4 @ 2.0gHz       | 8 @ 3.0gHz              |
+| GPU         | OpenGL-capable** | Nvidia Quadro RTX4000** |
+| RAM         | 8 GB*            | 32 GB*                  |
+| HDD/SSD     | 256GB HDD        | 1 TB SSD                |
+| GPU Memory  | 2 GB*            | 8 GB*                   |  
+
+Note: This application needs direct access to the GPU hardware in order to run
+      so it will not work in a virtual environment.
+
+*This application is cross platform and will run on Windows, MacOS (ARM) and 
+ Linux. On systems thathave shared memory for the GPU take that into account
+ when running the application. You will need to have ample shared memory
+ between the display adapter and the system in order to run properly.
+
+**OpenGL version 3.3 is the minimum that is required to run. MacOS has deprecated
+  the use of OpenGL but it is still available in the OS. It will be removed in 
+  the future.
 
 ---
 
