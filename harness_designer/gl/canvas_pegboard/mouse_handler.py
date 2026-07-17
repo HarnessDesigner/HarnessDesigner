@@ -1035,7 +1035,7 @@ class MouseHandlerPegBoard(QtCore.QObject):
                         if self.canvas.config.grid.snap:
                             world_pos = self.canvas.snap_to_grid(world_pos)
 
-                        cand_x, cand_z = world_pos.x, world_pos.y
+                        cand_x, cand_z = float(world_pos.x), float(world_pos.y)
 
                         if self._drag_kind == 'anchor':
                             self.canvas.drag_update_anchor(
@@ -1071,7 +1071,15 @@ class MouseHandlerPegBoard(QtCore.QObject):
         self._send_event(_events.GLEvent(_events.EVT_GL_MOUSE_MOVE), evt)
 
         if refresh:
-            self.canvas.update()
+            # Refresh(), not update() -- the pan/zoom/drag above ran inside
+            # `with self.canvas:`, so any camera-change-triggered Refresh()
+            # during it was suppressed by the batching ref-count (see
+            # Canvas.Refresh's guard). A plain update() only repaints the
+            # GL grid/pegs (recomputed fresh from live camera state every
+            # frame); it skips reposition_all(), so the table overlays
+            # would only catch up on some later, unbatched Refresh() (e.g.
+            # the next zoom) instead of tracking the pan live.
+            self.canvas.Refresh()
 
     def on_mouse_wheel(self, evt):
         """Handle the mouse wheel event.

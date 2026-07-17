@@ -822,15 +822,21 @@ class Model3D(EntryBase):
                 if resource_state.progress == -1:
                     resource_state.progress = 0
 
-                if self.db_id not in self._download_callbacks:
+                # A download already in flight for this db_id has a
+                # non-empty callback list -- piggyback on it instead of
+                # dispatching a second, redundant conversion process.
+                already_downloading = self.db_id in self._download_callbacks
+
+                if not already_downloading:
                     self._download_callbacks[self.db_id] = []
 
                 self._download_callbacks[self.db_id].append(weakref.WeakMethod(callback))
 
-                model_dir = self._table.db.settings_table['model_path']
+                if not already_downloading:
+                    model_dir = self._table.db.settings_table['model_path']
 
-                self._table.db.mainframe.process_manager.get_model(
-                    self, resource_state, mfg, part_number, model_dir)
+                    self._table.db.mainframe.process_manager.get_model(
+                        self, resource_state, mfg, part_number, model_dir)
         else:
             if self.db_id not in self._download_callbacks:
                 self._download_callbacks[self.db_id] = []

@@ -14,6 +14,8 @@ from ...gl import materials as _materials
 from ... import utils as _utils
 from ...gl import vbo as _vbo
 
+from ... import debug as _debug
+
 
 if TYPE_CHECKING:
     from ...database import project_db as _project_db
@@ -100,6 +102,8 @@ class Base3D:
         self._is_visible = self.db_obj.is_visible3d  # NOQA
         self.mainframe.editor3d.Refresh()
 
+
+    @_debug.logfunc
     def _set_model(self, model: "_model3d.Model3D"):
         self.parent.mainframe.editor3d.context.acquire()
 
@@ -119,7 +123,15 @@ class Base3D:
         if uuid in _vbo.PooledVBOHandler:
             vbo = _vbo.PooledVBOHandler(uuid)
         else:
+            import time
+
+            start_time = time.time()
+
             packed = np.load(model.data_path).reshape(-1, 3)
+
+            stop_time = time.time()
+
+            print('model read:', (stop_time - start_time) * 1000)
 
             angle = model.angle3d
             position = model.position3d
@@ -134,10 +146,14 @@ class Base3D:
             obb += position
             aabb += position
 
+            start_time = time.time()
             packed @= angle
             packed[:count] += position
 
             packed = packed.reshape(-1)
+            stop_time = time.time()
+
+            print('model math:', (stop_time - start_time) * 1000)
 
             vbo = _vbo.PooledVBOHandler(uuid, packed, count, aabb=aabb, obb=obb)
         vbo.acquire()

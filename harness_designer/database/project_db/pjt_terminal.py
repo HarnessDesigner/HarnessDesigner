@@ -153,7 +153,16 @@ class PJTTerminalsTable(PJTTableBase):
         db_id = PJTTableBase.insert(self, part_id=part_id, name=name, cavity_id=cavity_id,
                                     point2d_id=position2d_id, point3d_id=position3d_id)
 
-        return PJTTerminal(self, db_id, self.project_id)
+        terminal = PJTTerminal(self, db_id, self.project_id)
+
+        # PJTCavity.terminal caches the reverse lookup (DefaultStoredValue
+        # sentinel) — it has no way to know a new row now points at it, so
+        # the cache is primed here directly instead of left to go stale.
+        # See the cavity_id setter below for the move/reassign case.
+        if cavity_id is not None:
+            self.db.pjt_cavities_table[cavity_id]._stored_terminal = terminal  # NOQA
+
+        return terminal
 
 
 class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
@@ -167,6 +176,18 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
     """
 
     _table: PJTTerminalsTable = None
+
+    def delete(self) -> None:
+        """Delete this terminal, clearing its cavity's cached back-reference
+        first (see the cavity_id setter/PJTTerminalsTable.insert) so
+        PJTCavity.terminal doesn't keep pointing at a now-deleted row.
+        """
+        cavity_id = self.cavity_id
+
+        PJTEntryBase.delete(self)
+
+        if cavity_id is not None:
+            self._table.db.pjt_cavities_table[cavity_id]._stored_terminal = None  # NOQA
 
     def build_monitor_packet(self):
         """Build the monitor packet.
@@ -444,10 +465,21 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
         :param value: Value to store or process.
         :type value: int
         """
+        old_cavity_id = self.cavity_id
+
         self._stored_cavity = None
 
         self._table.update(self._db_id, cavity_id=value)
         self._populate('cavity_id')
+
+        # Keep PJTCavity.terminal's cache (a reverse lookup PJTCavity has no
+        # way to invalidate on its own) in sync with this row's new home —
+        # see PJTTerminalsTable.insert for the initial-placement case.
+        if old_cavity_id is not None and old_cavity_id != value:
+            self._table.db.pjt_cavities_table[old_cavity_id]._stored_terminal = None  # NOQA
+
+        if value is not None:
+            self._table.db.pjt_cavities_table[value]._stored_terminal = self  # NOQA
 
     _stored_circuit: "_pjt_circuit.PJTCircuit" = None
 
@@ -515,6 +547,22 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
 
             return seal
 
+    @property
+    def wire_point3d_id(self) -> "int | None":
+        """Return the ``pjt_points3d`` row id for the wire attachment point
+        (see :attr:`wire_position3d`), lazily creating and persisting it on
+        first access when the ``wire_point3d_id`` column is NULL.  ``None``
+        only when the terminal's part or 3-D model has no geometry available.
+        """
+        if self._stored_wire_position3d is not None:
+            return self._stored_wire_position3d.db_id
+
+        wire_point3d_id = self._table.select('wire_point3d_id', id=self._db_id)[0][0]
+        if wire_point3d_id is None:
+            wire_point3d_id = self._compute_wire_position3d()
+
+        return wire_point3d_id
+
     _stored_wire_position3d: "_pjt_point3d.PJTPoint3D" = None
 
     @property
@@ -526,9 +574,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
         terminal's part or 3-D model has no geometry available.
         """
         if self._stored_wire_position3d is None:
-            wire_point3d_id = self._table.select('wire_point3d_id', id=self._db_id)[0][0]
-            if wire_point3d_id is None:
-                wire_point3d_id = self._compute_wire_position3d()
+            wire_point3d_id = self.wire_point3d_id
             if wire_point3d_id is None:
                 return None
             self._stored_wire_position3d = self._table.db.pjt_points3d_table[wire_point3d_id]

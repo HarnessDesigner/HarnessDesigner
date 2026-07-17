@@ -449,6 +449,13 @@ class MainFrame(QtWidgets.QMainWindow):
             self.status_bar.showMessage("Ready")
             self.progress_bar.hide()
 
+        # Pumps the event queue so the bar/label actually repaint and
+        # Windows doesn't flag the window "Not Responding" during a long
+        # synchronous loop (e.g. Project.__init__'s object-loading loop) --
+        # same pattern the shutdown sequence already uses (see MainFrame's
+        # close handler).
+        QtWidgets.QApplication.processEvents()
+
     def start_progress(self, label: str, max_value: int):
         """Start the progress.
 

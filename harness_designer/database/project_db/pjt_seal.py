@@ -148,7 +148,16 @@ class PJTSealsTable(PJTTableBase):
                                     housing_id=housing_id, terminal_id=terminal_id,
                                     cavity_id=cavity_id)
 
-        return PJTSeal(self, db_id, self.project_id)
+        seal = PJTSeal(self, db_id, self.project_id)
+
+        # PJTCavity.seal caches the reverse lookup (DefaultStoredValue
+        # sentinel) — it has no way to know a new row now points at it, so
+        # the cache is primed here directly instead of left to go stale.
+        # See the cavity_id setter below for the move/reassign case.
+        if cavity_id is not None:
+            self.db.pjt_cavities_table[cavity_id]._stored_seal = seal  # NOQA
+
+        return seal
 
 
 class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DMixin,
@@ -159,6 +168,18 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DMi
     """
 
     _table: PJTSealsTable = None
+
+    def delete(self) -> None:
+        """Delete this seal, clearing its cavity's cached back-reference
+        first (see the cavity_id setter/PJTSealsTable.insert) so
+        PJTCavity.seal doesn't keep pointing at a now-deleted row.
+        """
+        cavity_id = self.cavity_id
+
+        PJTEntryBase.delete(self)
+
+        if cavity_id is not None:
+            self._table.db.pjt_cavities_table[cavity_id]._stored_seal = None  # NOQA
 
     def build_monitor_packet(self):
         """Build the monitor packet.
@@ -352,8 +373,19 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DMi
         :param value: Value to store or process.
         :type value: int
         """
+        old_cavity_id = self.cavity_id
+
         self._table.update(self._db_id, cavity_id=value)
         self._populate('cavity_id')
+
+        # Keep PJTCavity.seal's cache (a reverse lookup PJTCavity has no
+        # way to invalidate on its own) in sync with this row's new home —
+        # see PJTSealsTable.insert for the initial-placement case.
+        if old_cavity_id is not None and old_cavity_id != value:
+            self._table.db.pjt_cavities_table[old_cavity_id]._stored_seal = None  # NOQA
+
+        if value is not None:
+            self._table.db.pjt_cavities_table[value]._stored_seal = self  # NOQA
 
 
 class PJTSealControl(QTabWidget, LazyTabMixin):

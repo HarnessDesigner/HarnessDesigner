@@ -16,7 +16,9 @@ from .mixins import (
     Visible3DMixin, Visible3DControl,
     NameMixin, NameControl,
     NotesMixin, NotesControl,
-    SmoothMixin, SmoothControl
+    SmoothMixin, SmoothControl,
+    TablePositionPegMixin,
+    TableHiddenMixin
 )
 
 
@@ -144,7 +146,8 @@ class PJTBundlesTable(PJTTableBase):
 
 
 class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
-                Visible3DMixin, NameMixin, NotesMixin, SmoothMixin):
+                Visible3DMixin, NameMixin, NotesMixin, SmoothMixin,
+                TablePositionPegMixin, TableHiddenMixin):
     """Represent a PJT bundle in :mod:`harness_designer.database.project_db.pjt_bundle`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -163,6 +166,7 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
             'pjt_bundles': [self.db_id],
             'bundle_covers': [self.part_id],
             'pjt_points3d': [self.start_position3d_id, self.stop_position3d_id],
+            'pjt_points_peg': [self.table_position_peg_id],
         }
 
         self.merge_packet_data(self.part.build_monitor_packet(), packet)

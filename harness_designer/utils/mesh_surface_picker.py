@@ -216,13 +216,25 @@ class MeshSurfacePicker:
     def _on_scale(self, scale: "_point.Point") -> None:
         self._scale_arr = scale.as_numpy.astype(np.float64)
 
-    def update_vbo(self) -> None:
+    def update_vbo(self, surfaces: list | None = None) -> None:
         """
         Reload local vertices from the object's current VBO.
 
         Call this after the object's mesh has been replaced (e.g. after the
         real 3-D model finishes loading over the placeholder box).  Rebinds
         transform callbacks in case position / angle / scale objects changed.
+
+        :param surfaces: Already-computed surface list to install directly,
+            skipping :meth:`_build_surfaces`'s coplanar-grouping + connected-
+            components work entirely. Vertex/normal arrays are still
+            refreshed as usual (every placement needs its own local copy
+            for ray-casting), only the surface computation is skipped. For
+            callers that reuse the same mesh across many placements of the
+            same catalog part -- see ``objects.objects3d.housing.Housing.
+            match_cavity_surfaces``, which caches this on the shared global
+            part object since the surface list is purely a function of
+            mesh geometry, identical for every placement.
+        :type surfaces: list | None
         """
 
         # Unbind old callbacks.
@@ -255,15 +267,34 @@ class MeshSurfacePicker:
         self._verticesf32 = self.vertices.astype(np.float32)
         self._normalsf32 = self.normals.astype(np.float32)
 
-        self._build_surfaces()
+        if surfaces is not None:
+            self._set_surfaces(surfaces)
+        else:
+            self._build_surfaces()
 
     # ------------------------------------------------------------------
     # Surface geometry (static — no self needed)
     # ------------------------------------------------------------------
 
-    @staticmethod
-    def _pos_key(v: np.ndarray) -> tuple:
-        return tuple(np.round(v.astype(np.float64), 4))
+    def _weld_vertices(self) -> np.ndarray:
+        """Assign an integer id to every triangle corner in the whole mesh
+        (shape ``(3*n_tris,)``) such that two corners share an id iff
+        they're at the same position after rounding to 4 decimals --
+        vectorized equivalent of the old per-corner ``_pos_key`` position
+        hash, computed once per VBO update instead of once per corner per
+        surface group. This is what actually costs real time (a Python
+        ``tuple(np.round(...))`` call per triangle corner, over the whole
+        mesh) -- everything downstream of it is cheap by comparison, so
+        there's no need to reach for numpy/scipy per surface group (that
+        was tried and made things *worse*: real housing meshes apparently
+        have many small coplanar surface groups, and scipy's per-call
+        overhead -- sparse matrix construction, Python-level dispatch --
+        dominated when paid once per small group instead of once overall).
+        """
+        verts = self._verticesf32.reshape(-1, 3).astype(np.float64)
+        rounded = np.round(verts, 4)
+        _, welded = np.unique(rounded, axis=0, return_inverse=True)
+        return welded.ravel()
 
     def compute_surfaces(self, normal_tol: float = 0.02, dist_tol: float = 0.5) -> list:
         """
@@ -274,6 +305,9 @@ class MeshSurfacePicker:
         norms = self._normalsf32
 
         n_tris = len(verts) // 3
+        if n_tris == 0:
+            return []
+
         normals = norms[::3].astype(np.float64)
 
         mag = np.linalg.norm(normals, axis=1, keepdims=True)
@@ -291,32 +325,63 @@ class MeshSurfacePicker:
         qn = np.round(normals / normal_tol).astype(np.int64)
         qd = np.round(dists / dist_tol).astype(np.int64)
 
-        groups = defaultdict(list)
-        for i in range(n_tris):
-            groups[(tuple(qn[i]), int(qd[i]))].append(i)
+        keys = np.concatenate([qn, qd[:, np.newaxis]], axis=1)
 
-        return [Surface(lst, normals[lst[0]].astype(np.float32), float(dists[lst[0]]))
-                for lst in groups.values()]
+        # Vectorized replacement for the old per-triangle Python dict-build
+        # loop -- this is a single call over the whole mesh (unlike
+        # split_into_components, which runs once per raw group), so there's
+        # no per-call-overhead-times-many-groups risk here. np.unique's
+        # groups come back sorted by key, so first-occurrence order
+        # (matching the old defaultdict's insertion order) is re-derived
+        # from return_index. That matters: group order becomes each
+        # surface's index into self._surfaces, which is what gets
+        # persisted as terminal_surf_indices/wire_surf_indices from the
+        # housing editor -- silently reordering groups would repoint
+        # existing saved indices at the wrong surface.
+        _, first_idx, inverse, counts = np.unique(
+            keys, axis=0, return_index=True, return_inverse=True, return_counts=True)
+        inverse = inverse.ravel()
+
+        order_of_groups = np.argsort(first_idx)
+        rank_of_group = np.empty_like(order_of_groups)
+        rank_of_group[order_of_groups] = np.arange(len(order_of_groups))
+        remapped_group_id = rank_of_group[inverse]
+        sorted_counts = counts[order_of_groups]
+
+        tri_order = np.argsort(remapped_group_id, kind='stable')
+        tri_groups = np.split(tri_order, np.cumsum(sorted_counts)[:-1])
+
+        return [Surface(grp.tolist(), normals[grp[0]].astype(np.float32), float(dists[grp[0]]))
+                for grp in tri_groups]
 
     def split_into_components(self, surface: Surface) -> list:
         """
         Split a surface into topologically connected triangle islands.
+
+        Deliberately plain Python (dict/set/BFS), same structure as the
+        original -- this runs once per raw coplanar group, and a real
+        housing can have many small groups, so anything with meaningful
+        per-call setup cost (numpy array construction, scipy sparse
+        matrices) ends up slower here than doing simple work in native
+        Python. The only change from the original is using the
+        pre-welded integer vertex ids (see _weld_vertices) as edge keys
+        instead of rebuilding a rounded-position tuple per corner --
+        that per-corner hashing was the actual bottleneck.
         """
 
-        vertices = self._verticesf32
-
-        verts = vertices.reshape(-1, 3)
+        welded = self._welded_vertex_ids
         tri_list = list(surface.tri_indices)
+        if len(tri_list) <= 1:
+            return [surface]
 
         edge_tris = defaultdict(list)
         for ti in tri_list:
-            pvs = [MeshSurfacePicker._pos_key(verts[3 * ti + j])
-                   for j in range(3)]
+            c0 = int(welded[3 * ti])
+            c1 = int(welded[3 * ti + 1])
+            c2 = int(welded[3 * ti + 2])
 
-            for j in range(3):
-                edge = (min(pvs[j], pvs[(j + 1) % 3]),
-                        max(pvs[j], pvs[(j + 1) % 3]))
-
+            for a, b in ((c0, c1), (c1, c2), (c2, c0)):
+                edge = (a, b) if a < b else (b, a)
                 edge_tris[edge].append(ti)
 
         adj = defaultdict(list)
@@ -393,9 +458,19 @@ class MeshSurfacePicker:
         position/angle/scale update.
         """
 
+        self._welded_vertex_ids = self._weld_vertices()
+
         raw = self.compute_surfaces()
 
-        self._surfaces = [s for grp in raw for s in self.split_into_components(grp)]
+        self._set_surfaces([s for grp in raw for s in self.split_into_components(grp)])
+
+    def _set_surfaces(self, surfaces: list) -> None:
+        """Install an already-computed surface list (either just built by
+        :meth:`_build_surfaces`, or a cached one reused from elsewhere --
+        see :meth:`update_vbo`'s ``surfaces`` parameter).
+        """
+
+        self._surfaces = surfaces
 
         if self._surfaces:
             self._surf_normals = np.array(

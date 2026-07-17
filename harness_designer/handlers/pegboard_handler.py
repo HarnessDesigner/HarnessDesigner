@@ -233,7 +233,7 @@ class AddWaypointHandler(_handler_base.HandlerBase):
             world_pos = self.canvas.snap_to_grid(world_pos)
 
         new_row = _insert_waypoint_on_edge(
-            project, edge, world_pos.x, world_pos.y)
+            project, edge, float(world_pos.x), float(world_pos.y))
 
         # Discrete, infrequent action (not a per-frame drag update) -- a
         # full rebuild here is fine, unlike during a live drag. Rebuilds

@@ -10,6 +10,7 @@ from ...gl.canvas_pegboard import table_rows as _table_rows
 if TYPE_CHECKING:
     from ...database.project_db import pjt_transition as _pjt_transition
     from .. import transition as _transition
+    from ...geometry import point as _point
 
 
 class Transition(_basepeg.BasePeg):
@@ -87,6 +88,21 @@ class Transition(_basepeg.BasePeg):
                             f'{self._table_label()} - Branch {i}'))
 
         return points
+
+    def table_anchor_live_position(self, point3d_id: int) -> "_point.Point":
+        """One branch's live ``position3d`` -- *point3d_id* must be one of
+        this transition's own branches' ``position3d_id`` (see
+        :attr:`table_anchor_points`), not the transition's own anchor
+        point. Falls back to the transition's own :attr:`position` if no
+        branch matches (shouldn't happen given the caller always passes
+        one of this transition's own ``table_anchor_points`` ids).
+        """
+        for i in range(1, 7):
+            branch = getattr(self.db_obj, f'branch{i}')
+            if branch is not None and branch.position3d_id == point3d_id:
+                return branch.position3d
+
+        return self.position
 
     def build_table_rows(self, project, point3d_id: int) -> list:
         """One branch's non-filler wires -- see

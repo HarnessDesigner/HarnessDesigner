@@ -88,6 +88,36 @@ class Decimal(_Decimal):
         other = Decimal(__value)
         return Decimal(_Decimal.__rpow__(self, other, __mod))
 
+    def __neg__(self):
+        """
+        Return the negation of ``self``.
+
+        :returns: Wrapped negation.
+        :rtype: :class:`Decimal`
+        """
+
+        return Decimal(_Decimal.__neg__(self))
+
+    def __pos__(self):
+        """
+        Return ``self`` unary-plussed (normalized per :class:`decimal.Decimal` rules).
+
+        :returns: Wrapped result.
+        :rtype: :class:`Decimal`
+        """
+
+        return Decimal(_Decimal.__pos__(self))
+
+    def __abs__(self):
+        """
+        Return the absolute value of ``self``.
+
+        :returns: Wrapped absolute value.
+        :rtype: :class:`Decimal`
+        """
+
+        return Decimal(_Decimal.__abs__(self))
+
     def __iadd__(self, other: Union["Decimal", int, float]):
         """
         Return the sum of ``self`` and ``other``.

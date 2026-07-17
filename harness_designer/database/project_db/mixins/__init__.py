@@ -6,6 +6,8 @@ from . import angle_peg as _angle_peg
 from . import position2d as _position2d
 from . import position3d as _position3d
 from . import position_peg as _position_peg
+from . import table_position_peg as _table_position_peg
+from . import table_hidden as _table_hidden
 from . import part as _part
 from . import housing as _housing
 from . import name as _name
@@ -34,6 +36,10 @@ Position3DMixin = _position3d.Position3DMixin
 Position3DControl = _position3d.Position3DControl
 
 PositionPegMixin = _position_peg.PositionPegMixin
+
+TablePositionPegMixin = _table_position_peg.TablePositionPegMixin
+
+TableHiddenMixin = _table_hidden.TableHiddenMixin
 
 PartMixin = _part.PartMixin
 HousingMixin = _housing.HousingMixin
@@ -72,6 +78,8 @@ del _angle_peg
 del _position3d
 del _position2d
 del _position_peg
+del _table_position_peg
+del _table_hidden
 del _part
 del _housing
 del _name

@@ -20,6 +20,7 @@ from ...utils import mesh_surface_picker as _mesh_surface_picker
 from ...gl import materials as _materials
 from ... import config as _config
 
+from ... import debug as _debug
 
 if TYPE_CHECKING:
     from ...database.project_db import pjt_housing as _pjt_housing
@@ -163,6 +164,7 @@ class Housing(_base3d.Base3D):
         return [c.obj3d for c in self.parent.cavities
                 if c is not None and c.obj3d is not None]
 
+    @_debug.logfunc
     def _set_model(self, model):
         for cavity in self._part.cavities:
             if cavity is not None:
@@ -189,8 +191,22 @@ class Housing(_base3d.Base3D):
         """
         return self.db_obj.seal_position3d
 
+    @_debug.logfunc
     def match_cavity_surfaces(self) -> None:
-        self._picker.update_vbo()
+        # Surface computation (coplanar grouping + connected components) is
+        # purely a function of this part's mesh geometry -- identical for
+        # every placement of the same catalog part regardless of its own
+        # position/angle/scale. self._part is a singleton shared across
+        # every such placement (see _EntrySingleton in database.global_db.
+        # bases), so the first placement to get here computes it and every
+        # later one just reuses the cached result instead of repeating the
+        # same expensive analysis.
+        cached_surfaces = self._part.mesh_surfaces
+        if cached_surfaces is not None:
+            self._picker.update_vbo(surfaces=cached_surfaces)
+        else:
+            self._picker.update_vbo()
+            self._part.mesh_surfaces = self._picker.surfaces
 
         surfaces = self._picker.surfaces
         cavities = self.cavities

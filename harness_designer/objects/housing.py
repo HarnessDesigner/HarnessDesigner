@@ -8,6 +8,7 @@ from .objects3d import housing as _housing_3d
 from .objectspeg import housing as _housing_peg
 
 from . import cavity as _cavity
+from .. import debug as _debug
 
 
 if TYPE_CHECKING:
@@ -25,6 +26,7 @@ class Housing(_ObjectBase):
     objpeg: _housing_peg.Housing = None
     db_obj: "_pjt_housing.PJTHousing" = None
 
+    @_debug.logfunc
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_housing.PJTHousing", project_load=False):
         """Initialise the :class:`Housing` instance.

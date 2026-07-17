@@ -476,7 +476,8 @@ class ProcessManager(threading.Thread):
                         _logger.info(f'MODEL PROCESS MESSAGE: {message}')
 
                         # Persist blocking error to resource_state.
-                        model_db, resource_db = self._model_processes_running
+                        model_db, resource_db = self._model_processes_running[i - offset]
+                        job_id = resource_db.db_id
                         self._model_processes_running[i - offset] = None
 
                         is_primary = message['is_primary']
@@ -484,8 +485,8 @@ class ProcessManager(threading.Thread):
                         from ..ui.dialogs import error as _error
 
                         if 'step' not in message:
-                            if part_number in self._model_progress:
-                                step = self._model_progress[part_number]
+                            if job_id in self._model_progress:
+                                _, step = self._model_progress[job_id]
                                 message['step'] = step
                             else:
                                 message['step'] = 0
@@ -502,18 +503,18 @@ class ProcessManager(threading.Thread):
 
                         _app.CallAfter(_do, message, resource_db)
 
-                        if part_number in self._model_progress:
-                            del self._model_progress[part_number]
+                        if job_id in self._model_progress:
+                            del self._model_progress[job_id]
 
                         self._model_process_active -= 1
 
-                        if part_number in curr_progresses:
-                            index = curr_progresses.index(part_number)
+                        if job_id in curr_progresses:
+                            index = curr_progresses.index(job_id)
 
                             if curr_progress_index >= index:
                                 curr_progress_index -= 1
 
-                            curr_progresses.remove(part_number)
+                            curr_progresses.remove(job_id)
 
                         if not self._model_process_active:
                             def _do():
@@ -536,14 +537,15 @@ class ProcessManager(threading.Thread):
                     if 'err_no' in message:
                         _logger.info(f'MODEL PROCESS MESSAGE: {message}')
 
+                        model_db, resource_db = self._model_processes_running[i - offset]
+                        job_id = resource_db.db_id
+
                         if 'step' not in message:
-                            if part_number in self._model_progress:
-                                step = self._model_progress[part_number]
+                            if job_id in self._model_progress:
+                                _, step = self._model_progress[job_id]
                                 message['step'] = step
                             else:
                                 message['step'] = 0
-
-                        model_db, resource_db = self._model_processes_running[i - offset]
 
                         from ..ui.dialogs import error as _error
 
@@ -561,16 +563,16 @@ class ProcessManager(threading.Thread):
                         self._model_process_active -= 1
                         self._model_processes_running[i - offset] = None
 
-                        if part_number in self._model_progress:
-                            del self._model_progress[part_number]
+                        if job_id in self._model_progress:
+                            del self._model_progress[job_id]
 
-                        if part_number in curr_progresses:
-                            index = curr_progresses.index(part_number)
+                        if job_id in curr_progresses:
+                            index = curr_progresses.index(job_id)
 
                             if curr_progress_index >= index:
                                 curr_progress_index -= 1
 
-                            curr_progresses.remove(part_number)
+                            curr_progresses.remove(job_id)
 
                         if not self._model_process_active:
                             def _do():
@@ -583,6 +585,7 @@ class ProcessManager(threading.Thread):
                     step = message['step']
 
                     model_db, resource_db = self._model_processes_running[i - offset]
+                    job_id = resource_db.db_id
                     start_progress = False
 
                     def _do(stp, mdb, rdb, pn, start):
@@ -599,17 +602,17 @@ class ProcessManager(threading.Thread):
                             rdb.update_progress(stp)
 
                     if step == 1:
-                        curr_progresses.insert(curr_progress_index, part_number)
+                        curr_progresses.insert(curr_progress_index, job_id)
                         if not self._model_progress:
                             start_progress = True
 
                     if step == 11:
-                        index = curr_progresses.index(part_number)
+                        index = curr_progresses.index(job_id)
                         if curr_progress_index >= index:
                             curr_progress_index -= 1
 
-                        curr_progresses.remove(part_number)
-                        del self._model_progress[part_number]
+                        curr_progresses.remove(job_id)
+                        del self._model_progress[job_id]
 
                         self._model_processes_running[i - offset] = None
                         self._model_process_active -= 1
@@ -618,7 +621,7 @@ class ProcessManager(threading.Thread):
                             start_progress = True
 
                     else:
-                        self._model_progress[part_number] = step
+                        self._model_progress[job_id] = (part_number, step)
 
                     _app.CallAfter(_do, step, model_db, resource_db, part_number, start_progress)
 
@@ -633,8 +636,8 @@ class ProcessManager(threading.Thread):
                     curr_progress_index = 0
                     
                 if curr_progresses:
-                    part_number = curr_progresses[curr_progress_index]
-                    step = self._model_progress[part_number]
+                    job_id = curr_progresses[curr_progress_index]
+                    part_number, step = self._model_progress[job_id]
 
                     def _do(pn, stp):
                         self.mainframe.set_progress(stp, pn)

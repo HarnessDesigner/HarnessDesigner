@@ -12,6 +12,8 @@ from ... import config as _config
 from ... import utils as _utils
 from ...gl import materials as _materials
 
+from ... import debug as _debug
+
 
 if TYPE_CHECKING:
     from .. import ObjectBase as _ObjectBase
@@ -281,6 +283,7 @@ class BasePeg:
         self._angle.y = ey
         self._angle.z = ez
 
+    @_debug.logfunc
     def _set_model(self, model: "_model3d.Model3D"):
         """Async model-load callback -- mirrors
         ``objects.objects3d.base3d.Base3D._set_model`` exactly (same
@@ -566,7 +569,37 @@ class BasePeg:
         if not self.is_active or self.point3d_id is None:
             return []
 
-        return [(self.point3d_id, self.position.x, self.position.z, self._table_label())]
+        return [(self.point3d_id, float(self.position.x), float(self.position.z),
+                 self._table_label())]
+
+    def table_anchor_live_position(self, point3d_id: int) -> "_point.Point":
+        """Return the live, bound ``Point`` backing *point3d_id* -- one of
+        this anchor's own :attr:`table_anchor_points` ids.
+
+        Unlike the plain floats :attr:`table_anchor_points` returns (a
+        one-time snapshot), this is the very same ``Point`` object this
+        anchor's own position mutates in place on every drag (see
+        :meth:`_update_position`/``PositionPegMixin``). Callers that need
+        to keep tracking a moving anchor after the snapshot was taken --
+        the table-drag leader line,
+        ``gl.canvas_pegboard.tables_overlay.PegboardTableWidget`` -- must
+        hold onto *this* reference instead of copying x/z out of it into
+        a new, disconnected ``Point``, or the line's anchor-side endpoint
+        goes stale the moment the anchor is moved and committed without a
+        table-overlay rebuild in between.
+
+        Every ordinary anchor has exactly one point3d_id (its own), so the
+        base implementation just returns :attr:`position` directly.
+        :class:`~harness_designer.objects.objectspeg.transition.Transition`
+        overrides this to resolve *point3d_id* to the matching branch's
+        own live ``position3d`` instead.
+
+        :param point3d_id: One of this anchor's own :attr:`table_anchor_points` ids.
+        :type point3d_id: int
+        :returns: The live position ``Point``.
+        :rtype: :class:`_point.Point`
+        """
+        return self.position
 
     def build_table_rows(self, project, point3d_id: int) -> list:
         """Return this anchor's wire rows for the table anchored at

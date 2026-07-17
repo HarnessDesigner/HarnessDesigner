@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
-from .mixins import Position3DMixin, PartMixin
+from .mixins import Position3DMixin, PartMixin, TablePositionPegMixin, TableHiddenMixin
 from ...ui import prop_ctrls as _prop_ctrls
 from ..global_db import transition_branch as _transition_branch
 
@@ -110,7 +110,8 @@ class PJTTransitionBranchesTable(PJTTableBase):
         return PJTTransitionBranch(self, db_id, self.project_id)
 
 
-class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin):
+class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin,
+                          TablePositionPegMixin, TableHiddenMixin):
     """Represent a PJT transition branch in :mod:`harness_designer.database.project_db.pjt_transition_branch`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -129,6 +130,7 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin):
         packet = {
             'pjt_transition_branches': [self.db_id],
             'pjt_points3d': [self.position3d_id],
+            'pjt_points_peg': [self.table_position_peg_id],
         }
 
         self.merge_packet_data(self.part.build_monitor_packet(), packet)

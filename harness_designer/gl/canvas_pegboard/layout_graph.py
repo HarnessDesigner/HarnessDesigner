@@ -227,7 +227,8 @@ def _resolve_chain_endpoint(
     anchor = anchors_by_point3d_id.get(point3d_id)
     if anchor is not None:
         return PegboardNode(
-            x=anchor.position.x, z=anchor.position.z, anchor=anchor, waypoint_id=None)
+            x=float(anchor.position.x), z=float(anchor.position.z),
+            anchor=anchor, waypoint_id=None)
 
     point_row = project.ptables.pjt_points3d_table[point3d_id]
     return PegboardNode(x=float(point_row.x), z=float(point_row.z),

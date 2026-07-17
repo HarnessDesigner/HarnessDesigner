@@ -1129,6 +1129,32 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         """
         self._stored_cavities = DefaultStoredValue
 
+    _stored_mesh_surfaces: DefaultStoredValueType | list = DefaultStoredValue
+
+    @property
+    def mesh_surfaces(self) -> list | None:
+        """Cached ``mesh_surface_picker.Surface`` list for this part's 3D
+        model, or ``None`` if not yet computed this session.
+
+        Purely an in-memory cache slot -- this class has no idea what a
+        Surface even is, and doesn't compute anything itself.
+        ``objects.objects3d.housing.Housing.match_cavity_surfaces`` owns
+        the compute-once/reuse logic; this property just gives it
+        somewhere to put the result that's naturally shared across every
+        placement of this same catalog part, since ``Housing`` instances
+        are singletons per db_id (see ``_EntrySingleton`` in ``bases.py``)
+        and the surface list is purely a function of the part's mesh
+        geometry -- identical for every placement regardless of its own
+        position/angle/scale.
+        """
+        if self._stored_mesh_surfaces is DefaultStoredValue:
+            return None
+        return self._stored_mesh_surfaces
+
+    @mesh_surfaces.setter
+    def mesh_surfaces(self, value: list) -> None:
+        self._stored_mesh_surfaces = value
+
     _cover_position3d: str = None
     _stored_cover_position3d: DefaultStoredValueType | _point.Point = DefaultStoredValue
 

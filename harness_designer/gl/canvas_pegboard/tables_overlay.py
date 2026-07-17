@@ -23,14 +23,13 @@ part of the harness a repositioned table still belongs to.
 
 from typing import TYPE_CHECKING
 
-from PySide6 import QtCore, QtWidgets
+from PySide6 import QtCore, QtGui, QtWidgets
 
 from ...geometry import point as _point
 from . import table_model as _table_model
 
 
 if TYPE_CHECKING:
-    from PySide6 import QtGui
     from . import canvas as _canvas
 
 
@@ -40,15 +39,22 @@ if TYPE_CHECKING:
 _DEFAULT_TABLE_WIDTH_MM = 220.0
 _DEFAULT_TABLE_HEIGHT_MM = 110.0
 
-# Row height / image-column width / font / title-strip height, WORLD units
-# (mm) -- scaled to screen pixels via pixels_per_world (1000.0 /
-# camera.distance, the same formula Camera2D itself already uses for
-# world<->screen conversion) so font, row height, and the wire image all
-# scale together as the user zooms, per the original plan's design.
-_ROW_HEIGHT_MM = 10.0
+# Image-column width / font, WORLD units (mm) -- scaled to screen pixels via
+# pixels_per_world (1000.0 / camera.distance, the same formula Camera2D
+# itself already uses for world<->screen conversion) so the font and the
+# wire image scale together as the user zooms, per the original plan's
+# design. Row/header/title-strip HEIGHTS are deliberately not guessed as a
+# separate mm constant -- they're measured off the actual font's
+# QFontMetrics instead (see apply_zoom_scale()), so they can never drift
+# out of sync with the font size actually being rendered.
 _IMAGE_COLUMN_WIDTH_MM = 40.0
-_FONT_HEIGHT_MM = 6.0
-_TITLE_STRIP_HEIGHT_MM = 6.0
+_FONT_HEIGHT_MM = 8.0
+
+# Vertical breathing room added to QFontMetrics.height() for rows/header/
+# title-strip -- a bare font-metrics height renders text right up against
+# the cell border.
+_CELL_VERTICAL_PADDING_PX = 6
+_TITLE_STRIP_VERTICAL_PADDING_PX = 6
 
 # Debounce window (ms) for committing a resize (QSizeGrip fires
 # resizeEvent continuously while dragging) -- restarted on every
@@ -80,13 +86,40 @@ class _TitleStrip(QtWidgets.QWidget):
     def set_label(self, label: str) -> None:
         self._label_widget.setText(label)
 
+    def apply_zoom_scale(self, font_h: int) -> None:
+        """Rescale this strip's own label font/height for the current
+        camera zoom -- called by :meth:`PegboardTableWidget.
+        apply_zoom_scale`.
+
+        Height is measured from the label's own actual
+        :class:`~PySide6.QtGui.QFontMetrics` rather than a separately
+        guessed mm constant, so the strip is always tall enough to show
+        its text in full regardless of zoom (a fixed-height strip sized
+        independently of the label's real font would clip the label the
+        moment the two drifted out of sync -- which is exactly what a
+        disconnected mm constant did before).
+
+        :param font_h: Font pixel size for the label -- the same value
+            :meth:`PegboardTableWidget.apply_zoom_scale` applies to the
+            table view's own font, so the title and the table body scale
+            together.
+        :type font_h: int
+        """
+        font = self._label_widget.font()
+        font.setPixelSize(font_h)
+        self._label_widget.setFont(font)
+
+        metrics = QtGui.QFontMetrics(font)
+        self.setFixedHeight(metrics.height() + _TITLE_STRIP_VERTICAL_PADDING_PX)
+
     def mousePressEvent(self, event: "QtGui.QMouseEvent") -> None:
         if event.button() != QtCore.Qt.MouseButton.LeftButton:
             return
 
         self._drag_start_global = event.globalPosition()
         self._drag_start_pos = self._owner.pos()
-        self._owner.canvas.begin_table_drag(self._owner.anchor_world_pos)
+        self._owner.interacting = True
+        self._owner.canvas.begin_table_drag(self._owner.anchor_live_position)
 
     def mouseMoveEvent(self, event: "QtGui.QMouseEvent") -> None:
         if self._drag_start_global is None:
@@ -107,6 +140,7 @@ class _TitleStrip(QtWidgets.QWidget):
         self._drag_start_pos = None
         self._owner.canvas.end_table_drag()
         self._owner.commit_geometry()
+        self._owner.interacting = False
 
 
 class PegboardTableWidget(QtWidgets.QWidget):
@@ -126,18 +160,43 @@ class PegboardTableWidget(QtWidgets.QWidget):
     def __init__(self, canvas: "_canvas.Canvas", point3d_id: int, label: str):
         super().__init__(canvas)
 
+        # Without this, QSizeGrip climbs up to the real top-level widget
+        # (the main application window) and resizes *that* instead of this
+        # widget -- Qt.SubWindow tells it to treat this widget itself as
+        # its resize target, with no other effect (still a plain child
+        # widget, no native frame, no reparenting).
+        self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowType.SubWindow)
+
         self.canvas = canvas
         self.point3d_id = point3d_id
 
-        # This table's owning anchor point's world position -- refreshed by
-        # TablesOverlay.ensure_table() each time the anchor list is rebuilt
-        # (load_project/add_anchor), NOT re-derived live on every access.
-        # Only used for the drag leader-line, which doesn't need
-        # frame-perfect accuracy if the anchor happens to move between
-        # rebuilds -- see module docstring. A real 3D point (.y always
-        # 0.0, the board is flat), matching every other peg-board position
-        # in this codebase -- .x/.z read directly with no relabeling.
-        self.anchor_world_pos = _point.Point(0.0, 0.0, 0.0)
+        # True for the duration of a user-driven title-strip drag --
+        # TablesOverlay.reposition_all() skips this widget entirely while
+        # it's set, so it doesn't fight the live drag with a setGeometry()
+        # computed from the (not-yet-committed) persisted world position.
+        self.interacting = False
+
+        # True only for the duration of reposition_all()'s own
+        # camera-driven setGeometry() call -- resizeEvent uses this to
+        # tell that call apart from a real QSizeGrip drag, so it doesn't
+        # arm the resize-commit-debounce timer (which would otherwise
+        # re-derive and overwrite this table's persisted world
+        # width/height from whatever screen size the camera produced).
+        self._suppress_commit = False
+
+        # This table's owning anchor point's live, bound position Point --
+        # the actual object the anchor's own position mutates in place on
+        # every drag (see objectspeg.basepeg.BasePeg.table_anchor_live_
+        # position), NOT a detached copy of its x/z. Only used for the
+        # drag leader-line's anchor-side endpoint, but it must be the live
+        # reference: a one-time float snapshot goes stale (and the line's
+        # object-end ends up nowhere near the real object) the moment the
+        # anchor is moved and committed without a table-overlay rebuild in
+        # between. Set by TablesOverlay.ensure_table() each time the
+        # anchor list is rebuilt (load_project/add_anchor) -- rebuilding
+        # doesn't invalidate the reference itself, it just re-fetches
+        # whichever live Point the anchor currently has.
+        self.anchor_live_position: "_point.Point | None" = None
 
         self.setAutoFillBackground(True)
 
@@ -176,29 +235,54 @@ class PegboardTableWidget(QtWidgets.QWidget):
     def set_label(self, label: str) -> None:
         self._title_strip.set_label(label)
 
-    def set_anchor_world_pos(self, x: float, z: float) -> None:
-        self.anchor_world_pos = _point.Point(x, 0.0, z)
+    def set_anchor_live_position(self, point: "_point.Point") -> None:
+        """Store a *reference* to the owning anchor's own live, bound
+        position Point -- see :attr:`anchor_live_position`'s docstring for
+        why this must not be a copy.
+        """
+        self.anchor_live_position = point
 
     def apply_zoom_scale(self, pixels_per_world: float) -> None:
-        """Rescale row height/font/image-column width for the current
-        camera zoom -- called by :meth:`TablesOverlay.reposition_all`.
+        """Rescale row/header/title-strip height, font, and image-column
+        width for the current camera zoom -- called by
+        :meth:`TablesOverlay.reposition_all`.
+
+        Row and header heights are measured off the actual font's
+        ``QFontMetrics`` rather than a separately-guessed mm constant, so
+        they can never drift out of sync with the font size actually
+        being rendered (a fixed mm guess is exactly what left the title
+        strip too short to show its own label -- see ``_TitleStrip.
+        apply_zoom_scale``).
+
+        The horizontal header additionally needs a *per-widget*
+        stylesheet override: the app's Dark/Light theme both hardcode
+        ``QHeaderView::section``'s ``font-size``, which silently wins
+        over a plain ``header.setFont()`` call -- a widget-local
+        stylesheet is the only thing Qt lets take priority over that.
 
         :param pixels_per_world: ``1000.0 / camera.distance`` -- the same
             world<->screen scale factor ``Camera2D`` itself uses.
         :type pixels_per_world: float
         """
-        row_h = max(4, int(_ROW_HEIGHT_MM * pixels_per_world))
         font_h = max(4, int(_FONT_HEIGHT_MM * pixels_per_world))
         image_w = max(8, int(_IMAGE_COLUMN_WIDTH_MM * pixels_per_world))
-        strip_h = max(4, int(_TITLE_STRIP_HEIGHT_MM * pixels_per_world))
 
         font = self._view.font()
         font.setPixelSize(font_h)
         self._view.setFont(font)
-        self._view.verticalHeader().setDefaultSectionSize(row_h)
         self._view.setColumnWidth(_table_model.COL_IMAGE, image_w)
 
-        self._title_strip.setFixedHeight(strip_h)
+        row_h = QtGui.QFontMetrics(font).height() + _CELL_VERTICAL_PADDING_PX
+
+        v_header = self._view.verticalHeader()
+        v_header.setFont(font)
+        v_header.setDefaultSectionSize(row_h)
+
+        h_header = self._view.horizontalHeader()
+        h_header.setStyleSheet(f'QHeaderView::section {{ font-size: {font_h}px; }}')
+        h_header.setFixedHeight(row_h)
+
+        self._title_strip.apply_zoom_scale(font_h)
 
     def center_world_pos(self) -> "_point.Point":
         """This table's own current screen-center, converted to world
@@ -241,14 +325,15 @@ class PegboardTableWidget(QtWidgets.QWidget):
         if table_row is None:
             return
 
-        table_row.x = top_left.x
-        table_row.z = top_left.y
-        table_row.width = bottom_right.x - top_left.x
-        table_row.height = bottom_right.y - top_left.y
+        table_row.x = float(top_left.x)
+        table_row.z = float(top_left.y)
+        table_row.width = float(bottom_right.x - top_left.x)
+        table_row.height = float(bottom_right.y - top_left.y)
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
-        self._resize_commit_timer.start(_RESIZE_COMMIT_DEBOUNCE_MS)
+        if not self._suppress_commit:
+            self._resize_commit_timer.start(_RESIZE_COMMIT_DEBOUNCE_MS)
 
 
 class TablesOverlay:
@@ -266,7 +351,7 @@ class TablesOverlay:
 
     def ensure_table(
         self, point3d_id: int, world_x: float, world_z: float, label: str,
-        rows: list, include_cavity_columns: bool,
+        rows: list, include_cavity_columns: bool, anchor_live_position: "_point.Point",
     ) -> None:
         """Create (or refresh) the table overlay for *point3d_id*.
 
@@ -290,6 +375,13 @@ class TablesOverlay:
         :type rows: list[:class:`table_rows.WireTableRow`]
         :param include_cavity_columns: Forwarded to :class:`table_model.PegboardTableModel`.
         :type include_cavity_columns: bool
+        :param anchor_live_position: The owning anchor's own live, bound
+            position Point (``objectspeg.basepeg.BasePeg.
+            table_anchor_live_position``) -- stored by reference, not
+            copied, so the table-drag leader line always tracks the
+            anchor's current position (see
+            :attr:`PegboardTableWidget.anchor_live_position`).
+        :type anchor_live_position: :class:`_point.Point`
         """
         project = self.canvas.project
         if project is None:
@@ -309,7 +401,7 @@ class TablesOverlay:
         else:
             widget.set_label(label)
 
-        widget.set_anchor_world_pos(world_x, world_z)
+        widget.set_anchor_live_position(anchor_live_position)
         widget.set_rows(rows, include_cavity_columns)
         widget.setVisible(not table_row.is_collapsed)
         widget.show()
@@ -375,6 +467,9 @@ class TablesOverlay:
         tables_table = project.ptables.pjt_pegboard_tables_table
 
         for point3d_id, widget in self._widgets.items():
+            if widget.interacting:
+                continue
+
             table_row = tables_table.get_from_point3d_id(point3d_id)
             if table_row is None or table_row.is_collapsed:
                 continue
@@ -383,8 +478,12 @@ class TablesOverlay:
             bottom_right = camera.world_to_screen(
                 _point.Point(table_row.x + table_row.width, table_row.z + table_row.height))
 
-            widget.setGeometry(
-                int(top_left.x), int(top_left.y),
-                max(20, int(bottom_right.x - top_left.x)),
-                max(20, int(bottom_right.y - top_left.y)))
-            widget.apply_zoom_scale(pixels_per_world)
+            widget._suppress_commit = True
+            try:
+                widget.setGeometry(
+                    int(top_left.x), int(top_left.y),
+                    max(20, int(bottom_right.x - top_left.x)),
+                    max(20, int(bottom_right.y - top_left.y)))
+                widget.apply_zoom_scale(pixels_per_world)
+            finally:
+                widget._suppress_commit = False

@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import QApplication, QDialog
-
+import time
 
 from ..config import Config as _Config
 from . import boot as _boot
@@ -165,6 +165,7 @@ class Project:
 
             return cur_count
 
+        start_time = time.time()
         count = _load_objects(
             ptables.pjt_notes_table, 'Note',
             _note.Note, db_ids, self._notes,
@@ -216,8 +217,8 @@ class Project:
             mainframe.object_browser.add_seal,
             count, self._obj_count)
 
-        for housing in self._housings.values():
-            housing.obj3d.match_cavity_surfaces()
+        # for housing in self._housings.values():
+        #     housing.obj3d.match_cavity_surfaces()
 
         count = _load_objects(
             ptables.pjt_wires_table, 'Wire',
@@ -259,6 +260,10 @@ class Project:
             _transition.Transition, db_ids, self._transitions,
             mainframe.object_browser.add_transition, count, self._obj_count)
 
+        stop_time = time.time()
+
+        duration = (stop_time - start_time)
+        print('Project Load Time:', round(duration, 2), 'secs')
         mainframe.set_progress(self._obj_count, 'DONE!')
 
         if self._obj_count != count:

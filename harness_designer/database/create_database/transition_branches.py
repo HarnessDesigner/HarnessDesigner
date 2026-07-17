@@ -4,6 +4,7 @@ from . import transitions as _transitions
 
 from . import projects as _projects
 from . import points3d as _points3d
+from . import points_peg as _points_peg
 
 from .. import db_connectors as _con
 from ... import logger as _logger
@@ -144,5 +145,11 @@ pjt_table = _con.SQLTable(
                                                     on_delete=_con.REFERENCE_CASCADE,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.FloatField('diameter', no_null=True),
-    _con.IntField('branch_id', no_null=True)
+    _con.IntField('branch_id', no_null=True),
+    _con.IntField('table_point_peg_id', default="NULL",
+                  references=_con.SQLFieldReference(_points_peg.pjt_table,
+                                                    _points_peg.pjt_id_field,
+                                                    on_delete=_con.REFERENCE_CASCADE,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.IntField('table_hidden', default='0', no_null=True)
 )

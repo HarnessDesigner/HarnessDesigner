@@ -284,5 +284,14 @@ pjt_table = _con.SQLTable(
     _con.TextField('name', default='""', no_null=True),
     _con.TextField('notes', default='""', no_null=True),
     _con.IntField('is_visible3d', default='1', no_null=True),
-    _con.IntField('smooth', default='NULL')
+    _con.IntField('smooth', default='NULL'),
+    # No SQLFieldReference to pjt_points_peg here (unlike the same column on
+    # pjt_housings/pjt_transition_branches) -- pjt_points_peg's own schema
+    # already references pjt_bundles (its bundle_id waypoint column), and
+    # SQLFieldReference requires the real target SQLTable object at
+    # construction time, not a lazy/string reference, so a real FK back the
+    # other way here would be a circular module import. Still holds a
+    # pjt_points_peg row id -- just without a DB-enforced constraint.
+    _con.IntField('table_point_peg_id', default="NULL"),
+    _con.IntField('table_hidden', default='0', no_null=True)
 )

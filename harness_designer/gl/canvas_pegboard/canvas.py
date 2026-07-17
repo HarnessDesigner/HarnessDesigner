@@ -599,9 +599,10 @@ class Canvas(QOpenGLWidget):
 
         for point3d_id, world_x, world_z, label in anchor.table_anchor_points:
             rows = anchor.build_table_rows(self._project, point3d_id)
+            live_position = anchor.table_anchor_live_position(point3d_id)
             self.tables_overlay.ensure_table(
                 point3d_id, world_x, world_z, label, rows,
-                anchor.table_include_cavity_columns)
+                anchor.table_include_cavity_columns, live_position)
 
     def center_on_object(self, obj) -> None:
         """Pan the camera so *obj*'s anchor is centered, keeping the
@@ -636,8 +637,13 @@ class Canvas(QOpenGLWidget):
         wherever a table overlay is currently being dragged -- called by
         ``tables_overlay._TitleStrip.mousePressEvent``.
 
-        :param anchor_world_pos: The dragged table's owning anchor point's
-            world position (fixed for the duration of the drag).
+        :param anchor_world_pos: The dragged table's owning anchor's own
+            live, bound position ``Point`` (``objectspeg.basepeg.BasePeg.
+            table_anchor_live_position``) -- the same object the anchor's
+            position mutates in place on every drag, not a one-time
+            snapshot, so the line's anchor-side endpoint stays correct
+            even if the anchor was moved (and committed) since this table
+            overlay was last rebuilt.
         :type anchor_world_pos: :class:`_point.Point`
         """
         self._table_drag_anchor_pos = anchor_world_pos
@@ -870,7 +876,7 @@ class Canvas(QOpenGLWidget):
         """Return an entity's current live ``(x, z)`` position."""
         if entity[0] == 'anchor':
             anchor = entity[1]
-            return anchor.position.x, anchor.position.z
+            return float(anchor.position.x), float(anchor.position.z)
 
         waypoint_id = entity[1]
         for node in self._nodes:

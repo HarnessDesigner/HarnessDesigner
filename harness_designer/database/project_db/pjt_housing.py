@@ -31,6 +31,8 @@ from .mixins import (
     Position2DMixin, Position2DControl,
     Position3DMixin, Position3DControl,
     PositionPegMixin,
+    TablePositionPegMixin,
+    TableHiddenMixin,
     Angle2DMixin, Angle2DControl,
     Angle3DMixin, Angle3DControl,
     AnglePegMixin,
@@ -251,7 +253,8 @@ class PJTHousingsTable(PJTTableBase):
 
 
 class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3DMixin,
-                 PositionPegMixin, Visible3DMixin, Visible2DMixin, NotesMixin,
+                 PositionPegMixin, TablePositionPegMixin, TableHiddenMixin,
+                 Visible3DMixin, Visible2DMixin, NotesMixin,
                  Angle2DMixin, Angle3DMixin, AnglePegMixin,
                  SmoothMixin, Scale3DMixin):
     """Represent a PJT housing in :mod:`harness_designer.database.project_db.pjt_housing`.
@@ -277,7 +280,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
                              self.tpa_lock_1_position3d_id, self.tpa_lock_2_position3d_id,
                              self.cpa_lock_position3d_id],
             'pjt_points2d': [self.position2d_id],
-            'pjt_points_peg': [self.position_peg_id],
+            'pjt_points_peg': [self.position_peg_id, self.table_position_peg_id],
 
         }
 
