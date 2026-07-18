@@ -997,9 +997,13 @@ class MouseHandlerPegBoard(QtCore.QObject):
         refresh = False
 
         btns = evt.buttons()
-        if btns != QtCore.Qt.MouseButton.NoButton:
-            mouse_pos = _qt_pos(evt)
+        mouse_pos = _qt_pos(evt)
 
+        event = _events.GLEvent(_events.EVT_GL_MOUSE_MOVE)
+        if not self._send_event(event, evt):
+            return
+
+        if btns != QtCore.Qt.MouseButton.NoButton:
             if self._mouse_pos is None:
                 self._mouse_pos = mouse_pos
 

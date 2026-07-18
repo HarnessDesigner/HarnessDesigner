@@ -75,14 +75,14 @@ class MainFrame(QtWidgets.QMainWindow):
         self.logger = logger
         self._clone_obj = None
 
-        if not Config.size:
+        if Config.size is None:
             screen = self.screen()
             geo = screen.availableGeometry()
-            w = geo.width() * 2 // 3
-            h = geo.height() * 2 // 3
+            w = int(geo.width() * 0.95)
+            h = int(geo.height() * 0.95)
             Config.size = (w, h)
 
-        if not Config.position:
+        if Config.position is None:
             screen = self.screen()
             geo = screen.availableGeometry()
             x = (geo.width() - Config.size[0]) // 2
@@ -795,20 +795,6 @@ class MainFrame(QtWidgets.QMainWindow):
         """
         self.status_bar.clearMessage()
 
-    def Set2DCoordinates(self, x, y):
-        """Execute the set 2dcoordinates operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param x: X-coordinate value.
-        :type x: UNKNOWN
-        :param y: Y-coordinate value.
-        :type y: UNKNOWN
-        """
-        self._status_x.setText(f'X: {round(float(x), 4)}')
-        self._status_y.setText(f'Y: {round(float(y), 4)}')
-        self._status_z.setText('')
-
     def Set3DCoordinates(self, evt: _gl.GLEvent | _gl.GLCameraEvent):
         """Execute the set 3dcoordinates operation.
 
@@ -828,6 +814,25 @@ class MainFrame(QtWidgets.QMainWindow):
         self._status_x.setText(f'X: {round(float(x), 4)}')
         self._status_y.setText(f'Y: {round(float(y), 4)}')
         self._status_z.setText(f'Z: {round(float(z), 4)}')
+
+    def Set2DCoordinates(self, evt: _gl.GLEvent | _gl.GLCameraEvent):
+        """Execute the set 3dcoordinates operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: event.
+        :type evt: UNKNOWN
+        """
+        # if isinstance(evt, _gl.GLObjectEvent):
+        position = evt.GetWorldPosition()
+        # else:
+        #     mouse_pos = evt.GetPosition()
+        #     position = self.editor_pegboard.camera.get_position_on_focal_plane(mouse_pos)
+
+        x, y, _ = position.as_float
+        self._status_x.setText(f'X: {round(float(x), 4)}')
+        self._status_y.setText(f'Y: {round(float(y), 4)}')
+        self._status_z.setText('')
 
     def showEvent(self, event):
         """Execute the show event operation.
@@ -1904,6 +1909,9 @@ class MainFrame(QtWidgets.QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
+        self.Set2DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1915,6 +1923,9 @@ class MainFrame(QtWidgets.QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
+        self.Set2DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1926,6 +1937,9 @@ class MainFrame(QtWidgets.QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
+        self.Set2DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1937,6 +1951,9 @@ class MainFrame(QtWidgets.QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
+        self.Set2DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1948,6 +1965,9 @@ class MainFrame(QtWidgets.QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
+        self.Set2DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1959,6 +1979,9 @@ class MainFrame(QtWidgets.QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
+        self.Set2DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1970,6 +1993,9 @@ class MainFrame(QtWidgets.QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
+        self.Set2DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1981,6 +2007,9 @@ class MainFrame(QtWidgets.QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
+        self.Set2DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1992,6 +2021,9 @@ class MainFrame(QtWidgets.QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
+        self.Set2DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -2003,6 +2035,9 @@ class MainFrame(QtWidgets.QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
+        self.Set2DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -2014,6 +2049,9 @@ class MainFrame(QtWidgets.QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
+        self.Set2DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -2025,6 +2063,9 @@ class MainFrame(QtWidgets.QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
+        self.Set2DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -2077,7 +2118,11 @@ class MainFrame(QtWidgets.QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
+        self.Set2DCoordinates(evt)
+
         if self._obj_handler is not None:
+            self._obj_handler.hover(evt.GetPosition())
             evt.StopPropagation()
         else:
             evt.Skip()
@@ -2099,6 +2144,9 @@ class MainFrame(QtWidgets.QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
+        self.Set2DCoordinates(evt)
+
         if self._obj_handler is not None:
             position = evt.GetPosition()
             self._obj_handler.capture_position(position)
@@ -2113,6 +2161,9 @@ class MainFrame(QtWidgets.QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
+        self.Set2DCoordinates(evt)
+
         if self._obj_handler is not None:
             self._obj_handler.release_capture()
 
@@ -2129,6 +2180,9 @@ class MainFrame(QtWidgets.QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
+        self.Set2DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -2140,6 +2194,9 @@ class MainFrame(QtWidgets.QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
+        self.Set2DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -2151,6 +2208,9 @@ class MainFrame(QtWidgets.QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
+        self.Set2DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -2162,6 +2222,9 @@ class MainFrame(QtWidgets.QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
+        self.Set2DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -2184,6 +2247,9 @@ class MainFrame(QtWidgets.QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
+        self.Set2DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -2195,6 +2261,9 @@ class MainFrame(QtWidgets.QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
+        self.Set2DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -2206,6 +2275,9 @@ class MainFrame(QtWidgets.QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
+        self.Set2DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -2217,6 +2289,9 @@ class MainFrame(QtWidgets.QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
+        self.Set2DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -2228,6 +2303,9 @@ class MainFrame(QtWidgets.QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
+        self.Set2DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -2239,6 +2317,9 @@ class MainFrame(QtWidgets.QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
+        self.Set2DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -2250,6 +2331,9 @@ class MainFrame(QtWidgets.QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
+        self.Set2DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -2261,6 +2345,9 @@ class MainFrame(QtWidgets.QMainWindow):
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
+        self.Set2DCoordinates(evt)
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:

@@ -4,10 +4,10 @@ import numpy as np
 from OpenGL import GL
 from OpenGL import GLU
 
-from PySide6.QtWidgets import QWidget, QVBoxLayout
-from PySide6.QtOpenGLWidgets import QOpenGLWidget
-from PySide6.QtCore import QEvent, Qt, QTimer
-from PySide6.QtGui import QCursor
+from PySide6 import QtWidgets
+from PySide6 import QtOpenGLWidgets
+from PySide6 import QtCore
+from PySide6 import QtGui
 
 from ...geometry import angle as _angle
 from ...geometry import point as _point
@@ -21,7 +21,7 @@ from ... import config as _config
 _UP_PARALLEL_DOT_THRESHOLD = 0.999
 
 
-class Overlay(QWidget):
+class Overlay(QtWidgets.QWidget):
     """Represent an overlay in :mod:`harness_designer.gl.canvas3d.axis_overlay`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -38,25 +38,51 @@ class Overlay(QWidget):
         """
 
         self.canvas3d = parent
-        QWidget.__init__(self, parent)
-        self.setFixedSize(*config.size)  # NOQA
-        self.move(*config.position)  # NOQA
+        super().__init__(parent)
+
+        self.config = config
+
+        if config.size is None:
+            config.size = (150, 150)
+
+        w, h = config.size
+
+        if config.position is None:
+            config.position = (0, 0)
+
+            def _do():
+                psize = parent.size()
+                pw = psize.width()
+                ph = psize.height()
+
+                new_x, new_y = config.position = (
+                    pw - w - (w // 10), ph - h - (h // 10))
+
+                self.move(new_x, new_y)  # NOQA
+                self.show()
+
+            from ... import app as _app
+
+            _app.CallAfterStart(_do)
+            self.hide()
+
+        x, y = config.position
+
+        self.setFixedSize(w, h)  # NOQA
+        self.move(x, y)  # NOQA
         self.setStyleSheet("border: 2px solid gray;")
 
         self.gl_overlay = GLOverlay(self, size=config.size)
 
-        layout = QVBoxLayout(self)
+        layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.gl_overlay)
 
-        self.config = config
-
         self.setVisible(config.is_visible)
 
-        QTimer.singleShot(0, lambda: (
+        QtCore.QTimer.singleShot(0, lambda: (
             self.move(*self.config.position),  # NOQA
-            self.gl_overlay.update()
-        ))
+            self.gl_overlay.update()))
 
     def setVisible(self, flag=True):
         """
@@ -67,7 +93,7 @@ class Overlay(QWidget):
         """
 
         self.config.is_visible = flag
-        QWidget.setVisible(self, flag)
+        super().setVisible(flag)
 
     def resizeEvent(self, event):
         """
@@ -83,8 +109,8 @@ class Overlay(QWidget):
             self.config.size = (w, h)
             self.gl_overlay.setFixedSize(w, h)
 
-        QTimer.singleShot(0, _do)
-        QWidget.resizeEvent(self, event)
+        QtCore.QTimer.singleShot(0, _do)
+        super().resizeEvent(event)
 
     def moveEvent(self, event):
         """
@@ -98,8 +124,8 @@ class Overlay(QWidget):
             pos = self.pos()
             self.config.position = (pos.x(), pos.y())
 
-        QTimer.singleShot(0, _do)
-        QWidget.moveEvent(self, event)
+        QtCore.QTimer.singleShot(0, _do)
+        super().moveEvent(event)
 
     def set_angle(self, point: _point.Point):
         """
@@ -125,7 +151,7 @@ class Overlay(QWidget):
         self.gl_overlay.setFixedSize(w, h)
 
 
-class GLOverlay(QOpenGLWidget):
+class GLOverlay(QtOpenGLWidgets.QOpenGLWidget):
     """
     Represent a GL overlay in :mod:`harness_designer.gl.canvas3d.axis_overlay`.
     """
@@ -141,7 +167,7 @@ class GLOverlay(QOpenGLWidget):
         :type size: UNKNOWN
         """
 
-        QOpenGLWidget.__init__(self, parent)
+        super().__init__(parent)
         self.parent_overlay = parent
         self._init = False
         self.size = None
@@ -171,9 +197,9 @@ class GLOverlay(QOpenGLWidget):
         :type event: UNKNOWN
         """
 
-        if event.button() == Qt.MouseButton.LeftButton:
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
             self._on_left_down(event)
-        elif event.button() == Qt.MouseButton.RightButton:
+        elif event.button() == QtCore.Qt.MouseButton.RightButton:
             self._on_right_down(event)
 
     def mouseReleaseEvent(self, event):
@@ -184,9 +210,9 @@ class GLOverlay(QOpenGLWidget):
         :type event: UNKNOWN
         """
 
-        if event.button() == Qt.MouseButton.LeftButton:
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
             self._on_left_up(event)
-        elif event.button() == Qt.MouseButton.RightButton:
+        elif event.button() == QtCore.Qt.MouseButton.RightButton:
             self._on_right_up(event)
 
     def mouseMoveEvent(self, event):
@@ -405,14 +431,14 @@ class GLOverlay(QOpenGLWidget):
             (0 <= mx <= 10 and 0 <= my <= 10) or
             (w - 10 <= mx <= w and h - 10 <= my <= h)
         ):
-            self.setCursor(QCursor(Qt.CursorShape.SizeFDiagCursor))
+            self.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.SizeFDiagCursor))
         elif (
             (w - 10 <= mx <= w and 0 <= my <= 10) or
             (0 <= mx <= 10 and h - 10 <= my <= h)
         ):
-            self.setCursor(QCursor(Qt.CursorShape.SizeBDiagCursor))
+            self.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.SizeBDiagCursor))
         else:
-            self.setCursor(QCursor(Qt.CursorShape.SizeAllCursor))
+            self.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.SizeAllCursor))
 
     def build_model(self, size):
         """

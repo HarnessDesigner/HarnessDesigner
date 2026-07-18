@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 
 import re
 import threading
-import time as _time_mod
 import sqlite3
 from typing import (Optional as _Optional,
                     Union as _Union,
@@ -31,9 +30,6 @@ from .... process import manager as _manager
 if TYPE_CHECKING:
     from .... import ui as _ui
 
-
-Config = _config.Config.database.sqlite
-_DebugConfig = _config.Config.debug.database
 
 _NORMALIZE_LITERAL_RE = re.compile(r"'[^']*'|\b\d+\b")
 
@@ -62,7 +58,7 @@ class SQLConnector(_base.ConnectorBase):
         :type mainframe: :class:`_ui.Mainframe`
         """
 
-        db_path = Config.database_path
+        db_path = _config.Config.database.sqlite.database_path
 
         super().__init__(mainframe, db_path)
 
@@ -275,35 +271,15 @@ class SQLConnector(_base.ConnectorBase):
         :rtype: _Generator[sqlite3.Cursor, None, None] | None
         """
 
-        if not _DebugConfig.profile_queries:
-            try:
-                if params is None:
-                    return self._cursor.execute(operation)
-                else:
-                    return self._cursor.execute(operation, params)
-            except AttributeError:
-                return None
-            except Exception:  # NOQA
-                _logger.error('SQLITE execute ERROR:', 'CMD:', operation, '\n', 'PARAMS:', params)
-                return None
-
-        start = _time_mod.perf_counter()
         try:
             if params is None:
                 return self._cursor.execute(operation)
             else:
                 return self._cursor.execute(operation, params)
         except AttributeError:
-            return None
+            pass
         except Exception:  # NOQA
             _logger.error('SQLITE execute ERROR:', 'CMD:', operation, '\n', 'PARAMS:', params)
-            return None
-        finally:
-            elapsed = _time_mod.perf_counter() - start
-            key = _NORMALIZE_LITERAL_RE.sub('?', operation)
-            entry = self._query_profile.setdefault(key, [0, 0.0])
-            entry[0] += 1
-            entry[1] += elapsed
 
     def executemany(
         self, operation: str, seq_params: list[_ParamsSequenceOrDictType] | tuple[_ParamsSequenceOrDictType]

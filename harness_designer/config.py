@@ -1,7 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 """Persistent application configuration backed by SQLite tables."""
-
+import inspect
+import binascii
 import sqlite3
 import weakref
 import threading
@@ -58,7 +59,7 @@ class _ConfigTable:
         with _lock:
             with self._con:
                 cur = self._con.cursor()
-                cur.execute(f'SELECT id FROM {self.name} WHERE key = "{item}";')
+                cur.execute(f'SELECT id FROM [{self.name}] WHERE key = "{item}";')
                 DEBUG('__contains__.SELECT:', self.name, item)
                 if cur.fetchall():
                     cur.close()
@@ -80,11 +81,15 @@ class _ConfigTable:
             with self._con:
                 cur = self._con.cursor()
 
-                cur.execute(f'SELECT value FROM {self.name} WHERE key = "{item}";')
-                value = cur.fetchall()[0][0]
+                cur.execute(f'SELECT value, decode FROM [{self.name}] WHERE key = "{item}";')
+                value, decode = cur.fetchall()[0]
 
                 DEBUG('__getitem__.SELECT:', self.name, item, value)
                 cur.close()
+
+            if decode:
+                value = binascii.unhexlify(value)
+                value = value.decode('utf-8')
 
             try:
                 return eval(value)
@@ -101,6 +106,13 @@ class _ConfigTable:
         """
         value = str(value)
 
+        if '"' in value or "'" in value:
+            decode = True
+            value = value.encode('utf-8')
+            value = binascii.hexlify(value).decode('utf-8')
+        else:
+            decode = False
+
         if key not in self:
             with _lock:
                 with self._con:
@@ -108,10 +120,10 @@ class _ConfigTable:
                     DEBUG('__setitem__.INSERT:', self.name, key, value)
 
                     try:
-                        cur.execute(f'INSERT INTO {self.name} (key, value) VALUES(?, ?);', (key, value))
+                        cur.execute(f'INSERT INTO [{self.name}] (key, value, decode) VALUES(?, ?, ?);', (key, value, int(decode)))
                     except sqlite3.IntegrityError:
-                        DEBUG('__setitem__.UPDATE:', self.name, key, value)
-                        cur.execute(f'UPDATE {self.name} SET value = "{value}" WHERE key = "{key}";')
+                        DEBUG('__setitem__.UPDATE:', self.name, key, value, decode)
+                        cur.execute(f'UPDATE [{self.name}] SET value = ?, decode = ? WHERE key = ?;', (value, int(decode), key))
 
                     self._con.commit()
                     cur.close()
@@ -120,7 +132,7 @@ class _ConfigTable:
                 with self._con:
                     cur = self._con.cursor()
                     DEBUG('__setitem__.UPDATE:', self.name, key, value)
-                    cur.execute(f'UPDATE {self.name} SET value = "{value}" WHERE key = "{key}";')
+                    cur.execute(f'UPDATE [{self.name}] SET value = ?, decode = ? WHERE key = ?;', (value, int(decode), key))
 
                     self._con.commit()
                     cur.close()
@@ -136,7 +148,7 @@ class _ConfigTable:
                 cur = self._con.cursor()
                 DEBUG('__delitem__.DELETE:', self.name, key)
 
-                cur.execute(f'DELETE FROM {self.name} WHERE key = "{key}"')
+                cur.execute(f'DELETE FROM [{self.name}] WHERE key = "{key}"')
                 self._con.commit()
                 cur.close()
 
@@ -156,7 +168,6 @@ class _ConfigDB:
 
         """
         self._con = None
-        self.save_all = False
 
     def open(self):
         """Open the configuration database file.
@@ -168,8 +179,9 @@ class _ConfigDB:
 
         path = os.path.join(_utils.get_appdata(), 'config.db')
 
-        self.save_all = not os.path.exists(path)
+        save_all = not os.path.exists(path)
         self._con = sqlite3.connect(path, check_same_thread=False)
+        return save_all
 
     def __contains__(self, item):
         """Return whether a table exists in the database.
@@ -182,7 +194,7 @@ class _ConfigDB:
         with _lock:
             with self._con:
                 cur = self._con.cursor()
-                cur.execute('SELECT name FROM sqlite_master WHERE type="table";')
+                cur.execute('SELECT [name] FROM sqlite_master WHERE type="table";')
                 tables = [row[0] for row in cur.fetchall()]
                 cur.close()
 
@@ -190,6 +202,22 @@ class _ConfigDB:
             DEBUG('__contains__.table.SELECT:', item, ret)
 
             return ret
+
+    def __setitem__(self, key, value):
+        with _lock:
+            if key not in self:
+                with self._con:
+                    cur = self._con.cursor()
+                    DEBUG('__getitem__.table.CREATE:', key)
+
+                    cur.execute(f'CREATE TABLE [{key}]('
+                                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+                                'key TEXT UNIQUE NOT NULL, '
+                                'value TEXT NOT NULL, '
+                                'decode INT NOT NULL'
+                                ');')
+                    self._con.commit()
+                    cur.close()
 
     def __getitem__(self, item):
         """Return a table wrapper, creating the table on demand.
@@ -205,10 +233,11 @@ class _ConfigDB:
                     cur = self._con.cursor()
                     DEBUG('__getitem__.table.CREATE:', item)
 
-                    cur.execute(f'CREATE TABLE {item}('
+                    cur.execute(f'CREATE TABLE [{item}]('
                                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
                                 'key TEXT UNIQUE NOT NULL, '
-                                'value TEXT NOT NULL'
+                                'value TEXT NOT NULL, '
+                                'decode INT NOT NULL'
                                 ');')
                     self._con.commit()
                     cur.close()
@@ -275,7 +304,7 @@ class ConfigDB(type):
                 refs.remove(ref)
                 return
 
-    def _load(cls):
+    def _load(cls, save_all):
         """Load persisted values back onto the configuration class.
 
         """
@@ -283,9 +312,17 @@ class ConfigDB(type):
             if key.startswith('_'):
                 continue
 
+            if save_all and cls.__table_name__ not in ConfigDB.__db__:
+                ConfigDB.__db__[cls.__table_name__] = None
+
             if cls.__table_name__ in ConfigDB.__db__:
                 if key in cls.__table__:
                     type.__setattr__(cls, key, cls.__table__[key])
+
+                elif save_all:
+                    value = getattr(cls, key)
+                    if type(value) is not ConfigDB and not inspect.isclass(value):
+                        cls.__table__[key] = value
 
     def _save(cls):
         """Persist current class attributes to the database.
@@ -324,10 +361,8 @@ class ConfigDB(type):
         :returns: Derived table name.
         :rtype: str
         """
-        name = f'{cls.__module__.split(".", 1)[-1]}_{cls.__qualname__}'
-        name = name.replace(".", "_")
-        name = name.replace('harness_designer_config_Config_', '')
-        name = name.replace('_Config', '')
+        name = cls.__qualname__
+        name = name.replace('Config.', '')
         return name
 
     @property
@@ -433,10 +468,10 @@ class ConfigDB(type):
         """Open the config database and load all registered classes.
 
         """
-        ConfigDB.__db__.open()
+        save_all = ConfigDB.__db__.open()
 
         for cls in ConfigDB.__classes__:
-            cls._load()
+            cls._load(save_all)
 
     @staticmethod
     def close():
@@ -895,8 +930,8 @@ class Config(metaclass=ConfigDB):
         class axis_overlay(metaclass=ConfigDB):
             """Axis overlay visibility and placement settings."""
             is_visible = True
-            size = (150, 150)
-            position = (830, 245)
+            size = None
+            position = None
 
     class logging(metaclass=ConfigDB):
         """Logging destinations and verbosity settings."""
@@ -909,11 +944,10 @@ class Config(metaclass=ConfigDB):
         log_debug = False
         log_traceback = True
         log_error = True
-        log_wx_error = True
         log_database = False
         log_file_transfers = True
 
-    class debug:
+    class debug(metaclass=ConfigDB):
         """Debug feature toggles used throughout the application."""
         class functions(metaclass=ConfigDB):
             """Function-call debug logging settings."""
@@ -1016,36 +1050,15 @@ class Config(metaclass=ConfigDB):
     class mainframe(metaclass=ConfigDB):
         """Main window geometry and docking layout settings."""
         theme = 'Dark'
-        position = ()
-        size = ()
+        position = None
+        size = None
 
         tab_location = 2
 
         # QtWidgets.QTabWidget.TabShape.Rounded
         # QtWidgets.QTabWidget.TabShape.Triangular
         tab_shape = 0
-
-
-        ui_perspective = (
-            'layout2'
-            '|name=editor_3d;caption=3D Editor;state=2816;dir=5;layer=0;row=0;pos=0;prop=100000;bestw=20;besth=20;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=-1;floaty=-1;floatw=-1;floath=-1'
-            '|name=editor_2d;caption=Schematic Editor;state=14684156;dir=2;layer=0;row=2;pos=0;prop=100000;bestw=20;besth=20;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=803;floaty=323;floatw=45;floath=59'
-            '|name=editor_db;caption=Database Editor;state=14700540;dir=3;layer=0;row=0;pos=0;prop=100000;bestw=20;besth=20;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=-1;floaty=-1;floatw=-1;floath=-1'
-            '|name=editor_obj;caption=Object Editor;state=14684156;dir=4;layer=0;row=0;pos=0;prop=100000;bestw=20;besth=20;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=-1;floaty=-1;floatw=-1;floath=-1'
-            '|name=editor_assembly;caption=Assembly Editor;state=14684156;dir=3;layer=0;row=0;pos=1;prop=100000;bestw=20;besth=20;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=1786;floaty=727;floatw=45;floath=59'
-            '|name=object_browser;caption=Object Browser;state=14684156;dir=2;layer=0;row=0;pos=0;prop=100000;bestw=20;besth=20;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=1811;floaty=226;floatw=45;floath=59'
-            '|name=log_viewer;caption=Log Viewer;state=14684158;dir=3;layer=0;row=0;pos=2;prop=100000;bestw=20;besth=20;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=1760;floaty=764;floatw=45;floath=59'
-            '|name=general_toolbar;caption=;state=2106108;dir=1;layer=10;row=0;pos=0;prop=100000;bestw=228;besth=45;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=-1;floaty=-1;floatw=-1;floath=-1'
-            '|name=editor_toolbar;caption=;state=2106108;dir=1;layer=10;row=0;pos=1006;prop=100000;bestw=658;besth=45;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=-1;floaty=-1;floatw=-1;floath=-1'
-            '|name=note_toolbar;caption=;state=2106108;dir=1;layer=10;row=0;pos=862;prop=100000;bestw=142;besth=45;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=-1;floaty=-1;floatw=-1;floath=-1'
-            '|name=object_toolbar;caption=;state=2106108;dir=1;layer=10;row=0;pos=460;prop=100000;bestw=400;besth=45;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=-1;floaty=-1;floatw=-1;floath=-1'
-            '|name=settings3d_toolbar;caption=;state=2106108;dir=1;layer=10;row=0;pos=230;prop=100000;bestw=228;besth=45;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=-1;floaty=-1;floatw=-1;floath=-1'
-            '|dock_size(5,0,0)=22'
-            '|dock_size(2,0,0)=198'
-            '|dock_size(3,0,0)=283'
-            '|dock_size(4,0,0)=271'
-            '|dock_size(1,10,0)=47'
-            '|dock_size(2,0,2)=662|')
+        ui_perspective = b'\x00\x00\x00\xFF\x00\x00\x00\x00\xFD\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x06\x47\x00\x00\x02\xF2\xFC\x02\x00\x00\x00\x02\xFC\x00\x00\x00\x58\x00\x00\x02\x2E\x00\x00\x01\x21\x00\x08\x00\x15\xFC\x01\x00\x00\x00\x02\xFC\x00\x00\x00\x4A\x00\x00\x04\x7F\x00\x00\x00\x47\x01\x00\x00\x17\xFA\x00\x00\x00\x00\x02\x00\x00\x00\x03\xFB\x00\x00\x00\x12\x00\x65\x00\x64\x00\x69\x00\x74\x00\x6F\x00\x72\x00\x5F\x00\x33\x00\x64\x01\x00\x00\x00\x00\xFF\xFF\xFF\xFF\x00\x00\x00\x16\x00\xFF\xFF\xFF\xFB\x00\x00\x00\x12\x00\x65\x00\x64\x00\x69\x00\x74\x00\x6F\x00\x72\x00\x5F\x00\x32\x00\x64\x01\x00\x00\x00\x00\xFF\xFF\xFF\xFF\x00\x00\x00\x16\x00\xFF\xFF\xFF\xFB\x00\x00\x00\x1E\x00\x65\x00\x64\x00\x69\x00\x74\x00\x6F\x00\x72\x00\x5F\x00\x70\x00\x65\x00\x67\x00\x62\x00\x6F\x00\x61\x00\x72\x00\x64\x01\x00\x00\x00\x00\xFF\xFF\xFF\xFF\x00\x00\x00\x16\x00\xFF\xFF\xFF\xFC\x00\x00\x04\xD2\x00\x00\x01\xBF\x00\x00\x00\xEA\x00\x08\x00\x17\xFA\x00\x00\x00\x00\x02\x00\x00\x00\x05\xFB\x00\x00\x00\x14\x00\x65\x00\x64\x00\x69\x00\x74\x00\x6F\x00\x72\x00\x5F\x00\x6F\x00\x62\x00\x6A\x01\x00\x00\x00\x00\xFF\xFF\xFF\xFF\x00\x00\x00\x28\x00\xFF\xFF\xFF\xFB\x00\x00\x00\x1C\x00\x6F\x00\x62\x00\x6A\x00\x65\x00\x63\x00\x74\x00\x5F\x00\x62\x00\x72\x00\x6F\x00\x77\x00\x73\x00\x65\x00\x72\x01\x00\x00\x00\x00\xFF\xFF\xFF\xFF\x00\x00\x00\x74\x00\xFF\xFF\xFF\xFB\x00\x00\x00\x1C\x00\x65\x00\x64\x00\x69\x00\x74\x00\x6F\x00\x72\x00\x5F\x00\x63\x00\x69\x00\x72\x00\x63\x00\x75\x00\x69\x00\x74\x01\x00\x00\x00\x00\xFF\xFF\xFF\xFF\x00\x00\x01\x21\x00\x08\x00\x15\xFB\x00\x00\x00\x1E\x00\x65\x00\x64\x00\x69\x00\x74\x00\x6F\x00\x72\x00\x5F\x00\x61\x00\x73\x00\x73\x00\x65\x00\x6D\x00\x62\x00\x6C\x00\x79\x01\x00\x00\x00\x00\xFF\xFF\xFF\xFF\x00\x00\x00\x16\x00\xFF\xFF\xFF\xFB\x00\x00\x00\x14\x00\x6C\x00\x6F\x00\x67\x00\x5F\x00\x76\x00\x69\x00\x65\x00\x77\x00\x65\x00\x72\x01\x00\x00\x00\x00\xFF\xFF\xFF\xFF\x00\x00\x00\x62\x00\xFF\xFF\xFF\xFB\x00\x00\x00\x12\x00\x65\x00\x64\x00\x69\x00\x74\x00\x6F\x00\x72\x00\x5F\x00\x64\x00\x62\x01\x00\x00\x02\x8F\x00\x00\x00\xBB\x00\x00\x00\x86\x00\xFF\xFF\xFF\x00\x00\x00\x00\x00\x00\x02\xF2\x00\x00\x00\x04\x00\x00\x00\x04\x00\x00\x00\x08\x00\x00\x00\x08\xFC\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x24\x00\x73\x00\x65\x00\x74\x00\x74\x00\x69\x00\x6E\x00\x67\x00\x73\x00\x33\x00\x64\x00\x5F\x00\x74\x00\x6F\x00\x6F\x00\x6C\x00\x62\x00\x61\x00\x72\x03\x00\x00\x00\x00\xFF\xFF\xFF\xFF\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x20\x00\x70\x00\x65\x00\x67\x00\x62\x00\x6F\x00\x61\x00\x72\x00\x64\x00\x5F\x00\x74\x00\x6F\x00\x6F\x00\x6C\x00\x62\x00\x61\x00\x72\x03\x00\x00\x01\x81\x00\x00\x01\x71\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x1E\x00\x67\x00\x65\x00\x6E\x00\x65\x00\x72\x00\x61\x00\x6C\x00\x5F\x00\x74\x00\x6F\x00\x6F\x00\x6C\x00\x62\x00\x61\x00\x72\x03\x00\x00\x00\x00\xFF\xFF\xFF\xFF\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x03\x00\x00\x00\x1C\x00\x65\x00\x64\x00\x69\x00\x74\x00\x6F\x00\x72\x00\x5F\x00\x74\x00\x6F\x00\x6F\x00\x6C\x00\x62\x00\x61\x00\x72\x01\x00\x00\x00\x00\xFF\xFF\xFF\xFF\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x18\x00\x6E\x00\x6F\x00\x74\x00\x65\x00\x5F\x00\x74\x00\x6F\x00\x6F\x00\x6C\x00\x62\x00\x61\x00\x72\x01\x00\x00\x01\xFC\xFF\xFF\xFF\xFF\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x1C\x00\x6F\x00\x62\x00\x6A\x00\x65\x00\x63\x00\x74\x00\x5F\x00\x74\x00\x6F\x00\x6F\x00\x6C\x00\x62\x00\x61\x00\x72\x01\x00\x00\x02\x87\xFF\xFF\xFF\xFF\x00\x00\x00\x00\x00\x00\x00\x00'
 
     class project(metaclass=ConfigDB):
         """Project-level defaults such as recent locations."""

@@ -43,6 +43,13 @@ def CallAfter(func, *args) -> None:
     _call_on_main.emit(lambda f=func, a=args: f(*a))  # NOQA
 
 
+_after_start_cbs = []
+
+
+def CallAfterStart(func, *args) -> None:
+    _after_start_cbs.append((func, args))
+
+
 class _AppSignals(QObject):
     """Cross-thread signals for the App startup sequence."""
     call_on_main = Signal(object)   # payload: a zero-arg callable
@@ -242,7 +249,14 @@ class App(QObject):
             """Show the main frame after startup completes.
 
             """
+
             _hd._mainframe.show()  # NOQA
+
+        self.call_after(_do)
+
+        def _do():
+            for func, args in _after_start_cbs:
+                func(*args)
 
         self.call_after(_do)
 
