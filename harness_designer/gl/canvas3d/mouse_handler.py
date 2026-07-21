@@ -3,20 +3,18 @@
 import math
 
 from PySide6 import QtCore
-from PySide6 import QtWidgets
 
 from . import canvas as _canvas
 from . import dragging as _dragging
 from . import object_picker as _object_picker
 from . import rotation_rings as _rotation_rings
 from ...geometry import point as _point
-from ...shapes import sphere as _sphere
 from ... import config as _config
-from ... import utils as _utils
 from .. import events as _events
 from ... import handlers as _handlers
 from ...objects import housing as _housing
-from ...objects import cavity as _cavity
+from ...objects import terminal as _terminal
+from ...objects import wire as _wire
 
 
 MOUSE_NONE = _config.MOUSE_NONE
@@ -430,6 +428,12 @@ class MouseHandler:
             selected = self._pick_object(mouse_pos, current_selection=cur_selected)
 
             if not self._is_motion:
+                # Read by MainFrame._set_selected: this click is what's about
+                # to trigger the selection change below, so the 3D view
+                # shouldn't re-center on it -- it's already right where the
+                # user clicked.
+                self.canvas.mainframe._selection_source_editor = 'editor3d'  # NOQA
+
                 if self._active_cavity_housing is not None:
                     self._active_cavity_housing.clear_cavity_overlay()
                     self._active_cavity_housing = None
@@ -621,17 +625,32 @@ class MouseHandler:
                     selected = self._pick_object(mouse_pos)
                     cur_selected = self.canvas.get_selected()
 
-                    # If the right-clicked housing has a highlighted cavity,
-                    # show the cavity context menu via the picker.
-                    if (isinstance(selected, _housing.Housing) and
-                            selected.obj3d._selected_global_cavity is not None):
-                        selected.obj3d._on_right_click(
-                            evt.globalPosition().toPoint())
-                    elif selected and selected != cur_selected:
-                        # Normal case: context menu for the clicked object.
+                    # A fresh pick at this exact position may not resolve
+                    # to the same cavity that's actually selected (or to a
+                    # cavity at all) -- try_pick_cavity re-derives it
+                    # directly, gated on the click having landed on the
+                    # housing that has an active cavity highlight in the
+                    # first place.
+                    cavity = None
+                    if (
+                        self._active_cavity_housing is not None and
+                        self._active_cavity_housing.parent is selected
+                    ):
+                        cavity = selected.obj3d.try_pick_cavity(
+                            mouse_pos.x, mouse_pos.y)
+
+                    is_cavity_menu_target = cavity is not None and cavity.parent is cur_selected
+
+                    if is_cavity_menu_target or (selected and selected != cur_selected):
+                        # Cavity3D.get_context_menu() owns the cavity-aware
+                        # menu now, so the event target is the cavity
+                        # itself (cavity.parent, the wrapper) rather than
+                        # the housing when this was a cavity hit.
+                        target = cavity.parent if is_cavity_menu_target else selected
+
                         event = _events.GLObjectEvent(
                             _events.EVT_GL_OBJECT_RIGHT_CLICK)
-                        event.SetGLObject(selected)
+                        event.SetGLObject(target)
                         self._send_event(event, evt)
                     else:
                         refresh = True
@@ -657,15 +676,31 @@ class MouseHandler:
         event = _events.GLEvent(_events.EVT_GL_RIGHT_DOWN)
         if self._send_event(event, evt):
             selected = self._pick_object(mouse_pos)
+            cur_selected = self.canvas.get_selected()
+
+            # Same re-derivation as on_right_up: a fresh pick at this exact
+            # position may not resolve to the same cavity that's actually
+            # selected (or to a cavity at all).
+            cavity = None
+            if (
+                self._active_cavity_housing is not None and
+                self._active_cavity_housing.parent is selected
+            ):
+                cavity = selected.obj3d.try_pick_cavity(
+                    mouse_pos.x, mouse_pos.y)
+
+            is_cavity_menu_target = cavity is not None and cavity.parent is cur_selected
 
             # Right-click on the selected object normally enters angle mode;
             # the context menu (on_right_up) is reserved for unselected
-            # objects.  Exception: a housing with a highlighted cavity should
-            # show the cavity context menu on right-up, not angle mode.
-            if selected and self.canvas.get_selected() == selected:
+            # objects. Exceptions: a cavity is always part of a housing and
+            # never independently rotatable; same for a terminal once it's
+            # seated in a cavity -- both should show their context menu
+            # on right-up instead of angle mode.
+            if selected and cur_selected == selected and not is_cavity_menu_target:
                 skip_angle = (
-                    isinstance(selected, _housing.Housing) and
-                    selected.obj3d._selected_global_cavity is not None
+                    isinstance(selected, _terminal.Terminal) and
+                    selected.db_obj.cavity_id is not None
                 )
                 if not skip_angle and self._rotation_rings is None:
                     self._rotation_rings = (
@@ -824,7 +859,19 @@ class MouseHandler:
                             cur_selected is not None and
                             selected == cur_selected
                         ):
-                            self._drag_obj = _dragging.DragObject(self.canvas, selected)
+                            if (
+                                isinstance(selected, _wire.Wire) and
+                                selected.obj3d.is_housing_attached()
+                            ):
+                                # Position is derived from the housing --
+                                # not freely draggable. Pan the camera
+                                # instead of starting a no-op drag.
+                                self._process_mouse(MOUSE_LEFT)(*list(delta)[:-1])
+                                refresh = True
+                            elif isinstance(selected, _wire.Wire):
+                                self._drag_obj = _dragging.WireDragObject(self.canvas, selected)
+                            else:
+                                self._drag_obj = _dragging.DragObject(self.canvas, selected)
                         else:
                             self._process_mouse(MOUSE_LEFT)(*list(delta)[:-1])
                             refresh = True

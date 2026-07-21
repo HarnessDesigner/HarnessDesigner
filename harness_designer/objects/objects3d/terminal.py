@@ -32,6 +32,12 @@ class Terminal(_base3d.Base3D):
     parent: "_terminal.Terminal" = None
     db_obj: "_pjt_terminal.PJTTerminal" = None
 
+    # Position is always computed from the owning cavity (see
+    # terminal_handler._female_terminal_position/_male_terminal_position),
+    # never placed freely by the user -- floor lock would silently overwrite
+    # that computed Y and persist the overwrite to the DB.
+    _floor_lock_exempt = True
+
     def __init__(self, parent: "_terminal.Terminal",
                  db_obj: "_pjt_terminal.PJTTerminal"):
         """Initialise the :class:`Terminal` instance.
@@ -60,7 +66,16 @@ class Terminal(_base3d.Base3D):
         else:
             vbo = _box.create_vbo()
 
-        scale = _point.Point(self._part.width, self._part.height, self._part.length)
+        # Placeholder/analog geometry shown while the real model downloads
+        # (or when none is assigned) -- fall back to the cavity's own
+        # dimensions when this part is missing any of its own measurements.
+        pjt_cavity = db_obj.cavity
+        if pjt_cavity is not None:
+            width, height, length = self._part.effective_size(pjt_cavity.part)
+        else:
+            width, height, length = self._part.width, self._part.height, self._part.length
+
+        scale = _point.Point(width, height, length)
         angle = db_obj.angle3d
 
         _base3d.Base3D.__init__(
@@ -74,50 +89,87 @@ class Terminal(_base3d.Base3D):
         self._overlay_housing_3d = None
         self._overlay_cavity_obj = None
         self._overlay_wire_surf_idx: int = None
+        self._overlay_wire_marker_idx: int = None
         self._overlay_pin_surf_idx: int = None
 
         parent.mainframe.editor3d.context.release()
+
+        # model.load()'s callback (_set_model) always fires, whether the
+        # model needed a fresh download/conversion or was already cached
+        # from a prior session -- checked here, before load() can possibly
+        # run synchronously, to tell those two cases apart once _set_model
+        # actually fires. uuid is only populated once conversion finishes,
+        # so uuid is None means this is a genuine first-time download: the
+        # placeholder scale above was necessarily computed from Terminal.
+        # effective_size/catalog dimensions (no model to measure yet), which
+        # can meaningfully differ from the real, converted model's size, so
+        # the position (computed from that same placeholder length by
+        # AddTerminalHandler) needs recomputing once the real model lands.
+        # uuid already set means the position was already computed from
+        # real model data (or a user has since moved it) -- leave it alone.
+        self._model_is_first_download = model is not None and model.uuid is None
 
         if model is not None:
             model.load(self._part.manufacturer.name,
                        self._part.part_number, self._set_model)
 
+    def _set_model(self, model):
+        super()._set_model(model)
+
+        if self._model_is_first_download:
+            self._model_is_first_download = False
+
+            from ...handlers import terminal_handler as _terminal_handler
+
+            _terminal_handler.reposition_from_model(self.db_obj)
+
     def _refresh_overlay_state(self) -> None:
         """(Re)resolve which of the housing's mesh surfaces this terminal
         should overlay, and which wrapper object's selection state drives
-        the overlay color.  Cheap no-op once the owning cavity stops
-        changing between calls.
+        the overlay color.
+
+        The cavity/housing object lookup (walking .get_object() chains) is
+        cached by cavity_id -- cheap no-op once the owning cavity stops
+        changing between calls. But cavity_3d.surf_idx/wire_surf_idx/
+        wire_marker_idx are re-read every call, uncached: match_cavity_
+        surfaces() runs asynchronously (once the housing's model finishes
+        loading) and can still be pending the first few times this terminal
+        renders (e.g. on project load, where every object gets constructed
+        before any housing's async model callback has had a chance to run)
+        -- caching a still -1 index against cavity_id would otherwise
+        permanently freeze the overlay off even after match_cavity_surfaces
+        later resolves it.
         """
         pjt_cavity = self.db_obj.cavity
         cavity_id = pjt_cavity.db_id if pjt_cavity is not None else None
 
-        if cavity_id == self._overlay_cavity_id:
-            return
+        if cavity_id != self._overlay_cavity_id:
+            self._overlay_cavity_id = cavity_id
+            self._overlay_housing_3d = None
+            self._overlay_cavity_obj = None
 
-        self._overlay_cavity_id = cavity_id
-        self._overlay_housing_3d = None
-        self._overlay_cavity_obj = None
+            if pjt_cavity is not None:
+                cavity_obj = pjt_cavity.get_object()
+                if cavity_obj is not None and cavity_obj.obj3d is not None:
+                    housing_pjt = pjt_cavity.housing
+                    housing_obj = (
+                        housing_pjt.get_object() if housing_pjt is not None else None)
+                    if housing_obj is not None and housing_obj.obj3d is not None:
+                        self._overlay_cavity_obj = cavity_obj
+                        self._overlay_housing_3d = housing_obj.obj3d
+
         self._overlay_wire_surf_idx = None
+        self._overlay_wire_marker_idx = None
         self._overlay_pin_surf_idx = None
 
-        if pjt_cavity is None:
+        if self._overlay_cavity_obj is None:
             return
 
-        cavity_obj = pjt_cavity.get_object()
-        if cavity_obj is None or cavity_obj.obj3d is None:
-            return
-
-        housing_pjt = pjt_cavity.housing
-        housing_obj = housing_pjt.get_object() if housing_pjt is not None else None
-        if housing_obj is None or housing_obj.obj3d is None:
-            return
-
-        self._overlay_cavity_obj = cavity_obj
-        self._overlay_housing_3d = housing_obj.obj3d
-
-        cavity_3d = cavity_obj.obj3d
+        cavity_3d = self._overlay_cavity_obj.obj3d
         if cavity_3d.wire_surf_idx >= 0:
             self._overlay_wire_surf_idx = cavity_3d.wire_surf_idx
+        elif cavity_3d.wire_marker_idx >= 0:
+            self._overlay_wire_marker_idx = cavity_3d.wire_marker_idx
 
         if self._pin_overlay_needed(pjt_cavity) and cavity_3d.surf_idx >= 0:
             self._overlay_pin_surf_idx = cavity_3d.surf_idx
@@ -152,10 +204,18 @@ class Terminal(_base3d.Base3D):
         if cavity_obj is not None and cavity_obj.is_selected:
             color = self._selected_material.diffuse
         else:
-            color = self._unselected_material.diffuse
+            # self._unselected_material is a PolishedMaterial -- it remaps
+            # any input color into a narrow metallic-looking band (see
+            # PolishedMaterial.__init__), so its .diffuse is nearly the same
+            # dull gray/brass regardless of the terminal's actual color and
+            # is useless as a distinct identifier. Use the terminal's raw
+            # color instead, same as self._color already stores.
+            color = self._color.rgba_scalar
 
         if self._overlay_wire_surf_idx is not None:
             housing_3d.render_surface_overlay(self._overlay_wire_surf_idx, color)
+        elif self._overlay_wire_marker_idx is not None:
+            housing_3d.render_marker_overlay(self._overlay_wire_marker_idx, color)
 
         if self._overlay_pin_surf_idx is not None:
             housing_3d.render_surface_overlay(self._overlay_pin_surf_idx, color)

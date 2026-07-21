@@ -555,7 +555,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
         return None
 
     def Refresh(self, *_, **__):
-        self.canvas.update()
+        self.canvas.Refresh()
 
     @property
     def context(self):

@@ -107,6 +107,7 @@ def _split_wire_at_point(
 ):
     orig = original_wire.db_obj
     part_id = orig.part_id
+    name = orig.name
     circuit_id = orig.circuit_id
     layer_id = orig.layer_id
     layer_view_point_id = orig.layer_view_position_id
@@ -118,14 +119,14 @@ def _split_wire_at_point(
     stop_id = int(original_wire.obj3d.stop_position.db_id[:-2])
 
     wire1_db = project.ptables.pjt_wires_table.insert(
-        part_id, circuit_id, start_id, shared_coord_id,
+        part_id, name, circuit_id, start_id, shared_coord_id,
         None, None, is_visible3d, is_visible2d,
-        None, layer_id, is_filler_wire)
+        layer_view_point_id, layer_id, is_filler_wire)
 
     wire2_db = project.ptables.pjt_wires_table.insert(
-        part_id, circuit_id, shared_coord_id, stop_id,
+        part_id, name, circuit_id, shared_coord_id, stop_id,
         None, None, is_visible3d, is_visible2d,
-        None, layer_id, is_filler_wire)
+        layer_view_point_id, layer_id, is_filler_wire)
 
     wire1_obj = _wire.Wire(project.mainframe, wire1_db)
     wire2_obj = _wire.Wire(project.mainframe, wire2_db)
@@ -232,6 +233,15 @@ class AddWireLayoutHandler(_handler_base.HandlerBase):
                 wire.obj3d.start_position.attach(self.obj.obj3d.position)
             else:
                 wire.obj3d.stop_position.attach(self.obj.obj3d.position)
+
+            # .attach() only makes the delegator (this layout's own preview
+            # point) track the wire endpoint live, in-memory, for this
+            # session -- the layout's own DB row still stores its original
+            # throwaway point's id. Repoint it to the wire endpoint's real
+            # id (now what self.obj.obj3d.position.db_id reports, since a
+            # delegator forwards db_id to its root) so the sharing survives
+            # a reload instead of only existing as a live delegation.
+            self.obj.db_obj.position3d_id = int(self.obj.obj3d.position.db_id[:-2])
         else:
             coord_id = int(self.obj.obj3d.position.db_id[:-2])
             _split_wire_at_point(self.mainframe.project, wire, coord_id)

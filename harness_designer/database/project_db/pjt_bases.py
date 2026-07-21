@@ -482,10 +482,7 @@ class PJTTableBase:
         """
         args = ', '.join(args)
 
-        values = []
-
-        if self.project_id is not None:
-            values.append(f'project_id = {self.project_id}')
+        kwarg_values = []
 
         for key, value in kwargs.items():
             if isinstance(value, (str, float)):
@@ -493,13 +490,25 @@ class PJTTableBase:
             elif value is None:
                 value = 'NULL'
 
-            values.append(f'{key} = {value}')
+            kwarg_values.append(f'{key} = {value}')
 
         if OR:
-
-            values = ' OR '.join(values)
+            kwarg_clause = ' OR '.join(kwarg_values)
+            if kwarg_values:
+                kwarg_clause = f'({kwarg_clause})'
         else:
-            values = ' AND '.join(values)
+            kwarg_clause = ' AND '.join(kwarg_values)
+
+        # project_id must always be AND-ed against the kwarg clause, even
+        # when OR=True -- otherwise "project_id = X OR <kwargs>" matches
+        # every row in the project regardless of the kwargs.
+        values = []
+        if self.project_id is not None:
+            values.append(f'project_id = {self.project_id}')
+        if kwarg_clause:
+            values.append(kwarg_clause)
+
+        values = ' AND '.join(values)
 
         where = f' WHERE {values}'
 

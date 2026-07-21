@@ -26,7 +26,6 @@ if TYPE_CHECKING:
     from ...database.project_db import pjt_housing as _pjt_housing
     from .. import cavity as _cavity
     from . import cavity as _cavity3d
-    from ...database.global_db import cavity as _global_cavity_mod
     from .. import housing as _housing
     from ... import ui as _ui
 
@@ -51,6 +50,7 @@ class _CavityMarker:
     half_w: float
     half_h: float
     local_verts: np.ndarray  # (3N, 3) float32 triangle soup, local space
+    side: str                # 'terminal' | 'wire' -- which face this stands in for
 
 
 def _build_marker_local_verts(
@@ -149,8 +149,6 @@ class Housing(_base3d.Base3D):
 
         canvas3d = parent.mainframe.editor3d.editor
         self._picker = _mesh_surface_picker.MeshSurfacePicker(self, canvas3d)
-        self._selected_global_cavity = None
-        self._selected_is_wire_side = False
         self._surf_to_cavity: dict = {}
         self._cavity_markers: list = []
         self._selected_marker_idx: int = -1
@@ -176,6 +174,13 @@ class Housing(_base3d.Base3D):
             dlg.SetValue(self._part)
             dlg.exec()
             dlg.deleteLater()
+
+            # The dialog is what just created the global cavities for this
+            # catalog part (none existed yet). This housing's own pjt_cavity
+            # rows never got created at insert time (the model was still
+            # downloading then), so backfill them now that the global
+            # cavities finally exist.
+            self.db_obj.update_cavities()
 
         super()._set_model(model)
         self.match_cavity_surfaces()
@@ -251,7 +256,52 @@ class Housing(_base3d.Base3D):
             self._cavity_markers.append(_CavityMarker(
                 cavity_3d=cavity_3d, kind=kind, normal=normal, u=u_dir,
                 v=v_dir, center=center, half_w=half_w, half_h=half_h,
-                local_verts=local_verts))
+                local_verts=local_verts, side='terminal'))
+
+        # Cavities whose terminal side has real, distinguishable mesh
+        # geometry but whose wire side is one continuous surface shared
+        # with another cavity (Cavity.render_wire_marker) get a synthetic
+        # marker for just the wire side, built from their own OBB back face
+        # (corners 0-3 are the wire-side face, 4-7 the terminal/forward
+        # face -- see Cavity3D.apply_analysis) instead of that shared real
+        # surface. Their terminal side is untouched and still goes through
+        # the normal real-surface matching below.
+        for cavity_3d in normal_cavities:
+            part = cavity_3d.db_obj.part
+            if not part.render_wire_marker:
+                continue
+
+            obb = part.obb
+            if obb is None:
+                continue
+
+            obb_f = obb.astype(np.float64)
+            c0, c1, c2, c3 = obb_f[0], obb_f[1], obb_f[2], obb_f[3]
+            u_vec = c2 - c0
+            v_vec = c1 - c0
+            half_w = float(np.linalg.norm(u_vec)) / 2.0
+            half_h = float(np.linalg.norm(v_vec)) / 2.0
+            if half_w < 1e-9 or half_h < 1e-9:
+                continue
+
+            u_dir = u_vec / (half_w * 2.0)
+            v_dir = v_vec / (half_h * 2.0)
+            normal = np.cross(u_dir, v_dir)
+            n_norm = np.linalg.norm(normal)
+            if n_norm < 1e-9:
+                continue
+            normal /= n_norm
+            center = (c0 + c1 + c2 + c3) / 4.0
+
+            kind = 'circle' if part.round_terminal else 'rect'
+            local_verts = _build_marker_local_verts(
+                kind, center, u_dir, v_dir, half_w, half_h)
+
+            cavity_3d.wire_marker_idx = len(self._cavity_markers)
+            self._cavity_markers.append(_CavityMarker(
+                cavity_3d=cavity_3d, kind=kind, normal=normal, u=u_dir,
+                v=v_dir, center=center, half_w=half_w, half_h=half_h,
+                local_verts=local_verts, side='wire'))
 
         if not surfaces or not normal_cavities:
             return
@@ -276,7 +326,14 @@ class Housing(_base3d.Base3D):
                 continue
 
             term_idxs = [i for i in part.terminal_surf_indices if 0 <= i < n_surf]
-            wire_idxs = [i for i in part.wire_surf_indices if 0 <= i < n_surf]
+            # A wire-marker cavity's stored wire_surf_indices (if any) point
+            # at the shared real surface it was matched against in the
+            # editor -- it now has its own synthetic marker instead (built
+            # above), so never reuse the shared index here.
+            if part.render_wire_marker:
+                wire_idxs = []
+            else:
+                wire_idxs = [i for i in part.wire_surf_indices if 0 <= i < n_surf]
 
             if not term_idxs and not wire_idxs:
                 heuristic_cavities.append(cavity_3d)
@@ -351,20 +408,30 @@ class Housing(_base3d.Base3D):
                 assigned_cavs.add(ci)
                 assigned_surfs.add(si)
 
-        # Second pass: wire faces — each cavity gets at most one additional
-        # surface so clicking from the back also resolves to the same cavity.
-        assigned_cavs_wire: set = set()
-        flat_wire = wire_dist.ravel()
-        for k in np.argsort(flat_wire):
-            if flat_wire[k] == np.inf:
-                break
-            ci = int(k) // n_surf
-            si = int(k) % n_surf
-            if ci not in assigned_cavs_wire and si not in assigned_surfs:
-                normal_cavities[ci].wire_surf_idx = si
-                self._surf_to_cavity[si] = normal_cavities[ci]
-                assigned_cavs_wire.add(ci)
-                assigned_surfs.add(si)
+        # Second pass: wire faces — matched independently per cavity, NOT a
+        # global exclusive assignment like the terminal pass above. Many
+        # cavities legitimately share one flat wire-side wall surface, so
+        # forcing cross-cavity exclusivity here meant every cavity after the
+        # first (closest) one lost its real, shared wire surface to the
+        # exclusion set and fell through to whatever unrelated surface was
+        # next-nearest in the global sort -- the wrong one. Surfaces already
+        # claimed as *some* cavity's terminal surface (pass 1) are still off
+        # limits; a shared wire surface's click-target cavity is whichever
+        # one claims it first (inherent ambiguity of a shared surface), but
+        # each cavity's own wire_surf_idx is now always its true nearest
+        # wire-parallel surface.
+        for ci, cavity_3d in enumerate(normal_cavities):
+            if cavity_3d.db_obj.part.render_wire_marker:
+                continue  # already has a synthetic wire marker, above
+
+            row = wire_dist[ci].copy()
+            if assigned_surfs:
+                row[list(assigned_surfs)] = np.inf
+            si = int(np.argmin(row))
+            if row[si] == np.inf:
+                continue
+            cavity_3d.wire_surf_idx = si
+            self._surf_to_cavity.setdefault(si, cavity_3d)
 
     def _pick_marker(self, x: int, y: int) -> int:
         """Ray-cast against synthetic cavity-marker decals.
@@ -417,8 +484,7 @@ class Housing(_base3d.Base3D):
         marker = self._cavity_markers[marker_idx]
         self._picker.clear_selection()
         self._selected_marker_idx = marker_idx
-        self._selected_global_cavity = marker.cavity_3d.db_obj.part
-        self._selected_is_wire_side = False
+        marker.cavity_3d._selected_is_wire_side = (marker.side == 'wire')  # NOQA
         return marker.cavity_3d
 
     def on_surface_selected(self, idx: int):
@@ -426,18 +492,8 @@ class Housing(_base3d.Base3D):
         if cavity_3d is not None:
             self._picker.select(idx)
             self._selected_marker_idx = -1
-            self._selected_global_cavity = cavity_3d.db_obj.part
-            self._selected_is_wire_side = (idx != cavity_3d.surf_idx)
+            cavity_3d._selected_is_wire_side = (idx != cavity_3d.surf_idx)  # NOQA
         return cavity_3d
-
-    def _on_right_click(self, global_pos) -> None:
-        if self._selected_global_cavity is None:
-            return
-
-        menu = HousingCavityMenu(
-            self, self._selected_global_cavity, self._selected_is_wire_side)
-        menu.exec(global_pos)
-        menu.deleteLater()
 
     def try_pick_cavity(self, x: int, y: int):
         """Ray-cast at pixel (x, y); highlight the cavity (or its synthetic
@@ -460,8 +516,6 @@ class Housing(_base3d.Base3D):
 
     def clear_cavity_overlay(self) -> None:
         """Hide any active cavity-plane highlight for this housing."""
-        self._selected_global_cavity = None
-        self._selected_is_wire_side = False
         self._selected_marker_idx = -1
         self._picker.clear_selection()
 
@@ -519,6 +573,30 @@ class Housing(_base3d.Base3D):
 
         self._draw_overlay_triangles(positions, color)
 
+    def render_marker_overlay(self, marker_idx: int, color) -> None:
+        """Draw an override-color overlay on one of this housing's synthetic
+        cavity markers -- the marker equivalent of ``render_surface_overlay``.
+        Used by a placed terminal to color-match its cavity's synthetic
+        wire-side marker (Cavity.render_wire_marker) the same way it does
+        for a real wire-side surface.
+        """
+        if marker_idx is None or marker_idx < 0:
+            return
+
+        if marker_idx >= len(self._cavity_markers):
+            return
+
+        marker = self._cavity_markers[marker_idx]
+        picker = self._picker
+        rot = picker.rot_mat
+        scale = picker.scale_arr
+        pos = picker.pos_arr
+
+        positions = ((marker.local_verts.astype(np.float64) * scale) @
+                     rot + pos).astype(np.float32)
+
+        self._draw_overlay_triangles(positions, color)
+
     def _render_cavity_markers(self) -> None:
         """Draw every synthetic cavity-marker decal — persistent, not just
         on selection, since these are the only visual cue for cavities that
@@ -570,176 +648,6 @@ class Housing(_base3d.Base3D):
         :rtype: UNKNOWN
         """
         return HousingMenu(self.mainframe, self)
-
-
-class HousingCavityMenu(QMenu):
-    """Context menu shown on right-click over a highlighted cavity plane."""
-
-    def __init__(self, housing_3d: "Housing",
-                 global_cavity: "_global_cavity_mod.Cavity",
-                 is_wire_side: bool = False):
-        super().__init__()
-        self._housing_3d = housing_3d
-        self._global_cavity = global_cavity
-        self._pjt_cavity = self._find_pjt_cavity()
-
-        has_terminal = (self._pjt_cavity is not None and
-                        self._pjt_cavity.terminal is not None)
-        has_seal = (self._pjt_cavity is not None and
-                    self._pjt_cavity.seal is not None)
-        terminal_sealable = (has_terminal and
-                             self._pjt_cavity.terminal.part.sealing)
-
-        if has_terminal:
-            act = self.addAction('Edit Terminal')
-            act.triggered.connect(self.on_edit_terminal)
-        else:
-            act = self.addAction('Add Terminal')
-            act.setEnabled(not has_seal)
-            act.triggered.connect(self.on_add_terminal)
-
-        if has_seal:
-            act = self.addAction('Edit Seal')
-            act.triggered.connect(self.on_edit_seal)
-        elif has_terminal and terminal_sealable:
-            act = self.addAction('Add Wire Seal')
-            act.triggered.connect(self.on_add_wire_seal)
-        elif not has_terminal:
-            act = self.addAction('Add Plug Seal')
-            act.triggered.connect(self.on_add_plug_seal)
-
-        if is_wire_side:
-            act = self.addAction('Add Wire')
-            act.setEnabled(has_terminal)
-            act.triggered.connect(self.on_add_wire)
-
-    def _find_pjt_cavity(self):
-        g_id = self._global_cavity.db_id
-        for pc in self._housing_3d.db_obj.cavities:
-            if pc.part_id == g_id:
-                return pc
-        return None
-
-    def _get_or_create_pjt_cavity(self):
-        if self._pjt_cavity is not None:
-            return self._pjt_cavity
-
-        housing = self._housing_3d
-        g_cavity = self._global_cavity
-        ptables = housing.mainframe.project.ptables
-
-        pjt_cavity = ptables.pjt_cavities_table.insert(
-            g_cavity.db_id, housing.db_obj.db_id, g_cavity.name)
-
-        self._pjt_cavity = pjt_cavity
-        return pjt_cavity
-
-    def _cavity_midpoint(self, pjt_cavity) -> tuple[float, float, float]:
-        cpos_np = pjt_cavity.position3d.as_numpy.astype(np.float64)
-        cav_ang = pjt_cavity.angle3d
-        length = float(self._global_cavity.length)
-
-        ref_local = np.array([[0.0, 0.0, length]], dtype=np.float64)
-        ref_world = np.asarray(ref_local @ cav_ang, dtype=np.float64)[0] + cpos_np
-        mid = (cpos_np + ref_world) / 2.0
-        return float(mid[0]), float(mid[1]), float(mid[2])
-
-    def on_add_terminal(self):
-        from .. import cavity as _cavity_mod
-        from ... import handlers as _handlers
-
-        pjt_cavity = self._get_or_create_pjt_cavity()
-        mainframe = self._housing_3d.mainframe
-        housing_wrapper = self._housing_3d.parent
-
-        cavity_obj = pjt_cavity.get_object()
-        if cavity_obj is None:
-            cavity_obj = _cavity_mod.Cavity(mainframe, pjt_cavity)
-            mainframe.project.add_cavity(cavity_obj)
-
-        _menu_ops.run_attached_handler(
-            lambda: _handlers.AddTerminalHandler(
-                mainframe, housing=housing_wrapper, cavity=cavity_obj))
-
-    def on_add_wire_seal(self):
-        from ... import handlers as _handlers
-
-        if self._pjt_cavity is None:
-            return
-        terminal_db = self._pjt_cavity.terminal
-        if terminal_db is None:
-            return
-        terminal_obj = terminal_db.get_object()
-        if terminal_obj is None:
-            return
-
-        mainframe = self._housing_3d.mainframe
-        _menu_ops.run_attached_handler(
-            lambda: _handlers.AddSealHandler(mainframe, terminal=terminal_obj))
-
-    def on_add_wire(self):
-        from ... import handlers as _handlers
-
-        if self._pjt_cavity is None:
-            return
-        terminal_db = self._pjt_cavity.terminal
-        if terminal_db is None:
-            return
-        terminal_obj = terminal_db.get_object()
-        if terminal_obj is None:
-            return
-
-        mainframe = self._housing_3d.mainframe
-        _menu_ops.start_handler(
-            mainframe,
-            lambda: _handlers.AddWireHandler(mainframe, terminal=terminal_obj))
-
-    def on_add_plug_seal(self):
-        from .. import cavity as _cavity_mod
-        from ... import handlers as _handlers
-
-        pjt_cavity = self._get_or_create_pjt_cavity()
-        mainframe = self._housing_3d.mainframe
-
-        cavity_obj = pjt_cavity.get_object()
-        if cavity_obj is None:
-            cavity_obj = _cavity_mod.Cavity(mainframe, pjt_cavity)
-            mainframe.project.add_cavity(cavity_obj)
-
-        _menu_ops.run_attached_handler(
-            lambda: _handlers.AddSealHandler(mainframe, cavity=cavity_obj))
-
-    def on_edit_terminal(self):
-        def _do():
-            from . import menu_ops as _menu_ops
-
-            if self._pjt_cavity is None:
-                return
-            terminal_db = self._pjt_cavity.terminal
-            if terminal_db is None:
-                return
-            parent = terminal_db.get_object()
-            if parent is None or parent.obj3d is None:
-                return
-            _menu_ops.show_properties(parent.obj3d)
-
-        QTimer.singleShot(0, _do)
-
-    def on_edit_seal(self):
-        def _do():
-            from . import menu_ops as _menu_ops
-
-            if self._pjt_cavity is None:
-                return
-            seal_db = self._pjt_cavity.seal
-            if seal_db is None:
-                return
-            parent = seal_db.get_object()
-            if parent is None or parent.obj3d is None:
-                return
-            _menu_ops.show_properties(parent.obj3d)
-
-        QTimer.singleShot(0, _do)
 
 
 class HousingMenu(QMenu):

@@ -529,6 +529,42 @@ def surface_centroid(surface: Surface, vertices: np.ndarray) -> np.ndarray:
     return verts[idxs].astype(np.float64).mean(axis=0)
 
 
+def surface_area(surface: Surface, vertices: np.ndarray) -> float:
+    """Total triangle area of a surface, in mesh units squared."""
+    verts = vertices.reshape(-1, 3)
+    tri_idx = np.asarray(surface.tri_indices, dtype=np.int64)
+    a = verts[3 * tri_idx].astype(np.float64)
+    b = verts[3 * tri_idx + 1].astype(np.float64)
+    c = verts[3 * tri_idx + 2].astype(np.float64)
+
+    return float(0.5 * np.linalg.norm(np.cross(b - a, c - a), axis=1).sum())
+
+
+def surface_contains_points(
+    surface: Surface, points: np.ndarray, vertices: np.ndarray,
+) -> bool:
+    """Return True iff every point in ``points`` (N, 3) -- already lying on
+    (or projected onto) surface's own plane -- falls inside at least one of
+    its actual triangles, not just its infinite plane. Used to test whether
+    a cavity's shape genuinely fits within a candidate mating surface,
+    rather than merely being nearby.
+    """
+    from ....utils.mesh_surface_picker import _points_in_triangles
+
+    verts = vertices.reshape(-1, 3)
+    tri_idx = np.asarray(surface.tri_indices, dtype=np.int64)
+    a = verts[3 * tri_idx].astype(np.float64)
+    b = verts[3 * tri_idx + 1].astype(np.float64)
+    c = verts[3 * tri_idx + 2].astype(np.float64)
+
+    for p in points:
+        p_b = np.broadcast_to(p, a.shape)
+        if not _points_in_triangles(p_b, a, b, c).any():
+            return False
+
+    return True
+
+
 def generate_terminal_geometry(
     terminal: Surface,
     wire: Surface,

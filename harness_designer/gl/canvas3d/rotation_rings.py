@@ -644,6 +644,16 @@ class Rings3D(_base3d.Base3D):
         if reflect_loc != -1:
             GL.glUniform1i(reflect_loc, 0)
 
+        # This program's uniform state persists across draw calls, so a
+        # WireStripe drawn earlier in the same frame can leave
+        # stripeClipLength set to a real length -- without resetting it,
+        # that leftover value forces this gizmo's own Z scale to 1.0 and
+        # clips its geometry too (spheres flattening to discs, rings
+        # flattening), varying frame to frame with whatever last set it.
+        clip_loc = GL.glGetUniformLocation(faces_program, "stripeClipLength")
+        if clip_loc != -1:
+            GL.glUniform1f(clip_loc, 0.0)
+
         position = self._position.as_float
 
         for axis in self._axes:

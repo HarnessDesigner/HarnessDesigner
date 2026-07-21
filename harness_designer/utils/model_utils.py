@@ -47,19 +47,33 @@ def compute_edges(faces: np.ndarray) -> np.ndarray:
     return edges
 
 
-def convert_model_to_mesh(model):
+def convert_model_to_mesh(model, lin_deflection=0.001, ang_deflection=0.1, is_relative=True):
     """
     Triangulate a CAD model into vertex and face arrays.
 
     :param model: Build123d/OCP model wrapper exposing ``wrapped`` and ``faces``.
     :type model: UNKNOWN
+    :param lin_deflection: Chordal tolerance passed to OCCT's incremental
+        mesher. When ``is_relative`` is True (the default) this is scaled by
+        the model's own bounding box, so it stays coarse relative to large
+        parts and fine relative to small ones -- pass ``is_relative=False``
+        with an absolute value when the curvature you care about is much
+        smaller than the model's overall bounding box (e.g. a thin helix
+        swept across a long, shared mesh).
+    :type lin_deflection: float
+    :param ang_deflection: Maximum angle (radians) between tessellation
+        segments on a curved surface -- lower is smoother.
+    :type ang_deflection: float
+    :param is_relative: Whether ``lin_deflection`` is relative to the
+        model's bounding box (OCCT default) or an absolute distance.
+    :type is_relative: bool
     :returns: Vertex and face arrays suitable for mesh processing.
     :rtype: tuple[numpy.ndarray, numpy.ndarray]
     """
 
     loc = TopLoc_Location()
-    BRepMesh_IncrementalMesh(theShape=model.wrapped, theLinDeflection=0.001,
-                             isRelative=True, theAngDeflection=0.1, isInParallel=True)
+    BRepMesh_IncrementalMesh(theShape=model.wrapped, theLinDeflection=lin_deflection,
+                             isRelative=is_relative, theAngDeflection=ang_deflection, isInParallel=True)
 
     vertices = []
     faces = []

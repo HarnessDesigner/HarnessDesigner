@@ -33,6 +33,7 @@ from .mixins import (
 
 if TYPE_CHECKING:
     from . import seal as _seal
+    from . import cavity as _cavity
 
 
 def _seal_eff_dia(wire_dia: float | None, wire_size_dia: float | None,
@@ -817,6 +818,30 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
             self._table.update(self._db_id, height=value)
 
         self._populate('height')
+
+    def effective_size(self, cavity: "_cavity.Cavity") -> tuple[float, float, float]:
+        """
+        Return (width, height, length) to use for this terminal's
+        placeholder/analog geometry -- the primitive box/cylinder shown
+        while the part's 3D model is downloading or unassigned, and any
+        other calculation that needs an approximate pin size before then.
+
+        Falls back to *cavity*'s own dimensions (with length halved, since
+        a terminal only occupies about half the cavity's depth) whenever
+        this part is missing any one of its own three measurements.
+
+        :param cavity: The global cavity part the terminal is being placed
+                        into.
+        """
+        width, height, length = self.width, self.height, self.length
+        if (
+            width not in (None, 0.0) and
+            height not in (None, 0.0) and
+            length not in (None, 0.0)
+        ):
+            return width, height, length
+
+        return cavity.width, cavity.height, cavity.length / 2.0
 
     _scale_id: str = None
     _stored_scale: "_point.Point | DefaultStoredValueType" = DefaultStoredValue

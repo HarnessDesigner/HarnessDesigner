@@ -810,11 +810,26 @@ class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
             self.local_obb = self._compute_local_obb()
             return
 
+        old_vert_count = self._vert_count
         self._data = data
         self._vert_count = new_vert_count
-        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self._vbo)
-        GL.glBufferSubData(GL.GL_ARRAY_BUFFER, 0, data.nbytes, data)
-        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+
+        if new_vert_count > old_vert_count:
+            # This buffer was allocated GL_STATIC_DRAW at exactly the old
+            # vertex count -- no headroom to grow into. glBufferSubData
+            # writing past that allocated size is invalid, so a growth
+            # requires a full reallocation (a fresh glBufferData call),
+            # not a sub-range write. Existing VAOs bind directly to the
+            # old buffer id, so they must be cleared and re-acquired
+            # against the new one.
+            self._release_vbo(self._vbo)
+            self._vbo = self._create_vbo(data)
+            self._clear_vaos()
+        else:
+            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self._vbo)
+            GL.glBufferSubData(GL.GL_ARRAY_BUFFER, 0, data.nbytes, data)
+            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+
         self.local_aabb = self._compute_local_aabb()
         self.local_obb = self._compute_local_obb()
 

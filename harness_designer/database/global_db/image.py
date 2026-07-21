@@ -131,6 +131,15 @@ class Image(EntryBase):
         if self.db_id not in self._download_callbacks:
             return
 
+        # The download ran in a child process on a separate DB connection,
+        # so uuid/path/file_type_id may already be cached stale (None) on
+        # this instance from a pre-download read (e.g. `load()`'s
+        # `self.data_path` check). Force a fresh DB read.
+        self._stored_uuid = DefaultStoredValue
+        self._stored_path = DefaultStoredValue
+        self._stored_file_type_id = DefaultStoredValue
+        self._stored_file_type = DefaultStoredValue
+
         file_ = self.data_path
         if file_ is not None:
             pixmap_ = QtGui.QPixmap(file_)

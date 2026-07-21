@@ -460,6 +460,16 @@ pjt_table = _con.SQLTable(
                   references=_con.SQLFieldReference(_points3d.pjt_table,
                                                     _points3d.pjt_id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
+    # Wire-attachment/crimp point -- 1/3 up from the back of the terminal,
+    # where the wire's WireLayout actually attaches. Lazily computed (via
+    # PJTTerminal._wire_side_extent()) and persisted the first time it's
+    # needed; see PJTTerminal.attach_position3d. Distinct from
+    # wire_point3d_id, which is the layout point at the very back of the
+    # terminal.
+    _con.IntField('attach_point3d_id', default="NULL",
+                  references=_con.SQLFieldReference(_points3d.pjt_table,
+                                                    _points3d.pjt_id_field,
+                                                    on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('point3d_id', default="NULL",
                   references=_con.SQLFieldReference(_points3d.pjt_table,
                                                     _points3d.pjt_id_field,

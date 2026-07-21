@@ -223,42 +223,31 @@ class Model3D(EntryBase):
         self._stored_vertex_count = value
         self._table.update(self._db_id, vertex_count=value)
 
-    _stored_aabb: list[
-        list[float, float, float],
-        list[float, float, float]] | None | DefaultStoredValueType = DefaultStoredValue
-
     @property
     def aabb(self) -> np.ndarray | None:
         """
-        Return the cached mesh axis-aligned bounding box.
+        Return the mesh axis-aligned bounding box.
 
-        Calculated once when the model is converted and stored in the
-        database. The cache holds plain lists of floats; a new numpy array
-        is constructed on every access so callers that transform the array
-        in place can never reach the cache.
+        Read fresh from the database on every access -- the background
+        conversion process writes this value on a separate DB connection
+        that this instance has no way to observe, so it cannot be cached.
 
         :returns: (2, 3) float32 array (min, max) or ``None`` when the
                   model has not been converted yet.
         :rtype: numpy.ndarray | None
         """
 
-        if self._stored_aabb is DefaultStoredValue:
-            value = self._table.select('aabb', id=self._db_id)[0][0]
+        value = self._table.select('aabb', id=self._db_id)[0][0]
 
-            if value is None:
-                self._stored_aabb = None
-            else:
-                self._stored_aabb = eval(value)
-
-        if self._stored_aabb is None:
+        if value is None:
             return None
 
-        return np.asarray(self._stored_aabb, dtype=np.float32)
+        return np.asarray(eval(value), dtype=np.float32)
 
     @aabb.setter
     def aabb(self, value):
         """
-        Set the cached mesh axis-aligned bounding box.
+        Set the mesh axis-aligned bounding box.
 
         :param value: (2, 3) array-like of floats.
         :type value: numpy.ndarray | list
@@ -266,51 +255,33 @@ class Model3D(EntryBase):
 
         value = [[float(str(item)) for item in row] for row in np.asarray(value).tolist()]
 
-        self._stored_aabb = value
         self._table.update(self._db_id, aabb=str(value))
-
-    _stored_obb: list[
-        list[float, float, float],
-        list[float, float, float],
-        list[float, float, float],
-        list[float, float, float],
-        list[float, float, float],
-        list[float, float, float],
-        list[float, float, float],
-        list[float, float, float]] | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     def obb(self) -> np.ndarray | None:
         """
-        Return the cached mesh bounding-box corner coordinates.
+        Return the mesh bounding-box corner coordinates.
 
-        Calculated once when the model is converted and stored in the
-        database. The cache holds plain lists of floats; a new numpy array
-        is constructed on every access so callers that transform the array
-        in place can never reach the cache.
+        Read fresh from the database on every access -- the background
+        conversion process writes this value on a separate DB connection
+        that this instance has no way to observe, so it cannot be cached.
 
         :returns: (8, 3) float32 array or ``None`` when the model has not
                   been converted yet.
         :rtype: numpy.ndarray | None
         """
 
-        if self._stored_obb is DefaultStoredValue:
-            value = self._table.select('obb', id=self._db_id)[0][0]
+        value = self._table.select('obb', id=self._db_id)[0][0]
 
-            if value is None:
-                self._stored_obb = None
-            else:
-                self._stored_obb = eval(value)
-
-        if self._stored_obb is None:
+        if value is None:
             return None
 
-        return np.asarray(self._stored_obb, dtype=np.float32)
+        return np.asarray(eval(value), dtype=np.float32)
 
     @obb.setter
     def obb(self, value):
         """
-        Set the cached mesh bounding-box corner coordinates.
+        Set the mesh bounding-box corner coordinates.
 
         :param value: (8, 3) array-like of floats.
         :type value: numpy.ndarray | list
@@ -318,7 +289,6 @@ class Model3D(EntryBase):
 
         value = [[float(str(item)) for item in row] for row in np.asarray(value).tolist()]
 
-        self._stored_obb = value
         self._stored_size = DefaultStoredValue
         self._table.update(self._db_id, obb=str(value))
 
@@ -386,42 +356,34 @@ class Model3D(EntryBase):
         if 'nan' in euler or 'nan' in quat:
             return
 
-        self._stored_size = DefaultStoredValue
-
-        self._table.update(self._db_id, angle3d=euler)
-        self._table.update(self._db_id, quat3d=quat)
-
-    _stored_angle3d: tuple[
-        list[float, float, float, float],
-        list[float, float, float]] | DefaultStoredValueType = DefaultStoredValue
+        self._table.update(self._db_id, angle3d=euler, quat3d=quat)
 
     @property
     def angle3d(self) -> _angle.Angle:
         """
         Return the angle 3D.
 
-        The cache holds plain lists of floats (quat, euler) and is never
-        ``None`` - NULL columns mean the identity rotation. A new
-        :class:`_angle.Angle` is constructed on every access.
+        Read fresh from the database on every access -- the background
+        conversion process writes this value on a separate DB connection
+        that this instance has no way to observe, so it cannot be cached.
+        NULL columns mean the identity rotation. A new :class:`_angle.Angle`
+        is constructed on every access.
 
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_angle.Angle`
         """
 
-        if self._stored_angle3d is DefaultStoredValue:
+        if self._angle3d_id is None:
+            self._angle3d_id = str(uuid.uuid4())
 
-            if self._angle3d_id is None:
-                self._angle3d_id = str(uuid.uuid4())
+        quat = self._table.select('quat3d', id=self._db_id)[0][0]
+        euler_angle = self._table.select('angle3d', id=self._db_id)[0][0]
 
-            quat = self._table.select('quat3d', id=self._db_id)[0][0]
-            euler_angle = self._table.select('angle3d', id=self._db_id)[0][0]
+        if quat is None or euler_angle is None:
+            quat, euler_angle = [1.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0]
+        else:
+            quat, euler_angle = eval(quat), eval(euler_angle)
 
-            if quat is None or euler_angle is None:
-                self._stored_angle3d = ([1.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0])
-            else:
-                self._stored_angle3d = (eval(quat), eval(euler_angle))
-
-        quat, euler_angle = self._stored_angle3d
         angle = _angle.Angle.from_quat(quat, euler_angle, db_id=self._angle3d_id)
         angle.bind(self.__update_angle3d)
 
@@ -432,6 +394,7 @@ class Model3D(EntryBase):
         if value is None:
             quat = None
             euler = None
+
         else:
             angle = _angle.Angle.from_euler(*value)
             quat = str(list(angle.as_quat_float))
@@ -440,11 +403,7 @@ class Model3D(EntryBase):
             if 'nan' in euler.lower() or 'nan' in quat.lower():
                 return
 
-        self._stored_angle3d = DefaultStoredValue
-        self._stored_size = DefaultStoredValue
-
-        self._table.update(self._db_id, angle3d=euler)
-        self._table.update(self._db_id, quat3d=quat)
+        self._table.update(self._db_id, angle3d=euler, quat3d=quat)
 
     def __update_position3d(self, offset: _point.Point):
         """
@@ -742,10 +701,26 @@ class Model3D(EntryBase):
         return self._stored_size
 
     def download_complete(self):
+
+        print('rdownload complete')
         if self.db_id not in self._download_callbacks:
             return
 
+        # The conversion ran in a child process on a separate DB connection,
+        # so uuid/path/vertex_count/file_type_id may already be cached stale
+        # (None) on this instance from a pre-conversion read (e.g. `load()`'s
+        # `self.data_path` check). Force a fresh DB read. (aabb/obb/angle3d
+        # are no longer cached at all, so they don't need resetting here.)
+        self._stored_uuid = DefaultStoredValue
+        self._stored_path = DefaultStoredValue
+        self._stored_vertex_count = DefaultStoredValue
+        self._stored_file_type_id = DefaultStoredValue
+        self._stored_file_type = DefaultStoredValue
+
+        print('running callbacks\n')
+
         file = self.data_path
+        print('file:', file)
         if file is not None:
             # The packed geometry is opened as a memory mapped array and
             # handed to the callback as-is; the VBO streams it straight
@@ -754,6 +729,9 @@ class Model3D(EntryBase):
             # angle3d the property never returns None anymore (NULL means
             # identity), so "never oriented" has to be read from the raw
             # column - it is what gates the one-time orientation dialog.
+
+            print('angle3d:', self._table.select('angle3d', id=self._db_id)[0][0])
+
             if self._table.select('angle3d', id=self._db_id)[0][0] is None:
                 from ...ui.dialogs import part_orientation as _part_orientation
                 from ... import app as _app

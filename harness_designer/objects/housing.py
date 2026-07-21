@@ -38,6 +38,7 @@ class Housing(_ObjectBase):
         :param db_obj: Database-backed object.
         :type db_obj: :class:`_pjt_housing.PJTHousing`
         """
+
         if not project_load:
             for cavity in db_obj.cavities:
                 if cavity is None:

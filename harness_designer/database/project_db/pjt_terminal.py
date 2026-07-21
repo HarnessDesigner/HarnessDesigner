@@ -549,7 +549,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
 
     @property
     def wire_point3d_id(self) -> "int | None":
-        """Return the ``pjt_points3d`` row id for the wire attachment point
+        """Return the ``pjt_points3d`` row id for the wire layout point
         (see :attr:`wire_position3d`), lazily creating and persisting it on
         first access when the ``wire_point3d_id`` column is NULL.  ``None``
         only when the terminal's part or 3-D model has no geometry available.
@@ -558,6 +558,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
             return self._stored_wire_position3d.db_id
 
         wire_point3d_id = self._table.select('wire_point3d_id', id=self._db_id)[0][0]
+
         if wire_point3d_id is None:
             wire_point3d_id = self._compute_wire_position3d()
 
@@ -567,7 +568,11 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
 
     @property
     def wire_position3d(self) -> "_point.Point":
-        """Return the wire attachment point (center of the terminal's back OBB face).
+        """Return the wire layout point (center of the terminal's back OBB face).
+
+        This is where the terminal's WireLayout point sits, not the crimp
+        point -- see :attr:`attach_position3d` for the 1/3-up attachment
+        point where the wire actually connects.
 
         Lazily creates and persists the point on first access when the
         ``wire_point3d_id`` column is NULL.  Returns ``None`` only when the
@@ -577,22 +582,102 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
             wire_point3d_id = self.wire_point3d_id
             if wire_point3d_id is None:
                 return None
+
             self._stored_wire_position3d = self._table.db.pjt_points3d_table[wire_point3d_id]
+
         return self._stored_wire_position3d.point
 
-    def _compute_wire_position3d(self) -> "int | None":
-        """Compute and persist the wire attachment point.
+    @property
+    def wire_point3d_id_raw(self) -> "int | None":
+        """The raw ``wire_point3d_id`` column value, ``None`` if this
+        terminal's layout point has never been computed.
 
-        The position is the center of the back OBB face (face opposite the
-        terminal's forward face) rotated into world space by the terminal's
-        current angle and offset by the terminal's current position.
+        Unlike :attr:`wire_point3d_id`, this never lazily creates and
+        persists a point -- use it for "has a wire ever attached here"
+        checks that must not force a point into existence for every
+        terminal in the project just by asking.
+        """
+        if self._stored_wire_position3d is not None:
+            return self._stored_wire_position3d.db_id
 
-        When no mesh has been processed yet (``model3d.obb`` is ``None``),
-        the OBB and AABB are built from the part's physical dimensions and
-        stored to the global DB so subsequent callers find them there.
+        return self._table.select('wire_point3d_id', id=self._db_id)[0][0]
 
-        Returns the new ``pjt_points3d`` row id, or ``None`` when the
-        terminal has no part assigned.
+    @property
+    def attach_point3d_id(self) -> "int | None":
+        """Return the ``pjt_points3d`` row id for the wire attachment/crimp
+        point (see :attr:`attach_position3d`), lazily creating and
+        persisting it on first access when the ``attach_point3d_id`` column
+        is NULL.  ``None`` only when the terminal's part or 3-D model has no
+        geometry available.
+        """
+        if self._stored_attach_position3d is not None:
+            return self._stored_attach_position3d.db_id
+
+        attach_point3d_id = self._table.select('attach_point3d_id', id=self._db_id)[0][0]
+
+        if attach_point3d_id is None:
+            attach_point3d_id = self._compute_attach_position3d()
+
+        return attach_point3d_id
+
+    @property
+    def attach_point3d_id_raw(self) -> "int | None":
+        """The raw ``attach_point3d_id`` column value, ``None`` if this
+        terminal's crimp point has never been computed.
+
+        Unlike :attr:`attach_point3d_id`, this never lazily creates and
+        persists a point -- see :attr:`wire_point3d_id_raw`.
+        """
+        if self._stored_attach_position3d is not None:
+            return self._stored_attach_position3d.db_id
+
+        return self._table.select('attach_point3d_id', id=self._db_id)[0][0]
+
+    _stored_attach_position3d: "_pjt_point3d.PJTPoint3D" = None
+
+    @property
+    def attach_position3d(self) -> "_point.Point":
+        """Return the wire attachment/crimp point, 1/3 up from the back of
+        the terminal toward the front.
+
+        Lazily creates and persists the point on first access when the
+        ``attach_point3d_id`` column is NULL.  Returns ``None`` only when
+        the terminal's part or 3-D model has no geometry available.
+        """
+        if self._stored_attach_position3d is None:
+            attach_point3d_id = self.attach_point3d_id
+            if attach_point3d_id is None:
+                return None
+
+            self._stored_attach_position3d = self._table.db.pjt_points3d_table[attach_point3d_id]
+
+        return self._stored_attach_position3d.point
+
+    def _wire_side_extent(self) -> "tuple[float, float] | None":
+        """Return (front_z, back_z): this terminal's own local Z distance
+        from its origin (position3d) to its front (mating-side, +Z) and
+        back (wire-side, -Z) faces. None only when this terminal has no
+        part assigned.
+
+        Mirrors handlers.terminal_handler._terminal_extent (kept as a
+        separate implementation there since it's needed before a
+        PJTTerminal row exists at all, during initial placement -- this
+        version runs afterward, for the wire attachment point below).
+
+        Prefers the converted 3D model's own measured extents. model3d.obb
+        is the model's raw, un-rotated, un-translated OBB -- Base3D.
+        _set_model() bakes model3d.angle3d/position3d into obb/aabb (and
+        the packed vertex data) before ever using them for anything, so
+        this mirrors that exact step. Once baked, canonical +Z is always
+        forward by definition (what the one-time PartOrientationDialog
+        rotation exists to guarantee), so no per-part axis lookup
+        (forward_up) is needed here at all.
+
+        When no model is available yet (still downloading/unassigned):
+        falls back to a symmetric split of the terminal part's own
+        recorded length (Terminal.effective_size, half the cavity's
+        length when the terminal itself is missing any of its own three
+        measurements) -- the best guess available without real geometry.
         """
         import numpy as np
 
@@ -601,47 +686,39 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
             return None
 
         model3d = part.model3d
-        if model3d is None:
+        if model3d is not None and model3d.obb is not None:
+            obb = model3d.obb.astype(np.float64)
+            obb @= model3d.angle3d
+            obb += model3d.position3d
+
+            z = obb[:, 2]
+            return float(z.max()), float(z.min())
+
+        cavity = self.cavity
+        if cavity is not None:
+            _, _, length = part.effective_size(cavity.part)
+        else:
+            length = float(part.length)
+
+        return length / 2.0, -length / 2.0
+
+    def _compute_wire_position3d(self) -> int | None:
+        """Compute and persist the wire layout point.
+
+        The position is this terminal's own back face center (see
+        _wire_side_extent) rotated into world space by the terminal's
+        current angle and offset by its current position.
+
+        Returns the new ``pjt_points3d`` row id, or ``None`` when the
+        terminal has no part assigned.
+        """
+        extent = self._wire_side_extent()
+        if extent is None:
             return None
 
-        local_obb = model3d.obb
-        if local_obb is None:
-            half_w = part.width / 2.0
-            half_h = part.height / 2.0
-            half_l = part.length / 2.0
-            local_obb = np.array([
-                [-half_w, -half_h, -half_l],
-                [+half_w, -half_h, -half_l],
-                [-half_w, +half_h, -half_l],
-                [+half_w, +half_h, -half_l],
-                [-half_w, -half_h, +half_l],
-                [+half_w, -half_h, +half_l],
-                [-half_w, +half_h, +half_l],
-                [+half_w, +half_h, +half_l],
-            ], dtype=np.float32)
-            model3d.obb = local_obb
-            model3d.aabb = np.array([
-                [-half_w, -half_h, -half_l],
-                [+half_w, +half_h, +half_l],
-            ], dtype=np.float32)
+        _, back_z = extent
 
-        fwd_face, _ = model3d.forward_up
-        if fwd_face == -1:
-            fwd_face = 4  # default: −Z side is the insertion face (cavity convention)
-
-        back_face = fwd_face ^ 1
-        axis = back_face // 2
-        sign = back_face % 2
-        sorted_i = np.argsort(local_obb[:, axis])
-        corner_i = sorted_i[:4] if sign == 0 else sorted_i[4:]
-
-        back_center = local_obb[corner_i].mean(axis=0)
-
-        back_pt = _point.Point(
-            float(str(np.float32(back_center[0]))),
-            float(str(np.float32(back_center[1]))),
-            float(str(np.float32(back_center[2])))
-        )
+        back_pt = _point.Point(0.0, 0.0, back_z)
         back_pt @= self.angle3d
         back_pt += self.position3d
 
@@ -654,7 +731,41 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
         self._table.commit()
         wire_point3d_id = self._table.lastrowid
         self._table.update(self._db_id, wire_point3d_id=wire_point3d_id)
+
         return wire_point3d_id
+
+    def _compute_attach_position3d(self) -> int | None:
+        """Compute and persist the wire attachment/crimp point.
+
+        The position is 1/3 of the terminal's length up from its back face
+        (see _wire_side_extent), rotated into world space by the terminal's
+        current angle and offset by its current position.
+
+        Returns the new ``pjt_points3d`` row id, or ``None`` when the
+        terminal has no part assigned.
+        """
+        extent = self._wire_side_extent()
+        if extent is None:
+            return None
+
+        front_z, back_z = extent
+        length = front_z - back_z
+
+        attach_pt = _point.Point(0.0, 0.0, back_z + length / 3.0)
+        attach_pt @= self.angle3d
+        attach_pt += self.position3d
+
+        x, y, z = attach_pt.as_float
+
+        self._table.execute(
+            'INSERT INTO pjt_points3d (project_id, x, y, z) VALUES (?, ?, ?, ?);',
+            (self._table.project_id, x, y, z)
+        )
+        self._table.commit()
+        attach_point3d_id = self._table.lastrowid
+        self._table.update(self._db_id, attach_point3d_id=attach_point3d_id)
+
+        return attach_point3d_id
 
     _stored_seal_position3d: "_pjt_point3d.PJTPoint3D" = None
 
@@ -669,7 +780,9 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
             seal_point3d_id = self._table.select('seal_point3d_id', id=self._db_id)[0][0]
             if seal_point3d_id is None:
                 return None
+
             self._stored_seal_position3d = self._table.db.pjt_points3d_table[seal_point3d_id]
+
         return self._stored_seal_position3d.point
 
     @property

@@ -20,5 +20,10 @@ pjt_table = _con.SQLTable(
     _con.TextField('name', default='""', no_null=True),
     _con.TextField('creator', default='""', no_null=True),
     _con.TextField('description', default='""', no_null=True),
-    _con.IntField('object_count', default='0', no_null=True)
+    _con.IntField('object_count', default='0', no_null=True),
+    # Length (mm) the shared wire-stripe helix VBO (shapes/helix.py) is
+    # currently built at -- grows to match the longest wire segment ever
+    # created in this project, so a reload never needs to rebuild it more
+    # than once. See Project.wire_stripe_max_length.
+    _con.FloatField('wire_stripe_max_length', default='2000.0', no_null=True)
 )

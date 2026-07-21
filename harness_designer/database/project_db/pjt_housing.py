@@ -999,7 +999,12 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
                                self.tpa_lock_2_position3d, self.cpa_lock_position3d]
 
         # Terminal center positions: no _skip_db_write (seal cascade must reach DB).
-        # Wire attachment points: stale-only, no callbacks.
+        # Wire attachment/layout points: same as cavity/accessory -- the
+        # batch write below already persists them, so the individual
+        # per-point DB write PJTPoint3D._update_point would otherwise fire
+        # is pure redundant overhead (one synchronous UPDATE per point per
+        # drag frame -- this is what made rotation/move jerky before
+        # _skip_db_write was applied to this group too).
 
         terminal_positions = []
         wire_positions = []
@@ -1015,6 +1020,17 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
             wp = terminal.wire_position3d
             if wp is not None:
                 wire_positions.append(wp)
+
+            ap = terminal.attach_position3d
+            if ap is not None:
+                wire_positions.append(ap)
+
+            cwp = cavity.wire_position3d
+            if cwp is not None:
+                wire_positions.append(cwp)
+
+        skip_write_ids = {int(p.db_id[:-2])
+                          for p in cavity_positions + accessory_positions + wire_positions}
 
         all_positions = cavity_positions + accessory_positions + terminal_positions + wire_positions
 
@@ -1055,24 +1071,40 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
         self._table.db.pjt_points3d_table.batch_update(['x', 'y', 'z'], rows)
 
-        # TODO: We need to handle this in a better way. We do not want to
-        #       specifically stop all database updated from occuring for points
-        #       because there could be other points that end up getting modified
-        #       as the result of a point moving. What we need to do is access
-        #       the actual point database object directly and set a marker in
-        #       that instance to not update. This will allow all of the original
-        #       mechanics to run properly without updating the database.
-        #       for the time being I am not going to allow any updates to occur
-        #       and we will mark the Point instance as stale. This way we can
-        #       override the render functions in the 3d object classes that use
-        #       these points so they can update their obb, aabb and any other
-        #       stored data that needs to be updated at render time.
-        for i, pos in enumerate(all_positions):
-            pos.stale = True
-            with pos:
-                pos.x = f_position_array[i][0]
-                pos.y = f_position_array[i][1]
-                pos.z = f_position_array[i][2]
+        # The DB row for each point was already batch-written above in one
+        # shot, so the per-point mutation below is wrapped in `with pos:`
+        # to suppress any *individual* DB write a bound callback might
+        # otherwise trigger. _process_callbacks() is fired explicitly once
+        # the block closes, so rendering-side geometry recompute and
+        # Point.attach() delegate-sync (_on_delegate_changed) still run --
+        # both of which must run for a .attach()-shared point (a wire
+        # ending on a terminal/layout, or a snapped cover/seal/lock) to
+        # actually follow the housing. `stale` stays set too, for anything
+        # that only polls it at render time instead of relying on the
+        # callback.
+        #
+        # PJTPoint3D._skip_db_write additionally suppresses the specific
+        # DB-writing callback (PJTPoint3D._update_point) for the
+        # skip_write_ids group, since the batch write above already
+        # persisted them -- see the comments above on cavity_positions/
+        # accessory_positions/wire_positions vs. terminal_positions.
+        _pjt_point3d.PJTPoint3D._skip_db_write = True
+        try:
+            for i, pos in enumerate(all_positions):
+                pos.stale = True
+                with pos:
+                    pos.x = f_position_array[i][0]
+                    pos.y = f_position_array[i][1]
+                    pos.z = f_position_array[i][2]
+
+                if int(pos.db_id[:-2]) in skip_write_ids:
+                    pos._process_callbacks()  # NOQA
+        finally:
+            _pjt_point3d.PJTPoint3D._skip_db_write = False
+
+        for pos in all_positions:
+            if int(pos.db_id[:-2]) not in skip_write_ids:
+                pos._process_callbacks()  # NOQA
 
     _o_position3d: "_point.Point" = None
 
@@ -1202,20 +1234,38 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         center = position.as_numpy.copy()
 
         # ── Collect all positions for one vectorized rotation ─────────────────
-        all_positions = []
+        # Same skip_write / normal split as _update_position3d: cavity,
+        # accessory, and wire-routing points are already covered by the
+        # single batch write below, so PJTPoint3D's own per-point DB write
+        # is redundant overhead for them; terminal positions need it (seal
+        # cascade).
+        skip_write_positions = []
+        normal_positions = []
         for cavity in cavities:
-            all_positions.append(cavity.position3d)
+            skip_write_positions.append(cavity.position3d)
             terminal = cavity.terminal
             if terminal is not None:
-                all_positions.append(cavity.terminal_position3d)
-                all_positions.append(terminal.position3d)
+                normal_positions.append(cavity.terminal_position3d)
+                normal_positions.append(terminal.position3d)
                 wp = terminal.wire_position3d
                 if wp is not None:
-                    all_positions.append(wp)
+                    skip_write_positions.append(wp)
 
-        all_positions.extend([self.tpa_lock_1_position3d, self.seal_position3d,
-                              self.tpa_lock_2_position3d, self.boot_position3d,
-                              self.cpa_lock_position3d, self.cover_position3d])
+                ap = terminal.attach_position3d
+                if ap is not None:
+                    skip_write_positions.append(ap)
+
+                cwp = cavity.wire_position3d
+                if cwp is not None:
+                    skip_write_positions.append(cwp)
+
+        skip_write_positions.extend([self.tpa_lock_1_position3d, self.seal_position3d,
+                                     self.tpa_lock_2_position3d, self.boot_position3d,
+                                     self.cpa_lock_position3d, self.cover_position3d])
+
+        skip_write_ids = {int(p.db_id[:-2]) for p in skip_write_positions}
+
+        all_positions = skip_write_positions + normal_positions
 
         seen = {}
         for pos in all_positions:
@@ -1236,12 +1286,23 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
             rows = [[*pos, db_id] for pos, db_id in zip(f_position_array, db_ids)]
             self._table.db.pjt_points3d_table.batch_update(['x', 'y', 'z'], rows)
 
-            for i, pos in enumerate(all_positions):
-                pos.stale = True
-                with pos:
-                    pos.x = f_position_array[i][0]
-                    pos.y = f_position_array[i][1]
-                    pos.z = f_position_array[i][2]
+            _pjt_point3d.PJTPoint3D._skip_db_write = True
+            try:
+                for i, pos in enumerate(all_positions):
+                    pos.stale = True
+                    with pos:
+                        pos.x = f_position_array[i][0]
+                        pos.y = f_position_array[i][1]
+                        pos.z = f_position_array[i][2]
+
+                    if int(pos.db_id[:-2]) in skip_write_ids:
+                        pos._process_callbacks()  # NOQA
+            finally:
+                _pjt_point3d.PJTPoint3D._skip_db_write = False
+
+            for pos in all_positions:
+                if int(pos.db_id[:-2]) not in skip_write_ids:
+                    pos._process_callbacks()  # NOQA
 
         # ── Per-cavity angle computation (OBB-based) ──────────────────────────
         angle_results = []  # [(cavity, q_acc_new, new_euler), ...]

@@ -26,6 +26,7 @@ from . import wire_marker as _wire_marker
 from . import wire_service_loop as _wire_service_loop
 from .. import config as _config
 from .. import logger as _logger
+from ..shapes import helix as _helix
 
 
 if TYPE_CHECKING:
@@ -140,6 +141,17 @@ class Project:
 
         mainframe.start_progress('Loading Project...', self._obj_count)
 
+        # Every state an object might reflexively read via mainframe.project
+        # during its own construction below (db_obj, ptables, the container
+        # dicts) is already set at this point -- assign it now, before any
+        # object loads, instead of waiting for this constructor to return.
+        # Objects loaded further down (e.g. Wire, whose stripe-VBO seeding
+        # reads mainframe.project.db_obj.wire_stripe_max_length) run inside
+        # this same call stack, and mainframe.project's getter re-enters
+        # _open_project() -- re-showing the open-project dialog -- for as
+        # long as it's still None.
+        mainframe.project = self
+
         db_ids = {}
         count = 0
 
@@ -176,6 +188,23 @@ class Project:
             _circuit.Circuit, db_ids, self._circuits,
             mainframe.object_browser.add_circuit, count, self._obj_count)
 
+        # Loaded before housings: a housing whose model is already cached
+        # from a prior session runs its Model3D.load() callback (_set_model,
+        # ending in match_cavity_surfaces()) synchronously, during its own
+        # construction below -- match_cavity_surfaces() needs this housing's
+        # cavities to already exist (Cavity.get_object() resolving to real
+        # wrapper objects) or it leaves every cavity's surf_idx/
+        # wire_surf_idx unset, permanently unclickable for the rest of the
+        # session (it's a one-shot callback, never reruns on its own).
+        # Cavity construction has no dependency on the housing wrapper
+        # existing yet -- it only reads its own pjt_cavities row, whose
+        # position3d/angle3d/obb/aabb were already fully computed and
+        # persisted at insert time.
+        count = _load_objects(
+            ptables.pjt_cavities_table, 'Cavity',
+            _cavity.Cavity, db_ids, self._cavities,
+            mainframe.object_browser.add_cavity, count, self._obj_count)
+
         count = _load_objects(
             ptables.pjt_housings_table, 'Housing',
             _housing.Housing, db_ids, self._housings,
@@ -202,11 +231,6 @@ class Project:
             mainframe.object_browser.add_boot, count, self._obj_count)
 
         count = _load_objects(
-            ptables.pjt_cavities_table, 'Cavity',
-            _cavity.Cavity, db_ids, self._cavities,
-            mainframe.object_browser.add_cavity, count, self._obj_count)
-
-        count = _load_objects(
             ptables.pjt_terminals_table, 'Terminal',
             _terminal.Terminal, db_ids, self._terminals,
             mainframe.object_browser.add_terminal, count, self._obj_count)
@@ -217,8 +241,16 @@ class Project:
             mainframe.object_browser.add_seal,
             count, self._obj_count)
 
-        # for housing in self._housings.values():
-        #     housing.obj3d.match_cavity_surfaces()
+        # Build the shared wire-stripe helix mesh at the project's last
+        # known max wire-segment length *before* any Wire loads, so it
+        # never needs to grow (and re-upload its VBO) more than once per
+        # session even if this project has hundreds of wires -- see
+        # shapes.helix.create_vbo and objects3d.wire.WireStripe. VBO
+        # creation requires an acquired GL context, same as every other
+        # VBO-creating call site (e.g. Wire.__init__).
+        mainframe.editor3d.context.acquire()
+        _helix.create_vbo(db_obj.wire_stripe_max_length)
+        mainframe.editor3d.context.release()
 
         count = _load_objects(
             ptables.pjt_wires_table, 'Wire',

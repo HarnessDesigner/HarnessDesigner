@@ -16,7 +16,6 @@ from ...shapes import cylinder as _cylinder
 from ...shapes import helix as _helix
 from ...gl import materials as _materials
 from ... import color as _color
-from ... import utils as _utils
 from ... import config as _config
 from . import mixins as _mixins
 
@@ -47,6 +46,7 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
         :type db_obj: :class:`_pjt_wire.PJTWire`
         """
         parent.mainframe.editor3d.context.acquire()
+        self._stripe = None
 
         self._part = db_obj.part
         color = self._part.color.ui
@@ -75,12 +75,28 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
         vbo = _cylinder.create_vbo()
         angle = _angle.Angle()
 
-        if stripe_color is None:
-            self._stripe = None
-        else:
-            self._stripe = WireStripe(parent, self, stripe_color.ui, scale, angle, position)
-
+        # Built before the stripe -- WireStripe's own OBB/AABB are copied
+        # from this wire's, so the wire must already have real _obb/_aabb
+        # attributes (set by Base3D.__init__) before WireStripe.__init__
+        # (itself calling Base3D.__init__, which calls _compute_obb/_aabb)
+        # can safely read them. Binding position/angle/scale here first also
+        # means this wire's own _update_* callbacks (which recompute its
+        # _obb/_aabb) fire before the stripe's on any later shared change.
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
+
+        if stripe_color is not None:
+            length = float(np.linalg.norm((self._p2 - self._p1).as_numpy))
+            self._ensure_stripe_capacity(length)
+
+            self._stripe = WireStripe(parent, self, stripe_color.ui, scale, angle, position, length)
+            # WireStripe's db_obj is always None (it's not its own DB row --
+            # see WireStripe.__init__), so Base3D.__init__ hits the
+            # `except AttributeError: self._is_visible = False` branch and
+            # the stripe is built permanently invisible. Sync it to the
+            # wire's own just-computed visibility here.
+            self._stripe.is_visible = self._is_visible
+
+            self.editor3d.Refresh()
 
         # _update_angle just calls _update_position(None) — redundant since
         # both endpoints already drive recalculation via their point bindings.
@@ -88,6 +104,7 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
         self._angle.unbind(self._update_angle)
 
         self._recalculate_geometry()
+
         parent.mainframe.editor3d.context.release()
 
     @property
@@ -100,6 +117,36 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
         """Wire stop position (Point instance)"""
         return self._p2
 
+    def is_housing_attached(self) -> bool:
+        """True if either endpoint shares a db_id with any cavity's or
+        terminal's housing-derived wire-routing point (cavity.wire_position3d,
+        terminal.wire_position3d, terminal.attach_position3d) anywhere in
+        the project. Such a wire's position is derived from its housing --
+        it must not be independently draggable; the user has to move the
+        housing or drag the wire's own layout instead.
+
+        Checks the *_raw properties (no lazy point creation) so this never
+        forces a wire-routing point into existence for a cavity/terminal
+        that has never had one, just by asking.
+        """
+        start_id = int(self._p1.db_id[:-2])
+        stop_id = int(self._p2.db_id[:-2])
+        ids = {start_id, stop_id}
+
+        project = self.mainframe.project
+
+        for cavity in project.cavities:
+            if cavity.db_obj.wire_point3d_id_raw in ids:
+                return True
+
+        for terminal in project.terminals:
+            if terminal.db_obj.wire_point3d_id_raw in ids:
+                return True
+            if terminal.db_obj.attach_point3d_id_raw in ids:
+                return True
+
+        return False
+
     def _update_angle(self, angle: _angle.Angle):
         """Update the angle.
 
@@ -110,6 +157,20 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
         """
         self._update_position(None)
 
+    def _ensure_stripe_capacity(self, length: float) -> None:
+        """Grow the shared wire-stripe helix mesh -- and persist the new
+        max back onto the project row -- if `length` exceeds what it
+        currently covers. No-op cost in the common case (a cached
+        attribute read plus a comparison); the DB write only fires the
+        rare time an actual new maximum is reached. See
+        shapes.helix.create_vbo / WireStripe.
+        """
+        project_db_obj = self.mainframe.project.db_obj
+        if length > project_db_obj.wire_stripe_max_length:
+            project_db_obj.wire_stripe_max_length = length
+
+        _helix.create_vbo(project_db_obj.wire_stripe_max_length)
+
     def _recalculate_geometry(self):
         """Compute wire direction, length, angle, OBB and AABB from current endpoints."""
         wire_vector = (self._p2 - self._p1).as_numpy
@@ -119,6 +180,9 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
             return
 
         self._scale.z = length
+
+        if self._stripe is not None:
+            self._ensure_stripe_capacity(float(length))
 
         direction = wire_vector / length
 
@@ -141,6 +205,16 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
             self._p1.stale = False
             self._p2.stale = False
         super().render(faces_program, edges_program, vertices_program)
+
+        # The stripe is a plain attribute, not a separately-registered scene
+        # object (canvas.add_object is never called for it), so nothing else
+        # ever calls its render() -- piggyback on the wire's own render pass.
+        # Suppressed while selected: the wire body above already switched to
+        # the selected material/color (Base3D.material), and the stripe
+        # can't be independently clicked (it's never in objects_in_view) so
+        # there's no selection state of its own to visually represent.
+        if self._stripe is not None and not self.is_selected:
+            self._stripe.render(faces_program, edges_program, vertices_program)
 
     def set_selected(self, flag: bool):
         """Set the selected.
@@ -234,7 +308,7 @@ class WireStripe(_base3d.Base3D):
     """
 
     def __init__(self, parent: "_wire.Wire", wire: "Wire", color: _color.Color, scale: _point.Point,
-                 angle: _angle.Angle, position: _point.Point):
+                 angle: _angle.Angle, position: _point.Point, length: float):
         """Initialise the :class:`WireStripe` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -251,48 +325,111 @@ class WireStripe(_base3d.Base3D):
         :type angle: :class:`_angle.Angle`
         :param position: Position value.
         :type position: :class:`_point.Point`
+        :param length: This wire's current length -- the caller
+            (Wire.__init__) has already ensured the shared helix mesh
+            covers at least this much via _ensure_stripe_capacity, this
+            just fetches the resulting shared VBO handle.
+        :type length: float
         """
 
-        vbo = _helix.create_vbo()
+        vbo = _helix.create_vbo(length)
         material = _materials.Plastic(color)
         self._wire = wire
 
-        _base3d.Base3D.__init__(self, parent, None, vbo, angle, position, scale, material)
+        # Deliberately NOT the same scale Point instance the wire uses (only
+        # position/angle are shared -- the stripe has no independent extent
+        # of its own there; see the _obb/_aabb properties below). The
+        # stripe's x/y are bumped past the wire's own radius so it always
+        # renders genuinely outside the wire's surface instead of coincident
+        # with it -- two coincident opaque surfaces z-fight per-pixel no
+        # matter how that's biased, so the fix is to not be coincident in
+        # the first place. z is irrelevant here: faces.py's vertex shader
+        # skips z-scaling entirely for stripe geometry (stripeClipLength >
+        # 0), so it doesn't need to track the wire's live length -- see
+        # _stripe_clip_length below, which reads the wire's real scale
+        # directly instead.
+        stripe_scale = _point.Point(scale.x + 0.1, scale.y + 0.1, scale.z)
+        _base3d.Base3D.__init__(self, parent, None, vbo, angle, position, stripe_scale, material)
 
-        p1 = _point.Point(0.0, 0.0, 0.0)
-        p2 = _point.Point(0.0, 0.0, 0.0)
+    @property
+    def smooth(self) -> bool:
+        """Always smooth-shaded -- the helix is a swept curved surface with
+        no flat faces, so there's no reason for this to ever be flat (see
+        Base3D._render_geometry, which defaults to flat shading when a
+        subclass doesn't define this)."""
+        return True
 
-        self._obb = _utils.compute_obb(p1, p2)
-        self._aabb = np.array([[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
+    @property
+    def _stripe_clip_length(self) -> float:
+        """This wire's current real length -- see base3d.Base3D._render_geometry
+        and the stripeClipLength uniform in gl/shaders/faces.py. Reads the
+        wire's own scale (not self._scale -- see __init__, the stripe's
+        scale is its own independent Point) so this always tracks the
+        wire's live length without needing its own update hook."""
+        return float(self._wire._scale.z)  # NOQA
+
+    def _compute_obb(self):
+        """No-op: the stripe has no independent geometry of its own. See
+        the _obb property below."""
+
+    def _compute_aabb(self):
+        """See _compute_obb."""
+
+    @property
+    def _obb(self):
+        """Always the wire's current OBB array -- read-only everywhere
+        obb/aabb are used (hit-testing, debug overlay boxes), so there's
+        never a need for the stripe to hold its own copy."""
+        return self._wire._obb
+
+    @_obb.setter
+    def _obb(self, value):
+        # Base3D.__init__ assigns this once before calling _compute_obb();
+        # the wire is the source of truth, so the write is discarded.
+        pass
+
+    @property
+    def _aabb(self):
+        """See _obb."""
+        return self._wire._aabb
+
+    @_aabb.setter
+    def _aabb(self, value):
+        pass
 
     def _update_position(self, position: _point.Point):
-        """Update the position.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """Recompute (copy) OBB/AABB from the wire; the wire's own
+        _update_position already triggers a repaint, so this doesn't need
+        its own Refresh() call.
 
         :param position: Position value.
         :type position: :class:`_point.Point`
         """
+        # self._compute_obb()
+        # self._compute_aabb()
+
         pass
 
     def _update_angle(self, angle: _angle.Angle):
-        """Update the angle.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """See _update_position.
 
         :param angle: Value for ``angle``.
         :type angle: :class:`_angle.Angle`
         """
+        # self._compute_obb()
+        # self._compute_aabb()
+
         pass
 
     def _update_scale(self, scale: _point.Point):
-        """Update the scale.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """See _update_position.
 
         :param scale: Value for ``scale``.
         :type scale: :class:`_point.Point`
         """
+        # self._compute_obb()
+        # self._compute_aabb()
+
         pass
 
     @property

@@ -542,6 +542,34 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         self._table.update(self._db_id, render_terminal_marker=(1 if value else None))
         self._populate('render_terminal_marker')
 
+    _stored_render_wire_marker: DefaultStoredValueType | bool = DefaultStoredValue
+
+    @property
+    def render_wire_marker(self) -> bool:
+        """Return whether a synthetic wire-plane marker should be rendered.
+
+        Set when this cavity's wire-side mesh surface is shared with one or
+        more other cavities (no distinguishable per-cavity wire-side
+        geometry in the source CAD). When set, the OBB (already stored per
+        cavity, computed from the terminal-side footprint extruded to the
+        cavity's back) and ``round_terminal`` are used to render and
+        click-test a synthetic circle/rectangle marker for the wire side in
+        place of the shared real mesh surface. The terminal side is
+        unaffected by this flag.
+        """
+        if self._stored_render_wire_marker is DefaultStoredValue:
+            self._stored_render_wire_marker = bool(
+                self._table.select('render_wire_marker', id=self._db_id)[0][0])
+
+        return self._stored_render_wire_marker
+
+    @render_wire_marker.setter
+    def render_wire_marker(self, value: bool):
+        """Set whether a synthetic wire-plane marker should be rendered."""
+        self._stored_render_wire_marker = bool(value)
+        self._table.update(self._db_id, render_wire_marker=(1 if value else None))
+        self._populate('render_wire_marker')
+
     _stored_terminal_surf_indices: DefaultStoredValueType | list[int] = DefaultStoredValue
 
     @property

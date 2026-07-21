@@ -99,6 +99,15 @@ class MainFrame(QtWidgets.QMainWindow):
         self._selected_obj: "_objects.ObjectBase" = None
         self._obj_handler: _handlers.HandlerBase = None
 
+        # Set by a mouse handler immediately before it triggers selection,
+        # so _set_selected knows which viewer the click originated in and
+        # can skip re-centering that one -- the user just clicked the
+        # object, it's already exactly where they want it on screen.
+        # Programmatic selection (tree view, "Select" menu action, etc.)
+        # leaves this None, so all three viewers still center on it as
+        # before.
+        self._selection_source_editor: str = None
+
         # ------------------------------------------------------------------
         # Docking setup
         # Qt QMainWindow has built-in dock support. For full AUI-equivalent
@@ -1214,6 +1223,9 @@ class MainFrame(QtWidgets.QMainWindow):
         self.Set3DCoordinates(evt)
 
         if self._obj_handler is not None:
+            self._obj_handler.finalize_at_last_point()
+            if self._obj_handler.is_finalized:
+                self._obj_handler = None
             evt.StopPropagation()
         else:
             evt.Skip()
@@ -2468,22 +2480,39 @@ class MainFrame(QtWidgets.QMainWindow):
         if obj is None:
             return
 
+        # Only consumed (and cleared) here, not on a deselect call (obj is
+        # None, above) -- a click that swaps the selection deselects the
+        # old object first, which would otherwise clear the flag before
+        # the new object's own _set_selected call gets to read it.
+        source_editor = self._selection_source_editor
+        self._selection_source_editor = None
+
         # Bring the newly selected object into view in any editor where
         # it isn't already visible -- pan/zoom only when off-screen, so
         # clicking something already in view doesn't jerk the camera
         # around. 3D pans only (keeps current zoom, per user preference);
         # 2D has no equivalent "pan only" primitive yet so it reuses its
         # existing zoom_to_fit; the peg board's own center_on_object is
-        # pan-only, matching 3D.
-        if obj.obj3d is not None and not obj.is_in_3dview:
+        # pan-only, matching 3D. Whichever editor the click that caused
+        # this selection originated in is skipped entirely -- the object
+        # is already exactly where the user put it on screen there, and
+        # re-centering that editor just makes the click feel like it
+        # teleported the view.
+        if (
+            source_editor != 'editor3d' and
+            obj.obj3d is not None and not obj.is_in_3dview
+        ):
             self.editor3d.camera.CenterOn(obj.obj3d.position)
 
-        if obj.obj2d is not None and not obj.is_in_2dview:
+        if (
+            source_editor != 'editor2d' and
+            obj.obj2d is not None and not obj.is_in_2dview
+        ):
             # Editor2D (unlike Editor3D) has no .camera of its own --
             # go through .editor (the Canvas2D panel), which does.
             self.editor2d.editor.camera.zoom_to_fit([obj])
 
-        if not obj.is_in_pegboardview:
+        if source_editor != 'editor_pegboard' and not obj.is_in_pegboardview:
             self.editor_pegboard.editor.center_on_object(obj)
 
     def set_selected(self, obj: "_objects.ObjectBase"):  # NOQA

@@ -707,6 +707,12 @@ class MouseHandlerPegBoard(QtCore.QObject):
             self.canvas.update()
             return
 
+        # Read by MainFrame._set_selected: this click is what's about to
+        # trigger the selection change below, so the peg board view
+        # shouldn't re-center on it -- it's already right where the user
+        # clicked.
+        self.canvas.mainframe._selection_source_editor = 'editor_pegboard'  # NOQA
+
         world_pos = self.canvas.camera.screen_to_world(mouse_pos)
         anchors = self.canvas.anchors
 

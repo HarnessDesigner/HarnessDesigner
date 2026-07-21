@@ -6,9 +6,9 @@ import weakref
 class CallbackMixin:
 
     # these need to be explicitly set in the child classes __init__ function
-    __callbacks__ = []
-    __unbound_callbacks__ = []
-    __ref_count__ = 0
+    __callbacks__: list = []
+    __unbound_callbacks__: list = []
+    __ref_count__: int = 0
 
     def __enter__(self):
         """

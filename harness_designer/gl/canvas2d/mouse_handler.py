@@ -282,6 +282,11 @@ class MouseHandler2D(QtCore.QObject):
         self._is_motion = False
         refresh = False
 
+        # Read by MainFrame._set_selected: this click is what's about to
+        # trigger the selection change below, so the 2D view shouldn't
+        # re-center on it -- it's already right where the user clicked.
+        self.canvas.mainframe._selection_source_editor = 'editor2d'  # NOQA
+
         world_pos = self.canvas.camera.screen_to_world(mouse_pos)
 
         selected = self._get_object_at_point(world_pos)
@@ -362,6 +367,8 @@ class MouseHandler2D(QtCore.QObject):
         self._mouse_pos = mouse_pos
         refresh = False
 
+        self.canvas.mainframe._selection_source_editor = 'editor2d'  # NOQA
+
         world_pos = self.canvas.camera.screen_to_world(mouse_pos)
         selected = self._get_object_at_point(world_pos)
         cur_selected = self.canvas.get_selected()
@@ -412,6 +419,8 @@ class MouseHandler2D(QtCore.QObject):
         refresh = False
 
         if not self._is_motion:
+            self.canvas.mainframe._selection_source_editor = 'editor2d'  # NOQA
+
             world_pos = self.canvas.camera.screen_to_world(mouse_pos)
 
             selected = self._get_object_at_point(world_pos)

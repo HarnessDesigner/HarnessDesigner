@@ -35,6 +35,22 @@ class Base3D:
     """
     db_obj: "_project_db.PJTEntryBase"
 
+    # Floor lock keeps a freely-placed object (a Housing dragged into the
+    # scene) from clipping below the ground plane. Subclasses whose
+    # position is always derived from a parent object (Terminal from its
+    # cavity, etc.) rather than placed directly by the user should set this
+    # True -- otherwise the one-time snap in __init__ silently overwrites a
+    # correctly-computed position (and persists the overwrite to the DB).
+    _floor_lock_exempt: bool = False
+
+    # Real-world length (mm) beyond which this object's faces-pass geometry
+    # gets clipped (discarded) in the shader, instead of scaled to fit --
+    # 0.0 means "no clipping" (the value the faces.py shader's
+    # stripeClipLength uniform treats as off). Only WireStripe overrides
+    # this (as a property tracking its wire's current length); every other
+    # Base3D subclass renders exactly as before. See _render_geometry.
+    _stripe_clip_length: float = 0.0
+
     def __init__(self, parent: "_ObjectBase", db_obj: "_project_db.PJTEntryBase",
                  vbo: _vbo.PooledVBOHandler, angle: _angle.Angle,
                  position: _point.Point, scale: _point.Point,
@@ -86,6 +102,7 @@ class Base3D:
         self._compute_aabb()
 
         if (
+            not self._floor_lock_exempt and
             self.editor3d.config.floor.enable_floor_lock and
             self._aabb[0][1] < Config.floor.ground_height
         ):
@@ -176,6 +193,7 @@ class Base3D:
         self._compute_aabb()
 
         if (
+            not self._floor_lock_exempt and
             self.editor3d.config.floor.enable_floor_lock and
             self._aabb[0][1] < Config.floor.ground_height
         ):
@@ -248,6 +266,7 @@ class Base3D:
         self._compute_aabb()
 
         if (
+            not self._floor_lock_exempt and
             self.editor3d.config.floor.enable_floor_lock and
             self._aabb[0][1] < Config.floor.ground_height
         ):
@@ -284,6 +303,7 @@ class Base3D:
         self._compute_aabb()
 
         if (
+            not self._floor_lock_exempt and
             self.editor3d.config.floor.enable_floor_lock and
             self._aabb[0][1] < Config.floor.ground_height
         ):
@@ -314,6 +334,7 @@ class Base3D:
         self._compute_aabb()
 
         if (
+            not self._floor_lock_exempt and
             self.editor3d.config.floor.enable_floor_lock and
             self._aabb[0][1] < Config.floor.ground_height
         ):
@@ -614,7 +635,7 @@ class Base3D:
 
         return self._material
 
-    def _render_geometry(self, _, pos_loc, rot_loc, scale_loc, normal_loc=None):
+    def _render_geometry(self, program, pos_loc, rot_loc, scale_loc, normal_loc=None):
         """Render the object geometry using the active shader program.
 
         Called by render() for each rendering pass (faces, edges, normals, vertices).
@@ -631,6 +652,15 @@ class Base3D:
         GL.glUniform3f(pos_loc, *self._position.as_float)
         GL.glUniform4f(rot_loc, *[float(str(v)) for v in self._angle.as_quat_numpy.tolist()])
         GL.glUniform3f(scale_loc, *self._scale.as_float)
+
+        # No-ops (glGetUniformLocation returns -1) on every shader program
+        # except faces.py, which is the only one that declares this uniform
+        # -- so this must be set on every single object's draw call (not
+        # just WireStripe's) since GL program uniform state persists across
+        # draw calls sharing the same bound program.
+        clip_loc = GL.glGetUniformLocation(program, "stripeClipLength")
+        GL.glUniform1f(clip_loc, self._stripe_clip_length)
+
         self._vbo.render()
 
     def render(self, faces_program, edges_program, vertices_program):

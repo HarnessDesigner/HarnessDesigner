@@ -19,8 +19,18 @@ uniform vec4 objectRotation;
 uniform vec3 objectScale;
 uniform int normalMode;
 
+// <= 0.0 means "not a stripe, no clipping" -- every object sets this every
+// draw call (see Base3D._render_geometry), since program uniform state
+// persists across draw calls sharing the same bound program. When active,
+// the mesh already has real-world units baked into local Z (see
+// shapes/helix.py), so local Z scaling is skipped entirely instead of
+// being stretched to the segment length like every other axis/object --
+// objectScale.z is repurposed as the clip length instead.
+uniform float stripeClipLength;
+
 out vec3 fragPositionWorld;
 out vec3 fragNormalWorld;
+out float fragLocalZ;
 
 mat3 quaternionToMatrix(vec4 q) {
     float w = q.x;
@@ -46,18 +56,21 @@ mat3 quaternionToMatrix(vec4 q) {
 }
 
 void main() {
-    vec3 scaledVertex = in_vertexLocal * objectScale;
+    vec3 effectiveScale = stripeClipLength > 0.0 ? vec3(objectScale.xy, 1.0) : objectScale;
+
+    vec3 scaledVertex = in_vertexLocal * effectiveScale;
     mat3 rotationMatrix = quaternionToMatrix(objectRotation);
     vec3 rotatedVertex = rotationMatrix * scaledVertex;
     vec3 worldPosition = rotatedVertex + objectPosition;
 
     vec3 in_normalLocal = normalMode == 0 ? in_smoothNormalLocal : in_faceNormalLocal;
-    vec3 scaledNormal = in_normalLocal / objectScale;
+    vec3 scaledNormal = in_normalLocal / effectiveScale;
     vec3 worldNormal = rotationMatrix * scaledNormal;
 
     gl_Position = projection * view * vec4(worldPosition, 1.0);
     fragPositionWorld = worldPosition;
     fragNormalWorld = normalize(worldNormal);
+    fragLocalZ = in_vertexLocal.z;
 }
 """
 
@@ -69,10 +82,12 @@ layout(triangle_strip, max_vertices = 6) out;  // 3 for original triangle + 3 fo
 
 in vec3 fragPositionWorld[];
 in vec3 fragNormalWorld[];
+in float fragLocalZ[];
 
 out vec3 fragPositionGeom;
 out vec3 fragNormalGeom;
 out float isReflection;
+out float fragLocalZGeom;
 
 uniform mat4 projection;
 uniform mat4 view;
@@ -85,6 +100,7 @@ void main() {
         gl_Position = gl_in[i].gl_Position;
         fragPositionGeom = fragPositionWorld[i];
         fragNormalGeom = fragNormalWorld[i];
+        fragLocalZGeom = fragLocalZ[i];
         isReflection = 0.0;
         EmitVertex();
     }
@@ -102,6 +118,7 @@ void main() {
             gl_Position = projection * view * vec4(reflectedPos, 1.0);
             fragPositionGeom = reflectedPos;
             fragNormalGeom = normalize(reflectedNormal);
+            fragLocalZGeom = fragLocalZ[i];
             isReflection = 1.0;
             EmitVertex();
         }
@@ -116,6 +133,7 @@ FRAGMENT_SHADER = """
 in vec3 fragPositionGeom;
 in vec3 fragNormalGeom;
 in float isReflection;
+in float fragLocalZGeom;
 
 out vec4 FragColor;
 
@@ -132,6 +150,7 @@ uniform vec4 lightSpecular;
 
 uniform vec3 viewPosition;
 uniform float floorY;
+uniform float stripeClipLength;
 
 // ===== EMISSIVE GLOW CONTROLS =====
 uniform float emissiveRimPower;      // Controls glow width (2.0-5.0, default 3.0)
@@ -139,6 +158,10 @@ uniform float emissiveRimIntensity;  // Controls glow brightness (1.0-10.0, defa
 // ==================================
 
 void main() {
+    if (stripeClipLength > 0.0 && fragLocalZGeom > stripeClipLength) {
+        discard;
+    }
+
     vec3 normal = normalize(fragNormalGeom);
     vec3 viewDir = normalize(viewPosition - fragPositionGeom);
 

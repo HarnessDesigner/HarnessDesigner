@@ -445,6 +445,12 @@ class CavityPanel(_editable_tab_ctrl.EditableTabCtrl):
             # No real recessed mesh surface exists for this cavity — render
             # a synthetic circle/rectangle marker from its OBB instead.
             cavity_tab.cavity.obj3d.db_obj.render_terminal_marker = True
+        elif item.wire_is_shared:
+            # Terminal side has real mesh geometry, but the wire side is one
+            # continuous surface shared with another cavity — render just
+            # the wire side as a synthetic marker from this cavity's own OBB
+            # back face instead of the shared real surface.
+            cavity_tab.cavity.obj3d.db_obj.render_wire_marker = True
 
         # Store the surface indices so the overlay can highlight them when
         # this cavity tab is selected.

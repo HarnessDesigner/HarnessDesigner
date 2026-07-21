@@ -240,24 +240,26 @@ class PJTCavitiesTable(PJTTableBase):
         h_position3d = housing.position3d
 
         position2d = h_position2d + c_position2d
-        position3d = h_position3d + c_position3d
+
+        # c_position3d/obb/aabb are all housing-local (the housing-editor's
+        # own mesh frame has the housing at identity position/rotation, per
+        # Housing3D's pre-baked-VBO convention) and obb/aabb already have
+        # the cavity's own local placement (c_position3d/c_angle3d) baked
+        # into their corner coordinates from Cavity3D.apply_analysis(). The
+        # only transform still needed to reach world space is the housing
+        # instance's own position/rotation -- NOT a further combination
+        # with c_position3d/c_angle3d, which would double-apply them.
+        position3d = c_position3d @ h_angle3d
+        position3d += h_position3d
 
         angle2d = h_angle2d + c_angle2d
         angle3d = h_angle3d + c_angle3d
 
-        inverse_h_angle3d = h_angle3d.inverse
+        aabb @= h_angle3d
+        obb @= h_angle3d
 
-        aabb -= h_position3d
-        obb -= h_position3d
-
-        aabb @= inverse_h_angle3d
-        obb @= inverse_h_angle3d
-
-        aabb @= angle3d
-        obb @= angle3d
-
-        aabb += position3d
-        obb += position3d
+        aabb += h_position3d
+        obb += h_position3d
 
         aabb = [[float(str(item)) for item in items]
                 for items in aabb.tolist()]
@@ -488,6 +490,8 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
                 self.terminal_position3d_id = point_id
 
                 self._stored_terminal_position3d_id = point_id
+            else:
+                self._stored_terminal_position3d_id = point_id
 
         return self._stored_terminal_position3d_id
 
@@ -505,6 +509,124 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
 
         self._table.update(self._db_id, terminal_point3d_id=value)
         self._populate('terminal_position3d_id')
+
+    _stored_wire_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValueType" = DefaultStoredValue
+
+    @property
+    def wire_position3d(self) -> "_point.Point":
+        """
+        Return the wire-side layout point -- where a wire's WireLayout
+        attaches on this cavity's wire-exit side. Lazily created and
+        persisted on first access, see :attr:`wire_position3d_id`.
+
+        :returns: Property value.
+        :rtype: :class:`_point.Point`
+        """
+
+        if self._stored_wire_position3d is DefaultStoredValue:
+            point_id = self.wire_position3d_id
+
+            if point_id is None:
+                self._stored_wire_position3d = None
+            else:
+                self._stored_wire_position3d = self._table.db.pjt_points3d_table[point_id]
+
+        if self._stored_wire_position3d is not None:
+            if self._obj is not None:
+                self._stored_wire_position3d.add_object(self._obj())
+
+            point = self._stored_wire_position3d.point
+        else:
+            point = None
+
+        return point
+
+    _stored_wire_position3d_id: int | None | DefaultStoredValueType = DefaultStoredValue
+
+    @property
+    def wire_position3d_id(self) -> int:
+        """
+        Return the ``pjt_points3d`` row id for the wire-side layout point,
+        lazily creating and persisting it on first access when the
+        ``wire_point3d_id`` column is NULL.
+
+        Prefers the real wire-side mesh surface's own centroid (via the
+        live Cavity3D object, when one exists -- Cavity.wire_surface_
+        center(), the same location match_cavity_surfaces() itself
+        resolved for this cavity's wire side), falling back to a point
+        derived from this cavity's own OBB (its wire-side/back face
+        center -- local -Z per the cavity-frame convention, see
+        terminal_handler._female_terminal_position for the full
+        explanation of that sign) when no live 3D object is available yet
+        (e.g. still mid project-load, before the owning housing's model
+        has finished setting up its mesh picker).
+
+        :returns: Property value.
+        :rtype: int
+        """
+
+        if self._stored_wire_position3d_id is DefaultStoredValue:
+            point_id = self._table.select('wire_point3d_id', id=self._db_id)[0][0]
+
+            if point_id is None:
+                center = None
+
+                cavity_obj = self.get_object()
+                if cavity_obj is not None and cavity_obj.obj3d is not None:
+                    center = cavity_obj.obj3d.wire_surface_center()
+
+                if center is None:
+                    cav_length = float(self.part.length)
+                    center = _point.Point(0.0, 0.0, -cav_length / 2.0)
+                    center @= self.angle3d
+                    center += self.position3d
+
+                x, y, z = center.as_float
+
+                self._table.execute(
+                    'INSERT INTO pjt_points3d (project_id, x, y, z) VALUES (?, ?, ?, ?);',
+                    (self._table.project_id, x, y, z))
+
+                self._table.commit()
+                point_id = self._table.lastrowid
+                self.wire_position3d_id = point_id
+
+                self._stored_wire_position3d_id = point_id
+            else:
+                self._stored_wire_position3d_id = point_id
+
+        return self._stored_wire_position3d_id
+
+    @wire_position3d_id.setter
+    def wire_position3d_id(self, value: int):
+        """
+        Set the wire-side layout point's ``pjt_points3d`` row id.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
+
+        self._stored_wire_position3d_id = value
+        self._stored_wire_position3d = DefaultStoredValue
+
+        self._table.update(self._db_id, wire_point3d_id=value)
+        self._populate('wire_position3d_id')
+
+    @property
+    def wire_point3d_id_raw(self) -> "int | None":
+        """The raw ``wire_point3d_id`` column value, ``None`` if a wire has
+        never been routed to this cavity yet.
+
+        Unlike :attr:`wire_position3d_id`, this never lazily creates and
+        persists a point -- use it for "has a wire ever attached here"
+        checks (e.g. is-this-wire-housing-attached) that must not force a
+        point into existence for every cavity in the project just by
+        asking.
+        """
+        if self._stored_wire_position3d_id is not DefaultStoredValue:
+            return self._stored_wire_position3d_id
+
+        return self._table.select('wire_point3d_id', id=self._db_id)[0][0]
 
     @property
     def terminal_position2d(self) -> "_point.Point":

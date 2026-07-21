@@ -797,6 +797,7 @@ from .image import ImagesTable  # NOQA
 from .datasheet import DatasheetsTable  # NOQA
 from .cpa_lock_type import CPALockTypesTable  # NOQA
 from .resource_state import ResourceStateTable  # NOQA
+from .used_part import UsedPartsTable  # NOQA
 
 
 class GLBTables:
@@ -862,6 +863,7 @@ class GLBTables:
         self._terminals_table = TerminalsTable(self, tables, splash, load_database)
         self._tpa_locks_table = TPALocksTable(self, tables, splash, load_database)
         self._transitions_table = TransitionsTable(self, tables, splash, load_database)
+        self._used_parts_table = UsedPartsTable(self, tables, splash, load_database)
         self._wires_table = WiresTable(self, tables, splash, load_database)
         self._wire_markers_table = WireMarkersTable(self, tables, splash, load_database)
 
@@ -1326,3 +1328,15 @@ class GLBTables:
         :rtype: :class:`SettingsTable`
         """
         return self._settings_table
+
+    @property
+    def used_parts_table(self) -> UsedPartsTable:
+        """Return the used parts table.
+
+        Tracks accessory parts (TPA lock, CPA lock, cover, terminal) that
+        have previously been used together with a given housing.
+
+        :returns: Property value.
+        :rtype: :class:`UsedPartsTable`
+        """
+        return self._used_parts_table

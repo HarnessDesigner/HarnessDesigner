@@ -103,7 +103,14 @@ class Cavity3D(_base3d.Base3D):
         else:
             self.dialog.cavity_panel.set_cavity(None)
 
-        _base3d.Base3D.set_selected(self, flag)
+        # Only engage the real editor selection (which enables the
+        # move/rotate-gizmo drag handling in mouse_handler.py) outside the
+        # dialog's own wire/terminal_plane/terminal surface-picking modes --
+        # otherwise a terminal-plane click (which lands on a cavity face via
+        # try_pick_cavity) hijacks the next drag from camera-orbit into
+        # object dragging. See Housing.set_selected for the same guard.
+        if self.dialog.can_select:
+            _base3d.Base3D.set_selected(self, flag)
 
     @property
     def compat_terminals(self) -> list["_terminal.Terminal"]:

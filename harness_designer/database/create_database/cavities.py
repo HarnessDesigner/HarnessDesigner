@@ -34,6 +34,13 @@ table = _con.SQLTable(
     _con.TextField('aabb', default='NULL'),
     _con.TextField('obb', default='NULL'),
     _con.IntField('render_terminal_marker', default='NULL'),
+    # Set when this cavity's wire-side mesh surface is shared with one or
+    # more other cavities (no distinguishable per-cavity wire-side geometry
+    # in the source CAD) -- the wire side is then rendered/click-tested as a
+    # synthetic marker built from this cavity's own OBB back face (corners
+    # 0-3) instead of the shared real surface. The terminal side is
+    # unaffected and still uses its own real surface/marker as normal.
+    _con.IntField('render_wire_marker', default='NULL'),
     # Surface indices (into MeshSurfacePicker.surfaces for this part's mesh)
     # selected in the housing editor for this cavity's terminal/wire face,
     # stored as the string repr of a list of ints (e.g. "[3, 7, 12]"), NULL
@@ -71,6 +78,16 @@ pjt_table = _con.SQLTable(
                                                     on_delete=_con.REFERENCE_CASCADE,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('terminal_point3d_id', default='NULL',
+                  references=_con.SQLFieldReference(_points3d.pjt_table,
+                                                    _points3d.pjt_id_field,
+                                                    on_delete=_con.REFERENCE_CASCADE,
+                                                    on_update=_con.REFERENCE_CASCADE)),
+    # Wire-side layout point -- where a wire's WireLayout attaches on this
+    # cavity's wire-exit side. Lazily computed (from the cavity's own
+    # wire-side mesh surface centroid, falling back to an OBB-derived
+    # point) and persisted the first time it's needed; see
+    # PJTCavity.wire_position3d.
+    _con.IntField('wire_point3d_id', default='NULL',
                   references=_con.SQLFieldReference(_points3d.pjt_table,
                                                     _points3d.pjt_id_field,
                                                     on_delete=_con.REFERENCE_CASCADE,

@@ -27,6 +27,12 @@ class AnalysisItem:
     # later loads. Empty for manual (synthetic-marker) cavities.
     wire_surf_indices: list = None
     term_surf_indices: list = None
+    # True when wire_surf_si is shared with another cavity in this same
+    # analysis run (no distinguishable per-cavity wire-side mesh geometry).
+    # Committed as Cavity.render_wire_marker so match_cavity_surfaces()
+    # renders/click-tests a synthetic wire-side marker from this cavity's
+    # own OBB back face instead of the shared real surface.
+    wire_is_shared: bool = False
 
     def __post_init__(self):
         if self.wire_surf_indices is None:

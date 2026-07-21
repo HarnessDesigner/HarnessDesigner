@@ -277,6 +277,18 @@ class HandlerBase:
 
         self.obj.delete()
 
+    def finalize_at_last_point(self) -> None:
+        """
+        Right-click hook: end the operation at the last confirmed point,
+        discarding any not-yet-committed in-progress preview.
+
+        Default no-op -- only meaningful for handlers that support
+        multi-click, incrementally-committed placement (see
+        :class:`~..handlers.wire_handler.AddWireHandler`).
+        """
+
+        pass
+
     @property
     def is_finalized(self) -> bool:
         """

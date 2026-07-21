@@ -314,6 +314,14 @@ class Arrows3D(_base3d.Base3D):
         if reflect_loc != -1:
             GL.glUniform1i(reflect_loc, 0)
 
+        # See rotation_rings.py's identical reset -- a WireStripe drawn
+        # earlier in the same frame can leave stripeClipLength set to a
+        # real length, which would otherwise force this gizmo's Z scale to
+        # 1.0 and clip its geometry too.
+        clip_loc = GL.glGetUniformLocation(faces_program, "stripeClipLength")
+        if clip_loc != -1:
+            GL.glUniform1f(clip_loc, 0.0)
+
         GL.glUniform3f(pos_loc, *(self._position + self._arrow1_offset).as_float)
         GL.glUniform3f(scale_loc, *self._scale.as_float)
 

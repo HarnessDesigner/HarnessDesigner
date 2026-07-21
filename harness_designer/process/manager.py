@@ -592,14 +592,12 @@ class ProcessManager(threading.Thread):
                         if start:
                             self.mainframe.start_progress('', 11)
 
+                        self.mainframe.set_progress(stp, str(pn))
+                        rdb.update_progress(stp)
+
                         if stp == 11:
                             rdb.delete()
                             mdb.download_complete()
-                        else:
-                            self.mainframe.set_progress(stp, str(pn))
-
-                            # Update resource_state progress in parent.
-                            rdb.update_progress(stp)
 
                     if step == 1:
                         curr_progresses.insert(curr_progress_index, job_id)

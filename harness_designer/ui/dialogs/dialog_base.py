@@ -89,9 +89,16 @@ class BaseDialog(QtWidgets.QDialog):
         self._center_on_parent()
 
     def _center_on_parent(self):
-        """Execute the center on parent operation.
+        """Center this dialog on its parent window.
 
-        UNKNOWN details are inferred from the callable name and signature.
+        If the parent is positioned such that centering on it would push
+        any part of the dialog outside the visible area of the screen the
+        parent is mostly displayed on (e.g. the main window was dragged
+        mostly off-screen before the app was closed), center on that
+        screen instead -- otherwise the dialog itself would open
+        off-screen, and since it's modal there would be no way to move it
+        or the parent back into view without editing the saved window
+        position directly in the database.
         """
         if self.parent() is None:
             return
@@ -99,6 +106,11 @@ class BaseDialog(QtWidgets.QDialog):
         parent_geo = self.parent().frameGeometry()
         geo = self.frameGeometry()
         geo.moveCenter(parent_geo.center())
+
+        screen = self.parent().screen()
+        if screen is not None and not screen.availableGeometry().contains(geo):
+            geo.moveCenter(screen.availableGeometry().center())
+
         self.move(geo.topLeft())
 
     def _in_drag_zone(self, pos: QtCore.QPoint) -> bool:  # NOQA

@@ -944,36 +944,57 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
                     covered.add(gi)
         return covered
 
-    @staticmethod
-    def _group_containing(idx: int, groups: list) -> list:
-        """Return the coplanar-surface group containing ``idx``, or ``[idx]``
-        if it wasn't picked as part of a plane group (e.g. an individually
-        toggled terminal surface)."""
-        for grp in groups:
-            if idx in grp:
-                return list(grp)
-        return [idx]
-
-    @staticmethod
-    def _match_wire_surface(n_t, c_t, wire_surf_items, wire_centroids):
-        """Find the wire surface spatially closest to a terminal in the
-        cross-sectional plane (perpendicular to the cavity axis).  This
-        ensures each terminal exits through its own wire plane even when
-        multiple wire planes exist at different depths.
+    def _match_wire_surface(self, n_t, boundary_pts, wire_surf_items):
+        """Find the wire-side surface that fully contains the terminal
+        shape's own footprint once extruded straight along the terminal's
+        normal -- not just the nearest one in cross-section, since a
+        nearby-but-wrong (too small, or belonging to a different cavity)
+        wire surface must never be picked just because its centroid happens
+        to be close. When more than one surface contains it, the tightest
+        (smallest-area) one wins.
         """
-        c_t_perp = c_t - float(np.dot(c_t, n_t)) * n_t
+        best_ws_si = None
+        best_ws = None
+        best_wc = None
+        best_area = float('inf')
 
-        best_ws_si, best_ws = wire_surf_items[0]
-        best_wc = wire_centroids[0]
-        best_d = float('inf')
-        for (wsi, ws), wc in zip(wire_surf_items, wire_centroids):
-            c_w_perp = wc - float(np.dot(wc, n_t)) * n_t
-            d = float(np.linalg.norm(c_t_perp - c_w_perp))
-            if d < best_d:
-                best_d = d
+        for wsi, ws in wire_surf_items:
+            ws_n = ws.normal.astype(np.float64)
+            ws_n /= np.linalg.norm(ws_n) + 1e-12
+
+            denom = float(np.dot(ws_n, n_t))
+            if abs(denom) < 1e-9:
+                continue
+
+            # Extrude each boundary point straight along the terminal's own
+            # normal until it reaches this candidate's plane.
+            t = (float(ws.plane_dist) - boundary_pts @ ws_n) / denom
+            projected = boundary_pts + t[:, None] * n_t
+
+            if not _analysis.surface_contains_points(ws, projected, self.vertices):
+                continue
+
+            area = _analysis.surface_area(ws, self.vertices)
+            if area < best_area:
+                best_area = area
                 best_ws_si = wsi
                 best_ws = ws
-                best_wc = wc
+                best_wc = _analysis.surface_centroid(ws, self.vertices)
+
+        if best_ws_si is None:
+            # No candidate fully contains the projected shape -- fall back
+            # to nearest-in-cross-section so a hairline containment miss
+            # (real-world mesh imprecision) doesn't just drop the cavity.
+            c_t = boundary_pts.mean(axis=0)
+            c_t_perp = c_t - float(np.dot(c_t, n_t)) * n_t
+            best_d = float('inf')
+            for wsi, ws in wire_surf_items:
+                wc = _analysis.surface_centroid(ws, self.vertices)
+                c_w_perp = wc - float(np.dot(wc, n_t)) * n_t
+                d = float(np.linalg.norm(c_t_perp - c_w_perp))
+                if d < best_d:
+                    best_d = d
+                    best_ws_si, best_ws, best_wc = wsi, ws, wc
 
         return best_ws_si, best_ws, best_wc
 
@@ -1002,10 +1023,6 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
             for grp in self.wire_plane_groups
             for si in grp
         ]
-        wire_centroids = [
-            _analysis.surface_centroid(ws, self.vertices)
-            for _, ws in wire_surf_items
-        ]
 
         results = []
         for ti in all_terminal:
@@ -1013,11 +1030,18 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
             n_t = term_surf.normal.astype(np.float64)
             n_t /= np.linalg.norm(n_t) + 1e-12
 
-            c_t = _analysis.surface_centroid(term_surf, self.vertices)
-            best_ws_si, best_ws, best_wc = self._match_wire_surface(
-                n_t, c_t, wire_surf_items, wire_centroids)
-
             try:
+                kind, params = _analysis.get_surface_shape(term_surf, self.vertices)
+                override = self.terminal_overrides.get(ti)
+                if override in ('circle', 'rect'):
+                    kind = override
+
+                boundary_pts = np.array(
+                    _shape_polygon_points(kind, params), dtype=np.float64)
+
+                best_ws_si, best_ws, best_wc = self._match_wire_surface(
+                    n_t, boundary_pts, wire_surf_items)
+
                 kind, params, verts, _norms = _analysis.generate_terminal_geometry(
                     term_surf, best_ws, self.vertices,
                     kind_override=self.terminal_overrides.get(ti),
@@ -1034,8 +1058,12 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
             u_ax, v_ax = _analysis.plane_frame(n_t)
             proj_u = float(center @ u_ax)
             proj_v = float(center @ v_ax)
-            wire_indices = self._group_containing(best_ws_si, self.wire_plane_groups)
-            term_indices = self._group_containing(ti, self.term_plane_groups)
+            # Just this cavity's own surfaces -- not _group_containing's
+            # whole coplanar-selection group, which can span several
+            # cavities that happen to share a plane (see wire_is_shared
+            # below for the legitimate wire-side sharing case).
+            wire_indices = [best_ws_si]
+            term_indices = [ti]
             results.append(
                 (kind, params, d_start, d_end, proj_u, proj_v, verts,
                  best_ws_si, ti, False, wire_indices, term_indices)
@@ -1052,8 +1080,11 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
             n_t /= np.linalg.norm(n_t) + 1e-12
             c_t = np.asarray(params['center'], dtype=np.float64)
 
+            boundary_pts = np.array(
+                _shape_polygon_points(m['kind'], params), dtype=np.float64)
+
             best_ws_si, _best_ws, best_wc = self._match_wire_surface(
-                n_t, c_t, wire_surf_items, wire_centroids)
+                n_t, boundary_pts, wire_surf_items)
 
             d_start = float(c_t @ n_t)
             d_full = float(best_wc @ n_t)
@@ -1065,7 +1096,7 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
             u_ax, v_ax = _analysis.plane_frame(n_t)
             proj_u = float(c_t @ u_ax)
             proj_v = float(c_t @ v_ax)
-            wire_indices = self._group_containing(best_ws_si, self.wire_plane_groups)
+            wire_indices = [best_ws_si]
             results.append(
                 (m['kind'], params, d_start, d_end, proj_u, proj_v, verts,
                  best_ws_si, -1, True, wire_indices, [])
@@ -1074,6 +1105,20 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         if not results:
             self._set_status('Analysis produced no results.')
             return
+
+        # Flag cavities whose matched wire-side surface is shared with
+        # another cavity — real per-cavity wire-side mesh geometry doesn't
+        # exist for these (the manufacturer modeled one continuous wire-side
+        # wall), so match_cavity_surfaces() will render/click-test a
+        # synthetic marker for the wire side instead, built from this
+        # cavity's own OBB back face (already computed above from its
+        # terminal-side footprint extruded to d_end) rather than the shared
+        # real surface.
+        wire_si_counts: dict = {}
+        for r in results:
+            wire_si = r[7]
+            if wire_si >= 0:
+                wire_si_counts[wire_si] = wire_si_counts.get(wire_si, 0) + 1
 
         # Sort: top-to-bottom (decreasing proj_v), left-to-right (increasing proj_u)
         results.sort(key=lambda r: (-r[5], r[4]))
@@ -1095,6 +1140,7 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
                 is_manual=is_manual,
                 wire_surf_indices=wire_indices,
                 term_surf_indices=term_indices,
+                wire_is_shared=wire_si_counts.get(wire_si, 0) > 1,
             )
             items.append(item)
 

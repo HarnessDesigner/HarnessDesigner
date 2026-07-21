@@ -115,6 +115,11 @@ Contents/structure of the `harness_designer/` package.
     - setting
   - `bases.py` (~1300 lines): table base class
   - `resource_state.py`: tracks resource sync state
+  - `used_part.py`: `used_parts` table — tracks which accessory parts (tpa_lock/cpa_lock/cover/
+    terminal, all nullable FKs, `ON DELETE CASCADE`) have previously been used with a given
+    housing (`housing_id`, not-null FK, `ON DELETE CASCADE`); history table, not a placeable
+    part type, so no `project_db`/`objects`/`handlers` counterpart — mirrors `resource_state.py`'s
+    shape. UI to surface this per-housing not yet built (2026-07-20).
   - `mixins/`: column mixins
     - base
     - part_number

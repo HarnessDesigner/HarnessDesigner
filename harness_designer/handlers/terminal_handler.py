@@ -45,6 +45,173 @@ if TYPE_CHECKING:
 Config = _config.Config.colors
 
 
+# ----------------------------------------------------------------------
+# Module-level geometry helpers -- pure functions of a terminal's own
+# global part + the cavity it's going into, no handler/mainframe state
+# needed. Shared between AddTerminalHandler (initial placement, below)
+# and objects.objects3d.terminal.Terminal._set_model (repositioning once
+# a first-time model download completes -- see reposition_from_model at
+# the bottom of this module).
+# ----------------------------------------------------------------------
+
+def _terminal_extent(part, pjt_cavity) -> tuple[float, float]:
+    """
+    Return (front_z, back_z): the canonical-frame Z distance from *part*'s
+    own local origin (position3d, where a placed terminal's position3d
+    ends up) to its front (mating-side, +Z) and back (wire-side, -Z) faces.
+
+    Not assumed symmetric -- front_z isn't necessarily -back_z. A real
+    converted model's own local origin isn't guaranteed to sit exactly at
+    its geometric center (wherever the original CAD file's author put it),
+    so front/back need to be read directly off the OBB rather than derived
+    from a single "length" magnitude split down the middle.
+
+    Prefers the converted 3D model's own measured extents. model3d.obb is
+    the model's raw, un-rotated, un-translated OBB -- Base3D._set_model()
+    bakes model3d.angle3d/position3d into obb/aabb (and the packed vertex
+    data) before ever using them for anything, so this mirrors that exact
+    step. Once baked, canonical +Z is always forward by definition (what
+    the one-time PartOrientationDialog rotation exists to guarantee), so
+    no per-part axis lookup (forward_up) is needed here at all. Safe to
+    mutate obb in place -- model3d.obb's getter returns a fresh array on
+    every access, never a cached/shared one.
+
+    When no model is available yet (still downloading/unassigned): falls
+    back to a symmetric split of the terminal part's own recorded length
+    (Terminal.effective_size, half the cavity's length when the terminal
+    itself is missing any of its own three measurements) -- the best
+    guess available without real geometry.
+    """
+
+    model3d = part.model3d
+    if model3d is not None and model3d.obb is not None:
+        obb = model3d.obb.astype(np.float64)
+        obb @= model3d.angle3d
+        obb += model3d.position3d
+
+        z = obb[:, 2]
+        return float(z.max()), float(z.min())
+
+    if pjt_cavity is not None:
+        _, _, length = part.effective_size(pjt_cavity.part)
+    else:
+        length = float(part.length)
+
+    return length / 2.0, -length / 2.0
+
+
+def _female_terminal_position(part, pjt_cavity):
+    """
+    Return the female-terminal position: the FRONT of the terminal pin
+    (not its center) lands on the cavity's front (mating-side) face.
+
+    Local-point-then-rotate-then-translate, but built up in the
+    housing's own local frame first: the global cavity's position3d
+    (its center, in housing-local space) plus our local Z offset, all
+    rotated together by the project cavity's full world angle3d, then
+    translated by the HOUSING's world position -- not pjt_cavity's own
+    (already-world-transformed) position3d, which would double-apply
+    the housing's rotation on top of an already-rotated point.
+
+    Sign note: this is the CAVITY's own local Z, not the terminal
+    part-model convention -- Cavity3D.apply_analysis builds a cavity's
+    OBB with local +Z along the terminal surface's own outward normal
+    (corners 4-7, the terminal/forward face, sit at +length/2), so a
+    cavity's front (mating) face is +cav_length/2, its back (wire-side)
+    face -cav_length/2. A terminal, once given the cavity's own angle3d
+    (set_angle_from_cavity), shares that exact same +Z-is-forward frame.
+    """
+
+    cav_length = float(pjt_cavity.part.length)
+    front_z, _ = _terminal_extent(part, pjt_cavity)
+
+    z_offset = cav_length / 2.0 - front_z
+
+    pos = _point.Point(0.0, 0.0, z_offset)
+    pos += pjt_cavity.part.position3d
+    pos @= pjt_cavity.angle3d
+    pos += pjt_cavity.housing.position3d
+    return pos.as_float
+
+
+def _male_terminal_position(part, pjt_cavity):
+    """
+    Return the male-terminal position: the point 1/3 of the pin's own
+    length back from its front face lands on the cavity's front
+    (mating-side) face. See _female_terminal_position.
+    """
+
+    cav_length = float(pjt_cavity.part.length)
+    front_z, back_z = _terminal_extent(part, pjt_cavity)
+    length = front_z - back_z
+
+    z_offset = cav_length / 2.0 - front_z + length / 3.0
+
+    pos = _point.Point(0.0, 0.0, z_offset)
+    pos += pjt_cavity.part.position3d
+    pos @= pjt_cavity.angle3d
+    pos += pjt_cavity.housing.position3d
+    return pos.as_float
+
+
+def _resolve_is_male(part, g_housing=None) -> bool:
+    """
+    Return True when *part* should be positioned/treated as male.
+
+    Priority: the terminal part's own gender, then *g_housing*'s gender
+    (when supplied), then default to male so a missing gender is
+    visually obvious rather than silently guessed.
+    """
+
+    term_gender = (part.gender.name or '').strip().lower()
+    if term_gender in ('male', 'female'):
+        return term_gender == 'male'
+
+    if g_housing is not None:
+        housing_gender = (g_housing.gender.name or '').strip().lower()
+        if housing_gender in ('male', 'female'):
+            return housing_gender == 'male'
+
+    return True
+
+
+def reposition_from_model(pjt_terminal) -> None:
+    """
+    Recompute *pjt_terminal*'s position3d now that its 3D model has
+    finished converting for the first time.
+
+    The initial placement (AddTerminalHandler.set_part) fell back to
+    Terminal.effective_size / the terminal's own catalog dimensions
+    since no model was available yet, which can be a meaningfully
+    different size than the real, converted model -- see
+    objects.objects3d.terminal.Terminal._set_model, which calls this
+    only the first time a given terminal's model finishes downloading
+    (never on a later reload, where the model is already cached and the
+    position is already correct/possibly user-adjusted since).
+
+    No-op for a terminal not yet placed in a cavity (floating preview) --
+    nothing to reposition relative to yet.
+    """
+
+    pjt_cavity = pjt_terminal.cavity
+    if pjt_cavity is None:
+        return
+
+    part = pjt_terminal.part
+    is_male = _resolve_is_male(part, pjt_cavity.housing.part)
+
+    if is_male:
+        x, y, z = _male_terminal_position(part, pjt_cavity)
+    else:
+        x, y, z = _female_terminal_position(part, pjt_cavity)
+
+    position = pjt_terminal.position3d
+    with position:
+        position.x = x
+        position.y = y
+        position.z = z
+
+
 class AddTerminalHandler(_handler_base.HandlerBase):
     """
     Handle interactive placement of terminals into cavities.
@@ -109,63 +276,6 @@ class AddTerminalHandler(_handler_base.HandlerBase):
             self._finalized = True
         else:
             self.set_part(part_id)
-
-    @staticmethod
-    def _cavity_midpoint(pjt_cavity):
-        """
-        Return world-space midpoint of *pjt_cavity* along its insertion axis.
-
-        This is the female-terminal position: the center of the terminal
-        sits at the center of the cavity.
-        """
-
-        cpos_np = pjt_cavity.position3d.as_numpy.astype(np.float64)
-        cav_ang = pjt_cavity.angle3d
-        length = float(pjt_cavity.part.length)
-
-        ref_local = np.array([[0.0, 0.0, length]], dtype=np.float64)
-        ref_world = np.asarray(ref_local @ cav_ang, dtype=np.float64)[
-                        0] + cpos_np
-        mid = (cpos_np + ref_world) / 2.0
-        return float(mid[0]), float(mid[1]), float(mid[2])
-
-    @staticmethod
-    def _male_terminal_position(pjt_cavity):
-        """
-        Return the male-terminal position: 1/3 of the way from the cavity's
-        forward (terminal-side) OBB face toward its wire-side face.
-
-        Uses the same OBB corner convention as
-        :meth:`objects.objects3d.housing.Housing.match_cavity_surfaces`:
-        corners 4-7 are the terminal/forward face, corners 0-3 are the
-        wire-side face.
-        """
-
-        obb = pjt_cavity.obb.astype(np.float64)
-        forward_center = obb[4:].mean(axis=0)
-        wire_center = obb[:4].mean(axis=0)
-        pos = forward_center + (wire_center - forward_center) / 3.0
-        return float(pos[0]), float(pos[1]), float(pos[2])
-
-    def _resolve_is_male(self, g_housing=None):
-        """
-        Return True when *self.part* should be positioned/treated as male.
-
-        Priority: the terminal part's own gender, then *g_housing*'s gender
-        (when supplied), then default to male so a missing gender is
-        visually obvious rather than silently guessed.
-        """
-
-        term_gender = (self.part.gender.name or '').strip().lower()
-        if term_gender in ('male', 'female'):
-            return term_gender == 'male'
-
-        if g_housing is not None:
-            housing_gender = (g_housing.gender.name or '').strip().lower()
-            if housing_gender in ('male', 'female'):
-                return housing_gender == 'male'
-
-        return True
 
     def _get_cavity_compat_pns(self, housing, cavity):
         """
@@ -276,12 +386,12 @@ class AddTerminalHandler(_handler_base.HandlerBase):
             # positioning/rotation mechanics, so the terminal always gets
             # its own pjt_points3d row.
             pjt_cavity = self._cavity.db_obj
-            self._is_male = self._resolve_is_male(pjt_cavity.housing.part)
+            self._is_male = _resolve_is_male(self.part, pjt_cavity.housing.part)
 
             if self._is_male:
-                tx, ty, tz = self._male_terminal_position(pjt_cavity)
+                tx, ty, tz = _male_terminal_position(self.part, pjt_cavity)
             else:
-                tx, ty, tz = self._cavity_midpoint(pjt_cavity)
+                tx, ty, tz = _female_terminal_position(self.part, pjt_cavity)
 
             point_db = self.ptables.pjt_points3d_table.insert(tx, ty, tz)
 
@@ -291,7 +401,7 @@ class AddTerminalHandler(_handler_base.HandlerBase):
         elif self._housing is not None:
             # Mode 2: floating preview, snaps only to this housing's cavities.
             housing_db = self._housing.db_obj
-            self._is_male = self._resolve_is_male(housing_db.part)
+            self._is_male = _resolve_is_male(self.part, housing_db.part)
 
             for cavity in self._housing.cavities:
                 if cavity.db_obj.terminal is not None:
@@ -306,7 +416,7 @@ class AddTerminalHandler(_handler_base.HandlerBase):
 
         else:
             # Mode 3: floating preview, snaps to any compatible cavity.
-            self._is_male = self._resolve_is_male()
+            self._is_male = _resolve_is_male(self.part)
             part_number = self.part.part_number
             blade_size = self.part.blade_size
             part_gender_id = self.part.gender_id
@@ -362,9 +472,9 @@ class AddTerminalHandler(_handler_base.HandlerBase):
                 continue
 
             if self._is_male:
-                x, y, z = self._male_terminal_position(cavity.db_obj)
+                x, y, z = _male_terminal_position(self.part, cavity.db_obj)
             else:
-                x, y, z = self._cavity_midpoint(cavity.db_obj)
+                x, y, z = _female_terminal_position(self.part, cavity.db_obj)
 
             positions.append(_point.Point(x, y, z))
             objects.append(cavity)
@@ -392,9 +502,9 @@ class AddTerminalHandler(_handler_base.HandlerBase):
                 self.reset_angle(self.obj)
         else:
             if self._is_male:
-                x, y, z = self._male_terminal_position(snapped.db_obj)
+                x, y, z = _male_terminal_position(self.part, snapped.db_obj)
             else:
-                x, y, z = self._cavity_midpoint(snapped.db_obj)
+                x, y, z = _female_terminal_position(self.part, snapped.db_obj)
 
             point = _point.Point(x, y, z)
 
