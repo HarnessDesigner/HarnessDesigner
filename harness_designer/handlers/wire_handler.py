@@ -185,6 +185,34 @@ def _check_terminal_compat(terminal_obj, wire_part, project):
     return True, None
 
 
+def _predecessor_stripe_clip_start(mainframe, start_point3d_id: int):
+    """Return (stripe_clip_start, predecessor_wire_obj3d) for a new wire
+    whose own start point is `start_point3d_id`.
+
+    If an existing wire's stop point matches, the new wire continues its
+    stripe pattern -- stripe_clip_start inherits from that wire's own
+    stripe_clip_start + length, and predecessor_wire_obj3d is returned
+    so the caller can set its sibling once the new wire object exists.
+    (0.0, None) when nothing precedes it (a fresh chain start, or a
+    bare/terminal-attached endpoint).
+    """
+    predecessor_db = mainframe.project.ptables.pjt_wires_table.find_by_stop_point3d_id(
+        start_point3d_id)
+
+    if predecessor_db is None:
+        return 0.0, None
+
+    predecessor_wire_obj = predecessor_db.get_object()
+    if predecessor_wire_obj is None or predecessor_wire_obj.obj3d is None:
+        # Predecessor row exists but isn't a live scene object right now
+        # (shouldn't normally happen -- every wire in an open project has
+        # one) -- fall back to its persisted value, no sibling to set.
+        return predecessor_db.stripe_clip_start, None
+
+    predecessor_obj3d = predecessor_wire_obj.obj3d
+    return predecessor_obj3d.stripe_clip_start + predecessor_obj3d.length, predecessor_obj3d
+
+
 class AddWireHandler(_handler_base.HandlerBase):
     """Two-click interactive wire placement handler."""
 
@@ -279,14 +307,21 @@ class AddWireHandler(_handler_base.HandlerBase):
 
         name = f'{self.part.manufacturer.name} {self.part.part_number}'
 
+        stripe_clip_start, predecessor_obj3d = _predecessor_stripe_clip_start(
+            self.mainframe, start_point_id)
+
         wire_db = self.ptables.pjt_wires_table.insert(
             part_id, name, self._start_circuit_id,
             start_point_id, stop_db.db_id,
-            None, None, True, False, None, None, False)
+            None, None, True, False, None, None, False,
+            stripe_clip_start=stripe_clip_start)
 
         self.obj = _wire.Wire(self.mainframe, wire_db)
         self.obj.identify(self._preview_material)
         self._phase = 1
+
+        if predecessor_obj3d is not None:
+            predecessor_obj3d.sibling = self.obj.obj3d
 
     def _route_from_terminal(self, terminal: "_terminal.Terminal", wire_part, circuit_id):
         """
@@ -326,13 +361,21 @@ class AddWireHandler(_handler_base.HandlerBase):
         # point3d_id at construction time; building the layout first leaves
         # nothing to find and it silently falls back to a generic gray 3mm
         # default.
+        stripe_clip_start, predecessor_obj3d = _predecessor_stripe_clip_start(
+            self.mainframe, attach_db_id)
+
         stub_db = self.ptables.pjt_wires_table.insert(
             wire_part.db_id, name, circuit_id,
             attach_db_id, back_db_id,
-            None, None, True, False, None, None, False)
+            None, None, True, False, None, None, False,
+            stripe_clip_start=stripe_clip_start)
+
         stub_obj = _wire.Wire(self.mainframe, stub_db)
         project.add_wire(stub_obj)
         self._committed_wires.append(stub_obj)
+
+        if predecessor_obj3d is not None:
+            predecessor_obj3d.sibling = stub_obj.obj3d
 
         back_layout_db = self.ptables.pjt_wire_layouts_table.insert(back_db_id)
         back_layout_obj = _wire_layout.WireLayout(self.mainframe, back_layout_db)
@@ -346,13 +389,20 @@ class AddWireHandler(_handler_base.HandlerBase):
             cav_back_db_id = pjt_cavity.wire_position3d_id
 
             # Same ordering requirement as the back-of-terminal stub above.
+            # stub2 continues directly from stub_obj (its start point is
+            # exactly stub_obj's own stop point) -- no lookup needed, the
+            # predecessor is already in hand.
             stub2_db = self.ptables.pjt_wires_table.insert(
                 wire_part.db_id, name, circuit_id,
                 back_db_id, cav_back_db_id,
-                None, None, True, False, None, None, False)
+                None, None, True, False, None, None, False,
+                stripe_clip_start=stub_obj.obj3d.stripe_clip_start + stub_obj.obj3d.length)
+
             stub2_obj = _wire.Wire(self.mainframe, stub2_db)
             project.add_wire(stub2_obj)
             self._committed_wires.append(stub2_obj)
+
+            stub_obj.obj3d.sibling = stub2_obj.obj3d
 
             cav_layout_db = self.ptables.pjt_wire_layouts_table.insert(cav_back_db_id)
             cav_layout_obj = _wire_layout.WireLayout(self.mainframe, cav_layout_db)
@@ -410,6 +460,14 @@ class AddWireHandler(_handler_base.HandlerBase):
         stop = self.obj.obj3d.stop_position
         stop += world_pos - stop
 
+        # Wire._update_position (bound to this point) only marks the
+        # wire's geometry stale for the next render -- unlike most other
+        # objects' _update_position, it doesn't request a repaint itself
+        # (see objects.objects3d.wire.Wire._update_position), so without
+        # this the preview only catches up whenever something else
+        # happens to trigger a repaint (zoom, camera move).
+        self.mainframe.editor3d.Refresh(False)
+
     def _update_source_endpoint(self, world_np):
         """Live-move the source wire's endpoint to the projected ray position."""
         proj = self._project_extension(world_np)
@@ -420,6 +478,9 @@ class AddWireHandler(_handler_base.HandlerBase):
               else self._source_wire.obj3d.start_position)
 
         ep += proj_pt - ep
+
+        # See _update_preview_stop -- same deferred-repaint gap.
+        self.mainframe.editor3d.Refresh(False)
 
     def _cleanup(self):
         """Hide the overlay and unhighlight the last hovered object."""
@@ -673,14 +734,21 @@ class AddWireHandler(_handler_base.HandlerBase):
 
         name = f'{self.part.manufacturer.name} {self.part.part_number}'
 
+        stripe_clip_start, predecessor_obj3d = _predecessor_stripe_clip_start(
+            self.mainframe, start_point_id)
+
         wire_db = self.ptables.pjt_wires_table.insert(
             self.part_id, name, self._start_circuit_id,
             start_point_id, stop_db.db_id,
-            None, None, True, False, None, None, False)
+            None, None, True, False, None, None, False,
+            stripe_clip_start=stripe_clip_start)
 
         self.obj = _wire.Wire(self.mainframe, wire_db)
         self.obj.identify(self._preview_material)
         self._phase = 1
+
+        if predecessor_obj3d is not None:
+            predecessor_obj3d.sibling = self.obj.obj3d
 
     def _handle_second_click(self, mouse_pos):
         project = self.mainframe.project
@@ -796,13 +864,21 @@ class AddWireHandler(_handler_base.HandlerBase):
 
         name = f'{self.part.manufacturer.name} {self.part.part_number}'
 
+        # The just-committed self.obj (above) continues directly into this
+        # new segment -- its stop point is exactly this wire's start point,
+        # and it's already in hand, so no predecessor lookup is needed.
+        predecessor_obj3d = self.obj.obj3d
+
         wire_db = self.ptables.pjt_wires_table.insert(
             self.part_id, name, self._start_circuit_id,
             stop_point_id, new_stop_db.db_id,
-            None, None, True, False, None, None, False)
+            None, None, True, False, None, None, False,
+            stripe_clip_start=predecessor_obj3d.stripe_clip_stop)
 
         self.obj = _wire.Wire(self.mainframe, wire_db)
         self.obj.identify(self._preview_material)
+
+        predecessor_obj3d.sibling = self.obj.obj3d
 
     # ------------------------------------------------------------------
     # Finishing early / cancellation

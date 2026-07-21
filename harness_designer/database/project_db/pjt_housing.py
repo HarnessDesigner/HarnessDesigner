@@ -1079,9 +1079,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         # Point.attach() delegate-sync (_on_delegate_changed) still run --
         # both of which must run for a .attach()-shared point (a wire
         # ending on a terminal/layout, or a snapped cover/seal/lock) to
-        # actually follow the housing. `stale` stays set too, for anything
-        # that only polls it at render time instead of relying on the
-        # callback.
+        # actually follow the housing.
         #
         # PJTPoint3D._skip_db_write additionally suppresses the specific
         # DB-writing callback (PJTPoint3D._update_point) for the
@@ -1091,7 +1089,6 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         _pjt_point3d.PJTPoint3D._skip_db_write = True
         try:
             for i, pos in enumerate(all_positions):
-                pos.stale = True
                 with pos:
                     pos.x = f_position_array[i][0]
                     pos.y = f_position_array[i][1]
@@ -1289,7 +1286,6 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
             _pjt_point3d.PJTPoint3D._skip_db_write = True
             try:
                 for i, pos in enumerate(all_positions):
-                    pos.stale = True
                     with pos:
                         pos.x = f_position_array[i][0]
                         pos.y = f_position_array[i][1]

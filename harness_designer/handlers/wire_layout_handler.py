@@ -3,6 +3,7 @@
 """Interactive handler logic for adding wire layout points.
 """
 
+import math
 import numpy as np
 from typing import TYPE_CHECKING
 
@@ -127,18 +128,43 @@ def _split_wire_at_point(
     start_id = int(original_wire.obj3d.start_position.db_id[:-2])
     stop_id = int(original_wire.obj3d.stop_position.db_id[:-2])
 
+    # wire1 keeps the original wire's own start point, so it inherits its
+    # stripe_clip_start unchanged -- wire2 starts exactly where wire1 now
+    # ends, so its stripe_clip_start is wire1's stripe_clip_start plus
+    # wire1's own (freshly split) length. See objects.objects3d.wire.Wire
+    # and gl.shaders.faces' stripeClipStart/stripeClipStop uniforms.
+    wire1_stripe_clip_start = orig.stripe_clip_start
+
     wire1_db = project.ptables.pjt_wires_table.insert(
         part_id, name, circuit_id, start_id, shared_coord_id,
         None, None, is_visible3d, is_visible2d,
-        layer_view_point_id, layer_id, is_filler_wire)
+        layer_view_point_id, layer_id, is_filler_wire,
+        stripe_clip_start=wire1_stripe_clip_start)
+
+    p1 = wire1_db.start_position3d.as_numpy
+    p2 = wire1_db.stop_position3d.as_numpy
+    dx = p2[0] - p1[0]
+    dy = p2[1] - p1[1]
+    dz = p2[2] - p1[2]
+    wire1_length = math.sqrt(dx * dx + dy * dy + dz * dz)
+    wire2_stripe_clip_start = wire1_stripe_clip_start + wire1_length
 
     wire2_db = project.ptables.pjt_wires_table.insert(
         part_id, name, circuit_id, shared_coord_id, stop_id,
         None, None, is_visible3d, is_visible2d,
-        layer_view_point_id, layer_id, is_filler_wire)
+        layer_view_point_id, layer_id, is_filler_wire,
+        stripe_clip_start=wire2_stripe_clip_start)
 
     wire1_obj = _wire.Wire(project.mainframe, wire1_db)
     wire2_obj = _wire.Wire(project.mainframe, wire2_db)
+
+    # wire2 takes over the "back half" of the original wire's identity
+    # (same stop point), so it inherits whatever wire came after the
+    # original wire in the chain, if any -- and wire1 now continues
+    # into wire2, same as the original wire continued into whatever
+    # wire2 just inherited.
+    wire2_obj.obj3d.sibling = original_wire.obj3d.sibling
+    wire1_obj.obj3d.sibling = wire2_obj.obj3d
 
     project.add_wire(wire1_obj)
     project.add_wire(wire2_obj)

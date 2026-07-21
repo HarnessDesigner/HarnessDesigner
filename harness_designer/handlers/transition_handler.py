@@ -8,6 +8,7 @@ from PySide6.QtWidgets import QDialog
 from typing import TYPE_CHECKING
 
 from . import handler_base as _handler_base
+from . import wire_handler as _wire_handler
 from ..geometry import point as _point
 from ..geometry import angle as _angle
 from ..gl.canvas3d import object_picker as _object_picker
@@ -76,10 +77,12 @@ def _delete_point_if_orphaned(ptables, point_id: int) -> None:
     con.commit()
 
 
-def _insert_wire(ptables, part_id, circuit_id, start_id, stop_id, visible: bool):
+def _insert_wire(ptables, part_id, name, circuit_id, start_id, stop_id, visible: bool,
+                  stripe_clip_start: float = 0.0):
     return ptables.pjt_wires_table.insert(
-        part_id, circuit_id, start_id, stop_id,
-        None, None, visible, False, None, None, False)
+        part_id, name, circuit_id, start_id, stop_id,
+        None, None, visible, False, None, None, False,
+        stripe_clip_start=stripe_clip_start)
 
 
 def _insert_bundle(ptables, part_id, start_id, stop_id):
@@ -475,10 +478,13 @@ class AddTransitionHandler(_handler_base.HandlerBase):
 
             for cw in assigned:
                 pjt_wire = cw.wire
+                stripe_clip_start, _ = _wire_handler._predecessor_stripe_clip_start(  # NOQA
+                    self.mainframe, trunk_point_id)
                 ptables.pjt_wires_table.insert(
-                    pjt_wire.part_id, pjt_wire.circuit_id,
+                    pjt_wire.part_id, pjt_wire.name, pjt_wire.circuit_id,
                     trunk_point_id, br_pt_id,
-                    None, None, False, False, None, None, False)
+                    None, None, False, False, None, None, False,
+                    stripe_clip_start=stripe_clip_start)
 
         if not is_at_endpoint:
             from . import bundle_layout_handler as _blh
@@ -690,6 +696,10 @@ class RoutedWireHandler(_handler_base.HandlerBase):
 
         return float(od) if od else 1.0
 
+    def _wire_name(self) -> str:
+        part = self.mainframe.global_db.wires_table[self.part_id]
+        return f'{part.manufacturer.name} {part.part_number}'
+
     def _fits(self, diameter: float, branch) -> bool:
         return branch.min_diameter <= diameter <= branch.max_diameter
 
@@ -748,9 +758,13 @@ class RoutedWireHandler(_handler_base.HandlerBase):
             end_p3d = self.ptables.pjt_points3d_table.insert(
                 float(pos.x), float(pos.y), float(pos.z))
 
+            stripe_clip_start, _ = _wire_handler._predecessor_stripe_clip_start(  # NOQA
+                self.mainframe, self._seg_start_id)
+
             wire_db = _insert_wire(
-                self.ptables, self.part_id, None,
-                self._seg_start_id, end_p3d.db_id, visible=True)
+                self.ptables, self.part_id, self._wire_name(), None,
+                self._seg_start_id, end_p3d.db_id, visible=True,
+                stripe_clip_start=stripe_clip_start)
 
             self._preview = _wire.Wire(self.mainframe, wire_db)
             self.mainframe.add_object(self._preview)
@@ -849,11 +863,22 @@ class RoutedWireHandler(_handler_base.HandlerBase):
         self._segments.append((self._seg_start_id, end_p3d.db_id, True))
 
         intermediate_layout_points = set()
+        name = self._wire_name()
+        stripe_clip_start, predecessor_obj3d = _wire_handler._predecessor_stripe_clip_start(  # NOQA
+            self.mainframe, self._segments[0][0])
+
         for i, (start_id, stop_id, visible) in enumerate(self._segments):
             wire_db = _insert_wire(
-                self.ptables, self.part_id, None, start_id, stop_id, visible=visible)
+                self.ptables, self.part_id, name, None, start_id, stop_id, visible=visible,
+                stripe_clip_start=stripe_clip_start)
 
-            self.mainframe.project.add_wire(_wire.Wire(self.mainframe, wire_db))
+            wire_obj = _wire.Wire(self.mainframe, wire_db)
+            self.mainframe.project.add_wire(wire_obj)
+
+            if predecessor_obj3d is not None:
+                predecessor_obj3d.sibling = wire_obj.obj3d
+            predecessor_obj3d = wire_obj.obj3d
+            stripe_clip_start = predecessor_obj3d.stripe_clip_start + predecessor_obj3d.length
 
             if not visible and (i + 1 < len(self._segments) and
                                 not self._segments[i + 1][2]):

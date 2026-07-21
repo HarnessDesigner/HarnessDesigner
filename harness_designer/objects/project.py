@@ -20,6 +20,7 @@ from . import terminal as _terminal
 from . import tpa_lock as _tpa_lock
 from . import transition as _transition
 from . import wire as _wire
+from .objects3d.wire import _HELIX_OVERSHOOT_MM
 from . import wire_layout as _wire_layout
 from . import wire_marker as _wire_marker
 from . import wire_service_loop as _wire_service_loop
@@ -154,6 +155,23 @@ class Project:
         db_ids = {}
         count = 0
 
+        # Build the shared wire-stripe helix mesh at the project's last
+        # known max wire-segment length *before* any Wire loads, so it
+        # never needs to grow (and re-upload its VBO) more than once per
+        # session even if this project has hundreds of wires -- see
+        # shapes.helix.create_vbo and objects3d.wire.WireStripe. Padded by
+        # the same _HELIX_OVERSHOOT_MM headroom WireStripe._ensure_stripe_capacity
+        # builds in when it grows the mesh mid-session -- otherwise the
+        # very first live drag/preview after loading would immediately
+        # trigger a regrow. VBO creation requires an acquired GL context,
+        # same as every other VBO-creating call site (e.g. Wire.__init__).
+        mainframe.editor3d.context.acquire()
+        # we have to store the VBO in a variable this way it doesn't get GC'd
+        # If we store it as a variable name that goes unusedCython may throw a
+        # a warning for it.
+        _ = _helix.create_vbo(db_obj.wire_stripe_max_length + _HELIX_OVERSHOOT_MM)
+        mainframe.editor3d.context.release()
+
         def _load_objects(table_, label, obj_cls, ids_, container,
                           add_func, cur_count, max_count):
             # helper function for loading a project
@@ -240,17 +258,6 @@ class Project:
             mainframe.object_browser.add_seal,
             count, self._obj_count)
 
-        # Build the shared wire-stripe helix mesh at the project's last
-        # known max wire-segment length *before* any Wire loads, so it
-        # never needs to grow (and re-upload its VBO) more than once per
-        # session even if this project has hundreds of wires -- see
-        # shapes.helix.create_vbo and objects3d.wire.WireStripe. VBO
-        # creation requires an acquired GL context, same as every other
-        # VBO-creating call site (e.g. Wire.__init__).
-        mainframe.editor3d.context.acquire()
-        _helix.create_vbo(db_obj.wire_stripe_max_length)
-        mainframe.editor3d.context.release()
-
         count = _load_objects(
             ptables.pjt_wires_table, 'Wire',
             _wire.Wire, db_ids, self._wires,
@@ -313,6 +320,14 @@ class Project:
 
             kwargs = {'type': f'add_{table_name}', 'data': ids}
             self.mainframe.process_manager.send(**kwargs)
+
+    @property
+    def wire_stripe_max_length(self) -> float:
+        return self.db_obj.wire_stripe_max_length
+
+    @wire_stripe_max_length.setter
+    def wire_stripe_max_length(self, value: float):
+        self.db_obj.wire_stripe_max_length = value
 
     def update_objects(self, table_name, db_id):
         """Update the objects.

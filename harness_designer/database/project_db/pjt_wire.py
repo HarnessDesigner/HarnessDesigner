@@ -129,7 +129,8 @@ class PJTWiresTable(PJTTableBase):
 
     def insert(self, part_id: int, name: str, circuit_id: int, start_point3d_id: int | None, stop_point3d_id: int | None,
                start_point2d_id: int | None, stop_point2d_id: int | None, is_visible3d: bool, is_visible2d: bool,
-               layer_view_point_id: int | None, layer_id: int | None, is_filler_wire: bool) -> "PJTWire":
+               layer_view_point_id: int | None, layer_id: int | None, is_filler_wire: bool,
+               stripe_clip_start: float = 0.0) -> "PJTWire":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -156,6 +157,12 @@ class PJTWiresTable(PJTTableBase):
         :type layer_id: int | None
         :param is_filler_wire: Boolean flag for whether filler wire.
         :type is_filler_wire: bool
+        :param stripe_clip_start: Offset (mm) into the shared stripe helix
+            mesh where this wire's own start sits -- 0.0 for a standalone
+            wire, or ``predecessor.stripe_clip_start + predecessor.length``
+            for one created by splitting an existing wire, or continuing
+            from an existing wire's stop point.
+        :type stripe_clip_start: float
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`PJTWire`
         """
@@ -165,9 +172,40 @@ class PJTWiresTable(PJTTableBase):
                                     start_point2d_id=start_point2d_id, stop_point2d_id=stop_point2d_id,
                                     is_visible3d=int(is_visible3d), is_visible2d=int(is_visible2d),
                                     layer_view_point_id=layer_view_point_id, layer_id=layer_id,
-                                    is_filler_wire=int(is_filler_wire))
+                                    is_filler_wire=int(is_filler_wire),
+                                    stripe_clip_start=float(stripe_clip_start))
 
         return PJTWire(self, db_id, self.project_id)
+
+    def find_by_start_point3d_id(self, point3d_id: int) -> "PJTWire | None":
+        """Return the wire whose ``start_point3d_id`` matches ``point3d_id``.
+
+        Used to find "the next wire in the chain" from a wire's own
+        ``stop_point3d_id`` -- a single row lookup, not a chain walk.
+        ``None`` when no wire starts there (end of chain, or a bare/
+        terminal-attached endpoint).
+        """
+        db_ids = self.select('id', start_point3d_id=point3d_id)
+
+        if not db_ids:
+            return None
+
+        return self[db_ids[0][0]]
+
+    def find_by_stop_point3d_id(self, point3d_id: int) -> "PJTWire | None":
+        """Return the wire whose ``stop_point3d_id`` matches ``point3d_id``.
+
+        Used at wire-creation time to find "the predecessor" for a new
+        wire's own start point -- i.e. whether it continues an existing
+        wire's stripe pattern. ``None`` when nothing ends there (a fresh
+        chain start, or a bare/terminal-attached endpoint).
+        """
+        db_ids = self.select('id', stop_point3d_id=point3d_id)
+
+        if not db_ids:
+            return None
+
+        return self[db_ids[0][0]]
 
 
 class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPosition2DMixin,
@@ -410,6 +448,26 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         self._stored_is_filler_wire = value
         self._table.update(self._db_id, is_filler_wire=int(value))
         self._populate('is_filler_wire')
+
+    _stored_stripe_clip_start: float | DefaultStoredValueType = DefaultStoredValue
+
+    @property
+    def stripe_clip_start(self) -> float:
+        """Offset (mm) into the shared stripe helix mesh where this
+        wire's own start sits -- see ``PJTWiresTable.insert``. Only
+        meaningful for wires with a stripe (see ``has_stripe``).
+        """
+        if self._stored_stripe_clip_start is DefaultStoredValue:
+            self._stored_stripe_clip_start = float(
+                self._table.select('stripe_clip_start', id=self._db_id)[0][0])
+
+        return self._stored_stripe_clip_start
+
+    @stripe_clip_start.setter
+    def stripe_clip_start(self, value: float):
+        self._stored_stripe_clip_start = float(value)
+        self._table.update(self._db_id, stripe_clip_start=float(value))
+        self._populate('stripe_clip_start')
 
     @property
     def length_mm(self) -> float:

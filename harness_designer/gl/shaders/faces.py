@@ -19,14 +19,20 @@ uniform vec4 objectRotation;
 uniform vec3 objectScale;
 uniform int normalMode;
 
-// <= 0.0 means "not a stripe, no clipping" -- every object sets this every
-// draw call (see Base3D._render_geometry), since program uniform state
-// persists across draw calls sharing the same bound program. When active,
-// the mesh already has real-world units baked into local Z (see
+// <= 0.0 means "not a stripe, no clipping". Only WireStripe.render() ever
+// sets this (to a nonzero value for its own draw, then back to 0.0 right
+// after -- see that method), so it defaults to 0.0 for every other
+// object without needing to be set on every draw call. When active, the
+// mesh already has real-world units baked into local Z (see
 // shapes/helix.py), so local Z scaling is skipped entirely instead of
 // being stretched to the segment length like every other axis/object --
-// objectScale.z is repurposed as the clip length instead.
-uniform float stripeClipLength;
+// objectScale.z is unused for stripe geometry.
+uniform float stripeClipStop;
+
+// Only meaningful when stripeClipStop > 0.0 -- the other end of the
+// window into the shared stripe helix mesh (see stripeClipStop above).
+// Same "only WireStripe.render() ever touches this" contract.
+uniform float stripeClipStart;
 
 out vec3 fragPositionWorld;
 out vec3 fragNormalWorld;
@@ -56,9 +62,18 @@ mat3 quaternionToMatrix(vec4 q) {
 }
 
 void main() {
-    vec3 effectiveScale = stripeClipLength > 0.0 ? vec3(objectScale.xy, 1.0) : objectScale;
+    vec3 effectiveScale = stripeClipStop > 0.0 ? vec3(objectScale.xy, 1.0) : objectScale;
 
-    vec3 scaledVertex = in_vertexLocal * effectiveScale;
+    // Stripe geometry: X/Y (the radial helix pattern) stay driven by the
+    // raw local vertex, which already encodes the correct phase at
+    // whatever raw mesh Z it sits at -- baked into the mesh itself, see
+    // shapes/helix.py. Z re-bases to this segment's own local origin
+    // (subtracting stripeClipStart) so the surviving [start, stop]
+    // window renders at this segment's actual position instead of
+    // wherever its raw Z happens to be in the shared mesh.
+    vec3 scaledVertex = stripeClipStop > 0.0
+        ? vec3(in_vertexLocal.xy * objectScale.xy, in_vertexLocal.z - stripeClipStart)
+        : in_vertexLocal * effectiveScale;
     mat3 rotationMatrix = quaternionToMatrix(objectRotation);
     vec3 rotatedVertex = rotationMatrix * scaledVertex;
     vec3 worldPosition = rotatedVertex + objectPosition;
@@ -150,7 +165,8 @@ uniform vec4 lightSpecular;
 
 uniform vec3 viewPosition;
 uniform float floorY;
-uniform float stripeClipLength;
+uniform float stripeClipStop;
+uniform float stripeClipStart;
 
 // ===== EMISSIVE GLOW CONTROLS =====
 uniform float emissiveRimPower;      // Controls glow width (2.0-5.0, default 3.0)
@@ -158,7 +174,8 @@ uniform float emissiveRimIntensity;  // Controls glow brightness (1.0-10.0, defa
 // ==================================
 
 void main() {
-    if (stripeClipLength > 0.0 && fragLocalZGeom > stripeClipLength) {
+    if (stripeClipStop > 0.0 &&
+        (fragLocalZGeom > stripeClipStop || fragLocalZGeom < stripeClipStart)) {
         discard;
     }
 

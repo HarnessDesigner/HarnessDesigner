@@ -332,7 +332,8 @@ pjt_table = _con.SQLTable(
     # Offset (mm) into the shared stripe helix mesh where this wire
     # segment's own start sits -- 0.0 for a standalone wire, otherwise
     # inherited/pushed from whichever wire's stop_point3d_id equals this
-    # wire's start_point3d_id. See objects.objects3d.wire.Wire and
-    # gl.shaders.faces' stripeStartLength/stripeClipLength uniforms.
-    _con.FloatField('start_length', default='"0.0"', no_null=True)
+    # wire's start_point3d_id. Only meaningful for wires with a stripe
+    # (see PJTWire.has_stripe). See objects.objects3d.wire.Wire and
+    # gl.shaders.faces' stripeClipStart/stripeClipStop uniforms.
+    _con.FloatField('stripe_clip_start', default='"0.0"', no_null=True)
 )

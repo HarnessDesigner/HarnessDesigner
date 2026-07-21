@@ -2,8 +2,10 @@
 
 from typing import TYPE_CHECKING
 
+import weakref
 from PySide6.QtWidgets import QMenu
 from PySide6.QtCore import QTimer
+from OpenGL import GL
 import numpy as np
 import math
 
@@ -25,6 +27,13 @@ if TYPE_CHECKING:
 
 
 Config = _config.Config.editor3d
+
+# Real-world mm of extra headroom built into the shared stripe helix mesh
+# beyond whatever's currently required (see WireStripe._ensure_stripe_capacity).
+# A live drag/preview can then grow a wire's stripe_clip_stop without
+# forcing a GPU buffer reallocation on every frame -- only once the
+# overshoot itself is exhausted does the mesh actually need to regrow.
+_HELIX_OVERSHOOT_MM = 1000.0
 
 
 class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
@@ -61,16 +70,24 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
         self._p1 = db_obj.start_position3d
         self._p2 = db_obj.stop_position3d
 
+        self._length = self._calc_length()
+
         position = self._p1
 
-        scale = _point.Point(diameter, diameter, 1.0)
+        scale = _point.Point(diameter, diameter, self._length)
 
         # Track wires in this bundle using weak references
         # Wires hold strong references to bundles; bundles use weak refs to wires
         self._wires = []  # List of weak references to Wire objects
 
         self._p2.bind(self._update_position)
-        self._geometry_stale = False
+
+        # Weakref to whichever wire's start point is this wire's own stop
+        # point (the next segment in a split chain) -- see the sibling
+        # property. Set by whichever handler creates that continuation
+        # (handlers.wire_layout_handler._split_wire_at_point,
+        # handlers.wire_handler.AddWireHandler).
+        self._sibling_ref = None
 
         vbo = _cylinder.create_vbo()
         angle = _angle.Angle()
@@ -85,10 +102,7 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
 
         if stripe_color is not None:
-            length = float(np.linalg.norm((self._p2 - self._p1).as_numpy))
-            self._ensure_stripe_capacity(length)
-
-            self._stripe = WireStripe(parent, self, stripe_color.ui, scale, angle, position, length)
+            self._stripe = WireStripe(parent, self, stripe_color.ui, scale, angle, position)
             # WireStripe's db_obj is always None (it's not its own DB row --
             # see WireStripe.__init__), so Base3D.__init__ hits the
             # `except AttributeError: self._is_visible = False` branch and
@@ -100,12 +114,79 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
 
         # _update_angle just calls _update_position(None) — redundant since
         # both endpoints already drive recalculation via their point bindings.
-        # The stale-marker path (render-time check) replaces this callback.
         self._angle.unbind(self._update_angle)
 
         self._recalculate_geometry()
 
         parent.mainframe.editor3d.context.release()
+
+    @property
+    def length(self) -> float:
+        return self._length
+
+    def _calc_length(self):
+        x1, y1, z1 = self._p1.as_numpy.tolist()
+        x2, y2, z2 = self._p2.as_numpy.tolist()
+
+        dx = x2 - x1
+        dy = y2 - y1
+        dz = z2 - z1
+
+        return math.sqrt(dx * dx + dy * dy + dz * dz)
+
+    @property
+    def stripe_clip_start(self) -> float:
+        if self._stripe is None:
+            return 0.0
+
+        return self.db_obj.stripe_clip_start
+
+    @stripe_clip_start.setter
+    def stripe_clip_start(self, value: float) -> None:
+        """Set this wire's own offset into the shared stripe helix mesh.
+
+        Persists the new value and, if it actually changed, cascades
+        the same shift onward: whichever wire continues from this
+        one's stop point (see sibling) gets its own stripe_clip_start
+        set to this wire's new stripe_clip_stop -- which triggers this
+        exact same check in its own setter, one hop at a time, only as
+        far as an actual change reaches.
+        """
+        if abs(value - self.db_obj.stripe_clip_start) < 1e-6:
+            return
+
+        self.db_obj.stripe_clip_start = value
+
+        next_obj = self.sibling
+        if next_obj is not None:
+            next_obj.stripe_clip_start = self.stripe_clip_stop
+
+        self.editor3d.Refresh()
+
+    @property
+    def stripe_clip_stop(self):
+        if self._stripe is None:
+            return 0.0
+
+        return self._length + self.stripe_clip_start
+
+    @property
+    def sibling(self) -> "Wire | None":
+        """The wire whose start point is this wire's own stop point --
+        i.e. the next segment in a chain split by a wire layout point.
+        Set at creation time by whichever handler creates that
+        continuation (see _split_wire_at_point, AddWireHandler). Backed
+        by a plain weakref (see the setter) so a deleted sibling just
+        reads back as None -- nothing to clean up.
+        """
+        if self._sibling_ref is None:
+            return None
+
+        return self._sibling_ref()
+
+    @sibling.setter
+    def sibling(self, wire_obj: "Wire | None") -> None:
+        self._sibling_ref = None if wire_obj is None else weakref.ref(wire_obj)
 
     @property
     def start_position(self):
@@ -157,32 +238,32 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
         """
         self._update_position(None)
 
-    def _ensure_stripe_capacity(self, length: float) -> None:
-        """Grow the shared wire-stripe helix mesh -- and persist the new
-        max back onto the project row -- if `length` exceeds what it
-        currently covers. No-op cost in the common case (a cached
-        attribute read plus a comparison); the DB write only fires the
-        rare time an actual new maximum is reached. See
-        shapes.helix.create_vbo / WireStripe.
-        """
-        project_db_obj = self.mainframe.project.db_obj
-        if length > project_db_obj.wire_stripe_max_length:
-            project_db_obj.wire_stripe_max_length = length
-
-        _helix.create_vbo(project_db_obj.wire_stripe_max_length)
-
     def _recalculate_geometry(self):
         """Compute wire direction, length, angle, OBB and AABB from current endpoints."""
-        wire_vector = (self._p2 - self._p1).as_numpy
-        length = np.linalg.norm(wire_vector)
+        a = self._p1.as_numpy
+        b = self._p2.as_numpy
+
+        wire_vector = b - a
+        length = math.sqrt(wire_vector[0] * wire_vector[0] +
+                           wire_vector[1] * wire_vector[1] +
+                           wire_vector[2] * wire_vector[2])
 
         if length < 0.001:
             return
 
+        self._length = length
         self._scale.z = length
 
         if self._stripe is not None:
-            self._ensure_stripe_capacity(float(length))
+            self._stripe._ensure_stripe_capacity(self.mainframe, self.stripe_clip_start + length)  # NOQA
+
+            # Push this wire's new stripe_clip_stop onto whichever wire
+            # continues from it (see sibling) -- the stripe_clip_start
+            # setter itself no-ops if the value didn't actually change,
+            # and cascades onward through its own sibling otherwise.
+            next_obj = self.sibling
+            if next_obj is not None:
+                next_obj.stripe_clip_start = self.stripe_clip_stop
 
         direction = wire_vector / length
 
@@ -194,16 +275,25 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
         self._compute_aabb()
 
     def _update_position(self, _: _point.Point):
-        """Defer geometry recalculation to the next render pass."""
-        self._geometry_stale = True
+        """Recompute geometry immediately, not deferred to the next
+        render pass.
+
+        The stripe_clip_start cascade to sibling (see
+        _recalculate_geometry/the stripe_clip_start setter) has to
+        happen synchronously and deterministically: render order across
+        wires isn't guaranteed to follow chain order, so deferring this
+        would let a downstream wire render with a stale stripe_clip_start
+        for a frame -- or worse, depending on which wire's render()
+        happens to run first that frame.
+        """
+
+        self._recalculate_geometry()
 
     def render(self, faces_program, edges_program, vertices_program):
-        """Render the wire, recomputing geometry if an endpoint moved since last render."""
-        if self._geometry_stale or self._p1.stale or self._p2.stale:
-            self._recalculate_geometry()
-            self._geometry_stale = False
-            self._p1.stale = False
-            self._p2.stale = False
+        """Render the wire. Geometry is always current by the time this
+        runs -- _update_position/_update_angle recompute it synchronously
+        the moment an endpoint moves, so there is nothing to catch up on
+        here."""
         super().render(faces_program, edges_program, vertices_program)
 
         # The stripe is a plain attribute, not a separately-registered scene
@@ -310,7 +400,7 @@ class WireStripe(_base3d.Base3D):
     """
 
     def __init__(self, parent: "_wire.Wire", wire: "Wire", color: _color.Color, scale: _point.Point,
-                 angle: _angle.Angle, position: _point.Point, length: float):
+                 angle: _angle.Angle, position: _point.Point):
         """Initialise the :class:`WireStripe` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -327,14 +417,19 @@ class WireStripe(_base3d.Base3D):
         :type angle: :class:`_angle.Angle`
         :param position: Position value.
         :type position: :class:`_point.Point`
-        :param length: This wire's current length -- the caller
-            (Wire.__init__) has already ensured the shared helix mesh
-            covers at least this much via _ensure_stripe_capacity, this
-            just fetches the resulting shared VBO handle.
-        :type length: float
         """
 
-        vbo = _helix.create_vbo(length)
+        # Read db_obj.stripe_clip_start directly rather than through the
+        # stripe_clip_stop property: wire._stripe is still None until
+        # Wire.__init__'s `self._stripe = WireStripe(...)` assignment
+        # completes, so the property would read back 0.0 right now.
+        required = wire.db_obj.stripe_clip_start + wire.length
+        self._ensure_stripe_capacity(parent.mainframe, required)
+
+        # Already big enough after _ensure_stripe_capacity -- this just
+        # fetches the resulting handle (a cheap no-op fast path, see
+        # create_vbo).
+        vbo = _helix.create_vbo(required)
         material = _materials.Plastic(color)
         self._wire = wire
 
@@ -346,12 +441,38 @@ class WireStripe(_base3d.Base3D):
         # with it -- two coincident opaque surfaces z-fight per-pixel no
         # matter how that's biased, so the fix is to not be coincident in
         # the first place. z is irrelevant here: faces.py's vertex shader
-        # skips z-scaling entirely for stripe geometry (stripeClipLength >
+        # skips z-scaling entirely for stripe geometry (stripeClipStop >
         # 0), so it doesn't need to track the wire's live length -- see
-        # _stripe_clip_length below, which reads the wire's real scale
-        # directly instead.
+        # stripe_clip_start/stripe_clip_stop on Wire, read directly by
+        # this class's own render() override below.
         stripe_scale = _point.Point(scale.x + 0.1, scale.y + 0.1, scale.z)
         _base3d.Base3D.__init__(self, parent, None, vbo, angle, position, stripe_scale, material)
+
+    @staticmethod
+    def _ensure_stripe_capacity(mainframe, required: float) -> None:
+        """Grow the shared wire-stripe helix mesh -- and persist the new
+        true-required max back onto the project row -- if `required`
+        (a wire's own end position in the shared mesh, i.e. its
+        stripe_clip_stop) exceeds what's currently stored.
+
+        Takes `mainframe` explicitly rather than reading self.mainframe:
+        called from __init__ before Base3D.__init__ has set it (the vbo
+        it builds here is itself an argument to that call), and later
+        from Wire._recalculate_geometry against the *wire's* mainframe,
+        not this stripe's own (identical, but the wire is what changed).
+
+        The actual VBO build is padded by _HELIX_OVERSHOOT_MM so a live
+        drag/preview has headroom to grow without forcing a GPU
+        reallocation on every frame -- the persisted max itself stays
+        the true, unpadded requirement. No-op (no create_vbo call at
+        all) in the common case where the stored max already covers
+        this wire.
+        """
+        project_db_obj = mainframe.project.db_obj
+
+        if required > project_db_obj.wire_stripe_max_length:
+            project_db_obj.wire_stripe_max_length = required
+            _helix.create_vbo(required + _HELIX_OVERSHOOT_MM)
 
     @property
     def smooth(self) -> bool:
@@ -361,14 +482,32 @@ class WireStripe(_base3d.Base3D):
         subclass doesn't define this)."""
         return True
 
-    @property
-    def _stripe_clip_length(self) -> float:
-        """This wire's current real length -- see base3d.Base3D._render_geometry
-        and the stripeClipLength uniform in gl/shaders/faces.py. Reads the
-        wire's own scale (not self._scale -- see __init__, the stripe's
-        scale is its own independent Point) so this always tracks the
-        wire's live length without needing its own update hook."""
-        return float(self._wire._scale.z)  # NOQA
+    def render(self, faces_program, edges_program, vertices_program):
+        """Set stripeStartLength for this stripe's own draw, then reset
+        it to zero right after.
+
+        Unlike stripeClipLength (which every object explicitly sets on
+        every draw call -- see Base3D._render_geometry), only WireStripe
+        ever touches this uniform, so it has to clean up after itself:
+        GL uniform state persists on the program across draw calls, and
+        a nonzero value left behind would otherwise leak into whatever
+        renders next on the same faces_program.
+        """
+        if not self.is_visible:
+            return
+
+        start_loc = GL.glGetUniformLocation(faces_program, "stripeClipStart")
+        stop_loc = GL.glGetUniformLocation(faces_program, "stripeClipStop")
+
+        GL.glUseProgram(faces_program)
+        GL.glUniform1f(start_loc, self._wire.stripe_clip_start)
+        GL.glUniform1f(stop_loc, self._wire.stripe_clip_stop)
+
+        super().render(faces_program, edges_program, vertices_program)
+
+        GL.glUseProgram(faces_program)
+        GL.glUniform1f(start_loc, 0.0)
+        GL.glUniform1f(stop_loc, 0.0)
 
     def _compute_obb(self):
         """No-op: the stripe has no independent geometry of its own. See

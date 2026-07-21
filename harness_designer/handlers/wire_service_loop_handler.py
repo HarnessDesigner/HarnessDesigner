@@ -373,22 +373,44 @@ class AddWireServiceLoopHandler(_handler_base.HandlerBase):
         original_start_id = int(wire.obj3d.start_position.db_id[:-2])
         original_stop_id = int(wire.obj3d.stop_position.db_id[:-2])
         part_id = wire.db_obj.part_id
+        name = wire.db_obj.name
         circuit_id = wire.db_obj.circuit_id
+
+        # wire1 keeps the original wire's own start point, so it inherits
+        # its stripe_clip_start unchanged -- wire2 starts exactly where
+        # wire1 now ends, same cascade as wire_layout_handler._split_wire_at_point.
+        wire1_stripe_clip_start = wire.db_obj.stripe_clip_start
 
         # Wire 1: original_start → loop_start
         wire1_db = self.ptables.pjt_wires_table.insert(
-            part_id, circuit_id,
+            part_id, name, circuit_id,
             original_start_id, loop_start_id,
-            None, None, True, False, None, None, False)
+            None, None, True, False, None, None, False,
+            stripe_clip_start=wire1_stripe_clip_start)
+
+        p1 = wire1_db.start_position3d.as_numpy
+        p2 = wire1_db.stop_position3d.as_numpy
+        dx = p2[0] - p1[0]
+        dy = p2[1] - p1[1]
+        dz = p2[2] - p1[2]
+        wire1_length = math.sqrt(dx * dx + dy * dy + dz * dz)
+        wire2_stripe_clip_start = wire1_stripe_clip_start + wire1_length
 
         # Wire 2: loop_stop → original_stop
         wire2_db = self.ptables.pjt_wires_table.insert(
-            part_id, circuit_id,
+            part_id, name, circuit_id,
             loop_stop_id, original_stop_id,
-            None, None, True, False, None, None, False)
+            None, None, True, False, None, None, False,
+            stripe_clip_start=wire2_stripe_clip_start)
 
-        self.mainframe.project.add_wire(_wire.Wire(self.mainframe, wire1_db))
-        self.mainframe.project.add_wire(_wire.Wire(self.mainframe, wire2_db))
+        wire1_obj = _wire.Wire(self.mainframe, wire1_db)
+        wire2_obj = _wire.Wire(self.mainframe, wire2_db)
+
+        wire2_obj.obj3d.sibling = wire.obj3d.sibling
+        wire1_obj.obj3d.sibling = wire2_obj.obj3d
+
+        self.mainframe.project.add_wire(wire1_obj)
+        self.mainframe.project.add_wire(wire2_obj)
         wire.delete()
 
         self.obj.identify(None)

@@ -21,9 +21,11 @@ pjt_table = _con.SQLTable(
     _con.TextField('creator', default='""', no_null=True),
     _con.TextField('description', default='""', no_null=True),
     _con.IntField('object_count', default='0', no_null=True),
-    # Length (mm) the shared wire-stripe helix VBO (shapes/helix.py) is
-    # currently built at -- grows to match the longest wire segment ever
-    # created in this project, so a reload never needs to rebuild it more
-    # than once. See Project.wire_stripe_max_length.
-    _con.FloatField('wire_stripe_max_length', default='2000.0', no_null=True)
+    # Length (mm) actually *required* to cover every wire's stripe_clip_stop
+    # in this project -- NOT the size the shared helix VBO (shapes/helix.py)
+    # gets built at. objects3d.wire.WireStripe._ensure_stripe_capacity pads this
+    # by _HELIX_OVERSHOOT_MM whenever it actually rebuilds the VBO, so a
+    # live drag/preview has headroom to grow without triggering a GPU
+    # reallocation on every frame. See Project.wire_stripe_max_length.
+    _con.FloatField('wire_stripe_max_length', default='1000.0', no_null=True)
 )
