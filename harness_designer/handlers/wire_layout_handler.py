@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from . import handler_base as _handler_base
 from ..geometry import point as _point
+from ..geometry import line as _line
 from ..gl.canvas3d import object_picker as _object_picker
 from ..objects import wire_layout as _wire_layout
 from ..objects import wire as _wire
@@ -92,10 +93,18 @@ def _create_wire_layout_on_wire(
     coord_id = pos_db.db_id
 
     db_obj = project.ptables.pjt_wire_layouts_table.insert(coord_id)
+
+    # Split the wire (creates the two new pjt_wires rows referencing
+    # coord_id as their shared endpoint) BEFORE constructing the
+    # WireLayout object -- WireLayout.__init__ derives its diameter/
+    # color from db_obj.attached_wires, which queries pjt_wires for
+    # rows whose start/stop point matches coord_id. Constructing it
+    # first would find nothing yet and silently fall back to the
+    # hardcoded default (3.0mm, gray).
+    _split_wire_at_point(project, wire, coord_id)
+
     layout_obj = _wire_layout.WireLayout(project.mainframe, db_obj)
     project.add_wire_layout(layout_obj)
-
-    _split_wire_at_point(project, wire, coord_id)
 
     return layout_obj
 
@@ -133,6 +142,26 @@ def _split_wire_at_point(
 
     project.add_wire(wire1_obj)
     project.add_wire(wire2_obj)
+
+    # The original wire row is about to be deleted outright below (not
+    # just re-pointed), so any wire marker attached to it via wire_id
+    # would otherwise be orphaned -- still bound to the old start/stop
+    # Points, with a wire_id that no longer resolves to any row. Move
+    # each one onto whichever new half-segment it actually still sits
+    # on (its own world position didn't change, only the wire data
+    # model split around it).
+    orig_start = original_wire.obj3d.start_position
+    split_distance = _line.Line(orig_start, wire1_obj.obj3d.stop_position).length()
+
+    for marker in project.wire_markers:
+        if marker.db_obj.wire_id != orig.db_id:
+            continue
+
+        marker_distance = _line.Line(orig_start, marker.obj3d.position).length()
+        new_wire = wire1_obj if marker_distance <= split_distance else wire2_obj
+
+        marker.db_obj.wire_id = new_wire.db_obj.db_id
+        marker.obj3d.rebind_wire(new_wire.db_obj)
 
     mainframe = project.mainframe
     db_id = original_wire.db_obj.db_id

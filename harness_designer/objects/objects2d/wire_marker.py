@@ -3,11 +3,11 @@
 from typing import TYPE_CHECKING
 
 
-# from ...geometry import point as _point
-# from ...geometry import angle as _angle
 from PySide6.QtWidgets import QMenu
 from . import base2d as _base2d
-from ...ui.widgets import context_menus as _context_menus
+
+from ...geometry import point as _point
+from ...geometry import angle as _angle
 
 
 if TYPE_CHECKING:
@@ -35,14 +35,16 @@ class WireMarker(_base2d.Base2D):
         :type db_obj: :class:`_pjt_wire_marker.PJTWireMarker`
         """
 
-        _base2d.Base2D.__init__(self, parent, db_obj)
+        self._p1 = db_obj.position2d
+        angle = _angle.Angle.from_euler(0.0, 0.0, 0.0)
+
+        _base2d.Base2D.__init__(self, parent, db_obj, self._p1, angle)
 
         self._part = db_obj.part
         self._wire = self.db_obj.wire
-        self._p1 = db_obj.position2d
+        self._wire_p1 = self._wire.start_position2d
+        self._wire_p2 = self._wire.stop_position2d
 
-        self._wire_p1 = self._wire.start_point2d.point
-        self._wire_p2 = self._wire.stop_point2d.point
         self._hit_test_rect = None
 
         #

@@ -150,8 +150,8 @@ class PJTWireServiceLoopsTable(PJTTableBase):
         db_id = PJTTableBase.insert(self, part_id=part_id, name=name, circuit_id=circuit_id,
                                     start_point3d_id=start_point3d_id,
                                     stop_point3d_id=stop_point3d_id,
-                                    quat=str([float(str(v)) for v in quat.tolist()]),
-                                    is_visible=int(is_visible))
+                                    quat3d=str([float(str(v)) for v in quat.tolist()]),
+                                    is_visible3d=int(is_visible))
 
         return PJTWireServiceLoop(self, db_id, self.project_id)
 

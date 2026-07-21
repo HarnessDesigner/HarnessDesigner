@@ -313,9 +313,10 @@ class AddWireServiceLoopHandler(_handler_base.HandlerBase):
 
         position, wire_angle = wire.obj3d.get_closest_point(mouse_pos)
 
-        if None in (position, wire_angle):
+        if position is None or wire_angle is None:
             if self.obj is not None:
                 self.obj.obj3d.is_visible = False
+
             return
 
         if wire is not self._snapped_wire:

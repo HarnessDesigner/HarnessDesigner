@@ -70,6 +70,13 @@ class SQLConnector(_base.ConnectorBase):
         # normalized SQL text -> [call_count, total_seconds]
         self._query_profile: dict[str, list] = {}
 
+        # normalized SQL text of statements that have already popped an
+        # error dialog this session -- see _report_sql_error. A broken
+        # statement hit from a hot loop (mouse-move handlers, etc.) must
+        # not queue up one modal dialog per call; every occurrence is
+        # still logged, just not re-shown.
+        self._shown_sql_errors: set[str] = set()
+
     def reset_query_profile(self) -> None:
         """Clear accumulated query-profile stats (see ``Config.debug.database.profile_queries``)."""
         self._query_profile = {}
@@ -278,8 +285,45 @@ class SQLConnector(_base.ConnectorBase):
                 return self._cursor.execute(operation, params)
         except AttributeError:
             pass
-        except Exception:  # NOQA
+        except Exception as err:  # NOQA
             _logger.error('SQLITE execute ERROR:', 'CMD:', operation, '\n', 'PARAMS:', params)
+            self._report_sql_error(err, operation, params)
+
+    def _report_sql_error(self, err: Exception, operation: str, params) -> None:
+        """Log a failed SQL statement's traceback and pop an error dialog.
+
+        Never lets the exception itself propagate -- callers must keep
+        running so the app can be closed gracefully instead of hanging or
+        crashing. Logging always happens; the dialog is shown at most once
+        per distinct (normalized) statement per session so a broken
+        statement hit repeatedly from a hot loop (mouse-move handlers,
+        etc.) can't queue up a stack of modal dialogs -- that would be
+        just as effective a lockup as an uncaught exception.
+
+        Marshaled through :func:`harness_designer.app.CallAfter` since
+        ``execute``/``executemany`` can be reached from background threads
+        (see ``process/manager.py`` for the same dialog-from-worker-thread
+        pattern) -- constructing a ``QDialog`` off the main Qt thread is
+        not safe.
+        """
+        _logger.traceback(err)
+
+        key = _NORMALIZE_LITERAL_RE.sub('?', operation)
+        if key in self._shown_sql_errors:
+            return
+
+        self._shown_sql_errors.add(key)
+
+        from .... import app as _app
+
+        def _do(e=err, op=operation, p=params):
+            from ....ui.dialogs import error as _error
+
+            message = f'{e}\n\nSQL: {op}\nPARAMS: {p}'
+            dlg = _error.ErrorDialog(self.mainframe, message, 'Database Error')
+            dlg.exec()
+
+        _app.CallAfter(_do)
 
     def executemany(
         self, operation: str, seq_params: list[_ParamsSequenceOrDictType] | tuple[_ParamsSequenceOrDictType]
@@ -301,8 +345,9 @@ class SQLConnector(_base.ConnectorBase):
             return self._cursor.executemany(operation, seq_params)
         except AttributeError:
             return None
-        except Exception:  # NOQA
+        except Exception as err:  # NOQA
             _logger.error('SQLITE executemany ERROR:', 'CMD:', operation, '\n', 'PARAMS:', seq_params)
+            self._report_sql_error(err, operation, seq_params)
             return None
 
     @property

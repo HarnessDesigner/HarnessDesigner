@@ -30,6 +30,10 @@ class BundleLayout(_base3d.Base3D):
     parent: "_bundle_layout.BundleLayout" = None
     db_obj: "_pjt_bundle_layout.PJTBundleLayout" = None
 
+    # Sits on the bundle's centerline, inside its OBB by design -- see
+    # Base3D._pick_priority.
+    _pick_priority = 1
+
     def __init__(self, parent: "_bundle_layout.BundleLayout",
                  db_obj: "_pjt_bundle_layout.PJTBundleLayout"):
         """Initialise the :class:`BundleLayout` instance.

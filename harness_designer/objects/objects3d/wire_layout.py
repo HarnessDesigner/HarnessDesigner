@@ -30,6 +30,10 @@ class WireLayout(_base3d.Base3D):
     parent: "_wire_layout.WireLayout" = None
     db_obj: "_pjt_wire_layout.PJTWireLayout" = None
 
+    # Sits on the wire's centerline, inside its OBB by design -- see
+    # Base3D._pick_priority.
+    _pick_priority = 1
+
     def __init__(self, parent: "_wire_layout.WireLayout",
                  db_obj: "_pjt_wire_layout.PJTWireLayout"):
         """Initialise the :class:`WireLayout` instance.

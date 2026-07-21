@@ -328,5 +328,11 @@ pjt_table = _con.SQLTable(
     _con.IntField('is_visible2d', default='1', no_null=True),
     _con.IntField('is_visible3d', default='1', no_null=True),
     _con.IntField('smooth', default='NULL'),
-    _con.TextField('name', default='""', no_null=True)
+    _con.TextField('name', default='""', no_null=True),
+    # Offset (mm) into the shared stripe helix mesh where this wire
+    # segment's own start sits -- 0.0 for a standalone wire, otherwise
+    # inherited/pushed from whichever wire's stop_point3d_id equals this
+    # wire's start_point3d_id. See objects.objects3d.wire.Wire and
+    # gl.shaders.faces' stripeStartLength/stripeClipLength uniforms.
+    _con.FloatField('start_length', default='"0.0"', no_null=True)
 )

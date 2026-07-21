@@ -19,6 +19,13 @@ from ...objects import project_model as _project_model
 from ...objects import bundle as _bundle
 from ...objects import wire as _wire
 from ...objects import cavity as _cavity
+from ...objects import wire_marker as _wire_marker
+from ...objects import housing as _housing
+from ...objects import terminal as _terminal
+from ...objects import transition as _transition
+from ...objects import splice as _splice
+from ...objects import wire_layout as _wire_layout
+from ...objects import bundle_layout as _bundle_layout
 
 
 if TYPE_CHECKING:
@@ -192,13 +199,6 @@ class EditorToolbar(QtWidgets.QToolBar):
         if isinstance(obj, _project_model.ProjectModel):
             evt.StopPropagation()
             return
-
-        from ...objects import housing as _housing
-        from ...objects import wire as _wire
-        from ...objects import terminal as _terminal
-        from ...objects import bundle as _bundle
-        from ...objects import transition as _transition
-        from ...objects import splice as _splice
 
         # Reset everything to disabled first, then selectively enable.
         for act in (self._cpa_lock, self._tpa_lock, self._bundle, self._seal,
@@ -636,7 +636,10 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
         if self._selected is not None:
             self._selected = None
 
-        if isinstance(obj, (_bundle.Bundle, _wire.Wire, _cavity.Cavity)):
+        if isinstance(obj, (
+            _bundle.Bundle, _wire.Wire, _cavity.Cavity, _wire_marker.WireMarker,
+            _wire_layout.WireLayout, _bundle_layout.BundleLayout)):
+
             for act in (self.rotate_x, self.rotate_y, self.rotate_z, self.scale_x,
                         self.scale_y, self.scale_z, self.move_x, self.move_y,
                         self.move_z):

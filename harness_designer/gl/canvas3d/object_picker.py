@@ -76,6 +76,60 @@ def _ray_intersect_aabb(orig, direc, aabb_min, aabb_max, t0=0.0, t1=inf):
     return False, None
 
 
+# Ray vs OBB (slab method, using the box's own edge axes instead of world
+# X/Y/Z) -- see corner ordering in utils.bounding_boxes.compute_obb:
+# corner 0 = (x1,y1,z1), 1 toggles x, 3 toggles y, 4 toggles z. A rigid
+# rotation + per-axis local scale preserves that edge structure, so this
+# holds for any Base3D.obb regardless of orientation.
+def _ray_intersect_obb(orig, direc, obb, t0=0.0, t1=inf):
+    """Test a ray against an oriented bounding box.
+
+    Needed because :func:`_ray_intersect_aabb` against ``obj3d.aabb`` (the
+    axis-aligned envelope around a rotated OBB) is a "loose fit" for
+    diagonally-oriented objects like wires -- a long diagonal wire's AABB
+    balloons out well past its actual thin cylindrical extent, so a ray
+    can register a nearer AABB hit than the true surface, stealing the
+    pick from a smaller object (e.g. a wire marker) that visually sits on
+    top of it. Testing the real oriented box fixes that at the source.
+    """
+    c0, c1, c3, c4 = obb[0], obb[1], obb[3], obb[4]
+    center = c0 + 0.5 * ((c1 - c0) + (c3 - c0) + (c4 - c0))
+
+    tmin_vals = np.full(3, -inf, dtype=np.float32)
+    tmax_vals = np.full(3, inf, dtype=np.float32)
+
+    p = center - orig
+
+    for i, edge in enumerate((c1 - c0, c3 - c0, c4 - c0)):
+        length = np.linalg.norm(edge)
+        if length < 1e-8:
+            return False, None
+
+        axis = edge / length
+        half_extent = length * 0.5
+
+        e = np.dot(axis, p)
+        f = np.dot(axis, direc)
+
+        if np.abs(f) > 1e-8:
+            t_near = (e - half_extent) / f
+            t_far = (e + half_extent) / f
+
+            tmin_vals[i] = min(t_near, t_far)
+            tmax_vals[i] = max(t_near, t_far)
+        elif abs(e) > half_extent:
+            # Ray is parallel to this slab and outside it -- no intersection
+            return False, None
+
+    t_enter = max(t0, np.max(tmin_vals))
+    t_exit = min(t1, np.min(tmax_vals))
+
+    if t_enter <= t_exit and t_exit >= 0.0:
+        return True, t_enter
+
+    return False, None
+
+
 def _aabb_screen_bbox_and_depth(bboxes, camera: "_camera.Camera"):
     """
     Build a 2D screen bbox from projecting ALL 8 AABB corners.
@@ -222,18 +276,40 @@ def find_object(mouse_pos, scene_objects, camera: "_camera.Camera",
         # fallback: just pick first candidate
         return candidates[0][1]
 
-    # Evaluate ray hit for ALL candidates; collect sorted hit list
+    # Evaluate ray hit for ALL candidates against their real oriented box
+    # first (accurate) -- an AABB-only hit (ray passes through the loose
+    # envelope but not the actual box) is kept as a lower-priority
+    # fallback so objects near the edge of the screen-space pick
+    # tolerance don't just disappear; see _ray_intersect_obb.
     hits = []
+    fallback_hits = []
     for _, obj in candidates:
+        obb = obj.obj3d.obb
+        hit, t_hit = _ray_intersect_obb(origin, direc, obb) if obb is not None else (False, None)
+        if hit:
+            hits.append((t_hit, obj))
+            continue
+
         wmin, wmax = obj.obj3d.aabb
         hit, t_hit = _ray_intersect_aabb(origin, direc, wmin, wmax)
         if hit:
-            hits.append((t_hit, obj))
+            fallback_hits.append((t_hit, obj))
+
+    if not hits:
+        hits = fallback_hits
 
     if not hits:
         return None
 
-    hits.sort(key=lambda k: k[0])
+    # A wire marker/wire layout handle can legitimately sit fully inside
+    # its wire's tube (a layout handle has no radial offset at all), so
+    # nearest-ray-distance alone can never reliably prefer it -- the
+    # wire's own near surface is, correctly, physically closer along that
+    # ray. obj3d._pick_priority (Base3D default 0, bumped by WireMarker/
+    # WireLayout/BundleLayout) breaks that tie explicitly: higher
+    # priority wins outright, nearest-hit only tie-breaks within the same
+    # priority tier.
+    hits.sort(key=lambda k: (-k[1].obj3d._pick_priority, k[0]))
 
     if current_selection is None or len(hits) == 1:
         return hits[0][1]

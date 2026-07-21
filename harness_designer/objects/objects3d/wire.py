@@ -234,12 +234,14 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
         # Unit cylinder points along +Z, rotate it to point along 'direction'
         z_axis = np.array([0.0, 0.0, 1.0], dtype=np.float32)
 
-        # Handle special case: direction already aligned with Z
+        # Handle special case: direction already aligned with Z (tight
+        # epsilon -- this only exists to dodge the near-zero-length cross
+        # product below, not to treat "close to vertical" as "vertical")
         dot = np.dot(z_axis, direction)
-        if abs(dot - 1.0) < 0.0001:
+        if abs(dot - 1.0) < 1e-6:
             return _angle.Angle.from_quat([1.0, 0.0, 0.0, 0.0])  # Identity
 
-        if abs(dot + 1.0) < 0.0001:
+        if abs(dot + 1.0) < 1e-6:
             # 180 degree rotation around X axis
             return _angle.Angle.from_quat([0.0, 1.0, 0.0, 0.0])
 
@@ -533,7 +535,10 @@ class WireMenu(QMenu):
         self.selected.editor3d.Refresh()
 
     def on_add_marker(self):
-        """Add a wire marker at the middle of the wire."""
+        """Add a wire marker at the point on the wire that was
+        right-clicked to open this menu (falls back to the wire's
+        midpoint if no click point was captured -- e.g. the menu was
+        opened some other way)."""
         def _do():
             from .. import wire_marker as _wire_marker_obj
 
@@ -546,10 +551,16 @@ class WireMenu(QMenu):
             if part_id is None:
                 return
 
-            midpoint = self._midpoint()
+            click_pos = self.selected._context_menu_click_pos  # NOQA
+            position = None
+            if click_pos is not None:
+                position, _ = self.selected.get_closest_point(click_pos)
+
+            if position is None:
+                position = self._midpoint()
 
             ptables = mainframe.project.ptables
-            p3d = ptables.pjt_points3d_table.insert(*midpoint.as_float)
+            p3d = ptables.pjt_points3d_table.insert(*position.as_float)
 
             db_obj = ptables.pjt_wire_markers_table.insert(
                 None, p3d.db_id, self.selected.db_obj.db_id, part_id, '')

@@ -2,10 +2,9 @@
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import QApplication, QDialog
+from PySide6 import QtWidgets
 import time
 
-from ..config import Config as _Config
 from . import boot as _boot
 from . import bundle as _bundle
 from . import bundle_layout as _bundle_layout
@@ -295,7 +294,7 @@ class Project:
         stop_time = time.time()
 
         duration = (stop_time - start_time)
-        print('Project Load Time:', round(duration, 2), 'secs')
+        _logger.info('Project Load Time:', round(duration, 2), 'secs')
         mainframe.set_progress(self._obj_count, 'DONE!')
 
         if self._obj_count != count:
@@ -375,7 +374,7 @@ class Project:
         dlg = OpenProjectDialog(mainframe, Config.last_project, project_names)
         try:
             res = dlg.exec()
-            if res != QDialog.DialogCode.Rejected:
+            if res != QtWidgets.QDialog.DialogCode.Rejected:
                 project_name = dlg.GetValue()
             else:
                 return
@@ -390,7 +389,7 @@ class Project:
             from ..ui.dialogs import add_project as _add_project
 
             dlg = _add_project.AddProjectDialog(mainframe, project_name, mainframe.project_db.projects_table)
-            if dlg.exec() == QDialog.DialogCode.Accepted:
+            if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
 
                 project_name, creator, description, model_path, color_id = dlg.GetValue()
 

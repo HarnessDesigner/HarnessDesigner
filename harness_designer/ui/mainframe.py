@@ -933,6 +933,7 @@ class MainFrame(QtWidgets.QMainWindow):
             evt.Skip()
             obj = evt.GetGLObject()
 
+            obj.obj3d._context_menu_click_pos = evt.GetPosition()  # NOQA
             context_menu = obj.obj3d.get_context_menu()
             if context_menu is not None:
                 # QMenu.exec() takes a global screen position.

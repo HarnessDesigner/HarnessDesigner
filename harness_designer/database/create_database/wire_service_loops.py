@@ -11,7 +11,7 @@ from .. import db_connectors as _con
 pjt_id_field = _con.PrimaryKeyField('id')
 
 
-def add_pjt_wire_service_loop(con, project_id, part_id, start_point3d_id=None,
+def add_pjt_wire_service_loop(con, project_id, part_id, name='', start_point3d_id=None,
                               stop_point3d_id=None, circuit_id=None, notes='',
                               quat3d=[1.0, 0.0, 0.0, 0.0], angle3d=[0.0, 0.0, 0.0],
                               is_visible3d=1):
@@ -25,6 +25,8 @@ def add_pjt_wire_service_loop(con, project_id, part_id, start_point3d_id=None,
     :type project_id: UNKNOWN
     :param part_id: Identifier for the part.
     :type part_id: UNKNOWN
+    :param name: Value for ``name``.
+    :type name: UNKNOWN
     :param start_point3d_id: Identifier for the start point 3D.
     :type start_point3d_id: UNKNOWN
     :param stop_point3d_id: Identifier for the stop point 3D.
@@ -41,10 +43,10 @@ def add_pjt_wire_service_loop(con, project_id, part_id, start_point3d_id=None,
     :type is_visible3d: UNKNOWN
     """
 
-    con.execute('INSERT INTO pjt_wire_service_loops (project_id, part_id, '
+    con.execute('INSERT INTO pjt_wire_service_loops (project_id, part_id, name, '
                 'start_point3d_id, stop_point3d_id, circuit_id, notes, quat3d, '
-                'angle3d, is_visible3d) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (project_id, part_id, start_point3d_id, stop_point3d_id, circuit_id,
+                'angle3d, is_visible3d) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                (project_id, part_id, name, start_point3d_id, stop_point3d_id, circuit_id,
                  notes, quat3d, angle3d, is_visible3d))
     con.commit()
 
@@ -63,6 +65,7 @@ pjt_table = _con.SQLTable(
                                                     on_delete=_con.REFERENCE_CASCADE,
                                                     on_update=_con.REFERENCE_CASCADE)),
 
+    _con.TextField('name', default='""', no_null=True),
     _con.IntField('start_point3d_id', default="NULL",
                   references=_con.SQLFieldReference(_points3d.pjt_table,
                                                     _points3d.pjt_id_field,

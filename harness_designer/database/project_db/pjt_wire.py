@@ -515,6 +515,10 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
     _stored_circuit_id: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    def has_stripe(self):
+        return isinstance(self.part.stripe_color_id, int)
+
+    @property
     def circuit_id(self) -> int:
         """Return the circuit ID.
 

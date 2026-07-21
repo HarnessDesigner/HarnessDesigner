@@ -51,6 +51,24 @@ class Base3D:
     # Base3D subclass renders exactly as before. See _render_geometry.
     _stripe_clip_length: float = 0.0
 
+    # Object-picking priority (see gl.canvas3d.object_picker.find_object).
+    # Wins outright over lower-priority objects hit by the same click ray,
+    # regardless of which is nearer -- needed for handle-type objects
+    # (WireMarker, WireLayout, BundleLayout) that legitimately sit inside
+    # their parent wire/bundle's own OBB, sometimes with zero radial
+    # offset, where the parent's tube surface is genuinely the nearer
+    # ray hit and pure nearest-hit picking could never select the handle.
+    _pick_priority: int = 0
+
+    # Local-canvas mouse position that opened this object's context menu,
+    # stashed by mainframe.py's _on_obj_right_click_3d right before it
+    # calls get_context_menu() -- a plain instance attribute rather than a
+    # get_context_menu() parameter so every other Base3D subclass's
+    # get_context_menu(self) override keeps working unchanged. Only
+    # Wire.get_context_menu/WireMenu currently reads this (to place a new
+    # marker at the actual click point instead of the wire's midpoint).
+    _context_menu_click_pos: "_point.Point | None" = None
+
     def __init__(self, parent: "_ObjectBase", db_obj: "_project_db.PJTEntryBase",
                  vbo: _vbo.PooledVBOHandler, angle: _angle.Angle,
                  position: _point.Point, scale: _point.Point,
@@ -140,15 +158,7 @@ class Base3D:
         if uuid in _vbo.PooledVBOHandler:
             vbo = _vbo.PooledVBOHandler(uuid)
         else:
-            import time
-
-            start_time = time.time()
-
             packed = np.load(model.data_path).reshape(-1, 3)
-
-            stop_time = time.time()
-
-            print('model read:', (stop_time - start_time) * 1000)
 
             angle = model.angle3d
             position = model.position3d
@@ -163,14 +173,10 @@ class Base3D:
             obb += position
             aabb += position
 
-            start_time = time.time()
             packed @= angle
             packed[:count] += position
 
             packed = packed.reshape(-1)
-            stop_time = time.time()
-
-            print('model math:', (stop_time - start_time) * 1000)
 
             vbo = _vbo.PooledVBOHandler(uuid, packed, count, aabb=aabb, obb=obb)
         vbo.acquire()
@@ -309,7 +315,11 @@ class Base3D:
         ):
             y = _d(self._position.y)
             y += _d(Config.floor.ground_height) - _d(float(self._aabb[0][1]))
+
+            self._position.unbind(self._update_position)
             self._position.y = float(y)
+            self._position.bind(self._update_position)
+
             self.editor3d.context.release()
 
             return
@@ -340,7 +350,10 @@ class Base3D:
         ):
             y = _d(self._position.y)
             y += _d(Config.floor.ground_height) - _d(float(self._aabb[0][1]))
+
+            self._position.unbind(self._update_position)
             self._position.y = float(y)
+            self._position.bind(self._update_position)
 
             self.editor3d.context.release()
             return

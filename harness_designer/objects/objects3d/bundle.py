@@ -140,11 +140,13 @@ class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
         # Unit cylinder points along +Z, rotate it to point along 'direction'
         z_axis = np.array([0.0, 0.0, 1.0], dtype=np.float32)
 
-        # Handle special case: direction already aligned with Z
+        # Handle special case: direction already aligned with Z (tight
+        # epsilon -- this only exists to dodge the near-zero-length cross
+        # product below, not to treat "close to vertical" as "vertical")
         dot = np.dot(z_axis, direction)
-        if abs(dot - 1.0) < 0.0001:
+        if abs(dot - 1.0) < 1e-6:
             return _angle.Angle.from_quat([1.0, 0.0, 0.0, 0.0])  # Identity
-        if abs(dot + 1.0) < 0.0001:
+        if abs(dot + 1.0) < 1e-6:
             # 180 degree rotation around X axis
             return _angle.Angle.from_quat([0.0, 1.0, 0.0, 0.0])
 

@@ -88,10 +88,8 @@ class Housing3D(_base3d.Base3D):
             scale3d = _point.Point(1.0, 1.0, 1.0)
 
             if uuid in _vbo.PooledVBOHandler:
-                print('old vbo is being used')
                 vbo = _vbo.PooledVBOHandler(uuid)
             else:
-                print('new VBO is being created')
                 packed = np.load(model.data_path).reshape(-1, 3)
 
                 angle = model.angle3d

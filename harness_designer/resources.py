@@ -428,8 +428,6 @@ def collect_resource(con, image_type, in_path):
     else:
         con.execute(f'SELECT extension FROM file_types WHERE {is_type};')
         rows = con.fetchall()
-        print(rows)
-        print(in_path)
         for row in rows:
             ext = row[0]
             if in_path.endswith('.' + ext):

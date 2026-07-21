@@ -701,8 +701,6 @@ class Model3D(EntryBase):
         return self._stored_size
 
     def download_complete(self):
-
-        print('rdownload complete')
         if self.db_id not in self._download_callbacks:
             return
 
@@ -717,10 +715,7 @@ class Model3D(EntryBase):
         self._stored_file_type_id = DefaultStoredValue
         self._stored_file_type = DefaultStoredValue
 
-        print('running callbacks\n')
-
         file = self.data_path
-        print('file:', file)
         if file is not None:
             # The packed geometry is opened as a memory mapped array and
             # handed to the callback as-is; the VBO streams it straight
@@ -729,8 +724,6 @@ class Model3D(EntryBase):
             # angle3d the property never returns None anymore (NULL means
             # identity), so "never oriented" has to be read from the raw
             # column - it is what gates the one-time orientation dialog.
-
-            print('angle3d:', self._table.select('angle3d', id=self._db_id)[0][0])
 
             if self._table.select('angle3d', id=self._db_id)[0][0] is None:
                 from ...ui.dialogs import part_orientation as _part_orientation
