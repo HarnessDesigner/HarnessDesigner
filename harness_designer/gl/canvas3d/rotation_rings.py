@@ -728,6 +728,22 @@ class DragRotate:
         self._prev_phi = None
         self._total = 0.0
 
+        # Duck-typed: only WireServiceLoop 3D defines this (see its own
+        # begin_move_session docstring) -- caches its collision-candidate
+        # list for the whole rotate drag instead of rebuilding it on every
+        # one of the many angle updates a drag produces.
+        if hasattr(obj3d, 'begin_move_session'):
+            obj3d.begin_move_session()
+
+    def delete(self) -> None:
+        """End the rotate drag -- pairs with the begin_move_session call
+        in __init__. Called from mouse_handler.py wherever the active
+        DragRotate is discarded (button release, capture lost, etc.).
+        """
+        obj3d = self.selected.obj3d
+        if hasattr(obj3d, 'end_move_session'):
+            obj3d.end_move_session()
+
     def _screen_phi(self, mouse_pos: _point.Point) -> float:
         """Return the math-orientation angle of the cursor around the center."""
         # Screen y grows downward; negate for counter-clockwise-positive math

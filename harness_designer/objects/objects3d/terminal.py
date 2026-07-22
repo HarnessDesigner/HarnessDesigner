@@ -308,9 +308,6 @@ class TerminalMenu(QMenu):
         action = self.addAction('Add Wire')
         action.triggered.connect(self.on_add_wire)
 
-        action = self.addAction('Add Wire Service Loop')
-        action.triggered.connect(self.on_add_wire_service_loop)
-
         action = self.addAction('Add Seal')
         action.triggered.connect(self.on_add_seal)
 
@@ -355,24 +352,6 @@ class TerminalMenu(QMenu):
                 return None
 
             return _handlers.AddWireHandler(mainframe, part_id)
-
-        _menu_ops.start_handler(mainframe, _factory)
-
-    def on_add_wire_service_loop(self):
-        """Start the interactive wire service loop placement flow."""
-        from ... import handlers as _handlers
-
-        mainframe = self.selected.mainframe
-
-        def _factory():
-            part_id = _menu_ops.get_part_id(
-                mainframe, 'wires', mainframe.global_db.wires_table,
-                'Add Wire Service Loop')
-
-            if part_id is None:
-                return None
-
-            return _handlers.AddWireServiceLoopHandler(mainframe, part_id)
 
         _menu_ops.start_handler(mainframe, _factory)
 

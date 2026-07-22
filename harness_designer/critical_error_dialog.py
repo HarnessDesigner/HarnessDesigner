@@ -10,23 +10,32 @@ from PySide6 import QtCore
 class CriticalErrorDialog(QtWidgets.QDialog):
     """Display an exception and issue-reporting instructions to the user."""
 
-    def __init__(self, parent, err):
+    def __init__(self, parent, err, title='Critical Error', context=None):
         """Build the critical error dialog.
 
         :param parent: Parent widget for the dialog.
         :type parent: PySide6.QtWidgets.QWidget | None
         :param err: Exception to display.
         :type err: BaseException
+        :param title: Window title -- callers reporting a recoverable error
+                      (e.g. a caught SQL error) rather than a fatal startup
+                      failure should override this.
+        :type title: str
+        :param context: Optional extra text (e.g. the failing SQL statement
+                        and its params) shown above the traceback.
+        :type context: str | None
         """
         super().__init__(parent)
 
         message = ''.join(traceback.format_exception(err))
+        if context:
+            message = f'{context}\n\n{message}'
 
         caption_text = ('A critical error has occured...\n\n'
                         'Please report this error to\n'
                         'https://github.com/HarnessDesigner/HarnessDesigner/issues\n')
 
-        self.setWindowTitle('Critical Error')
+        self.setWindowTitle(title)
         self.resize(400, 600)
         self.setWindowFlags(
             QtCore.Qt.WindowType.WindowStaysOnTopHint |

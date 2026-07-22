@@ -114,7 +114,7 @@ def _split_wire_at_point(
     project,
     original_wire: "_wire.Wire",
     shared_coord_id: int
-):
+) -> tuple["_wire.Wire", "_wire.Wire"]:
     orig = original_wire.db_obj
     part_id = orig.part_id
     name = orig.name
@@ -195,6 +195,8 @@ def _split_wire_at_point(
         original_wire.set_selected(False)
     mainframe.remove_object(original_wire)
     project.delete_wire(db_id)
+
+    return wire1_obj, wire2_obj
 
 
 class AddWireLayoutHandler(_handler_base.HandlerBase):

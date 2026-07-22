@@ -20,4 +20,3 @@ pjt_table = _con.SQLTable(
     _con.TextField('notes', default='""', no_null=True),
     _con.TextField('description', default='""', no_null=True)
 )
-

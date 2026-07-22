@@ -25,15 +25,16 @@ from ... import logger as _logger
 
 
 def add_boots(con, data: tuple[dict] | list[dict]):
-    """Add a boots.
-
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Add a boots.
 
     :param con: Value for ``con``.
     :type con: UNKNOWN
+
     :param data: Data payload.
     :type data: tuple[dict] | list[dict]
     """
+
     for line in data:
         add_boot(con, **line)
 
@@ -43,58 +44,81 @@ def add_boot(con, part_number, description, mfg=None, family=None, series=None,
              cad=None, min_temp=None, max_temp=None, model3d=None, length=0.0,
              width=0.0, height=0.0, weight=0.0, compat_housings=None, min_dia=0.0,
              max_dia=0.0, protection=None, commit=True):
-    """Add a boot.
-
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Add a boot.
 
     :param con: Value for ``con``.
     :type con: UNKNOWN
+
     :param part_number: Value for ``part_number``.
     :type part_number: UNKNOWN
+
     :param description: Value for ``description``.
     :type description: UNKNOWN
+
     :param mfg: Value for ``mfg``.
     :type mfg: UNKNOWN
+
     :param family: Value for ``family``.
     :type family: UNKNOWN
+
     :param series: Value for ``series``.
     :type series: UNKNOWN
+
     :param color: Value for ``color``.
     :type color: UNKNOWN
+
     :param material: Value for ``material``.
     :type material: UNKNOWN
+
     :param direction: Value for ``direction``.
     :type direction: UNKNOWN
+
     :param image: Value for ``image``.
     :type image: UNKNOWN
+
     :param datasheet: Value for ``datasheet``.
     :type datasheet: UNKNOWN
+
     :param cad: Value for ``cad``.
     :type cad: UNKNOWN
+
     :param min_temp: Value for ``min_temp``.
     :type min_temp: UNKNOWN
+
     :param max_temp: Value for ``max_temp``.
     :type max_temp: UNKNOWN
+
     :param model3d: Value for ``model3d``.
     :type model3d: UNKNOWN
+
     :param length: Value for ``length``.
     :type length: UNKNOWN
+
     :param width: Value for ``width``.
     :type width: UNKNOWN
+
     :param height: Value for ``height``.
     :type height: UNKNOWN
+
     :param weight: Value for ``weight``.
     :type weight: UNKNOWN
+
     :param compat_housings: Value for ``compat_housings``.
     :type compat_housings: UNKNOWN
+
     :param min_dia: Value for ``min_dia``.
     :type min_dia: UNKNOWN
+
     :param max_dia: Value for ``max_dia``.
     :type max_dia: UNKNOWN
+
     :param protection: Value for ``protection``.
     :type protection: UNKNOWN
+
     :param commit: Value for ``commit``.
     :type commit: UNKNOWN
+
     :returns: Return value. UNKNOWN details.
     :rtype: UNKNOWN
     """
@@ -139,17 +163,19 @@ def add_boot(con, part_number, description, mfg=None, family=None, series=None,
 
 
 def add_records(con, splash, data_path):
-    """Add a records.
-
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Add a records.
 
     :param con: Value for ``con``.
     :type con: UNKNOWN
+
     :param splash: Value for ``splash``.
     :type splash: UNKNOWN
+
     :param data_path: Value for ``data_path``.
     :type data_path: UNKNOWN
     """
+
     con.execute('SELECT id FROM boots WHERE id=1;')
     if con.fetchall():
         return

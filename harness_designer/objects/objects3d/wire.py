@@ -730,15 +730,17 @@ class WireMenu(QMenu):
             mainframe, lambda: _handlers.AddWireHandler(mainframe, part_id))
 
     def on_add_wire_service_loop(self):
-        """Start placing a service loop using this wire's part type."""
+        """Start placing a service loop on this wire, anchored at the point
+        that was right-clicked to open this menu."""
         from ... import handlers as _handlers
 
         mainframe = self.selected.mainframe
-        part_id = self.selected.db_obj.part_id
+        wire = self.selected.parent
+        click_pos = self.selected._context_menu_click_pos  # NOQA
 
         _menu_ops.start_handler(
             mainframe,
-            lambda: _handlers.AddWireServiceLoopHandler(mainframe, part_id))
+            lambda: _handlers.AddWireServiceLoopHandler(mainframe, wire, click_pos))
 
     def on_add_to_bundle(self):
         """Add this wire to the closest bundle in the project."""

@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 import re
 import threading
+import traceback
 import sqlite3
 from typing import (Optional as _Optional,
                     Union as _Union,
@@ -287,9 +288,18 @@ class SQLConnector(_base.ConnectorBase):
             pass
         except Exception as err:  # NOQA
             _logger.error('SQLITE execute ERROR:', 'CMD:', operation, '\n', 'PARAMS:', params)
-            self._report_sql_error(err, operation, params)
+            # err.__traceback__ is exactly one frame deep here (this line) --
+            # a traceback only accumulates frames an exception actually
+            # unwinds *through*, and this except clause catches it in the
+            # very frame it was raised in, so it never had the chance to
+            # pick up whichever PJT*/global_db call built this statement.
+            # traceback.extract_stack() instead walks the live call stack of
+            # this thread right now, which still has that full chain intact.
+            call_stack = traceback.extract_stack()[:-1]
+            self._report_sql_error(err, operation, params, call_stack)
 
-    def _report_sql_error(self, err: Exception, operation: str, params) -> None:
+    def _report_sql_error(self, err: Exception, operation: str, params,
+                          call_stack: list = None) -> None:
         """Log a failed SQL statement's traceback and pop an error dialog.
 
         Never lets the exception itself propagate -- callers must keep
@@ -305,8 +315,15 @@ class SQLConnector(_base.ConnectorBase):
         (see ``process/manager.py`` for the same dialog-from-worker-thread
         pattern) -- constructing a ``QDialog`` off the main Qt thread is
         not safe.
+
+        *call_stack* is the live call stack captured at the ``execute``/
+        ``executemany`` call site (see there) -- ``err`` itself is caught in
+        the same frame it's raised in, so ``err.__traceback__`` alone never
+        shows which PJT*/global_db call actually built the failing
+        statement; *call_stack* is what supplies that.
         """
-        _logger.traceback(err)
+        stack_text = ''.join(traceback.format_list(call_stack)) if call_stack else None
+        _logger.traceback(err, msg=('Called from:\n' + stack_text) if stack_text else None)
 
         key = _NORMALIZE_LITERAL_RE.sub('?', operation)
         if key in self._shown_sql_errors:
@@ -316,11 +333,15 @@ class SQLConnector(_base.ConnectorBase):
 
         from .... import app as _app
 
-        def _do(e=err, op=operation, p=params):
-            from ....ui.dialogs import error as _error
+        def _do(e=err, op=operation, p=params, stack=stack_text):
+            from .... import critical_error_dialog as _ced
 
-            message = f'{e}\n\nSQL: {op}\nPARAMS: {p}'
-            dlg = _error.ErrorDialog(self.mainframe, message, 'Database Error')
+            context = f'SQL: {op}\nPARAMS: {p}'
+            if stack:
+                context += '\n\nCalled from:\n' + stack
+
+            dlg = _ced.CriticalErrorDialog(
+                self.mainframe, e, title='Database Error', context=context)
             dlg.exec()
 
         _app.CallAfter(_do)
@@ -347,7 +368,8 @@ class SQLConnector(_base.ConnectorBase):
             return None
         except Exception as err:  # NOQA
             _logger.error('SQLITE executemany ERROR:', 'CMD:', operation, '\n', 'PARAMS:', seq_params)
-            self._report_sql_error(err, operation, seq_params)
+            call_stack = traceback.extract_stack()[:-1]
+            self._report_sql_error(err, operation, seq_params, call_stack)
             return None
 
     @property

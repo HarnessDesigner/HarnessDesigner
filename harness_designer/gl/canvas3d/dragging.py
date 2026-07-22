@@ -48,11 +48,21 @@ class DragObject:
         self.pick_offset = None
         self._settle_events = 0
 
+        # Duck-typed: only WireServiceLoop 3D defines this (see its own
+        # begin_move_session docstring) -- caches its collision-candidate
+        # list for the whole drag instead of rebuilding it on every one of
+        # the many position updates a drag produces.
+        if hasattr(selected.obj3d, 'begin_move_session'):
+            selected.obj3d.begin_move_session()
+
     def delete(self):
         """Execute the delete operation.
 
         UNKNOWN details are inferred from the callable name and signature.
         """
+        if hasattr(self.selected.obj3d, 'end_move_session'):
+            self.selected.obj3d.end_move_session()
+
         if self.move_arrows is not None:
             self.move_arrows.delete()
 

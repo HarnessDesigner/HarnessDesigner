@@ -7,17 +7,19 @@ import json
 
 
 def add_records(con, splash, data_path):
-    """Add a records.
-
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Add a records.
 
     :param con: Value for ``con``.
     :type con: UNKNOWN
+
     :param splash: Value for ``splash``.
     :type splash: UNKNOWN
+
     :param data_path: Value for ``data_path``.
     :type data_path: UNKNOWN
     """
+
     con.execute('SELECT * from colors WHERE name="Black";')
     if con.fetchall():
         return
@@ -48,23 +50,28 @@ def add_records(con, splash, data_path):
 
 
 def add_color(con, name, rgb, id=None, commit=True): # NOQA
-    """Add a color.
-
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Add a color.
 
     :param con: Value for ``con``.
     :type con: UNKNOWN
+
     :param name: Name value.
     :type name: UNKNOWN
+
     :param rgb: Value for ``rgb``.
     :type rgb: UNKNOWN
+
     :param id: Identifier for the ID.
     :type id: UNKNOWN
+
     :param commit: Value for ``commit``.
     :type commit: UNKNOWN
+
     :returns: Return value. UNKNOWN details.
     :rtype: UNKNOWN
     """
+
     if id is None:
         con.execute('INSERT INTO colors (name, rgb) '
                     'VALUES (?, ?);', (name, rgb))
@@ -80,17 +87,19 @@ def add_color(con, name, rgb, id=None, commit=True): # NOQA
 
 
 def get_color_id(con, name):
-    """Return the color ID.
-
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Return the color ID.
 
     :param con: Value for ``con``.
     :type con: UNKNOWN
+
     :param name: Name value.
     :type name: UNKNOWN
+
     :returns: Return value. UNKNOWN details.
     :rtype: UNKNOWN
     """
+
     if not name:
         return 0
 

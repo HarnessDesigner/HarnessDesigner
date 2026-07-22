@@ -205,7 +205,9 @@ class MouseHandler:
 
     def _exit_angle_mode(self):
         """Remove the rotation rings and end any active rotation drag."""
-        self._rotate_drag = None
+        if self._rotate_drag is not None:
+            self._rotate_drag.delete()
+            self._rotate_drag = None
 
         if self._rotation_rings is not None:
             self._rotation_rings.delete()
@@ -411,6 +413,7 @@ class MouseHandler:
                 # the rings; a click (no motion) anywhere that is not a grab
                 # handle exits angle mode. Selection is left untouched.
                 if self._rotate_drag is not None:
+                    self._rotate_drag.delete()
                     self._rotate_drag = None
                 elif not self._is_motion:
                     axis = self._rotation_rings.pick_handle(

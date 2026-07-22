@@ -8,19 +8,22 @@ from ... import logger as _logger
 
 
 def inspect_mfg_fam_series(mfg_name, family_name, series_name):
-    """Execute the inspect mfg fam series operation.
-
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Execute the inspect mfg fam series operation.
 
     :param mfg_name: Value for ``mfg_name``.
     :type mfg_name: UNKNOWN
+
     :param family_name: Value for ``family_name``.
     :type family_name: UNKNOWN
+
     :param series_name: Value for ``series_name``.
     :type series_name: UNKNOWN
+
     :returns: Return value. UNKNOWN details.
     :rtype: UNKNOWN
     """
+
     if family_name is None:
         family_name = ''
     if series_name is None:
@@ -57,17 +60,19 @@ def inspect_mfg_fam_series(mfg_name, family_name, series_name):
 
 
 def add_records(con, splash, data_path):
-    """Add a records.
-
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Add a records.
 
     :param con: Value for ``con``.
     :type con: UNKNOWN
+
     :param splash: Value for ``splash``.
     :type splash: UNKNOWN
+
     :param data_path: Value for ``data_path``.
     :type data_path: UNKNOWN
     """
+
     con.execute('SELECT id FROM manufacturers WHERE id=0;')
     if con.fetchall():
         return
@@ -100,32 +105,42 @@ def add_records(con, splash, data_path):
 
 def add_manufacturer(con, name, description='', address='', contact_person='', phone='',
                      ext='', email='', website='', id=None, commit=True):  # NOQA
-    """Add a manufacturer.
-
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Add a manufacturer.
 
     :param con: Value for ``con``.
     :type con: UNKNOWN
+
     :param name: Name value.
     :type name: UNKNOWN
+
     :param description: Value for ``description``.
     :type description: UNKNOWN
+
     :param address: Value for ``address``.
     :type address: UNKNOWN
+
     :param contact_person: Value for ``contact_person``.
     :type contact_person: UNKNOWN
+
     :param phone: Value for ``phone``.
     :type phone: UNKNOWN
+
     :param ext: Value for ``ext``.
     :type ext: UNKNOWN
+
     :param email: Value for ``email``.
     :type email: UNKNOWN
+
     :param website: Value for ``website``.
     :type website: UNKNOWN
+
     :param id: Identifier for the ID.
     :type id: UNKNOWN
+
     :param commit: Value for ``commit``.
     :type commit: UNKNOWN
+
     :returns: Return value. UNKNOWN details.
     :rtype: UNKNOWN
     """
@@ -151,17 +166,19 @@ def add_manufacturer(con, name, description='', address='', contact_person='', p
 
 
 def get_mfg_id(con, name):
-    """Return the mfg ID.
-
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Return the mfg ID.
 
     :param con: Value for ``con``.
     :type con: UNKNOWN
+
     :param name: Name value.
     :type name: UNKNOWN
+
     :returns: Return value. UNKNOWN details.
     :rtype: UNKNOWN
     """
+
     if not name:
         return 0
 

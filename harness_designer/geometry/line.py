@@ -613,11 +613,19 @@ class Line:
         line_start = self._p1.as_numpy
         line_end = self._p2.as_numpy
 
+        # Point.__sub__ always returns a Point, never a plain array -- doing
+        # this subtraction against a Point (instead of its .as_numpy) would
+        # poison every numpy call below (np.dot, np.clip) with a non-numeric
+        # object dtype instead of float64.
+        world_point_np = (
+            world_point.as_numpy if isinstance(world_point, _point.Point)
+            else np.asarray(world_point, dtype=np.float32))
+
         # Vector from line_start to line_end
         line_vec = line_end - line_start
 
         # Vector from line_start to world_point
-        point_vec = world_point - line_start
+        point_vec = world_point_np - line_start
 
         # Length squared of the line segment
         line_length_squared = np.dot(line_vec, line_vec)

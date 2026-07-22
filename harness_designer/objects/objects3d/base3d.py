@@ -497,7 +497,7 @@ class Base3D:
 
     @staticmethod
     def _ray_triangles_intersect_vectorized(
-        ray_origin, ray_dir, vertices):  # NOQA
+        ray_origin, ray_dir, vertices, max_t=None):  # NOQA
 
         """
         Vectorized Möller-Trumbore ray-triangle intersection
@@ -508,6 +508,11 @@ class Base3D:
             ray_origin: (3,) array
             ray_dir: (3,) array
             vertices: (N, 3, 3) array - N triangles, each with 3 vertices of 3 coords
+            max_t: optional upper bound on the hit distance -- pass the
+                edge's own length (with ray_dir as the unnormalized edge
+                vector, i.e. t=1 reaches the far endpoint) to test a finite
+                segment instead of an infinite ray. None (default) preserves
+                the original unbounded-ray behavior used for picking.
 
         Returns:
             hit_mask: (N,) boolean array - True where ray hits triangle
@@ -567,6 +572,8 @@ class Base3D:
 
         # Final validation: t > epsilon (ray, not line)
         hit_mask = valid_v & (t > 1e-6)
+        if max_t is not None:
+            hit_mask = hit_mask & (t <= max_t)
 
         return np.any(hit_mask)
 

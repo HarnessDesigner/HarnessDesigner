@@ -2,146 +2,70 @@
 
 """Interactive handler logic for inserting wire service loops.
 
-Single-click workflow: hovering over any wire shows a preview helix-loop
-sized from the wire's outer diameter.  A click finalises placement — the
-wire is split at the two connection points and a service loop object is
-inserted between them.
+Started only from a wire segment's own context menu
+(``objects.objects3d.wire.WireMenu.on_add_wire_service_loop``) -- the wire
+is fixed at construction and never changes; there is no toolbar tool for
+this and no way to jump to a different wire mid-placement. The wire is cut
+live at construction time to make room for the loop (see
+``_split_wire_for_loop``); hovering only slides the preview along that same
+fixed line, and clicking finalises the placement in place.
 
-Intersection avoidance: up to 16 candidate orientations (22.5° increments
-rotating around the wire axis) are tested; the first orientation whose
-bounding volume does not overlap nearby wires or existing loops is used.
+Collision avoidance is not this handler's concern -- it lives entirely on
+``objects.objects3d.wire_service_loop.WireServiceLoop`` (roll then slide,
+mesh-accurate, bounded by the wire's own endpoints and any wire markers on
+it) and runs automatically any time the loop's start point moves, which is
+all this handler ever does (see ``_update_preview``).
 """
 
-import math
 import numpy as np
 from typing import TYPE_CHECKING
 
 from . import handler_base as _handler_base
+from . import wire_layout_handler as _wire_layout_handler
 from ..geometry import point as _point
 from ..geometry import angle as _angle
-from ..gl.canvas3d import object_picker as _object_picker
+from ..geometry import line as _line
 from ..objects import wire_service_loop as _wire_service_loop
+from ..objects import wire_layout as _wire_layout
 from ..objects import wire as _wire
-from ..shapes import cylinder_helix as _cylinder_helix
 from ..gl import materials as _materials
 from .. import config as _config
 from .. import color as _color
 
 
 if TYPE_CHECKING:
-    from ..gl.canvas3d import camera as _camera
     from .. import ui as _ui
 
 
 Config = _config.Config.colors
 
 
-# ---------------------------------------------------------------------------
-# Module-level helpers
-# ---------------------------------------------------------------------------
-
-def _quat_mul(q1: np.ndarray, q2: np.ndarray) -> np.ndarray:
-    """Hamilton product of two [w, x, y, z] quaternions."""
-    w1, x1, y1, z1 = q1
-    w2, x2, y2, z2 = q2
-    return np.array([
-        w1*w2 - x1*x2 - y1*y2 - z1*z2,
-        w1*x2 + x1*w2 + y1*z2 - z1*y2,
-        w1*y2 - x1*z2 + y1*w2 + z1*x2,
-        w1*z2 + x1*y2 - y1*x2 + z1*w2,
-    ], dtype=np.float64)
-
-
-def _compute_stop(
-    start_pos: _point.Point,
-    wire_angle: "_angle.Angle",
-    diameter: float,
-) -> _point.Point:
-    """Return the world-space exit point of the helix.
-
-    Mirrors exactly what WireServiceLoop 3D __init__ does when position2 is
-    at the origin: scale the VBO endpoint by diameter, rotate by wire_angle,
-    translate to start_pos.
+class _SplitState:
+    """Snapshot of the wire that's been split to make room for the loop --
+    everything needed to look up the current halves while the preview
+    slides, and to fully reverse the split if it's abandoned (cancel).
     """
-    vbo = _cylinder_helix.create_vbo()
-    scale = _point.Point(diameter, diameter, diameter)
-    stop_local = vbo.endpoint.copy()
-    stop_local *= scale
-    stop_local @= wire_angle
-    stop_local += start_pos
-    return stop_local
-
-
-def _seg_closest_dist_sq(
-    p0: np.ndarray, p1: np.ndarray,
-    q0: np.ndarray, q1: np.ndarray,
-) -> float:
-    """Squared minimum distance between finite line segments p0-p1 and q0-q1."""
-    d1 = p1 - p0
-    d2 = q1 - q0
-    r = p0 - q0
-    a = float(np.dot(d1, d1))
-    e = float(np.dot(d2, d2))
-    f = float(np.dot(d2, r))
-
-    if a < 1e-10:
-        s = 0.0
-        t = float(np.clip(f / e, 0.0, 1.0)) if e > 1e-10 else 0.0
-    else:
-        c = float(np.dot(d1, r))
-        if e < 1e-10:
-            t = 0.0
-            s = float(np.clip(-c / a, 0.0, 1.0))
-        else:
-            b = float(np.dot(d1, d2))
-            denom = a * e - b * b
-            if abs(denom) > 1e-10:
-                s = float(np.clip((b * f - c * e) / denom, 0.0, 1.0))
-            else:
-                s = 0.0
-            t = (b * s + f) / e
-            if t < 0.0:
-                t = 0.0
-                s = float(np.clip(-c / a, 0.0, 1.0))
-            elif t > 1.0:
-                t = 1.0
-                s = float(np.clip((b - c) / a, 0.0, 1.0))
-
-    closest_p = p0 + s * d1
-    closest_q = q0 + t * d2
-    diff = closest_p - closest_q
-    return float(np.dot(diff, diff))
-
-
-def _loop_intersects(
-    start_np: np.ndarray,
-    stop_np: np.ndarray,
-    diameter: float,
-    candidate_wires,
-    candidate_loops,
-) -> bool:
-    """Return True if the loop capsule (start→stop, radius=diameter) overlaps anything.
-
-    Uses an over-estimate (full diameter as clearance radius) so a gap is
-    guaranteed when we find a clear angle.
-    """
-    for w in candidate_wires:
-        wp1 = w.obj3d.start_position.as_numpy
-        wp2 = w.obj3d.stop_position.as_numpy
-        part = w.db_obj.part
-        wire_r = float(part.od_mm) / 2.0 if (part and part.od_mm) else 0.5
-        dist_sq = _seg_closest_dist_sq(start_np, stop_np, wp1, wp2)
-        if dist_sq < (diameter + wire_r) ** 2:
-            return True
-
-    for lp in candidate_loops:
-        lp1 = lp.obj3d.start_position.as_numpy
-        lp2 = lp.obj3d.stop_position.as_numpy
-        dist_sq = _seg_closest_dist_sq(start_np, stop_np, lp1, lp2)
-        if dist_sq < (diameter * 2.0) ** 2:
-            return True
-
-    return False
+    wire1: _wire.Wire = None
+    wire2: _wire.Wire = None
+    layout1: _wire_layout.WireLayout = None
+    layout2: _wire_layout.WireLayout = None
+    # The *original* wire's own fixed endpoints -- stable for the whole
+    # preview session, unlike wire1/wire2's own start/stop, one of which is
+    # always the loop's own live-dragged point (see _closest_point_on_line).
+    line: _line.Line = None
+    part_id: int = None
+    name: str = None
+    circuit_id: int | None = None
+    layer_id: int | None = None
+    layer_view_position_id: int | None = None
+    is_filler_wire: bool = None
+    is_visible3d: bool = None
+    is_visible2d: bool = None
+    stripe_clip_start: float = None
+    original_start_id: int = None
+    original_stop_id: int = None
+    backref_wire: _wire.Wire | None = None
+    moved_markers: list = None
 
 
 # ---------------------------------------------------------------------------
@@ -149,115 +73,100 @@ def _loop_intersects(
 # ---------------------------------------------------------------------------
 
 class AddWireServiceLoopHandler(_handler_base.HandlerBase):
-    """Handle interactive placement of wire service loops on wires.
+    """Handle interactive placement of a service loop on *wire*.
 
-    No part selection — the loop inherits the wire's own part (wire type).
-    Hovering over any wire shows a preview sized to the wire OD.  A single
-    click splits the wire and inserts the service loop.
-
-    The optional *wire_or_legacy* argument accepts either a Wire (pre-snap
-    target from context menus) or an integer (legacy part_id — ignored).
+    The wire is fixed for the life of the handler -- constructable only
+    from that wire's own context menu, never a toolbar tool, and it never
+    jumps to a different wire. Hovering slides the preview along the wire;
+    a click finalises the placement.
     """
     obj: "_wire_service_loop.WireServiceLoop | None" = None
 
-    def __init__(self, mainframe: "_ui.MainFrame", wire_or_legacy=None):
+    def __init__(
+        self,
+        mainframe: "_ui.MainFrame",
+        wire: "_wire.Wire",
+        mouse_pos: _point.Point,
+    ):
+        """Cut *wire* and start the loop preview anchored at *mouse_pos*
+        (the screen-space point that opened the wire's context menu).
+        """
         super().__init__(mainframe, None)
 
         self._preview_material = _materials.Plastic(
             _color.Color(*Config.add_object.preview_color))
-        self._highlight_material = _materials.Plastic(
-            _color.Color(*Config.add_object.wire_highlight))
 
-        self._snapped_wire: "_wire.Wire | None" = None
-        self._snapped_angle: "_angle.Angle | None" = None
+        self._split_state: "_SplitState | None" = None
 
-        self._highlight_all_wires()
+        line = _line.Line(wire.obj3d.start_position, wire.obj3d.stop_position)
+        position, wire_angle = self._closest_point_on_line(line, mouse_pos)
 
-        # If a Wire was passed (e.g., from the wire context menu), the preview
-        # will be created on the first hover over that wire.  Integers (legacy
-        # part_id from old call sites) are intentionally ignored.
+        with mainframe.editor3d.context:
+            self._create_preview(wire, position, wire_angle)
 
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
 
-    def _highlight_all_wires(self):
-        for w in self.mainframe.project.wires:
-            w.identify(self._highlight_material)
-
-    def _clear_wire_highlights(self):
-        for w in self.mainframe.project.wires:
-            w.identify(None)
-
-    def _wire_diameter(self, wire: "_wire.Wire") -> float:
-        part_id = wire.db_obj.part_id
-        if part_id is None:
-            return 2.0
-        part = self.mainframe.global_db.wires_table[part_id]
-        return max(0.5, float(part.od_mm)) if (part and part.od_mm) else 2.0
-
-    def _find_best_angle(
+    def _closest_point_on_line(
         self,
-        wire_angle: "_angle.Angle",
-        start_pos: _point.Point,
-        diameter: float,
-        wire: "_wire.Wire",
-    ) -> np.ndarray:
-        """Return a [w,x,y,z] quaternion that minimises intersections.
+        line: _line.Line,
+        mouse_pos: _point.Point,
+    ) -> tuple[_point.Point, _angle.Angle] | tuple[None, None]:
+        """Pin the hover position to *line* instead of a wire's own
+        endpoints.
 
-        Tries 16 orientations (22.5° increments) by twisting around the
-        wire's local Z axis.  Returns the first non-intersecting orientation,
-        or the zero-twist quaternion if none is found.
+        Once split, wire1's stop / wire2's start IS the loop's own
+        live-dragged point -- computing "closest point on the wire" against
+        wire1/wire2 directly would feed the drag position back into its own
+        input every frame, a feedback loop that skews the preview off the
+        original line instead of sliding along it. *line* is built once
+        from the original wire's real (never-moving) endpoints, so
+        projecting onto it stays stable regardless of where the loop
+        currently sits.
         """
-        q_base = np.array(wire_angle.as_quat_float, dtype=np.float64)
-        vbo = _cylinder_helix.create_vbo()
-        scale = _point.Point(diameter, diameter, diameter)
+        world_pos = self.camera.get_position_on_focal_plane(mouse_pos)
+        position = line.project_to_line(world_pos)
 
-        candidate_wires = [w for w in self.mainframe.project.wires if w is not wire]
-        candidate_loops = list(self.mainframe.project.wire_service_loops)
+        p1 = line.p1.as_numpy
+        p2 = line.p2.as_numpy
+        direction = p2 - p1
+        length = np.linalg.norm(direction)
 
-        start_np = start_pos.as_numpy
+        if length < 0.001:
+            return None, None
 
-        for step in range(16):
-            theta = step * (2.0 * math.pi / 16.0)
-            hw = math.cos(theta / 2.0)
-            hz = math.sin(theta / 2.0)
-            # Twist around local Z axis
-            q_twist = np.array([hw, 0.0, 0.0, hz], dtype=np.float64)
-            q_cand = _quat_mul(q_base, q_twist)
+        direction = direction / length
+        wire_angle = _angle.Angle.from_direction(direction)
 
-            ang = _angle.Angle.from_quat(q_cand.tolist())
-            stop_local = vbo.endpoint.copy()
-            stop_local *= scale
-            stop_local @= ang
-            stop_local += start_pos
-            stop_np = stop_local.as_numpy
-
-            if not _loop_intersects(start_np, stop_np, diameter,
-                                    candidate_wires, candidate_loops):
-                return q_cand
-
-        return q_base  # no clear angle found — use zero twist
+        return position, wire_angle
 
     def _create_preview(
         self,
-        wire: "_wire.Wire",
+        wire: _wire.Wire,
         position: _point.Point,
-        wire_angle: "_angle.Angle",
+        wire_angle: _angle.Angle,
     ):
-        """Delete any existing preview and build a new one at *position*."""
-        if self.obj is not None:
-            self.obj.delete()
-            self.obj = None
+        """Cut *wire* and build the loop preview at *position*. Called
+        once, from __init__.
 
-        diameter = self._wire_diameter(wire)
+        *wire* is split *before* the WireServiceLoop 3D object is
+        constructed: that object's own __init__ runs collision avoidance
+        immediately (WireServiceLoop._resolve_collision), which relies on
+        _attached_wires() already finding wire1/wire2 -- doing this the
+        other way round would leave the original, not-yet-split wire as
+        the only thing nearby, and the loop would "avoid" the very wire
+        it's about to be spliced into.
+
+        The stop point is inserted as a throwaway placeholder (same
+        coordinates as the start) -- WireServiceLoop 3D's own __init__
+        unconditionally re-derives it from the start position/angle/scale,
+        so nothing here needs to get it right.
+        """
         q_arr = np.array(wire_angle.as_quat_float, dtype=np.float64)
-        stop_pos = _compute_stop(position, wire_angle, diameter)
 
-        p_start_db = self.ptables.pjt_points3d_table.insert(
-            position.x, position.y, position.z)
-        p_stop_db = self.ptables.pjt_points3d_table.insert(
-            stop_pos.x, stop_pos.y, stop_pos.z)
+        p_start_db = self.ptables.pjt_points3d_table.insert(*position.as_float)
+        p_stop_db = self.ptables.pjt_points3d_table.insert(*position.as_float)
 
         self.part = wire.db_obj.part
 
@@ -269,156 +178,226 @@ class AddWireServiceLoopHandler(_handler_base.HandlerBase):
             wire.db_obj.circuit_id,
             True, q_arr)
 
+        self._split_state = self._split_wire_for_loop(
+            wire, p_start_db.db_id, p_stop_db.db_id)
+
         self.obj = _wire_service_loop.WireServiceLoop(self.mainframe, loop_db)
         self.obj.identify(self._preview_material)
-        self._snapped_wire = wire
-        self._snapped_angle = wire_angle
 
-    def _update_preview(
-        self,
-        position: _point.Point,
-        wire_angle: "_angle.Angle",
-        diameter: float,
-    ):
-        """Slide the existing preview to a new position on the same wire."""
+        # The whole rest of this placement (every hover update until
+        # commit or cancel) is one continuous move, in the same sense a
+        # mouse drag is -- cache the collision-candidate list for it
+        # instead of rebuilding on every _update_preview call (see
+        # WireServiceLoop.begin_move_session). Paired with end_move_session
+        # in release_capture/_teardown_preview.
+        self.obj.obj3d.begin_move_session()
+
+    def _update_preview(self, position: _point.Point):
+        """Slide the existing preview to a new position on the same wire.
+
+        Only the start point is moved -- WireServiceLoop 3D's own
+        _update_position override derives the stop point from it, resolves
+        any collision the move introduces, and (since wire1's stop /
+        layout1's position are the same shared Point object as the loop's
+        start; see _split_wire_for_loop) cascades the move to wire1/wire2/
+        both layouts for free. Nothing else needs updating here.
+        """
         if self.obj is None:
             return
 
-        stop_pos = _compute_stop(position, wire_angle, diameter)
-
         start_p = self.obj.obj3d.start_position
-        stop_p = self.obj.obj3d.stop_position
-
         start_p += position - start_p
-        stop_p += stop_pos - stop_p
 
-        self._snapped_angle = wire_angle
+    def _split_wire_for_loop(
+        self,
+        wire: _wire.Wire,
+        start_point_id: int,
+        stop_point_id: int,
+    ) -> _SplitState:
+        """Cut *wire* into two pieces around a gap spanning
+        start_point_id/stop_point_id, and insert a WireLayout at each cut.
+
+        Reuses wire_layout_handler._split_wire_at_point twice (once per cut
+        point) rather than reimplementing its sibling-chain/marker-
+        reattachment/teardown handling, then discards the middle segment the
+        two calls leave behind -- the loop occupies that span, not a wire.
+        """
+        project = self.mainframe.project
+        mainframe = self.mainframe
+        orig = wire.db_obj
+
+        state = _SplitState()
+        state.part_id = orig.part_id
+        state.name = orig.name
+        state.circuit_id = orig.circuit_id
+        state.layer_id = orig.layer_id
+        state.layer_view_position_id = orig.layer_view_position_id
+        state.is_filler_wire = orig.is_filler_wire
+        state.is_visible3d = orig.is_visible3d
+        state.is_visible2d = orig.is_visible2d
+        state.stripe_clip_start = orig.stripe_clip_start
+        state.original_start_id = int(wire.obj3d.start_position.db_id[:-2])
+        state.original_stop_id = int(wire.obj3d.stop_position.db_id[:-2])
+        # Captured now, while wire.obj3d is still the real, unsplit wire --
+        # these are the wire's own permanent endpoints, never touched by
+        # the drag (only the loop's own start/stop points move), so this
+        # stays valid and stable for the rest of the preview session.
+        state.line = _line.Line(wire.obj3d.start_position, wire.obj3d.stop_position)
+
+        # Something may already chain *into* this wire (w.sibling is
+        # wire.obj3d) -- _split_wire_at_point never updates that
+        # back-reference, so capture it now, before the wire it points at
+        # is deleted, and repoint it once the split is done.
+        state.backref_wire = None
+        for w in project.wires:
+            if w.obj3d.sibling is wire.obj3d:
+                state.backref_wire = w
+                break
+
+        state.moved_markers = [
+            m for m in project.wire_markers if m.db_obj.wire_id == orig.db_id]
+
+        wire_a, wire_b = _wire_layout_handler._split_wire_at_point(  # NOQA
+            project, wire, start_point_id)
+        wire_c, wire_d = _wire_layout_handler._split_wire_at_point(  # NOQA
+            project, wire_b, stop_point_id)
+
+        # wire_c spans start_point_id -> stop_point_id -- the loop lives
+        # there instead of a wire; discard it with the same teardown
+        # _split_wire_at_point itself uses.
+        if mainframe.get_selected() is wire_c:
+            wire_c.set_selected(False)
+        mainframe.remove_object(wire_c)
+        project.delete_wire(wire_c.db_obj.db_id)
+
+        state.wire1, state.wire2 = wire_a, wire_d
+
+        # wire_a's sibling still points at wire_b, which is now deleted --
+        # bridge across the loop directly.
+        state.wire1.obj3d.sibling = state.wire2.obj3d
+        if state.backref_wire is not None:
+            state.backref_wire.obj3d.sibling = state.wire1.obj3d
+
+        # Layouts are constructed only now that wire1/wire2 already
+        # reference the shared points -- WireLayout.__init__ derives its
+        # diameter/color from attached_wires, a live query against
+        # pjt_wires, so it must find something before it falls back to the
+        # hardcoded 3.0mm/gray default.
+        layout1_db = self.ptables.pjt_wire_layouts_table.insert(start_point_id)
+        layout2_db = self.ptables.pjt_wire_layouts_table.insert(stop_point_id)
+        state.layout1 = _wire_layout.WireLayout(mainframe, layout1_db)
+        state.layout2 = _wire_layout.WireLayout(mainframe, layout2_db)
+        project.add_wire_layout(state.layout1)
+        project.add_wire_layout(state.layout2)
+
+        return state
+
+    def _restore_wire_from_split(self, state: _SplitState) -> None:
+        """Reverse _split_wire_for_loop: delete both layouts and both split
+        wires, and re-insert a single wire spanning the original endpoints
+        with the original wire's own properties.
+        """
+        project = self.mainframe.project
+        mainframe = self.mainframe
+
+        forward_sibling = state.wire2.obj3d.sibling
+
+        restored_db = self.ptables.pjt_wires_table.insert(
+            state.part_id, state.name, state.circuit_id,
+            state.original_start_id, state.original_stop_id,
+            None, None, state.is_visible3d, state.is_visible2d,
+            state.layer_view_position_id, state.layer_id, state.is_filler_wire,
+            stripe_clip_start=state.stripe_clip_start)
+
+        restored_obj = _wire.Wire(mainframe, restored_db)
+        restored_obj.obj3d.sibling = forward_sibling
+        if state.backref_wire is not None:
+            state.backref_wire.obj3d.sibling = restored_obj.obj3d
+
+        for marker in state.moved_markers:
+            marker.db_obj.wire_id = restored_db.db_id
+            marker.obj3d.rebind_wire(restored_db)
+
+        for layout_obj in (state.layout1, state.layout2):
+            mainframe.remove_object(layout_obj)
+            project.delete_wire_layout(layout_obj.db_obj.db_id)
+
+        for wire_obj in (state.wire1, state.wire2):
+            if mainframe.get_selected() is wire_obj:
+                wire_obj.set_selected(False)
+            mainframe.remove_object(wire_obj)
+            project.delete_wire(wire_obj.db_obj.db_id)
+
+        project.add_wire(restored_obj)
+
+    def _teardown_preview(self) -> None:
+        """Delete the live loop preview and restore the wire it split."""
+        if self.obj is not None:
+            self.obj.obj3d.end_move_session()
+            self.obj.delete()
+            self.obj = None
+
+        if self._split_state is not None:
+            with self.mainframe.editor3d.context:
+                self._restore_wire_from_split(self._split_state)
+            self._split_state = None
 
     # ------------------------------------------------------------------
     # Handler protocol
     # ------------------------------------------------------------------
 
     def hover(self, mouse_pos: _point.Point):
+        """Slide the preview along the wire's own (fixed) line.
+
+        The wire never changes for the life of this handler, so there's no
+        picking or re-splitting to do here -- just moving the loop's
+        shared start point, which cascades to the derived stop point,
+        wire1/wire2, both layouts, and collision avoidance for free (see
+        _update_preview).
+        """
         if self._finalized:
             return
-
-        selected = _object_picker.find_object(
-            mouse_pos, self.camera.objects_in_view, self.camera)
-        wire = selected if isinstance(selected, _wire.Wire) else None
-
-        if wire is None or wire.db_obj.part_id is None:
-            if self.obj is not None:
-                self.obj.obj3d.is_visible = False
+        if self._split_state is None or self.obj is None:
             return
 
-        position, wire_angle = wire.obj3d.get_closest_point(mouse_pos)
-
+        position, wire_angle = self._closest_point_on_line(self._split_state.line, mouse_pos)
         if position is None or wire_angle is None:
-            if self.obj is not None:
-                self.obj.obj3d.is_visible = False
-
             return
 
-        if wire is not self._snapped_wire:
-            self._create_preview(wire, position, wire_angle)
-        else:
-            diameter = self._wire_diameter(wire)
-            self._update_preview(position, wire_angle, diameter)
-
-        if self.obj is not None:
-            self.obj.obj3d.is_visible = True
+        with self.mainframe.editor3d.context:
+            self._update_preview(position)
 
     def release_capture(self):
         if self._finalized:
             return
         if self._captured_position is None:
             return
-        if self._snapped_wire is None or self.obj is None:
+        if self._split_state is None or self.obj is None:
             return
 
-        self._clear_wire_highlights()
         self._finalized = True
+        state = self._split_state
 
-        wire = self._snapped_wire
+        # Re-derive against the stable original line, same as hover() --
+        # not wire1/wire2's own endpoints (see _closest_point_on_line).
+        position, wire_angle = self._closest_point_on_line(state.line, self._captured_position)
 
-        if wire.db_obj.part_id is None:
-            self.obj.delete()
-            self.obj = None
+        if position is None or wire_angle is None:
+            self._teardown_preview()
             return
 
-        position, wire_angle = wire.obj3d.get_closest_point(self._captured_position)
-
-        if None in (position, wire_angle):
-            self.obj.delete()
-            self.obj = None
-            return
-
-        diameter = self._wire_diameter(wire)
-
-        # Find the orientation around the wire axis that avoids intersections.
-        q_arr = self._find_best_angle(wire_angle, position, diameter, wire)
-        best_angle = _angle.Angle.from_quat(q_arr.tolist())
-        stop_pos = _compute_stop(position, best_angle, diameter)
-
-        # Update the preview's positions and angle to the committed values.
-        start_p = self.obj.obj3d.start_position
-        stop_p = self.obj.obj3d.stop_position
-        start_p += position - start_p
-        stop_p += stop_pos - stop_p
-        self.obj.db_obj.angle = q_arr
-
-        loop_start_id = int(self.obj.obj3d.start_position.db_id[:-2])
-        loop_stop_id = int(self.obj.obj3d.stop_position.db_id[:-2])
-
-        original_start_id = int(wire.obj3d.start_position.db_id[:-2])
-        original_stop_id = int(wire.obj3d.stop_position.db_id[:-2])
-        part_id = wire.db_obj.part_id
-        name = wire.db_obj.name
-        circuit_id = wire.db_obj.circuit_id
-
-        # wire1 keeps the original wire's own start point, so it inherits
-        # its stripe_clip_start unchanged -- wire2 starts exactly where
-        # wire1 now ends, same cascade as wire_layout_handler._split_wire_at_point.
-        wire1_stripe_clip_start = wire.db_obj.stripe_clip_start
-
-        # Wire 1: original_start → loop_start
-        wire1_db = self.ptables.pjt_wires_table.insert(
-            part_id, name, circuit_id,
-            original_start_id, loop_start_id,
-            None, None, True, False, None, None, False,
-            stripe_clip_start=wire1_stripe_clip_start)
-
-        p1 = wire1_db.start_position3d.as_numpy
-        p2 = wire1_db.stop_position3d.as_numpy
-        dx = p2[0] - p1[0]
-        dy = p2[1] - p1[1]
-        dz = p2[2] - p1[2]
-        wire1_length = math.sqrt(dx * dx + dy * dy + dz * dz)
-        wire2_stripe_clip_start = wire1_stripe_clip_start + wire1_length
-
-        # Wire 2: loop_stop → original_stop
-        wire2_db = self.ptables.pjt_wires_table.insert(
-            part_id, name, circuit_id,
-            loop_stop_id, original_stop_id,
-            None, None, True, False, None, None, False,
-            stripe_clip_start=wire2_stripe_clip_start)
-
-        wire1_obj = _wire.Wire(self.mainframe, wire1_db)
-        wire2_obj = _wire.Wire(self.mainframe, wire2_db)
-
-        wire2_obj.obj3d.sibling = wire.obj3d.sibling
-        wire1_obj.obj3d.sibling = wire2_obj.obj3d
-
-        self.mainframe.project.add_wire(wire1_obj)
-        self.mainframe.project.add_wire(wire2_obj)
-        wire.delete()
+        with self.mainframe.editor3d.context:
+            # Same move hover() makes -- WireServiceLoop 3D resolves
+            # collision avoidance as part of it, so by the time this
+            # returns the loop is already at its final, collision-resolved
+            # position/angle. Nothing further to compute or apply.
+            self._update_preview(position)
+            self.obj.obj3d.end_move_session()
 
         self.obj.identify(None)
         self.mainframe.project.add_wire_service_loop(self.obj)
         self.obj = None
+        self._split_state = None
 
     def cancel(self):
-        self._clear_wire_highlights()
-        if self.obj is not None:
-            self.obj.delete()
-            self.obj = None
+        self._teardown_preview()

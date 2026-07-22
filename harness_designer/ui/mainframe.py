@@ -2566,13 +2566,6 @@ class MainFrame(QtWidgets.QMainWindow):
                 selected = None
 
             self._obj_handler = _handlers.AddWireHandler(self, selected)
-        elif mode == _toolbar.ID_WIRE_SERVICE_LOOP:
-            if self.editor_toolbar.is_selected:
-                selected = self.get_selected()
-            else:
-                selected = None
-
-            self._obj_handler = _handlers.AddWireServiceLoopHandler(self, selected)
         elif mode == _toolbar.ID_SPLICE:
             if self.editor_toolbar.is_selected:
                 selected = self.get_selected()

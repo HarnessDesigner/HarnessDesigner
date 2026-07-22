@@ -8,17 +8,19 @@ import json
 
 
 def add_records(con, splash, data_path):
-    """Add a records.
-
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Add a records.
 
     :param con: Value for ``con``.
     :type con: UNKNOWN
+
     :param splash: Value for ``splash``.
     :type splash: UNKNOWN
+
     :param data_path: Value for ``data_path``.
     :type data_path: UNKNOWN
     """
+
     con.execute('SELECT * from file_types WHERE id=1;')
     if con.fetchall():
         return
@@ -49,31 +51,40 @@ def add_records(con, splash, data_path):
 def add_file_type(con, name, extension, is_model: bool | int = 0,
                   is_image: bool | int = 0, is_datasheet: bool | int = 0,
                   is_cad: bool | int = 0, mimetype: str = '', commit: bool = True):
-    """Add a file type.
-
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Add a file type.
 
     :param con: Value for ``con``.
     :type con: UNKNOWN
+
     :param name: Name value.
     :type name: UNKNOWN
+
     :param extension: Value for ``extension``.
     :type extension: UNKNOWN
+
     :param is_model: Boolean flag for whether model.
     :type is_model: UNKNOWN
+
     :param is_image: Boolean flag for whether model.
     :type is_image: UNKNOWN
+
     :param is_datasheet: Boolean flag for whether model.
     :type is_datasheet: UNKNOWN
+
     :param is_cad: Boolean flag for whether model.
     :type is_cad: UNKNOWN
+
     :param mimetype: Value for ``mimetype``.
     :type mimetype: UNKNOWN
+
     :param commit: Value for ``commit``.
     :type commit: UNKNOWN
+
     :returns: Return value. UNKNOWN details.
     :rtype: UNKNOWN
     """
+
     con.execute('INSERT INTO file_types (mimetype, extension, name, is_model, is_image, is_datasheet, is_cad) '
                 'VALUES (?, ?, ?, ?, ?, ?, ?);', (mimetype, extension, name, int(is_model), int(is_image), int(is_datasheet), int(is_cad)))
 
@@ -85,19 +96,22 @@ def add_file_type(con, name, extension, is_model: bool | int = 0,
 
 
 def get_file_type(con, extension=None, mimetype=None):
-    """Return the file type.
-
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Return the file type.
 
     :param con: Value for ``con``.
     :type con: UNKNOWN
+
     :param extension: Value for ``extension``.
     :type extension: UNKNOWN
+
     :param mimetype: Value for ``mimetype``.
     :type mimetype: UNKNOWN
+
     :returns: Return value. UNKNOWN details.
     :rtype: UNKNOWN
     """
+
     if extension is None and mimetype is None:
         return None
 

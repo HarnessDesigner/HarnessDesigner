@@ -8,17 +8,19 @@ from . import ip_solids as _ip_solids
 
 
 def add_records(con, splash, _=None):
-    """Add a records.
-
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Add a records.
 
     :param con: Value for ``con``.
     :type con: UNKNOWN
+
     :param splash: Value for ``splash``.
     :type splash: UNKNOWN
+
     :param _: Value for ``_``.
     :type _: UNKNOWN
     """
+
     con.execute('SELECT id FROM ip_ratings WHERE id=0;')
     if con.fetchall():
         return
@@ -83,17 +85,19 @@ def add_records(con, splash, _=None):
 
 
 def get_ip_rating_id(con, ip_rating):  # NOQA
-    """Return the ip rating ID.
-
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Return the ip rating ID.
 
     :param con: Value for ``con``.
     :type con: UNKNOWN
+
     :param ip_rating: Value for ``ip_rating``.
     :type ip_rating: UNKNOWN
+
     :returns: Return value. UNKNOWN details.
     :rtype: UNKNOWN
     """
+
     if ip_rating is None:
         return 0
 
