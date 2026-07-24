@@ -48,3 +48,34 @@ class Cavity(_ObjectBase):
         self.objpeg = _cavity_peg.Cavity(self, db_obj)
 
         self.mainframe.add_object(self)
+
+    @property
+    def terminal(self):
+        terminal = self.db_obj.terminal
+        if terminal is None:
+            return None
+
+        return terminal.get_object()
+
+    @property
+    def seal(self):
+        seal = self.db_obj.seal
+        if seal is None:
+            return None
+
+        return seal.get_object()
+
+    def delete(self):
+        super().delete()
+
+        terminal = self.terminal
+        seal = self.seal
+
+        if terminal is not None:
+            terminal.delete()
+
+        if seal is not None:
+            seal.delete()
+
+        self.mainframe.project.delete_cavity(self.db_obj.db_id)
+        self.db_obj.delete()

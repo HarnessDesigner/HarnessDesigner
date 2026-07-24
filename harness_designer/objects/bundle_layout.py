@@ -42,3 +42,15 @@ class BundleLayout(_ObjectBase):
         self.obj2d = _bundle_layout_2d.BundleLayout(self, db_obj)
         self.obj3d = _bundle_layout_3d.BundleLayout(self, db_obj)
         self.objpeg = _bundle_layout_peg.BundleLayout(self, db_obj)
+
+    def delete(self):
+        # TODO: handle deleting a layout
+        #       if the layout has 2 bundles attached to it that means the
+        #       deletion of the layout was started by the user and the bundle
+        #       needs to be reconnected. If the layout only has a single
+        #       bundle connection made it to then only the layout itself should
+        #       be deleted and no reconnect should be made.
+        super().delete()
+        self.mainframe.project.delete_bundle_layout(self.db_obj.db_id)
+        self.db_obj.delete()
+

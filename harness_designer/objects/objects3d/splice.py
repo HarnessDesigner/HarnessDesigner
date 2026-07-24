@@ -250,8 +250,7 @@ class SpliceMenu(QMenu):
 
     def on_delete(self):
         """Delete this splice from the project."""
-        _menu_ops.delete_object(
-            self.selected, self.selected.mainframe.project.delete_splice)
+        _menu_ops.delete_object(self.selected)
 
     def on_properties(self):
         """Show this splice's properties in the object editor."""

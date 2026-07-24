@@ -43,3 +43,23 @@ class Bundle(_ObjectBase):
         self.obj3d = _bundle_3d.Bundle(self, db_obj)
         self.objpeg = _bundle_peg.Bundle(self, db_obj)
         self.mainframe.add_object(self)
+
+    def delete(self):
+        super().delete()
+        self.mainframe.project.delete_bundle(self.db_obj.db_id)
+        self.db_obj.delete()
+
+    # TODO: We need to move things like wires so they are held here.
+    #       anything that is held in any of the obj* class instances should
+    #       only hold objects that areof the same instance type
+
+    def _delete(self):
+        """Override delete to restore wire visibility."""
+        # Restore visibility of all wires before deleting
+        for ref in self._wires[:]:
+            wire = ref()
+            if wire is not None:
+                wire.is_visible = True
+
+        self._wires.clear()
+        super()._delete()

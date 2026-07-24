@@ -26,7 +26,7 @@ from ...objects import transition as _transition
 from ...objects import splice as _splice
 from ...objects import wire_layout as _wire_layout
 from ...objects import bundle_layout as _bundle_layout
-
+from ...objects import wire_service_loop as _wire_service_loop
 
 if TYPE_CHECKING:
     from .. import mainframe as _mainframe
@@ -640,15 +640,43 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
             _bundle.Bundle, _wire.Wire, _cavity.Cavity, _wire_marker.WireMarker,
             _wire_layout.WireLayout, _bundle_layout.BundleLayout)):
 
-            for act in (self.rotate_x, self.rotate_y, self.rotate_z, self.scale_x,
-                        self.scale_y, self.scale_z, self.move_x, self.move_y,
-                        self.move_z):
+            for act in (self.rotate_x, self.rotate_y, self.rotate_z,
+                        self.scale_x, self.scale_y, self.scale_z,
+                        self.move_x, self.move_y, self.move_z):
 
                 act.setEnabled(False)
+        elif isinstance(obj, _wire_service_loop.WireServiceLoop):
+
+            for act in (self.scale_x, self.scale_y, self.scale_z):
+                act.setEnabled(False)
+
+            for act in (self.rotate_x, self.rotate_y, self.rotate_z,
+                        self.move_x, self.move_y,  self.move_z):
+
+                act.setEnabled(True)
+
+            self._selected = obj
+
+            self._position3d = obj.db_obj.start_position3d  # NOQA
+            self._position3d.bind(self.on_position)
+
+            self._angle3d = obj.db_obj.angle3d  # NOQA
+            self._angle3d.bind(self.on_angle)
+
+            x, y, z = self._position3d.as_float
+            self.move_x.SetValue(x)
+            self.move_y.SetValue(y)
+            self.move_z.SetValue(z)
+
+            x, y, z = self._angle3d.as_euler_float
+            self.rotate_x.SetValue(x)
+            self.rotate_y.SetValue(y)
+            self.rotate_z.SetValue(z)
+
         else:
-            for act in (self.rotate_x, self.rotate_y, self.rotate_z, self.scale_x,
-                        self.scale_y, self.scale_z, self.move_x, self.move_y,
-                        self.move_z):
+            for act in (self.rotate_x, self.rotate_y, self.rotate_z,
+                        self.scale_x, self.scale_y, self.scale_z,
+                        self.move_x, self.move_y, self.move_z):
 
                 act.setEnabled(True)
 

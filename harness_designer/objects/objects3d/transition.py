@@ -487,8 +487,7 @@ class TransitionMenu(QMenu):
 
     def on_delete(self):
         """Delete this transition from the project."""
-        _menu_ops.delete_object(
-            self.selected, self.selected.mainframe.project.delete_transition)
+        _menu_ops.delete_object(self.selected)
 
     def on_route_wires(self):
         """Open the wire routing dialog to reassign wires between output branches."""

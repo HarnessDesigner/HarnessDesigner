@@ -126,8 +126,7 @@ class CPALockMenu(QMenu):
 
     def on_delete(self):
         """Delete this CPA lock from the project."""
-        _menu_ops.delete_object(
-            self.selected, self.selected.mainframe.project.delete_cpa_lock)
+        _menu_ops.delete_object(self.selected)
 
     def on_properties(self):
         """Show this CPA lock's properties in the object editor."""

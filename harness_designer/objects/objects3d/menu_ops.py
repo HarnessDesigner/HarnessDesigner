@@ -43,27 +43,16 @@ def clone_object(obj3d: "_base3d.Base3D"):
     mainframe.set_clone_obj(obj3d.parent)
 
 
-def delete_object(obj3d: "_base3d.Base3D", deleter=None):
+def delete_object(obj3d: "_base3d.Base3D"):
     """Remove the object from the editors, the project and the database.
 
     :param obj3d: 3d object whose parent is being deleted.
-    :param deleter: Matching ``project.delete_*`` method. Objects that were
-        never registered with the project fall back to a direct delete.
     """
     parent = obj3d.parent
     mainframe = obj3d.mainframe
 
     if mainframe.get_selected() is parent:
         parent.set_selected(False)
-
-    mainframe.remove_object(parent)
-
-    if deleter is not None:
-        try:
-            deleter(parent.db_obj.db_id)
-            return
-        except KeyError:
-            pass
 
     parent.delete()
 

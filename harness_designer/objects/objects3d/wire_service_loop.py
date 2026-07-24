@@ -874,9 +874,7 @@ class WireServiceLoopMenu(QMenu):
 
     def on_delete(self):
         """Delete this wire service loop from the project."""
-        _menu_ops.delete_object(
-            self.selected,
-            self.selected.mainframe.project.delete_wire_service_loop)
+        _menu_ops.delete_object(self.selected)
 
     def on_properties(self):
         """Show this wire service loop's properties in the object editor."""

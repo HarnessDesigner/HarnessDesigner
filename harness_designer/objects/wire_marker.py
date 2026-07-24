@@ -66,3 +66,7 @@ class WireMarker(_ObjectBase):
         """
         pass
 
+    def delete(self):
+        super().delete()
+        self.mainframe.project.delete_wire_marker(self.db_obj.db_id)
+        self.db_obj.delete()

@@ -45,3 +45,9 @@ class WireServiceLoop(_ObjectBase):
         self.objpeg = _wire_service_loop_peg.WireServiceLoop(self, db_obj)
 
         self.mainframe.add_object(self)
+
+    def delete(self):
+        # TODO: Wires should be reconnected after removal.
+        super().delete()
+        self.mainframe.project.delete_wire_service_loop(self.db_obj.db_id)
+        self.db_obj.delete()

@@ -43,3 +43,8 @@ class Note(_ObjectBase):
         self.obj3d = _note_3d.Note(self, db_obj)
         self.objpeg = _note_peg.Note(self, db_obj)
         self.mainframe.add_object(self)
+
+    def delete(self):
+        super().delete()
+        self.mainframe.project.delete_note(self.db_obj.db_id)
+        self.db_obj.delete()

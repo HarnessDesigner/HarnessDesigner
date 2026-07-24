@@ -150,6 +150,4 @@ class BundleLayoutMenu(QMenu):
 
     def on_delete(self):
         """Delete this bundle layout from the project."""
-        _menu_ops.delete_object(
-            self.selected,
-            self.selected.mainframe.project.delete_bundle_layout)
+        _menu_ops.delete_object(self.selected)

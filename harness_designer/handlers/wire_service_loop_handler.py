@@ -257,9 +257,9 @@ class AddWireServiceLoopHandler(_handler_base.HandlerBase):
         state.moved_markers = [
             m for m in project.wire_markers if m.db_obj.wire_id == orig.db_id]
 
-        wire_a, wire_b = _wire_layout_handler._split_wire_at_point(  # NOQA
+        wire_b, wire_a = _wire_layout_handler._split_wire_at_point(  # NOQA
             project, wire, start_point_id)
-        wire_c, wire_d = _wire_layout_handler._split_wire_at_point(  # NOQA
+        wire_d, wire_c = _wire_layout_handler._split_wire_at_point(  # NOQA
             project, wire_b, stop_point_id)
 
         # wire_c spans start_point_id -> stop_point_id -- the loop lives
@@ -267,8 +267,7 @@ class AddWireServiceLoopHandler(_handler_base.HandlerBase):
         # _split_wire_at_point itself uses.
         if mainframe.get_selected() is wire_c:
             wire_c.set_selected(False)
-        mainframe.remove_object(wire_c)
-        project.delete_wire(wire_c.db_obj.db_id)
+        wire_c.delete()
 
         state.wire1, state.wire2 = wire_a, wire_d
 
@@ -319,14 +318,12 @@ class AddWireServiceLoopHandler(_handler_base.HandlerBase):
             marker.obj3d.rebind_wire(restored_db)
 
         for layout_obj in (state.layout1, state.layout2):
-            mainframe.remove_object(layout_obj)
-            project.delete_wire_layout(layout_obj.db_obj.db_id)
+            layout_obj.delete()
 
         for wire_obj in (state.wire1, state.wire2):
             if mainframe.get_selected() is wire_obj:
                 wire_obj.set_selected(False)
-            mainframe.remove_object(wire_obj)
-            project.delete_wire(wire_obj.db_obj.db_id)
+            wire_obj.delete()
 
         project.add_wire(restored_obj)
 

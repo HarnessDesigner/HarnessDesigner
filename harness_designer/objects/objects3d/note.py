@@ -189,8 +189,7 @@ class NoteMenu(QMenu):
 
     def on_delete(self):
         """Delete this note from the project."""
-        _menu_ops.delete_object(
-            self.selected, self.selected.mainframe.project.delete_note)
+        _menu_ops.delete_object(self.selected)
 
     def on_properties(self):
         """Show this note's properties in the object editor."""

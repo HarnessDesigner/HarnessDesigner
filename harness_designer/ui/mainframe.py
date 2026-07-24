@@ -1070,11 +1070,12 @@ class MainFrame(QtWidgets.QMainWindow):
                 mouse_event = evt.GetMouseEvent()
 
                 if (
-                    mouse_event.Aux1IsDown() or
-                    mouse_event.Aux2IsDown() or
-                    mouse_event.RightIsDown() or
-                    mouse_event.MiddleIsDown() or
-                    mouse_event.LeftIsDown()
+                    mouse_event is not None and
+                    (mouse_event.Aux1IsDown() or
+                     mouse_event.Aux2IsDown() or
+                     mouse_event.RightIsDown() or
+                     mouse_event.MiddleIsDown() or
+                     mouse_event.LeftIsDown())
                 ):
                     self._obj_handler.ignore_next_input()
                 else:

@@ -284,6 +284,103 @@ class Terminal(_base3d.Base3D):
         """
         return TerminalMenu(self.mainframe.editor3d.editor, self)
 
+    def _delete(self):
+        self._delete_wire_routing_stub()
+        super()._delete()
+
+    def _delete_wire_routing_stub(self):
+        """Remove the internal wire-routing stub(s)/layout(s) this terminal
+        owns.
+
+        See handlers.wire_handler._route_from_terminal for how these are
+        built: a stub wire + WireLayout from the terminal's own crimp
+        point (attach_point3d_id) to its wire-side layout point
+        (wire_point3d_id) -- and, when seated in a cavity, a second stub +
+        layout continuing on from there to the cavity's own wire-side
+        point. Same behavior either way: whatever real wire(s) continue
+        from the last point in that chain are left dangling there, not
+        deleted, and every wire past the first sharing that point gets its
+        own new point at the same coordinates so removing this terminal
+        doesn't leave them all still joined to each other.
+        """
+        db_obj = self.db_obj
+        ptables = self.mainframe.project.ptables
+
+        attach_id = db_obj.attach_point3d_id_raw
+        back_id = db_obj.wire_point3d_id_raw
+
+        if attach_id is None or back_id is None:
+            return
+
+        self._delete_wire_stub_between(ptables, attach_id, back_id)
+        self._delete_layout_at(ptables, back_id)
+
+        final_point_id = back_id
+
+        cavity = db_obj.cavity
+        if cavity is not None:
+            cav_back_id = cavity.wire_point3d_id_raw
+            if cav_back_id is not None:
+                self._delete_wire_stub_between(ptables, back_id, cav_back_id)
+                self._delete_layout_at(ptables, cav_back_id)
+                final_point_id = cav_back_id
+
+        if final_point_id != back_id:
+            from ...handlers.transition_handler import _delete_point_if_orphaned
+            _delete_point_if_orphaned(ptables, back_id)
+
+        self._detach_extra_wires_at(ptables, final_point_id)
+
+    @staticmethod
+    def _delete_wire_stub_between(ptables, start_id, stop_id):
+        """Delete the wire (if any) spanning exactly start_id -> stop_id."""
+        for row in ptables.pjt_wires_table.select('id', start_point3d_id=start_id):
+            wire_db = ptables.pjt_wires_table[row[0]]
+            if wire_db.stop_position3d_id != stop_id:
+                continue
+
+            obj = wire_db.get_object()
+            if obj is not None:
+                obj.delete()
+            break
+
+    @staticmethod
+    def _delete_layout_at(ptables, point_id):
+        """Delete the WireLayout (if any) sitting at point_id."""
+        for row in ptables.pjt_wire_layouts_table.select('id', position3d_id=point_id):
+            layout_db = ptables.pjt_wire_layouts_table[row[0]]
+
+            obj = layout_db.get_object()
+            if obj is not None:
+                obj.delete()
+            break
+
+    @staticmethod
+    def _detach_extra_wires_at(ptables, point_id):
+        """Give every wire but the first one attached at point_id its own
+        new point at the same coordinates.
+
+        Only the first wire found keeps the shared point -- it becomes
+        uniquely its own once the terminal and its routing stub(s) are
+        gone. Every additional wire sharing the point would otherwise
+        stay joined to it (and to each other) through a point that no
+        longer represents a real connection.
+        """
+        x, y, z = ptables.pjt_points3d_table[point_id].point.as_float
+        seen_first = False
+
+        for column in ('start_point3d_id', 'stop_point3d_id'):
+            for row in ptables.pjt_wires_table.select('id', **{column: point_id}):
+                wire_db = ptables.pjt_wires_table[row[0]]
+
+                if not seen_first:
+                    seen_first = True
+                    continue
+
+                new_point = ptables.pjt_points3d_table.insert(x, y, z)
+                attr = column.replace('_point3d_id', '_position3d_id')
+                setattr(wire_db, attr, new_point.db_id)
+
 
 class TerminalMenu(QMenu):
     """Represent a terminal menu in :mod:`harness_designer.objects.objects3d.terminal`.
@@ -379,8 +476,7 @@ class TerminalMenu(QMenu):
 
     def on_delete(self):
         """Delete this terminal from the project."""
-        _menu_ops.delete_object(
-            self.selected, self.selected.mainframe.project.delete_terminal)
+        _menu_ops.delete_object(self.selected)
 
     def on_properties(self):
         """Show this terminal's properties in the object editor."""

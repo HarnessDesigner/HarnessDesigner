@@ -189,12 +189,9 @@ def _split_wire_at_point(
         marker.db_obj.wire_id = new_wire.db_obj.db_id
         marker.obj3d.rebind_wire(new_wire.db_obj)
 
-    mainframe = project.mainframe
-    db_id = original_wire.db_obj.db_id
-    if mainframe.get_selected() is original_wire:
+    if project.mainframe.get_selected() is original_wire:
         original_wire.set_selected(False)
-    mainframe.remove_object(original_wire)
-    project.delete_wire(db_id)
+    original_wire.delete()
 
     return wire1_obj, wire2_obj
 

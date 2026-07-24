@@ -379,6 +379,9 @@ class BasePeg:
         return self._vbo is not None
 
     def delete(self):
+        self.parent.delete()
+
+    def _delete(self):
         self._is_deleted = True
         self.pegboard.Refresh()
 

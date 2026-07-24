@@ -44,3 +44,8 @@ class Cover(_ObjectBase):
         self.obj3d = _cover_3d.Cover(self, db_obj)
         self.objpeg = _cover_peg.Cover(self, db_obj)
         self.mainframe.add_object(self)
+
+    def delete(self):
+        super().delete()
+        self.mainframe.project.delete_cover(self.db_obj.db_id)
+        self.db_obj.delete()

@@ -63,6 +63,9 @@ class Base2D:
         self._is_deleted = False
 
     def delete(self):
+        self.parent.delete()
+
+    def _delete(self):
         self._is_deleted = True
         self.editor2d.Refresh()
 

@@ -45,3 +45,8 @@ class TPALock(_ObjectBase):
         self.objpeg = _tpa_lock_peg.TPALock(self, db_obj)
 
         self.mainframe.add_object(self)
+
+    def delete(self):
+        super().delete()
+        self.mainframe.project.delete_tpa_lock(self.db_obj.db_id)
+        self.db_obj.delete()

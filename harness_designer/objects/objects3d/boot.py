@@ -134,8 +134,7 @@ class BootMenu(QMenu):
 
     def on_delete(self):
         """Delete this boot from the project."""
-        _menu_ops.delete_object(
-            self.selected, self.selected.mainframe.project.delete_boot)
+        _menu_ops.delete_object(self.selected)
 
     def on_properties(self):
         """Show this boot's properties in the object editor."""

@@ -253,17 +253,6 @@ class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
 
         return count
 
-    def delete(self):
-        """Override delete to restore wire visibility."""
-        # Restore visibility of all wires before deleting
-        for ref in self._wires[:]:
-            wire = ref()
-            if wire is not None:
-                wire.is_visible = True
-
-        self._wires.clear()
-        super().delete()
-
     def get_context_menu(self):
         """Return the context menu.
 
@@ -378,8 +367,7 @@ class BundleMenu(QMenu):
 
     def on_delete(self):
         """Delete this bundle from the project."""
-        _menu_ops.delete_object(
-            self.selected, self.selected.mainframe.project.delete_bundle)
+        _menu_ops.delete_object(self.selected)
 
     def on_properties(self):
         """Show this bundle's properties in the object editor."""

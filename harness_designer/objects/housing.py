@@ -73,4 +73,49 @@ class Housing(_ObjectBase):
 
         return res
 
+    def delete(self):
+        """Cascade-delete every part attached to this housing.
 
+        Nothing else walks this ownership graph -- cavities (and any
+        terminal seated in one), the seal, the CPA lock, both TPA locks,
+        the cover, and the boot are all rows that only exist by virtue of
+        this housing's db_id, but none of that is expressed as attributes
+        Python holds onto (see the dead ``self.seals``/``self.tpa_locks``/
+        ``self.cpa_locks`` lists above, never populated by any handler) --
+        it is only queryable through the housing_id lookups on db_obj. Skip
+        straight to ``super().delete()`` for a part with none of these.
+        """
+
+        # TODO: we should figure out how to hold references to the accessory
+        #       objects that are attached in this class itself. This would be a
+        #       cleaner approach to performing a proper taredown.
+
+        def _delete_child(db_row):
+            if db_row is None:
+                return
+
+            obj = db_row.get_object()
+            if obj is not None:
+                obj.delete()
+
+        for cavity in self.db_obj.cavities:
+            if cavity is None:
+                continue
+
+            _delete_child(cavity.terminal)
+            _delete_child(cavity.seal)
+            _delete_child(cavity)
+
+        _delete_child(self.db_obj.seal)
+        _delete_child(self.db_obj.cpa_lock)
+
+        for tpa_lock in self.db_obj.tpa_locks:
+            _delete_child(tpa_lock)
+
+        _delete_child(self.db_obj.cover)
+        _delete_child(self.db_obj.boot)
+
+        super().delete()
+
+        self.mainframe.project.delete_housing(self.db_obj.db_id)
+        self.db_obj.delete()

@@ -46,6 +46,11 @@ class Boot(_ObjectBase):
 
         self.mainframe.add_object(self)
 
+    def delete(self):
+        super().delete()
+        self.mainframe.project.delete_boot(self.db_obj.db_id)
+        self.db_obj.delete()
+
 
 
 

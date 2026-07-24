@@ -68,3 +68,8 @@ class Seal(_ObjectBase):
                 return
 
         super().set_selected(flag)
+
+    def delete(self):
+        super().delete()
+        self.mainframe.project.delete_seal(self.db_obj.db_id)
+        self.db_obj.delete()

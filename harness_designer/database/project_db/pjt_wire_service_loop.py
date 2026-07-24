@@ -239,10 +239,10 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
             stop_position_id = self.stop_position3d_id
 
             start_position_ids = self.table.db.pjt_terminals_table.select(
-                'id', wire_point3d_id=start_position_id)[0][0]
+                'id', wire_point3d_id=start_position_id)
 
             stop_position_ids = self.table.db.pjt_terminals_table.select(
-                'id', wire_point3d_id=stop_position_id)[0][0]
+                'id', wire_point3d_id=stop_position_id)
 
             if start_position_ids:
                 self._stored_terminal = self.table.db.pjt_terminals_table[start_position_ids[0][0]]
@@ -269,10 +269,10 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
             stop_position_id = self.stop_position3d_id
 
             start_position_ids = self.table.db.pjt_wires_table.select(
-                'id', wire_point3d_id=start_position_id)[0][0]
+                'id', start_point3d_id=start_position_id)
 
             stop_position_ids = self.table.db.pjt_wires_table.select(
-                'id', wire_point3d_id=stop_position_id)[0][0]
+                'id', stop_point3d_id=stop_position_id)
 
             if start_position_ids:
                 self._stored_wire = self.table.db.pjt_wires_table[start_position_ids[0][0]]

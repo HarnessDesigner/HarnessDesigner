@@ -70,6 +70,8 @@ class Base3D:
         self.editor3d = parent.mainframe.editor3d
         self.mainframe: "_ui.MainFrame" = parent.mainframe
 
+        self._is_deleted = False
+
         self.db_obj = db_obj
         self._position = position
         self._o_position = position.copy()
@@ -128,7 +130,6 @@ class Base3D:
     def _is_visible_callback(self, *_, **__):
         self._is_visible = self.db_obj.is_visible3d  # NOQA
         self.mainframe.editor3d.Refresh()
-
 
     @_debug.logfunc
     def _set_model(self, model: "_model3d.Model3D"):
@@ -629,9 +630,18 @@ class Base3D:
     def delete(self):
         """Execute the delete operation.
 
-        UNKNOWN details are inferred from the callable name and signature.
+        Row deletion and canvas de-registration are handled once, centrally,
+        by :meth:`ObjectBase.delete`. Subclasses override this as their hook
+        for view-local teardown (see :meth:`objects3d.housing.Housing.delete`).
         """
-        self.db_obj.delete()
+        self.parent.delete()
+
+    def _delete(self):
+        """
+        Any object specific taredown should occur in this function
+        """
+        self._is_deleted = True
+        self.editor3d.Refresh()
 
     @property
     def material(self):

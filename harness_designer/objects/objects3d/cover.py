@@ -161,8 +161,7 @@ class CoverMenu(QMenu):
 
     def on_delete(self):
         """Delete this cover from the project."""
-        _menu_ops.delete_object(
-            self.selected, self.selected.mainframe.project.delete_cover)
+        _menu_ops.delete_object(self.selected)
 
     def on_properties(self):
         """Show this cover's properties in the object editor."""

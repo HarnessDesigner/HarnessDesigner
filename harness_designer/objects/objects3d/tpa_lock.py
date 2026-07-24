@@ -128,8 +128,7 @@ class TPALockMenu(QMenu):
 
     def on_delete(self):
         """Delete this TPA lock from the project."""
-        _menu_ops.delete_object(
-            self.selected, self.selected.mainframe.project.delete_tpa_lock)
+        _menu_ops.delete_object(self.selected)
 
     def on_properties(self):
         """Show this TPA lock's properties in the object editor."""

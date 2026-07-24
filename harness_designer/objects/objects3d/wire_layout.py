@@ -135,10 +135,67 @@ class WireLayout(_base3d.Base3D):
 
         self._bundle_layout_point_id = None
 
-    def delete(self):
-        """Override delete to clean up bundle bindings."""
+    def _delete(self):
+        """Clean up bundle bindings and reconnect split wires before deleting."""
         self.unbind_from_bundle_layout_point()
-        super().delete()
+        self._reconnect_wires()
+        super()._delete()
+
+    def _reconnect_wires(self):
+        """Merge the two wire segments meeting at this layout back into one.
+
+        Mirrors handlers.wire_layout_handler._split_wire_at_point in
+        reverse. A layout with only one attached wire was placed at an
+        existing endpoint (handlers.wire_layout_handler.
+        _create_wire_layout_at_endpoint), not a split -- nothing to
+        reconnect there, just let the layout itself get deleted.
+        """
+        pjt_wires = self.db_obj.attached_wires
+        if len(pjt_wires) != 2:
+            return
+
+        objs = []
+        for pjt_wire in pjt_wires:
+            obj = pjt_wire.get_object()
+            if obj is None:
+                return
+            objs.append(obj)
+
+        wire_a, wire_b = objs
+        point_id = self.db_obj.position3d_id
+
+        if wire_a.db_obj.stop_position3d_id == point_id:
+            upstream, downstream = wire_a, wire_b
+        else:
+            upstream, downstream = wire_b, wire_a
+
+        from .. import wire as _wire_obj
+
+        project = self.mainframe.project
+        up_db = upstream.db_obj
+        down_db = downstream.db_obj
+
+        merged_db = project.ptables.pjt_wires_table.insert(
+            up_db.part_id, up_db.name, up_db.circuit_id,
+            up_db.start_position3d_id, down_db.stop_position3d_id,
+            None, None, up_db.is_visible3d, up_db.is_visible2d,
+            up_db.layer_view_position_id, up_db.layer_id, up_db.is_filler_wire,
+            stripe_clip_start=up_db.stripe_clip_start)
+
+        merged_obj = _wire_obj.Wire(self.mainframe, merged_db)
+        merged_obj.obj3d.sibling = downstream.obj3d.sibling
+
+        for marker in project.wire_markers:
+            if marker.db_obj.wire_id not in (up_db.db_id, down_db.db_id):
+                continue
+
+            marker.db_obj.wire_id = merged_db.db_id
+            marker.obj3d.rebind_wire(merged_db)
+
+        project.add_wire(merged_obj)
+
+        upstream.delete()
+        downstream.delete()
 
     def get_context_menu(self):
         """Return the context menu.
@@ -207,5 +264,4 @@ class WireLayoutMenu(QMenu):
 
     def on_delete(self):
         """Delete this wire layout from the project."""
-        _menu_ops.delete_object(
-            self.selected, self.selected.mainframe.project.delete_wire_layout)
+        _menu_ops.delete_object(self.selected)

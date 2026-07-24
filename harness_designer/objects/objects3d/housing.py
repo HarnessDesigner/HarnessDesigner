@@ -633,11 +633,11 @@ class Housing(_base3d.Base3D):
         self.render_surface_overlay(
             picker.selected_surf_idx, (r / 255.0, g / 255.0, b / 255.0, a / 255.0))
 
-    def delete(self):
+    def _delete(self):
         """Clean up the picker before delegating to Base3D."""
         self._picker.cleanup()
         self._picker = None
-        super().delete()
+        super()._delete()
 
     def get_context_menu(self):
         """Return the context menu.
@@ -839,8 +839,7 @@ class HousingMenu(QMenu):
 
     def on_delete(self):
         """Delete this housing from the project."""
-        _menu_ops.delete_object(
-            self.obj, self.mainframe.project.delete_housing)
+        _menu_ops.delete_object(self.obj)
 
     def on_properties(self):
         """Show this housing's properties in the object editor."""

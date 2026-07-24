@@ -45,3 +45,8 @@ class CPALock(_ObjectBase):
         self.objpeg = _cpa_lock_peg.CPALock(self, db_obj)
 
         self.mainframe.add_object(self)
+
+    def delete(self):
+        super().delete()
+        self.mainframe.project.delete_cpa_lock(self.db_obj.db_id)
+        self.db_obj.delete()

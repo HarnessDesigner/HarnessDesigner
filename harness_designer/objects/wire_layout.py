@@ -45,3 +45,9 @@ class WireLayout(_ObjectBase):
         self.objpeg = _wirepeg_layout.WireLayout(self, db_obj)
 
         self.mainframe.add_object(self)
+
+    def delete(self):
+        # TODO: If a layout has 2 wires attached the wire should be reconnected.
+        super().delete()
+        self.mainframe.project.delete_wire_layout(self.db_obj.db_id)
+        self.db_obj.delete()

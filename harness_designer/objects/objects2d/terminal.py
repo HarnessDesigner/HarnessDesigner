@@ -165,6 +165,44 @@ class Terminal(_base2d.Base2D):
             self._position.x = world_x
             self._position.y = world_y
 
+    def _delete(self):
+        self._detach_extra_wires_at_position2d()
+        super()._delete()
+
+    def _detach_extra_wires_at_position2d(self):
+        """Give every wire but the first one attached at this terminal's
+        own 2D point its own new point at the same coordinates.
+
+        Unlike 3D, a terminal has no separate crimp/layout-point chain
+        in the schematic view -- wires attach directly to the
+        terminal's own position2d, and seals aren't rendered in 2D at
+        all, so there's nothing else to clean up here. Only the first
+        wire found keeps the shared point (it becomes uniquely its own
+        once the terminal row is gone); every additional wire would
+        otherwise stay joined to it through a point that no longer
+        represents a real connection.
+        """
+        ptables = self.mainframe.project.ptables
+        point_id = self.db_obj.position2d_id
+
+        if point_id is None:
+            return
+
+        x, y, _ = ptables.pjt_points2d_table[point_id].point.as_float
+        seen_first = False
+
+        for column in ('start_point2d_id', 'stop_point2d_id'):
+            for row in ptables.pjt_wires_table.select('id', **{column: point_id}):
+                wire_db = ptables.pjt_wires_table[row[0]]
+
+                if not seen_first:
+                    seen_first = True
+                    continue
+
+                new_point = ptables.pjt_points2d_table.insert(x, y)
+                attr = column.replace('_point2d_id', '_position2d_id')
+                setattr(wire_db, attr, new_point.db_id)
+
 
 class TerminalMenu(QMenu):
     """Represent a terminal menu in :mod:`harness_designer.objects.objects2d.terminal`.

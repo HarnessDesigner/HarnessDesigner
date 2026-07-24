@@ -321,6 +321,64 @@ class Project:
             kwargs = {'type': f'add_{table_name}', 'data': ids}
             self.mainframe.process_manager.send(**kwargs)
 
+    def close(self):
+        # TODO: Write code to close an open project.
+        #       This includes removing all objects from all editors as well
+        #       as resetting the VBO buffers. I am sure there are some other
+        #       things I have missed and I will add them as I think of them.
+        pass
+
+    def delete(self):
+        """Delete every object in the project, then the project's own row.
+
+        Project has no obj2d/obj3d/objpeg of its own, so unlike a normal
+        ObjectBase there is no single view-teardown hook to lean on --
+        this walks every part-type registry directly instead, calling
+        each object's own ``delete()`` (the object is the entry point for
+        a delete, not project.delete_<type> -- those only pop the
+        registry now). Housings first: Housing.delete() cascades to its
+        cavities, each cavity's seated terminal and seal, its own seal,
+        its CPA lock, both TPA locks, its cover, and its boot -- each via
+        that child's own delete(), which pops itself out of the matching
+        registry -- so by the time the terminals sweep below runs, only
+        bare terminals (never seated in a cavity) are left in
+        ``self._terminals``.
+        """
+        for obj in list(self._housings.values()):
+            obj.delete()
+
+        for obj in list(self._terminals.values()):
+            obj.delete()
+
+        for obj in list(self._transitions.values()):
+            obj.delete()
+
+        for obj in list(self._splices.values()):
+            obj.delete()
+
+        for obj in list(self._bundles.values()):
+            obj.delete()
+
+        for obj in list(self._bundle_layouts.values()):
+            obj.delete()
+
+        for obj in list(self._wire_layouts.values()):
+            obj.delete()
+
+        for obj in list(self._wire_service_loops.values()):
+            obj.delete()
+
+        for obj in list(self._wire_markers.values()):
+            obj.delete()
+
+        for obj in list(self._wires.values()):
+            obj.delete()
+
+        for obj in list(self._notes.values()):
+            obj.delete()
+
+        self.db_obj.delete()
+
     @property
     def wire_stripe_max_length(self) -> float:
         return self.db_obj.wire_stripe_max_length
@@ -437,9 +495,8 @@ class Project:
         :param db_id: Identifier for the database.
         :type db_id: UNKNOWN
         """
-        note = self._notes.pop(db_id)
-        note.delete()
-        self.obj_count -= 1
+        if self._notes.pop(db_id, None) is not None:
+            self.obj_count -= 1
 
     def add_note(self, obj: _note.Note) -> None:
         """Add a note.
@@ -484,9 +541,8 @@ class Project:
         :param db_id: Identifier for the database.
         :type db_id: UNKNOWN
         """
-        seal = self._seals.pop(db_id)
-        seal.delete()
-        self.obj_count -= 1
+        if self._seals.pop(db_id, None) is not None:
+            self.obj_count -= 1
 
     def add_seal(self, obj: _seal.Seal) -> None:
         """Add a seal.
@@ -531,9 +587,8 @@ class Project:
         :param db_id: Identifier for the database.
         :type db_id: UNKNOWN
         """
-        terminal = self._terminals.pop(db_id)
-        terminal.delete()
-        self.obj_count -= 1
+        if self._terminals.pop(db_id, None) is not None:
+            self.obj_count -= 1
 
     def add_terminal(self, obj: _terminal.Terminal) -> None:
         """Add a terminal.
@@ -578,9 +633,8 @@ class Project:
         :param db_id: Identifier for the database.
         :type db_id: UNKNOWN
         """
-        seal = self._cavities.pop(db_id)
-        seal.delete()
-        self.obj_count -= 1
+        if self._cavities.pop(db_id, None) is not None:
+            self.obj_count -= 1
 
     def add_cavity(self, obj: _cavity.Cavity) -> None:
         """Add a cavity.
@@ -625,9 +679,8 @@ class Project:
         :param db_id: Identifier for the database.
         :type db_id: UNKNOWN
         """
-        seal = self._tpa_locks.pop(db_id)
-        seal.delete()
-        self.obj_count -= 1
+        if self._tpa_locks.pop(db_id, None) is not None:
+            self.obj_count -= 1
 
     def add_tpa_lock(self, obj: _tpa_lock.TPALock) -> None:
         """Add a TPA lock.
@@ -673,9 +726,8 @@ class Project:
         :param db_id: Identifier for the database.
         :type db_id: UNKNOWN
         """
-        seal = self._wire_markers.pop(db_id)
-        seal.delete()
-        self.obj_count -= 1
+        if self._wire_markers.pop(db_id, None) is not None:
+            self.obj_count -= 1
 
     def add_wire_marker(self, obj: _wire_marker.WireMarker) -> None:
         """Add a wire marker.
@@ -720,9 +772,8 @@ class Project:
         :param db_id: Identifier for the database.
         :type db_id: UNKNOWN
         """
-        seal = self._wire_service_loops.pop(db_id)
-        seal.delete()
-        self.obj_count -= 1
+        if self._wire_service_loops.pop(db_id, None) is not None:
+            self.obj_count -= 1
 
     def add_wire_service_loop(self, obj: _wire_service_loop.WireServiceLoop) -> None:
         """Add a wire service loop.
@@ -778,9 +829,8 @@ class Project:
         :param db_id: Identifier for the database.
         :type db_id: UNKNOWN
         """
-        seal = self._cpa_locks.pop(db_id)
-        seal.delete()
-        self.obj_count -= 1
+        if self._cpa_locks.pop(db_id, None) is not None:
+            self.obj_count -= 1
 
     def add_cpa_lock(self, obj: _cpa_lock.CPALock) -> None:
         """Add a CPA lock.
@@ -825,9 +875,8 @@ class Project:
         :param db_id: Identifier for the database.
         :type db_id: UNKNOWN
         """
-        seal = self._covers.pop(db_id)
-        seal.delete()
-        self.obj_count -= 1
+        if self._covers.pop(db_id, None) is not None:
+            self.obj_count -= 1
 
     def add_cover(self, obj: _cover.Cover) -> None:
         """Add a cover.
@@ -872,9 +921,8 @@ class Project:
         :param db_id: Identifier for the database.
         :type db_id: UNKNOWN
         """
-        seal = self._boots.pop(db_id)
-        seal.delete()
-        self.obj_count -= 1
+        if self._boots.pop(db_id, None) is not None:
+            self.obj_count -= 1
 
     def add_boot(self, obj: _boot.Boot) -> None:
         """Add a boot.
@@ -919,9 +967,8 @@ class Project:
         :param db_id: Identifier for the database.
         :type db_id: UNKNOWN
         """
-        seal = self._transitions.pop(db_id)
-        seal.delete()
-        self.obj_count -= 1
+        if self._transitions.pop(db_id, None) is not None:
+            self.obj_count -= 1
 
     def add_transition(self, obj: _transition.Transition) -> None:
         """Add a transition.
@@ -966,9 +1013,8 @@ class Project:
         :param db_id: Identifier for the database.
         :type db_id: UNKNOWN
         """
-        housing = self._housings.pop(db_id)
-        housing.delete()
-        self.obj_count -= 1
+        if self._housings.pop(db_id, None) is not None:
+            self.obj_count -= 1
 
     def add_housing(self, obj: _housing.Housing) -> None:
         """Add a housing.
@@ -1013,9 +1059,8 @@ class Project:
         :param db_id: Identifier for the database.
         :type db_id: UNKNOWN
         """
-        seal = self._splices.pop(db_id)
-        seal.delete()
-        self.obj_count -= 1
+        if self._splices.pop(db_id, None) is not None:
+            self.obj_count -= 1
 
     def add_splice(self, obj: _splice.Splice) -> None:
         """Add a splice.
@@ -1060,9 +1105,8 @@ class Project:
         :param db_id: Identifier for the database.
         :type db_id: UNKNOWN
         """
-        seal = self._wires.pop(db_id)
-        seal.delete()
-        self.obj_count -= 1
+        if self._wires.pop(db_id, None) is not None:
+            self.obj_count -= 1
 
     def add_wire(self, obj: _wire.Wire) -> None:
         """Add a wire.
@@ -1107,9 +1151,8 @@ class Project:
         :param db_id: Identifier for the database.
         :type db_id: UNKNOWN
         """
-        seal = self._wire_layouts.pop(db_id)
-        seal.delete()
-        self.obj_count -= 1
+        if self._wire_layouts.pop(db_id, None) is not None:
+            self.obj_count -= 1
 
     def add_wire_layout(self, obj: _wire_layout.WireLayout) -> None:
         """Add a wire layout.
@@ -1141,9 +1184,8 @@ class Project:
         :param db_id: Identifier for the database.
         :type db_id: UNKNOWN
         """
-        seal = self._bundles.pop(db_id)
-        seal.delete()
-        self.obj_count -= 1
+        if self._bundles.pop(db_id, None) is not None:
+            self.obj_count -= 1
 
     def add_bundle(self, obj: _bundle.Bundle) -> None:
         """Add a bundle.
@@ -1188,9 +1230,8 @@ class Project:
         :param db_id: Identifier for the database.
         :type db_id: UNKNOWN
         """
-        seal = self._bundle_layouts.pop(db_id)
-        seal.delete()
-        self.obj_count -= 1
+        if self._bundle_layouts.pop(db_id, None) is not None:
+            self.obj_count -= 1
 
     def add_bundle_layout(self, obj: _bundle_layout.BundleLayout) -> None:
         """Add a bundle layout.

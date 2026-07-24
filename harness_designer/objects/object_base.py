@@ -81,13 +81,17 @@ class ObjectBase:
             return
 
         self._deleted = True
+
         if self.obj2d is not None:
-            self.obj2d.delete()
+            self.obj2d._delete()  # NOQA
 
         if self.obj3d is not None:
-            self.obj3d.delete()
+            self.obj3d._delete()  # NOQA
 
-        self.db_obj.delete()
+        if self.objpeg is not None:
+            self.objpeg._delete()  # NOQA
+
+        self.mainframe.remove_object(self)
 
     def close(self):
         """Execute the close operation.
@@ -96,6 +100,10 @@ class ObjectBase:
 
         :raises NotImplementedError: Raised when the operation cannot be completed.
         """
+        # TODO: This function will be used to remove the object from editors
+        #       but it will not delete itself from the database. I need to do
+        #       some more work on an object type basis to make sure I am not
+        #       accidentally deleting something I shuldn't be.
         raise NotImplementedError
 
     def set_selected(self, flag):

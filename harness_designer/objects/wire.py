@@ -45,3 +45,11 @@ class Wire(_ObjectBase):
         self.objpeg = _wire_peg.Wire(self, db_obj)
 
         self.mainframe.add_object(self)
+
+    def delete(self):
+        # TODO: If a wire segment is connected to other wire segments
+        #       then the layouts at the ends that are attached shuld also be
+        #       deleted.
+        super().delete()
+        self.mainframe.project.delete_wire(self.db_obj.db_id)
+        self.db_obj.delete()

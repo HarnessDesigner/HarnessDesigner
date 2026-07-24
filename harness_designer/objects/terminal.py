@@ -72,3 +72,18 @@ class Terminal(_ObjectBase):
         :rtype: :class:`_point.Point`
         """
         return self.db_obj.wire_position3d
+
+    def delete(self):
+        # The attached-wire dangling/repointing and the internal wire-routing
+        # stub/layout cleanup (see handlers.wire_handler._route_from_terminal)
+        # live on obj3d's own _delete() -- that's 3D-view geometry/position
+        # work, not wrapper-level cascade.
+        seal = self.db_obj.seal
+        if seal is not None:
+            seal_obj = seal.get_object()
+            if seal_obj is not None:
+                seal_obj.delete()
+
+        super().delete()
+        self.mainframe.project.delete_terminal(self.db_obj.db_id)
+        self.db_obj.delete()

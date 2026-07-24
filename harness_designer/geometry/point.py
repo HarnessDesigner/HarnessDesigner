@@ -939,6 +939,9 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         :rtype: bool
         """
 
+        if not isinstance(other, Point):
+            return False
+
         return all(np.isclose(self._data, other.as_numpy))
 
     def __ne__(self, other: "Point") -> bool:

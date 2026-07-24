@@ -45,3 +45,11 @@ class Splice(_ObjectBase):
         self.objpeg = _splice_peg.Splice(self, db_obj)
 
         self.mainframe.add_object(self)
+
+    def delete(self):
+        # TODO: Reconnect wire and leave any branch wire dangling. Th brnch wires
+        #       will need to have new points made for each one even if they are at
+        #       the same location.
+        super().delete()
+        self.mainframe.project.delete_splice(self.db_obj.db_id)
+        self.db_obj.delete()
