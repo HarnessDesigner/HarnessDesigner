@@ -370,7 +370,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
 
         # Point the ctrl at the working position so slider changes go to the
         # 3D model directly; the DB write happens only on accept().
-        working_pos = self._part_model.obj3d._position
+        working_pos = self._part_model.obj3d.position
         self.position_ctrl.set_obj(working_pos)
 
         # Compute label placement from model AABB
@@ -472,7 +472,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
         if local_obb is None:
             return
 
-        q = self._part_model.obj3d.angle._q
+        q = self._part_model.obj3d.angle._q  # NOQA
         fwd = _obb_face_for_direction(
             local_obb, q, np.array([0.0, 0.0, 1.0], dtype=np.float32))
         up = _obb_face_for_direction(
@@ -505,7 +505,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
 
             model_angle.z = angle.z
 
-            vbo = self._part_model.obj3d._vbo
+            vbo = self._part_model.obj3d.vbo
 
             if vbo is not None and hasattr(vbo, 'id'):
                 uuid = vbo.id

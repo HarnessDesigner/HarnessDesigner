@@ -32,4 +32,4 @@ class WireServiceLoop(_base2d.Base2D):
         :type db_obj: :class:`_pjt_wire_service_loop.PJTWireServiceLoop`
         """
 
-        _base2d.Base2D.__init__(self, parent, db_obj, None, None)
+        _base2d.Base2D.__init__(self, parent, db_obj, None, None, None, None, None)

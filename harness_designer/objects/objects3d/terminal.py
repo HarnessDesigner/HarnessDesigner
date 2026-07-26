@@ -2,6 +2,7 @@
 
 from typing import TYPE_CHECKING
 
+import os
 from PySide6.QtWidgets import QMenu
 
 from ...ui.widgets import context_menus as _context_menus
@@ -22,6 +23,9 @@ if TYPE_CHECKING:
 
 
 Config = _config.Config.editor3d
+
+_BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+_GENERIC_MODEL_PATH = os.path.join(_BASE_PATH, 'models')
 
 
 class Terminal(_base3d.Base3D):
@@ -75,6 +79,56 @@ class Terminal(_base3d.Base3D):
         else:
             width, height, length = self._part.width, self._part.height, self._part.length
 
+        if model is None:
+            family = self._part.family.name.lower()
+            series = self._part.series.name.lower()
+
+            if family == 'deutsch' or series == 'deutsch':
+                pn = self._part.part_number
+
+                for pre in (
+                    '2362989-1', '5960-203-04141', '0460-256',
+                    '0460-002', '0460-010', '0460-202', '0460-204'
+                ):
+                    if pn.startswith(pre):
+                        filepath = os.path.join(_GENERIC_MODEL_PATH, 'deutsch terminal male solid.stl')
+                        model = parent.mainframe.global_db.models3d_table.insert(filepath)
+
+                        if model is not None:
+                            self._part.model3d_id = model.db_id
+
+                        break
+                else:
+                    for pre in (
+                        '0462-004', '0462-005', '0462-006',
+                        '0462-201', '0462-203'
+                    ):
+                        if pn.startswith(pre):
+                            filepath = os.path.join(_GENERIC_MODEL_PATH, 'deutsch terminal female solid.stl')
+                            model = parent.mainframe.global_db.models3d_table.insert(filepath)
+
+                            if model is not None:
+                                self._part.model3d_id = model.db_id
+            else:
+                gender = self._part.gender
+                blade_size = self._part.blade_size
+
+                if gender is not None and blade_size:
+                    gender = gender.name
+                    filename = f'generic terminal {gender.lower()} {blade_size}'
+
+                    if is_round:
+                        filename += ' round'
+                        
+                    filename += '.stp'
+
+                    filepath = os.path.join(_GENERIC_MODEL_PATH, filename)
+                    if os.path.exists(filepath):
+                        model = parent.mainframe.global_db.models3d_table.insert(filepath)
+
+                        if model is not None:
+                            self._part.model3d_id = model.db_id
+
         scale = _point.Point(width, height, length)
         angle = db_obj.angle3d
 
@@ -115,6 +169,27 @@ class Terminal(_base3d.Base3D):
 
     def _set_model(self, model):
         super()._set_model(model)
+
+        family = self._part.family.name.lower()
+        series = self._part.series.name.lower()
+
+        if family == 'deutsch' or series == 'deutsch':
+            pn = self._part.part_number
+
+            for pre in (
+                '2362989-1', '5960-203-04141', '0460-256', '0460-002',
+                '0460-010', '0460-202', '0460-204', '0462-004', '0462-005',
+                '0462-006', '0462-201', '0462-203'
+            ):
+                if pn.startswith(pre):
+                    width, height, length = self._part.size
+
+                    if width and height and length:
+                        with self._scale:
+                            self._scale.x = width
+                            self._scale.y = height
+                            self._scale.z = length
+                    break
 
         if self._model_is_first_download:
             self._model_is_first_download = False

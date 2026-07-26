@@ -2,13 +2,21 @@
 
 from typing import TYPE_CHECKING
 
+import uuid as _uuid_module
+
+import numpy as np
+import build123d
 from PySide6.QtWidgets import QMenu
 from OpenGL import GL
-import math
 
 from . import base2d as _base2d
 from ...ui.widgets import context_menus as _context_menus
-from ...geometry import angle as _angle
+from ... import config as _config
+from ... import color as _color
+from ...gl import materials as _materials
+from ...geometry import point as _point
+from ...shapes import text as _text
+from ... import utils as _utils
 
 
 if TYPE_CHECKING:
@@ -16,12 +24,42 @@ if TYPE_CHECKING:
     from .. import terminal as _terminal
 
 
+Config = _config.Config.editor2d
+
+_ALIGN_BOTTOM_LEFT = [build123d.TextAlign.LEFT, build123d.TextAlign.BOTTOM]
+_ALIGN_BOTTOM_RIGHT = [build123d.TextAlign.RIGHT, build123d.TextAlign.BOTTOM]
+
+
+def _bracket_vbo():
+    """Return (building it first if not already cached) the shared "("
+    bracket VBO every terminal shares -- always the same single character
+    at the same font size, so one pooled VBO (a deterministic key, not a
+    per-instance UUID, so every ``Terminal`` resolves to the same cached
+    instance) covers every terminal's row instead of rebuilding an
+    identical mesh per instance. See ``gl.vbo.PooledVBOHandler``/
+    ``VBOSingleton``'s weakref-cache semantics -- stays alive as long as
+    at least one ``Terminal`` instance holds a reference, freed
+    automatically once the last one is deleted.
+    """
+    font_size = Config.label.bracket_font_size
+    return _text.create_vbo(f'terminal-bracket-{font_size}', '(', font_size,
+                            text_align=_ALIGN_BOTTOM_RIGHT)
+
+
 class Terminal(_base2d.Base2D):
     """
     2D representation of a terminal for schematic view
 
-    Renders as a straight line with circle for wire attachment using OpenGL.
-    Supports rotation using the Angle class.
+    Renders this terminal's own name (LEFT/BOTTOM-aligned text sitting
+    just inside its owning housing's rectangle, near the pin edge) as its
+    primary VBO, plus the "(" bracket as an extra (see
+    :meth:`render_extras`) at a fixed local offset just outside the pin
+    edge -- on the VBO/shader pipeline (see ``objects2d/base2d.py``'s
+    ``Base2D``), matching how ``Base3D`` subclasses render.
+    ``position2d``/``angle2d`` are computed and persisted by the owning
+    ``objects2d/housing.py``'s ``Housing`` whenever its layout changes
+    (see ``Housing._layout_children``) -- this class only reacts to its
+    own name changing, to rebuild its text mesh in place.
     """
     _parent: "_terminal.Terminal" = None
     db_obj: "_pjt_terminal.PJTTerminal"
@@ -30,142 +68,106 @@ class Terminal(_base2d.Base2D):
                  db_obj: "_pjt_terminal.PJTTerminal"):
         """Initialise the :class:`Terminal` instance.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
         :param parent: Parent object.
         :type parent: :class:`_terminal.Terminal`
         :param db_obj: Database-backed object.
         :type db_obj: :class:`_pjt_terminal.PJTTerminal`
         """
-        position = db_obj.position2d
-        angle = db_obj.angle2d
-
-        _base2d.Base2D.__init__(self, parent, db_obj, position, angle)
-
-        # Pull data from database
         self._part = db_obj.part
 
-        # Terminal visual properties
-        self._radius = 3.0  # mm - circle radius
-        self._line_length = 10.0  # mm - length of the line
+        # _mesh_args()/_build() (below) read self.db_obj -- set it before
+        # that first call, same as objects3d/note.py's Note.__init__ does
+        # (Base2D.__init__, which normally sets this, doesn't run until
+        # after _build() since the VBO it builds is one of its own args).
+        self.db_obj = db_obj
 
-        # Bind to position and angle changes for automatic refresh
-        self._position.bind(self._on_position_changed)
-        self._angle.bind(self._on_angle_changed)
+        # This terminal's own id into shapes.text's VBO registry --
+        # generated and owned here, exactly like objects3d/note.py's
+        # Note._text_uuid.
+        self._text_uuid = str(_uuid_module.uuid4())
 
-    def _on_position_changed(self, *args):
-        """Called when terminal position changes"""
-        if self.editor2d and hasattr(self.editor2d, 'editor') and hasattr(self.editor2d.editor, 'canvas'):
-            self.editor2d.editor.canvas.update()
+        position = db_obj.position2d
+        angle = db_obj.angle2d
+        scale = _point.Point(1.0, 1.0, 1.0)
+        material = _materials.Generic(_color.Color(*Config.colors.label))
 
-    def _on_angle_changed(self, *args):
-        """Called when terminal angle changes"""
-        if self.editor2d and hasattr(self.editor2d, 'editor') and hasattr(self.editor2d.editor, 'canvas'):
-            self.editor2d.editor.canvas.update()
+        parent.mainframe.editor2d.editor.context.acquire()
+        vbo, _width, _height = self._build()
+        self._bracket_vbo, _bracket_width, _bracket_height = _bracket_vbo()
+        super().__init__(parent, db_obj, vbo, angle, position, scale, material)
+        parent.mainframe.editor2d.editor.context.release()
 
-    def render_gl(self):
-        """Render terminal using OpenGL with rotation - straight line with circle for wire attachment"""
-        if self._position is None:
-            return
+        self._name_cb = self.db_obj.bind(self._rebuild, 'name')
 
-        x = self._position.x
-        y = self._position.y
-        rotation_rad = self._angle.z
+    def _mesh_args(self) -> dict:
+        return dict(text=self.db_obj.name, font_size=Config.label.terminal_name_font_size,
+                    text_align=_ALIGN_BOTTOM_LEFT)
 
-        # Save current transformation matrix
-        GL.glPushMatrix()
+    def _build(self):
+        """Build this terminal's name VBO (construction time only -- see
+        :meth:`_rebuild` for in-place content updates).
 
-        # Apply transformations
-        GL.glTranslatef(x, y, 0.0)
-        GL.glRotatef(math.degrees(rotation_rad), 0.0, 0.0, 1.0)
-
-        # Draw terminal line (horizontal in local space)
-        GL.glColor4f(0.6, 0.4, 0.1, 1.0)  # Bronze/gold color
-        GL.glLineWidth(2.5)
-        GL.glBegin(GL.GL_LINES)
-        GL.glVertex2f(-self._line_length/2, 0.0)
-        GL.glVertex2f(self._line_length/2, 0.0)
-        GL.glEnd()
-
-        # Draw connection point circle (filled) at center
-        GL.glColor4f(0.8, 0.6, 0.2, 1.0)  # Lighter gold/bronze
-        self._draw_circle(0.0, 0.0, self._radius, filled=True)
-
-        # Draw circle outline
-        GL.glColor4f(0.6, 0.4, 0.1, 1.0)  # Darker outline
-        GL.glLineWidth(1.5)
-        self._draw_circle(0.0, 0.0, self._radius, filled=False)
-
-        # Restore transformation matrix
-        GL.glPopMatrix()
-
-    def render_selection(self):
-        """Render selection highlight with rotation"""
-        if self._position is None:
-            return
-
-        x = self._position.x
-        y = self._position.y
-
-        # Draw selection ring (rotation does not affect circular selection)
-        GL.glPushMatrix()
-        GL.glTranslatef(x, y, 0.0)
-
-        GL.glColor4f(1.0, 1.0, 0.0, 0.8)  # Yellow
-        GL.glLineWidth(2.5)
-        self._draw_circle(0.0, 0.0, self._radius + 2.0, filled=False)
-
-        GL.glPopMatrix()
-
-    def _draw_circle(self, x, y, radius, filled=True, segments=16):  # NOQA
-        """Draw a circle using OpenGL"""
-        if filled:
-            GL.glBegin(GL.GL_TRIANGLE_FAN)
-            GL.glVertex2f(x, y)  # Center
-        else:
-            GL.glBegin(GL.GL_LINE_LOOP)
-
-        for i in range(segments):
-            angle = 2.0 * math.pi * i / segments
-            cx = x + radius * math.cos(angle)
-            cy = y + radius * math.sin(angle)
-            GL.glVertex2f(cx, cy)
-
-        GL.glEnd()
-
-    def hit_test(self, world_x: float, world_y: float) -> bool:
+        :returns: ``(vbo, width, height)``.
         """
-        Test if point is inside terminal
+        return _text.create_vbo(self._text_uuid, **self._mesh_args())
 
-        For circular terminals, rotation does not affect hit testing
+    def _rebuild(self, _entry=None):
+        """Rebuild this terminal's name mesh in place from its current
+        name and re-derive its OBB/AABB (``self._vbo.update`` recomputes
+        the VBO's own ``local_obb``/``local_aabb``, but that doesn't by
+        itself propagate to this object's world-space ``obb``/``aabb`` --
+        see ``BaseVar._compute_obb``/``_compute_aabb``). Bound to fire
+        whenever this terminal's own name changes.
+        """
+        self.editor2d.editor.context.acquire()
+        try:
+            vertices, faces, _width, _height = _text.create(**self._mesh_args())
+            packed, count = _utils.compute_normals(vertices, faces)
+            self._vbo.update(packed, count)
+            self._compute_obb()
+            self._compute_aabb()
+        finally:
+            self.editor2d.editor.context.release()
+
+        self.editor2d.Refresh()
+
+    def render_extras(self, program, pos_loc, rot_loc, scale_loc, normal_loc):
+        """Render the "(" bracket under the already-bound schematic2d
+        *program*, at a fixed local offset just outside the pin edge
+        from this terminal's own name position -- called by
+        ``gl.canvas2d.canvas.Canvas._render_vbo_objects`` right after
+        this terminal's own name.
         """
         if self._position is None:
-            return False
-
-        distance = math.sqrt((world_x - self._position.x)**2 + (world_y - self._position.y)**2)
-        return distance <= self._radius
-
-    def get_bounds(self):
-        """Get bounding box"""
-        if self._position is None:
-            return None
-
-        x = self._position.x
-        y = self._position.y
-
-        return (x - self._radius, y - self._radius,
-                x + self._radius, y + self._radius)
-
-    def move_to(self, world_x: float, world_y: float):
-        """Move terminal to new position (use context manager)"""
-        if self._position is None:
             return
 
-        with self._position:
-            self._position.x = world_x
-            self._position.y = world_y
+        GL.glUniform4f(rot_loc, *[float(str(v)) for v in self._angle.as_quat_numpy.tolist()])
+        GL.glUniform1i(normal_loc, 0)
+        GL.glUniform3f(scale_loc, 1.0, 1.0, 1.0)
+
+        label_material = _materials.Generic(_color.Color(*Config.colors.label))
+        label_material.set(program)
+
+        # Mirrors the housing-local offset between row_local_x/
+        # outside_local_x objects2d/housing.py's Housing._layout_children
+        # placed this terminal's own name at -- the bracket sits that
+        # same distance further out, past the pin edge.
+        bracket_local_x = -(Config.label.outside_offset + Config.label.padding)
+        wx, wy, wz = self._world_offset(bracket_local_x, 0.0)
+        GL.glUniform3f(pos_loc, self._position.x + wx, wy, self._position.z + wz)
+        self._bracket_vbo.render()
+
+    def _world_offset(self, local_x: float, local_z: float) -> "tuple[float, float, float]":
+        """Rotate a ``(local_x, 0, local_z)`` offset by this terminal's
+        current ``angle2d.y`` -- see ``objects2d/housing.py``'s own
+        ``_world_offset`` (same math, same reason).
+        """
+        points = np.array([[local_x, 0.0, local_z]], dtype=np.float32)
+        x, y, z = _base2d._rotate_about_y(points, self._angle.y)[0]  # NOQA
+        return float(x), float(y), float(z)
 
     def _delete(self):
+        self._name_cb.unbind()
         self._detach_extra_wires_at_position2d()
         super()._delete()
 

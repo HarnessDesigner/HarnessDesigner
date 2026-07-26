@@ -2,27 +2,42 @@
 
 from typing import TYPE_CHECKING
 
-from OpenGL import GL
-import math
+import uuid as _uuid_module
+
+import build123d
 
 from . import base2d as _base2d
-from ...ui.widgets import context_menus as _context_menus
-from ...geometry import angle as _angle
+from ...geometry import point as _point
+from ... import config as _config
+from ... import color as _color
+from ...gl import materials as _materials
+from ...shapes import text as _text
+from ... import utils as _utils
 
 
 if TYPE_CHECKING:
     from ...database.project_db import pjt_cavity as _pjt_cavity
     from .. import cavity as _cavity
-    from ...geometry import point as _point
+
+
+Config = _config.Config.editor2d
+
+_ALIGN_BOTTOM_RIGHT = [build123d.TextAlign.RIGHT, build123d.TextAlign.BOTTOM]
 
 
 class Cavity(_base2d.Base2D):
     """
     2D representation of a cavity for schematic view
 
-    Renders as a stippled (dashed) rectangular box within a housing using OpenGL.
-    Cavities hold terminal pins within a housing.
-    Supports rotation using the Angle class.
+    Renders only this cavity's own name -- RIGHT/BOTTOM-aligned text
+    sitting just outside its owning housing's rectangle, a fixed gap
+    above its terminal's own bracket -- on the VBO/shader
+    pipeline (see ``objects2d/base2d.py``'s ``Base2D``), matching how
+    ``Base3D`` subclasses render. ``position2d``/``angle2d`` are computed
+    and persisted by the owning ``objects2d/housing.py``'s ``Housing``
+    whenever its layout changes (see ``Housing._layout_children``) --
+    this class only reacts to its own name changing, to rebuild its text
+    mesh in place.
     """
     _parent: "_cavity.Cavity" = None
     db_obj: "_pjt_cavity.PJTCavity"
@@ -31,167 +46,68 @@ class Cavity(_base2d.Base2D):
                  db_obj: "_pjt_cavity.PJTCavity"):
         """Initialise the :class:`Cavity` instance.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
         :param parent: Parent object.
         :type parent: :class:`_cavity.Cavity`
         :param db_obj: Database-backed object.
         :type db_obj: :class:`_pjt_cavity.PJTCavity`
         """
 
-        position = db_obj.position2d
-        angle = self._angle = db_obj.angle2d
+        # _mesh_args()/_build() (below) read self.db_obj -- set it before
+        # that first call, same as objects3d/note.py's Note.__init__ does
+        # (Base2D.__init__, which normally sets this, doesn't run until
+        # after _build() since the VBO it builds is one of its own args).
+        self.db_obj = db_obj
 
-        _base2d.Base2D.__init__(self, parent, db_obj, position, angle)
+        # This cavity's own id into shapes.text's VBO registry -- generated
+        # and owned here, exactly like objects3d/note.py's Note._text_uuid.
+        self._text_uuid = str(_uuid_module.uuid4())
+
+        position = db_obj.position2d
+        angle = db_obj.angle2d
+        scale = _point.Point(1.0, 1.0, 1.0)
+        material = _materials.Generic(_color.Color(*Config.colors.label))
+
+        parent.mainframe.editor2d.editor.context.acquire()
+        vbo, _width, _height = self._build()
+        super().__init__(parent, db_obj, vbo, angle, position, scale, material)
+        parent.mainframe.editor2d.editor.context.release()
+
         self._housing = None  # Reference to parent housing
 
-    def _on_position_changed(self, *args):
-        """Called when cavity position changes"""
-        self.editor2d.editor.canvas.Refresh()
+        self._name_cb = self.db_obj.bind(self._rebuild, 'name')
 
-    def _on_angle_changed(self, *args):
-        """Called when cavity angle changes"""
-        self.editor2d.editor.canvas.Refresh()
+    def _mesh_args(self) -> dict:
+        return dict(text=self.db_obj.name, font_size=Config.label.cavity_name_font_size,
+                    text_align=_ALIGN_BOTTOM_RIGHT)
 
-    def render_gl(self):
-        """Render cavity using OpenGL with rotation - stippled rectangular box"""
-        if self._position is None:
-            return
+    def _build(self):
+        """Build this cavity's name VBO (construction time only -- see
+        :meth:`_rebuild` for in-place content updates).
 
-        x = self._position.x
-        y = self._position.y
-        rotation_rad = self._angle.z
-
-        # Save current transformation matrix
-        GL.glPushMatrix()
-
-        # Apply transformations
-        GL.glTranslatef(x, y, 0.0)
-        GL.glRotatef(math.degrees(rotation_rad), 0.0, 0.0, 1.0)
-
-        length = self.db_obj.part.length
-        width = self.db_obj.part.width
-
-        half_w = width / 2
-        half_h = length / 2
-
-        # Enable line stippling for dashed effect
-        GL.glEnable(GL.GL_LINE_STIPPLE)
-        GL.glLineStipple(2, 0xAAAA)  # Dashed pattern
-
-        # Draw cavity outline as stippled rectangle (centered at origin)
-        GL.glColor4f(0.5, 0.5, 0.5, 0.8)  # Gray
-        GL.glLineWidth(1.5)
-        GL.glBegin(GL.GL_LINE_LOOP)
-        GL.glVertex2f(-half_w, -half_h)
-        GL.glVertex2f(half_w, -half_h)
-        GL.glVertex2f(half_w, half_h)
-        GL.glVertex2f(-half_w, half_h)
-        GL.glEnd()
-
-        # Disable line stippling
-        GL.glDisable(GL.GL_LINE_STIPPLE)
-
-        # Draw very light fill to show the cavity area
-        GL.glColor4f(0.4, 0.4, 0.4, 0.15)  # Very transparent gray
-        GL.glBegin(GL.GL_QUADS)
-        GL.glVertex2f(-half_w, -half_h)
-        GL.glVertex2f(half_w, -half_h)
-        GL.glVertex2f(half_w, half_h)
-        GL.glVertex2f(-half_w, half_h)
-        GL.glEnd()
-
-        # Restore transformation matrix
-        GL.glPopMatrix()
-
-    def render_selection(self):
-        """Render the selection.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        :returns: ``(vbo, width, height)``.
         """
-        x, y = self._position.as_float[:-1]
+        return _text.create_vbo(self._text_uuid, **self._mesh_args())
 
-        rotation = self._angle.z
-
-        # Save current transformation matrix
-        GL.glPushMatrix()
-
-        # Apply transformations
-        GL.glTranslatef(x, y, 0.0)
-        GL.glRotatef(rotation, 0.0, 0.0, 0.0)
-
-        length = self.db_obj.part.length
-        width = self.db_obj.part.width
-
-        half_w = width / 2 + 1.5
-        half_h = length / 2 + 1.5
-
-        # Draw selection outline (solid, not stippled)
-        GL.glColor4f(1.0, 1.0, 0.0, 1.0)  # Yellow
-        GL.glLineWidth(2.5)
-        GL.glBegin(GL.GL_LINE_LOOP)
-        GL.glVertex2f(-half_w, -half_h)
-        GL.glVertex2f(half_w, -half_h)
-        GL.glVertex2f(half_w, half_h)
-        GL.glVertex2f(-half_w, half_h)
-        GL.glEnd()
-
-        # Restore transformation matrix
-        GL.glPopMatrix()
-
-    def hit_test(self, world_pos: "_point.Point") -> bool:
-        """Execute the hit test operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param world_pos: Value for ``world_pos``.
-        :type world_pos: :class:`_point.Point`
-        :returns: Return value. UNKNOWN details.
-        :rtype: bool
+    def _rebuild(self, _entry=None):
+        """Rebuild this cavity's name mesh in place from its current
+        name and re-derive its OBB/AABB (``self._vbo.update`` recomputes
+        the VBO's own ``local_obb``/``local_aabb``, but that doesn't by
+        itself propagate to this object's world-space ``obb``/``aabb`` --
+        see ``BaseVar._compute_obb``/``_compute_aabb``). Bound to fire
+        whenever this cavity's own name changes.
         """
+        self.editor2d.editor.context.acquire()
+        try:
+            vertices, faces, _width, _height = _text.create(**self._mesh_args())
+            packed, count = _utils.compute_normals(vertices, faces)
+            self._vbo.update(packed, count)
+            self._compute_obb()
+            self._compute_aabb()
+        finally:
+            self.editor2d.editor.context.release()
 
-        if self._position is None:
-            return False
+        self.editor2d.Refresh()
 
-        # Translate point to cavity's local space
-        local_x = world_pos.x - self._position.x
-        local_y = world_pos.y - self._position.y
-
-        # Rotate point by negative angle (inverse rotation)
-        rotation_rad = -self._angle.z
-        cos_a = math.cos(rotation_rad)
-        sin_a = math.sin(rotation_rad)
-
-        rotated_x = local_x * cos_a - local_y * sin_a
-        rotated_y = local_x * sin_a + local_y * cos_a
-
-        length = self.db_obj.part.length
-        width = self.db_obj.part.width
-
-        half_w = width / 2
-        half_h = length / 2
-        return abs(rotated_x) <= half_w and abs(rotated_y) <= half_h
-
-    def get_bounds(self):
-        """Get bounding box"""
-        if self._position is None:
-            return None
-
-        x, y = self._position.as_float[:-1]
-
-        length = self.db_obj.part.length
-        width = self.db_obj.part.width
-
-        half_w = width / 2
-        half_h = length / 2
-
-        return x - half_w, y - half_h, x + half_w, y + half_h
-
-    def move_to(self, world_x: float, world_y: float):
-        """Move cavity to new position (use context manager)"""
-        if self._position is None:
-            return
-
-        with self._position:
-            self._position.x = world_x
-            self._position.y = world_y
+    def _delete(self):
+        self._name_cb.unbind()
+        super()._delete()

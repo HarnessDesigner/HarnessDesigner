@@ -160,7 +160,14 @@ class PJTTerminalsTable(PJTTableBase):
         # the cache is primed here directly instead of left to go stale.
         # See the cavity_id setter below for the move/reassign case.
         if cavity_id is not None:
-            self.db.pjt_cavities_table[cavity_id]._stored_terminal = terminal  # NOQA
+            cavity = self.db.pjt_cavities_table[cavity_id]
+            cavity._stored_terminal = terminal  # NOQA
+            # 'terminal_id' isn't a real column on pjt_cavities (the FK
+            # lives on this row, cavity_id above) -- a synthetic tag so
+            # listeners (objects2d.housing.Housing) can react to "this
+            # cavity just gained a terminal" the same way they'd react to
+            # a real column changing.
+            cavity._populate('terminal_id')  # NOQA
 
         return terminal
 
@@ -187,7 +194,9 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
         PJTEntryBase.delete(self)
 
         if cavity_id is not None:
-            self._table.db.pjt_cavities_table[cavity_id]._stored_terminal = None  # NOQA
+            cavity = self._table.db.pjt_cavities_table[cavity_id]
+            cavity._stored_terminal = None  # NOQA
+            cavity._populate('terminal_id')  # see PJTTerminalsTable.insert
 
     def build_monitor_packet(self):
         """Build the monitor packet.
@@ -476,10 +485,14 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
         # way to invalidate on its own) in sync with this row's new home —
         # see PJTTerminalsTable.insert for the initial-placement case.
         if old_cavity_id is not None and old_cavity_id != value:
-            self._table.db.pjt_cavities_table[old_cavity_id]._stored_terminal = None  # NOQA
+            old_cavity = self._table.db.pjt_cavities_table[old_cavity_id]
+            old_cavity._stored_terminal = None  # NOQA
+            old_cavity._populate('terminal_id')  # see PJTTerminalsTable.insert
 
         if value is not None:
-            self._table.db.pjt_cavities_table[value]._stored_terminal = self  # NOQA
+            new_cavity = self._table.db.pjt_cavities_table[value]
+            new_cavity._stored_terminal = self  # NOQA
+            new_cavity._populate('terminal_id')
 
     _stored_circuit: "_pjt_circuit.PJTCircuit" = None
 

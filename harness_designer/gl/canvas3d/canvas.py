@@ -230,13 +230,13 @@ class CanvasEventFilter(QtCore.QObject):
             QtCore.QEvent.Type.MouseMove,
             QtCore.QEvent.Type.Wheel
         ):
-            self.canvas._mouse_handler.handle_event(event)
+            self.canvas._mouse_handler.handle_event(event)  # NOQA
 
         elif t in (
             QtCore.QEvent.Type.KeyPress,
             QtCore.QEvent.Type.KeyRelease
         ):
-            self.canvas._key_handler.handle_event(event)
+            self.canvas._key_handler.handle_event(event)  # NOQA
 
         # Mouse capture lost: Qt sends QEvent.Type.MouseButtonRelease with no
         # button held when the grab is broken externally.  For explicit

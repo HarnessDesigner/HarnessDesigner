@@ -81,7 +81,7 @@ def _triangle_edges(tris: np.ndarray) -> np.ndarray:
 
 
 # Corner 0 = (x1,y1,z1), 1 toggles x, 3 toggles y, 4 toggles z (see
-# gl.canvas3d.object_picker's comment on the same convention) -- these are
+# gl.object_picker's comment on the same convention) -- these are
 # the same 6 quad faces Base3D._render_obb draws, each split into 2
 # triangles.
 _OBB_TRIANGLE_INDICES = np.array([
@@ -123,7 +123,7 @@ def _rays_vs_triangles_batched(
     rays and N triangles at once via numpy broadcasting -- returns an
     (M, N) boolean hit matrix in a single call.
 
-    Same algebra as Base3D._ray_triangles_intersect_vectorized (which
+    Same algebra as BaseVar._ray_triangles_intersect_vectorized (which
     only batches over triangles, one ray at a time -- that shape is kept
     as-is for the picker, which only ever needs one ray), just with a
     leading ray axis threaded through every intermediate array so numpy

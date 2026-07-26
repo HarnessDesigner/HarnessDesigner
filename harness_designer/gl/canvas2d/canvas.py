@@ -17,11 +17,13 @@ Conversion notes (same pattern as canvas3d):
 
 import math
 
+import numpy as np
 from PySide6.QtCore import QSize, QTimer, Signal
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 from OpenGL import GL
 
 from .. import context as _context
+from .. import shaders as _shaders
 from ... import config as _config
 from ...geometry import point as _point
 from . import grid as _grid
@@ -103,6 +105,7 @@ class Canvas(QOpenGLWidget):
         self.config = config
         self._init = False
         self.context = _context.GLContext(self)
+        self._program = None
 
         from . import camera as _camera
         self.camera = _camera.Camera(self)
@@ -379,6 +382,7 @@ class Canvas(QOpenGLWidget):
 
         self._setup_projection()
         self._grid.set(self.config.grid.enabled)
+        self._program = _shaders.compile_schematic2d_program()
 
     def resizeGL(self, width: int, height: int):
         """Called by Qt on resize (replaces EVT_SIZE handler).
@@ -391,14 +395,116 @@ class Canvas(QOpenGLWidget):
     def paintGL(self):
         """Render one frame (replaces EVT_PAINT / _on_paint).
         Context is already current here.
+
+        Two rendering paths coexist while object types migrate from the
+        legacy immediate-mode path one piece at a time (see
+        objects.objects2d.base2d.Base2D): objects with a VBO
+        (obj.obj2d.vbo is not None) render via _render_vbo_objects()'s
+        schematic2d-shader pass; everything else still renders through its
+        own render_gl() below, unchanged.
         """
         GL.glClear(GL.GL_COLOR_BUFFER_BIT)
         self._setup_projection()
+        self.camera._update_views()  # NOQA -- picks up glOrtho bounds set above
         self._grid.render(self.camera.distance)
 
         for obj in self._objects:
+            if obj.obj2d.vbo is not None:
+                continue
             obj.obj2d.render_gl()
+
+        self._render_vbo_objects()
         # Qt handles SwapBuffers automatically.
+
+    def _projection_matrix(self) -> np.ndarray:
+        """Build the orthographic projection matrix for the schematic2d
+        shader, matching :meth:`_setup_projection`'s ``glOrtho`` bounds
+        exactly (same ``camera.distance``/``camera.x``/``camera.y``/
+        ``size`` inputs, same ``near=-1, far=1``) -- mirrors
+        ``gl.canvas_pegboard.canvas.Canvas._pegboard_projection_matrix``.
+        """
+        width, height = self.size
+        world_per_pixel = self.camera.distance / 1000.0
+        half_width = (width / 2.0) * world_per_pixel
+        half_height = (height / 2.0) * world_per_pixel
+
+        left = self.camera.x - half_width
+        right = self.camera.x + half_width
+        bottom = self.camera.y - half_height
+        top = self.camera.y + half_height
+        near, far = -1.0, 1.0
+
+        return np.array([
+            [2.0 / (right - left), 0.0, 0.0, -(right + left) / (right - left)],
+            [0.0, 2.0 / (top - bottom), 0.0, -(top + bottom) / (top - bottom)],
+            [0.0, 0.0, -2.0 / (far - near), -(far + near) / (far - near)],
+            [0.0, 0.0, 0.0, 1.0],
+        ], dtype=np.float32)
+
+    def _render_vbo_objects(self):
+        """Render every VBO-backed object (``obj.obj2d.vbo is not None``)
+        under the schematic2d shader -- mirrors
+        ``gl.canvas_pegboard.canvas.Canvas._render_objects``' uniform-
+        setting contract exactly (``objectPosition``/``objectRotation``/
+        ``objectScale`` per object, same per-frame lighting/camera
+        uniforms).
+        """
+        if self._program is None:
+            return
+
+        vbo_objects = [obj for obj in self._objects if obj.obj2d.vbo is not None]
+        if not vbo_objects:
+            return
+
+        if self.size is None:
+            return
+
+        width, height = self.size
+        if width == 0 or height == 0:
+            return
+
+        GL.glUseProgram(self._program)
+
+        projection = self._projection_matrix()
+        view = np.eye(4, dtype=np.float32)
+
+        proj_loc = GL.glGetUniformLocation(self._program, "projection")
+        view_loc = GL.glGetUniformLocation(self._program, "view")
+        flip_y_loc = GL.glGetUniformLocation(self._program, "flipY")
+        camera_loc = GL.glGetUniformLocation(self._program, "cameraPos2D")
+        light_color_loc = GL.glGetUniformLocation(self._program, "lightColor")
+        light_intensity_loc = GL.glGetUniformLocation(self._program, "lightIntensity")
+        render_mode_loc = GL.glGetUniformLocation(self._program, "renderMode")
+
+        GL.glUniformMatrix4fv(proj_loc, 1, GL.GL_FALSE, np.ascontiguousarray(projection.T))
+        GL.glUniformMatrix4fv(view_loc, 1, GL.GL_FALSE, np.ascontiguousarray(view.T))
+
+        # World coords (Y-up), not screen coords -- same convention
+        # gl.canvas_pegboard.canvas uses.
+        GL.glUniform1i(flip_y_loc, 0)
+        GL.glUniform2f(camera_loc, self.camera.x, self.camera.y)
+        GL.glUniform3f(light_color_loc, 1.0, 1.0, 1.0)
+        GL.glUniform1f(light_intensity_loc, 1.0)
+        GL.glUniform1i(render_mode_loc, 0)  # filled
+
+        pos_loc = GL.glGetUniformLocation(self._program, "objectPosition")
+        rot_loc = GL.glGetUniformLocation(self._program, "objectRotation")
+        scale_loc = GL.glGetUniformLocation(self._program, "objectScale")
+        normal_loc = GL.glGetUniformLocation(self._program, "normalMode")
+
+        for obj in vbo_objects:
+            obj2d = obj.obj2d
+            obj2d.material.set(self._program)
+            obj2d._render_geometry(self._program, pos_loc, rot_loc, scale_loc, normal_loc)  # NOQA
+
+            # Object-owned extras (e.g. Housing2D's pin markers/terminal-
+            # name rows/corner label) drawn under this same bound program/
+            # uniform contract, right after the object's own primitive.
+            render_extras = getattr(obj2d, 'render_extras', None)
+            if render_extras is not None:
+                render_extras(self._program, pos_loc, rot_loc, scale_loc, normal_loc)
+
+        GL.glUseProgram(0)
 
     # ------------------------------------------------------------------
     # Projection (unchanged)

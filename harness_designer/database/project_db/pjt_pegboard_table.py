@@ -78,7 +78,7 @@ class PJTPegboardTablesTable(PJTTableBase):
             return self[rows[0][0]]
 
     def insert(self, point3d_id: int, x: float, z: float, width: float,
-              height: float) -> "PJTPegboardTable":
+               height: float) -> "PJTPegboardTable":
         """Create a new data-table overlay for an anchor.
 
         ``h_scroll``, ``v_scroll`` and ``is_collapsed`` are left at their

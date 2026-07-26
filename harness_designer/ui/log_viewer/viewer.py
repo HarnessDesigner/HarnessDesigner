@@ -48,7 +48,7 @@ class _LogMessageDelegate(QtWidgets.QStyledItemDelegate):
 
         view = opt.widget
         if view is not None and hasattr(view, '_ensure_row_height_for_index'):
-            view._ensure_row_height_for_index(index)
+            view._ensure_row_height_for_index(index)  # NOQA
 
         text = opt.text
         opt.text = ''

@@ -156,7 +156,7 @@ _WAYPOINT_HIT_RADIUS_MM = 5.0
 
 
 def _find_waypoint_at_point(nodes: list, world_pos: _point.Point,
-                             radius: float = _WAYPOINT_HIT_RADIUS_MM):
+                            radius: float = _WAYPOINT_HIT_RADIUS_MM):
     """Hit-test *world_pos* against every waypoint node in *nodes*.
 
     Only considers nodes with ``waypoint_id is not None`` (anchor nodes
@@ -419,7 +419,7 @@ class MouseHandlerPegBoard(QtCore.QObject):
 
     @staticmethod
     def _rotate_screen_phi(mouse_pos: _point.Point, center_x: float,
-                            center_z: float) -> float:
+                           center_z: float) -> float:
         """Return the math-orientation angle of the cursor around
         ``(center_x, center_z)``.
 

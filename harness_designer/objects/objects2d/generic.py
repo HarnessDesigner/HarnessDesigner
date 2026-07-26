@@ -32,4 +32,4 @@ class Generic(_base2d.Base2D):
         :type parent: :class:`_generic.Generic`
         """
 
-        _base2d.Base2D.__init__(self, parent, None)
+        _base2d.Base2D.__init__(self, parent, None, None, None, None, None, None)

@@ -10,11 +10,24 @@ the camera and the focal plane.
 
 from typing import TYPE_CHECKING
 
+import numpy as np
+from OpenGL import GL
+
 from ...geometry import point as _point
 
 
 if TYPE_CHECKING:
     from . import canvas as _canvas
+
+
+# Fixed camera basis for the locked straight-down 2D view -- same values
+# gl.canvas3d.camera._LOCKED_FORWARD/_LOCKED_RIGHT/_LOCKED_UP use for the
+# 3D editor's own locked top-down mode, reused here since Camera2D is
+# *always* that same bird's-eye pose (world X -> screen X, world Z ->
+# screen Y).
+_FORWARD = np.array([0.0, -1.0, 0.0], dtype=np.float32)
+_RIGHT = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+_UP = np.array([0.0, 0.0, 1.0], dtype=np.float32)
 
 
 class Camera:
@@ -37,6 +50,7 @@ class Camera:
         :type canvas: :class:`_canvas.Canvas2D`
         """
         self.canvas = canvas
+        self._context = canvas.context
 
         # Focal position - the point in world coordinates we're looking at (center of view)
         self._focal_position = _point.Point(0.0, 0.0, 0.0)
@@ -49,12 +63,88 @@ class Camera:
         self._min_distance = 10.0    # Max zoom in
         self._max_distance = 100000.0  # Max zoom out
 
+        # gl.canvas3d.camera.Camera's .modelview/.projection/.viewport
+        # contract, reused unchanged by gl.object_picker's ray-vs-
+        # OBB/AABB picking math -- see _update_views(). Always the same
+        # locked straight-down basis (_FORWARD/_RIGHT/_UP above), so unlike
+        # Camera3D there's no _calculate_camera() step.
+        self._is_dirty = True
+        self._projection = None
+        self._modelview = None
+        self._viewport = None
+
         # Bind callbacks for automatic refresh
         self._focal_position.bind(self._on_focal_position_changed)
 
     def _on_focal_position_changed(self, _: _point.Point):
         """Called when focal position changes"""
+        self._is_dirty = True
         self.canvas.Refresh(False)
+
+    def _update_views(self):
+        """(Re)read ``.projection``/``.modelview``/``.viewport`` from live
+        GL state -- mirrors ``gl.canvas3d.camera.Camera._update_views()``
+        exactly (same ``GL_PROJECTION_MATRIX``/``GL_MODELVIEW_MATRIX``/
+        ``GL_VIEWPORT`` readback, same row-major reshape), so
+        ``gl.object_picker.find_object`` works against this
+        camera unchanged. Requires a current GL context; the legacy
+        ``Canvas._setup_projection()`` path (``glOrtho``/``glMatrixMode``)
+        must have already run this frame for these to reflect the current
+        view -- called from ``Canvas.paintGL()`` right after that, not
+        lazily, since (unlike Camera3D) nothing here triggers GL calls of
+        its own to make the state current first.
+        """
+        if not self._is_dirty:
+            return
+
+        with self._context:
+            self._is_dirty = False
+            self._viewport = np.ascontiguousarray(GL.glGetIntegerv(GL.GL_VIEWPORT))
+
+            self._projection = np.ascontiguousarray(np.array(
+                GL.glGetDoublev(GL.GL_PROJECTION_MATRIX)).reshape((4, 4), order="F").T)
+
+            self._modelview = np.ascontiguousarray(np.array(
+                GL.glGetDoublev(GL.GL_MODELVIEW_MATRIX)).reshape((4, 4), order="F").T)
+
+    @property
+    def projection(self) -> "np.ndarray | None":
+        return self._projection
+
+    @property
+    def modelview(self) -> "np.ndarray | None":
+        return self._modelview
+
+    @property
+    def viewport(self) -> "np.ndarray | None":
+        return self._viewport
+
+    @property
+    def forward(self) -> np.ndarray:
+        """Unit vector the camera looks along -- always straight down."""
+        return _FORWARD
+
+    @property
+    def up(self) -> np.ndarray:
+        return _UP
+
+    @property
+    def right(self) -> np.ndarray:
+        return _RIGHT
+
+    @property
+    def position(self) -> _point.Point:
+        """Camera "eye" position -- straight above :attr:`focal_position`
+        by :attr:`distance`, matching the world-per-pixel convention every
+        other method here already uses (mirrors
+        ``gl.canvas3d.camera.Camera.position``'s role for
+        ``object_picker``'s ray origin/``get_position_on_focal_plane``-
+        style math, should it be needed).
+        """
+        return _point.Point(
+            self._focal_position.x,
+            self._distance,
+            self._focal_position.z)
 
     @property
     def x(self) -> float:
@@ -69,14 +159,16 @@ class Camera:
 
     @property
     def y(self) -> float:
-        """Get focal position Y in world coordinates"""
-        return self._focal_position.y
+        """Get focal position Y (schematic-plane vertical, i.e. world Z --
+        see the module-level ``world Z -> screen Y`` note) in world
+        coordinates."""
+        return self._focal_position.z
 
     @y.setter
     def y(self, value: float):
-        """Set focal position Y"""
+        """Set focal position Y (world Z -- see :meth:`y` getter)."""
         with self._focal_position:
-            self._focal_position.y = float(value)
+            self._focal_position.z = float(value)
 
     @property
     def focal_position(self) -> _point.Point:
@@ -92,6 +184,7 @@ class Camera:
     def distance(self, value: float):
         """Set camera distance (clamped to min/max)"""
         self._distance = max(self._min_distance, min(self._max_distance, float(value)))
+        self._is_dirty = True
         self.canvas.Refresh()
 
     def Zoom(self, delta: float):
@@ -112,6 +205,7 @@ class Camera:
 
         # Clamp to limits
         self._distance = max(self._min_distance, min(self._max_distance, new_distance))
+        self._is_dirty = True
         self.canvas.Refresh(False)
 
     def Pan(self, dx: float, dy: float):
@@ -124,7 +218,7 @@ class Camera:
         # For orthographic projection, visible width at focal plane depends on distance
         world_per_pixel = self._distance / 1000.0  # Scale factor
 
-        world_delta = _point.Point(-dx * world_per_pixel, dy * world_per_pixel)
+        world_delta = _point.Point(-dx * world_per_pixel, 0.0, dy * world_per_pixel)
 
         self._focal_position += world_delta
 
@@ -142,6 +236,7 @@ class Camera:
         sensitivity = self.canvas.config.zoom.sensitivity
         new_distance = self._distance - (delta * sensitivity)
         self._distance = max(self._min_distance, min(self._max_distance, new_distance))
+        self._is_dirty = True
 
         # Get world position after zoom
         world_pos_after = self.screen_to_world(screen_pos)
@@ -165,7 +260,7 @@ class Camera:
         size = self.canvas.size
 
         if size is None:
-            return _point.Point(0.0, 0.0)
+            return _point.Point(0.0, 0.0, 0.0)
 
         width, height = size
 
@@ -180,11 +275,12 @@ class Camera:
         # Convert to world units based on distance
         world_per_pixel = self._distance / 1000.0
 
-        # World coordinates
+        # World coordinates -- world_y lands in the returned Point's .z
+        # (schematic-plane vertical axis, matching position2d/position_peg).
         world_x = self._focal_position.x + (offset_x * world_per_pixel)
-        world_y = self._focal_position.y + (offset_y * world_per_pixel)
+        world_y = self._focal_position.z + (offset_y * world_per_pixel)
 
-        return _point.Point(world_x, world_y)
+        return _point.Point(world_x, 0.0, world_y)
 
     def world_to_screen(self, world_pos: _point.Point) -> _point.Point:
         """
@@ -204,7 +300,7 @@ class Camera:
 
         # Screen coordinates
         screen_x = (width / 2.0) + (offset.x * pixels_per_world)
-        screen_y = (height / 2.0) - (offset.y * pixels_per_world)  # Invert Y
+        screen_y = (height / 2.0) - (offset.z * pixels_per_world)  # Invert Y
 
         return _point.Point(int(screen_x), int(screen_y))
 
@@ -222,7 +318,7 @@ class Camera:
         canvases hold their scene contents in different shapes -- real
         ``ObjectBase`` wrappers with ``obj2d.get_bounds()`` for the
         schematic canvas, ``objects.objectspeg.basepeg.BasePeg``
-        (``.obj``/``.position.x``/``.position.y``) for the peg board -- so this duck-types on
+        (``.obj``/``.position.x``/``.position.z``) for the peg board -- so this duck-types on
         which shape ``self.canvas``
         actually exposes rather than assuming one. Computed fresh on each
         access (no per-frame cache, unlike the 3D camera's
@@ -245,8 +341,8 @@ class Camera:
 
         left = self._focal_position.x - half_width
         right = self._focal_position.x + half_width
-        bottom = self._focal_position.y - half_height
-        top = self._focal_position.y + half_height
+        bottom = self._focal_position.z - half_height
+        top = self._focal_position.z + half_height
 
         result = []
 
@@ -272,7 +368,7 @@ class Camera:
         anchors = getattr(self.canvas, '_anchors', None)
         if anchors:
             for anchor in anchors:
-                if left <= anchor.position.x <= right and bottom <= anchor.position.y <= top:
+                if left <= anchor.position.x <= right and bottom <= anchor.position.z <= top:
                     result.append(anchor.obj)
 
         return result
@@ -281,9 +377,10 @@ class Camera:
         """Reset camera to origin with default distance"""
         with self._focal_position:
             self._focal_position.x = 0.0
-            self._focal_position.y = 0.0
+            self._focal_position.z = 0.0
 
         self._distance = 1000.0
+        self._is_dirty = True
         self.canvas.Refresh()
 
     def zoom_to_fit(self, objects):
@@ -337,7 +434,8 @@ class Camera:
 
             with self._focal_position:
                 self._focal_position.x = center_x
-                self._focal_position.y = center_y
+                self._focal_position.z = center_y
 
             self._distance = max(self._min_distance, min(self._max_distance, required_distance))
+            self._is_dirty = True
             self.canvas.Refresh(False)

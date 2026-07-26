@@ -65,7 +65,7 @@ class PJTPointsPegTable(PJTTableBase):
         return [self[row[0]] for row in rows]
 
     def insert(self, x: float, z: float, bundle_id: int = None,
-              idx: int = None) -> "PJTPointPeg":
+               idx: int = None) -> "PJTPointPeg":
         """Create a new peg-board point row.
 
         Called with only *x*/*z* for an anchor's own position

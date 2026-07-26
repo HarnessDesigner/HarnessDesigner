@@ -9,7 +9,7 @@ from PySide6.QtWidgets import QDialog
 
 from . import handler_base as _handler_base
 from ..geometry import point as _point
-from ..gl.canvas3d import object_picker as _object_picker
+from ..gl import object_picker as _object_picker
 from ..ui.dialogs import part_search as _part_search
 from ..ui import editor_db as _editor_db
 from ..objects import wire as _wire

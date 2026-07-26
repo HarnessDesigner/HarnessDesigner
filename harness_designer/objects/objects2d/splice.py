@@ -3,10 +3,14 @@
 from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import QMenu
-from OpenGL import GL
-import math
 
 from . import base2d as _base2d
+from ...geometry import angle as _angle
+from ...geometry import point as _point
+from ... import config as _config
+from ... import color as _color
+from ...gl import materials as _materials
+from ...shapes import sphere as _sphere
 
 
 if TYPE_CHECKING:
@@ -14,11 +18,19 @@ if TYPE_CHECKING:
     from .. import splice as _splice
 
 
+Config = _config.Config.editor2d
+
+
 class Splice(_base2d.Base2D):
     """
     2D representation of a splice for schematic view
 
-    Renders as a diamond-shaped junction point using OpenGL.
+    Renders as the same shared ``shapes/sphere.py`` mesh -- the
+    ``schematic2d`` shader already does the full 3D lighting/transform
+    before projecting to 2D, so a real sphere (rather than a flat disc)
+    costs nothing extra and shades correctly -- on the VBO/shader
+    pipeline (see ``objects2d/base2d.py``'s ``Base2D``), matching how
+    ``Base3D`` subclasses render.
     """
     _parent: "_splice.Splice"
     db_obj: "_pjt_splice.PJTSplice"
@@ -27,106 +39,31 @@ class Splice(_base2d.Base2D):
                  db_obj: "_pjt_splice.PJTSplice"):
         """Initialise the :class:`Splice` instance.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
         :param parent: Parent object.
         :type parent: :class:`_splice.Splice`
         :param db_obj: Database-backed object.
         :type db_obj: :class:`_pjt_splice.PJTSplice`
         """
+        position = db_obj.position2d
 
-        _base2d.Base2D.__init__(self, parent, db_obj)
+        # PJTSplice has Position2DMixin but no angle2d mixin -- a sphere
+        # is rotationally symmetric so the value never matters visually,
+        # but BaseVar._compute_obb/_compute_aabb both bail out entirely
+        # when self._angle is None, which would leave this splice
+        # permanently unpickable. A static, unbound identity Angle (not
+        # DB-backed -- there's no column to bind to) gives that math a
+        # real rotation to use -- same fix objects2d/wire_layout.py's
+        # WireLayout already uses for the same reason.
+        angle = _angle.Angle.from_euler(0.0, 0.0, 0.0)
 
-        self._position = db_obj.position2d.point if hasattr(db_obj, 'position2d') else None
+        diameter = Config.splice.diameter
+        scale = _point.Point(diameter, diameter, diameter)
+        material = _materials.Generic(_color.Color(*Config.colors.splice))
 
-        # Splice visual properties
-        self._size = 6.0  # mm (half-width of diamond)
-
-        # Bind to position changes
-        if self._position:
-            self._position.bind(self._on_position_changed)
-
-    def _on_position_changed(self, *args):
-        """Called when splice position changes"""
-        if self.editor2d and hasattr(self.editor2d, 'editor') and hasattr(self.editor2d.editor, 'canvas'):
-            self.editor2d.editor.canvas.update()
-
-    def render_gl(self):
-        """Render splice using OpenGL"""
-        if self._position is None:
-            return
-
-        x = self._position.x
-        y = self._position.y
-
-        # Draw splice as filled diamond
-        GL.glColor4f(0.9, 0.9, 0.0, 1.0)  # Yellow
-        GL.glBegin(GL.GL_QUADS)
-        GL.glVertex2f(x, y - self._size)  # Top
-        GL.glVertex2f(x + self._size, y)  # Right
-        GL.glVertex2f(x, y + self._size)  # Bottom
-        GL.glVertex2f(x - self._size, y)  # Left
-        GL.glEnd()
-
-        # Draw outline
-        GL.glColor4f(0.6, 0.6, 0.0, 1.0)  # Darker yellow
-        GL.glLineWidth(2.0)
-        GL.glBegin(GL.GL_LINE_LOOP)
-        GL.glVertex2f(x, y - self._size)  # Top
-        GL.glVertex2f(x + self._size, y)  # Right
-        GL.glVertex2f(x, y + self._size)  # Bottom
-        GL.glVertex2f(x - self._size, y)  # Left
-        GL.glEnd()
-
-    def render_selection(self):
-        """Render selection highlight"""
-        if self._position is None:
-            return
-
-        x = self._position.x
-        y = self._position.y
-        size = self._size + 2.0
-
-        # Draw selection outline
-        GL.glColor4f(1.0, 1.0, 0.0, 0.8)  # Bright yellow
-        GL.glLineWidth(3.0)
-        GL.glBegin(GL.GL_LINE_LOOP)
-        GL.glVertex2f(x, y - size)  # Top
-        GL.glVertex2f(x + size, y)  # Right
-        GL.glVertex2f(x, y + size)  # Bottom
-        GL.glVertex2f(x - size, y)  # Left
-        GL.glEnd()
-
-    def hit_test(self, world_x: float, world_y: float) -> bool:
-        """Test if point is inside splice (diamond shape)"""
-        if self._position is None:
-            return False
-
-        # Diamond hit test: |dx| + |dy| <= size
-        dx = abs(world_x - self._position.x)
-        dy = abs(world_y - self._position.y)
-
-        return (dx + dy) <= self._size
-
-    def get_bounds(self):
-        """Get bounding box"""
-        if self._position is None:
-            return None
-
-        x = self._position.x
-        y = self._position.y
-
-        return (x - self._size, y - self._size,
-                x + self._size, y + self._size)
-
-    def move_to(self, world_x: float, world_y: float):
-        """Move splice to new position"""
-        if self._position is None:
-            return
-
-        with self._position:
-            self._position.x = world_x
-            self._position.y = world_y
+        parent.mainframe.editor2d.editor.context.acquire()
+        vbo = _sphere.create_vbo()
+        super().__init__(parent, db_obj, vbo, angle, position, scale, material)
+        parent.mainframe.editor2d.editor.context.release()
 
 
 class SpliceMenu(QMenu):

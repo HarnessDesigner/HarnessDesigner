@@ -85,7 +85,7 @@ class Transition(_basepeg.BasePeg):
 
             pos = branch.position3d
             points.append((branch.position3d_id, float(pos.x), float(pos.z),
-                            f'{self._table_label()} - Branch {i}'))
+                           f'{self._table_label()} - Branch {i}'))
 
         return points
 

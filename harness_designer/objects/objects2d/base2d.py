@@ -2,8 +2,21 @@
 
 from typing import TYPE_CHECKING
 
+import math
+
+import numpy as np
+from OpenGL import GL
+
+from .. import objectsvar as _objectsvar
+
 from ...geometry import point as _point
 from ...geometry import angle as _angle
+from ...geometry.angle import quaternion as _quaternion
+from ... import color as _color
+from ... import config as _config
+from ...gl import materials as _materials
+from ...gl import vbo as _vbo
+from ... import utils as _utils
 
 
 if TYPE_CHECKING:
@@ -11,148 +24,177 @@ if TYPE_CHECKING:
     from ... import ui as _ui
     from ...ui import editor_2d as _editor_2d
     from ...database import project_db as _project_db
+    from ...gl import vbo as _vbo
 
 
-class Base2D:
+Config = _config.Config.editor2d
+
+
+def _quat_about_y(degrees: float) -> _quaternion.Quaternion:
+    """Return the quaternion rotating *degrees* about world Y.
+
+    Not used by ``Base2D`` itself -- ``_render_geometry``/``BaseVar``'s
+    ``_compute_obb``/``_compute_aabb`` all use ``self._angle``'s own
+    native quaternion directly (``angle2d.y``, since that's the axis a
+    Y=0-flat 2D primitive must spin about to stay flat -- see
+    ``objects2d/housing_layout.py``, the source that writes it). Kept as
+    a plain utility for callers that need a raw Y-rotation quaternion/
+    point-rotation without going through a live ``Angle`` object at all
+    (e.g. ``objects2d/housing.py``'s extras positioning).
+    """
+    return _quaternion.Quaternion.from_axis_angle([0.0, 1.0, 0.0], math.radians(degrees))
+
+
+def _rotate_about_y(points: np.ndarray, degrees: float) -> np.ndarray:
+    """Rotate an ``(N, 3)`` array of points about world Y by *degrees*.
+
+    Same quaternion-vector rotation formula already used throughout the
+    project_db angle-update paths (e.g. ``PJTHousing._update_angle3d``).
+    """
+    q = _quat_about_y(degrees)
+    qvec = np.array([q.x, q.y, q.z], dtype=np.float32)
+    t = np.cross(qvec, points)
+    return points + 2.0 * q.w * t + 2.0 * np.cross(qvec, t)
+
+
+class Base2D(_objectsvar.BaseVar):
     """
     Base class for 2D schematic representations of objects
 
-    Uses OpenGL for rendering in the 2D schematic editor.
+    Uses OpenGL for rendering in the 2D schematic editor. Objects that
+    render via a shared primitive VBO (see ``shapes/``) pass ``vbo``/
+    ``scale``/``material`` and get the same lifecycle
+    ``objects.objects3d.base3d.Base3D`` uses (``_compute_obb``/
+    ``_compute_aabb``, bound position/angle/scale updates, selection
+    material swap, ``_render_geometry``) -- see ``objects2d/housing.py``
+    for the first (and so far only) real user of this path. Object types
+    not yet migrated from the legacy immediate-mode ``render_gl()`` path
+    (terminal, cavity, wire, ...) simply don't pass them and keep working
+    unchanged (``vbo`` stays ``None``).
     """
 
-    def __init__(self, parent: "_ObjectBase",
-                 db_obj: "_project_db.PJTEntryBase",
-                 position: _point.Point, angle: _angle.Angle):
+    def __init__(self, parent: "_ObjectBase", db_obj: "_project_db.PJTEntryBase",
+                 vbo: _vbo.PooledVBOHandler, angle: _angle.Angle,
+                 position: _point.Point, scale: _point.Point,
+                 material: _materials.GLMaterial):
         """Initialise the :class:`Base2D` instance.
-
-        UNKNOWN details are inferred from the callable name and signature.
 
         :param parent: Parent object.
         :type parent: _ObjectBase
         :param db_obj: Database-backed object.
         :type db_obj: :class:`_project_db.PJTEntryBase`
-        :param position: Position value.
+        :param position: Position value (``position2d``).
         :type position: :class:`_point.Point`
-        :param angle: Value for ``angle``.
+        :param angle: Value for ``angle`` (``angle2d``; only ``.z`` is
+            meaningful -- this app's single-DOF 2D rotation convention).
         :type angle: :class:`_angle.Angle`
+        :param vbo: Shared primitive VBO to render with. ``None`` (default)
+            for object types still on the legacy immediate-mode path.
+        :type vbo: :class:`_vbo.PooledVBOHandler` | None
+        :param scale: World-space size to render the unit-sized ``vbo`` at.
+        :type scale: :class:`_point.Point` | None
+        :param material: Fill material/colour.
+        :type material: :class:`_materials.GLMaterial` | None
         """
 
-        self.parent: "_ObjectBase" = parent
-        self.db_obj = db_obj
         try:
             self.editor2d: "_editor_2d.Editor2D" = parent.mainframe.editor2d
             self.mainframe: "_ui.MainFrame" = parent.mainframe
         except AttributeError:
             return
 
-        self._position = position
+        super().__init__(parent, db_obj, vbo, angle, position, scale, material)
 
-        if position is None:
-            self._o_position = None
-            self._angle = None
-            self._o_angle = None
+        try:
+            self._is_visible = db_obj.is_visible3d  # NOQA
+            self.db_obj.bind(self._is_visible_callback, 'is_visible3d')
+        except AttributeError:
+            self._is_visible = False
+
+        if vbo is None:
+            # Legacy immediate-mode contract -- unchanged for object types
+            # not yet migrated to the VBO/shader pipeline.
+            self._scale = None
+            self._material = None
+            self._unselected_material = None
+            self._selected_material = None
+            self._obb = None
+            self._aabb = None
         else:
-            self._o_position = position.copy()
-            self._angle = angle
-            self._o_angle = angle.copy()
-
-            self._position.bind(self._on_position)
-            self._angle.bind(self._on_angle)
-
-        self._is_selected = False
-        self._is_deleted = False
-
-    def delete(self):
-        self.parent.delete()
-
-    def _delete(self):
-        self._is_deleted = True
-        self.editor2d.Refresh()
-
-    def identify(self, material: list[float] | None):
-        """Execute the identify operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param material: Value for ``color``.
-        :type material: list[float] | None
-        """
-        pass
-
-    def _on_position(self, position: _point.Point) -> None:
-        """Called when housing position changes"""
-        self._o_position = position.copy()
-        self.editor2d.editor.canvas.Refresh()
-
-    def _on_angle(self, angle: _angle.Angle) -> None:
-        """Called when housing angle changes"""
-        self._o_angle = angle.copy()
-        self.editor2d.editor.canvas.Refresh()
+            self._compute_obb()
+            self._compute_aabb()
 
     @property
-    def position(self) -> _point.Point:
-        """Return the position.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
-        :rtype: :class:`_point.Point`
-        """
-        return self._position
+    def editor(self):
+        return self.editor2d
 
     @property
-    def angle(self) -> _angle.Angle:
-        """Return the angle.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
-        :rtype: :class:`_angle.Angle`
-        """
-        return self._angle
-
-    def set_selected(self, flag: bool) -> None:
-        """Set the selected.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param flag: Value for ``flag``.
-        :type flag: bool
-        """
-        self._is_selected = flag
-
-    @property
-    def is_selected(self) -> bool:
-        """Return the is selected.
+    def is_visible(self) -> bool:
+        """Return the is visible.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
         :rtype: bool
         """
-        return self._is_selected
+        return self._is_visible
+
+    @is_visible.setter
+    def is_visible(self, value: bool):
+        """Set the is visible.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: bool
+        """
+        self._is_visible = value
+        try:
+            self.db_obj.is_visible2d = value
+        except AttributeError:
+            pass
+
+    @property
+    def _selected_color(self) -> _color.Color:
+        return _color.Color(*Config.colors.selected)
+
+    def _is_visible_callback(self, *_, **__):
+        self._is_visible = self.db_obj.is_visible2d  # NOQA
+        self.mainframe.editor2d.Refresh()
+
+    def _render_geometry(self, program, pos_loc, rot_loc, scale_loc, normal_loc=None):
+        """Render this object's VBO using the already-bound *program*.
+
+        Mirrors ``Base3D._render_geometry`` exactly -- ``self._angle``'s
+        own native quaternion is used directly, no reinterpretation here.
+        The angle's *source* (whatever sets ``angle2d``, e.g.
+        ``objects2d/housing_layout.py``) is responsible for writing a
+        rotation that's actually correct for a Y=0-flat 2D primitive
+        (about world Y) -- see ``angle2d.y``, not ``.z``.
+        """
+        if self._vbo is None:
+            return
+
+        if normal_loc is not None:
+            GL.glUniform1i(normal_loc, int(getattr(self, 'smooth', False)))
+
+        GL.glUniform3f(pos_loc, self._position.x, 0.0, self._position.z)
+        GL.glUniform4f(rot_loc, *[float(str(v)) for v in self._angle.as_quat_numpy.tolist()])
+        GL.glUniform3f(scale_loc, *self._scale.as_float)
+
+        self._vbo.render()
+
+    # ------------------------------------------------------------------
+    # Hit-testing / bounds -- subclasses (Housing2D et al.) override these
+    # against the OBB/AABB computed above; legacy subclasses override them
+    # against their own manual geometry as before.
+    # ------------------------------------------------------------------
 
     def render_gl(self) -> None:
         """
-        Render this object using the schematic2d shader.
-
-        Parameters
-        ----------
-        program  Compiled schematic2d shader program handle for this context.
-        proj     (4,4) float32 orthographic projection matrix from Canvas.
-        view     (4,4) float32 view matrix from Canvas (identity for 2D).
-
-        The 3D VBO shared with canvas3d is reused here.  The schematic2d
-        vertex shader projects 3D vertices onto the XZ plane (Y-up world
-        coords, flipY=0) to produce the top-down schematic view:
-            2D X = 3D X
-            2D Y = 3D Z
-
-        The 2D position (self._position) is the canvas-local position that
-        the user can move freely, independent of the 3D position.
-
-        Override this method in subclasses to implement object-specific
-        rendering.
+        Legacy immediate-mode render hook -- unused by VBO-backed objects
+        (rendered instead by ``gl.canvas2d.canvas.Canvas.paintGL``'s VBO
+        pass). Override in legacy subclasses.
         """
         pass
 
@@ -178,12 +220,20 @@ class Base2D:
 
     def get_bounds(self):
         """
-        Get bounding box of this object
+        Get the world-space bounding box from the OBB/AABB ``BaseVar``
+        already computes for any VBO-backed object -- generic for every
+        such subclass (Housing2D, Cavity2D, Terminal2D, ...); legacy
+        (``vbo is None``) subclasses have no ``_aabb`` and fall through
+        to ``None``.
 
         Returns:
-            tuple: (min_x, min_y, max_x, max_y) or None
+            tuple: (min_x, min_z, max_x, max_z) or None
         """
-        return None
+        if self._aabb is None:
+            return None
+
+        (min_x, _, min_z), (max_x, _, max_z) = self._aabb
+        return float(min_x), float(min_z), float(max_x), float(max_z)
 
     def move_to(self, world_x: float, world_y: float):
         """

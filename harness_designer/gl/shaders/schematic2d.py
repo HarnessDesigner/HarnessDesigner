@@ -21,9 +21,21 @@ uniform int normalMode;
 // 2D-specific uniforms
 uniform int flipY;  // 1 = flip Y-axis (screen coords), 0 = keep Y-up
 
+// <= 0.0 means "not a stripe, no clipping" -- same contract as
+// gl.shaders.faces's stripeClipStop/stripeClipStart: only a wire's own
+// stripe draw (objects2d/wire.py's Wire.render_extras) ever sets these
+// (to a nonzero value for that one draw, then back to 0.0 right after),
+// so every other object's draw call defaults to unclipped. When active,
+// the shared helix mesh (shapes/helix.py) already has real-world units
+// baked into local Z, so local Z scaling is skipped for stripe geometry
+// -- objectScale.z is unused in that case.
+uniform float stripeClipStop;
+uniform float stripeClipStart;
+
 out vec3 fragNormal;    // Normal in 2D space for lighting
 out vec2 fragPos2D;     // 2D position
 out vec3 fragPos3D;     // Original 3D position (for height-based effects)
+out float fragLocalZ;   // Raw local Z, for stripe clipping in the fragment stage
 
 mat3 quaternionToMatrix(vec4 q) {
     float w = q.x;
@@ -49,41 +61,53 @@ mat3 quaternionToMatrix(vec4 q) {
 }
 
 void main() {
-    // Apply object transformations
-    vec3 scaledVertex = in_vertexLocal * objectScale;
+    // Apply object transformations. Stripe geometry (stripeClipStop >
+    // 0.0): X/Y (the radial helix pattern) stay driven by the raw local
+    // vertex, which already encodes the correct phase at whatever raw
+    // mesh Z it sits at -- baked into the mesh itself, see
+    // shapes/helix.py. Z re-bases to this segment's own local origin
+    // (subtracting stripeClipStart) so the surviving [start, stop]
+    // window renders at this segment's actual position instead of
+    // wherever its raw Z happens to be in the shared mesh -- same
+    // mechanism as gl.shaders.faces's vertex stage.
+    vec3 effectiveScale = stripeClipStop > 0.0 ? vec3(objectScale.xy, 1.0) : objectScale;
+    vec3 scaledVertex = stripeClipStop > 0.0
+        ? vec3(in_vertexLocal.xy * objectScale.xy, in_vertexLocal.z - stripeClipStart)
+        : in_vertexLocal * effectiveScale;
     mat3 rotationMatrix = quaternionToMatrix(objectRotation);
     vec3 rotatedVertex = rotationMatrix * scaledVertex;
     vec3 worldPosition = rotatedVertex + objectPosition;
-    
+
     // Transform normal
     vec3 in_normalLocal = normalMode == 0 ? in_smoothNormalLocal : in_faceNormalLocal;
-    vec3 scaledNormal = in_normalLocal / objectScale;
+    vec3 scaledNormal = in_normalLocal / effectiveScale;
     vec3 worldNormal = rotationMatrix * scaledNormal;
-    
+
     // PROJECT 3D → 2D: Top-down view looking down Y-axis
     // 3D: X=right, Y=up, Z=forward
     // 2D: X=right, Y=vertical (screen or world coords based on flipY)
     vec2 pos2D;
     pos2D.x = worldPosition.x;
-    
+
     if (flipY == 1) {
         pos2D.y = -worldPosition.z;  // Screen coords (Y-down)
     } else {
         pos2D.y = worldPosition.z;   // World coords (Y-up)
     }
-    
+
     // Transform normal to 2D space (project XZ components)
     // For top-down view, normal Y component becomes Z in screen space
     vec3 normal2D;
     normal2D.x = worldNormal.x;
     normal2D.y = flipY == 1 ? -worldNormal.z : worldNormal.z;
     normal2D.z = worldNormal.y;  // Y normal becomes height/depth
-    
+
     gl_Position = projection * view * vec4(pos2D, 0.0, 1.0);
-    
+
     fragNormal = normalize(normal2D);
     fragPos2D = pos2D;
     fragPos3D = worldPosition;
+    fragLocalZ = in_vertexLocal.z;
 }
 """
 
@@ -94,6 +118,7 @@ FRAGMENT_SHADER = """
 in vec3 fragNormal;
 in vec2 fragPos2D;
 in vec3 fragPos3D;
+in float fragLocalZ;
 
 out vec4 FragColor;
 
@@ -102,14 +127,22 @@ uniform vec4 materialAmbient;
 uniform vec4 outlineColor;
 uniform int renderMode;  // 0 = filled, 1 = outline, 2 = both
 
+uniform float stripeClipStop;
+uniform float stripeClipStart;
+
 // Lighting (camera-based headlight)
 uniform vec2 cameraPos2D;    // Camera position in 2D
 uniform vec3 lightColor;     // Headlight color
 uniform float lightIntensity;
 
 void main() {
+    if (stripeClipStop > 0.0 &&
+        (fragLocalZ > stripeClipStop || fragLocalZ < stripeClipStart)) {
+        discard;
+    }
+
     vec3 normal = normalize(fragNormal);
-    
+
     // Light direction: from camera toward fragment
     // In 2D top-down view, light is perpendicular to screen (pointing down)
     // Add slight angle based on distance from camera for depth effect

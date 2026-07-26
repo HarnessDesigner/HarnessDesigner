@@ -27,6 +27,8 @@ class CallbackMixin:
         cb_class = Callback(self, callback, tag)
         self._callbacks.append(cb_class)
 
+        return cb_class
+
     def unbind(self, cb_class: "Callback"):
         """Remove a previously registered callback wrapper.
 

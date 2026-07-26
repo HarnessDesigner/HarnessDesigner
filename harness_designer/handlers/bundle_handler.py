@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 
 from . import handler_base as _handler_base
 from ..geometry import point as _point
-from ..gl.canvas3d import object_picker as _object_picker
+from ..gl import object_picker as _object_picker
 from ..objects import bundle as _bundle
 from ..objects import wire as _wire
 from ..gl import materials as _materials

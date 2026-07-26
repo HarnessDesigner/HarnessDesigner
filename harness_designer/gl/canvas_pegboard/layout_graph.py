@@ -232,7 +232,7 @@ def _resolve_chain_endpoint(
 
     point_row = project.ptables.pjt_points3d_table[point3d_id]
     return PegboardNode(x=float(point_row.x), z=float(point_row.z),
-                         anchor=None, waypoint_id=None)
+                        anchor=None, waypoint_id=None)
 
 
 def build_bundle_chain(
@@ -325,7 +325,7 @@ def _build_chain_edges(
         even_share = total_length_mm / len(pairs)
         return [
             PegboardEdge(node_a=node_a, node_b=node_b,
-                        max_length_mm=even_share, bundle_id=bundle.db_id)
+                         max_length_mm=even_share, bundle_id=bundle.db_id)
             for node_a, node_b in pairs
         ]
 

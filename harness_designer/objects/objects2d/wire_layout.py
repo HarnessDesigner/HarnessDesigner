@@ -3,144 +3,77 @@
 from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import QMenu
-from OpenGL import GL
 
 from . import base2d as _base2d
 from ...geometry import angle as _angle
-from ... import utils as _utils
+from ...geometry import point as _point
+from ... import config as _config
+from ... import color as _color
+from ...gl import materials as _materials
+from ...shapes import sphere as _sphere
+
 
 if TYPE_CHECKING:
     from ...database.project_db import pjt_wire_layout as _pjt_wire_layout
     from .. import wire_layout as _wire_layout
 
 
+Config = _config.Config.editor2d
+
+
 class WireLayout(_base2d.Base2D):
     """
-    2D representation of a wire layout (grab handle) for schematic view
+    2D representation of a wire layout (drag handle) for schematic view
 
-    Renders as a circular grab handle using OpenGL.
+    Renders as the same shared ``shapes/sphere.py`` mesh
+    ``objects3d/wire_layout.py``'s ``WireLayout`` uses -- the
+    ``schematic2d`` shader already does the full 3D lighting/transform
+    before projecting to 2D, so there's no need for a flat-only mesh
+    here -- on the VBO/shader pipeline (see ``objects2d/base2d.py``'s
+    ``Base2D``). Colored to match its attached wire, sized at a fixed
+    ``Config.editor2d.wire_layout.diameter`` (rather than the wire's
+    real ``od_mm`` like the 3D editor) so it stays comfortably larger
+    than the fixed-width 2D wire regardless of gauge.
     """
     _parent: "_wire_layout.WireLayout" = None
     db_obj: "_pjt_wire_layout.PJTWireLayout"
 
+    # Sits on the wire's own centerline/OBB by design -- see
+    # objects.objectsvar.base_var.BaseVar._pick_priority.
+    _pick_priority = 1
+
     def __init__(self, parent: "_wire_layout.WireLayout",
                  db_obj: "_pjt_wire_layout.PJTWireLayout"):
         """Initialise the :class:`WireLayout` instance.
-
-        UNKNOWN details are inferred from the callable name and signature.
 
         :param parent: Parent object.
         :type parent: :class:`_wire_layout.WireLayout`
         :param db_obj: Database-backed object.
         :type db_obj: :class:`_pjt_wire_layout.PJTWireLayout`
         """
-
         position = db_obj.position2d
+
+        # PJTWireLayout has Position2DMixin but no angle2d mixin -- a
+        # sphere is rotationally symmetric so the value never matters
+        # visually, but BaseVar._compute_obb/_compute_aabb both bail out
+        # entirely when self._angle is None, which would leave this
+        # handle permanently unpickable. A static, unbound identity
+        # Angle (not DB-backed -- there's no column to bind to) gives
+        # that math a real rotation to use -- same fix
+        # objects2d/splice.py's Splice uses for the same reason.
         angle = _angle.Angle.from_euler(0.0, 0.0, 0.0)
 
         wires = db_obj.attached_wires
+        color = wires[0].part.color.ui if wires else _color.Color(0.5, 0.5, 0.5, 1.0)
+        material = _materials.Generic(color)
 
-        if wires:
-            diameter = _utils.mm2_to_d_mm(wires[0].part.size_mm2)
-        else:
-            diameter = 2.0
+        diameter = Config.wire_layout.diameter
+        scale = _point.Point(diameter, diameter, diameter)
 
-        self._radius = diameter * 0.75
-        _base2d.Base2D.__init__(self, parent, db_obj, position, angle)
-
-    def _on_position_changed(self, *args):
-        """Called when wire layout position changes"""
-        if self.editor2d and hasattr(self.editor2d, 'editor') and hasattr(self.editor2d.editor, 'canvas'):
-            self.editor2d.editor.canvas.update()
-
-    def render_gl(self):
-        """Render wire layout using OpenGL"""
-        if self._position is None:
-            return
-
-        x = self._position.x
-        y = self._position.y
-
-        # Draw handle as circle with crosshairs
-        GL.glColor4f(0.2, 0.6, 0.9, 0.6)  # Blue, semi-transparent
-        self._draw_circle(x, y, self._radius, filled=True)
-
-        # Draw outline
-        GL.glColor4f(0.1, 0.4, 0.7, 1.0)  # Darker blue
-        GL.glLineWidth(2.0)
-        self._draw_circle(x, y, self._radius, filled=False)
-
-        # Draw crosshairs
-        GL.glColor4f(1.0, 1.0, 1.0, 0.8)  # White
-        GL.glLineWidth(1.5)
-        GL.glBegin(GL.GL_LINES)
-        # Horizontal line
-        GL.glVertex2f(x - self._radius * 0.6, y)
-        GL.glVertex2f(x + self._radius * 0.6, y)
-        # Vertical line
-        GL.glVertex2f(x, y - self._radius * 0.6)
-        GL.glVertex2f(x, y + self._radius * 0.6)
-        GL.glEnd()
-
-    def render_selection(self):
-        """Render selection highlight"""
-        if self._position is None:
-            return
-
-        x = self._position.x
-        y = self._position.y
-
-        # Draw selection ring
-        GL.glColor4f(1.0, 1.0, 0.0, 0.8)  # Yellow
-        GL.glLineWidth(3.0)
-        self._draw_circle(x, y, self._radius + 2.0, filled=False)
-
-    def _draw_circle(self, x, y, radius, filled=True, segments=20):  # NOQA
-        """Draw a circle using OpenGL"""
-        import math
-
-        if filled:
-            GL.glBegin(GL.GL_TRIANGLE_FAN)
-            GL.glVertex2f(x, y)  # Center
-        else:
-            GL.glBegin(GL.GL_LINE_LOOP)
-
-        for i in range(segments):
-            angle = 2.0 * math.pi * i / segments
-            cx = x + radius * math.cos(angle)
-            cy = y + radius * math.sin(angle)
-            GL.glVertex2f(cx, cy)
-
-        GL.glEnd()
-
-    def hit_test(self, world_x: float, world_y: float) -> bool:
-        """Test if point is inside wire layout handle"""
-        if self._position is None:
-            return False
-
-        import math
-        distance = math.sqrt((world_x - self._position.x)**2 + (world_y - self._position.y)**2)
-        return distance <= self._radius
-
-    def get_bounds(self):
-        """Get bounding box"""
-        if self._position is None:
-            return None
-
-        x = self._position.x
-        y = self._position.y
-
-        return (x - self._radius, y - self._radius,
-                x + self._radius, y + self._radius)
-
-    def move_to(self, world_x: float, world_y: float):
-        """Move wire layout to new position"""
-        if self._position is None:
-            return
-
-        with self._position:
-            self._position.x = world_x
-            self._position.y = world_y
+        parent.mainframe.editor2d.editor.context.acquire()
+        vbo = _sphere.create_vbo()
+        super().__init__(parent, db_obj, vbo, angle, position, scale, material)
+        parent.mainframe.editor2d.editor.context.release()
 
 
 class WireLayoutMenu(QMenu):

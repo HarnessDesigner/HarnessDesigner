@@ -640,6 +640,93 @@ class Config(metaclass=ConfigDB):
             width = 3840
             height = 2160
 
+        class colors(metaclass=ConfigDB):
+            """Part colours for the 2D schematic editor."""
+            housing = [0.55, 0.75, 0.95, 1.0]
+            housing_outline = [0.15, 0.25, 0.45, 1.0]
+            # Selection highlight -- mirrors Config.editor_pegboard.selected_color's role.
+            selected = [0.2, 0.6, 0.2, 0.35]
+            label = [0.1, 0.1, 0.1, 1.0]
+            splice = [0.0, 0.0, 0.0, 1.0]
+
+        class splice(metaclass=ConfigDB):
+            """Fixed splice sizing for the 2D schematic editor -- a
+            splice renders as the same shared sphere mesh
+            objects3d/splice.py's Splice uses (schematic2d's shader
+            already does the full 3D lighting/transform before
+            projecting to 2D, so there's no need for a flat-only mesh
+            here), sized relative to the fixed 1mm wire diameter."""
+            diameter = 3.0  # mm
+
+        class wire(metaclass=ConfigDB):
+            """Fixed wire sizing for the 2D schematic editor -- every
+            wire renders at the same width regardless of gauge (unlike
+            the 3D editor, which uses the part's real od_mm)."""
+            diameter = 1.0  # mm
+
+        class wire_layout(metaclass=ConfigDB):
+            """Fixed wire-layout (drag handle) sizing for the 2D
+            schematic editor -- renders as the same shared sphere mesh
+            objects3d/wire_layout.py's WireLayout uses, but at a fixed
+            size rather than the attached wire's real od_mm (matching
+            wire/splice's own fixed-size-in-2D convention), since it
+            needs to stay comfortably larger than the fixed 1mm wire for
+            grabbability regardless of gauge."""
+            diameter = 2.0  # mm
+
+        class cavity(metaclass=ConfigDB):
+            """Fixed cavity sizing for the 2D schematic editor. Cavities
+            are never individually drawn as boxes -- this value is only
+            used as a fixed-size unit for housing-rectangle and
+            pin-spacing layout math: a housing's cavity-axis (height)
+            extent is exactly ``num_pins * height`` (cavity slots are
+            stacked edge-to-edge, no gap)."""
+            height = 14.0  # mm
+
+        class layout(metaclass=ConfigDB):
+            """Automatic housing placement for the 2D schematic editor."""
+            auto_layout_enabled = True
+
+            # mm, gap between adjacent housings on one edge
+            housing_spacing = 10.0
+
+            # mm, gap between the interior rectangle and
+            # each housing row/column (room for wire routing)
+            margin = 20.0
+
+        class label(metaclass=ConfigDB):
+            """Housing/cavity/terminal schematic label text sizing --
+            each element gets its own fixed font size (per the original
+            sizing spec) rather than one shared size."""
+            cavity_name_font_size = 5.0
+            bracket_font_size = 8.0
+            terminal_name_font_size = 5.0
+            corner_font_size = 2.0  # housing's own name/part number/manufacturer block
+
+            # mm around text when it drives box sizing
+            padding = 0.75
+
+            # mm the bracket sits outside the housing rectangle, and the
+            # gap between the bracket and the terminal's 2D position
+            # just to its left
+            outside_offset = 0.5
+
+            # mm the cavity name sits outside the housing rectangle --
+            # separate from the bracket's own outside_offset above, since
+            # the two need noticeably different clearance
+            cavity_outside_offset = 8.0
+
+            # mm gap between the cavity name's own bottom edge and the
+            # bracket's vertical center (the cavity name sits above it)
+            cavity_name_gap = 3.0
+
+        class housing(metaclass=ConfigDB):
+            """Fixed housing rectangle sizing for the 2D schematic editor
+            -- width is constant regardless of cavity count or terminal-
+            name length; height is ``num_pins * Config.editor2d.cavity.height``.
+            """
+            width = 100.0  # mm
+
     class editor_pegboard(metaclass=ConfigDB):
         """Peg board editor interaction and canvas settings."""
 

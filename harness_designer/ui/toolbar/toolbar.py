@@ -636,9 +636,10 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
         if self._selected is not None:
             self._selected = None
 
-        if isinstance(obj, (
-            _bundle.Bundle, _wire.Wire, _cavity.Cavity, _wire_marker.WireMarker,
-            _wire_layout.WireLayout, _bundle_layout.BundleLayout)):
+        if isinstance(obj,
+                      (_bundle.Bundle, _wire.Wire, _cavity.Cavity, _wire_marker.WireMarker,
+                       _wire_layout.WireLayout, _bundle_layout.BundleLayout)
+        ):
 
             for act in (self.rotate_x, self.rotate_y, self.rotate_z,
                         self.scale_x, self.scale_y, self.scale_z,
@@ -1172,6 +1173,73 @@ class PegBoardToolbar(QtWidgets.QToolBar):
     @staticmethod
     def _on_drag_mode(mode: str) -> None:
         _config.Config.editor_pegboard.drag.mode = mode
+
+    def Refresh(self, *_, **__):
+        """Repaint the toolbar."""
+        self.repaint()
+
+    def Destroy(self):
+        """Schedule the toolbar for deletion."""
+        self.deleteLater()
+
+
+# ---------------------------------------------------------------------------
+# Editor2DToolbar
+# ---------------------------------------------------------------------------
+
+class Editor2DToolbar(QtWidgets.QToolBar):
+    """
+    2D Schematic Editor interaction toolbar.
+
+    Structural mirror of :class:`PegBoardToolbar` -- a small, focused,
+    always-visible toolbar dedicated to one editor's own settings, rather
+    than folded into ``EditorToolbar`` (that one is specifically the
+    object-placement mode radio group) or ``GeneralToolbar`` (app-level
+    dialogs). Holds only the auto-layout toggle for now -- see
+    ``objects.objects2d.housing_layout.recompute_layout``.
+    """
+
+    def __init__(self, mainframe: "_mainframe.MainFrame"):
+        """Initialise the :class:`Editor2DToolbar` instance.
+
+        :param mainframe: Main application frame.
+        :type mainframe: :class:`_mainframe.MainFrame`
+        """
+        self.mainframe = mainframe
+
+        super().__init__('Schematic Editor', mainframe)
+        self.setObjectName('editor_2d_toolbar')
+        self.setMovable(True)
+        self.setFloatable(True)
+        self.setIconSize(QtCore.QSize(32, 32))
+
+        # No dedicated "layout" icon exists -- reuses the same
+        # mip_mapping + checkbox/uncheckbox overlay combination
+        # PegBoardToolbar's grid-snap button already established as this
+        # codebase's convention for that situation.
+        enabled = _config.Config.editor2d.layout.auto_layout_enabled
+
+        self._auto_layout = QtGui.QAction(
+            self._get_icon(enabled), 'Auto Layout', self)
+        self._auto_layout.setCheckable(True)
+        self._auto_layout.setChecked(enabled)
+        self._auto_layout.setToolTip(
+            'Automatically arrange housings into a rectangle with pin '
+            'edges facing inward')
+        self._auto_layout.triggered.connect(self._on_auto_layout)
+        self.addAction(self._auto_layout)
+
+        mainframe.addToolBar(QtCore.Qt.ToolBarArea.TopToolBarArea, self)
+
+    @staticmethod
+    def _get_icon(state: bool) -> QtGui.QIcon:
+        icons = _image.icons
+        overlay = icons.checkbox if state else icons.uncheckbox
+        return _make_icon(icons.mip_mapping + overlay)
+
+    def _on_auto_layout(self, checked: bool):
+        _config.Config.editor2d.layout.auto_layout_enabled = bool(checked)
+        self._auto_layout.setIcon(self._get_icon(checked))
 
     def Refresh(self, *_, **__):
         """Repaint the toolbar."""

@@ -40,6 +40,22 @@ class Editor2D(_dock_base.DockBase):
     def editor(self) -> "Editor2DPanel":
         return self._ui_obj
 
+    @property
+    def context(self):
+        """Return the GL context manager owned by the inner canvas.
+
+        Mirrors ``ui.editor_3d.editor3d.Editor3D.context``/
+        ``ui.editor_pegboard.editor_pegboard.EditorPegBoard.context`` --
+        needed by ``objects.objectsvar.base_var.BaseVar``'s
+        ``self.editor.context.acquire()``/``.release()`` calls (``Base2D.
+        editor`` resolves to ``mainframe.editor2d``), which otherwise have
+        nowhere to resolve to.
+
+        :returns: Property value.
+        :rtype: UNKNOWN
+        """
+        return self._ui_obj.context
+
     def set_selected(self, obj):
         """Set the selected.
 

@@ -107,7 +107,7 @@ class Cavity(_base3d.Base3D):
         if picker is None:
             return None
 
-        if self.wire_surf_idx >= 0 and self.wire_surf_idx < len(picker.surfaces):
+        if 0 <= self.wire_surf_idx < len(picker.surfaces):
             surf = picker.surfaces[self.wire_surf_idx]
             verts = picker.vertices
             rot = picker.rot_mat
@@ -121,7 +121,7 @@ class Cavity(_base3d.Base3D):
             return _point.Point(float(center[0]), float(center[1]), float(center[2]))
 
         cavity_markers = housing_3d._cavity_markers  # NOQA
-        if self.wire_marker_idx >= 0 and self.wire_marker_idx < len(cavity_markers):
+        if 0 <= self.wire_marker_idx < len(cavity_markers):
             marker = cavity_markers[self.wire_marker_idx]
             rot = picker.rot_mat
             scale = picker.scale_arr

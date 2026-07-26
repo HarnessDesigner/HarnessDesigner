@@ -304,10 +304,10 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
             project_group = _prop_ctrls.Property('Project')
             part_group = _prop_ctrls.Property('Part')
 
-            for child in t_group._children:
+            for child in t_group._children:  # NOQA
                 project_group.Append(child)
 
-            for child in t_part_prop._children:
+            for child in t_part_prop._children:  # NOQA
                 part_group.Append(child)
 
             attach_group.Append(project_group)
@@ -321,10 +321,10 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
             project_group = _prop_ctrls.Property('Project')
             part_group = _prop_ctrls.Property('Part')
 
-            for child in b_group._children:
+            for child in b_group._children:  # NOQA
                 project_group.Append(child)
 
-            for child in b_part_prop._children:
+            for child in b_part_prop._children:  # NOQA
                 part_group.Append(child)
 
             attach_group.Append(project_group)

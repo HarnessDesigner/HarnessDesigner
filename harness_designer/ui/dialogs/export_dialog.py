@@ -355,12 +355,12 @@ class ExportDialog(_dialog_base.BaseDialog):
             collection = getattr(project, collection_name, [])
             for obj in collection:
                 obj3d = obj.obj3d
-                if obj3d is None or obj3d._vbo is None:
+                if obj3d is None or obj3d.vbo is None:
                     continue
 
                 is_visible = obj3d.is_visible
                 is_smooth = getattr(obj3d, 'smooth', False)
-                vertex_count = obj3d._vbo.vertex_count
+                vertex_count = obj3d.vbo.vertex_count
                 triangle_count = vertex_count // 3
                 label = _obj_label(obj)
                 normals_type = 'smooth' if is_smooth else 'flat'
@@ -376,15 +376,15 @@ class ExportDialog(_dialog_base.BaseDialog):
                     continue
 
                 # Raw arrays (local/model space)
-                verts_local = obj3d._vbo.vertices.reshape(-1, 3)
-                raw_normals = (obj3d._vbo.smooth_normals if is_smooth
-                               else obj3d._vbo.face_normals)
+                verts_local = obj3d.vbo.vertices.reshape(-1, 3)
+                raw_normals = (obj3d.vbo.smooth_normals if is_smooth
+                               else obj3d.vbo.face_normals)
                 normals_local = raw_normals.reshape(-1, 3)
 
                 # World transform: (v * scale) @ rotation + position
-                scale = obj3d._scale.as_numpy          # (3,)
-                angle = obj3d._angle                   # Angle — supports @
-                pos = obj3d._position.as_numpy         # (3,)
+                scale = obj3d.scale.as_numpy          # (3,)
+                angle = obj3d.angle                   # Angle — supports @
+                pos = obj3d.position.as_numpy         # (3,)
 
                 verts_world = (verts_local * scale) @ angle + pos
 

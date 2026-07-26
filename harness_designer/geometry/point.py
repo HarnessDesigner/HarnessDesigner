@@ -432,7 +432,8 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         the root that owns the live database row.
         """
         if self._root is not None:
-            return self._root._db_id
+            return self._root.db_id
+
         return self._db_id
 
     @db_id.setter
@@ -879,8 +880,8 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
             if child is None:
                 continue
 
-            other.unbind(child._on_delegate_changed)
-            actual_root.bind(child._on_delegate_changed)
+            other.unbind(child._on_delegate_changed)  # NOQA
+            actual_root.bind(child._on_delegate_changed)  # NOQA
             child._root = actual_root
             actual_root._delegators.append(ref)
 

@@ -116,11 +116,17 @@ KEY_MULTIPLES = {
 
 # Fixed per-repeat-tick step sizes (no acceleration ramp -- there is no
 # Config.editor_pegboard.keyboard_settings section to drive one from).
-_PAN_KEY_STEP = 8.0     # screen pixels per tick, fed through Canvas.Pan()
-                        # (which applies config.pan.sensitivity itself)
-_ZOOM_KEY_STEP = 20.0   # distance units per tick, fed through Canvas.Zoom()
-                        # (which applies config.zoom.sensitivity itself)
-_KEY_REPEAT_INTERVAL = 0.05  # seconds between repeat ticks while held
+
+# screen pixels per tick, fed through Canvas.Pan()
+# (which applies config.pan.sensitivity itself)
+_PAN_KEY_STEP = 8.0
+
+# distance units per tick, fed through Canvas.Zoom()
+# (which applies config.zoom.sensitivity itself)
+_ZOOM_KEY_STEP = 20.0
+
+# seconds between repeat ticks while held
+_KEY_REPEAT_INTERVAL = 0.05
 
 
 def _process_key_event(keycode: int, *keys):

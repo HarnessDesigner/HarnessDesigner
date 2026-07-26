@@ -222,7 +222,7 @@ class RotationRings(_object_base.ObjectBase):
         best_axis = None
         best_depth = math.inf
 
-        for axis in self.obj3d._axes:
+        for axis in self.obj3d._axes:  # NOQA
             handle_world = self.obj3d.handle_position(axis)
             screen = camera.ProjectPoint(handle_world)
 
@@ -299,7 +299,9 @@ class Rings2D(_base2d.Base2D):
         angle = _angle.Angle()
         position = _point.Point(0, 0)
 
-        _base2d.Base2D.__init__(self, parent, None, position, angle)
+        # Purely a dummy 2D presence -- see move_arrows.py's Arrows2D
+        # for the same pattern/reasoning.
+        _base2d.Base2D.__init__(self, parent, None, None, angle, position, None, None)
 
     def set_selected(self, flag: bool):
         """Set the selected.

@@ -15,4 +15,4 @@ class ProjectModel(_base2d.Base2D):
     db_obj: "_project.Project" = None
 
     def __init__(self, parent: "_project_model.ProjectModel", db_obj: "_project.Project"):
-        _base2d.Base2D.__init__(self, parent, db_obj, None, None)
+        _base2d.Base2D.__init__(self, parent, db_obj, None, None, None, None, None)

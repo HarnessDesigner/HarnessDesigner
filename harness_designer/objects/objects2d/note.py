@@ -37,7 +37,7 @@ class Note(_base2d.Base2D):
         position = db_obj.position2d
         angle = db_obj.angle2d
 
-        _base2d.Base2D.__init__(self, parent, db_obj, position=position, angle=angle)
+        _base2d.Base2D.__init__(self, parent, db_obj, None, angle, position, None, None)
 
     def set_size(self, size):
         self.db_obj.size2d = size

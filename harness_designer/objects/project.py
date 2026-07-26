@@ -20,7 +20,7 @@ from . import terminal as _terminal
 from . import tpa_lock as _tpa_lock
 from . import transition as _transition
 from . import wire as _wire
-from .objects3d.wire import _HELIX_OVERSHOOT_MM
+from .objects3d.wire import _HELIX_OVERSHOOT_MM  # NOQA
 from . import wire_layout as _wire_layout
 from . import wire_marker as _wire_marker
 from . import wire_service_loop as _wire_service_loop

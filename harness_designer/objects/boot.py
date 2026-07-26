@@ -50,7 +50,3 @@ class Boot(_ObjectBase):
         super().delete()
         self.mainframe.project.delete_boot(self.db_obj.db_id)
         self.db_obj.delete()
-
-
-
-

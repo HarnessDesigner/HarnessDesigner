@@ -8,6 +8,7 @@ from PySide6.QtWidgets import QMenu
 from ... import config as _config
 from ...geometry import point as _point
 from .. import events as _events
+from .. import object_picker as _object_picker
 
 
 if TYPE_CHECKING:
@@ -189,20 +190,21 @@ class MouseHandler2D(QtCore.QObject):
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _get_object_at_point(self, world_pos: _point.Point):
-        """Return the object at point.
+    def _get_object_at_point(self, mouse_pos: _point.Point):
+        """Return the object under *mouse_pos* (screen-pixel coordinates).
 
-        UNKNOWN details are inferred from the callable name and signature.
+        Ray-vs-OBB/AABB picking via ``gl.object_picker.find_object``
+        (``attr='obj2d'``) against ``self.canvas.camera``'s ``.modelview``/
+        ``.projection``/``.viewport`` -- see ``gl.canvas2d.camera.Camera.
+        _update_views``. Replaces the previous per-object ``obj2d.hit_test()``
+        loop.
 
-        :param world_pos: Value for ``world_pos``.
-        :type world_pos: :class:`_point.Point`
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
+        :param mouse_pos: Screen-pixel mouse position (not world coordinates).
+        :type mouse_pos: :class:`_point.Point`
+        :returns: The picked object, or ``None``.
         """
-        for obj in reversed(self.canvas.objects):
-            if obj.obj2d.hit_test(world_pos):
-                return obj
-        return None
+        return _object_picker.find_object(
+            mouse_pos, self.canvas.objects, self.canvas.camera, attr='obj2d')
 
     def _process_mouse(self, code):
         """Execute the process mouse operation.
@@ -287,9 +289,7 @@ class MouseHandler2D(QtCore.QObject):
         # re-center on it -- it's already right where the user clicked.
         self.canvas.mainframe._selection_source_editor = 'editor2d'  # NOQA
 
-        world_pos = self.canvas.camera.screen_to_world(mouse_pos)
-
-        selected = self._get_object_at_point(world_pos)
+        selected = self._get_object_at_point(mouse_pos)
         cur_selected = self.canvas.get_selected()
 
         if selected is None:
@@ -333,8 +333,7 @@ class MouseHandler2D(QtCore.QObject):
         self._mouse_pos = mouse_pos
         refresh = False
 
-        world_pos = self.canvas.camera.screen_to_world(mouse_pos)
-        selected = self._get_object_at_point(world_pos)
+        selected = self._get_object_at_point(mouse_pos)
         cur_selected = self.canvas.get_selected()
 
         if not self._is_motion and self._drag_obj is not None:
@@ -369,8 +368,7 @@ class MouseHandler2D(QtCore.QObject):
 
         self.canvas.mainframe._selection_source_editor = 'editor2d'  # NOQA
 
-        world_pos = self.canvas.camera.screen_to_world(mouse_pos)
-        selected = self._get_object_at_point(world_pos)
+        selected = self._get_object_at_point(mouse_pos)
         cur_selected = self.canvas.get_selected()
 
         if selected is None:
@@ -421,9 +419,7 @@ class MouseHandler2D(QtCore.QObject):
         if not self._is_motion:
             self.canvas.mainframe._selection_source_editor = 'editor2d'  # NOQA
 
-            world_pos = self.canvas.camera.screen_to_world(mouse_pos)
-
-            selected = self._get_object_at_point(world_pos)
+            selected = self._get_object_at_point(mouse_pos)
             cur_selected = self.canvas.get_selected()
 
             if selected is not None:

@@ -101,7 +101,7 @@ class CavityGeneral(QtWidgets.QWidget):
             return
         self.cavity3d.name = new_name
         self._cavity_tab.name = new_name
-        panel = self._cavity_tab._panel
+        panel = self._cavity_tab._panel  # NOQA
         idx = panel.indexOf(self._cavity_tab)
         if idx >= 0:
             panel.setTabText(idx, new_name)
@@ -356,7 +356,7 @@ class CavityPanel(_editable_tab_ctrl.EditableTabCtrl):
                               new_name: str, cavity: CavityTab) -> None:
         cavity.name = new_name
         # Keep the name field in the General tab in sync.
-        cavity.general_ctrl._name_field.setText(new_name)
+        cavity.general_ctrl._name_field.setText(new_name)  # NOQA
 
     def on_cavity_moved(self, from_idx: int, to_idx: int) -> None:
         """Update the cavities list and DB indices after a tab drag."""
@@ -468,4 +468,4 @@ class CavityPanel(_editable_tab_ctrl.EditableTabCtrl):
         if item.name:
             cavity_tab.name = item.name
             self.setTabText(self.indexOf(cavity_tab), item.name)
-            cavity_tab.general_ctrl._name_field.setText(item.name)
+            cavity_tab.general_ctrl._name_field.setText(item.name)  # NOQA

@@ -755,7 +755,7 @@ class Canvas(QOpenGLWidget):
     # ------------------------------------------------------------------
 
     def edges_touching_node(self, *, anchor=None,
-                             waypoint_id: int = None) -> list:
+                            waypoint_id: int = None) -> list:
         """Return every live edge touching an anchor or waypoint node.
 
         Matches by node *identity* (``id(node)``), not dataclass ``==``
@@ -804,7 +804,7 @@ class Canvas(QOpenGLWidget):
 
     @staticmethod
     def _clamp_to_edge(cand_x: float, cand_z: float, neighbor_x: float,
-                        neighbor_z: float, max_length_mm: float) -> tuple:
+                       neighbor_z: float, max_length_mm: float) -> tuple:
         """Clamp ``(cand_x, cand_z)`` so its distance from
         ``(neighbor_x, neighbor_z)`` never exceeds *max_length_mm*.
 
@@ -827,7 +827,7 @@ class Canvas(QOpenGLWidget):
         return neighbor_x + dx * scale, neighbor_z + dz * scale
 
     def _apply_local_clamp(self, cand_x: float, cand_z: float,
-                            touching: list) -> tuple:
+                           touching: list) -> tuple:
         """Apply :meth:`_clamp_to_edge` for every ``(index, edge,
         neighbor)`` in *touching*, in sequence -- each edge clamped
         independently against the *previous* clamp's result, matching the
@@ -859,8 +859,9 @@ class Canvas(QOpenGLWidget):
         :rtype: tuple
         """
         if node.anchor is not None:
-            return ('anchor', node.anchor)
-        return ('waypoint', node.waypoint_id)
+            return 'anchor', node.anchor
+
+        return 'waypoint', node.waypoint_id
 
     @staticmethod
     def _same_entity(a: tuple, b: tuple) -> bool:
@@ -921,7 +922,7 @@ class Canvas(QOpenGLWidget):
         return self.edges_touching_node(waypoint_id=entity[1])
 
     def _propagate_pull(self, start_entity: tuple, cand_x: float,
-                         cand_z: float) -> list:
+                        cand_z: float) -> list:
         """"Pull" drag mode: move *start_entity* to ``(cand_x, cand_z)``
         unclamped, then recursively pull any neighbor whose touching edge
         has gone taut (distance > ``edge.max_length_mm``) toward it,
@@ -1012,8 +1013,8 @@ class Canvas(QOpenGLWidget):
                 self._drag_dirty_waypoint_ids.append(waypoint_id)
 
     def drag_update_anchor(self, anchor: "_basepeg.BasePeg",
-                            cand_x: float, cand_z: float,
-                            touching: list) -> None:
+                           cand_x: float, cand_z: float,
+                           touching: list) -> None:
         """Move *anchor* to ``(cand_x, cand_z)`` during a live drag.
 
         Behavior depends on ``self.config.drag.mode``: "clamp" (default)
@@ -1064,8 +1065,8 @@ class Canvas(QOpenGLWidget):
         self.update()
 
     def drag_update_waypoint(self, node: "_layout_graph.PegboardNode",
-                              cand_x: float, cand_z: float,
-                              touching: list) -> None:
+                             cand_x: float, cand_z: float,
+                             touching: list) -> None:
         """Move a waypoint *node* to ``(cand_x, cand_z)`` during a live
         drag -- in-memory only, no database write (see :meth:`commit_drag`
         for that).
@@ -1194,7 +1195,7 @@ class Canvas(QOpenGLWidget):
 
     @staticmethod
     def _perpendicular_distance_mm(px: float, pz: float, ax: float, az: float,
-                                    bx: float, bz: float) -> float:
+                                   bx: float, bz: float) -> float:
         """Return the perpendicular distance from ``(px, pz)`` to the
         infinite line through ``(ax, az)``-``(bx, bz)``.
 

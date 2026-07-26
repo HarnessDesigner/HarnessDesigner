@@ -32,4 +32,4 @@ class CPALock(_base2d.Base2D):
         :type db_obj: :class:`_pjt_cpa_lock.PJTCPALock`
         """
 
-        _base2d.Base2D.__init__(self, parent, db_obj, None, None)
+        _base2d.Base2D.__init__(self, parent, db_obj, None, None, None, None, None)

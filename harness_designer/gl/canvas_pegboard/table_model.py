@@ -85,7 +85,7 @@ class PegboardTableModel(QtCore.QAbstractTableModel):
         return 0 if parent.isValid() else len(self._columns)
 
     def headerData(self, section: int, orientation: QtCore.Qt.Orientation,
-                    role: int = QtCore.Qt.ItemDataRole.DisplayRole):
+                   role: int = QtCore.Qt.ItemDataRole.DisplayRole):
         if role != QtCore.Qt.ItemDataRole.DisplayRole:
             return None
 

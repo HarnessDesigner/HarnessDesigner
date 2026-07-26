@@ -26,4 +26,4 @@ def load_theme(theme_name):
 
     import harness_designer as hd
 
-    hd._app.setStyleSheet(theme)
+    hd._app.setStyleSheet(theme)  # NOQA

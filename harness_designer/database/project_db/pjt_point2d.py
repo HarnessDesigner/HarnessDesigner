@@ -191,7 +191,9 @@ class PJTPoint2D(PJTEntryBase):
         :rtype: :class:`_point.Point`
         """
         if self._stored_point2d is None:
-            self._stored_point2d = _point.Point(self.x, self.y, db_id=str(self.db_id) + '2d')
+            x, z = self._table.select('x', 'y', id=self._db_id)[0]
+
+            self._stored_point2d = _point.Point(x, 0.0, z, db_id=str(self.db_id) + '2d')
             self._stored_point2d.bind(self._update_point)
 
         return self._stored_point2d
@@ -204,7 +206,7 @@ class PJTPoint2D(PJTEntryBase):
         :param point: Point value.
         :type point: :class:`_point.Point`
         """
-        x, y = point.as_float[:-1]
+        x, _, y = point.as_float
         self._stored_x = x
         self._stored_y = y
         self._table.update(self._db_id, x=x, y=y)

@@ -2,31 +2,56 @@
 
 from typing import TYPE_CHECKING
 
+import math
+import uuid as _uuid_module
+
+import numpy as np
+import build123d
 from PySide6.QtWidgets import QMenu
 from OpenGL import GL
-import math
-import numpy as np
 
 from . import base2d as _base2d
 from ...ui.widgets import context_menus as _context_menus
-from ...geometry import angle as _angle
 from ...geometry import point as _point
-from ...geometry.decimal import Decimal as _d
+from ...geometry import angle as _angle
+from ... import config as _config
+from ... import color as _color
+from ...gl import materials as _materials
+from ...shapes import rectangle as _rectangle
+from ...shapes import text as _text
+from ... import utils as _utils
 
 
 if TYPE_CHECKING:
     from ...database.project_db import pjt_housing as _pjt_housing
     from .. import housing as _housing
-    from . import cavity as _cavity2d
+
+
+Config = _config.Config.editor2d
 
 
 class Housing(_base2d.Base2D):
     """
     2D representation of a housing for schematic view
 
-    Renders as a rectangle with cavity positions using OpenGL.
-    When moved, all child cavities move with it (hierarchical movement).
-    Supports rotation using the Angle class.
+    Renders as a colored rectangle (unit primitive from ``shapes.rectangle``,
+    scaled) plus its own corner label (name/part number/manufacturer), via
+    the schematic2d shader/VBO pipeline (see ``objects2d/base2d.py``'s
+    ``Base2D``) -- matches how ``Base3D`` subclasses render, no immediate-
+    mode fallback. Sizing is fixed (``Config.editor2d.housing.width`` for
+    the text-axis extent, ``num_cavities * Config.editor2d.cavity.height``
+    for the cavity-axis extent), not measured from any label text.
+
+    Every cavity's name, and (for cavities with a seated terminal) the "("
+    bracket and the terminal's name, are rendered independently by their
+    own ``objects2d/cavity.py``'s ``Cavity``/``objects2d/terminal.py``'s
+    ``Terminal`` -- each a real, individually selectable ``Base2D``
+    object with its own OBB/AABB. This class only computes *where* those
+    live (see :meth:`_layout_children`) and persists it to their own
+    ``position2d``/``angle2d``, whenever the sorted cavity order or seated-
+    terminal set changes -- Cavity/Terminal pick the new values up
+    automatically through the same bound-Point callback every other
+    ``BaseVar`` position/angle update already uses.
     """
     _parent: "_housing.Housing" = None
     db_obj: "_pjt_housing.PJTHousing"
@@ -35,8 +60,6 @@ class Housing(_base2d.Base2D):
                  db_obj: "_pjt_housing.PJTHousing"):
         """Initialise the :class:`Housing` instance.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
         :param parent: Parent object.
         :type parent: :class:`_housing.Housing`
         :param db_obj: Database-backed object.
@@ -44,196 +67,345 @@ class Housing(_base2d.Base2D):
         """
 
         self._part = db_obj.part
+
+        # Nothing built yet -- _recompute()'s first call, below, needs
+        # these to already exist.
+        self._db_callbacks = []
+        self._corner_label_vbo = None
+
         position = db_obj.position2d
         angle = db_obj.angle2d
 
-        _base2d.Base2D.__init__(self, parent, db_obj, position, angle)
+        # TODO: Lock a hsouing to only be able to be rotated in 90° increments.
+        #       this also means the same thing would apply to terminals and also
+        #       to cavities.
 
-        # Get dimensions from part if available
-        self._width = float(self._part.width)
-        self._height = float(self._part.height)
+        material = _materials.Generic(_color.Color(*Config.colors.housing))
 
-        # Track child cavities for hierarchical movement
-        self._cavities = []
+        # Every GL call below (the rectangle's own VBO, the corner-label
+        # text VBO _recompute() builds, and Base2D.__init__'s own
+        # vbo.acquire()) needs a current context -- acquired once here and
+        # held for all of it.
+        parent.mainframe.editor2d.editor.context.acquire()
+        vbo = _rectangle.create_vbo()
 
-    @property
-    def cavities(self) -> "_cavity2d.Cavity":
-        cavities = [cavity.obj2d for cavity in self._parent.cavities]
-        return cavities
+        # self._position/._angle don't exist until Base2D.__init__ (below)
+        # runs, so _recompute takes this housing's own position/angle
+        # explicitly rather than reading self -- see _layout_children.
+        cavity_extent, text_extent = self._recompute(db_obj, position, angle)
 
-    def add_cavity(self, cavity):
+        scale = _point.Point(text_extent, 1.0, cavity_extent)
+
+        super().__init__(parent, db_obj, vbo, angle, position, scale, material)
+
+        parent.mainframe.editor2d.editor.context.release()
+
+    def _recompute(self, db_obj, position: _point.Point, angle: _angle.Angle
+                   ) -> "tuple[float, float]":
+        """(Re)compute this housing's fixed cavity-axis extent, rebuild
+        the corner label, push every cavity's/seated terminal's own
+        world position2d/angle2d (see :meth:`_layout_children`), and
+        (re)bind the DB callbacks that trigger the next recompute (a
+        cavity's name changes -- reordering its slot -- or a cavity
+        gains/loses its terminal). Shared by ``__init__`` (the first
+        build) and :meth:`_rebuild` (every one after). Requires a
+        current GL context.
+
+        :param position: This housing's own ``position2d`` -- taken as a
+            parameter rather than read from ``self._position`` since
+            ``__init__`` calls this before ``Base2D.__init__`` has set
+            that attribute yet.
+        :param angle: This housing's own ``angle2d``, same reason.
+        :returns: ``(cavity_extent, text_extent)`` -- ``text_extent`` is
+            now fixed (``Config.editor2d.housing.width``), returned only
+            so ``__init__``/:meth:`_rebuild`'s scale-setting code stays
+            uniform.
         """
-        Add a cavity to this housing
+        self._release_corner_label()
+        self._unbind_callbacks()
 
-        Args:
-            cavity: Cavity object to add
-        """
-        if cavity not in self._cavities:
-            self._cavities.append(cavity)
-            if hasattr(cavity, 'obj2d'):
-                cavity.obj2d._housing = self
+        # Sorted by the cavity's own *name* -- the user-facing identifier
+        # (can be numeric, alphabetic, or mixed; that's exactly why the
+        # name field exists rather than relying on the catalog cavity's
+        # idx, which is purely internal bookkeeping and never shown).
+        cavities = sorted(
+            (c for c in db_obj.cavities if c is not None),
+            key=lambda c: c.name)
 
-    def remove_cavity(self, cavity):
-        """
-        Remove a cavity from this housing
+        cavity_extent = self._compute_cavity_extent(len(cavities))
+        text_extent = Config.housing.width
 
-        Args:
-            cavity: Cavity object to remove
+        # Cached for _update_position/_update_angle below, so moving/
+        # rotating this housing (drag, or housing_layout.py's own
+        # auto-placement) can re-run _layout_children without re-sorting
+        # from scratch on every mutation.
+        self._sorted_cavities = cavities
+        self._cavity_extent = cavity_extent
+        self._text_extent = text_extent
+
+        self._layout_children(cavities, cavity_extent, text_extent, position, angle)
+        self._build_corner_label(db_obj, cavity_extent, text_extent)
+
+        self._bind_callbacks(cavities)
+
+        return cavity_extent, text_extent
+
+    def _update_position(self, position: _point.Point):
+        """Re-run :meth:`_layout_children` after the inherited OBB/AABB
+        update -- a housing's cavities/terminals are positioned in
+        absolute world space (not relative to the housing at render
+        time), so moving the housing (drag, or
+        ``objects2d/housing_layout.py``'s own auto-placement) must push
+        fresh positions to them, not just recompute this housing's own
+        bounds.
         """
+        super()._update_position(position)
+        self._layout_children(
+            self._sorted_cavities, self._cavity_extent, self._text_extent,
+            position, self._angle)
+
+    def _update_angle(self, angle: _angle.Angle):
+        """See :meth:`_update_position` -- same reason, for rotation."""
+        super()._update_angle(angle)
+        self._layout_children(
+            self._sorted_cavities, self._cavity_extent, self._text_extent,
+            self._position, angle)
+
+    def _rebuild(self, _entry=None):
+        """Re-run :meth:`_recompute` and update this housing's live scale
+        from the result -- bound (see :meth:`_bind_callbacks`) to fire
+        whenever a cavity's name changes (reordering slots) or a cavity
+        gains/loses its terminal, so the schematic never needs a manual
+        refresh to pick those up.
+        """
+        self.editor2d.editor.context.acquire()
         try:
-            self._cavities.remove(cavity)
-            if hasattr(cavity, 'obj2d'):
-                cavity.obj2d._housing = None
-        except ValueError:
-            pass
+            cavity_extent, text_extent = self._recompute(
+                self.db_obj, self._position, self._angle)
 
-    def render_gl(self):
-        """Render housing using OpenGL with rotation support"""
+            with self._scale:
+                self._scale.x = text_extent
+                self._scale.z = cavity_extent
+        finally:
+            self.editor2d.editor.context.release()
 
-        if self._is_deleted:
+        self.editor2d.Refresh()
+
+    def _bind_callbacks(self, cavities):
+        """Bind every DB callback that should trigger :meth:`_rebuild`:
+        each cavity's own name (its sort order, and so its slot, can
+        change) and each cavity's ``'terminal_id'`` (a synthetic tag --
+        see ``PJTTerminalsTable.insert``/``PJTTerminal.delete``/the
+        ``cavity_id`` setter in ``database/project_db/pjt_terminal.py``
+        -- fired when a terminal is seated/unseated/moved between
+        cavities, since there's no real ``terminal_id`` column on
+        ``pjt_cavities`` to bind to directly). A seated terminal's own
+        name no longer matters here -- it doesn't affect this housing's
+        fixed-size layout, and ``objects2d/terminal.py``'s ``Terminal``
+        handles its own name-change rebuild independently.
+        """
+        for cavity in cavities:
+            self._db_callbacks.append(cavity.bind(self._rebuild, 'name'))
+            self._db_callbacks.append(cavity.bind(self._rebuild, 'terminal_id'))
+
+    def _unbind_callbacks(self):
+        for cb in self._db_callbacks:
+            cb.unbind()
+
+        self._db_callbacks = []
+
+    def _release_corner_label(self):
+        if self._corner_label_vbo is not None:
+            self._corner_label_vbo.release()
+
+        self._corner_label_vbo = None
+
+    def _delete(self):
+        self._unbind_callbacks()
+        super()._delete()
+
+    @staticmethod
+    def _compute_cavity_extent(n: int) -> float:
+        """Cavity-axis (local Z) extent for *n* cavities -- fixed slot
+        size, stacked edge-to-edge with no gap (see
+        ``Config.editor2d.cavity``); never individually drawn.
+        """
+        cavity_cfg = Config.cavity
+
+        if n <= 0:
+            return cavity_cfg.height
+
+        return n * cavity_cfg.height
+
+    def _layout_children(self, cavities, cavity_extent, text_extent,
+                         position: _point.Point, angle: _angle.Angle):
+        """Compute and persist each cavity's/seated terminal's own world
+        ``position2d``/``angle2d`` from the current sorted slot order --
+        ``objects2d/cavity.py``'s ``Cavity``/``objects2d/terminal.py``'s
+        ``Terminal`` pick the new values up automatically (each already
+        has its own position/angle bound to trigger its inherited
+        ``BaseVar._update_position``/``_update_angle``, which recomputes
+        its own OBB/AABB) -- no direct call into either needed here.
+
+        Layout (local X = text/width axis, local Z = cavity/height axis;
+        canonical/unrotated pose = this housing on the right edge of the
+        schematic, pin edge at local X = -text_extent/2; cavity slots
+        stack top-to-bottom in ascending sort order, i=0 at the top --
+        the standard pinout-diagram reading convention):
+
+        - Cavity name anchor: a small amount outside the housing
+          rectangle (past the pin edge), a fixed gap above the
+          bracket's own vertical center rather than flush with the
+          slot's own top edge (RIGHT/BOTTOM-aligned text, so this point
+          is exactly its own bottom-right corner).
+        - Terminal name anchor: only when a terminal is seated, *inside*
+          the housing rectangle (near the pin edge), bottom edge flush
+          with the slot's bottom boundary (LEFT/BOTTOM-aligned text, so
+          this point is exactly its own bottom-left corner --
+          ``objects2d/terminal.py``'s ``Terminal`` renders the "("
+          bracket as an extra at a fixed local offset from this same
+          point, RIGHT/BOTTOM-aligned to sit just outside the pin edge).
+        """
+        label_cfg = Config.label
+        cavity_height = Config.cavity.height
+
+        half_cavity_extent = cavity_extent / 2.0
+        half_text_extent = text_extent / 2.0
+        pin_local_x = -half_text_extent          # pin edge -- interior-facing side
+        cavity_local_x = pin_local_x - label_cfg.cavity_outside_offset
+        terminal_local_x = pin_local_x + label_cfg.padding
+
+        for i, cavity in enumerate(cavities):
+            # i=0 (the first, ascending-sorted cavity) gets the TOP-most
+            # slot, so cavities read top-to-bottom in ascending order --
+            # the standard pinout-diagram convention. i * cavity_height
+            # descends from there (each subsequent cavity moves down).
+            slot_top = half_cavity_extent - i * cavity_height
+            slot_bottom = slot_top - cavity_height
+
+            # BOTTOM/RIGHT-aligned (see objects2d/cavity.py's Cavity),
+            # anchored a fixed gap above the bracket's own vertical
+            # center -- not the slot's own top edge, which would read as
+            # part of the row above it.
+            cavity_name_z = slot_bottom + label_cfg.bracket_font_size / 2.0 + label_cfg.cavity_name_gap
+            self._place_child(cavity, cavity_local_x, cavity_name_z, position, angle)
+
+            terminal = cavity.terminal
+            if terminal is not None and terminal.name:
+                self._place_child(terminal, terminal_local_x, slot_bottom, position, angle)
+
+    @staticmethod
+    def _place_child(child_db_obj, local_x: float, local_z: float,
+                     housing_position: _point.Point, housing_angle: _angle.Angle):
+        """Write *child_db_obj*'s own ``position2d``/``angle2d`` from a
+        housing-local ``(local_x, local_z)`` offset -- same rotate-then-
+        translate math as ``objects2d/housing_layout.py``'s own
+        ``_apply_placement``, and the same bound-Point write path.
+        """
+        points = np.array([[local_x, 0.0, local_z]], dtype=np.float32)
+        wx, _wy, wz = _base2d._rotate_about_y(points, housing_angle.y)[0]  # NOQA
+
+        position = child_db_obj.position2d
+        with position:
+            position.x = housing_position.x + float(wx)
+            position.z = housing_position.z + float(wz)
+
+        child_db_obj.angle2d.y = housing_angle.y
+
+    def _build_corner_label(self, db_obj, cavity_extent, text_extent):
+        """(Re)build the corner label (name/part number/manufacturer),
+        this housing's own -- not a cavity's/terminal's -- extra.
+        """
+        label_cfg = Config.label
+
+        _ALIGN_BOTTOM_RIGHT = [build123d.TextAlign.RIGHT, build123d.TextAlign.BOTTOM]
+
+        corner_text = f'{db_obj.name}\n{self._part.part_number}\n{self._part.manufacturer.name}'
+        self._corner_label_vbo, _corner_width, _corner_height = _text.create_vbo(
+            str(_uuid_module.uuid4()), corner_text, label_cfg.corner_font_size,
+            text_align=_ALIGN_BOTTOM_RIGHT)
+
+        half_text_extent = text_extent / 2.0
+        half_cavity_extent = cavity_extent / 2.0
+
+        corner_local_x = half_text_extent - label_cfg.padding
+        corner_local_z = -half_cavity_extent + label_cfg.padding
+
+        # RIGHT/BOTTOM-aligned (see _ALIGN_BOTTOM_RIGHT above), so this
+        # point IS the label's own bottom-right corner -- no width/height
+        # offset math needed to keep it from overflowing.
+        self._corner_label_local = (corner_local_x, corner_local_z)
+
+    def render_extras(self, program, pos_loc, rot_loc, scale_loc, normal_loc):
+        """Render this housing's own corner label (name/part number/
+        manufacturer) under the already-bound schematic2d *program* --
+        called by ``gl.canvas2d.canvas.Canvas._render_vbo_objects`` right
+        after this housing's own rectangle. Cavity names and terminal
+        brackets/names are rendered independently by
+        ``objects2d/cavity.py``'s ``Cavity``/``objects2d/terminal.py``'s
+        ``Terminal`` -- their own position2d/angle2d are kept in sync by
+        :meth:`_layout_children` above.
+        """
+        if self._position is None or self._corner_label_vbo is None:
             return
 
-        if self._position is None:
-            return
+        GL.glUniform4f(rot_loc, *[float(str(v)) for v in self._angle.as_quat_numpy.tolist()])
+        GL.glUniform1i(normal_loc, 0)
+        GL.glUniform3f(scale_loc, 1.0, 1.0, 1.0)
 
-        x = self._position.x
-        y = self._position.y
+        label_material = _materials.Generic(_color.Color(*Config.colors.label))
+        label_material.set(program)
 
-        # Get rotation angle (Z-axis for 2D)
-        rotation_rad = self._angle.z  # Z component in radians
+        local_x, local_z = self._corner_label_local
+        wx, wy, wz = self._world_offset(local_x, local_z)
+        GL.glUniform3f(pos_loc, self._position.x + wx, wy, self._position.z + wz)
+        self._corner_label_vbo.render()
 
-        # Save current transformation matrix
-        GL.glPushMatrix()
-
-        # Apply transformations: translate, then rotate
-        GL.glTranslatef(x, y, 0.0)
-        GL.glRotatef(math.degrees(rotation_rad), 0.0, 0.0, 1.0)
-
-        # Draw housing body (filled) - centered at origin after translation
-        GL.glColor4f(0.3, 0.3, 0.3, 0.4)  # Semi-transparent dark gray
-        GL.glBegin(GL.GL_QUADS)
-        h_width = self._width / 2
-        h_height = self._height / 2
-
-        GL.glVertex2f(-h_width, -h_height)
-        GL.glVertex2f(h_width, -h_height)
-        GL.glVertex2f(h_width, h_height)
-        GL.glVertex2f(-h_width, h_height)
-        GL.glEnd()
-
-        # Draw housing outline
-        GL.glColor4f(0.4, 0.4, 0.4, 1.0)  # Dark gray
-        GL.glLineWidth(2.5)
-        GL.glBegin(GL.GL_LINE_LOOP)
-
-        GL.glVertex2f(-h_width, -h_height)
-        GL.glVertex2f(h_width, -h_height)
-        GL.glVertex2f(h_width, h_height)
-        GL.glVertex2f(-h_width, h_height)
-        GL.glEnd()
-
-        # Restore transformation matrix
-        GL.glPopMatrix()
-
-    def render_selection(self):
-        """Render selection highlight with rotation"""
-        if self._position is None:
-            return
-
-        x = self._position.x
-        y = self._position.y
-        rotation_rad = self._angle.z
-
-        # Save current transformation matrix
-        GL.glPushMatrix()
-
-        # Apply transformations
-        GL.glTranslatef(x, y, 0.0)
-        GL.glRotatef(math.degrees(rotation_rad), 0.0, 0.0, 1.0)
-
-        # Draw selection outline
-        GL.glColor4f(1.0, 1.0, 0.0, 1.0)  # Yellow
-        GL.glLineWidth(3.5)
-
-        offset = 3.0
-        GL.glBegin(GL.GL_LINE_LOOP)
-        h_width = self._width / 2
-        h_height = self._height / 2
-
-        GL.glVertex2f(-h_width - offset, -h_height - offset)
-        GL.glVertex2f(h_width + offset, -h_height - offset)
-        GL.glVertex2f(h_width + offset, h_height + offset)
-        GL.glVertex2f(-h_width - offset, h_height + offset)
-        GL.glEnd()
-
-        # Restore transformation matrix
-        GL.glPopMatrix()
+    def _world_offset(self, local_x: float, local_z: float) -> "tuple[float, float, float]":
+        """Rotate a ``(local_x, 0, local_z)`` offset by this housing's
+        current ``angle2d.y`` (about world Y -- the axis a Y=0-flat 2D
+        primitive must spin about to stay flat; the source that writes
+        it, ``objects2d/housing_layout.py``, is what controls this, not
+        this method) -- see ``objects2d/base2d.py``'s ``_rotate_about_y``.
+        """
+        points = np.array([[local_x, 0.0, local_z]], dtype=np.float32)
+        x, y, z = _base2d._rotate_about_y(points, self._angle.y)[0]  # NOQA
+        return float(x), float(y), float(z)
 
     def hit_test(self, world_pos: _point.Point) -> bool:
         """
-        Test if point is inside housing (accounting for rotation)
-
-        Uses inverse rotation to transform the point into housing's local space
+        Test if point is inside the housing rectangle (accounting for
+        rotation), using the text-axis/cavity-axis extents computed in
+        :meth:`_recompute`.
         """
         if self._position is None:
             return False
 
-        # Translate point to housing's local space
-        local_pos = world_pos - self._position
+        local_x = world_pos.x - self._position.x
+        local_z = world_pos.z - self._position.z
 
-        # Rotate point by negative angle (inverse rotation)
-        rotation_rad = -self._angle.z
-        cos_a = _d(math.cos(rotation_rad))
-        sin_a = _d(math.sin(rotation_rad))
+        rotation_rad = -math.radians(self._angle.y)
+        cos_a = math.cos(rotation_rad)
+        sin_a = math.sin(rotation_rad)
 
-        rotated_x = local_pos.x * cos_a - local_pos.y * sin_a
-        rotated_y = local_pos.x * sin_a + local_pos.y * cos_a
+        rotated_x = local_x * cos_a - local_z * sin_a
+        rotated_z = local_x * sin_a + local_z * cos_a
 
-        # Check if within bounds
-        return (abs(rotated_x) <= self._width / 2 and
-                abs(rotated_y) <= self._height / 2)
-
-    def get_bounds(self):
-        """Get bounding box"""
-        if self._position is None:
-            return None
-
-        x = self._position.x
-        y = self._position.y
-
-        h_width = self._width / 2
-        h_height = self._height / 2
-
-        return (x - h_width, y - h_height,
-                x + h_width, y + h_height)
+        return (abs(rotated_x) <= self._text_extent / 2 and
+                abs(rotated_z) <= self._cavity_extent / 2)
 
     def move_to(self, world_x: float, world_y: float):
         """
-        Move housing to new position
-
-        This implements hierarchical movement - all child cavities move with the housing.
-        Uses context manager to defer callbacks until all updates are complete.
+        Move housing to new position. Cavity/terminal positions cascade
+        automatically via :meth:`_update_position`'s
+        :meth:`_layout_children` call -- no separate push needed here.
         """
         if self._position is None:
             return
 
-        # Calculate offset from current position
-        dx = world_x - self._position.x
-        dy = world_y - self._position.y
-
-        # Move the housing (use context manager to defer callbacks)
         with self._position:
             self._position.x = world_x
-            self._position.y = world_y
-
-        # Move all child cavities by the same offset
-        for cavity in self._cavities:
-            if hasattr(cavity, 'obj2d') and hasattr(cavity.obj2d, '_position'):
-                cavity_pos = cavity.obj2d._position
-                if cavity_pos is not None:
-                    with cavity_pos:
-                        cavity_pos.x += dx
-                        cavity_pos.y += dy
+            self._position.z = world_y
 
 
 class HousingMenu(QMenu):

@@ -155,7 +155,11 @@ class Arrows2D(_base2d.Base2D):
         angle = _angle.Angle()
         position = _point.Point(0, 0)
 
-        _base2d.Base2D.__init__(self, parent, None, position, angle)
+        # Purely a dummy 2D presence -- MoveArrows is a 3D-editor-only
+        # gizmo, this has no VBO/rendering role of its own (see
+        # objects2d/base2d.py's Base2D.__init__: vbo=None keeps it on
+        # the inert legacy-contract branch, same as boot.py/cover.py/etc).
+        _base2d.Base2D.__init__(self, parent, None, None, angle, position, None, None)
 
     def set_selected(self, flag: bool):
         """Set the selected.

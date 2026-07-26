@@ -35,8 +35,8 @@ class Editor3D(_dock_base.DockBase):
 
         super().__init__(mainframe, '3D Editor', 'editor_3d',
                          QtCore.Qt.DockWidgetArea.RightDockWidgetArea,
-                         features=QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetMovable |
-                                  QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetFloatable)
+                         features=(QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetMovable |
+                                   QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetFloatable))
 
     @property
     def context(self):

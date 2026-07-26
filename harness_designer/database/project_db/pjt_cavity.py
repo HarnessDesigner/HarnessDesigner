@@ -29,7 +29,6 @@ from .mixins import (
 if TYPE_CHECKING:
     from . import pjt_seal as _pjt_seal
     from . import pjt_terminal as _pjt_terminal
-    from . import pjt_point3d as _pjt_point3d
     from ..global_db import cavity as _cavity
     from ...objects import cavity as _cavity_obj
 
@@ -800,10 +799,10 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
             quat = angle.as_quat_numpy
 
             with old_angle:
-                old_angle._q.w = quat[0]
-                old_angle._q.x = quat[1]
-                old_angle._q.y = quat[2]
-                old_angle._q.z = quat[3]
+                old_angle._q.w = quat[0]  # NOQA
+                old_angle._q.x = quat[1]  # NOQA
+                old_angle._q.y = quat[2]  # NOQA
+                old_angle._q.z = quat[3]  # NOQA
 
                 old_angle.x = angle.x
                 old_angle.y = angle.y

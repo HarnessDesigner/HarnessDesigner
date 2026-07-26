@@ -275,7 +275,7 @@ class BasePeg:
 
         current_quat = tuple(float(v) for v in self._angle.as_quat_float)
         if not all(abs(a - b) < _IDENTITY_TOLERANCE
-                  for a, b in zip(current_quat, _IDENTITY_QUAT)):
+                   for a, b in zip(current_quat, _IDENTITY_QUAT)):
             return
 
         ex, ey, ez = euler

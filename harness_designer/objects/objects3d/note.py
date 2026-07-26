@@ -2,6 +2,7 @@
 
 from typing import TYPE_CHECKING
 
+import uuid as _uuid_module
 import weakref
 from PySide6.QtWidgets import QMenu
 from PySide6.QtCore import QTimer
@@ -13,20 +14,13 @@ from ...ui.widgets import context_menus as _context_menus
 from . import base3d as _base3d
 from . import menu_ops as _menu_ops
 from ...gl import materials as _materials
-from ...gl import vbo as _vbo
 from ... import utils as _utils
+from ...shapes import text as _text
 
 
 if TYPE_CHECKING:
     from ...database.project_db import pjt_note as _pjt_note
     from .. import note as _note
-
-
-_ALIGN_MAPPING = {
-    build123d.TextAlign.LEFT.value: build123d.TextAlign.LEFT,
-    build123d.TextAlign.CENTER.value: build123d.TextAlign.CENTER,
-    build123d.TextAlign.RIGHT.value: build123d.TextAlign.RIGHT,
-}
 
 
 class Note(_base3d.Base3D):
@@ -54,36 +48,54 @@ class Note(_base3d.Base3D):
         scale = _point.Point(1.0, 1.0, 1.0)
         material = _materials.Plastic(color)
 
+        # This note's own id into shapes.text's VBO registry -- generated
+        # and owned here (not by shapes/text.py, which has no single "unit"
+        # text shape to cache), exactly like a catalog part's Model3D.uuid
+        # keys its own PooledVBOHandler (see Base3D._set_model).
+        self._text_uuid = str(_uuid_module.uuid4())
+
         parent.mainframe.editor3d.context.acquire()
-        packed, count = self._build()
-        vbo = _vbo.NonPooledVBOHandler(packed, count)
+        vbo, _width, _height = self._build()
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
         parent.mainframe.editor3d.context.release()
 
-    def _build(self):
-        """Execute the build operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
+    def _mesh_args(self) -> dict:
+        """Current ``shapes.text.create``/``create_vbo`` args, from this
+        note's live db_obj fields. ``depth=0.25`` extrudes the text
+        upright (real 3D thickness) -- unlike the 2D schematic editor's
+        flat labels, a note needs to be visible from any angle in the 3D
+        scene.
         """
-        model = build123d.Text(
-            self.db_obj.notes, font_size=self.db_obj.size3d,
+        return dict(
+            text=self.db_obj.notes,
+            font_size=self.db_obj.size3d,
+            depth=0.25,
             font_style=build123d.FontStyle(self.db_obj.style3d),
-            text_align=[build123d.TextAlign(self.db_obj.h_align3d), build123d.TextAlign.CENTER])
+            text_align=[build123d.TextAlign(self.db_obj.h_align3d), build123d.TextAlign.CENTER],
+        )
 
-        model = build123d.extrude(model, 0.25)
-        vertices, faces = _utils.convert_model_to_mesh(model)
+    def _build(self):
+        """Build this note's VBO (construction time only -- see
+        :meth:`_rebuild` for in-place content updates).
+
+        :returns: ``(vbo, width, height)``.
+        """
+        return _text.create_vbo(self._text_uuid, **self._mesh_args())
+
+    def _rebuild(self):
+        """Rebuild this note's mesh in place from its current db_obj
+        fields and upload it to the existing VBO -- called by every
+        ``set_*`` method below.
+        """
+        vertices, faces, _width, _height = _text.create(**self._mesh_args())
         packed, count = _utils.compute_normals(vertices, faces)
-
-        return packed, count
+        self._vbo.update(packed, count)
 
     def set_size(self, size):
         self.db_obj.size3d = size
 
         self.editor3d.context.acquire()
-        self._vbo.update(*self._build())
+        self._rebuild()
         self.editor3d.context.release()
         self.editor3d.Refresh()
 
@@ -91,7 +103,7 @@ class Note(_base3d.Base3D):
         self.db_obj.style3d = style
 
         self.editor3d.context.acquire()
-        self._vbo.update(*self._build())
+        self._rebuild()
         self.editor3d.context.release()
         self.editor3d.Refresh()
 
@@ -99,7 +111,7 @@ class Note(_base3d.Base3D):
         self.db_obj.h_align3d = alignment
 
         self.editor3d.context.acquire()
-        self._vbo.update(*self._build())
+        self._rebuild()
         self.editor3d.context.release()
         self.editor3d.Refresh()
 
@@ -108,7 +120,7 @@ class Note(_base3d.Base3D):
         self.db_obj.notes = text
 
         self.editor3d.context.acquire()
-        self._vbo.update(*self._build())
+        self._rebuild()
         self.editor3d.context.release()
         self.editor3d.Refresh()
 

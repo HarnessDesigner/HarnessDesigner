@@ -6,7 +6,7 @@ from PySide6 import QtCore
 
 from . import canvas as _canvas
 from . import dragging as _dragging
-from . import object_picker as _object_picker
+from .. import object_picker as _object_picker
 from . import rotation_rings as _rotation_rings
 from ...geometry import point as _point
 from ... import config as _config

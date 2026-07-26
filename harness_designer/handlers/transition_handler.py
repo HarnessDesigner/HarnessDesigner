@@ -11,7 +11,7 @@ from . import handler_base as _handler_base
 from . import wire_handler as _wire_handler
 from ..geometry import point as _point
 from ..geometry import angle as _angle
-from ..gl.canvas3d import object_picker as _object_picker
+from ..gl import object_picker as _object_picker
 from ..objects import transition as _transition
 from ..objects import bundle as _bundle
 from ..objects import wire as _wire
@@ -78,7 +78,7 @@ def _delete_point_if_orphaned(ptables, point_id: int) -> None:
 
 
 def _insert_wire(ptables, part_id, name, circuit_id, start_id, stop_id, visible: bool,
-                  stripe_clip_start: float = 0.0):
+                 stripe_clip_start: float = 0.0):
     return ptables.pjt_wires_table.insert(
         part_id, name, circuit_id, start_id, stop_id,
         None, None, visible, False, None, None, False,
@@ -251,14 +251,14 @@ def _set_angle_from_bundle(transition_db_obj, bundle) -> None:
     obj_angle = transition_db_obj.angle3d
     old_euler = obj_angle.as_euler_float
     new_euler = _handler_base._euler_from_matrix_continuous(rot_mat, old_euler)
-    obj_angle._q.w, obj_angle._q.x = float(qw), float(qx)
-    obj_angle._q.y, obj_angle._q.z = float(qy), float(qz)
-    cache = obj_angle._Angle__euler_angles
+    obj_angle._q.w, obj_angle._q.x = float(qw), float(qx)  # NOQA
+    obj_angle._q.y, obj_angle._q.z = float(qy), float(qz)  # NOQA
+    cache = obj_angle._Angle__euler_angles  # NOQA
     if cache is not None:
         cache[0], cache[1], cache[2] = new_euler[0], new_euler[1], new_euler[2]
 
-    obj_angle._matrix[:] = obj_angle._q.as_matrix
-    obj_angle._process_callbacks()
+    obj_angle._matrix[:] = obj_angle._q.as_matrix  # NOQA
+    obj_angle._process_callbacks()  # NOQA
 
 
 def _create_branch_concentric(ptables, branch_db, conc_wires, diameter) -> None:
@@ -525,7 +525,7 @@ class RouteThroughTransitionHandler(_handler_base.HandlerBase):
             return float(od) if od else 1.0
 
         if isinstance(obj, _bundle.Bundle):
-            d = obj.obj3d._diameter
+            d = obj.obj3d.diameter
             return float(d) if d else 1.0
 
         return 1.0
@@ -536,7 +536,7 @@ class RouteThroughTransitionHandler(_handler_base.HandlerBase):
 
     def _highlight_branches(self):
         for t_obj in self.mainframe.project.transitions:
-            for branch in t_obj.obj3d._branches:
+            for branch in t_obj.obj3d.branches:
                 mat = _BRANCH_FIT if self._fits(self.diameter, branch) else _BRANCH_NO_FIT
                 branch.identify(mat)
                 self._highlighted.append(branch)
@@ -705,7 +705,7 @@ class RoutedWireHandler(_handler_base.HandlerBase):
 
     def _highlight_exit_branches(self, diameter: float, exclude_branch):
         for t_obj in self.mainframe.project.transitions:
-            for branch in t_obj.obj3d._branches:
+            for branch in t_obj.obj3d.branches:
                 if branch is exclude_branch:
                     continue
 
