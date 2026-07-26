@@ -119,7 +119,7 @@ class Terminal(_base3d.Base3D):
 
                     if is_round:
                         filename += ' round'
-                        
+
                     filename += '.stp'
 
                     filepath = os.path.join(_GENERIC_MODEL_PATH, filename)

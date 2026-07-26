@@ -82,6 +82,9 @@ be intentional/non-issue.
   `EntryBase`/`TableBase.__getitem__`, applied selectively per entity based
   on what the audit says is actually hot — not applied uniformly.
 
+- Add TE Terminals to the database. Also find out why the solid deutsch 
+    terminals are missing from the JSON file.  
+
 ## Resolved (kept briefly for context, safe to delete)
 
 - Terminal never actually got added to the project after part-search
