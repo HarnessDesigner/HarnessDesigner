@@ -286,11 +286,11 @@ class _MoveSession:
     attached: list = None
     markers: list = None
     candidates: list = None
-    candidate_obb_tris: "np.ndarray | None" = None
-    candidate_tri_owner: "np.ndarray | None" = None
-    candidate_obb_edge_origins: "np.ndarray | None" = None
-    candidate_obb_edge_dirs: "np.ndarray | None" = None
-    candidate_obb_edge_owner: "np.ndarray | None" = None
+    candidate_obb_tris: np.ndarray | None = None
+    candidate_tri_owner: np.ndarray | None = None
+    candidate_obb_edge_origins: np.ndarray | None = None
+    candidate_obb_edge_dirs: np.ndarray | None = None
+    candidate_obb_edge_owner: np.ndarray | None = None
 
 
 class WireServiceLoop(_base3d.Base3D):
@@ -428,6 +428,7 @@ class WireServiceLoop(_base3d.Base3D):
 
             if not np.allclose(delta, 0.0, atol=1e-9):
                 self._position.unbind(self._update_position)
+
                 try:
                     self._position += _point.Point(*[float(v) for v in delta])
                 finally:
@@ -458,13 +459,14 @@ class WireServiceLoop(_base3d.Base3D):
             self._angle.y = euler[1]
             self._angle.z = euler[2]
             self._angle._matrix[:] = target_angle.as_matrix_numpy  # NOQA
+
         self._angle._q.w = target_angle._q.w  # NOQA
         self._angle._q.x = target_angle._q.x  # NOQA
         self._angle._q.y = target_angle._q.y  # NOQA
         self._angle._q.z = target_angle._q.z  # NOQA
         self._angle._process_callbacks()  # NOQA
 
-    def _roll_axis(self) -> "np.ndarray | None":
+    def _roll_axis(self) -> np.ndarray | None:
         """Direction from the loop's own current start to stop point -- the
         axis _resolve_collision twists candidate orientations around.
 
@@ -478,9 +480,10 @@ class WireServiceLoop(_base3d.Base3D):
         length = np.linalg.norm(direction)
         if length < 1e-6:
             return None
+
         return direction / length
 
-    def _attached_wires(self) -> "list[_wire.Wire]":
+    def _attached_wires(self) -> list["_wire.Wire"]:
         """Wires directly touching this loop's own start/stop points --
         found by the object itself (via the shared Point db_id, see
         handlers.wire_service_loop_handler._split_wire_for_loop) rather
@@ -516,6 +519,7 @@ class WireServiceLoop(_base3d.Base3D):
         current_pos = self._position.as_numpy
         if not np.allclose(position_np, current_pos, atol=1e-9):
             self._position.unbind(self._update_position)
+
             try:
                 self._position += _point.Point(*[float(v) for v in (position_np - current_pos)])
             finally:
@@ -524,6 +528,7 @@ class WireServiceLoop(_base3d.Base3D):
         current_q = np.array(self._angle.as_quat_float, dtype=np.float64)
         if not np.allclose(q_arr, current_q, atol=1e-9):
             self._angle.unbind(self._update_angle)
+
             try:
                 self._write_angle(_angle.Angle.from_quat(q_arr.tolist()))
             finally:
@@ -674,20 +679,21 @@ class WireServiceLoop(_base3d.Base3D):
         scale_np = self._scale.as_numpy
         t0 = float(np.dot(self._position.as_numpy - p1_np, axis))
 
-        def _roll_search(t: float) -> "np.ndarray | None":
-            pos_np = p1_np + t * axis
-            for step in range(16):
-                theta = step * (2.0 * math.pi / 16.0)
+        def _roll_search(t_: float) -> np.ndarray | None:
+            pos_np = p1_np + t_ * axis
+            for step_ in range(16):
+                theta = step_ * (2.0 * math.pi / 16.0)
                 hw = math.cos(theta / 2.0)
                 hs = math.sin(theta / 2.0)
                 q_twist = np.array(
                     [hw, axis[0] * hs, axis[1] * hs, axis[2] * hs], dtype=np.float64)
-                q_cand = _quat_mul(q_base, q_twist)
-                cand_angle = _angle.Angle.from_quat(q_cand.tolist())
+
+                q_cand_ = _quat_mul(q_base, q_twist)
+                cand_angle = _angle.Angle.from_quat(q_cand_.tolist())
 
                 cand_obb = _candidate_obb(self._vbo, pos_np, cand_angle, scale_np)
                 if _is_clear(self._vbo, pos_np, cand_angle, scale_np, cand_obb, session):
-                    return q_cand
+                    return q_cand_
 
             return None
 

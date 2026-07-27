@@ -32,7 +32,16 @@ Static scan of harness_designer for two classes of type-hint problems:
    `return None`, and not a generator) are additionally called out as
    `-> None` candidates -- the annotation to add is unambiguous.
 
-Usage: python scan_type_hints.py [root_dir]
+Before doing anything else, this script requires a clean git working tree
+(`git status --porcelain` empty) in the repo containing root_dir, and exits
+with an error otherwise. This is a read-only scan today, but the same gate
+is meant to stay in place if/when the script grows the ability to apply
+fixes -- a clean starting tree guarantees any edits it makes land as their
+own isolated, easily-revertable commit rather than getting tangled up with
+unrelated in-progress work.
+
+Usage: python scan_type_hints.py
+Always scans the harness_designer package (hardwired -- no arguments taken).
 Writes three CSV reports next to this script:
     quoting_violations.csv
     missing_type_hints.csv       (has a likely_none_return/none_reason column)
@@ -42,12 +51,72 @@ and prints a summary to stdout.
 import ast
 import csv
 import os
+import subprocess
 import sys
 
-ROOT = sys.argv[1] if len(sys.argv) > 1 else "harness_designer"
-OUT_DIR = os.path.dirname(os.path.abspath(__file__))
-ROOT_PARENT = os.path.dirname(os.path.abspath(ROOT))
-PACKAGE_NAME = os.path.basename(os.path.abspath(ROOT))
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT_PARENT = os.path.dirname(SCRIPT_DIR)  # repo root (this script lives in <repo>/scratches/)
+ROOT = os.path.join(ROOT_PARENT, "harness_designer")
+OUT_DIR = SCRIPT_DIR
+PACKAGE_NAME = "harness_designer"
+
+
+# Only the harness_designer package must be clean -- the repo also carries
+# a lot of persistent untracked scratch/output content elsewhere (bosch/,
+# te/, yazaki/, etc.) that has nothing to do with this scan and shouldn't
+# block it. This is the only directory the scan reads or (eventually)
+# would write fixes into, so it's the only one that needs to be clean.
+GIT_CHECK_PATH = "harness_designer"
+
+
+def require_clean_git_tree():
+    """Refuse to run at all unless every .py file under GIT_CHECK_PATH is
+    fully clean in git -- no staged/unstaged modifications and no untracked
+    .py files. Non-Python files (data, generated artifacts, etc.) are
+    ignored, since this scan only ever reads/reports on .py source. This
+    forces a commit before every run, so anything the script does (today:
+    writing reports; later: potentially applying fixes) starts from a
+    known-good restore point and any edits it makes can land as their own
+    commit."""
+    try:
+        result = subprocess.run(
+            ["git", "status", "--porcelain", "--", GIT_CHECK_PATH],
+            cwd=ROOT_PARENT,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except FileNotFoundError:
+        print("ERROR: git executable not found -- can't verify a clean working "
+              "tree. Refusing to run.")
+        sys.exit(1)
+    except subprocess.CalledProcessError as e:
+        print(f"ERROR: `git status` failed (not a git repo at {ROOT_PARENT}?): "
+              f"{e.stderr.strip() if e.stderr else e}")
+        sys.exit(1)
+
+    def status_line_path(line):
+        # porcelain v1: "XY path" or "XY old -> new" for renames; a quoted
+        # path means git escaped special/non-ASCII characters in it.
+        path = line[3:]
+        if " -> " in path:
+            path = path.split(" -> ", 1)[1]
+        if path.startswith('"') and path.endswith('"'):
+            path = path[1:-1]
+        return path
+
+    all_lines = [line for line in result.stdout.splitlines() if line.strip()]
+    dirty = [line for line in all_lines if status_line_path(line).endswith(".py")]
+    if dirty:
+        print(f"ERROR: {GIT_CHECK_PATH}/ not clean under {ROOT_PARENT} -- commit "
+              f"or stash everything in it first, then re-run.\n"
+              f"{len(dirty)} uncommitted change(s):")
+        for line in dirty:
+            print(f"  {line}")
+        sys.exit(1)
+
+    print(f"Git status clean for {GIT_CHECK_PATH}/ -- proceeding.")
+
 
 BUILTIN_TYPE_NAMES = {
     "int", "float", "str", "bool", "bytes", "bytearray", "complex",
@@ -358,6 +427,17 @@ def iter_annotation_nodes(tree):
             yield node.annotation, None
 
 
+def classify_name(name, use_lineno, info, graph, path, dotted):
+    """Single source of truth for 'does this name need to stay quoted',
+    shared by detection (scan_quoting) and fix application. Returns
+    (severity, reason): "HIGH" = safe/should be unquoted, None = must
+    stay deferred (quoted), "LOW" = unresolved, can't tell either way."""
+    severity, reason = info.classify_local(name, use_lineno)
+    if severity == "UNRESOLVED":
+        severity, reason = graph.classify(name, path, dotted)
+    return severity, reason
+
+
 def scan_quoting(path, tree, info, graph, dotted, rows):
     for annotation_node, _fn in iter_annotation_nodes(tree):
         for const in collect_quoted_constants(annotation_node):
@@ -371,9 +451,7 @@ def scan_quoting(path, tree, info, graph, dotted, rows):
             best_severity = None
             reasons = []
             for n in names:
-                severity, reason = info.classify_local(n, annotation_node.lineno)
-                if severity == "UNRESOLVED":
-                    severity, reason = graph.classify(n, path, dotted)
+                severity, reason = classify_name(n, annotation_node.lineno, info, graph, path, dotted)
                 if severity:
                     reasons.append(f"{n}: {reason}")
                     if severity == "HIGH":
@@ -382,6 +460,136 @@ def scan_quoting(path, tree, info, graph, dotted, rows):
                         best_severity = severity
             if best_severity:
                 rows.append([path, const.lineno, content, best_severity, "; ".join(reasons)])
+
+
+def maximal_ref_nodes(sub_tree):
+    """Within a parsed annotation-content expression, yield each Name or
+    Attribute node that is a *whole* reference on its own -- i.e. not the
+    base of a longer dotted chain (that chain's own outermost Attribute is
+    the maximal node instead). `_wire_marker.WireMarker` yields one node
+    (the Attribute), not two."""
+    parent_of = {}
+    for node in ast.walk(sub_tree):
+        for child in ast.iter_child_nodes(node):
+            parent_of[id(child)] = node
+
+    for node in ast.walk(sub_tree):
+        if not isinstance(node, (ast.Name, ast.Attribute)):
+            continue
+        parent = parent_of.get(id(node))
+        if isinstance(parent, ast.Attribute) and parent.value is node:
+            continue  # embedded in a longer chain; the outer Attribute is the maximal node
+        yield node
+
+
+def root_name_of(ref_node):
+    n = ref_node
+    while isinstance(n, ast.Attribute):
+        n = n.value
+    return n.id if isinstance(n, ast.Name) else None
+
+
+def plan_constant_fix(const, use_lineno, info, graph, path, dotted):
+    """Decide what to do with one flagged quoted Constant node. Returns a
+    dict: {"action": "fix", "replacement": str}
+        | {"action": "skip", "reason": str}
+        | {"action": "noop"}   (nothing needed -- shouldn't normally occur
+                                 for a flagged node, but safe to no-op)."""
+    content = const.value
+    if const.lineno != const.end_lineno:
+        return {"action": "skip", "reason": "multi-line quoted annotation; needs manual review"}
+
+    try:
+        sub_tree = ast.parse(content, mode="eval")
+    except SyntaxError:
+        return {"action": "skip", "reason": "quoted content is not a parsable expression"}
+
+    parent_of = {}
+    for node in ast.walk(sub_tree):
+        for child in ast.iter_child_nodes(node):
+            parent_of[id(child)] = node
+
+    refs = list(maximal_ref_nodes(sub_tree))
+    if not refs:
+        return {"action": "noop"}
+
+    safe_refs = []
+    defer_refs = []
+    for ref in refs:
+        name = root_name_of(ref)
+        if name is None:
+            continue
+        severity, _reason = classify_name(name, use_lineno, info, graph, path, dotted)
+        if severity == "HIGH":
+            safe_refs.append(ref)
+        elif severity is None:
+            defer_refs.append(ref)
+        else:  # LOW / unresolved
+            return {"action": "skip", "reason": f"'{name}' not resolved; needs manual review"}
+
+    if not safe_refs:
+        return {"action": "noop"}  # nothing here was actually a violation
+
+    # A name that must stay a string can't sit directly on either side of a
+    # bare `X | Y` union operator -- `int | "Foo"` raises TypeError at
+    # runtime (unlike `Union[int, "Foo"]` or `list["Foo"]`, both of which
+    # accept a plain string operand fine). If that's the shape here, fixing
+    # it means restructuring to `Union[...]`, which is a bigger, judgment-
+    # requiring rewrite -- flag for manual review instead of guessing.
+    for ref in defer_refs:
+        parent = parent_of.get(id(ref))
+        if isinstance(parent, ast.BinOp) and isinstance(parent.op, ast.BitOr):
+            return {"action": "skip",
+                    "reason": ("mixes a builtin/safe type with a name that must stay quoted "
+                               "inside a bare `X | Y` union -- needs a manual rewrite to "
+                               "`typing.Union[...]` (or equivalent), not a mechanical unquote")}
+
+    if not defer_refs:
+        return {"action": "fix", "replacement": content}
+
+    new_content = content
+    for ref in sorted(defer_refs, key=lambda r: r.col_offset, reverse=True):
+        start, end = ref.col_offset, ref.end_col_offset
+        new_content = new_content[:start] + '"' + new_content[start:end] + '"' + new_content[end:]
+    return {"action": "fix", "replacement": new_content}
+
+
+def apply_quoting_fixes(path, tree, src, info, graph, dotted, fixed_count, skipped):
+    """Rewrite `src` (the file's current text) in place, splicing in the
+    planned fix for every flagged Constant node, and return the new text
+    (unchanged if nothing to do). Mutates fixed_count[0] and appends to
+    `skipped` for anything that needed a human instead."""
+    edits = []  # (lineno, col_offset, end_lineno, end_col_offset, replacement)
+    for annotation_node, _fn in iter_annotation_nodes(tree):
+        for const in collect_quoted_constants(annotation_node):
+            plan = plan_constant_fix(const, annotation_node.lineno, info, graph, path, dotted)
+            action = plan["action"]
+            if action == "noop":
+                continue
+            if action == "skip":
+                skipped.append((path, const.lineno, const.value, plan["reason"]))
+                continue
+            edits.append((const.lineno, const.col_offset, const.end_lineno, const.end_col_offset,
+                           plan["replacement"]))
+
+    if not edits:
+        return src
+
+    lines = src.splitlines(keepends=True)
+    # Apply bottom-to-top, right-to-left so earlier edits' offsets stay valid.
+    for lineno, col_offset, end_lineno, end_col_offset, replacement in sorted(
+            edits, key=lambda e: (e[0], e[1]), reverse=True):
+        assert lineno == end_lineno, "multi-line spans are filtered out in plan_constant_fix"
+        line = lines[lineno - 1]
+        newline = ""
+        if line.endswith("\r\n"):
+            line, newline = line[:-2], "\r\n"
+        elif line.endswith("\n"):
+            line, newline = line[:-1], "\n"
+        lines[lineno - 1] = line[:col_offset] + replacement + line[end_col_offset:] + newline
+        fixed_count[0] += 1
+
+    return "".join(lines)
 
 
 NON_LOCAL_SCOPE_TYPES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)
@@ -495,6 +703,8 @@ def collect_py_files(root):
 
 
 def main():
+    require_clean_git_tree()
+
     py_files = collect_py_files(ROOT)
 
     module_map = {}
@@ -509,6 +719,7 @@ def main():
     graph = RepoGraph(module_map)
 
     parsed = {}
+    sources = {}
     module_infos = {}
     error_count = 0
     for path in py_files:
@@ -522,6 +733,7 @@ def main():
             continue
         attach_parents(tree)
         parsed[path] = tree
+        sources[path] = src
         info = ModuleInfo(tree)
         module_infos[path] = info
         graph.add_file_imports(path, file_dotted[path], file_is_init[path], info.normal_import_nodes)
@@ -569,6 +781,27 @@ def main():
     print(f"  missing params: {params}   missing returns: {rets}")
     print(f"Implicit `-> None` candidates (subset of missing returns): "
           f"{len(none_return_rows)} -> {none_return_path}")
+
+    if "--apply" in sys.argv:
+        print("\nApplying quoting fixes...")
+        fixed_count = [0]
+        skipped = []
+        files_changed = 0
+        for path, tree in parsed.items():
+            new_src = apply_quoting_fixes(
+                path, tree, sources[path], module_infos[path], graph, file_dotted[path],
+                fixed_count, skipped,
+            )
+            if new_src != sources[path]:
+                with open(path, "w", encoding="utf-8", newline="") as f:
+                    f.write(new_src)
+                files_changed += 1
+
+        print(f"Fixed {fixed_count[0]} quoted annotation(s) across {files_changed} file(s).")
+        if skipped:
+            print(f"Skipped {len(skipped)} (needs manual review):")
+            for path, lineno, content, reason in skipped:
+                print(f"  {path}:{lineno}: {content!r} -- {reason}")
 
 
 if __name__ == "__main__":
